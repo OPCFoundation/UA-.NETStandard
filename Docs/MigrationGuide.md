@@ -54,6 +54,7 @@
     - [GDS Client API modernization](#gds-client-api-modernization)
       - [`Task` → `ValueTask` on GDS client interfaces](#task--valuetask-on-gds-client-interfaces)
       - [Removal of obsolete GDS APIs](#removal-of-obsolete-gds-apis)
+    - [ManagedSession and Automatic Reconnection](#managedsession-and-automatic-reconnection)
   - [Migrating from 1.05.377 to 1.05.378](#migrating-from-105377-to-105378)
     - [Asynchronous as default](#asynchronous-as-default)
     - [Observability](#observability)
@@ -808,6 +809,306 @@ var caps = ServerCapability.GDS;
 ```
 
 If you currently rely on a `[Obsolete]` member, switch to the `Async` equivalent and apply the `ValueTask` migration notes above. If a particular API has no direct replacement, the migration is described inline in the XML doc comment of the replacement member.
+
+### ManagedSession and Automatic Reconnection
+
+Version 1.6 introduces `ManagedSession`, a wrapper around `Session` that automatically handles connection lifecycle including reconnection and server redundancy failover.
+
+#### Key Changes
+
+- **`ManagedSessionFactory`** is a **new** factory that creates `ManagedSession` instances which handle reconnection and failover automatically. Use this when you want managed-session behavior.
+- **`DefaultSessionFactory`** is **unchanged** — it continues to create raw `Session` instances. Existing code that constructs `DefaultSessionFactory` directly keeps the same behavior in 1.6.
+- **`SessionReconnectHandler`** is **retained** as a supported legacy entry point for callers that already manage raw `Session` instances. It is **not** marked obsolete in 1.6, but it now requires the wrapped `ISession` to be a `Session` (or a derived type) — passing a `ManagedSession` (or any other `ISession` facade) throws `NotSupportedException`, since those facades drive their own reconnect / failover state machine. New code should still prefer `ManagedSessionFactory` / `ManagedSession.CreateAsync`.
+
+For a deeper architectural picture of how `Session`, `ManagedSession`, `SessionReconnectHandler`, and the subscription engines fit together, see [Sessions, Reconnection, and Subscription Engines](Sessions.md).
+
+#### Migration Steps
+
+**If you use `DefaultSessionFactory`:**
+No code changes are required — `DefaultSessionFactory` still returns raw `Session`. To opt into automatic reconnection and redundancy failover, switch to `ManagedSessionFactory`:
+
+```csharp
+// Still supported in 1.6 — DefaultSessionFactory creates raw Session:
+var defaultFactory = new DefaultSessionFactory(telemetry);
+ISession rawSession = await defaultFactory.CreateAsync(...);
+
+// Opt in to managed reconnect/failover — ManagedSessionFactory creates ManagedSession:
+var managedFactory = new ManagedSessionFactory(telemetry);
+ISession managedSession = await managedFactory.CreateAsync(...);
+```
+
+Both factories implement `ISessionFactory`. `ManagedSessionFactory` internally uses a `DefaultSessionFactory` to create the raw `Session` and then wraps it in a `ManagedSession`; the public surface is unchanged.
+
+**If you use `SessionReconnectHandler`:**
+
+`SessionReconnectHandler` continues to work in 1.6 against `Session` instances. The pattern below is unchanged — only the obsolete diagnostic has been removed:
+
+```csharp
+ISession session = await new DefaultSessionFactory(telemetry).CreateAsync(...);
+using var reconnectHandler = new SessionReconnectHandler(telemetry);
+session.KeepAlive += (s, e) =>
+{
+    if (e.Status != null && ServiceResult.IsNotGood(e.Status))
+    {
+        reconnectHandler.BeginReconnect(session, 1000, OnReconnectComplete);
+    }
+};
+```
+
+`SessionReconnectHandler.BeginReconnect` only supports the legacy `Session` class (or types derived from it). Passing a `ManagedSession` throws `NotSupportedException`. If you have already migrated to `ManagedSession`, **do not** wrap it with a `SessionReconnectHandler` — `ManagedSession` already runs its own reconnect state machine. Use the `StateChanged` event to observe transitions:
+
+```csharp
+ISession session = await ManagedSession.CreateAsync(
+    configuration, endpoint,
+    reconnectPolicy: new ReconnectPolicy
+    {
+        Strategy = BackoffStrategy.Exponential,
+        InitialDelay = TimeSpan.FromSeconds(1),
+        MaxDelay = TimeSpan.FromSeconds(30)
+    });
+// Reconnection is automatic — no manual handler needed
+((ManagedSession)session).StateMachine.StateChanged += (s, e) =>
+{
+    Console.WriteLine($"Session state: {e.NewState}");
+};
+```
+
+Or, equivalently, via the factory:
+
+```csharp
+var factory = new ManagedSessionFactory(telemetry);
+ISession session = await factory.CreateAsync(...);
+```
+
+#### Configuring Reconnection Policy
+
+```csharp
+var policy = new ReconnectPolicy
+{
+    Strategy = BackoffStrategy.Exponential,  // or Linear, Constant
+    InitialDelay = TimeSpan.FromSeconds(1),
+    MaxDelay = TimeSpan.FromSeconds(30),
+    MaxRetries = 0,         // 0 = unlimited
+    JitterFactor = 0.1      // ±10% jitter
+};
+```
+
+#### Server Redundancy
+
+`ManagedSession` automatically reads server redundancy information and can failover to backup servers:
+
+```csharp
+var session = await ManagedSession.CreateAsync(
+    configuration, endpoint,
+    redundancyHandler: new DefaultServerRedundancyHandler());
+```
+
+#### Service Call Behavior During Reconnect
+
+When the session is reconnecting, service calls (Read, Write, Browse, etc.) automatically wait until the session is reconnected. This is transparent to the caller — no special handling needed. If reconnection fails permanently, calls will throw `ServiceResultException`.
+
+#### Fluent Builder, V2 Subscriptions, and Dependency Injection
+
+Version 1.6 introduces a fluent builder for `ManagedSession`, exposes the new options-based subscription API on the managed session, and adds Microsoft.Extensions.DependencyInjection integration for Azure / ASP.NET Core / generic-host scenarios.
+
+**Fluent builder:**
+
+```csharp
+ManagedSession session = await new ManagedSessionBuilder(configuration, telemetry)
+    .UseEndpoint(endpoint)
+    .WithSessionName("MyClient")
+    .WithSessionTimeout(TimeSpan.FromSeconds(60))
+    .WithReconnectPolicy(p => p with
+    {
+        Strategy = BackoffStrategy.Exponential,
+        InitialDelay = TimeSpan.FromSeconds(1),
+        MaxDelay = TimeSpan.FromSeconds(30)
+    })
+    .WithServerRedundancy()
+    .ConnectAsync(ct);
+```
+
+`Build()` returns an immutable `ManagedSessionOptions` snapshot; `ConnectAsync()` wraps `Build()` and `ManagedSession.CreateAsync(...)` so most callers can use the builder directly.
+
+**New subscription API on `ManagedSession`:**
+
+`ManagedSession` now exposes an `ISubscriptionManager` (the V2 options-based API) alongside the classic `Subscriptions` property. The V2 engine is the default for `ManagedSession`. Use `UseSubscriptionEngine(ClassicSubscriptionEngineFactory.Instance)` on the builder if you need the legacy classic engine instead — accessing `SubscriptionManager` then throws `InvalidOperationException`.
+
+```csharp
+using Opc.Ua.Client;
+using Opc.Ua.Client.Subscriptions;
+
+var handler = new MyNotificationHandler();   // : ISubscriptionNotificationHandler
+
+ISubscription subscription = session.AddSubscription(handler,
+    new SubscriptionOptions
+    {
+        PublishingInterval = TimeSpan.FromMilliseconds(500),
+        KeepAliveCount = 10,
+        LifetimeCount = 100
+    });
+
+subscription.TryAddMonitoredItem(
+    "ServerStatus_CurrentTime",
+    VariableIds.Server_ServerStatus_CurrentTime,
+    o => o with
+    {
+        SamplingInterval = TimeSpan.FromMilliseconds(250),
+        QueueSize = 10
+    },
+    out IMonitoredItem _);
+```
+
+The `SubscriptionOptions` and `MonitoredItemOptions` records used by this API live in `Opc.Ua.Client.Subscriptions` and `Opc.Ua.Client.Subscriptions.MonitoredItems`. They are distinct from the classic types of the same names in the `Opc.Ua.Client` namespace; use namespace aliases (or fully-qualified names) when both are visible in the same file.
+
+The classic `ManagedSession.Subscriptions` collection (V1 `Subscription` objects) remains supported. Mixing classic subscriptions with the V2 manager on the same session is allowed; classic subscriptions still receive notifications via the internal `SubscriptionBridge` when the V2 engine is active.
+
+**Dependency Injection:**
+
+`AddOpcUaClient` registers a `ManagedSession` factory delegate that lazily connects on first use:
+
+```csharp
+using Microsoft.Extensions.DependencyInjection;
+using Opc.Ua.Client;
+
+services.AddOpcUaClient(opt =>
+{
+    opt.Configuration = applicationConfiguration;
+    opt.Session = new ManagedSessionOptions
+    {
+        Endpoint = endpoint,
+        ReconnectPolicy = new ReconnectPolicyOptions
+        {
+            Strategy = BackoffStrategy.Exponential
+        }
+    };
+});
+
+// Resolve and connect on first use:
+var sessionFactory = serviceProvider
+    .GetRequiredService<Func<CancellationToken, Task<ManagedSession>>>();
+ManagedSession session = await sessionFactory(ct);
+```
+
+The factory caches the connected session — subsequent awaits return the same instance. The DI registration also exposes `ITelemetryContext`, `ISessionFactory` (a `DefaultSessionFactory` configured with the V2 engine), `ManagedSessionFactory`, and the top-level `OpcUaClientOptions`.
+
+This iteration uses single-instance options (no named/keyed registrations); the underlying V2 manager consumes options via `IOptionsMonitor<T>` unfiltered. For one-off use, the `AddSubscription`/`TryAddMonitoredItem` extensions adapt plain options snapshots into the required `IOptionsMonitor<T>` automatically. Named-options DI is deferred to a future iteration.
+
+### `INodeCache` consolidation
+
+Version 1.6 collapses the two parallel node-cache contracts into a single
+public interface and removes the remaining synchronous wrappers from the
+cache surface.
+
+#### Key changes
+
+- **`ILruNodeCache` is removed.** `LruNodeCache` now implements only
+  `INodeCache`. All members previously on `ILruNodeCache` (the
+  NodeId-keyed `Get*` family and `LoadTypeHierarchyAsync`) are now
+  members of `INodeCache`.
+- **All async methods on `INodeCache` return `ValueTask` /
+  `ValueTask<T>`** (was `Task<T>` for `FindAsync`, `FetchNodeAsync`,
+  `FetchNodesAsync`, `FetchSuperTypesAsync`, `FindReferencesAsync`).
+  Callers that simply `await` these methods need no change. Callers
+  that store the result in a `Task` variable, return the bare task, or
+  re-await the same task must wrap with `.AsTask()` once.
+- **`void INodeCache.LoadUaDefinedTypes(ISystemContext)` is removed.**
+  The LRU implementation populates lazily and the prior method body
+  was a no-op. Drop the call from your code; the cache is ready to
+  use.
+- **`bool ILruNodeCache.IsTypeOf(NodeId, NodeId)` is removed.** Use
+  `IAsyncTypeTable.IsTypeOfAsync(NodeId, NodeId, CancellationToken)`
+  instead — `INodeCache` inherits from `IAsyncTypeTable` so the
+  method is reachable on the same instance.
+- **`NodeCacheObsolete` synchronous extensions are removed.** The
+  blocking wrappers `Find`, `FetchNode`, `FetchNodes`, `FetchSuperTypes`,
+  `FindReferences`, `GetDisplayText`, `IsKnown`, `FindSuperType`, and
+  `Exists` no longer compile. Switch to the matching async methods
+  (`FindAsync`, `FetchNodeAsync`, …).
+- **`LruNodeCacheExtensions` is renamed to `NodeCacheExtensions`** and
+  retargets `this INodeCache cache`. The ExpandedNodeId convenience
+  overloads (`GetNodeAsync`, `GetNodesAsync`, `GetValueAsync`,
+  `GetValuesAsync`, `GetReferencesAsync`) keep the same shape. The
+  `IsTypeOf(this ILruNodeCache, ExpandedNodeId, NodeId)` extension is
+  removed.
+- **`void Clear()` is unchanged.** It is a pure local-state mutation
+  with no I/O and remains synchronous on the interface.
+
+#### Subsequent slim-down of `INodeCache` (post-merge)
+
+After the initial merge, `INodeCache` was further trimmed to remove
+duplications and demote pure helpers to extension methods. Removed
+**from the interface** (still callable on a `INodeCache` reference via
+`NodeCacheExtensions`):
+
+| Removed from interface | Replacement |
+|---|---|
+| `GetSuperTypeAsync(NodeId, ct)` | inherited `IAsyncTypeTable.FindSuperTypeAsync(NodeId, ct)` (identical semantics — the interface methods returned the same `NodeId.Null`-on-miss value) |
+| `FindReferencesAsync(ExpandedNodeId, NodeId, bool, bool, ct)` | inherited `IAsyncNodeTable.FindAsync(source, refType, isInverse, includeSubtypes, ct)` (identical signature). A thin extension method preserves the old name for callers that prefer it. |
+| `FindReferencesAsync(ArrayOf<ExpandedNodeId>, ArrayOf<NodeId>, …)` | extension method on `NodeCacheExtensions` (same signature). |
+| `FindAsync(ArrayOf<ExpandedNodeId>, ct)` | extension method on `NodeCacheExtensions` that loops over the inherited `FindAsync(ExpandedNodeId)`. |
+| `FetchSuperTypesAsync(ExpandedNodeId, ct)` | extension method that loops `FindSuperTypeAsync`. |
+| `GetNodeWithBrowsePathAsync(NodeId, ArrayOf<QualifiedName>, ct)` | extension method on `NodeCacheExtensions`. |
+| `GetBuiltInTypeAsync(NodeId, ct)` | extension method on `NodeCacheExtensions`. |
+| `GetDisplayTextAsync(INode | ExpandedNodeId | ReferenceDescription, ct)` | three extension methods on `NodeCacheExtensions`. |
+
+External implementations of `INodeCache` no longer need to implement
+these members. Call sites that already used `using Opc.Ua;` keep
+compiling unchanged because the extensions live in the same namespace.
+
+#### Two complementary lookup families
+
+The merged `INodeCache` deliberately keeps two name conventions side by
+side. The XML doc on `INodeCache` spells this out as well:
+
+| Family | Identity | Result | Behavior |
+|---|---|---|---|
+| `Find*` / `Fetch*` | `ExpandedNodeId` | nullable | `Find*` consults the cache, then the server; `Fetch*` always re-reads from the server. |
+| `Get*` | `NodeId` | non-nullable / throws | LRU-style direct hit; cheaper for in-process callers that already have a local `NodeId`. |
+
+#### Migration recipes
+
+```csharp
+// Before — Task-returning + sync helpers
+INodeCache cache = session.NodeCache;
+cache.LoadUaDefinedTypes(session.SystemContext); // removed
+ArrayOf<INode?> nodes = await cache.FindAsync(nodeIds);
+Task<Node?> tn = cache.FetchNodeAsync(nodeId);   // returned Task<T>
+bool isType = cache.IsTypeOf(sub, super);        // sync, was on ILruNodeCache
+```
+
+```csharp
+// After — single INodeCache surface, all async, no sync IsTypeOf
+INodeCache cache = session.NodeCache;
+ArrayOf<INode?> nodes = await cache.FindAsync(nodeIds);
+ValueTask<Node?> tn = cache.FetchNodeAsync(nodeId);
+bool isType = await cache.IsTypeOfAsync(sub, super);
+```
+
+#### Implementer / mock impact
+
+External implementations of `INodeCache` must:
+
+1. Add the `Get*` methods (NodeId-keyed) plus
+   `LoadTypeHierarchyAsync`.
+2. Convert their `Task<T>`-returning members to `ValueTask<T>`.
+3. Remove any `LoadUaDefinedTypes(ISystemContext)` override or call.
+
+Test doubles (Moq) need new `Setup` calls covering the `Get*` methods
+they exercise. Members moved to `NodeCacheExtensions` (e.g.
+`GetBuiltInTypeAsync`, `GetNodeWithBrowsePathAsync`,
+`GetDisplayTextAsync`, the `ExpandedNodeId`-keyed
+`FindReferencesAsync`/`FindAsync` overloads,
+`FetchSuperTypesAsync`) no longer need to be set up — the extensions
+delegate to the smaller core surface automatically.
+
+#### Out of scope
+
+`Session.TypeTree` continues to return a sync `ITypeTable` adapter for
+compatibility with code that uses the synchronous type-table surface
+in the server-side stack. Removing that adapter is out of scope of
+this change; if you only consume `INodeCache.TypeTree` (the
+`IAsyncTypeTable`), you can keep using the async surface end-to-end.
 
 ## Migrating from 1.05.377 to 1.05.378
 

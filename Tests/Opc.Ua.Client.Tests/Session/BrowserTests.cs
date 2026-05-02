@@ -54,7 +54,7 @@ namespace Opc.Ua.Client.Tests
         public async Task BrowseAsyncWithNullContinuationPointDoesNotCallBrowseNext()
         {
             using var session = SessionMock.Create();
-            var expectedRef = CreateReferenceDescription("Object1");
+            ReferenceDescription expectedRef = CreateReferenceDescription("Object1");
 
             session.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -100,7 +100,7 @@ namespace Opc.Ua.Client.Tests
         public async Task BrowseAsyncWithEmptyContinuationPointDoesNotCallBrowseNext()
         {
             using var session = SessionMock.Create();
-            var expectedRef = CreateReferenceDescription("Object1");
+            ReferenceDescription expectedRef = CreateReferenceDescription("Object1");
 
             session.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -146,8 +146,8 @@ namespace Opc.Ua.Client.Tests
         public async Task BrowseAsyncWithValidContinuationPointCallsBrowseNext()
         {
             using var session = SessionMock.Create();
-            var firstRef = CreateReferenceDescription("Object1");
-            var secondRef = CreateReferenceDescription("Object2");
+            ReferenceDescription firstRef = CreateReferenceDescription("Object1");
+            ReferenceDescription secondRef = CreateReferenceDescription("Object2");
 
             session.Channel
                 .Setup(c => c.SendRequestAsync(

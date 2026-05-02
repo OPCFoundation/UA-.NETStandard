@@ -287,25 +287,16 @@ namespace Opc.Ua.Bindings
             {
                 lock (m_lock)
                 {
-                    if (m_inactivityDetectionTimer != null)
-                    {
-                        m_inactivityDetectionTimer.Dispose();
-                        m_inactivityDetectionTimer = null;
-                    }
+                    m_inactivityDetectionTimer?.Dispose();
+                    m_inactivityDetectionTimer = null;
 
                     m_activeClientTracker?.Dispose();
 
-                    if (m_listeningSocket != null)
-                    {
-                        m_listeningSocket?.Dispose();
-                        m_listeningSocket = null;
-                    }
+                    m_listeningSocket?.Dispose();
+                    m_listeningSocket = null;
 
-                    if (m_listeningSocketIPv6 != null)
-                    {
-                        m_listeningSocketIPv6?.Dispose();
-                        m_listeningSocketIPv6 = null;
-                    }
+                    m_listeningSocketIPv6?.Dispose();
+                    m_listeningSocketIPv6 = null;
 
                     if (m_channels != null)
                     {
@@ -464,7 +455,9 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public void ChannelClosed(uint channelId)
         {
+#pragma warning disable CA2000 // Channel is disposed in the finally block below
             if (m_channels?.TryRemove(channelId, out TcpListenerChannel channel) == true)
+#pragma warning restore CA2000
             {
                 try
                 {
@@ -472,7 +465,7 @@ namespace Opc.Ua.Bindings
                 }
                 finally
                 {
-                    channel?.Dispose();
+                    channel.Dispose();
                 }
             }
             else
@@ -494,6 +487,7 @@ namespace Opc.Ua.Bindings
         /// <inheritdoc/>
         public void CreateReverseConnection(Uri url, int timeout)
         {
+#pragma warning disable CA2000 // Ownership of channel transfers to async callback via BeginReverseConnect
             TcpServerChannel channel = null;
             try
             {
@@ -520,6 +514,7 @@ namespace Opc.Ua.Bindings
             {
                 channel?.Dispose();
             }
+#pragma warning restore CA2000
         }
 
         private void Channel_StatusChanged(

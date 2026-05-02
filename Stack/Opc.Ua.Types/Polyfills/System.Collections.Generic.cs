@@ -27,10 +27,13 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System.Diagnostics.CodeAnalysis;
+
 namespace System.Collections.Generic
 {
     /// <summary>
-    /// Polyfills for System.Io methods that are not available in .NET Standard 2.0 or .NET Framework.
+    /// Polyfills for System.Collections.Generic methods that are not available
+    /// in .NET Standard 2.0 or .NET Framework.
     /// </summary>
     public static class Polyfills
     {
@@ -48,6 +51,25 @@ namespace System.Collections.Generic
             if (!target.ContainsKey(key))
             {
                 target.Add(key, value);
+                return true;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Remove from dictionary
+        /// </summary>
+        /// <typeparam name="TKey"></typeparam>
+        /// <typeparam name="TValue"></typeparam>
+        /// <returns></returns>
+        public static bool Remove<TKey, TValue>(
+            this IDictionary<TKey, TValue> target,
+            TKey key,
+            [MaybeNullWhen(false)] out TValue value)
+        {
+            if (target.TryGetValue(key, out value))
+            {
+                target.Remove(key);
                 return true;
             }
             return false;

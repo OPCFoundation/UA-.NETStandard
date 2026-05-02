@@ -331,7 +331,7 @@ namespace Opc.Ua.Schema.Model
         /// <param name="designFilePaths"></param>
         /// <param name="identifierFilePath"></param>
         private void ValidateModel(
-            IReadOnlyList<string> designFilePaths,
+            List<string> designFilePaths,
             string identifierFilePath)
         {
             string inputPath = designFilePaths[0];
@@ -974,7 +974,7 @@ namespace Opc.Ua.Schema.Model
                     {
                         Category = serviceType.InterfaceType switch
                         {
-                            InterfaceType.Session => ServiceCategory.Session,
+                            InterfaceType.Session => GetSessionSubCategory(dataType.Name),
                             InterfaceType.SecureChannel => ServiceCategory.SecureChannel,
                             InterfaceType.Discovery => ServiceCategory.Discovery,
                             InterfaceType.Registration => ServiceCategory.Registration,
@@ -5863,6 +5863,42 @@ namespace Opc.Ua.Schema.Model
 
         private static readonly XmlQualifiedName s_baseDataTypeQn =
             new("BaseDataType", Ua.Types.Namespaces.OpcUa);
+
+        /// <summary>
+        /// Maps a session service name to its OPC UA Part 4 sub-category.
+        /// </summary>
+        private static ServiceCategory GetSessionSubCategory(string serviceName)
+        {
+            return serviceName switch
+            {
+                "Read" or "Write" or "HistoryRead" or "HistoryUpdate"
+                    => ServiceCategory.Attribute,
+
+                "Browse" or "BrowseNext" or "TranslateBrowsePathsToNodeIds"
+                    or "RegisterNodes" or "UnregisterNodes"
+                    => ServiceCategory.View,
+
+                "Call"
+                    => ServiceCategory.Method,
+
+                "CreateMonitoredItems" or "ModifyMonitoredItems" or "SetMonitoringMode"
+                    or "SetTriggering" or "DeleteMonitoredItems"
+                    => ServiceCategory.MonitoredItem,
+
+                "CreateSubscription" or "ModifySubscription" or "SetPublishingMode"
+                    or "Publish" or "Republish" or "TransferSubscriptions" or "DeleteSubscriptions"
+                    => ServiceCategory.Subscription,
+
+                "AddNodes" or "AddReferences" or "DeleteNodes" or "DeleteReferences"
+                    => ServiceCategory.NodeManagement,
+
+                "QueryFirst" or "QueryNext"
+                    => ServiceCategory.Query,
+
+                // Session lifecycle: CreateSession, ActivateSession, CloseSession, Cancel
+                _ => ServiceCategory.Session
+            };
+        }
 
         private static readonly XmlQualifiedName s_structureQn =
             new("Structure", Ua.Types.Namespaces.OpcUa);

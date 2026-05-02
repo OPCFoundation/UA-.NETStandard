@@ -129,7 +129,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         /// <summary>
-        /// Load Ua types in node cache.
+        /// Smoke test for the node cache instance returned by Session.
         /// </summary>
         [Test]
         [Order(500)]
@@ -138,11 +138,7 @@ namespace Opc.Ua.Client.Tests
             INodeCache nodeCache = Session.NodeCache;
             Assert.That(nodeCache, Is.Not.Null);
 
-            // load the predefined types
-            nodeCache.LoadUaDefinedTypes(Session.SystemContext);
-
-            // reload the predefined types
-            nodeCache.LoadUaDefinedTypes(Session.SystemContext);
+            // The LRU node cache populates lazily; nothing to pre-load.
         }
 
         /// <summary>
@@ -249,8 +245,7 @@ namespace Opc.Ua.Client.Tests
             INodeCache nodeCache = Session.NodeCache;
             Assert.That(nodeCache, Is.Not.Null);
 
-            // ensure the predefined types are loaded
-            nodeCache.LoadUaDefinedTypes(Session.SystemContext);
+            // The LRU node cache populates lazily; nothing to pre-load.
 
             // check on all reference type ids
             var refTypeDictionary = ReferenceTypeIds.Identifiers
@@ -302,7 +297,7 @@ namespace Opc.Ua.Client.Tests
                 await BrowseFullAddressSpaceAsync().ConfigureAwait(false);
             }
 
-            foreach (ReferenceDescription reference in ReferenceDescriptions.SafeSlice(0, MaxReferences).ToList())
+            foreach (ReferenceDescription reference in ReferenceDescriptions[..MaxReferences].ToList())
             {
                 var nodeId = ExpandedNodeId.ToNodeId(reference.NodeId, Session.NamespaceUris);
                 INode node = await Session.NodeCache.FindAsync(reference.NodeId)
@@ -320,7 +315,7 @@ namespace Opc.Ua.Client.Tests
                 await BrowseFullAddressSpaceAsync().ConfigureAwait(false);
             }
 
-            foreach (ReferenceDescription reference in ReferenceDescriptions.SafeSlice(0, MaxReferences).ToList())
+            foreach (ReferenceDescription reference in ReferenceDescriptions[..MaxReferences].ToList())
             {
                 var nodeId = ExpandedNodeId.ToNodeId(reference.NodeId, Session.NamespaceUris);
                 INode node = await Session.NodeCache.FetchNodeAsync(reference.NodeId)
@@ -338,7 +333,7 @@ namespace Opc.Ua.Client.Tests
                 await BrowseFullAddressSpaceAsync().ConfigureAwait(false);
             }
 
-            ArrayOf<ExpandedNodeId> testSet = ReferenceDescriptions.SafeSlice(0, MaxReferences).ConvertAll(r => r.NodeId);
+            ArrayOf<ExpandedNodeId> testSet = ReferenceDescriptions[..MaxReferences].ConvertAll(r => r.NodeId);
             ArrayOf<Node> nodeCollection = await Session.NodeCache.FetchNodesAsync(testSet)
                 .ConfigureAwait(false);
             foreach (Node node in nodeCollection)
@@ -357,7 +352,7 @@ namespace Opc.Ua.Client.Tests
                 await BrowseFullAddressSpaceAsync().ConfigureAwait(false);
             }
 
-            ArrayOf<ExpandedNodeId> testSet = ReferenceDescriptions.SafeSlice(0, MaxReferences).ConvertAll(r => r.NodeId);
+            ArrayOf<ExpandedNodeId> testSet = ReferenceDescriptions[..MaxReferences].ConvertAll(r => r.NodeId);
             ArrayOf<INode> nodes = await Session
                 .NodeCache.FindReferencesAsync(
                     testSet,
@@ -417,7 +412,7 @@ namespace Opc.Ua.Client.Tests
             // test concurrent access of FetchNodes
             for (int i = 0; i < 10; i++)
             {
-                Task t = Session.NodeCache.FetchNodesAsync(testSet);
+                Task t = Session.NodeCache.FetchNodesAsync(testSet).AsTask();
                 taskList.Add(t);
             }
 
@@ -448,7 +443,7 @@ namespace Opc.Ua.Client.Tests
             // test concurrent access of FetchNodes
             for (int i = 0; i < 10; i++)
             {
-                Task t = Session.NodeCache.FindAsync(testSet);
+                Task t = Session.NodeCache.FindAsync(testSet).AsTask();
                 taskList.Add(t);
             }
             await Task.WhenAll([.. taskList]).ConfigureAwait(false);
@@ -481,7 +476,9 @@ namespace Opc.Ua.Client.Tests
             // test concurrent access of FetchNodes
             for (int i = 0; i < 10; i++)
             {
-                Task t = Session.NodeCache.FindReferencesAsync(testSet, refTypeIds, false, true);
+                Task t = Session.NodeCache
+                    .FindReferencesAsync(testSet, refTypeIds, false, true)
+                    .AsTask();
                 taskList.Add(t);
             }
             await Task.WhenAll([.. taskList]).ConfigureAwait(false);

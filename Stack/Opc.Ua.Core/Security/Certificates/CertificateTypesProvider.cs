@@ -39,7 +39,9 @@ namespace Opc.Ua.Security.Certificates
     /// <summary>
     /// The provider for the X509 application certificates.
     /// </summary>
+#pragma warning disable CA1001 // CertificateValidator is created and owned but outlives this class
     public class CertificateTypesProvider
+#pragma warning restore CA1001
     {
         /// <summary>
         /// Disallow to create types provider without configuration.
@@ -221,7 +223,9 @@ namespace Opc.Ua.Security.Certificates
             //ToDo intialize internal CertificateValidator after Certificate Update to clear cache of old application certificates
         }
 
+#pragma warning disable CA2213 // CertificateValidator lifetime is managed externally
         private readonly CertificateValidator m_certificateValidator;
+#pragma warning restore CA2213
         private SecurityConfiguration m_securityConfiguration;
         private readonly ConcurrentDictionary<string, Tuple<X509Certificate2Collection, byte[]>> m_certificateChain;
     }

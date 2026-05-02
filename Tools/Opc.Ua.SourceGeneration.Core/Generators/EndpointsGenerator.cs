@@ -56,6 +56,13 @@ namespace Opc.Ua.SourceGeneration
                     "Session",
                     ServiceCategory.Discovery,
                     ServiceCategory.Session,
+                    ServiceCategory.Attribute,
+                    ServiceCategory.View,
+                    ServiceCategory.Method,
+                    ServiceCategory.MonitoredItem,
+                    ServiceCategory.Subscription,
+                    ServiceCategory.NodeManagement,
+                    ServiceCategory.Query,
                     ServiceCategory.Test),
                 new ServiceSet(
                     "Discovery",

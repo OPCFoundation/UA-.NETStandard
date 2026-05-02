@@ -70,10 +70,10 @@ namespace Opc.Ua.SourceGeneration
             customTags: ["opcua"]);
 
         public static readonly DiagnosticDescriptor ModelOverrideSkipped = new(
-            id: "MODELGEN010",
+            id: "MODELGEN013",
             title: "Model already provided by referenced assembly",
-            messageFormat: (LocalizableString)"Model URI '{0}' is already provided by " +
-                "referenced assembly '{1}' under prefix '{2}'. Skipping local generation.",
+            messageFormat: (LocalizableString)("Model URI '{0}' is already provided by " +
+                "referenced assembly '{1}' under prefix '{2}'; skipping local generation"),
             category: Name,
             DiagnosticSeverity.Info,
             isEnabledByDefault: true,
@@ -83,8 +83,8 @@ namespace Opc.Ua.SourceGeneration
         public static readonly DiagnosticDescriptor ModelDependencyTieBreak = new(
             id: "MODELGEN012",
             title: "Multiple referenced assemblies expose same model",
-            messageFormat: (LocalizableString)"Multiple referenced assemblies provide model " +
-                "URI '{0}'. Selected '{1}' and ignored '{2}'.",
+            messageFormat: (LocalizableString)("Multiple referenced assemblies provide model " +
+                "URI '{0}'; selected '{1}' and ignored '{2}'"),
             category: Name,
             DiagnosticSeverity.Info,
             isEnabledByDefault: true,
@@ -112,7 +112,7 @@ namespace Opc.Ua.SourceGeneration
         public static readonly DiagnosticDescriptor NodeManagerNotPartial = new(
             id: "MODELGEN011",
             title: "[NodeManager] class must be partial",
-            messageFormat: (LocalizableString)"Class '{0}' annotated with [NodeManager] must be declared as partial.",
+            messageFormat: (LocalizableString)"Class '{0}' annotated with [NodeManager] must be declared as partial",
             category: Name,
             DiagnosticSeverity.Error,
             isEnabledByDefault: true,

@@ -27,105 +27,146 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 using System.Threading;
 using System.Threading.Tasks;
 
 namespace Opc.Ua.Client
 {
     /// <summary>
-    /// A client side cache of the server's type model.
+    /// Client-side cache of the server's address space. Combines the
+    /// <see cref="IAsyncNodeTable"/> / <see cref="IAsyncTypeTable"/>
+    /// surface (ExpandedNodeId-keyed, nullable, may fetch from the
+    /// server) with NodeId-keyed direct accessors for callers that
+    /// already hold a local <see cref="NodeId"/>.
     /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The interface is intentionally minimal. Two complementary
+    /// families of lookups exist:
+    /// </para>
+    /// <list type="bullet">
+    ///   <item>
+    ///     <term>Inherited <c>Find*</c></term>
+    ///     <description>
+    ///       From <see cref="IAsyncNodeTable"/> /
+    ///       <see cref="IAsyncTypeTable"/>: ExpandedNodeId-keyed,
+    ///       returns <c>null</c> on miss, may fetch from the server
+    ///       and updates the cache. Suitable for callers that have not
+    ///       yet resolved the namespace index.
+    ///     </description>
+    ///   </item>
+    ///   <item>
+    ///     <term><c>Get*</c></term>
+    ///     <description>
+    ///       Defined here: NodeId-keyed, throws when the node cannot
+    ///       be resolved, expected hot-path for traversals where the
+    ///       caller already has a local <see cref="NodeId"/>. The
+    ///       cache-fast-path returns synchronously.
+    ///     </description>
+    ///   </item>
+    /// </list>
+    /// <para>
+    /// Convenience helpers (display text, browse path traversal,
+    /// built-in type resolution, ExpandedNodeId variants of
+    /// <c>Get*</c>) live as static extension methods on
+    /// <see cref="NodeCacheExtensions"/>.
+    /// </para>
+    /// <para>
+    /// All asynchronous operations return <see cref="ValueTask"/> /
+    /// <see cref="ValueTask{T}"/>. <see cref="Clear"/> is intentionally
+    /// synchronous because it is a pure local-state mutation with no
+    /// I/O.
+    /// </para>
+    /// </remarks>
     public interface INodeCache : IAsyncNodeTable, IAsyncTypeTable
     {
         /// <summary>
-        /// Loads the UA defined types into the cache.
-        /// </summary>
-        /// <param name="context">The context.</param>
-        void LoadUaDefinedTypes(ISystemContext context);
-
-        /// <summary>
-        /// Removes all nodes from the cache.
+        /// Removes all cached nodes, references and values. Pure
+        /// local-state mutation — does not contact the server.
         /// </summary>
         void Clear();
 
         /// <summary>
-        /// Finds a set of nodes in the nodeset,
-        /// fetches missing nodes from server.
+        /// Force-fetches a node from the server and updates the cache.
+        /// Returns <c>null</c> when the node does not exist or cannot
+        /// be read.
         /// </summary>
-        /// <param name="nodeIds">The node identifier collection.</param>
-        /// <param name="ct">Cancellation token to cancel operation with</param>
-        Task<ArrayOf<INode?>> FindAsync(
+        ValueTask<Node?> FetchNodeAsync(
+            ExpandedNodeId nodeId,
+            CancellationToken ct = default);
+
+        /// <summary>
+        /// Force-fetches a node collection from the server and updates
+        /// the cache.
+        /// </summary>
+        ValueTask<ArrayOf<Node?>> FetchNodesAsync(
             ArrayOf<ExpandedNodeId> nodeIds,
             CancellationToken ct = default);
 
         /// <summary>
-        /// Fetches a node from the server and updates the cache.
+        /// Get a node from the cache by local <see cref="NodeId"/>.
+        /// Fetches from the server if not cached. Throws when the node
+        /// cannot be resolved.
         /// </summary>
-        /// <param name="nodeId">Node id to fetch.</param>
-        /// <param name="ct">Cancellation token to cancel operation with</param>
-        Task<Node?> FetchNodeAsync(
-            ExpandedNodeId nodeId,
+        ValueTask<INode> GetNodeAsync(
+            NodeId nodeId,
             CancellationToken ct = default);
 
         /// <summary>
-        /// Fetches a node collection from the server and updates the cache.
+        /// Get a node collection from the cache by local
+        /// <see cref="NodeId"/>s. Fetches missing entries from the
+        /// server.
         /// </summary>
-        /// <param name="nodeIds">The node identifier collection.</param>
-        /// <param name="ct">Cancellation token to cancel operation with</param>
-        Task<ArrayOf<Node?>> FetchNodesAsync(
-            ArrayOf<ExpandedNodeId> nodeIds,
+        ValueTask<ArrayOf<INode>> GetNodesAsync(
+            ArrayOf<NodeId> nodeIds,
             CancellationToken ct = default);
 
         /// <summary>
-        /// Adds the supertypes of the node to the cache.
+        /// Get the value of a node from the cache. Fetches if not
+        /// cached.
         /// </summary>
-        /// <param name="nodeId">Node id to fetch.</param>
-        /// <param name="ct">Cancellation token to cancel operation with</param>
-        Task FetchSuperTypesAsync(
-            ExpandedNodeId nodeId,
+        ValueTask<DataValue> GetValueAsync(
+            NodeId nodeId,
             CancellationToken ct = default);
 
         /// <summary>
-        /// Returns the references of the specified node that
-        /// meet the criteria specified.
+        /// Get values for a node collection.
         /// </summary>
-        Task<ArrayOf<INode>> FindReferencesAsync(
-            ExpandedNodeId nodeId,
+        ValueTask<ArrayOf<DataValue>> GetValuesAsync(
+            ArrayOf<NodeId> nodeIds,
+            CancellationToken ct = default);
+
+        /// <summary>
+        /// Get the references for a node by reference type.
+        /// </summary>
+        ValueTask<ArrayOf<INode>> GetReferencesAsync(
+            NodeId nodeId,
             NodeId referenceTypeId,
             bool isInverse,
-            bool includeSubtypes,
+            bool includeSubtypes = true,
             CancellationToken ct = default);
 
         /// <summary>
-        /// Returns the references of the specified nodes that
-        /// meet the criteria specified.
+        /// Get the references for a node collection by reference type
+        /// collection.
         /// </summary>
-        Task<ArrayOf<INode>> FindReferencesAsync(
-            ArrayOf<ExpandedNodeId> nodeIds,
+        ValueTask<ArrayOf<INode>> GetReferencesAsync(
+            ArrayOf<NodeId> nodeIds,
             ArrayOf<NodeId> referenceTypeIds,
             bool isInverse,
-            bool includeSubtypes,
+            bool includeSubtypes = true,
             CancellationToken ct = default);
 
         /// <summary>
-        /// Returns a display name for a node.
+        /// Pre-load the type hierarchy for the supplied type ids so
+        /// subsequent <see cref="IAsyncTypeTable.IsTypeOfAsync(NodeId,NodeId,CancellationToken)"/>
+        /// / <see cref="IAsyncTypeTable.FindSubTypesAsync"/> calls are
+        /// served from the cache.
         /// </summary>
-        ValueTask<string?> GetDisplayTextAsync(
-            INode node,
-            CancellationToken ct = default);
-
-        /// <summary>
-        /// Returns a display name for a node.
-        /// </summary>
-        ValueTask<string?> GetDisplayTextAsync(
-            ExpandedNodeId nodeId,
-            CancellationToken ct = default);
-
-        /// <summary>
-        /// Returns a display name for the target of a reference.
-        /// </summary>
-        ValueTask<string?> GetDisplayTextAsync(
-            ReferenceDescription reference,
+        ValueTask LoadTypeHierarchyAsync(
+            ArrayOf<NodeId> typeIds,
             CancellationToken ct = default);
     }
 }

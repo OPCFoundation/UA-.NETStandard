@@ -54,7 +54,10 @@ namespace Opc.Ua.Gds.Client
             this IServiceCollection services,
             Action<GdsClientOptions> configure = null)
         {
-            if (services == null) throw new ArgumentNullException(nameof(services));
+            if (services == null)
+            {
+                throw new ArgumentNullException(nameof(services));
+            }
 
             services.AddOptions();
 

@@ -106,7 +106,12 @@ namespace Opc.Ua
                 finally
                 {
                     m_lock.Release();
-                    // m_lock.Dispose(); // Fix store model
+                    // Do NOT dispose m_lock here. The store is cached in
+                    // CertificateStoreIdentifier.m_store and may be reopened
+                    // after a caller disposes the result of OpenStore.
+                    // Disposing the semaphore would break the cached store
+                    // on the next call. The lock is reclaimed when the
+                    // store itself is finalized.
                 }
             }
             Close();
@@ -731,11 +736,13 @@ namespace Opc.Ua
                                 {
                                     byte[] pemDataBlob = File.ReadAllBytes(
                                         privateKeyFilePem.FullName);
+#pragma warning disable CA2000 // Certificate ownership is managed by the caller
                                     certificate = CertificateFactory
                                         .CreateCertificateWithPEMPrivateKey(
                                             certificate,
                                             pemDataBlob,
                                             password);
+#pragma warning restore CA2000
                                     if (X509Utils.VerifyKeyPair(certificate, certificate, true))
                                     {
                                         m_logger.LogInformation(
@@ -763,11 +770,13 @@ namespace Opc.Ua
                                 try
                                 {
                                     byte[] pemDataBlob = File.ReadAllBytes(file.FullName);
+#pragma warning disable CA2000 // Certificate ownership is managed by the caller
                                     certificate = CertificateFactory
                                         .CreateCertificateWithPEMPrivateKey(
                                             certificate,
                                             pemDataBlob,
                                             password);
+#pragma warning restore CA2000
                                     if (X509Utils.VerifyKeyPair(certificate, certificate, true))
                                     {
                                         m_logger.LogInformation(
@@ -1102,8 +1111,8 @@ namespace Opc.Ua
                 // current value. Comparing the cached entry count to the
                 // current file count detects external changes without re-parsing
                 // every certificate file in the common (unchanged) case.
-                int onDiskCount = m_certificateSubdir.GetFiles(kCertSearchString).Length
-                    + m_certificateSubdir.GetFiles(kPemCertSearchString).Length;
+                int onDiskCount = m_certificateSubdir.GetFiles(kCertSearchString).Length +
+                    m_certificateSubdir.GetFiles(kPemCertSearchString).Length;
                 if (onDiskCount == m_certificates.Count)
                 {
                     return m_certificates;
@@ -1356,7 +1365,13 @@ namespace Opc.Ua
             public DateTime LastWriteTimeUtc;
         }
 
+        // m_lock is intentionally NOT disposed: the store is cached by
+        // CertificateStoreIdentifier and may be reopened after a caller
+        // disposes the OpenStore result. The semaphore is reclaimed at
+        // finalization.
+#pragma warning disable CA2213 // Disposable fields should be disposed
         private readonly SemaphoreSlim m_lock = new(1, 1);
+#pragma warning restore CA2213
         private readonly ILogger m_logger;
         private readonly bool m_noSubDirs;
         private DirectoryInfo m_certificateSubdir;

@@ -8,17 +8,35 @@
     <IsPackable>true</IsPackable>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <Nullable>enable</Nullable>
+    <DefineConstants>$(DefineConstants);OPCUA_V1_CLIENT</DefineConstants>
     <IsAotCompatible Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net10.0'))">true</IsAotCompatible>
+  </PropertyGroup>
+  <PropertyGroup Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net8.0'))">
+    <DefineConstants>$(DefineConstants);OPCUA_CLIENT_V2</DefineConstants>
   </PropertyGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Opc.Ua.Client.Tests" />
     <InternalsVisibleTo Include="Opc.Ua.Client.ComplexTypes.Tests" />
+    <InternalsVisibleTo Include="DynamicProxyGenAssembly2" />
   </ItemGroup>
   <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
     <PackageId>$(PackageId).Debug</PackageId>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="BitFaster.Caching" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Options" />
+    <PackageReference Include="Nito.AsyncEx" />
+    <PackageReference Include="System.Threading.Channels" />
+  </ItemGroup>
+  <ItemGroup Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net8.0'))">
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" />
+    <PackageReference Include="Polly.Core" />
+    <PackageReference Include="Irony" />
+    <PackageReference Include="Stateless" />
+  </ItemGroup>
+  <ItemGroup Condition="!$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net8.0'))">
+    <PackageReference Include="Microsoft.Bcl.TimeProvider" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\Stack\Opc.Ua.Core\Opc.Ua.Core.csproj" />

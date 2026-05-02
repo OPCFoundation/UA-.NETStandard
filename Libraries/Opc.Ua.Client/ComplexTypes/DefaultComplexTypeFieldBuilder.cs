@@ -27,9 +27,9 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Xml;
-using System.Collections.Generic;
 using System;
+using System.Collections.Generic;
+using System.Xml;
 
 namespace Opc.Ua.Client.ComplexTypes
 {

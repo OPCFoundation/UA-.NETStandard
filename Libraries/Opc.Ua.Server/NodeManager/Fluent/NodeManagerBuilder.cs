@@ -371,7 +371,7 @@ namespace Opc.Ua.Server.Fluent
 
         private NodeState ResolveByTypeDefinition(NodeId typeDefinitionId, QualifiedName browseName)
         {
-            if (typeDefinitionId == null || typeDefinitionId.IsNull)
+            if (typeDefinitionId.IsNull)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadNodeIdInvalid,
@@ -389,7 +389,7 @@ namespace Opc.Ua.Server.Fluent
                     typeDefinitionId);
             }
 
-            if (browseName == null)
+            if (browseName.IsNull)
             {
                 if (candidates.Count > 1)
                 {

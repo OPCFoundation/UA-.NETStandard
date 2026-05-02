@@ -67,7 +67,7 @@ namespace Opc.Ua.Client
     /// <summary>
     /// Manages a session with a server.
     /// </summary>
-    public interface ISession : ISessionClient
+    public interface ISession : ISessionClient, IAsyncDisposable
     {
         /// <summary>
         /// Raised when a keep alive arrives from the server or an error is detected.
@@ -530,5 +530,22 @@ namespace Opc.Ua.Client
             uint subscriptionId,
             uint sequenceNumber,
             CancellationToken ct = default);
+
+#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+        /// <summary>
+        /// Browse the server address space returning results as an async stream.
+        /// Automatically handles continuation points and releases them on disposal.
+        /// </summary>
+        /// <param name="requestHeader">The request header.</param>
+        /// <param name="view">The view to browse.</param>
+        /// <param name="nodesToBrowse">The set of browse operations to perform.</param>
+        /// <param name="ct">The cancellation token.</param>
+        /// <returns>An async stream of browse results.</returns>
+        IAsyncEnumerable<BrowseResult> BrowseStreamAsync(
+            RequestHeader? requestHeader,
+            ViewDescription? view,
+            ArrayOf<BrowseDescription> nodesToBrowse,
+            CancellationToken ct = default);
+#endif
     }
 }

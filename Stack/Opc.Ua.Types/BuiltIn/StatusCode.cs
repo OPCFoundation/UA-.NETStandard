@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using Opc.Ua.Types;
 using System.Text.Json.Serialization;
 using System.Diagnostics.Contracts;
@@ -795,26 +796,40 @@ namespace Opc.Ua
         /// <param name="statusCodes"></param>
         public static void Intern(IReadOnlyList<StatusCode> statusCodes)
         {
-            var cur = s_statusCodes.ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
-            foreach (StatusCode kvp in statusCodes)
+            lock (s_internLock)
             {
-                if (kvp.SymbolicId == null)
+                var cur = s_statusCodes.ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
+                foreach (StatusCode kvp in statusCodes)
                 {
-                    continue;
+                    if (kvp.SymbolicId == null)
+                    {
+                        continue;
+                    }
+                    cur[kvp.Code & 0xFFFF0000] = kvp;
                 }
-                cur[kvp.Code & 0xFFFF0000] = kvp;
-            }
 #if NET8_0_OR_GREATER
-            s_statusCodes = cur.ToFrozenDictionary();
+                s_statusCodes = cur.ToFrozenDictionary();
 #else
-            s_statusCodes = new ReadOnlyDictionary<uint, StatusCode>(cur);
+                s_statusCodes = new ReadOnlyDictionary<uint, StatusCode>(cur);
 #endif
+                // Snapshot the interned values into an immutable array so concurrent
+                // readers of <see cref="InternedStatusCodes"/> see a stable view
+                // without re-projecting the dictionary on every call.
+                var snapshot = new StatusCode[s_statusCodes.Count];
+                int index = 0;
+                foreach (StatusCode value in s_statusCodes.Values)
+                {
+                    snapshot[index++] = value;
+                }
+                Volatile.Write(ref s_internedValues, snapshot);
+            }
         }
 
         /// <summary>
         /// Gets the interned status codes
         /// </summary>
-        public static ArrayOf<StatusCode> InternedStatusCodes => [.. s_statusCodes.Values];
+        public static ArrayOf<StatusCode> InternedStatusCodes
+            => Volatile.Read(ref s_internedValues).ToArrayOf();
 
         static StatusCode()
         {
@@ -863,6 +878,9 @@ namespace Opc.Ua
         private static ReadOnlyDictionary<uint, StatusCode> s_statusCodes
             = new(new Dictionary<uint, StatusCode>());
 #endif
+
+        private static StatusCode[] s_internedValues = [];
+        private static readonly object s_internLock = new();
 
         private const uint kAggregateBits = 0x001F;
         private const uint kOverflowBit = 0x0080;

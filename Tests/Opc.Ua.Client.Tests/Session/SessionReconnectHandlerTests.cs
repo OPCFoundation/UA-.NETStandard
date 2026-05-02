@@ -48,7 +48,7 @@ namespace Opc.Ua.Client.Tests
     [SetUICulture("en-us")]
     public sealed class SessionReconnectHandlerTests
     {
-        private ITelemetryContext _telemetry = null!;
+        private ITelemetryContext _telemetry;
 
         [SetUp]
         public void SetUp()
@@ -64,7 +64,7 @@ namespace Opc.Ua.Client.Tests
         public async Task DoReconnectAsync_WhenUpdateFromServerIsSet_CallsUpdateEndpointFromServerAsync()
         {
             // Arrange
-            var updateCallCount = 0;
+            int updateCallCount = 0;
             var mockNewSession = new Mock<ISession>();
             var mockFactory = new Mock<ISessionFactory>();
 
@@ -105,7 +105,7 @@ namespace Opc.Ua.Client.Tests
         public async Task DoReconnectAsync_WhenUpdateFromServerIsFalse_SkipsEndpointUpdate()
         {
             // Arrange
-            var updateCallCount = 0;
+            int updateCallCount = 0;
             var mockNewSession = new Mock<ISession>();
             var mockFactory = new Mock<ISessionFactory>();
 
@@ -134,7 +134,7 @@ namespace Opc.Ua.Client.Tests
 
             // Assert
             Assert.That(result, Is.True);
-            Assert.That(updateCallCount, Is.EqualTo(0));
+            Assert.That(updateCallCount, Is.Zero);
         }
 
         /// <summary>
@@ -206,27 +206,71 @@ namespace Opc.Ua.Client.Tests
         }
 
         /// <summary>
-        /// Verifies that BeginReconnect with a valid session sets the state to Triggered.
+        /// Verifies that <see cref="SessionReconnectHandler.BeginReconnect(ISession,int,EventHandler)"/>
+        /// throws <see cref="NotSupportedException"/> when given an
+        /// <see cref="ISession"/> that is not a <see cref="Session"/>
+        /// (or a derived type). The handler drives
+        /// <see cref="ISessionFactory.RecreateAsync(ISession,CancellationToken)"/>
+        /// and the underlying transport channel directly, which only
+        /// makes sense for the legacy <see cref="Session"/> class.
+        /// Facade implementations (e.g. <see cref="ManagedSession"/>)
+        /// run their own reconnect state machine and must not be
+        /// passed in.
         /// </summary>
         [Test]
-        public void BeginReconnect_WithValidSession_SetsTriggeredState()
+        public void BeginReconnect_WithNonSessionImplementation_ThrowsNotSupportedException()
         {
-            // Arrange
             var mockSession = new Mock<ISession>();
             mockSession.SetupGet(s => s.SessionId).Returns(NodeId.Null);
 
             using var handler = new SessionReconnectHandler(_telemetry);
 
-            // Act
+            Assert.That(
+                () => handler.BeginReconnect(
+                    mockSession.Object,
+                    1000,
+                    (_, _) => { }),
+                Throws.TypeOf<NotSupportedException>());
+        }
+
+        /// <summary>
+        /// Verifies that the reverse-connect overload also rejects
+        /// non-<see cref="Session"/> implementations of
+        /// <see cref="ISession"/> with <see cref="NotSupportedException"/>.
+        /// </summary>
+        [Test]
+        public void BeginReconnect_ReverseConnect_WithNonSessionImplementation_ThrowsNotSupportedException()
+        {
+            var mockSession = new Mock<ISession>();
+            mockSession.SetupGet(s => s.SessionId).Returns(NodeId.Null);
+
+            using var handler = new SessionReconnectHandler(_telemetry);
+
+            Assert.That(
+                () => handler.BeginReconnect(
+                    mockSession.Object,
+                    null,
+                    1000,
+                    (_, _) => { }),
+                Throws.TypeOf<NotSupportedException>());
+        }
+
+        /// <summary>
+        /// Verifies that passing <see langword="null"/> as the session
+        /// remains supported as a cancellation signal and does not
+        /// trigger the type check.
+        /// </summary>
+        [Test]
+        public void BeginReconnect_WithNullSession_DoesNotThrowAndStaysReady()
+        {
+            using var handler = new SessionReconnectHandler(_telemetry);
+
             SessionReconnectHandler.ReconnectState state = handler.BeginReconnect(
-                mockSession.Object,
+                null,
                 1000,
                 (_, _) => { });
 
-            // Assert
-            Assert.That(state, Is.EqualTo(SessionReconnectHandler.ReconnectState.Triggered));
-
-            handler.CancelReconnect();
+            Assert.That(state, Is.EqualTo(SessionReconnectHandler.ReconnectState.Ready));
         }
 
         /// <summary>
@@ -269,8 +313,6 @@ namespace Opc.Ua.Client.Tests
             Assert.That(handler.Session, Is.SameAs(mockNewSession.Object));
         }
 
-        #region Helpers
-
         private static ConfiguredEndpoint CreateConfiguredEndpoint(
             MessageSecurityMode securityMode,
             string securityPolicyUri)
@@ -300,7 +342,7 @@ namespace Opc.Ua.Client.Tests
                 .GetMethod("DoReconnectAsync", BindingFlags.NonPublic | BindingFlags.Instance)
                 ?? throw new InvalidOperationException("DoReconnectAsync method not found");
 
-            return (Task<bool>)method.Invoke(handler, null)!;
+            return (Task<bool>)method.Invoke(handler, null);
         }
 
         private static void SetSessionHandlerField(
@@ -329,7 +371,7 @@ namespace Opc.Ua.Client.Tests
             FieldInfo field = typeof(SessionReconnectHandler)
                 .GetField(fieldName, BindingFlags.NonPublic | BindingFlags.Instance)
                 ?? throw new InvalidOperationException($"Field {fieldName} not found");
-            return (T)field.GetValue(handler)!;
+            return (T)field.GetValue(handler);
         }
 
         /// <summary>
@@ -356,7 +398,5 @@ namespace Opc.Ua.Client.Tests
                 return _updateDelegate(endpoint, connection);
             }
         }
-
-        #endregion
     }
 }

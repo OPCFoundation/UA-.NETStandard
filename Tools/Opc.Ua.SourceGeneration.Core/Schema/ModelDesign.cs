@@ -1869,6 +1869,41 @@ namespace Opc.Ua.Schema.Model
         Registration,
 
         /// <summary>
+        /// Attribute service set (Read, Write, HistoryRead, HistoryUpdate)
+        /// </summary>
+        Attribute,
+
+        /// <summary>
+        /// View service set (Browse, BrowseNext, TranslateBrowsePathsToNodeIds, RegisterNodes, UnregisterNodes)
+        /// </summary>
+        View,
+
+        /// <summary>
+        /// Method service set (Call)
+        /// </summary>
+        Method,
+
+        /// <summary>
+        /// MonitoredItem service set (CreateMonitoredItems, ModifyMonitoredItems, SetMonitoringMode, SetTriggering, DeleteMonitoredItems)
+        /// </summary>
+        MonitoredItem,
+
+        /// <summary>
+        /// Subscription service set (CreateSubscription, ModifySubscription, SetPublishingMode, Publish, Republish, TransferSubscriptions, DeleteSubscriptions)
+        /// </summary>
+        Subscription,
+
+        /// <summary>
+        /// Node management service set (AddNodes, AddReferences, DeleteNodes, DeleteReferences)
+        /// </summary>
+        NodeManagement,
+
+        /// <summary>
+        /// Query service set (QueryFirst, QueryNext)
+        /// </summary>
+        Query,
+
+        /// <summary>
         /// Test
         /// </summary>
         Test

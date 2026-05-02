@@ -1,0 +1,552 @@
+/* ========================================================================
+ * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
+ * ======================================================================*/
+
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using Moq;
+using NUnit.Framework;
+
+namespace Opc.Ua.Client.Subscriptions.MonitoredItems
+{
+    [TestFixture]
+    public sealed class MonitoredItemManagerTests
+    {
+        [SetUp]
+        public void SetUp()
+        {
+            m_observabilityMock = new Mock<ITelemetryContext>();
+            m_mockLogger = new Mock<ILogger<MonitoredItemManager>>();
+            m_mockLoggerFactory = new Mock<ILoggerFactory>();
+            m_mockLoggerFactory
+                  .Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(m_mockLogger.Object);
+            m_observabilityMock.Setup(o => o.LoggerFactory)
+                .Returns(m_mockLoggerFactory.Object);
+            m_contextMock = new Mock<IMonitoredItemManagerContext>();
+            m_contextMock
+                .Setup(m => m.CreateMonitoredItem(
+                    It.IsAny<string>(),
+                    It.IsAny<IOptionsMonitor<MonitoredItemOptions>>(),
+                    It.IsAny<IMonitoredItemContext>()))
+                .Returns((string name, IOptionsMonitor<MonitoredItemOptions> options, IMonitoredItemContext context) =>
+                    new TestMonitoredItem(context, name, (OptionsMonitor<MonitoredItemOptions>)options, m_mockLogger.Object));
+        }
+
+        [Test]
+        public async Task TryAddItemSucceedsAsync()
+        {
+            // Arrange
+            await using var sut = new MonitoredItemManager(m_contextMock.Object, m_observabilityMock.Object);
+            // Act
+            sut.TryAdd("Item3", OptionsFactory.Create<MonitoredItemOptions>(), out IMonitoredItem existingItem3);
+            Assert.That(sut.TryAdd("Item3", OptionsFactory.Create<MonitoredItemOptions>(), out IMonitoredItem existingItem3Again), Is.False);
+
+            // Assert
+            Assert.That(existingItem3Again, Is.SameAs(existingItem3));
+            m_contextMock.Verify();
+        }
+
+        [Test]
+        public async Task TryRemoveItemSucceedsAsync()
+        {
+            // Arrange
+            await using var sut = new MonitoredItemManager(m_contextMock.Object, m_observabilityMock.Object);
+
+            // Act
+            sut.TryAdd("Item3", OptionsFactory.Create<MonitoredItemOptions>(), out IMonitoredItem existingItem3);
+            Assert.That(sut.TryAdd("Item4", OptionsFactory.Create<MonitoredItemOptions>(), out IMonitoredItem existingItem4), Is.True);
+
+            Assert.That(existingItem4, Is.Not.Null);
+            Assert.That(sut.TryRemove(existingItem4.ClientHandle), Is.True);
+
+            // Assert
+            Assert.That(sut.Items, Has.Exactly(1).Items);
+            Assert.That(sut.Items.First().Name, Is.EqualTo("Item3"));
+            m_contextMock.Verify();
+        }
+
+        [Test]
+        public async Task TryRemoveItemSucceedsRemoveAgainAndItFailsAsync()
+        {
+            // Arrange
+            await using var sut = new MonitoredItemManager(m_contextMock.Object, m_observabilityMock.Object);
+
+            // Act
+            sut.TryAdd("Item3", OptionsFactory.Create<MonitoredItemOptions>(), out IMonitoredItem existingItem3);
+            Assert.That(sut.TryAdd("Item4", OptionsFactory.Create<MonitoredItemOptions>(), out IMonitoredItem existingItem4), Is.True);
+
+            Assert.That(existingItem4, Is.Not.Null);
+            Assert.That(sut.TryRemove(existingItem4.ClientHandle), Is.True);
+            Assert.That(sut.TryRemove(existingItem4.ClientHandle), Is.False);
+
+            // Assert
+            Assert.That(sut.Items, Has.Exactly(1).Items);
+            Assert.That(sut.Items.First().Name, Is.EqualTo("Item3"));
+            m_contextMock.Verify();
+        }
+
+        [Test]
+        public async Task PauseAndUnpauseMonitoredItemsAsync()
+        {
+            // Arrange
+            await using var sut = new MonitoredItemManager(m_contextMock.Object, m_observabilityMock.Object);
+
+            // Act
+            sut.TryAdd("Item3", OptionsFactory.Create<MonitoredItemOptions>(), out IMonitoredItem existingItem3);
+            sut.TryAdd("Item4", OptionsFactory.Create<MonitoredItemOptions>(), out IMonitoredItem existingItem4);
+
+            sut.NotifySubscriptionManagerPaused(true);
+            Assert.That(sut.Items, Has.All.Matches<IMonitoredItem>(i => ((TestMonitoredItem)i).Paused));
+            sut.NotifySubscriptionManagerPaused(false);
+            Assert.That(sut.Items, Has.All.Matches<IMonitoredItem>(i => !((TestMonitoredItem)i).Paused));
+            sut.NotifySubscriptionManagerPaused(false);
+            Assert.That(sut.Items, Has.All.Matches<IMonitoredItem>(i => !((TestMonitoredItem)i).Paused));
+            sut.NotifySubscriptionManagerPaused(true);
+            Assert.That(sut.Items, Has.All.Matches<IMonitoredItem>(i => ((TestMonitoredItem)i).Paused));
+
+            // Assert
+            m_contextMock.Verify();
+        }
+
+        [Test]
+        public async Task CreateNotificationDataChangeNotificationCreatesCorrectNotificationsAsync()
+        {
+            // Arrange
+            await using var sut = new MonitoredItemManager(m_contextMock.Object, m_observabilityMock.Object);
+
+            var monitoredItemMock = new Mock<IMonitoredItem>();
+            monitoredItemMock.SetupGet(m => m.ClientHandle).Returns(1);
+
+            sut.TryAdd("Item1", OptionsFactory.Create<MonitoredItemOptions>(), out IMonitoredItem monitoredItem);
+            Assert.That(monitoredItem, Is.Not.Null);
+            var dataChangeNotification = new DataChangeNotification
+            {
+                MonitoredItems =
+                [
+                    new MonitoredItemNotification
+                    {
+                        ClientHandle = monitoredItem.ClientHandle,
+                        Value = new DataValue("test"),
+                        DiagnosticInfo = new DiagnosticInfo()
+                    }
+                ]
+            };
+            // Act
+            ReadOnlyMemory<DataValueChange> result = sut.CreateNotification(dataChangeNotification);
+
+            // Assert
+            Assert.That(result.ToArray(), Has.Exactly(1).Items);
+            Assert.That(result.ToArray().Single(), Is.TypeOf<DataValueChange>());
+            var single = result.ToArray().Single();
+        }
+
+        [Test]
+        public async Task CreateNotificationDataChangeNotificationCreatesCorrectNotificationsInOrderAsync()
+        {
+            // Arrange
+            await using var sut = new MonitoredItemManager(m_contextMock.Object, m_observabilityMock.Object);
+
+            var monitoredItemMock = new Mock<IMonitoredItem>();
+            monitoredItemMock.SetupGet(m => m.ClientHandle).Returns(1);
+
+            sut.TryAdd("Item1", OptionsFactory.Create<MonitoredItemOptions>(o => o with { Order = 1 }), out IMonitoredItem monitoredItem1);
+            sut.TryAdd("Item2", OptionsFactory.Create<MonitoredItemOptions>(o => o with { Order = 2 }), out IMonitoredItem monitoredItem2);
+            Assert.That(monitoredItem1, Is.Not.Null);
+            Assert.That(monitoredItem1.Order, Is.EqualTo(1));
+            Assert.That(monitoredItem2, Is.Not.Null);
+            Assert.That(monitoredItem2.Order, Is.EqualTo(2));
+            var dataChangeNotification = new DataChangeNotification
+            {
+                MonitoredItems =
+                [
+                    new MonitoredItemNotification
+                    {
+                        ClientHandle = monitoredItem2.ClientHandle,
+                        Value = new DataValue("test1", StatusCodes.Good, DateTimeUtc.Now),
+                        DiagnosticInfo = new DiagnosticInfo()
+                    },
+                    new MonitoredItemNotification
+                    {
+                        ClientHandle = monitoredItem2.ClientHandle,
+                        Value = new DataValue("test2", StatusCodes.Good, DateTimeUtc.Now),
+                        DiagnosticInfo = new DiagnosticInfo()
+                    },
+                    new MonitoredItemNotification
+                    {
+                        ClientHandle = monitoredItem1.ClientHandle,
+                        Value = new DataValue("test3", StatusCodes.Good, DateTimeUtc.Now),
+                        DiagnosticInfo = new DiagnosticInfo()
+                    }
+                ]
+            };
+            // Act
+            ReadOnlyMemory<DataValueChange> result = sut.CreateNotification(dataChangeNotification);
+
+            // Assert
+            Assert.That(result.Length, Is.EqualTo(3));
+            Assert.That(result.Span[0], Is.TypeOf<DataValueChange>());
+            Assert.That(result.Span[0].Value.WrappedValue.AsBoxedObject(), Is.EqualTo("test1"));
+            Assert.That(result.Span[0].MonitoredItem, Is.SameAs(monitoredItem2));
+            Assert.That(result.Span[1], Is.TypeOf<DataValueChange>());
+            Assert.That(result.Span[1].Value.WrappedValue.AsBoxedObject(), Is.EqualTo("test2"));
+            Assert.That(result.Span[1].MonitoredItem, Is.SameAs(monitoredItem2));
+            Assert.That(result.Span[2], Is.TypeOf<DataValueChange>());
+            Assert.That(result.Span[2].Value.WrappedValue.AsBoxedObject(), Is.EqualTo("test3"));
+            Assert.That(result.Span[2].MonitoredItem, Is.SameAs(monitoredItem1));
+        }
+
+        [Test]
+        public async Task CreateNotificationDataChangeNotificationCreatesCorrectNotificationsInDefaultOrderAsync()
+        {
+            // Arrange
+            await using var sut = new MonitoredItemManager(m_contextMock.Object, m_observabilityMock.Object);
+
+            var monitoredItemMock = new Mock<IMonitoredItem>();
+            monitoredItemMock.SetupGet(m => m.ClientHandle).Returns(1);
+
+            sut.TryAdd("Item1", OptionsFactory.Create<MonitoredItemOptions>(), out IMonitoredItem monitoredItem1);
+            sut.TryAdd("Item2", OptionsFactory.Create<MonitoredItemOptions>(), out IMonitoredItem monitoredItem2);
+            Assert.That(monitoredItem1, Is.Not.Null);
+            Assert.That(monitoredItem1.Order, Is.Zero);
+            Assert.That(monitoredItem2, Is.Not.Null);
+            Assert.That(monitoredItem2.Order, Is.Zero);
+            var dataChangeNotification = new DataChangeNotification
+            {
+                MonitoredItems =
+                [
+                    new MonitoredItemNotification
+                    {
+                        ClientHandle = monitoredItem2.ClientHandle,
+                        Value = new DataValue("test1", StatusCodes.Good, DateTimeUtc.Now),
+                        DiagnosticInfo = new DiagnosticInfo()
+                    },
+                    new MonitoredItemNotification
+                    {
+                        ClientHandle = monitoredItem2.ClientHandle,
+                        Value = new DataValue("test2", StatusCodes.Good, DateTimeUtc.Now),
+                        DiagnosticInfo = new DiagnosticInfo()
+                    },
+                    new MonitoredItemNotification
+                    {
+                        ClientHandle = monitoredItem1.ClientHandle,
+                        Value = new DataValue("test3", StatusCodes.Good, DateTimeUtc.Now),
+                        DiagnosticInfo = new DiagnosticInfo()
+                    }
+                ]
+            };
+            // Act
+            ReadOnlyMemory<DataValueChange> result = sut.CreateNotification(dataChangeNotification);
+
+            // Assert
+            Assert.That(result.Length, Is.EqualTo(3));
+            Assert.That(result.Span[0], Is.TypeOf<DataValueChange>());
+            Assert.That(result.Span[0].Value.WrappedValue.AsBoxedObject(), Is.EqualTo("test1"));
+            Assert.That(result.Span[0].MonitoredItem, Is.SameAs(monitoredItem2));
+            Assert.That(result.Span[1], Is.TypeOf<DataValueChange>());
+            Assert.That(result.Span[1].Value.WrappedValue.AsBoxedObject(), Is.EqualTo("test2"));
+            Assert.That(result.Span[1].MonitoredItem, Is.SameAs(monitoredItem2));
+            Assert.That(result.Span[2], Is.TypeOf<DataValueChange>());
+            Assert.That(result.Span[2].Value.WrappedValue.AsBoxedObject(), Is.EqualTo("test3"));
+            Assert.That(result.Span[2].MonitoredItem, Is.SameAs(monitoredItem1));
+        }
+
+        [Test]
+        public async Task CreateNotificationEventNotificationListCreatesCorrectNotificationsAsync()
+        {
+            // Arrange
+            await using var sut = new MonitoredItemManager(m_contextMock.Object, m_observabilityMock.Object);
+            var monitoredItemMock = new Mock<IMonitoredItem>();
+            monitoredItemMock.SetupGet(m => m.ClientHandle).Returns(1);
+
+            sut.TryAdd("Item1", OptionsFactory.Create<MonitoredItemOptions>(), out IMonitoredItem monitoredItem);
+            Assert.That(monitoredItem, Is.Not.Null);
+
+            var eventNotificationList = new EventNotificationList
+            {
+                Events =
+                [
+                    new EventFieldList
+                    {
+                        ClientHandle = monitoredItem.ClientHandle,
+                        EventFields = [new Variant("Event1")]
+                    }
+                ]
+            };
+
+            // Act
+            ReadOnlyMemory<EventNotification> result = sut.CreateNotification(eventNotificationList);
+
+            // Assert
+            Assert.That(result.ToArray(), Has.Exactly(1).Items);
+            Assert.That(result.ToArray().Single(), Is.TypeOf<EventNotification>());
+            var single = result.ToArray().Single();
+        }
+
+        [Test]
+        public async Task CreateNotificationEventNotificationListCreatesCorrectNotificationsInDefaultOrderAsync()
+        {
+            // Arrange
+            await using var sut = new MonitoredItemManager(m_contextMock.Object, m_observabilityMock.Object);
+            var monitoredItemMock = new Mock<IMonitoredItem>();
+            monitoredItemMock.SetupGet(m => m.ClientHandle).Returns(1);
+
+            sut.TryAdd("Item1", OptionsFactory.Create<MonitoredItemOptions>(), out IMonitoredItem monitoredItem1);
+            sut.TryAdd("Item2", OptionsFactory.Create<MonitoredItemOptions>(), out IMonitoredItem monitoredItem2);
+            sut.TryAdd("Item3", OptionsFactory.Create<MonitoredItemOptions>(), out IMonitoredItem monitoredItem3);
+            Assert.That(monitoredItem1, Is.Not.Null);
+            Assert.That(monitoredItem3, Is.Not.Null);
+
+            var eventNotificationList = new EventNotificationList
+            {
+                Events =
+                [
+                    new EventFieldList
+                    {
+                        ClientHandle = monitoredItem1.ClientHandle,
+                        EventFields = [new Variant("Event1")]
+                    },
+                    new EventFieldList
+                    {
+                        ClientHandle = monitoredItem3.ClientHandle,
+                        EventFields = [new Variant("Event2")]
+                    }
+                ]
+            };
+
+            // Act
+            ReadOnlyMemory<EventNotification> result = sut.CreateNotification(eventNotificationList);
+
+            // Assert
+            Assert.That(result.Length, Is.EqualTo(2));
+            Assert.That(result.Span[0], Is.TypeOf<EventNotification>());
+            Assert.That(result.Span[0].Fields[0].AsBoxedObject(), Is.EqualTo("Event1"));
+            Assert.That(result.Span[0].MonitoredItem, Is.SameAs(monitoredItem1));
+            Assert.That(result.Span[1], Is.TypeOf<EventNotification>());
+            Assert.That(result.Span[1].Fields[0].AsBoxedObject(), Is.EqualTo("Event2"));
+            Assert.That(result.Span[1].MonitoredItem, Is.SameAs(monitoredItem3));
+        }
+
+        [Test]
+        public async Task CreateNotificationEventNotificationListCreatesCorrectNotificationsInOrderAsync()
+        {
+            // Arrange
+            await using var sut = new MonitoredItemManager(m_contextMock.Object, m_observabilityMock.Object);
+            var monitoredItemMock = new Mock<IMonitoredItem>();
+            monitoredItemMock.SetupGet(m => m.ClientHandle).Returns(1);
+
+            sut.TryAdd("Item1", OptionsFactory.Create<MonitoredItemOptions>(o => o with { Order = 5 }), out IMonitoredItem monitoredItem1);
+            sut.TryAdd("Item2", OptionsFactory.Create<MonitoredItemOptions>(o => o with { Order = 3 }), out IMonitoredItem monitoredItem2);
+            sut.TryAdd("Item3", OptionsFactory.Create<MonitoredItemOptions>(o => o with { Order = 1 }), out IMonitoredItem monitoredItem3);
+            Assert.That(monitoredItem1, Is.Not.Null);
+            Assert.That(monitoredItem1.Order, Is.EqualTo(5));
+            Assert.That(monitoredItem3, Is.Not.Null);
+            Assert.That(monitoredItem3.Order, Is.EqualTo(1));
+
+            var eventNotificationList = new EventNotificationList
+            {
+                Events =
+                [
+                    new EventFieldList
+                    {
+                        ClientHandle = monitoredItem1.ClientHandle,
+                        EventFields = [new Variant("Event1")]
+                    },
+                    new EventFieldList
+                    {
+                        ClientHandle = monitoredItem3.ClientHandle,
+                        EventFields = [new Variant("Event2")]
+                    }
+                ]
+            };
+
+            // Act
+            ReadOnlyMemory<EventNotification> result = sut.CreateNotification(eventNotificationList);
+
+            // Assert
+            Assert.That(result.Length, Is.EqualTo(2));
+            Assert.That(result.Span[0], Is.TypeOf<EventNotification>());
+            Assert.That(result.Span[0].Fields[0].AsBoxedObject(), Is.EqualTo("Event1"));
+            Assert.That(result.Span[0].MonitoredItem, Is.SameAs(monitoredItem1));
+            Assert.That(result.Span[1], Is.TypeOf<EventNotification>());
+            Assert.That(result.Span[1].Fields[0].AsBoxedObject(), Is.EqualTo("Event2"));
+            Assert.That(result.Span[1].MonitoredItem, Is.SameAs(monitoredItem3));
+        }
+
+        [Test]
+        public async Task UpdateAddsNewItemsAsync()
+        {
+            // Arrange
+            await using var sut = new MonitoredItemManager(m_contextMock.Object, m_observabilityMock.Object);
+            var state = new List<(string Name, IOptionsMonitor<MonitoredItemOptions> Options)>
+            {
+                ("Item1", OptionsFactory.Create<MonitoredItemOptions>()),
+                ("Item2", OptionsFactory.Create<MonitoredItemOptions>())
+            };
+
+            // Act
+            IReadOnlyList<IMonitoredItem> result = sut.Update(state);
+
+            // Assert
+            Assert.That(result, Has.Count.EqualTo(2));
+            Assert.That(result.Select(i => i.Name), Does.Contain("Item1").And.Contain("Item2"));
+            m_contextMock.Verify();
+        }
+
+        [Test]
+        public async Task UpdateUpdatesExistingItemsAndRemovesRemainingAsync()
+        {
+            // Arrange
+            await using var sut = new MonitoredItemManager(m_contextMock.Object, m_observabilityMock.Object);
+            var state = new List<(string Name, IOptionsMonitor<MonitoredItemOptions> Options)>
+            {
+                ("Item1", OptionsFactory.Create<MonitoredItemOptions>())
+            };
+
+            sut.TryAdd("Item1", OptionsFactory.Create<MonitoredItemOptions>(), out IMonitoredItem existingItem);
+            sut.TryAdd("Item2", OptionsFactory.Create<MonitoredItemOptions>(), out _);
+            sut.TryAdd("Item3", OptionsFactory.Create<MonitoredItemOptions>(), out _);
+
+            // Act
+            IReadOnlyList<IMonitoredItem> result = sut.Update(state);
+
+            // Assert
+            Assert.That(result, Has.Exactly(1).Items);
+            Assert.That(result[0], Is.TypeOf<TestMonitoredItem>());
+            Assert.That(result[0], Is.EqualTo(existingItem));
+            m_contextMock.Verify();
+        }
+
+        [Test]
+        public async Task UpdateUpdatesRemovesExistingItemAndAddsNewItemAsync()
+        {
+            // Arrange
+            await using var sut = new MonitoredItemManager(m_contextMock.Object, m_observabilityMock.Object);
+            var state = new List<(string Name, IOptionsMonitor<MonitoredItemOptions> Options)>
+            {
+                ("Item2", OptionsFactory.Create<MonitoredItemOptions>())
+            };
+
+            sut.TryAdd("Item1", OptionsFactory.Create<MonitoredItemOptions>(), out IMonitoredItem existingItem);
+
+            // Act
+            IReadOnlyList<IMonitoredItem> result = sut.Update(state);
+
+            // Assert
+            Assert.That(result, Has.Exactly(1).Items);
+            Assert.That(result[0], Is.TypeOf<TestMonitoredItem>());
+            Assert.That(result[0], Is.Not.EqualTo(existingItem));
+            Assert.That(result[0].Name, Is.EqualTo("Item2"));
+            m_contextMock.Verify();
+        }
+
+        [Test]
+        public async Task UpdateRemovesItemsNotInStateAsync()
+        {
+            // Arrange
+            await using var sut = new MonitoredItemManager(m_contextMock.Object, m_observabilityMock.Object);
+            var state = new List<(string Name, IOptionsMonitor<MonitoredItemOptions> Options)>
+            {
+                ("Item1", OptionsFactory.Create<MonitoredItemOptions>())
+            };
+
+            OptionsMonitor<MonitoredItemOptions> item1 = OptionsFactory.Create<MonitoredItemOptions>();
+            OptionsMonitor<MonitoredItemOptions> item2 = OptionsFactory.Create<MonitoredItemOptions>();
+
+            sut.TryAdd("Item1", item1, out IMonitoredItem existingItem1);
+            sut.TryAdd("Item2", item2, out _);
+
+            // Act
+            IReadOnlyList<IMonitoredItem> result = sut.Update(state);
+
+            // Assert
+            Assert.That(result, Has.Exactly(1).Items);
+            Assert.That(result[0], Is.TypeOf<TestMonitoredItem>());
+            Assert.That(result[0], Is.EqualTo(existingItem1));
+            Assert.That(sut.TryGetMonitoredItemByName("Item2", out _), Is.False);
+            m_contextMock.Verify();
+        }
+
+        [Test]
+        public async Task UpdateUpdatesItemOptionsAsync()
+        {
+            // Arrange
+            await using var sut = new MonitoredItemManager(m_contextMock.Object, m_observabilityMock.Object);
+
+            bool success = sut.TryAdd("Item1", OptionsFactory.Create<MonitoredItemOptions>(), out IMonitoredItem existingItem);
+            Assert.That(existingItem, Is.TypeOf<TestMonitoredItem>());
+            Assert.That(((TestMonitoredItem)existingItem).Options.CurrentValue.SamplingInterval, Is.Not.EqualTo(TimeSpan.FromSeconds(100)));
+            OptionsMonitor<MonitoredItemOptions> options = OptionsFactory.Create<MonitoredItemOptions>(o => o with
+            {
+                SamplingInterval = TimeSpan.FromSeconds(100)
+            });
+            var state = new List<(string Name, IOptionsMonitor<MonitoredItemOptions> Options)>
+            {
+                ("Item1", options)
+            };
+
+            // Act
+            IReadOnlyList<IMonitoredItem> result = sut.Update(state);
+
+            // Assert
+            Assert.That(result, Has.Exactly(1).Items);
+            Assert.That(result[0], Is.TypeOf<TestMonitoredItem>());
+            Assert.That(((TestMonitoredItem)result[0]).Options.CurrentValue.SamplingInterval, Is.EqualTo(TimeSpan.FromSeconds(100)));
+            m_contextMock.Verify();
+        }
+
+        private sealed class TestMonitoredItem : MonitoredItem
+        {
+            public bool Paused { get; private set; }
+
+            public TestMonitoredItem(IMonitoredItemContext subscription, string name,
+                OptionsMonitor<MonitoredItemOptions> options, ILogger logger)
+                : base(subscription, name, options, logger)
+            {
+                options.Configure(o => o with
+                {
+                    StartNodeId = new NodeId(name, 0)
+                });
+            }
+
+            protected internal override void NotifySubscriptionManagerPaused(bool paused)
+            {
+                Paused = paused;
+                base.NotifySubscriptionManagerPaused(paused);
+            }
+        }
+
+        private Mock<IMonitoredItemManagerContext> m_contextMock;
+        private Mock<ITelemetryContext> m_observabilityMock;
+        private Mock<ILogger<MonitoredItemManager>> m_mockLogger;
+        private Mock<ILoggerFactory> m_mockLoggerFactory;
+    }
+}

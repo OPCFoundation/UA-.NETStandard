@@ -28,8 +28,8 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
@@ -46,7 +46,7 @@ namespace Opc.Ua
     /// <summary>
     /// Validates certificates.
     /// </summary>
-    public class CertificateValidator : ICertificateValidator
+    public class CertificateValidator : ICertificateValidator, IDisposable
     {
         /// <summary>
         /// default number of rejected certificates for history
@@ -595,7 +595,7 @@ namespace Opc.Ua
             {
                 untrustedList.Add(new CertificateIdentifier(certificates[ii]));
             }
-            ArrayOf<CertificateIdentifier> untrustedCollection = untrustedList.ToArrayOf();
+            var untrustedCollection = untrustedList.ToArrayOf();
 
             do
             {
@@ -1781,7 +1781,7 @@ namespace Opc.Ua
             {
                 bool accept = false;
                 const string message = "The domain '{0}' is not listed in the server certificate.";
-                ServiceResultException serviceResult = ServiceResultException.Create(
+                var serviceResult = ServiceResultException.Create(
                     StatusCodes.BadCertificateHostNameInvalid,
                     message,
                     endpointUrl.IdnHost);
@@ -2206,6 +2206,25 @@ namespace Opc.Ua
             MinimumCertificateKeySize = 8,
             UseValidatedCertificates = 16,
             MaxRejectedCertificates = 32
+        }
+
+        /// <inheritdoc/>
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        /// <summary>
+        /// Releases the unmanaged resources used by the validator
+        /// and optionally releases the managed resources.
+        /// </summary>
+        protected virtual void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                m_semaphore.Dispose();
+            }
         }
 
         private readonly SemaphoreSlim m_semaphore = new(1, 1);

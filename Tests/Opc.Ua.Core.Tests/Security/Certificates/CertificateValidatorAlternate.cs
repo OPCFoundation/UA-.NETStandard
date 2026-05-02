@@ -160,6 +160,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         {
             m_rootCert?.Dispose();
             m_rootAltCert?.Dispose();
+            m_certValidator?.Dispose();
             m_validator?.Dispose();
             m_webServer?.Dispose();
             Directory.Delete(m_webServerPath, true);

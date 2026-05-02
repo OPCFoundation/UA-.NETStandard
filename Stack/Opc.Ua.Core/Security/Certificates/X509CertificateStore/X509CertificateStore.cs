@@ -164,7 +164,7 @@ namespace Opc.Ua
                     if (certificate.HasPrivateKey && !NoPrivateKeys)
                     {
                         // X509Store needs a persisted private key
-                        X509Certificate2 persistedCertificate = X509Utils.CreateCopyWithPrivateKey(
+                        using X509Certificate2 persistedCertificate = X509Utils.CreateCopyWithPrivateKey(
                             certificate,
                             true);
                         store.Add(persistedCertificate);
