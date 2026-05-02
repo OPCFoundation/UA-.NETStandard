@@ -72,6 +72,8 @@ namespace Opc.Ua.Client.ComplexTypes
         /// </summary>
         [Obsolete("Use ComplexTypeSystem(IComplexTypeResolver, ITelemetryContext) instead.")]
         public ComplexTypeSystem(IComplexTypeResolver complexTypeResolver)
+            // Telemetry is required by the modern ctor; this obsolete bridge forwards null!
+            // to preserve the resolver-only instantiation pattern.
             : this(complexTypeResolver, (ITelemetryContext)null!)
         {
         }
@@ -83,6 +85,7 @@ namespace Opc.Ua.Client.ComplexTypes
         public ComplexTypeSystem(
             IComplexTypeResolver complexTypeResolver,
             IComplexTypeFactory complexTypeBuilderFactory)
+            // Telemetry is required by the modern ctor; this obsolete bridge forwards null!.
             : this(complexTypeResolver, complexTypeBuilderFactory, null!)
         {
         }
@@ -507,6 +510,8 @@ namespace Opc.Ua.Client.ComplexTypes
                         continue;
                     }
                     string? targetDictionaryNamespace = dictionary.TypeDictionary.TargetNamespace;
+                    // TargetNamespace is nullable on the imported XSD type; an OPC UA type
+                    // dictionary always carries one when it reaches this code path.
                     int targetNamespaceIndex = m_complexTypeResolver.NamespaceUris
                         .GetIndex(targetDictionaryNamespace!);
                     var structureList = new List<Schema.Binary.TypeDescription>();
@@ -517,6 +522,7 @@ namespace Opc.Ua.Client.ComplexTypes
                     SplitAndSortDictionary(dictionary, structureList, enumList);
 
                     // create assembly for all types in the same module
+                    // See note above: targetDictionaryNamespace is required here.
                     IComplexTypeBuilder complexTypeBuilder = m_complexTypeBuilderFactory.Create(
                         targetDictionaryNamespace!,
                         targetNamespaceIndex,
@@ -821,6 +827,9 @@ namespace Opc.Ua.Client.ComplexTypes
                     if (complexTypeBuilder == null)
                     {
                         string? targetNamespace = m_complexTypeResolver.NamespaceUris.GetString(i);
+                        // GetString returns null only for unknown indexes; namespace index i
+                        // is iterated over the live NamespaceUris collection so a registered
+                        // namespace always exists at this index.
                         complexTypeBuilder = m_complexTypeBuilderFactory.Create(
                             targetNamespace!,
                             (int)i);
@@ -890,6 +899,9 @@ namespace Opc.Ua.Client.ComplexTypes
                         {
                             string? targetNamespace = m_complexTypeResolver.NamespaceUris
                                 .GetString(i);
+                            // GetString returns null only for unknown indexes; namespace index i
+                            // iterates over the live NamespaceUris collection so a registered
+                            // namespace always exists at this index.
                             complexTypeBuilder = m_complexTypeBuilderFactory.Create(
                                 targetNamespace!,
                                 (int)i);
@@ -1080,6 +1092,8 @@ namespace Opc.Ua.Client.ComplexTypes
             {
                 // Validate the DataTypeDefinition structure,
                 // but not if the type is supported
+                // TryGetEncodeable<T> returning true implies structureDefinition is non-null
+                // but its signature lacks [NotNullWhen(true)].
                 if (structureDefinition!.Fields.IsNull ||
                     structureDefinition.BaseDataType.IsNull ||
                     structureDefinition.BinaryEncodingId.IsNull)
@@ -1220,6 +1234,8 @@ namespace Opc.Ua.Client.ComplexTypes
                     if (item is Schema.Binary.EnumeratedType enumeratedObject)
                     {
                         // 1. use Dictionary entry
+                        // EnumeratedType.Name is nullable on the imported schema; valid OPC UA
+                        // enumerated types always carry a name.
                         var enumDefinition = enumeratedObject.ToEnumDefinition(
                             enumeratedObject.Name!);
 
@@ -1321,11 +1337,14 @@ namespace Opc.Ua.Client.ComplexTypes
                     if (enumTypeArray.TryGet(out ArrayOf<ExtensionObject> extensionObject))
                     {
                         // 2. use EnumValues
+                        // QualifiedName.Name is nullable but the enum type was resolved by
+                        // browse name and always carries a non-null Name here.
                         enumDefinition = extensionObject.ToEnumDefinition(name.Name!);
                     }
                     else if (enumTypeArray.TryGet(out ArrayOf<LocalizedText> localizedText))
                     {
                         // 3. use EnumStrings
+                        // See note above: name.Name is required.
                         enumDefinition = localizedText.ToEnumDefinition(name.Name!);
                     }
                     else
@@ -1372,6 +1391,8 @@ namespace Opc.Ua.Client.ComplexTypes
                     .ConfigureAwait(false);
                 if (enumTypeArray.TryGet(out ArrayOf<LocalizedText> localizedText))
                 {
+                    // QualifiedName.Name is nullable but the option-set type was resolved by
+                    // browse name and always carries a non-null Name here.
                     enumDefinition = localizedText.ToEnumDefinition(name.Name!);
                 }
                 else
@@ -1677,10 +1698,16 @@ namespace Opc.Ua.Client.ComplexTypes
                 throw new ArgumentException("Type dictionary in dictionary was not validated");
             }
 
+            // TypeDictionary.Items is nullable on the imported XSD type but the validation
+            // at the top of this method (TypeDictionary != null) guarantees we have items
+            // to iterate; an empty type dictionary is filtered by the caller.
             foreach (Schema.Binary.TypeDescription item in dictionary.TypeDictionary.Items!)
             {
                 if (item is Schema.Binary.StructuredType structuredObject)
                 {
+                    // StructuredType.Field and FieldType.TypeName are both nullable on the
+                    // imported schema; the dictionary loader rejects malformed entries before
+                    // they reach this code, so the bangs reflect that lifecycle invariant.
                     IEnumerable<Schema.Binary.FieldType> dependentFields = structuredObject.Field!
                         .Where(f =>
                             f.TypeName!.Namespace == dictionary.TypeDictionary.TargetNamespace);
