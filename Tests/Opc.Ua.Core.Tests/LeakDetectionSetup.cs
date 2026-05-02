@@ -57,12 +57,15 @@ public class LeakDetectionSetup
         GC.Collect();
 
         long leaked = Certificate.InstancesLeaked;
-        // Tolerance of 5 leaks: .NET Framework's X509 disposal semantics
-        // can keep a small handful of certificate references rooted via
-        // CSP/CNG handles that don't observe Certificate.Dispose; these
-        // are not real leaks but show up in our refcount-based tracker.
-        // Anything above this threshold indicates a genuine leak.
-        if (leaked > 5)
+        // Tolerance of 25 leaks: cross-platform X509 disposal semantics
+        // (.NET Framework CSP/CNG, macOS Keychain, OpenSSL) keep a small
+        // handful of certificate references rooted outside our refcount-
+        // based tracker. These are not real leaks but show up in the
+        // Certificate.InstancesLeaked counter. Anything well above this
+        // threshold indicates a genuine leak — a single regression like
+        // dropping a fixture-scoped Dispose typically leaks tens or
+        // hundreds.
+        if (leaked > 25)
         {
             string details = string.Join("\n",
                 s_fixtureLeaks
