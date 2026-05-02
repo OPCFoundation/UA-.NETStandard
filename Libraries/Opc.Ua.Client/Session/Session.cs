@@ -1203,6 +1203,10 @@ namespace Opc.Ua.Client
             bool successCreateSession = false;
             CreateSessionResponse? response = null;
 
+            // EndpointUrl is annotated nullable on ConfiguredEndpoint but a session can only
+            // be opened against a populated endpoint URL; bang reflects that lifecycle invariant.
+            string endpointUrl = m_endpoint.EndpointUrl!.ToString();
+
             // if security none, first try to connect without certificate
             if (m_endpoint.Description.SecurityPolicyUri == SecurityPolicies.None)
             {
@@ -1213,7 +1217,7 @@ namespace Opc.Ua.Client
                         null,
                         clientDescription,
                         m_endpoint.Description.Server.ApplicationUri,
-                        m_endpoint.EndpointUrl!.ToString(),
+                        endpointUrl,
                         sessionName,
                         clientNonce,
                         default,
@@ -1236,7 +1240,7 @@ namespace Opc.Ua.Client
                     requestHeader,
                     clientDescription,
                     m_endpoint.Description.Server.ApplicationUri,
-                    m_endpoint.EndpointUrl!.ToString(),
+                    endpointUrl,
                     sessionName,
                     clientNonce,
                     clientCertificateChainData.IsEmpty ?
