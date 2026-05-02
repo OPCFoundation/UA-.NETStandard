@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable disable
-
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -198,39 +196,39 @@ namespace Opc.Ua.Client
         /// </summary>
         [Obsolete("Use ReadValuesAsync returning Variant Array")]
         public static async ValueTask<(
-            ArrayOf<object>,
+            ArrayOf<object?>,
             ArrayOf<ServiceResult>
             )> ReadValuesAsync(
                 this ISessionClient session,
                 ArrayOf<NodeId> variableIds,
-                ArrayOf<Type> expectedTypes,
+                ArrayOf<Type?> expectedTypes,
                 CancellationToken ct = default)
         {
             (ArrayOf<DataValue> dataValues, ArrayOf<ServiceResult> errorValues) =
                 await session.ReadValuesAsync(variableIds, ct).ConfigureAwait(false);
 
             ServiceResult[] errors = new ServiceResult[errorValues.Count];
-            object[] values = new object[dataValues.Count];
+            object?[] values = new object?[dataValues.Count];
             for (int ii = 0; ii < variableIds.Count; ii++)
             {
-                object value = dataValues[ii].Value;
+                object? value = dataValues[ii].Value;
 
                 // extract the body from extension objects.
                 if (value is ExtensionObject extension &&
-                    extension.TryGetEncodeable(out IEncodeable encodeable))
+                    extension.TryGetEncodeable(out IEncodeable? encodeable))
                 {
                     value = encodeable;
                 }
 
                 // check expected type.
                 if (expectedTypes[ii] != null &&
-                    !expectedTypes[ii].IsInstanceOfType(value))
+                    !expectedTypes[ii]!.IsInstanceOfType(value))
                 {
                     errors[ii] = ServiceResult.Create(
                         StatusCodes.BadTypeMismatch,
                         "Value {0} does not have expected type: {1}.",
-                        value,
-                        expectedTypes[ii].Name);
+                        value!,
+                        expectedTypes[ii]!.Name);
                     continue;
                 }
 
@@ -246,15 +244,15 @@ namespace Opc.Ua.Client
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
         [Obsolete("Use ReadValueAsync instead.")]
-        public static object ReadValue(this ISession session, NodeId nodeId, Type expectedType)
+        public static object? ReadValue(this ISession session, NodeId nodeId, Type? expectedType)
         {
             DataValue dataValue = session.ReadValueAsync(nodeId).GetAwaiter().GetResult();
-            object value = dataValue.Value;
+            object? value = dataValue.Value;
 
             if (expectedType != null)
             {
                 if (dataValue.WrappedValue.TryGet(out ExtensionObject extension) &&
-                    extension.TryGetEncodeable(out IEncodeable encodeable))
+                    extension.TryGetEncodeable(out IEncodeable? encodeable))
                 {
                     value = encodeable;
                 }
@@ -443,8 +441,8 @@ namespace Opc.Ua.Client
         [Obsolete("Use Use ReadValuesAsync instead.")]
         public static void ReadValues(this ISession session,
             ArrayOf<NodeId> variableIds,
-            ArrayOf<Type> expectedTypes,
-            out ArrayOf<object> values,
+            ArrayOf<Type?> expectedTypes,
+            out ArrayOf<object?> values,
             out ArrayOf<ServiceResult> errors)
         {
             (ArrayOf<DataValue> dataValues, ArrayOf<ServiceResult> errorValues) = session.ReadValuesAsync(
@@ -452,28 +450,28 @@ namespace Opc.Ua.Client
                 .GetAwaiter()
                 .GetResult();
 
-            object[] valuesBuffer = new object[dataValues.Count];
+            object?[] valuesBuffer = new object?[dataValues.Count];
             var errorsBuffer = new ServiceResult[errorValues.Count];
             for (int ii = 0; ii < variableIds.Count; ii++)
             {
-                object value = dataValues[ii].Value;
+                object? value = dataValues[ii].Value;
 
                 // extract the body from extension objects.
                 if (dataValues[ii].WrappedValue.TryGet(out ExtensionObject extension) &&
-                    extension.TryGetEncodeable(out IEncodeable encodeable))
+                    extension.TryGetEncodeable(out IEncodeable? encodeable))
                 {
                     value = encodeable;
                 }
 
                 // check expected type.
                 if (expectedTypes[ii] != null &&
-                    !expectedTypes[ii].IsInstanceOfType(value))
+                    !expectedTypes[ii]!.IsInstanceOfType(value))
                 {
                     errorsBuffer[ii] = ServiceResult.Create(
                         StatusCodes.BadTypeMismatch,
                         "Value {0} does not have expected type: {1}.",
-                        value,
-                        expectedTypes[ii].Name);
+                        value!,
+                        expectedTypes[ii]!.Name);
 
                     continue;
                 }
@@ -839,7 +837,7 @@ namespace Opc.Ua.Client
         {
             return Create(
                 configuration,
-                (ITransportWaitingConnection)null,
+                (ITransportWaitingConnection)null!,
                 endpoint,
                 updateBeforeConnect,
                 checkDomain,
@@ -863,7 +861,7 @@ namespace Opc.Ua.Client
             ArrayOf<string> discoveryProfileUris = default)
         {
             return Create(
-                null,
+                null!,
                 configuration,
                 channel,
                 endpoint,
@@ -979,7 +977,7 @@ namespace Opc.Ua.Client
             CancellationToken ct = default)
         {
             return CreateAsync(
-                null,
+                null!,
                 configuration,
                 connection,
                 endpoint,
@@ -1302,7 +1300,7 @@ namespace Opc.Ua.Client
             /// Obsolete default constructor
             /// </summary>
             public TraceableSessionFactory()
-                : base(null)
+                : base(null!)
             {
             }
         }

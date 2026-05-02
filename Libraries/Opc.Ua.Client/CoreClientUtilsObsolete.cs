@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable disable
-
 using System;
 using System.Collections.Generic;
 using System.Threading;
@@ -51,7 +49,7 @@ namespace Opc.Ua.Client
             return DiscoverServersAsync(
                 configuration,
                 DefaultDiscoverTimeout,
-                null).AsTask().GetAwaiter().GetResult();
+                null!).AsTask().GetAwaiter().GetResult();
         }
 
         /// <summary>
@@ -65,14 +63,14 @@ namespace Opc.Ua.Client
             return DiscoverServersAsync(
                 configuration,
                 discoverTimeout,
-                null).AsTask().GetAwaiter().GetResult();
+                null!).AsTask().GetAwaiter().GetResult();
         }
 
         /// <summary>
         /// Finds the endpoint that best matches the current settings.
         /// </summary>
         [Obsolete("Use SelectEndpointAsync instead.")]
-        public static EndpointDescription SelectEndpoint(
+        public static EndpointDescription? SelectEndpoint(
             ApplicationConfiguration application,
             ITransportWaitingConnection connection,
             bool useSecurity)
@@ -82,14 +80,14 @@ namespace Opc.Ua.Client
                 connection,
                 useSecurity,
                 DefaultDiscoverTimeout,
-                null).AsTask().GetAwaiter().GetResult();
+                null!).AsTask().GetAwaiter().GetResult();
         }
 
         /// <summary>
         /// Finds the endpoint that best matches the current settings.
         /// </summary>
         [Obsolete("Use SelectEndpointAsync instead.")]
-        public static EndpointDescription SelectEndpoint(
+        public static EndpointDescription? SelectEndpoint(
             ApplicationConfiguration application,
             ITransportWaitingConnection connection,
             bool useSecurity,
@@ -100,14 +98,14 @@ namespace Opc.Ua.Client
                 connection,
                 useSecurity,
                 discoverTimeout,
-                null).AsTask().GetAwaiter().GetResult();
+                null!).AsTask().GetAwaiter().GetResult();
         }
 
         /// <summary>
         /// Finds the endpoint that best matches the current settings.
         /// </summary>
         [Obsolete("Use SelectEndpointAsync instead.")]
-        public static EndpointDescription SelectEndpoint(
+        public static EndpointDescription? SelectEndpoint(
             ApplicationConfiguration application,
             string discoveryUrl,
             bool useSecurity)
@@ -117,14 +115,14 @@ namespace Opc.Ua.Client
                 discoveryUrl,
                 useSecurity,
                 DefaultDiscoverTimeout,
-                null).AsTask().GetAwaiter().GetResult();
+                null!).AsTask().GetAwaiter().GetResult();
         }
 
         /// <summary>
         /// Finds the endpoint that best matches the current settings.
         /// </summary>
         [Obsolete("Use SelectEndpointAsync instead.")]
-        public static EndpointDescription SelectEndpoint(
+        public static EndpointDescription? SelectEndpoint(
             ApplicationConfiguration application,
             string discoveryUrl,
             bool useSecurity,
@@ -135,14 +133,14 @@ namespace Opc.Ua.Client
                 discoveryUrl,
                 useSecurity,
                 discoverTimeout,
-                null).AsTask().GetAwaiter().GetResult();
+                null!).AsTask().GetAwaiter().GetResult();
         }
 
         /// <summary>
         /// Finds the endpoint that best matches the current settings.
         /// </summary>
         [Obsolete("Use SelectEndpointAsync with ITelemetryContext parameter instead.")]
-        public static ValueTask<EndpointDescription> SelectEndpointAsync(
+        public static ValueTask<EndpointDescription?> SelectEndpointAsync(
             ApplicationConfiguration application,
             ITransportWaitingConnection connection,
             bool useSecurity,
@@ -153,7 +151,7 @@ namespace Opc.Ua.Client
                 connection,
                 useSecurity,
                 DefaultDiscoverTimeout,
-                null,
+                null!,
                 ct);
         }
 
@@ -161,7 +159,7 @@ namespace Opc.Ua.Client
         /// Finds the endpoint that best matches the current settings.
         /// </summary>
         [Obsolete("Use SelectEndpointAsync with ITelemetryContext parameter instead.")]
-        public static ValueTask<EndpointDescription> SelectEndpointAsync(
+        public static ValueTask<EndpointDescription?> SelectEndpointAsync(
             ApplicationConfiguration application,
             ITransportWaitingConnection connection,
             bool useSecurity,
@@ -173,7 +171,7 @@ namespace Opc.Ua.Client
                 connection,
                 useSecurity,
                 discoverTimeout,
-                null,
+                null!,
                 ct);
         }
 
@@ -187,7 +185,7 @@ namespace Opc.Ua.Client
         /// <param name="ct"></param>
         /// <returns></returns>
         [Obsolete("Use SelectEndpointAsync with ITelemetryContext parameter instead.")]
-        public static ValueTask<EndpointDescription> SelectEndpointAsync(
+        public static ValueTask<EndpointDescription?> SelectEndpointAsync(
             ApplicationConfiguration application,
             string discoveryUrl,
             bool useSecurity,
@@ -199,7 +197,7 @@ namespace Opc.Ua.Client
                 discoveryUrl,
                 useSecurity,
                 discoverTimeout,
-                null,
+                null!,
                 ct);
         }
     }

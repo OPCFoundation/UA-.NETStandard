@@ -68,7 +68,7 @@ namespace Opc.Ua.Configuration
         /// </summary>
         [Obsolete("Use ApplicationInstance(ITelemetryContext) instead.")]
         public ApplicationInstance()
-            : this((ITelemetryContext)null)
+            : this((ITelemetryContext?)null)
         {
         }
 
@@ -84,7 +84,7 @@ namespace Opc.Ua.Configuration
         /// <summary>
         /// Initializes a new instance of the <see cref="ApplicationInstance"/> class.
         /// </summary>
-        public ApplicationInstance(ITelemetryContext telemetry)
+        public ApplicationInstance(ITelemetryContext? telemetry)
         {
             m_telemetry = telemetry;
             m_logger = telemetry.CreateLogger<ApplicationInstance>();
@@ -98,38 +98,38 @@ namespace Opc.Ua.Configuration
         /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         public ApplicationInstance(
             ApplicationConfiguration applicationConfiguration,
-            ITelemetryContext telemetry)
+            ITelemetryContext? telemetry)
             : this(telemetry)
         {
             ApplicationConfiguration = applicationConfiguration;
         }
 
         /// <inheritdoc/>
-        public string ApplicationName { get; set; }
+        public string? ApplicationName { get; set; }
 
         /// <inheritdoc/>
         public ApplicationType ApplicationType { get; set; }
 
         /// <inheritdoc/>
-        public string ConfigSectionName { get; set; }
+        public string? ConfigSectionName { get; set; }
 
         /// <inheritdoc/>
         [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)]
-        public Type ConfigurationType { get; set; }
+        public Type? ConfigurationType { get; set; }
 
         /// <inheritdoc/>
-        public IServerBase Server { get; private set; }
+        public IServerBase? Server { get; private set; }
 
         /// <inheritdoc/>
-        public ApplicationConfiguration ApplicationConfiguration { get; set; }
+        public ApplicationConfiguration? ApplicationConfiguration { get; set; }
 
         /// <summary>
         /// Get or set the message dialog.
         /// </summary>
-        public static IApplicationMessageDlg MessageDlg { get; set; }
+        public static IApplicationMessageDlg? MessageDlg { get; set; }
 
         /// <inheritdoc/>
-        public ICertificatePasswordProvider CertificatePasswordProvider { get; set; }
+        public ICertificatePasswordProvider? CertificatePasswordProvider { get; set; }
 
         /// <inheritdoc/>
         public bool DisableCertificateAutoCreation { get; set; }
@@ -144,13 +144,13 @@ namespace Opc.Ua.Configuration
                 await LoadApplicationConfigurationAsync(false, ct).ConfigureAwait(false);
             }
 
-            await server.StartAsync(ApplicationConfiguration, ct).ConfigureAwait(false);
+            await server.StartAsync(ApplicationConfiguration!, ct).ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
         public ValueTask StopAsync(CancellationToken ct = default)
         {
-            return Server.StopAsync(ct);
+            return Server?.StopAsync(ct) ?? default;
         }
 
         /// <summary>
@@ -159,7 +159,7 @@ namespace Opc.Ua.Configuration
         [Obsolete("Use StopAsync")]
         public void Stop()
         {
-            Server.Stop();
+            Server?.Stop();
         }
 
         /// <inheritdoc/>
@@ -168,7 +168,7 @@ namespace Opc.Ua.Configuration
             bool silent,
             CancellationToken ct = default)
         {
-            ApplicationConfiguration configuration = null;
+            ApplicationConfiguration? configuration = null;
 
             try
             {
@@ -202,7 +202,7 @@ namespace Opc.Ua.Configuration
             bool silent,
             CancellationToken ct = default)
         {
-            ApplicationConfiguration configuration = null;
+            ApplicationConfiguration? configuration = null;
 
             try
             {
@@ -235,7 +235,7 @@ namespace Opc.Ua.Configuration
             bool silent,
             CancellationToken ct = default)
         {
-            string filePath = ApplicationConfiguration.GetFilePathFromAppConfig(ConfigSectionName, m_logger);
+            string filePath = ApplicationConfiguration.GetFilePathFromAppConfig(ConfigSectionName!, m_logger);
             return LoadApplicationConfigurationAsync(filePath, silent, ct);
         }
 
@@ -254,7 +254,7 @@ namespace Opc.Ua.Configuration
                 for (int i = 0; i < configuration.ServerConfiguration.BaseAddresses.Count; i++)
                 {
                     baseAddresses[i] =
-                        Utils.ReplaceLocalhost(configuration.ServerConfiguration.BaseAddresses[i]);
+                        Utils.ReplaceLocalhost(configuration.ServerConfiguration.BaseAddresses[i])!;
                 }
                 configuration.ServerConfiguration.BaseAddresses = baseAddresses;
             }
@@ -265,7 +265,7 @@ namespace Opc.Ua.Configuration
         public IApplicationConfigurationBuilderTypes Build(string applicationUri, string productUri)
         {
             // App Uri and cert subject
-            ApplicationConfiguration = new ApplicationConfiguration(m_telemetry)
+            ApplicationConfiguration = new ApplicationConfiguration(m_telemetry!)
             {
                 ApplicationName = ApplicationName,
                 ApplicationType = ApplicationType,
@@ -285,7 +285,7 @@ namespace Opc.Ua.Configuration
 
         /// <inheritdoc/>
         public async ValueTask DeleteApplicationInstanceCertificateAsync(
-            string[] profileIds = null,
+            string[]? profileIds = null,
             CancellationToken ct = default)
         {
             // TODO: delete only selected profiles
@@ -319,7 +319,7 @@ namespace Opc.Ua.Configuration
             }
 
             // find the existing certificates.
-            SecurityConfiguration securityConfiguration = ApplicationConfiguration
+            SecurityConfiguration securityConfiguration = ApplicationConfiguration!
                 .SecurityConfiguration;
 
             if (securityConfiguration.ApplicationCertificates.Count == 0)
@@ -365,7 +365,7 @@ namespace Opc.Ua.Configuration
             ushort lifeTimeInMonths,
             CancellationToken ct = default)
         {
-            ApplicationConfiguration configuration = ApplicationConfiguration;
+            ApplicationConfiguration configuration = ApplicationConfiguration!;
 
             if (id == null)
             {
@@ -381,7 +381,7 @@ namespace Opc.Ua.Configuration
                 .ConfigureAwait(false);
 
             // load the certificate
-            X509Certificate2 certificate = await id.FindAsync(
+            X509Certificate2? certificate = await id.FindAsync(
                 true,
                 configuration.ApplicationUri,
                 m_telemetry,
@@ -406,8 +406,8 @@ namespace Opc.Ua.Configuration
                     throw ServiceResultException.ConfigurationError(
                         "The certificate with subject {0} in the configuration is invalid.\n" +
                         " Please update or delete the certificate from this location: {1}",
-                        id.SubjectName,
-                        Utils.ReplaceSpecialFolderNames(id.StorePath));
+                        id.SubjectName!,
+                        Utils.ReplaceSpecialFolderNames(id.StorePath)!);
                 }
             }
             else
@@ -448,13 +448,13 @@ namespace Opc.Ua.Configuration
                             .AppendLine("Requested: {0}")
                             .AppendLine("Found: {1}");
                         if (!await ApproveMessageAsync(
-                            Utils.Format(message.ToString(), id.SubjectName, certificate.Subject), silent)
+                            Utils.Format(message.ToString(), id.SubjectName!, certificate.Subject), silent)
                                 .ConfigureAwait(false))
                         {
                             throw ServiceResultException.ConfigurationError(
                                 "Thumbprint for {0} was explicitly specified in the configuration but\n" +
                                 "another certificate with the same subject name {1} was found.",
-                                id.SubjectName,
+                                id.SubjectName!,
                                 certificate.Subject);
                         }
                     }
@@ -488,8 +488,8 @@ namespace Opc.Ua.Configuration
                     throw ServiceResultException.ConfigurationError(
                         "There is no cert with subject {0} in the configuration.\n" +
                         "Please generate a cert for your application, then copy the new cert to this location: {1}",
-                        id.SubjectName,
-                        id.StorePath);
+                        id.SubjectName!,
+                        id.StorePath!);
                 }
             }
             else if (configuration.SecurityConfiguration.AddAppCertToTrustedStore)
@@ -506,20 +506,20 @@ namespace Opc.Ua.Configuration
             X509Certificate2 certificate,
             CancellationToken ct)
         {
-            await AddToTrustedStoreAsync(ApplicationConfiguration, certificate, ct).ConfigureAwait(
+            await AddToTrustedStoreAsync(ApplicationConfiguration!, certificate, ct).ConfigureAwait(
                 false);
         }
 
         /// <summary>
         /// Loads the configuration.
         /// </summary>
-        internal async ValueTask<ApplicationConfiguration> LoadAppConfigAsync(
+        internal async ValueTask<ApplicationConfiguration?> LoadAppConfigAsync(
             bool silent,
             string filePath,
             ApplicationType applicationType,
-            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] Type configurationType,
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] Type? configurationType,
             bool applyTraceSettings,
-            ICertificatePasswordProvider certificatePasswordProvider = null,
+            ICertificatePasswordProvider? certificatePasswordProvider = null,
             CancellationToken ct = default)
         {
             m_logger.LogInformation("Loading application configuration file. {FilePath}", filePath);
@@ -561,13 +561,13 @@ namespace Opc.Ua.Configuration
         /// <summary>
         /// Loads the configuration.
         /// </summary>
-        internal async ValueTask<ApplicationConfiguration> LoadAppConfigAsync(
+        internal async ValueTask<ApplicationConfiguration?> LoadAppConfigAsync(
             bool silent,
             Stream stream,
             ApplicationType applicationType,
-            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] Type configurationType,
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] Type? configurationType,
             bool applyTraceSettings,
-            ICertificatePasswordProvider certificatePasswordProvider = null,
+            ICertificatePasswordProvider? certificatePasswordProvider = null,
             CancellationToken ct = default)
         {
             m_logger.LogInformation("Loading application from stream.");
@@ -650,7 +650,7 @@ namespace Opc.Ua.Configuration
             try
             {
                 // validate certificate.
-                configuration.CertificateValidator.CertificateValidation += OnCertificateValidation;
+                configuration.CertificateValidator!.CertificateValidation += OnCertificateValidation;
                 await configuration
                     .CertificateValidator.ValidateAsync(
                         certificate.HasPrivateKey
@@ -671,7 +671,7 @@ namespace Opc.Ua.Configuration
             }
             finally
             {
-                configuration.CertificateValidator.CertificateValidation -= OnCertificateValidation;
+                configuration.CertificateValidator!.CertificateValidation -= OnCertificateValidation;
             }
 
             // check key size
@@ -700,7 +700,7 @@ namespace Opc.Ua.Configuration
             // Validate that the certificate contains the configuration's ApplicationUri
             if (!X509Utils.CompareApplicationUriWithCertificate(
                 certificate,
-                configuration.ApplicationUri,
+                configuration.ApplicationUri!,
                 out IReadOnlyList<string> certificateUris))
             {
                 if (certificateUris.Count == 0)
@@ -718,7 +718,7 @@ namespace Opc.Ua.Configuration
                         "The certificate with subject '{0}' does not contain the ApplicationUri '{1}' " +
                         "from the configuration. Certificate contains: {2}. Use certificate anyway?",
                         certificate.Subject,
-                        configuration.ApplicationUri,
+                        configuration.ApplicationUri!,
                         string.Join(", ", certificateUris));
 
                     if (!await ApproveMessageAsync(message, silent).ConfigureAwait(false))
@@ -770,7 +770,7 @@ namespace Opc.Ua.Configuration
             string computerName = Utils.GetHostName();
 
             // get IP addresses.
-            IPAddress[] addresses = null;
+            IPAddress[]? addresses = null;
 
             for (int ii = 0; ii < serverDomainNames.Count; ii++)
             {
@@ -839,7 +839,7 @@ namespace Opc.Ua.Configuration
         /// <param name="ct">Cancellation token to cancel operation with</param>
         /// <returns>The new certificate</returns>
         /// <exception cref="ServiceResultException"></exception>
-        private async Task<X509Certificate2> CreateApplicationInstanceCertificateAsync(
+        private async Task<X509Certificate2?> CreateApplicationInstanceCertificateAsync(
             ApplicationConfiguration configuration,
             CertificateIdentifier id,
             ushort minimumKeySize,
@@ -863,14 +863,14 @@ namespace Opc.Ua.Configuration
             // ensure the certificate store directory exists.
             if (id.StoreType == CertificateStoreType.Directory)
             {
-                Utils.GetAbsoluteDirectoryPath(id.StorePath, true, true, true);
+                Utils.GetAbsoluteDirectoryPath(id.StorePath!, true, true, true);
             }
 
             Security.Certificates.ICertificateBuilder builder = CertificateFactory
                 .CreateCertificate(
-                    configuration.ApplicationUri,
-                    configuration.ApplicationName,
-                    id.SubjectName,
+                    configuration.ApplicationUri!,
+                    configuration.ApplicationName!,
+                    id.SubjectName!,
                     serverDomainNames)
                 .SetLifeTime(lifeTimeInMonths);
 
@@ -910,8 +910,8 @@ namespace Opc.Ua.Configuration
                 .CertificatePasswordProvider;
             await id
                 .Certificate.AddToStoreAsync(
-                    id.StoreType,
-                    id.StorePath,
+                    id.StoreType!,
+                    id.StorePath!,
                     passwordProvider?.GetPassword(id),
                     m_telemetry,
                     ct)
@@ -926,19 +926,19 @@ namespace Opc.Ua.Configuration
 
             // reload the certificate from disk.
             id.Certificate = await id.LoadPrivateKeyExAsync(
-                passwordProvider,
+                passwordProvider!,
                 configuration.ApplicationUri,
                 m_telemetry,
                 ct)
                 .ConfigureAwait(false);
 
             await configuration
-                .CertificateValidator.UpdateAsync(configuration.SecurityConfiguration, applicationUri: null, ct)
+                .CertificateValidator!.UpdateAsync(configuration.SecurityConfiguration, applicationUri: null, ct)
                 .ConfigureAwait(false);
 
             m_logger.LogInformation(
                 "Certificate {Certificate} created for {ApplicationUri}.",
-                id.Certificate.AsLogSafeString(),
+                id.Certificate!.AsLogSafeString(),
                 configuration.ApplicationUri);
 
             // do not dispose temp cert, or X509Store certs become unusable
@@ -963,7 +963,7 @@ namespace Opc.Ua.Configuration
             }
 
             // delete certificate and private key.
-            X509Certificate2 certificate = await id.FindAsync(configuration.ApplicationUri, m_telemetry, ct)
+            X509Certificate2? certificate = await id.FindAsync(configuration.ApplicationUri, m_telemetry, ct)
                 .ConfigureAwait(false);
             if (certificate != null)
             {
@@ -977,7 +977,7 @@ namespace Opc.Ua.Configuration
             if (configuration.SecurityConfiguration != null &&
                 configuration.SecurityConfiguration.TrustedPeerCertificates != null)
             {
-                string thumbprint = id.Thumbprint;
+                string? thumbprint = id.Thumbprint;
 
                 if (certificate != null)
                 {
@@ -988,19 +988,19 @@ namespace Opc.Ua.Configuration
                 {
                     ICertificateStore store = configuration.SecurityConfiguration
                         .TrustedPeerCertificates
-                        .OpenStore(m_telemetry);
+                        .OpenStore(m_telemetry!);
                     if (store != null)
                     {
                         try
                         {
-                            bool deleted = await store.DeleteAsync(thumbprint, ct)
+                            bool deleted = await store.DeleteAsync(thumbprint!, ct)
                                 .ConfigureAwait(false);
                             if (deleted)
                             {
                                 m_logger.LogInformation(
                                     Utils.TraceMasks.Security,
                                     "Application Instance Certificate [{Thumbprint}] deleted from trusted store.",
-                                    thumbprint);
+                                    thumbprint!);
                             }
                         }
                         finally
@@ -1014,7 +1014,7 @@ namespace Opc.Ua.Configuration
             // delete certificate and private key from owner store.
             if (certificate != null)
             {
-                using ICertificateStore store = id.OpenStore(m_telemetry);
+                using ICertificateStore store = id.OpenStore(m_telemetry!);
                 bool deleted = await store.DeleteAsync(certificate.Thumbprint, ct)
                     .ConfigureAwait(false);
                 if (deleted)
@@ -1047,7 +1047,7 @@ namespace Opc.Ua.Configuration
                 throw new ArgumentNullException(nameof(certificate));
             }
 
-            string storePath = null;
+            string? storePath = null;
 
             if (configuration != null &&
                 configuration.SecurityConfiguration != null &&
@@ -1064,9 +1064,7 @@ namespace Opc.Ua.Configuration
 
             try
             {
-                ICertificateStore store = configuration.SecurityConfiguration
-                    .TrustedPeerCertificates
-                    .OpenStore(m_telemetry);
+                ICertificateStore store = configuration!.SecurityConfiguration!.TrustedPeerCertificates!.OpenStore(m_telemetry!);
 
                 if (store == null)
                 {
@@ -1171,7 +1169,7 @@ namespace Opc.Ua.Configuration
             return false;
         }
 
-        private readonly ITelemetryContext m_telemetry;
+        private readonly ITelemetryContext? m_telemetry;
         private readonly ILogger m_logger;
     }
 }

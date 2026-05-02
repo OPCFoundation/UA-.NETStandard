@@ -60,7 +60,7 @@ namespace Opc.Ua.Configuration
         /// The application configuration.
         /// </summary>
         public ApplicationConfiguration ApplicationConfiguration
-            => ApplicationInstance.ApplicationConfiguration;
+            => ApplicationInstance.ApplicationConfiguration!;
 
         /// <inheritdoc/>
         public IApplicationConfigurationBuilderGlobalConfiguration SetHiResClockDisabled(
@@ -99,9 +99,9 @@ namespace Opc.Ua.Configuration
         /// <inheritdoc/>
         public IApplicationConfigurationBuilderSecurityOptions AddSecurityConfiguration(
             string subjectName,
-            string pkiRoot = null,
-            string appRoot = null,
-            string rejectedRoot = null)
+            string? pkiRoot = null,
+            string? appRoot = null,
+            string? rejectedRoot = null)
         {
             pkiRoot = DefaultPKIRoot(pkiRoot);
             appRoot = appRoot == null ? pkiRoot : DefaultPKIRoot(appRoot);
@@ -166,8 +166,8 @@ namespace Opc.Ua.Configuration
         /// <inheritdoc/>
         public IApplicationConfigurationBuilderSecurityOptions AddSecurityConfiguration(
             ArrayOf<CertificateIdentifier> certIdList,
-            string pkiRoot = null,
-            string rejectedRoot = null)
+            string? pkiRoot = null,
+            string? rejectedRoot = null)
         {
             pkiRoot = DefaultPKIRoot(pkiRoot);
             rejectedRoot = rejectedRoot == null ? pkiRoot : DefaultPKIRoot(rejectedRoot);
@@ -228,7 +228,7 @@ namespace Opc.Ua.Configuration
             string appRoot,
             string trustedRoot,
             string issuerRoot,
-            string rejectedRoot = null)
+            string? rejectedRoot = null)
         {
             string appStoreType = CertificateStoreIdentifier.DetermineStoreType(appRoot);
             string issuerRootType = CertificateStoreIdentifier.DetermineStoreType(issuerRoot);
@@ -276,13 +276,13 @@ namespace Opc.Ua.Configuration
             string issuerRootType = CertificateStoreIdentifier.DetermineStoreType(issuerRoot);
 
             // User trusted & issuer
-            ApplicationConfiguration.SecurityConfiguration.TrustedUserCertificates
+            ApplicationConfiguration.SecurityConfiguration!.TrustedUserCertificates
                 = new CertificateTrustList
                 {
                     StoreType = trustedRootType,
                     StorePath = DefaultCertificateStorePath(TrustlistType.TrustedUser, trustedRoot)
                 };
-            ApplicationConfiguration.SecurityConfiguration.UserIssuerCertificates
+            ApplicationConfiguration.SecurityConfiguration!.UserIssuerCertificates
                 = new CertificateTrustList
                 {
                     StoreType = issuerRootType,
@@ -300,7 +300,7 @@ namespace Opc.Ua.Configuration
             string issuerRootType = CertificateStoreIdentifier.DetermineStoreType(issuerRoot);
 
             // Https trusted & issuer
-            ApplicationConfiguration.SecurityConfiguration.TrustedHttpsCertificates
+            ApplicationConfiguration.SecurityConfiguration!.TrustedHttpsCertificates
                 = new CertificateTrustList
                 {
                     StoreType = trustedRootType,
@@ -308,7 +308,7 @@ namespace Opc.Ua.Configuration
                         TrustlistType.TrustedHttps,
                         trustedRootType)
                 };
-            ApplicationConfiguration.SecurityConfiguration.HttpsIssuerCertificates
+            ApplicationConfiguration.SecurityConfiguration!.HttpsIssuerCertificates
                 = new CertificateTrustList
                 {
                     StoreType = issuerRootType,
@@ -337,7 +337,7 @@ namespace Opc.Ua.Configuration
             // ensure for a user token policy
             if (ApplicationConfiguration.ServerConfiguration?.UserTokenPolicies.Count == 0)
             {
-                ApplicationConfiguration.ServerConfiguration.UserTokenPolicies +=
+                ApplicationConfiguration.ServerConfiguration!.UserTokenPolicies +=
                     new UserTokenPolicy(UserTokenType.Anonymous);
             }
 
@@ -355,7 +355,7 @@ namespace Opc.Ua.Configuration
                 .ConfigureAwait(false);
 
             await ApplicationConfiguration
-                .CertificateValidator.UpdateAsync(
+                .CertificateValidator!.UpdateAsync(
                     ApplicationConfiguration.SecurityConfiguration,
                     applicationUri: null,
                     ct)
@@ -367,7 +367,7 @@ namespace Opc.Ua.Configuration
         /// <inheritdoc/>
         public IApplicationConfigurationBuilderServerSelected AsServer(
             string[] baseAddresses,
-            string[] alternateBaseAddresses = null)
+            string[]? alternateBaseAddresses = null)
         {
             switch (ApplicationInstance.ApplicationType)
             {
@@ -398,7 +398,7 @@ namespace Opc.Ua.Configuration
             foreach (string baseAddress in baseAddresses)
             {
                 serverConfiguration.BaseAddresses +=
-                    Utils.ReplaceLocalhost(baseAddress);
+                    Utils.ReplaceLocalhost(baseAddress)!;
             }
 
             // alternate base addresses
@@ -407,7 +407,7 @@ namespace Opc.Ua.Configuration
                 foreach (string alternateBaseAddress in alternateBaseAddresses)
                 {
                     serverConfiguration.AlternateBaseAddresses +=
-                        Utils.ReplaceLocalhost(alternateBaseAddress);
+                        Utils.ReplaceLocalhost(alternateBaseAddress)!;
                 }
             }
 
@@ -429,10 +429,10 @@ namespace Opc.Ua.Configuration
             if (addPolicy)
             {
                 var policies = ApplicationConfiguration
-                    .ServerConfiguration
+                    .ServerConfiguration!
                     .SecurityPolicies.ToList();
                 InternalAddPolicy(policies, MessageSecurityMode.None, SecurityPolicies.None);
-                ApplicationConfiguration.ServerConfiguration.SecurityPolicies = policies.ToArrayOf();
+                ApplicationConfiguration.ServerConfiguration!.SecurityPolicies = policies.ToArrayOf();
             }
             return this;
         }
@@ -489,12 +489,12 @@ namespace Opc.Ua.Configuration
                 throw new ArgumentException("Use AddUnsecurePolicyNone to add no security policy.");
             }
 
-            var policies = ApplicationConfiguration.ServerConfiguration.SecurityPolicies.ToList();
+            var policies = ApplicationConfiguration.ServerConfiguration!.SecurityPolicies.ToList();
             InternalAddPolicy(
                 policies,
                 securityMode,
                 securityPolicy);
-            ApplicationConfiguration.ServerConfiguration.SecurityPolicies = policies.ToArrayOf();
+            ApplicationConfiguration.ServerConfiguration!.SecurityPolicies = policies.ToArrayOf();
             return this;
         }
 
@@ -502,7 +502,7 @@ namespace Opc.Ua.Configuration
         public IApplicationConfigurationBuilderServerSelected AddUserTokenPolicy(
             UserTokenType userTokenType)
         {
-            ApplicationConfiguration.ServerConfiguration.UserTokenPolicies +=
+            ApplicationConfiguration.ServerConfiguration!.UserTokenPolicies +=
                 new UserTokenPolicy(userTokenType);
             return this;
         }
@@ -516,7 +516,7 @@ namespace Opc.Ua.Configuration
                 throw new ArgumentNullException(nameof(userTokenPolicy));
             }
 
-            ApplicationConfiguration.ServerConfiguration.UserTokenPolicies += userTokenPolicy;
+            ApplicationConfiguration.ServerConfiguration!.UserTokenPolicies += userTokenPolicy;
             return this;
         }
 
@@ -524,7 +524,7 @@ namespace Opc.Ua.Configuration
         public IApplicationConfigurationBuilderSecurityOptions SetApplicationCertificates(
             ArrayOf<CertificateIdentifier> certIdList)
         {
-            ApplicationConfiguration.SecurityConfiguration.ApplicationCertificates = certIdList;
+            ApplicationConfiguration.SecurityConfiguration!.ApplicationCertificates = certIdList;
             return this;
         }
 
@@ -532,7 +532,7 @@ namespace Opc.Ua.Configuration
         public IApplicationConfigurationBuilderSecurityOptions SetMaxRejectedCertificates(
             int maxRejectedCertificates)
         {
-            ApplicationConfiguration.SecurityConfiguration.MaxRejectedCertificates
+            ApplicationConfiguration.SecurityConfiguration!.MaxRejectedCertificates
                 = maxRejectedCertificates;
             return this;
         }
@@ -541,7 +541,7 @@ namespace Opc.Ua.Configuration
         public IApplicationConfigurationBuilderSecurityOptions SetAutoAcceptUntrustedCertificates(
             bool autoAccept)
         {
-            ApplicationConfiguration.SecurityConfiguration.AutoAcceptUntrustedCertificates
+            ApplicationConfiguration.SecurityConfiguration!.AutoAcceptUntrustedCertificates
                 = autoAccept;
             return this;
         }
@@ -550,7 +550,7 @@ namespace Opc.Ua.Configuration
         public IApplicationConfigurationBuilderSecurityOptions SetAddAppCertToTrustedStore(
             bool addToTrustedStore)
         {
-            ApplicationConfiguration.SecurityConfiguration.AddAppCertToTrustedStore
+            ApplicationConfiguration.SecurityConfiguration!.AddAppCertToTrustedStore
                 = addToTrustedStore;
             return this;
         }
@@ -559,7 +559,7 @@ namespace Opc.Ua.Configuration
         public IApplicationConfigurationBuilderSecurityOptions SetRejectSHA1SignedCertificates(
             bool rejectSHA1Signed)
         {
-            ApplicationConfiguration.SecurityConfiguration.RejectSHA1SignedCertificates
+            ApplicationConfiguration.SecurityConfiguration!.RejectSHA1SignedCertificates
                 = rejectSHA1Signed;
             return this;
         }
@@ -568,7 +568,7 @@ namespace Opc.Ua.Configuration
         public IApplicationConfigurationBuilderSecurityOptions SetRejectUnknownRevocationStatus(
             bool rejectUnknownRevocationStatus)
         {
-            ApplicationConfiguration.SecurityConfiguration.RejectUnknownRevocationStatus =
+            ApplicationConfiguration.SecurityConfiguration!.RejectUnknownRevocationStatus =
                 rejectUnknownRevocationStatus;
             return this;
         }
@@ -577,7 +577,7 @@ namespace Opc.Ua.Configuration
         public IApplicationConfigurationBuilderSecurityOptions SetUseValidatedCertificates(
             bool useValidatedCertificates)
         {
-            ApplicationConfiguration.SecurityConfiguration.UseValidatedCertificates
+            ApplicationConfiguration.SecurityConfiguration!.UseValidatedCertificates
                 = useValidatedCertificates;
             return this;
         }
@@ -586,7 +586,7 @@ namespace Opc.Ua.Configuration
         public IApplicationConfigurationBuilderSecurityOptions SetSuppressNonceValidationErrors(
             bool suppressNonceValidationErrors)
         {
-            ApplicationConfiguration.SecurityConfiguration.SuppressNonceValidationErrors =
+            ApplicationConfiguration.SecurityConfiguration!.SuppressNonceValidationErrors =
                 suppressNonceValidationErrors;
             return this;
         }
@@ -595,7 +595,7 @@ namespace Opc.Ua.Configuration
         public IApplicationConfigurationBuilderSecurityOptions SetSendCertificateChain(
             bool sendCertificateChain)
         {
-            ApplicationConfiguration.SecurityConfiguration.SendCertificateChain
+            ApplicationConfiguration.SecurityConfiguration!.SendCertificateChain
                 = sendCertificateChain;
             return this;
         }
@@ -604,7 +604,7 @@ namespace Opc.Ua.Configuration
         public IApplicationConfigurationBuilderSecurityOptions SetMinimumCertificateKeySize(
             ushort keySize)
         {
-            ApplicationConfiguration.SecurityConfiguration.MinimumCertificateKeySize = keySize;
+            ApplicationConfiguration.SecurityConfiguration!.MinimumCertificateKeySize = keySize;
             return this;
         }
 
@@ -612,7 +612,7 @@ namespace Opc.Ua.Configuration
         public IApplicationConfigurationBuilderSecurityOptions AddCertificatePasswordProvider(
             ICertificatePasswordProvider certificatePasswordProvider)
         {
-            ApplicationConfiguration.SecurityConfiguration.CertificatePasswordProvider
+            ApplicationConfiguration.SecurityConfiguration!.CertificatePasswordProvider
                 = certificatePasswordProvider;
             return this;
         }
@@ -629,7 +629,7 @@ namespace Opc.Ua.Configuration
         public IApplicationConfigurationBuilderTransportQuotas SetOperationTimeout(
             int operationTimeout)
         {
-            ApplicationConfiguration.TransportQuotas.OperationTimeout = operationTimeout;
+            ApplicationConfiguration.TransportQuotas!.OperationTimeout = operationTimeout;
             return this;
         }
 
@@ -637,7 +637,7 @@ namespace Opc.Ua.Configuration
         public IApplicationConfigurationBuilderTransportQuotas SetMaxStringLength(
             int maxStringLength)
         {
-            ApplicationConfiguration.TransportQuotas.MaxStringLength = maxStringLength;
+            ApplicationConfiguration.TransportQuotas!.MaxStringLength = maxStringLength;
             return this;
         }
 
@@ -645,28 +645,28 @@ namespace Opc.Ua.Configuration
         public IApplicationConfigurationBuilderTransportQuotas SetMaxByteStringLength(
             int maxByteStringLength)
         {
-            ApplicationConfiguration.TransportQuotas.MaxByteStringLength = maxByteStringLength;
+            ApplicationConfiguration.TransportQuotas!.MaxByteStringLength = maxByteStringLength;
             return this;
         }
 
         /// <inheritdoc/>
         public IApplicationConfigurationBuilderTransportQuotas SetMaxArrayLength(int maxArrayLength)
         {
-            ApplicationConfiguration.TransportQuotas.MaxArrayLength = maxArrayLength;
+            ApplicationConfiguration.TransportQuotas!.MaxArrayLength = maxArrayLength;
             return this;
         }
 
         /// <inheritdoc/>
         public IApplicationConfigurationBuilderTransportQuotas SetMaxMessageSize(int maxMessageSize)
         {
-            ApplicationConfiguration.TransportQuotas.MaxMessageSize = maxMessageSize;
+            ApplicationConfiguration.TransportQuotas!.MaxMessageSize = maxMessageSize;
             return this;
         }
 
         /// <inheritdoc/>
         public IApplicationConfigurationBuilderTransportQuotas SetMaxBufferSize(int maxBufferSize)
         {
-            ApplicationConfiguration.TransportQuotas.MaxBufferSize = maxBufferSize;
+            ApplicationConfiguration.TransportQuotas!.MaxBufferSize = maxBufferSize;
             return this;
         }
 
@@ -674,7 +674,7 @@ namespace Opc.Ua.Configuration
         public IApplicationConfigurationBuilderTransportQuotas SetChannelLifetime(
             int channelLifetime)
         {
-            ApplicationConfiguration.TransportQuotas.ChannelLifetime = channelLifetime;
+            ApplicationConfiguration.TransportQuotas!.ChannelLifetime = channelLifetime;
             return this;
         }
 
@@ -682,7 +682,7 @@ namespace Opc.Ua.Configuration
         public IApplicationConfigurationBuilderTransportQuotas SetSecurityTokenLifetime(
             int securityTokenLifetime)
         {
-            ApplicationConfiguration.TransportQuotas.SecurityTokenLifetime = securityTokenLifetime;
+            ApplicationConfiguration.TransportQuotas!.SecurityTokenLifetime = securityTokenLifetime;
             return this;
         }
 
@@ -690,7 +690,7 @@ namespace Opc.Ua.Configuration
         public IApplicationConfigurationBuilderTransportQuotas SetMaxEncodingNestingLevels(
             int maxEncodingNestingLevels)
         {
-            ApplicationConfiguration.TransportQuotas.MaxEncodingNestingLevels
+            ApplicationConfiguration.TransportQuotas!.MaxEncodingNestingLevels
                 = maxEncodingNestingLevels;
             return this;
         }
@@ -699,7 +699,7 @@ namespace Opc.Ua.Configuration
         public IApplicationConfigurationBuilderTransportQuotas SetMaxDecoderRecoveries(
             int maxDecoderRecoveries)
         {
-            ApplicationConfiguration.TransportQuotas.MaxDecoderRecoveries = maxDecoderRecoveries;
+            ApplicationConfiguration.TransportQuotas!.MaxDecoderRecoveries = maxDecoderRecoveries;
             return this;
         }
 
@@ -707,7 +707,7 @@ namespace Opc.Ua.Configuration
         public IApplicationConfigurationBuilderServerOptions SetMinRequestThreadCount(
             int minRequestThreadCount)
         {
-            ApplicationConfiguration.ServerConfiguration.MinRequestThreadCount
+            ApplicationConfiguration.ServerConfiguration!.MinRequestThreadCount
                 = minRequestThreadCount;
             return this;
         }
@@ -716,7 +716,7 @@ namespace Opc.Ua.Configuration
         public IApplicationConfigurationBuilderServerOptions SetMaxRequestThreadCount(
             int maxRequestThreadCount)
         {
-            ApplicationConfiguration.ServerConfiguration.MaxRequestThreadCount
+            ApplicationConfiguration.ServerConfiguration!.MaxRequestThreadCount
                 = maxRequestThreadCount;
             return this;
         }
@@ -725,7 +725,7 @@ namespace Opc.Ua.Configuration
         public IApplicationConfigurationBuilderServerOptions SetMaxQueuedRequestCount(
             int maxQueuedRequestCount)
         {
-            ApplicationConfiguration.ServerConfiguration.MaxQueuedRequestCount
+            ApplicationConfiguration.ServerConfiguration!.MaxQueuedRequestCount
                 = maxQueuedRequestCount;
             return this;
         }
@@ -734,21 +734,21 @@ namespace Opc.Ua.Configuration
         public IApplicationConfigurationBuilderServerOptions SetDiagnosticsEnabled(
             bool diagnosticsEnabled)
         {
-            ApplicationConfiguration.ServerConfiguration.DiagnosticsEnabled = diagnosticsEnabled;
+            ApplicationConfiguration.ServerConfiguration!.DiagnosticsEnabled = diagnosticsEnabled;
             return this;
         }
 
         /// <inheritdoc/>
         public IApplicationConfigurationBuilderServerOptions SetMaxSessionCount(int maxSessionCount)
         {
-            ApplicationConfiguration.ServerConfiguration.MaxSessionCount = maxSessionCount;
+            ApplicationConfiguration.ServerConfiguration!.MaxSessionCount = maxSessionCount;
             return this;
         }
 
         /// <inheritdoc/>
         public IApplicationConfigurationBuilderServerOptions SetMaxChannelCount(int maxChannelCount)
         {
-            ApplicationConfiguration.ServerConfiguration.MaxChannelCount = maxChannelCount;
+            ApplicationConfiguration.ServerConfiguration!.MaxChannelCount = maxChannelCount;
             return this;
         }
 
@@ -756,7 +756,7 @@ namespace Opc.Ua.Configuration
         public IApplicationConfigurationBuilderServerOptions SetMinSessionTimeout(
             int minSessionTimeout)
         {
-            ApplicationConfiguration.ServerConfiguration.MinSessionTimeout = minSessionTimeout;
+            ApplicationConfiguration.ServerConfiguration!.MinSessionTimeout = minSessionTimeout;
             return this;
         }
 
@@ -764,7 +764,7 @@ namespace Opc.Ua.Configuration
         public IApplicationConfigurationBuilderServerOptions SetMaxSessionTimeout(
             int maxSessionTimeout)
         {
-            ApplicationConfiguration.ServerConfiguration.MaxSessionTimeout = maxSessionTimeout;
+            ApplicationConfiguration.ServerConfiguration!.MaxSessionTimeout = maxSessionTimeout;
             return this;
         }
 
@@ -772,7 +772,7 @@ namespace Opc.Ua.Configuration
         public IApplicationConfigurationBuilderServerOptions SetMaxBrowseContinuationPoints(
             int maxBrowseContinuationPoints)
         {
-            ApplicationConfiguration.ServerConfiguration.MaxBrowseContinuationPoints
+            ApplicationConfiguration.ServerConfiguration!.MaxBrowseContinuationPoints
                 = maxBrowseContinuationPoints;
             return this;
         }
@@ -781,7 +781,7 @@ namespace Opc.Ua.Configuration
         public IApplicationConfigurationBuilderServerOptions SetMaxQueryContinuationPoints(
             int maxQueryContinuationPoints)
         {
-            ApplicationConfiguration.ServerConfiguration.MaxQueryContinuationPoints
+            ApplicationConfiguration.ServerConfiguration!.MaxQueryContinuationPoints
                 = maxQueryContinuationPoints;
             return this;
         }
@@ -790,7 +790,7 @@ namespace Opc.Ua.Configuration
         public IApplicationConfigurationBuilderServerOptions SetMaxHistoryContinuationPoints(
             int maxHistoryContinuationPoints)
         {
-            ApplicationConfiguration.ServerConfiguration.MaxHistoryContinuationPoints
+            ApplicationConfiguration.ServerConfiguration!.MaxHistoryContinuationPoints
                 = maxHistoryContinuationPoints;
             return this;
         }
@@ -798,7 +798,7 @@ namespace Opc.Ua.Configuration
         /// <inheritdoc/>
         public IApplicationConfigurationBuilderServerOptions SetMaxRequestAge(int maxRequestAge)
         {
-            ApplicationConfiguration.ServerConfiguration.MaxRequestAge = maxRequestAge;
+            ApplicationConfiguration.ServerConfiguration!.MaxRequestAge = maxRequestAge;
             return this;
         }
 
@@ -806,7 +806,7 @@ namespace Opc.Ua.Configuration
         public IApplicationConfigurationBuilderServerOptions SetMinPublishingInterval(
             int minPublishingInterval)
         {
-            ApplicationConfiguration.ServerConfiguration.MinPublishingInterval
+            ApplicationConfiguration.ServerConfiguration!.MinPublishingInterval
                 = minPublishingInterval;
             return this;
         }
@@ -815,7 +815,7 @@ namespace Opc.Ua.Configuration
         public IApplicationConfigurationBuilderServerOptions SetMaxPublishingInterval(
             int maxPublishingInterval)
         {
-            ApplicationConfiguration.ServerConfiguration.MaxPublishingInterval
+            ApplicationConfiguration.ServerConfiguration!.MaxPublishingInterval
                 = maxPublishingInterval;
             return this;
         }
@@ -824,7 +824,7 @@ namespace Opc.Ua.Configuration
         public IApplicationConfigurationBuilderServerOptions SetPublishingResolution(
             int publishingResolution)
         {
-            ApplicationConfiguration.ServerConfiguration.PublishingResolution
+            ApplicationConfiguration.ServerConfiguration!.PublishingResolution
                 = publishingResolution;
             return this;
         }
@@ -833,7 +833,7 @@ namespace Opc.Ua.Configuration
         public IApplicationConfigurationBuilderServerOptions SetMaxSubscriptionLifetime(
             int maxSubscriptionLifetime)
         {
-            ApplicationConfiguration.ServerConfiguration.MaxSubscriptionLifetime
+            ApplicationConfiguration.ServerConfiguration!.MaxSubscriptionLifetime
                 = maxSubscriptionLifetime;
             return this;
         }
@@ -842,7 +842,7 @@ namespace Opc.Ua.Configuration
         public IApplicationConfigurationBuilderServerOptions SetMaxMessageQueueSize(
             int maxMessageQueueSize)
         {
-            ApplicationConfiguration.ServerConfiguration.MaxMessageQueueSize = maxMessageQueueSize;
+            ApplicationConfiguration.ServerConfiguration!.MaxMessageQueueSize = maxMessageQueueSize;
             return this;
         }
 
@@ -850,7 +850,7 @@ namespace Opc.Ua.Configuration
         public IApplicationConfigurationBuilderServerOptions SetMaxNotificationQueueSize(
             int maxNotificationQueueSize)
         {
-            ApplicationConfiguration.ServerConfiguration.MaxNotificationQueueSize
+            ApplicationConfiguration.ServerConfiguration!.MaxNotificationQueueSize
                 = maxNotificationQueueSize;
             return this;
         }
@@ -859,7 +859,7 @@ namespace Opc.Ua.Configuration
         public IApplicationConfigurationBuilderServerOptions SetMaxNotificationsPerPublish(
             int maxNotificationsPerPublish)
         {
-            ApplicationConfiguration.ServerConfiguration.MaxNotificationsPerPublish
+            ApplicationConfiguration.ServerConfiguration!.MaxNotificationsPerPublish
                 = maxNotificationsPerPublish;
             return this;
         }
@@ -868,7 +868,7 @@ namespace Opc.Ua.Configuration
         public IApplicationConfigurationBuilderServerOptions SetMinMetadataSamplingInterval(
             int minMetadataSamplingInterval)
         {
-            ApplicationConfiguration.ServerConfiguration.MinMetadataSamplingInterval
+            ApplicationConfiguration.ServerConfiguration!.MinMetadataSamplingInterval
                 = minMetadataSamplingInterval;
             return this;
         }
@@ -877,7 +877,7 @@ namespace Opc.Ua.Configuration
         public IApplicationConfigurationBuilderServerOptions SetAvailableSamplingRates(
             ArrayOf<SamplingRateGroup> availableSampleRates)
         {
-            ApplicationConfiguration.ServerConfiguration.AvailableSamplingRates
+            ApplicationConfiguration.ServerConfiguration!.AvailableSamplingRates
                 = availableSampleRates;
             return this;
         }
@@ -886,7 +886,7 @@ namespace Opc.Ua.Configuration
         public IApplicationConfigurationBuilderServerOptions SetRegistrationEndpoint(
             EndpointDescription registrationEndpoint)
         {
-            ApplicationConfiguration.ServerConfiguration.RegistrationEndpoint
+            ApplicationConfiguration.ServerConfiguration!.RegistrationEndpoint
                 = registrationEndpoint;
             return this;
         }
@@ -895,7 +895,7 @@ namespace Opc.Ua.Configuration
         public IApplicationConfigurationBuilderServerOptions SetMaxRegistrationInterval(
             int maxRegistrationInterval)
         {
-            ApplicationConfiguration.ServerConfiguration.MaxRegistrationInterval
+            ApplicationConfiguration.ServerConfiguration!.MaxRegistrationInterval
                 = maxRegistrationInterval;
             return this;
         }
@@ -904,7 +904,7 @@ namespace Opc.Ua.Configuration
         public IApplicationConfigurationBuilderServerOptions SetNodeManagerSaveFile(
             string nodeManagerSaveFile)
         {
-            ApplicationConfiguration.ServerConfiguration.NodeManagerSaveFile = nodeManagerSaveFile;
+            ApplicationConfiguration.ServerConfiguration!.NodeManagerSaveFile = nodeManagerSaveFile;
             return this;
         }
 
@@ -912,7 +912,7 @@ namespace Opc.Ua.Configuration
         public IApplicationConfigurationBuilderServerOptions SetMinSubscriptionLifetime(
             int minSubscriptionLifetime)
         {
-            ApplicationConfiguration.ServerConfiguration.MinSubscriptionLifetime
+            ApplicationConfiguration.ServerConfiguration!.MinSubscriptionLifetime
                 = minSubscriptionLifetime;
             return this;
         }
@@ -921,7 +921,7 @@ namespace Opc.Ua.Configuration
         public IApplicationConfigurationBuilderServerOptions SetMaxPublishRequestCount(
             int maxPublishRequestCount)
         {
-            ApplicationConfiguration.ServerConfiguration.MaxPublishRequestCount
+            ApplicationConfiguration.ServerConfiguration!.MaxPublishRequestCount
                 = maxPublishRequestCount;
             return this;
         }
@@ -930,7 +930,7 @@ namespace Opc.Ua.Configuration
         public IApplicationConfigurationBuilderServerOptions SetMaxSubscriptionCount(
             int maxSubscriptionCount)
         {
-            ApplicationConfiguration.ServerConfiguration.MaxSubscriptionCount
+            ApplicationConfiguration.ServerConfiguration!.MaxSubscriptionCount
                 = maxSubscriptionCount;
             return this;
         }
@@ -939,21 +939,21 @@ namespace Opc.Ua.Configuration
         public IApplicationConfigurationBuilderServerOptions SetMaxEventQueueSize(
             int setMaxEventQueueSize)
         {
-            ApplicationConfiguration.ServerConfiguration.MaxEventQueueSize = setMaxEventQueueSize;
+            ApplicationConfiguration.ServerConfiguration!.MaxEventQueueSize = setMaxEventQueueSize;
             return this;
         }
 
         /// <inheritdoc/>
         public IApplicationConfigurationBuilderServerOptions AddServerProfile(string serverProfile)
         {
-            ApplicationConfiguration.ServerConfiguration.ServerProfileArray += serverProfile;
+            ApplicationConfiguration.ServerConfiguration!.ServerProfileArray += serverProfile;
             return this;
         }
 
         /// <inheritdoc/>
         public IApplicationConfigurationBuilderServerOptions SetShutdownDelay(int shutdownDelay)
         {
-            ApplicationConfiguration.ServerConfiguration.ShutdownDelay = shutdownDelay;
+            ApplicationConfiguration.ServerConfiguration!.ShutdownDelay = shutdownDelay;
             return this;
         }
 
@@ -961,7 +961,7 @@ namespace Opc.Ua.Configuration
         public IApplicationConfigurationBuilderServerOptions AddServerCapabilities(
             string serverCapability)
         {
-            ApplicationConfiguration.ServerConfiguration.ServerCapabilities += serverCapability;
+            ApplicationConfiguration.ServerConfiguration!.ServerCapabilities += serverCapability;
             return this;
         }
 
@@ -969,7 +969,7 @@ namespace Opc.Ua.Configuration
         public IApplicationConfigurationBuilderServerOptions SetSupportedPrivateKeyFormats(
             ArrayOf<string> supportedPrivateKeyFormats)
         {
-            ApplicationConfiguration.ServerConfiguration.SupportedPrivateKeyFormats
+            ApplicationConfiguration.ServerConfiguration!.SupportedPrivateKeyFormats
                 = supportedPrivateKeyFormats;
             return this;
         }
@@ -978,7 +978,7 @@ namespace Opc.Ua.Configuration
         public IApplicationConfigurationBuilderServerOptions SetMaxTrustListSize(
             int maxTrustListSize)
         {
-            ApplicationConfiguration.ServerConfiguration.MaxTrustListSize = maxTrustListSize;
+            ApplicationConfiguration.ServerConfiguration!.MaxTrustListSize = maxTrustListSize;
             return this;
         }
 
@@ -986,7 +986,7 @@ namespace Opc.Ua.Configuration
         public IApplicationConfigurationBuilderServerOptions SetMultiCastDnsEnabled(
             bool multiCastDnsEnabled)
         {
-            ApplicationConfiguration.ServerConfiguration.MultiCastDnsEnabled = multiCastDnsEnabled;
+            ApplicationConfiguration.ServerConfiguration!.MultiCastDnsEnabled = multiCastDnsEnabled;
             return this;
         }
 
@@ -994,7 +994,7 @@ namespace Opc.Ua.Configuration
         public IApplicationConfigurationBuilderServerOptions SetReverseConnect(
             ReverseConnectServerConfiguration reverseConnectConfiguration)
         {
-            ApplicationConfiguration.ServerConfiguration.ReverseConnect
+            ApplicationConfiguration.ServerConfiguration!.ReverseConnect
                 = reverseConnectConfiguration;
             return this;
         }
@@ -1003,7 +1003,7 @@ namespace Opc.Ua.Configuration
         public IApplicationConfigurationBuilderServerOptions SetOperationLimits(
             OperationLimits operationLimits)
         {
-            ApplicationConfiguration.ServerConfiguration.OperationLimits = operationLimits;
+            ApplicationConfiguration.ServerConfiguration!.OperationLimits = operationLimits;
             return this;
         }
 
@@ -1011,7 +1011,7 @@ namespace Opc.Ua.Configuration
         public IApplicationConfigurationBuilderServerOptions SetAuditingEnabled(
             bool auditingEnabled)
         {
-            ApplicationConfiguration.ServerConfiguration.AuditingEnabled = auditingEnabled;
+            ApplicationConfiguration.ServerConfiguration!.AuditingEnabled = auditingEnabled;
             return this;
         }
 
@@ -1019,7 +1019,7 @@ namespace Opc.Ua.Configuration
         public IApplicationConfigurationBuilderServerOptions SetHttpsMutualTls(
             bool mTlsEnabled)
         {
-            ApplicationConfiguration.ServerConfiguration.HttpsMutualTls = mTlsEnabled;
+            ApplicationConfiguration.ServerConfiguration!.HttpsMutualTls = mTlsEnabled;
             return this;
         }
 
@@ -1027,7 +1027,7 @@ namespace Opc.Ua.Configuration
         public IApplicationConfigurationBuilderClientOptions SetDefaultSessionTimeout(
             int defaultSessionTimeout)
         {
-            ApplicationConfiguration.ClientConfiguration.DefaultSessionTimeout
+            ApplicationConfiguration.ClientConfiguration!.DefaultSessionTimeout
                 = defaultSessionTimeout;
             return this;
         }
@@ -1036,7 +1036,7 @@ namespace Opc.Ua.Configuration
         public IApplicationConfigurationBuilderClientOptions AddWellKnownDiscoveryUrls(
             string wellKnownDiscoveryUrl)
         {
-            ApplicationConfiguration.ClientConfiguration.WellKnownDiscoveryUrls += wellKnownDiscoveryUrl;
+            ApplicationConfiguration.ClientConfiguration!.WellKnownDiscoveryUrls += wellKnownDiscoveryUrl;
             return this;
         }
 
@@ -1044,7 +1044,7 @@ namespace Opc.Ua.Configuration
         public IApplicationConfigurationBuilderClientOptions AddDiscoveryServer(
             EndpointDescription discoveryServer)
         {
-            ApplicationConfiguration.ClientConfiguration.DiscoveryServers += discoveryServer;
+            ApplicationConfiguration.ClientConfiguration!.DiscoveryServers += discoveryServer;
             return this;
         }
 
@@ -1052,7 +1052,7 @@ namespace Opc.Ua.Configuration
         public IApplicationConfigurationBuilderClientOptions SetEndpointCacheFilePath(
             string endpointCacheFilePath)
         {
-            ApplicationConfiguration.ClientConfiguration.EndpointCacheFilePath
+            ApplicationConfiguration.ClientConfiguration!.EndpointCacheFilePath
                 = endpointCacheFilePath;
             return this;
         }
@@ -1061,7 +1061,7 @@ namespace Opc.Ua.Configuration
         IApplicationConfigurationBuilderClientOptions IApplicationConfigurationBuilderClientOptions.SetMinSubscriptionLifetime(
             int minSubscriptionLifetime)
         {
-            ApplicationConfiguration.ClientConfiguration.MinSubscriptionLifetime
+            ApplicationConfiguration.ClientConfiguration!.MinSubscriptionLifetime
                 = minSubscriptionLifetime;
             return this;
         }
@@ -1070,7 +1070,7 @@ namespace Opc.Ua.Configuration
         public IApplicationConfigurationBuilderClientOptions SetReverseConnect(
             ReverseConnectClientConfiguration reverseConnect)
         {
-            ApplicationConfiguration.ClientConfiguration.ReverseConnect = reverseConnect;
+            ApplicationConfiguration.ClientConfiguration!.ReverseConnect = reverseConnect;
             return this;
         }
 
@@ -1078,7 +1078,7 @@ namespace Opc.Ua.Configuration
         public IApplicationConfigurationBuilderClientOptions SetClientOperationLimits(
             OperationLimits operationLimits)
         {
-            ApplicationConfiguration.ClientConfiguration.OperationLimits = operationLimits;
+            ApplicationConfiguration.ClientConfiguration!.OperationLimits = operationLimits;
             return this;
         }
 
@@ -1086,21 +1086,21 @@ namespace Opc.Ua.Configuration
         public IApplicationConfigurationBuilderTraceConfiguration SetOutputFilePath(
             string outputFilePath)
         {
-            ApplicationConfiguration.TraceConfiguration.OutputFilePath = outputFilePath;
+            ApplicationConfiguration.TraceConfiguration!.OutputFilePath = outputFilePath;
             return this;
         }
 
         /// <inheritdoc/>
         public IApplicationConfigurationBuilderTraceConfiguration SetDeleteOnLoad(bool deleteOnLoad)
         {
-            ApplicationConfiguration.TraceConfiguration.DeleteOnLoad = deleteOnLoad;
+            ApplicationConfiguration.TraceConfiguration!.DeleteOnLoad = deleteOnLoad;
             return this;
         }
 
         /// <inheritdoc/>
         public IApplicationConfigurationBuilderTraceConfiguration SetTraceMasks(int traceMasks)
         {
-            ApplicationConfiguration.TraceConfiguration.TraceMasks = traceMasks;
+            ApplicationConfiguration.TraceConfiguration!.TraceMasks = traceMasks;
             return this;
         }
 
@@ -1117,7 +1117,7 @@ namespace Opc.Ua.Configuration
 
         /// <inheritdoc/>
         public IApplicationConfigurationBuilderExtension AddExtension<T>(
-            XmlQualifiedName elementName,
+            XmlQualifiedName? elementName,
             T value)
             where T : IEncodeable
         {
@@ -1129,7 +1129,7 @@ namespace Opc.Ua.Configuration
         public IApplicationConfigurationBuilderServerOptions SetDurableSubscriptionsEnabled(
             bool durableSubscriptionsEnabled)
         {
-            ApplicationConfiguration.ServerConfiguration.DurableSubscriptionsEnabled
+            ApplicationConfiguration.ServerConfiguration!.DurableSubscriptionsEnabled
                 = durableSubscriptionsEnabled;
             return this;
         }
@@ -1138,7 +1138,7 @@ namespace Opc.Ua.Configuration
         public IApplicationConfigurationBuilderServerOptions SetMaxDurableNotificationQueueSize(
             int maxDurableNotificationQueueSize)
         {
-            ApplicationConfiguration.ServerConfiguration.MaxDurableNotificationQueueSize =
+            ApplicationConfiguration.ServerConfiguration!.MaxDurableNotificationQueueSize =
                 maxDurableNotificationQueueSize;
             return this;
         }
@@ -1147,7 +1147,7 @@ namespace Opc.Ua.Configuration
         public IApplicationConfigurationBuilderServerOptions SetMaxDurableEventQueueSize(
             int maxDurableEventQueueSize)
         {
-            ApplicationConfiguration.ServerConfiguration.MaxDurableEventQueueSize
+            ApplicationConfiguration.ServerConfiguration!.MaxDurableEventQueueSize
                 = maxDurableEventQueueSize;
             return this;
         }
@@ -1156,7 +1156,7 @@ namespace Opc.Ua.Configuration
         public IApplicationConfigurationBuilderServerOptions SetMaxDurableSubscriptionLifetime(
             int maxDurableSubscriptionLifetimeInHours)
         {
-            ApplicationConfiguration.ServerConfiguration.MaxDurableSubscriptionLifetimeInHours =
+            ApplicationConfiguration.ServerConfiguration!.MaxDurableSubscriptionLifetimeInHours =
                 maxDurableSubscriptionLifetimeInHours;
             return this;
         }
@@ -1170,8 +1170,8 @@ namespace Opc.Ua.Configuration
         /// <returns>The application certificates.</returns>
         public static ArrayOf<CertificateIdentifier> CreateDefaultApplicationCertificates(
             string subjectName,
-            string storeType = null,
-            string storePath = null)
+            string? storeType = null,
+            string? storePath = null)
         {
             var certificateIdentifiers = new List<CertificateIdentifier>
             {
@@ -1239,7 +1239,7 @@ namespace Opc.Ua.Configuration
         /// Return the default PKI root path if root is unspecified, directory or X509Store.
         /// </summary>
         /// <param name="root">A real root path or the store type.</param>
-        private static string DefaultPKIRoot(string root)
+        private static string DefaultPKIRoot(string? root)
         {
             if (root == null ||
                 root.Equals(CertificateStoreType.Directory, StringComparison.OrdinalIgnoreCase))
@@ -1388,7 +1388,7 @@ namespace Opc.Ua.Configuration
 #endif
             {
                 var policies = ApplicationConfiguration
-                    .ServerConfiguration
+                    .ServerConfiguration!
                     .SecurityPolicies.ToList();
                 if (policyNone && securityMode == MessageSecurityMode.None)
                 {
@@ -1402,7 +1402,7 @@ namespace Opc.Ua.Configuration
                         InternalAddPolicy(policies, securityMode, policyUri);
                     }
                 }
-                ApplicationConfiguration.ServerConfiguration.SecurityPolicies = policies.ToArrayOf();
+                ApplicationConfiguration.ServerConfiguration!.SecurityPolicies = policies.ToArrayOf();
             }
         }
 
@@ -1418,13 +1418,13 @@ namespace Opc.Ua.Configuration
                 : MessageSecurityMode.SignAndEncrypt;
             {
                 var policies = ApplicationConfiguration
-                    .ServerConfiguration
+                    .ServerConfiguration!
                     .SecurityPolicies.ToList();
                 foreach (string policyUri in defaultPolicyUris)
                 {
                     InternalAddPolicy(policies, securityMode, policyUri);
                 }
-                ApplicationConfiguration.ServerConfiguration.SecurityPolicies = policies.ToArrayOf();
+                ApplicationConfiguration.ServerConfiguration!.SecurityPolicies = policies.ToArrayOf();
             }
         }
 
