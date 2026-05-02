@@ -28,8 +28,6 @@
  * ======================================================================*/
 
 #if !NET9_0_OR_GREATER
-#nullable enable
-
 using System.Runtime.CompilerServices;
 #endif
 

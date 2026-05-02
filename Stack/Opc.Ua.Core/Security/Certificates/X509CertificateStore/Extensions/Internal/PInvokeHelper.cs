@@ -37,8 +37,6 @@
 // ------------------------------------------------------------------------------
 
 #pragma warning disable CS1591,CS1573,CS0465,CS0649,CS8019,CS1570,CS1584,CS1658,CS0436,CS8981
-#nullable enable
-
 using global::System;
 using global::System.Diagnostics;
 using global::System.Diagnostics.CodeAnalysis;

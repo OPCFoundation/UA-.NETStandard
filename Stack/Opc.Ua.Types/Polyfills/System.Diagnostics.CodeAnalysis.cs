@@ -32,8 +32,6 @@
 
 #if !NET5_0_OR_GREATER
 
-#nullable enable
-
 namespace System.Diagnostics.CodeAnalysis
 {
     /// <summary>

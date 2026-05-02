@@ -29,8 +29,6 @@
 
 #pragma warning disable 1591
 
-#nullable enable
-
 namespace Opc.Ua.Types
 {
 #if !INTERNAL

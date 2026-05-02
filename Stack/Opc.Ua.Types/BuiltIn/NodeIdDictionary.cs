@@ -34,8 +34,6 @@
 // with efficent hash code implementations is up to 10xfaster than
 // the original implementation using multiple SortedDictionary instances
 
-#nullable enable
-
 using System;
 using System.Collections;
 using System.Collections.Concurrent;

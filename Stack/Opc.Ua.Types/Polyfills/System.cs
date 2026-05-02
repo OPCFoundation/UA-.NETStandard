@@ -28,8 +28,6 @@
  * ======================================================================*/
 
 #if NETSTANDARD2_0 || NETFRAMEWORK
-#nullable enable
-
 using System;
 using System.Linq;
 

@@ -9,8 +9,6 @@
 #if NET5_0_OR_GREATER
 #pragma warning disable // Generated code - suppress all warnings
 
-#nullable enable
-
 using System.Diagnostics.CodeAnalysis;
 
 // Suppress AOT/trim warnings for generated serializer code.
