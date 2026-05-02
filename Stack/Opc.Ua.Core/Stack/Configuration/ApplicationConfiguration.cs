@@ -437,7 +437,7 @@ namespace Opc.Ua
             ICertificatePasswordProvider? certificatePasswordProvider = null,
             CancellationToken ct = default)
         {
-            ApplicationConfiguration? configuration = null;
+            ApplicationConfiguration configuration;
 
             try
             {
@@ -460,7 +460,7 @@ namespace Opc.Ua
                     e.Message);
             }
 
-            configuration!.SourceFilePath = file.FullName;
+            configuration.SourceFilePath = file.FullName;
 
             return configuration;
         }
@@ -541,23 +541,23 @@ namespace Opc.Ua
                     e.Message);
             }
 
-            if (configuration != null)
+            // should not be here but need to preserve old behavior.
+            if (applyTraceSettings && configuration.TraceConfiguration != null)
             {
-                // should not be here but need to preserve old behavior.
-                if (applyTraceSettings && configuration.TraceConfiguration != null)
-                {
 #pragma warning disable CS0618 // Type or member is obsolete
-                    configuration.TraceConfiguration.ApplySettings();
+                configuration.TraceConfiguration.ApplySettings();
 #pragma warning restore CS0618 // Type or member is obsolete
-                }
-
-                configuration.SecurityConfiguration.CertificatePasswordProvider
-                    = certificatePasswordProvider!;
-
-                await configuration.ValidateAsync(applicationType, ct).ConfigureAwait(false);
             }
 
-            return configuration!;
+            if (certificatePasswordProvider != null)
+            {
+                configuration.SecurityConfiguration.CertificatePasswordProvider
+                    = certificatePasswordProvider;
+            }
+
+            await configuration.ValidateAsync(applicationType, ct).ConfigureAwait(false);
+
+            return configuration;
         }
 
         /// <summary>

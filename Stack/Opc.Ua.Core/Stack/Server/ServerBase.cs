@@ -773,16 +773,19 @@ namespace Opc.Ua
         {
             try
             {
-                InstanceCertificateTypesProvider!.Update(e.SecurityConfiguration);
+                // Configuration and InstanceCertificateTypesProvider are populated once the server starts.
+                CertificateTypesProvider provider = InstanceCertificateTypesProvider!;
+                ApplicationConfiguration configuration = Configuration!;
+                provider.Update(e.SecurityConfiguration);
 
-                ArrayOf<CertificateIdentifier> applicationCertificates = Configuration!.SecurityConfiguration.ApplicationCertificates;
+                ArrayOf<CertificateIdentifier> applicationCertificates = configuration.SecurityConfiguration.ApplicationCertificates;
                 for (int i = 0; i < applicationCertificates.Count; i++)
                 {
                     CertificateIdentifier certificateIdentifier = applicationCertificates[i];
                     // preload chain
                     X509Certificate2 certificate = (await certificateIdentifier.FindAsync(false)
                         .ConfigureAwait(false))!;
-                    await InstanceCertificateTypesProvider!.LoadCertificateChainAsync(certificate)
+                    await provider.LoadCertificateChainAsync(certificate)
                         .ConfigureAwait(false);
                 }
 
@@ -791,14 +794,14 @@ namespace Opc.Ua
                 {
                     SetServerCertificateInEndpointDescription(
                         endpointDescription,
-                        InstanceCertificateTypesProvider);
+                        provider);
                 }
 
                 foreach (ITransportListener listener in TransportListeners)
                 {
                     listener.CertificateUpdate(
                         e.CertificateValidator,
-                        InstanceCertificateTypesProvider);
+                        provider);
                 }
             }
             catch (Exception ex)

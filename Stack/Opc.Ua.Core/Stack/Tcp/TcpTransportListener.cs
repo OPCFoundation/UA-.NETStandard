@@ -1,4 +1,4 @@
-﻿/* ========================================================================
+/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -348,7 +348,7 @@ namespace Opc.Ua.Bindings
             ListenerId = Guid.NewGuid().ToString();
 
             EndpointUrl = baseAddress;
-            m_descriptions = settings.Descriptions;
+            m_descriptions = settings.Descriptions!;
             EndpointConfiguration? configuration = settings.Configuration;
 
             // initialize the quotas.
@@ -379,7 +379,7 @@ namespace Opc.Ua.Bindings
             m_quotas.CertificateValidator = settings.CertificateValidator;
 
             // save the server certificate.
-            m_serverCertificateTypesProvider = settings.ServerCertificateTypesProvider;
+            m_serverCertificateTypesProvider = settings.ServerCertificateTypesProvider!;
 
             m_bufferManager = new BufferManager("Server", m_quotas.MaxBufferSize, m_telemetry);
             m_channels = new ConcurrentDictionary<uint, TcpListenerChannel>();
@@ -500,10 +500,10 @@ namespace Opc.Ua.Bindings
                 channel = new TcpServerChannel(
                     ListenerId,
                     this,
-                    m_bufferManager!,
-                    m_quotas!,
-                    m_serverCertificateTypesProvider!,
-                    m_descriptions!,
+                    m_bufferManager,
+                    m_quotas,
+                    m_serverCertificateTypesProvider,
+                    m_descriptions,
                     m_telemetry);
 
                 uint channelId = GetNextChannelId();
@@ -513,7 +513,7 @@ namespace Opc.Ua.Bindings
                     url,
                     OnReverseHelloComplete,
                     channel,
-                    Math.Min(timeout, m_quotas!.ChannelLifetime));
+                    Math.Min(timeout, m_quotas.ChannelLifetime));
                 channel = null; // ownership transferred to async operation
             }
             finally
@@ -803,9 +803,9 @@ namespace Opc.Ua.Bindings
             ICertificateValidator validator,
             CertificateTypesProvider serverCertificateTypes)
         {
-            m_quotas!.CertificateValidator = validator;
+            m_quotas.CertificateValidator = validator;
             m_serverCertificateTypesProvider = serverCertificateTypes;
-            foreach (EndpointDescription description in m_descriptions!)
+            foreach (EndpointDescription description in m_descriptions)
             {
                 // TODO: why only if SERVERCERT != null
                 if (!description.ServerCertificate.IsEmpty)
@@ -939,9 +939,9 @@ namespace Opc.Ua.Bindings
                                     channel = new TcpReverseConnectChannel(
                                         ListenerId,
                                         this,
-                                        m_bufferManager!,
-                                        m_quotas!,
-                                        m_descriptions!,
+                                        m_bufferManager,
+                                        m_quotas,
+                                        m_descriptions,
                                         m_telemetry);
                                 }
                                 else
@@ -950,10 +950,10 @@ namespace Opc.Ua.Bindings
                                     channel = new TcpServerChannel(
                                         ListenerId,
                                         this,
-                                        m_bufferManager!,
-                                        m_quotas!,
-                                        m_serverCertificateTypesProvider!,
-                                        m_descriptions!,
+                                        m_bufferManager,
+                                        m_quotas,
+                                        m_serverCertificateTypesProvider,
+                                        m_descriptions,
                                         m_telemetry);
                                 }
 
@@ -1039,7 +1039,7 @@ namespace Opc.Ua.Bindings
             bool cleanup = false;
             foreach (KeyValuePair<uint, TcpListenerChannel> chEntry in m_channels!)
             {
-                if (chEntry.Value.ElapsedSinceLastActiveTime > m_quotas!.ChannelLifetime)
+                if (chEntry.Value.ElapsedSinceLastActiveTime > m_quotas.ChannelLifetime)
                 {
                     channels.Add(chEntry.Value);
                     cleanup = true;
@@ -1198,10 +1198,12 @@ namespace Opc.Ua.Bindings
         private readonly Lock m_lock = new();
         private readonly ITelemetryContext m_telemetry;
         private readonly ILogger m_logger;
-        private List<EndpointDescription>? m_descriptions;
-        private BufferManager? m_bufferManager;
-        private ChannelQuotas? m_quotas;
-        private CertificateTypesProvider? m_serverCertificateTypesProvider;
+        // These fields are populated by Open(); they remain non-null for the lifetime of the
+        // listener (Close()/Dispose() do not reassign to null).
+        private List<EndpointDescription> m_descriptions = null!;
+        private BufferManager m_bufferManager = null!;
+        private ChannelQuotas m_quotas = null!;
+        private CertificateTypesProvider m_serverCertificateTypesProvider = null!;
         private int m_lastChannelId;
         private Socket? m_listeningSocket;
         private Socket? m_listeningSocketIPv6;

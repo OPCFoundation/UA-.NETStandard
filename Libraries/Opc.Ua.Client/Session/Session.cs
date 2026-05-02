@@ -1345,7 +1345,9 @@ namespace Opc.Ua.Client
                 // select the security policy for the user token.
                 string tokenSecurityPolicyUri = string.IsNullOrEmpty(identityPolicy.SecurityPolicyUri)
                     ? m_endpoint.Description.SecurityPolicyUri ?? SecurityPolicies.None
-                    : identityPolicy.SecurityPolicyUri;
+                    // identityPolicy.SecurityPolicyUri is non-empty here; legacy BCL targets
+                    // lack [NotNullWhen(false)] on string.IsNullOrEmpty.
+                    : identityPolicy.SecurityPolicyUri!;
 
                 // validate server nonce and security parameters for user identity.
                 ValidateServerNonce(
@@ -1559,7 +1561,9 @@ namespace Opc.Ua.Client
             // select the security policy for the user token.
             string tokenSecurityPolicyUri = string.IsNullOrEmpty(identityPolicy.SecurityPolicyUri)
                 ? securityPolicyUri
-                : identityPolicy.SecurityPolicyUri;
+                // identityPolicy.SecurityPolicyUri is non-empty here; legacy BCL targets
+                // lack [NotNullWhen(false)] on string.IsNullOrEmpty.
+                : identityPolicy.SecurityPolicyUri!;
 
             bool requireEncryption = tokenSecurityPolicyUri != SecurityPolicies.None;
 
@@ -2488,7 +2492,9 @@ namespace Opc.Ua.Client
                 // select the security policy for the user token.
                 string tokenSecurityPolicyUri = string.IsNullOrEmpty(identityPolicy.SecurityPolicyUri)
                     ? endpoint.SecurityPolicyUri ?? SecurityPolicies.None
-                    : identityPolicy.SecurityPolicyUri;
+                    // identityPolicy.SecurityPolicyUri is non-empty here; legacy BCL targets
+                    // lack [NotNullWhen(false)] on string.IsNullOrEmpty.
+                    : identityPolicy.SecurityPolicyUri!;
 
                 if (m_userTokenSecurityPolicyUri == null)
                 {

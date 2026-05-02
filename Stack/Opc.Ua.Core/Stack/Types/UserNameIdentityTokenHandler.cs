@@ -170,7 +170,7 @@ namespace Opc.Ua
                     receiverCertificate: receiverCertificate,
                     receiverNonce: receiverEphemeralKey!,
                     senderCertificate: senderCertificate!,
-                    senderNonce: Nonce.CreateNonce(securityPolicy!)!,
+                    senderNonce: Nonce.CreateNonce(securityPolicy)!,
                     doNotEncodeSenderCertificate: doNotEncodeSenderCertificate);
 
                 m_token.Password = secret.Encrypt(DecryptedPassword, receiverNonce).ToByteString();
@@ -205,9 +205,12 @@ namespace Opc.Ua
             }
 
             // handle RSA encryption.
-            var securityPolicy = SecurityPolicies.GetInfo(securityPolicyUri);
+            // GetInfo returns null only for unknown URIs; bail/throw earlier handled None case.
+            SecurityPolicyInfo securityPolicy = SecurityPolicies.GetInfo(securityPolicyUri)
+                ?? throw new ServiceResultException(StatusCodes.BadSecurityPolicyRejected,
+                    "Unknown security policy: " + securityPolicyUri);
 
-            if (securityPolicy!.EphemeralKeyAlgorithm == CertificateKeyAlgorithm.None)
+            if (securityPolicy.EphemeralKeyAlgorithm == CertificateKeyAlgorithm.None)
             {
                 EncryptedSecret encryptedSecret = EncryptedSecret.CreateForRsa(
                     context,

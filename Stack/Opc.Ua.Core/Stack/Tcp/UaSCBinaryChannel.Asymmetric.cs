@@ -1325,8 +1325,9 @@ namespace Opc.Ua.Bindings
             ArraySegment<byte> headerToCopy,
             X509Certificate2 receiverCertificate)
         {
-            if (SecurityPolicy!.AsymmetricSignatureAlgorithm == AsymmetricSignatureAlgorithm.None ||
-                SecurityPolicy!.EphemeralKeyAlgorithm != CertificateKeyAlgorithm.None)
+            SecurityPolicyInfo policy = SecurityPolicy!;
+            if (policy.AsymmetricSignatureAlgorithm == AsymmetricSignatureAlgorithm.None ||
+                policy.EphemeralKeyAlgorithm != CertificateKeyAlgorithm.None)
             {
                 byte[] encryptedBuffer = BufferManager.TakeBuffer(SendBufferSize, "Encrypt");
 
@@ -1349,7 +1350,7 @@ namespace Opc.Ua.Bindings
                     dataToEncrypt.Count + headerToCopy.Count);
             }
 
-            switch (SecurityPolicy.AsymmetricEncryptionAlgorithm)
+            switch (policy.AsymmetricEncryptionAlgorithm)
             {
                 case AsymmetricEncryptionAlgorithm.RsaOaepSha1:
                     return Rsa_Encrypt(
@@ -1385,8 +1386,9 @@ namespace Opc.Ua.Bindings
             ArraySegment<byte> headerToCopy,
             X509Certificate2 receiverCertificate)
         {
-            if (SecurityPolicy!.AsymmetricSignatureAlgorithm == AsymmetricSignatureAlgorithm.None ||
-                SecurityPolicy!.EphemeralKeyAlgorithm != CertificateKeyAlgorithm.None)
+            SecurityPolicyInfo policy = SecurityPolicy!;
+            if (policy.AsymmetricSignatureAlgorithm == AsymmetricSignatureAlgorithm.None ||
+                policy.EphemeralKeyAlgorithm != CertificateKeyAlgorithm.None)
             {
                 byte[] decryptedBuffer = BufferManager.TakeBuffer(SendBufferSize, "Decrypt");
 

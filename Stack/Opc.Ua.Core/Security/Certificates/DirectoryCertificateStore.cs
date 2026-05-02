@@ -510,8 +510,8 @@ namespace Opc.Ua
         /// Returns the path to the public key file.
         /// </summary>
         /// <param name="thumbprint">The thumbprint of the certificate.</param>
-        /// <returns>The path.</returns>
-        public string GetPublicKeyFilePath(string thumbprint)
+        /// <returns>The path or <c>null</c> if the certificate is not present.</returns>
+        public string? GetPublicKeyFilePath(string thumbprint)
         {
             m_lock.Wait();
             try
@@ -520,12 +520,12 @@ namespace Opc.Ua
 
                 if (entry == null)
                 {
-                    return null!;
+                    return null;
                 }
 
                 if (entry.CertificateFile == null || !entry.CertificateFile.Exists)
                 {
-                    return null!;
+                    return null;
                 }
 
                 return entry.CertificateFile.FullName;
@@ -540,8 +540,8 @@ namespace Opc.Ua
         /// Returns the path to the private key file.
         /// </summary>
         /// <param name="thumbprint">The thumbprint of the certificate.</param>
-        /// <returns>The path.</returns>
-        public string GetPrivateKeyFilePath(string thumbprint)
+        /// <returns>The path or <c>null</c> if no private key is present.</returns>
+        public string? GetPrivateKeyFilePath(string thumbprint)
         {
             m_lock.Wait();
             try
@@ -550,12 +550,12 @@ namespace Opc.Ua
 
                 if (entry == null)
                 {
-                    return null!;
+                    return null;
                 }
 
                 if (entry.PrivateKeyFile == null || !entry.PrivateKeyFile.Exists)
                 {
-                    return null!;
+                    return null;
                 }
 
                 return entry.PrivateKeyFile.FullName;
@@ -1216,7 +1216,7 @@ namespace Opc.Ua
             if (!string.IsNullOrEmpty(thumbprint) &&
                 !certificates.TryGetValue(thumbprint, out entry))
             {
-                return null!;
+                return null;
             }
 
             return entry;

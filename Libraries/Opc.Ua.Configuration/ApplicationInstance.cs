@@ -139,12 +139,10 @@ namespace Opc.Ua.Configuration
         {
             Server = server;
 
-            if (ApplicationConfiguration == null)
-            {
-                await LoadApplicationConfigurationAsync(false, ct).ConfigureAwait(false);
-            }
+            ApplicationConfiguration configuration = ApplicationConfiguration
+                ?? await LoadApplicationConfigurationAsync(false, ct).ConfigureAwait(false);
 
-            await server.StartAsync(ApplicationConfiguration!, ct).ConfigureAwait(false);
+            await server.StartAsync(configuration, ct).ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
@@ -235,6 +233,7 @@ namespace Opc.Ua.Configuration
             bool silent,
             CancellationToken ct = default)
         {
+            // GetFilePathFromAppConfig tolerates a null section name (string.Concat handles null operands).
             string filePath = ApplicationConfiguration.GetFilePathFromAppConfig(ConfigSectionName!, m_logger);
             return LoadApplicationConfigurationAsync(filePath, silent, ct);
         }
@@ -253,6 +252,8 @@ namespace Opc.Ua.Configuration
                 string[] baseAddresses = new string[configuration.ServerConfiguration.BaseAddresses.Count];
                 for (int i = 0; i < configuration.ServerConfiguration.BaseAddresses.Count; i++)
                 {
+                    // Base address strings in the collection are non-null; ReplaceLocalhost only returns
+                    // null when its input is null, so the result here is non-null.
                     baseAddresses[i] =
                         Utils.ReplaceLocalhost(configuration.ServerConfiguration.BaseAddresses[i])!;
                 }
@@ -264,7 +265,8 @@ namespace Opc.Ua.Configuration
         /// <inheritdoc/>
         public IApplicationConfigurationBuilderTypes Build(string applicationUri, string productUri)
         {
-            // App Uri and cert subject
+            // ApplicationConfiguration's ctor requires a non-null ITelemetryContext while this class
+            // tolerates a null telemetry context; passing null falls through to default telemetry.
             ApplicationConfiguration = new ApplicationConfiguration(m_telemetry!)
             {
                 ApplicationName = ApplicationName,
@@ -313,14 +315,11 @@ namespace Opc.Ua.Configuration
             lifeTimeInMonths ??= CertificateFactory.DefaultLifeTime;
             m_logger.LogInformation("Checking application instance certificate.");
 
-            if (ApplicationConfiguration == null)
-            {
-                await LoadApplicationConfigurationAsync(silent, ct).ConfigureAwait(false);
-            }
+            ApplicationConfiguration configuration = ApplicationConfiguration
+                ?? await LoadApplicationConfigurationAsync(silent, ct).ConfigureAwait(false);
 
             // find the existing certificates.
-            SecurityConfiguration securityConfiguration = ApplicationConfiguration!
-                .SecurityConfiguration;
+            SecurityConfiguration securityConfiguration = configuration.SecurityConfiguration;
 
             if (securityConfiguration.ApplicationCertificates.Count == 0)
             {
@@ -338,6 +337,7 @@ namespace Opc.Ua.Configuration
                 CertificateIdentifier certId = securityConfiguration.ApplicationCertificates[ii];
                 ushort minimumKeySize = certId.GetMinKeySize(securityConfiguration);
                 bool nextResult = await CheckOrCreateCertificateAsync(
+                        configuration,
                         certId,
                         silent,
                         minimumKeySize,
@@ -359,14 +359,13 @@ namespace Opc.Ua.Configuration
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
         private async Task<bool> CheckOrCreateCertificateAsync(
+            ApplicationConfiguration configuration,
             CertificateIdentifier id,
             bool silent,
             ushort minimumKeySize,
             ushort lifeTimeInMonths,
             CancellationToken ct = default)
         {
-            ApplicationConfiguration configuration = ApplicationConfiguration!;
-
             if (id == null)
             {
                 throw ServiceResultException.ConfigurationError(
@@ -403,6 +402,8 @@ namespace Opc.Ua.Configuration
 
                 if (!certificateValid)
                 {
+                    // SubjectName / StorePath may be null on the identifier; passing null to params object[]
+                    // produces empty placeholders in the formatted message, matching prior behavior.
                     throw ServiceResultException.ConfigurationError(
                         "The certificate with subject {0} in the configuration is invalid.\n" +
                         " Please update or delete the certificate from this location: {1}",
@@ -447,6 +448,7 @@ namespace Opc.Ua.Configuration
                             .AppendLine("Use it instead?")
                             .AppendLine("Requested: {0}")
                             .AppendLine("Found: {1}");
+                        // SubjectName may be null; format placeholders accept null as empty, preserving behavior.
                         if (!await ApproveMessageAsync(
                             Utils.Format(message.ToString(), id.SubjectName!, certificate.Subject), silent)
                                 .ConfigureAwait(false))
@@ -485,6 +487,7 @@ namespace Opc.Ua.Configuration
 
                 if (certificate == null)
                 {
+                    // SubjectName / StorePath may be null; format placeholders accept null as empty, preserving behavior.
                     throw ServiceResultException.ConfigurationError(
                         "There is no cert with subject {0} in the configuration.\n" +
                         "Please generate a cert for your application, then copy the new cert to this location: {1}",
@@ -506,6 +509,8 @@ namespace Opc.Ua.Configuration
             X509Certificate2 certificate,
             CancellationToken ct)
         {
+            // ApplicationConfiguration may be null; AddToTrustedStoreAsync checks defensively and
+            // logs a warning if no trusted store is configured, preserving prior behavior.
             await AddToTrustedStoreAsync(ApplicationConfiguration!, certificate, ct).ConfigureAwait(
                 false);
         }
@@ -647,12 +652,13 @@ namespace Opc.Ua.Configuration
                 "Check application instance certificate {Certificate}.",
                 certificate.AsLogSafeString());
 
+            // CertificateValidator is initialized to a non-null instance in the ApplicationConfiguration ctor.
+            CertificateValidator validator = configuration.CertificateValidator!;
             try
             {
                 // validate certificate.
-                configuration.CertificateValidator!.CertificateValidation += OnCertificateValidation;
-                await configuration
-                    .CertificateValidator.ValidateAsync(
+                validator.CertificateValidation += OnCertificateValidation;
+                await validator.ValidateAsync(
                         certificate.HasPrivateKey
                             ? CertificateFactory.Create(certificate.RawData)
                             : certificate,
@@ -671,7 +677,7 @@ namespace Opc.Ua.Configuration
             }
             finally
             {
-                configuration.CertificateValidator!.CertificateValidation -= OnCertificateValidation;
+                validator.CertificateValidation -= OnCertificateValidation;
             }
 
             // check key size
@@ -698,6 +704,8 @@ namespace Opc.Ua.Configuration
             }
 
             // Validate that the certificate contains the configuration's ApplicationUri
+            // ApplicationUri may be null; CompareApplicationUriWithCertificate's contract is non-null
+            // but its implementation returns false on null/empty, preserving prior behavior.
             if (!X509Utils.CompareApplicationUriWithCertificate(
                 certificate,
                 configuration.ApplicationUri!,
@@ -863,9 +871,12 @@ namespace Opc.Ua.Configuration
             // ensure the certificate store directory exists.
             if (id.StoreType == CertificateStoreType.Directory)
             {
+                // GetAbsoluteDirectoryPath requires non-null; StorePath is checked above by StoreType comparison.
                 Utils.GetAbsoluteDirectoryPath(id.StorePath!, true, true, true);
             }
 
+            // ApplicationUri / ApplicationName / SubjectName are required by CertificateFactory.CreateCertificate;
+            // null values flow to the underlying X.509 builder which rejects them, preserving the prior behavior.
             Security.Certificates.ICertificateBuilder builder = CertificateFactory
                 .CreateCertificate(
                     configuration.ApplicationUri!,
@@ -909,6 +920,8 @@ namespace Opc.Ua.Configuration
                 .SecurityConfiguration
                 .CertificatePasswordProvider;
             await id
+                // StoreType/StorePath may be null on the identifier; AddToStoreAsync's contract is
+                // non-null but its body short-circuits on null/empty values, preserving prior behavior.
                 .Certificate.AddToStoreAsync(
                     id.StoreType!,
                     id.StorePath!,
@@ -932,12 +945,15 @@ namespace Opc.Ua.Configuration
                 ct)
                 .ConfigureAwait(false);
 
+            // CertificateValidator is initialized to a non-null instance in the ApplicationConfiguration ctor.
             await configuration
                 .CertificateValidator!.UpdateAsync(configuration.SecurityConfiguration, applicationUri: null, ct)
                 .ConfigureAwait(false);
 
             m_logger.LogInformation(
                 "Certificate {Certificate} created for {ApplicationUri}.",
+                // LoadPrivateKeyExAsync may return null if the private key is missing; in that case
+                // the next operations on id.Certificate will throw, which matches the prior behavior.
                 id.Certificate!.AsLogSafeString(),
                 configuration.ApplicationUri);
 
@@ -986,6 +1002,7 @@ namespace Opc.Ua.Configuration
 
                 if (!string.IsNullOrEmpty(thumbprint))
                 {
+                    // OpenStore requires non-null telemetry; m_telemetry is allowed to be null on this class.
                     ICertificateStore store = configuration.SecurityConfiguration
                         .TrustedPeerCertificates
                         .OpenStore(m_telemetry!);
@@ -993,6 +1010,8 @@ namespace Opc.Ua.Configuration
                     {
                         try
                         {
+                            // thumbprint is non-empty (and thus non-null) here; legacy BCL targets
+                            // lack [NotNullWhen(false)] on string.IsNullOrEmpty.
                             bool deleted = await store.DeleteAsync(thumbprint!, ct)
                                 .ConfigureAwait(false);
                             if (deleted)
@@ -1000,7 +1019,7 @@ namespace Opc.Ua.Configuration
                                 m_logger.LogInformation(
                                     Utils.TraceMasks.Security,
                                     "Application Instance Certificate [{Thumbprint}] deleted from trusted store.",
-                                    thumbprint!);
+                                    thumbprint);
                             }
                         }
                         finally
@@ -1014,6 +1033,7 @@ namespace Opc.Ua.Configuration
             // delete certificate and private key from owner store.
             if (certificate != null)
             {
+                // OpenStore requires non-null telemetry; m_telemetry is allowed to be null on this class.
                 using ICertificateStore store = id.OpenStore(m_telemetry!);
                 bool deleted = await store.DeleteAsync(certificate.Thumbprint, ct)
                     .ConfigureAwait(false);
@@ -1047,16 +1067,10 @@ namespace Opc.Ua.Configuration
                 throw new ArgumentNullException(nameof(certificate));
             }
 
-            string? storePath = null;
-
-            if (configuration != null &&
-                configuration.SecurityConfiguration != null &&
-                configuration.SecurityConfiguration.TrustedPeerCertificates != null)
-            {
-                storePath = configuration.SecurityConfiguration.TrustedPeerCertificates.StorePath;
-            }
-
-            if (string.IsNullOrEmpty(storePath))
+            if (configuration == null ||
+                configuration.SecurityConfiguration == null ||
+                configuration.SecurityConfiguration.TrustedPeerCertificates == null ||
+                string.IsNullOrEmpty(configuration.SecurityConfiguration.TrustedPeerCertificates.StorePath))
             {
                 m_logger.LogWarning("WARNING: Trusted peer store not specified.");
                 return;
@@ -1064,7 +1078,8 @@ namespace Opc.Ua.Configuration
 
             try
             {
-                ICertificateStore store = configuration!.SecurityConfiguration!.TrustedPeerCertificates!.OpenStore(m_telemetry!);
+                // OpenStore requires non-null telemetry; m_telemetry is allowed to be null on this class.
+                ICertificateStore store = configuration.SecurityConfiguration.TrustedPeerCertificates.OpenStore(m_telemetry!);
 
                 if (store == null)
                 {

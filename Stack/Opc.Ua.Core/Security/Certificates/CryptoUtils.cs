@@ -625,19 +625,22 @@ namespace Opc.Ua
                 data = AddPadding(data, iv.Length, hashLength);
             }
 
+            // The buffer originates from BufferManager so the backing array is non-null.
+            byte[] dataArray = data.Array!;
+
             if (signingKey != null)
             {
-                byte[] hash = hmac!.ComputeHash(data.Array!, 0, data.Offset + data.Count);
+                byte[] hash = hmac!.ComputeHash(dataArray, 0, data.Offset + data.Count);
 
                 Buffer.BlockCopy(
                     hash,
                     0,
-                    data.Array!,
+                    dataArray,
                     data.Offset + data.Count,
                     hash.Length);
 
                 data = new ArraySegment<byte>(
-                    data.Array!,
+                    dataArray,
                     data.Offset,
                     data.Count + hash.Length);
             }
@@ -656,14 +659,14 @@ namespace Opc.Ua
 #pragma warning restore CA5401
 
                 encryptor.TransformBlock(
-                    data.Array!,
+                    dataArray,
                     data.Offset,
                     data.Count,
-                    data.Array!,
+                    dataArray,
                     data.Offset);
             }
 
-            return new ArraySegment<byte>(data.Array!, 0, data.Offset + data.Count);
+            return new ArraySegment<byte>(dataArray, 0, data.Offset + data.Count);
         }
 
 #if NET8_0_OR_GREATER
@@ -707,9 +710,11 @@ namespace Opc.Ua
 
             byte[] ciphertext = new byte[signOnly ? 0 : data.Count];
             byte[] tag = new byte[kChaChaPolyTagLength]; // ChaCha20-Poly1305/AES-GCM uses 128-bit authentication tag
+            // Buffer originates from BufferManager so the backing array is non-null.
+            byte[] dataArray = data.Array!;
 
             var extraData = new ReadOnlySpan<byte>(
-                data.Array,
+                dataArray,
                 0,
                 signOnly ? data.Offset + data.Count : data.Offset);
 
@@ -727,13 +732,13 @@ namespace Opc.Ua
             // Return layout: [associated data | ciphertext | tag]
             if (!signOnly)
             {
-                Buffer.BlockCopy(ciphertext, 0, data.Array!, data.Offset, ciphertext.Length);
+                Buffer.BlockCopy(ciphertext, 0, dataArray, data.Offset, ciphertext.Length);
             }
 
-            Buffer.BlockCopy(tag, 0, data.Array!, data.Offset + data.Count, tag.Length);
+            Buffer.BlockCopy(tag, 0, dataArray, data.Offset + data.Count, tag.Length);
 
             return new ArraySegment<byte>(
-                data.Array!,
+                dataArray,
                 0,
                 data.Offset + data.Count + kChaChaPolyTagLength);
         }
@@ -768,19 +773,21 @@ namespace Opc.Ua
             }
 
             byte[] plaintext = new byte[data.Count - kChaChaPolyTagLength];
+            // Buffer originates from BufferManager so the backing array is non-null.
+            byte[] dataArray = data.Array!;
 
             var encryptedData = new ArraySegment<byte>(
-                data.Array!,
+                dataArray,
                 data.Offset,
                 signOnly ? 0 : data.Count - kChaChaPolyTagLength);
 
             var tag = new ArraySegment<byte>(
-                data.Array!,
+                dataArray,
                 data.Offset + data.Count - kChaChaPolyTagLength,
                 kChaChaPolyTagLength);
 
             var extraData = new ReadOnlySpan<byte>(
-                data.Array,
+                dataArray,
                 0,
                 signOnly ? data.Offset + data.Count - kChaChaPolyTagLength : data.Offset);
 
@@ -798,10 +805,10 @@ namespace Opc.Ua
             // Return layout: [associated data | plaintext]
             if (!signOnly)
             {
-                Buffer.BlockCopy(plaintext, 0, data.Array!, data.Offset, encryptedData.Count);
+                Buffer.BlockCopy(plaintext, 0, dataArray, data.Offset, encryptedData.Count);
             }
 
-            return new ArraySegment<byte>(data.Array!, 0, data.Offset + data.Count - kChaChaPolyTagLength);
+            return new ArraySegment<byte>(dataArray, 0, data.Offset + data.Count - kChaChaPolyTagLength);
         }
 
         private const int kAesGcmIvLength = 12;
@@ -827,9 +834,11 @@ namespace Opc.Ua
 
             byte[] ciphertext = new byte[signOnly ? 0 : data.Count];
             byte[] tag = new byte[kAesGcmTagLength]; // AES-GCM uses 128-bit authentication tag
+            // Buffer originates from BufferManager so the backing array is non-null.
+            byte[] dataArray = data.Array!;
 
             var extraData = new ReadOnlySpan<byte>(
-                data.Array,
+                dataArray,
                 0,
                 signOnly ? data.Offset + data.Count : data.Offset);
 
@@ -847,13 +856,13 @@ namespace Opc.Ua
             // Return layout: [associated data | ciphertext | tag]
             if (!signOnly)
             {
-                Buffer.BlockCopy(ciphertext, 0, data.Array!, data.Offset, ciphertext.Length);
+                Buffer.BlockCopy(ciphertext, 0, dataArray, data.Offset, ciphertext.Length);
             }
 
-            Buffer.BlockCopy(tag, 0, data.Array!, data.Offset + data.Count, tag.Length);
+            Buffer.BlockCopy(tag, 0, dataArray, data.Offset + data.Count, tag.Length);
 
             return new ArraySegment<byte>(
-                data.Array!,
+                dataArray,
                 0,
                 data.Offset + data.Count + kAesGcmTagLength);
         }
@@ -886,19 +895,21 @@ namespace Opc.Ua
             }
 
             byte[] plaintext = new byte[data.Count - kAesGcmTagLength];
+            // Buffer originates from BufferManager so the backing array is non-null.
+            byte[] dataArray = data.Array!;
 
             var encryptedData = new ArraySegment<byte>(
-                data.Array!,
+                dataArray,
                 data.Offset,
                 signOnly ? 0 : data.Count - kAesGcmTagLength);
 
             var tag = new ArraySegment<byte>(
-                data.Array!,
+                dataArray,
                 data.Offset + data.Count - kAesGcmTagLength,
                 kAesGcmTagLength);
 
             var extraData = new ReadOnlySpan<byte>(
-                data.Array,
+                dataArray,
                 0,
                 signOnly ? data.Offset + data.Count - kAesGcmTagLength : data.Offset);
 
@@ -916,10 +927,10 @@ namespace Opc.Ua
             // Return layout: [associated data | plaintext]
             if (!signOnly)
             {
-                Buffer.BlockCopy(plaintext, 0, data.Array!, data.Offset, encryptedData.Count);
+                Buffer.BlockCopy(plaintext, 0, dataArray, data.Offset, encryptedData.Count);
             }
 
-            return new ArraySegment<byte>(data.Array!, 0, data.Offset + data.Count - kAesGcmTagLength);
+            return new ArraySegment<byte>(dataArray, 0, data.Offset + data.Count - kAesGcmTagLength);
         }
 #endif
 
@@ -989,19 +1000,21 @@ namespace Opc.Ua
             }
 
             int isNotValid = 0;
+            // Buffer originates from BufferManager so the backing array is non-null.
+            byte[] dataArray = data.Array!;
 
             if (signingKey != null)
             {
                 using HMAC? hmac = securityPolicy.CreateSignatureHmac(signingKey);
-                byte[] hash = hmac!.ComputeHash(data.Array!, 0, data.Offset + data.Count - (hmac.HashSize / 8));
+                byte[] hash = hmac!.ComputeHash(dataArray, 0, data.Offset + data.Count - (hmac.HashSize / 8));
                 for (int ii = 0; ii < hash.Length; ii++)
                 {
                     int index = data.Offset + data.Count - hash.Length + ii;
-                    isNotValid |= data.Array![index] != hash[ii] ? 1 : 0;
+                    isNotValid |= dataArray[index] != hash[ii] ? 1 : 0;
                 }
 
                 data = new ArraySegment<byte>(
-                    data.Array!,
+                    dataArray,
                     data.Offset,
                     data.Count - hash.Length);
             }
@@ -1016,7 +1029,7 @@ namespace Opc.Ua
                 throw new CryptographicException("Invalid signature.");
             }
 
-            return new ArraySegment<byte>(data.Array!, 0, data.Offset + data.Count);
+            return new ArraySegment<byte>(dataArray, 0, data.Offset + data.Count);
         }
     }
 }

@@ -186,9 +186,9 @@ namespace Opc.Ua
                 {
                     continue;
                 }
-                // CS8600: Variant.TryGetStructure<T> uses [MaybeNullWhen(false)] on a T : IEncodeable
-                // out parameter. Roslyn always emits CS8600 for this declaration site even though
-                // the value is only read after the method returns true (where it is non-null).
+                // CS8600: Variant.TryGetStructure<T> uses [MaybeNullWhen(false)] on a non-nullable
+                // T : IEncodeable out parameter. The value is only read inside the if-block where
+                // the bool guarantees it was assigned a non-null value. Single-line suppression.
 #pragma warning disable CS8600
                 if (item.Value.TryGetStructure(out SpanContextDataType spanContext))
 #pragma warning restore CS8600

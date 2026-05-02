@@ -814,8 +814,10 @@ namespace Opc.Ua
             DateTime earliestTime,
             ITelemetryContext telemetry)
         {
+            // Buffer-backed segment guarantees a non-null backing array.
+            byte[] dataArray = dataToDecrypt.Array!;
             using var decoder = new BinaryDecoder(
-                dataToDecrypt.Array!,
+                dataArray,
                 dataToDecrypt.Offset,
                 dataToDecrypt.Count,
                 Context);
@@ -922,14 +924,14 @@ namespace Opc.Ua
             byte[] signature = new byte[signatureLength];
 
             Buffer.BlockCopy(
-                dataToDecrypt.Array!,
+                dataArray,
                 dataToDecrypt.Offset + dataToDecrypt.Count - signatureLength,
                 signature,
                 0,
                 signatureLength);
 
             var dataToSign = new ArraySegment<byte>(
-                dataToDecrypt.Array!,
+                dataArray,
                 dataToDecrypt.Offset,
                 dataToDecrypt.Count - signatureLength);
 
@@ -942,7 +944,7 @@ namespace Opc.Ua
 
             // extract the encrypted data.
             return new ArraySegment<byte>(
-                dataToDecrypt.Array!,
+                dataArray,
                 dataToDecrypt.Offset + startOfEncryption,
                 dataToDecrypt.Count - startOfEncryption - signatureLength);
         }

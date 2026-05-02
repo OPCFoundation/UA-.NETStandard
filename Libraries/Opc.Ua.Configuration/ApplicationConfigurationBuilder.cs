@@ -41,6 +41,18 @@ namespace Opc.Ua.Configuration
     /// <summary>
     /// A class that builds a configuration for a UA application.
     /// </summary>
+    /// <remarks>
+    /// This builder uses a fluent staged-interface pattern: callers progress through
+    /// <see cref="ApplicationInstance.Build(string, string)"/> (which initializes
+    /// <see cref="ApplicationConfiguration.TransportQuotas"/> and
+    /// <see cref="ApplicationConfiguration.TraceConfiguration"/>),
+    /// then through <see cref="AsClient"/>/<see cref="AsServer(string[], string[])"/>
+    /// (which initialize <see cref="ApplicationConfiguration.ClientConfiguration"/>
+    /// and <see cref="ApplicationConfiguration.ServerConfiguration"/> respectively),
+    /// before reaching the per-section setter methods. As a result the
+    /// <c>!</c> operators on accesses to those nullable sub-configuration objects in
+    /// this class are guaranteed to be non-null at the time the methods are invoked.
+    /// </remarks>
     public class ApplicationConfigurationBuilder : IApplicationConfigurationBuilder
     {
         /// <summary>
@@ -59,6 +71,11 @@ namespace Opc.Ua.Configuration
         /// <summary>
         /// The application configuration.
         /// </summary>
+        /// <remarks>
+        /// This builder is constructed by <see cref="ApplicationInstance.Build"/>, which assigns
+        /// <see cref="IApplicationInstance.ApplicationConfiguration"/> before returning the builder,
+        /// so the underlying configuration is guaranteed to be non-null.
+        /// </remarks>
         public ApplicationConfiguration ApplicationConfiguration
             => ApplicationInstance.ApplicationConfiguration!;
 
@@ -276,13 +293,13 @@ namespace Opc.Ua.Configuration
             string issuerRootType = CertificateStoreIdentifier.DetermineStoreType(issuerRoot);
 
             // User trusted & issuer
-            ApplicationConfiguration.SecurityConfiguration!.TrustedUserCertificates
+            ApplicationConfiguration.SecurityConfiguration.TrustedUserCertificates
                 = new CertificateTrustList
                 {
                     StoreType = trustedRootType,
                     StorePath = DefaultCertificateStorePath(TrustlistType.TrustedUser, trustedRoot)
                 };
-            ApplicationConfiguration.SecurityConfiguration!.UserIssuerCertificates
+            ApplicationConfiguration.SecurityConfiguration.UserIssuerCertificates
                 = new CertificateTrustList
                 {
                     StoreType = issuerRootType,
@@ -300,7 +317,7 @@ namespace Opc.Ua.Configuration
             string issuerRootType = CertificateStoreIdentifier.DetermineStoreType(issuerRoot);
 
             // Https trusted & issuer
-            ApplicationConfiguration.SecurityConfiguration!.TrustedHttpsCertificates
+            ApplicationConfiguration.SecurityConfiguration.TrustedHttpsCertificates
                 = new CertificateTrustList
                 {
                     StoreType = trustedRootType,
@@ -308,7 +325,7 @@ namespace Opc.Ua.Configuration
                         TrustlistType.TrustedHttps,
                         trustedRootType)
                 };
-            ApplicationConfiguration.SecurityConfiguration!.HttpsIssuerCertificates
+            ApplicationConfiguration.SecurityConfiguration.HttpsIssuerCertificates
                 = new CertificateTrustList
                 {
                     StoreType = issuerRootType,
@@ -354,6 +371,7 @@ namespace Opc.Ua.Configuration
             await ApplicationConfiguration.ValidateAsync(ApplicationInstance.ApplicationType, ct)
                 .ConfigureAwait(false);
 
+            // CertificateValidator is initialized to a non-null instance in the ApplicationConfiguration ctor.
             await ApplicationConfiguration
                 .CertificateValidator!.UpdateAsync(
                     ApplicationConfiguration.SecurityConfiguration,
@@ -397,6 +415,7 @@ namespace Opc.Ua.Configuration
             // base addresses
             foreach (string baseAddress in baseAddresses)
             {
+                // ReplaceLocalhost only returns null when its input is null; the foreach variable is non-null.
                 serverConfiguration.BaseAddresses +=
                     Utils.ReplaceLocalhost(baseAddress)!;
             }
@@ -406,6 +425,7 @@ namespace Opc.Ua.Configuration
             {
                 foreach (string alternateBaseAddress in alternateBaseAddresses)
                 {
+                    // ReplaceLocalhost only returns null when its input is null; the foreach variable is non-null.
                     serverConfiguration.AlternateBaseAddresses +=
                         Utils.ReplaceLocalhost(alternateBaseAddress)!;
                 }
@@ -524,7 +544,7 @@ namespace Opc.Ua.Configuration
         public IApplicationConfigurationBuilderSecurityOptions SetApplicationCertificates(
             ArrayOf<CertificateIdentifier> certIdList)
         {
-            ApplicationConfiguration.SecurityConfiguration!.ApplicationCertificates = certIdList;
+            ApplicationConfiguration.SecurityConfiguration.ApplicationCertificates = certIdList;
             return this;
         }
 
@@ -532,7 +552,7 @@ namespace Opc.Ua.Configuration
         public IApplicationConfigurationBuilderSecurityOptions SetMaxRejectedCertificates(
             int maxRejectedCertificates)
         {
-            ApplicationConfiguration.SecurityConfiguration!.MaxRejectedCertificates
+            ApplicationConfiguration.SecurityConfiguration.MaxRejectedCertificates
                 = maxRejectedCertificates;
             return this;
         }
@@ -541,7 +561,7 @@ namespace Opc.Ua.Configuration
         public IApplicationConfigurationBuilderSecurityOptions SetAutoAcceptUntrustedCertificates(
             bool autoAccept)
         {
-            ApplicationConfiguration.SecurityConfiguration!.AutoAcceptUntrustedCertificates
+            ApplicationConfiguration.SecurityConfiguration.AutoAcceptUntrustedCertificates
                 = autoAccept;
             return this;
         }
@@ -550,7 +570,7 @@ namespace Opc.Ua.Configuration
         public IApplicationConfigurationBuilderSecurityOptions SetAddAppCertToTrustedStore(
             bool addToTrustedStore)
         {
-            ApplicationConfiguration.SecurityConfiguration!.AddAppCertToTrustedStore
+            ApplicationConfiguration.SecurityConfiguration.AddAppCertToTrustedStore
                 = addToTrustedStore;
             return this;
         }
@@ -559,7 +579,7 @@ namespace Opc.Ua.Configuration
         public IApplicationConfigurationBuilderSecurityOptions SetRejectSHA1SignedCertificates(
             bool rejectSHA1Signed)
         {
-            ApplicationConfiguration.SecurityConfiguration!.RejectSHA1SignedCertificates
+            ApplicationConfiguration.SecurityConfiguration.RejectSHA1SignedCertificates
                 = rejectSHA1Signed;
             return this;
         }
@@ -568,7 +588,7 @@ namespace Opc.Ua.Configuration
         public IApplicationConfigurationBuilderSecurityOptions SetRejectUnknownRevocationStatus(
             bool rejectUnknownRevocationStatus)
         {
-            ApplicationConfiguration.SecurityConfiguration!.RejectUnknownRevocationStatus =
+            ApplicationConfiguration.SecurityConfiguration.RejectUnknownRevocationStatus =
                 rejectUnknownRevocationStatus;
             return this;
         }
@@ -577,7 +597,7 @@ namespace Opc.Ua.Configuration
         public IApplicationConfigurationBuilderSecurityOptions SetUseValidatedCertificates(
             bool useValidatedCertificates)
         {
-            ApplicationConfiguration.SecurityConfiguration!.UseValidatedCertificates
+            ApplicationConfiguration.SecurityConfiguration.UseValidatedCertificates
                 = useValidatedCertificates;
             return this;
         }
@@ -586,7 +606,7 @@ namespace Opc.Ua.Configuration
         public IApplicationConfigurationBuilderSecurityOptions SetSuppressNonceValidationErrors(
             bool suppressNonceValidationErrors)
         {
-            ApplicationConfiguration.SecurityConfiguration!.SuppressNonceValidationErrors =
+            ApplicationConfiguration.SecurityConfiguration.SuppressNonceValidationErrors =
                 suppressNonceValidationErrors;
             return this;
         }
@@ -595,7 +615,7 @@ namespace Opc.Ua.Configuration
         public IApplicationConfigurationBuilderSecurityOptions SetSendCertificateChain(
             bool sendCertificateChain)
         {
-            ApplicationConfiguration.SecurityConfiguration!.SendCertificateChain
+            ApplicationConfiguration.SecurityConfiguration.SendCertificateChain
                 = sendCertificateChain;
             return this;
         }
@@ -604,7 +624,7 @@ namespace Opc.Ua.Configuration
         public IApplicationConfigurationBuilderSecurityOptions SetMinimumCertificateKeySize(
             ushort keySize)
         {
-            ApplicationConfiguration.SecurityConfiguration!.MinimumCertificateKeySize = keySize;
+            ApplicationConfiguration.SecurityConfiguration.MinimumCertificateKeySize = keySize;
             return this;
         }
 
@@ -612,7 +632,7 @@ namespace Opc.Ua.Configuration
         public IApplicationConfigurationBuilderSecurityOptions AddCertificatePasswordProvider(
             ICertificatePasswordProvider certificatePasswordProvider)
         {
-            ApplicationConfiguration.SecurityConfiguration!.CertificatePasswordProvider
+            ApplicationConfiguration.SecurityConfiguration.CertificatePasswordProvider
                 = certificatePasswordProvider;
             return this;
         }

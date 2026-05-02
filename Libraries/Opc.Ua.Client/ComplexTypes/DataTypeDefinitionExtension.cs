@@ -323,7 +323,10 @@ namespace Opc.Ua.Client.ComplexTypes
                 {
                     Name = name,
                     Value = enumValue.Value,
-                    DisplayName = LocalizedText.From(name)
+                    // name is non-null here (assigned from non-null DisplayName.Text or the
+                    // composed fallback above); legacy BCL targets lack [NotNullWhen(false)]
+                    // on string.IsNullOrEmpty so the compiler cannot infer it.
+                    DisplayName = LocalizedText.From(name!)
                 };
                 enumFields.Add(enumTypeField);
             }
@@ -363,7 +366,8 @@ namespace Opc.Ua.Client.ComplexTypes
                 {
                     Name = name,
                     Value = ii,
-                    DisplayName = LocalizedText.From(name)
+                    // name is non-null here; see comment in the ExtensionObject overload.
+                    DisplayName = LocalizedText.From(name!)
                 };
 
                 enumFields.Add(enumTypeField);

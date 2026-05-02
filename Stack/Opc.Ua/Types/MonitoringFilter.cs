@@ -1037,7 +1037,9 @@ namespace Opc.Ua
             {
                 try
                 {
-                    m_parsedIndexRange = NumericRange.Parse(m_indexRange);
+                    // m_indexRange is non-empty (and thus non-null) here; legacy BCL targets
+                    // lack [NotNullWhen(false)] on string.IsNullOrEmpty.
+                    m_parsedIndexRange = NumericRange.Parse(m_indexRange!);
                 }
                 catch (Exception e)
                 {
@@ -1045,7 +1047,7 @@ namespace Opc.Ua
                         e,
                         StatusCodes.BadIndexRangeInvalid,
                         "SimpleAttributeOperand does not specify a valid BrowsePath ({0}).",
-                        m_indexRange);
+                        m_indexRange!);
                 }
 
                 if (m_attributeId != Attributes.Value)

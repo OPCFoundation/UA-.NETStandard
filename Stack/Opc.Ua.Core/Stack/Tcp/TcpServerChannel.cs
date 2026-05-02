@@ -182,7 +182,7 @@ namespace Opc.Ua.Bindings
                 return;
             }
 
-            byte[] buffer = BufferManager.TakeBuffer(
+            byte[]? buffer = BufferManager.TakeBuffer(
                 SendBufferSize,
                 "OnReverseConnectConnectComplete");
 
@@ -209,7 +209,7 @@ namespace Opc.Ua.Bindings
                 m_pendingReverseHello = ar;
 
                 BeginWriteMessage(new ArraySegment<byte>(buffer, 0, size), null);
-                buffer = null!;
+                buffer = null;
             }
             catch (Exception e)
             {
@@ -491,7 +491,7 @@ namespace Opc.Ua.Bindings
                     ReceiveBufferSize);
 
                 // send acknowledge.
-                byte[] buffer = BufferManager.TakeBuffer(
+                byte[]? buffer = BufferManager.TakeBuffer(
                     kResponseBufferSize,
                     nameof(ProcessHelloMessage));
 
@@ -516,7 +516,7 @@ namespace Opc.Ua.Bindings
 
                         BeginWriteMessage(new ArraySegment<byte>(buffer, 0, size), null);
                     }
-                    buffer = null!;
+                    buffer = null;
                 }
                 finally
                 {
@@ -734,7 +734,7 @@ namespace Opc.Ua.Bindings
                             token,
                             request);
 
-                        token = null!;
+                        token = null;
 
                         m_logger.LogInformation(
                             "{Channel} ReconnectToExistingChannel Socket={SocketHandle:X8}, ChannelId={ChannelId}, TokenId={TokenId}",
@@ -790,7 +790,7 @@ namespace Opc.Ua.Bindings
                 }
 
                 // ensure the token is not disposed
-                token = null!;
+                token = null;
 
                 State = TcpChannelState.Open;
 
@@ -909,15 +909,15 @@ namespace Opc.Ua.Bindings
                     TcpMessageType.Open,
                     requestId,
                     ServerCertificate!,
-                    null!,
+                    senderCertificateChain: null,
                     ClientCertificate!,
                     new ArraySegment<byte>(buffer, 0, buffer.Length),
-                    (!renew ? m_oscRequestSignature : null)!,
+                    !renew ? m_oscRequestSignature : null,
                     out byte[] signature);
 
                 // write the message to the server.
                 BeginWriteMessage(chunksToSend, null);
-                chunksToSend = null!;
+                chunksToSend = null;
             }
             catch (Exception e)
             {
@@ -976,7 +976,7 @@ namespace Opc.Ua.Bindings
                 ServerCertificateChain!,
                 ClientCertificate!,
                 new ArraySegment<byte>(buffer, 0, buffer.Length),
-                (!renew ? m_oscRequestSignature : null)!,
+                !renew ? m_oscRequestSignature : null,
                 out byte[] signature);
 
             if (!renew)
@@ -985,14 +985,15 @@ namespace Opc.Ua.Bindings
             }
 
             // write the response to the client.
+            BufferCollection? chunksToRelease = chunksToSend;
             try
             {
                 BeginWriteMessage(chunksToSend, null);
-                chunksToSend = null!;
+                chunksToRelease = null;
             }
             finally
             {
-                chunksToSend?.Release(BufferManager, "SendOpenSecureChannelResponse");
+                chunksToRelease?.Release(BufferManager, "SendOpenSecureChannelResponse");
             }
         }
 

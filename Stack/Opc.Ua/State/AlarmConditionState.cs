@@ -55,25 +55,25 @@ namespace Opc.Ua
         {
             base.OnAfterCreate(context, node, ct);
 
-            if (ShelvingState != null)
+            if (ShelvingState is { } shelvingState)
             {
-                if (ShelvingState!.UnshelveTime != null)
+                if (shelvingState.UnshelveTime is { } unshelveTime)
                 {
-                    ShelvingState!.UnshelveTime!.OnSimpleReadValue = OnReadUnshelveTime;
-                    ShelvingState!.UnshelveTime!.MinimumSamplingInterval = 1000;
+                    unshelveTime.OnSimpleReadValue = OnReadUnshelveTime;
+                    unshelveTime.MinimumSamplingInterval = 1000;
                 }
 
-                ShelvingState!.OneShotShelve!.OnCallMethod = OnOneShotShelve;
-                ShelvingState!.OneShotShelve!.OnReadExecutable = IsOneShotShelveExecutable;
-                ShelvingState!.OneShotShelve!.OnReadUserExecutable = IsOneShotShelveExecutable;
+                shelvingState.OneShotShelve!.OnCallMethod = OnOneShotShelve; // OneShotShelve is created with ShelvingState
+                shelvingState.OneShotShelve!.OnReadExecutable = IsOneShotShelveExecutable;
+                shelvingState.OneShotShelve!.OnReadUserExecutable = IsOneShotShelveExecutable;
 
-                ShelvingState!.TimedShelve!.OnCall = OnTimedShelve;
-                ShelvingState!.TimedShelve!.OnReadExecutable = IsTimedShelveExecutable;
-                ShelvingState!.TimedShelve!.OnReadUserExecutable = IsTimedShelveExecutable;
+                shelvingState.TimedShelve!.OnCall = OnTimedShelve; // TimedShelve is created with ShelvingState
+                shelvingState.TimedShelve!.OnReadExecutable = IsTimedShelveExecutable;
+                shelvingState.TimedShelve!.OnReadUserExecutable = IsTimedShelveExecutable;
 
-                ShelvingState!.Unshelve!.OnCallMethod = OnUnshelve;
-                ShelvingState!.Unshelve!.OnReadExecutable = IsUnshelveExecutable;
-                ShelvingState!.Unshelve!.OnReadUserExecutable = IsUnshelveExecutable;
+                shelvingState.Unshelve!.OnCallMethod = OnUnshelve; // Unshelve is created with ShelvingState
+                shelvingState.Unshelve!.OnReadExecutable = IsUnshelveExecutable;
+                shelvingState.Unshelve!.OnReadUserExecutable = IsUnshelveExecutable;
             }
         }
 
@@ -110,18 +110,14 @@ namespace Opc.Ua
             LocalizedText displayName,
             DateTime transitionTime)
         {
-            ActiveState!.EffectiveDisplayName?.Value = displayName;
+            TwoStateVariableState activeState = ActiveState!; // alarm conditions always have ActiveState
+            activeState.EffectiveDisplayName?.Value = displayName;
 
-            if (ActiveState!.EffectiveTransitionTime != null)
+            if (activeState.EffectiveTransitionTime is { } effectiveTransitionTime)
             {
-                if (transitionTime != DateTime.MinValue)
-                {
-                    ActiveState!.EffectiveTransitionTime!.Value = transitionTime;
-                }
-                else
-                {
-                    ActiveState!.EffectiveTransitionTime!.Value = DateTimeUtc.Now;
-                }
+                effectiveTransitionTime.Value = transitionTime != DateTime.MinValue
+                    ? transitionTime
+                    : DateTimeUtc.Now;
             }
         }
 
@@ -160,12 +156,13 @@ namespace Opc.Ua
                     ConditionStateNames.Inactive);
             }
 
-            ActiveState!.Value = new LocalizedText(state);
-            ActiveState!.Id!.Value = active;
+            TwoStateVariableState activeState = ActiveState!; // alarm conditions always have ActiveState
+            activeState.Value = new LocalizedText(state);
+            activeState.Id!.Value = active; // Id is created with ActiveState
 
-            ActiveState!.TransitionTime?.Value = DateTimeUtc.Now;
+            activeState.TransitionTime?.Value = DateTimeUtc.Now;
 
-            ActiveState!.Timestamp = DateTimeUtc.Now;
+            activeState.Timestamp = DateTimeUtc.Now;
             UpdateEffectiveState(context);
             ClearChangeMasks(context, includeChildren: true);
         }
@@ -177,7 +174,7 @@ namespace Opc.Ua
         /// <param name="suppressed">if set to <c>true</c> the condition is suppressed.</param>
         public virtual void SetSuppressedState(ISystemContext context, bool suppressed)
         {
-            if (SuppressedState == null)
+            if (SuppressedState is not { } suppressedState)
             {
                 return;
             }
@@ -185,7 +182,7 @@ namespace Opc.Ua
             TranslationInfo state;
             if (suppressed)
             {
-                SuppressedOrShelved!.Value = true;
+                SuppressedOrShelved!.Value = true; // SuppressedOrShelved is created with the alarm
 
                 state = new TranslationInfo(
                     "ConditionStateSuppressed",
@@ -195,10 +192,10 @@ namespace Opc.Ua
             else
             {
                 if (ShelvingState == null ||
-                    ShelvingState!.CurrentState!.Id!.Value == ObjectIds
-                        .ShelvedStateMachineType_Unshelved)
+                    ShelvingState.CurrentState!.Id!.Value == ObjectIds
+                        .ShelvedStateMachineType_Unshelved) // CurrentState/Id are populated by the state machine ctor
                 {
-                    SuppressedOrShelved!.Value = false;
+                    SuppressedOrShelved!.Value = false; // SuppressedOrShelved is created with the alarm
                 }
 
                 state = new TranslationInfo(
@@ -207,12 +204,12 @@ namespace Opc.Ua
                     ConditionStateNames.Unsuppressed);
             }
 
-            SuppressedState!.Value = new LocalizedText(state);
-            SuppressedState!.Id!.Value = suppressed;
+            suppressedState.Value = new LocalizedText(state);
+            suppressedState.Id!.Value = suppressed; // Id is created with SuppressedState
 
-            SuppressedState!.TransitionTime?.Value = DateTimeUtc.Now;
+            suppressedState.TransitionTime?.Value = DateTimeUtc.Now;
 
-            SuppressedState!.Timestamp = DateTimeUtc.Now;
+            suppressedState.Timestamp = DateTimeUtc.Now;
             UpdateEffectiveState(context);
             ClearChangeMasks(context, includeChildren: true);
         }
@@ -235,6 +232,7 @@ namespace Opc.Ua
                 return;
             }
 
+            ShelvedStateMachineState shelvingState = ShelvingState!; // null check above
             m_unshelveTimer?.Dispose();
             m_unshelveTimer = null;
 
@@ -245,28 +243,28 @@ namespace Opc.Ua
 
             if (!shelved)
             {
-                if (SuppressedState == null || !SuppressedState!.Id!.Value)
+                if (SuppressedState == null || !SuppressedState.Id!.Value) // Id is created with SuppressedState
                 {
-                    SuppressedOrShelved!.Value = false;
+                    SuppressedOrShelved!.Value = false; // SuppressedOrShelved is created with the alarm
                 }
 
-                ShelvingState!.UnshelveTime!.Value = 0.0;
+                shelvingState.UnshelveTime!.Value = 0.0; // UnshelveTime is created with ShelvingState
 
-                ShelvingState!.CauseProcessingCompleted(
+                shelvingState.CauseProcessingCompleted(
                     context,
                     Methods.ShelvedStateMachineType_Unshelve);
             }
             else
             {
-                SuppressedOrShelved!.Value = true;
+                SuppressedOrShelved!.Value = true; // SuppressedOrShelved is created with the alarm
                 m_oneShot = oneShot;
 
                 // Unshelve time is still valid even for OneShotShelved -  See Mantis 6462
 
                 double maxTimeShelved = double.MaxValue;
-                if (MaxTimeShelved != null && MaxTimeShelved!.Value > 0)
+                if (MaxTimeShelved is { } maxTime && maxTime.Value > 0)
                 {
-                    maxTimeShelved = MaxTimeShelved!.Value;
+                    maxTimeShelved = maxTime.Value;
                 }
 
                 double shelveTime = maxTimeShelved;
@@ -281,7 +279,7 @@ namespace Opc.Ua
                     state = Methods.ShelvedStateMachineType_TimedShelve;
                 }
 
-                ShelvingState!.UnshelveTime!.Value = shelveTime;
+                shelvingState.UnshelveTime!.Value = shelveTime; // UnshelveTime is created with ShelvingState
                 UnshelveTime = DateTime.UtcNow.AddMilliseconds((int)shelveTime);
 
                 m_updateUnshelveTimer = new Timer(
@@ -295,10 +293,10 @@ namespace Opc.Ua
                     context,
                     (int)shelveTime,
                     Timeout.Infinite);
-                ShelvingState!.CauseProcessingCompleted(context, state);
+                shelvingState.CauseProcessingCompleted(context, state);
             }
 
-            ShelvingState!.UnshelveTime?.Timestamp = DateTimeUtc.Now;
+            shelvingState.UnshelveTime?.Timestamp = DateTimeUtc.Now;
 
             UpdateEffectiveState(context);
             ClearChangeMasks(context, includeChildren: true);
@@ -315,11 +313,11 @@ namespace Opc.Ua
         {
             bool retainState = false;
 
-            if (EnabledState!.Id!.Value)
+            if (EnabledState!.Id!.Value) // condition states always have EnabledState/Id after construction
             {
                 retainState = base.GetRetainState();
 
-                if (!IsBranch() && ActiveState!.Id!.Value)
+                if (!IsBranch() && ActiveState!.Id!.Value) // alarm conditions always have ActiveState/Id
                 {
                     retainState = true;
                 }
@@ -343,9 +341,9 @@ namespace Opc.Ua
         {
             MethodState? method = base.FindMethod(context, methodId);
 
-            if (method == null && ShelvingState != null)
+            if (method == null && ShelvingState is { } shelvingState)
             {
-                method = ShelvingState!.FindMethod(context, methodId);
+                method = shelvingState.FindMethod(context, methodId);
             }
 
             return method;
@@ -375,7 +373,7 @@ namespace Opc.Ua
         /// <param name="context">The context.</param>
         protected override void UpdateEffectiveState(ISystemContext context)
         {
-            if (!EnabledState!.Id!.Value)
+            if (!EnabledState!.Id!.Value) // condition states always have EnabledState/Id after construction
             {
                 base.UpdateEffectiveState(context);
                 return;
@@ -383,36 +381,37 @@ namespace Opc.Ua
 
             var builder = new StringBuilder();
 
-            string? locale = ActiveState!.Value.Locale;
+            TwoStateVariableState activeState = ActiveState!; // alarm conditions always have ActiveState
+            string? locale = activeState.Value.Locale;
 
-            if (ActiveState!.Id!.Value)
+            if (activeState.Id!.Value) // Id is created with ActiveState
             {
-                if (ActiveState!.EffectiveDisplayName != null &&
-                    !ActiveState!.EffectiveDisplayName!.Value.IsNullOrEmpty)
+                if (activeState.EffectiveDisplayName is { } effectiveDisplayName &&
+                    !effectiveDisplayName.Value.IsNullOrEmpty)
                 {
-                    builder.Append(ActiveState!.EffectiveDisplayName!.Value);
+                    builder.Append(effectiveDisplayName.Value);
                 }
                 else
                 {
-                    builder.Append(ActiveState!.Value);
+                    builder.Append(activeState.Value);
                 }
             }
             else
             {
-                builder.Append(ActiveState!.Value);
+                builder.Append(activeState.Value);
             }
 
             LocalizedText suppressedState = default;
 
-            if (SuppressedState != null && SuppressedState!.Id!.Value)
+            if (SuppressedState is { } suppressedStateNode && suppressedStateNode.Id!.Value) // Id is created with SuppressedState
             {
-                suppressedState = SuppressedState!.Value;
+                suppressedState = suppressedStateNode.Value;
             }
 
-            if (ShelvingState != null &&
-                ShelvingState!.CurrentState!.Id!.Value != ObjectIds.ShelvedStateMachineType_Unshelved)
+            if (ShelvingState is { } shelvingState &&
+                shelvingState.CurrentState!.Id!.Value != ObjectIds.ShelvedStateMachineType_Unshelved) // CurrentState/Id are populated by the state machine ctor
             {
-                suppressedState = ShelvingState!.CurrentState!.Value;
+                suppressedState = shelvingState.CurrentState.Value;
             }
 
             if (!suppressedState.IsNullOrEmpty)
@@ -423,14 +422,14 @@ namespace Opc.Ua
 
             LocalizedText ackState = default;
 
-            if (ConfirmedState != null && !ConfirmedState!.Id!.Value)
+            if (ConfirmedState is { } confirmedState && !confirmedState.Id!.Value) // Id is created with ConfirmedState
             {
-                ackState = ConfirmedState!.Value;
+                ackState = confirmedState.Value;
             }
 
-            if (AckedState != null && !AckedState!.Id!.Value)
+            if (AckedState is { } ackedState && !ackedState.Id!.Value) // Id is created with AckedState
             {
-                ackState = AckedState!.Value;
+                ackState = ackedState.Value;
             }
 
             if (!ackState.IsNullOrEmpty)
@@ -439,7 +438,7 @@ namespace Opc.Ua
                     .Append(ackState);
             }
 
-            var effectiveState = new LocalizedText(locale!, builder.ToString());
+            var effectiveState = new LocalizedText(locale!, builder.ToString()); // LocalizedText accepts null locale; ! suppresses overload-resolution warning
 
             SetEffectiveSubState(context, effectiveState, DateTime.MinValue);
         }
@@ -477,7 +476,7 @@ namespace Opc.Ua
             NodeState node,
             ref bool value)
         {
-            value = ShelvingState!.IsCausePermitted(
+            value = ShelvingState!.IsCausePermitted( // alarm conditions with shelving always have ShelvingState
                 context,
                 Methods.ShelvedStateMachineType_OneShotShelve,
                 false);
@@ -497,12 +496,12 @@ namespace Opc.Ua
 
             try
             {
-                if (!EnabledState!.Id!.Value)
+                if (!EnabledState!.Id!.Value) // condition states always have EnabledState/Id after construction
                 {
                     return error = StatusCodes.BadConditionDisabled;
                 }
 
-                if (!ShelvingState!.IsCausePermitted(
+                if (!ShelvingState!.IsCausePermitted( // alarm conditions with shelving always have ShelvingState
                     context,
                     Methods.ShelvedStateMachineType_OneShotShelve,
                     false))
@@ -563,7 +562,7 @@ namespace Opc.Ua
             NodeState node,
             ref bool value)
         {
-            value = ShelvingState!.IsCausePermitted(
+            value = ShelvingState!.IsCausePermitted( // alarm conditions with shelving always have ShelvingState
                 context,
                 Methods.ShelvedStateMachineType_TimedShelve,
                 false);
@@ -583,18 +582,18 @@ namespace Opc.Ua
 
             try
             {
-                if (!EnabledState!.Id!.Value)
+                if (!EnabledState!.Id!.Value) // condition states always have EnabledState/Id after construction
                 {
                     return error = StatusCodes.BadConditionDisabled;
                 }
 
                 if (shelvingTime <= 0 ||
-                    (MaxTimeShelved != null && shelvingTime > MaxTimeShelved!.Value))
+                    (MaxTimeShelved is { } maxTimeShelved && shelvingTime > maxTimeShelved.Value))
                 {
                     return error = StatusCodes.BadShelvingTimeOutOfRange;
                 }
 
-                if (!ShelvingState!.IsCausePermitted(
+                if (!ShelvingState!.IsCausePermitted( // alarm conditions with shelving always have ShelvingState
                     context,
                     Methods.ShelvedStateMachineType_TimedShelve,
                     false))
@@ -661,7 +660,7 @@ namespace Opc.Ua
             NodeState node,
             ref bool value)
         {
-            value = ShelvingState!.IsCausePermitted(
+            value = ShelvingState!.IsCausePermitted( // alarm conditions with shelving always have ShelvingState
                 context,
                 Methods.ShelvedStateMachineType_Unshelve,
                 false);
@@ -681,12 +680,12 @@ namespace Opc.Ua
 
             try
             {
-                if (!EnabledState!.Id!.Value)
+                if (!EnabledState!.Id!.Value) // condition states always have EnabledState/Id after construction
                 {
                     return error = StatusCodes.BadConditionDisabled;
                 }
 
-                if (!ShelvingState!.IsCausePermitted(
+                if (!ShelvingState!.IsCausePermitted( // alarm conditions with shelving always have ShelvingState
                     context,
                     Methods.ShelvedStateMachineType_Unshelve,
                     false))
@@ -747,7 +746,7 @@ namespace Opc.Ua
         {
             try
             {
-                OnTimedUnshelve?.Invoke((ISystemContext)state!, this);
+                OnTimedUnshelve?.Invoke((ISystemContext)state!, this); // Timer state is the system context passed at construction
                 OnUnshelveTimeUpdate(state);
             }
             catch (Exception e)
@@ -763,13 +762,14 @@ namespace Opc.Ua
         {
             try
             {
-                var context = (ISystemContext)state!;
+                var context = (ISystemContext)state!; // Timer state is the system context passed at construction
                 Variant unshelveTimeObject = default;
-                OnReadUnshelveTime(context, null!, ref unshelveTimeObject);
+                OnReadUnshelveTime(context, null!, ref unshelveTimeObject); // OnReadUnshelveTime tolerates null node
                 double unshelveTime = (double)unshelveTimeObject;
-                if (unshelveTime != ShelvingState!.UnshelveTime!.Value)
+                PropertyState<double> shelvingUnshelveTime = ShelvingState!.UnshelveTime!; // ShelvingState/UnshelveTime are populated when this timer is active
+                if (unshelveTime != shelvingUnshelveTime.Value)
                 {
-                    ShelvingState!.UnshelveTime!.Value = unshelveTime;
+                    shelvingUnshelveTime.Value = unshelveTime;
                     ClearChangeMasks(context, true);
                 }
             }
