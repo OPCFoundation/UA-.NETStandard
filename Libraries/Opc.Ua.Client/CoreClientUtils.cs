@@ -303,6 +303,9 @@ namespace Opc.Ua.Client
                         {
                             // skip unsupported security policies, for backward compatibility only
                             // may contain policies for which no certificate is available
+                            // SecurityPolicyUri is annotated nullable on EndpointDescription but is
+                            // populated for any endpoint advertising security; downstream API takes
+                            // a non-nullable string parameter.
                             if (SecurityPolicies.GetDisplayName(endpoint.SecurityPolicyUri!) == null)
                             {
                                 continue;
@@ -320,6 +323,8 @@ namespace Opc.Ua.Client
                     ILogger logger = telemetry.CreateLogger<DiscoveryClient>();
 
                     //Select endpoint if it has a higher calculated security level, than the previously selected one
+                    // SecurityPolicyUri is populated for any endpoint reaching this code path
+                    // (security mode != None); CalculateSecurityLevel takes a non-nullable string.
                     if (SecuredApplication.CalculateSecurityLevel(
                             endpoint.SecurityMode,
                             endpoint.SecurityPolicyUri!,

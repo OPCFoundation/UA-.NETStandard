@@ -411,6 +411,9 @@ namespace Opc.Ua.Client
 
                 if (!displayName.IsNullOrEmpty)
                 {
+                    // IsNullOrEmpty being false guarantees Text is non-null in practice; the
+                    // property cannot express that contract because it derives Text from an
+                    // optional translation provider.
                     displayNames[ii] = displayName.Text!;
                 }
             }
@@ -484,6 +487,9 @@ namespace Opc.Ua.Client
                     "Server returned value unexpected type: {0}",
                     value != null ? value.GetType().Name : "(null)");
             }
+            // For reference type T, IsInstanceOfType returns false on null, so reaching this
+            // line implies value is non-null. For value type T, value boxes to non-null and
+            // a null cast would have already thrown, so the bang preserves either path.
             return (T)value!;
         }
 

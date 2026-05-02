@@ -1511,6 +1511,8 @@ namespace Opc.Ua
                 // fill missing diagnostics infos with null entries
                 for (int i = 0; i < correctionCount; i++)
                 {
+                    // DiagnosticInfoCollection accepts null sentinels even though the
+                    // declared element type is non-nullable; null marks a "missing" slot.
                     diagnosticInfos.Add(null!);
                 }
             }
@@ -1528,7 +1530,7 @@ namespace Opc.Ua
             diagnosticInfos.AddRange(batchedDiagnosticInfos);
             stringTable.AddRange(batchedStringTable);
 
-            static void UpdateDiagnosticInfoIndexes(DiagnosticInfo diagnosticInfo,
+            static void UpdateDiagnosticInfoIndexes(DiagnosticInfo? diagnosticInfo,
                 int stringTableOffset)
             {
                 int depth = 0;
@@ -1550,7 +1552,7 @@ namespace Opc.Ua
                     {
                         diagnosticInfo.SymbolicId += stringTableOffset;
                     }
-                    diagnosticInfo = diagnosticInfo.InnerDiagnosticInfo!;
+                    diagnosticInfo = diagnosticInfo.InnerDiagnosticInfo;
                 }
             }
         }
