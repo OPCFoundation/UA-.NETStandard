@@ -2597,12 +2597,9 @@ namespace Opc.Ua.Client
                         {
                             foreach (ExtensionObject notificationData in message.NotificationData)
                             {
-                                // TryGetEncodeable<T> returning true implies the out value is
-                                // non-null, but its signature lacks [NotNullWhen(true)] so the
-                                // compiler cannot infer the narrowing.
                                 if (notificationData.TryGetEncodeable(out DataChangeNotification? datachange))
                                 {
-                                    datachange!.PublishTime = message.PublishTime;
+                                    datachange.PublishTime = message.PublishTime;
                                     datachange.SequenceNumber = message.SequenceNumber;
                                     datachange.MoreNotifications = message.MoreNotifications;
 
@@ -2620,7 +2617,7 @@ namespace Opc.Ua.Client
                                 }
                                 else if (notificationData.TryGetEncodeable(out EventNotificationList? events))
                                 {
-                                    events!.PublishTime = message.PublishTime;
+                                    events.PublishTime = message.PublishTime;
                                     events.SequenceNumber = message.SequenceNumber;
                                     events.MoreNotifications = message.MoreNotifications;
 
@@ -2635,7 +2632,7 @@ namespace Opc.Ua.Client
                                 }
                                 else if (notificationData.TryGetEncodeable(out StatusChangeNotification? statusChanged))
                                 {
-                                    statusChanged!.PublishTime = message.PublishTime;
+                                    statusChanged.PublishTime = message.PublishTime;
                                     statusChanged.SequenceNumber = message.SequenceNumber;
                                     statusChanged.MoreNotifications = message.MoreNotifications;
 

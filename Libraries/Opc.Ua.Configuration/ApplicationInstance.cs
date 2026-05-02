@@ -938,12 +938,17 @@ namespace Opc.Ua.Configuration
             }
 
             // reload the certificate from disk.
-            id.Certificate = await id.LoadPrivateKeyExAsync(
+            X509Certificate2? reloaded = await id.LoadPrivateKeyExAsync(
                 passwordProvider!,
                 configuration.ApplicationUri,
                 m_telemetry,
                 ct)
                 .ConfigureAwait(false);
+
+            if (reloaded != null)
+            {
+                id.Certificate = reloaded;
+            }
 
             // CertificateValidator is initialized to a non-null instance in the ApplicationConfiguration ctor.
             await configuration
@@ -952,9 +957,7 @@ namespace Opc.Ua.Configuration
 
             m_logger.LogInformation(
                 "Certificate {Certificate} created for {ApplicationUri}.",
-                // LoadPrivateKeyExAsync may return null if the private key is missing; in that case
-                // the next operations on id.Certificate will throw, which matches the prior behavior.
-                id.Certificate!.AsLogSafeString(),
+                id.Certificate.AsLogSafeString(),
                 configuration.ApplicationUri);
 
             // do not dispose temp cert, or X509Store certs become unusable

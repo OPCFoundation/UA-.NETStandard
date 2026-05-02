@@ -502,7 +502,7 @@ namespace Opc.Ua.Bindings
 
                 var secureChannelContext = new SecureChannelContext(
                     ListenerId,
-                    endpoint!,
+                    endpoint,
                     RequestEncoding.Binary,
                     context.Connection.ClientCertificate?.RawData,
                     ServerChannelCertificate);

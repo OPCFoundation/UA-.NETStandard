@@ -45,7 +45,7 @@ namespace Opc.Ua
         /// <param name="serverChannelCertificate">The server certificate used to establish the secure channel.</param>
         public SecureChannelContext(
             string secureChannelId,
-            EndpointDescription endpointDescription,
+            EndpointDescription? endpointDescription,
             RequestEncoding messageEncoding,
             byte[]? clientChannelCertificate = null,
             byte[]? serverChannelCertificate = null,
@@ -67,9 +67,12 @@ namespace Opc.Ua
 
         /// <summary>
         /// The description of the endpoint used with the channel.
+        /// May be <c>null</c> for discovery requests on listeners that match endpoints lazily
+        /// (HTTPS listener for GetEndpoints/FindServers/FindServersOnNetwork without a security
+        /// policy header), in which case the endpoint is not known at channel-context creation time.
         /// </summary>
         /// <value>The endpoint description.</value>
-        public EndpointDescription EndpointDescription { get; }
+        public EndpointDescription? EndpointDescription { get; }
 
         /// <summary>
         /// The encoding used with the channel.

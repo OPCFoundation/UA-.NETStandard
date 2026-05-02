@@ -162,9 +162,7 @@ namespace Opc.Ua.Client
 
             if (request.RequestedParameters.Filter.TryGetEncodeable(out MonitoringFilter? filter))
             {
-                // TryGetEncodeable<T> guarantees a non-null value when it returns true,
-                // but its signature lacks [NotNullWhen(true)] so the compiler cannot infer it.
-                Filter = CoreUtils.Clone(filter!);
+                Filter = CoreUtils.Clone(filter);
             }
 
             if (ServiceResult.IsGood(error))
@@ -175,8 +173,7 @@ namespace Opc.Ua.Client
 
                 if (result.FilterResult.TryGetEncodeable(out MonitoringFilterResult? filterResult))
                 {
-                    // See note above: TryGetEncodeable<T> returning true implies non-null.
-                    FilterResult = CoreUtils.Clone(filterResult!);
+                    FilterResult = CoreUtils.Clone(filterResult);
                 }
             }
 
@@ -245,9 +242,7 @@ namespace Opc.Ua.Client
 
                 if (request.RequestedParameters.Filter.TryGetEncodeable(out MonitoringFilter? filter))
                 {
-                    // TryGetEncodeable<T> guarantees a non-null value when it returns true,
-                    // but its signature lacks [NotNullWhen(true)] so the compiler cannot infer it.
-                    Filter = CoreUtils.Clone(filter!);
+                    Filter = CoreUtils.Clone(filter);
                 }
 
                 SamplingInterval = result.RevisedSamplingInterval;
@@ -255,8 +250,7 @@ namespace Opc.Ua.Client
 
                 if (result.FilterResult.TryGetEncodeable(out MonitoringFilterResult? filterResult))
                 {
-                    // See note above: TryGetEncodeable<T> returning true implies non-null.
-                    FilterResult = CoreUtils.Clone(filterResult!);
+                    FilterResult = CoreUtils.Clone(filterResult);
                 }
             }
         }

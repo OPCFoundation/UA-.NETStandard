@@ -266,7 +266,7 @@ namespace Opc.Ua
                         return StatusCodes.BadAttributeIdInvalid;
                     }
 
-                    return result!;
+                    return result ?? ServiceResult.Good;
                 default:
                     return base.ReadNonValueAttribute(context, attributeId, ref value);
             }

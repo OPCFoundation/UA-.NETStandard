@@ -306,9 +306,7 @@ namespace Opc.Ua.Client.ComplexTypes
                     continue;
                 }
 
-                // TryGetEncodeable<T> returning true implies enumValue is non-null but its
-                // signature lacks [NotNullWhen(true)] so the compiler cannot infer it.
-                string? name = enumValue!.DisplayName.Text;
+                string? name = enumValue.DisplayName.Text;
                 if (string.IsNullOrEmpty(name))
                 {
                     if (string.IsNullOrEmpty(enumTypeName))

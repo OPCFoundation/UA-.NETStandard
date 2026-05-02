@@ -83,7 +83,7 @@ namespace Opc.Ua
         /// <returns>The result of validation.</returns>
         public Result Validate(IFilterContext context)
         {
-            var result = new Result(null!); // TODO: review nullability of Result.Status (initialized later)
+            var result = new Result(ServiceResult.Good);
 
             // check for empty filter.
             if (m_elements.IsEmpty)
@@ -478,7 +478,7 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException"></exception>
         public virtual ContentFilter.ElementResult Validate(IFilterContext context, int index)
         {
-            var result = new ContentFilter.ElementResult(null!); // TODO: review nullability of ElementResult.Status (initialized later)
+            var result = new ContentFilter.ElementResult(ServiceResult.Good);
 
             // check the number of operands.
             int operandCount;

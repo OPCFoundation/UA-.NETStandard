@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.Contracts;
 using System.Text.Json.Serialization;
 using Opc.Ua.Types;
@@ -325,7 +326,7 @@ namespace Opc.Ua
         /// Try get encodeable from the extension object
         /// </summary>
         public bool TryGetEncodeable(
-            out IEncodeable? encodeable,
+            [NotNullWhen(true)] out IEncodeable? encodeable,
             IServiceMessageContext? messageContext = null)
         {
             if (m_body is IEncodeable e)
@@ -350,7 +351,7 @@ namespace Opc.Ua
         /// </summary>
         /// <typeparam name="T"></typeparam>
         public bool TryGetEncodeable<T>(
-            out T? encodeable,
+            [NotNullWhen(true)] out T? encodeable,
             IServiceMessageContext? messageContext = null)
             where T : IEncodeable
         {
