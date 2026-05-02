@@ -341,6 +341,17 @@ namespace Opc.Ua.Client
             var notFound = new List<NodeId>();
             if (includeSubtypes && !IsTypeHierarchyLoaded(referenceTypeIds))
             {
+                // Type hierarchy is not fully cached, so the synchronous
+                // IsTypeOf used by FilterNodes cannot reliably classify
+                // references. Force every input node through the async
+                // core which loads the hierarchy first before filtering.
+                foreach (NodeId nodeId in nodeIds)
+                {
+                    if (!nodeId.IsNull)
+                    {
+                        notFound.Add(nodeId);
+                    }
+                }
                 return FindReferencesAsyncCore(
                     notFound,
                     referenceTypeIds,
