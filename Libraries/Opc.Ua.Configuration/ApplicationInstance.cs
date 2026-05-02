@@ -676,7 +676,7 @@ namespace Opc.Ua.Configuration
                 // validate certificate.
                 configuration.CertificateValidator.CertificateValidation += OnCertificateValidation;
                 using Certificate publicKeyCert = certificate.HasPrivateKey
-                    ? CertificateFactory.Create(certificate.RawData)
+                    ? Certificate.FromRawData(certificate.RawData)
                     : null;
                 await configuration
                     .CertificateValidator.ValidateAsync(
@@ -1155,7 +1155,7 @@ namespace Opc.Ua.Configuration
                     }
 
                     // add new certificate.
-                    using Certificate publicKey = CertificateFactory.Create(certificate.RawData);
+                    using Certificate publicKey = Certificate.FromRawData(certificate.RawData);
                     await store.AddAsync(publicKey, ct: ct).ConfigureAwait(false);
 
                     m_logger.LogInformation("Added application certificate to trusted peer store.");

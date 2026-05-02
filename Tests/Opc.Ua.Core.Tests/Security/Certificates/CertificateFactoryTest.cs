@@ -113,7 +113,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             {
                 rsa.ExportParameters(false);
             }
-            using Certificate plainCert = CertificateFactory.Create(cert.RawData);
+            using Certificate plainCert = Certificate.FromRawData(cert.RawData);
             Assert.That(plainCert, Is.Not.Null);
             VerifyApplicationCert(app, plainCert);
             X509Utils.VerifyRSAKeyPair(cert, cert, true);
@@ -148,7 +148,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.That(cert, Is.Not.Null);
             Assert.That(cert.RawData, Is.Not.Null);
             Assert.That(cert.HasPrivateKey, Is.True);
-            using Certificate plainCert = CertificateFactory.Create(cert.RawData);
+            using Certificate plainCert = Certificate.FromRawData(cert.RawData);
             Assert.That(plainCert, Is.Not.Null);
             VerifyApplicationCert(app, plainCert, issuerCertificate);
             X509Utils.VerifyRSAKeyPair(plainCert, cert, true);
@@ -173,7 +173,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.That(cert, Is.Not.Null);
             Assert.That(cert.RawData, Is.Not.Null);
             Assert.That(cert.HasPrivateKey, Is.True);
-            using Certificate plainCert = CertificateFactory.Create(cert.RawData);
+            using Certificate plainCert = Certificate.FromRawData(cert.RawData);
             Assert.That(plainCert, Is.Not.Null);
             VerifyCACert(plainCert, subject, pathLengthConstraint);
             X509Utils.VerifyRSAKeyPair(cert, cert, true);
@@ -224,7 +224,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     Assert.That(rsa, Is.Not.Null);
                 }
 
-                using (Certificate plainCert = CertificateFactory.Create(
+                using (Certificate plainCert = Certificate.FromRawData(
                     issuerCertificate.RawData))
                 {
                     Assert.That(plainCert, Is.Not.Null);
@@ -293,7 +293,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
                 byte[] singleBlob = AsnUtils.ParseX509Blob(certBlob).ToArray();
                 Assert.That(singleBlob, Is.Not.Null);
-                using Certificate certX = CertificateFactory.Create(singleBlob);
+                using Certificate certX = Certificate.FromRawData(singleBlob);
                 Assert.That(certX, Is.Not.Null);
                 Assert.That(singleBlob, Is.EqualTo(certArray[0].RawData));
                 Assert.That(certX.RawData, Is.EqualTo(singleBlob));

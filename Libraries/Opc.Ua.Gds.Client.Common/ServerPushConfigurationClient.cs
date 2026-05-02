@@ -635,7 +635,7 @@ namespace Opc.Ua.Gds.Client
                 var collection = new CertificateCollection();
                 foreach (ByteString rawCertificate in rawCertificates)
                 {
-                    collection.Add(CertificateFactory.Create(rawCertificate));
+                    collection.Add(Certificate.FromRawData(rawCertificate));
                 }
                 return collection;
             }

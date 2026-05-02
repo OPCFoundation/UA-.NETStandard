@@ -549,7 +549,7 @@ namespace Opc.Ua.Server
 
                 try
                 {
-                    newCert = CertificateFactory.Create(certificate);
+                    newCert = Certificate.FromRawData(certificate);
                 }
                 catch
                 {
@@ -589,7 +589,7 @@ namespace Opc.Ua.Server
                     // build issuer chain
                     foreach (ByteString issuerRawCert in issuerCertificates)
                     {
-                        newIssuerCollection.Add(CertificateFactory.Create(issuerRawCert));
+                        newIssuerCollection.Add(Certificate.FromRawData(issuerRawCert));
                     }
                 }
                 catch
@@ -683,7 +683,7 @@ namespace Opc.Ua.Server
                                 }
 
                                 updateCertificate.CertificateWithPrivateKey =
-                                    CertificateFactory.CreateCertificateWithPrivateKey(
+                                    DefaultCertificateFactory.Instance.CreateWithPrivateKey(
                                         newCert,
                                         exportableKey);
                                 try
@@ -718,7 +718,7 @@ namespace Opc.Ua.Server
                                     false);
 #endif
                                 updateCertificate.CertificateWithPrivateKey =
-                                    CertificateFactory.CreateCertificateWithPrivateKey(
+                                    DefaultCertificateFactory.Instance.CreateWithPrivateKey(
                                         newCert,
                                         certWithPrivateKey);
                                 try
@@ -743,7 +743,7 @@ namespace Opc.Ua.Server
                             for (int attempt = 0; ; attempt++)
                             {
                                 updateCertificate.CertificateWithPrivateKey =
-                                    CertificateFactory.CreateCertificateWithPEMPrivateKey(
+                                    DefaultCertificateFactory.Instance.CreateWithPEMPrivateKey(
                                         newCert,
                                         privateKey.ToArray(),
                                         passwordProvider?.GetPassword(existingCertIdentifier));
@@ -855,7 +855,7 @@ namespace Opc.Ua.Server
                             ct)
                             .ConfigureAwait(false);
                         // keep only track of cert without private key
-                        Certificate certOnly = CertificateFactory.Create(
+                        Certificate certOnly = Certificate.FromRawData(
                             updateCertificate.CertificateWithPrivateKey.RawData);
                         updateCertificate.CertificateWithPrivateKey.Dispose();
                         updateCertificate.CertificateWithPrivateKey = certOnly;

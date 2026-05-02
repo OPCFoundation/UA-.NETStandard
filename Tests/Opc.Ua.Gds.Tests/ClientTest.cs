@@ -969,8 +969,8 @@ namespace Opc.Ua.Gds.Tests
                 }
                 else
                 {
-                    csrCertificate = CertificateFactory.CreateCertificateWithPEMPrivateKey(
-                        CertificateFactory.Create(application.Certificate),
+                    csrCertificate = DefaultCertificateFactory.Instance.CreateWithPEMPrivateKey(
+                        Certificate.FromRawData(application.Certificate),
                         application.PrivateKey,
                         application.PrivateKeyPassword);
                 }
@@ -1318,8 +1318,8 @@ namespace Opc.Ua.Gds.Tests
             }
             else
             {
-                csrCertificate = CertificateFactory.CreateCertificateWithPEMPrivateKey(
-                    CertificateFactory.Create(application.Certificate),
+                csrCertificate = DefaultCertificateFactory.Instance.CreateWithPEMPrivateKey(
+                    Certificate.FromRawData(application.Certificate),
                     application.PrivateKey,
                     application.PrivateKeyPassword);
             }

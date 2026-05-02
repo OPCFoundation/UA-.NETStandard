@@ -925,7 +925,7 @@ namespace Opc.Ua.Client
             m_sessionName = sessionConfiguration.SessionName ?? "SessionName";
             m_serverCertificate =
                 !serverCertificate.IsEmpty
-                    ? CertificateFactory.Create(serverCertificate)
+                    ? Certificate.FromRawData(serverCertificate)
                     : null;
             m_identity = sessionConfiguration.Identity ?? new UserIdentity();
             m_checkDomain = sessionConfiguration.CheckDomain;

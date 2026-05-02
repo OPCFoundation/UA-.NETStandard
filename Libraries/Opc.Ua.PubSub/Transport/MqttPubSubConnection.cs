@@ -950,7 +950,7 @@ namespace Opc.Ua.PubSub.Transport
         /// <param name="context">The context of the validation</param>
         private bool ValidateBrokerCertificate(MqttClientCertificateValidationEventArgs context)
         {
-            Certificate brokerCertificate = CertificateFactory.Create(
+            Certificate brokerCertificate = Certificate.FromRawData(
                 context.Certificate.GetRawCertData());
 
             try

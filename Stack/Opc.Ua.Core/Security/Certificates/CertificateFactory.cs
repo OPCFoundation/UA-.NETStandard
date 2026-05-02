@@ -80,6 +80,7 @@ namespace Opc.Ua
         /// <summary>
         /// Creates a certificate from a buffer with DER encoded certificate.
         /// </summary>
+        [Obsolete("Use Certificate.FromRawData or ICertificateFactory.CreateFromRawData (DefaultCertificateFactory.Instance) instead.")]
         public static Certificate Create(ReadOnlyMemory<byte> encodedData)
         {
             return Certificate.FromRawData(encodedData.ToArray());
@@ -237,6 +238,7 @@ namespace Opc.Ua
         /// Create a Certificate with a private key by combining
         /// the certificate with a private key from a PEM stream
         /// </summary>
+        [Obsolete("Use ICertificateFactory.CreateWithPEMPrivateKey (DefaultCertificateFactory.Instance) for new code.")]
         public static Certificate CreateCertificateWithPEMPrivateKey(
             Certificate certificate,
             byte[] pemDataBlob)
@@ -327,6 +329,7 @@ namespace Opc.Ua
         /// the new certificate with a private key from an existing certificate
         /// </summary>
         /// <exception cref="NotSupportedException"></exception>
+        [Obsolete("Use ICertificateFactory.CreateWithPrivateKey (DefaultCertificateFactory.Instance) for new code.")]
         public static Certificate CreateCertificateWithPrivateKey(
             Certificate certificate,
             Certificate certificateWithPrivateKey)
@@ -362,6 +365,7 @@ namespace Opc.Ua
         /// Create a Certificate with a private key by combining
         /// the certificate with a private key from a PEM stream
         /// </summary>
+        [Obsolete("Use ICertificateFactory.CreateWithPEMPrivateKey (DefaultCertificateFactory.Instance) for new code.")]
         public static Certificate CreateCertificateWithPEMPrivateKey(
             Certificate certificate,
             byte[] pemDataBlob,

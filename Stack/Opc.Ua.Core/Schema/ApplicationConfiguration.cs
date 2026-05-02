@@ -1963,7 +1963,7 @@ namespace Opc.Ua
                 }
 
                 m_certificate?.Dispose();
-                m_certificate = CertificateFactory.Create(value);
+                m_certificate = Certificate.FromRawData(value);
                 m_subjectName = m_certificate.Subject;
                 m_thumbprint = m_certificate.Thumbprint;
                 CertificateType = GetCertificateType(m_certificate);

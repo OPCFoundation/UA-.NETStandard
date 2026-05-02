@@ -283,9 +283,8 @@ namespace Opc.Ua.Gds.Tests
             ByteString certificate,
             ByteString privateKey)
         {
-            using Certificate x509 = CertificateFactory.Create(certificate.ToArray());
-            Certificate certWithPrivateKey = CertificateFactory
-                .CreateCertificateWithPEMPrivateKey(
+            using Certificate x509 = Certificate.FromRawData(certificate.ToArray());
+            Certificate certWithPrivateKey = DefaultCertificateFactory.Instance.CreateWithPEMPrivateKey(
                     x509,
                     privateKey.ToArray());
             GDSClient.Configuration.SecurityConfiguration.ApplicationCertificate

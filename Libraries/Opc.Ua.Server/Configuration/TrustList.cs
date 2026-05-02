@@ -597,7 +597,7 @@ namespace Opc.Ua.Server
                     issuerCertificates = [];
                     foreach (ByteString cert in trustList.IssuerCertificates)
                     {
-                        issuerCertificates.Add(CertificateFactory.Create(cert));
+                        issuerCertificates.Add(Certificate.FromRawData(cert));
                     }
                 }
                 if ((masks & (int)TrustListMasks.IssuerCrls) != 0)
@@ -613,7 +613,7 @@ namespace Opc.Ua.Server
                     trustedCertificates = [];
                     foreach (ByteString cert in trustList.TrustedCertificates)
                     {
-                        trustedCertificates.Add(CertificateFactory.Create(cert));
+                        trustedCertificates.Add(Certificate.FromRawData(cert));
                     }
                 }
                 if ((masks & (int)TrustListMasks.TrustedCrls) != 0)
@@ -747,7 +747,7 @@ namespace Opc.Ua.Server
                 Certificate cert = null;
                 try
                 {
-                    cert = CertificateFactory.Create(certificate);
+                    cert = Certificate.FromRawData(certificate);
                 }
                 catch
                 {

@@ -117,7 +117,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             try
             {
                 using Certificate leafCert = Certificate.FromRawData(leaf.RawData);
-                newCert = CertificateFactory.CreateCertificateWithPEMPrivateKey(
+                newCert = DefaultCertificateFactory.Instance.CreateWithPEMPrivateKey(
                     leafCert, file);
 
                 Assert.That(newCert, Is.Not.Null, "New certificate with private key should not be null.");

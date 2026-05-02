@@ -244,7 +244,7 @@ namespace Opc.Ua.Client
             // checks the domains in the certificate.
             if (checkDomain && endpoint.Description.ServerCertificate.Length > 0)
             {
-                using Certificate certificate = CertificateFactory.Create(endpoint.Description.ServerCertificate);
+                using Certificate certificate = Certificate.FromRawData(endpoint.Description.ServerCertificate);
                 configuration.CertificateValidator?.ValidateDomains(certificate, endpoint);
             }
 

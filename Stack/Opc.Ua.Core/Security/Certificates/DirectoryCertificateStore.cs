@@ -768,8 +768,8 @@ namespace Opc.Ua
                                 {
                                     byte[] pemDataBlob = File.ReadAllBytes(
                                         privateKeyFilePem.FullName);
-                                    certificate = CertificateFactory
-                                        .CreateCertificateWithPEMPrivateKey(
+                                    certificate = DefaultCertificateFactory.Instance
+                                        .CreateWithPEMPrivateKey(
                                             certificate,
                                             pemDataBlob,
                                             password);
@@ -804,8 +804,8 @@ namespace Opc.Ua
                                 try
                                 {
                                     byte[] pemDataBlob = File.ReadAllBytes(file.FullName);
-                                    certificate = CertificateFactory
-                                        .CreateCertificateWithPEMPrivateKey(
+                                    certificate = DefaultCertificateFactory.Instance
+                                        .CreateWithPEMPrivateKey(
                                             certificate,
                                             pemDataBlob,
                                             password);

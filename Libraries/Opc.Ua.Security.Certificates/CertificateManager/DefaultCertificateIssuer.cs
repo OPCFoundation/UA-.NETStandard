@@ -41,6 +41,16 @@ namespace Opc.Ua.Security.Certificates
     /// </summary>
     public sealed class DefaultCertificateIssuer : ICertificateIssuer
     {
+        /// <summary>
+        /// Gets the shared singleton instance of <see cref="DefaultCertificateIssuer"/>.
+        /// </summary>
+        /// <remarks>
+        /// Use this singleton when no dependency-injected
+        /// <see cref="ICertificateIssuer"/> is available. The default issuer
+        /// is stateless and safe to share across threads.
+        /// </remarks>
+        public static ICertificateIssuer Instance { get; } = new DefaultCertificateIssuer();
+
         /// <inheritdoc/>
         public Certificate IssueCertificate(
             ICertificateBuilder builder,

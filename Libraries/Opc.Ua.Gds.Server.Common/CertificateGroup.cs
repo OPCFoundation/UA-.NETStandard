@@ -298,7 +298,7 @@ namespace Opc.Ua.Gds.Server
                     "Invalid private key format");
             }
 
-            Certificate publicKey = CertificateFactory.Create(certificate.RawData);
+            Certificate publicKey = Certificate.FromRawData(certificate.RawData);
 
             return new X509Certificate2KeyPair(publicKey, privateKeyFormat, privateKey);
         }
@@ -495,7 +495,7 @@ namespace Opc.Ua.Gds.Server
                 ct).ConfigureAwait(false);
 
             // save only public key
-            Certificates[certificateType] = CertificateFactory.Create(certificate.RawData);
+            Certificates[certificateType] = Certificate.FromRawData(certificate.RawData);
 
             // initialize revocation list
             X509CRL initialCrl = await LoadCrlCreateEmptyIfNonExistantAsync(certificate, AuthoritiesStore, m_telemetry, ct: ct).ConfigureAwait(false);
@@ -829,7 +829,7 @@ namespace Opc.Ua.Gds.Server
                             .ConfigureAwait(false);
                         if (certs.Count == 0)
                         {
-                            using Certificate x509 = CertificateFactory.Create(
+                            using Certificate x509 = Certificate.FromRawData(
                                 certificate.RawData);
                             await trustedOrIssuerStore.AddAsync(x509, ct: ct).ConfigureAwait(false);
                         }
