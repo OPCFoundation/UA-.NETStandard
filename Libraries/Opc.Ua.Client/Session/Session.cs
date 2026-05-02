@@ -1322,7 +1322,7 @@ namespace Opc.Ua.Client
                 ProcessResponseAdditionalHeader(response.ResponseHeader, serverCertificate);
 
                 // create the client signature.
-                SecurityPolicyInfo? securityPolicy = SecurityPolicies.GetInfo(securityPolicyUri!);
+                SecurityPolicyInfo? securityPolicy = SecurityPolicies.GetInfo(securityPolicyUri);
 
                 // create the client signature.
                 byte[] dataToSign = securityPolicy!.GetClientSignatureData(
@@ -1334,12 +1334,12 @@ namespace Opc.Ua.Client
                     m_clientNonce ?? []);
 
                 SignatureData clientSignature = SecurityPolicies.CreateSignatureData(
-                    securityPolicyUri!,
+                    securityPolicyUri,
                     m_instanceCertificate!,
                     dataToSign);
 
                 // select the security policy for the user token.
-                string? tokenSecurityPolicyUri = string.IsNullOrEmpty(identityPolicy.SecurityPolicyUri)
+                string tokenSecurityPolicyUri = string.IsNullOrEmpty(identityPolicy.SecurityPolicyUri)
                     ? m_endpoint.Description.SecurityPolicyUri ?? SecurityPolicies.None
                     : identityPolicy.SecurityPolicyUri;
 
@@ -1370,7 +1370,7 @@ namespace Opc.Ua.Client
 
                     userTokenSignature = identityToken.Sign(
                         dataToSign,
-                        tokenSecurityPolicyUri!);
+                        tokenSecurityPolicyUri);
                 }
                 else
                 {
@@ -1378,7 +1378,7 @@ namespace Opc.Ua.Client
                     identityToken.Encrypt(
                         serverCertificate!,
                         serverNonce.ToArray(),
-                        tokenSecurityPolicyUri!,
+                        tokenSecurityPolicyUri,
                         MessageContext,
                         m_eccServerEphemeralKey,
                         m_instanceCertificate,
@@ -1392,7 +1392,7 @@ namespace Opc.Ua.Client
                     m_preferredLocales = preferredLocales;
                 }
 
-                var header = CreateRequestHeaderForActivateSession(securityPolicy, tokenSecurityPolicyUri!);
+                var header = CreateRequestHeaderForActivateSession(securityPolicy, tokenSecurityPolicyUri);
 
                 // activate session.
                 ActivateSessionResponse activateResponse = await ActivateSessionAsync(
@@ -1513,9 +1513,9 @@ namespace Opc.Ua.Client
             }
 
             // get the identity token.
-            string? securityPolicyUri =
+            string securityPolicyUri =
                 m_endpoint.Description.SecurityPolicyUri ?? SecurityPolicies.None;
-            SecurityPolicyInfo? securityPolicy = SecurityPolicies.GetInfo(securityPolicyUri!);
+            SecurityPolicyInfo? securityPolicy = SecurityPolicies.GetInfo(securityPolicyUri);
 
             // create the client signature.
             byte[] dataToSign = securityPolicy!.GetClientSignatureData(
@@ -1527,7 +1527,7 @@ namespace Opc.Ua.Client
                 m_clientNonce ?? []);
 
             SignatureData clientSignature = SecurityPolicies.CreateSignatureData(
-                securityPolicyUri!,
+                securityPolicyUri,
                 m_instanceCertificate!,
                 dataToSign);
 
@@ -1538,7 +1538,7 @@ namespace Opc.Ua.Client
             UserTokenPolicy? identityPolicy =
                 m_endpoint.Description.FindUserTokenPolicy(
                     identity.TokenHandler.Token.PolicyId!,
-                    securityPolicyUri!);
+                    securityPolicyUri);
 
             if (identityPolicy == null)
             {
@@ -1553,7 +1553,7 @@ namespace Opc.Ua.Client
             }
 
             // select the security policy for the user token.
-            string? tokenSecurityPolicyUri = string.IsNullOrEmpty(identityPolicy.SecurityPolicyUri)
+            string tokenSecurityPolicyUri = string.IsNullOrEmpty(identityPolicy.SecurityPolicyUri)
                 ? securityPolicyUri
                 : identityPolicy.SecurityPolicyUri;
 
@@ -1596,7 +1596,7 @@ namespace Opc.Ua.Client
 
                 userTokenSignature = identityToken.Sign(
                         dataToSign,
-                        tokenSecurityPolicyUri!);
+                        tokenSecurityPolicyUri);
             }
             else
             {
@@ -1604,7 +1604,7 @@ namespace Opc.Ua.Client
                 identityToken.Encrypt(
                     m_serverCertificate!,
                     serverNonce.ToArray(),
-                    tokenSecurityPolicyUri!,
+                    tokenSecurityPolicyUri,
                     MessageContext,
                     m_eccServerEphemeralKey,
                     m_instanceCertificate,
@@ -1616,7 +1616,7 @@ namespace Opc.Ua.Client
 
             RequestHeader? requestHeader = CreateRequestHeaderForActivateSession(
                 securityPolicy,
-                tokenSecurityPolicyUri!);
+                tokenSecurityPolicyUri);
 
             ActivateSessionResponse response = await ActivateSessionAsync(
                 requestHeader,
@@ -2461,8 +2461,8 @@ namespace Opc.Ua.Client
                 //
                 await LoadInstanceCertificateAsync(true, ct).ConfigureAwait(false);
 
-                string? securityPolicyUri = m_endpoint.Description.SecurityPolicyUri ?? SecurityPolicies.None;
-                SecurityPolicyInfo? securityPolicy = SecurityPolicies.GetInfo(securityPolicyUri!);
+                string securityPolicyUri = m_endpoint.Description.SecurityPolicyUri ?? SecurityPolicies.None;
+                SecurityPolicyInfo? securityPolicy = SecurityPolicies.GetInfo(securityPolicyUri);
                 EndpointDescription endpoint = m_endpoint.Description;
 
                 // check that the user identity is supported by the endpoint.
@@ -2482,7 +2482,7 @@ namespace Opc.Ua.Client
                 }
 
                 // select the security policy for the user token.
-                string? tokenSecurityPolicyUri = string.IsNullOrEmpty(identityPolicy.SecurityPolicyUri)
+                string tokenSecurityPolicyUri = string.IsNullOrEmpty(identityPolicy.SecurityPolicyUri)
                     ? endpoint.SecurityPolicyUri ?? SecurityPolicies.None
                     : identityPolicy.SecurityPolicyUri;
 
