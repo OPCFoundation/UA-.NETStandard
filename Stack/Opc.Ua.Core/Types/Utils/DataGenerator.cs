@@ -901,6 +901,10 @@ namespace Opc.Ua.Test
         public StatusCode GetRandomStatusCode(bool useBoundaryValues = false)
         {
             ArrayOf<StatusCode> interned = StatusCode.InternedStatusCodes;
+            if (interned.Count == 0)
+            {
+                return StatusCodes.Good;
+            }
             int index = GetRandomRange(0, interned.Count - 1);
             return GetBoundaryValue(
                 useBoundaryValues,
