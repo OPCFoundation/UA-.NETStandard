@@ -479,7 +479,7 @@ namespace Opc.Ua
                 }
 
                 if (value is ExtensionObject extension &&
-                    extension.TryGetEncodeable(out IEncodeable encodeable))
+                    extension.TryGetValue(out IEncodeable encodeable))
                 {
                     value = encodeable;
                 }
@@ -519,8 +519,8 @@ namespace Opc.Ua
 
             if (!WrappedValue.IsNull)
             {
-                if (WrappedValue.TryGet(out ExtensionObject extension) &&
-                    extension.TryGetEncodeable(out IEncodeable encodeable) &&
+                if (WrappedValue.TryGetValue(out ExtensionObject extension) &&
+                    extension.TryGetValue(out IEncodeable encodeable) &&
                     encodeable is T typed)
                 {
                     return typed;
@@ -567,8 +567,8 @@ namespace Opc.Ua
                 return defaultValue;
             }
 
-            if (WrappedValue.TryGet(out ExtensionObject extension) &&
-                extension.TryGetEncodeable(out IEncodeable encodeable) &&
+            if (WrappedValue.TryGetValue(out ExtensionObject extension) &&
+                extension.TryGetValue(out IEncodeable encodeable) &&
                 encodeable is T typedBody)
             {
                 return typedBody;

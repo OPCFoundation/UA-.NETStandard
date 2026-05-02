@@ -314,7 +314,7 @@ namespace Opc.Ua.Mcp.Serialization
                 ["typeId"] = ext.TypeId.ToString()
             };
 
-            if (ext.TryGetEncodeable(out IEncodeable? encodeable))
+            if (ext.TryGetValue(out IEncodeable? encodeable))
             {
                 result["body"] = encodeable.ToString();
             }

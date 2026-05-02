@@ -593,7 +593,7 @@ namespace Opc.Ua.SourceGeneration
                     break;
                 default:
                     context.Out.WriteLine(
-                        "    if (!_outputArguments[{0}].TryGet(out {1} {2}))",
+                        "    if (!_outputArguments[{0}].TryGetValue(out {1} {2}))",
                         index,
                         typeName,
                         localName);

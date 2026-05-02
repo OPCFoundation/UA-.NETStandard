@@ -264,7 +264,7 @@ namespace Opc.Ua.Client.ComplexTypes
         {
             if (datatypeId.IsNull ||
                 datatypeId.NamespaceIndex != 0 ||
-                !datatypeId.TryGetIdentifier(out uint numericId))
+                !datatypeId.TryGetValue(out uint numericId))
             {
                 return BuiltInType.Null;
             }

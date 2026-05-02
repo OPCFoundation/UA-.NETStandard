@@ -1954,7 +1954,7 @@ namespace Opc.Ua.Server
                 throw new ServiceResultException(StatusCodes.BadHistoryOperationInvalid);
             }
 
-            if (!historyReadDetails.TryGetEncodeable(out HistoryReadDetails details))
+            if (!historyReadDetails.TryGetValue(out HistoryReadDetails details))
             {
                 throw new ServiceResultException(StatusCodes.BadHistoryOperationInvalid);
             }
@@ -2188,7 +2188,7 @@ namespace Opc.Ua.Server
                 {
                     continue;
                 }
-                if (!details.TryGetEncodeable(out HistoryUpdateDetails historyUpdateDetail))
+                if (!details.TryGetValue(out HistoryUpdateDetails historyUpdateDetail))
                 {
                     nodesToUpdate.Add(null); // Retain old behavior
                     continue;
@@ -2599,7 +2599,7 @@ namespace Opc.Ua.Server
                 if (!itemToCreate.Processed)
                 {
                     // all event subscriptions required an event filter.
-                    if (!itemToCreate.RequestedParameters.Filter.TryGetEncodeable(out EventFilter filter))
+                    if (!itemToCreate.RequestedParameters.Filter.TryGetValue(out EventFilter filter))
                     {
                         continue;
                     }
@@ -3011,7 +3011,7 @@ namespace Opc.Ua.Server
 
                 // all event subscriptions required an event filter.
 
-                if (!itemToModify.RequestedParameters.Filter.TryGetEncodeable(out EventFilter filter))
+                if (!itemToModify.RequestedParameters.Filter.TryGetValue(out EventFilter filter))
                 {
                     errors[ii] = StatusCodes.BadEventFilterInvalid;
                     continue;
@@ -3386,7 +3386,7 @@ namespace Opc.Ua.Server
 
             // If a filter was specified, it needs to be a known filter structure.
             if (!attributes.Filter.IsNull &&
-                !attributes.Filter.TryGetEncodeable(out MonitoringFilter _))
+                !attributes.Filter.TryGetValue(out MonitoringFilter _))
             {
                 return new ServiceResult(StatusCodes.BadMonitoredItemFilterInvalid);
             }
@@ -3404,7 +3404,7 @@ namespace Opc.Ua.Server
             if (!filter.IsNull)
             {
                 // validate data change filter.
-                if (filter.TryGetEncodeable(out DataChangeFilter datachangeFilter))
+                if (filter.TryGetValue(out DataChangeFilter datachangeFilter))
                 {
                     ServiceResult error = datachangeFilter.Validate();
 

@@ -401,7 +401,7 @@ namespace Opc.Ua.Gds.Server
 
             NodeId typeId = passiveNode.TypeDefinitionId;
 
-            if (!IsNodeIdInNamespace(typeId) || !typeId.TryGetIdentifier(out uint numericId))
+            if (!IsNodeIdInNamespace(typeId) || !typeId.TryGetValue(out uint numericId))
             {
                 return predefinedNode;
             }

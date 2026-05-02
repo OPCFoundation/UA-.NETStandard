@@ -200,7 +200,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 Does.Contain($"global::{kTestNamespacePrefix}.MethodIds.FooType_DoIt"));
             Assert.That(content, Does.Contain("await CallMethodAsync"));
             Assert.That(content, Does.Contain("ConfigureAwait(false)"));
-            Assert.That(content, Does.Contain("TryGet(out global::Opc.Ua.NodeId _result"));
+            Assert.That(content, Does.Contain("TryGetValue(out global::Opc.Ua.NodeId _result"));
             Assert.That(content, Does.Contain("return _result;"));
         }
 

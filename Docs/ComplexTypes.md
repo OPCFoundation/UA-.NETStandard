@@ -108,7 +108,7 @@ DataValue dataValue = await session.ReadValueAsync(nodeId);
 
 // The value is automatically decoded to a .NET type
 // Note: DataValue.Value is obsolete. Use WrappedValue (Variant) instead.
-if (dataValue.WrappedValue.TryGet(out ExtensionObject extensionObject))
+if (dataValue.WrappedValue.TryGetValue(out ExtensionObject extensionObject))
 {
     // Access the structured data
     if (extensionObject.Body is IStructure complexType)
@@ -136,7 +136,7 @@ To write complex type values, modify the properties and write back:
 ```csharp
 // Read current value
 DataValue dataValue = await session.ReadValueAsync(nodeId);
-dataValue.WrappedValue.TryGet(out ExtensionObject extensionObject);
+dataValue.WrappedValue.TryGetValue(out ExtensionObject extensionObject);
 var complexType = (IStructure)extensionObject.Body;
 
 // Modify properties
@@ -269,7 +269,7 @@ session.Factory.Builder
 DataValue result = await session.ReadValueAsync(
     "ns=3;s=\"H35dispenser\".\"ID\".\"ElectricalVersion\"");
 
-if (result.WrappedValue.TryGet(out ExtensionObject extObject) &&
+if (result.WrappedValue.TryGetValue(out ExtensionObject extObject) &&
     extObject.Body is UDT_SemVer semVer)
 {
     Console.WriteLine($"Major={semVer.Major} Minor={semVer.Minor} Patch={semVer.Patch}");
@@ -441,7 +441,7 @@ Custom enumerations are also supported:
 // After loading the type system, enum values are automatically decoded
 DataValue dataValue = await session.ReadValueAsync(enumNodeId);
 
-if (dataValue.WrappedValue.TryGet(out EnumValue enumValue))
+if (dataValue.WrappedValue.TryGetValue(out EnumValue enumValue))
 {
     // The value is the numeric representation
     Console.WriteLine($"Enum value: {enumValue}");
@@ -607,7 +607,7 @@ public async Task ReadMultipleComplexValuesAsync(IList<NodeId> nodeIds)
     for (int i = 0; i < response.Results.Count; i++)
     {
         var dataValue = response.Results[i];
-        if (dataValue.WrappedValue.TryGet(out ExtensionObject extensionObject) &&
+        if (dataValue.WrappedValue.TryGetValue(out ExtensionObject extensionObject) &&
             extensionObject.Body is IStructure complexType)
         {
             Console.WriteLine($"NodeId: {nodeIds[i]}");

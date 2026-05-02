@@ -2079,7 +2079,7 @@ namespace Opc.Ua
         /// <param name="certificateType">The certificate type to check.</param>
         public static bool IsSupportedCertificateType(NodeId certificateType)
         {
-            if (!certificateType.TryGetIdentifier(out uint identifier))
+            if (!certificateType.TryGetValue(out uint identifier))
             {
                 return false;
             }

@@ -73,7 +73,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 
             const string text = "i=123";
             var nodeIdText = NodeId.Parse(text);
-            Assert.That(nodeIdText.TryGetIdentifier(out uint t1), Is.True);
+            Assert.That(nodeIdText.TryGetValue(out uint t1), Is.True);
             Assert.That(t1, Is.EqualTo(123));
             var inodeIdText = NodeId.Parse(text);
             Assert.That(inodeIdText, Is.EqualTo(nodeIdText));
@@ -92,15 +92,15 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 
             var id = new NodeId(123, 123);
             Assert.That(id.NamespaceIndex, Is.EqualTo(123));
-            Assert.That(id.TryGetIdentifier(out uint n2), Is.True);
+            Assert.That(id.TryGetValue(out uint n2), Is.True);
             Assert.That(n2, Is.EqualTo(123));
             id = new NodeId("Test", 123);
             Assert.That(id.NamespaceIndex, Is.EqualTo(123));
-            Assert.That(id.TryGetIdentifier(out string s3), Is.True);
+            Assert.That(id.TryGetValue(out string s3), Is.True);
             Assert.That(s3, Is.EqualTo("Test"));
             id = new NodeId(id2, 123);
             Assert.That(id.NamespaceIndex, Is.EqualTo(123));
-            Assert.That(id.TryGetIdentifier(out ByteString o1), Is.True);
+            Assert.That(id.TryGetValue(out ByteString o1), Is.True);
             Assert.That(o1, Is.EqualTo(id2));
             id = new NodeId(null, 0);
             Assert.That(id.IsNull, Is.True);
@@ -108,12 +108,12 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(id.IsNull, Is.True);
             id = new NodeId(id1, 123);
             Assert.That(id.NamespaceIndex, Is.EqualTo(123));
-            Assert.That(id.TryGetIdentifier(out Guid g4), Is.True);
+            Assert.That(id.TryGetValue(out Guid g4), Is.True);
             Assert.That(g4, Is.EqualTo(id1));
             var guid = Guid.NewGuid();
             id = new NodeId(guid, 123);
             Assert.That(id.NamespaceIndex, Is.EqualTo(123));
-            Assert.That(id.TryGetIdentifier(out Guid g5), Is.True);
+            Assert.That(id.TryGetValue(out Guid g5), Is.True);
             Assert.That(g5, Is.EqualTo(guid));
 
             ServiceResultException sre = Assert.Throws<ServiceResultException>(() =>
@@ -338,46 +338,46 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             // Test numeric identifiers
             Assert.That(NodeId.TryParse("i=1234", out NodeId result), Is.True);
-            Assert.That(result.TryGetIdentifier(out uint n1) ? n1 : 0, Is.EqualTo(1234u));
+            Assert.That(result.TryGetValue(out uint n1) ? n1 : 0, Is.EqualTo(1234u));
             Assert.That(result.IdType, Is.EqualTo(IdType.Numeric));
             Assert.That(result.NamespaceIndex, Is.Zero);
 
             Assert.That(NodeId.TryParse("ns=2;i=1234", out result), Is.True);
-            Assert.That(result.TryGetIdentifier(out uint n2) ? n2 : 0, Is.EqualTo(1234u));
+            Assert.That(result.TryGetValue(out uint n2) ? n2 : 0, Is.EqualTo(1234u));
             Assert.That(result.IdType, Is.EqualTo(IdType.Numeric));
             Assert.That(result.NamespaceIndex, Is.EqualTo(2));
 
             // Test string identifiers
             Assert.That(NodeId.TryParse("s=HelloWorld", out result), Is.True);
-            Assert.That(result.TryGetIdentifier(out string s1) ? s1 : null, Is.EqualTo("HelloWorld"));
+            Assert.That(result.TryGetValue(out string s1) ? s1 : null, Is.EqualTo("HelloWorld"));
             Assert.That(result.IdType, Is.EqualTo(IdType.String));
             Assert.That(result.NamespaceIndex, Is.Zero);
 
             Assert.That(NodeId.TryParse("ns=2;s=HelloWorld", out result), Is.True);
-            Assert.That(result.TryGetIdentifier(out string s2) ? s2 : null, Is.EqualTo("HelloWorld"));
+            Assert.That(result.TryGetValue(out string s2) ? s2 : null, Is.EqualTo("HelloWorld"));
             Assert.That(result.IdType, Is.EqualTo(IdType.String));
             Assert.That(result.NamespaceIndex, Is.EqualTo(2));
 
             // Test GUID identifiers
             Assert.That(NodeId.TryParse("g=af469096-f02a-4563-940b-603958363b81", out result), Is.True);
-            Assert.That(result.TryGetIdentifier(out Guid g1) ? g1 : Guid.Empty, Is.EqualTo(new Guid("af469096-f02a-4563-940b-603958363b81")));
+            Assert.That(result.TryGetValue(out Guid g1) ? g1 : Guid.Empty, Is.EqualTo(new Guid("af469096-f02a-4563-940b-603958363b81")));
             Assert.That(result.IdType, Is.EqualTo(IdType.Guid));
             Assert.That(result.NamespaceIndex, Is.Zero);
 
             Assert.That(NodeId.TryParse("ns=2;g=af469096-f02a-4563-940b-603958363b81", out result), Is.True);
-            Assert.That(result.TryGetIdentifier(out Guid g2) ? g2 : Guid.Empty, Is.EqualTo(new Guid("af469096-f02a-4563-940b-603958363b81")));
+            Assert.That(result.TryGetValue(out Guid g2) ? g2 : Guid.Empty, Is.EqualTo(new Guid("af469096-f02a-4563-940b-603958363b81")));
             Assert.That(result.IdType, Is.EqualTo(IdType.Guid));
             Assert.That(result.NamespaceIndex, Is.EqualTo(2));
 
             // Test opaque identifiers (b=01020304 is valid base64 that decodes to specific bytes)
             Assert.That(NodeId.TryParse("b=01020304", out result), Is.True);
             var expectedBytes1 = ByteString.FromBase64("01020304");
-            Assert.That(result.TryGetIdentifier(out ByteString b1) ? b1 : default, Is.EqualTo(expectedBytes1));
+            Assert.That(result.TryGetValue(out ByteString b1) ? b1 : default, Is.EqualTo(expectedBytes1));
             Assert.That(result.IdType, Is.EqualTo(IdType.Opaque));
             Assert.That(result.NamespaceIndex, Is.Zero);
             Assert.That(NodeId.TryParse("ns=2;b=04030201", out result), Is.True);
             byte[] expectedBytes2 = Convert.FromBase64String("04030201");
-            Assert.That(result.TryGetIdentifier(out ByteString b2) ? b2 : default, Is.EqualTo(expectedBytes2));
+            Assert.That(result.TryGetValue(out ByteString b2) ? b2 : default, Is.EqualTo(expectedBytes2));
             Assert.That(result.IdType, Is.EqualTo(IdType.Opaque));
             Assert.That(result.NamespaceIndex, Is.EqualTo(2));
 
@@ -429,12 +429,12 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 
             // Test with namespace URI
             Assert.That(NodeId.TryParse(context, "nsu=http://test.org/;i=1234", out NodeId result), Is.True);
-            Assert.That(result.TryGetIdentifier(out uint n1) ? n1 : 0, Is.EqualTo(1234u));
+            Assert.That(result.TryGetValue(out uint n1) ? n1 : 0, Is.EqualTo(1234u));
             Assert.That(result.NamespaceIndex, Is.EqualTo(2));
 
             // Test with namespace index
             Assert.That(NodeId.TryParse(context, "ns=2;s=Test", out result), Is.True);
-            Assert.That(result.TryGetIdentifier(out string s1) ? s1 : null, Is.EqualTo("Test"));
+            Assert.That(result.TryGetValue(out string s1) ? s1 : null, Is.EqualTo("Test"));
             Assert.That(result.NamespaceIndex, Is.EqualTo(2));
 
             // Test with unknown namespace URI (should fail)
@@ -473,7 +473,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var guid = Guid.NewGuid();
             var result = NodeId.Parse(context, $"g={guid}");
             Assert.That(result.IdType, Is.EqualTo(IdType.Guid));
-            Assert.That(result.TryGetIdentifier(out Guid parsed), Is.True);
+            Assert.That(result.TryGetValue(out Guid parsed), Is.True);
             Assert.That(parsed, Is.EqualTo(guid));
         }
 
@@ -1585,14 +1585,14 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void TryGetIdentifierUintFalseForNonNumeric()
         {
             var nodeId = new NodeId("test", 0);
-            Assert.That(nodeId.TryGetIdentifier(out uint _), Is.False);
+            Assert.That(nodeId.TryGetValue(out uint _), Is.False);
         }
 
         [Test]
         public void TryGetIdentifierByteStringFalseForNonOpaque()
         {
             var nodeId = new NodeId(42u);
-            Assert.That(nodeId.TryGetIdentifier(out ByteString _), Is.False);
+            Assert.That(nodeId.TryGetValue(out ByteString _), Is.False);
         }
 
         [Test]
@@ -1600,7 +1600,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var bytes = new ByteString(new byte[] { 1, 2, 3 });
             var nodeId = new NodeId(bytes);
-            Assert.That(nodeId.TryGetIdentifier(out ByteString result), Is.True);
+            Assert.That(nodeId.TryGetValue(out ByteString result), Is.True);
             Assert.That(result, Is.EqualTo(bytes));
         }
 
@@ -1608,14 +1608,14 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void TryGetIdentifierStringFalseForNonString()
         {
             var nodeId = new NodeId(42u);
-            Assert.That(nodeId.TryGetIdentifier(out string _), Is.False);
+            Assert.That(nodeId.TryGetValue(out string _), Is.False);
         }
 
         [Test]
         public void TryGetIdentifierStringTrue()
         {
             var nodeId = new NodeId("hello", 0);
-            Assert.That(nodeId.TryGetIdentifier(out string result), Is.True);
+            Assert.That(nodeId.TryGetValue(out string result), Is.True);
             Assert.That(result, Is.EqualTo("hello"));
         }
 
@@ -1623,7 +1623,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void TryGetIdentifierGuidFalseForNonGuid()
         {
             var nodeId = new NodeId(42u);
-            Assert.That(nodeId.TryGetIdentifier(out Guid _), Is.False);
+            Assert.That(nodeId.TryGetValue(out Guid _), Is.False);
         }
 
         [Test]
@@ -1631,7 +1631,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var guid = Guid.NewGuid();
             var nodeId = new NodeId(guid);
-            Assert.That(nodeId.TryGetIdentifier(out Guid result), Is.True);
+            Assert.That(nodeId.TryGetValue(out Guid result), Is.True);
             Assert.That(result, Is.EqualTo(guid));
         }
 #pragma warning disable CS0618 // Type or member is obsolete
@@ -2008,25 +2008,25 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 
         private static uint GetParseLongFormUInt(NodeId id)
         {
-            Assert.That(id.TryGetIdentifier(out uint v), Is.True);
+            Assert.That(id.TryGetValue(out uint v), Is.True);
             return v;
         }
 
         private static string GetParseLongFormString(NodeId id)
         {
-            Assert.That(id.TryGetIdentifier(out string v), Is.True);
+            Assert.That(id.TryGetValue(out string v), Is.True);
             return v;
         }
 
         private static Guid GetParseLongFormGuid(NodeId id)
         {
-            Assert.That(id.TryGetIdentifier(out Guid v), Is.True);
+            Assert.That(id.TryGetValue(out Guid v), Is.True);
             return v;
         }
 
         private static ByteString GetParseLongFormBytes(NodeId id)
         {
-            Assert.That(id.TryGetIdentifier(out ByteString v), Is.True);
+            Assert.That(id.TryGetValue(out ByteString v), Is.True);
             return v;
         }
 

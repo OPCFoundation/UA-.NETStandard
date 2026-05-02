@@ -294,7 +294,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 
             if (!expectedIsEmpty || jsonEncoding == JsonEncodingType.Compact)
             {
-                if (data.TryGetEncodeable(out UnionComplexType union))
+                if (data.TryGetValue(out UnionComplexType union))
                 {
                     string json = $"{{\"{builtInType}\" :{{";
 
@@ -321,7 +321,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                     json += "}}";
                     expected = json;
                 }
-                else if (data.TryGetEncodeable(out OptionalFieldsComplexType optional))
+                else if (data.TryGetValue(out OptionalFieldsComplexType optional))
                 {
                     string json = $"{{\"{builtInType}\" :{{";
 
@@ -349,7 +349,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 
                     expected = json;
                 }
-                else if (data.TryGetEncodeable(out BaseComplexType structure))
+                else if (data.TryGetValue(out BaseComplexType structure))
                 {
                     string body = string.Empty;
                     bool commaNeeded = false;

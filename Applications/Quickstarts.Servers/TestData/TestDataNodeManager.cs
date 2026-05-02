@@ -291,7 +291,7 @@ namespace TestData
             {
                 NodeId typeId = passiveNode.TypeDefinitionId;
 
-                if (!IsNodeIdInNamespace(typeId) || !typeId.TryGetIdentifier(out uint typeIdNumeric))
+                if (!IsNodeIdInNamespace(typeId) || !typeId.TryGetValue(out uint typeIdNumeric))
                 {
                     return predefinedNode;
                 }
@@ -403,7 +403,7 @@ namespace TestData
             {
                 NodeId typeId = variableNode.TypeDefinitionId;
 
-                if (!IsNodeIdInNamespace(typeId) || !typeId.TryGetIdentifier(out uint typeIdNumeric))
+                if (!IsNodeIdInNamespace(typeId) || !typeId.TryGetValue(out uint typeIdNumeric))
                 {
                     return predefinedNode;
                 }

@@ -268,7 +268,7 @@ namespace Quickstarts.Servers
             };
 
             ExtensionObject tokenEo = decoder.ReadExtensionObject(null);
-            if (!tokenEo.IsNull && tokenEo.TryGetEncodeable(out IEncodeable tokenBody))
+            if (!tokenEo.IsNull && tokenEo.TryGetValue(out IEncodeable tokenBody))
             {
                 subscription.UserIdentityToken = tokenBody as UserIdentityToken;
             }
@@ -281,7 +281,7 @@ namespace Quickstarts.Servers
                 foreach (ExtensionObject eo in sentMsgEos.Memory.ToArray())
                 {
                     if (!eo.IsNull &&
-                        eo.TryGetEncodeable(out IEncodeable e) &&
+                        eo.TryGetValue(out IEncodeable e) &&
                         e is NotificationMessage nm)
                     {
                         sentList.Add(nm);
@@ -319,13 +319,13 @@ namespace Quickstarts.Servers
             };
 
             ExtensionObject origFilterEo = decoder.ReadExtensionObject(null);
-            if (!origFilterEo.IsNull && origFilterEo.TryGetEncodeable(out IEncodeable origBody))
+            if (!origFilterEo.IsNull && origFilterEo.TryGetValue(out IEncodeable origBody))
             {
                 item.OriginalFilter = origBody as MonitoringFilter;
             }
 
             ExtensionObject filterEo = decoder.ReadExtensionObject(null);
-            if (!filterEo.IsNull && filterEo.TryGetEncodeable(out IEncodeable filterBody))
+            if (!filterEo.IsNull && filterEo.TryGetValue(out IEncodeable filterBody))
             {
                 item.FilterToUse = filterBody as MonitoringFilter;
             }

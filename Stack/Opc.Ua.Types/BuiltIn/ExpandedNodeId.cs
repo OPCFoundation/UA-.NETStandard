@@ -349,7 +349,7 @@ namespace Opc.Ua
         /// Returns the node id in whatever form, i.e.
         /// string, Guid, ByteString or uint.
         /// </remarks>
-        [Obsolete("Use TryGetIdentifier<T> to get strongly typed identifier values or " +
+        [Obsolete("Use TryGetValue<T> to get strongly typed identifier values or " +
             "consider using IdentifierAsString if you want to stringify the identifier.")]
         public object Identifier =>
             m_nodeId.IsNull ? null : m_nodeId.Identifier;
@@ -357,33 +357,33 @@ namespace Opc.Ua
         /// <summary>
         /// Try get the numeric node identifier.
         /// </summary>
-        public bool TryGetIdentifier(out uint identifier)
+        public bool TryGetValue(out uint identifier)
         {
-            return m_nodeId.TryGetIdentifier(out identifier);
+            return m_nodeId.TryGetValue(out identifier);
         }
 
         /// <summary>
         /// Try get the opque node identifier.
         /// </summary>
-        public bool TryGetIdentifier(out ByteString identifier)
+        public bool TryGetValue(out ByteString identifier)
         {
-            return m_nodeId.TryGetIdentifier(out identifier);
+            return m_nodeId.TryGetValue(out identifier);
         }
 
         /// <summary>
         /// Try get the string node identifier.
         /// </summary>
-        public bool TryGetIdentifier(out string identifier)
+        public bool TryGetValue(out string identifier)
         {
-            return m_nodeId.TryGetIdentifier(out identifier);
+            return m_nodeId.TryGetValue(out identifier);
         }
 
         /// <summary>
         /// Try get the Guid node identifier.
         /// </summary>
-        public bool TryGetIdentifier(out Guid identifier)
+        public bool TryGetValue(out Guid identifier)
         {
-            return m_nodeId.TryGetIdentifier(out identifier);
+            return m_nodeId.TryGetValue(out identifier);
         }
 
         /// <summary>
