@@ -224,7 +224,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public string CloseAndReturnText()
+        public string? CloseAndReturnText()
         {
             Close();
 
@@ -233,8 +233,7 @@ namespace Opc.Ua
                 return m_destination.ToString();
             }
 
-            throw new InvalidOperationException(
-                "Cannot return text because no destination StringBuilder is configured.");
+            return null;
         }
 
         /// <inheritdoc/>

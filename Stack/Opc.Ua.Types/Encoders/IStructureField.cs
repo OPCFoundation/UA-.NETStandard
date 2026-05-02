@@ -42,7 +42,7 @@ namespace Opc.Ua
         /// <summary>
         /// Name of the field
         /// </summary>
-        string Name { get; }
+        string? Name { get; }
 
         /// <summary>
         /// Whether the field is optional

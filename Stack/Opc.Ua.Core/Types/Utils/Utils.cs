@@ -1451,7 +1451,7 @@ namespace Opc.Ua
                 encoder.Push(elementName.Name, elementName.Namespace);
                 encoderFunc(encoder, value!);
                 encoder.Pop();
-                string xml = encoder.CloseAndReturnText();
+                string xml = encoder.CloseAndReturnText()!;
                 document.LoadInnerXml(xml);
             }
 
@@ -1565,7 +1565,7 @@ namespace Opc.Ua
                 encoder.Push(elementName.Name, elementName.Namespace);
                 value.Encode(encoder);
                 encoder.Pop();
-                string xml = encoder.CloseAndReturnText();
+                string xml = encoder.CloseAndReturnText()!;
                 document.LoadInnerXml(xml);
             }
 

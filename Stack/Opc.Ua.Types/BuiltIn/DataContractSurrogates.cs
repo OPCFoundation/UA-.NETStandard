@@ -1,4 +1,4 @@
-﻿/* ========================================================================
+/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -433,7 +433,7 @@ namespace Opc.Ua
 
                 // create document from encoder.
                 var document = new XmlDocument();
-                document.LoadInnerXml(encoder.CloseAndReturnText());
+                document.LoadInnerXml(encoder.CloseAndReturnText()!);
 
                 // return element.
                 return document.DocumentElement;
@@ -697,7 +697,7 @@ namespace Opc.Ua
         [DataMember(Name = "Name", Order = 2)]
         internal string XmlEncodedName
         {
-            get => Value.Name;
+            get => Value.Name!;
             set => Value = Value.WithName(value);
         }
     }
@@ -965,7 +965,7 @@ namespace Opc.Ua
 
                 // create document from encoder.
                 var document = new XmlDocument();
-                document.LoadInnerXml(encoder.CloseAndReturnText());
+                document.LoadInnerXml(encoder.CloseAndReturnText()!);
 
                 // return root element.
                 return document.DocumentElement;

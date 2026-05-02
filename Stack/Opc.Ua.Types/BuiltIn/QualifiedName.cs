@@ -70,7 +70,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="name">The name-portion to store as part of
         /// the fully qualified name</param>
-        public QualifiedName(string name)
+        public QualifiedName(string? name)
         {
             NamespaceIndex = 0;
             Name = name;
@@ -83,7 +83,7 @@ namespace Opc.Ua
         /// name</param>
         /// <param name="namespaceIndex">The index of the namespace
         /// within the namespace-table</param>
-        public QualifiedName(string name, ushort namespaceIndex)
+        public QualifiedName(string? name, ushort namespaceIndex)
         {
             NamespaceIndex = namespaceIndex;
             Name = name;
@@ -97,7 +97,7 @@ namespace Opc.Ua
         /// <summary>
         /// The unqualified name.
         /// </summary>
-        public string Name { get; }
+        public string? Name { get; }
 
         /// <summary>
         /// The index of the namespace that qualifies the name.

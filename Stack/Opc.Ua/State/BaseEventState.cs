@@ -63,7 +63,7 @@ namespace Opc.Ua
 
                 if (!source.BrowseName.IsNull)
                 {
-                    m_sourceName = PropertyState<string>.With<VariantBuilder>(this, source.BrowseName.Name);
+                    m_sourceName = PropertyState<string>.With<VariantBuilder>(this, source.BrowseName.Name!);
                 }
             }
 

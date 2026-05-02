@@ -94,7 +94,7 @@ namespace Opc.Ua.Encoders
         /// <summary>
         /// Get the name of the complex type.
         /// </summary>
-        public string Name => Definition.Name;
+        public string? Name => Definition.Name;
 
         /// <summary>
         /// FieldState is optional

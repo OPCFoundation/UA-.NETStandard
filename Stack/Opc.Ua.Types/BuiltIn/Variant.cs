@@ -1244,7 +1244,7 @@ namespace Opc.Ua
         /// <summary>
         /// Converts the variant to a string value or returns the default.
         /// </summary>
-        public string GetString(string defaultValue = "")
+        public string GetString(string defaultValue = null!)
         {
             return TryGet(out string v) ? v : defaultValue;
         }

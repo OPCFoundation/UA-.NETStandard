@@ -554,7 +554,7 @@ namespace Opc.Ua
         public QualifiedName ReadQualifiedName(string? fieldName)
         {
             ushort namespaceIndex = ReadUInt16(null);
-            string name = ReadString(null) ?? string.Empty;
+            string? name = ReadString(null);
 
             if (m_namespaceMappings != null && m_namespaceMappings.Length > namespaceIndex)
             {
@@ -584,7 +584,7 @@ namespace Opc.Ua
                 text = ReadString(null);
             }
 
-            return new LocalizedText(locale ?? string.Empty, text ?? string.Empty);
+            return new LocalizedText(locale, text);
         }
 
         /// <inheritdoc/>

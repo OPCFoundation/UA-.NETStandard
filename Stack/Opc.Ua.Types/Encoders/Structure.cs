@@ -68,7 +68,7 @@ namespace Opc.Ua.Encoders
                 // The field itself does not specify its built in type
                 // we need to look it up in the provided lookup table.
                 if (!fieldTypes.TryGetValue(
-                    Definition.Fields[i].Name,
+                    Definition.Fields[i].Name!,
                     out BuiltInType fieldType))
                 {
                     fieldType = BuiltInType.Null;
@@ -81,7 +81,7 @@ namespace Opc.Ua.Encoders
                 PropertyList.Add(newProperty);
             }
             PropertyList.Sort((a, b) => a.Order.CompareTo(b.Order));
-            PropertyDict = PropertyList.ToDictionary(p => p.Name, p => p);
+            PropertyDict = PropertyList.ToDictionary(p => p.Name!, p => p);
         }
 
         /// <summary>
@@ -96,7 +96,7 @@ namespace Opc.Ua.Encoders
             BinaryEncodingId = structure.BinaryEncodingId;
             FieldTypes = structure.FieldTypes;
             PropertyList = structure.PropertyList.ConvertAll(p => (Field)p.Clone());
-            PropertyDict = PropertyList.ToDictionary(p => p.Name, p => p);
+            PropertyDict = PropertyList.ToDictionary(p => p.Name!, p => p);
         }
 
         /// <inheritdoc/>
@@ -262,7 +262,7 @@ namespace Opc.Ua.Encoders
         /// </summary>
         internal void EncodeProperty(IEncoder encoder, Field property)
         {
-            EncodeProperty(encoder, property.Name, property);
+            EncodeProperty(encoder, property.Name!, property);
         }
 
         /// <summary>
@@ -270,7 +270,7 @@ namespace Opc.Ua.Encoders
         /// </summary>
         internal void DecodeProperty(IDecoder decoder, Field property)
         {
-            DecodeProperty(decoder, property.Name, property);
+            DecodeProperty(decoder, property.Name!, property);
         }
 
         /// <summary>

@@ -125,7 +125,7 @@ namespace Opc.Ua.Encoders
                 if (unionProperty != null)
                 {
                     fieldName ??= unionProperty.Name;
-                    EncodeProperty(encoder, fieldName, unionProperty);
+                    EncodeProperty(encoder, fieldName!, unionProperty);
                 }
             }
 
@@ -147,7 +147,7 @@ namespace Opc.Ua.Encoders
                 {
                     if (property.IsOptional)
                     {
-                        fields.Add(property.Name);
+                        fields.Add(property.Name!);
                     }
                 }
 
@@ -161,7 +161,7 @@ namespace Opc.Ua.Encoders
                 {
                     if (--unionSelector == 0)
                     {
-                        DecodeProperty(decoder, property.Name, property);
+                        DecodeProperty(decoder, property.Name!, property);
                         break;
                     }
                 }

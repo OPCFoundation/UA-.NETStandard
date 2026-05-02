@@ -43,7 +43,7 @@ namespace Opc.Ua
         /// <summary>
         /// Name
         /// </summary>
-        [DataMember(Name = "Name", IsRequired = false, Order = 1)]public string Name { get; set; } = string.Empty;
+        [DataMember(Name = "Name", IsRequired = false, Order = 1)]public string? Name { get; set; }
 
         /// <inheritdoc/>
         public override ExpandedNodeId TypeId => DataTypeIds.EnumField;
@@ -73,7 +73,7 @@ namespace Opc.Ua
 
             decoder.PushNamespace(Namespaces.OpcUaXsd);
 
-            Name = decoder.ReadString("Name") ?? string.Empty;
+            Name = decoder.ReadString("Name");
 
             decoder.PopNamespace();
         }
@@ -141,7 +141,7 @@ namespace Opc.Ua
         {
             var clone = (EnumField)base.MemberwiseClone();
 
-            clone.Name = CoreUtils.Clone(Name);
+            clone.Name = Name == null ? null : CoreUtils.Clone(Name);
 
             return clone;
         }

@@ -1,4 +1,4 @@
-﻿/* ========================================================================
+/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -745,7 +745,7 @@ namespace Opc.Ua
                 m_refs = 0;
                 NodeClass = NodeClass.Unspecified;
                 BrowseName = QualifiedName.From("(Unknown)");
-                DisplayName = LocalizedText.From(BrowseName.Name);
+                DisplayName = LocalizedText.From(BrowseName.Name!);
                 TypeDefinitionId = default;
             }
 

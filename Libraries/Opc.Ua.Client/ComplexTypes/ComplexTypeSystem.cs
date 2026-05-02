@@ -1321,12 +1321,12 @@ namespace Opc.Ua.Client.ComplexTypes
                     if (enumTypeArray.TryGet(out ArrayOf<ExtensionObject> extensionObject))
                     {
                         // 2. use EnumValues
-                        enumDefinition = extensionObject.ToEnumDefinition(name.Name);
+                        enumDefinition = extensionObject.ToEnumDefinition(name.Name!);
                     }
                     else if (enumTypeArray.TryGet(out ArrayOf<LocalizedText> localizedText))
                     {
                         // 3. use EnumStrings
-                        enumDefinition = localizedText.ToEnumDefinition(name.Name);
+                        enumDefinition = localizedText.ToEnumDefinition(name.Name!);
                     }
                     else
                     {
@@ -1372,7 +1372,7 @@ namespace Opc.Ua.Client.ComplexTypes
                     .ConfigureAwait(false);
                 if (enumTypeArray.TryGet(out ArrayOf<LocalizedText> localizedText))
                 {
-                    enumDefinition = localizedText.ToEnumDefinition(name.Name);
+                    enumDefinition = localizedText.ToEnumDefinition(name.Name!);
                 }
                 else
                 {

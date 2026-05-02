@@ -118,7 +118,7 @@ namespace Opc.Ua
         /// Create a very simple localized text with default locale
         /// </summary>
         /// <param name="text">The plain text stored within this object</param>
-        public LocalizedText(string text)
+        public LocalizedText(string? text)
         {
             m_translation = null;
             m_locale = null;
@@ -131,7 +131,7 @@ namespace Opc.Ua
         /// <param name="locale">The locale code applicable for the specified text</param>
         /// <param name="text">The text to store</param>
         [JsonConstructor]
-        public LocalizedText(string locale, string text)
+        public LocalizedText(string? locale, string? text)
         {
             m_text = text;
             m_locale = locale;
@@ -490,8 +490,8 @@ namespace Opc.Ua
         /// <param name="locale">The locale code applicable for the specified text</param>
         /// <param name="text">The text to store</param>
         public static LocalizedTextFormatAndTranslation? Create(
-            string locale,
-            string text)
+            string? locale,
+            string? text)
         {
             ReadOnlyDictionary<string, string>? translations = DecodeMulLocale(locale, text);
             return translations == null ?

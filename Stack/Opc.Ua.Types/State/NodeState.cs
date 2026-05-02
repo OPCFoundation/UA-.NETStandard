@@ -1126,7 +1126,7 @@ namespace Opc.Ua
 
             if (string.IsNullOrEmpty(SymbolicName) && !m_browseName.IsNull)
             {
-                SymbolicName = m_browseName.Name;
+                SymbolicName = m_browseName.Name!;
             }
 
             if ((attributesToLoad & AttributesToSave.NodeId) != 0)
@@ -1240,7 +1240,7 @@ namespace Opc.Ua
 
             if (string.IsNullOrEmpty(symbolicName) && !browseName.IsNull)
             {
-                symbolicName = browseName.Name;
+                SymbolicName = browseName.Name!;
             }
 
             // check for children defined by the type.
@@ -1313,7 +1313,7 @@ namespace Opc.Ua
 
             if (string.IsNullOrEmpty(symbolicName) && !browseName.IsNull)
             {
-                symbolicName = browseName.Name;
+                symbolicName = browseName.Name!;
             }
 
             // read the node from the stream.
@@ -1958,7 +1958,7 @@ namespace Opc.Ua
 
             if (displayName.IsNullOrEmpty && !browseName.IsNull)
             {
-                displayName = new LocalizedText(browseName.Name);
+                displayName = new LocalizedText(browseName.Name!);
             }
 
             if ((attributesToLoad & AttributesToSave.Description) != 0)
@@ -2202,7 +2202,7 @@ namespace Opc.Ua
 
             if (displayName.IsNullOrEmpty && !browseName.IsNull)
             {
-                displayName = new LocalizedText(browseName.Name);
+                displayName = new LocalizedText(browseName.Name!);
             }
 
             LocalizedText description = default;
@@ -2843,9 +2843,9 @@ namespace Opc.Ua
             // set defaults for names.
             if (!browseName.IsNull)
             {
-                SymbolicName = browseName.Name;
+                SymbolicName = browseName.Name!;
                 BrowseName = browseName;
-                DisplayName = new LocalizedText(browseName.Name);
+                DisplayName = new LocalizedText(browseName.Name!);
             }
 
             // override display name.

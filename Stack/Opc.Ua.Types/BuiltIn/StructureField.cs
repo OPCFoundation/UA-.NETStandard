@@ -45,7 +45,7 @@ namespace Opc.Ua
         /// <summary>
         /// Name
         /// </summary>
-        [DataMember(Name = "Name", IsRequired = false, Order = 1)]public string Name { get; set; } = string.Empty;
+        [DataMember(Name = "Name", IsRequired = false, Order = 1)]public string? Name { get; set; }
 
         /// <summary>
         /// Description
@@ -113,7 +113,7 @@ namespace Opc.Ua
         {
             decoder.PushNamespace(Namespaces.OpcUaXsd);
 
-            Name = decoder.ReadString("Name") ?? string.Empty;
+            Name = decoder.ReadString("Name");
             Description = decoder.ReadLocalizedText("Description");
             DataType = decoder.ReadNodeId("DataType");
             ValueRank = decoder.ReadInt32("ValueRank");
@@ -224,7 +224,7 @@ namespace Opc.Ua
         {
             var clone = (StructureField)base.MemberwiseClone();
 
-            clone.Name = CoreUtils.Clone(Name);
+            clone.Name = Name == null ? null : CoreUtils.Clone(Name);
             clone.Description = CoreUtils.Clone(Description);
             clone.DataType = DataType;
             clone.ValueRank = CoreUtils.Clone(ValueRank);

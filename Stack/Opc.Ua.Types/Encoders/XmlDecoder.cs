@@ -144,7 +144,7 @@ namespace Opc.Ua
 
                 while (Peek(elementName))
                 {
-                    string namespaceUri = ReadString(elementName) ?? string.Empty;
+                    string namespaceUri = ReadString(elementName)!;
                     stringTable.Append(namespaceUri);
                 }
 

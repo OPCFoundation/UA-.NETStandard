@@ -1131,7 +1131,7 @@ namespace Opc.Ua
                         browseName.NamespaceIndex);
                 }
 
-                for (int jj = 0; jj < browseName.Name.Length; jj++)
+                for (int jj = 0; jj < browseName.Name!.Length; jj++)
                 {
                     char ch = browseName.Name[jj];
 

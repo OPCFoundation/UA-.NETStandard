@@ -141,7 +141,7 @@ namespace Opc.Ua.Encoders
                 {
                     if (property.IsOptional)
                     {
-                        masks.Add(property.Name);
+                        masks.Add(property.Name!);
                     }
                 }
 

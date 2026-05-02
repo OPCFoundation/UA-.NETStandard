@@ -172,7 +172,7 @@ namespace Opc.Ua
         /// <summary>
         /// Completes writing and returns the buffer as base64 encoded string.
         /// </summary>
-        public string CloseAndReturnText()
+        public string? CloseAndReturnText()
         {
             Close();
 
@@ -181,8 +181,7 @@ namespace Opc.Ua
                 return Convert.ToBase64String(memoryStream.ToArray());
             }
 
-            throw new InvalidOperationException(
-                "Cannot return text because the stream is not a MemoryStream.");
+            return null;
         }
 
         /// <summary>

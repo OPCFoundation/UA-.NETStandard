@@ -61,7 +61,7 @@ namespace Opc.Ua.Client.ComplexTypes
             int order,
             bool allowSubTypes)
         {
-            m_fieldTypes[field.Name] = fieldType switch
+            m_fieldTypes[field.Name!] = fieldType switch
             {
                 IBuiltInType builtIn => builtIn.BuiltInType,
                 IEnumeratedType => BuiltInType.Enumeration,

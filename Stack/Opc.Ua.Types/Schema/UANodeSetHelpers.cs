@@ -505,7 +505,7 @@ namespace Opc.Ua.Export
                         encoder.WriteVariantValue(null, o.Value);
 
                         var document = new XmlDocument();
-                        document.LoadInnerXml(encoder.CloseAndReturnText());
+                        document.LoadInnerXml(encoder.CloseAndReturnText()!);
                         value.Value = document.DocumentElement;
                     }
 
@@ -570,7 +570,7 @@ namespace Opc.Ua.Export
                         encoder.WriteVariantValue(null, o.Value);
 
                         var document = new XmlDocument();
-                        document.LoadInnerXml(encoder.CloseAndReturnText());
+                        document.LoadInnerXml(encoder.CloseAndReturnText()!);
                         value.Value = document.DocumentElement;
                     }
 

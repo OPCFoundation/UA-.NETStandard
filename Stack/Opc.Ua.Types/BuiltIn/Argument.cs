@@ -54,16 +54,13 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public Argument()
         {
-            Name = string.Empty;
-            DataType = NodeId.Null;
-            Description = LocalizedText.Null;
         }
 
         /// <summary>
         /// Name
         /// </summary>
         [DataMember(Name = "Name", IsRequired = false, Order = 1)]
-        public string Name { get; set; }
+        public string? Name { get; set; }
 
         /// <summary>
         /// Data Type
@@ -123,7 +120,7 @@ namespace Opc.Ua
         {
             decoder.PushNamespace(Namespaces.OpcUaXsd);
 
-            Name = decoder.ReadString("Name") ?? string.Empty;
+            Name = decoder.ReadString("Name");
             DataType = decoder.ReadNodeId("DataType");
             ValueRank = decoder.ReadInt32("ValueRank");
             ArrayDimensions = decoder.ReadUInt32Array("ArrayDimensions");

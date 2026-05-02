@@ -453,7 +453,7 @@ namespace Opc.Ua
                                         ReferenceTypeName.NamespaceIndex);
                                 }
 
-                                EncodeName(path, ReferenceTypeName.Name);
+                                EncodeName(path, ReferenceTypeName.Name!);
                                 path.Append('>');
                             }
 
@@ -471,7 +471,7 @@ namespace Opc.Ua
                             path.AppendFormat(formatProvider, "{0}:", TargetName.NamespaceIndex);
                         }
 
-                        EncodeName(path, TargetName.Name);
+                        EncodeName(path, TargetName.Name!);
                     }
 
                     return path.ToString();

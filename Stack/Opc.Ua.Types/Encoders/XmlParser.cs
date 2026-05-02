@@ -201,11 +201,8 @@ namespace Opc.Ua
 
                 while (Peek(elementName))
                 {
-                    string? namespaceUri = ReadString(elementName);
-                    if (!string.IsNullOrEmpty(namespaceUri))
-                    {
-                        stringTable.Append(namespaceUri!);
-                    }
+                    string namespaceUri = ReadString(elementName)!;
+                    stringTable.Append(namespaceUri);
                 }
 
                 Skip(new XmlQualifiedName(tableName, Namespaces.OpcUaXsd));

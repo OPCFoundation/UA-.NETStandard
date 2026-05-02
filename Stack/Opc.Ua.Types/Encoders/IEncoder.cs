@@ -61,7 +61,7 @@ namespace Opc.Ua
         /// <summary>
         /// Completes writing and returns the encoded text.
         /// </summary>
-        string CloseAndReturnText();
+        string? CloseAndReturnText();
 
         /// <summary>
         /// Initializes the tables used to map namespace and server uris during encoding.
