@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -143,15 +145,15 @@ namespace Opc.Ua
 
                 if (endpoint.Description.Server.DiscoveryUrls.IsEmpty)
                 {
-                    string discoveryUrl = endpoint.Description.EndpointUrl;
+                    string? discoveryUrl = endpoint.Description.EndpointUrl;
 
-                    if (Utils.IsUriHttpRelatedScheme(discoveryUrl))
+                    if (Utils.IsUriHttpRelatedScheme(discoveryUrl!))
                     {
                         discoveryUrl += ConfiguredEndpoint.DiscoverySuffix;
                     }
 
                     endpoint.Description.Server.DiscoveryUrls =
-                        endpoint.Description.Server.DiscoveryUrls.AddItem(discoveryUrl);
+                        endpoint.Description.Server.DiscoveryUrls.AddItem(discoveryUrl!);
                 }
 
                 // normalize transport profile uri.
@@ -162,17 +164,17 @@ namespace Opc.Ua
                 }
 
                 if (!servers.TryGetValue(
-                    endpoint.Description.Server.ApplicationUri,
-                    out ApplicationDescription server))
+                    endpoint.Description.Server.ApplicationUri!,
+                    out ApplicationDescription? server))
                 {
                     // use the first description in the file as the correct master.
                     server = endpoint.Description.Server;
 
-                    servers[server.ApplicationUri] = server;
+                    servers[server.ApplicationUri!] = server;
 
                     // check if the server uri needs to be made globally unique.
-                    server.ApplicationUri = Utils.UpdateInstanceUri(server.ApplicationUri);
-                    servers[server.ApplicationUri] = server;
+                    server.ApplicationUri = Utils.UpdateInstanceUri(server.ApplicationUri!);
+                    servers[server.ApplicationUri!] = server;
                     continue;
                 }
 
@@ -207,8 +209,11 @@ namespace Opc.Ua
 
                 foreach (ConfiguredEndpoint endpoint in endpoints)
                 {
-                    endpoint.Description?.TransportProfileUri = Profiles.NormalizeUri(
-                            endpoint.Description.TransportProfileUri);
+                    if (endpoint.Description?.TransportProfileUri != null)
+                    {
+                        endpoint.Description.TransportProfileUri = Profiles.NormalizeUri(
+                                endpoint.Description.TransportProfileUri);
+                    }
                 }
 
                 return endpoints;
@@ -228,7 +233,7 @@ namespace Opc.Ua
         /// </summary>
         public void Save()
         {
-            Save(m_filepath);
+            Save(m_filepath!);
         }
 
         /// <summary>
@@ -249,7 +254,7 @@ namespace Opc.Ua
         public void Save(Stream ostrm)
         {
             IServiceMessageContext context = AmbientMessageContext.CurrentContext ??
-                ServiceMessageContext.CreateEmpty(null);
+                ServiceMessageContext.CreateEmpty(null!);
             using var writer = XmlWriter.Create(ostrm, Utils.DefaultXmlWriterSettings());
             using var encoder = new XmlEncoder(typeof(ConfiguredEndpointCollection), writer, context);
             Encode(encoder);
@@ -405,7 +410,7 @@ namespace Opc.Ua
         /// </summary>
         public ConfiguredEndpoint Add(EndpointDescription endpoint)
         {
-            return Add(endpoint, null);
+            return Add(endpoint, null!);
         }
 
         /// <summary>
@@ -537,12 +542,12 @@ namespace Opc.Ua
                     nameof(server));
             }
 
-            List<ConfiguredEndpoint> endpoints = GetEndpoints(server.ApplicationUri);
+            List<ConfiguredEndpoint> endpoints = GetEndpoints(server.ApplicationUri!);
 
             // create a placeholder endpoint for the server description.
             if (endpoints.Count == 0)
             {
-                string endpointUrl = null;
+                string? endpointUrl = null;
 
                 for (int ii = 0; ii < server.DiscoveryUrls.Count; ii++)
                 {
@@ -565,7 +570,7 @@ namespace Opc.Ua
                 if (endpointUrl != null)
                 {
                     ConfiguredEndpoint endpoint = Create(endpointUrl);
-                    endpoint.Description.Server = CoreUtils.Clone(server);
+                    endpoint.Description.Server = CoreUtils.Clone(server)!;
                     Add(endpoint);
                 }
             }
@@ -574,7 +579,7 @@ namespace Opc.Ua
             {
                 foreach (ConfiguredEndpoint endpointToUpdate in GetEndpoints(serverUri))
                 {
-                    endpointToUpdate.Description.Server = CoreUtils.Clone(server);
+                    endpointToUpdate.Description.Server = CoreUtils.Clone(server)!;
                 }
             }
         }
@@ -588,7 +593,7 @@ namespace Opc.Ua
         public ConfiguredEndpoint Create(string url)
         {
             // check for security parameters appended to the URL
-            string parameters = null;
+            string? parameters = null;
 
             int index = url.IndexOf("- [", StringComparison.Ordinal);
 
@@ -604,7 +609,7 @@ namespace Opc.Ua
 
             if (!string.IsNullOrEmpty(parameters))
             {
-                string[] fields = parameters.Split(
+                string[] fields = parameters!.Split(
                     s_separator,
                     StringSplitOptions.RemoveEmptyEntries);
 
@@ -635,7 +640,7 @@ namespace Opc.Ua
                 {
                     if (fields.Length > 1)
                     {
-                        securityPolicyUri = SecurityPolicies.GetUri(fields[1]);
+                        securityPolicyUri = SecurityPolicies.GetUri(fields[1])!;
                     }
                     else
                     {
@@ -695,8 +700,8 @@ namespace Opc.Ua
                     description.Server.DiscoveryUrls.AddItem(description.EndpointUrl);
             }
 
-            var endpoint = new ConfiguredEndpoint(this, description, null);
-            endpoint.Configuration.UseBinaryEncoding = useBinaryEncoding;
+            var endpoint = new ConfiguredEndpoint(this, description, null!);
+            endpoint.Configuration!.UseBinaryEncoding = useBinaryEncoding;
             endpoint.UpdateBeforeConnect = true;
             return endpoint;
         }
@@ -732,10 +737,10 @@ namespace Opc.Ua
 
                 if (!string.IsNullOrEmpty(server.ApplicationUri))
                 {
-#if NET6_0_OR_GREATER
-                    servers.TryAdd(server.ApplicationUri, server);
+#if NET5_0_OR_GREATER || NETSTANDARD2_1_OR_GREATER
+                    servers.TryAdd(server.ApplicationUri!, server);
 #else
-                    servers.TryAdd(server.ApplicationUri, server);
+                    System.Collections.Generic.Polyfills.TryAdd(servers, server.ApplicationUri!, server);
 #endif
                 }
             }
@@ -825,7 +830,7 @@ namespace Opc.Ua
                     baseUrl = baseUrl[..^DiscoverySuffix.Length];
                 }
 
-                Uri url = Utils.ParseUri(baseUrl);
+                Uri? url = Utils.ParseUri(baseUrl);
 
                 if (url != null)
                 {
@@ -864,7 +869,7 @@ namespace Opc.Ua
         public ConfiguredEndpoint(
             ConfiguredEndpointCollection collection,
             EndpointDescription description)
-            : this(collection, description, null)
+            : this(collection, description, null!)
         {
         }
 
@@ -872,7 +877,7 @@ namespace Opc.Ua
         /// The default constructor.
         /// </summary>
         public ConfiguredEndpoint(
-            ConfiguredEndpointCollection collection,
+            ConfiguredEndpointCollection? collection,
             EndpointDescription description,
             EndpointConfiguration configuration)
         {
@@ -901,7 +906,7 @@ namespace Opc.Ua
         /// </summary>
         public override string ToString()
         {
-            return ToString(null, null);
+            return ToString(null!, null!);
         }
 
         /// <summary>
@@ -910,15 +915,15 @@ namespace Opc.Ua
         /// <param name="format">(Unused). Always pass NULL/NOTHING</param>
         /// <param name="formatProvider">(Unused). Always pass NULL/NOTHING</param>
         /// <exception cref="FormatException">Thrown if non-null parameters are used</exception>
-        public string ToString(string format, IFormatProvider formatProvider)
+        public string ToString(string? format, IFormatProvider? formatProvider)
         {
             if (format == null)
             {
                 return Utils.Format(
                     "{0} - [{1}:{2}:{3}]",
-                    m_description.EndpointUrl,
+                    m_description.EndpointUrl!,
                     m_description.SecurityMode,
-                    SecurityPolicies.GetDisplayName(m_description.SecurityPolicyUri),
+                    SecurityPolicies.GetDisplayName(m_description.SecurityPolicyUri!)!,
                     m_configuration != null && m_configuration.UseBinaryEncoding
                         ? "Binary"
                         : "XML");
@@ -934,8 +939,8 @@ namespace Opc.Ua
         {
             bool hasCertificate = Description.ServerCertificate.Length > 0;
             bool usingUserTokenSecurity =
-                (SelectedUserTokenPolicy.TokenType != UserTokenType.Anonymous) &&
-                (SelectedUserTokenPolicy.SecurityPolicyUri ??
+                (SelectedUserTokenPolicy?.TokenType != UserTokenType.Anonymous) &&
+                (SelectedUserTokenPolicy?.SecurityPolicyUri ??
                     SecurityPolicies.None) != SecurityPolicies.None;
             bool usingTransportSecurity = Description.SecurityPolicyUri != SecurityPolicies.None;
             return (usingUserTokenSecurity || usingTransportSecurity) && !hasCertificate;
@@ -952,13 +957,13 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(endpoint));
             }
 
-            m_description = CoreUtils.Clone(endpoint.Description);
-            m_configuration = CoreUtils.Clone(endpoint.Configuration);
+            m_description = CoreUtils.Clone(endpoint.Description)!;
+            m_configuration = CoreUtils.Clone(endpoint.Configuration)!;
 
             // normalize transport profile uri.
             if (m_description.TransportProfileUri != null)
             {
-                m_description.TransportProfileUri = Profiles.NormalizeUri(
+                m_description!.TransportProfileUri = Profiles.NormalizeUri(
                     m_description.TransportProfileUri);
             }
 
@@ -983,12 +988,12 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(description));
             }
 
-            m_description = CoreUtils.Clone(description);
+            m_description = CoreUtils.Clone(description)!;
 
             // normalize transport profile uri.
             if (m_description.TransportProfileUri != null)
             {
-                m_description.TransportProfileUri = Profiles.NormalizeUri(
+                m_description!.TransportProfileUri = Profiles.NormalizeUri(
                     m_description.TransportProfileUri);
             }
 
@@ -1013,7 +1018,7 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(configuration));
             }
 
-            m_configuration = CoreUtils.Clone(configuration);
+            m_configuration = CoreUtils.Clone(configuration)!;
 
             BinaryEncodingSupport binaryEncodingSupport = m_description.EncodingSupport;
 
@@ -1025,12 +1030,12 @@ namespace Opc.Ua
 
             if (binaryEncodingSupport == BinaryEncodingSupport.None)
             {
-                m_configuration.UseBinaryEncoding = false;
+                m_configuration!.UseBinaryEncoding = false;
             }
 
             if (binaryEncodingSupport == BinaryEncodingSupport.Required)
             {
-                m_configuration.UseBinaryEncoding = true;
+                m_configuration!.UseBinaryEncoding = true;
             }
         }
 
@@ -1040,7 +1045,7 @@ namespace Opc.Ua
         [Obsolete("Use UpdateFromServerAsync() instead.")]
         public void UpdateFromServer()
         {
-            UpdateFromServerAsync(null)
+            UpdateFromServerAsync(null!)
                 .GetAwaiter()
                 .GetResult();
         }
@@ -1054,7 +1059,7 @@ namespace Opc.Ua
             MessageSecurityMode securityMode,
             string securityPolicyUri)
         {
-            UpdateFromServerAsync(endpointUrl, securityMode, securityPolicyUri, null)
+            UpdateFromServerAsync(endpointUrl, securityMode, securityPolicyUri, null!)
                 .GetAwaiter()
                 .GetResult();
         }
@@ -1069,7 +1074,7 @@ namespace Opc.Ua
             MessageSecurityMode securityMode,
             string securityPolicyUri)
         {
-            UpdateFromServerAsync(endpointUrl, connection, securityMode, securityPolicyUri, null)
+            UpdateFromServerAsync(endpointUrl, connection, securityMode, securityPolicyUri, null!)
                 .GetAwaiter()
                 .GetResult();
         }
@@ -1080,7 +1085,7 @@ namespace Opc.Ua
         [Obsolete("Use UpdateFromServerAsync with ITelemetryContext instead")]
         public Task UpdateFromServerAsync(CancellationToken ct = default)
         {
-            return UpdateFromServerAsync(null, ct);
+            return UpdateFromServerAsync(null!, ct);
         }
 
         /// <summary>
@@ -1099,7 +1104,7 @@ namespace Opc.Ua
                 connection,
                 securityMode,
                 securityPolicyUri,
-                null,
+                null!,
                 ct);
         }
 
@@ -1117,7 +1122,7 @@ namespace Opc.Ua
                 endpointUrl,
                 securityMode,
                 securityPolicyUri,
-                null,
+                null!,
                 ct);
         }
 
@@ -1133,7 +1138,7 @@ namespace Opc.Ua
         {
             return UpdateFromServerAsync(
                 endpointUrl,
-                null,
+                null!,
                 securityMode,
                 securityPolicyUri,
                 telemetry,
@@ -1148,9 +1153,9 @@ namespace Opc.Ua
             CancellationToken ct = default)
         {
             return UpdateFromServerAsync(
-                EndpointUrl,
+                EndpointUrl!,
                 m_description.SecurityMode,
-                m_description.SecurityPolicyUri,
+                m_description.SecurityPolicyUri!,
                 telemetry,
                 ct);
         }
@@ -1167,17 +1172,17 @@ namespace Opc.Ua
             CancellationToken ct = default)
         {
             // get the a discovery url.
-            Uri discoveryUrl = GetDiscoveryUrl(endpointUrl);
+            Uri? discoveryUrl = GetDiscoveryUrl(endpointUrl);
 
             // create the discovery client.
-            DiscoveryClient client = null;
+            DiscoveryClient? client = null;
             try
             {
                 if (connection != null)
                 {
                     client = await DiscoveryClient.CreateAsync(
                         connection,
-                        m_configuration,
+                        m_configuration!,
                         telemetry,
                         ct: ct).ConfigureAwait(false);
                 }
@@ -1229,7 +1234,7 @@ namespace Opc.Ua
             }
             else
             {
-                endpointUrl = Utils.ParseUri(m_description.EndpointUrl);
+                endpointUrl = Utils.ParseUri(m_description.EndpointUrl!)!;
             }
 
             // get the know discovery URLs.
@@ -1238,32 +1243,32 @@ namespace Opc.Ua
             // attempt to construct a discovery url by appending 'discovery' to the endpoint.
             if (discoveryUrls.IsEmpty)
             {
-                if (Utils.IsUriHttpRelatedScheme(endpointUrl.Scheme))
+                if (Utils.IsUriHttpRelatedScheme(endpointUrl!.Scheme))
                 {
                     return new Uri(Utils.Format("{0}{1}", endpointUrl, DiscoverySuffix));
                 }
 
-                return endpointUrl;
+                return endpointUrl!;
             }
 
             // choose the URL that uses the same protocol if one exists.
             for (int ii = 1; ii < discoveryUrls.Count; ii++)
             {
-                if (discoveryUrls[ii].StartsWith(endpointUrl.Scheme, StringComparison.Ordinal))
+                if (discoveryUrls[ii].StartsWith(endpointUrl!.Scheme, StringComparison.Ordinal))
                 {
-                    return Utils.ParseUri(discoveryUrls[ii]);
+                    return Utils.ParseUri(discoveryUrls[ii])!;
                 }
             }
 
             // return the first in the list.
-            return Utils.ParseUri(discoveryUrls[0]);
+            return Utils.ParseUri(discoveryUrls[0])!;
         }
 
         /// <summary>
         /// The collection that the endpoint belongs to.
         /// </summary>
         /// <exception cref="ArgumentNullException"></exception>
-        public ConfiguredEndpointCollection Collection
+        public ConfiguredEndpointCollection? Collection
         {
             get => m_collection;
             internal set => m_collection = value ?? throw new ArgumentNullException(nameof(value));
@@ -1272,16 +1277,16 @@ namespace Opc.Ua
         /// <summary>
         /// The URL used to create a sessions.
         /// </summary>
-        public Uri EndpointUrl
+        public Uri? EndpointUrl
         {
             get
             {
                 if (string.IsNullOrEmpty(m_description.EndpointUrl))
                 {
-                    return null;
+                    return null!;
                 }
 
-                return Utils.ParseUri(m_description.EndpointUrl);
+                return Utils.ParseUri(m_description.EndpointUrl)!;
             }
             set
             {
@@ -1290,14 +1295,14 @@ namespace Opc.Ua
                     m_description.EndpointUrl = null;
                 }
 
-                m_description.EndpointUrl = Utils.Format("{0}", value);
+                m_description.EndpointUrl = Utils.Format("{0}", value!);
             }
         }
 
         /// <summary>
         /// The user identity to use when connecting to the endpoint.
         /// </summary>
-        public UserTokenPolicy SelectedUserTokenPolicy
+        public UserTokenPolicy? SelectedUserTokenPolicy
         {
             get
             {
@@ -1419,7 +1424,7 @@ namespace Opc.Ua
                 foreach (EndpointDescription description in collection)
                 {
                     // parse the endpoint url.
-                    Uri sessionUrl = Utils.ParseUri(description.EndpointUrl);
+                    Uri? sessionUrl = Utils.ParseUri(description.EndpointUrl);
 
                     if (sessionUrl == null)
                     {
@@ -1484,14 +1489,14 @@ namespace Opc.Ua
             // check if the endpoint url matches the endpoint used in the request.
             if (discoveryUrl != null)
             {
-                Uri matchUrl = Utils.ParseUri(match.EndpointUrl);
+                Uri? matchUrl = Utils.ParseUri(match.EndpointUrl);
                 if (matchUrl == null ||
                     !string.Equals(
                         discoveryUrl.IdnHost,
                         matchUrl.IdnHost,
                         StringComparison.OrdinalIgnoreCase))
                 {
-                    var uri = new UriBuilder(matchUrl)
+                    var uri = new UriBuilder(matchUrl!)
                     {
                         Host = discoveryUrl.IdnHost,
                         Port = discoveryUrl.Port

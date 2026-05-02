@@ -176,7 +176,7 @@ namespace Opc.Ua.Client
             {
                 connection = await reverseConnectManager
                     .WaitForConnectionAsync(
-                        endpoint.EndpointUrl,
+                        endpoint.EndpointUrl!,
                         endpoint.ReverseConnect?.ServerUri,
                         ct)
                     .ConfigureAwait(false);
@@ -184,10 +184,10 @@ namespace Opc.Ua.Client
                 if (updateBeforeConnect)
                 {
                     await endpoint.UpdateFromServerAsync(
-                        endpoint.EndpointUrl,
+                        endpoint.EndpointUrl!,
                         connection,
                         endpoint.Description.SecurityMode,
-                        endpoint.Description.SecurityPolicyUri,
+                        endpoint.Description.SecurityPolicyUri!,
                         Telemetry,
                         ct).ConfigureAwait(false);
                     updateBeforeConnect = false;

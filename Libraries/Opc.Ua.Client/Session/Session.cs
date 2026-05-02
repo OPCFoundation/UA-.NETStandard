@@ -1213,7 +1213,7 @@ namespace Opc.Ua.Client
                         null,
                         clientDescription,
                         m_endpoint.Description.Server.ApplicationUri,
-                        m_endpoint.EndpointUrl.ToString(),
+                        m_endpoint.EndpointUrl!.ToString(),
                         sessionName,
                         clientNonce,
                         default,
@@ -1236,7 +1236,7 @@ namespace Opc.Ua.Client
                     requestHeader,
                     clientDescription,
                     m_endpoint.Description.Server.ApplicationUri,
-                    m_endpoint.EndpointUrl.ToString(),
+                    m_endpoint.EndpointUrl!.ToString(),
                     sessionName,
                     clientNonce,
                     clientCertificateChainData.IsEmpty ?

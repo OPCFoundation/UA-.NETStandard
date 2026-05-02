@@ -1093,7 +1093,7 @@ namespace Opc.Ua.Bindings
                 {
                     if (Quotas.CertificateValidator is CertificateValidator certificateValidator)
                     {
-                        certificateValidator.ValidateAsync(senderCertificateChain, default).GetAwaiter().GetResult();
+                        certificateValidator.ValidateAsync(senderCertificateChain!, default).GetAwaiter().GetResult();
                     }
                     else
                     {

@@ -608,10 +608,10 @@ namespace Opc.Ua.Client
                 {
                     await endpoint
                         .UpdateFromServerAsync(
-                            endpoint.EndpointUrl,
+                            endpoint.EndpointUrl!,
                             connection,
                             endpoint.Description.SecurityMode,
-                            endpoint.Description.SecurityPolicyUri,
+                            endpoint.Description.SecurityPolicyUri!,
                             m_telemetry)
                         .ConfigureAwait(false);
                 }
@@ -619,9 +619,9 @@ namespace Opc.Ua.Client
                 {
                     await endpoint
                         .UpdateFromServerAsync(
-                            endpoint.EndpointUrl,
+                            endpoint.EndpointUrl!,
                             endpoint.Description.SecurityMode,
-                            endpoint.Description.SecurityPolicyUri,
+                            endpoint.Description.SecurityPolicyUri!,
                             m_telemetry)
                         .ConfigureAwait(false);
                 }
@@ -639,10 +639,10 @@ namespace Opc.Ua.Client
                 {
                     await endpoint
                         .UpdateFromServerAsync(
-                            endpoint.EndpointUrl,
+                            endpoint.EndpointUrl!,
                             connection,
                             MessageSecurityMode.Invalid,
-                            null,
+                            null!,
                             m_telemetry)
                         .ConfigureAwait(false);
                 }
@@ -650,9 +650,9 @@ namespace Opc.Ua.Client
                 {
                     await endpoint
                         .UpdateFromServerAsync(
-                            endpoint.EndpointUrl,
+                            endpoint.EndpointUrl!,
                             MessageSecurityMode.Invalid,
-                            null,
+                            null!,
                             m_telemetry)
                         .ConfigureAwait(false);
                 }
