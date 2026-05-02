@@ -76,6 +76,9 @@ namespace Opc.Ua.Client.ComplexTypes
             bool hasBitField = false;
             bool isUnionType = false;
 
+            // Schema.Binary.StructuredType.Field is nullable on the imported XML schema type
+            // but a structured type without any fields cannot describe a valid OPC UA
+            // structure; the bang reflects that requirement.
             foreach (Schema.Binary.FieldType field in structuredType.Field!)
             {
                 // check for yet unsupported properties
@@ -89,6 +92,8 @@ namespace Opc.Ua.Client.ComplexTypes
                     isUnionType = true;
                 }
 
+                // Field.TypeName is nullable on the imported schema; a binary field without
+                // a type reference cannot be encoded so the bang treats it as required.
                 if (field.TypeName!.Namespace is Namespaces.OpcBinarySchema or Namespaces.OpcUa &&
                     field.TypeName.Name == "Bit")
                 {
@@ -128,9 +133,11 @@ namespace Opc.Ua.Client.ComplexTypes
             int dataTypeFieldPosition = 0;
             var switchFieldBits = new Dictionary<string, byte>();
             // convert fields
+            // structuredType.Field is required; see note on the first loop above.
             foreach (Schema.Binary.FieldType field in structuredType.Field!)
             {
                 // consume optional bits
+                // field.TypeName is required; see note on the first loop above.
                 if (field.TypeName!.IsXmlBitType())
                 {
                     int count = structureFields.Count;
@@ -139,6 +146,8 @@ namespace Opc.Ua.Client.ComplexTypes
                         structureDefinition.StructureType
                             = StructureType.StructureWithOptionalFields;
                         byte fieldLength = (byte)(field.Length == 0 ? 1u : field.Length);
+                        // field.Name is annotated nullable on the schema but every named
+                        // bit selector carries a name in valid binary schemas.
                         switchFieldBits[field.Name!] = switchFieldBitPosition;
                         switchFieldBitPosition += fieldLength;
                     }
@@ -163,10 +172,12 @@ namespace Opc.Ua.Client.ComplexTypes
                 }
                 else
                 {
+                    // field.TypeName is required for non-recursive references; see note above.
                     fieldDataTypeNodeId = field.TypeName!.ToNodeId(typeDictionary);
                 }
                 var dataTypeField = new StructureField
                 {
+                    // field.Name carries the structure field identifier; required.
                     Name = field.Name!,
                     Description = default,
                     DataType = fieldDataTypeNodeId,
@@ -185,6 +196,7 @@ namespace Opc.Ua.Client.ComplexTypes
                         throw new DataTypeNotSupportedException(
                             "The length field must precede the type field of an array.");
                     }
+                    // field.Name carries the array element name; required.
                     lastField.Name = field.Name!;
                     lastField.DataType = fieldDataTypeNodeId;
                     lastField.ValueRank = 1;
@@ -254,9 +266,14 @@ namespace Opc.Ua.Client.ComplexTypes
 
                     var enumTypeField = new EnumField
                     {
-                        Name = fieldName!,
+                        Name = fieldName,
                         Value = enumValue.Value,
+                        // Documentation/Text/FirstOrDefault may yield null when no documentation
+                        // exists; LocalizedText.From's signature does not accept null, but the
+                        // implementation maps null to LocalizedText.Null at runtime.
                         Description = LocalizedText.From(enumValue.Documentation?.Text?.FirstOrDefault()!),
+                        // enumValue.Name on the imported schema is nullable; passing null to From
+                        // is handled at runtime as LocalizedText.Null (preserves prior behavior).
                         DisplayName = LocalizedText.From(enumValue.Name!)
                     };
                     enumFields.Add(enumTypeField);
@@ -289,6 +306,8 @@ namespace Opc.Ua.Client.ComplexTypes
                     continue;
                 }
 
+                // TryGetEncodeable<T> returning true implies enumValue is non-null but its
+                // signature lacks [NotNullWhen(true)] so the compiler cannot infer it.
                 string? name = enumValue!.DisplayName.Text;
                 if (string.IsNullOrEmpty(name))
                 {
@@ -302,9 +321,9 @@ namespace Opc.Ua.Client.ComplexTypes
 
                 var enumTypeField = new EnumField
                 {
-                    Name = name!,
+                    Name = name,
                     Value = enumValue.Value,
-                    DisplayName = LocalizedText.From(name!)
+                    DisplayName = LocalizedText.From(name)
                 };
                 enumFields.Add(enumTypeField);
             }
@@ -342,9 +361,9 @@ namespace Opc.Ua.Client.ComplexTypes
 
                 var enumTypeField = new EnumField
                 {
-                    Name = name!,
+                    Name = name,
                     Value = ii,
-                    DisplayName = LocalizedText.From(name!)
+                    DisplayName = LocalizedText.From(name)
                 };
 
                 enumFields.Add(enumTypeField);
