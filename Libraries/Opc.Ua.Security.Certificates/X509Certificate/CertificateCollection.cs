@@ -348,10 +348,15 @@ namespace Opc.Ua.Security.Certificates
         }
 
         /// <summary>
-        /// Copies the certificates to the specified array starting at
-        /// the given index.
+        /// Copies the elements of the collection to a Certificate array,
+        /// starting at the specified index in the array.
         /// </summary>
-        /// <param name="array">The destination array.</param>
+        /// <param name="array">
+        /// The destination array. References are copied as-is; the
+        /// reference count is not incremented. The caller is responsible
+        /// for ensuring the source collection (which owns the refs)
+        /// remains alive while the array is in use.
+        /// </param>
         /// <param name="arrayIndex">
         /// The zero-based index in the destination array at which
         /// copying begins.
@@ -360,10 +365,6 @@ namespace Opc.Ua.Security.Certificates
         {
             ThrowIfDisposed();
             m_certificates.CopyTo(array, arrayIndex);
-            foreach (Certificate cert in array)
-            {
-                cert.AddRef();
-            }
         }
 
         /// <summary>

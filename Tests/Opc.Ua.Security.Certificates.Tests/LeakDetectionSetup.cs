@@ -47,10 +47,14 @@ public class LeakDetectionSetup
     [OneTimeTearDown]
     public void GlobalTeardown()
     {
-        // Force GC to finalize any abandoned certificates
-        GC.Collect();
-        GC.WaitForPendingFinalizers();
-        GC.Collect();
+        // Force GC to finalize any abandoned certificates. Multiple
+        // cycles ensure that finalizable objects whose finalizer
+        // creates new garbage are themselves collected.
+        for (int i = 0; i < 5; i++)
+        {
+            GC.Collect(GC.MaxGeneration, GCCollectionMode.Forced, blocking: true);
+            GC.WaitForPendingFinalizers();
+        }
 
         long leaked = Certificate.InstancesLeaked;
         if (leaked > 0)
