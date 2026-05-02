@@ -62,6 +62,8 @@ namespace Opc.Ua.Client
         /// </summary>
         [Obsolete("Use Subscription(TelemetryContext) instead")]
         public Subscription()
+            // Telemetry is required by the modern ctor; this obsolete bridge forwards null!
+            // to preserve the parameterless instantiation pattern.
             : this(null!, null)
         {
         }
@@ -285,6 +287,9 @@ namespace Opc.Ua.Client
         /// </summary>
         protected virtual MonitoredItem CreateMonitoredItem(MonitoredItemOptions? options = null)
         {
+            // Telemetry is nullable on this base class but the subscription always carries
+            // a populated telemetry context once attached to a session; MonitoredItem
+            // requires non-null telemetry on its modern ctor.
             return new MonitoredItem(Telemetry!, options);
         }
 
@@ -634,6 +639,8 @@ namespace Opc.Ua.Client
                 {
                     if (m_messageCache.Count > 0)
                     {
+                        // Count > 0 guarantees Last is non-null; the bang reflects the
+                        // LinkedList<T>.Last invariant that the compiler cannot infer.
                         return m_messageCache.Last!.Value.PublishTime;
                     }
                 }
@@ -665,6 +672,7 @@ namespace Opc.Ua.Client
                 {
                     if (m_messageCache.Count > 0)
                     {
+                        // See PublishTime: Count > 0 implies Last is non-null.
                         return m_messageCache.Last!.Value.SequenceNumber;
                     }
                 }
@@ -684,6 +692,7 @@ namespace Opc.Ua.Client
                 {
                     if (m_messageCache.Count > 0)
                     {
+                        // See PublishTime: Count > 0 implies Last is non-null.
                         return (uint)m_messageCache.Last!.Value.NotificationData.Count;
                     }
                 }
@@ -703,6 +712,7 @@ namespace Opc.Ua.Client
                 {
                     if (m_messageCache.Count > 0)
                     {
+                        // See PublishTime: Count > 0 implies Last is non-null.
                         return m_messageCache.Last!.Value;
                     }
 
@@ -2587,6 +2597,9 @@ namespace Opc.Ua.Client
                         {
                             foreach (ExtensionObject notificationData in message.NotificationData)
                             {
+                                // TryGetEncodeable<T> returning true implies the out value is
+                                // non-null, but its signature lacks [NotNullWhen(true)] so the
+                                // compiler cannot infer the narrowing.
                                 if (notificationData.TryGetEncodeable(out DataChangeNotification? datachange))
                                 {
                                     datachange!.PublishTime = message.PublishTime;
@@ -2966,6 +2979,9 @@ namespace Opc.Ua.Client
                         // parse the relative path.
                         try
                         {
+                            // RelativePath was validated as non-null when the monitored item
+                            // was selected for browse-path resolution; Session is set during
+                            // subscription attach and remains non-null while items resolve.
                             browsePath.RelativePath = RelativePath.Parse(
                                 monitoredItem.RelativePath!,
                                 Session!.TypeTree);
