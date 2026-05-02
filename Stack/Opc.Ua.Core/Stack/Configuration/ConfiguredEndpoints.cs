@@ -145,13 +145,16 @@ namespace Opc.Ua
                 {
                     string? discoveryUrl = endpoint.Description.EndpointUrl;
 
-                    if (Utils.IsUriHttpRelatedScheme(discoveryUrl!))
+                    if (discoveryUrl != null)
                     {
-                        discoveryUrl += ConfiguredEndpoint.DiscoverySuffix;
-                    }
+                        if (Utils.IsUriHttpRelatedScheme(discoveryUrl))
+                        {
+                            discoveryUrl += ConfiguredEndpoint.DiscoverySuffix;
+                        }
 
-                    endpoint.Description.Server.DiscoveryUrls =
-                        endpoint.Description.Server.DiscoveryUrls.AddItem(discoveryUrl!);
+                        endpoint.Description.Server.DiscoveryUrls =
+                            endpoint.Description.Server.DiscoveryUrls.AddItem(discoveryUrl);
+                    }
                 }
 
                 // normalize transport profile uri.
@@ -161,18 +164,23 @@ namespace Opc.Ua
                         endpoint.Description.TransportProfileUri);
                 }
 
+                // ApplicationUri was set from EndpointUrl above when missing. If both are null
+                // the dictionary lookup throws ArgumentNullException, matching legacy behavior.
+                string applicationUri = endpoint.Description.Server.ApplicationUri!;
+
                 if (!servers.TryGetValue(
-                    endpoint.Description.Server.ApplicationUri!,
+                    applicationUri,
                     out ApplicationDescription? server))
                 {
                     // use the first description in the file as the correct master.
                     server = endpoint.Description.Server;
 
-                    servers[server.ApplicationUri!] = server;
+                    servers[applicationUri] = server;
 
                     // check if the server uri needs to be made globally unique.
-                    server.ApplicationUri = Utils.UpdateInstanceUri(server.ApplicationUri!);
-                    servers[server.ApplicationUri!] = server;
+                    string updatedUri = Utils.UpdateInstanceUri(applicationUri);
+                    server.ApplicationUri = updatedUri;
+                    servers[updatedUri] = server;
                     continue;
                 }
 
@@ -408,7 +416,7 @@ namespace Opc.Ua
         /// </summary>
         public ConfiguredEndpoint Add(EndpointDescription endpoint)
         {
-            return Add(endpoint, null!);
+            return Add(endpoint, configuration: null);
         }
 
         /// <summary>
@@ -417,7 +425,7 @@ namespace Opc.Ua
         /// <exception cref="ArgumentException"></exception>
         public ConfiguredEndpoint Add(
             EndpointDescription endpoint,
-            EndpointConfiguration configuration)
+            EndpointConfiguration? configuration)
         {
             ValidateEndpoint(endpoint);
 
@@ -540,6 +548,7 @@ namespace Opc.Ua
                     nameof(server));
             }
 
+            // ApplicationUri proven non-null/non-empty by check above.
             List<ConfiguredEndpoint> endpoints = GetEndpoints(server.ApplicationUri!);
 
             // create a placeholder endpoint for the server description.
@@ -605,9 +614,9 @@ namespace Opc.Ua
             string securityPolicyUri = SecurityPolicies.Basic256Sha256;
             bool useBinaryEncoding = true;
 
-            if (!string.IsNullOrEmpty(parameters))
+            if (parameters is { Length: > 0 })
             {
-                string[] fields = parameters!.Split(
+                string[] fields = parameters.Split(
                     s_separator,
                     StringSplitOptions.RemoveEmptyEntries);
 
@@ -698,7 +707,7 @@ namespace Opc.Ua
                     description.Server.DiscoveryUrls.AddItem(description.EndpointUrl);
             }
 
-            var endpoint = new ConfiguredEndpoint(this, description, null!);
+            var endpoint = new ConfiguredEndpoint(this, description, configuration: null);
             endpoint.Configuration!.UseBinaryEncoding = useBinaryEncoding;
             endpoint.UpdateBeforeConnect = true;
             return endpoint;
@@ -867,7 +876,7 @@ namespace Opc.Ua
         public ConfiguredEndpoint(
             ConfiguredEndpointCollection collection,
             EndpointDescription description)
-            : this(collection, description, null!)
+            : this(collection, description, configuration: null)
         {
         }
 
@@ -877,7 +886,7 @@ namespace Opc.Ua
         public ConfiguredEndpoint(
             ConfiguredEndpointCollection? collection,
             EndpointDescription description,
-            EndpointConfiguration configuration)
+            EndpointConfiguration? configuration)
         {
             m_collection = collection;
             m_description = description ?? throw new ArgumentNullException(nameof(description));
@@ -904,7 +913,7 @@ namespace Opc.Ua
         /// </summary>
         public override string ToString()
         {
-            return ToString(null!, null!);
+            return ToString(format: null, formatProvider: null);
         }
 
         /// <summary>
@@ -956,12 +965,12 @@ namespace Opc.Ua
             }
 
             m_description = CoreUtils.Clone(endpoint.Description)!;
-            m_configuration = CoreUtils.Clone(endpoint.Configuration)!;
+            m_configuration = CoreUtils.Clone(endpoint.Configuration);
 
             // normalize transport profile uri.
             if (m_description.TransportProfileUri != null)
             {
-                m_description!.TransportProfileUri = Profiles.NormalizeUri(
+                m_description.TransportProfileUri = Profiles.NormalizeUri(
                     m_description.TransportProfileUri);
             }
 
@@ -991,7 +1000,7 @@ namespace Opc.Ua
             // normalize transport profile uri.
             if (m_description.TransportProfileUri != null)
             {
-                m_description!.TransportProfileUri = Profiles.NormalizeUri(
+                m_description.TransportProfileUri = Profiles.NormalizeUri(
                     m_description.TransportProfileUri);
             }
 
@@ -1028,12 +1037,12 @@ namespace Opc.Ua
 
             if (binaryEncodingSupport == BinaryEncodingSupport.None)
             {
-                m_configuration!.UseBinaryEncoding = false;
+                m_configuration.UseBinaryEncoding = false;
             }
 
             if (binaryEncodingSupport == BinaryEncodingSupport.Required)
             {
-                m_configuration!.UseBinaryEncoding = true;
+                m_configuration.UseBinaryEncoding = true;
             }
         }
 
@@ -1043,7 +1052,7 @@ namespace Opc.Ua
         [Obsolete("Use UpdateFromServerAsync() instead.")]
         public void UpdateFromServer()
         {
-            UpdateFromServerAsync(null!)
+            UpdateFromServerAsync(telemetry: null)
                 .GetAwaiter()
                 .GetResult();
         }
@@ -1057,7 +1066,7 @@ namespace Opc.Ua
             MessageSecurityMode securityMode,
             string securityPolicyUri)
         {
-            UpdateFromServerAsync(endpointUrl, securityMode, securityPolicyUri, null!)
+            UpdateFromServerAsync(endpointUrl, securityMode, securityPolicyUri, telemetry: null)
                 .GetAwaiter()
                 .GetResult();
         }
@@ -1072,7 +1081,7 @@ namespace Opc.Ua
             MessageSecurityMode securityMode,
             string securityPolicyUri)
         {
-            UpdateFromServerAsync(endpointUrl, connection, securityMode, securityPolicyUri, null!)
+            UpdateFromServerAsync(endpointUrl, connection, securityMode, securityPolicyUri, telemetry: null)
                 .GetAwaiter()
                 .GetResult();
         }
@@ -1083,7 +1092,7 @@ namespace Opc.Ua
         [Obsolete("Use UpdateFromServerAsync with ITelemetryContext instead")]
         public Task UpdateFromServerAsync(CancellationToken ct = default)
         {
-            return UpdateFromServerAsync(null!, ct);
+            return UpdateFromServerAsync(telemetry: null, ct);
         }
 
         /// <summary>
@@ -1102,7 +1111,7 @@ namespace Opc.Ua
                 connection,
                 securityMode,
                 securityPolicyUri,
-                null!,
+                telemetry: null,
                 ct);
         }
 
@@ -1120,7 +1129,7 @@ namespace Opc.Ua
                 endpointUrl,
                 securityMode,
                 securityPolicyUri,
-                null!,
+                telemetry: null,
                 ct);
         }
 
@@ -1131,12 +1140,12 @@ namespace Opc.Ua
             Uri endpointUrl,
             MessageSecurityMode securityMode,
             string securityPolicyUri,
-            ITelemetryContext telemetry,
+            ITelemetryContext? telemetry,
             CancellationToken ct = default)
         {
             return UpdateFromServerAsync(
                 endpointUrl,
-                null!,
+                connection: null,
                 securityMode,
                 securityPolicyUri,
                 telemetry,
@@ -1147,7 +1156,7 @@ namespace Opc.Ua
         /// Updates an endpoint with information from the server's discovery endpoint.
         /// </summary>
         public Task UpdateFromServerAsync(
-            ITelemetryContext telemetry,
+            ITelemetryContext? telemetry,
             CancellationToken ct = default)
         {
             return UpdateFromServerAsync(
@@ -1163,10 +1172,10 @@ namespace Opc.Ua
         /// </summary>
         public async Task UpdateFromServerAsync(
             Uri endpointUrl,
-            ITransportWaitingConnection connection,
+            ITransportWaitingConnection? connection,
             MessageSecurityMode securityMode,
             string securityPolicyUri,
-            ITelemetryContext telemetry,
+            ITelemetryContext? telemetry,
             CancellationToken ct = default)
         {
             // get the a discovery url.
@@ -1180,7 +1189,7 @@ namespace Opc.Ua
                 {
                     client = await DiscoveryClient.CreateAsync(
                         connection,
-                        m_configuration!,
+                        m_configuration,
                         telemetry,
                         ct: ct).ConfigureAwait(false);
                 }
@@ -1281,19 +1290,22 @@ namespace Opc.Ua
             {
                 if (string.IsNullOrEmpty(m_description.EndpointUrl))
                 {
-                    return null!;
+                    return null;
                 }
 
-                return Utils.ParseUri(m_description.EndpointUrl)!;
+                return Utils.ParseUri(m_description.EndpointUrl);
             }
             set
             {
                 if (value == null)
                 {
-                    m_description.EndpointUrl = null;
+                    // Preserve legacy behavior: setting EndpointUrl to null assigns
+                    // an empty string (Utils.Format("{0}", null) returns string.Empty).
+                    m_description.EndpointUrl = string.Empty;
+                    return;
                 }
 
-                m_description.EndpointUrl = Utils.Format("{0}", value!);
+                m_description.EndpointUrl = Utils.Format("{0}", value);
             }
         }
 

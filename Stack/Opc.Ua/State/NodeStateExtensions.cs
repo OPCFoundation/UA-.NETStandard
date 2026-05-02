@@ -126,7 +126,7 @@ namespace Opc.Ua
                     // create a placeholder for unknown children.
                     if (child == null)
                     {
-                        BaseInstanceState newChild = field.AttributeId == Attributes.Value
+                        BaseInstanceState? newChild = field.AttributeId == Attributes.Value
                             ? new BaseDataVariableState(parent)
                             : new BaseObjectState(parent);
 
@@ -134,7 +134,7 @@ namespace Opc.Ua
                         {
                             parent.AddChild(newChild);
                             child = newChild;
-                            newChild = null!;
+                            newChild = null;
                         }
                         finally
                         {

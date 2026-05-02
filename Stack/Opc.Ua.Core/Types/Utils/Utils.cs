@@ -246,19 +246,19 @@ namespace Opc.Ua
         public static string? ReplaceSpecialFolderNames(string? input)
         {
             // nothing to do for nulls.
-            if (string.IsNullOrEmpty(input))
+            if (input is not { Length: > 0 })
             {
                 return null;
             }
 
             // check for absolute path.
-            if (IsPathRooted(input!))
+            if (IsPathRooted(input))
             {
                 return input;
             }
 
             // check for special folder prefix.
-            if (input![0] != '%')
+            if (input[0] != '%')
             {
                 return input;
             }
@@ -267,7 +267,7 @@ namespace Opc.Ua
             string folder;
             string path;
 
-            int index = input!.IndexOf('%', 1);
+            int index = input.IndexOf('%', 1);
 
             if (index == -1)
             {
@@ -331,23 +331,23 @@ namespace Opc.Ua
         {
             string? resolved = ReplaceSpecialFolderNames(filePath);
 
-            if (!string.IsNullOrEmpty(resolved))
+            if (resolved is { Length: > 0 })
             {
                 var file = new FileInfo(resolved);
 
                 // check for absolute path.
-                bool isAbsolute = IsPathRooted(resolved!);
+                bool isAbsolute = IsPathRooted(resolved);
 
                 if (isAbsolute)
                 {
                     if (file.Exists)
                     {
-                        return resolved!;
+                        return resolved;
                     }
 
                     if (createAlways)
                     {
-                        return CreateFile(file, resolved!);
+                        return CreateFile(file, resolved);
                     }
                 }
 
@@ -357,7 +357,7 @@ namespace Opc.Ua
                     if (checkCurrentDirectory)
                     {
                         // first check in local folder
-                        FileInfo? localFile = null;
+                        FileInfo localFile;
                         if (!writable)
                         {
                             localFile = new FileInfo(
@@ -365,7 +365,7 @@ namespace Opc.Ua
                                     "{0}{1}{2}",
                                     Directory.GetCurrentDirectory(),
                                     Path.DirectorySeparatorChar,
-                                    resolved!));
+                                    resolved));
 #if NETFRAMEWORK
                             if (!localFile.Exists)
                             {
@@ -375,7 +375,7 @@ namespace Opc.Ua
                                         Path.GetDirectoryName(
                                             Assembly.GetExecutingAssembly().Location)!,
                                         Path.DirectorySeparatorChar,
-                                        resolved!));
+                                        resolved));
                                 if (localFile2.Exists)
                                 {
                                     localFile = localFile2;
@@ -390,10 +390,10 @@ namespace Opc.Ua
                                     "{0}{1}{2}",
                                     Path.GetTempPath(),
                                     Path.DirectorySeparatorChar,
-                                    resolved!));
+                                    resolved));
                         }
 
-                        if (localFile!.Exists)
+                        if (localFile.Exists)
                         {
                             return localFile.FullName;
                         }
@@ -458,12 +458,12 @@ namespace Opc.Ua
             string originalPath = dirPath;
             string? resolved = ReplaceSpecialFolderNames(dirPath);
 
-            if (!string.IsNullOrEmpty(resolved))
+            if (resolved is { Length: > 0 })
             {
                 var directory = new DirectoryInfo(resolved);
 
                 // check for absolute path.
-                bool isAbsolute = IsPathRooted(resolved!);
+                bool isAbsolute = IsPathRooted(resolved);
 
                 if (isAbsolute)
                 {
@@ -474,7 +474,7 @@ namespace Opc.Ua
 
                     if (createAlways && !directory.Exists)
                     {
-                        directory = Directory.CreateDirectory(resolved!);
+                        directory = Directory.CreateDirectory(resolved);
                         return directory.FullName;
                     }
                 }
@@ -491,7 +491,7 @@ namespace Opc.Ua
                                     "{0}{1}{2}",
                                     Directory.GetCurrentDirectory(),
                                     Path.DirectorySeparatorChar,
-                                    resolved!));
+                                    resolved));
 #if NETFRAMEWORK
                             if (!directory.Exists)
                             {
@@ -501,7 +501,7 @@ namespace Opc.Ua
                                         Path.GetDirectoryName(
                                             Assembly.GetExecutingAssembly().Location)!,
                                         Path.DirectorySeparatorChar,
-                                        resolved!));
+                                        resolved));
                                 if (directory2.Exists)
                                 {
                                     directory = directory2;
@@ -667,11 +667,11 @@ namespace Opc.Ua
             catch
             {
             }
-            if (string.IsNullOrEmpty(domainName))
+            if (domainName is not { Length: > 0 })
             {
                 return Dns.GetHostName();
             }
-            return domainName!;
+            return domainName;
         }
 
         /// <summary>
@@ -697,20 +697,20 @@ namespace Opc.Ua
         public static string? ReplaceLocalhost(string? uri, string? hostname = null)
         {
             // ignore nulls.
-            if (string.IsNullOrEmpty(uri))
+            if (uri is not { Length: > 0 })
             {
                 return uri;
             }
 
             // IPv6 address needs a surrounding []
-            if (!string.IsNullOrEmpty(hostname) && hostname!.Contains(':', StringComparison.Ordinal))
+            if (hostname is { Length: > 0 } && hostname.Contains(':', StringComparison.Ordinal))
             {
                 hostname = "[" + hostname + "]";
             }
 
             // check if the string localhost is specified.
             const string localhost = "localhost";
-            int index = uri!.IndexOf(localhost, StringComparison.OrdinalIgnoreCase);
+            int index = uri.IndexOf(localhost, StringComparison.OrdinalIgnoreCase);
 
             if (index == -1)
             {
@@ -738,20 +738,20 @@ namespace Opc.Ua
         public static string? ReplaceDCLocalhost(string? subjectName, string? hostname = null)
         {
             // ignore nulls.
-            if (string.IsNullOrEmpty(subjectName))
+            if (subjectName is not { Length: > 0 })
             {
                 return subjectName;
             }
 
             // IPv6 address needs a surrounding []
-            if (!string.IsNullOrEmpty(hostname) && hostname!.Contains(':', StringComparison.Ordinal))
+            if (hostname is { Length: > 0 } && hostname.Contains(':', StringComparison.Ordinal))
             {
                 hostname = "[" + hostname + "]";
             }
 
             // check if the string DC=localhost is specified.
             const string dclocalhost = "DC=localhost";
-            int index = subjectName!.IndexOf(dclocalhost, StringComparison.OrdinalIgnoreCase);
+            int index = subjectName.IndexOf(dclocalhost, StringComparison.OrdinalIgnoreCase);
 
             if (index == -1)
             {
@@ -898,7 +898,7 @@ namespace Opc.Ua
         public static string UpdateInstanceUri(string? instanceUri)
         {
             // check for null.
-            if (string.IsNullOrEmpty(instanceUri))
+            if (instanceUri is not { Length: > 0 })
             {
                 var builder = new UriBuilder
                 {
@@ -912,7 +912,7 @@ namespace Opc.Ua
             }
 
             // prefix non-urls with the hostname.
-            if (!instanceUri!.StartsWith(UriSchemeHttps, StringComparison.Ordinal))
+            if (!instanceUri.StartsWith(UriSchemeHttps, StringComparison.Ordinal))
             {
                 var builder = new UriBuilder
                 {
@@ -1298,7 +1298,11 @@ namespace Opc.Ua
         public static bool IsEqual<T>(T? value1, T? value2)
             where T : IEquatable<T>
         {
-            return CoreUtils.IsEqual(value1!, value2!);
+            if (value1 is null)
+            {
+                return value2 is null;
+            }
+            return value2 is not null && CoreUtils.IsEqual(value1, value2);
         }
 
         /// <summary>
@@ -1308,7 +1312,11 @@ namespace Opc.Ua
         public static bool IsEqual<T>(IEnumerable<T>? value1, IEnumerable<T>? value2)
             where T : IEquatable<T>
         {
-            return CoreUtils.IsEqual(value1!, value2!);
+            if (value1 is null || value2 is null)
+            {
+                return ReferenceEquals(value1, value2);
+            }
+            return CoreUtils.IsEqual(value1, value2);
         }
 
         /// <summary>
@@ -1337,7 +1345,11 @@ namespace Opc.Ua
         public static bool IsEqual<T>(T[]? value1, T[]? value2)
             where T : unmanaged, IEquatable<T>
         {
-            return CoreUtils.IsEqual(value1!, value2!);
+            if (value1 is null || value2 is null)
+            {
+                return ReferenceEquals(value1, value2);
+            }
+            return CoreUtils.IsEqual(value1, value2);
         }
 
 #if NETFRAMEWORK
@@ -1346,7 +1358,11 @@ namespace Opc.Ua
         /// </summary>
         public static bool IsEqual(byte[]? value1, byte[]? value2)
         {
-            return CoreUtils.IsEqual(value1!, value2!);
+            if (value1 is null || value2 is null)
+            {
+                return ReferenceEquals(value1, value2);
+            }
+            return CoreUtils.IsEqual(value1, value2);
         }
 #endif
 
@@ -1355,7 +1371,11 @@ namespace Opc.Ua
         /// </summary>
         public static bool IsEqual(object? value1, object? value2)
         {
-            return CoreUtils.IsEqual(value1!, value2!);
+            if (value1 is null || value2 is null)
+            {
+                return ReferenceEquals(value1, value2);
+            }
+            return CoreUtils.IsEqual(value1, value2);
         }
 
         /// <summary>
@@ -1733,9 +1753,10 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < arrays.Length; ii++)
             {
-                if (arrays[ii] != null)
+                byte[]? arr = arrays[ii];
+                if (arr != null)
                 {
-                    length += arrays[ii]!.Length;
+                    length += arr.Length;
                 }
             }
 
@@ -1745,10 +1766,11 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < arrays.Length; ii++)
             {
-                if (arrays[ii] != null)
+                byte[]? arr = arrays[ii];
+                if (arr != null)
                 {
-                    Array.Copy(arrays[ii]!, 0, output, pos, arrays[ii]!.Length);
-                    pos += arrays[ii]!.Length;
+                    Array.Copy(arr, 0, output, pos, arr.Length);
+                    pos += arr.Length;
                 }
             }
 

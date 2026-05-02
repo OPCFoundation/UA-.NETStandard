@@ -809,7 +809,7 @@ namespace Opc.Ua
                             result.SelectClauseResults =
                                 result.SelectClauseResults.AddItem(StatusCodes.Good);
                             result.SelectClauseDiagnosticInfos =
-                                result.SelectClauseDiagnosticInfos.AddItem(null!);
+                                result.SelectClauseDiagnosticInfos.AddItem(null!); // intentional null sentinel for "no diagnostic"
                         }
                     }
                 }
@@ -886,7 +886,7 @@ namespace Opc.Ua
                 }
 
                 // clause ok.
-                result.SelectClauseResults.Add(null!);
+                result.SelectClauseResults.Add(null!); // intentional null sentinel: List is cleared if no errors, otherwise non-null entries indicate failures
             }
 
             if (error)
@@ -1037,7 +1037,7 @@ namespace Opc.Ua
             {
                 try
                 {
-                    m_parsedIndexRange = NumericRange.Parse(m_indexRange!);
+                    m_parsedIndexRange = NumericRange.Parse(m_indexRange);
                 }
                 catch (Exception e)
                 {
@@ -1045,7 +1045,7 @@ namespace Opc.Ua
                         e,
                         StatusCodes.BadIndexRangeInvalid,
                         "SimpleAttributeOperand does not specify a valid BrowsePath ({0}).",
-                        m_indexRange!);
+                        m_indexRange);
                 }
 
                 if (m_attributeId != Attributes.Value)
@@ -1091,7 +1091,7 @@ namespace Opc.Ua
                 buffer.AppendFormat(
                     CultureInfo.InvariantCulture,
                     "[{0}]",
-                    NumericRange.Parse(IndexRange!));
+                    NumericRange.Parse(IndexRange!)); // IndexRange property re-read; non-null per IsNullOrEmpty
             }
 
             return buffer.ToString();
@@ -1131,7 +1131,7 @@ namespace Opc.Ua
                         browseName.NamespaceIndex);
                 }
 
-                for (int jj = 0; jj < browseName.Name!.Length; jj++)
+                for (int jj = 0; jj < browseName.Name!.Length; jj++) // QualifiedName.IsNull is false here, so Name is non-null
                 {
                     char ch = browseName.Name[jj];
 

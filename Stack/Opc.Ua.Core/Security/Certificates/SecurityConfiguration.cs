@@ -51,7 +51,9 @@ namespace Opc.Ua
         /// Get the provider which is invoked when a password
         /// for a private key is requested.
         /// </summary>
-        public ICertificatePasswordProvider CertificatePasswordProvider { get; set; }
+        // Set externally by callers (e.g. ApplicationInstance, ApplicationConfigurationBuilder)
+        // after the configuration is loaded; treated as required for callers that need a password.
+        public ICertificatePasswordProvider CertificatePasswordProvider { get; set; } = null!;
 
         /// <summary>
         /// Adds a certificate as a trusted peer.

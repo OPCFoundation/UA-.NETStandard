@@ -76,7 +76,7 @@ namespace Opc.Ua
             if (!string.IsNullOrEmpty(value.IndexRange))
             {
                 ServiceResult result = NumericRange.Validate(
-                    value.IndexRange!,
+                    value.IndexRange!, // IndexRange property re-read after IsNullOrEmpty
                     out NumericRange range);
                 if (ServiceResult.IsBad(result))
                 {

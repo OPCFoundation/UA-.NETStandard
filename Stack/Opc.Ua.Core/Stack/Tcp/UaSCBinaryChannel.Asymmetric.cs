@@ -215,7 +215,7 @@ namespace Opc.Ua.Bindings
                         SecurityPolicies.Basic128Rsa15,
                         StringComparison.Ordinal);
                     return Nonce.CreateRandomNonceData(
-                        SecurityPolicy!.SecureChannelNonceLength,
+                        securityPolicy.SecureChannelNonceLength,
                         enforceMinimumLength);
                 case CertificateKeyFamily.ECC:
                     m_localNonce = Nonce.CreateNonce(securityPolicy);
@@ -243,7 +243,7 @@ namespace Opc.Ua.Bindings
             }
 
             // check the length.
-            if (nonce == null || nonce.Length != SecurityPolicy!.SecureChannelNonceLength)
+            if (nonce == null || nonce.Length != securityPolicy.SecureChannelNonceLength)
             {
                 return false;
             }
@@ -286,7 +286,7 @@ namespace Opc.Ua.Bindings
             }
 
             if (securityPolicy.AsymmetricSignatureAlgorithm == AsymmetricSignatureAlgorithm.None ||
-                SecurityPolicy!.EphemeralKeyAlgorithm != CertificateKeyAlgorithm.None)
+                securityPolicy.EphemeralKeyAlgorithm != CertificateKeyAlgorithm.None)
             {
                 return 1;
             }
@@ -322,7 +322,7 @@ namespace Opc.Ua.Bindings
             }
 
             if (securityPolicy.AsymmetricSignatureAlgorithm == AsymmetricSignatureAlgorithm.None ||
-                SecurityPolicy!.EphemeralKeyAlgorithm != CertificateKeyAlgorithm.None)
+                securityPolicy.EphemeralKeyAlgorithm != CertificateKeyAlgorithm.None)
             {
                 return 1;
             }

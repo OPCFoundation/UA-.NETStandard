@@ -396,7 +396,7 @@ namespace Opc.Ua
         /// </summary>
         public static async Task<DiscoveryClient> CreateAsync(
             ITransportWaitingConnection connection,
-            EndpointConfiguration configuration,
+            EndpointConfiguration? configuration,
             ITelemetryContext? telemetry,
             DiagnosticsMasks returnDiagnostics = DiagnosticsMasks.None,
             CancellationToken ct = default)

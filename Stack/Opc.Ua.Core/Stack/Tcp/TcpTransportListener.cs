@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Linq;
 using System.Net;
@@ -339,6 +340,7 @@ namespace Opc.Ua.Bindings
         /// <param name="callback">The callback to use when requests arrive via the channel.</param>
         /// <exception cref="ArgumentNullException">Thrown if any parameter is null.</exception>
         /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
+        [MemberNotNull(nameof(m_descriptions), nameof(m_quotas), nameof(m_bufferManager), nameof(m_channels))]
         public void Open(
             Uri baseAddress,
             TransportListenerSettings settings,

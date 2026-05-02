@@ -195,7 +195,7 @@ namespace Opc.Ua.Encoders
                 }
                 if (GetBit(value, bit) && (validOmitted || GetBit(valid, bit)))
                 {
-                    names.Add(field.Name!);
+                    names.Add(field.Name!); // EnumField from a generated definition always has a Name
                 }
             }
             return names;

@@ -132,7 +132,7 @@ namespace Opc.Ua
             }
 
             limit.Value = new LocalizedText(state);
-            limit.Id!.Value = active;
+            limit.Id!.Value = active; // Id property is initialized as part of the LimitAlarm state machine construction
 
             limit.TransitionTime?.Value = DateTime.UtcNow;
         }

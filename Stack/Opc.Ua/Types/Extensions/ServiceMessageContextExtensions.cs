@@ -42,7 +42,7 @@ namespace Opc.Ua
             /// <returns></returns>
             public static ServiceMessageContext Create(ITelemetryContext? telemetry)
             {
-                return new ServiceMessageContext(telemetry!, EncodeableFactory.Create());
+                return new ServiceMessageContext(telemetry!, EncodeableFactory.Create()); // ctor accepts non-null but legacy callers may pass null
             }
         }
     }

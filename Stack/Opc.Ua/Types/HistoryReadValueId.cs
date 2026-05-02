@@ -76,7 +76,7 @@ namespace Opc.Ua
             {
                 try
                 {
-                    valueId.ParsedIndexRange = NumericRange.Parse(valueId.IndexRange!);
+                    valueId.ParsedIndexRange = NumericRange.Parse(valueId.IndexRange!); // IndexRange property re-read after IsNullOrEmpty
                 }
                 catch (Exception e)
                 {

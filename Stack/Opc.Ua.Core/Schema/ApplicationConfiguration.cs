@@ -451,12 +451,7 @@ namespace Opc.Ua
         /// <summary>
         /// The default constructor.
         /// </summary>
-        // CertificatePasswordProvider is set externally by callers via LoadAsync after the
-        // constructor returns, so the property remains uninitialized here. The partial declaration
-        // lives in Security/Certificates/SecurityConfiguration.cs.
-#pragma warning disable CS8618 // Non-nullable property uninitialized
         public SecurityConfiguration()
-#pragma warning restore CS8618
         {
             m_applicationCertificates = [];
             m_trustedIssuerCertificates = new CertificateTrustList();

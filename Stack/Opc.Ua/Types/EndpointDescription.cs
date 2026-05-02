@@ -58,7 +58,7 @@ namespace Opc.Ua
             Server.ApplicationUri = url;
             Server.ApplicationName = new LocalizedText(url);
             SecurityMode = MessageSecurityMode.None;
-            SecurityPolicyUri = null!; // SecurityPolicies.None;
+            SecurityPolicyUri = null!; // TODO: review nullability of EndpointDescription.SecurityPolicyUri (initialized later by callers)
         }
 
         /// <summary>

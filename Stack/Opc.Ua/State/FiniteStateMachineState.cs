@@ -291,7 +291,7 @@ namespace Opc.Ua
                 variable.Value = default;
                 if (variable.Id != null)
                 {
-                    variable.Id.Value = default!;
+                    variable.Id.Value = default;
                 }
 
                 variable.Number?.Value = 0;
@@ -343,7 +343,7 @@ namespace Opc.Ua
                 variable.Value = default;
                 if (variable.Id != null)
                 {
-                    variable.Id.Value = default!;
+                    variable.Id.Value = default;
                 }
 
                 variable.TransitionTime?.Value = DateTime.MinValue;
@@ -782,7 +782,7 @@ namespace Opc.Ua
                 "en-US",
                 "The {0} state machine moved to the {1} state.",
                 GetDisplayPath(3, '.'),
-                CurrentState?.Value!);
+                CurrentState?.Value!); // params object[] element type is non-nullable; null is acceptable as a format arg
 
             e.Initialize(context, this, EventSeverity.Medium, new LocalizedText(info));
 

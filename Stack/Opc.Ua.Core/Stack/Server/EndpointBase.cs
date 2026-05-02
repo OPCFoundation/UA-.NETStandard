@@ -186,8 +186,11 @@ namespace Opc.Ua
                 {
                     continue;
                 }
-#pragma warning disable CS8600 // Converting null literal or possible null value to non-nullable type. (TryGetStructure uses MaybeNullWhen(false); we check the bool.)
-                if (item.Value.TryGetStructure(out SpanContextDataType spanContext) && spanContext != null)
+                // CS8600: Variant.TryGetStructure<T> uses [MaybeNullWhen(false)] on a T : IEncodeable
+                // out parameter. Roslyn always emits CS8600 for this declaration site even though
+                // the value is only read after the method returns true (where it is non-null).
+#pragma warning disable CS8600
+                if (item.Value.TryGetStructure(out SpanContextDataType spanContext))
 #pragma warning restore CS8600
                 {
 #if NET8_0_OR_GREATER

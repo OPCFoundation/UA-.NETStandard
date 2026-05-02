@@ -268,7 +268,7 @@ namespace Opc.Ua
                 return Variant.Null;
             }
 
-            for (int ii = 0; ii < node.Children!.Count; ii++)
+            for (int ii = 0; ii < node.Children!.Count; ii++) // intermediate nodes always have Children populated when path traversal continues
             {
                 if (node.Children[ii].BrowseName == relativePath[index])
                 {
