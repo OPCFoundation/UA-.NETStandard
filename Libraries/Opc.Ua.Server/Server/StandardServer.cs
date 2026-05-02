@@ -2474,7 +2474,20 @@ namespace Opc.Ua.Server
             ByteString clientCertificate,
             ServiceResult result)
         {
-            throw new ServiceResultException(result);
+            // see https://reference.opcfoundation.org/Core/Part4/v105/docs/6.1.3
+            StatusCode resultCode = result.StatusCode;
+            if (resultCode == StatusCodes.BadCertificateInvalid ||
+                resultCode == StatusCodes.BadCertificateRevoked ||
+                resultCode == StatusCodes.BadCertificateUntrusted ||
+                resultCode == StatusCodes.BadCertificateIssuerRevoked ||
+                resultCode == StatusCodes.BadCertificateRevocationUnknown ||
+                resultCode == StatusCodes.BadCertificateChainIncomplete ||
+                resultCode == StatusCodes.BadCertificateIssuerRevocationUnknown)
+            {
+                resultCode = StatusCodes.BadSecurityChecksFailed;
+            }
+
+            throw new ServiceResultException(new ServiceResult(resultCode, result));
         }
 
         /// <summary>
