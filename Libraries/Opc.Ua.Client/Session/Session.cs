@@ -44,6 +44,29 @@ namespace Opc.Ua.Client
     /// <summary>
     /// Manages a session with a server.
     /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Many properties on <see cref="ConfiguredEndpoint"/> (e.g. <c>EndpointUrl</c>,
+    /// <c>Configuration</c>) and <see cref="EndpointDescription"/> (<c>SecurityPolicyUri</c>)
+    /// are annotated nullable on the schema-generated DTOs but are required at runtime once
+    /// a session has been created. The same applies to <see cref="ApplicationConfiguration"/>
+    /// members such as <c>ClientConfiguration</c>, <c>CertificateValidator</c> and
+    /// <c>ApplicationName</c>: a <c>Session</c> cannot be opened without them - see
+    /// <see cref="ValidateClientConfiguration(ApplicationConfiguration)"/>.
+    /// Null-forgiving (<c>!</c>) suppressions in this file reflect those lifecycle
+    /// invariants which the C# compiler cannot infer from the type system.
+    /// </para>
+    /// <para>
+    /// The instance-level fields <c>m_serverCertificate</c>, <c>m_instanceCertificate</c>
+    /// and <c>m_userTokenSecurityPolicyUri</c> are nullable until <c>OpenAsync</c> /
+    /// <c>ActivateSessionAsync</c> populates them; uses inside post-open code paths bang
+    /// them to acknowledge the open-session invariant. A <c>!</c> on a return value of
+    /// <see cref="SecurityPolicies.GetInfo"/> (which returns nullable) is reused immediately
+    /// thereafter and the implicit dereference would NRE on null, so the bang preserves the
+    /// pre-nullable behavior of throwing a <see cref="NullReferenceException"/> if a
+    /// caller-supplied policy URI is unknown.
+    /// </para>
+    /// </remarks>
     public partial class Session : SessionClientBatched, ISession,
         ISnapshotRestore<SessionState>, ISnapshotRestore<SessionConfiguration>
     {

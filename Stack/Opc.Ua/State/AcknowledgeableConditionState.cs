@@ -62,7 +62,7 @@ namespace Opc.Ua
                 UpdateStateAfterUnacknowledge(context);
             }
 
-            AckedState!.Timestamp = DateTimeUtc.Now;
+            AckedState!.Timestamp = DateTimeUtc.Now; // ConditionState.Initialize creates AckedState
             ClearChangeMasks(context, includeChildren: true);
         }
 
@@ -109,21 +109,21 @@ namespace Opc.Ua
         /// <param name="context">The context.</param>
         protected override void UpdateEffectiveState(ISystemContext context)
         {
-            if (!EnabledState!.Id!.Value)
+            if (!EnabledState!.Id!.Value) // condition states always have EnabledState/Id after construction
             {
                 base.UpdateEffectiveState(context);
                 return;
             }
 
-            if (SupportsConfirm() && !ConfirmedState!.Id!.Value)
+            if (SupportsConfirm() && !ConfirmedState!.Id!.Value) // SupportsConfirm() implies ConfirmedState/Id non-null
             {
-                SetEffectiveSubState(context, ConfirmedState!.Value, DateTime.MinValue);
+                SetEffectiveSubState(context, ConfirmedState.Value, DateTime.MinValue);
                 return;
             }
 
             if (AckedState != null)
             {
-                SetEffectiveSubState(context, AckedState!.Value, DateTime.MinValue);
+                SetEffectiveSubState(context, AckedState.Value, DateTime.MinValue);
             }
         }
 
@@ -240,7 +240,7 @@ namespace Opc.Ua
                 return StatusCodes.BadEventIdUnknown;
             }
 
-            if (!EnabledState!.Id!.Value)
+            if (!EnabledState!.Id!.Value) // condition states always have EnabledState/Id after construction
             {
                 return StatusCodes.BadConditionDisabled;
             }
@@ -274,10 +274,11 @@ namespace Opc.Ua
                 "en-US",
                 ConditionStateNames.Acknowledged);
 
-            AckedState!.Value = new LocalizedText(state);
-            AckedState!.Id!.Value = true;
+            TwoStateVariableState ackedState = AckedState!; // ConditionState.Initialize creates AckedState
+            ackedState.Value = new LocalizedText(state);
+            ackedState.Id!.Value = true;
 
-            AckedState!.TransitionTime?.Value = DateTimeUtc.Now;
+            ackedState.TransitionTime?.Value = DateTimeUtc.Now;
 
             UpdateEffectiveState(context);
         }
@@ -293,10 +294,11 @@ namespace Opc.Ua
                 "en-US",
                 ConditionStateNames.Unacknowledged);
 
-            AckedState!.Value = new LocalizedText(state);
-            AckedState!.Id!.Value = false;
+            TwoStateVariableState ackedState = AckedState!; // ConditionState.Initialize creates AckedState
+            ackedState.Value = new LocalizedText(state);
+            ackedState.Id!.Value = false;
 
-            AckedState!.TransitionTime?.Value = DateTimeUtc.Now;
+            ackedState.TransitionTime?.Value = DateTimeUtc.Now;
 
             UpdateEffectiveState(context);
         }
@@ -401,7 +403,7 @@ namespace Opc.Ua
                 return StatusCodes.BadEventIdUnknown;
             }
 
-            if (!EnabledState!.Id!.Value)
+            if (!EnabledState!.Id!.Value) // condition states always have EnabledState/Id after construction
             {
                 return StatusCodes.BadConditionDisabled;
             }
@@ -430,17 +432,17 @@ namespace Opc.Ua
         /// <param name="context">The system context.</param>
         protected virtual void UpdateStateAfterConfirm(ISystemContext context)
         {
-            if (ConfirmedState != null)
+            if (ConfirmedState is { } confirmedState)
             {
                 var state = new TranslationInfo(
                     "ConditionStateConfirmed",
                     "en-US",
                     ConditionStateNames.Confirmed);
 
-                ConfirmedState!.Value = new LocalizedText(state);
-                ConfirmedState!.Id!.Value = true;
+                confirmedState.Value = new LocalizedText(state);
+                confirmedState.Id!.Value = true; // Id is created with ConfirmedState
 
-                ConfirmedState!.TransitionTime?.Value = DateTimeUtc.Now;
+                confirmedState.TransitionTime?.Value = DateTimeUtc.Now;
 
                 UpdateEffectiveState(context);
             }
@@ -452,17 +454,17 @@ namespace Opc.Ua
         /// <param name="context">The system context.</param>
         protected virtual void UpdateStateAfterUnconfirm(ISystemContext context)
         {
-            if (ConfirmedState != null)
+            if (ConfirmedState is { } confirmedState)
             {
                 var state = new TranslationInfo(
                     "ConditionStateUnconfirmed",
                     "en-US",
                     ConditionStateNames.Unconfirmed);
 
-                ConfirmedState!.Value = new LocalizedText(state);
-                ConfirmedState!.Id!.Value = false;
+                confirmedState.Value = new LocalizedText(state);
+                confirmedState.Id!.Value = false; // Id is created with ConfirmedState
 
-                ConfirmedState!.TransitionTime?.Value = DateTimeUtc.Now;
+                confirmedState.TransitionTime?.Value = DateTimeUtc.Now;
 
                 UpdateEffectiveState(context);
             }
@@ -511,7 +513,7 @@ namespace Opc.Ua
             bool supportsConfirm = false;
 
             if (ConfirmedState != null &&
-                !ConfirmedState!.Value.IsNullOrEmpty)
+                !ConfirmedState.Value.IsNullOrEmpty)
             {
                 supportsConfirm = true;
             }
@@ -554,15 +556,15 @@ namespace Opc.Ua
         {
             bool retainState = false;
 
-            if (EnabledState!.Id!.Value)
+            if (EnabledState!.Id!.Value) // condition states always have EnabledState/Id after construction
             {
                 retainState = base.GetRetainState();
 
-                if (!AckedState!.Id!.Value)
+                if (!AckedState!.Id!.Value) // ConditionState.Initialize creates AckedState/Id
                 {
                     retainState = true;
                 }
-                else if (SupportsConfirm() && !ConfirmedState!.Id!.Value)
+                else if (SupportsConfirm() && !ConfirmedState!.Id!.Value) // SupportsConfirm() implies ConfirmedState/Id non-null
                 {
                     retainState = true;
                 }

@@ -83,7 +83,7 @@ namespace Opc.Ua
         /// <returns>The result of validation.</returns>
         public Result Validate(IFilterContext context)
         {
-            var result = new Result(null!);
+            var result = new Result(null!); // TODO: review nullability of Result.Status (initialized later)
 
             // check for empty filter.
             if (m_elements.IsEmpty)
@@ -122,7 +122,7 @@ namespace Opc.Ua
                     continue;
                 }
 
-                result.ElementResults.Add(null!);
+                result.ElementResults.Add(null!); // intentional null sentinel: list cleared if no errors, otherwise non-null entries indicate failures
             }
 
             // ensure the global error code.
@@ -202,9 +202,9 @@ namespace Opc.Ua
             {
                 foreach (ExtensionObject extension in m_elements[ii].FilterOperands)
                 {
-                    if (extension.TryGetEncodeable(out ElementOperand? operand))
+                    if (extension.TryGetEncodeable(out ElementOperand? operand) && operand != null)
                     {
-                        operand!.Index++;
+                        operand.Index++;
                     }
                 }
             }
@@ -299,7 +299,7 @@ namespace Opc.Ua
                         };
 
                         result.ElementResults = result.ElementResults.AddItem(elementResult2);
-                        result.ElementDiagnosticInfos = result.ElementDiagnosticInfos.AddItem(null!);
+                        result.ElementDiagnosticInfos = result.ElementDiagnosticInfos.AddItem(null!); // intentional null sentinel for "no diagnostic"
                         continue;
                     }
 
@@ -398,7 +398,7 @@ namespace Opc.Ua
                     if (ServiceResult.IsGood(operandResult))
                     {
                         result.OperandStatusCodes = result.OperandStatusCodes.AddItem(StatusCodes.Good);
-                        result.OperandDiagnosticInfos = result.OperandDiagnosticInfos.AddItem(null!);
+                        result.OperandDiagnosticInfos = result.OperandDiagnosticInfos.AddItem(null!); // intentional null sentinel for "no diagnostic"
                     }
                     else
                     {
@@ -478,7 +478,7 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException"></exception>
         public virtual ContentFilter.ElementResult Validate(IFilterContext context, int index)
         {
-            var result = new ContentFilter.ElementResult(null!);
+            var result = new ContentFilter.ElementResult(null!); // TODO: review nullability of ElementResult.Status (initialized later)
 
             // check the number of operands.
             int operandCount;
@@ -564,7 +564,8 @@ namespace Opc.Ua
 
                 // check that the extension object contains a filter operand.
 
-                if (!operand.TryGetEncodeable(out FilterOperand? filterOperand))
+                if (!operand.TryGetEncodeable(out FilterOperand? filterOperand) ||
+                    filterOperand == null)
                 {
                     operandResult = ServiceResult.Create(
                         StatusCodes.BadEventFilterInvalid,
@@ -577,7 +578,7 @@ namespace Opc.Ua
                 }
 
                 // validate the operand.
-                filterOperand!.Parent = this;
+                filterOperand.Parent = this;
                 operandResult = filterOperand.Validate(context, index);
 
                 if (ServiceResult.IsBad(operandResult))
@@ -587,7 +588,7 @@ namespace Opc.Ua
                     continue;
                 }
 
-                result.OperandResults.Add(null!);
+                result.OperandResults.Add(null!); // intentional null sentinel: list cleared if no errors, otherwise non-null entries indicate failures
             }
 
             // ensure the global error code.
@@ -613,9 +614,9 @@ namespace Opc.Ua
 
             foreach (ExtensionObject extension in FilterOperands)
             {
-                if (extension.TryGetEncodeable(out FilterOperand? operand))
+                if (extension.TryGetEncodeable(out FilterOperand? operand) && operand != null)
                 {
-                    operands.Add(operand!);
+                    operands.Add(operand);
                 }
             }
 
@@ -969,7 +970,7 @@ namespace Opc.Ua
             {
                 try
                 {
-                    m_parsedIndexRange = NumericRange.Parse(m_indexRange!);
+                    m_parsedIndexRange = NumericRange.Parse(m_indexRange);
                 }
                 catch (Exception e)
                 {
@@ -977,7 +978,7 @@ namespace Opc.Ua
                         e,
                         StatusCodes.BadIndexRangeInvalid,
                         "AttributeOperand does not specify a valid BrowsePath ({0}).",
-                        m_indexRange!);
+                        m_indexRange);
                 }
 
                 if (m_attributeId != Attributes.Value)
@@ -1027,7 +1028,7 @@ namespace Opc.Ua
                 buffer.AppendFormat(
                     CultureInfo.InvariantCulture,
                     "[{0}]",
-                    NumericRange.Parse(IndexRange!));
+                    NumericRange.Parse(IndexRange!)); // IndexRange property re-read; non-null per IsNullOrEmpty
             }
 
             if (!string.IsNullOrEmpty(Alias))
