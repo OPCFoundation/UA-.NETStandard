@@ -204,7 +204,7 @@ There is no implicit conversion from `string` to `QualifiedName` or `LocalizedTe
 
 #### NodeId/ExpandedNodeId
 
-`NodeId`s with integer identifiers (the most common case) now do not box the integer identifier anymore into an object, making the entire NodeId heap allocation free (*).  ExpandedNodeId with integer identifiers only contain an allocated namespace Uri, which is mostly a const (interned) string, reducing small allocations across both types. Because both types are now immutable, they must be mutated using the provided `With<X>`. Access to the identifier in boxed form (object) is deprecated. Instead use the `TryGetIdentifier(out uint/string/Guid/byte[])` API. If you need to get the identifier only to "stringify" it, use the `IdentifierAsText` property which avoids boxing integer identifiers.
+`NodeId`s with integer identifiers (the most common case) now do not box the integer identifier anymore into an object, making the entire NodeId heap allocation free (*).  ExpandedNodeId with integer identifiers only contain an allocated namespace Uri, which is mostly a const (interned) string, reducing small allocations across both types. Because both types are now immutable, they must be mutated using the provided `With<X>`. Access to the identifier in boxed form (object) is deprecated. Instead use the `TryGetValue(out uint/string/Guid/byte[])` API. If you need to get the identifier only to "stringify" it, use the `IdentifierAsText` property which avoids boxing integer identifiers.
 
 There is no implicit conversion from `uint`/`Guid`/`string`/`byte[]` to `NodeId`/`ExpandedNodeId` to ensure assignment of null reference types (byte array and string) is not happening implicitly and to prevent accidental conversion of these identifiers into namespace 0. It also removes  hidden behavior such as parsing during assignments and flags areas where a proper Null/default NodeId should be inserted/returned. Use the explicit cast (e.g. `(NodeId)[(byte)3, 2]`) instead. For the previous implicit conversion from `string` to `NodeId` conversion use `NodeId.Parse` and `ExpandedNodeId.Parse`. On the same note, the constructor taking a string and no namespace index has been deprecated as it required a string to parse. Use Parse/TryParse instead.
 
@@ -218,7 +218,7 @@ The `ExtensionObject` was a reference type wrapping a `NodeId` and a body as a r
 
 ##### Deprecated boxing behavior
 
-Access to the `Value` property of `Variant` is marked as [Obsolete] to discourage use in favor of casting to `<Type>` or `Get<Type>()` (both throw) or preferably `bool TryGet(out <Type> value)` calls. The same applies to the `Value` property of `DataValue`. The APIs perform any required conversion between `BuiltInType.Int32` and `BuiltInType.Enumeration` as well as arrays of `BuiltInType.Byte` and `BuiltInType.ByteString`. This also applies to the `Body` property of `ExtensionObject`. Here prefer the use of `TryGetEncodeable<T>` and `TryGetBinary, TryGetJson, TryGetXml`.
+Access to the `Value` property of `Variant` is marked as [Obsolete] to discourage use in favor of casting to `<Type>` or `Get<Type>()` (both throw) or preferably `bool TryGetValue(out <Type> value)` calls. The same applies to the `Value` property of `DataValue`. The APIs perform any required conversion between `BuiltInType.Int32` and `BuiltInType.Enumeration` as well as arrays of `BuiltInType.Byte` and `BuiltInType.ByteString`. This also applies to the `Body` property of `ExtensionObject`. Here prefer the use of `TryGetValue<T>` and `TryGetBinary, TryGetJson, TryGetXml`.
 
 Creating a `Variant` or `ExtensionObject` via the constructor taking a `object` parameter is also marked [Obsolete] to encourage using type safe API to create a Variant (and thus not storing the wrong value in the inner `object` variable that cannot be converted out again or makes the Variant a null variant unexpectedly).
 
@@ -237,7 +237,7 @@ To perform conversion from `<T>` to a Variant, helper methods are available in `
 **System.Object and Variant comparable operations:**
 
 - *Casting*: Casting from Variant to built in system type "will just work" the same way as casting from the object, e.g. `object a; uint b = (uint)a;` is equivalent to `Variant a; uint b = (uint)a;`. Both throw `InvalidCastException` if the cast is not possible.
-- *Pattern matching*: If you use is pattern matching use the new `TryGet/TryGetStructure` calls. If you cast using as, use the same or if you prefer a default value in case the Variant has a different type, the `Get<BuiltInType>` or `GetStructure<T>` or equivalent array returning methods ending in `Array`. They do not throw, but return the default value.
+- *Pattern matching*: If you use is pattern matching use the new `TryGetValue/TryGetStructure` calls. If you cast using as, use the same or if you prefer a default value in case the Variant has a different type, the `Get<BuiltInType>` or `GetStructure<T>` or equivalent array returning methods ending in `Array`. They do not throw, but return the default value.
 - *Reflection*: Use `TypeInfo` property on Variant to obtain metadata for for example switching.
 - *Conversion*: Previously TypeInfo had support to Cast an object aligned with Variant behavior. These API have been removed in favor of the `ConvertTo[<]BuiltInType]()` members or `ConvertTo(BuiltInType target)`. NOTE: Under the hood `IConvertible` is used, which means integer values are boxed.
 
@@ -248,14 +248,14 @@ To migrate, perform the following general replacements in your code:
 - Generally replace all `ref object` with `ref Variant`.
 - In addition: for all callbacks registered in `BaseVariableState` change the callback signature to use `Variant` instead of `object` and `Variant[]` instead of `object[]`.
 - For all remaining `object[]` instances, replace with `ArrayOf<Variant>` or `IList<Variant>` judiciously and depending on context.
-- Keep all *casts* from **Variant** (not from its Value property) to the concrete type if you intend to preserve throw behavior. For any pattern matching (is/as) use `TryGet` if you need to check the result, or `Get<BuiltInType>` if you do not want to throw but are happy with the default value.
+- Keep all *casts* from **Variant** (not from its Value property) to the concrete type if you intend to preserve throw behavior. For any pattern matching (is/as) use `TryGetValue` if you need to check the result, or `Get<BuiltInType>` if you do not want to throw but are happy with the default value.
 
 > IMPORTANT: Care must be taken to not accidentally box a `Variant` value into an `object`.  E.g. current code like `object f = state.Value` will not be flagged by the compiler but must be replaced with `Variant f = state.Value` to remain type safe. Here it is best to use `var` for locals which requires no code changes.
 
 **Remaining work:**
 
 - Assignments to Variants and casting from variant to type should be dealt with via implicit conversion except for Structures. Here change code from `Value = <structure>` to `Value = Variant.FromStructure(<structure>)` and `<structure> = Value` to `Value.TryGetStructure(out <structure>)`.
-- Any pattern matching conversion used must be replaced with the TryGet/TryGetStructure pattern of Variant for checked conversions, e.g. `a = Value as uint?` must be replaced with `Value.TryGet(out uint a)` which most often produces more concise code and avoids the check for nullable result of the conversion. The same applies to `is` matching.
+- Any pattern matching conversion used must be replaced with the TryGetValue/TryGetStructure pattern of Variant for checked conversions, e.g. `a = Value as uint?` must be replaced with `Value.TryGetValue(out uint a)` which most often produces more concise code and avoids the check for nullable result of the conversion. The same applies to `is` matching.
 - For Variable and VariableType node state classes that provide a narrowed "Value" via generic `<T>` any access to `T Value` incurs a heavy type check.  It is recommended to use `WrappedValue` instead when possible for assignment and access.
 - While most assignments work implicitly, use `TypeInfo.GetDefaultVariantValue` instead of `TypeInfo.GetDefaultValue` to initialize a variant value to a default that is `!= Variant.Null`.
 
@@ -298,12 +298,12 @@ No changes are required, however there can be subtle bugs exposed, e.g.:
 - `NodeId(string text)` -> `NodeId.Parse(string)`
 - `NodeId(object identifier, ushort namespaceIndex)` -> typed constructors: `new NodeId(uint, ushort)`, `new NodeId(Guid, ushort)`, `new NodeId(string, ushort)`, `new NodeId(ByteString, ushort)`
 - `NodeId.Create(object identifier, string namespaceUri, NamespaceTable namespaceTable)` -> typed overloads: `NodeId.Create(string|uint|Guid|ByteString, string, NamespaceTable)`
-- `NodeId.Identifier` -> `TryGetIdentifier(out uint|string|Guid|ByteString)` or `IdentifierAsString`
+- `NodeId.Identifier` -> `TryGetValue(out uint|string|Guid|ByteString)` or `IdentifierAsString`
 - `NodeId.SetNamespaceIndex(ushort)` -> `WithNamespaceIndex(ushort)` (store the return value)
 - `NodeId.SetIdentifier(IdType, object)` -> `WithIdentifier(uint|string|Guid|ByteString)` or typed constructors
 - `ExpandedNodeId(string text)` -> `ExpandedNodeId.Parse(string)`
 - `ExpandedNodeId(object identifier, ushort namespaceIndex, string namespaceUri, uint serverIndex)` -> typed constructors: `new ExpandedNodeId(uint|Guid|string|ByteString, ushort, string, uint)`
-- `ExpandedNodeId.Identifier` -> `TryGetIdentifier(out uint|string|Guid|ByteString)` or `IdentifierAsString`
+- `ExpandedNodeId.Identifier` -> `TryGetValue(out uint|string|Guid|ByteString)` or `IdentifierAsString`
 - `NodeIdExtensions.IsNull(NodeId)` -> `NodeId.IsNull`
 - `NodeIdExtensions.IsNull(ExpandedNodeId)` -> `ExpandedNodeId.IsNull`
 - `QualifiedNameExtensions.IsNull(QualifiedName)` -> `QualifiedName.IsNull`
@@ -316,8 +316,8 @@ No changes are required, however there can be subtle bugs exposed, e.g.:
 - `Matrix` class -> use `MatrixOf<T>`
 - `<T>Collection` classes -> use `ArrayOf<T>` or `List<T>`
 - `new Variant(object)` -> use `Variant.From(T)`
-- `Variant.Value` -> use `Variant.TryGet`, cast, or `AsBoxedObject` if absolutely necessary.
-- `DataValue.GetValue`, `DataValue.GetValueOrDefault`, ,`DataValue.Value` -> use `DataValue.WrappedValue` and the new API on Variant (e.g. `Get[Type]`,  `TryGet`)
+- `Variant.Value` -> use `Variant.TryGetValue`, cast, or `AsBoxedObject` if absolutely necessary.
+- `DataValue.GetValue`, `DataValue.GetValueOrDefault`, ,`DataValue.Value` -> use `DataValue.WrappedValue` and the new API on Variant (e.g. `Get[Type]`,  `TryGetValue`)
 - `new DataValue(StatusCode)` and `new DataValue(StatusCode, DateTimeUtc)` -> use `DataValue.FromStatusCode(StatusCode)` and `DataValue.FromStatusCode(StatusCode, DateTimeUtc)`. The constructors suffered from a C# overload resolution bug where `new DataValue(42)` silently resolved to `DataValue(StatusCode)` instead of `DataValue(Variant)`, losing the value.
 
 #### APIs permanently removed

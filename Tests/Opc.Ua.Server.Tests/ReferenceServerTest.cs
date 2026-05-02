@@ -722,12 +722,12 @@ namespace Opc.Ua.Server.Tests
             Assert.IsNotNull(publishResponse.NotificationMessage.NotificationData);
             Assert.IsTrue(publishResponse.NotificationMessage.NotificationData.Count > 0);
 
-            publishResponse.NotificationMessage.NotificationData[0].TryGetEncodeable(out EventNotificationList eventNotification);
+            publishResponse.NotificationMessage.NotificationData[0].TryGetValue(out EventNotificationList eventNotification);
             Assert.IsNotNull(eventNotification);
             Assert.IsTrue(eventNotification.Events.Count > 0);
 
             EventFieldList targetEvent = eventNotification.Events.ToList().FirstOrDefault(
-                x => x.EventFields[5].TryGet(out LocalizedText lt) && lt.Text == eventMessage);
+                x => x.EventFields[5].TryGetValue(out LocalizedText lt) && lt.Text == eventMessage);
             Assert.IsNotNull(targetEvent, "Did not receive the target event.");
 
             ArrayOf<Variant> eventFields = targetEvent.EventFields;
@@ -738,10 +738,10 @@ namespace Opc.Ua.Server.Tests
             Assert.IsFalse(eventFields[2].IsNull); // SourceNode
             Assert.IsFalse(eventFields[3].IsNull); // SourceName
             Assert.IsFalse(eventFields[4].IsNull); // Time
-            Assert.That(eventFields[5].TryGet(out LocalizedText receivedMessage), Is.True); // Message
+            Assert.That(eventFields[5].TryGetValue(out LocalizedText receivedMessage), Is.True); // Message
             Assert.IsFalse(receivedMessage.IsNull);
             Assert.AreEqual(eventMessage, receivedMessage.Text);
-            Assert.That(eventFields[6].TryGet(out ushort receiveSeverity), Is.True);
+            Assert.That(eventFields[6].TryGetValue(out ushort receiveSeverity), Is.True);
             Assert.AreEqual((ushort)EventSeverity.Medium, receiveSeverity); // Severity
 
             // Delete subscription
@@ -1152,7 +1152,7 @@ namespace Opc.Ua.Server.Tests
 
                     foreach (ExtensionObject item in publishResponse.NotificationMessage.NotificationData)
                     {
-                        if (item.TryGetEncodeable(out DataChangeNotification dcn))
+                        if (item.TryGetValue(out DataChangeNotification dcn))
                         {
                             totalNotifications += dcn.MonitoredItems.Count;
                         }
@@ -1408,7 +1408,7 @@ namespace Opc.Ua.Server.Tests
 
             foreach (ExtensionObject data in publishResponse.NotificationMessage.NotificationData)
             {
-                if (data.TryGetEncodeable(out DataChangeNotification dcn))
+                if (data.TryGetValue(out DataChangeNotification dcn))
                 {
                     foreach (MonitoredItemNotification item in dcn.MonitoredItems)
                     {
@@ -1422,7 +1422,7 @@ namespace Opc.Ua.Server.Tests
                         }
                     }
                 }
-                else if (data.TryGetEncodeable(out EventNotificationList enl))
+                else if (data.TryGetValue(out EventNotificationList enl))
                 {
                     foreach (EventFieldList e in enl.Events)
                     {
@@ -1679,7 +1679,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(result.HistoryData.IsNull, Is.False, "HistoryData should not be null");
 
             // Verify we got HistoryData back
-            if (result.HistoryData.TryGetEncodeable(out HistoryData historyData))
+            if (result.HistoryData.TryGetValue(out HistoryData historyData))
             {
                 logger.LogInformation("Retrieved {Count} history values", historyData.DataValues.Count);
                 Assert.That(historyData.DataValues.IsNull, Is.False, "DataValues should not be null");

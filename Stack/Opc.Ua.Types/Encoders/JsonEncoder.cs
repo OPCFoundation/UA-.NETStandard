@@ -1333,7 +1333,7 @@ namespace Opc.Ua
                 m_writer.WriteNullValue();
                 return;
             }
-            value.TryGetEncodeable(out IEncodeable encodeable);
+            value.TryGetValue(out IEncodeable encodeable);
             ExpandedNodeId typeId = !value.TypeId.IsNull
                 ? value.TypeId
                 : encodeable?.TypeId ?? NodeId.Null;

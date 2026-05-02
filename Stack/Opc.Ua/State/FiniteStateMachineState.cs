@@ -142,7 +142,7 @@ namespace Opc.Ua
             NodeId value = CurrentState.Id.Value;
 
             if (ElementNamespaceIndex != value.NamespaceIndex ||
-                !value.TryGetIdentifier(out uint numericId))
+                !value.TryGetValue(out uint numericId))
             {
                 return 0;
             }

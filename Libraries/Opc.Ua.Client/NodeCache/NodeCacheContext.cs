@@ -386,9 +386,9 @@ namespace Opc.Ua.Client
                 }
 
                 // check for valid node class.
-                if (!nodeClassValues[ii].WrappedValue.TryGet(out NodeClass nodeClass))
+                if (!nodeClassValues[ii].WrappedValue.TryGetValue(out NodeClass nodeClass))
                 {
-                    if (nodeClassValues[ii].WrappedValue.TryGet(out int nc))
+                    if (nodeClassValues[ii].WrappedValue.TryGetValue(out int nc))
                     {
                         nodeClass = (NodeClass)nc;
                     }
@@ -509,7 +509,7 @@ namespace Opc.Ua.Client
                     }
 
                     // check for valid node class.
-                    if (!values[ii].WrappedValue.TryGet(out nodeClass))
+                    if (!values[ii].WrappedValue.TryGetValue(out nodeClass))
                     {
                         throw ServiceResultException.Unexpected(
                             "Node does not have a valid value for NodeClass: {0}.",
@@ -602,7 +602,7 @@ namespace Opc.Ua.Client
 
                     if (value != null)
                     {
-                        if (!value.WrappedValue.TryGet(out ArrayOf<uint> arrayDimensions1))
+                        if (!value.WrappedValue.TryGetValue(out ArrayOf<uint> arrayDimensions1))
                         {
                             variableNode.ArrayDimensions = [];
                         }
@@ -678,7 +678,7 @@ namespace Opc.Ua.Client
                     value = attributes[Attributes.ArrayDimensions];
 
                     if (value != null &&
-                        value.WrappedValue.TryGet(out ArrayOf<uint> arrayDimensions2))
+                        value.WrappedValue.TryGetValue(out ArrayOf<uint> arrayDimensions2))
                     {
                         variableTypeNode.ArrayDimensions = arrayDimensions2;
                     }
@@ -720,7 +720,7 @@ namespace Opc.Ua.Client
                     if (value != null)
                     {
                         dataTypeNode.DataTypeDefinition =
-                            value.WrappedValue.TryGet(out ExtensionObject eo) ? eo : default;
+                            value.WrappedValue.TryGetValue(out ExtensionObject eo) ? eo : default;
                     }
 
                     node = dataTypeNode;
@@ -746,7 +746,7 @@ namespace Opc.Ua.Client
                     value = attributes[Attributes.InverseName];
 
                     if (value != null &&
-                        value.WrappedValue.TryGet(out LocalizedText inverseName))
+                        value.WrappedValue.TryGetValue(out LocalizedText inverseName))
                     {
                         referenceTypeNode.InverseName = inverseName;
                     }
@@ -831,12 +831,12 @@ namespace Opc.Ua.Client
             if (attributes.TryGetValue(Attributes.RolePermissions, out value) &&
                 value != null)
             {
-                if (value.WrappedValue.TryGet(out ArrayOf<ExtensionObject> rolePermissions))
+                if (value.WrappedValue.TryGetValue(out ArrayOf<ExtensionObject> rolePermissions))
                 {
                     var rolePermissionList = new List<RolePermissionType?>();
                     foreach (ExtensionObject rolePermission in rolePermissions)
                     {
-                        rolePermissionList.Add(rolePermission.TryGetEncodeable(
+                        rolePermissionList.Add(rolePermission.TryGetValue(
                             out RolePermissionType rolePermissionType) ? rolePermissionType : null);
                     }
                     node.RolePermissions = rolePermissionList;
@@ -847,12 +847,12 @@ namespace Opc.Ua.Client
             if (attributes.TryGetValue(Attributes.UserRolePermissions, out value) &&
                 value != null)
             {
-                if (value.WrappedValue.TryGet(out ArrayOf<ExtensionObject> userRolePermissions))
+                if (value.WrappedValue.TryGetValue(out ArrayOf<ExtensionObject> userRolePermissions))
                 {
                     var userRolePermissionList = new List<RolePermissionType?>();
                     foreach (ExtensionObject rolePermission in userRolePermissions)
                     {
-                        userRolePermissionList.Add(rolePermission.TryGetEncodeable(
+                        userRolePermissionList.Add(rolePermission.TryGetValue(
                             out RolePermissionType rolePermissionType) ? rolePermissionType : null);
                     }
                     node.UserRolePermissions = userRolePermissionList;

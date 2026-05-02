@@ -88,7 +88,7 @@ namespace Quickstarts.ReferenceServer
         {
             if (node is BaseInstanceState instance &&
                 instance.Parent != null &&
-                instance.Parent.NodeId.TryGetIdentifier(out string id))
+                instance.Parent.NodeId.TryGetValue(out string id))
             {
                 return new NodeId(
                     id + "_" + instance.SymbolicName,
@@ -4507,12 +4507,12 @@ namespace Quickstarts.ReferenceServer
             TypeInfo typeInfo = value.TypeInfo;
 
             if (node is not PropertyState<Range> variable ||
-                !value.TryGet(out ExtensionObject extensionObject) ||
+                !value.TryGetValue(out ExtensionObject extensionObject) ||
                 typeInfo.IsUnknown)
             {
                 return StatusCodes.BadTypeMismatch;
             }
-            if (!extensionObject.TryGetEncodeable(out Range newRange) ||
+            if (!extensionObject.TryGetValue(out Range newRange) ||
                 variable.Parent is not AnalogItemState parent)
             {
                 return StatusCodes.BadTypeMismatch;

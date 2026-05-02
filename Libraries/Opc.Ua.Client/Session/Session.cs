@@ -3288,7 +3288,7 @@ namespace Opc.Ua.Client
                     }
 
                     // send notification that keep alive completed.
-                    if (!values[0].WrappedValue.TryGet(out ServerState serverState))
+                    if (!values[0].WrappedValue.TryGetValue(out ServerState serverState))
                     {
                         serverState = ServerState.Unknown;
                     }
@@ -3488,7 +3488,7 @@ namespace Opc.Ua.Client
                     "Cannot read NamespaceArray node. Validation of returned value failed.");
             }
 
-            if (!values[0].WrappedValue.TryGet(out ArrayOf<string> namespaceArray) ||
+            if (!values[0].WrappedValue.TryGetValue(out ArrayOf<string> namespaceArray) ||
                 namespaceArray.IsEmpty)
             {
                 throw ServiceResultException.Unexpected(
@@ -3524,7 +3524,7 @@ namespace Opc.Ua.Client
                     "Cannot read ServerArray node. Validation of returned value failed.");
             }
 
-            if (values[1].WrappedValue.TryGet(out ArrayOf<string> serverArray))
+            if (values[1].WrappedValue.TryGetValue(out ArrayOf<string> serverArray))
             {
                 ServerUris.Update(serverArray.ToArray());
             }
@@ -5082,7 +5082,7 @@ namespace Opc.Ua.Client
             X509Certificate2? serverCertificate)
         {
             if (responseHeader != null &&
-                responseHeader.AdditionalHeader.TryGetEncodeable(out IEncodeable e) &&
+                responseHeader.AdditionalHeader.TryGetValue(out IEncodeable e) &&
                 e is AdditionalParametersType parameters)
             {
                 foreach (KeyValuePair ii in parameters.Parameters)

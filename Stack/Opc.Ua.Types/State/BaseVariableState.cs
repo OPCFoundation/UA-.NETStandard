@@ -158,7 +158,7 @@ namespace Opc.Ua
             ExtensionObject extension,
             bool throwOnError)
         {
-            if (extension.TryGetEncodeable(out IEncodeable encodeable) &&
+            if (extension.TryGetValue(out IEncodeable encodeable) &&
                 targetType.IsInstanceOfType(encodeable))
             {
                 return encodeable;
@@ -1397,7 +1397,7 @@ namespace Opc.Ua
             switch (attributeId)
             {
                 case Attributes.DataType:
-                    if (!value.TryGet(out NodeId dataType))
+                    if (!value.TryGetValue(out NodeId dataType))
                     {
                         return StatusCodes.BadTypeMismatch;
                     }
@@ -1421,7 +1421,7 @@ namespace Opc.Ua
 
                     return result;
                 case Attributes.ValueRank:
-                    if (!value.TryGet(out int valueRank))
+                    if (!value.TryGetValue(out int valueRank))
                     {
                         return StatusCodes.BadTypeMismatch;
                     }
@@ -1445,7 +1445,7 @@ namespace Opc.Ua
 
                     return result;
                 case Attributes.ArrayDimensions:
-                    if (!value.TryGet(out ArrayOf<uint> arrayDimensions))
+                    if (!value.TryGetValue(out ArrayOf<uint> arrayDimensions))
                     {
                         if (!value.IsNull)
                         {
@@ -1474,7 +1474,7 @@ namespace Opc.Ua
 
                     return result;
                 case Attributes.AccessLevel:
-                    if (!value.TryGet(out byte accessLevel))
+                    if (!value.TryGetValue(out byte accessLevel))
                     {
                         return StatusCodes.BadTypeMismatch;
                     }
@@ -1498,7 +1498,7 @@ namespace Opc.Ua
 
                     return result;
                 case Attributes.UserAccessLevel:
-                    if (!value.TryGet(out byte userAccessLevel))
+                    if (!value.TryGetValue(out byte userAccessLevel))
                     {
                         return StatusCodes.BadTypeMismatch;
                     }
@@ -1522,7 +1522,7 @@ namespace Opc.Ua
 
                     return result;
                 case Attributes.MinimumSamplingInterval:
-                    if (!value.TryGet(out double minimumSamplingInterval))
+                    if (!value.TryGetValue(out double minimumSamplingInterval))
                     {
                         return StatusCodes.BadTypeMismatch;
                     }
@@ -1550,7 +1550,7 @@ namespace Opc.Ua
 
                     return result;
                 case Attributes.Historizing:
-                    if (!value.TryGet(out bool historizing))
+                    if (!value.TryGetValue(out bool historizing))
                     {
                         return StatusCodes.BadTypeMismatch;
                     }

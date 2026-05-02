@@ -645,10 +645,10 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 #pragma warning disable CS0618 // Type or member is obsolete
             var variant = new Variant(values);
 #pragma warning restore CS0618 // Type or member is obsolete
-            MethodInfo method = typeof(Variant).GetMethod(nameof(Variant.TryGet), Array(descriptor.ValueType.MakeByRefType()));
+            MethodInfo method = typeof(Variant).GetMethod(nameof(Variant.TryGetValue), Array(descriptor.ValueType.MakeByRefType()));
             object[] args = Array(CreateDefaultValue(descriptor.ValueType));
 
-            Assert.That(method, Is.Not.Null, $"TryGet overload for {descriptor.Name} should exist");
+            Assert.That(method, Is.Not.Null, $"TryGetValue overload for {descriptor.Name} should exist");
             bool success = (bool)method.Invoke(variant, args);
 
             Assert.That(success, Is.True);
@@ -723,7 +723,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 #pragma warning restore CS0618 // Type or member is obsolete
             MethodInfo method = typeof(Variant).GetMethods().FirstOrDefault(m =>
             {
-                if (m.Name != nameof(Variant.TryGet))
+                if (m.Name != nameof(Variant.TryGetValue))
                 {
                     return false;
                 }
@@ -741,7 +741,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                     param.ParameterType == descriptor.ValueType.MakeByRefType() ||
                     param.ParameterType == descriptor.ValueType;
             });
-            Assert.That(method, Is.Not.Null, $"TryGet Method with {descriptor.ValueType} not found");
+            Assert.That(method, Is.Not.Null, $"TryGetValue Method with {descriptor.ValueType} not found");
             object[] args = new object[1];
             bool success = (bool)method.Invoke(variant, args);
             Assert.That(success, Is.True);
@@ -770,7 +770,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void TryGetString_FailsForWrongBuiltInType()
         {
             var variant = new Variant(1);
-            Assert.That(variant.TryGet(out string _), Is.False);
+            Assert.That(variant.TryGetValue(out string _), Is.False);
         }
 
         [Test]
@@ -875,7 +875,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var variant = new Variant(123u);
 
-            Assert.That(variant.TryGet(out StatusCode status), Is.True);
+            Assert.That(variant.TryGetValue(out StatusCode status), Is.True);
             Assert.That(status, Is.EqualTo(new StatusCode(123u)));
         }
 

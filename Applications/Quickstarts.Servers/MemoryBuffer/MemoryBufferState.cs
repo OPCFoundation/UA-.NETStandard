@@ -301,7 +301,7 @@ namespace MemoryBuffer
                 {
                     case BuiltInType.UInt32:
                     {
-                        if (!value.TryGet(out uint valueToWrite))
+                        if (!value.TryGetValue(out uint valueToWrite))
                         {
                             return StatusCodes.BadTypeMismatch;
                         }
@@ -311,7 +311,7 @@ namespace MemoryBuffer
                     }
                     case BuiltInType.Double:
                     {
-                        if (!value.TryGet(out double valueToWrite))
+                        if (!value.TryGetValue(out double valueToWrite))
                         {
                             return StatusCodes.BadTypeMismatch;
                         }

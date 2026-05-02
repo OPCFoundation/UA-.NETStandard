@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.Contracts;
+using System.Runtime.CompilerServices;
 using System.Text.Json.Serialization;
 using Opc.Ua.Types;
 
@@ -53,6 +54,7 @@ namespace Opc.Ua
     /// how it is encoded.
     /// </para>
     /// </remarks>
+    [Union]
     public readonly struct ExtensionObject :
         IFormattable,
         INullable,
@@ -242,7 +244,7 @@ namespace Opc.Ua
                     XmlElement x =>
                         x == (value.TryGetAsXml(out XmlElement x2) ? x2 : default),
                     IEncodeable e => e.IsEqual(
-                        value.TryGetEncodeable(out IEncodeable e2) ? e2 : default),
+                        value.TryGetValue(out IEncodeable e2) ? e2 : default),
                     _ => false
                 };
             }
@@ -322,9 +324,17 @@ namespace Opc.Ua
         public bool IsNull => TypeId.IsNull && m_body == null;
 
         /// <summary>
+        /// Returns <c>true</c> if the ExtensionObject currently holds a body
+        /// (i.e. is not Null). This is the inverse of <see cref="IsNull"/>
+        /// and matches the non-boxing access member shape proposed for
+        /// C# 15 union types.
+        /// </summary>
+        public bool HasValue => !IsNull;
+
+        /// <summary>
         /// Try get encodeable from the extension object
         /// </summary>
-        public bool TryGetEncodeable(
+        public bool TryGetValue(
             out IEncodeable encodeable,
             IServiceMessageContext messageContext = null)
         {
@@ -349,12 +359,12 @@ namespace Opc.Ua
         /// Get encoded value
         /// </summary>
         /// <typeparam name="T"></typeparam>
-        public bool TryGetEncodeable<T>(
+        public bool TryGetValue<T>(
             out T encodeable,
             IServiceMessageContext messageContext = null)
             where T : IEncodeable
         {
-            if (TryGetEncodeable(out IEncodeable e, messageContext) &&
+            if (TryGetValue(out IEncodeable e, messageContext) &&
                 e is T typedEncodeable)
             {
                 encodeable = typedEncodeable;
@@ -464,7 +474,7 @@ namespace Opc.Ua
             var output = new T[extensions.Count];
             for (int ii = 0; ii < output.Length; ii++)
             {
-                if (extensions[ii].TryGetEncodeable(out T element))
+                if (extensions[ii].TryGetValue(out T element))
                 {
                     output[ii] = element;
                 }

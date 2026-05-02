@@ -1300,19 +1300,19 @@ namespace Opc.Ua.PubSub.Encoding
             {
                 WriteInt32("IdType", (int)value.IdType);
             }
-            if (value.TryGetIdentifier(out uint numericId))
+            if (value.TryGetValue(out uint numericId))
             {
                 WriteUInt32("Id", numericId);
             }
-            else if (value.TryGetIdentifier(out string stringId))
+            else if (value.TryGetValue(out string stringId))
             {
                 WriteString("Id", stringId);
             }
-            else if (value.TryGetIdentifier(out Guid guidIdentifier))
+            else if (value.TryGetValue(out Guid guidIdentifier))
             {
                 WriteGuid("Id", guidIdentifier);
             }
-            else if (value.TryGetIdentifier(out ByteString opaqueId))
+            else if (value.TryGetValue(out ByteString opaqueId))
             {
                 WriteByteString("Id", opaqueId);
             }
