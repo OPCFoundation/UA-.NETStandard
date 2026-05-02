@@ -468,96 +468,6 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public ValueTask<NodeId> GetSuperTypeAsync(NodeId typeId, CancellationToken ct)
-        {
-            return m_refs.TryGet(typeId, out ArrayOf<ReferenceDescription> references)
-                ? new ValueTask<NodeId>(GetSuperTypeFromReferences(references))
-                : FindSuperTypeAsyncCore(typeId, ct);
-
-            async ValueTask<NodeId> FindSuperTypeAsyncCore(NodeId typeId, CancellationToken ct)
-            {
-                ArrayOf<ReferenceDescription> references = await GetOrAddReferencesAsync(typeId, ct)
-                    .ConfigureAwait(false);
-                return GetSuperTypeFromReferences(references);
-            }
-        }
-
-        /// <inheritdoc/>
-        public async ValueTask<BuiltInType> GetBuiltInTypeAsync(
-            NodeId datatypeId,
-            CancellationToken ct)
-        {
-            NodeId typeId = datatypeId;
-            while (!typeId.IsNull)
-            {
-                if (typeId.NamespaceIndex == 0 && typeId.TryGetIdentifier(out uint numericId))
-                {
-                    var id = (BuiltInType)(int)numericId;
-                    if (id is > BuiltInType.Null and <= BuiltInType.Enumeration and not BuiltInType.DiagnosticInfo)
-                    {
-                        return id;
-                    }
-                }
-                typeId = await GetSuperTypeAsync(typeId, ct).ConfigureAwait(false);
-            }
-            return BuiltInType.Null;
-        }
-
-        /// <inheritdoc/>
-        public async ValueTask<INode?> GetNodeWithBrowsePathAsync(
-            NodeId nodeId,
-            ArrayOf<QualifiedName> browsePath,
-            CancellationToken ct)
-        {
-            INode? found = null;
-            foreach (QualifiedName browseName in browsePath.ToList())
-            {
-                found = null;
-                while (true)
-                {
-                    if (nodeId.IsNull)
-                    {
-                        // Nothing can be found since there is nothing to start
-                        return null;
-                    }
-
-                    //
-                    // Get all hierarchical references of the node and
-                    // match browse name
-                    //
-                    ArrayOf<INode> references = await GetReferencesAsync(
-                            nodeId,
-                            ReferenceTypeIds.HierarchicalReferences,
-                            false,
-                            true,
-                            ct)
-                        .ConfigureAwait(false);
-                    foreach (INode target in references)
-                    {
-                        if (target.BrowseName == browseName)
-                        {
-                            nodeId = ToNodeId(target.NodeId);
-                            if (!nodeId.IsNull)
-                            {
-                                found = target;
-                            }
-                            break;
-                        }
-                    }
-
-                    if (found != null)
-                    {
-                        break;
-                    }
-                    // Try find name in super type
-                    nodeId = await GetSuperTypeAsync(nodeId, ct).ConfigureAwait(false);
-                }
-                nodeId = ToNodeId(found.NodeId);
-            }
-            return found;
-        }
-
-        /// <inheritdoc/>
         public void Clear()
         {
             m_nodes.Clear();
@@ -657,22 +567,6 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public async ValueTask<ArrayOf<INode?>> FindAsync(
-            ArrayOf<ExpandedNodeId> nodeIds,
-            CancellationToken ct = default)
-        {
-            if (nodeIds.IsEmpty)
-            {
-                return [];
-            }
-            var result = new List<INode?>(nodeIds.Count);
-            foreach (ExpandedNodeId nodeId in nodeIds.ToList())
-            {
-                result.Add(await FindAsync(nodeId, ct).ConfigureAwait(false));
-            }
-            return result;
-        }
-
         /// <summary>
         /// Populate a node's <see cref="Node.ReferenceTable"/> from references
         /// fetched from the server. Mirrors legacy NodeCache behavior so callers
@@ -789,46 +683,6 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public async ValueTask FetchSuperTypesAsync(
-            ExpandedNodeId nodeId,
-            CancellationToken ct = default)
-        {
-            NodeId current = ToNodeId(nodeId);
-            while (!current.IsNull)
-            {
-                current = await GetSuperTypeAsync(current, ct).ConfigureAwait(false);
-            }
-        }
-
-        /// <inheritdoc/>
-        public ValueTask<ArrayOf<INode>> FindReferencesAsync(
-            ExpandedNodeId nodeId,
-            NodeId referenceTypeId,
-            bool isInverse,
-            bool includeSubtypes,
-            CancellationToken ct = default)
-        {
-            NodeId localId = ToNodeId(nodeId);
-            if (localId.IsNull)
-            {
-                return new ValueTask<ArrayOf<INode>>(new List<INode>().ToArrayOf());
-            }
-            return GetReferencesAsync(localId, referenceTypeId, isInverse, includeSubtypes, ct);
-        }
-
-        /// <inheritdoc/>
-        public ValueTask<ArrayOf<INode>> FindReferencesAsync(
-            ArrayOf<ExpandedNodeId> nodeIds,
-            ArrayOf<NodeId> referenceTypeIds,
-            bool isInverse,
-            bool includeSubtypes,
-            CancellationToken ct = default)
-        {
-            ArrayOf<NodeId> localIds = nodeIds.ConvertAll(ToNodeId);
-            return GetReferencesAsync(localIds, referenceTypeIds, isInverse, includeSubtypes, ct);
-        }
-
-        /// <inheritdoc/>
         public async ValueTask<bool> IsKnownAsync(ExpandedNodeId typeId, CancellationToken ct)
         {
             return await FindAsync(typeId, ct).ConfigureAwait(false) != null;
@@ -855,13 +709,22 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public ValueTask<NodeId> FindSuperTypeAsync(ExpandedNodeId typeId, CancellationToken ct)
         {
-            return GetSuperTypeAsync(ToNodeId(typeId), ct);
+            return FindSuperTypeAsync(ToNodeId(typeId), ct);
         }
 
         /// <inheritdoc/>
         public ValueTask<NodeId> FindSuperTypeAsync(NodeId typeId, CancellationToken ct)
         {
-            return GetSuperTypeAsync(typeId, ct);
+            return m_refs.TryGet(typeId, out ArrayOf<ReferenceDescription> references)
+                ? new ValueTask<NodeId>(GetSuperTypeFromReferences(references))
+                : FindSuperTypeAsyncCore(typeId, ct);
+
+            async ValueTask<NodeId> FindSuperTypeAsyncCore(NodeId typeId, CancellationToken ct)
+            {
+                ArrayOf<ReferenceDescription> references = await GetOrAddReferencesAsync(typeId, ct)
+                    .ConfigureAwait(false);
+                return GetSuperTypeFromReferences(references);
+            }
         }
 
         /// <inheritdoc/>
@@ -913,7 +776,7 @@ namespace Opc.Ua.Client
             NodeId current = subTypeId;
             while (!current.IsNull)
             {
-                NodeId superType = await GetSuperTypeAsync(current, ct).ConfigureAwait(false);
+                NodeId superType = await FindSuperTypeAsync(current, ct).ConfigureAwait(false);
                 if (superType.IsNull)
                 {
                     break;
@@ -1096,49 +959,6 @@ namespace Opc.Ua.Client
                 return ToNodeId(dataTypes[0].NodeId);
             }
             return NodeId.Null;
-        }
-
-        /// <inheritdoc/>
-        public ValueTask<string?> GetDisplayTextAsync(INode node, CancellationToken ct)
-        {
-            if (node == null)
-            {
-                return new ValueTask<string?>(string.Empty);
-            }
-            string? text = node.DisplayName.Text ?? node.BrowseName.Name ?? string.Empty;
-            return new ValueTask<string?>(text);
-        }
-
-        /// <inheritdoc/>
-        public async ValueTask<string?> GetDisplayTextAsync(
-            ExpandedNodeId nodeId,
-            CancellationToken ct)
-        {
-            if (nodeId.IsNull)
-            {
-                return string.Empty;
-            }
-            INode? node = await FindAsync(nodeId, ct).ConfigureAwait(false);
-            if (node != null)
-            {
-                return await GetDisplayTextAsync(node, ct).ConfigureAwait(false);
-            }
-            return Utils.Format("{0}", nodeId);
-        }
-
-        /// <inheritdoc/>
-        public ValueTask<string?> GetDisplayTextAsync(
-            ReferenceDescription reference,
-            CancellationToken ct)
-        {
-            if (reference == null || reference.NodeId.IsNull)
-            {
-                return new ValueTask<string?>(string.Empty);
-            }
-            string? text = reference.DisplayName.Text
-                ?? reference.BrowseName.Name
-                ?? string.Empty;
-            return new ValueTask<string?>(text);
         }
 
         /// <summary>

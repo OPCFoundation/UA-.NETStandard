@@ -1028,12 +1028,33 @@ cache surface.
 - **`LruNodeCacheExtensions` is renamed to `NodeCacheExtensions`** and
   retargets `this INodeCache cache`. The ExpandedNodeId convenience
   overloads (`GetNodeAsync`, `GetNodesAsync`, `GetValueAsync`,
-  `GetValuesAsync`, `GetReferencesAsync`, `GetSuperTypeAsync`) keep
-  the same shape. The `IsTypeOf(this ILruNodeCache, ExpandedNodeId, NodeId)`
-  and `GetBuiltInTypeAsync(this ILruNodeCache, NodeId, …)` extensions
-  are removed (the latter is now an interface method on `INodeCache`).
+  `GetValuesAsync`, `GetReferencesAsync`) keep the same shape. The
+  `IsTypeOf(this ILruNodeCache, ExpandedNodeId, NodeId)` extension is
+  removed.
 - **`void Clear()` is unchanged.** It is a pure local-state mutation
   with no I/O and remains synchronous on the interface.
+
+#### Subsequent slim-down of `INodeCache` (post-merge)
+
+After the initial merge, `INodeCache` was further trimmed to remove
+duplications and demote pure helpers to extension methods. Removed
+**from the interface** (still callable on a `INodeCache` reference via
+`NodeCacheExtensions`):
+
+| Removed from interface | Replacement |
+|---|---|
+| `GetSuperTypeAsync(NodeId, ct)` | inherited `IAsyncTypeTable.FindSuperTypeAsync(NodeId, ct)` (identical semantics — the interface methods returned the same `NodeId.Null`-on-miss value) |
+| `FindReferencesAsync(ExpandedNodeId, NodeId, bool, bool, ct)` | inherited `IAsyncNodeTable.FindAsync(source, refType, isInverse, includeSubtypes, ct)` (identical signature). A thin extension method preserves the old name for callers that prefer it. |
+| `FindReferencesAsync(ArrayOf<ExpandedNodeId>, ArrayOf<NodeId>, …)` | extension method on `NodeCacheExtensions` (same signature). |
+| `FindAsync(ArrayOf<ExpandedNodeId>, ct)` | extension method on `NodeCacheExtensions` that loops over the inherited `FindAsync(ExpandedNodeId)`. |
+| `FetchSuperTypesAsync(ExpandedNodeId, ct)` | extension method that loops `FindSuperTypeAsync`. |
+| `GetNodeWithBrowsePathAsync(NodeId, ArrayOf<QualifiedName>, ct)` | extension method on `NodeCacheExtensions`. |
+| `GetBuiltInTypeAsync(NodeId, ct)` | extension method on `NodeCacheExtensions`. |
+| `GetDisplayTextAsync(INode | ExpandedNodeId | ReferenceDescription, ct)` | three extension methods on `NodeCacheExtensions`. |
+
+External implementations of `INodeCache` no longer need to implement
+these members. Call sites that already used `using Opc.Ua;` keep
+compiling unchanged because the extensions live in the same namespace.
 
 #### Two complementary lookup families
 
@@ -1068,13 +1089,18 @@ bool isType = await cache.IsTypeOfAsync(sub, super);
 
 External implementations of `INodeCache` must:
 
-1. Add the `Get*` methods (NodeId-keyed) plus `GetBuiltInTypeAsync`,
-   `LoadTypeHierarchyAsync`, `GetNodeWithBrowsePathAsync`.
+1. Add the `Get*` methods (NodeId-keyed) plus
+   `LoadTypeHierarchyAsync`.
 2. Convert their `Task<T>`-returning members to `ValueTask<T>`.
 3. Remove any `LoadUaDefinedTypes(ISystemContext)` override or call.
 
 Test doubles (Moq) need new `Setup` calls covering the `Get*` methods
-they exercise.
+they exercise. Members moved to `NodeCacheExtensions` (e.g.
+`GetBuiltInTypeAsync`, `GetNodeWithBrowsePathAsync`,
+`GetDisplayTextAsync`, the `ExpandedNodeId`-keyed
+`FindReferencesAsync`/`FindAsync` overloads,
+`FetchSuperTypesAsync`) no longer need to be set up — the extensions
+delegate to the smaller core surface automatically.
 
 #### Out of scope
 

@@ -754,7 +754,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
-        public async Task GetSuperTypeAsyncShouldHandleNoSupertypeAsync()
+        public async Task FindSuperTypeAsyncShouldHandleNoSupertypeAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
@@ -772,7 +772,7 @@ namespace Opc.Ua.Client.Tests
             var nodeCache = new LruNodeCache(context.Object, telemetry);
 
             // Act
-            NodeId result = await nodeCache.GetSuperTypeAsync(typeId, default)
+            NodeId result = await nodeCache.FindSuperTypeAsync(typeId, default)
                 .ConfigureAwait(false);
 
             // Assert
@@ -781,7 +781,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
-        public async Task GetSuperTypeAsyncShouldReturnSuperTypeAsync()
+        public async Task FindSuperTypeAsyncShouldReturnSuperTypeAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
@@ -812,14 +812,14 @@ namespace Opc.Ua.Client.Tests
             var nodeCache = new LruNodeCache(context.Object, telemetry);
 
             // Act
-            NodeId result = await nodeCache.GetSuperTypeAsync(subTypeId, default)
+            NodeId result = await nodeCache.FindSuperTypeAsync(subTypeId, default)
                 .ConfigureAwait(false);
 
             // Assert
             Assert.That(result, Is.EqualTo(superTypeId));
 
             // Act
-            result = await nodeCache.GetSuperTypeAsync(subTypeId, default).ConfigureAwait(false);
+            result = await nodeCache.FindSuperTypeAsync(subTypeId, default).ConfigureAwait(false);
             // Assert
             Assert.That(result, Is.EqualTo(superTypeId));
 

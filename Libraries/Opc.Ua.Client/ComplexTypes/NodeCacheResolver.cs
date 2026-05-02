@@ -744,7 +744,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// </summary>
         private ValueTask<NodeId> GetSuperTypeAsync(NodeId typeId, CancellationToken ct)
         {
-            return m_nodeCache.GetSuperTypeAsync(typeId, ct);
+            return m_nodeCache.FindSuperTypeAsync(typeId, ct);
         }
 
         /// <summary>
