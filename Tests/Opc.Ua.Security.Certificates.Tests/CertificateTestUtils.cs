@@ -192,11 +192,11 @@ namespace Opc.Ua.Security.Certificates.Tests
     /// <summary>
     /// A Certificate as test asset.
     /// </summary>
-    public class CertificateAsset : IAsset, IFormattable
+    public class CertificateAsset : IAsset, IFormattable, IDisposable
     {
         public string Path { get; private set; }
         public byte[] Cert { get; private set; }
-        public X509Certificate2 X509Certificate { get; private set; }
+        public Certificate X509Certificate { get; private set; }
 
         public void Initialize(byte[] blob, string path)
         {
@@ -204,11 +204,17 @@ namespace Opc.Ua.Security.Certificates.Tests
             Cert = blob;
             try
             {
-                X509Certificate = X509CertificateLoader.LoadCertificateFromFile(path);
+                X509Certificate = new Certificate(path);
             }
             catch
             {
             }
+        }
+
+        public void Dispose()
+        {
+            X509Certificate?.Dispose();
+            X509Certificate = null;
         }
 
         public string ToString(string format, IFormatProvider formatProvider)

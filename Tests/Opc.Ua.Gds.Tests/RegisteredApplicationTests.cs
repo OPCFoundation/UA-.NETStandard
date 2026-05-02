@@ -28,9 +28,9 @@
  * ======================================================================*/
 
 using System.Collections.Generic;
-using System.Security.Cryptography.X509Certificates;
 using NUnit.Framework;
 using Opc.Ua.Gds.Client;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Gds.Tests
 {
@@ -41,6 +41,7 @@ namespace Opc.Ua.Gds.Tests
     [Parallelizable]
     public class RegisteredApplicationTests
     {
+        private static readonly ICertificateFactory s_factory = new DefaultCertificateFactory();
         private static readonly string[] s_pfxPemFormats = ["PFX", "PEM"];
         private static readonly string[] s_pemOnlyFormats = ["PEM"];
 
@@ -189,11 +190,11 @@ namespace Opc.Ua.Gds.Tests
         [Test]
         public void GetDomainNamesFromCertificate()
         {
-            using X509Certificate2 cert = CertificateFactory.CreateCertificate(
+            using Certificate cert = s_factory.CreateApplicationCertificate(
                 "urn:test:app",
                 "TestApp",
                 "CN=TestApp,DC=testdomain,DC=com",
-                new ArrayOf<string>(s_testHostDomains))
+                s_testHostDomains)
                 .CreateForRSA();
 
             var app = new RegisteredApplication();

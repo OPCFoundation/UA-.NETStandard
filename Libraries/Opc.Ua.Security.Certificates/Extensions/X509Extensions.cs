@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 using System;
 using System.Collections.Generic;
 using System.Formats.Asn1;
@@ -47,7 +49,7 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         /// <typeparam name="T">The type of the extension.</typeparam>
         /// <param name="certificate">The certificate with extensions.</param>
-        public static T FindExtension<T>(this X509Certificate2 certificate)
+        public static T? FindExtension<T>(this Certificate certificate)
             where T : X509Extension
         {
             return FindExtension<T>(certificate.Extensions);
@@ -59,7 +61,7 @@ namespace Opc.Ua.Security.Certificates
         /// <typeparam name="T">The type of the extension.</typeparam>
         /// <param name="extensions">The extensions to search.</param>
         /// <exception cref="ArgumentNullException"><paramref name="extensions"/> is <c>null</c>.</exception>
-        public static T FindExtension<T>(this X509ExtensionCollection extensions)
+        public static T? FindExtension<T>(this X509ExtensionCollection extensions)
             where T : X509Extension
         {
             if (extensions == null)
@@ -72,10 +74,10 @@ namespace Opc.Ua.Security.Certificates
                 // search known custom extensions
                 if (typeof(T) == typeof(X509AuthorityKeyIdentifierExtension))
                 {
-                    X509Extension extension = extensions
+                    X509Extension? extension = extensions
                         .Cast<X509Extension>()
                         .FirstOrDefault(e =>
-                            e.Oid.Value
+                            e.Oid?.Value
                                 is X509AuthorityKeyIdentifierExtension.AuthorityKeyIdentifierOid
                                     or X509AuthorityKeyIdentifierExtension
                                         .AuthorityKeyIdentifier2Oid);
@@ -89,10 +91,10 @@ namespace Opc.Ua.Security.Certificates
 
                 if (typeof(T) == typeof(X509SubjectAltNameExtension))
                 {
-                    X509Extension extension = extensions
+                    X509Extension? extension = extensions
                         .Cast<X509Extension>()
                         .FirstOrDefault(e =>
-                            e.Oid.Value
+                            e.Oid?.Value
                                 is X509SubjectAltNameExtension.SubjectAltNameOid
                                     or X509SubjectAltNameExtension.SubjectAltName2Oid);
                     if (extension != null)
@@ -103,9 +105,9 @@ namespace Opc.Ua.Security.Certificates
 
                 if (typeof(T) == typeof(X509CrlNumberExtension))
                 {
-                    X509Extension extension = extensions
+                    X509Extension? extension = extensions
                         .Cast<X509Extension>()
-                        .FirstOrDefault(e => e.Oid.Value == X509CrlNumberExtension.CrlNumberOid);
+                        .FirstOrDefault(e => e.Oid?.Value == X509CrlNumberExtension.CrlNumberOid);
                     if (extension != null)
                     {
                         return new X509CrlNumberExtension(extension, extension.Critical) as T;
@@ -125,7 +127,7 @@ namespace Opc.Ua.Security.Certificates
         /// <exception cref="ArgumentNullException"></exception>
         public static X509Extension BuildX509AuthorityInformationAccess(
             this string[] caIssuerUrls,
-            string ocspResponder = null)
+            string? ocspResponder = null)
         {
             if (string.IsNullOrEmpty(ocspResponder) &&
                 (caIssuerUrls == null || caIssuerUrls.Length == 0))
@@ -157,7 +159,7 @@ namespace Opc.Ua.Security.Certificates
                 writer.WriteObjectIdentifier(Oids.OnlineCertificateStatusProtocol);
                 writer.WriteCharacterString(
                     UniversalTagNumber.IA5String,
-                    ocspResponder,
+                    ocspResponder!,
                     generalNameUriChoice);
                 writer.PopSequence();
             }
@@ -208,7 +210,7 @@ namespace Opc.Ua.Security.Certificates
         /// Read an ASN.1 extension sequence as X509Extension object.
         /// </summary>
         /// <param name="reader">The ASN reader.</param>
-        public static X509Extension ReadExtension(this AsnReader reader)
+        public static X509Extension? ReadExtension(this AsnReader reader)
         {
             if (reader.HasData)
             {
@@ -235,7 +237,8 @@ namespace Opc.Ua.Security.Certificates
         {
             Asn1Tag etag = Asn1Tag.Sequence;
             writer.PushSequence(etag);
-            writer.WriteObjectIdentifier(extension.Oid.Value);
+            writer.WriteObjectIdentifier(extension.Oid?.Value
+                ?? throw new CryptographicException("Extension OID value is null."));
             if (extension.Critical)
             {
                 writer.WriteBoolean(extension.Critical);
@@ -259,7 +262,7 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         /// <param name="issuerCaCertificate">The issuer CA certificate</param>
         public static X509Extension BuildAuthorityKeyIdentifier(
-            this X509Certificate2 issuerCaCertificate)
+            this Certificate issuerCaCertificate)
         {
             // force exception if SKI is not present
             X509SubjectKeyIdentifierExtension ski = issuerCaCertificate
@@ -267,7 +270,7 @@ namespace Opc.Ua.Security.Certificates
                 .OfType<X509SubjectKeyIdentifierExtension>()
                 .Single();
             return new X509AuthorityKeyIdentifierExtension(
-                ski.SubjectKeyIdentifier.FromHexString(),
+                ski.SubjectKeyIdentifier.FromHexString() ?? [],
                 issuerCaCertificate.IssuerName,
                 issuerCaCertificate.GetSerialNumber());
         }

@@ -74,7 +74,11 @@ namespace Opc.Ua.Gds.Client
             ISessionFactory sessionFactory = null,
             DiagnosticsMasks diagnosticsMasks = DiagnosticsMasks.None)
         {
-            if (configuration == null) throw new ArgumentNullException(nameof(configuration));
+            if (configuration == null)
+            {
+                throw new ArgumentNullException(nameof(configuration));
+            }
+
             Configuration = configuration;
             m_options = options ?? new GdsClientOptions();
             MessageContext = configuration.CreateMessageContext();
@@ -336,22 +340,18 @@ namespace Opc.Ua.Gds.Client
                     }
                 }
             }
-            throw lastException ?? ServiceResultException.Create(
-                StatusCodes.BadNoCommunication,
-                "Failed to connect after {0} attempts.",
-                maxAttempts);
+            throw lastException ??
+                ServiceResultException.Create(
+                    StatusCodes.BadNoCommunication,
+                    "Failed to connect after {0} attempts.",
+                    maxAttempts);
         }
         /// <inheritdoc/>
         public async ValueTask ConnectAsync(ConfiguredEndpoint endpoint, CancellationToken ct = default)
         {
             if (endpoint == null)
             {
-                endpoint = m_endpoint;
-
-                if (endpoint == null)
-                {
-                    throw new ArgumentNullException(nameof(endpoint));
-                }
+                endpoint = m_endpoint ?? throw new ArgumentNullException(nameof(endpoint));
             }
 
             int maxAttempts = m_options.MaxConnectAttempts;
@@ -377,10 +377,11 @@ namespace Opc.Ua.Gds.Client
                     }
                 }
             }
-            throw lastException ?? ServiceResultException.Create(
-                StatusCodes.BadNoCommunication,
-                "Failed to connect after {0} attempts.",
-                maxAttempts);
+            throw lastException ??
+                ServiceResultException.Create(
+                    StatusCodes.BadNoCommunication,
+                    "Failed to connect after {0} attempts.",
+                    maxAttempts);
         }
         /// <inheritdoc/>
         public async ValueTask DisconnectAsync(CancellationToken ct = default)

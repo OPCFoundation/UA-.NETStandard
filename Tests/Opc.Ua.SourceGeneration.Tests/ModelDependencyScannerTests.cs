@@ -117,7 +117,8 @@ namespace Opc.Ua.SourceGeneration
                 {
                     ["AssemblyAttributes.cs"] =
                         "[assembly: global::Opc.Ua.ModelDependencyAttribute(" +
-                        "\"\", \"NoUri\", null, null)]" + Environment.NewLine +
+                        "\"\", \"NoUri\", null, null)]" +
+                        Environment.NewLine +
                         "[assembly: global::Opc.Ua.ModelDependencyAttribute(" +
                         "\"urn:test:NoPrefix\", \"\", null, null)]"
                 }, LanguageVersion.CSharp11);

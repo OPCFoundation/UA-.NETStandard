@@ -33,9 +33,9 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
-using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Client
 {
@@ -858,7 +858,7 @@ namespace Opc.Ua.Client
             ApplicationConfiguration configuration,
             ITransportChannel channel,
             ConfiguredEndpoint endpoint,
-            X509Certificate2 clientCertificate,
+            Certificate clientCertificate,
             ArrayOf<EndpointDescription> availableEndpoints = default,
             ArrayOf<string> discoveryProfileUris = default)
         {
@@ -1095,7 +1095,7 @@ namespace Opc.Ua.Client
             ApplicationConfiguration configuration,
             ITransportChannel channel,
             ConfiguredEndpoint endpoint,
-            X509Certificate2 clientCertificate,
+            Certificate clientCertificate,
             ArrayOf<EndpointDescription> availableEndpoints = default,
             ArrayOf<string> discoveryProfileUris = default)
         {
@@ -1273,7 +1273,7 @@ namespace Opc.Ua.Client
             ITransportChannel channel,
             ApplicationConfiguration configuration,
             ConfiguredEndpoint endpoint,
-            X509Certificate2 clientCertificate,
+            Certificate clientCertificate,
             ArrayOf<EndpointDescription> availableEndpoints = default,
             ArrayOf<string> discoveryProfileUris = default)
             : base(
@@ -1328,7 +1328,7 @@ namespace Opc.Ua.Client
             ApplicationConfiguration configuration,
             ITransportChannel channel,
             ConfiguredEndpoint endpoint,
-            X509Certificate2 clientCertificate,
+            Certificate clientCertificate,
             ArrayOf<EndpointDescription> availableEndpoints = default,
             ArrayOf<string> discoveryProfileUris = default)
         {

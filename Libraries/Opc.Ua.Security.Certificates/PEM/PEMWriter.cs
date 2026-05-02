@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 using System;
 using System.IO;
 using System.Security.Cryptography.X509Certificates;
@@ -61,7 +63,7 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// Returns a byte array containing the cert in PEM format.
         /// </summary>
-        public static byte[] ExportCertificateAsPEM(X509Certificate2 certificate)
+        public static byte[] ExportCertificateAsPEM(Certificate certificate)
         {
             return EncodeAsPEM(certificate.RawData, "CERTIFICATE");
         }
@@ -70,41 +72,35 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// Returns a byte array containing the public key in PEM format.
         /// </summary>
-        public static byte[] ExportPublicKeyAsPEM(X509Certificate2 certificate)
+        public static byte[] ExportPublicKeyAsPEM(Certificate certificate)
         {
-            byte[] exportedPublicKey = null;
-            using (RSA rsaPublicKey = certificate.GetRSAPublicKey())
-            {
-                exportedPublicKey = rsaPublicKey.ExportSubjectPublicKeyInfo();
-            }
+            using RSA rsaPublicKey = certificate.GetRSAPublicKey()
+                ?? throw new CryptographicException("RSA public key not found.");
+            byte[] exportedPublicKey = rsaPublicKey.ExportSubjectPublicKeyInfo();
             return EncodeAsPEM(exportedPublicKey, "PUBLIC KEY");
         }
 
         /// <summary>
         /// Returns a byte array containing the RSA private key in PEM format.
         /// </summary>
-        public static byte[] ExportRSAPrivateKeyAsPEM(X509Certificate2 certificate)
+        public static byte[] ExportRSAPrivateKeyAsPEM(Certificate certificate)
         {
-            byte[] exportedRSAPrivateKey = null;
-            using (RSA rsaPrivateKey = certificate.GetRSAPrivateKey())
-            {
-                // write private key as PKCS#1
-                exportedRSAPrivateKey = rsaPrivateKey.ExportRSAPrivateKey();
-            }
+            using RSA rsaPrivateKey = certificate.GetRSAPrivateKey()
+                ?? throw new CryptographicException("RSA private key not found.");
+            // write private key as PKCS#1
+            byte[] exportedRSAPrivateKey = rsaPrivateKey.ExportRSAPrivateKey();
             return EncodeAsPEM(exportedRSAPrivateKey, "RSA PRIVATE KEY");
         }
 
         /// <summary>
         /// Returns a byte array containing the ECDsa private key in PEM format.
         /// </summary>
-        public static byte[] ExportECDsaPrivateKeyAsPEM(X509Certificate2 certificate)
+        public static byte[] ExportECDsaPrivateKeyAsPEM(Certificate certificate)
         {
-            byte[] exportedECPrivateKey = null;
-            using (ECDsa ecdsaPrivateKey = certificate.GetECDsaPrivateKey())
-            {
-                // write private key as PKCS#1
-                exportedECPrivateKey = ecdsaPrivateKey.ExportECPrivateKey();
-            }
+            using ECDsa ecdsaPrivateKey = certificate.GetECDsaPrivateKey()
+                ?? throw new CryptographicException("ECDsa private key not found.");
+            // write private key as PKCS#1
+            byte[] exportedECPrivateKey = ecdsaPrivateKey.ExportECPrivateKey();
             return EncodeAsPEM(exportedECPrivateKey, "EC PRIVATE KEY");
         }
 
@@ -112,11 +108,11 @@ namespace Opc.Ua.Security.Certificates
         /// Returns a byte array containing the private key in PEM format.
         /// </summary>
         public static byte[] ExportPrivateKeyAsPEM(
-            X509Certificate2 certificate,
+            Certificate certificate,
             ReadOnlySpan<char> password = default)
         {
-            byte[] exportedPkcs8PrivateKey = null;
-            using (RSA rsaPrivateKey = certificate.GetRSAPrivateKey())
+            byte[]? exportedPkcs8PrivateKey = null;
+            using (RSA? rsaPrivateKey = certificate.GetRSAPrivateKey())
             {
                 if (rsaPrivateKey != null)
                 {
@@ -132,7 +128,7 @@ namespace Opc.Ua.Security.Certificates
                 }
                 else
                 {
-                    using ECDsa ecdsaPrivateKey = certificate.GetECDsaPrivateKey();
+                    using ECDsa? ecdsaPrivateKey = certificate.GetECDsaPrivateKey();
                     if (ecdsaPrivateKey != null)
                     {
                         // write private key as PKCS#8
@@ -149,7 +145,7 @@ namespace Opc.Ua.Security.Certificates
             }
 
             return EncodeAsPEM(
-                exportedPkcs8PrivateKey,
+                exportedPkcs8PrivateKey ?? throw new CryptographicException("No private key found."),
                 password.IsEmpty || password.IsWhiteSpace() ? "PRIVATE KEY" : "ENCRYPTED PRIVATE KEY");
         }
 
@@ -159,7 +155,7 @@ namespace Opc.Ua.Security.Certificates
         public static bool TryRemovePublicKeyFromPEM(
             string thumbprint,
             ReadOnlySpan<byte> pemDataBlob,
-            out byte[] modifiedPemDataBlob)
+            out byte[]? modifiedPemDataBlob)
         {
             modifiedPemDataBlob = null;
             const string label = "CERTIFICATE";
@@ -207,11 +203,12 @@ namespace Opc.Ua.Security.Certificates
                             certificate.Thumbprint,
                             StringComparison.OrdinalIgnoreCase))
                         {
+                            int blockStart = beginIndex - beginlabel.Length;
+                            int blockEnd = endIndex + endlabel.Length;
+                            int blockLength = blockEnd - blockStart;
                             modifiedPemDataBlob = Encoding.ASCII.GetBytes(
                                 pemText.Replace(
-                                    pemText.Substring(
-                                        beginIndex -= beginlabel.Length,
-                                        endIndex + endlabel.Length),
+                                    pemText.Substring(blockStart, blockLength),
                                     string.Empty,
                                     StringComparison.Ordinal));
                             return true;

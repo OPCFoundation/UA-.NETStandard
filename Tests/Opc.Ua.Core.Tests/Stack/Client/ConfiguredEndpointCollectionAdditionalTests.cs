@@ -358,8 +358,7 @@ namespace Opc.Ua.Core.Tests
         public void DiscoveryUrlsGetSet()
         {
             ConfiguredEndpointCollection col = CreateCollection();
-            ArrayOf<string> urls = ["opc.tcp://discovery:4840"];
-            col.DiscoveryUrls = urls;
+            col.DiscoveryUrls = ["opc.tcp://discovery:4840"];
             Assert.That(col.DiscoveryUrls.Count, Is.EqualTo(1));
         }
 

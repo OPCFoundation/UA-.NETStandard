@@ -27,9 +27,11 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 using System;
-using System.Security.Cryptography.X509Certificates;
 using System.Threading;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua
 {
@@ -42,7 +44,7 @@ namespace Opc.Ua
         /// Validates a certificate.
         /// </summary>
         [Obsolete("Use ValidateAsync")]
-        public static void Validate(this ICertificateValidator validator, X509Certificate2 certificate)
+        public static void Validate(this ICertificateValidator validator, Certificate certificate)
         {
             validator.ValidateAsync(certificate, CancellationToken.None).GetAwaiter().GetResult();
         }
@@ -51,7 +53,7 @@ namespace Opc.Ua
         /// Validates a certificate chain.
         /// </summary>
         [Obsolete("Use ValidateAsync")]
-        public static void Validate(this ICertificateValidator validator, X509Certificate2Collection certificateChain)
+        public static void Validate(this ICertificateValidator validator, CertificateCollection certificateChain)
         {
             validator.ValidateAsync(certificateChain, CancellationToken.None).GetAwaiter().GetResult();
         }

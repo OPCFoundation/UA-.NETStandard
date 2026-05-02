@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -42,7 +44,7 @@ namespace Opc.Ua
     /// <summary>
     /// The identifier for an X509 certificate.
     /// </summary>
-    public partial class CertificateIdentifier : IOpenStore, IFormattable
+    public partial class CertificateIdentifier : IOpenStore, IFormattable, IDisposable
     {
         /// <summary>
         /// Formats the value of the current instance using the specified format.
@@ -57,14 +59,14 @@ namespace Opc.Ua
         /// A <see cref="string"/> containing the value of the current instance in the specified format.
         /// </returns>
         /// <exception cref="FormatException"></exception>
-        public string ToString(string format, IFormatProvider formatProvider)
+        public string ToString(string? format, IFormatProvider? formatProvider)
         {
             if (format != null)
             {
                 throw new FormatException(Utils.Format("Invalid format string: '{0}'.", format));
             }
 
-            return ToString();
+            return ToString()!;
         }
 
         /// <summary>
@@ -73,7 +75,7 @@ namespace Opc.Ua
         /// <returns>
         /// A <see cref="string"/> that represents the current <see cref="object"/>.
         /// </returns>
-        public override string ToString()
+        public override string? ToString()
         {
             if (m_certificate != null)
             {
@@ -86,7 +88,7 @@ namespace Opc.Ua
         /// <summary>
         /// Returns true if the objects are equal.
         /// </summary>
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             if (ReferenceEquals(this, obj))
             {
@@ -145,13 +147,18 @@ namespace Opc.Ua
         /// <summary>
         /// Gets or sets the actual certificate.
         /// </summary>
-        /// <value>The X509 certificate used by this instance.</value>
-        public X509Certificate2 Certificate
+        /// <value>The certificate used by this instance.</value>
+        public Certificate? Certificate
         {
             get => m_certificate;
             set
             {
-                m_certificate = value;
+                if (!ReferenceEquals(m_certificate, value))
+                {
+                    m_certificate?.Dispose();
+                    m_certificate = value;
+                }
+
                 if (m_certificate != null)
                 {
                     CertificateType = GetCertificateType(m_certificate);
@@ -162,9 +169,9 @@ namespace Opc.Ua
         /// <summary>
         /// Finds a certificate in a store.
         /// </summary>
-        public Task<X509Certificate2> FindAsync(
-            string applicationUri = null,
-            ITelemetryContext telemetry = null,
+        public Task<Certificate?> FindAsync(
+            string? applicationUri = null,
+            ITelemetryContext? telemetry = null,
             CancellationToken ct = default)
         {
             return FindAsync(false, applicationUri, telemetry, ct);
@@ -173,10 +180,10 @@ namespace Opc.Ua
         /// <summary>
         /// Loads the private key for the certificate with an optional password.
         /// </summary>
-        public Task<X509Certificate2> LoadPrivateKeyAsync(
-            char[] password,
-            string applicationUri = null,
-            ITelemetryContext telemetry = null,
+        public Task<Certificate?> LoadPrivateKeyAsync(
+            char[]? password,
+            string? applicationUri = null,
+            ITelemetryContext? telemetry = null,
             CancellationToken ct = default)
         {
             return LoadPrivateKeyExAsync(
@@ -191,10 +198,10 @@ namespace Opc.Ua
         /// <summary>
         /// Loads the private key for the certificate with an optional password provider.
         /// </summary>
-        public async Task<X509Certificate2> LoadPrivateKeyExAsync(
-            ICertificatePasswordProvider passwordProvider,
-            string applicationUri = null,
-            ITelemetryContext telemetry = null,
+        public async Task<Certificate?> LoadPrivateKeyExAsync(
+            ICertificatePasswordProvider? passwordProvider,
+            string? applicationUri = null,
+            ITelemetryContext? telemetry = null,
             CancellationToken ct = default)
         {
             if (StoreType != CertificateStoreType.X509Store)
@@ -206,14 +213,15 @@ namespace Opc.Ua
                 using ICertificateStore store = certificateStoreIdentifier.OpenStore(telemetry);
                 if (store?.SupportsLoadPrivateKey == true)
                 {
-                    char[] password = passwordProvider?.GetPassword(this);
+                    char[]? password = passwordProvider?.GetPassword(this);
+                    Certificate? oldCertificate = m_certificate;
                     m_certificate = await store
                         .LoadPrivateKeyAsync(
-                            Thumbprint,
-                            SubjectName,
-                            applicationUri: null,
+                            Thumbprint!,
+                            SubjectName!,
+                            applicationUri: null!,
                             CertificateType,
-                            password,
+                            password!,
                             ct)
                         .ConfigureAwait(false);
 
@@ -222,13 +230,18 @@ namespace Opc.Ua
                     {
                         m_certificate = await store
                             .LoadPrivateKeyAsync(
-                                Thumbprint,
-                                subjectName: null,
-                                applicationUri,
+                                Thumbprint!,
+                                subjectName: null!,
+                                applicationUri!,
                                 CertificateType,
-                                password,
+                                password!,
                                 ct)
                             .ConfigureAwait(false);
+                    }
+
+                    if (!ReferenceEquals(oldCertificate, m_certificate))
+                    {
+                        oldCertificate?.Dispose();
                     }
 
                     return m_certificate;
@@ -244,10 +257,10 @@ namespace Opc.Ua
         /// <remarks>The certificate type is used to match the signature and public key type.</remarks>
         /// <param name="needPrivateKey">if set to <c>true</c> the returned certificate must contain the private key.</param>
         /// <param name="applicationUri">the application uri in the extensions of the certificate.</param>
-        /// <returns>An instance of the <see cref="X509Certificate2"/> that is embedded by this instance or find it in
+        /// <returns>An instance of the <see cref="Certificate"/> that is embedded by this instance or find it in
         /// the selected store pointed out by the <see cref="StorePath"/> using selected <see cref="SubjectName"/> or if specified applicationUri.</returns>
         [Obsolete("Use FindAsync instead")]
-        public Task<X509Certificate2> Find(bool needPrivateKey, string applicationUri = null)
+        public Task<Certificate?> Find(bool needPrivateKey, string? applicationUri = null)
         {
             return FindAsync(needPrivateKey, applicationUri);
         }
@@ -260,20 +273,20 @@ namespace Opc.Ua
         /// <param name="applicationUri">the application uri in the extensions of the certificate.</param>
         /// <param name="telemetry">Telemetry context to use</param>
         /// <param name="ct">Cancellation token to cancel action</param>
-        /// <returns>An instance of the <see cref="X509Certificate2"/> that is embedded by this instance or find it in
+        /// <returns>An instance of the <see cref="Certificate"/> that is embedded by this instance or find it in
         /// the selected store pointed out by the <see cref="StorePath"/> using selected <see cref="SubjectName"/> or if specified applicationUri.</returns>
-        public async Task<X509Certificate2> FindAsync(
+        public async Task<Certificate?> FindAsync(
             bool needPrivateKey,
-            string applicationUri = null,
-            ITelemetryContext telemetry = null,
+            string? applicationUri = null,
+            ITelemetryContext? telemetry = null,
             CancellationToken ct = default)
         {
-            X509Certificate2 certificate = null;
+            Certificate? certificate = null;
 
             // check if the entire certificate has been specified.
             if (m_certificate != null && (!needPrivateKey || m_certificate.HasPrivateKey))
             {
-                certificate = m_certificate;
+                certificate = m_certificate.AddRef();
             }
             else
             {
@@ -285,7 +298,7 @@ namespace Opc.Ua
                     return null;
                 }
 
-                X509Certificate2Collection collection = await store.EnumerateAsync(ct)
+                using CertificateCollection collection = await store.EnumerateAsync(ct)
                     .ConfigureAwait(false);
 
                 certificate = Find(
@@ -307,6 +320,11 @@ namespace Opc.Ua
                             StoreType);
                     }
 
+                    if (!ReferenceEquals(m_certificate, certificate))
+                    {
+                        m_certificate?.Dispose();
+                    }
+
                     m_certificate = certificate;
                 }
             }
@@ -319,10 +337,10 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="certificate">The certificate.</param>
         /// <returns>
-        /// A string containg FriendlyName of the <see cref="X509Certificate2"/> or created using Subject of
-        /// the <see cref="X509Certificate2"/>.
+        /// A string containg FriendlyName of the <see cref="Certificate"/> or created using Subject of
+        /// the <see cref="Certificate"/>.
         /// </returns>
-        private static string GetDisplayName(X509Certificate2 certificate)
+        private static string GetDisplayName(Certificate certificate)
         {
             if (!string.IsNullOrEmpty(certificate.FriendlyName))
             {
@@ -395,33 +413,33 @@ namespace Opc.Ua
         /// <returns>
         /// The best matching certificate according to the selection criteria, or <c>null</c> if the collection is empty or no suitable certificate is found.
         /// </returns>
-        private static X509Certificate2 PickBestCertificate(X509Certificate2Collection collection)
+        private static Certificate? PickBestCertificate(CertificateCollection collection)
         {
             if (collection == null || collection.Count == 0)
             {
                 return null;
             }
 
-            X509Certificate2 bestValid = null;
+            Certificate? bestValid = null;
             TimeSpan bestValidRemaining = TimeSpan.MinValue;
             bool bestValidIsCASigned = false;
 
-            X509Certificate2 bestExpired = null;
+            Certificate? bestExpired = null;
             TimeSpan bestExpiredTime = TimeSpan.MaxValue; // Most recently expired (closest to now)
             bool bestExpiredIsCASigned = false;
 
-            X509Certificate2 bestNotYetValid = null;
+            Certificate? bestNotYetValid = null;
             TimeSpan bestNotYetValidTime = TimeSpan.MaxValue; // Soonest to become valid
             bool bestNotYetValidIsCASigned = false;
 
             DateTime now = DateTime.UtcNow;
 
-            foreach (X509Certificate2 certificate in collection)
+            foreach (Certificate certificate in collection)
             {
                 bool isCASigned = !X509Utils.IsSelfSigned(certificate);
 
                 // Normalize certificate times to UTC for consistent comparison
-                // X509Certificate2 NotBefore/NotAfter return local time
+                // NotBefore/NotAfter return local time
                 DateTime notBefore = certificate.NotBefore.ToUniversalTime();
                 DateTime notAfter = certificate.NotAfter.ToUniversalTime();
 
@@ -475,7 +493,7 @@ namespace Opc.Ua
             // Return in priority order: valid > expired > not-yet-valid
             if (bestValid != null)
             {
-                return bestValid;
+                return bestValid.AddRef();
             }
 
             if (bestExpired != null && bestNotYetValid != null)
@@ -484,17 +502,17 @@ namespace Opc.Ua
                 // Prioritize CA-signed over self-signed
                 if (bestNotYetValidIsCASigned && !bestExpiredIsCASigned)
                 {
-                    return bestNotYetValid;
+                    return bestNotYetValid.AddRef();
                 }
                 if (bestExpiredIsCASigned && !bestNotYetValidIsCASigned)
                 {
-                    return bestExpired;
+                    return bestExpired.AddRef();
                 }
                 // If both have same CA-signed status, pick the soonest to become valid
-                return bestNotYetValidTime < bestExpiredTime ? bestNotYetValid : bestExpired;
+                return bestNotYetValidTime < bestExpiredTime ? bestNotYetValid.AddRef() : bestExpired.AddRef();
             }
 
-            return bestExpired ?? bestNotYetValid;
+            return bestExpired?.AddRef() ?? bestNotYetValid?.AddRef();
         }
 
         /// <summary>
@@ -524,33 +542,33 @@ namespace Opc.Ua
         /// <param name="applicationUri">ApplicationUri in the SubjectAltNameExtension of the certificate.</param>
         /// <param name="certificateType">The certificate type.</param>
         /// <param name="needPrivateKey">if set to <c>true</c> [need private key].</param>
-        public static X509Certificate2 Find(
-            X509Certificate2Collection collection,
-            string thumbprint,
-            string subjectName,
-            string applicationUri,
+        public static Certificate? Find(
+            CertificateCollection collection,
+            string? thumbprint,
+            string? subjectName,
+            string? applicationUri,
             NodeId certificateType,
             bool needPrivateKey)
         {
             // find by thumbprint.
             if (!string.IsNullOrEmpty(thumbprint))
             {
-                collection = collection.Find(X509FindType.FindByThumbprint, thumbprint, false);
+                using CertificateCollection thumbprintMatches = collection.Find(X509FindType.FindByThumbprint, thumbprint!, false);
 
-                foreach (X509Certificate2 certificate in collection)
+                foreach (Certificate certificate in thumbprintMatches)
                 {
                     if (!needPrivateKey || certificate.HasPrivateKey)
                     {
                         if (string.IsNullOrEmpty(subjectName))
                         {
-                            return certificate;
+                            return certificate.AddRef();
                         }
 
-                        List<string> subjectName2 = X509Utils.ParseDistinguishedName(subjectName);
+                        List<string> subjectName2 = X509Utils.ParseDistinguishedName(subjectName!);
 
                         if (X509Utils.CompareDistinguishedName(certificate, subjectName2))
                         {
-                            return certificate;
+                            return certificate.AddRef();
                         }
                     }
                 }
@@ -558,51 +576,74 @@ namespace Opc.Ua
                 return null;
             }
 
-            X509Certificate2Collection matchesOnCriteria = null;
+            CertificateCollection? matchesOnCriteria = null;
 
-            // find by subject name.
-            if (!string.IsNullOrEmpty(subjectName))
+            try
             {
-                List<string> parsedSubjectName = X509Utils.ParseDistinguishedName(subjectName);
-
-                foreach (X509Certificate2 certificate in collection)
+                // find by subject name.
+                if (!string.IsNullOrEmpty(subjectName))
                 {
-                    if (ValidateCertificateType(certificate, certificateType) &&
-                        X509Utils.CompareDistinguishedName(certificate, parsedSubjectName))
+                    List<string> parsedSubjectName = X509Utils.ParseDistinguishedName(subjectName!);
+
+                    foreach (Certificate certificate in collection)
                     {
-                        if (!needPrivateKey || certificate.HasPrivateKey)
+                        if (ValidateCertificateType(certificate, certificateType) &&
+                            X509Utils.CompareDistinguishedName(certificate, parsedSubjectName))
                         {
-                            (matchesOnCriteria ??= []).Add(certificate);
+                            if (!needPrivateKey || certificate.HasPrivateKey)
+                            {
+                                (matchesOnCriteria ??= []).Add(certificate);
+                            }
                         }
                     }
-                }
-                if (matchesOnCriteria?.Count > 0)
-                {
-                    return PickBestCertificate(matchesOnCriteria);
-                }
-
-                bool hasCommonName = subjectName.Contains("CN=", StringComparison.OrdinalIgnoreCase);
-
-                // If parsedSubjectName did not match the certificate distinguished name
-                // If "CN=" exists in the subject name than an exact match on CN is required
-                if (hasCommonName)
-                {
-                    string commonNameEntry = parsedSubjectName
-                        .FirstOrDefault(s => s.StartsWith("CN=", StringComparison.OrdinalIgnoreCase));
-                    string commonName = commonNameEntry?.Length > 3
-                        ? commonNameEntry[3..].Trim()
-                        : null;
-
-                    if (!string.IsNullOrEmpty(commonName))
+                    if (matchesOnCriteria?.Count > 0)
                     {
-                        foreach (X509Certificate2 certificate in collection)
+                        return PickBestCertificate(matchesOnCriteria);
+                    }
+
+                    bool hasCommonName = subjectName.Contains("CN=", StringComparison.OrdinalIgnoreCase);
+
+                    // If parsedSubjectName did not match the certificate distinguished name
+                    // If "CN=" exists in the subject name than an exact match on CN is required
+                    if (hasCommonName)
+                    {
+                        string? commonNameEntry = parsedSubjectName
+                            .FirstOrDefault(s => s.StartsWith("CN=", StringComparison.OrdinalIgnoreCase));
+                        string? commonName = commonNameEntry?.Length > 3
+                            ? commonNameEntry[3..].Trim()
+                            : null;
+
+                        if (!string.IsNullOrEmpty(commonName))
+                        {
+                            foreach (Certificate certificate in collection)
+                            {
+                                if (ValidateCertificateType(certificate, certificateType) &&
+                                    (!needPrivateKey || certificate.HasPrivateKey) &&
+                                    string.Equals(
+                                        certificate.GetNameInfo(X509NameType.SimpleName, false),
+                                        commonName,
+                                        StringComparison.Ordinal))
+                                {
+                                    (matchesOnCriteria ??= []).Add(certificate);
+                                }
+                            }
+                            if (matchesOnCriteria?.Count > 0)
+                            {
+                                return PickBestCertificate(matchesOnCriteria);
+                            }
+                        }
+                    }
+                    // If no "CN=" specified than a fuzzy match is allowed
+                    else
+                    {
+                        using CertificateCollection fuzzyMatches = collection.Find(
+                            X509FindType.FindBySubjectName,
+                            subjectName!,
+                            false);
+                        foreach (Certificate certificate in fuzzyMatches)
                         {
                             if (ValidateCertificateType(certificate, certificateType) &&
-                                (!needPrivateKey || certificate.HasPrivateKey) &&
-                                string.Equals(
-                                    certificate.GetNameInfo(X509NameType.SimpleName, false),
-                                    commonName,
-                                    StringComparison.Ordinal))
+                                (!needPrivateKey || certificate.HasPrivateKey))
                             {
                                 (matchesOnCriteria ??= []).Add(certificate);
                             }
@@ -613,16 +654,14 @@ namespace Opc.Ua
                         }
                     }
                 }
-                // If no "CN=" specified than a fuzzy match is allowed
-                else
+
+                //find by application uri
+                if (!string.IsNullOrEmpty(applicationUri))
                 {
-                    X509Certificate2Collection fuzzyMatches = collection.Find(
-                        X509FindType.FindBySubjectName,
-                        subjectName,
-                        false);
-                    foreach (X509Certificate2 certificate in fuzzyMatches)
+                    foreach (Certificate certificate in collection)
                     {
-                        if (ValidateCertificateType(certificate, certificateType) &&
+                        if (X509Utils.CompareApplicationUriWithCertificate(certificate, applicationUri!) &&
+                            ValidateCertificateType(certificate, certificateType) &&
                             (!needPrivateKey || certificate.HasPrivateKey))
                         {
                             (matchesOnCriteria ??= []).Add(certificate);
@@ -633,28 +672,14 @@ namespace Opc.Ua
                         return PickBestCertificate(matchesOnCriteria);
                     }
                 }
-            }
 
-            //find by application uri
-            if (!string.IsNullOrEmpty(applicationUri))
+                // certificate not found.
+                return null;
+            }
+            finally
             {
-                foreach (X509Certificate2 certificate in collection)
-                {
-                    if (X509Utils.CompareApplicationUriWithCertificate(certificate, applicationUri) &&
-                        ValidateCertificateType(certificate, certificateType) &&
-                        (!needPrivateKey || certificate.HasPrivateKey))
-                    {
-                        (matchesOnCriteria ??= []).Add(certificate);
-                    }
-                }
-                if (matchesOnCriteria?.Count > 0)
-                {
-                    return PickBestCertificate(matchesOnCriteria);
-                }
+                matchesOnCriteria?.Dispose();
             }
-
-            // certificate not found.
-            return null;
         }
 
         /// <summary>
@@ -673,10 +698,10 @@ namespace Opc.Ua
         /// Opens a store which contains public and private keys.
         /// </remarks>
         /// <returns>A disposable instance of the <see cref="ICertificateStore"/>.</returns>
-        public ICertificateStore OpenStore(ITelemetryContext telemetry)
+        public ICertificateStore OpenStore(ITelemetryContext? telemetry)
         {
             ICertificateStore store = CertificateStoreIdentifier.CreateStore(StoreType, telemetry);
-            store.Open(StorePath, false);
+            store.Open(StorePath!, false);
             return store;
         }
 
@@ -700,7 +725,7 @@ namespace Opc.Ua
         /// Get the OPC UA CertificateType.
         /// </summary>
         /// <param name="certificate">The certificate with a signature.</param>
-        public static NodeId GetCertificateType(X509Certificate2 certificate)
+        public static NodeId GetCertificateType(Certificate certificate)
         {
             switch (certificate.SignatureAlgorithm.Value)
             {
@@ -726,7 +751,7 @@ namespace Opc.Ua
         /// <param name="certificate">The certificate with a signature.</param>
         /// <param name="certificateType">The NodeId of the certificate type.</param>
         public static bool ValidateCertificateType(
-            X509Certificate2 certificate,
+            Certificate certificate,
             NodeId certificateType)
         {
             if (certificateType.IsNull)
@@ -841,9 +866,29 @@ namespace Opc.Ua
         /// </summary>
         public void DisposeCertificate()
         {
-            X509Certificate2 certificate = m_certificate;
+            Certificate? certificate = m_certificate;
             m_certificate = null;
             certificate?.Dispose();
+        }
+
+        /// <inheritdoc/>
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        /// <summary>
+        /// Releases unmanaged and optionally managed resources.
+        /// </summary>
+        /// <param name="disposing">true to release both managed and unmanaged resources; false to release only unmanaged resources.</param>
+        protected virtual void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                m_certificate?.Dispose();
+                m_certificate = null;
+            }
         }
 
         /// <summary>
@@ -933,7 +978,7 @@ namespace Opc.Ua
         /// The tags of the supported certificate types used to encode the NodeId coressponding to existing value.
         /// </summary>
         // TODO: remove if not used
-        private static string EncodeCertificateType(NodeId certificateType)
+        private static string? EncodeCertificateType(NodeId certificateType)
         {
             if (certificateType.IsNull)
             {
@@ -956,7 +1001,7 @@ namespace Opc.Ua
         /// The tags of the supported certificate types used to decode the NodeId coressponding to existing value.
         /// </summary>
         // TODO: remove if not used
-        private static NodeId DecodeCertificateType(string certificateType)
+        private static NodeId DecodeCertificateType(string? certificateType)
         {
             if (certificateType == null)
             {
@@ -999,7 +1044,7 @@ namespace Opc.Ua
             ArrayOf<CertificateIdentifier> certificates,
             ITelemetryContext telemetry)
         {
-            m_certificates = new List<CertificateIdentifier>(certificates.ToArray() ?? []);
+            m_certificates = certificates.ToList();
             m_telemetry = telemetry;
         }
 
@@ -1048,13 +1093,13 @@ namespace Opc.Ua
         public bool NoPrivateKeys => true;
 
         /// <inheritdoc/>
-        public async Task<X509Certificate2Collection> EnumerateAsync(CancellationToken ct = default)
+        public async Task<CertificateCollection> EnumerateAsync(CancellationToken ct = default)
         {
-            var collection = new X509Certificate2Collection();
+            var collection = new CertificateCollection();
 
             for (int ii = 0; ii < m_certificates.Count; ii++)
             {
-                X509Certificate2 certificate = await m_certificates[ii].FindAsync(
+                Certificate? certificate = await m_certificates[ii].FindAsync(
                     false,
                     applicationUri: null,
                     m_telemetry,
@@ -1072,8 +1117,8 @@ namespace Opc.Ua
 
         /// <inheritdoc/>
         public async Task AddAsync(
-            X509Certificate2 certificate,
-            char[] password = null,
+            Certificate certificate,
+            char[]? password = null,
             CancellationToken ct = default)
         {
             if (certificate == null)
@@ -1083,7 +1128,7 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < m_certificates.Count; ii++)
             {
-                X509Certificate2 current = await m_certificates[ii].FindAsync(
+                Certificate? current = await m_certificates[ii].FindAsync(
                     false,
                     applicationUri: null,
                     m_telemetry,
@@ -1112,7 +1157,7 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < m_certificates.Count; ii++)
             {
-                X509Certificate2 certificate = await m_certificates[ii].FindAsync(
+                Certificate? certificate = await m_certificates[ii].FindAsync(
                     false,
                     applicationUri: null,
                     m_telemetry,
@@ -1130,18 +1175,18 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public async Task<X509Certificate2Collection> FindByThumbprintAsync(
+        public async Task<CertificateCollection> FindByThumbprintAsync(
             string thumbprint,
             CancellationToken ct = default)
         {
             if (string.IsNullOrEmpty(thumbprint))
             {
-                return null;
+                return [];
             }
 
             for (int ii = 0; ii < m_certificates.Count; ii++)
             {
-                X509Certificate2 certificate = await m_certificates[ii].FindAsync(
+                Certificate? certificate = await m_certificates[ii].FindAsync(
                     false,
                     applicationUri: null,
                     m_telemetry,
@@ -1161,15 +1206,15 @@ namespace Opc.Ua
         public bool SupportsLoadPrivateKey => false;
 
         /// <inheritdoc/>
-        public Task<X509Certificate2> LoadPrivateKeyAsync(
+        public Task<Certificate?> LoadPrivateKeyAsync(
             string thumbprint,
             string subjectName,
             string applicationUri,
             NodeId certificateType,
-            char[] password,
+            char[]? password,
             CancellationToken ct = default)
         {
-            return Task.FromResult<X509Certificate2>(null);
+            return Task.FromResult<Certificate?>(null);
         }
 
         /// <inheritdoc/>
@@ -1177,8 +1222,8 @@ namespace Opc.Ua
 
         /// <inheritdoc/>
         public Task<StatusCode> IsRevokedAsync(
-            X509Certificate2 issuer,
-            X509Certificate2 certificate,
+            Certificate issuer,
+            Certificate certificate,
             CancellationToken ct = default)
         {
             return Task.FromResult(StatusCodes.BadNotSupported);
@@ -1192,7 +1237,7 @@ namespace Opc.Ua
 
         /// <inheritdoc/>
         public Task<X509CRLCollection> EnumerateCRLsAsync(
-            X509Certificate2 issuer,
+            Certificate issuer,
             bool validateUpdateTime = true,
             CancellationToken ct = default)
         {
@@ -1213,7 +1258,7 @@ namespace Opc.Ua
 
         /// <inheritdoc/>
         public Task AddRejectedAsync(
-            X509Certificate2Collection certificates,
+            CertificateCollection certificates,
             int maxCertificates,
             CancellationToken ct = default)
         {

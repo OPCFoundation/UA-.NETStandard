@@ -297,7 +297,7 @@ namespace Opc.Ua.Bindings
         private void ConfigureWebHost(IWebHostBuilder webHostBuilder)
         {
             // prepare the server TLS certificate
-            X509Certificate2 serverCertificate = m_serverCertProvider.GetInstanceCertificate(
+            Certificate serverCertificate = m_serverCertProvider.GetInstanceCertificate(
                 SecurityPolicies.Https);
 #if NETSTANDARD2_1 || NET472_OR_GREATER || NET5_0_OR_GREATER
             try
@@ -323,7 +323,7 @@ namespace Opc.Ua.Bindings
                     ? ClientCertificateMode.AllowCertificate
                     : ClientCertificateMode.NoCertificate,
                 // note: this is the TLS certificate!
-                ServerCertificate = serverCertificate,
+                ServerCertificate = serverCertificate.AsX509Certificate2(),
                 ClientCertificateValidation = ValidateClientCertificate,
                 SslProtocols = SslProtocols.None
             };
@@ -614,7 +614,7 @@ namespace Opc.Ua.Bindings
 
             try
             {
-                m_quotas.CertificateValidator.ValidateAsync(clientCertificate, default).GetAwaiter().GetResult();
+                m_quotas.CertificateValidator.ValidateAsync(Certificate.FromRawData(clientCertificate.RawData), default).GetAwaiter().GetResult();
             }
             catch (Exception)
             {

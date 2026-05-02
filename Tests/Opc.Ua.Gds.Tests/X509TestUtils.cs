@@ -48,9 +48,9 @@ namespace Opc.Ua.Gds.Tests
             byte[][] issuerCertificates,
             ITelemetryContext telemetry)
         {
-            X509Certificate2 newCert = CertificateFactory.Create(certificate);
+            using Certificate newCert = CertificateFactory.Create(certificate);
             Assert.That(newCert, Is.Not.Null);
-            X509Certificate2 newPrivateKeyCert = null;
+            Certificate newPrivateKeyCert = null;
             if (privateKeyFormat == "PFX")
             {
                 newPrivateKeyCert = X509Utils.CreateCertificateFromPKCS12(
@@ -75,7 +75,7 @@ namespace Opc.Ua.Gds.Tests
             var issuerCertIdList = new List<CertificateIdentifier>();
             foreach (byte[] issuer in issuerCertificates)
             {
-                X509Certificate2 issuerCert = CertificateFactory.Create(issuer);
+                Certificate issuerCert = CertificateFactory.Create(issuer);
                 Assert.That(issuerCert, Is.Not.Null);
                 issuerCertIdList.Add(new CertificateIdentifier(issuerCert));
             }
@@ -101,8 +101,8 @@ namespace Opc.Ua.Gds.Tests
             byte[] rawSignedCert,
             byte[][] rawIssuerCerts)
         {
-            X509Certificate2 signedCert = CertificateFactory.Create(rawSignedCert);
-            X509Certificate2 issuerCert = CertificateFactory.Create(rawIssuerCerts[0]);
+            Certificate signedCert = CertificateFactory.Create(rawSignedCert);
+            Certificate issuerCert = CertificateFactory.Create(rawIssuerCerts[0]);
 
             TestContext.Out.WriteLine($"Signed cert: {signedCert}");
             TestContext.Out.WriteLine($"Issuer cert: {issuerCert}");

@@ -37,6 +37,7 @@ using Microsoft.Extensions.Logging;
 using Opc.Ua.Configuration;
 using Opc.Ua.Gds.Client;
 using Opc.Ua.Gds.Server;
+using Opc.Ua.Security.Certificates;
 using Opc.Ua.Server.Tests;
 using Opc.Ua.Test;
 using Opc.Ua.Tests;
@@ -340,11 +341,11 @@ namespace Opc.Ua.Gds.Tests
         public static async Task CleanupTrustListAsync(IOpenStore id, ITelemetryContext telemetry)
         {
             using ICertificateStore store = id.OpenStore(telemetry);
-            System.Security.Cryptography.X509Certificates.X509Certificate2Collection certs
+            CertificateCollection certs
                 = await store
                 .EnumerateAsync()
                 .ConfigureAwait(false);
-            foreach (System.Security.Cryptography.X509Certificates.X509Certificate2 cert in certs)
+            foreach (Certificate cert in certs)
             {
                 await store.DeleteAsync(cert.Thumbprint).ConfigureAwait(false);
             }

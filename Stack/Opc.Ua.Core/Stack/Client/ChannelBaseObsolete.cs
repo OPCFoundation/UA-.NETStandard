@@ -28,8 +28,8 @@
  * ======================================================================*/
 
 using System;
-using System.Security.Cryptography.X509Certificates;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua
 {
@@ -71,7 +71,7 @@ namespace Opc.Ua
             ApplicationConfiguration configuration,
             EndpointDescription description,
             EndpointConfiguration endpointConfiguration,
-            X509Certificate2 clientCertificate,
+            Certificate clientCertificate,
             IServiceMessageContext messageContext)
         {
             return ClientChannelManager.CreateUaBinaryChannelAsync(
@@ -92,8 +92,8 @@ namespace Opc.Ua
             ApplicationConfiguration configuration,
             EndpointDescription description,
             EndpointConfiguration endpointConfiguration,
-            X509Certificate2 clientCertificate,
-            X509Certificate2Collection clientCertificateChain,
+            Certificate clientCertificate,
+            CertificateCollection clientCertificateChain,
             IServiceMessageContext messageContext)
         {
             return ClientChannelManager.CreateUaBinaryChannelAsync(
@@ -115,8 +115,8 @@ namespace Opc.Ua
             ITransportWaitingConnection connection,
             EndpointDescription description,
             EndpointConfiguration endpointConfiguration,
-            X509Certificate2 clientCertificate,
-            X509Certificate2Collection clientCertificateChain,
+            Certificate clientCertificate,
+            CertificateCollection clientCertificateChain,
             IServiceMessageContext messageContext)
         {
             // create a UA binary channel.
@@ -146,7 +146,7 @@ namespace Opc.Ua
             Uri discoveryUrl,
             EndpointConfiguration endpointConfiguration,
             IServiceMessageContext messageContext,
-            X509Certificate2 clientCertificate = null)
+            Certificate clientCertificate = null)
         {
             return DiscoveryClient.CreateChannelAsync(
                 discoveryUrl,
@@ -164,7 +164,7 @@ namespace Opc.Ua
             ITransportWaitingConnection connection,
             EndpointConfiguration endpointConfiguration,
             IServiceMessageContext messageContext,
-            X509Certificate2 clientCertificate = null)
+            Certificate clientCertificate = null)
         {
             return DiscoveryClient.CreateChannelAsync(
                 configuration,
@@ -183,7 +183,7 @@ namespace Opc.Ua
             Uri discoveryUrl,
             EndpointConfiguration endpointConfiguration,
             IServiceMessageContext messageContext,
-            X509Certificate2 clientCertificate = null)
+            Certificate clientCertificate = null)
         {
             return DiscoveryClient.CreateChannelAsync(
                 configuration,
@@ -208,7 +208,7 @@ namespace Opc.Ua
             ApplicationConfiguration configuration,
             EndpointDescription description,
             EndpointConfiguration endpointConfiguration,
-            X509Certificate2 clientCertificate,
+            Certificate clientCertificate,
             IServiceMessageContext messageContext)
         {
             return ClientChannelManager.CreateUaBinaryChannelAsync(

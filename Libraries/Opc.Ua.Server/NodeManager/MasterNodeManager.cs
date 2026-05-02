@@ -1596,7 +1596,7 @@ namespace Opc.Ua.Server
                     Index = 0,
                     Data = null
                 };
-                var cp = tempCp;
+                ContinuationPoint cp = tempCp;
 
                 // check if reference type left unspecified.
                 if (cp.ReferenceTypeId.IsNull)

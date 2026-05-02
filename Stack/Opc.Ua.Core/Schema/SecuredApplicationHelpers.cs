@@ -29,10 +29,10 @@
 
 using System;
 using System.Collections.Generic;
-using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Security
 {
@@ -476,7 +476,7 @@ namespace Opc.Ua.Security
         /// Gets the certificate associated with the identifier.
         /// </summary>
         [Obsolete("Use FindAsync()")]
-        public Task<X509Certificate2> Find()
+        public Task<Certificate> Find()
         {
             return FindAsync(null);
         }
@@ -484,7 +484,7 @@ namespace Opc.Ua.Security
         /// <summary>
         /// Gets the certificate associated with the identifier.
         /// </summary>
-        public Task<X509Certificate2> FindAsync(
+        public Task<Certificate> FindAsync(
             ITelemetryContext telemetry,
             CancellationToken ct = default)
         {
@@ -496,7 +496,7 @@ namespace Opc.Ua.Security
         /// Gets the certificate associated with the identifier.
         /// </summary>
         [Obsolete("Use FindAsync(needPrivateKey)")]
-        public Task<X509Certificate2> Find(bool needPrivateKey)
+        public Task<Certificate> Find(bool needPrivateKey)
         {
             return FindAsync(needPrivateKey, null);
         }
@@ -504,7 +504,7 @@ namespace Opc.Ua.Security
         /// <summary>
         /// Gets the certificate associated with the identifier.
         /// </summary>
-        public Task<X509Certificate2> FindAsync(
+        public Task<Certificate> FindAsync(
             bool needPrivateKey,
             ITelemetryContext telemetry,
             CancellationToken ct = default)

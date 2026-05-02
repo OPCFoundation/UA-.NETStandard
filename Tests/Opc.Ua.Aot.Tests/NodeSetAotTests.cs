@@ -244,33 +244,32 @@ namespace Opc.Ua.Aot.Tests
             {
                 LastModified = DateTime.UtcNow,
                 LastModifiedSpecified = true,
-                NamespaceUris = ["http://opcfoundation.org/UA/AotWriteTest"]
+                NamespaceUris = ["http://opcfoundation.org/UA/AotWriteTest"],
+                // Add a simple object type
+                Items =
+                [
+                    new UAObjectType
+                    {
+                        NodeId = "ns=1;i=5000",
+                        BrowseName = "1:AotTestType",
+                        DisplayName =
+                        [
+                            new Export.LocalizedText { Value = "AotTestType" }
+                        ]
+                    },
+                    new UAVariable
+                    {
+                        NodeId = "ns=1;i=5001",
+                        BrowseName = "1:AotTestVar",
+                        DisplayName =
+                        [
+                            new Export.LocalizedText { Value = "AotTestVar" }
+                        ],
+                        DataType = "i=11",
+                        ValueRank = -1
+                    }
+                ]
             };
-
-            // Add a simple object type
-            nodeSet.Items =
-            [
-                new UAObjectType
-                {
-                    NodeId = "ns=1;i=5000",
-                    BrowseName = "1:AotTestType",
-                    DisplayName =
-                    [
-                        new Export.LocalizedText { Value = "AotTestType" }
-                    ]
-                },
-                new UAVariable
-                {
-                    NodeId = "ns=1;i=5001",
-                    BrowseName = "1:AotTestVar",
-                    DisplayName =
-                    [
-                        new Export.LocalizedText { Value = "AotTestVar" }
-                    ],
-                    DataType = "i=11",
-                    ValueRank = -1
-                }
-            ];
 
             // Write to stream
             using var stream = new MemoryStream();

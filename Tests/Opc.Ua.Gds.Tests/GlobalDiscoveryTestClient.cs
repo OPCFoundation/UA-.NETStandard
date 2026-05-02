@@ -30,13 +30,13 @@
 using System;
 using System.IO;
 using System.Runtime.InteropServices;
-using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Configuration;
 using Opc.Ua.Gds.Client;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Gds.Tests
 {
@@ -283,8 +283,8 @@ namespace Opc.Ua.Gds.Tests
             ByteString certificate,
             ByteString privateKey)
         {
-            using X509Certificate2 x509 = CertificateFactory.Create(certificate.ToArray());
-            X509Certificate2 certWithPrivateKey = CertificateFactory
+            using Certificate x509 = CertificateFactory.Create(certificate.ToArray());
+            Certificate certWithPrivateKey = CertificateFactory
                 .CreateCertificateWithPEMPrivateKey(
                     x509,
                     privateKey.ToArray());

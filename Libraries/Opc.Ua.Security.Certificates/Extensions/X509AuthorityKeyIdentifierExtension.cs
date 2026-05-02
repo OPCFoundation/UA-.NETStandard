@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 using System;
 using System.Formats.Asn1;
 using System.Numerics;
@@ -61,7 +63,8 @@ namespace Opc.Ua.Security.Certificates
         /// Creates an extension from ASN.1 encoded data.
         /// </summary>
         public X509AuthorityKeyIdentifierExtension(AsnEncodedData encodedExtension, bool critical)
-            : this(encodedExtension.Oid, encodedExtension.RawData, critical)
+            : this(encodedExtension.Oid ?? throw new ArgumentException("Encoded extension has no OID.", nameof(encodedExtension)),
+                   encodedExtension.RawData, critical)
         {
         }
 
@@ -208,7 +211,7 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// The identifier for the key as a byte array.
         /// </summary>
-        public byte[] GetKeyIdentifier()
+        public byte[]? GetKeyIdentifier()
         {
             return m_keyIdentifier;
         }
@@ -216,7 +219,7 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// A list of distinguished names for the issuer.
         /// </summary>
-        public X500DistinguishedName Issuer { get; private set; }
+        public X500DistinguishedName? Issuer { get; private set; }
 
         /// <summary>
         /// The serial number of the authority key as a big endian hexadecimal string.
@@ -226,7 +229,7 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// The serial number of the authority key as a byte array in little endian order.
         /// </summary>
-        public byte[] GetSerialNumber()
+        public byte[]? GetSerialNumber()
         {
             return m_serialNumber;
         }
@@ -272,7 +275,7 @@ namespace Opc.Ua.Security.Certificates
 
         private void Decode(byte[] data)
         {
-            if (Oid.Value is AuthorityKeyIdentifierOid or AuthorityKeyIdentifier2Oid)
+            if (Oid?.Value is AuthorityKeyIdentifierOid or AuthorityKeyIdentifier2Oid)
             {
                 try
                 {
@@ -343,7 +346,7 @@ namespace Opc.Ua.Security.Certificates
         private const string kIssuer = "Issuer";
         private const string kSerialNumber = "SerialNumber";
         private const string kFriendlyName = "Authority Key Identifier";
-        private byte[] m_keyIdentifier;
-        private byte[] m_serialNumber;
+        private byte[]? m_keyIdentifier;
+        private byte[]? m_serialNumber;
     }
 }

@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 #if NETFRAMEWORK
 using System;
 using System.Collections.Generic;
@@ -105,12 +107,12 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
         }
 
         /// <summary>
-        /// Get public key parameters from a X509Certificate2
+        /// Get public key parameters from a Certificate
         /// </summary>
-        internal static RsaKeyParameters GetRsaPublicKeyParameter(X509Certificate2 certificate)
+        internal static RsaKeyParameters GetRsaPublicKeyParameter(Certificate certificate)
         {
-            using RSA rsa = certificate.GetRSAPublicKey();
-            return GetRsaPublicKeyParameter(rsa);
+            using RSA? rsa = certificate.GetRSAPublicKey();
+            return GetRsaPublicKeyParameter(rsa ?? throw new CryptographicException("RSA public key not found."));
         }
 
         /// <summary>
@@ -126,14 +128,14 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
         }
 
         /// <summary>
-        /// Get RSA private key parameters from a X509Certificate2.
+        /// Get RSA private key parameters from a Certificate.
         /// The private key must be exportable.
         /// </summary>
-        internal static RsaPrivateCrtKeyParameters GetRsaPrivateKeyParameter(
-            X509Certificate2 certificate)
+        internal static RsaPrivateCrtKeyParameters? GetRsaPrivateKeyParameter(
+            Certificate certificate)
         {
             // try to get signing/private key from certificate passed in
-            using RSA rsa = certificate.GetRSAPrivateKey();
+            using RSA? rsa = certificate.GetRSAPrivateKey();
             if (rsa != null)
             {
                 return GetRsaPrivateKeyParameter(rsa);
@@ -160,14 +162,14 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
         }
 
         /// <summary>
-        /// Get ECDsa private key parameters from a X509Certificate2.
+        /// Get ECDsa private key parameters from a Certificate.
         /// The private key must be exportable.
         /// </summary>
-        internal static ECPrivateKeyParameters GetECDsaPrivateKeyParameter(
-            X509Certificate2 certificate)
+        internal static ECPrivateKeyParameters? GetECDsaPrivateKeyParameter(
+            Certificate certificate)
         {
             // try to get signing/private key from certificate passed in
-            using ECDsa ecdsa = certificate.GetECDsaPrivateKey();
+            using ECDsa? ecdsa = certificate.GetECDsaPrivateKey();
             if (ecdsa != null)
             {
                 return GetECDsaPrivateKeyParameter(ecdsa);
@@ -185,10 +187,10 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
             ECParameters ecParams = ec.ExportParameters(true);
             var d = new BigInteger(1, ecParams.D);
 
-            X9ECParameters curve = GetX9ECParameters(ecParams);
+            X9ECParameters? curve = GetX9ECParameters(ecParams);
 
-            string friendlyName = ecParams.Curve.Oid.FriendlyName;
-            if (!s_friendlyNameToOidMap.TryGetValue(friendlyName, out string oidValue))
+            string? friendlyName = ecParams.Curve.Oid.FriendlyName;
+            if (friendlyName == null || !s_friendlyNameToOidMap.TryGetValue(friendlyName, out string? oidValue))
             {
                 throw new NotSupportedException($"Unknown friendly name: {friendlyName}");
             }
@@ -197,7 +199,7 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
 
             var namedDomainParameters = new ECNamedDomainParameters(
                 oid,
-                curve.Curve,
+                curve!.Curve,
                 curve.G,
                 curve.N,
                 curve.H,
@@ -260,7 +262,7 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
         /// Return Bouncy Castle X9ECParameters value equivalent of System.Security.Cryptography.ECparameters
         /// </summary>
         /// <returns>X9ECParameters value equivalent of System.Security.Cryptography.ECparameters if found else null</returns>
-        internal static X9ECParameters GetX9ECParameters(ECParameters ecParams)
+        internal static X9ECParameters? GetX9ECParameters(ECParameters ecParams)
         {
             if (!string.IsNullOrEmpty(ecParams.Curve.Oid.Value))
             {
@@ -327,7 +329,7 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
         /// <summary>
         /// Get the serial number from a certificate as BigInteger.
         /// </summary>
-        internal static BigInteger GetSerialNumber(X509Certificate2 certificate)
+        internal static BigInteger GetSerialNumber(Certificate certificate)
         {
             byte[] serialNumber = certificate.GetSerialNumber();
             return new BigInteger(1, [.. ((IEnumerable<byte>)serialNumber).Reverse()]);
@@ -383,7 +385,7 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
             var rsaKeyParameters = asymmetricKeyParameter as RsaKeyParameters;
             var parameters = new RSAParameters
             {
-                Exponent = rsaKeyParameters.Exponent.ToByteArrayUnsigned(),
+                Exponent = rsaKeyParameters!.Exponent.ToByteArrayUnsigned(),
                 Modulus = rsaKeyParameters.Modulus.ToByteArrayUnsigned()
             };
             var rsaPublicKey = RSA.Create();

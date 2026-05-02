@@ -29,7 +29,6 @@
 
 using System;
 using System.Security.Cryptography;
-using System.Security.Cryptography.X509Certificates;
 using NUnit.Framework;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Tests;
@@ -281,12 +280,12 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         public void ParseCertificateBlobValidCert()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            using X509Certificate2 cert = CertificateBuilder
+            using Certificate cert = CertificateBuilder
                 .Create("CN=TestCert")
                 .CreateForRSA();
             byte[] raw = cert.RawData;
 
-            using X509Certificate2 parsed = Utils.ParseCertificateBlob(raw, telemetry);
+            using Certificate parsed = Utils.ParseCertificateBlob(raw, telemetry);
             Assert.That(parsed, Is.Not.Null);
             Assert.That(parsed.Subject, Does.Contain("TestCert"));
         }
@@ -305,12 +304,12 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         public void ParseCertificateChainBlobSingleCert()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            using X509Certificate2 cert = CertificateBuilder
+            using Certificate cert = CertificateBuilder
                 .Create("CN=ChainTest")
                 .CreateForRSA();
             byte[] raw = cert.RawData;
 
-            X509Certificate2Collection chain = Utils.ParseCertificateChainBlob(raw, telemetry);
+            using CertificateCollection chain = Utils.ParseCertificateChainBlob(raw, telemetry);
             Assert.That(chain, Has.Count.EqualTo(1));
             Assert.That(chain[0].Subject, Does.Contain("ChainTest"));
         }

@@ -28,7 +28,7 @@
  * ======================================================================*/
 
 using System;
-using System.Security.Cryptography.X509Certificates;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua
 {
@@ -59,7 +59,7 @@ namespace Opc.Ua
         /// <exception cref="ArgumentNullException">
         /// <paramref name="certificate"/> is <c>null</c>.
         /// </exception>
-        public X509IdentityTokenHandler(X509Certificate2 certificate)
+        public X509IdentityTokenHandler(Certificate certificate)
         {
             if (certificate == null)
             {
@@ -89,7 +89,7 @@ namespace Opc.Ua
         /// </summary>
         private X509IdentityTokenHandler(
             X509IdentityToken token,
-            X509Certificate2 certificate)
+            Certificate certificate)
         {
             m_token = token;
             m_certificate = certificate;
@@ -99,7 +99,7 @@ namespace Opc.Ua
         /// <summary>
         /// The certificate associated with the token.
         /// </summary>
-        public X509Certificate2 Certificate
+        public Certificate Certificate
         {
             get
             {
@@ -129,26 +129,26 @@ namespace Opc.Ua
 
         /// <inheritdoc/>
         public void Encrypt(
-            X509Certificate2 receiverCertificate,
+            Certificate receiverCertificate,
             byte[] receiverNonce,
             string securityPolicyUri,
             IServiceMessageContext context,
             Nonce receiverEphemeralKey = null,
-            X509Certificate2 senderCertificate = null,
-            X509Certificate2Collection senderIssuerCertificates = null,
+            Certificate senderCertificate = null,
+            CertificateCollection senderIssuerCertificates = null,
             bool doNotEncodeSenderCertificate = false)
         {
         }
 
         /// <inheritdoc/>
         public void Decrypt(
-            X509Certificate2 certificate,
+            Certificate certificate,
             Nonce receiverNonce,
             string securityPolicyUri,
             IServiceMessageContext context,
             Nonce ephemeralKey = null,
-            X509Certificate2 senderCertificate = null,
-            X509Certificate2Collection senderIssuerCertificates = null,
+            Certificate senderCertificate = null,
+            CertificateCollection senderIssuerCertificates = null,
             CertificateValidator validator = null)
         {
         }
@@ -158,15 +158,22 @@ namespace Opc.Ua
             byte[] dataToSign,
             string securityPolicyUri)
         {
-            var info = SecurityPolicies.GetInfo(securityPolicyUri);
-            X509Certificate2 certificate = Certificate;
+            SecurityPolicyInfo info = SecurityPolicies.GetInfo(securityPolicyUri);
+            Certificate ownedCert = null;
+            Certificate certificate = Certificate ??
+                (ownedCert = CertificateFactory.Create(m_token.CertificateData));
 
-            var signatureData = SecurityPolicies.CreateSignatureData(
-                info,
-                certificate,
-                dataToSign);
-
-            return signatureData;
+            try
+            {
+                return SecurityPolicies.CreateSignatureData(
+                    info,
+                    certificate,
+                    dataToSign);
+            }
+            finally
+            {
+                ownedCert?.Dispose();
+            }
         }
 
         /// <inheritdoc/>
@@ -177,16 +184,23 @@ namespace Opc.Ua
         {
             try
             {
-                var info = SecurityPolicies.GetInfo(securityPolicyUri);
-                X509Certificate2 certificate = Certificate;
+                SecurityPolicyInfo info = SecurityPolicies.GetInfo(securityPolicyUri);
+                Certificate ownedCert = null;
+                Certificate certificate = Certificate ??
+                    (ownedCert = CertificateFactory.Create(m_token.CertificateData));
 
-                bool valid = SecurityPolicies.VerifySignatureData(
-                    signatureData,
-                    info,
-                    certificate,
-                    dataToVerify);
-
-                return valid;
+                try
+                {
+                    return SecurityPolicies.VerifySignatureData(
+                        signatureData,
+                        info,
+                        certificate,
+                        dataToVerify);
+                }
+                finally
+                {
+                    ownedCert?.Dispose();
+                }
             }
             catch (Exception e)
             {
@@ -227,6 +241,6 @@ namespace Opc.Ua
 
         private readonly X509IdentityToken m_token;
         private readonly bool m_ownsCertificate;
-        private X509Certificate2 m_certificate;
+        private Certificate m_certificate;
     }
 }

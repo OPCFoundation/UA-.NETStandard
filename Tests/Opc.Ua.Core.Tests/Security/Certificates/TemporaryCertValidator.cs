@@ -136,6 +136,7 @@ namespace Opc.Ua.Core.Tests
         /// </summary>
         public CertificateValidator Update()
         {
+            m_certificateValidator?.Dispose();
             var certValidator = new CertificateValidator(m_telemetry);
             var issuerTrustList = new CertificateTrustList
             {
@@ -166,6 +167,7 @@ namespace Opc.Ua.Core.Tests
         /// </summary>
         public async Task CleanupValidatorAndStoresAsync(bool dispose = false)
         {
+            m_certificateValidator?.Dispose();
             await TestUtils.CleanupTrustListAsync(m_issuerStore, dispose).ConfigureAwait(false);
             await TestUtils.CleanupTrustListAsync(m_trustedStore, dispose).ConfigureAwait(false);
             await TestUtils.CleanupTrustListAsync(m_rejectedStore, dispose).ConfigureAwait(false);

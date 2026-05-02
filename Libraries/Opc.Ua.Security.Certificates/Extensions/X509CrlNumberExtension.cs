@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 using System;
 using System.Formats.Asn1;
 using System.Numerics;
@@ -56,7 +58,8 @@ namespace Opc.Ua.Security.Certificates
         /// Creates an extension from ASN.1 encoded data.
         /// </summary>
         public X509CrlNumberExtension(AsnEncodedData encodedExtension, bool critical)
-            : this(encodedExtension.Oid, encodedExtension.RawData, critical)
+            : this(encodedExtension.Oid ?? throw new ArgumentException("Encoded extension has no OID.", nameof(encodedExtension)),
+                   encodedExtension.RawData, critical)
         {
         }
 
@@ -144,7 +147,7 @@ namespace Opc.Ua.Security.Certificates
         /// <exception cref="CryptographicException"></exception>
         private void Decode(byte[] data)
         {
-            if (Oid.Value == CrlNumberOid)
+            if (Oid?.Value == CrlNumberOid)
             {
                 try
                 {

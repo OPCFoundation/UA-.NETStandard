@@ -31,8 +31,8 @@ using System;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Security.Cryptography;
-using System.Security.Cryptography.X509Certificates;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Security.Certificates;
 
 #if NET8_0_OR_GREATER
 using System.Collections.Frozen;
@@ -484,7 +484,7 @@ namespace Opc.Ua
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
         public static EncryptedData Encrypt(
-            X509Certificate2 certificate,
+            Certificate certificate,
             string securityPolicyUri,
             ReadOnlySpan<byte> plainText,
             ILogger logger)
@@ -499,16 +499,12 @@ namespace Opc.Ua
             }
 
             // get the info object.
-            var info = GetInfo(securityPolicyUri);
-
             // unsupported policy.
-            if (info == null)
-            {
+            SecurityPolicyInfo info = GetInfo(securityPolicyUri) ??
                 throw ServiceResultException.Create(
                     StatusCodes.BadSecurityPolicyRejected,
                     "Unsupported security policy: {0}",
                     securityPolicyUri);
-            }
 
             // check if asymmetric encryption is possible.
             if (info.AsymmetricEncryptionAlgorithm != AsymmetricEncryptionAlgorithm.None)
@@ -563,7 +559,7 @@ namespace Opc.Ua
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
         public static byte[] Decrypt(
-            X509Certificate2 certificate,
+            Certificate certificate,
             string securityPolicyUri,
             EncryptedData dataToDecrypt,
             ILogger logger)
@@ -581,16 +577,12 @@ namespace Opc.Ua
             }
 
             // get the info object.
-            var info = GetInfo(securityPolicyUri);
-
             // unsupported policy.
-            if (info == null)
-            {
+            SecurityPolicyInfo info = GetInfo(securityPolicyUri) ??
                 throw ServiceResultException.Create(
                     StatusCodes.BadSecurityPolicyRejected,
                     "Unsupported security policy: {0}",
                     securityPolicyUri);
-            }
 
             // check if asymmetric encryption is possible.
             if (info.AsymmetricEncryptionAlgorithm != AsymmetricEncryptionAlgorithm.None)
@@ -653,9 +645,10 @@ namespace Opc.Ua
         /// <summary>
         /// Creates a signature using the security enhancements if required by the SecurityPolicy.
         /// </summary>
-        public static SignatureData CreateSignatureData(
+        /// <exception cref="ServiceResultException"></exception>
+        public static SignatureData Sign(
             string securityPolicyUri,
-            X509Certificate2 signingCertificate,
+            Certificate signingCertificate,
             byte[] secureChannelSecret,
             byte[] remoteCertificate,
             byte[] remoteChannelCertificate,
@@ -672,19 +665,15 @@ namespace Opc.Ua
             }
 
             // get the info object.
-            var info = GetInfo(securityPolicyUri);
-
             // unsupported policy.
-            if (info == null)
-            {
+            SecurityPolicyInfo info = GetInfo(securityPolicyUri) ??
                 throw ServiceResultException.Create(
                     StatusCodes.BadSecurityPolicyRejected,
                     "Unsupported security policy: {0}",
                     securityPolicyUri);
-            }
 
             // create the data to sign.
-            byte[] dataToSign = (info.SecureChannelEnhancements)
+            byte[] dataToSign = info.SecureChannelEnhancements
                 ? Utils.Append(
                     secureChannelSecret ?? Array.Empty<byte>(),
                     remoteCertificate ?? Array.Empty<byte>(),
@@ -705,19 +694,20 @@ namespace Opc.Ua
         /// </summary>
         public static SignatureData CreateSignatureData(
            string securityPolicyUri,
-           X509Certificate2 localCertificate,
+           Certificate localCertificate,
            byte[] dataToSign)
         {
-            var info = GetInfo(securityPolicyUri);
+            SecurityPolicyInfo info = GetInfo(securityPolicyUri);
             return CreateSignatureData(info, localCertificate, dataToSign);
         }
 
         /// <summary>
         /// Creates a signature on the data provided using the SecurityPolicy.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public static SignatureData CreateSignatureData(
            SecurityPolicyInfo securityPolicy,
-           X509Certificate2 localCertificate,
+           Certificate localCertificate,
            byte[] dataToSign)
         {
             var signatureData = new SignatureData();
@@ -765,10 +755,11 @@ namespace Opc.Ua
         /// <summary>
         /// Creates a signature using the security enhancements if required by the SecurityPolicy.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public static bool VerifySignatureData(
             SignatureData signature,
             string securityPolicyUri,
-            X509Certificate2 signingCertificate,
+            Certificate signingCertificate,
             byte[] secureChannelSecret,
             byte[] localCertificate,
             byte[] localChannelCertificate,
@@ -785,19 +776,15 @@ namespace Opc.Ua
             }
 
             // get the info object.
-            var info = GetInfo(securityPolicyUri);
-
             // unsupported policy.
-            if (info == null)
-            {
+            SecurityPolicyInfo info = GetInfo(securityPolicyUri) ??
                 throw ServiceResultException.Create(
                     StatusCodes.BadSecurityPolicyRejected,
                     "Unsupported security policy: {0}",
                     securityPolicyUri);
-            }
 
             // create the data to sign.
-            byte[] dataToVerify = (info.SecureChannelEnhancements)
+            byte[] dataToVerify = info.SecureChannelEnhancements
                 ? Utils.Append(
                     secureChannelSecret ?? Array.Empty<byte>(),
                     localCertificate ?? Array.Empty<byte>(),
@@ -812,27 +799,28 @@ namespace Opc.Ua
 
             return VerifySignatureData(signature, info, signingCertificate, dataToVerify);
         }
-                
-        /// <summary>
-        /// Verifies the signature using the SecurityPolicyUri and return true if valid.
-        /// </summary>
-        public static bool VerifySignatureData(
-            SignatureData signature,
-            string securityPolicyUri,
-            X509Certificate2 signingCertificate,
-            byte[] dataToVerify)
-        {
-            var info = GetInfo(securityPolicyUri);
-            return VerifySignatureData(signature, info, signingCertificate, dataToVerify);
-        }
 
         /// <summary>
         /// Verifies the signature using the SecurityPolicyUri and return true if valid.
         /// </summary>
         public static bool VerifySignatureData(
             SignatureData signature,
+            string securityPolicyUri,
+            Certificate signingCertificate,
+            byte[] dataToVerify)
+        {
+            SecurityPolicyInfo info = GetInfo(securityPolicyUri);
+            return VerifySignatureData(signature, info, signingCertificate, dataToVerify);
+        }
+
+        /// <summary>
+        /// Verifies the signature using the SecurityPolicyUri and return true if valid.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        public static bool VerifySignatureData(
+            SignatureData signature,
             SecurityPolicyInfo securityPolicy,
-            X509Certificate2 signingCertificate,
+            Certificate signingCertificate,
             byte[] dataToVerify)
         {
             // check if nothing to do.

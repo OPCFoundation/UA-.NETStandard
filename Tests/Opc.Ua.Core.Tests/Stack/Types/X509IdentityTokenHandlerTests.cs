@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Security.Cryptography.X509Certificates;
 using NUnit.Framework;
 using Opc.Ua.Security.Certificates;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
@@ -44,7 +43,7 @@ namespace Opc.Ua.Core.Tests.Stack.Types
         [Test]
         public void CopyPreservesPrivateKeyForSigning()
         {
-            using X509Certificate2 cert = CertificateBuilder
+            using Certificate cert = CertificateBuilder
                 .Create("CN=User Identity Test Subject, O=OPC Foundation")
                 .SetRSAKeySize(2048)
                 .CreateForRSA();

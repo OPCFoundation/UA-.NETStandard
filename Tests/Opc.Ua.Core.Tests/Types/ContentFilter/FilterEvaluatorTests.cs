@@ -591,11 +591,10 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
         private static Ua.ContentFilter BuildBinaryFilter(FilterOperator op, Variant left, Variant right)
         {
             ContentFilterElement element = BuildBinaryElement(op, left, right);
-            var filter = new Ua.ContentFilter
+            return new Ua.ContentFilter
             {
                 Elements = [element]
             };
-            return filter;
         }
 
         private static ContentFilterElement BuildBinaryElement(FilterOperator op, Variant left, Variant right)
@@ -616,11 +615,10 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
             {
                 new LiteralOperand(operand)
             });
-            var filter = new Ua.ContentFilter
+            return new Ua.ContentFilter
             {
                 Elements = [element]
             };
-            return filter;
         }
 
         private sealed class MockFilterTarget : IFilterTarget

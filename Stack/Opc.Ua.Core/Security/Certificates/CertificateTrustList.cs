@@ -27,11 +27,13 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 using System;
-using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua
 {
@@ -65,33 +67,29 @@ namespace Opc.Ua
         /// Returns the certificates in the trust list.
         /// </summary>
         [Obsolete("Use GetCertificatesAsync() instead.")]
-        public Task<X509Certificate2Collection> GetCertificates()
+        public Task<CertificateCollection> GetCertificates()
         {
-            return GetCertificatesAsync(null);
+            return GetCertificatesAsync(null!);
         }
 
         /// <summary>
         /// Returns the certificates in the trust list.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public async Task<X509Certificate2Collection> GetCertificatesAsync(
+        public async Task<CertificateCollection> GetCertificatesAsync(
             ITelemetryContext telemetry,
             CancellationToken ct = default)
         {
-            var collection = new X509Certificate2Collection();
+            var collection = new CertificateCollection();
 
             if (!string.IsNullOrEmpty(StorePath))
             {
-                ICertificateStore store = null;
+                ICertificateStore? store = null;
                 try
                 {
-                    store = OpenStore(telemetry);
-
-                    if (store == null)
-                    {
+                    store = OpenStore(telemetry) ??
                         throw ServiceResultException.ConfigurationError(
                             "Failed to open certificate store.");
-                    }
 
                     collection = await store.EnumerateAsync(ct).ConfigureAwait(false);
                 }
@@ -109,7 +107,7 @@ namespace Opc.Ua
             for (int i = 0; i < TrustedCertificates.Count; i++)
             {
                 CertificateIdentifier trustedCertificate = TrustedCertificates[i];
-                X509Certificate2 certificate = await trustedCertificate.FindAsync(null, telemetry, ct)
+                Certificate? certificate = await trustedCertificate.FindAsync(null, telemetry, ct)
                     .ConfigureAwait(false);
 
                 if (certificate != null)

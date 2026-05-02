@@ -28,9 +28,9 @@
  * ======================================================================*/
 
 using System;
-using System.Security.Cryptography.X509Certificates;
 using NUnit.Framework;
 using Opc.Ua.Gds.Client;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Gds.Tests
 {
@@ -41,17 +41,18 @@ namespace Opc.Ua.Gds.Tests
     [Parallelizable]
     public class CertificateWrapperTests
     {
+        private static readonly ICertificateFactory s_factory = new DefaultCertificateFactory();
         private static readonly string[] s_localhostDomains = ["localhost"];
-        private X509Certificate2 m_testCertificate;
+        private Certificate m_testCertificate;
 
         [OneTimeSetUp]
         public void OneTimeSetUp()
         {
-            m_testCertificate = CertificateFactory.CreateCertificate(
+            m_testCertificate = s_factory.CreateApplicationCertificate(
                 "urn:test:wrapper",
                 "TestWrapper",
                 "CN=TestWrapper,O=OPCFoundation",
-                new ArrayOf<string>(s_localhostDomains))
+                s_localhostDomains)
                 .CreateForRSA();
         }
 
@@ -225,11 +226,11 @@ namespace Opc.Ua.Gds.Tests
         [Test]
         public void CertificatePropertyRoundTrip()
         {
-            using X509Certificate2 cert = CertificateFactory.CreateCertificate(
+            using Certificate cert = s_factory.CreateApplicationCertificate(
                 "urn:test:roundtrip",
                 "RoundTrip",
                 "CN=RoundTrip",
-                new ArrayOf<string>(s_localhostDomains))
+                s_localhostDomains)
                 .CreateForRSA();
 
             var wrapper = new CertificateWrapper { Certificate = cert };
@@ -239,11 +240,11 @@ namespace Opc.Ua.Gds.Tests
         [Test]
         public void ToStringWithNullFormatReturnsSubjectName()
         {
-            using X509Certificate2 cert = CertificateFactory.CreateCertificate(
+            using Certificate cert = s_factory.CreateApplicationCertificate(
                 "urn:test:tostring",
                 "ToStringTest",
                 "CN=ToStringTest",
-                new ArrayOf<string>(s_localhostDomains))
+                s_localhostDomains)
                 .CreateForRSA();
 
             var wrapper = new CertificateWrapper { Certificate = cert };

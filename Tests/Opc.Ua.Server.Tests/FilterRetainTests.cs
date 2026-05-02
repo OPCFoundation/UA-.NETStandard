@@ -40,7 +40,7 @@ namespace Opc.Ua.Server.Tests
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
             SystemContext systemContext = GetSystemContext(telemetry);
-            using var alarm = GetExclusiveLevelAlarm(
+            using ExclusiveLevelAlarmState alarm = GetExclusiveLevelAlarm(
                 addFilterRetain: false,
                 filterRetainValue: false,
                 telemetry: telemetry);
@@ -52,7 +52,7 @@ namespace Opc.Ua.Server.Tests
             alarm.SetLimitState(systemContext, desiredState);
 
             EventFilter filter = GetHighOnlyEventFilter(addClauses: true, telemetry);
-            using var monitoredItem = CreateMonitoredItem(filter, telemetry);
+            using MonitoredItem monitoredItem = CreateMonitoredItem(filter, telemetry);
             CanSendFilteredAlarm(monitoredItem, GetFilterContext(telemetry), filter, alarm, pass, telemetry);
         }
 
@@ -78,7 +78,7 @@ namespace Opc.Ua.Server.Tests
 
             EventFilter filter = GetHighOnlyEventFilter(addClauses: !pass, telemetry);
 
-            using var monitoredItem = CreateMonitoredItem(filter, telemetry);
+            using MonitoredItem monitoredItem = CreateMonitoredItem(filter, telemetry);
             CanSendFilteredAlarm(monitoredItem, context, filter, alarm, pass, telemetry);
         }
 
@@ -94,7 +94,7 @@ namespace Opc.Ua.Server.Tests
             IFilterContext context = GetFilterContext(telemetry);
 
             EventFilter filter = GetHighOnlyEventFilter(addClauses: !pass, telemetry);
-            using var monitoredItem = CreateMonitoredItem(filter, telemetry);
+            using MonitoredItem monitoredItem = CreateMonitoredItem(filter, telemetry);
             CanSendFilteredAlarm(monitoredItem, context, filter, certificateType, pass, telemetry);
         }
 
@@ -105,7 +105,7 @@ namespace Opc.Ua.Server.Tests
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
-            using var alarm = GetExclusiveLevelAlarm(
+            using ExclusiveLevelAlarmState alarm = GetExclusiveLevelAlarm(
                 addFilterRetain: true,
                 filterRetainValue: supportsFilteredRetain,
                 telemetry: telemetry);
@@ -113,7 +113,7 @@ namespace Opc.Ua.Server.Tests
             alarm.SetLimitState(GetSystemContext(telemetry), LimitAlarmStates.Inactive);
 
             EventFilter filter = GetHighOnlyEventFilter(addClauses: true, telemetry);
-            using var monitoredItem = CreateMonitoredItem(filter, telemetry);
+            using MonitoredItem monitoredItem = CreateMonitoredItem(filter, telemetry);
 
             CanSendFilteredAlarm(monitoredItem, GetFilterContext(telemetry), filter, alarm, expected: false, telemetry);
         }
@@ -125,7 +125,7 @@ namespace Opc.Ua.Server.Tests
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
-            using var alarm = GetExclusiveLevelAlarm(
+            using ExclusiveLevelAlarmState alarm = GetExclusiveLevelAlarm(
                 addFilterRetain: true,
                 filterRetainValue: supportsFilteredRetain,
                 telemetry: telemetry);
@@ -133,7 +133,7 @@ namespace Opc.Ua.Server.Tests
             IFilterContext filterContext = GetFilterContext(telemetry);
 
             EventFilter filter = GetHighOnlyEventFilter(addClauses: true, telemetry);
-            using var monitoredItem = CreateMonitoredItem(filter, telemetry);
+            using MonitoredItem monitoredItem = CreateMonitoredItem(filter, telemetry);
 
             SystemContext systemContext = GetSystemContext(telemetry);
             alarm.SetLimitState(systemContext, LimitAlarmStates.Inactive);
@@ -166,13 +166,13 @@ namespace Opc.Ua.Server.Tests
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
-            using var alarm = GetExclusiveLevelAlarm(
+            using ExclusiveLevelAlarmState alarm = GetExclusiveLevelAlarm(
                 addFilterRetain: true,
                 filterRetainValue: supportsFilteredRetain,
                 telemetry: telemetry);
 
             EventFilter filter = GetHighOnlyEventFilter(addClauses: true, telemetry);
-            using var monitoredItem = CreateMonitoredItem(filter, telemetry);
+            using MonitoredItem monitoredItem = CreateMonitoredItem(filter, telemetry);
 
             SystemContext systemContext = GetSystemContext(telemetry);
             IFilterContext filterContext = GetFilterContext(telemetry);
@@ -202,13 +202,13 @@ namespace Opc.Ua.Server.Tests
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
-            using var alarm = GetExclusiveLevelAlarm(
+            using ExclusiveLevelAlarmState alarm = GetExclusiveLevelAlarm(
                 addFilterRetain: true,
                 filterRetainValue: supportsFilteredRetain,
                 telemetry: telemetry);
 
             EventFilter filter = GetHighOnlyEventFilter(addClauses: true, telemetry);
-            using var monitoredItem = CreateMonitoredItem(filter, telemetry);
+            using MonitoredItem monitoredItem = CreateMonitoredItem(filter, telemetry);
 
             SystemContext systemContext = GetSystemContext(telemetry);
             IFilterContext filterContext = GetFilterContext(telemetry);
@@ -258,7 +258,7 @@ namespace Opc.Ua.Server.Tests
 
             // https://reference.opcfoundation.org/Core/Part9/v105/docs/B.1.4
 
-            using var alarm = GetExclusiveLevelAlarm(
+            using ExclusiveLevelAlarmState alarm = GetExclusiveLevelAlarm(
                 addFilterRetain: true,
                 filterRetainValue: supportsFilteredRetain,
                 telemetry: telemetry);
@@ -276,7 +276,7 @@ namespace Opc.Ua.Server.Tests
             };
             _ = filter.Validate(filterContext);
 
-            using var monitoredItem = CreateMonitoredItem(filter, telemetry);
+            using MonitoredItem monitoredItem = CreateMonitoredItem(filter, telemetry);
 
             // 16 States in Table B.3
 

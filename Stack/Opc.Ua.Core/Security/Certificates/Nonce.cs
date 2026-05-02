@@ -27,12 +27,12 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 using System;
 using System.Collections.Generic;
 using System.Numerics;
-using System.Runtime.Serialization;
 using System.Security.Cryptography;
-using System.Security.Cryptography.X509Certificates;
 #if CURVE25519
 using Org.BouncyCastle.Pkcs;
 using Org.BouncyCastle.X509;
@@ -53,8 +53,8 @@ namespace Opc.Ua
     /// </summary>
     public class Nonce : IDisposable
     {
-        private ECDiffieHellman m_ecdh;
-        private RSADiffieHellman m_rsadh;
+        private ECDiffieHellman? m_ecdh;
+        private RSADiffieHellman? m_rsadh;
         private static readonly RandomNumberGenerator s_rng = RandomNumberGenerator.Create();
         private static uint s_minNonceLength = 32;
 
@@ -70,31 +70,31 @@ namespace Opc.Ua
         /// <summary>
         /// Gets the nonce data.
         /// </summary>
-        public byte[] Data { get; private set; }
+        public byte[]? Data { get; private set; }
 
-        internal byte[] GenerateSecret(
+        internal byte[]? GenerateSecret(
             Nonce remoteNonce,
             byte[] previousSecret)
         {
-            byte[] ikm = null;
+            byte[]? ikm = null;
 #if NET8_0_OR_GREATER
             if (m_ecdh != null)
             {
-                ikm = m_ecdh.DeriveRawSecretAgreement(remoteNonce.m_ecdh.PublicKey);
+                ikm = m_ecdh.DeriveRawSecretAgreement(remoteNonce.m_ecdh!.PublicKey);
             }
             else if (m_rsadh != null)
             {
-                ikm = m_rsadh.DeriveRawSecretAgreement(remoteNonce.m_rsadh);
+                ikm = m_rsadh.DeriveRawSecretAgreement(remoteNonce.m_rsadh!);
             }
 
 #else // !NET8_0_OR_GREATER (NET78 and NET80)
             if (m_ecdh != null)
             {
-                ikm = m_ecdh.DeriveKeyMaterial(remoteNonce.m_ecdh.PublicKey);
+                ikm = m_ecdh.DeriveKeyMaterial(remoteNonce.m_ecdh!.PublicKey);
             }
             else if (m_rsadh != null)
             {
-                ikm = m_rsadh.DeriveRawSecretAgreement(remoteNonce.m_rsadh);
+                ikm = m_rsadh.DeriveRawSecretAgreement(remoteNonce.m_rsadh!);
             }
 #endif
             if (ikm != null && previousSecret != null)
@@ -184,13 +184,14 @@ namespace Opc.Ua
         /// </summary>
         public static Nonce CreateNonce(string securityPolicyUri)
         {
-            var info = SecurityPolicies.GetInfo(securityPolicyUri);
+            SecurityPolicyInfo info = SecurityPolicies.GetInfo(securityPolicyUri);
             return CreateNonce(info);
         }
 
         /// <summary>
         /// Creates a nonce for the specified security policy and nonce length.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="securityPolicy"/> is <c>null</c>.</exception>
         public static Nonce CreateNonce(SecurityPolicyInfo securityPolicy)
         {
             if (securityPolicy == null)
@@ -236,8 +237,10 @@ namespace Opc.Ua
         /// </summary>
         public static Nonce CreateNonce(RSADiffieHellmanGroup group)
         {
-            var nonce = new Nonce();
-            nonce.m_rsadh = RSADiffieHellman.Create(group);
+            var nonce = new Nonce
+            {
+                m_rsadh = RSADiffieHellman.Create(group)
+            };
             nonce.Data = nonce.m_rsadh.GetNonce();
             return nonce;
         }
@@ -247,13 +250,14 @@ namespace Opc.Ua
         /// </summary>
         public static Nonce CreateNonce(string securityPolicyUri, byte[] nonceData)
         {
-            var info = SecurityPolicies.GetInfo(securityPolicyUri);
+            SecurityPolicyInfo info = SecurityPolicies.GetInfo(securityPolicyUri);
             return CreateNonce(info, nonceData);
         }
 
         /// <summary>
         /// Creates a new Nonce object for the specified security policy and nonce data.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="securityPolicy"/> is <c>null</c>.</exception>
         public static Nonce CreateNonce(SecurityPolicyInfo securityPolicy, byte[] nonceData)
         {
             if (securityPolicy == null)
@@ -268,10 +272,11 @@ namespace Opc.Ua
 
             if (securityPolicy.EphemeralKeyAlgorithm == CertificateKeyAlgorithm.RSADH)
             {
-                var nonce = new Nonce();
-                nonce.m_rsadh = RSADiffieHellman.Create(nonceData);
-                nonce.Data = nonceData;
-                return nonce;
+                return new Nonce
+                {
+                    m_rsadh = RSADiffieHellman.Create(nonceData),
+                    Data = nonceData
+                };
             }
 
             switch (securityPolicy.EphemeralKeyAlgorithm)
@@ -459,8 +464,8 @@ namespace Opc.Ua
         {
             var ecdh = ECDiffieHellman.Create(curve);
             ECParameters ecdhParameters = ecdh.ExportParameters(false);
-            int xLen = ecdhParameters.Q.X.Length;
-            int yLen = ecdhParameters.Q.Y.Length;
+            int xLen = ecdhParameters.Q.X!.Length;
+            int yLen = ecdhParameters.Q.Y!.Length;
 
             byte[] senderNonce = new byte[xLen + yLen];
             Array.Copy(ecdhParameters.Q.X, senderNonce, xLen);
@@ -488,7 +493,7 @@ namespace Opc.Ua
                 if (m_ecdh != null)
                 {
                     m_ecdh.Dispose();
-                    m_ecdh = null;
+                    m_ecdh = null!;
                 }
             }
         }
@@ -604,6 +609,7 @@ namespace Opc.Ua
         /// <summary>
         /// Creates a new RSADiffieHellman instance for the specified group.
         /// </summary>
+        /// <exception cref="NotSupportedException"></exception>
         public static RSADiffieHellman Create(RSADiffieHellmanGroup group)
         {
             int min = 0;
@@ -655,7 +661,7 @@ namespace Opc.Ua
         {
             var dh = new RSADiffieHellman();
 
-            var bytes = new byte[nonce.Length+1];
+            byte[] bytes = new byte[nonce.Length+1];
 
             for (int ii = 0; ii < nonce.Length; ii++)
             {
@@ -673,8 +679,8 @@ namespace Opc.Ua
         /// </summary>
         public byte[] GetNonce()
         {
-            var nonce = new byte[m_nonceLength];
-            var publicKey = m_publicKey.ToByteArray();
+            byte[] nonce = new byte[m_nonceLength];
+            byte[] publicKey = m_publicKey.ToByteArray();
 
             for (int ii = 0; ii < publicKey.Length && ii < nonce.Length; ii++)
             {
@@ -687,6 +693,8 @@ namespace Opc.Ua
         /// <summary>
         /// Derives the raw secret agreement from the remote key.
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
+        /// <exception cref="NotSupportedException"></exception>
         public byte[] DeriveRawSecretAgreement(RSADiffieHellman remoteKey)
         {
             if (m_privateKey.IsZero)
@@ -713,17 +721,17 @@ namespace Opc.Ua
 
             var shared = BigInteger.ModPow(remoteKey.m_publicKey, m_privateKey, p);
 
-            var bytes = shared.ToByteArray();
+            byte[] bytes = shared.ToByteArray();
 
             if (bytes.Length < m_nonceLength)
             {
-                var padded = new byte[m_nonceLength];
+                byte[] padded = new byte[m_nonceLength];
                 Array.Copy(bytes, 0, padded, 0, bytes.Length);
                 bytes = padded;
             }
             else if (bytes.Length > m_nonceLength)
             {
-                var trucated = new byte[m_nonceLength];
+                byte[] trucated = new byte[m_nonceLength];
                 Array.Copy(bytes, 0, trucated, 0, m_nonceLength);
                 bytes = trucated;
             }
@@ -737,7 +745,7 @@ namespace Opc.Ua
         private static BigInteger RfcTextToBytes(string rfcText)
         {
             var bytes = new List<byte>();
-            var digit = new char[2];
+            char[] digit = new char[2];
             int pos = 0;
 
             bytes.Add(0);
@@ -759,8 +767,7 @@ namespace Opc.Ua
             }
 
             bytes.Reverse();
-            var integer = new BigInteger(bytes.ToArray());
-            return integer;
+            return new BigInteger(bytes.ToArray());
         }
     }
 }

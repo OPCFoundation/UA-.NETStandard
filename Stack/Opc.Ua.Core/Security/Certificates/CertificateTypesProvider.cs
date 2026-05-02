@@ -27,11 +27,12 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
-using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 
 namespace Opc.Ua.Security.Certificates
@@ -39,13 +40,16 @@ namespace Opc.Ua.Security.Certificates
     /// <summary>
     /// The provider for the X509 application certificates.
     /// </summary>
-    public class CertificateTypesProvider
+    public class CertificateTypesProvider : IDisposable
     {
         /// <summary>
         /// Disallow to create types provider without configuration.
         /// </summary>
         private CertificateTypesProvider()
         {
+            m_securityConfiguration = null!;
+            m_certificateValidator = null!;
+            m_certificateChain = null!;
         }
 
         /// <summary>
@@ -56,7 +60,26 @@ namespace Opc.Ua.Security.Certificates
             m_securityConfiguration = config.SecurityConfiguration;
             m_certificateValidator = new CertificateValidator(telemetry);
             m_certificateChain
-                = new ConcurrentDictionary<string, Tuple<X509Certificate2Collection, byte[]>>();
+                = new ConcurrentDictionary<string, Tuple<CertificateCollection, byte[]>>();
+        }
+
+        /// <inheritdoc/>
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        /// <summary>
+        /// Releases the resources used by the certificate types provider.
+        /// </summary>
+        protected virtual void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                ClearCachedChains();
+                m_certificateValidator?.Dispose();
+            }
         }
 
         /// <summary>
@@ -71,7 +94,7 @@ namespace Opc.Ua.Security.Certificates
             m_certificateValidator.AutoAcceptUntrustedCertificates = true;
             m_certificateValidator.UseValidatedCertificates = true;
 
-            m_certificateChain.Clear();
+            ClearCachedChains();
         }
 
         /// <summary>
@@ -86,35 +109,35 @@ namespace Opc.Ua.Security.Certificates
         /// Return the instance certificate for a security policy.
         /// </summary>
         /// <param name="securityPolicyUri">The security policy Uri</param>
-        public X509Certificate2 GetInstanceCertificate(string securityPolicyUri)
+        public Certificate? GetInstanceCertificate(string securityPolicyUri)
         {
             if (securityPolicyUri == SecurityPolicies.None)
             {
                 // return the default certificate for None
-                return m_securityConfiguration.ApplicationCertificates.ToArray().FirstOrDefault().Certificate;
+                return (m_securityConfiguration.ApplicationCertificates.ToArray() ?? []).FirstOrDefault()?.Certificate;
             }
             foreach (NodeId certType in Ua.CertificateIdentifier
                 .MapSecurityPolicyToCertificateTypes(securityPolicyUri))
             {
-                Ua.CertificateIdentifier instanceCertificate =
-                    m_securityConfiguration.ApplicationCertificates.ToArray().FirstOrDefault(id =>
+                Ua.CertificateIdentifier? instanceCertificate =
+                    (m_securityConfiguration.ApplicationCertificates.ToArray() ?? []).FirstOrDefault(id =>
                         id.CertificateType == certType);
                 if (instanceCertificate == null &&
                     certType == ObjectTypeIds.RsaSha256ApplicationCertificateType)
                 {
-                    instanceCertificate = m_securityConfiguration.ApplicationCertificates
-                        .ToArray().FirstOrDefault(id => id.CertificateType.IsNull);
+                    instanceCertificate = (m_securityConfiguration.ApplicationCertificates
+                        .ToArray() ?? []).FirstOrDefault(id => id.CertificateType.IsNull);
                 }
                 if (instanceCertificate == null &&
                     certType == ObjectTypeIds.ApplicationCertificateType)
                 {
-                    instanceCertificate = m_securityConfiguration.ApplicationCertificates
-                        .ToArray().FirstOrDefault();
+                    instanceCertificate = (m_securityConfiguration.ApplicationCertificates
+                        .ToArray() ?? []).FirstOrDefault();
                 }
                 if (instanceCertificate == null && certType == ObjectTypeIds.HttpsCertificateType)
                 {
-                    instanceCertificate = m_securityConfiguration.ApplicationCertificates
-                        .ToArray().FirstOrDefault();
+                    instanceCertificate = (m_securityConfiguration.ApplicationCertificates
+                        .ToArray() ?? []).FirstOrDefault();
                 }
                 if (instanceCertificate != null)
                 {
@@ -128,7 +151,7 @@ namespace Opc.Ua.Security.Certificates
         /// Loads the cached certificate chain blob of a certificate for use in a secure channel as raw byte array from cache.
         /// </summary>
         /// <param name="certificate">The application certificate.</param>
-        public byte[] LoadCertificateChainRaw(X509Certificate2 certificate)
+        public byte[]? LoadCertificateChainRaw(Certificate? certificate)
         {
             if (certificate == null)
             {
@@ -137,7 +160,7 @@ namespace Opc.Ua.Security.Certificates
 
             if (m_certificateChain.TryGetValue(
                     certificate.Thumbprint,
-                    out Tuple<X509Certificate2Collection, byte[]> result
+                    out Tuple<CertificateCollection, byte[]>? result
                 ) &&
                 result.Item2 != null)
             {
@@ -151,8 +174,8 @@ namespace Opc.Ua.Security.Certificates
         /// Loads the certificate chain for an application certificate.
         /// </summary>
         /// <param name="certificate">The application certificate.</param>
-        public async Task<X509Certificate2Collection> LoadCertificateChainAsync(
-            X509Certificate2 certificate)
+        public async Task<CertificateCollection?> LoadCertificateChainAsync(
+            Certificate? certificate)
         {
             if (certificate == null)
             {
@@ -161,20 +184,26 @@ namespace Opc.Ua.Security.Certificates
 
             if (m_certificateChain.TryGetValue(
                     certificate.Thumbprint,
-                    out Tuple<X509Certificate2Collection, byte[]> certificateChainTuple))
+                    out Tuple<CertificateCollection, byte[]>? certificateChainTuple))
             {
-                return certificateChainTuple.Item1;
+                // Return a new collection with AddRef'd members so the
+                // caller can dispose independently without invalidating the cache.
+                return CloneWithAddRef(certificateChainTuple.Item1);
             }
 
             // load certificate chain.
-            var certificateChain = new X509Certificate2Collection(certificate);
+            var certificateChain = new CertificateCollection(new[] { certificate });
             var issuers = new List<Ua.CertificateIdentifier>();
             if (await m_certificateValidator.GetIssuersAsync(certificate, issuers)
                 .ConfigureAwait(false))
             {
                 for (int i = 0; i < issuers.Count; i++)
                 {
-                    certificateChain.Add(issuers[i].Certificate);
+                    Certificate? issuerCert = issuers[i].Certificate;
+                    if (issuerCert != null)
+                    {
+                        certificateChain.Add(issuerCert);
+                    }
                 }
             }
 
@@ -182,18 +211,19 @@ namespace Opc.Ua.Security.Certificates
 
             // update cached values
             m_certificateChain[certificate.Thumbprint]
-                = new Tuple<X509Certificate2Collection, byte[]>(
+                = new Tuple<CertificateCollection, byte[]>(
                 certificateChain,
                 certificateChainRaw);
 
-            return certificateChain;
+            // Return a caller-owned copy so disposing it does not affect the cache.
+            return CloneWithAddRef(certificateChain);
         }
 
         /// <summary>
         /// Loads the certificate chain for an application certificate from cache.
         /// </summary>
         /// <param name="certificate">The application certificate.</param>
-        public X509Certificate2Collection LoadCertificateChain(X509Certificate2 certificate)
+        public CertificateCollection? LoadCertificateChain(Certificate? certificate)
         {
             if (certificate == null)
             {
@@ -202,9 +232,11 @@ namespace Opc.Ua.Security.Certificates
 
             if (m_certificateChain.TryGetValue(
                     certificate.Thumbprint,
-                    out Tuple<X509Certificate2Collection, byte[]> certificateChainTuple))
+                    out Tuple<CertificateCollection, byte[]>? certificateChainTuple))
             {
-                return certificateChainTuple.Item1;
+                // Return a new collection with AddRef'd members so the
+                // caller can dispose independently without invalidating the cache.
+                return CloneWithAddRef(certificateChainTuple.Item1);
             }
 
             return null;
@@ -217,12 +249,40 @@ namespace Opc.Ua.Security.Certificates
         public void Update(SecurityConfiguration securityConfiguration)
         {
             m_securityConfiguration = securityConfiguration;
-            m_certificateChain.Clear();
+            ClearCachedChains();
             //ToDo intialize internal CertificateValidator after Certificate Update to clear cache of old application certificates
+        }
+
+        /// <summary>
+        /// Creates a new <see cref="CertificateCollection"/> containing
+        /// AddRef'd copies of the certificates in the source collection.
+        /// The caller owns the returned collection and may dispose it
+        /// independently of the source.
+        /// </summary>
+        private static CertificateCollection CloneWithAddRef(CertificateCollection source)
+        {
+            var result = new CertificateCollection(source.Count);
+            foreach (Certificate cert in source)
+            {
+                result.Add(cert);
+            }
+            return result;
+        }
+
+        /// <summary>
+        /// Disposes all cached certificate chains and clears the dictionary.
+        /// </summary>
+        private void ClearCachedChains()
+        {
+            foreach (var kvp in m_certificateChain)
+            {
+                kvp.Value.Item1?.Dispose();
+            }
+            m_certificateChain.Clear();
         }
 
         private readonly CertificateValidator m_certificateValidator;
         private SecurityConfiguration m_securityConfiguration;
-        private readonly ConcurrentDictionary<string, Tuple<X509Certificate2Collection, byte[]>> m_certificateChain;
+        private readonly ConcurrentDictionary<string, Tuple<CertificateCollection, byte[]>> m_certificateChain;
     }
 }

@@ -27,9 +27,10 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 using System;
 using System.IO;
-using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -72,7 +73,7 @@ namespace Opc.Ua.Configuration.Tests
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
-            var application = new ApplicationInstance(telemetry) { ApplicationName = "Application" };
+            await using var application = new ApplicationInstance(telemetry) { ApplicationName = "Application" };
 
             string appStorePath = m_tempPath + Path.DirectorySeparatorChar + "own";
             string trustedStorePath = m_tempPath + Path.DirectorySeparatorChar + "trusted";
@@ -129,7 +130,7 @@ namespace Opc.Ua.Configuration.Tests
         private static async Task OpenCertStoreAsync(CertificateTrustList trustList, ITelemetryContext telemetry)
         {
             using ICertificateStore trustListStore = trustList.OpenStore(telemetry);
-            X509Certificate2Collection certs = await trustListStore.EnumerateAsync()
+            using CertificateCollection certs = await trustListStore.EnumerateAsync()
                 .ConfigureAwait(false);
             X509CRLCollection crls = await trustListStore.EnumerateCRLsAsync()
                 .ConfigureAwait(false);
@@ -201,8 +202,8 @@ namespace Opc.Ua.Configuration.Tests
 
         /// <inheritdoc/>
         public Task AddAsync(
-            X509Certificate2 certificate,
-            char[] password = null,
+            Certificate certificate,
+            char[]? password = null,
             CancellationToken ct = default)
         {
             return m_innerStore.AddAsync(certificate, password, ct);
@@ -215,13 +216,13 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         /// <inheritdoc/>
-        public Task<X509Certificate2Collection> EnumerateAsync(CancellationToken ct = default)
+        public Task<CertificateCollection> EnumerateAsync(CancellationToken ct = default)
         {
             return m_innerStore.EnumerateAsync(ct);
         }
 
         /// <inheritdoc/>
-        public Task<X509Certificate2Collection> FindByThumbprintAsync(
+        public Task<CertificateCollection> FindByThumbprintAsync(
             string thumbprint,
             CancellationToken ct = default)
         {
@@ -257,7 +258,7 @@ namespace Opc.Ua.Configuration.Tests
 
         /// <inheritdoc/>
         public Task<X509CRLCollection> EnumerateCRLsAsync(
-            X509Certificate2 issuer,
+            Certificate issuer,
             bool validateUpdateTime = true,
             CancellationToken ct = default)
         {
@@ -266,8 +267,8 @@ namespace Opc.Ua.Configuration.Tests
 
         /// <inheritdoc/>
         public Task<StatusCode> IsRevokedAsync(
-            X509Certificate2 issuer,
-            X509Certificate2 certificate,
+            Certificate issuer,
+            Certificate certificate,
             CancellationToken ct = default)
         {
             return m_innerStore.IsRevokedAsync(issuer, certificate, ct);
@@ -277,12 +278,12 @@ namespace Opc.Ua.Configuration.Tests
         public bool SupportsLoadPrivateKey => m_innerStore.SupportsLoadPrivateKey;
 
         /// <inheritdoc/>
-        public Task<X509Certificate2> LoadPrivateKeyAsync(
+        public Task<Certificate?> LoadPrivateKeyAsync(
             string thumbprint,
             string subjectName,
             string applicationUri,
             NodeId certificateType,
-            char[] password,
+            char[]? password,
             CancellationToken ct = default)
         {
             return m_innerStore.LoadPrivateKeyAsync(
@@ -296,7 +297,7 @@ namespace Opc.Ua.Configuration.Tests
 
         /// <inheritdoc/>
         public Task AddRejectedAsync(
-            X509Certificate2Collection certificates,
+            CertificateCollection certificates,
             int maxCertificates,
             CancellationToken ct = default)
         {

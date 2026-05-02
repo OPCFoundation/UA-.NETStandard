@@ -32,12 +32,12 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
-using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 using Opc.Ua.Gds.Server;
+using Opc.Ua.Security.Certificates;
 using Opc.Ua.Tests;
 
 namespace Opc.Ua.Gds.Tests
@@ -54,6 +54,8 @@ namespace Opc.Ua.Gds.Tests
     [NonParallelizable]
     public class ClientTest
     {
+        private static readonly ICertificateFactory s_factory = new DefaultCertificateFactory();
+
         public class ConnectionProfile : IFormattable
         {
             public ConnectionProfile(
@@ -958,7 +960,7 @@ namespace Opc.Ua.Gds.Tests
             foreach (ApplicationTestData application in m_goodApplicationTestSet)
             {
                 Assert.That(application.CertificateRequestId.IsNull, Is.True);
-                X509Certificate2 csrCertificate;
+                Certificate csrCertificate;
                 if (application.PrivateKeyFormat == "PFX")
                 {
                     csrCertificate = X509Utils.CreateCertificateFromPKCS12(
@@ -972,9 +974,9 @@ namespace Opc.Ua.Gds.Tests
                         application.PrivateKey,
                         application.PrivateKeyPassword);
                 }
-                byte[] certificateRequest = CertificateFactory.CreateSigningRequest(
+                byte[] certificateRequest = s_factory.CreateSigningRequest(
                     csrCertificate,
-                    application.DomainNames);
+                    application.DomainNames.ToList());
                 csrCertificate.Dispose();
                 NodeId requestId = await m_gdsClient.GDSClient.StartSigningRequestAsync(
                     application.ApplicationRecord.ApplicationId,
@@ -1307,7 +1309,7 @@ namespace Opc.Ua.Gds.Tests
 
             await ConnectGDSAsync(false, true).ConfigureAwait(false);
             Assert.That(application.CertificateRequestId.IsNull, Is.True);
-            X509Certificate2 csrCertificate;
+            Certificate csrCertificate;
             if (application.PrivateKeyFormat == "PFX")
             {
                 csrCertificate = X509Utils.CreateCertificateFromPKCS12(
@@ -1321,9 +1323,9 @@ namespace Opc.Ua.Gds.Tests
                     application.PrivateKey,
                     application.PrivateKeyPassword);
             }
-            byte[] certificateRequest = CertificateFactory.CreateSigningRequest(
+            byte[] certificateRequest = s_factory.CreateSigningRequest(
                 csrCertificate,
-                application.DomainNames);
+                application.DomainNames.ToList());
             csrCertificate.Dispose();
 
             // ensure access to other applications is denied

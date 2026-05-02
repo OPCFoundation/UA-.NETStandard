@@ -36,8 +36,9 @@ using NUnit.Framework;
 using Opc.Ua.Bindings;
 using System;
 using System.Net.Sockets;
-using System.Security.Cryptography.X509Certificates;
+using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua.Security.Certificates;
 using Opc.Ua.Tests;
 
 namespace Opc.Ua.Core.Tests.Stack.Client
@@ -49,22 +50,32 @@ namespace Opc.Ua.Core.Tests.Stack.Client
     [Parallelizable]
     public sealed class ClientChannelManagerTests
     {
+        private static readonly ICertificateFactory s_factory = new DefaultCertificateFactory();
+
         [Test]
         public async Task CreateChannelShouldCreateChannelWithConnectionAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
-            using X509Certificate2 serverCertificate = CertificateFactory.CreateCertificate("CN=server").CreateForRSA();
-            using X509Certificate2 clientCertificate = CertificateFactory.CreateCertificate("CN=client").CreateForRSA();
-            var clientCertificateChain = new X509Certificate2Collection();
+            using Certificate serverCertificate = s_factory.CreateCertificate("CN=server").CreateForRSA();
+            using Certificate clientCertificate = s_factory.CreateCertificate("CN=client").CreateForRSA();
+            using var clientCertificateChain = new CertificateCollection();
 
+            Certificate? parsedServerCert = null;
             var transportChannelMock = new Mock<IChannel>();
             var transportBindingsMock = new Mock<ITransportChannelBindings>();
             transportBindingsMock.Setup(x => x.Create(It.IsAny<string>(), telemetry))
                 .Returns(transportChannelMock.Object);
+            transportChannelMock.Setup(x => x.OpenAsync(
+                    It.IsAny<ITransportWaitingConnection>(),
+                    It.IsAny<TransportChannelSettings>(),
+                    It.IsAny<CancellationToken>()))
+                .Callback<ITransportWaitingConnection, TransportChannelSettings, CancellationToken>(
+                    (_, s, _) => parsedServerCert = s.ServerCertificate)
+                .Returns(new ValueTask());
 
             var transportWaitingConnectionMock = new Mock<ITransportWaitingConnection>();
-            var serviceMessageContextMock = new Mock<IServiceMessageContext>();
+            var serviceMessageContextMock= new Mock<IServiceMessageContext>();
             serviceMessageContextMock.SetupGet(x => x.Telemetry).Returns(telemetry);
             var configuration = new ApplicationConfiguration(telemetry);
             var socket = new Mock<IMessageSocket>();
@@ -80,20 +91,29 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                 transportWaitingConnectionMock.Object).ConfigureAwait(false);
 
             Assert.That(channel, Is.Not.Null);
+            parsedServerCert?.Dispose();
         }
 
         [Test]
         public async Task CreateChannelShouldCreateChannelAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            using X509Certificate2 serverCertificate = CertificateFactory.CreateCertificate("CN=server").CreateForRSA();
-            using X509Certificate2 clientCertificate = CertificateFactory.CreateCertificate("CN=client").CreateForRSA();
-            var clientCertificateChain = new X509Certificate2Collection();
+            using Certificate serverCertificate = s_factory.CreateCertificate("CN=server").CreateForRSA();
+            using Certificate clientCertificate = s_factory.CreateCertificate("CN=client").CreateForRSA();
+            using var clientCertificateChain = new CertificateCollection();
 
+            Certificate? parsedServerCert = null;
             var transportChannelMock = new Mock<IChannel>();
             var transportBindingsMock = new Mock<ITransportChannelBindings>();
             transportBindingsMock.Setup(x => x.Create(It.IsAny<string>(), telemetry))
                 .Returns(transportChannelMock.Object);
+            transportChannelMock.Setup(x => x.OpenAsync(
+                    It.IsAny<Uri>(),
+                    It.IsAny<TransportChannelSettings>(),
+                    It.IsAny<CancellationToken>()))
+                .Callback<Uri, TransportChannelSettings, CancellationToken>(
+                    (_, s, _) => parsedServerCert = s.ServerCertificate)
+                .Returns(new ValueTask());
 
             var serviceMessageContextMock = new Mock<IServiceMessageContext>();
             serviceMessageContextMock.SetupGet(x => x.Telemetry).Returns(telemetry);
@@ -110,6 +130,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                 clientCertificateChain).ConfigureAwait(false);
 
             Assert.That(channel, Is.Not.Null);
+            parsedServerCert?.Dispose();
         }
 
         [Test]
@@ -499,7 +520,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             Assert.That(port, Is.EqualTo(-1));
         }
 
-        private static ConfiguredEndpoint GetTestEndpoint(X509Certificate2 serverCert)
+        private static ConfiguredEndpoint GetTestEndpoint(Certificate serverCert)
         {
             var endpoint = new ConfiguredEndpoint
             {

@@ -120,10 +120,8 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
 
             string output = ReadOutput();
             Assert.That(m_capturedPath, Does.Contain("Test.ModelDependencies.g.cs"));
-            Assert.That(
-                output,
-                Does.Contain(
-                    "[assembly: global::Opc.Ua.ModelDependencyAttribute(\"http://test.org/UA/\", \"Test\", \"1.05.04\", \"2024-05-01T00:00:00Z\")]"));
+            Assert.That(NormalizeWhitespace(output), Does.Contain(
+                "[assembly: global::Opc.Ua.ModelDependencyAttribute( \"http://test.org/UA/\", \"Test\", \"1.05.04\", \"2024-05-01T00:00:00Z\")]"));
         }
 
         [Test]
@@ -135,10 +133,8 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             generator.Emit();
 
             string output = ReadOutput();
-            Assert.That(
-                output,
-                Does.Contain(
-                    "[assembly: global::Opc.Ua.ModelDependencyAttribute(\"http://test.org/UA/\", \"Test\", null, null)]"));
+            Assert.That(NormalizeWhitespace(output), Does.Contain(
+                "[assembly: global::Opc.Ua.ModelDependencyAttribute( \"http://test.org/UA/\", \"Test\", null, null)]"));
             // Defensive: ensure we never emit the literal string "null".
             Assert.That(output, Does.Not.Contain("\"null\""));
         }
@@ -300,6 +296,15 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             // The generator wraps the captured stream in a StreamWriter and
             // disposes it on Emit(); the stream's Position is at the end.
             return Encoding.UTF8.GetString(m_memoryStream.ToArray());
+        }
+
+        private static string NormalizeWhitespace(string text)
+        {
+            // Collapse newlines and runs of whitespace to a single space so
+            // assertions can match against a logical line regardless of how
+            // the template wraps the emitted attribute.
+            return System.Text.RegularExpressions.Regex.Replace(
+                text, @"\s+", " ");
         }
     }
 }

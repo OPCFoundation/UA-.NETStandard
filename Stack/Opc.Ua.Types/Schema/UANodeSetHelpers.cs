@@ -291,7 +291,7 @@ namespace Opc.Ua.Export
                     return;
                 }
                 m_declared = true;
-                foreach (var (prefix, uri) in m_declarations)
+                foreach ((string prefix, string uri) in m_declarations)
                 {
                     m_inner.WriteAttributeString("xmlns", prefix, null, uri);
                 }
@@ -300,7 +300,7 @@ namespace Opc.Ua.Export
             public override WriteState WriteState => m_inner.WriteState;
             public override string LookupPrefix(string ns)
             {
-                foreach (var (prefix, uri) in m_declarations)
+                foreach ((string prefix, string uri) in m_declarations)
                 {
                     if (uri == ns)
                     {
@@ -309,32 +309,115 @@ namespace Opc.Ua.Export
                 }
                 return m_inner.LookupPrefix(ns);
             }
-            public override void Flush() => m_inner.Flush();
-            public override void WriteBase64(byte[] buffer, int index, int count) => m_inner.WriteBase64(buffer, index, count);
-            public override void WriteCData(string text) => m_inner.WriteCData(text);
-            public override void WriteCharEntity(char ch) => m_inner.WriteCharEntity(ch);
-            public override void WriteChars(char[] buffer, int index, int count) => m_inner.WriteChars(buffer, index, count);
-            public override void WriteComment(string text) => m_inner.WriteComment(text);
-            public override void WriteDocType(string name, string pubid, string sysid, string subset) => m_inner.WriteDocType(name, pubid, sysid, subset);
-            public override void WriteEndAttribute() => m_inner.WriteEndAttribute();
-            public override void WriteEndDocument() => m_inner.WriteEndDocument();
-            public override void WriteEndElement() => m_inner.WriteEndElement();
-            public override void WriteEntityRef(string name) => m_inner.WriteEntityRef(name);
-            public override void WriteFullEndElement() => m_inner.WriteFullEndElement();
-            public override void WriteProcessingInstruction(string name, string text) => m_inner.WriteProcessingInstruction(name, text);
-            public override void WriteRaw(char[] buffer, int index, int count) => m_inner.WriteRaw(buffer, index, count);
-            public override void WriteRaw(string data) => m_inner.WriteRaw(data);
-            public override void WriteStartAttribute(string prefix, string localName, string ns) => m_inner.WriteStartAttribute(prefix, localName, ns);
-            public override void WriteStartDocument() => m_inner.WriteStartDocument();
-            public override void WriteStartDocument(bool standalone) => m_inner.WriteStartDocument(standalone);
+            public override void Flush()
+            {
+                m_inner.Flush();
+            }
+
+            public override void WriteBase64(byte[] buffer, int index, int count)
+            {
+                m_inner.WriteBase64(buffer, index, count);
+            }
+
+            public override void WriteCData(string text)
+            {
+                m_inner.WriteCData(text);
+            }
+
+            public override void WriteCharEntity(char ch)
+            {
+                m_inner.WriteCharEntity(ch);
+            }
+
+            public override void WriteChars(char[] buffer, int index, int count)
+            {
+                m_inner.WriteChars(buffer, index, count);
+            }
+
+            public override void WriteComment(string text)
+            {
+                m_inner.WriteComment(text);
+            }
+
+            public override void WriteDocType(string name, string pubid, string sysid, string subset)
+            {
+                m_inner.WriteDocType(name, pubid, sysid, subset);
+            }
+
+            public override void WriteEndAttribute()
+            {
+                m_inner.WriteEndAttribute();
+            }
+
+            public override void WriteEndDocument()
+            {
+                m_inner.WriteEndDocument();
+            }
+
+            public override void WriteEndElement()
+            {
+                m_inner.WriteEndElement();
+            }
+
+            public override void WriteEntityRef(string name)
+            {
+                m_inner.WriteEntityRef(name);
+            }
+
+            public override void WriteFullEndElement()
+            {
+                m_inner.WriteFullEndElement();
+            }
+
+            public override void WriteProcessingInstruction(string name, string text)
+            {
+                m_inner.WriteProcessingInstruction(name, text);
+            }
+
+            public override void WriteRaw(char[] buffer, int index, int count)
+            {
+                m_inner.WriteRaw(buffer, index, count);
+            }
+
+            public override void WriteRaw(string data)
+            {
+                m_inner.WriteRaw(data);
+            }
+
+            public override void WriteStartAttribute(string prefix, string localName, string ns)
+            {
+                m_inner.WriteStartAttribute(prefix, localName, ns);
+            }
+
+            public override void WriteStartDocument()
+            {
+                m_inner.WriteStartDocument();
+            }
+
+            public override void WriteStartDocument(bool standalone)
+            {
+                m_inner.WriteStartDocument(standalone);
+            }
+
             public override void WriteStartElement(string prefix, string localName, string ns)
             {
                 m_inner.WriteStartElement(prefix, localName, ns);
                 DeclareIfNeeded();
             }
-            public override void WriteString(string text) => m_inner.WriteString(text);
-            public override void WriteSurrogateCharEntity(char lowChar, char highChar) => m_inner.WriteSurrogateCharEntity(lowChar, highChar);
-            public override void WriteWhitespace(string ws) => m_inner.WriteWhitespace(ws);
+            public override void WriteString(string text)
+            {
+                m_inner.WriteString(text);
+            }
+
+            public override void WriteSurrogateCharEntity(char lowChar, char highChar)
+            {
+                m_inner.WriteSurrogateCharEntity(lowChar, highChar);
+            }
+
+            public override void WriteWhitespace(string ws)
+            {
+                m_inner.WriteWhitespace(ws);
+            }
 
             protected override void Dispose(bool disposing)
             {

@@ -34,13 +34,12 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Security.Cryptography;
-using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Security;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Bindings
 {
@@ -57,9 +56,9 @@ namespace Opc.Ua.Bindings
             BufferManager bufferManager,
             IMessageSocketFactory socketFactory,
             ChannelQuotas quotas,
-            X509Certificate2 clientCertificate,
-            X509Certificate2Collection clientCertificateChain,
-            X509Certificate2 serverCertificate,
+            Certificate clientCertificate,
+            CertificateCollection clientCertificateChain,
+            Certificate serverCertificate,
             EndpointDescription endpoint,
             ITelemetryContext telemetry)
             : base(
@@ -589,7 +588,7 @@ namespace Opc.Ua.Bindings
                 out byte[] signature);
 
             // don't keep signature if secure channel enhancements are not used.
-            m_oscRequestSignature = (SecurityPolicy.SecureChannelEnhancements) ? signature : null;
+            m_oscRequestSignature = SecurityPolicy.SecureChannelEnhancements ? signature : null;
 
             // save token.
             m_requestedToken = token;
@@ -637,7 +636,7 @@ namespace Opc.Ua.Bindings
             // parse the security header.
             uint channelId;
 
-            X509Certificate2 serverCertificate;
+            Certificate? serverCertificate = null;
 
             uint requestId;
 
@@ -662,6 +661,8 @@ namespace Opc.Ua.Bindings
             }
             catch (Exception e)
             {
+                serverCertificate?.Dispose();
+
                 m_logger.LogDebug(e,
                    "ChannelId {ChannelId}: Could not verify security on OpenSecureChannel response",
                    ChannelId);
@@ -773,6 +774,7 @@ namespace Opc.Ua.Bindings
             }
             finally
             {
+                serverCertificate?.Dispose();
                 chunksToProcess?.Release(BufferManager, "ProcessOpenSecureChannelResponse");
             }
 
@@ -1227,16 +1229,12 @@ namespace Opc.Ua.Bindings
         private IServiceResponse ParseResponse(BufferCollection chunksToProcess)
         {
             using var responseStream = new ArraySegmentStream(chunksToProcess);
-            IServiceResponse response = BinaryDecoder.DecodeMessage<IServiceResponse>(
+            return BinaryDecoder.DecodeMessage<IServiceResponse>(
                 responseStream,
-                Quotas.MessageContext);
-            if (response == null)
-            {
+                Quotas.MessageContext) ??
                 throw ServiceResultException.Create(
                     StatusCodes.BadStructureMissing,
                     "Could not parse response body.");
-            }
-            return response;
         }
 
         /// <summary>

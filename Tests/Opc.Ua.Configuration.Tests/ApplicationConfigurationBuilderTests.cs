@@ -74,10 +74,10 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public void BuildReturnsBuilderWithCorrectApplicationConfiguration()
+        public async Task BuildReturnsBuilderWithCorrectApplicationConfiguration()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
 
             IApplicationConfigurationBuilderTypes builder = appInstance.Build(ApplicationUri, ProductUri);
 
@@ -89,10 +89,10 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public void BuildSetsDefaultTransportQuotas()
+        public async Task BuildSetsDefaultTransportQuotas()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
 
             appInstance.Build(ApplicationUri, ProductUri);
 
@@ -100,10 +100,10 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public void BuildSetsDefaultTraceConfiguration()
+        public async Task BuildSetsDefaultTraceConfiguration()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
 
             appInstance.Build(ApplicationUri, ProductUri);
 
@@ -114,10 +114,10 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public void AsClientSetsClientConfiguration()
+        public async Task AsClientSetsClientConfiguration()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
 
             appInstance.Build(ApplicationUri, ProductUri)
                 .AsClient();
@@ -127,10 +127,10 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public void AsClientFromServerTypeSetsClient()
+        public async Task AsClientFromServerTypeSetsClient()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry)
+            await using var appInstance = new ApplicationInstance(telemetry)
             {
                 ApplicationName = ApplicationName,
                 ApplicationType = ApplicationType.Server
@@ -143,10 +143,10 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public void AsServerFromClientTypeSetsServer()
+        public async Task AsServerFromClientTypeSetsServer()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry)
+            await using var appInstance = new ApplicationInstance(telemetry)
             {
                 ApplicationName = ApplicationName,
                 ApplicationType = ApplicationType.Client
@@ -159,10 +159,10 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public void AsServerThenClientSetsClientAndServerWithBothConfigs()
+        public async Task AsServerThenClientSetsClientAndServerWithBothConfigs()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
 
             appInstance.Build(ApplicationUri, ProductUri)
                 .AsServer([EndpointUrl])
@@ -174,10 +174,10 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public void AsServerThenClientSetsClientAndServer()
+        public async Task AsServerThenClientSetsClientAndServer()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
 
             appInstance.Build(ApplicationUri, ProductUri)
                 .AsServer([EndpointUrl])
@@ -187,10 +187,10 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public void AsClientFromDiscoveryServerThrows()
+        public async Task AsClientFromDiscoveryServerThrows()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry)
+            await using var appInstance = new ApplicationInstance(telemetry)
             {
                 ApplicationName = ApplicationName,
                 ApplicationType = ApplicationType.DiscoveryServer
@@ -202,10 +202,10 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public void AsServerFromDiscoveryServerThrows()
+        public async Task AsServerFromDiscoveryServerThrows()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry)
+            await using var appInstance = new ApplicationInstance(telemetry)
             {
                 ApplicationName = ApplicationName,
                 ApplicationType = ApplicationType.DiscoveryServer
@@ -217,10 +217,10 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public void AsServerSetsBaseAddresses()
+        public async Task AsServerSetsBaseAddresses()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             string endpoint1 = "opc.tcp://localhost:51000";
             string endpoint2 = "opc.tcp://localhost:51001";
 
@@ -233,10 +233,10 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public void AsServerSetsAlternateBaseAddresses()
+        public async Task AsServerSetsAlternateBaseAddresses()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             string[] alternates = ["opc.tcp://myhost:51000"];
 
             appInstance.Build(ApplicationUri, ProductUri)
@@ -248,10 +248,10 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public void AsServerDisablesLdsRegistrationByDefault()
+        public async Task AsServerDisablesLdsRegistrationByDefault()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
 
             appInstance.Build(ApplicationUri, ProductUri)
                 .AsServer([EndpointUrl]);
@@ -262,10 +262,10 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public void AsServerInitializesEmptyPolicies()
+        public async Task AsServerInitializesEmptyPolicies()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
 
             appInstance.Build(ApplicationUri, ProductUri)
                 .AsServer([EndpointUrl]);
@@ -279,10 +279,10 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public void AddSecurityConfigurationWithSubjectNameSetsDefaults()
+        public async Task AddSecurityConfigurationWithSubjectNameSetsDefaults()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
 
             appInstance.Build(ApplicationUri, ProductUri)
                 .AsClient()
@@ -302,10 +302,10 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public void AddSecurityConfigurationSetsSecureDefaults()
+        public async Task AddSecurityConfigurationSetsSecureDefaults()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
 
             appInstance.Build(ApplicationUri, ProductUri)
                 .AsClient()
@@ -323,10 +323,10 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public void AddSecurityConfigurationWithCertIdListSetsSecureDefaults()
+        public async Task AddSecurityConfigurationWithCertIdListSetsSecureDefaults()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
 
             ArrayOf<CertificateIdentifier> certs =
                 ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
@@ -346,10 +346,10 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public void AddSecurityConfigurationStoresSetsAllStores()
+        public async Task AddSecurityConfigurationStoresSetsAllStores()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             string appRoot = Path.Combine(m_pkiRoot, "own");
             string trustedRoot = Path.Combine(m_pkiRoot, "trusted");
             string issuerRoot = Path.Combine(m_pkiRoot, "issuer");
@@ -372,10 +372,10 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public void AddSecurityConfigurationStoresWithoutRejectedRootUsesDefault()
+        public async Task AddSecurityConfigurationStoresWithoutRejectedRootUsesDefault()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             string appRoot = Path.Combine(m_pkiRoot, "own");
             string trustedRoot = Path.Combine(m_pkiRoot, "trusted");
             string issuerRoot = Path.Combine(m_pkiRoot, "issuer");
@@ -394,10 +394,10 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public void AddSecurityConfigurationUserStoreConfiguresUserStores()
+        public async Task AddSecurityConfigurationUserStoreConfiguresUserStores()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             string appRoot = Path.Combine(m_pkiRoot, "own");
             string trustedRoot = Path.Combine(m_pkiRoot, "trusted");
             string issuerRoot = Path.Combine(m_pkiRoot, "issuer");
@@ -415,10 +415,10 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public void AddSecurityConfigurationHttpsStoreConfiguresHttpsStores()
+        public async Task AddSecurityConfigurationHttpsStoreConfiguresHttpsStores()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             string appRoot = Path.Combine(m_pkiRoot, "own");
             string trustedRoot = Path.Combine(m_pkiRoot, "trusted");
             string issuerRoot = Path.Combine(m_pkiRoot, "issuer");
@@ -436,10 +436,10 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public void SetHiResClockDisabledSetsProperty()
+        public async Task SetHiResClockDisabledSetsProperty()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
 
             appInstance.Build(ApplicationUri, ProductUri)
                 .AsClient()
@@ -450,10 +450,10 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public void SetTransportQuotasReplacesQuotas()
+        public async Task SetTransportQuotasReplacesQuotas()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             var quotas = new TransportQuotas { OperationTimeout = 42000 };
 
             appInstance.Build(ApplicationUri, ProductUri)
@@ -465,10 +465,10 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public void SetOperationTimeoutSetsValue()
+        public async Task SetOperationTimeoutSetsValue()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
 
             appInstance.Build(ApplicationUri, ProductUri)
                 .SetOperationTimeout(15000);
@@ -479,10 +479,10 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public void SetMaxStringLengthSetsValue()
+        public async Task SetMaxStringLengthSetsValue()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
 
             appInstance.Build(ApplicationUri, ProductUri)
                 .SetMaxStringLength(1_000_000);
@@ -493,10 +493,10 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public void SetMaxByteStringLengthSetsValue()
+        public async Task SetMaxByteStringLengthSetsValue()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
 
             appInstance.Build(ApplicationUri, ProductUri)
                 .SetMaxByteStringLength(2_000_000);
@@ -507,10 +507,10 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public void SetMaxArrayLengthSetsValue()
+        public async Task SetMaxArrayLengthSetsValue()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
 
             appInstance.Build(ApplicationUri, ProductUri)
                 .SetMaxArrayLength(5000);
@@ -521,10 +521,10 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public void SetMaxMessageSizeSetsValue()
+        public async Task SetMaxMessageSizeSetsValue()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
 
             appInstance.Build(ApplicationUri, ProductUri)
                 .SetMaxMessageSize(8_000_000);
@@ -535,10 +535,10 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public void SetMaxBufferSizeSetsValue()
+        public async Task SetMaxBufferSizeSetsValue()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
 
             appInstance.Build(ApplicationUri, ProductUri)
                 .SetMaxBufferSize(65536);
@@ -549,10 +549,10 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public void SetChannelLifetimeSetsValue()
+        public async Task SetChannelLifetimeSetsValue()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
 
             appInstance.Build(ApplicationUri, ProductUri)
                 .SetChannelLifetime(600_000);
@@ -563,10 +563,10 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public void SetSecurityTokenLifetimeSetsValue()
+        public async Task SetSecurityTokenLifetimeSetsValue()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
 
             appInstance.Build(ApplicationUri, ProductUri)
                 .SetSecurityTokenLifetime(3_600_000);
@@ -577,10 +577,10 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public void SetMaxEncodingNestingLevelsSetsValue()
+        public async Task SetMaxEncodingNestingLevelsSetsValue()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
 
             appInstance.Build(ApplicationUri, ProductUri)
                 .SetMaxEncodingNestingLevels(128);
@@ -591,10 +591,10 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public void SetMaxDecoderRecoveriesSetsValue()
+        public async Task SetMaxDecoderRecoveriesSetsValue()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
 
             appInstance.Build(ApplicationUri, ProductUri)
                 .SetMaxDecoderRecoveries(10);
@@ -605,10 +605,10 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public void SecurityOptionsSetAutoAcceptUntrustedCertificates()
+        public async Task SecurityOptionsSetAutoAcceptUntrustedCertificates()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
 
             appInstance.Build(ApplicationUri, ProductUri)
                 .AsClient()
@@ -621,10 +621,10 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public void SecurityOptionsSetAddAppCertToTrustedStore()
+        public async Task SecurityOptionsSetAddAppCertToTrustedStore()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
 
             appInstance.Build(ApplicationUri, ProductUri)
                 .AsClient()
@@ -637,10 +637,10 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public void SecurityOptionsSetRejectSHA1SignedCertificates()
+        public async Task SecurityOptionsSetRejectSHA1SignedCertificates()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
 
             appInstance.Build(ApplicationUri, ProductUri)
                 .AsClient()
@@ -653,10 +653,10 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public void SecurityOptionsSetRejectUnknownRevocationStatus()
+        public async Task SecurityOptionsSetRejectUnknownRevocationStatus()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
 
             appInstance.Build(ApplicationUri, ProductUri)
                 .AsClient()
@@ -669,10 +669,10 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public void SecurityOptionsSetUseValidatedCertificates()
+        public async Task SecurityOptionsSetUseValidatedCertificates()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
 
             appInstance.Build(ApplicationUri, ProductUri)
                 .AsClient()
@@ -685,10 +685,10 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public void SecurityOptionsSetSuppressNonceValidationErrors()
+        public async Task SecurityOptionsSetSuppressNonceValidationErrors()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
 
             appInstance.Build(ApplicationUri, ProductUri)
                 .AsClient()
@@ -701,10 +701,10 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public void SecurityOptionsSetSendCertificateChain()
+        public async Task SecurityOptionsSetSendCertificateChain()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
 
             appInstance.Build(ApplicationUri, ProductUri)
                 .AsClient()
@@ -717,10 +717,10 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public void SecurityOptionsSetMinimumCertificateKeySize()
+        public async Task SecurityOptionsSetMinimumCertificateKeySize()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
 
             appInstance.Build(ApplicationUri, ProductUri)
                 .AsClient()
@@ -733,10 +733,10 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public void SecurityOptionsSetMaxRejectedCertificates()
+        public async Task SecurityOptionsSetMaxRejectedCertificates()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
 
             appInstance.Build(ApplicationUri, ProductUri)
                 .AsClient()
@@ -749,10 +749,10 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public void SecurityOptionsSetApplicationCertificates()
+        public async Task SecurityOptionsSetApplicationCertificates()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
 
             ArrayOf<CertificateIdentifier> certs =
                 ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
@@ -771,45 +771,45 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public void AddUnsecurePolicyNoneAddsPolicyWhenTrue()
+        public async Task AddUnsecurePolicyNoneAddsPolicyWhenTrue()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
 
             appInstance.Build(ApplicationUri, ProductUri)
                 .AsServer([EndpointUrl])
                 .AddUnsecurePolicyNone();
 
-            var policies = appInstance.ApplicationConfiguration.ServerConfiguration.SecurityPolicies;
+            ArrayOf<ServerSecurityPolicy> policies = appInstance.ApplicationConfiguration.ServerConfiguration.SecurityPolicies;
             Assert.That(policies.Count, Is.EqualTo(1));
             Assert.That(policies[0].SecurityMode, Is.EqualTo(MessageSecurityMode.None));
         }
 
         [Test]
-        public void AddUnsecurePolicyNoneSkipsWhenFalse()
+        public async Task AddUnsecurePolicyNoneSkipsWhenFalse()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
 
             appInstance.Build(ApplicationUri, ProductUri)
                 .AsServer([EndpointUrl])
                 .AddUnsecurePolicyNone(false);
 
-            var policies = appInstance.ApplicationConfiguration.ServerConfiguration.SecurityPolicies;
+            ArrayOf<ServerSecurityPolicy> policies = appInstance.ApplicationConfiguration.ServerConfiguration.SecurityPolicies;
             Assert.That(policies.Count, Is.EqualTo(0));
         }
 
         [Test]
-        public void AddSignPoliciesAddsPoliciesWhenTrue()
+        public async Task AddSignPoliciesAddsPoliciesWhenTrue()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
 
             appInstance.Build(ApplicationUri, ProductUri)
                 .AsServer([EndpointUrl])
                 .AddSignPolicies();
 
-            var policies = appInstance.ApplicationConfiguration.ServerConfiguration.SecurityPolicies;
+            ArrayOf<ServerSecurityPolicy> policies = appInstance.ApplicationConfiguration.ServerConfiguration.SecurityPolicies;
             Assert.That(policies.Count, Is.GreaterThan(0));
             Assert.That(
                 policies.ToList().All(p => p.SecurityMode >= MessageSecurityMode.Sign),
@@ -817,30 +817,30 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public void AddSignPoliciesSkipsWhenFalse()
+        public async Task AddSignPoliciesSkipsWhenFalse()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
 
             appInstance.Build(ApplicationUri, ProductUri)
                 .AsServer([EndpointUrl])
                 .AddSignPolicies(false);
 
-            var policies = appInstance.ApplicationConfiguration.ServerConfiguration.SecurityPolicies;
+            ArrayOf<ServerSecurityPolicy> policies = appInstance.ApplicationConfiguration.ServerConfiguration.SecurityPolicies;
             Assert.That(policies.Count, Is.EqualTo(0));
         }
 
         [Test]
-        public void AddSignAndEncryptPoliciesAddsPolicies()
+        public async Task AddSignAndEncryptPoliciesAddsPolicies()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
 
             appInstance.Build(ApplicationUri, ProductUri)
                 .AsServer([EndpointUrl])
                 .AddSignAndEncryptPolicies();
 
-            var policies = appInstance.ApplicationConfiguration.ServerConfiguration.SecurityPolicies;
+            ArrayOf<ServerSecurityPolicy> policies = appInstance.ApplicationConfiguration.ServerConfiguration.SecurityPolicies;
             Assert.That(policies.Count, Is.GreaterThan(0));
             Assert.That(
                 policies.ToList().All(p => p.SecurityMode == MessageSecurityMode.SignAndEncrypt),
@@ -848,30 +848,30 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public void AddSignAndEncryptPoliciesSkipsWhenFalse()
+        public async Task AddSignAndEncryptPoliciesSkipsWhenFalse()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
 
             appInstance.Build(ApplicationUri, ProductUri)
                 .AsServer([EndpointUrl])
                 .AddSignAndEncryptPolicies(false);
 
-            var policies = appInstance.ApplicationConfiguration.ServerConfiguration.SecurityPolicies;
+            ArrayOf<ServerSecurityPolicy> policies = appInstance.ApplicationConfiguration.ServerConfiguration.SecurityPolicies;
             Assert.That(policies.Count, Is.EqualTo(0));
         }
 
         [Test]
-        public void AddEccSignPoliciesAddsPolicies()
+        public async Task AddEccSignPoliciesAddsPolicies()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
 
             appInstance.Build(ApplicationUri, ProductUri)
                 .AsServer([EndpointUrl])
                 .AddEccSignPolicies();
 
-            var policies = appInstance.ApplicationConfiguration.ServerConfiguration.SecurityPolicies;
+            ArrayOf<ServerSecurityPolicy> policies = appInstance.ApplicationConfiguration.ServerConfiguration.SecurityPolicies;
             Assert.That(policies.Count, Is.GreaterThan(0));
             Assert.That(
                 policies.ToList().All(p => p.SecurityMode == MessageSecurityMode.Sign),
@@ -879,16 +879,16 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public void AddEccSignAndEncryptPoliciesAddsPolicies()
+        public async Task AddEccSignAndEncryptPoliciesAddsPolicies()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
 
             appInstance.Build(ApplicationUri, ProductUri)
                 .AsServer([EndpointUrl])
                 .AddEccSignAndEncryptPolicies();
 
-            var policies = appInstance.ApplicationConfiguration.ServerConfiguration.SecurityPolicies;
+            ArrayOf<ServerSecurityPolicy> policies = appInstance.ApplicationConfiguration.ServerConfiguration.SecurityPolicies;
             Assert.That(policies.Count, Is.GreaterThan(0));
             Assert.That(
                 policies.ToList().All(p => p.SecurityMode == MessageSecurityMode.SignAndEncrypt),
@@ -896,26 +896,26 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public void AddPolicyWithValidParametersAddsPolicy()
+        public async Task AddPolicyWithValidParametersAddsPolicy()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
 
             appInstance.Build(ApplicationUri, ProductUri)
                 .AsServer([EndpointUrl])
                 .AddPolicy(MessageSecurityMode.SignAndEncrypt, SecurityPolicies.Basic256Sha256);
 
-            var policies = appInstance.ApplicationConfiguration.ServerConfiguration.SecurityPolicies;
+            ArrayOf<ServerSecurityPolicy> policies = appInstance.ApplicationConfiguration.ServerConfiguration.SecurityPolicies;
             Assert.That(policies.Count, Is.EqualTo(1));
             Assert.That(policies[0].SecurityMode, Is.EqualTo(MessageSecurityMode.SignAndEncrypt));
             Assert.That(policies[0].SecurityPolicyUri, Is.EqualTo(SecurityPolicies.Basic256Sha256));
         }
 
         [Test]
-        public void AddPolicyWithNoneModeThrows()
+        public async Task AddPolicyWithNoneModeThrows()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
 
             Assert.Throws<ArgumentException>(() =>
                 appInstance.Build(ApplicationUri, ProductUri)
@@ -924,10 +924,10 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public void AddPolicyWithNoneUriThrows()
+        public async Task AddPolicyWithNoneUriThrows()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
 
             Assert.Throws<ArgumentException>(() =>
                 appInstance.Build(ApplicationUri, ProductUri)
@@ -936,10 +936,10 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public void AddPolicyWithInvalidUriThrows()
+        public async Task AddPolicyWithInvalidUriThrows()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
 
             Assert.Throws<ArgumentException>(() =>
                 appInstance.Build(ApplicationUri, ProductUri)
@@ -948,40 +948,40 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public void AddDuplicatePolicyDoesNotDuplicate()
+        public async Task AddDuplicatePolicyDoesNotDuplicate()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
 
             appInstance.Build(ApplicationUri, ProductUri)
                 .AsServer([EndpointUrl])
                 .AddPolicy(MessageSecurityMode.SignAndEncrypt, SecurityPolicies.Basic256Sha256)
                 .AddPolicy(MessageSecurityMode.SignAndEncrypt, SecurityPolicies.Basic256Sha256);
 
-            var policies = appInstance.ApplicationConfiguration.ServerConfiguration.SecurityPolicies;
+            ArrayOf<ServerSecurityPolicy> policies = appInstance.ApplicationConfiguration.ServerConfiguration.SecurityPolicies;
             Assert.That(policies.Count, Is.EqualTo(1));
         }
 
         [Test]
-        public void AddUserTokenPolicyByTypeAddsPolicies()
+        public async Task AddUserTokenPolicyByTypeAddsPolicies()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
 
             appInstance.Build(ApplicationUri, ProductUri)
                 .AsServer([EndpointUrl])
                 .AddUserTokenPolicy(UserTokenType.Anonymous)
                 .AddUserTokenPolicy(UserTokenType.UserName);
 
-            var tokenPolicies = appInstance.ApplicationConfiguration.ServerConfiguration.UserTokenPolicies;
+            ArrayOf<UserTokenPolicy> tokenPolicies = appInstance.ApplicationConfiguration.ServerConfiguration.UserTokenPolicies;
             Assert.That(tokenPolicies.Count, Is.EqualTo(2));
         }
 
         [Test]
-        public void AddUserTokenPolicyWithObjectAddsPolicy()
+        public async Task AddUserTokenPolicyWithObjectAddsPolicy()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             var policy = new UserTokenPolicy(UserTokenType.Certificate)
             {
                 SecurityPolicyUri = SecurityPolicies.Basic256Sha256
@@ -991,15 +991,15 @@ namespace Opc.Ua.Configuration.Tests
                 .AsServer([EndpointUrl])
                 .AddUserTokenPolicy(policy);
 
-            var tokenPolicies = appInstance.ApplicationConfiguration.ServerConfiguration.UserTokenPolicies;
+            ArrayOf<UserTokenPolicy> tokenPolicies = appInstance.ApplicationConfiguration.ServerConfiguration.UserTokenPolicies;
             Assert.That(tokenPolicies.Count, Is.EqualTo(1));
         }
 
         [Test]
-        public void AddUserTokenPolicyWithNullThrows()
+        public async Task AddUserTokenPolicyWithNullThrows()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
 
             Assert.Throws<ArgumentNullException>(() =>
                 appInstance.Build(ApplicationUri, ProductUri)
@@ -1008,10 +1008,10 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public void ServerOptionsSetMinRequestThreadCount()
+        public async Task ServerOptionsSetMinRequestThreadCount()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
 
             appInstance.Build(ApplicationUri, ProductUri)
                 .AsServer([EndpointUrl])
@@ -1023,10 +1023,10 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public void ServerOptionsSetMaxRequestThreadCount()
+        public async Task ServerOptionsSetMaxRequestThreadCount()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
 
             appInstance.Build(ApplicationUri, ProductUri)
                 .AsServer([EndpointUrl])
@@ -1038,10 +1038,10 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public void ServerOptionsSetMaxQueuedRequestCount()
+        public async Task ServerOptionsSetMaxQueuedRequestCount()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
 
             appInstance.Build(ApplicationUri, ProductUri)
                 .AsServer([EndpointUrl])
@@ -1053,10 +1053,10 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public void ServerOptionsSetDiagnosticsEnabled()
+        public async Task ServerOptionsSetDiagnosticsEnabled()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
 
             appInstance.Build(ApplicationUri, ProductUri)
                 .AsServer([EndpointUrl])
@@ -1068,10 +1068,10 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public void ServerOptionsSetMaxSessionCount()
+        public async Task ServerOptionsSetMaxSessionCount()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
 
             appInstance.Build(ApplicationUri, ProductUri)
                 .AsServer([EndpointUrl])
@@ -1083,10 +1083,10 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public void ServerOptionsSetMaxChannelCount()
+        public async Task ServerOptionsSetMaxChannelCount()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
 
             appInstance.Build(ApplicationUri, ProductUri)
                 .AsServer([EndpointUrl])
@@ -1098,10 +1098,10 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public void ServerOptionsSetMinSessionTimeout()
+        public async Task ServerOptionsSetMinSessionTimeout()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
 
             appInstance.Build(ApplicationUri, ProductUri)
                 .AsServer([EndpointUrl])
@@ -1113,10 +1113,10 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public void ServerOptionsSetMaxSessionTimeout()
+        public async Task ServerOptionsSetMaxSessionTimeout()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
 
             appInstance.Build(ApplicationUri, ProductUri)
                 .AsServer([EndpointUrl])
@@ -1128,10 +1128,10 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public void ServerOptionsSetContinuationPoints()
+        public async Task ServerOptionsSetContinuationPoints()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
 
             appInstance.Build(ApplicationUri, ProductUri)
                 .AsServer([EndpointUrl])
@@ -1146,10 +1146,10 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public void ServerOptionsSetMaxRequestAge()
+        public async Task ServerOptionsSetMaxRequestAge()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
 
             appInstance.Build(ApplicationUri, ProductUri)
                 .AsServer([EndpointUrl])
@@ -1161,10 +1161,10 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public void ServerOptionsSetPublishingIntervals()
+        public async Task ServerOptionsSetPublishingIntervals()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
 
             appInstance.Build(ApplicationUri, ProductUri)
                 .AsServer([EndpointUrl])
@@ -1179,10 +1179,10 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public void ServerOptionsSetSubscriptionLifetimes()
+        public async Task ServerOptionsSetSubscriptionLifetimes()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
 
             appInstance.Build(ApplicationUri, ProductUri)
                 .AsServer([EndpointUrl])
@@ -1195,10 +1195,10 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public void ServerOptionsSetQueueSizes()
+        public async Task ServerOptionsSetQueueSizes()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
 
             appInstance.Build(ApplicationUri, ProductUri)
                 .AsServer([EndpointUrl])
@@ -1215,10 +1215,10 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public void ServerOptionsSetMinMetadataSamplingInterval()
+        public async Task ServerOptionsSetMinMetadataSamplingInterval()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
 
             appInstance.Build(ApplicationUri, ProductUri)
                 .AsServer([EndpointUrl])
@@ -1230,10 +1230,10 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public void ServerOptionsSetAvailableSamplingRates()
+        public async Task ServerOptionsSetAvailableSamplingRates()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             var rates = new List<SamplingRateGroup>
             {
                 new SamplingRateGroup(100, 100, 10)
@@ -1249,10 +1249,10 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public void ServerOptionsSetRegistrationEndpoint()
+        public async Task ServerOptionsSetRegistrationEndpoint()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             var endpoint = new EndpointDescription("opc.tcp://localhost:4840");
 
             appInstance.Build(ApplicationUri, ProductUri)
@@ -1265,10 +1265,10 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public void ServerOptionsSetMaxRegistrationInterval()
+        public async Task ServerOptionsSetMaxRegistrationInterval()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
 
             appInstance.Build(ApplicationUri, ProductUri)
                 .AsServer([EndpointUrl])
@@ -1280,10 +1280,10 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public void ServerOptionsSetNodeManagerSaveFile()
+        public async Task ServerOptionsSetNodeManagerSaveFile()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
 
             appInstance.Build(ApplicationUri, ProductUri)
                 .AsServer([EndpointUrl])
@@ -1295,10 +1295,10 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public void ServerOptionsSetMaxPublishRequestCount()
+        public async Task ServerOptionsSetMaxPublishRequestCount()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
 
             appInstance.Build(ApplicationUri, ProductUri)
                 .AsServer([EndpointUrl])
@@ -1310,10 +1310,10 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public void ServerOptionsSetMaxSubscriptionCount()
+        public async Task ServerOptionsSetMaxSubscriptionCount()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
 
             appInstance.Build(ApplicationUri, ProductUri)
                 .AsServer([EndpointUrl])
@@ -1325,10 +1325,10 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public void ServerOptionsAddServerProfile()
+        public async Task ServerOptionsAddServerProfile()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             string profile = "http://opcfoundation.org/UA-Profile/Server/StandardUA";
 
             appInstance.Build(ApplicationUri, ProductUri)
@@ -1341,10 +1341,10 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public void ServerOptionsSetShutdownDelay()
+        public async Task ServerOptionsSetShutdownDelay()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
 
             appInstance.Build(ApplicationUri, ProductUri)
                 .AsServer([EndpointUrl])
@@ -1356,10 +1356,10 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public void ServerOptionsAddServerCapabilities()
+        public async Task ServerOptionsAddServerCapabilities()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
 
             appInstance.Build(ApplicationUri, ProductUri)
                 .AsServer([EndpointUrl])
@@ -1372,10 +1372,10 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public void ServerOptionsSetSupportedPrivateKeyFormats()
+        public async Task ServerOptionsSetSupportedPrivateKeyFormats()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             var formats = new List<string> { "PEM", "PFX" }.ToArrayOf();
 
             appInstance.Build(ApplicationUri, ProductUri)
@@ -1388,10 +1388,10 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public void ServerOptionsSetMaxTrustListSize()
+        public async Task ServerOptionsSetMaxTrustListSize()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
 
             appInstance.Build(ApplicationUri, ProductUri)
                 .AsServer([EndpointUrl])
@@ -1403,10 +1403,10 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public void ServerOptionsSetMultiCastDnsEnabled()
+        public async Task ServerOptionsSetMultiCastDnsEnabled()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
 
             appInstance.Build(ApplicationUri, ProductUri)
                 .AsServer([EndpointUrl])
@@ -1418,10 +1418,10 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public void ServerOptionsSetReverseConnect()
+        public async Task ServerOptionsSetReverseConnect()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             var reverseConnect = new ReverseConnectServerConfiguration();
 
             appInstance.Build(ApplicationUri, ProductUri)
@@ -1434,10 +1434,10 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public void ServerOptionsSetOperationLimits()
+        public async Task ServerOptionsSetOperationLimits()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             var limits = new OperationLimits { MaxNodesPerRead = 100 };
 
             appInstance.Build(ApplicationUri, ProductUri)
@@ -1453,10 +1453,10 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public void ServerOptionsSetAuditingEnabled()
+        public async Task ServerOptionsSetAuditingEnabled()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
 
             appInstance.Build(ApplicationUri, ProductUri)
                 .AsServer([EndpointUrl])
@@ -1468,10 +1468,10 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public void ServerOptionsSetHttpsMutualTls()
+        public async Task ServerOptionsSetHttpsMutualTls()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
 
             appInstance.Build(ApplicationUri, ProductUri)
                 .AsServer([EndpointUrl])
@@ -1483,10 +1483,10 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public void ServerOptionsSetDurableSubscriptionsEnabled()
+        public async Task ServerOptionsSetDurableSubscriptionsEnabled()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
 
             appInstance.Build(ApplicationUri, ProductUri)
                 .AsServer([EndpointUrl])
@@ -1498,10 +1498,10 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public void ServerOptionsSetMaxDurableNotificationQueueSize()
+        public async Task ServerOptionsSetMaxDurableNotificationQueueSize()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
 
             appInstance.Build(ApplicationUri, ProductUri)
                 .AsServer([EndpointUrl])
@@ -1513,10 +1513,10 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public void ServerOptionsSetMaxDurableEventQueueSize()
+        public async Task ServerOptionsSetMaxDurableEventQueueSize()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
 
             appInstance.Build(ApplicationUri, ProductUri)
                 .AsServer([EndpointUrl])
@@ -1528,10 +1528,10 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public void ServerOptionsSetMaxDurableSubscriptionLifetime()
+        public async Task ServerOptionsSetMaxDurableSubscriptionLifetime()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
 
             appInstance.Build(ApplicationUri, ProductUri)
                 .AsServer([EndpointUrl])
@@ -1543,10 +1543,10 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public void ClientOptionsSetDefaultSessionTimeout()
+        public async Task ClientOptionsSetDefaultSessionTimeout()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
 
             appInstance.Build(ApplicationUri, ProductUri)
                 .AsClient()
@@ -1558,10 +1558,10 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public void ClientOptionsAddWellKnownDiscoveryUrls()
+        public async Task ClientOptionsAddWellKnownDiscoveryUrls()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
 
             appInstance.Build(ApplicationUri, ProductUri)
                 .AsClient()
@@ -1573,10 +1573,10 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public void ClientOptionsAddDiscoveryServer()
+        public async Task ClientOptionsAddDiscoveryServer()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             var discovery = new EndpointDescription("opc.tcp://localhost:4840");
 
             appInstance.Build(ApplicationUri, ProductUri)
@@ -1589,10 +1589,10 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public void ClientOptionsSetEndpointCacheFilePath()
+        public async Task ClientOptionsSetEndpointCacheFilePath()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
 
             appInstance.Build(ApplicationUri, ProductUri)
                 .AsClient()
@@ -1604,10 +1604,10 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public void ClientOptionsSetMinSubscriptionLifetime()
+        public async Task ClientOptionsSetMinSubscriptionLifetime()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
 
             IApplicationConfigurationBuilderClientOptions clientBuilder =
                 appInstance.Build(ApplicationUri, ProductUri)
@@ -1620,10 +1620,10 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public void ClientOptionsSetReverseConnect()
+        public async Task ClientOptionsSetReverseConnect()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             var reverseConnect = new ReverseConnectClientConfiguration();
 
             appInstance.Build(ApplicationUri, ProductUri)
@@ -1636,10 +1636,10 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public void ClientOptionsSetClientOperationLimits()
+        public async Task ClientOptionsSetClientOperationLimits()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             var limits = new OperationLimits { MaxNodesPerRead = 50 };
 
             appInstance.Build(ApplicationUri, ProductUri)
@@ -1655,10 +1655,10 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public void TraceConfigurationSetOutputFilePath()
+        public async Task TraceConfigurationSetOutputFilePath()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
 
             appInstance.Build(ApplicationUri, ProductUri)
                 .AsClient()
@@ -1671,10 +1671,10 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public void TraceConfigurationSetDeleteOnLoad()
+        public async Task TraceConfigurationSetDeleteOnLoad()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
 
             appInstance.Build(ApplicationUri, ProductUri)
                 .AsClient()
@@ -1687,10 +1687,10 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public void TraceConfigurationSetTraceMasks()
+        public async Task TraceConfigurationSetTraceMasks()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
 
             appInstance.Build(ApplicationUri, ProductUri)
                 .AsClient()
@@ -1703,10 +1703,10 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public void CreateAsyncWithServerTypeAndNoServerConfigThrows()
+        public async Task CreateAsyncWithServerTypeAndNoServerConfigThrows()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry)
+            await using var appInstance = new ApplicationInstance(telemetry)
             {
                 ApplicationName = ApplicationName,
                 ApplicationType = ApplicationType.Server
@@ -1721,10 +1721,10 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public void CreateAsyncWithClientTypeAndNoClientConfigThrows()
+        public async Task CreateAsyncWithClientTypeAndNoClientConfigThrows()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry)
+            await using var appInstance = new ApplicationInstance(telemetry)
             {
                 ApplicationName = ApplicationName,
                 ApplicationType = ApplicationType.Client
@@ -1742,7 +1742,7 @@ namespace Opc.Ua.Configuration.Tests
         public async Task CreateAsyncForClientCreatesValidConfigAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
 
             ArrayOf<CertificateIdentifier> certs =
                 ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
@@ -1766,7 +1766,7 @@ namespace Opc.Ua.Configuration.Tests
         public async Task CreateAsyncForServerAddsDefaultUserTokenPolicyAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
 
             ArrayOf<CertificateIdentifier> certs =
                 ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
@@ -1788,7 +1788,7 @@ namespace Opc.Ua.Configuration.Tests
         public async Task CreateAsyncForServerAddsDefaultSecurityPoliciesAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
 
             ArrayOf<CertificateIdentifier> certs =
                 ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
@@ -1872,10 +1872,10 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public void AddSecurityConfigurationWithDefaultPkiRoot()
+        public async Task AddSecurityConfigurationWithDefaultPkiRoot()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
 
             appInstance.Build(ApplicationUri, ProductUri)
                 .AsClient()
@@ -1888,10 +1888,10 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public void AddSecurityConfigurationWithCertIdListAndDefaultPkiRoot()
+        public async Task AddSecurityConfigurationWithCertIdListAndDefaultPkiRoot()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
 
             ArrayOf<CertificateIdentifier> certs =
                 ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
@@ -1912,7 +1912,7 @@ namespace Opc.Ua.Configuration.Tests
         public async Task FullClientAndServerBuilderFlowAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
 
             ArrayOf<CertificateIdentifier> certs =
                 ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
@@ -2006,10 +2006,10 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public void AsClientIdempotentWhenAlreadyClient()
+        public async Task AsClientIdempotentWhenAlreadyClient()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry)
+            await using var appInstance = new ApplicationInstance(telemetry)
             {
                 ApplicationName = ApplicationName,
                 ApplicationType = ApplicationType.Client
@@ -2022,10 +2022,10 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public void AsClientIdempotentWhenAlreadyClientAndServer()
+        public async Task AsClientIdempotentWhenAlreadyClientAndServer()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry)
+            await using var appInstance = new ApplicationInstance(telemetry)
             {
                 ApplicationName = ApplicationName,
                 ApplicationType = ApplicationType.ClientAndServer
@@ -2038,10 +2038,10 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public void AsServerIdempotentWhenAlreadyServer()
+        public async Task AsServerIdempotentWhenAlreadyServer()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry)
+            await using var appInstance = new ApplicationInstance(telemetry)
             {
                 ApplicationName = ApplicationName,
                 ApplicationType = ApplicationType.Server
@@ -2054,10 +2054,10 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public void AsServerIdempotentWhenAlreadyClientAndServer()
+        public async Task AsServerIdempotentWhenAlreadyClientAndServer()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry)
+            await using var appInstance = new ApplicationInstance(telemetry)
             {
                 ApplicationName = ApplicationName,
                 ApplicationType = ApplicationType.ClientAndServer
@@ -2070,10 +2070,10 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public void AsServerFromClientTypeAfterClientSelectedSetsClientAndServer()
+        public async Task AsServerFromClientTypeAfterClientSelectedSetsClientAndServer()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry)
+            await using var appInstance = new ApplicationInstance(telemetry)
             {
                 ApplicationName = ApplicationName,
                 ApplicationType = ApplicationType.Client
@@ -2087,10 +2087,10 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public void AsClientAfterServerSelectedSetsClientAndServer()
+        public async Task AsClientAfterServerSelectedSetsClientAndServer()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry)
+            await using var appInstance = new ApplicationInstance(telemetry)
             {
                 ApplicationName = ApplicationName,
                 ApplicationType = ApplicationType.Server
@@ -2104,10 +2104,10 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public void AddSecurityConfigurationWithSeparateRejectedRoot()
+        public async Task AddSecurityConfigurationWithSeparateRejectedRoot()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             string rejectedRoot = Path.Combine(m_pkiRoot, "rejected");
 
             appInstance.Build(ApplicationUri, ProductUri)
@@ -2120,10 +2120,10 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public void AddSecurityConfigurationWithSeparateAppRoot()
+        public async Task AddSecurityConfigurationWithSeparateAppRoot()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             string appRoot = Path.Combine(m_pkiRoot, "app");
 
             appInstance.Build(ApplicationUri, ProductUri)
@@ -2136,10 +2136,10 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public void AddSecurityConfigurationWithCertIdListAndSeparateRejectedRoot()
+        public async Task AddSecurityConfigurationWithCertIdListAndSeparateRejectedRoot()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             string rejectedRoot = Path.Combine(m_pkiRoot, "rejected");
 
             ArrayOf<CertificateIdentifier> certs =
@@ -2157,10 +2157,10 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public void AddExtensionWithEncodeableAddsExtension()
+        public async Task AddExtensionWithEncodeableAddsExtension()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             var qualifiedName = new System.Xml.XmlQualifiedName("OperationLimits", Namespaces.OpcUa);
             var limits = new OperationLimits { MaxNodesPerRead = 42 };
 

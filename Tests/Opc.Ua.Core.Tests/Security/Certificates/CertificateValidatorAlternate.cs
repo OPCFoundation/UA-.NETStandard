@@ -56,6 +56,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
     [SetCulture("en-us")]
     public class CertificateValidatorAlternate
     {
+        private static readonly ICertificateFactory s_factory = new DefaultCertificateFactory();
+        private static readonly ICertificateIssuer s_issuer = new DefaultCertificateIssuer();
+
         /// <summary>
         /// the root and alternate root CA
         /// </summary>
@@ -71,8 +74,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         }
 
         private readonly string m_altSubject;
-        private X509Certificate2 m_rootCert;
-        private X509Certificate2 m_rootAltCert;
+        private Certificate m_rootCert;
+        private Certificate m_rootAltCert;
         private X509CRL m_rootCrl;
         private TemporaryCertValidator m_validator;
         private CertificateValidator m_certValidator;
@@ -100,7 +103,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 m_webServerUrl + crlName);
 
             // create the root cert
-            m_rootCert = CertificateFactory
+            m_rootCert = s_factory
                 .CreateCertificate(kCaSubject)
                 .AddExtension(crlExtension)
                 .SetLifeTime(25 * 12)
@@ -108,7 +111,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 .CreateForRSA();
 
             // default empty root CRL
-            m_rootCrl = CertificateFactory.RevokeCertificate(m_rootCert, null, null);
+            m_rootCrl = s_issuer.RevokeCertificates(m_rootCert, null, null);
 
             // create cert validator for test, add trusted root cert
             m_validator = TemporaryCertValidator.Create(telemetry);
@@ -117,7 +120,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             m_certValidator = m_validator.Update();
 
             // create a root with same serial number but modified Subject / key pair
-            m_rootAltCert = CertificateFactory
+            m_rootAltCert = s_factory
                 .CreateCertificate(m_altSubject)
                 .SetLifeTime(25 * 12)
                 .SetSerialNumber(m_rootCert.GetSerialNumber())
@@ -188,7 +191,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         public async Task CertificateWithoutKeyIDAsync()
         {
             // a valid app cert
-            using X509Certificate2 appCert = CertificateFactory
+            using Certificate appCert = s_factory
                 .CreateCertificate("CN=AppCert")
                 .SetIssuer(m_rootCert)
                 .CreateForRSA();
@@ -207,7 +210,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             bool issuerName,
             bool serialNumber)
         {
-            ICertificateBuilder certBuilder = CertificateFactory.CreateCertificate("CN=AppCert");
+            ICertificateBuilder certBuilder = s_factory.CreateCertificate("CN=AppCert");
 
             // force exception if SKI is not present
             X509SubjectKeyIdentifierExtension ski = m_rootCert
@@ -225,7 +228,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             certBuilder.AddExtension(authorityKeyIdentifier);
 
             // a valid app cert
-            using X509Certificate2 appCert = certBuilder.SetIssuer(m_rootCert).CreateForRSA();
+            using Certificate appCert = certBuilder.SetIssuer(m_rootCert).CreateForRSA();
             m_certValidator.RejectUnknownRevocationStatus = false;
             if (!subjectKeyIdentifier && !serialNumber)
             {
@@ -247,7 +250,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         public void AlternateRootCertificateWithoutAuthorityKeyID(
             bool rejectUnknownRevocationStatus)
         {
-            ICertificateBuilder certBuilder = CertificateFactory.CreateCertificate(
+            ICertificateBuilder certBuilder = s_factory.CreateCertificate(
                 "CN=AlternateAppCert");
             var caIssuerUrl = new List<string> { m_webServerUrl + m_altCertFilename };
             X509Extension extension = caIssuerUrl.ToArray().BuildX509AuthorityInformationAccess();
@@ -255,7 +258,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             TestContext.Out.WriteLine("Extension: {0}", extension.Format(true));
 
             // create app cert from alternate root
-            using X509Certificate2 altAppCert = certBuilder.SetIssuer(m_rootAltCert).CreateForRSA();
+            using Certificate altAppCert = certBuilder.SetIssuer(m_rootAltCert).CreateForRSA();
             Assert.That(altAppCert, Is.Not.Null);
 
             m_certValidator.RejectUnknownRevocationStatus = rejectUnknownRevocationStatus;
@@ -276,7 +279,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             bool issuerName,
             bool serialNumber)
         {
-            ICertificateBuilder certBuilder = CertificateFactory.CreateCertificate("CN=AltAppCert");
+            ICertificateBuilder certBuilder = s_factory.CreateCertificate("CN=AltAppCert");
 
             // force exception if SKI is not present
             X509SubjectKeyIdentifierExtension ski = m_rootAltCert
@@ -297,7 +300,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             TestContext.Out.WriteLine("Extension: {0}", extension.Format(true));
 
             // create the certificate from the alternate root
-            using X509Certificate2 altAppCert = certBuilder.SetIssuer(m_rootAltCert).CreateForRSA();
+            using Certificate altAppCert = certBuilder.SetIssuer(m_rootAltCert).CreateForRSA();
             Assert.That(altAppCert, Is.Not.Null);
 
             // should not pass!
@@ -321,27 +324,27 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             const string subCASubject = "CN=Sub";
             const string leafSubject = "CN=Leaf";
 
-            var rsa = RSA.Create();
+            using var rsa = RSA.Create();
             var generator = X509SignatureGenerator.CreateForRSA(rsa, RSASignaturePadding.Pkcs1);
 
-            using X509Certificate2 rootCert = CertificateFactory
+            using Certificate rootCert = s_factory
                 .CreateCertificate(rootSubject)
                 .SetCAConstraint()
                 .SetRSAPublicKey(rsa)
                 .CreateForRSA(generator);
-            using X509Certificate2 subCACert = CertificateFactory
+            using Certificate subCACert = s_factory
                 .CreateCertificate(subCASubject)
                 .SetCAConstraint()
                 .SetIssuer(rootCert)
                 .CreateForRSA(generator);
-            using X509Certificate2 rootReverseCert = CertificateFactory
+            using Certificate rootReverseCert = s_factory
                 .CreateCertificate(rootSubject)
                 .SetCAConstraint()
                 .SetSerialNumber(rootCert.GetSerialNumber())
                 .SetIssuer(subCACert)
                 .SetRSAPublicKey(rsa)
                 .CreateForRSA();
-            using X509Certificate2 leafCert = CertificateFactory
+            using Certificate leafCert = s_factory
                 .CreateCertificate(leafSubject)
                 .SetIssuer(subCACert)
                 .CreateForRSA();
@@ -355,7 +358,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             }
 
             // validate using server/client chain sent over the wire
-            var collection = new X509Certificate2Collection {
+            using var collection = new CertificateCollection {
                 leafCert,
                 subCACert,
                 rootReverseCert };

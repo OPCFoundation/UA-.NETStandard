@@ -29,8 +29,8 @@
 
 using System;
 using System.Globalization;
-using System.Security.Cryptography.X509Certificates;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Server
 {
@@ -597,7 +597,7 @@ namespace Opc.Ua.Server
         /// <param name="logger">A contextual logger to log to</param>
         public static void ReportAuditCertificateEvent(
             this IAuditEventServer server,
-            X509Certificate2 clientCertificate,
+            Certificate clientCertificate,
             Exception exception,
             ILogger logger)
         {
@@ -642,7 +642,7 @@ namespace Opc.Ua.Server
             this IAuditEventServer server,
             ILogger logger,
             ISystemContext systemContext,
-            X509Certificate2 clientCertificate,
+            Certificate clientCertificate,
             ServiceResultException sre)
         {
             try
@@ -746,7 +746,7 @@ namespace Opc.Ua.Server
         /// <param name="logger">A contextual logger to log to</param>
         public static void ReportAuditCertificateDataMismatchEvent(
             this IAuditEventServer server,
-            X509Certificate2 clientCertificate,
+            Certificate clientCertificate,
             string invalidHostName,
             string invalidUri,
             StatusCode statusCode,
@@ -1570,7 +1570,7 @@ namespace Opc.Ua.Server
             string globalChannelId,
             EndpointDescription endpointDescription,
             OpenSecureChannelRequest request,
-            X509Certificate2 clientCertificate,
+            Certificate clientCertificate,
             Exception exception,
             ILogger logger)
         {

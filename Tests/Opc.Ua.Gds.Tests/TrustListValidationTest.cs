@@ -28,9 +28,9 @@
  * ======================================================================*/
 
 using System.Collections.Generic;
-using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Opc.Ua.Security.Certificates;
 using Opc.Ua.Tests;
 
 namespace Opc.Ua.Gds.Tests
@@ -43,6 +43,7 @@ namespace Opc.Ua.Gds.Tests
     [NonParallelizable]
     public class TrustListValidationTest
     {
+        private static readonly ICertificateFactory s_factory = new DefaultCertificateFactory();
         private GlobalDiscoveryTestServer m_server;
         private ServerConfigurationPushTestClient m_pushClient;
         private ITelemetryContext m_telemetry;
@@ -103,8 +104,8 @@ namespace Opc.Ua.Gds.Tests
             var trustList = new List<ByteString>();
             for (int i = 0; i < 10; i++)
             {
-                using X509Certificate2 cert = CertificateFactory
-                    .CreateCertificate($"urn:test:cert{i}", $"NormalCert{i}", $"CN=NormalCert{i}, O=OPC Foundation")
+                using Certificate cert = s_factory
+                    .CreateApplicationCertificate($"urn:test:cert{i}", $"NormalCert{i}", $"CN=NormalCert{i}, O=OPC Foundation")
                     .CreateForRSA();
                 trustList.Add(cert.RawData.ToByteString());
             }
@@ -140,8 +141,8 @@ namespace Opc.Ua.Gds.Tests
             var trustList = new List<ByteString>();
             for (int i = 0; i < 20; i++)
             {
-                using X509Certificate2 cert = CertificateFactory
-                    .CreateCertificate($"urn:test:cert{i}", $"TestCert{i}", $"CN=TestCert{i}, O=OPC Foundation")
+                using Certificate cert = s_factory
+                    .CreateApplicationCertificate($"urn:test:cert{i}", $"TestCert{i}", $"CN=TestCert{i}, O=OPC Foundation")
                     .SetRSAKeySize(2048)
                     .CreateForRSA();
                 trustList.Add(cert.RawData.ToByteString());
@@ -184,8 +185,8 @@ namespace Opc.Ua.Gds.Tests
             var trustList = new List<ByteString>();
             for (int i = 0; i < 20; i++)
             {
-                using X509Certificate2 cert = CertificateFactory
-                    .CreateCertificate($"urn:test:cert{i}", $"BoundaryCert{i}", $"CN=BoundaryCert{i}, O=OPC Foundation")
+                using Certificate cert = s_factory
+                    .CreateApplicationCertificate($"urn:test:cert{i}", $"BoundaryCert{i}", $"CN=BoundaryCert{i}, O=OPC Foundation")
                     .SetRSAKeySize(2048)
                     .CreateForRSA();
                 trustList.Add(cert.RawData.ToByteString());
@@ -242,8 +243,8 @@ namespace Opc.Ua.Gds.Tests
                 int certCount = 0;
                 while (currentSize <= customMaxTrustListSize)
                 {
-                    using X509Certificate2 cert =
-                        CertificateFactory.CreateCertificate($"urn:test:oversized{certCount}", "Oversized", "CN=Oversized").CreateForRSA();
+                    using Certificate cert =
+                        s_factory.CreateApplicationCertificate($"urn:test:oversized{certCount}", "Oversized", "CN=Oversized").CreateForRSA();
                     oversizedTrustList.TrustedCertificates =
                         oversizedTrustList.TrustedCertificates.AddItem(cert.RawData.ToByteString());
                     currentSize = GetEncodedSize(oversizedTrustList);
@@ -264,8 +265,8 @@ namespace Opc.Ua.Gds.Tests
                 };
                 for (int i = 0; i < 2; i++)
                 {
-                    using X509Certificate2 cert = CertificateFactory
-                        .CreateCertificate($"urn:test:valid{i}", "Valid", "CN=Valid")
+                    using Certificate cert = s_factory
+                        .CreateApplicationCertificate($"urn:test:valid{i}", "Valid", "CN=Valid")
                         .CreateForRSA();
                     validTrustList.TrustedCertificates =
                         validTrustList.TrustedCertificates.AddItem(cert.RawData.ToByteString());

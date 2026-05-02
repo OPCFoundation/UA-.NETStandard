@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 using System;
 using System.Linq;
 using System.Security.Cryptography;
@@ -48,7 +50,7 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// Return the key usage flags of a certificate.
         /// </summary>
-        private static X509KeyUsageFlags GetKeyUsage(X509Certificate2 cert)
+        private static X509KeyUsageFlags GetKeyUsage(Certificate cert)
         {
             X509KeyUsageFlags allFlags = X509KeyUsageFlags.None;
             foreach (X509KeyUsageExtension ext in cert.Extensions.OfType<X509KeyUsageExtension>())
@@ -63,8 +65,8 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         /// <exception cref="NotSupportedException"></exception>
         public static bool VerifyKeyPair(
-            X509Certificate2 certWithPublicKey,
-            X509Certificate2 certWithPrivateKey,
+            Certificate certWithPublicKey,
+            Certificate certWithPrivateKey,
             bool throwOnError = false)
         {
             if (IsECDsaSignature(certWithPublicKey))
@@ -80,16 +82,16 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         /// <exception cref="CryptographicException"></exception>
         public static bool VerifyRSAKeyPair(
-            X509Certificate2 certWithPublicKey,
-            X509Certificate2 certWithPrivateKey,
+            Certificate certWithPublicKey,
+            Certificate certWithPrivateKey,
             bool throwOnError = false)
         {
             bool result = false;
             try
             {
                 // verify the public and private key match
-                using RSA rsaPrivateKey = certWithPrivateKey.GetRSAPrivateKey();
-                using RSA rsaPublicKey = certWithPublicKey.GetRSAPublicKey();
+                using RSA? rsaPrivateKey = certWithPrivateKey.GetRSAPrivateKey();
+                using RSA? rsaPublicKey = certWithPublicKey.GetRSAPublicKey();
                 // For non RSA certificates, RSA keys are null
                 if (rsaPrivateKey != null && rsaPublicKey != null)
                 {
@@ -135,12 +137,12 @@ namespace Opc.Ua.Security.Certificates
         /// <param name="noEphemeralKeySet">Set to true if the key should not use the ephemeral key set.</param>
         /// <returns>The certificate with a private key.</returns>
         /// <exception cref="NotSupportedException"></exception>
-        public static X509Certificate2 CreateCertificateFromPKCS12(
+        public static Certificate CreateCertificateFromPKCS12(
             byte[] rawData,
             ReadOnlySpan<char> password,
             bool noEphemeralKeySet = false)
         {
-            Exception ex = null;
+            Exception? ex = null;
 
             X509KeyStorageFlags defaultStorageSet = X509KeyStorageFlags.DefaultKeySet;
             if (!noEphemeralKeySet && !RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
@@ -159,32 +161,40 @@ namespace Opc.Ua.Security.Certificates
             // try some combinations of storage flags, support is platform dependent
             foreach (X509KeyStorageFlags flag in storageFlags)
             {
-                X509Certificate2 certificate = null;
+                Certificate? certificate = null;
                 try
                 {
-                    // merge first cert with private key into X509Certificate2
-                    certificate = X509CertificateLoader.LoadPkcs12(
-                        rawData,
-                        password,
-                        flag);
+                    // merge first cert with private key into Certificate
+#pragma warning disable CA2000 // Disposed in finally; null-after-transfer guards return path
+                    certificate = Certificate.From(
+                        X509CertificateLoader.LoadPkcs12(
+                            rawData,
+                            password,
+                            flag));
+#pragma warning restore CA2000
                     if (VerifyKeyPair(certificate, certificate, true))
                     {
                         // Found
-                        return certificate;
+                        Certificate result = certificate;
+                        certificate = null;
+                        return result;
                     }
                 }
                 catch (Exception e)
                 {
                     ex = e;
                 }
-                certificate?.Dispose();
+                finally
+                {
+                    certificate?.Dispose();
+                }
             }
             if (ex != null)
             {
                 throw ex;
             }
             throw new NotSupportedException(
-                "Creating X509Certificate from PKCS #12 store failed");
+                "Creating Certificate from PKCS #12 store failed");
         }
 
         /// <summary>
@@ -226,7 +236,7 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// If the certificate has a ECDsa signature.
         /// </summary>
-        public static bool IsECDsaSignature(X509Certificate2 cert)
+        public static bool IsECDsaSignature(Certificate cert)
         {
             return cert.SignatureAlgorithm.Value switch
             {
@@ -241,13 +251,13 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         /// <exception cref="CryptographicException"></exception>
         public static bool VerifyECDsaKeyPair(
-            X509Certificate2 certWithPublicKey,
-            X509Certificate2 certWithPrivateKey,
+            Certificate certWithPublicKey,
+            Certificate certWithPrivateKey,
             bool throwOnError = false)
         {
             bool result = false;
-            using (ECDsa ecdsaPublicKey = certWithPublicKey.GetECDsaPublicKey())
-            using (ECDsa ecdsaPrivateKey = certWithPrivateKey.GetECDsaPrivateKey())
+            using (ECDsa? ecdsaPublicKey = certWithPublicKey.GetECDsaPublicKey())
+            using (ECDsa? ecdsaPrivateKey = certWithPrivateKey.GetECDsaPrivateKey())
             {
                 try
                 {
@@ -255,6 +265,11 @@ namespace Opc.Ua.Security.Certificates
                     X509KeyUsageFlags keyUsage = GetKeyUsage(certWithPublicKey);
                     if ((keyUsage & X509KeyUsageFlags.DigitalSignature) != 0)
                     {
+                        if (ecdsaPublicKey == null || ecdsaPrivateKey == null)
+                        {
+                            throw new CryptographicException(
+                                "The certificate does not contain an ECDsa public/private key pair.");
+                        }
                         result = VerifyECDsaKeyPairSign(ecdsaPublicKey, ecdsaPrivateKey);
                     }
                     else if (throwOnError)

@@ -33,9 +33,9 @@ using System;
 using Opc.Ua.Bindings;
 using System.Net.Sockets;
 using System.Net;
-using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 using System.Threading;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua
 {
@@ -68,8 +68,8 @@ namespace Opc.Ua
         public async ValueTask<ITransportChannel> CreateChannelAsync(
             ConfiguredEndpoint endpoint,
             IServiceMessageContext context,
-            X509Certificate2? clientCertificate,
-            X509Certificate2Collection? clientCertificateChain = null,
+            Certificate? clientCertificate,
+            CertificateCollection? clientCertificateChain = null,
             ITransportWaitingConnection? connection = null,
             CancellationToken ct = default)
         {
@@ -130,8 +130,8 @@ namespace Opc.Ua
             ITransportWaitingConnection connection,
             EndpointDescription description,
             EndpointConfiguration endpointConfiguration,
-            X509Certificate2? clientCertificate,
-            X509Certificate2Collection? clientCertificateChain,
+            Certificate? clientCertificate,
+            CertificateCollection? clientCertificateChain,
             IServiceMessageContext messageContext,
             ITransportChannelBindings? transportChannelBindings = null,
             CancellationToken ct = default)
@@ -201,8 +201,8 @@ namespace Opc.Ua
             ApplicationConfiguration configuration,
             EndpointDescription description,
             EndpointConfiguration endpointConfiguration,
-            X509Certificate2? clientCertificate,
-            X509Certificate2Collection? clientCertificateChain,
+            Certificate? clientCertificate,
+            CertificateCollection? clientCertificateChain,
             IServiceMessageContext messageContext,
             ITransportChannelBindings? transportChannelBindings = null,
             CancellationToken ct = default)

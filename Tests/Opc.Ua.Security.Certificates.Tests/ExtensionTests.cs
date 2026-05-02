@@ -50,10 +50,19 @@ namespace Opc.Ua.Security.Certificates.Tests
                 TestUtils.EnumerateTestAssets("*.?er"))
         ];
 
+        [OneTimeTearDown]
+        protected void OneTimeTearDown()
+        {
+            foreach (CertificateAsset asset in CertificateTestCases)
+            {
+                asset?.Dispose();
+            }
+        }
+
         [Theory]
         public void DecodeExtensions(CertificateAsset certAsset)
         {
-            using X509Certificate2 x509Cert = CertificateFactory.Create(certAsset.Cert);
+            using Certificate x509Cert = CertificateFactory.Create(certAsset.Cert);
             Assert.That(x509Cert, Is.Not.Null);
             TestContext.Out.WriteLine("CertificateAsset:");
             TestContext.Out.WriteLine(x509Cert);

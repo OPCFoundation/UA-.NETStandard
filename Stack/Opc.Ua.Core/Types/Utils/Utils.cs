@@ -39,14 +39,13 @@ using System.Net;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
-using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
+using Opc.Ua.Security.Certificates;
 #if !NETFRAMEWORK
 using System.Runtime.InteropServices;
-using Opc.Ua.Security.Certificates;
 #endif
 
 namespace Opc.Ua
@@ -643,7 +642,7 @@ namespace Opc.Ua
         /// <remarks>If the platform returns a FQDN, only the host name is returned.</remarks>
         public static string GetHostName()
         {
-            var hostName = Dns.GetHostName();
+            string hostName = Dns.GetHostName();
             // If platform returns an IPv4 or IPv6 address return it as is
             if (IPAddress.TryParse(hostName, out _))
             {
@@ -1604,6 +1603,7 @@ namespace Opc.Ua
         /// Gets the XML qualified name for an IEncodeable type,
         /// checking [DataContract] first, then [DataType] attribute.
         /// </summary>
+        /// <exception cref="ArgumentException"></exception>
         private static XmlQualifiedName GetEncodeableXmlName(Type type)
         {
             // Try [DataContract] attribute
@@ -1623,8 +1623,9 @@ namespace Opc.Ua
                 return new XmlQualifiedName(type.Name, typeId.NamespaceUri);
             }
 
-            return qname ?? throw new ArgumentException(
-                "Cannot determine XML name for type " + type.Name);
+            return qname ??
+                throw new ArgumentException(
+                    "Cannot determine XML name for type " + type.Name);
         }
 
         private static readonly DateTime s_baseDateTime = new(
@@ -1754,7 +1755,7 @@ namespace Opc.Ua
         /// Creates a X509 certificate object from the DER encoded bytes.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public static X509Certificate2 ParseCertificateBlob(
+        public static Certificate ParseCertificateBlob(
             ReadOnlyMemory<byte> certificateData,
             ITelemetryContext telemetry,
             bool useAsnParser = false)
@@ -1787,17 +1788,17 @@ namespace Opc.Ua
         /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         /// <param name="useAsnParser">Whether the ASN.1 library should be used to decode certificate blobs.</param>
         /// <exception cref="ServiceResultException"></exception>
-        public static X509Certificate2Collection ParseCertificateChainBlob(
+        public static CertificateCollection ParseCertificateChainBlob(
             ReadOnlyMemory<byte> certificateData,
             ITelemetryContext telemetry,
             bool useAsnParser = false)
         {
-            var certificateChain = new X509Certificate2Collection();
+            var certificateChain = new CertificateCollection();
             int offset = 0;
             int length = certificateData.Length;
             while (offset < length)
             {
-                X509Certificate2 certificate;
+                Certificate certificate = null;
                 try
                 {
                     ReadOnlyMemory<byte> certBlob = certificateData[offset..];
@@ -1810,6 +1811,8 @@ namespace Opc.Ua
                     }
 #endif
                     certificate = CertificateFactory.Create(certBlob);
+                    certificateChain.Add(certificate);
+                    offset += certificate.RawData.Length;
                 }
                 catch (Exception e)
                 {
@@ -1818,12 +1821,26 @@ namespace Opc.Ua
                         "Could not parse DER encoded form of a X509 certificate.",
                         e);
                 }
-
-                certificateChain.Add(certificate);
-                offset += certificate.RawData.Length;
+                finally
+                {
+                    certificate?.Dispose();
+                }
             }
 
             return certificateChain;
+        }
+
+        /// <summary>
+        /// Creates a certificate collection from DER encoded chain blob
+        /// using the certificate factory.
+        /// </summary>
+        /// <param name="certificateData">The certificate data.</param>
+        /// <param name="factory">The certificate factory to use for parsing.</param>
+        public static CertificateCollection ParseCertificateChainBlob(
+            ReadOnlyMemory<byte> certificateData,
+            ICertificateFactory factory)
+        {
+            return factory.ParseChainBlob(certificateData);
         }
 
         /// <summary>
@@ -1833,7 +1850,7 @@ namespace Opc.Ua
         /// <returns>
         /// A DER blob containing zero or more certificates.
         /// </returns>
-        public static byte[] CreateCertificateChainBlob(X509Certificate2Collection certificates)
+        public static byte[] CreateCertificateChainBlob(CertificateCollection certificates)
         {
             if (certificates == null || certificates.Count == 0)
             {
@@ -1842,7 +1859,7 @@ namespace Opc.Ua
 
             int totalSize = 0;
 
-            foreach (X509Certificate2 cert in certificates)
+            foreach (Certificate cert in certificates)
             {
                 totalSize += cert.RawData.Length;
             }
@@ -1850,7 +1867,7 @@ namespace Opc.Ua
             byte[] blobData = new byte[totalSize];
             int offset = 0;
 
-            foreach (X509Certificate2 cert in certificates)
+            foreach (Certificate cert in certificates)
             {
                 Array.Copy(cert.RawData, 0, blobData, offset, cert.RawData.Length);
                 offset += cert.RawData.Length;

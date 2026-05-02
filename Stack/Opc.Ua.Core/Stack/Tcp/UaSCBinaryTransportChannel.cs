@@ -89,6 +89,10 @@ namespace Opc.Ua.Bindings
                     m_connecting.Release();
                     m_connecting.Dispose();
                 }
+
+                m_settings?.ServerCertificate?.Dispose();
+                m_settings?.ClientCertificate?.Dispose();
+                m_settings?.ClientCertificateChain?.Dispose();
             }
         }
 
@@ -446,7 +450,7 @@ namespace Opc.Ua.Bindings
                         "Waiting Connection Handle is not of type IMessageSocket.");
             }
 
-            var id = Guid.NewGuid().ToString();
+            string id = Guid.NewGuid().ToString();
 
             // create the channel.
             var channel = new UaSCUaBinaryClientChannel(

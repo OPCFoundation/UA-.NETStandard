@@ -96,9 +96,7 @@ namespace Opc.Ua
                     nameof(serverApplicationUri));
             }
 
-            ArrayOf<OAuth2Credential> list = Load(configuration);
-
-            foreach (OAuth2Credential ii in list)
+            foreach (OAuth2Credential ii in Load(configuration))
             {
                 foreach (OAuth2ServerSettings jj in ii.Servers)
                 {
@@ -144,9 +142,7 @@ namespace Opc.Ua
                 authorityUrl += "/";
             }
 
-            ArrayOf<OAuth2Credential> list = Load(configuration);
-
-            foreach (OAuth2Credential ii in list)
+            foreach (OAuth2Credential ii in Load(configuration))
             {
                 string uri = ii.AuthorityUrl.Replace(
                     "localhost",

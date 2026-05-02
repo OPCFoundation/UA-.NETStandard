@@ -3011,7 +3011,7 @@ namespace Opc.Ua.Server.Tests
             using TestableAsyncCustomNodeManager manager = CreateManager();
             ushort nsIdx = manager.NamespaceIndexes[0];
             var unsupportedAggregateId = new NodeId("UnsupportedAggregate", nsIdx);
-            using var aggregateManager = CreateAndSetupAggregateManager();
+            using AggregateManager aggregateManager = CreateAndSetupAggregateManager();
             using var varState = new BaseDataVariableState(null);
             var handle = new NodeHandle(new NodeId("V", nsIdx), varState);
             var filter = new ExtensionObject(new AggregateFilter
@@ -3039,7 +3039,7 @@ namespace Opc.Ua.Server.Tests
             using TestableAsyncCustomNodeManager manager = CreateManager();
             ushort nsIdx = manager.NamespaceIndexes[0];
             var supportedAggregateId = new NodeId("SupportedAggregate", nsIdx);
-            using var aggregateManager = CreateAndSetupAggregateManager(supportedAggregateId);
+            using AggregateManager aggregateManager = CreateAndSetupAggregateManager(supportedAggregateId);
             using var varState = new BaseDataVariableState(null);
             var handle = new NodeHandle(new NodeId("V", nsIdx), varState);
             var filter = new ExtensionObject(new AggregateFilter
@@ -3070,7 +3070,7 @@ namespace Opc.Ua.Server.Tests
             using TestableAsyncCustomNodeManager manager = CreateManager();
             ushort nsIdx = manager.NamespaceIndexes[0];
             var supportedAggregateId = new NodeId("SupportedAggregate", nsIdx);
-            using var aggregateManager = CreateAndSetupAggregateManager(supportedAggregateId, minimumProcessingInterval: 50);
+            using AggregateManager aggregateManager = CreateAndSetupAggregateManager(supportedAggregateId, minimumProcessingInterval: 50);
             using var varState = new BaseDataVariableState(null);
             var handle = new NodeHandle(new NodeId("V", nsIdx), varState);
             var filter = new ExtensionObject(new AggregateFilter
@@ -3101,7 +3101,7 @@ namespace Opc.Ua.Server.Tests
             ushort nsIdx = manager.NamespaceIndexes[0];
             var supportedAggregateId = new NodeId("SupportedAggregate", nsIdx);
             const double minimumProcessingInterval = 500;
-            using var aggregateManager = CreateAndSetupAggregateManager(supportedAggregateId, minimumProcessingInterval);
+            using AggregateManager aggregateManager = CreateAndSetupAggregateManager(supportedAggregateId, minimumProcessingInterval);
             using var varState = new BaseDataVariableState(null);
             var handle = new NodeHandle(new NodeId("V", nsIdx), varState);
             var filter = new ExtensionObject(new AggregateFilter
@@ -3131,7 +3131,7 @@ namespace Opc.Ua.Server.Tests
             using TestableAsyncCustomNodeManager manager = CreateManager();
             ushort nsIdx = manager.NamespaceIndexes[0];
             var supportedAggregateId = new NodeId("SupportedAggregate", nsIdx);
-            using var aggregateManager = CreateAndSetupAggregateManager(supportedAggregateId);
+            using AggregateManager aggregateManager = CreateAndSetupAggregateManager(supportedAggregateId);
             using var varState = new BaseDataVariableState(null);
             var handle = new NodeHandle(new NodeId("V", nsIdx), varState);
             var filter = new ExtensionObject(new AggregateFilter

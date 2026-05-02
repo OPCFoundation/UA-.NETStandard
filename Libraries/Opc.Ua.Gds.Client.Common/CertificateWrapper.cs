@@ -30,14 +30,14 @@
 using System;
 using System.Collections.Generic;
 using System.Runtime.Serialization;
-using System.Security.Cryptography.X509Certificates;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Gds.Client
 {
     [DataContract(Namespace = Namespaces.OpcUaXsd)]
     public sealed class CertificateWrapper : IFormattable
     {
-        public X509Certificate2 Certificate { get; set; }
+        public Certificate Certificate { get; set; }
 
         [DataMember(Order = 1)]
         public string SubjectName

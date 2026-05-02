@@ -25,7 +25,7 @@ namespace Opc.Ua.Server.Tests
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             ILogger logger = telemetry.CreateLogger<MonitoredItemTests>();
 
-            using var monitoredItem = CreateMonitoredItem(telemetry);
+            using MonitoredItem monitoredItem = CreateMonitoredItem(telemetry);
             Assert.That(monitoredItem, Is.Not.Null);
             Assert.That(monitoredItem.ItemsInQueue, Is.Zero);
 
@@ -56,7 +56,7 @@ namespace Opc.Ua.Server.Tests
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
-            using var monitoredItem = CreateMonitoredItem(telemetry, true);
+            using MonitoredItem monitoredItem = CreateMonitoredItem(telemetry, true);
             Assert.That(monitoredItem, Is.Not.Null);
             Assert.That(monitoredItem.ItemsInQueue, Is.Zero);
 
@@ -81,7 +81,7 @@ namespace Opc.Ua.Server.Tests
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             ILogger logger = telemetry.CreateLogger<MonitoredItemTests>();
 
-            using var monitoredItem = CreateMonitoredItem(telemetry, false, 0);
+            using MonitoredItem monitoredItem = CreateMonitoredItem(telemetry, false, 0);
 
             Assert.That(monitoredItem.QueueSize, Is.EqualTo(1));
 
@@ -108,7 +108,7 @@ namespace Opc.Ua.Server.Tests
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
-            using var monitoredItem = CreateMonitoredItem(telemetry, true, 2);
+            using MonitoredItem monitoredItem = CreateMonitoredItem(telemetry, true, 2);
             Assert.That(monitoredItem, Is.Not.Null);
             Assert.That(monitoredItem.ItemsInQueue, Is.Zero);
 
@@ -139,7 +139,7 @@ namespace Opc.Ua.Server.Tests
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
-            using var monitoredItem = CreateMonitoredItem(telemetry, true, 2);
+            using MonitoredItem monitoredItem = CreateMonitoredItem(telemetry, true, 2);
             Assert.That(monitoredItem, Is.Not.Null);
             Assert.That(monitoredItem.ItemsInQueue, Is.Zero);
 
@@ -184,7 +184,7 @@ namespace Opc.Ua.Server.Tests
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
-            using var monitoredItem = CreateMonitoredItem(telemetry, true, 2, true);
+            using MonitoredItem monitoredItem = CreateMonitoredItem(telemetry, true, 2, true);
             Assert.That(monitoredItem, Is.Not.Null);
             Assert.That(monitoredItem.ItemsInQueue, Is.Zero);
 
@@ -215,7 +215,7 @@ namespace Opc.Ua.Server.Tests
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
-            using var monitoredItem = CreateMonitoredItem(telemetry, true, 3);
+            using MonitoredItem monitoredItem = CreateMonitoredItem(telemetry, true, 3);
             Assert.That(monitoredItem, Is.Not.Null);
             Assert.That(monitoredItem.ItemsInQueue, Is.Zero);
 

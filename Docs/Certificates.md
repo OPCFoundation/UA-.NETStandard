@@ -36,6 +36,16 @@ The UA .NET Standard stack supports the following certificate stores:
 Starting with Version 1.5.xx of the UA .NET Standard Stack the X509Store supports the storage and retrieval of CRLS, if used on the **Windows OS**.
 This enables the usage of the X509Store instead of the Directory Store for stores requiring the use of crls, e.g. the issuer or the directory Store.
 
+### Certificate and CertificateCollection Types
+
+The stack uses the `Certificate` wrapper type (in `Opc.Ua.Security.Certificates`) instead of `X509Certificate2` directly. `Certificate` wraps `X509Certificate2` with reference counting for safe shared ownership — the inner `X509Certificate2` is disposed only when the last reference is released. Use `Certificate.AddRef()` before sharing and `Dispose()` to release.
+
+`CertificateCollection` implements `IList<Certificate>` and `IDisposable`. Disposing a collection decrements the reference count on each member. Store methods like `EnumerateAsync()` call `AddRef()` on cached certificates, so disposing the returned collection is safe.
+
+For interop with .NET APIs that require `X509Certificate2`, use `certificate.AsX509Certificate2()` which creates a copy that the caller must dispose.
+
+See [CertificateManager.md](CertificateManager.md#certificate-wrapper-and-reference-counting) for details.
+
 ### Windows .NET applications
 
 By default the self signed certificates are stored in a **X509Store** called **CurrentUser\\UA_MachineDefault**. The certificates can be viewed or deleted with the Windows Certificate Management Console (certmgr.msc). The *trusted*, *issuer* and *rejected* stores remain in a folder called **OPC Foundation\pki** with a root folder which is specified by the `SpecialFolder` variable **%CommonApplicationData%**. On Windows 7/8/8.1/10 this is usually the invisible folder **C:\ProgramData**.
@@ -54,7 +64,7 @@ The *trusted*, *issuer* and *rejected* stores remain in a shared folder called *
 
 ## Certificate Validation
 
-The OPC UA .NET Standard Stack uses the `CertificateValidator` class to validate certificates according to the OPC UA specification. This section describes the certificate validation workflow, configuration settings, and how to customize the validation process.
+The OPC UA .NET Standard Stack validates certificates according to the OPC UA specification. The new `CertificateManager` provides centralized certificate management with trust-list-scoped validation, lifecycle monitoring, and pluggable store backends (see [CertificateManager.md](CertificateManager.md)). The legacy `CertificateValidator` class remains supported via a backward compatibility adapter. This section describes the certificate validation workflow, configuration settings, and how to customize the validation process.
 
 ### Validation Workflow
 
@@ -193,9 +203,9 @@ The chain building process constructs a complete certificate chain from a leaf c
 
 ```
 INPUT:
-  - certificates: X509Certificate2Collection (certificate chain from peer)
+  - certificates: CertificateCollection (certificate chain from peer)
   - issuers: List<CertificateIdentifier> (output list, initially empty)
-  - validationErrors: Dictionary<X509Certificate2, ServiceResultException> (output)
+  - validationErrors: Dictionary<Certificate, ServiceResultException> (output)
 
 INITIALIZE:
   - isTrusted ← false
@@ -481,7 +491,7 @@ The `SecurityConfiguration` section in the application configuration file (`*.Co
 
 #### Certificate Store Types
 
-Two store types are supported:
+Three store types are supported out of the box. Custom store types can be registered using the `ICertificateStoreProvider` interface (see [CertificateManager.md](CertificateManager.md#pluggable-store-backends)).
 
 1. **Directory**: File system-based certificate store
    - Certificates stored as `.der` or `.crt` files in `certs/` subdirectory
@@ -493,6 +503,10 @@ Two store types are supported:
    - Uses Windows Certificate Store API
    - Example: `CurrentUser\My` or `LocalMachine\Root`
    - Supports CRL operations on Windows only
+
+3. **InMemory**: In-memory certificate store for testing
+   - Prefix: `InMemory:`
+   - No persistence — certificates are lost when the store is disposed
 
 #### Certificate List Population
 

@@ -38,6 +38,7 @@ using System.Net.Security;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua.Security.Certificates;
 using Microsoft.Extensions.Logging;
 using System.Diagnostics;
 #if NETSTANDARD2_1 || NET472_OR_GREATER || NET5_0_OR_GREATER
@@ -401,7 +402,7 @@ namespace Opc.Ua.Bindings
                     if (m_settings!.ClientCertificate != null)
                     {
                         // prepare the server TLS certificate
-                        X509Certificate2 clientCertificate = m_settings.ClientCertificate;
+                        Certificate clientCertificate = m_settings.ClientCertificate;
 #if NETSTANDARD2_1 || NET472_OR_GREATER || NET5_0_OR_GREATER
                         try
                         {
@@ -418,7 +419,7 @@ namespace Opc.Ua.Bindings
                             m_logger.LogError(ce, "Copy of the private key for https was denied");
                         }
 #endif
-                        handler.ClientCertificates.Add(clientCertificate);
+                        handler.ClientCertificates.Add(clientCertificate.AsX509Certificate2());
                         ClientChannelCertificate = clientCertificate.RawData;
                     }
 
@@ -450,7 +451,7 @@ namespace Opc.Ua.Bindings
                                             Utils.TraceMasks.Security,
                                             "{Index}: {Certificate}",
                                             i,
-                                            element.Certificate.AsLogSafeString());
+                                            element.Certificate.Subject);
                                         validationChain.Add(element.Certificate);
                                         i++;
                                     }
@@ -460,12 +461,13 @@ namespace Opc.Ua.Bindings
                                     m_logger.LogInformation(
                                         Utils.TraceMasks.Security,
                                         "{ChannelType} Validate Server Certificate: {Certificate}",
-                                        cert.AsLogSafeString(),
+                                        cert.Subject,
                                         nameof(HttpsTransportChannel));
                                     validationChain.Add(cert);
                                 }
 
-                                m_quotas.CertificateValidator?.ValidateAsync(validationChain, default).GetAwaiter().GetResult();
+                                using CertificateCollection validationCollection = CertificateCollection.From(validationChain);
+                                m_quotas.CertificateValidator?.ValidateAsync(validationCollection, default).GetAwaiter().GetResult();
                                 ServerChannelCertificate = cert.RawData;
                                 return true;
                             }

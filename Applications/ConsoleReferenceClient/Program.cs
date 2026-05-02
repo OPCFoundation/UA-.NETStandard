@@ -30,7 +30,6 @@
 using System;
 using System.Collections.Generic;
 using System.CommandLine;
-using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -43,6 +42,7 @@ using Opc.Ua;
 using Opc.Ua.Client;
 using Opc.Ua.Client.ComplexTypes;
 using Opc.Ua.Configuration;
+using Opc.Ua.Security.Certificates;
 
 namespace Quickstarts.ConsoleReferenceClient
 {
@@ -249,7 +249,7 @@ namespace Quickstarts.ConsoleReferenceClient
                 bool enableDurableSubscriptions =
                     parseResult.GetValue(durableSubscriptionOption);
                 var serverUrl = new Uri(parseResult.GetValue(serverUrlArgument));
-                var testallEndpoints = parseResult.GetValue(testallEndpointsOption);
+                bool testallEndpoints = parseResult.GetValue(testallEndpointsOption);
 
                 ReverseConnectManager reverseConnectManager = null;
                 using var telemetry = new ConsoleTelemetry();
@@ -775,11 +775,11 @@ namespace Quickstarts.ConsoleReferenceClient
         {
             CertificateIdentifier userCertificateIdentifier = null;
 
-            X509Certificate2Collection userCertificatesWithMatchingThumbprint =
+            using CertificateCollection certificates =
                 await trustedUserCertificates.GetCertificatesAsync(telemetry, ct).ConfigureAwait(false);
             // get user certificate with matching thumbprint
-            userCertificatesWithMatchingThumbprint =
-                userCertificatesWithMatchingThumbprint.Find(X509FindType.FindByThumbprint, thumbprint, false);
+            using CertificateCollection userCertificatesWithMatchingThumbprint =
+                certificates.Find(X509FindType.FindByThumbprint, thumbprint, false);
 
             // create Certificate Identifier
             if (userCertificatesWithMatchingThumbprint.Count == 1)

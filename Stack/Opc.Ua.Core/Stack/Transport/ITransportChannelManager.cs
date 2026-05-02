@@ -30,9 +30,9 @@
 #nullable enable
 
 using System;
-using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua
 {
@@ -52,8 +52,8 @@ namespace Opc.Ua
         ValueTask<ITransportChannel> CreateChannelAsync(
             ConfiguredEndpoint endpoint,
             IServiceMessageContext context,
-            X509Certificate2? clientCertificate,
-            X509Certificate2Collection? clientCertificateChain = null,
+            Certificate? clientCertificate,
+            CertificateCollection? clientCertificateChain = null,
             ITransportWaitingConnection? connection = null,
             CancellationToken ct = default);
     }

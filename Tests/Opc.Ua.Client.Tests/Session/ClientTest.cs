@@ -34,7 +34,6 @@ using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
-using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -193,7 +192,7 @@ namespace Opc.Ua.Client.Tests
 
                 if (!endpoint.ServerCertificate.IsEmpty)
                 {
-                    using X509Certificate2 cert = CertificateFactory.Create(
+                    using Certificate cert = CertificateFactory.Create(
                         endpoint.ServerCertificate);
                     TestContext.Out.WriteLine("  [{0}]", cert.Thumbprint);
                 }
@@ -1782,7 +1781,7 @@ namespace Opc.Ua.Client.Tests
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
-            Activity rootActivity = new Activity("Test_Activity_Root")
+            using Activity rootActivity = new Activity("Test_Activity_Root")
             {
                 ActivityTraceFlags = ActivityTraceFlags.Recorded
             }.Start();
@@ -2017,7 +2016,7 @@ namespace Opc.Ua.Client.Tests
                 if (eccurveHashPair.Curve.Oid.FriendlyName
                     .Contains(extractedFriendlyNamae, StringComparison.Ordinal))
                 {
-                    X509Certificate2 cert = CertificateBuilder
+                    using Certificate cert = CertificateBuilder
                         .Create("CN=Client Test ECC Subject, O=OPC Foundation")
                         .SetECCurve(eccurveHashPair.Curve)
                         .CreateForECDsa();

@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -40,6 +39,7 @@ using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.Client;
 using Opc.Ua.Configuration;
+using Opc.Ua.Security.Certificates;
 
 namespace Quickstarts
 {
@@ -87,6 +87,7 @@ namespace Quickstarts
                 // Define the UA Client application
                 var passwordProvider = new CertificatePasswordProvider([]);
 
+#pragma warning disable CA2000 // Dispose objects before losing scope
                 var application = new ApplicationInstance(m_telemetry)
                 {
                     ApplicationName = applicationName,
@@ -94,6 +95,7 @@ namespace Quickstarts
                     ConfigSectionName = configSectionName,
                     CertificatePasswordProvider = passwordProvider
                 };
+#pragma warning restore CA2000 // Dispose objects before losing scope
 
                 // load the application configuration.
                 ApplicationConfiguration configuration = m_configuration = await application
@@ -121,7 +123,9 @@ namespace Quickstarts
 
                 var endpointConfiguration = EndpointConfiguration.Create(m_configuration);
                 var sessionFactory = new DefaultSessionFactory(m_telemetry);
+#pragma warning disable CA2000 // Dispose objects before losing scope
                 var userNameidentity = new UserIdentity(kUserName, new UTF8Encoding(false).GetBytes(kPassword));
+#pragma warning restore CA2000 // Dispose objects before losing scope
 
                 foreach (EndpointDescription ii in endpoints.ToArray())
                 {
@@ -252,6 +256,7 @@ namespace Quickstarts
                 endpointConfiguration);
 
             // Create the session
+#pragma warning disable CA2000 // Dispose objects before losing scope
             ISession isession = await sessionFactory
                 .CreateAsync(
                     m_configuration,
@@ -266,6 +271,7 @@ namespace Quickstarts
                     ct
                 )
                 .ConfigureAwait(false);
+#pragma warning restore CA2000 // Dispose objects before losing scope
 
             SessionWrapper wrapper = m_wrapper = new SessionWrapper { Session = isession };
 
@@ -288,17 +294,17 @@ namespace Quickstarts
             return wrapper;
         }
 
+#if NET8_0_OR_GREATER
         private async Task<UserIdentity> LoadUserCertificateAsync(
             string thumbprint,
             string password,
             CancellationToken ct)
         {
             CertificateTrustList store = m_configuration.SecurityConfiguration.TrustedUserCertificates;
-#if NET8_0_OR_GREATER
             // get user certificate with matching thumbprint
-            X509Certificate2Collection certificates =
+            using CertificateCollection certificates =
                 await store.GetCertificatesAsync(m_telemetry, ct).ConfigureAwait(false);
-            X509Certificate2 hit = certificates
+            using Certificate hit = certificates
                 .Find(X509FindType.FindByThumbprint, thumbprint, false)
                 .FirstOrDefault();
 
@@ -314,11 +320,18 @@ namespace Quickstarts
                 new CertificatePasswordProvider(new UTF8Encoding(false).GetBytes(password)),
                 m_telemetry,
                 ct).ConfigureAwait(false);
-#else
-            await Task.Delay(1, ct).ConfigureAwait(false);
-            throw new NotSupportedException("User certificate identity is only supported on .NET 8 or greater.");
-#endif
         }
+#else
+        private Task<UserIdentity> LoadUserCertificateAsync(
+            string thumbprint,
+            string password,
+            CancellationToken ct)
+        {
+            return Task.FromException<UserIdentity>(
+                new NotSupportedException(
+                    "User certificate identity is only supported on .NET 8 or greater."));
+        }
+#endif
 
         private static async ValueTask<ArrayOf<EndpointDescription>> GetEndpointsAsync(
             ApplicationConfiguration application,

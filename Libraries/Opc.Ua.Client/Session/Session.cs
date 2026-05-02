@@ -33,11 +33,10 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
-using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using Opc.Ua.Bindings;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Client
 {
@@ -100,8 +99,8 @@ namespace Opc.Ua.Client
             ITransportChannel channel,
             ApplicationConfiguration configuration,
             ConfiguredEndpoint endpoint,
-            X509Certificate2? clientCertificate = null,
-            X509Certificate2Collection? clientCertificateChain = null,
+            Certificate? clientCertificate = null,
+            CertificateCollection? clientCertificateChain = null,
             ArrayOf<EndpointDescription> availableEndpoints = default,
             ArrayOf<string> discoveryProfileUris = default)
             : this(
@@ -397,6 +396,10 @@ namespace Opc.Ua.Client
                 m_reconnectLock.Dispose();
                 m_eccServerEphemeralKey?.Dispose();
                 m_eccServerEphemeralKey = null;
+                m_instanceCertificate?.Dispose();
+                m_instanceCertificate = null;
+                m_serverCertificate?.Dispose();
+                m_serverCertificate = null;
             }
 
             base.Dispose(disposing);
@@ -1136,18 +1139,18 @@ namespace Opc.Ua.Client
 
             // validate the server certificate /certificate chain.
             using IUserIdentityTokenHandler identityToken = identity.TokenHandler.Copy();
-            X509Certificate2? serverCertificate = null;
+            Certificate? serverCertificate = null;
             ByteString certificateData = m_endpoint.Description.ServerCertificate;
 
             if (certificateData.Length > 0)
             {
-                X509Certificate2Collection serverCertificateChain = Utils.ParseCertificateChainBlob(
+                using CertificateCollection serverCertificateChain = Utils.ParseCertificateChainBlob(
                     certificateData,
                     m_telemetry);
 
                 if (serverCertificateChain.Count > 0)
                 {
-                    serverCertificate = serverCertificateChain[0];
+                    serverCertificate = serverCertificateChain[0].AddRef();
                 }
 
                 if (requireEncryption)
@@ -1366,7 +1369,7 @@ namespace Opc.Ua.Client
                     m_preferredLocales = preferredLocales;
                 }
 
-                var header = CreateRequestHeaderForActivateSession(securityPolicy, tokenSecurityPolicyUri!);
+                RequestHeader? header = CreateRequestHeaderForActivateSession(securityPolicy, tokenSecurityPolicyUri!);
 
                 // activate session.
                 ActivateSessionResponse activateResponse = await ActivateSessionAsync(
@@ -1447,6 +1450,7 @@ namespace Opc.Ua.Client
                 {
                     await CloseChannelAsync(CancellationToken.None).ConfigureAwait(false);
                 }
+                serverCertificate?.Dispose();
                 throw;
             }
         }
@@ -1512,19 +1516,14 @@ namespace Opc.Ua.Client
             UserTokenPolicy identityPolicy =
                 m_endpoint.Description.FindUserTokenPolicy(
                     identity.TokenHandler.Token.PolicyId,
-                    securityPolicyUri);
-
-            if (identityPolicy == null)
-            {
-                identityPolicy =
-                    m_endpoint.Description.FindUserTokenPolicy(
-                        identity.TokenType,
-                        identity.IssuedTokenType,
-                        securityPolicyUri)
+                    securityPolicyUri) ??
+                m_endpoint.Description.FindUserTokenPolicy(
+                    identity.TokenType,
+                    identity.IssuedTokenType,
+                    securityPolicyUri)
                     ?? throw ServiceResultException.Create(
-                        StatusCodes.BadIdentityTokenInvalid,
-                        "Endpoint does not support the user identity type provided.");
-            }
+                    StatusCodes.BadIdentityTokenInvalid,
+                    "Endpoint does not support the user identity type provided.");
 
             // select the security policy for the user token.
             string? tokenSecurityPolicyUri = string.IsNullOrEmpty(identityPolicy.SecurityPolicyUri)
@@ -2612,14 +2611,10 @@ namespace Opc.Ua.Client
 
                 m_logger.LogInformation("Session RE-ACTIVATING {SessionId}.", SessionId);
 
-                var header = CreateRequestHeaderForActivateSession(
+                RequestHeader? header = CreateRequestHeaderForActivateSession(
                     securityPolicy,
-                    tokenSecurityPolicyUri!);
-
-                if (header == null)
-                {
-                    header = new RequestHeader();
-                }
+                    tokenSecurityPolicyUri!) ??
+                    new RequestHeader();
 
                 header.TimeoutHint = kReconnectTimeout;
 
@@ -4082,7 +4077,7 @@ namespace Opc.Ua.Client
                 try
                 {
                     // verify for certificate chain in endpoint.
-                    X509Certificate2Collection serverCertificateChain =
+                    using CertificateCollection serverCertificateChain =
                         Utils.ParseCertificateChainBlob(
                             m_endpoint.Description.ServerCertificate,
                             m_telemetry);
@@ -4109,7 +4104,7 @@ namespace Opc.Ua.Client
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
         private void ValidateServerSignature(
-            X509Certificate2? serverCertificate,
+            Certificate? serverCertificate,
             SignatureData serverSignature,
             ByteString clientCertificateData,
             ByteString clientCertificateChainData,
@@ -4177,7 +4172,7 @@ namespace Opc.Ua.Client
         /// with the applicationUri of the server description before the validation.
         /// </summary>
         private void ValidateServerCertificateApplicationUri(
-            X509Certificate2? serverCertificate,
+            Certificate? serverCertificate,
             ConfiguredEndpoint endpoint)
         {
             if (serverCertificate != null)
@@ -4753,12 +4748,9 @@ namespace Opc.Ua.Client
                     m_endpoint.Description.SecurityPolicyUri,
                     m_telemetry,
                     ct)
-                    .ConfigureAwait(false);
-                if (m_instanceCertificate == null)
-                {
+                    .ConfigureAwait(false) ??
                     throw ServiceResultException.ConfigurationError(
                         "The client configuration does not specify an application instance certificate.");
-                }
                 m_effectiveEndpoint = m_endpoint;
                 m_instanceCertificateChain = null; // Reload the chain too
             }
@@ -4782,7 +4774,7 @@ namespace Opc.Ua.Client
         /// Load certificate for connection.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        internal static async Task<X509Certificate2> LoadInstanceCertificateAsync(
+        internal static async Task<Certificate> LoadInstanceCertificateAsync(
             ApplicationConfiguration configuration,
             string securityProfile,
             ITelemetryContext telemetry,
@@ -4801,24 +4793,36 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Load certificate chain for connection.
         /// </summary>
-        internal static async Task<X509Certificate2Collection?> LoadCertificateChainAsync(
+        internal static async Task<CertificateCollection?> LoadCertificateChainAsync(
             ApplicationConfiguration configuration,
-            X509Certificate2 clientCertificate,
+            Certificate clientCertificate,
             CancellationToken ct = default)
         {
-            X509Certificate2Collection? clientCertificateChain = null;
+            CertificateCollection? clientCertificateChain = null;
             // load certificate chain.
             if (configuration.SecurityConfiguration.SendCertificateChain)
             {
-                clientCertificateChain = new X509Certificate2Collection(clientCertificate);
-                List<CertificateIdentifier> issuers = [];
-                await configuration
-                    .CertificateValidator.GetIssuersAsync(clientCertificate, issuers, ct)
-                    .ConfigureAwait(false);
-
-                for (int i = 0; i < issuers.Count; i++)
+                clientCertificateChain = new CertificateCollection { clientCertificate };
+                try
                 {
-                    clientCertificateChain.Add(issuers[i].Certificate);
+                    List<CertificateIdentifier> issuers = [];
+                    await configuration
+                        .CertificateValidator.GetIssuersAsync(clientCertificate, issuers, ct)
+                        .ConfigureAwait(false);
+
+                    for (int i = 0; i < issuers.Count; i++)
+                    {
+                        Certificate? issuerCert = issuers[i].Certificate;
+                        if (issuerCert != null)
+                        {
+                            clientCertificateChain.Add(issuerCert);
+                        }
+                    }
+                }
+                catch
+                {
+                    clientCertificateChain.Dispose();
+                    throw;
                 }
             }
             return clientCertificateChain;
@@ -5009,19 +5013,21 @@ namespace Opc.Ua.Client
 
             m_userTokenSecurityPolicyUri = userTokenSecurityPolicyUri;
 
-            var securityPolicy = SecurityPolicies.GetInfo(userTokenSecurityPolicyUri);
+            SecurityPolicyInfo securityPolicy = SecurityPolicies.GetInfo(userTokenSecurityPolicyUri);
 
             if (securityPolicy.EphemeralKeyAlgorithm != CertificateKeyAlgorithm.None)
             {
-                var parameters = new AdditionalParametersType();
-                parameters.Parameters =
-                [
-                    new KeyValuePair
-                    {
-                        Key = QualifiedName.From(AdditionalParameterNames.ECDHPolicyUri),
-                        Value = userTokenSecurityPolicyUri
-                    }
-                ];
+                var parameters = new AdditionalParametersType
+                {
+                    Parameters =
+                    [
+                        new KeyValuePair
+                        {
+                            Key = QualifiedName.From(AdditionalParameterNames.ECDHPolicyUri),
+                            Value = userTokenSecurityPolicyUri
+                        }
+                    ]
+                };
                 requestHeader.AdditionalHeader = new ExtensionObject(parameters);
 
                 m_logger.LogWarning("Request EphemeralKey for {Policy}.", userTokenSecurityPolicyUri);
@@ -5039,7 +5045,7 @@ namespace Opc.Ua.Client
 
             if (!string.IsNullOrEmpty(userTokenSecurityPolicyUri))
             {
-                var userTokenSecurityPolicy = SecurityPolicies.GetInfo(userTokenSecurityPolicyUri);
+                SecurityPolicyInfo userTokenSecurityPolicy = SecurityPolicies.GetInfo(userTokenSecurityPolicyUri);
 
                 if (userTokenSecurityPolicy.EphemeralKeyAlgorithm != CertificateKeyAlgorithm.None)
                 {
@@ -5079,7 +5085,7 @@ namespace Opc.Ua.Client
         /// <exception cref="ServiceResultException"></exception>
         protected virtual void ProcessResponseAdditionalHeader(
             ResponseHeader responseHeader,
-            X509Certificate2? serverCertificate)
+            Certificate? serverCertificate)
         {
             if (responseHeader != null &&
                 responseHeader.AdditionalHeader.TryGetValue(out IEncodeable e) &&
@@ -5133,6 +5139,13 @@ namespace Opc.Ua.Client
                                 "Server did not provide a valid ECDHKey. User authentication not possible.");
                         }
 
+                        if (serverCertificate == null || m_userTokenSecurityPolicyUri == null)
+                        {
+                            throw new ServiceResultException(
+                                StatusCodes.BadDecodingError,
+                                "Server certificate or security policy URI is not available. User authentication not possible.");
+                        }
+
                         if (!CryptoUtils.Verify(
                                 new ArraySegment<byte>(key.PublicKey.ToArray()),
                                 key.Signature.ToArray(),
@@ -5182,12 +5195,12 @@ namespace Opc.Ua.Client
         /// <summary>
         /// The Instance Certificate.
         /// </summary>
-        protected X509Certificate2? m_instanceCertificate;
+        protected Certificate? m_instanceCertificate;
 
         /// <summary>
         /// The Instance Certificate Chain.
         /// </summary>
-        protected X509Certificate2Collection? m_instanceCertificateChain;
+        protected CertificateCollection? m_instanceCertificateChain;
 
         /// <summary>
         /// The session telemetry context
@@ -5234,7 +5247,7 @@ namespace Opc.Ua.Client
         private byte[]? m_clientNonce;
         private ByteString m_serverNonce;
         private ByteString m_previousServerNonce;
-        private X509Certificate2? m_serverCertificate;
+        private Certificate? m_serverCertificate;
         private uint m_publishCounter;
         private int m_tooManyPublishRequests;
         private long m_lastKeepAliveTime;

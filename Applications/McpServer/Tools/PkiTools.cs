@@ -31,11 +31,11 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
-using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 using ModelContextProtocol.Server;
 using Opc.Ua.Mcp.Serialization;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Mcp.Tools
 {
@@ -64,7 +64,7 @@ namespace Opc.Ua.Mcp.Tools
                 CertificateStoreIdentifier storeId = GetStoreIdentifier(config, store);
 
                 using ICertificateStore certStore = storeId.OpenStore(sessionManager.Telemetry);
-                X509Certificate2Collection certs = await certStore.EnumerateAsync(ct).ConfigureAwait(false);
+                using CertificateCollection certs = await certStore.EnumerateAsync(ct).ConfigureAwait(false);
 
                 var results = certs.Select(c => CertToDict(c)).ToList();
 
@@ -105,12 +105,12 @@ namespace Opc.Ua.Mcp.Tools
                 CertificateStoreIdentifier rejectedStoreId = GetStoreIdentifier(config, "Rejected");
                 CertificateStoreIdentifier trustedStoreId = GetStoreIdentifier(config, "Trusted");
 
-                // Find in rejected store
-                X509Certificate2? cert = null;
+                // Find in rejected store - take a reference we own beyond the collection's lifetime.
+                Certificate? cert = null;
                 using (ICertificateStore rejectedStore = rejectedStoreId.OpenStore(sessionManager.Telemetry))
+                using (CertificateCollection found = await rejectedStore.FindByThumbprintAsync(
+                    thumbprint, ct).ConfigureAwait(false))
                 {
-                    X509Certificate2Collection found = await rejectedStore.FindByThumbprintAsync(
-                        thumbprint, ct).ConfigureAwait(false);
                     if (found.Count == 0)
                     {
                         return OpcUaJsonHelper.Serialize(new Dictionary<string, object?>
@@ -119,27 +119,34 @@ namespace Opc.Ua.Mcp.Tools
                             ["message"] = $"Certificate with thumbprint '{thumbprint}' not found in Rejected store."
                         });
                     }
-                    cert = found[0];
+                    cert = found[0].AddRef();
                 }
 
-                // Add to trusted store
-                using (ICertificateStore trustedStore = trustedStoreId.OpenStore(sessionManager.Telemetry))
+                try
                 {
-                    await trustedStore.AddAsync(cert, ct: ct).ConfigureAwait(false);
-                }
+                    // Add to trusted store
+                    using (ICertificateStore trustedStore = trustedStoreId.OpenStore(sessionManager.Telemetry))
+                    {
+                        await trustedStore.AddAsync(cert, ct: ct).ConfigureAwait(false);
+                    }
 
-                // Remove from rejected store
-                using (ICertificateStore rejectedStore = rejectedStoreId.OpenStore(sessionManager.Telemetry))
-                {
-                    await rejectedStore.DeleteAsync(thumbprint, ct).ConfigureAwait(false);
-                }
+                    // Remove from rejected store
+                    using (ICertificateStore rejectedStore = rejectedStoreId.OpenStore(sessionManager.Telemetry))
+                    {
+                        await rejectedStore.DeleteAsync(thumbprint, ct).ConfigureAwait(false);
+                    }
 
-                return OpcUaJsonHelper.Serialize(new Dictionary<string, object?>
+                    return OpcUaJsonHelper.Serialize(new Dictionary<string, object?>
+                    {
+                        ["success"] = true,
+                        ["message"] = $"Certificate '{cert.Subject}' (thumbprint: {thumbprint}) moved from Rejected to Trusted.",
+                        ["certificate"] = CertToDict(cert)
+                    });
+                }
+                finally
                 {
-                    ["success"] = true,
-                    ["message"] = $"Certificate '{cert.Subject}' (thumbprint: {thumbprint}) moved from Rejected to Trusted.",
-                    ["certificate"] = CertToDict(cert)
-                });
+                    cert.Dispose();
+                }
             }
             catch (Exception ex) when (ex is ServiceResultException or InvalidOperationException)
             {
@@ -278,7 +285,7 @@ namespace Opc.Ua.Mcp.Tools
             };
         }
 
-        private static Dictionary<string, object?> CertToDict(X509Certificate2 cert)
+        private static Dictionary<string, object?> CertToDict(Certificate cert)
         {
             return new Dictionary<string, object?>
             {

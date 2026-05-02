@@ -8124,7 +8124,7 @@ namespace Opc.Ua
                 }
             }
 
-            var value = m_value;
+            object value = m_value;
 
             // Convert the enum values to ints for back-compatibility
             if (boxingBehavior != BoxingBehavior.None &&

@@ -28,7 +28,7 @@
  * ======================================================================*/
 
 using System;
-using System.Security.Cryptography.X509Certificates;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua
 {
@@ -73,26 +73,26 @@ namespace Opc.Ua
         /// Encrypts the token
         /// </summary>
         void Encrypt(
-            X509Certificate2 receiverCertificate,
+            Certificate receiverCertificate,
             byte[] receiverNonce,
             string securityPolicyUri,
             IServiceMessageContext context,
             Nonce receiverEphemeralKey = null,
-            X509Certificate2 senderCertificate = null,
-            X509Certificate2Collection senderIssuerCertificates = null,
+            Certificate senderCertificate = null,
+            CertificateCollection senderIssuerCertificates = null,
             bool doNotEncodeSenderCertificate = false);
 
         /// <summary>
         /// Decrypts the token
         /// </summary>
         void Decrypt(
-            X509Certificate2 certificate,
+            Certificate certificate,
             Nonce receiverNonce,
             string securityPolicyUri,
             IServiceMessageContext context,
             Nonce ephemeralKey = null,
-            X509Certificate2 senderCertificate = null,
-            X509Certificate2Collection senderIssuerCertificates = null,
+            Certificate senderCertificate = null,
+            CertificateCollection senderIssuerCertificates = null,
             CertificateValidator validator = null);
 
         /// <summary>

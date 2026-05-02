@@ -30,10 +30,10 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Security.Cryptography.X509Certificates;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.PubSub.Configuration;
 using Opc.Ua.PubSub.PublishedData;
+using Opc.Ua.Security.Certificates;
 using Opc.Ua.Test;
 
 namespace Opc.Ua.PubSub
@@ -463,5 +463,5 @@ namespace Opc.Ua.PubSub
     /// </summary>
     /// <param name="brokerCertificate">The broker certificate.</param>
     /// <returns>Returns whether the broker certificate is valid and trusted.</returns>
-    public delegate bool ValidateBrokerCertificateHandler(X509Certificate2 brokerCertificate);
+    public delegate bool ValidateBrokerCertificateHandler(Certificate brokerCertificate);
 }

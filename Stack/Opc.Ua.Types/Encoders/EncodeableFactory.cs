@@ -395,8 +395,7 @@ namespace Opc.Ua
                     DynamicallyAccessedMemberTypes.PublicConstructors)]
                 Type systemType)
             {
-                IType? type = ReflectionBasedType.From(systemType);
-                switch (type)
+                switch (ReflectionBasedType.From(systemType))
                 {
                     case IEncodeableType encodeableType:
                         AddEncodeableTypeInternal(encodeableType);

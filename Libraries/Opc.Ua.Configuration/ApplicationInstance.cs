@@ -32,12 +32,12 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Net;
-using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using System.Security.Cryptography;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Configuration
 {
@@ -60,6 +60,20 @@ namespace Opc.Ua.Configuration
                 Server.Dispose();
                 Server = null;
             }
+
+            ApplicationConfiguration?.CertificateValidator?.Dispose();
+
+            if (ApplicationConfiguration?.SecurityConfiguration?.ApplicationCertificates != null)
+            {
+                foreach (CertificateIdentifier certId in
+                    ApplicationConfiguration.SecurityConfiguration.ApplicationCertificates)
+                {
+                    certId?.Dispose();
+                }
+            }
+
+            CertificateManager?.Dispose();
+
             GC.SuppressFinalize(this);
         }
 
@@ -133,6 +147,11 @@ namespace Opc.Ua.Configuration
 
         /// <inheritdoc/>
         public bool DisableCertificateAutoCreation { get; set; }
+
+        /// <summary>
+        /// Gets the certificate manager for this application instance.
+        /// </summary>
+        public CertificateManager CertificateManager { get; private set; }
 
         /// <inheritdoc/>
         public async Task StartAsync(IServerBase server, CancellationToken ct = default)
@@ -347,6 +366,11 @@ namespace Opc.Ua.Configuration
                 result = result && nextResult;
             }
 
+            // Initialize CertificateManager from security configuration
+            CertificateManager ??= CertificateManagerFactory.Create(
+                securityConfiguration,
+                m_telemetry);
+
             return result;
         }
 
@@ -381,7 +405,7 @@ namespace Opc.Ua.Configuration
                 .ConfigureAwait(false);
 
             // load the certificate
-            X509Certificate2 certificate = await id.FindAsync(
+            Certificate certificate = await id.FindAsync(
                 true,
                 configuration.ApplicationUri,
                 m_telemetry,
@@ -391,7 +415,7 @@ namespace Opc.Ua.Configuration
             // check that it is ok.
             if (certificate != null)
             {
-                m_logger.LogInformation("Check certificate: {Certificate}", certificate.AsLogSafeString());
+                m_logger.LogInformation("Check certificate: {Certificate}", certificate);
                 bool certificateValid = await CheckApplicationInstanceCertificateAsync(
                         configuration,
                         id,
@@ -503,7 +527,7 @@ namespace Opc.Ua.Configuration
 
         /// <inheritdoc/>
         public async Task AddOwnCertificateToTrustedStoreAsync(
-            X509Certificate2 certificate,
+            Certificate certificate,
             CancellationToken ct)
         {
             await AddToTrustedStoreAsync(ApplicationConfiguration, certificate, ct).ConfigureAwait(
@@ -612,7 +636,7 @@ namespace Opc.Ua.Configuration
         private async Task<bool> CheckApplicationInstanceCertificateAsync(
             ApplicationConfiguration configuration,
             CertificateIdentifier id,
-            X509Certificate2 certificate,
+            Certificate certificate,
             bool silent,
             ushort minimumKeySize,
             CancellationToken ct)
@@ -645,17 +669,18 @@ namespace Opc.Ua.Configuration
 
             m_logger.LogInformation(
                 "Check application instance certificate {Certificate}.",
-                certificate.AsLogSafeString());
+                certificate);
 
             try
             {
                 // validate certificate.
                 configuration.CertificateValidator.CertificateValidation += OnCertificateValidation;
+                using Certificate publicKeyCert = certificate.HasPrivateKey
+                    ? CertificateFactory.Create(certificate.RawData)
+                    : null;
                 await configuration
                     .CertificateValidator.ValidateAsync(
-                        certificate.HasPrivateKey
-                            ? CertificateFactory.Create(certificate.RawData)
-                            : certificate,
+                        publicKeyCert ?? certificate,
                         ct)
                     .ConfigureAwait(false);
             }
@@ -730,7 +755,7 @@ namespace Opc.Ua.Configuration
 
             m_logger.LogInformation(
                 "Certificate {Certificate} validated for ApplicationUri: {ApplicationUri}",
-                certificate.AsLogSafeString(),
+                certificate,
                 configuration.ApplicationUri);
 
             // update configuration.
@@ -744,7 +769,7 @@ namespace Opc.Ua.Configuration
         /// </summary>
         private async Task<bool> CheckDomainsInCertificateAsync(
             ApplicationConfiguration configuration,
-            X509Certificate2 certificate,
+            Certificate certificate,
             bool silent,
             CancellationToken ct)
         {
@@ -839,7 +864,7 @@ namespace Opc.Ua.Configuration
         /// <param name="ct">Cancellation token to cancel operation with</param>
         /// <returns>The new certificate</returns>
         /// <exception cref="ServiceResultException"></exception>
-        private async Task<X509Certificate2> CreateApplicationInstanceCertificateAsync(
+        private async Task<Certificate> CreateApplicationInstanceCertificateAsync(
             ApplicationConfiguration configuration,
             CertificateIdentifier id,
             ushort minimumKeySize,
@@ -866,12 +891,12 @@ namespace Opc.Ua.Configuration
                 Utils.GetAbsoluteDirectoryPath(id.StorePath, true, true, true);
             }
 
-            Security.Certificates.ICertificateBuilder builder = CertificateFactory
-                .CreateCertificate(
+            Security.Certificates.ICertificateBuilder builder = new DefaultCertificateFactory()
+                .CreateApplicationCertificate(
                     configuration.ApplicationUri,
                     configuration.ApplicationName,
                     id.SubjectName,
-                    serverDomainNames)
+                    serverDomainNames.ToList())
                 .SetLifeTime(lifeTimeInMonths);
 
             if (id.CertificateType.IsNull ||
@@ -887,7 +912,7 @@ namespace Opc.Ua.Configuration
 
                 m_logger.LogInformation(
                     "Certificate {Certificate} created for RSA with key size {KeySize} bits.",
-                    id.Certificate.AsLogSafeString(),
+                    id.Certificate,
                     keySize);
             }
             else
@@ -901,7 +926,7 @@ namespace Opc.Ua.Configuration
 
                 m_logger.LogInformation(
                     "Certificate {Certificate} created for {Curve}.",
-                    id.Certificate.AsLogSafeString(),
+                    id.Certificate,
                     curve.Value.Oid.FriendlyName);
             }
 
@@ -938,7 +963,7 @@ namespace Opc.Ua.Configuration
 
             m_logger.LogInformation(
                 "Certificate {Certificate} created for {ApplicationUri}.",
-                id.Certificate.AsLogSafeString(),
+                id.Certificate,
                 configuration.ApplicationUri);
 
             // do not dispose temp cert, or X509Store certs become unusable
@@ -963,14 +988,15 @@ namespace Opc.Ua.Configuration
             }
 
             // delete certificate and private key.
-            X509Certificate2 certificate = await id.FindAsync(configuration.ApplicationUri, m_telemetry, ct)
+            Certificate certificate = await id.FindAsync(configuration.ApplicationUri, m_telemetry, ct)
                 .ConfigureAwait(false);
+
             if (certificate != null)
             {
                 m_logger.LogInformation(
                     Utils.TraceMasks.Security,
                     "Deleting application instance certificate {Certificate} and private key.",
-                    certificate.AsLogSafeString());
+                    certificate);
             }
 
             // delete trusted peer certificate.
@@ -986,26 +1012,19 @@ namespace Opc.Ua.Configuration
 
                 if (!string.IsNullOrEmpty(thumbprint))
                 {
-                    ICertificateStore store = configuration.SecurityConfiguration
+                    using ICertificateStore store = configuration.SecurityConfiguration
                         .TrustedPeerCertificates
                         .OpenStore(m_telemetry);
                     if (store != null)
                     {
-                        try
+                        bool deleted = await store.DeleteAsync(thumbprint, ct)
+                            .ConfigureAwait(false);
+                        if (deleted)
                         {
-                            bool deleted = await store.DeleteAsync(thumbprint, ct)
-                                .ConfigureAwait(false);
-                            if (deleted)
-                            {
-                                m_logger.LogInformation(
-                                    Utils.TraceMasks.Security,
-                                    "Application Instance Certificate [{Thumbprint}] deleted from trusted store.",
-                                    thumbprint);
-                            }
-                        }
-                        finally
-                        {
-                            store.Close();
+                            m_logger.LogInformation(
+                                Utils.TraceMasks.Security,
+                                "Application Instance Certificate [{Thumbprint}] deleted from trusted store.",
+                                thumbprint);
                         }
                     }
                 }
@@ -1022,7 +1041,7 @@ namespace Opc.Ua.Configuration
                     m_logger.LogInformation(
                         Utils.TraceMasks.Security,
                         "Application certificate {Certificate} and private key deleted.",
-                        certificate.AsLogSafeString());
+                        certificate);
                 }
             }
 
@@ -1039,7 +1058,7 @@ namespace Opc.Ua.Configuration
         /// <exception cref="ArgumentNullException"><paramref name="certificate"/> is <c>null</c>.</exception>
         private async Task AddToTrustedStoreAsync(
             ApplicationConfiguration configuration,
-            X509Certificate2 certificate,
+            Certificate certificate,
             CancellationToken ct)
         {
             if (certificate == null)
@@ -1064,7 +1083,7 @@ namespace Opc.Ua.Configuration
 
             try
             {
-                ICertificateStore store = configuration.SecurityConfiguration
+                using ICertificateStore store = configuration.SecurityConfiguration
                     .TrustedPeerCertificates
                     .OpenStore(m_telemetry);
 
@@ -1074,28 +1093,26 @@ namespace Opc.Ua.Configuration
                     return;
                 }
 
-                try
+                // check if it already exists.
+                using CertificateCollection existingCertificates = await store
+                    .FindByThumbprintAsync(certificate.Thumbprint, ct)
+                    .ConfigureAwait(false);
+
+                if (existingCertificates.Count > 0)
                 {
-                    // check if it already exists.
-                    X509Certificate2Collection existingCertificates = await store
-                        .FindByThumbprintAsync(certificate.Thumbprint, ct)
-                        .ConfigureAwait(false);
+                    return;
+                }
 
-                    if (existingCertificates.Count > 0)
-                    {
-                        return;
-                    }
+                m_logger.LogInformation(
+                    "Adding application certificate {Certificate} to trusted peer store.",
+                    certificate);
 
-                    m_logger.LogInformation(
-                        "Adding application certificate {Certificate} to trusted peer store.",
-                        certificate.AsLogSafeString());
+                List<string> subjectName = X509Utils.ParseDistinguishedName(
+                    certificate.Subject);
 
-                    List<string> subjectName = X509Utils.ParseDistinguishedName(
-                        certificate.Subject);
-
-                    // check for old certificate.
-                    X509Certificate2Collection certificates = await store.EnumerateAsync(ct)
-                        .ConfigureAwait(false);
+                // check for old certificate.
+                using CertificateCollection certificates = await store.EnumerateAsync(ct)
+                    .ConfigureAwait(false);
 
                     for (int ii = 0; ii < certificates.Count; ii++)
                     {
@@ -1129,7 +1146,7 @@ namespace Opc.Ua.Configuration
                             {
                                 m_logger.LogInformation(
                                     "Delete Certificate {Certificate} from trusted store.",
-                                    certificate.AsLogSafeString());
+                                    certificate);
                                 await store.DeleteAsync(certificates[ii].Thumbprint, ct)
                                     .ConfigureAwait(false);
                                 break;
@@ -1138,15 +1155,10 @@ namespace Opc.Ua.Configuration
                     }
 
                     // add new certificate.
-                    using X509Certificate2 publicKey = CertificateFactory.Create(certificate.RawData);
+                    using Certificate publicKey = CertificateFactory.Create(certificate.RawData);
                     await store.AddAsync(publicKey, ct: ct).ConfigureAwait(false);
 
                     m_logger.LogInformation("Added application certificate to trusted peer store.");
-                }
-                finally
-                {
-                    store.Close();
-                }
             }
             catch (Exception e)
             {

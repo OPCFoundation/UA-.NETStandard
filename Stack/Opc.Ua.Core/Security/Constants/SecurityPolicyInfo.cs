@@ -11,7 +11,6 @@
 */
 
 using System;
-using System.IO;
 using System.Security.Cryptography;
 
 namespace Opc.Ua
@@ -165,17 +164,18 @@ namespace Opc.Ua
         /// Returns the derived server key data length.
         /// </summary>
         public int ServerKeyDataLength =>
-             (DerivedSignatureKeyLength + SymmetricEncryptionKeyLength + InitializationVectorLength);
+             DerivedSignatureKeyLength + SymmetricEncryptionKeyLength + InitializationVectorLength;
 
         /// <summary>
         /// Returns the derived client key data length.
         /// </summary>
         public int ClientKeyDataLength =>
-             (DerivedSignatureKeyLength + SymmetricEncryptionKeyLength + InitializationVectorLength);
+             DerivedSignatureKeyLength + SymmetricEncryptionKeyLength + InitializationVectorLength;
 
         /// <summary>
         /// Returns the data to be signed by the server when creating a session.
         /// </summary>
+        /// <exception cref="NotSupportedException"></exception>
         public byte[] GetUserTokenSignatureData(
             byte[] channelThumbprint,
             byte[] serverNonce,
@@ -195,13 +195,13 @@ namespace Opc.Ua
                     _ => throw new NotSupportedException()
                 };
 
-                var serverCertificateHash =
+                byte[] serverCertificateHash =
                     serverCertificate != null ? hash.ComputeHash(serverCertificate) : null;
-                var serverChannelCertificateHash =
+                byte[] serverChannelCertificateHash =
                     serverChannelCertificate != null ? hash.ComputeHash(serverChannelCertificate) : null;
-                var clientCertificateHash =
+                byte[] clientCertificateHash =
                     clientCertificate != null ? hash.ComputeHash(clientCertificate) : null;
-                var clientChannelCertificateHash =
+                byte[] clientChannelCertificateHash =
                     clientChannelCertificate != null ? hash.ComputeHash(clientChannelCertificate) : null;
 
                 return Utils.Append(
@@ -243,9 +243,9 @@ namespace Opc.Ua
                     _ => throw new NotSupportedException()
                 };
 
-                var serverChannelCertificateHash =
+                byte[] serverChannelCertificateHash =
                     serverChannelCertificate != null ? hash.ComputeHash(serverChannelCertificate) : null;
-                var clientChannelCertificateHash =
+                byte[] clientChannelCertificateHash =
                     clientChannelCertificate != null ? hash.ComputeHash(clientChannelCertificate) : null;
 
                 return Utils.Append(
@@ -266,6 +266,7 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the data to be signed by the client when creating a session.
         /// </summary>
+        /// <exception cref="NotSupportedException"></exception>
         public byte[] GetClientSignatureData(
             byte[] channelThumbprint,
             byte[] serverNonce,
@@ -285,9 +286,9 @@ namespace Opc.Ua
                     _ => throw new NotSupportedException()
                 };
 
-                var serverCertificateHash = serverCertificate != null ? hash.ComputeHash(serverCertificate) : null;
-                var serverChannelCertificateHash = serverChannelCertificate != null ? hash.ComputeHash(serverChannelCertificate) : null;
-                var clientChannelCertificateHash = clientChannelCertificate != null ? hash.ComputeHash(clientChannelCertificate) : null;
+                byte[] serverCertificateHash = serverCertificate != null ? hash.ComputeHash(serverCertificate) : null;
+                byte[] serverChannelCertificateHash = serverChannelCertificate != null ? hash.ComputeHash(serverChannelCertificate) : null;
+                byte[] clientChannelCertificateHash = clientChannelCertificate != null ? hash.ComputeHash(clientChannelCertificate) : null;
 
                 data = Utils.Append(
                     channelThumbprint,

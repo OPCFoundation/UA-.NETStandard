@@ -103,7 +103,7 @@ namespace Opc.Ua.Tests
             return [];
         }
 
-        public static void ValidateSelSignedBasicConstraints(X509Certificate2 certificate)
+        public static void ValidateSelSignedBasicConstraints(Certificate certificate)
         {
             X509BasicConstraintsExtension basicConstraintsExtension =
                 certificate.Extensions.FindExtension<X509BasicConstraintsExtension>();

@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 #if NETFRAMEWORK
 using System;
 using System.Security.Cryptography.X509Certificates;
@@ -51,7 +53,7 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         /// <exception cref="ArgumentException"></exception>
         public static byte[] ExportPrivateKeyAsPEM(
-            X509Certificate2 certificate,
+            Certificate certificate,
             ReadOnlySpan<char> password = default)
         {
             bool isECDsaSignature = X509PfxUtils.IsECDsaSignature(certificate);
@@ -65,7 +67,7 @@ namespace Opc.Ua.Security.Certificates
                         nameof(password));
                 }
 
-                RsaPrivateCrtKeyParameters privateKeyParameter = X509Utils
+                RsaPrivateCrtKeyParameters? privateKeyParameter = X509Utils
                     .GetRsaPrivateKeyParameter(certificate);
                 // write private key as PKCS#8
                 PrivateKeyInfo privateKeyInfo = PrivateKeyInfoFactory.CreatePrivateKeyInfo(
@@ -82,8 +84,8 @@ namespace Opc.Ua.Security.Certificates
                         nameof(password));
                 }
 
-                ECPrivateKeyParameters privateKeyParameter = X509Utils.GetECDsaPrivateKeyParameter(
-                    certificate.GetECDsaPrivateKey());
+                ECPrivateKeyParameters? privateKeyParameter = X509Utils.GetECDsaPrivateKeyParameter(
+                    certificate);
                 // write private key as PKCS#8
                 PrivateKeyInfo privateKeyInfo = PrivateKeyInfoFactory.CreatePrivateKeyInfo(
                     privateKeyParameter);
@@ -98,7 +100,7 @@ namespace Opc.Ua.Security.Certificates
         public static bool TryRemovePublicKeyFromPEM(
             string thumbprint,
             byte[] pemDataBlob,
-            out byte[] modifiedPemDataBlob)
+            out byte[]? modifiedPemDataBlob)
         {
             modifiedPemDataBlob = null;
             const string label = "CERTIFICATE";
