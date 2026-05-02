@@ -908,12 +908,12 @@ namespace Opc.Ua.Client
                 return await IsTypeOfAsync(expectedTypeId, actualTypeId, ct)
                     .ConfigureAwait(false);
             }
-            if (value.TryGet(out ExtensionObject extension))
+            if (value.TryGetValue(out ExtensionObject extension))
             {
                 return await IsEncodingForAsync(expectedTypeId, extension, ct)
                     .ConfigureAwait(false);
             }
-            if (value.TryGet(out ArrayOf<ExtensionObject> extensions))
+            if (value.TryGetValue(out ArrayOf<ExtensionObject> extensions))
             {
                 foreach (ExtensionObject ext in extensions.ToList())
                 {

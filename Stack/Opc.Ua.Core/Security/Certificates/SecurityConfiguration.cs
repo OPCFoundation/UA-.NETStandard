@@ -214,7 +214,7 @@ namespace Opc.Ua
                     securityPolicies.Add(SecurityPolicies.RSA_DH_ChaChaPoly);
                     continue;
                 }
-                if (applicationCertificate.CertificateType.TryGetIdentifier(out uint identifier))
+                if (applicationCertificate.CertificateType.TryGetValue(out uint identifier))
                 {
                     switch (identifier)
                     {

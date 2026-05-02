@@ -176,12 +176,12 @@ namespace Opc.Ua.Client
                     return result;
                 }
 
-                if (dataValue.WrappedValue.TryGet(
+                if (dataValue.WrappedValue.TryGetValue(
                     out ArrayOf<ExtensionObject> extensionObjects))
                 {
                     foreach (ExtensionObject extensionObject in extensionObjects)
                     {
-                        if (extensionObject.TryGetEncodeable(
+                        if (extensionObject.TryGetValue(
                             out RedundantServerDataType serverData))
                         {
                             result.Add(new RedundantServer

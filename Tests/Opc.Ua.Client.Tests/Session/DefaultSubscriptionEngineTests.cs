@@ -373,7 +373,7 @@ namespace Opc.Ua.Client.Tests
                 captured.NotificationData.Count, Is.EqualTo(1));
             ExtensionObject ext = captured.NotificationData[0];
             Assert.That(
-                ext.TryGetEncodeable(
+                ext.TryGetValue(
                     out DataChangeNotification dcn),
                 Is.True);
             Assert.That(

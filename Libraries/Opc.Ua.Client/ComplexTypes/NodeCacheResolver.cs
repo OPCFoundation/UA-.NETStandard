@@ -184,7 +184,7 @@ namespace Opc.Ua.Client.ComplexTypes
                     // servers may optimize space by not returning a dictionary
                     if (!nameSpaceValues[ii].WrappedValue.IsNull)
                     {
-                        if (nameSpaceValues[ii].WrappedValue.TryGet(out string ns))
+                        if (nameSpaceValues[ii].WrappedValue.TryGetValue(out string ns))
                         {
                             namespaces[(NodeId)referenceNodeIds[ii]] = ns;
                             continue;
@@ -719,7 +719,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 var datatypeId = ExpandedNodeId.ToNodeId(reference.NodeId, NamespaceUris);
                 if (!datatypeId.IsNull &&
                     StatusCode.IsGood(value.StatusCode) &&
-                    value.WrappedValue.TryGet(out string dictName))
+                    value.WrappedValue.TryGetValue(out string dictName))
                 {
                     dictionaryToLoad.DataTypes[datatypeId] = new QualifiedName(
                         dictName,

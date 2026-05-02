@@ -2560,11 +2560,11 @@ namespace Opc.Ua.Schema.Model
             {
                 if (m_symbolicIdToNodeId.TryGetValue(node.SymbolicId, out NodeId nodeId))
                 {
-                    if (nodeId.TryGetIdentifier(out uint numeric))
+                    if (nodeId.TryGetValue(out uint numeric))
                     {
                         id = numeric;
                     }
-                    else if (nodeId.TryGetIdentifier(out string stringId))
+                    else if (nodeId.TryGetValue(out string stringId))
                     {
                         id = stringId;
                     }

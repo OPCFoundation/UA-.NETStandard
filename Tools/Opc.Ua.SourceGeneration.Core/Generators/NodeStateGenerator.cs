@@ -665,7 +665,7 @@ namespace Opc.Ua.SourceGeneration
                     break;
                 default:
                     context.Out.WriteLine(
-                        "_inputArguments[{2}].TryGet(out {1} {0});",
+                        "_inputArguments[{2}].TryGetValue(out {1} {0});",
                         fieldName,
                         typeName,
                         context.Index);
@@ -706,7 +706,7 @@ namespace Opc.Ua.SourceGeneration
                     break;
                 default:
                     context.Out.WriteLine(
-                        "_outputArguments[{2}].TryGet(out {1} {0});",
+                        "_outputArguments[{2}].TryGetValue(out {1} {0});",
                         fieldName,
                         typeName,
                         context.Index);
@@ -3154,7 +3154,7 @@ namespace Opc.Ua.SourceGeneration
                     break;
                 default:
                     context.Template.AddReplacement(Tokens.VariantFrom, "From");
-                    context.Template.AddReplacement(Tokens.VariantTryGet, "TryGet");
+                    context.Template.AddReplacement(Tokens.VariantTryGet, "TryGetValue");
                     break;
             }
         }

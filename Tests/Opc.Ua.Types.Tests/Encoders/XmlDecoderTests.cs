@@ -1589,7 +1589,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ExtensionObject result = decoder.ReadExtensionObjectBody(typeId);
 
             // Assert
-            Assert.That(result.TryGetEncodeable(out IEncodeable encodeable), Is.True);
+            Assert.That(result.TryGetValue(out IEncodeable encodeable), Is.True);
         }
 
         [Test]

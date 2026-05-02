@@ -281,7 +281,7 @@ namespace Opc.Ua.Client.ComplexTypes
 
             foreach (ExtensionObject extensionObject in enumValueTypes)
             {
-                if (!extensionObject.TryGetEncodeable(out EnumValueType enumValue))
+                if (!extensionObject.TryGetValue(out EnumValueType enumValue))
                 {
                     // All we can do here is skip this value. Since there is no
                     // fallback it is better to include all other type fields if
@@ -384,7 +384,7 @@ namespace Opc.Ua.Client.ComplexTypes
                     case "ExtensionObject":
                         return DataTypeIds.Structure;
                     default:
-                        if (!DataTypes.TryGetIdentifier(typeName.Name, out uint id))
+                        if (!DataTypes.TryGetValue(typeName.Name, out uint id))
                         {
                             return default;
                         }

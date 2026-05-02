@@ -391,7 +391,7 @@ namespace Opc.Ua.Client
             // no encodings for non-structures.
             if (!await session.NodeCache.IsTypeOfAsync(
                 variable.DataType,
-                DataTypes.Structure,
+                new NodeId(DataTypes.Structure),
                 ct).ConfigureAwait(false))
             {
                 return [];

@@ -653,7 +653,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             {
                 MonitoringFilterResult? filterResult = null;
                 if (filterResultExtensionObject.HasValue &&
-                    filterResultExtensionObject.Value.TryGetEncodeable(out MonitoringFilterResult fr))
+                    filterResultExtensionObject.Value.TryGetValue(out MonitoringFilterResult fr))
                 {
                     filterResult = fr;
                 }

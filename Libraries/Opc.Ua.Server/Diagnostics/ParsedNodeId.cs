@@ -77,7 +77,7 @@ namespace Opc.Ua.Server
                 return null;
             }
 
-            if (!nodeId.TryGetIdentifier(out string identifier) ||
+            if (!nodeId.TryGetValue(out string identifier) ||
                 string.IsNullOrEmpty(identifier))
             {
                 return null;
@@ -269,7 +269,7 @@ namespace Opc.Ua.Server
             }
 
             // parent must have a string identifier.
-            if (!instance.Parent.NodeId.TryGetIdentifier(out string parentId))
+            if (!instance.Parent.NodeId.TryGetValue(out string parentId))
             {
                 return default;
             }

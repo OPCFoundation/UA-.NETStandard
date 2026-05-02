@@ -109,7 +109,7 @@ namespace Opc.Ua.Gds.Server
 
             foreach (string certificateTypeString in Configuration.CertificateTypes)
             {
-                if (Ua.ObjectTypeIds.TryGetIdentifier(certificateTypeString, out NodeId certificateType))
+                if (Ua.ObjectTypeIds.TryGetValue(certificateTypeString, out NodeId certificateType))
                 {
                     if (!Utils.IsSupportedCertificateType(certificateType))
                     {

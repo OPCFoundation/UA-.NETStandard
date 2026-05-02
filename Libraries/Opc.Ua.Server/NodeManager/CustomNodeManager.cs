@@ -1128,41 +1128,41 @@ namespace Opc.Ua.Server
                     DisplayName = target.DisplayName
                 };
 
-                if (values[0].TryGet(out uint writeMask) &&
-                    values[1].TryGet(out uint userWriteMask))
+                if (values[0].TryGetValue(out uint writeMask) &&
+                    values[1].TryGetValue(out uint userWriteMask))
                 {
                     metadata.WriteMask = (AttributeWriteMask)(writeMask & userWriteMask);
                 }
-                if (values[2].TryGet(out NodeId dataType))
+                if (values[2].TryGetValue(out NodeId dataType))
                 {
                     metadata.DataType = dataType;
                 }
-                if (values[3].TryGet(out int valueRank))
+                if (values[3].TryGetValue(out int valueRank))
                 {
                     metadata.ValueRank = valueRank;
                 }
-                if (values[4].TryGet(out ArrayOf<uint> arrayDimensions))
+                if (values[4].TryGetValue(out ArrayOf<uint> arrayDimensions))
                 {
                     metadata.ArrayDimensions = arrayDimensions;
                 }
-                if (values[5].TryGet(out byte accessLevel) &&
-                    values[6].TryGet(out byte userAccessLevel))
+                if (values[5].TryGetValue(out byte accessLevel) &&
+                    values[6].TryGetValue(out byte userAccessLevel))
                 {
                     metadata.AccessLevel = (byte)(accessLevel & userAccessLevel);
                 }
 
-                if (values[7].TryGet(out byte eventNotifier))
+                if (values[7].TryGetValue(out byte eventNotifier))
                 {
                     metadata.EventNotifier = eventNotifier;
                 }
 
-                if (values[8].TryGet(out bool executable) &&
-                    values[9].TryGet(out bool userExecutable))
+                if (values[8].TryGetValue(out bool executable) &&
+                    values[9].TryGetValue(out bool userExecutable))
                 {
                     metadata.Executable = executable && userExecutable;
                 }
 
-                if (values[10].TryGet(out ushort accessRestriction))
+                if (values[10].TryGetValue(out ushort accessRestriction))
                 {
                     metadata.AccessRestrictions = (AccessRestrictionType)accessRestriction;
                 }
@@ -1198,7 +1198,7 @@ namespace Opc.Ua.Server
         /// </summary>
         private static void SetAccessAndRolePermissions(ArrayOf<Variant> values, NodeMetadata metadata)
         {
-            if (values[0].TryGet(out ushort accessRestrictions))
+            if (values[0].TryGetValue(out ushort accessRestrictions))
             {
                 metadata.AccessRestrictions = (AccessRestrictionType)accessRestrictions;
             }
@@ -4981,7 +4981,7 @@ namespace Opc.Ua.Server
                     namespaceMetadataValues = namespaceMetadataState.DefaultAccessRestrictions
                         .ReadAttributes(systemContext, Attributes.Value);
 
-                    if (namespaceMetadataValues[0].TryGet(out AccessRestrictionType accessRestrictions))
+                    if (namespaceMetadataValues[0].TryGetValue(out AccessRestrictionType accessRestrictions))
                     {
                         metadata.DefaultAccessRestrictions = accessRestrictions;
                     }

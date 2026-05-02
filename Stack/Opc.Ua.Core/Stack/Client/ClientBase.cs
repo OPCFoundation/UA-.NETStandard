@@ -430,7 +430,7 @@ namespace Opc.Ua
                     request.RequestHeader.AdditionalHeader
                         = new ExtensionObject(additionalHeader);
                 }
-                else if (request.RequestHeader.AdditionalHeader.TryGetEncodeable(
+                else if (request.RequestHeader.AdditionalHeader.TryGetValue(
                     out AdditionalParametersType existingParameters))
                 {
                     // Merge the trace data into the existing parameters.

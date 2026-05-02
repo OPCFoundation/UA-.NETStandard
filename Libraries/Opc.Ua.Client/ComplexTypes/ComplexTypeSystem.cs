@@ -1075,7 +1075,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// </summary>
         private static StructureDefinition? GetStructureDefinition(DataTypeNode dataTypeNode)
         {
-            if (dataTypeNode.DataTypeDefinition.TryGetEncodeable(
+            if (dataTypeNode.DataTypeDefinition.TryGetValue(
                 out StructureDefinition structureDefinition))
             {
                 // Validate the DataTypeDefinition structure,
@@ -1311,19 +1311,19 @@ namespace Opc.Ua.Client.ComplexTypes
 
                 // 1. use DataTypeDefinition
                 if (DisableDataTypeDefinition ||
-                    !enumTypeNode.DataTypeDefinition.TryGetEncodeable(
+                    !enumTypeNode.DataTypeDefinition.TryGetValue(
                         out EnumDefinition? enumDefinition))
                 {
                     // browse for EnumFields or EnumStrings property
                     Variant enumTypeArray = await m_complexTypeResolver
                         .GetEnumTypeArrayAsync(enumTypeNode.NodeId, ct)
                         .ConfigureAwait(false);
-                    if (enumTypeArray.TryGet(out ArrayOf<ExtensionObject> extensionObject))
+                    if (enumTypeArray.TryGetValue(out ArrayOf<ExtensionObject> extensionObject))
                     {
                         // 2. use EnumValues
                         enumDefinition = extensionObject.ToEnumDefinition(name.Name);
                     }
-                    else if (enumTypeArray.TryGet(out ArrayOf<LocalizedText> localizedText))
+                    else if (enumTypeArray.TryGetValue(out ArrayOf<LocalizedText> localizedText))
                     {
                         // 3. use EnumStrings
                         enumDefinition = localizedText.ToEnumDefinition(name.Name);
@@ -1363,14 +1363,14 @@ namespace Opc.Ua.Client.ComplexTypes
 
             // 1. use DataTypeDefinition
             if (DisableDataTypeDefinition ||
-                !dataTypeNode.DataTypeDefinition.TryGetEncodeable(
+                !dataTypeNode.DataTypeDefinition.TryGetValue(
                     out EnumDefinition? enumDefinition))
             {
                 // 2. fall back to OptionSetValues property (LocalizedText[])
                 Variant enumTypeArray = await m_complexTypeResolver
                     .GetEnumTypeArrayAsync(dataTypeNode.NodeId, ct)
                     .ConfigureAwait(false);
-                if (enumTypeArray.TryGet(out ArrayOf<LocalizedText> localizedText))
+                if (enumTypeArray.TryGetValue(out ArrayOf<LocalizedText> localizedText))
                 {
                     enumDefinition = localizedText.ToEnumDefinition(name.Name);
                 }
@@ -1644,7 +1644,7 @@ namespace Opc.Ua.Client.ComplexTypes
                         return default;
                     }
                     // end search if a valid BuiltInType is found. Treat type as opaque.
-                    else if (superType.TryGetIdentifier(out uint id) &&
+                    else if (superType.TryGetValue(out uint id) &&
                         id >= (uint)BuiltInType.Boolean &&
                         id <= (uint)BuiltInType.DiagnosticInfo)
                     {

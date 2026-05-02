@@ -432,7 +432,7 @@ namespace Quickstarts.ConsoleReferencePublisher
                     }
                     else if (variable.ValueRank == ValueRanks.OneDimension)
                     {
-                        if (dataValue.WrappedValue.TryGet(out ArrayOf<uint> values))
+                        if (dataValue.WrappedValue.TryGetValue(out ArrayOf<uint> values))
                         {
                             var valuesList = values.ToList();
                             for (int i = 0; i < values.Count; i++)

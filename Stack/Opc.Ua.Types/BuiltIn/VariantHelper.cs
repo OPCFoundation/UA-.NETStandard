@@ -140,7 +140,7 @@ namespace Opc.Ua
                     break;
                 case Type t when typeof(IEncodeable).IsAssignableFrom(t):
                     if (!value.GetExtensionObject()
-                        .TryGetEncodeable(out IEncodeable encodeable))
+                        .TryGetValue(out IEncodeable encodeable))
                     {
                         result = default;
                         return false;
@@ -377,7 +377,7 @@ namespace Opc.Ua
                     var encodeables = new IEncodeable[extensionObjects.Count];
                     for (int ii = 0; ii < encodeables.Length; ii++)
                     {
-                        if (!extensionObjects[ii].TryGetEncodeable(out encodeables[ii]))
+                        if (!extensionObjects[ii].TryGetValue(out encodeables[ii]))
                         {
                             result = default;
                             return false;

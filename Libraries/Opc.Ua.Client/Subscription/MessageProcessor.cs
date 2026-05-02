@@ -430,7 +430,7 @@ namespace Opc.Ua.Client.Subscriptions
             {
                 return;
             }
-            if (notificationData.Value.TryGetEncodeable(
+            if (notificationData.Value.TryGetValue(
                 out DataChangeNotification datachange))
             {
                 await OnDataChangeNotificationAsync(
@@ -440,7 +440,7 @@ namespace Opc.Ua.Client.Subscriptions
                     publishStateMask,
                     message.StringTable.ToArray() ?? []).ConfigureAwait(false);
             }
-            else if (notificationData.Value.TryGetEncodeable(
+            else if (notificationData.Value.TryGetValue(
                 out EventNotificationList events))
             {
                 await OnEventDataNotificationAsync(
@@ -450,7 +450,7 @@ namespace Opc.Ua.Client.Subscriptions
                     publishStateMask,
                     message.StringTable.ToArray() ?? []).ConfigureAwait(false);
             }
-            else if (notificationData.Value.TryGetEncodeable(
+            else if (notificationData.Value.TryGetValue(
                 out StatusChangeNotification statusChanged))
             {
                 PublishState mask = publishStateMask;

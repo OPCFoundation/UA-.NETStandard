@@ -100,7 +100,7 @@ namespace Opc.Ua
                         // extract trace information from the request header if available
                         if (Request.RequestHeader != null &&
                             Request.RequestHeader.AdditionalHeader
-                                .TryGetEncodeable(out AdditionalParametersType parameters) &&
+                                .TryGetValue(out AdditionalParametersType parameters) &&
                             TryExtractActivityContextFromParameters(
                                 parameters,
                                 out ActivityContext activityContext))

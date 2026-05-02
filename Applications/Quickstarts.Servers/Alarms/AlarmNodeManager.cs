@@ -102,7 +102,7 @@ namespace Alarms
         {
             if (node is BaseInstanceState instance &&
                 instance.Parent != null &&
-                instance.Parent.NodeId.TryGetIdentifier(out string id))
+                instance.Parent.NodeId.TryGetValue(out string id))
             {
                 return new NodeId(
                     id + "_" + instance.SymbolicName,
@@ -729,7 +729,7 @@ namespace Alarms
         {
             AlarmHolder alarmHolder = null;
 
-            if (node.TryGetIdentifier(out string unmodifiedName))
+            if (node.TryGetValue(out string unmodifiedName))
             {
                 // This is bad, but I'm not sure why the NodeName is being attached with an underscore, it messes with this lookup.
 #if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
@@ -780,7 +780,7 @@ namespace Alarms
         {
             string unit = string.Empty;
 
-            if (nodeId.TryGetIdentifier(out string nodeIdString))
+            if (nodeId.TryGetValue(out string nodeIdString))
             {
                 string[] splitString = nodeIdString.Split('.');
                 // Alarms.UnitName.MethodName
@@ -817,7 +817,7 @@ namespace Alarms
         {
             string sourceName = string.Empty;
 
-            if (nodeId.TryGetIdentifier(out string nodeIdString))
+            if (nodeId.TryGetValue(out string nodeIdString))
             {
                 string[] splitString = nodeIdString.Split('.');
                 // Alarms.UnitName.AnalogSource
@@ -1114,7 +1114,7 @@ namespace Alarms
 
             // Bad magic Numbers hereStart
             if (request.InputArguments.Count == 2 &&
-                request.InputArguments[0].TryGet(out ByteString byteString))
+                request.InputArguments[0].TryGetValue(out ByteString byteString))
             {
                 eventId = byteString;
             }

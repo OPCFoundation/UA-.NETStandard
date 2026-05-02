@@ -61,7 +61,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var extensionObject = new ExtensionObject(ExpandedNodeId.Null);
             Assert.That(extensionObject.TypeId, Is.EqualTo(ExpandedNodeId.Null));
             Assert.That(extensionObject.Encoding, Is.EqualTo(ExtensionObjectEncoding.None));
-            Assert.That(extensionObject.TryGetEncodeable(out IEncodeable enc), Is.False);
+            Assert.That(extensionObject.TryGetValue(out IEncodeable enc), Is.False);
             Assert.That(extensionObject.TryGetAsBinary(out ByteString _), Is.False);
             Assert.That(extensionObject.TryGetAsXml(out XmlElement _), Is.False);
             Assert.That(extensionObject.TryGetAsJson(out string _), Is.False);
