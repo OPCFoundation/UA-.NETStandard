@@ -57,10 +57,11 @@ namespace Opc.Ua
                 "en-US",
                 ConditionStateNames.Active);
 
-            DialogState!.Value = new LocalizedText(state);
-            DialogState!.Id!.Value = true;
+            TwoStateVariableState dialogState = DialogState!; // dialog conditions always have a DialogState
+            dialogState.Value = new LocalizedText(state);
+            dialogState.Id!.Value = true;
 
-            DialogState!.TransitionTime?.Value = DateTime.UtcNow;
+            dialogState.TransitionTime?.Value = DateTime.UtcNow;
 
             UpdateEffectiveState(context);
         }
@@ -72,17 +73,18 @@ namespace Opc.Ua
         /// <param name="response">The selected response.</param>
         public virtual void SetResponse(ISystemContext context, int response)
         {
-            LastResponse!.Value = response;
+            LastResponse!.Value = response; // LastResponse is created with the dialog condition
 
             var state = new TranslationInfo(
                 "ConditionStateDialogInactive",
                 "en-US",
                 ConditionStateNames.Inactive);
 
-            DialogState!.Value = new LocalizedText(state);
-            DialogState!.Id!.Value = false;
+            TwoStateVariableState dialogState = DialogState!; // dialog conditions always have a DialogState
+            dialogState.Value = new LocalizedText(state);
+            dialogState.Id!.Value = false;
 
-            DialogState!.TransitionTime?.Value = DateTime.UtcNow;
+            dialogState.TransitionTime?.Value = DateTime.UtcNow;
 
             UpdateEffectiveState(context);
         }
@@ -101,7 +103,7 @@ namespace Opc.Ua
         /// <param name="context">The context.</param>
         protected override void UpdateEffectiveState(ISystemContext context)
         {
-            if (!EnabledState!.Id!.Value)
+            if (!EnabledState!.Id!.Value) // condition states always have EnabledState/Id after construction
             {
                 base.UpdateEffectiveState(context);
                 return;
@@ -111,13 +113,14 @@ namespace Opc.Ua
 
             string? locale = null;
 
-            if (!DialogState!.Value.IsNullOrEmpty)
+            TwoStateVariableState dialogState = DialogState!; // dialog conditions always have a DialogState
+            if (!dialogState.Value.IsNullOrEmpty)
             {
-                locale = DialogState!.Value.Locale;
-                builder.Append(DialogState!.Value);
+                locale = dialogState.Value.Locale;
+                builder.Append(dialogState.Value);
             }
 
-            var effectiveState = new LocalizedText(locale!, builder.ToString());
+            var effectiveState = new LocalizedText(locale!, builder.ToString()); // LocalizedText accepts null locale; ! suppresses overload-resolution warning
 
             SetEffectiveSubState(context, effectiveState, DateTime.MinValue);
         }
@@ -140,17 +143,17 @@ namespace Opc.Ua
 
             try
             {
-                if (!EnabledState!.Id!.Value)
+                if (!EnabledState!.Id!.Value) // condition states always have EnabledState/Id after construction
                 {
                     return error = StatusCodes.BadConditionDisabled;
                 }
 
-                if (!DialogState!.Id!.Value)
+                if (!DialogState!.Id!.Value) // dialog conditions always have DialogState/Id after construction
                 {
                     return error = StatusCodes.BadDialogNotActive;
                 }
 
-                if (selectedResponse < 0 || selectedResponse >= ResponseOptionSet!.Value.Count)
+                if (selectedResponse < 0 || selectedResponse >= ResponseOptionSet!.Value.Count) // ResponseOptionSet is created with the dialog condition
                 {
                     return error = StatusCodes.BadDialogResponseInvalid;
                 }

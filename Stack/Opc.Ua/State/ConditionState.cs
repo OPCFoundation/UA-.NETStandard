@@ -84,17 +84,18 @@ namespace Opc.Ua
             LocalizedText displayName,
             DateTime transitionTime)
         {
-            EnabledState!.EffectiveDisplayName?.Value = displayName;
+            TwoStateVariableState enabledState = EnabledState!; // condition states always have EnabledState after construction
+            enabledState.EffectiveDisplayName?.Value = displayName;
 
-            if (EnabledState.EffectiveTransitionTime != null)
+            if (enabledState.EffectiveTransitionTime != null)
             {
                 if (transitionTime != DateTime.MinValue)
                 {
-                    EnabledState.EffectiveTransitionTime.Value = transitionTime;
+                    enabledState.EffectiveTransitionTime.Value = transitionTime;
                 }
                 else
                 {
-                    EnabledState.EffectiveTransitionTime.Value = DateTime.UtcNow;
+                    enabledState.EffectiveTransitionTime.Value = DateTime.UtcNow;
                 }
             }
         }
@@ -116,7 +117,7 @@ namespace Opc.Ua
                 UpdateStateAfterDisable(context);
             }
 
-            EnabledState!.Timestamp = DateTime.UtcNow;
+            EnabledState!.Timestamp = DateTime.UtcNow; // condition states always have EnabledState after construction
             ClearChangeMasks(context, includeChildren: true);
         }
 
@@ -128,13 +129,15 @@ namespace Opc.Ua
         /// <remarks>This method ensures all related variables are set correctly.</remarks>
         public virtual void SetSeverity(ISystemContext context, EventSeverity severity)
         {
-            LastSeverity!.Value = Severity!.Value;
-            Severity.Value = (ushort)severity;
+            ConditionVariableState<ushort> lastSeverity = LastSeverity!; // condition states always have LastSeverity after construction
+            PropertyState<ushort> severityProp = Severity!; // condition states always have Severity after construction
+            lastSeverity.Value = severityProp.Value;
+            severityProp.Value = (ushort)severity;
 
-            LastSeverity.SourceTimestamp?.Value = DateTime.UtcNow;
+            lastSeverity.SourceTimestamp?.Value = DateTime.UtcNow;
 
-            LastSeverity.Timestamp = DateTime.UtcNow;
-            Severity.Timestamp = DateTime.UtcNow;
+            lastSeverity.Timestamp = DateTime.UtcNow;
+            severityProp.Timestamp = DateTime.UtcNow;
             ClearChangeMasks(context, includeChildren: true);
         }
 
@@ -175,11 +178,11 @@ namespace Opc.Ua
             if (branchedAlarm != null)
             {
                 branchedAlarm.Initialize(context, this);
-                branchedAlarm.BranchId!.Value = branchId;
+                branchedAlarm.BranchId!.Value = branchId; // ConditionState.Initialize creates BranchId
                 branchedAlarm.AutoReportStateChanges = AutoReportStateChanges;
                 branchedAlarm.ReportStateChange(context, false);
 
-                string postEventId = branchedAlarm.EventId!.Value.ToHexString();
+                string postEventId = branchedAlarm.EventId!.Value.ToHexString(); // ConditionState.Initialize creates EventId
 
                 Dictionary<string, ConditionState> branches = GetBranches();
 
@@ -222,7 +225,7 @@ namespace Opc.Ua
         /// <returns>ConditionState branch if it exists</returns>
         public virtual ConditionState? GetEventByEventId(ByteString eventId)
         {
-            if (EventId!.Value == eventId)
+            if (EventId!.Value == eventId) // ConditionState.Initialize creates EventId
             {
                 return this;
             }
@@ -243,7 +246,7 @@ namespace Opc.Ua
 
             foreach (ConditionState branchEvent in branches.Values)
             {
-                if (branchEvent.EventId!.Value == eventId)
+                if (branchEvent.EventId!.Value == eventId) // ConditionState.Initialize creates EventId
                 {
                     alarm = branchEvent;
                     break;
@@ -261,7 +264,7 @@ namespace Opc.Ua
         protected void ReplaceBranchEvent(ByteString originalEventId, ConditionState alarm)
         {
             string originalKey = originalEventId.ToHexString();
-            string newKey = alarm.EventId!.Value.ToHexString();
+            string newKey = alarm.EventId!.Value.ToHexString(); // ConditionState.Initialize creates EventId
 
             Dictionary<string, ConditionState> branches = GetBranches();
 
@@ -299,9 +302,10 @@ namespace Opc.Ua
         {
             bool retainState = GetRetainState();
 
-            if (Retain!.Value != retainState)
+            PropertyState<bool> retain = Retain!; // ConditionState.Initialize creates Retain
+            if (retain.Value != retainState)
             {
-                Retain.Value = retainState;
+                retain.Value = retainState;
             }
         }
 
@@ -315,14 +319,14 @@ namespace Opc.Ua
         {
             bool retainState = false;
 
-            if (EnabledState!.Id!.Value)
+            if (EnabledState!.Id!.Value) // condition states always have EnabledState/Id after construction
             {
                 Dictionary<string, ConditionState> branches = GetBranches();
 
                 foreach (ConditionState branch in branches.Values)
                 {
                     branch.UpdateRetainState();
-                    if (branch.Retain!.Value)
+                    if (branch.Retain!.Value) // ConditionState.Initialize creates Retain
                     {
                         retainState = true;
                     }
@@ -356,7 +360,7 @@ namespace Opc.Ua
 
             if (IsBranch())
             {
-                areEventsMonitored = Parent!.AreEventsMonitored;
+                areEventsMonitored = Parent!.AreEventsMonitored; // branches always have a Parent set in CreateBranch
             }
 
             return areEventsMonitored;
@@ -386,7 +390,7 @@ namespace Opc.Ua
             List<IFilterTarget> events,
             bool includeChildren)
         {
-            if (Retain!.Value)
+            if (Retain!.Value) // ConditionState.Initialize creates Retain
             {
                 Dictionary<string, ConditionState> branches = GetBranches();
 
@@ -406,7 +410,7 @@ namespace Opc.Ua
         protected void ReportStateChange(ISystemContext context, bool ignoreDisabledState)
         {
             // check the disabled state.
-            if (!ignoreDisabledState && !EnabledState!.Id!.Value)
+            if (!ignoreDisabledState && !EnabledState!.Id!.Value) // condition states always have EnabledState/Id after construction
             {
                 return;
             }
@@ -414,9 +418,11 @@ namespace Opc.Ua
             if (AutoReportStateChanges)
             {
                 // create a new event instance.
-                EventId!.Value = Uuid.NewUuid().ToByteString();
-                Time!.Value = DateTimeUtc.Now;
-                ReceiveTime!.Value = Time.Value;
+                PropertyState<ByteString> eventId = EventId!; // ConditionState.Initialize creates EventId
+                PropertyState<DateTimeUtc> time = Time!; // ConditionState.Initialize creates Time
+                eventId.Value = Uuid.NewUuid().ToByteString();
+                time.Value = DateTimeUtc.Now;
+                ReceiveTime!.Value = time.Value; // ConditionState.Initialize creates ReceiveTime
 
                 ClearChangeMasks(context, includeChildren: true);
 
@@ -436,7 +442,7 @@ namespace Opc.Ua
         /// <param name="context">The context.</param>
         protected virtual void UpdateEffectiveState(ISystemContext context)
         {
-            SetEffectiveSubState(context, EnabledState!.Value, DateTime.MinValue);
+            SetEffectiveSubState(context, EnabledState!.Value, DateTime.MinValue); // condition states always have EnabledState after construction
         }
 
         /// <summary>
@@ -535,7 +541,7 @@ namespace Opc.Ua
                 return StatusCodes.BadEventIdUnknown;
             }
 
-            if (!EnabledState!.Id!.Value)
+            if (!EnabledState!.Id!.Value) // condition states always have EnabledState/Id after construction
             {
                 return StatusCodes.BadConditionDisabled;
             }
@@ -684,7 +690,7 @@ namespace Opc.Ua
             ISystemContext context,
             bool enabling)
         {
-            if (enabling && EnabledState!.Id!.Value)
+            if (enabling && EnabledState!.Id!.Value) // condition states always have EnabledState/Id after construction
             {
                 return StatusCodes.BadConditionAlreadyEnabled;
             }
@@ -738,10 +744,11 @@ namespace Opc.Ua
                 "en-US",
                 ConditionStateNames.Enabled);
 
-            EnabledState!.Value = new LocalizedText(state);
-            EnabledState.Id!.Value = true;
+            TwoStateVariableState enabledState = EnabledState!; // condition states always have EnabledState after construction
+            enabledState.Value = new LocalizedText(state);
+            enabledState.Id!.Value = true;
 
-            EnabledState.TransitionTime?.Value = DateTime.UtcNow;
+            enabledState.TransitionTime?.Value = DateTime.UtcNow;
 
             EvaluateRetainStateOnEnable(context);
 
@@ -759,11 +766,12 @@ namespace Opc.Ua
                 "en-US",
                 ConditionStateNames.Disabled);
 
-            Retain!.Value = false;
-            EnabledState!.Value = new LocalizedText(state);
-            EnabledState.Id!.Value = false;
+            Retain!.Value = false; // ConditionState.Initialize creates Retain
+            TwoStateVariableState enabledState = EnabledState!; // condition states always have EnabledState after construction
+            enabledState.Value = new LocalizedText(state);
+            enabledState.Id!.Value = false;
 
-            EnabledState.TransitionTime?.Value = DateTime.UtcNow;
+            enabledState.TransitionTime?.Value = DateTime.UtcNow;
 
             UpdateEffectiveState(context);
         }
@@ -774,7 +782,7 @@ namespace Opc.Ua
         /// <returns>true if branch</returns>
         protected bool IsBranch()
         {
-            return !BranchId!.Value.IsNull;
+            return !BranchId!.Value.IsNull; // ConditionState.Initialize creates BranchId
         }
 
         /// <summary>

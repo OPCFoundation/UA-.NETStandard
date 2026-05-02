@@ -102,7 +102,10 @@ namespace Opc.Ua.Client
             }
 
             Handle = template.Handle;
-            DisplayName = Utils.Format("{0} {1}", displayName, ClientHandle);
+            // displayName originates from template.DisplayName which the property contract
+            // guarantees non-null, but the compiler does not propagate that through the local
+            // variable's nullability state after the optional space-trimming block.
+            DisplayName = Utils.Format("{0} {1}", displayName!, ClientHandle);
             // copy state (except client handle logic handled below)
             State = template.State with { DisplayName = DisplayName };
             if (copyEventHandlers)
