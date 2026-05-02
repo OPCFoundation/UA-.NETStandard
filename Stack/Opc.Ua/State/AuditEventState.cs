@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -61,7 +61,7 @@ namespace Opc.Ua
 
             if (context.NamespaceUris != null)
             {
-                m_serverId = PropertyState<string>.With<VariantBuilder>(this, context.NamespaceUris.GetString(1));
+                m_serverId = PropertyState<string>.With<VariantBuilder>(this, context.NamespaceUris.GetString(1)!); // namespace index 1 (server) expected to be present
             }
 
             if (context.AuditEntryId != null)

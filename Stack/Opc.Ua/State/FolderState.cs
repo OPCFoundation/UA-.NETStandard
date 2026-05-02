@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -37,7 +37,7 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the instance with its default attribute values.
         /// </summary>
-        public FolderState(NodeState parent)
+        public FolderState(NodeState? parent)
             : base(parent)
         {
         }

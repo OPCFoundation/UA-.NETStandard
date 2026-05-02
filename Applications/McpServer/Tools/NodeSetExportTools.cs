@@ -183,7 +183,7 @@ namespace Opc.Ua.Mcp.Tools
                     .GroupBy(node => node.NodeId.NamespaceIndex)
                     .Where(group =>
                     {
-                        string nsUri = session.NamespaceUris.GetString(group.Key);
+                        string? nsUri = session.NamespaceUris.GetString(group.Key);
                         if (string.IsNullOrEmpty(nsUri))
                         {
                             return false;
@@ -202,8 +202,8 @@ namespace Opc.Ua.Mcp.Tools
                 {
                     ct.ThrowIfCancellationRequested();
 
-                    string nsUri = session.NamespaceUris.GetString(kvp.Key);
-                    string fileName = CreateSafeFileName(nsUri, kvp.Key);
+                    string? nsUri = session.NamespaceUris.GetString(kvp.Key);
+                    string fileName = CreateSafeFileName(nsUri!, kvp.Key);
                     string filePath = Path.Combine(outputDirectory, fileName);
 
                     using var outputStream = new FileStream(filePath, FileMode.Create);

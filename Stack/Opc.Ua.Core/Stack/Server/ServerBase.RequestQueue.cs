@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -121,7 +121,7 @@ namespace Opc.Ua
                     m_queue.Writer.Complete();
 
                     // drain any remaining requests from the queue
-                    while (m_queue.Reader.TryRead(out IEndpointIncomingRequest request))
+                    while (m_queue.Reader.TryRead(out IEndpointIncomingRequest? request))
                     {
                         request.OperationCompleted(null, StatusCodes.BadServerHalted);
                     }
@@ -196,7 +196,7 @@ namespace Opc.Ua
                 {
                     while (await m_queue.Reader.WaitToReadAsync(ct).ConfigureAwait(false))
                     {
-                        while (m_queue.Reader.TryRead(out IEndpointIncomingRequest request))
+                        while (m_queue.Reader.TryRead(out IEndpointIncomingRequest? request))
                         {
                             try
                             {

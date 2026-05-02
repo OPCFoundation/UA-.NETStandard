@@ -300,11 +300,9 @@ namespace Opc.Ua
         /// Calls clone if the type supports it
         /// </summary>
         /// <typeparam name="T"></typeparam>
-        public static T Clone<T>(T value) where T : ICloneable
+        public static T? Clone<T>(T? value) where T : ICloneable
         {
-            return EqualityComparer<T>.Default.Equals(value, default) ?
-                default :
-                (T)value.Clone();
+            return value is null ? default : (T)value.Clone();
         }
 
         /// <summary>
@@ -313,7 +311,7 @@ namespace Opc.Ua
         /// <typeparam name="T"></typeparam>
         public static ArrayOf<T> Clone<T>(ArrayOf<T> values) where T : ICloneable
         {
-            return values.IsNull ? default : values.ConvertAll(Clone);
+            return values.IsNull ? default : values.ConvertAll(v => Clone(v)!);
         }
 
         /// <summary>
@@ -322,7 +320,7 @@ namespace Opc.Ua
         /// <typeparam name="T"></typeparam>
         public static MatrixOf<T> Clone<T>(MatrixOf<T> values) where T : ICloneable
         {
-            return values.IsNull ? default : values.ConvertAll(Clone);
+            return values.IsNull ? default : values.ConvertAll(v => Clone(v)!);
         }
 
         /// <summary>
@@ -378,9 +376,9 @@ namespace Opc.Ua
         /// </summary>
         public static ExtensionObject Clone(ExtensionObject value)
         {
-            if (value.TryGetValue(out IEncodeable e))
+            if (value.TryGetValue(out IEncodeable? e))
             {
-                return new ExtensionObject(e, true);
+                return new ExtensionObject(e!, true);
             }
             return value;
         }
@@ -416,7 +414,7 @@ namespace Opc.Ua
         /// Checks if two T values are equal based on IEquatable compare.
         /// </summary>
         /// <typeparam name="T"></typeparam>
-        public static bool IsEqual<T>(T value1, T value2)
+        public static bool IsEqual<T>(T? value1, T? value2)
             where T : class, IEquatable<T>
         {
             // check for reference equality.
@@ -429,14 +427,14 @@ namespace Opc.Ua
             {
                 if (value2 is not null)
                 {
-                    return value2.Equals(value1);
+                    return value2.Equals(value1!);
                 }
 
                 return true;
             }
 
             // use IEquatable comparer
-            return value1.Equals(value2);
+            return value1.Equals(value2!);
         }
 
         /// <summary>
@@ -921,7 +919,7 @@ namespace Opc.Ua
         /// Create semantic version by parsing the input version string.
         /// Expands missing fields with zeros and removes invalid characters.
         /// </summary>
-        public static string FixupAsSemanticVersion(string version)
+        public static string? FixupAsSemanticVersion(string version)
         {
             if (string.IsNullOrWhiteSpace(version))
             {
@@ -933,7 +931,7 @@ namespace Opc.Ua
             var output = new StringBuilder();
             foreach (string field in fields)
             {
-                string suffix = null;
+                string? suffix = null;
 
                 if (!uint.TryParse(field, out uint element))
                 {
@@ -979,7 +977,7 @@ namespace Opc.Ua
         {
             return typeof(CoreUtils)
                 .GetTypeInfo()
-                .Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()
+                .Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()!
                 .InformationalVersion;
         }
 
@@ -989,7 +987,7 @@ namespace Opc.Ua
         public static string GetAssemblyBuildNumber()
         {
             return typeof(CoreUtils).GetTypeInfo().Assembly
-                .GetCustomAttribute<AssemblyFileVersionAttribute>()
+                .GetCustomAttribute<AssemblyFileVersionAttribute>()!
                 .Version;
         }
 
@@ -1045,9 +1043,9 @@ namespace Opc.Ua
         [RequiresUnreferencedCode("Uses DataContractSerializer which might need unreferenced code.")]
         [RequiresDynamicCode("Uses DataContractSerializer which might need unreferenced code.")]
         public static DataContractSerializer CreateDataContractSerializer<T>(
-            IServiceMessageContext messageContext = null,
-            IEnumerable<Type> knownTypes = null,
-            XmlQualifiedName rootName = null)
+            IServiceMessageContext? messageContext = null,
+            IEnumerable<Type>? knownTypes = null,
+            XmlQualifiedName? rootName = null)
         {
 #pragma warning disable CS0618 // Obsolete — internal delegation
             return CreateDataContractSerializer(typeof(T), messageContext, knownTypes, rootName);
@@ -1063,9 +1061,9 @@ namespace Opc.Ua
         [RequiresDynamicCode("Uses DataContractSerializer which might need unreferenced code.")]
         public static DataContractSerializer CreateDataContractSerializer(
             Type systemType,
-            IServiceMessageContext messageContext = null,
-            IEnumerable<Type> knownTypes = null,
-            XmlQualifiedName rootName = null)
+            IServiceMessageContext? messageContext = null,
+            IEnumerable<Type>? knownTypes = null,
+            XmlQualifiedName? rootName = null)
         {
             IEnumerable<Type> knownTypeList = DataContractSurrogates.KnownTypes.Concat(knownTypes ?? []);
             DataContractSerializer serializer = rootName != null ?

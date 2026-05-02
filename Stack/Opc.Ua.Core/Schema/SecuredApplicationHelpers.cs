@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -60,7 +60,7 @@ namespace Opc.Ua.Security
         /// <summary>
         /// Creates a CertificateIdentifier object.
         /// </summary>
-        public static CertificateIdentifier ToCertificateIdentifier(Ua.CertificateIdentifier input)
+        public static CertificateIdentifier? ToCertificateIdentifier(Ua.CertificateIdentifier input)
         {
             if (input != null &&
                 !string.IsNullOrEmpty(input.StoreType) &&
@@ -85,7 +85,7 @@ namespace Opc.Ua.Security
         /// Creates a CertificateIdentifier object.
         /// </summary>
         public static Ua.CertificateIdentifier FromCertificateIdentifier(
-            CertificateIdentifier input)
+            CertificateIdentifier? input)
         {
             var output = new Ua.CertificateIdentifier();
 
@@ -104,7 +104,7 @@ namespace Opc.Ua.Security
         /// <summary>
         /// Creates a CertificateStoreIdentifier object.
         /// </summary>
-        public static CertificateStoreIdentifier ToCertificateStoreIdentifier(
+        public static CertificateStoreIdentifier? ToCertificateStoreIdentifier(
             Ua.CertificateStoreIdentifier input)
         {
             if (input != null &&
@@ -126,7 +126,7 @@ namespace Opc.Ua.Security
         /// Creates a CertificateTrustList object.
         /// </summary>
         public static CertificateTrustList FromCertificateStoreIdentifierToTrustList(
-            CertificateStoreIdentifier input)
+            CertificateStoreIdentifier? input)
         {
             var output = new CertificateTrustList();
 
@@ -144,7 +144,7 @@ namespace Opc.Ua.Security
         /// Creates a CertificateStoreIdentifier object.
         /// </summary>
         public static Ua.CertificateStoreIdentifier FromCertificateStoreIdentifier(
-            CertificateStoreIdentifier input)
+            CertificateStoreIdentifier? input)
         {
             var output = new Ua.CertificateStoreIdentifier();
 
@@ -161,7 +161,7 @@ namespace Opc.Ua.Security
         /// <summary>
         /// Creates a CertificateTrustList object.
         /// </summary>
-        public static CertificateTrustList ToCertificateTrustList(CertificateStoreIdentifier input)
+        public static CertificateTrustList ToCertificateTrustList(CertificateStoreIdentifier? input)
         {
             var output = new CertificateTrustList();
 
@@ -189,7 +189,11 @@ namespace Opc.Ua.Security
 
                 for (int ii = 0; ii < input.Count; ii++)
                 {
-                    output.Certificates.Add(ToCertificateIdentifier(input[ii]));
+                    CertificateIdentifier? converted = ToCertificateIdentifier(input[ii]);
+                    if (converted != null)
+                    {
+                        output.Certificates.Add(converted);
+                    }
                 }
             }
 
@@ -199,7 +203,7 @@ namespace Opc.Ua.Security
         /// <summary>
         /// Creates an ArrayOf&lt;CertificateIdentifier&gt; object.
         /// </summary>
-        public static ArrayOf<Ua.CertificateIdentifier> FromCertificateList(CertificateList input)
+        public static ArrayOf<Ua.CertificateIdentifier> FromCertificateList(CertificateList? input)
         {
             var output = new List<Ua.CertificateIdentifier>();
 
@@ -248,8 +252,8 @@ namespace Opc.Ua.Security
         /// Creates a ListOfBaseAddresses object.
         /// </summary>
         public static void FromListOfBaseAddresses(
-            ServerBaseConfiguration configuration,
-            ListOfBaseAddresses addresses)
+            ServerBaseConfiguration? configuration,
+            ListOfBaseAddresses? addresses)
         {
             var map = new Dictionary<string, string>();
 
@@ -260,7 +264,7 @@ namespace Opc.Ua.Security
 
                 for (int ii = 0; ii < addresses.Count; ii++)
                 {
-                    Uri url = Utils.ParseUri(addresses[ii]);
+                    Uri? url = Utils.ParseUri(addresses[ii]);
 
                     if (url != null)
                     {
@@ -317,7 +321,7 @@ namespace Opc.Ua.Security
         /// Creates an ArrayOf&lt;ServerSecurityPolicy&gt; object.
         /// </summary>
         public static ArrayOf<ServerSecurityPolicy> FromListOfSecurityProfiles(
-            ListOfSecurityProfiles profiles)
+            ListOfSecurityProfiles? profiles)
         {
             var policies = new List<ServerSecurityPolicy>();
 
@@ -325,9 +329,9 @@ namespace Opc.Ua.Security
             {
                 for (int ii = 0; ii < profiles.Count; ii++)
                 {
-                    if (profiles[ii].Enabled)
+                    if (profiles[ii].Enabled && !string.IsNullOrEmpty(profiles[ii].ProfileUri))
                     {
-                        policies.Add(CreatePolicy(profiles[ii].ProfileUri));
+                        policies.Add(CreatePolicy(profiles[ii].ProfileUri!));
                     }
                 }
             }
@@ -464,7 +468,7 @@ namespace Opc.Ua.Security
         ///  TODO: Holds the application certificates but should be generated and the Opc.Ua.Security namespace automatically
         ///  TODO: Should replace ApplicationCertificateField in the generated Opc.Ua.Security.SecuredApplication class
         /// </summary>
-        public CertificateList ApplicationCertificates { get; set; }
+        public CertificateList? ApplicationCertificates { get; set; }
     }
 
     /// <summary>
@@ -476,7 +480,7 @@ namespace Opc.Ua.Security
         /// Gets the certificate associated with the identifier.
         /// </summary>
         [Obsolete("Use FindAsync()")]
-        public Task<X509Certificate2> Find()
+        public Task<X509Certificate2?> Find()
         {
             return FindAsync(null);
         }
@@ -484,8 +488,8 @@ namespace Opc.Ua.Security
         /// <summary>
         /// Gets the certificate associated with the identifier.
         /// </summary>
-        public Task<X509Certificate2> FindAsync(
-            ITelemetryContext telemetry,
+        public Task<X509Certificate2?> FindAsync(
+            ITelemetryContext? telemetry,
             CancellationToken ct = default)
         {
             Ua.CertificateIdentifier output = SecuredApplication.FromCertificateIdentifier(this);
@@ -496,7 +500,7 @@ namespace Opc.Ua.Security
         /// Gets the certificate associated with the identifier.
         /// </summary>
         [Obsolete("Use FindAsync(needPrivateKey)")]
-        public Task<X509Certificate2> Find(bool needPrivateKey)
+        public Task<X509Certificate2?> Find(bool needPrivateKey)
         {
             return FindAsync(needPrivateKey, null);
         }
@@ -504,9 +508,9 @@ namespace Opc.Ua.Security
         /// <summary>
         /// Gets the certificate associated with the identifier.
         /// </summary>
-        public Task<X509Certificate2> FindAsync(
+        public Task<X509Certificate2?> FindAsync(
             bool needPrivateKey,
-            ITelemetryContext telemetry,
+            ITelemetryContext? telemetry,
             CancellationToken ct = default)
         {
             Ua.CertificateIdentifier output = SecuredApplication.FromCertificateIdentifier(this);

@@ -266,7 +266,7 @@ namespace Opc.Ua.Server
             }
 
             if (context is ISessionSystemContext session &&
-                subscription.SessionId != session.SessionId)
+                subscription.SessionId != null && !subscription.SessionId.Equals(session.SessionId))
             {
                 // user tries to access subscription of different session
                 return StatusCodes.BadUserAccessDenied;
@@ -307,7 +307,7 @@ namespace Opc.Ua.Server
             }
 
             if (context is not ServerSystemContext session ||
-                subscription.SessionId != session.SessionId)
+                (subscription.SessionId != null && !subscription.SessionId.Equals(session.SessionId)))
             {
                 // user tries to access subscription of different session
                 return StatusCodes.BadUserAccessDenied;
@@ -329,12 +329,12 @@ namespace Opc.Ua.Server
         {
             var systemContext = context as ServerSystemContext;
 
-            if (!m_serverLockHolder.IsNull && m_serverLockHolder != systemContext.SessionId)
+            if (m_serverLockHolder != null && !m_serverLockHolder.IsNull && !m_serverLockHolder.Equals(systemContext?.SessionId))
             {
                 return StatusCodes.BadSessionIdInvalid;
             }
 
-            m_serverLockHolder = systemContext.SessionId;
+            m_serverLockHolder = systemContext?.SessionId ?? NodeId.Null;
 
             return ServiceResult.Good;
         }
@@ -350,7 +350,7 @@ namespace Opc.Ua.Server
         {
             var systemContext = context as ServerSystemContext;
 
-            if (!m_serverLockHolder.IsNull && m_serverLockHolder != systemContext.SessionId)
+            if (m_serverLockHolder != null && !m_serverLockHolder.IsNull && !m_serverLockHolder.Equals(systemContext?.SessionId))
             {
                 return StatusCodes.BadSessionIdInvalid;
             }

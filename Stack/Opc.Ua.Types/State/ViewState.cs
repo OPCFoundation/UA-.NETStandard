@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -162,22 +162,22 @@ namespace Opc.Ua
         /// <summary>
         /// Raised when the EventNotifier attribute is read.
         /// </summary>
-        public NodeAttributeEventHandler<byte> OnReadEventNotifier;
+        public NodeAttributeEventHandler<byte>? OnReadEventNotifier;
 
         /// <summary>
         /// Raised when the EventNotifier attribute is written.
         /// </summary>
-        public NodeAttributeEventHandler<byte> OnWriteEventNotifier;
+        public NodeAttributeEventHandler<byte>? OnWriteEventNotifier;
 
         /// <summary>
         /// Raised when the ContainsNoLoops attribute is read.
         /// </summary>
-        public NodeAttributeEventHandler<bool> OnReadContainsNoLoops;
+        public NodeAttributeEventHandler<bool>? OnReadContainsNoLoops;
 
         /// <summary>
         /// Raised when the ContainsNoLoops attribute is written.
         /// </summary>
-        public NodeAttributeEventHandler<bool> OnWriteContainsNoLoops;
+        public NodeAttributeEventHandler<bool>? OnWriteContainsNoLoops;
 
         /// <summary>
         /// Exports a copy of the node to a node table.
@@ -321,42 +321,42 @@ namespace Opc.Ua
             uint attributeId,
             ref Variant value)
         {
-            ServiceResult result = null;
+            ServiceResult? result = null;
 
             switch (attributeId)
             {
                 case Attributes.EventNotifier:
                     byte eventNotifier = m_eventNotifier;
 
-                    NodeAttributeEventHandler<byte> onReadEventNotifier = OnReadEventNotifier;
+                    NodeAttributeEventHandler<byte>? onReadEventNotifier = OnReadEventNotifier;
 
                     if (onReadEventNotifier != null)
                     {
                         result = onReadEventNotifier(context, this, ref eventNotifier);
                     }
 
-                    if (ServiceResult.IsGood(result))
+                    if (ServiceResult.IsGood(result!))
                     {
                         value = eventNotifier;
                     }
 
-                    return result;
+                    return result!;
                 case Attributes.ContainsNoLoops:
                     bool containsNoLoops = m_containsNoLoops;
 
-                    NodeAttributeEventHandler<bool> onReadContainsNoLoops = OnReadContainsNoLoops;
+                    NodeAttributeEventHandler<bool>? onReadContainsNoLoops = OnReadContainsNoLoops;
 
                     if (onReadContainsNoLoops != null)
                     {
                         result = onReadContainsNoLoops(context, this, ref containsNoLoops);
                     }
 
-                    if (ServiceResult.IsGood(result))
+                    if (ServiceResult.IsGood(result!))
                     {
                         value = containsNoLoops;
                     }
 
-                    return result;
+                    return result!;
                 default:
                     return base.ReadNonValueAttribute(context, attributeId, ref value);
             }
@@ -370,7 +370,7 @@ namespace Opc.Ua
             uint attributeId,
             Variant value)
         {
-            ServiceResult result = null;
+            ServiceResult? result = null;
 
             switch (attributeId)
             {
@@ -385,19 +385,19 @@ namespace Opc.Ua
                         return StatusCodes.BadNotWritable;
                     }
 
-                    NodeAttributeEventHandler<byte> onWriteEventNotifier = OnWriteEventNotifier;
+                    NodeAttributeEventHandler<byte>? onWriteEventNotifier = OnWriteEventNotifier;
 
                     if (onWriteEventNotifier != null)
                     {
                         result = onWriteEventNotifier(context, this, ref eventNotifier);
                     }
 
-                    if (ServiceResult.IsGood(result))
+                    if (ServiceResult.IsGood(result!))
                     {
                         EventNotifier = eventNotifier;
                     }
 
-                    return result;
+                    return result!;
                 case Attributes.ContainsNoLoops:
                     if (!value.TryGetValue(out bool containsNoLoops))
                     {
@@ -409,19 +409,19 @@ namespace Opc.Ua
                         return StatusCodes.BadNotWritable;
                     }
 
-                    NodeAttributeEventHandler<bool> onWriteContainsNoLoops = OnWriteContainsNoLoops;
+                    NodeAttributeEventHandler<bool>? onWriteContainsNoLoops = OnWriteContainsNoLoops;
 
                     if (onWriteContainsNoLoops != null)
                     {
                         result = onWriteContainsNoLoops(context, this, ref containsNoLoops);
                     }
 
-                    if (ServiceResult.IsGood(result))
+                    if (ServiceResult.IsGood(result!))
                     {
                         ContainsNoLoops = containsNoLoops;
                     }
 
-                    return result;
+                    return result!;
                 default:
                     return base.WriteNonValueAttribute(context, attributeId, value);
             }

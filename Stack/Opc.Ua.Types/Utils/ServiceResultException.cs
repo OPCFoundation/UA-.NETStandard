@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -148,12 +148,12 @@ namespace Opc.Ua
         /// <summary>
         /// The namespace that qualifies symbolic identifier.
         /// </summary>
-        public string NamespaceUri => Result.NamespaceUri;
+        public string? NamespaceUri => Result.NamespaceUri;
 
         /// <summary>
         /// The qualified name of the symbolic identifier associated with the status code.
         /// </summary>
-        public string SymbolicId => Result.SymbolicId;
+        public string? SymbolicId => Result.SymbolicId;
 
         /// <summary>
         /// The localized description for the status code.
@@ -163,12 +163,12 @@ namespace Opc.Ua
         /// <summary>
         /// Additional diagnostic/debugging information associated with the operation.
         /// </summary>
-        public string AdditionalInfo => Result.AdditionalInfo;
+        public string? AdditionalInfo => Result.AdditionalInfo;
 
         /// <summary>
         /// Nested error information.
         /// </summary>
-        public ServiceResult InnerResult => Result.InnerResult;
+        public ServiceResult? InnerResult => Result.InnerResult;
 
         /// <summary>
         /// Returns the status result associated with the exception.
@@ -234,7 +234,7 @@ namespace Opc.Ua
         /// Unexpected error occurred
         /// </summary>
         public static ServiceResultException Unexpected(
-            string format,
+            string? format,
             params object[] args)
         {
             return Unexpected(null, format, args);
@@ -244,8 +244,8 @@ namespace Opc.Ua
         /// Unexpected error occurred
         /// </summary>
         public static ServiceResultException Unexpected(
-            Exception exception,
-            string format,
+            Exception? exception,
+            string? format,
             params object[] args)
         {
 #if DEBUG
@@ -284,7 +284,7 @@ namespace Opc.Ua
         /// Configuration error occurred
         /// </summary>
         public static ServiceResultException ConfigurationError(
-            string format,
+            string? format,
             params object[] args)
         {
             return ConfigurationError(null, format, args);
@@ -294,8 +294,8 @@ namespace Opc.Ua
         /// Configuration error occurred
         /// </summary>
         public static ServiceResultException ConfigurationError(
-            Exception exception,
-            string format,
+            Exception? exception,
+            string? format,
             params object[] args)
         {
 #if DEBUG

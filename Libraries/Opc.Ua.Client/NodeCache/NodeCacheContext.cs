@@ -833,11 +833,15 @@ namespace Opc.Ua.Client
             {
                 if (value.WrappedValue.TryGetValue(out ArrayOf<ExtensionObject> rolePermissions))
                 {
-                    var rolePermissionList = new List<RolePermissionType?>();
+                    // Preserve original behavior of inserting null entries when an
+                    // ExtensionObject cannot be decoded into a RolePermissionType. The
+                    // declared element type of node.RolePermissions is non-nullable so
+                    // the failure branch uses null! to suppress nullability metadata.
+                    var rolePermissionList = new List<RolePermissionType>();
                     foreach (ExtensionObject rolePermission in rolePermissions)
                     {
                         rolePermissionList.Add(rolePermission.TryGetValue(
-                            out RolePermissionType rolePermissionType) ? rolePermissionType : null);
+                            out RolePermissionType? rolePermissionType) ? rolePermissionType! : null!);
                     }
                     node.RolePermissions = rolePermissionList;
                 }
@@ -849,11 +853,12 @@ namespace Opc.Ua.Client
             {
                 if (value.WrappedValue.TryGetValue(out ArrayOf<ExtensionObject> userRolePermissions))
                 {
-                    var userRolePermissionList = new List<RolePermissionType?>();
+                    // See RolePermissions above for the rationale behind the null! casts.
+                    var userRolePermissionList = new List<RolePermissionType>();
                     foreach (ExtensionObject rolePermission in userRolePermissions)
                     {
                         userRolePermissionList.Add(rolePermission.TryGetValue(
-                            out RolePermissionType rolePermissionType) ? rolePermissionType : null);
+                            out RolePermissionType? rolePermissionType) ? rolePermissionType! : null!);
                     }
                     node.UserRolePermissions = userRolePermissionList;
                 }

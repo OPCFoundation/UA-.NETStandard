@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -129,66 +129,66 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// The SecurityPolicy used to encrypt and sign the messages.
         /// </summary>
-        public SecurityPolicyInfo SecurityPolicy { get; set; }
+        public SecurityPolicyInfo? SecurityPolicy { get; set; }
 
         /// <summary>
         /// The secret used to compute the keys.
         /// </summary>
-        internal byte[] Secret { get; set; }
+        internal byte[]? Secret { get; set; }
 
         /// <summary>
         /// The previous server nonce used to compute the keys.
         /// </summary>
-        internal byte[] PreviousSecret { get; set; }
+        internal byte[]? PreviousSecret { get; set; }
 
         /// <summary>
         /// The nonce provided by the client.
         /// </summary>
-        public byte[] ClientNonce { get; set; }
+        public byte[]? ClientNonce { get; set; }
 
         /// <summary>
         /// The nonce provided by the server.
         /// </summary>
-        public byte[] ServerNonce { get; set; }
+        public byte[]? ServerNonce { get; set; }
 
         /// <summary>
         /// The key used to sign messages sent by the client.
         /// </summary>
-        internal byte[] ClientSigningKey { get; set; }
+        internal byte[]? ClientSigningKey { get; set; }
 
         /// <summary>
         /// The key used to encrypt messages sent by the client.
         /// </summary>
-        internal byte[] ClientEncryptingKey { get; set; }
+        internal byte[]? ClientEncryptingKey { get; set; }
 
         /// <summary>
         /// The initialization vector by the client when encrypting a message.
         /// </summary>
-        internal byte[] ClientInitializationVector { get; set; }
+        internal byte[]? ClientInitializationVector { get; set; }
 
         /// <summary>
         /// The key used to sign messages sent by the server.
         /// </summary>
-        internal byte[] ServerSigningKey { get; set; }
+        internal byte[]? ServerSigningKey { get; set; }
 
         /// <summary>
         /// The key used to encrypt messages sent by the server.
         /// </summary>
-        internal byte[] ServerEncryptingKey { get; set; }
+        internal byte[]? ServerEncryptingKey { get; set; }
 
         /// <summary>
         /// The initialization vector by the server when encrypting a message.
         /// </summary>
-        internal byte[] ServerInitializationVector { get; set; }
+        internal byte[]? ServerInitializationVector { get; set; }
 
         /// <summary>
         /// A pre-allocated HMAC used to improve performance for SecurityPolicies that need it.
         /// </summary>
-        internal HMAC ServerHmac { get; set; }
+        internal HMAC? ServerHmac { get; set; }
 
         /// <summary>
         /// A pre-allocated HMAC used to improve performance for SecurityPolicies that need it.
         /// </summary>
-        internal HMAC ClientHmac { get; set; }
+        internal HMAC? ClientHmac { get; set; }
     }
 }

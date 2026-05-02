@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -63,7 +63,7 @@ namespace Opc.Ua
 
                 if (!source.BrowseName.IsNull)
                 {
-                    m_sourceName = PropertyState<string>.With<VariantBuilder>(this, source.BrowseName.Name);
+                    m_sourceName = PropertyState<string>.With<VariantBuilder>(this, source.BrowseName.Name!); // QualifiedName.IsNull is false here, so Name is non-null
                 }
             }
 

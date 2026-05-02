@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -54,7 +54,7 @@ namespace Opc.Ua
         public abstract void Decode(IDecoder decoder);
 
         /// <inheritdoc/>
-        public abstract bool IsEqual(IEncodeable encodeable);
+        public abstract bool IsEqual(IEncodeable? encodeable);
 
         /// <inheritdoc/>
         public abstract object Clone();

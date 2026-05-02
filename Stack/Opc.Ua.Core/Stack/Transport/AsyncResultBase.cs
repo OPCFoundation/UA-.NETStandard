@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -47,10 +47,10 @@ namespace Opc.Ua
         /// <param name="timeout">The timeout for the operation.</param>
         /// <param name="logger">A contextual logger to log to</param>
         public AsyncResultBase(
-            AsyncCallback callback,
-            object callbackData,
+            AsyncCallback? callback,
+            object? callbackData,
             int timeout,
-            ILogger logger = null)
+            ILogger? logger = null)
             : this(callback, callbackData, timeout, null, logger)
         {
         }
@@ -64,11 +64,11 @@ namespace Opc.Ua
         /// <param name="cts">Cancellation token for async operation.</param>
         /// <param name="logger">A contextual logger to log to</param>
         public AsyncResultBase(
-            AsyncCallback callback,
-            object callbackData,
+            AsyncCallback? callback,
+            object? callbackData,
             int timeout,
-            CancellationTokenSource cts,
-            ILogger logger = null)
+            CancellationTokenSource? cts,
+            ILogger? logger = null)
         {
             m_callback = callback;
             AsyncState = callbackData;
@@ -126,12 +126,12 @@ namespace Opc.Ua
         /// <summary>
         /// An object used to synchronize access to the result object.
         /// </summary>
-        public IAsyncResult InnerResult { get; set; }
+        public IAsyncResult? InnerResult { get; set; }
 
         /// <summary>
         /// An exception that occured during processing.
         /// </summary>
-        public Exception Exception { get; set; }
+        public Exception? Exception { get; set; }
 
         /// <summary>
         /// The cancellation token associated with the operation.
@@ -178,7 +178,7 @@ namespace Opc.Ua
         {
             try
             {
-                ManualResetEvent waitHandle = null;
+                ManualResetEvent? waitHandle = null;
 
                 int timeout = Timeout.Infinite;
 
@@ -317,7 +317,7 @@ namespace Opc.Ua
         /// </summary>
         private void DisposeWaitHandle(bool set)
         {
-            ManualResetEvent waitHandle = Interlocked.Exchange(ref m_waitHandle, null);
+            ManualResetEvent? waitHandle = Interlocked.Exchange(ref m_waitHandle, null);
             if (waitHandle != null)
             {
                 try
@@ -339,7 +339,7 @@ namespace Opc.Ua
         /// <summary>
         /// Called when the operation times out.
         /// </summary>
-        private void OnTimeout(object state)
+        private void OnTimeout(object? state)
         {
             try
             {
@@ -359,7 +359,7 @@ namespace Opc.Ua
         /// Gets a user-defined object that qualifies or contains information about an asynchronous operation.
         /// </summary>
         /// <returns>A user-defined object that qualifies or contains information about an asynchronous operation.</returns>
-        public object AsyncState { get; }
+        public object? AsyncState { get; }
 
         /// <summary>
         /// Gets a <see cref="WaitHandle"/> that is used to wait for an asynchronous operation to complete.
@@ -397,10 +397,10 @@ namespace Opc.Ua
         protected ILogger m_logger { get; }
 #pragma warning restore IDE1006 // Naming Styles
 
-        private readonly AsyncCallback m_callback;
-        private ManualResetEvent m_waitHandle;
+        private readonly AsyncCallback? m_callback;
+        private ManualResetEvent? m_waitHandle;
         private readonly DateTime m_deadline;
-        private Timer m_timer;
-        private CancellationTokenSource m_cts;
+        private Timer? m_timer;
+        private CancellationTokenSource? m_cts;
     }
 }

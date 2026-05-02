@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -49,9 +49,9 @@ namespace Opc.Ua
         /// parent and the node.</param>
         /// <param name="typeDefinitionId">The type definition.</param>
         /// <returns></returns>
-        NodeState CreateInstance(
+        NodeState? CreateInstance(
             ISystemContext context,
-            NodeState parent,
+            NodeState? parent,
             NodeClass nodeClass,
             QualifiedName browseName,
             NodeId referenceTypeId,
@@ -90,9 +90,9 @@ namespace Opc.Ua
     public abstract class NodeStateActivator : INodeStateFactory
     {
         /// <inheritdoc/>
-        public NodeState CreateInstance(
+        public NodeState? CreateInstance(
             ISystemContext context,
-            NodeState parent,
+            NodeState? parent,
             NodeClass nodeClass,
             QualifiedName browseName,
             NodeId referenceTypeId,
@@ -107,7 +107,7 @@ namespace Opc.Ua
         /// <returns></returns>
         protected abstract NodeState CreateInstance(
             ISystemContext context,
-            NodeState parent);
+            NodeState? parent);
     }
 
     /// <summary>
@@ -127,9 +127,9 @@ namespace Opc.Ua
 
         /// <inheritdoc/>
         protected override NodeState CreateInstance(
-            ISystemContext context, NodeState parent)
+            ISystemContext context, NodeState? parent)
         {
-            return Activator.CreateInstance(m_type, parent) as NodeState;
+            return (NodeState)Activator.CreateInstance(m_type, parent)!;
         }
 
         [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)]

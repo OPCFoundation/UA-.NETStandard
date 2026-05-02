@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -179,7 +179,7 @@ namespace Opc.Ua
         /// <summary>
         /// Writes the collection to a stream using the Opc.Ua.Schema.UANodeSet schema.
         /// </summary>
-        public void SaveAsNodeSet2(ISystemContext context, Stream ostrm, string version = null, DateTime? lastModified = null)
+        public void SaveAsNodeSet2(ISystemContext context, Stream ostrm, string? version = null, DateTime? lastModified = null)
         {
             var nodeSet = new Export.UANodeSet
             {
@@ -203,7 +203,7 @@ namespace Opc.Ua
             if (nodeSet.NamespaceUris != null && nodeSet.NamespaceUris.Length > 0)
             {
                 DateTime publicationDate = lastModified?.ToUniversalTime() ?? DateTime.UtcNow;
-                string modelVersion = string.IsNullOrEmpty(version) ? "1.0.0" : version;
+                string modelVersion = string.IsNullOrEmpty(version) ? "1.0.0" : version!;
 
                 // Each user namespace declares the OPC UA base namespace as a required
                 // model and any other user namespaces that are referenced by this export.
@@ -305,7 +305,7 @@ namespace Opc.Ua
         public void SaveAsNodeSet2(
             ISystemContext context,
             Stream ostrm,
-            Export.ModelTableEntry model,
+            Export.ModelTableEntry? model,
             DateTime lastModified,
             bool outputRedundantNames)
         {
@@ -373,7 +373,7 @@ namespace Opc.Ua
                 {
                     for (int ii = 0; ii < namespaceUris.Count; ii++)
                     {
-                        context.NamespaceUris.GetIndexOrAppend(namespaceUris.GetString((uint)ii));
+                        context.NamespaceUris.GetIndexOrAppend(namespaceUris.GetString((uint)ii)!);
                     }
                 }
             }
@@ -383,7 +383,7 @@ namespace Opc.Ua
 
             if (namespaceUris != null && namespaceUris.Count > 1)
             {
-                serverUris.Append(namespaceUris.GetString(1));
+                serverUris.Append(namespaceUris.GetString(1)!);
             }
 
             if (!decoder.LoadStringTable(serverUris))
@@ -398,13 +398,13 @@ namespace Opc.Ua
                 {
                     for (int ii = 0; ii < serverUris.Count; ii++)
                     {
-                        context.ServerUris.GetIndexOrAppend(serverUris.GetString((uint)ii));
+                        context.ServerUris.GetIndexOrAppend(serverUris.GetString((uint)ii)!);
                     }
                 }
             }
 
             // setup the mappings to use during decoding.
-            decoder.SetMappingTables(namespaceUris, serverUris);
+            decoder.SetMappingTables(namespaceUris!, serverUris!);
 
             int count = decoder.ReadInt32(null);
 
@@ -423,7 +423,7 @@ namespace Opc.Ua
             IServiceMessageContext messageContext = context.AsMessageContext();
 
             using var reader = XmlReader.Create(istrm, CoreUtils.DefaultXmlReaderSettings());
-            using var decoder = new XmlDecoder(null, reader, messageContext);
+            using var decoder = new XmlDecoder(null!, reader, messageContext);
             var namespaceUris = new NamespaceTable();
 
             if (!decoder.LoadStringTable("NamespaceUris", "NamespaceUri", namespaceUris))
@@ -438,7 +438,7 @@ namespace Opc.Ua
                 {
                     for (int ii = 0; ii < namespaceUris.Count; ii++)
                     {
-                        context.NamespaceUris.GetIndexOrAppend(namespaceUris.GetString((uint)ii));
+                        context.NamespaceUris.GetIndexOrAppend(namespaceUris.GetString((uint)ii)!);
                     }
                 }
             }
@@ -457,13 +457,13 @@ namespace Opc.Ua
                 {
                     for (int ii = 0; ii < serverUris.Count; ii++)
                     {
-                        context.ServerUris.GetIndexOrAppend(serverUris.GetString((uint)ii));
+                        context.ServerUris.GetIndexOrAppend(serverUris.GetString((uint)ii)!);
                     }
                 }
             }
 
             // set mapping.
-            decoder.SetMappingTables(namespaceUris, serverUris);
+            decoder.SetMappingTables(namespaceUris!, serverUris!);
 
             decoder.PushNamespace(Namespaces.OpcUaXsd);
 
@@ -504,7 +504,7 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(assembly));
             }
 
-            Stream istrm = assembly.GetManifestResourceStream(resourcePath);
+            Stream? istrm = assembly.GetManifestResourceStream(resourcePath);
             if (istrm == null)
             {
                 // try to load from app directory
@@ -547,7 +547,7 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(assembly));
             }
 
-            Stream istrm = assembly.GetManifestResourceStream(resourcePath);
+            Stream? istrm = assembly.GetManifestResourceStream(resourcePath);
             if (istrm == null)
             {
                 // try to load from app directory

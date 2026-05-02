@@ -193,6 +193,8 @@ namespace Opc.Ua.Client
         /// </summary>
         [Obsolete("Use ReverseConnectManager(ITelemetryContext) instead.")]
         public ReverseConnectManager()
+            // Forwards null into a non-nullable telemetry parameter on the modern ctor;
+            // preserves the pre-nullable parameterless behavior of this obsolete API.
             : this(null!)
         {
         }
@@ -277,7 +279,10 @@ namespace Opc.Ua.Client
             m_applicationType = configuration.ApplicationType;
             m_configType = configuration.GetType();
 
-            OnUpdateConfiguration(configuration.ClientConfiguration.ReverseConnect);
+            // ClientConfiguration and ReverseConnect are nullable on ApplicationConfiguration,
+            // but the file watcher is only enabled for client configurations that include a
+            // populated ReverseConnect section, so both are guaranteed non-null here.
+            OnUpdateConfiguration(configuration.ClientConfiguration!.ReverseConnect!);
         }
 
         /// <summary>
@@ -310,7 +315,7 @@ namespace Opc.Ua.Client
                 {
                     foreach (ReverseConnectClientEndpoint endpoint in configuration.ClientEndpoints)
                     {
-                        Uri uri = Utils.ParseUri(endpoint.EndpointUrl);
+                        Uri? uri = Utils.ParseUri(endpoint.EndpointUrl);
                         if (uri != null)
                         {
                             AddEndpointInternal(uri, true);

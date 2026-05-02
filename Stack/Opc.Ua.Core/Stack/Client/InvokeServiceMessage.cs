@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -37,7 +37,7 @@ namespace Opc.Ua
         /// <summary>
         /// The body of the message.
         /// </summary>
-        public byte[] InvokeServiceRequest;
+        public byte[]? InvokeServiceRequest;
 
         /// <summary>
         /// Initializes an empty message.
@@ -64,7 +64,7 @@ namespace Opc.Ua
         /// <summary>
         /// The body of the message.
         /// </summary>
-        public byte[] InvokeServiceResponse { get; set; }
+        public byte[]? InvokeServiceResponse { get; set; }
 
         /// <summary>
         /// Initializes an empty message.

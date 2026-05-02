@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -26,8 +26,6 @@
  * The complete license agreement can be found here:
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
-
-#nullable enable
 
 using System;
 using System.Collections.Generic;
@@ -70,7 +68,7 @@ namespace Opc.Ua.Encoders
                 // The field itself does not specify its built in type
                 // we need to look it up in the provided lookup table.
                 if (!fieldTypes.TryGetValue(
-                    Definition.Fields[i].Name,
+                    Definition.Fields[i].Name!,
                     out BuiltInType fieldType))
                 {
                     fieldType = BuiltInType.Null;
@@ -83,7 +81,7 @@ namespace Opc.Ua.Encoders
                 PropertyList.Add(newProperty);
             }
             PropertyList.Sort((a, b) => a.Order.CompareTo(b.Order));
-            PropertyDict = PropertyList.ToDictionary(p => p.Name, p => p);
+            PropertyDict = PropertyList.ToDictionary(p => p.Name!, p => p);
         }
 
         /// <summary>
@@ -98,7 +96,7 @@ namespace Opc.Ua.Encoders
             BinaryEncodingId = structure.BinaryEncodingId;
             FieldTypes = structure.FieldTypes;
             PropertyList = structure.PropertyList.ConvertAll(p => (Field)p.Clone());
-            PropertyDict = PropertyList.ToDictionary(p => p.Name, p => p);
+            PropertyDict = PropertyList.ToDictionary(p => p.Name!, p => p);
         }
 
         /// <inheritdoc/>
@@ -146,7 +144,7 @@ namespace Opc.Ua.Encoders
         }
 
         /// <inheritdoc/>
-        public virtual bool IsEqual(IEncodeable encodeable)
+        public virtual bool IsEqual(IEncodeable? encodeable)
         {
             if (ReferenceEquals(this, encodeable))
             {
@@ -264,7 +262,7 @@ namespace Opc.Ua.Encoders
         /// </summary>
         internal void EncodeProperty(IEncoder encoder, Field property)
         {
-            EncodeProperty(encoder, property.Name, property);
+            EncodeProperty(encoder, property.Name!, property);
         }
 
         /// <summary>
@@ -272,7 +270,7 @@ namespace Opc.Ua.Encoders
         /// </summary>
         internal void DecodeProperty(IDecoder decoder, Field property)
         {
-            DecodeProperty(decoder, property.Name, property);
+            DecodeProperty(decoder, property.Name!, property);
         }
 
         /// <summary>

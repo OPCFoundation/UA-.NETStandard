@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -40,13 +40,13 @@ namespace Opc.Ua
         /// The identifier for the session (null if multiple sessions are associated with the operation).
         /// </summary>
         /// <value>The session identifier.</value>
-        NodeId SessionId { get; }
+        NodeId? SessionId { get; }
 
         /// <summary>
         /// The identity of the user (null if not available).
         /// </summary>
         /// <value>The user identity.</value>
-        IUserIdentity UserIdentity { get; }
+        IUserIdentity? UserIdentity { get; }
     }
 
     /// <summary>
@@ -82,16 +82,16 @@ namespace Opc.Ua
         /// An application defined handle for the system.
         /// </summary>
         /// <value>The system handle.</value>
-        public object SystemHandle { get; set; }
+        public object? SystemHandle { get; set; }
 
         /// <inheritdoc/>
-        public string UserId => UserIdentity?.DisplayName;
+        public string? UserId => UserIdentity?.DisplayName;
 
         /// <summary>
         /// The identifier for the session (null if multiple sessions are associated with the operation).
         /// </summary>
         /// <value>The session identifier.</value>
-        public NodeId SessionId
+        public NodeId? SessionId
         {
             get
             {
@@ -109,7 +109,7 @@ namespace Opc.Ua
         /// The identity of the user.
         /// </summary>
         /// <value>The user identity.</value>
-        public IUserIdentity UserIdentity
+        public IUserIdentity? UserIdentity
         {
             get
             {
@@ -145,7 +145,7 @@ namespace Opc.Ua
         /// The audit log entry associated with the operation (null if not available).
         /// </summary>
         /// <value>The audit entry identifier.</value>
-        public string AuditEntryId
+        public string? AuditEntryId
         {
             get
             {
@@ -163,25 +163,25 @@ namespace Opc.Ua
         /// The table of namespace uris to use when accessing the system.
         /// </summary>
         /// <value>The namespace URIs.</value>
-        public NamespaceTable NamespaceUris { get; set; }
+        public NamespaceTable NamespaceUris { get; set; } = null!;
 
         /// <summary>
         /// The table of server uris to use when accessing the system.
         /// </summary>
         /// <value>The server URIs.</value>
-        public StringTable ServerUris { get; set; }
+        public StringTable ServerUris { get; set; } = null!;
 
         /// <summary>
         /// A table containing the types that are to be used when accessing the system.
         /// </summary>
         /// <value>The type table.</value>
-        public ITypeTable TypeTable { get; set; }
+        public ITypeTable TypeTable { get; set; } = null!;
 
         /// <summary>
         /// A factory that can be used to create encodeable types.
         /// </summary>
         /// <value>The encodeable factory.</value>
-        public IEncodeableFactory EncodeableFactory { get; set; }
+        public IEncodeableFactory EncodeableFactory { get; set; } = null!;
 
         /// <summary>
         /// A factory that can be used to create node instances.
@@ -193,13 +193,13 @@ namespace Opc.Ua
         /// A factory that can be used to create node ids.
         /// </summary>
         /// <value>The node identifiers factory.</value>
-        public INodeIdFactory NodeIdFactory { get; set; }
+        public INodeIdFactory NodeIdFactory { get; set; } = null!;
 
         /// <summary>
         /// The operation context associated with the system context.
         /// </summary>
         /// <value>The operation context.</value>
-        public IOperationContext OperationContext { get; protected set; }
+        public IOperationContext? OperationContext { get; protected set; }
 
         /// <summary>
         /// Creates a copy of the context that can be used with the specified operation context.
@@ -241,7 +241,7 @@ namespace Opc.Ua
         /// The table of strings associated with the operation.
         /// </summary>
         /// <value>The string table.</value>
-        public StringTable StringTable
+        public StringTable? StringTable
         {
             get
             {
@@ -304,9 +304,13 @@ namespace Opc.Ua
             }
         }
 
-        private NodeId m_sessionId;
+        // ISessionOperationContext requires non-nullable SessionId and UserIdentity.
+        NodeId ISessionOperationContext.SessionId => SessionId ?? NodeId.Null;
+        IUserIdentity ISessionOperationContext.UserIdentity => UserIdentity!;
+
+        private NodeId? m_sessionId;
         private ArrayOf<string> m_preferredLocales;
-        private string m_auditEntryId;
-        private IUserIdentity m_userIdentity;
+        private string? m_auditEntryId;
+        private IUserIdentity? m_userIdentity;
     }
 }

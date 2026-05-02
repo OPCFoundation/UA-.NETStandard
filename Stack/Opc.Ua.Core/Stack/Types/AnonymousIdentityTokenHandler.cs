@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -39,7 +39,7 @@ namespace Opc.Ua
         /// <summary>
         /// Create anonymous identity token handler.
         /// </summary>
-        public AnonymousIdentityTokenHandler(AnonymousIdentityToken token = null)
+        public AnonymousIdentityTokenHandler(AnonymousIdentityToken? token = null)
         {
             m_token = token ?? new AnonymousIdentityToken();
         }
@@ -76,9 +76,9 @@ namespace Opc.Ua
             byte[] receiverNonce,
             string securityPolicyUri,
             IServiceMessageContext context,
-            Nonce receiverEphemeralKey = null,
-            X509Certificate2 senderCertificate = null,
-            X509Certificate2Collection senderIssuerCertificates = null,
+            Nonce? receiverEphemeralKey = null,
+            X509Certificate2? senderCertificate = null,
+            X509Certificate2Collection? senderIssuerCertificates = null,
             bool doNotEncodeSenderCertificate = false)
         {
         }
@@ -89,10 +89,10 @@ namespace Opc.Ua
             Nonce receiverNonce,
             string securityPolicyUri,
             IServiceMessageContext context,
-            Nonce ephemeralKey = null,
-            X509Certificate2 senderCertificate = null,
-            X509Certificate2Collection senderIssuerCertificates = null,
-            CertificateValidator validator = null)
+            Nonce? ephemeralKey = null,
+            X509Certificate2? senderCertificate = null,
+            X509Certificate2Collection? senderIssuerCertificates = null,
+            CertificateValidator? validator = null)
         {
         }
 
@@ -125,7 +125,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public bool Equals(IUserIdentityTokenHandler other)
+        public bool Equals(IUserIdentityTokenHandler? other)
         {
             return other?.TokenType == TokenType;
         }

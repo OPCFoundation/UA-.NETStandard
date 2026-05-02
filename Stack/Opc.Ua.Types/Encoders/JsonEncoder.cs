@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 using System;
 using System.Buffers;
 using System.Collections.Generic;
@@ -224,7 +222,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public void SetMappingTables(NamespaceTable namespaceUris, StringTable serverUris)
+        public void SetMappingTables(NamespaceTable? namespaceUris, StringTable? serverUris)
         {
             m_namespaceMappings = null;
 
@@ -279,7 +277,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public void WriteBoolean(string fieldName, bool value)
+        public void WriteBoolean(string? fieldName, bool value)
         {
             if (WriteValueProperty(fieldName, value))
             {
@@ -288,7 +286,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public void WriteBooleanArray(string fieldName, ArrayOf<bool> values)
+        public void WriteBooleanArray(string? fieldName, ArrayOf<bool> values)
         {
             if (WriteArrayProperty(fieldName, values))
             {
@@ -297,7 +295,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public void WriteByte(string fieldName, byte value)
+        public void WriteByte(string? fieldName, byte value)
         {
             if (WriteValueProperty(fieldName, value))
             {
@@ -306,7 +304,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public void WriteByteString(string fieldName, ByteString value)
+        public void WriteByteString(string? fieldName, ByteString value)
         {
             if (value.IsNull)
             {
@@ -314,20 +312,20 @@ namespace Opc.Ua
                 return;
             }
             CheckByteStringLength(value.Length);
-            m_writer.WritePropertyName(fieldName);
+            m_writer.WritePropertyName(fieldName!);
             m_writer.WriteStringValue(value.ToBase64());
         }
 
 #if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
         /// <inheritdoc/>
-        public void WriteByteString(string fieldName, ReadOnlySpan<byte> value)
+        public void WriteByteString(string? fieldName, ReadOnlySpan<byte> value)
         {
             WriteByteString(fieldName, ByteString.From(value));
         }
 #endif
 
         /// <inheritdoc/>
-        public void WriteByteStringArray(string fieldName, ArrayOf<ByteString> values)
+        public void WriteByteStringArray(string? fieldName, ArrayOf<ByteString> values)
         {
             if (WriteArrayProperty(fieldName, values))
             {
@@ -336,7 +334,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public void WriteByteArray(string fieldName, ArrayOf<byte> values)
+        public void WriteByteArray(string? fieldName, ArrayOf<byte> values)
         {
             if (WriteArrayProperty(fieldName, values))
             {
@@ -345,19 +343,19 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public void WriteDataValue(string fieldName, DataValue value)
+        public void WriteDataValue(string? fieldName, DataValue? value)
         {
             if (value == null)
             {
                 WriteNull(fieldName);
                 return;
             }
-            m_writer.WritePropertyName(fieldName);
+            m_writer.WritePropertyName(fieldName!);
             WriteDataValue(value);
         }
 
         /// <inheritdoc/>
-        public void WriteDataValueArray(string fieldName, ArrayOf<DataValue> values)
+        public void WriteDataValueArray(string? fieldName, ArrayOf<DataValue> values)
         {
             if (WriteArrayProperty(fieldName, values))
             {
@@ -366,19 +364,19 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public void WriteDateTime(string fieldName, DateTimeUtc value)
+        public void WriteDateTime(string? fieldName, DateTimeUtc value)
         {
             if (value == default)
             {
                 WriteNull(fieldName);
                 return;
             }
-            m_writer.WritePropertyName(fieldName);
+            m_writer.WritePropertyName(fieldName!);
             WriteDateTime(value);
         }
 
         /// <inheritdoc/>
-        public void WriteDateTimeArray(string fieldName, ArrayOf<DateTimeUtc> values)
+        public void WriteDateTimeArray(string? fieldName, ArrayOf<DateTimeUtc> values)
         {
             if (WriteArrayProperty(fieldName, values))
             {
@@ -387,19 +385,19 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public void WriteDiagnosticInfo(string fieldName, DiagnosticInfo value)
+        public void WriteDiagnosticInfo(string? fieldName, DiagnosticInfo? value)
         {
             if (value == null)
             {
                 WriteNull(fieldName);
                 return;
             }
-            m_writer.WritePropertyName(fieldName);
+            m_writer.WritePropertyName(fieldName!);
             WriteDiagnosticInfo(value, 0);
         }
 
         /// <inheritdoc/>
-        public void WriteDiagnosticInfoArray(string fieldName, ArrayOf<DiagnosticInfo> values)
+        public void WriteDiagnosticInfoArray(string? fieldName, ArrayOf<DiagnosticInfo> values)
         {
             if (WriteArrayProperty(fieldName, values))
             {
@@ -408,18 +406,18 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public void WriteDouble(string fieldName, double value)
+        public void WriteDouble(string? fieldName, double value)
         {
             if (m_options.IgnoreDefaultValues && Math.Abs(value) < double.Epsilon)
             {
                 return;
             }
-            m_writer.WritePropertyName(fieldName);
+            m_writer.WritePropertyName(fieldName!);
             WriteDouble(value);
         }
 
         /// <inheritdoc/>
-        public void WriteDoubleArray(string fieldName, ArrayOf<double> values)
+        public void WriteDoubleArray(string? fieldName, ArrayOf<double> values)
         {
             if (WriteArrayProperty(fieldName, values))
             {
@@ -431,14 +429,14 @@ namespace Opc.Ua
         public void WriteEnumerated<T>(string fieldName, T value)
              where T : struct, Enum
         {
-            m_writer.WritePropertyName(fieldName);
+            m_writer.WritePropertyName(fieldName!);
             WriteEnumerated(value);
         }
 
         /// <inheritdoc/>
-        public void WriteEnumerated(string fieldName, EnumValue value)
+        public void WriteEnumerated(string? fieldName, EnumValue value)
         {
-            m_writer.WritePropertyName(fieldName);
+            m_writer.WritePropertyName(fieldName!);
             WriteEnumerated(value);
         }
 
@@ -453,7 +451,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public void WriteEnumeratedArray(string fieldName, ArrayOf<EnumValue> values)
+        public void WriteEnumeratedArray(string? fieldName, ArrayOf<EnumValue> values)
         {
             if (WriteArrayProperty(fieldName, values))
             {
@@ -461,19 +459,19 @@ namespace Opc.Ua
             }
         }
         /// <inheritdoc/>
-        public void WriteExpandedNodeId(string fieldName, ExpandedNodeId value)
+        public void WriteExpandedNodeId(string? fieldName, ExpandedNodeId value)
         {
             if (value.IsNull)
             {
                 WriteNull(fieldName);
                 return;
             }
-            m_writer.WritePropertyName(fieldName);
+            m_writer.WritePropertyName(fieldName!);
             WriteExpandedNodeId(value);
         }
 
         /// <inheritdoc/>
-        public void WriteExpandedNodeIdArray(string fieldName,
+        public void WriteExpandedNodeIdArray(string? fieldName,
             ArrayOf<ExpandedNodeId> values)
         {
             if (WriteArrayProperty(fieldName, values))
@@ -483,7 +481,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public void WriteExtensionObject(string fieldName, ExtensionObject value)
+        public void WriteExtensionObject(string? fieldName, ExtensionObject value)
         {
             // check for null.
             if (value.IsNull)
@@ -491,12 +489,12 @@ namespace Opc.Ua
                 WriteNull(fieldName);
                 return;
             }
-            m_writer.WritePropertyName(fieldName);
+            m_writer.WritePropertyName(fieldName!);
             WriteExtensionObject(value);
         }
 
         /// <inheritdoc/>
-        public void WriteExtensionObjectArray(string fieldName,
+        public void WriteExtensionObjectArray(string? fieldName,
             ArrayOf<ExtensionObject> values)
         {
             if (WriteArrayProperty(fieldName, values))
@@ -506,18 +504,18 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public void WriteFloat(string fieldName, float value)
+        public void WriteFloat(string? fieldName, float value)
         {
             if (m_options.IgnoreDefaultValues && Math.Abs(value) < float.Epsilon)
             {
                 return;
             }
-            m_writer.WritePropertyName(fieldName);
+            m_writer.WritePropertyName(fieldName!);
             WriteFloat(value);
         }
 
         /// <inheritdoc/>
-        public void WriteFloatArray(string fieldName, ArrayOf<float> values)
+        public void WriteFloatArray(string? fieldName, ArrayOf<float> values)
         {
             if (WriteArrayProperty(fieldName, values))
             {
@@ -526,19 +524,19 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public void WriteGuid(string fieldName, Uuid value)
+        public void WriteGuid(string? fieldName, Uuid value)
         {
             if (value == Uuid.Empty)
             {
                 WriteNull(fieldName);
                 return;
             }
-            m_writer.WritePropertyName(fieldName);
+            m_writer.WritePropertyName(fieldName!);
             m_writer.WriteStringValue(value.ToString());
         }
 
         /// <inheritdoc/>
-        public void WriteGuidArray(string fieldName, ArrayOf<Uuid> values)
+        public void WriteGuidArray(string? fieldName, ArrayOf<Uuid> values)
         {
             if (WriteArrayProperty(fieldName, values))
             {
@@ -547,7 +545,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public void WriteInt16(string fieldName, short value)
+        public void WriteInt16(string? fieldName, short value)
         {
             if (WriteValueProperty(fieldName, value))
             {
@@ -556,7 +554,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public void WriteInt16Array(string fieldName, ArrayOf<short> values)
+        public void WriteInt16Array(string? fieldName, ArrayOf<short> values)
         {
             if (WriteArrayProperty(fieldName, values))
             {
@@ -565,7 +563,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public void WriteInt32(string fieldName, int value)
+        public void WriteInt32(string? fieldName, int value)
         {
             if (WriteValueProperty(fieldName, value))
             {
@@ -574,7 +572,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public void WriteInt32Array(string fieldName, ArrayOf<int> values)
+        public void WriteInt32Array(string? fieldName, ArrayOf<int> values)
         {
             if (WriteArrayProperty(fieldName, values))
             {
@@ -583,7 +581,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public void WriteInt64(string fieldName, long value)
+        public void WriteInt64(string? fieldName, long value)
         {
             if (WriteValueProperty(fieldName, value))
             {
@@ -592,7 +590,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public void WriteInt64Array(string fieldName, ArrayOf<long> values)
+        public void WriteInt64Array(string? fieldName, ArrayOf<long> values)
         {
             if (WriteArrayProperty(fieldName, values))
             {
@@ -601,19 +599,19 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public void WriteLocalizedText(string fieldName, LocalizedText value)
+        public void WriteLocalizedText(string? fieldName, LocalizedText value)
         {
             if (value.IsNullOrEmpty)
             {
                 WriteNull(fieldName);
                 return;
             }
-            m_writer.WritePropertyName(fieldName);
+            m_writer.WritePropertyName(fieldName!);
             WriteLocalizedText(value);
         }
 
         /// <inheritdoc/>
-        public void WriteLocalizedTextArray(string fieldName,
+        public void WriteLocalizedTextArray(string? fieldName,
             ArrayOf<LocalizedText> values)
         {
             if (WriteArrayProperty(fieldName, values))
@@ -623,19 +621,19 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public void WriteNodeId(string fieldName, NodeId value)
+        public void WriteNodeId(string? fieldName, NodeId value)
         {
             if (value.IsNull)
             {
                 WriteNull(fieldName);
                 return;
             }
-            m_writer.WritePropertyName(fieldName);
+            m_writer.WritePropertyName(fieldName!);
             WriteNodeId(value);
         }
 
         /// <inheritdoc/>
-        public void WriteNodeIdArray(string fieldName, ArrayOf<NodeId> values)
+        public void WriteNodeIdArray(string? fieldName, ArrayOf<NodeId> values)
         {
             if (WriteArrayProperty(fieldName, values))
             {
@@ -644,19 +642,19 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public void WriteQualifiedName(string fieldName, QualifiedName value)
+        public void WriteQualifiedName(string? fieldName, QualifiedName value)
         {
             if (value.IsNull)
             {
                 WriteNull(fieldName);
                 return;
             }
-            m_writer.WritePropertyName(fieldName);
+            m_writer.WritePropertyName(fieldName!);
             WriteQualifiedName(value);
         }
 
         /// <inheritdoc/>
-        public void WriteQualifiedNameArray(string fieldName, ArrayOf<QualifiedName> values)
+        public void WriteQualifiedNameArray(string? fieldName, ArrayOf<QualifiedName> values)
         {
             if (WriteArrayProperty(fieldName, values))
             {
@@ -665,7 +663,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public void WriteSByte(string fieldName, sbyte value)
+        public void WriteSByte(string? fieldName, sbyte value)
         {
             if (WriteValueProperty(fieldName, value))
             {
@@ -674,7 +672,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public void WriteSByteArray(string fieldName,
+        public void WriteSByteArray(string? fieldName,
             ArrayOf<sbyte> values)
         {
             if (WriteArrayProperty(fieldName, values))
@@ -684,18 +682,18 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public void WriteStatusCode(string fieldName, StatusCode value)
+        public void WriteStatusCode(string? fieldName, StatusCode value)
         {
             if (value == StatusCodes.Good && m_options.IgnoreDefaultValues)
             {
                 return;
             }
-            m_writer.WritePropertyName(fieldName);
+            m_writer.WritePropertyName(fieldName!);
             WriteStatusCode(value);
         }
 
         /// <inheritdoc/>
-        public void WriteStatusCodeArray(string fieldName, ArrayOf<StatusCode> values)
+        public void WriteStatusCodeArray(string? fieldName, ArrayOf<StatusCode> values)
         {
             if (WriteArrayProperty(fieldName, values))
             {
@@ -721,7 +719,7 @@ namespace Opc.Ua
             }
             if (!string.IsNullOrEmpty(fieldName))
             {
-                m_writer.WritePropertyName(fieldName);
+                m_writer.WritePropertyName(fieldName!);
             }
             StartObject();
             value.Encode(this);
@@ -737,7 +735,7 @@ namespace Opc.Ua
                 WriteNull(fieldName);
                 return;
             }
-            m_writer.WritePropertyName(fieldName);
+            m_writer.WritePropertyName(fieldName!);
             WriteEncodeableAsExtensionObject(value);
         }
 
@@ -788,7 +786,7 @@ namespace Opc.Ua
                 WriteNull(fieldName);
                 return;
             }
-            m_writer.WritePropertyName(fieldName);
+            m_writer.WritePropertyName(fieldName!);
             StartObject();
             WriteInt32Array(JsonProperties.Dimensions, values.Dimensions);
             m_writer.WritePropertyName(JsonProperties.Array);
@@ -802,7 +800,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public void WriteUInt16(string fieldName, ushort value)
+        public void WriteUInt16(string? fieldName, ushort value)
         {
             if (WriteValueProperty(fieldName, value))
             {
@@ -811,7 +809,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public void WriteUInt16Array(string fieldName, ArrayOf<ushort> values)
+        public void WriteUInt16Array(string? fieldName, ArrayOf<ushort> values)
         {
             if (WriteArrayProperty(fieldName, values))
             {
@@ -820,7 +818,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public void WriteUInt32(string fieldName, uint value)
+        public void WriteUInt32(string? fieldName, uint value)
         {
             if (WriteValueProperty(fieldName, value))
             {
@@ -829,7 +827,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public void WriteUInt32Array(string fieldName, ArrayOf<uint> values)
+        public void WriteUInt32Array(string? fieldName, ArrayOf<uint> values)
         {
             if (WriteArrayProperty(fieldName, values))
             {
@@ -838,7 +836,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public void WriteUInt64(string fieldName, ulong value)
+        public void WriteUInt64(string? fieldName, ulong value)
         {
             if (WriteValueProperty(fieldName, value))
             {
@@ -847,7 +845,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public void WriteUInt64Array(string fieldName, ArrayOf<ulong> values)
+        public void WriteUInt64Array(string? fieldName, ArrayOf<ulong> values)
         {
             if (WriteArrayProperty(fieldName, values))
             {
@@ -856,7 +854,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public void WriteString(string fieldName, string value)
+        public void WriteString(string? fieldName, string? value)
         {
             if (value == null)
             {
@@ -864,12 +862,12 @@ namespace Opc.Ua
                 return;
             }
             CheckStringLength(value.Length);
-            m_writer.WritePropertyName(fieldName);
+            m_writer.WritePropertyName(fieldName!);
             m_writer.WriteStringValue(value);
         }
 
         /// <inheritdoc/>
-        public void WriteStringArray(string fieldName,
+        public void WriteStringArray(string? fieldName,
             ArrayOf<string> values)
         {
             if (WriteArrayProperty(fieldName, values))
@@ -879,20 +877,20 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public void WriteVariant(string fieldName, Variant value)
+        public void WriteVariant(string? fieldName, Variant value)
         {
             if (value.IsNull)
             {
                 WriteNull(fieldName);
                 return;
             }
-            m_writer.WritePropertyName(fieldName);
+            m_writer.WritePropertyName(fieldName!);
             // Never suppress artifacts when called during structure encoding
             WriteVariant(value, suppressUaType: false);
         }
 
         /// <inheritdoc/>
-        public void WriteVariantArray(string fieldName, ArrayOf<Variant> values)
+        public void WriteVariantArray(string? fieldName, ArrayOf<Variant> values)
         {
             if (WriteArrayProperty(fieldName, values))
             {
@@ -902,7 +900,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public void WriteVariantValue(string fieldName, Variant value)
+        public void WriteVariantValue(string? fieldName, Variant value)
         {
             if (m_options.IgnoreDefaultValues && value.ValueIsDefaultOrNull)
             {
@@ -913,24 +911,24 @@ namespace Opc.Ua
                 WriteNull(fieldName);
                 return;
             }
-            m_writer.WritePropertyName(fieldName);
+            m_writer.WritePropertyName(fieldName!);
             WriteVariantContents(value, true, m_options.SuppressArtifacts);
         }
 
         /// <inheritdoc/>
-        public void WriteXmlElement(string fieldName, XmlElement value)
+        public void WriteXmlElement(string? fieldName, XmlElement value)
         {
             if (value.IsNull)
             {
                 WriteNull(fieldName);
                 return;
             }
-            m_writer.WritePropertyName(fieldName);
+            m_writer.WritePropertyName(fieldName!);
             WriteXmlElement(value);
         }
 
         /// <inheritdoc/>
-        public void WriteXmlElementArray(string fieldName, ArrayOf<XmlElement> values)
+        public void WriteXmlElementArray(string? fieldName, ArrayOf<XmlElement> values)
         {
             if (WriteArrayProperty(fieldName, values))
             {
@@ -1030,7 +1028,7 @@ namespace Opc.Ua
         /// Write data value
         /// </summary>
         /// <param name="value"></param>
-        private void WriteDataValue(DataValue value)
+        private void WriteDataValue(DataValue? value)
         {
             if (value == null)
             {
@@ -1266,7 +1264,7 @@ namespace Opc.Ua
                 m_writer.WriteStringValue(CoreUtils.Format("{0}", numeric));
                 return;
             }
-            m_writer.WriteStringValue(CoreUtils.Format("{0}_{1}", symbol, numeric));
+            m_writer.WriteStringValue(CoreUtils.Format("{0}_{1}", symbol!, numeric));
         }
 
         /// <summary>
@@ -1333,7 +1331,7 @@ namespace Opc.Ua
                 m_writer.WriteNullValue();
                 return;
             }
-            value.TryGetValue(out IEncodeable encodeable);
+            value.TryGetValue(out IEncodeable? encodeable);
             ExpandedNodeId typeId = !value.TypeId.IsNull
                 ? value.TypeId
                 : encodeable?.TypeId ?? NodeId.Null;
@@ -1348,7 +1346,7 @@ namespace Opc.Ua
             switch (value.Encoding)
             {
                 case ExtensionObjectEncoding.Json:
-                    if (!value.TryGetAsJson(out string rawJson))
+                    if (!value.TryGetAsJson(out string? rawJson))
                     {
                         break;
                     }
@@ -1609,7 +1607,7 @@ namespace Opc.Ua
                 WriteUInt32(JsonProperties.Code, value.Code);
                 if (m_options == JsonEncoderOptions.Verbose)
                 {
-                    string symbolicId = value.SymbolicId;
+                    string? symbolicId = value.SymbolicId;
                     if (!string.IsNullOrEmpty(symbolicId))
                     {
                         WriteString(JsonProperties.Symbol, symbolicId);
@@ -1849,13 +1847,13 @@ namespace Opc.Ua
         /// <summary>
         /// Write null
         /// </summary>
-        private void WriteNull(string fieldName)
+        private void WriteNull(string? fieldName)
         {
             if (m_options.IgnoreNullValues || m_options.IgnoreDefaultValues)
             {
                 return;
             }
-            m_writer.WritePropertyName(fieldName);
+            m_writer.WritePropertyName(fieldName!);
             m_writer.WriteNullValue();
         }
 
@@ -2192,7 +2190,7 @@ namespace Opc.Ua
         /// </summary>
         /// <typeparam name="T"></typeparam>
         /// <returns>true if should write value.</returns>
-        private bool WriteValueProperty<T>(string fieldName, T value)
+        private bool WriteValueProperty<T>(string? fieldName, T value)
             where T : struct
         {
             if (m_options.IgnoreDefaultValues &&
@@ -2200,7 +2198,7 @@ namespace Opc.Ua
             {
                 return false;
             }
-            m_writer.WritePropertyName(fieldName);
+            m_writer.WritePropertyName(fieldName!);
             return true;
         }
 
@@ -2209,14 +2207,14 @@ namespace Opc.Ua
         /// </summary>
         /// <typeparam name="T"></typeparam>
         /// <returns>true if should write value.</returns>
-        private bool WriteArrayProperty<T>(string fieldName, ArrayOf<T> values)
+        private bool WriteArrayProperty<T>(string? fieldName, ArrayOf<T> values)
         {
             if (values.IsNull)
             {
                 WriteNull(fieldName);
                 return false;
             }
-            m_writer.WritePropertyName(fieldName);
+            m_writer.WritePropertyName(fieldName!);
             return true;
         }
 

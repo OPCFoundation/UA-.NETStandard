@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -173,7 +173,7 @@ namespace Opc.Ua
         /// </summary>
         public static readonly string DefaultOpcUaCoreAssemblyName = typeof(Utils).Assembly
             .GetName()
-            .Name;
+            .Name!;
 
         /// <summary>
         /// Helper to get the name of the Opc.Ua.Bindings.Https assembly.
@@ -243,10 +243,10 @@ namespace Opc.Ua
         /// <summary>
         /// Replaces a prefix enclosed in '%' with a special folder or environment variable path (e.g. %ProgramFiles%\MyCompany).
         /// </summary>
-        public static string ReplaceSpecialFolderNames(string input)
+        public static string? ReplaceSpecialFolderNames(string? input)
         {
             // nothing to do for nulls.
-            if (string.IsNullOrEmpty(input))
+            if (input is not { Length: > 0 })
             {
                 return null;
             }
@@ -264,8 +264,8 @@ namespace Opc.Ua
             }
 
             // extract special folder name.
-            string folder = null;
-            string path = null;
+            string folder;
+            string path;
 
             int index = input.IndexOf('%', 1);
 
@@ -287,7 +287,7 @@ namespace Opc.Ua
             {
 #endif
                 folder = ReplaceSpecialFolderWithEnvVar(folder);
-                string value = Environment.GetEnvironmentVariable(folder);
+                string? value = Environment.GetEnvironmentVariable(folder);
                 if (value != null)
                 {
                     buffer.Append(value);
@@ -329,25 +329,25 @@ namespace Opc.Ua
             bool createAlways,
             bool writable = false)
         {
-            filePath = ReplaceSpecialFolderNames(filePath);
+            string? resolved = ReplaceSpecialFolderNames(filePath);
 
-            if (!string.IsNullOrEmpty(filePath))
+            if (resolved is { Length: > 0 })
             {
-                var file = new FileInfo(filePath);
+                var file = new FileInfo(resolved);
 
                 // check for absolute path.
-                bool isAbsolute = IsPathRooted(filePath);
+                bool isAbsolute = IsPathRooted(resolved);
 
                 if (isAbsolute)
                 {
                     if (file.Exists)
                     {
-                        return filePath;
+                        return resolved;
                     }
 
                     if (createAlways)
                     {
-                        return CreateFile(file, filePath);
+                        return CreateFile(file, resolved);
                     }
                 }
 
@@ -357,7 +357,7 @@ namespace Opc.Ua
                     if (checkCurrentDirectory)
                     {
                         // first check in local folder
-                        FileInfo localFile = null;
+                        FileInfo localFile;
                         if (!writable)
                         {
                             localFile = new FileInfo(
@@ -365,7 +365,7 @@ namespace Opc.Ua
                                     "{0}{1}{2}",
                                     Directory.GetCurrentDirectory(),
                                     Path.DirectorySeparatorChar,
-                                    filePath));
+                                    resolved));
 #if NETFRAMEWORK
                             if (!localFile.Exists)
                             {
@@ -373,9 +373,9 @@ namespace Opc.Ua
                                     Format(
                                         "{0}{1}{2}",
                                         Path.GetDirectoryName(
-                                            Assembly.GetExecutingAssembly().Location),
+                                            Assembly.GetExecutingAssembly().Location)!,
                                         Path.DirectorySeparatorChar,
-                                        filePath));
+                                        resolved));
                                 if (localFile2.Exists)
                                 {
                                     localFile = localFile2;
@@ -390,7 +390,7 @@ namespace Opc.Ua
                                     "{0}{1}{2}",
                                     Path.GetTempPath(),
                                     Path.DirectorySeparatorChar,
-                                    filePath));
+                                    resolved));
                         }
 
                         if (localFile.Exists)
@@ -414,7 +414,7 @@ namespace Opc.Ua
             // file does not exist.
             throw ServiceResultException.ConfigurationError(
                 "File does not exist: {0}. Current directory is: {1}",
-                filePath,
+                resolved!,
                 Directory.GetCurrentDirectory());
         }
 
@@ -424,9 +424,9 @@ namespace Opc.Ua
         private static string CreateFile(FileInfo file, string filePath)
         {
             // create the directory as required.
-            if (!file.Directory.Exists)
+            if (file.Directory != null && !file.Directory.Exists)
             {
-                Directory.CreateDirectory(file.DirectoryName);
+                Directory.CreateDirectory(file.DirectoryName!);
             }
 
             // open and close the file.
@@ -437,7 +437,7 @@ namespace Opc.Ua
         /// <summary>
         /// Checks if the file path is a relative path and returns an absolute path relative to the EXE location.
         /// </summary>
-        public static string GetAbsoluteDirectoryPath(
+        public static string? GetAbsoluteDirectoryPath(
             string dirPath,
             bool checkCurrentDirectory,
             bool throwOnError)
@@ -449,32 +449,32 @@ namespace Opc.Ua
         /// Checks if the file path is a relative path and returns an absolute path relative to the EXE location.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public static string GetAbsoluteDirectoryPath(
+        public static string? GetAbsoluteDirectoryPath(
             string dirPath,
             bool checkCurrentDirectory,
             bool throwOnError,
             bool createAlways)
         {
             string originalPath = dirPath;
-            dirPath = ReplaceSpecialFolderNames(dirPath);
+            string? resolved = ReplaceSpecialFolderNames(dirPath);
 
-            if (!string.IsNullOrEmpty(dirPath))
+            if (resolved is { Length: > 0 })
             {
-                var directory = new DirectoryInfo(dirPath);
+                var directory = new DirectoryInfo(resolved);
 
                 // check for absolute path.
-                bool isAbsolute = IsPathRooted(dirPath);
+                bool isAbsolute = IsPathRooted(resolved);
 
                 if (isAbsolute)
                 {
                     if (directory.Exists)
                     {
-                        return dirPath;
+                        return resolved;
                     }
 
                     if (createAlways && !directory.Exists)
                     {
-                        directory = Directory.CreateDirectory(dirPath);
+                        directory = Directory.CreateDirectory(resolved);
                         return directory.FullName;
                     }
                 }
@@ -491,7 +491,7 @@ namespace Opc.Ua
                                     "{0}{1}{2}",
                                     Directory.GetCurrentDirectory(),
                                     Path.DirectorySeparatorChar,
-                                    dirPath));
+                                    resolved));
 #if NETFRAMEWORK
                             if (!directory.Exists)
                             {
@@ -499,9 +499,9 @@ namespace Opc.Ua
                                     Format(
                                         "{0}{1}{2}",
                                         Path.GetDirectoryName(
-                                            Assembly.GetExecutingAssembly().Location),
+                                            Assembly.GetExecutingAssembly().Location)!,
                                         Path.DirectorySeparatorChar,
-                                        dirPath));
+                                        resolved));
                                 if (directory2.Exists)
                                 {
                                     directory = directory2;
@@ -540,7 +540,8 @@ namespace Opc.Ua
         /// <summary>
         /// Truncates a file path so it can be displayed in a limited width view.
         /// </summary>
-        public static string GetFilePathDisplayName(string filePath, int maxLength)
+        [return: NotNullIfNotNull(nameof(filePath))]
+        public static string? GetFilePathDisplayName(string? filePath, int maxLength)
         {
             // check if nothing to do.
             if (filePath == null || maxLength <= 0 || filePath.Length < maxLength)
@@ -658,7 +659,7 @@ namespace Opc.Ua
         /// </summary>
         public static string GetFullQualifiedDomainName()
         {
-            string domainName = null;
+            string? domainName = null;
             try
             {
                 domainName = Dns.GetHostEntry("localhost").HostName;
@@ -666,7 +667,7 @@ namespace Opc.Ua
             catch
             {
             }
-            if (string.IsNullOrEmpty(domainName))
+            if (domainName is not { Length: > 0 })
             {
                 return Dns.GetHostName();
             }
@@ -692,16 +693,17 @@ namespace Opc.Ua
         /// <summary>
         /// Replaces the localhost domain with the current host name.
         /// </summary>
-        public static string ReplaceLocalhost(string uri, string hostname = null)
+        [return: NotNullIfNotNull(nameof(uri))]
+        public static string? ReplaceLocalhost(string? uri, string? hostname = null)
         {
             // ignore nulls.
-            if (string.IsNullOrEmpty(uri))
+            if (uri is not { Length: > 0 })
             {
                 return uri;
             }
 
             // IPv6 address needs a surrounding []
-            if (!string.IsNullOrEmpty(hostname) && hostname.Contains(':', StringComparison.Ordinal))
+            if (hostname is { Length: > 0 } && hostname.Contains(':', StringComparison.Ordinal))
             {
                 hostname = "[" + hostname + "]";
             }
@@ -732,16 +734,17 @@ namespace Opc.Ua
         /// <summary>
         /// Replaces the cert subject name DC=localhost with the current host name.
         /// </summary>
-        public static string ReplaceDCLocalhost(string subjectName, string hostname = null)
+        [return: NotNullIfNotNull(nameof(subjectName))]
+        public static string? ReplaceDCLocalhost(string? subjectName, string? hostname = null)
         {
             // ignore nulls.
-            if (string.IsNullOrEmpty(subjectName))
+            if (subjectName is not { Length: > 0 })
             {
                 return subjectName;
             }
 
             // IPv6 address needs a surrounding []
-            if (!string.IsNullOrEmpty(hostname) && hostname.Contains(':', StringComparison.Ordinal))
+            if (hostname is { Length: > 0 } && hostname.Contains(':', StringComparison.Ordinal))
             {
                 hostname = "[" + hostname + "]";
             }
@@ -819,7 +822,7 @@ namespace Opc.Ua
         /// <summary>
         /// Parses a URI string. Returns null if it is invalid.
         /// </summary>
-        public static Uri ParseUri(string uri)
+        public static Uri? ParseUri(string? uri)
         {
             try
             {
@@ -842,7 +845,7 @@ namespace Opc.Ua
         /// <param name="url1">The first URL to compare.</param>
         /// <param name="url2">The second URL to compare.</param>
         /// <returns>True if they have the same domain.</returns>
-        public static bool AreDomainsEqual(Uri url1, Uri url2)
+        public static bool AreDomainsEqual(Uri? url1, Uri? url2)
         {
             if (url1 == null || url2 == null)
             {
@@ -879,7 +882,7 @@ namespace Opc.Ua
         /// <param name="domain1">The first domain to compare.</param>
         /// <param name="domain2">The second domain to compare.</param>
         /// <returns>True if they are equal.</returns>
-        public static bool AreDomainsEqual(string domain1, string domain2)
+        public static bool AreDomainsEqual(string? domain1, string? domain2)
         {
             if (string.IsNullOrEmpty(domain1) || string.IsNullOrEmpty(domain2))
             {
@@ -892,10 +895,10 @@ namespace Opc.Ua
         /// <summary>
         /// Substitutes the local machine name if "localhost" is specified in the instance uri.
         /// </summary>
-        public static string UpdateInstanceUri(string instanceUri)
+        public static string UpdateInstanceUri(string? instanceUri)
         {
             // check for null.
-            if (string.IsNullOrEmpty(instanceUri))
+            if (instanceUri is not { Length: > 0 })
             {
                 var builder = new UriBuilder
                 {
@@ -923,7 +926,7 @@ namespace Opc.Ua
             }
 
             // replace localhost with the current hostname.
-            Uri parsedUri = ParseUri(instanceUri);
+            Uri? parsedUri = ParseUri(instanceUri);
 
             if (parsedUri != null && parsedUri.IdnHost == "localhost")
             {
@@ -1055,7 +1058,8 @@ namespace Opc.Ua
         /// </summary>
         /// <exception cref="ArgumentNullException">
         /// <paramref name="buffer"/> is <c>null</c>.</exception>
-        public static byte[] FromHexString(string buffer)
+        [return: NotNullIfNotNull(nameof(buffer))]
+        public static byte[]? FromHexString(string? buffer)
         {
             if (buffer == null)
             {
@@ -1111,7 +1115,7 @@ namespace Opc.Ua
         /// <summary>
         /// Formats an object using the invariant locale.
         /// </summary>
-        public static string ToString(object source)
+        public static string ToString(object? source)
         {
             if (source != null)
             {
@@ -1132,7 +1136,7 @@ namespace Opc.Ua
         /// <summary>
         /// Checks if a string is a valid locale identifier.
         /// </summary>
-        public static bool IsValidLocaleId(string localeId)
+        public static bool IsValidLocaleId(string? localeId)
         {
             if (string.IsNullOrEmpty(localeId))
             {
@@ -1154,7 +1158,7 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the language identifier from a locale.
         /// </summary>
-        public static string GetLanguageId(string localeId)
+        public static string GetLanguageId(string? localeId)
         {
             if (localeId == null)
             {
@@ -1174,10 +1178,11 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the localized text from a list of available text
         /// </summary>
-        public static LocalizedText SelectLocalizedText(
-            IList<string> localeIds,
-            IList<LocalizedText> names,
-            LocalizedText defaultName)
+        [return: NotNullIfNotNull(nameof(defaultName))]
+        public static LocalizedText? SelectLocalizedText(
+            IList<string>? localeIds,
+            IList<LocalizedText>? names,
+            LocalizedText? defaultName)
         {
             // check if no locales requested.
             if (localeIds == null || localeIds.Count == 0)
@@ -1243,8 +1248,8 @@ namespace Opc.Ua
         /// Checks if two identities are equal.
         /// </summary>
         public static bool IsEqualUserIdentity(
-            UserIdentityToken identity1,
-            UserIdentityToken identity2)
+            UserIdentityToken? identity1,
+            UserIdentityToken? identity2)
         {
             // check for reference equality.
             if (ReferenceEquals(identity1, identity2))
@@ -1290,19 +1295,27 @@ namespace Opc.Ua
         /// Checks if two T values are equal based on IEquatable compare.
         /// </summary>
         /// <typeparam name="T"></typeparam>
-        public static bool IsEqual<T>(T value1, T value2)
+        public static bool IsEqual<T>(T? value1, T? value2)
             where T : IEquatable<T>
         {
-            return CoreUtils.IsEqual(value1, value2);
+            if (value1 is null)
+            {
+                return value2 is null;
+            }
+            return value2 is not null && CoreUtils.IsEqual(value1, value2);
         }
 
         /// <summary>
         /// Checks if two IEnumerable T values are equal.
         /// </summary>
         /// <typeparam name="T"></typeparam>
-        public static bool IsEqual<T>(IEnumerable<T> value1, IEnumerable<T> value2)
+        public static bool IsEqual<T>(IEnumerable<T>? value1, IEnumerable<T>? value2)
             where T : IEquatable<T>
         {
+            if (value1 is null || value2 is null)
+            {
+                return ReferenceEquals(value1, value2);
+            }
             return CoreUtils.IsEqual(value1, value2);
         }
 
@@ -1329,9 +1342,13 @@ namespace Opc.Ua
         /// Checks if two T[] values are equal.
         /// </summary>
         /// <typeparam name="T"></typeparam>
-        public static bool IsEqual<T>(T[] value1, T[] value2)
+        public static bool IsEqual<T>(T[]? value1, T[]? value2)
             where T : unmanaged, IEquatable<T>
         {
+            if (value1 is null || value2 is null)
+            {
+                return ReferenceEquals(value1, value2);
+            }
             return CoreUtils.IsEqual(value1, value2);
         }
 
@@ -1339,8 +1356,12 @@ namespace Opc.Ua
         /// <summary>
         /// Fast memcpy version of byte[] compare.
         /// </summary>
-        public static bool IsEqual(byte[] value1, byte[] value2)
+        public static bool IsEqual(byte[]? value1, byte[]? value2)
         {
+            if (value1 is null || value2 is null)
+            {
+                return ReferenceEquals(value1, value2);
+            }
             return CoreUtils.IsEqual(value1, value2);
         }
 #endif
@@ -1348,8 +1369,12 @@ namespace Opc.Ua
         /// <summary>
         /// Checks if two values are equal.
         /// </summary>
-        public static bool IsEqual(object value1, object value2)
+        public static bool IsEqual(object? value1, object? value2)
         {
+            if (value1 is null || value2 is null)
+            {
+                return ReferenceEquals(value1, value2);
+            }
             return CoreUtils.IsEqual(value1, value2);
         }
 
@@ -1364,10 +1389,10 @@ namespace Opc.Ua
         /// <returns>The deserialized extension, or the default value if not found.</returns>
         /// <exception cref="ArgumentNullException"></exception>
         [Experimental("UA_NETStandard_1")]
-        public static T ParseExtension<T>(
+        public static T? ParseExtension<T>(
             ArrayOf<XmlElement> extensions,
             XmlQualifiedName elementName,
-            ITelemetryContext telemetry,
+            ITelemetryContext? telemetry,
             Func<IDecoder, T> decoderFunc)
         {
             if (decoderFunc is null)
@@ -1385,11 +1410,11 @@ namespace Opc.Ua
                 return default;
             }
 
-            using IDisposable scope = AmbientMessageContext.SetScopedContext(telemetry);
+            using IDisposable scope = AmbientMessageContext.SetScopedContext(telemetry!);
 
             for (int ii = 0; ii < extensions.Count; ii++)
             {
-                System.Xml.XmlElement element = extensions[ii].AsXmlElement();
+                System.Xml.XmlElement? element = extensions[ii].AsXmlElement();
 
                 if (element == null ||
                     element.LocalName != elementName.Name ||
@@ -1423,8 +1448,8 @@ namespace Opc.Ua
         public static void UpdateExtension<T>(
             ref ArrayOf<XmlElement> extensions,
             XmlQualifiedName elementName,
-            T value,
-            ITelemetryContext telemetry,
+            T? value,
+            ITelemetryContext? telemetry,
             Action<IEncoder, T> encoderFunc)
         {
             if (elementName is null)
@@ -1439,14 +1464,14 @@ namespace Opc.Ua
 
             var document = new XmlDocument();
 
-            if (!EqualityComparer<T>.Default.Equals(value, default))
+            if (!EqualityComparer<T>.Default.Equals(value!, default!))
             {
-                using IDisposable scope = AmbientMessageContext.SetScopedContext(telemetry);
+                using IDisposable scope = AmbientMessageContext.SetScopedContext(telemetry!);
                 using var encoder = new XmlEncoder(AmbientMessageContext.CurrentContext);
                 encoder.Push(elementName.Name, elementName.Namespace);
-                encoderFunc(encoder, value);
+                encoderFunc(encoder, value!);
                 encoder.Pop();
-                string xml = encoder.CloseAndReturnText();
+                string xml = encoder.CloseAndReturnText()!;
                 document.LoadInnerXml(xml);
             }
 
@@ -1460,12 +1485,12 @@ namespace Opc.Ua
             {
                 for (int ii = 0; ii < xmlElements.Count; ii++)
                 {
-                    System.Xml.XmlElement element = xmlElements[ii].AsXmlElement();
+                    System.Xml.XmlElement? element = xmlElements[ii].AsXmlElement();
                     if (element != null &&
                         element.LocalName == elementName.Name &&
                         element.NamespaceURI == elementName.Namespace)
                     {
-                        if (EqualityComparer<T>.Default.Equals(value, default))
+                        if (EqualityComparer<T>.Default.Equals(value!, default!))
                         {
                             xmlElements.RemoveAt(ii);
                             extensions = xmlElements.ToArrayOf();
@@ -1479,7 +1504,7 @@ namespace Opc.Ua
                 }
             }
 
-            if (!EqualityComparer<T>.Default.Equals(value, default))
+            if (!EqualityComparer<T>.Default.Equals(value!, default!))
             {
                 xmlElements.Add(XmlElement.From(document.DocumentElement));
                 extensions = xmlElements.ToArrayOf();
@@ -1495,10 +1520,10 @@ namespace Opc.Ua
         /// <param name="elementName">Name of the element (null to derive from type name).</param>
         /// <param name="telemetry">The telemetry context.</param>
         /// <returns>The extension if found. Default otherwise.</returns>
-        public static T ParseExtension<T>(
+        public static T? ParseExtension<T>(
             ArrayOf<XmlElement> extensions,
-            XmlQualifiedName elementName,
-            ITelemetryContext telemetry)
+            XmlQualifiedName? elementName,
+            ITelemetryContext? telemetry)
             where T : IEncodeable, new()
         {
             if (extensions.IsEmpty)
@@ -1508,11 +1533,11 @@ namespace Opc.Ua
 
             elementName ??= GetEncodeableXmlName(typeof(T));
 
-            using IDisposable scope = AmbientMessageContext.SetScopedContext(telemetry);
+            using IDisposable scope = AmbientMessageContext.SetScopedContext(telemetry!);
 
             for (int ii = 0; ii < extensions.Count; ii++)
             {
-                System.Xml.XmlElement element = extensions[ii].AsXmlElement();
+                System.Xml.XmlElement? element = extensions[ii].AsXmlElement();
 
                 if (element == null ||
                     element.LocalName != elementName.Name ||
@@ -1525,7 +1550,7 @@ namespace Opc.Ua
                 // namespace directly from the XML document element, which
                 // matches the namespace used in the config file.
                 using var parser = new XmlParser(
-                    null, element.OuterXml, AmbientMessageContext.CurrentContext);
+                    null!, element.OuterXml, AmbientMessageContext.CurrentContext);
                 var result = new T();
                 result.Decode(parser);
                 return result;
@@ -1544,9 +1569,9 @@ namespace Opc.Ua
         /// <param name="telemetry">The telemetry context.</param>
         public static void UpdateExtension<T>(
             ref ArrayOf<XmlElement> extensions,
-            XmlQualifiedName elementName,
-            T value,
-            ITelemetryContext telemetry)
+            XmlQualifiedName? elementName,
+            T? value,
+            ITelemetryContext? telemetry)
             where T : IEncodeable
         {
             elementName ??= GetEncodeableXmlName(typeof(T));
@@ -1555,12 +1580,12 @@ namespace Opc.Ua
 
             if (value != null)
             {
-                using IDisposable scope = AmbientMessageContext.SetScopedContext(telemetry);
+                using IDisposable scope = AmbientMessageContext.SetScopedContext(telemetry!);
                 using var encoder = new XmlEncoder(AmbientMessageContext.CurrentContext);
                 encoder.Push(elementName.Name, elementName.Namespace);
                 value.Encode(encoder);
                 encoder.Pop();
-                string xml = encoder.CloseAndReturnText();
+                string xml = encoder.CloseAndReturnText()!;
                 document.LoadInnerXml(xml);
             }
 
@@ -1574,7 +1599,7 @@ namespace Opc.Ua
             {
                 for (int ii = 0; ii < xmlElements.Count; ii++)
                 {
-                    System.Xml.XmlElement element = xmlElements[ii].AsXmlElement();
+                    System.Xml.XmlElement? element = xmlElements[ii].AsXmlElement();
                     if (element != null &&
                         element.LocalName == elementName.Name &&
                         element.NamespaceURI == elementName.Namespace)
@@ -1607,7 +1632,7 @@ namespace Opc.Ua
         private static XmlQualifiedName GetEncodeableXmlName(Type type)
         {
             // Try [DataContract] attribute
-            XmlQualifiedName qname = TypeInfo.GetXmlName(type);
+            XmlQualifiedName? qname = TypeInfo.GetXmlName(type);
             if (qname != null && qname.Namespace != Namespaces.OpcUaXsd)
             {
                 return qname;
@@ -1672,7 +1697,7 @@ namespace Opc.Ua
         {
             return typeof(Utils)
                 .GetTypeInfo()
-                .Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()
+                .Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()!
                 .InformationalVersion;
         }
 
@@ -1682,7 +1707,7 @@ namespace Opc.Ua
         public static string GetAssemblyBuildNumber()
         {
             return typeof(Utils).GetTypeInfo().Assembly
-                .GetCustomAttribute<AssemblyFileVersionAttribute>()
+                .GetCustomAttribute<AssemblyFileVersionAttribute>()!
                 .Version;
         }
 
@@ -1717,7 +1742,7 @@ namespace Opc.Ua
         /// <summary>
         /// Appends a list of byte arrays.
         /// </summary>
-        public static byte[] Append(params byte[][] arrays)
+        public static byte[] Append(params byte[]?[]? arrays)
         {
             if (arrays == null)
             {
@@ -1728,9 +1753,10 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < arrays.Length; ii++)
             {
-                if (arrays[ii] != null)
+                byte[]? arr = arrays[ii];
+                if (arr != null)
                 {
-                    length += arrays[ii].Length;
+                    length += arr.Length;
                 }
             }
 
@@ -1740,10 +1766,11 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < arrays.Length; ii++)
             {
-                if (arrays[ii] != null)
+                byte[]? arr = arrays[ii];
+                if (arr != null)
                 {
-                    Array.Copy(arrays[ii], 0, output, pos, arrays[ii].Length);
-                    pos += arrays[ii].Length;
+                    Array.Copy(arr, 0, output, pos, arr.Length);
+                    pos += arr.Length;
                 }
             }
 
@@ -1756,7 +1783,7 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException"></exception>
         public static X509Certificate2 ParseCertificateBlob(
             ReadOnlyMemory<byte> certificateData,
-            ITelemetryContext telemetry,
+            ITelemetryContext? telemetry,
             bool useAsnParser = false)
         {
             try
@@ -1789,7 +1816,7 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException"></exception>
         public static X509Certificate2Collection ParseCertificateChainBlob(
             ReadOnlyMemory<byte> certificateData,
-            ITelemetryContext telemetry,
+            ITelemetryContext? telemetry,
             bool useAsnParser = false)
         {
             var certificateChain = new X509Certificate2Collection();
@@ -1833,7 +1860,7 @@ namespace Opc.Ua
         /// <returns>
         /// A DER blob containing zero or more certificates.
         /// </returns>
-        public static byte[] CreateCertificateChainBlob(X509Certificate2Collection certificates)
+        public static byte[] CreateCertificateChainBlob(X509Certificate2Collection? certificates)
         {
             if (certificates == null || certificates.Count == 0)
             {
@@ -1863,7 +1890,7 @@ namespace Opc.Ua
         /// Generates a Pseudo random sequence of bits using the P_SHA1 alhorithm.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="secret"/> is <c>null</c>.</exception>
-        public static byte[] PSHA1(byte[] secret, string label, byte[] data, int offset, int length)
+        public static byte[] PSHA1(byte[] secret, string? label, byte[]? data, int offset, int length)
         {
             if (secret == null)
             {
@@ -1882,8 +1909,8 @@ namespace Opc.Ua
         /// <exception cref="ArgumentNullException"><paramref name="secret"/> is <c>null</c>.</exception>
         public static byte[] PSHA256(
             byte[] secret,
-            string label,
-            byte[] data,
+            string? label,
+            byte[]? data,
             int offset,
             int length)
         {
@@ -1899,7 +1926,7 @@ namespace Opc.Ua
         /// <summary>
         /// Generates a Pseudo random sequence of bits using the P_SHA1 alhorithm.
         /// </summary>
-        public static byte[] PSHA1(HMACSHA1 hmac, string label, byte[] data, int offset, int length)
+        public static byte[] PSHA1(HMACSHA1 hmac, string? label, byte[]? data, int offset, int length)
         {
             return PSHA(hmac, label, data, offset, length);
         }
@@ -1909,8 +1936,8 @@ namespace Opc.Ua
         /// </summary>
         public static byte[] PSHA256(
             HMACSHA256 hmac,
-            string label,
-            byte[] data,
+            string? label,
+            byte[]? data,
             int offset,
             int length)
         {
@@ -1923,7 +1950,7 @@ namespace Opc.Ua
         /// <exception cref="ArgumentNullException"><paramref name="hmac"/> is <c>null</c>.</exception>
         /// <exception cref="ArgumentOutOfRangeException"></exception>
         /// <exception cref="ServiceResultException"></exception>
-        public static byte[] PSHA(HMAC hmac, string label, byte[] data, int offset, int length)
+        public static byte[] PSHA(HMAC hmac, string? label, byte[]? data, int offset, int length)
         {
             if (hmac == null)
             {
@@ -1940,7 +1967,7 @@ namespace Opc.Ua
                 throw new ArgumentOutOfRangeException(nameof(length));
             }
 
-            byte[] seed = null;
+            byte[]? seed = null;
 
             // convert label to UTF-8 byte sequence.
             if (!string.IsNullOrEmpty(label))
@@ -2038,7 +2065,7 @@ namespace Opc.Ua
         /// <summary>
         /// Checks if the target is in the list. Comparisons ignore case.
         /// </summary>
-        public static bool FindStringIgnoreCase(IList<string> strings, string target)
+        public static bool FindStringIgnoreCase(IList<string>? strings, string target)
         {
             if (strings == null || strings.Count == 0)
             {
@@ -2072,15 +2099,15 @@ namespace Opc.Ua
                     return true;
                 case ObjectTypes.EccBrainpoolP256r1ApplicationCertificateType:
                     return s_eccCurveSupportCache[
-                        ECCurve.NamedCurves.brainpoolP256r1.Oid.FriendlyName].Value;
+                        ECCurve.NamedCurves.brainpoolP256r1.Oid.FriendlyName!].Value;
                 case ObjectTypes.EccBrainpoolP384r1ApplicationCertificateType:
                     return s_eccCurveSupportCache[
-                        ECCurve.NamedCurves.brainpoolP384r1.Oid.FriendlyName].Value;
+                        ECCurve.NamedCurves.brainpoolP384r1.Oid.FriendlyName!].Value;
                 case ObjectTypes.EccNistP256ApplicationCertificateType:
-                    return s_eccCurveSupportCache[ECCurve.NamedCurves.nistP256.Oid.FriendlyName]
+                    return s_eccCurveSupportCache[ECCurve.NamedCurves.nistP256.Oid.FriendlyName!]
                         .Value;
                 case ObjectTypes.EccNistP384ApplicationCertificateType:
-                    return s_eccCurveSupportCache[ECCurve.NamedCurves.nistP384.Oid.FriendlyName]
+                    return s_eccCurveSupportCache[ECCurve.NamedCurves.nistP384.Oid.FriendlyName!]
                         .Value;
                 // case ObjectTypes.EccCurve25519ApplicationCertificateType:
                 // case ObjectTypes.EccCurve448ApplicationCertificateType:
@@ -2120,19 +2147,19 @@ namespace Opc.Ua
         private static readonly Dictionary<string, Lazy<bool>> s_eccCurveSupportCache = new()
         {
             {
-                ECCurve.NamedCurves.nistP256.Oid.FriendlyName,
+                ECCurve.NamedCurves.nistP256.Oid.FriendlyName!,
                 new Lazy<bool>(() => IsCurveSupported(ECCurve.NamedCurves.nistP256))
             },
             {
-                ECCurve.NamedCurves.nistP384.Oid.FriendlyName,
+                ECCurve.NamedCurves.nistP384.Oid.FriendlyName!,
                 new Lazy<bool>(() => IsCurveSupported(ECCurve.NamedCurves.nistP384))
             },
             {
-                ECCurve.NamedCurves.brainpoolP256r1.Oid.FriendlyName,
+                ECCurve.NamedCurves.brainpoolP256r1.Oid.FriendlyName!,
                 new Lazy<bool>(() => IsCurveSupported(ECCurve.NamedCurves.brainpoolP256r1))
             },
             {
-                ECCurve.NamedCurves.brainpoolP384r1.Oid.FriendlyName,
+                ECCurve.NamedCurves.brainpoolP384r1.Oid.FriendlyName!,
                 new Lazy<bool>(() => IsCurveSupported(ECCurve.NamedCurves.brainpoolP384r1))
             }
         };

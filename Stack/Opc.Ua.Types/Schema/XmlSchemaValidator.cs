@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -48,8 +48,8 @@ namespace Opc.Ua.Schema.Xml
         /// Intializes the object with default values.
         /// </summary>
         public XmlSchemaValidator(
-            IFileSystem fileSystem = null,
-            IDictionary<string, string> knownFiles = null)
+            IFileSystem? fileSystem = null,
+            IDictionary<string, string>? knownFiles = null)
             : base(fileSystem, knownFiles, null)
         {
         }
@@ -65,12 +65,12 @@ namespace Opc.Ua.Schema.Xml
         /// <summary>
         /// The schema set that was validated.
         /// </summary>
-        public XmlSchemaSet SchemaSet { get; private set; }
+        public XmlSchemaSet? SchemaSet { get; private set; }
 
         /// <summary>
         /// The schema that was validated.
         /// </summary>
-        public XmlSchema TargetSchema { get; private set; }
+        public XmlSchema? TargetSchema { get; private set; }
 
         /// <summary>
         /// Generates the code from the contents of the address space.
@@ -107,7 +107,7 @@ namespace Opc.Ua.Schema.Xml
         [UnconditionalSuppressMessage("AOT", "IL3050",
             Justification =
                 "XmlSchema.Write is used with schema objects constructed at design time.")]
-        public override string GetSchema(string typeName)
+        public override string GetSchema(string? typeName)
         {
             XmlWriterSettings settings = CoreUtils.DefaultXmlWriterSettings();
 
@@ -116,9 +116,9 @@ namespace Opc.Ua.Schema.Xml
 
             try
             {
-                if (typeName == null || TargetSchema.Elements.Values.Count == 0)
+                if (typeName == null || TargetSchema!.Elements.Values.Count == 0)
                 {
-                    TargetSchema.Write(writer);
+                    TargetSchema!.Write(writer);
                 }
                 else
                 {
@@ -127,7 +127,7 @@ namespace Opc.Ua.Schema.Xml
                         if (current is XmlSchemaElement element && element.Name == typeName)
                         {
                             var schema = new XmlSchema();
-                            schema.Items.Add(element.ElementSchemaType);
+                            schema.Items.Add(element.ElementSchemaType!);
                             schema.Items.Add(element);
                             schema.Write(writer);
                             break;

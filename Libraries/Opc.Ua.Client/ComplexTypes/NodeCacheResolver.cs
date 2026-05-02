@@ -476,9 +476,9 @@ namespace Opc.Ua.Client.ComplexTypes
         }
 
         /// <inheritdoc/>
-        public Task<INode> FindAsync(ExpandedNodeId nodeId, CancellationToken ct = default)
+        public async Task<INode?> FindAsync(ExpandedNodeId nodeId, CancellationToken ct = default)
         {
-            return GetNodeAsync(nodeId, ct).AsTask();
+            return await GetNodeAsync(nodeId, ct).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -835,9 +835,9 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary>
         /// Get the node identified by the expanded node id.
         /// </summary>
-        private ValueTask<INode> GetNodeAsync(ExpandedNodeId nodeId, CancellationToken ct)
+        private ValueTask<INode?> GetNodeAsync(ExpandedNodeId nodeId, CancellationToken ct)
         {
-            return m_session.NodeCache.FindAsync(nodeId, ct)!;
+            return m_session.NodeCache.FindAsync(nodeId, ct);
         }
 
         /// <summary>

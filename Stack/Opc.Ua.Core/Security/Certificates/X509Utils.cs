@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -134,7 +134,7 @@ namespace Opc.Ua
         /// <param name="certificate">The certificate</param>
         public static int GetRSAPublicKeySize(X509Certificate2 certificate)
         {
-            using RSA rsaPublicKey = certificate.GetRSAPublicKey();
+            using RSA? rsaPublicKey = certificate.GetRSAPublicKey();
             if (rsaPublicKey != null)
             {
                 return rsaPublicKey.KeySize;
@@ -148,7 +148,7 @@ namespace Opc.Ua
         /// <param name="certificate">The certificate</param>
         public static int GetPublicKeySize(X509Certificate2 certificate)
         {
-            using (RSA rsaPublicKey = certificate.GetRSAPublicKey())
+            using (RSA? rsaPublicKey = certificate.GetRSAPublicKey())
             {
                 if (rsaPublicKey != null)
                 {
@@ -156,7 +156,7 @@ namespace Opc.Ua
                 }
             }
 
-            using ECDsa ecdsaPublicKey = certificate.GetECDsaPublicKey();
+            using ECDsa? ecdsaPublicKey = certificate.GetECDsaPublicKey();
             if (ecdsaPublicKey != null)
             {
                 return ecdsaPublicKey.KeySize;
@@ -527,7 +527,7 @@ namespace Opc.Ua
 
             var buffer = new StringBuilder();
 
-            string key = null;
+            string? key = null;
             bool found = false;
 
             for (int ii = 0; ii < name.Length; ii++)
@@ -759,7 +759,7 @@ namespace Opc.Ua
         /// <summary>
         /// Get the certificate by issuer and serial number.
         /// </summary>
-        public static async Task<X509Certificate2> FindIssuerCABySerialNumberAsync(
+        public static async Task<X509Certificate2?> FindIssuerCABySerialNumberAsync(
             ICertificateStore store,
             X500DistinguishedName issuer,
             string serialnumber)
@@ -782,7 +782,7 @@ namespace Opc.Ua
         /// <summary>
         /// Get the certificate issuer by its key identifier.
         /// </summary>
-        public static async Task<X509Certificate2> FindIssuerCAByKeyIdentifierAsync(
+        public static async Task<X509Certificate2?> FindIssuerCAByKeyIdentifierAsync(
             ICertificateStore store,
             X500DistinguishedName issuer,
             string keyIdentifier)
@@ -820,7 +820,7 @@ namespace Opc.Ua
             this X509Certificate2 certificate,
             string storeType,
             string storePath,
-            string password = null)
+            string? password = null)
         {
             return AddToStoreAsync(
                 certificate,
@@ -845,7 +845,7 @@ namespace Opc.Ua
         public static X509Certificate2 AddToStore(
             this X509Certificate2 certificate,
             CertificateStoreIdentifier storeIdentifier,
-            string password = null)
+            string? password = null)
         {
             return AddToStoreAsync(
                 certificate,
@@ -872,8 +872,8 @@ namespace Opc.Ua
             this X509Certificate2 certificate,
             string storeType,
             string storePath,
-            char[] password = null,
-            ITelemetryContext telemetry = null,
+            char[]? password = null,
+            ITelemetryContext? telemetry = null,
             CancellationToken ct = default)
         {
             // add cert to the store.
@@ -884,7 +884,7 @@ namespace Opc.Ua
                     storeType,
                     false);
                 using ICertificateStore store =
-                    certificateStoreIdentifier.OpenStore(telemetry) ??
+                    certificateStoreIdentifier.OpenStore(telemetry!) ??
                     throw new ArgumentException("Invalid store type");
 
                 await store.AddAsync(certificate, password, ct).ConfigureAwait(false);
@@ -904,13 +904,13 @@ namespace Opc.Ua
         public static async Task<X509CRL> AddToStoreAsync(
             this X509CRL crl,
             CertificateStoreIdentifier storeIdentifier,
-            ITelemetryContext telemetry = null,
+            ITelemetryContext? telemetry = null,
             CancellationToken ct = default)
         {
             // add cert to the store.
             if (storeIdentifier != null)
             {
-                ICertificateStore store = storeIdentifier.OpenStore(telemetry);
+                ICertificateStore store = storeIdentifier.OpenStore(telemetry!);
                 try
                 {
                     if (store == null)
@@ -943,14 +943,14 @@ namespace Opc.Ua
         public static async Task<X509Certificate2> AddToStoreAsync(
             this X509Certificate2 certificate,
             CertificateStoreIdentifier storeIdentifier,
-            char[] password = null,
-            ITelemetryContext telemetry = null,
+            char[]? password = null,
+            ITelemetryContext? telemetry = null,
             CancellationToken ct = default)
         {
             // add cert to the store.
             if (storeIdentifier != null)
             {
-                ICertificateStore store = storeIdentifier.OpenStore(telemetry);
+                ICertificateStore store = storeIdentifier.OpenStore(telemetry!);
                 try
                 {
                     if (store == null)

@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -113,8 +113,8 @@ namespace Opc.Ua.Bindings
 
                 uris.Add(uri.Uri);
 
-                ServerSecurityPolicy bestPolicy = null;
-                bool httpsMutualTls = configuration.ServerConfiguration.HttpsMutualTls;
+                ServerSecurityPolicy? bestPolicy = null;
+                bool httpsMutualTls = configuration.ServerConfiguration!.HttpsMutualTls;
                 if (!httpsMutualTls)
                 {
                     // Only use security None without mutual TLS authentication!
@@ -153,18 +153,18 @@ namespace Opc.Ua.Bindings
 
                 if (instanceCertificateTypesProvider != null)
                 {
-                    X509Certificate2 instanceCertificate = instanceCertificateTypesProvider
+                    X509Certificate2? instanceCertificate = instanceCertificateTypesProvider
                         .GetInstanceCertificate(
-                            bestPolicy.SecurityPolicyUri);
+                            bestPolicy.SecurityPolicyUri!);
                     description.ServerCertificate =
-                        instanceCertificate.RawData.ToByteString();
+                        instanceCertificate!.RawData.ToByteString();
 
                     // check if complete chain should be sent.
                     if (instanceCertificateTypesProvider.SendCertificateChain)
                     {
                         description.ServerCertificate =
                             instanceCertificateTypesProvider.LoadCertificateChainRaw(
-                                instanceCertificate).ToByteString();
+                                instanceCertificate)!.ToByteString();
                     }
                 }
 
@@ -195,7 +195,7 @@ namespace Opc.Ua.Bindings
                         endpoints,
                         endpointConfiguration,
                         listener,
-                        configuration.CertificateValidator.GetChannelValidator());
+                        configuration.CertificateValidator!.GetChannelValidator());
                 }
                 else
                 {
@@ -204,7 +204,7 @@ namespace Opc.Ua.Bindings
             }
 
             // create the host.
-            hosts[hostName] = serverBase.CreateServiceHost(serverBase, [.. uris]);
+            hosts[hostName] = serverBase!.CreateServiceHost(serverBase!, [.. uris])!;
             return endpoints;
         }
     }

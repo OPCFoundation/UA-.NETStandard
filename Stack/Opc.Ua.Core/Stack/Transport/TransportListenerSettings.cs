@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -40,17 +40,17 @@ namespace Opc.Ua
         /// <summary>
         /// Gets or sets the descriptions for the endpoints supported by the listener.
         /// </summary>
-        public List<EndpointDescription> Descriptions { get; set; }
+        public List<EndpointDescription>? Descriptions { get; set; }
 
         /// <summary>
         /// Gets or sets the configuration for the endpoints.
         /// </summary>
-        public EndpointConfiguration Configuration { get; set; }
+        public EndpointConfiguration? Configuration { get; set; }
 
         /// <summary>
         /// Gets or sets the server certificate type provider.
         /// </summary>
-        public CertificateTypesProvider ServerCertificateTypesProvider { get; set; }
+        public CertificateTypesProvider? ServerCertificateTypesProvider { get; set; }
 
         /// <summary>
         /// Gets or Sets the certificate validator.
@@ -59,7 +59,7 @@ namespace Opc.Ua
         /// This is the object used by the channel to validate received certificates.
         /// Validatation errors are reported to the application via this object.
         /// </remarks>
-        public ICertificateValidator CertificateValidator { get; set; }
+        public ICertificateValidator? CertificateValidator { get; set; }
 
         /// <summary>
         /// Gets or sets a reference to the table of namespaces for the server.
@@ -72,7 +72,7 @@ namespace Opc.Ua
         /// associated with the DataTypeEncodingId then.
         /// </remarks>
         /// <seealso cref="Factory" />
-        public NamespaceTable NamespaceUris { get; set; }
+        public NamespaceTable? NamespaceUris { get; set; }
 
         /// <summary>
         /// Gets or sets the table of known encodeable objects.
@@ -88,7 +88,7 @@ namespace Opc.Ua
         /// in the encoded message.
         /// </remarks>
         /// <seealso cref="NamespaceUris" />
-        public IEncodeableFactory Factory { get; set; }
+        public IEncodeableFactory? Factory { get; set; }
 
         /// <summary>
         /// Indicates if the transport listener is used as an endpoint for a reverse connection.

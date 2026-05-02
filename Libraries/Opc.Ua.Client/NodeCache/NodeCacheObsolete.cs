@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable disable
-
 using System;
 
 namespace Opc.Ua.Client
@@ -42,7 +40,7 @@ namespace Opc.Ua.Client
         /// Fetches a node from the server and updates the cache.
         /// </summary>
         [Obsolete("Use FetchNodeAsync instead.")]
-        public static Node FetchNode(
+        public static Node? FetchNode(
             this INodeCache nodeCache,
             ExpandedNodeId nodeId)
         {
@@ -56,7 +54,7 @@ namespace Opc.Ua.Client
         /// nodes from server.
         /// </summary>
         [Obsolete("Use FindAsync instead.")]
-        public static ArrayOf<INode> Find(
+        public static ArrayOf<INode?> Find(
             this INodeCache nodeCache,
             ArrayOf<ExpandedNodeId> nodeIds)
         {
@@ -69,7 +67,7 @@ namespace Opc.Ua.Client
         /// Fetches a node collection from the server and updates the cache.
         /// </summary>
         [Obsolete("Use FetchNodesAsync instead.")]
-        public static ArrayOf<Node> FetchNodes(
+        public static ArrayOf<Node?> FetchNodes(
             this INodeCache nodeCache,
             ArrayOf<ExpandedNodeId> nodeIds)
         {
@@ -137,7 +135,7 @@ namespace Opc.Ua.Client
         /// Returns a display name for a node.
         /// </summary>
         [Obsolete("Use GetDisplayTextAsync instead.")]
-        public static string GetDisplayText(
+        public static string? GetDisplayText(
             this INodeCache nodeCache,
             INode node)
         {
@@ -151,7 +149,7 @@ namespace Opc.Ua.Client
         /// Returns a display name for a node.
         /// </summary>
         [Obsolete("Use GetDisplayTextAsync instead.")]
-        public static string GetDisplayText(
+        public static string? GetDisplayText(
             this INodeCache nodeCache,
             ExpandedNodeId nodeId)
         {
@@ -165,7 +163,7 @@ namespace Opc.Ua.Client
         /// Returns a display name for the target of a reference.
         /// </summary>
         [Obsolete("Use GetDisplayTextAsync instead.")]
-        public static string GetDisplayText(
+        public static string? GetDisplayText(
             this INodeCache nodeCache,
             ReferenceDescription reference)
         {
@@ -249,7 +247,7 @@ namespace Opc.Ua.Client
         /// Finds a node in the node set.
         /// </summary>
         [Obsolete("Use FindAsync instead")]
-        public static INode Find(
+        public static INode? Find(
             this INodeCache nodeCache,
             ExpandedNodeId nodeId)
         {
@@ -264,7 +262,7 @@ namespace Opc.Ua.Client
         /// with the specified browse name.
         /// </summary>
         [Obsolete("Use FindAsync instead")]
-        public static INode Find(
+        public static INode? Find(
             this INodeCache nodeCache,
             ExpandedNodeId sourceId,
             NodeId referenceTypeId,

@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -61,7 +61,7 @@ namespace Opc.Ua
             // decode the actual message.
             var message = new SessionLessServiceMessage();
             message.Decode(decoder);
-            return message.Message;
+            return message.Message!;
         }
 
         /// <summary>
@@ -158,7 +158,7 @@ namespace Opc.Ua
             var absoluteId = NodeId.ToExpandedNodeId(typeId, context.NamespaceUris);
 
             // lookup message session-less envelope type.
-            Type actualType = decoder.Context.Factory.GetSystemType(absoluteId);
+            Type? actualType = decoder.Context.Factory.GetSystemType(absoluteId);
 
             if (actualType == null || actualType != typeof(SessionlessInvokeRequestType))
             {
@@ -175,7 +175,7 @@ namespace Opc.Ua
 
             decoder.Close();
 
-            return message.Message;
+            return message.Message!;
         }
 
         /// <summary>

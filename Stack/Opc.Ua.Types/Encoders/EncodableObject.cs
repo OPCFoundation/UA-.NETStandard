@@ -62,7 +62,7 @@ namespace Opc.Ua
         /// Checks if the value has changed.
         /// </summary>
         /// <exception cref="NotImplementedException"></exception>
-        public virtual bool IsEqual(IEncodeable encodeable)
+        public virtual bool IsEqual(IEncodeable? encodeable)
         {
             throw new NotImplementedException("Subclass must implement this method.");
         }
@@ -96,7 +96,7 @@ namespace Opc.Ua
 
             try
             {
-                IEncodeable[] encodeables = null;
+                IEncodeable[]? encodeables = null;
 
                 // check for array of extension objects.
                 if (value.TryGetValue(out ArrayOf<ExtensionObject> extensions))
@@ -108,16 +108,16 @@ namespace Opc.Ua
                     {
                         if (extensions[ii].IsNull)
                         {
-                            encodeables[ii] = null;
+                            encodeables[ii] = null!;
                             continue;
                         }
 
-                        if (!extensions[ii].TryGetValue(out IEncodeable element))
+                        if (!extensions[ii].TryGetValue(out IEncodeable? element))
                         {
                             return StatusCodes.BadTypeMismatch;
                         }
 
-                        encodeables[ii] = element;
+                        encodeables[ii] = element!;
                     }
                 }
 
@@ -136,10 +136,10 @@ namespace Opc.Ua
 
                 // check for scalar value.
                 if (value.TryGetValue(out ExtensionObject extension) &&
-                    extension.TryGetValue(out IEncodeable encodeable))
+                    extension.TryGetValue(out IEncodeable? encodeable))
                 {
                     // do conversion.
-                    value = Encode(context, encodeable, useXml);
+                    value = Encode(context, encodeable!, useXml);
                     return ServiceResult.Good;
                 }
 
@@ -194,7 +194,7 @@ namespace Opc.Ua
         {
             using var encoder = new BinaryEncoder(context);
             // Wrute body
-            encoder.WriteEncodeable(null, encodeable, encodeable.TypeId);
+            encoder.WriteEncodeable(null!, encodeable, encodeable.TypeId);
             // Return as byte string
             return ByteString.From(encoder.CloseAndReturnBuffer());
         }

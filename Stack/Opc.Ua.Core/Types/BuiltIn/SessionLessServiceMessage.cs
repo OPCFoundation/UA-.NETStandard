@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -44,22 +44,22 @@ namespace Opc.Ua
         /// <summary>
         /// The namespaces URIs referenced by the message.
         /// </summary>
-        public NamespaceTable NamespaceUris;
+        public NamespaceTable? NamespaceUris;
 
         /// <summary>
         /// The server URIs referenced by the message.
         /// </summary>
-        public StringTable ServerUris;
+        public StringTable? ServerUris;
 
         /// <summary>
         /// The locale Ids referenced by the message.
         /// </summary>
-        public StringTable LocaleIds;
+        public StringTable? LocaleIds;
 
         /// <summary>
         /// The message to encode or the decoded message.
         /// </summary>
-        public IEncodeable Message;
+        public IEncodeable? Message;
 
         /// <inheritdoc cref="IEncodeable.Encode(IEncoder)" />
         public void Encode(IEncoder encoder)
@@ -67,14 +67,14 @@ namespace Opc.Ua
             encoder.WriteUInt32("UriVersion", UriVersion);
             if (NamespaceUris != null && NamespaceUris.Count > 1)
             {
-                string[] uris = new string[NamespaceUris.Count - 1];
+                string?[] uris = new string?[NamespaceUris.Count - 1];
 
                 for (int ii = 1; ii < NamespaceUris.Count; ii++)
                 {
                     uris[ii - 1] = NamespaceUris.GetString((uint)ii);
                 }
 
-                encoder.WriteStringArray("NamespaceUris", uris);
+                encoder.WriteStringArray("NamespaceUris", uris!);
             }
             else
             {
@@ -83,14 +83,14 @@ namespace Opc.Ua
 
             if (ServerUris != null && ServerUris.Count > 1)
             {
-                string[] uris = new string[ServerUris.Count - 1];
+                string?[] uris = new string?[ServerUris.Count - 1];
 
                 for (int ii = 1; ii < ServerUris.Count; ii++)
                 {
                     uris[ii - 1] = ServerUris.GetString((uint)ii);
                 }
 
-                encoder.WriteStringArray("ServerUris", uris);
+                encoder.WriteStringArray("ServerUris", uris!);
             }
             else
             {
@@ -108,7 +108,7 @@ namespace Opc.Ua
 
             if (Message != null)
             {
-                encoder.SetMappingTables(NamespaceUris, ServerUris);
+                encoder.SetMappingTables(NamespaceUris!, ServerUris!);
 
                 if (Message.TypeId.IsNull ||
                     !Message.TypeId.TryGetValue(out uint numericId))
@@ -134,7 +134,7 @@ namespace Opc.Ua
             UriVersion = decoder.ReadUInt32("UriVersion");
 
             NamespaceUris = new NamespaceTable();
-            ArrayOf<string> uris = decoder.ReadStringArray("NamespaceUris");
+            ArrayOf<string> uris = decoder.ReadStringArray("NamespaceUris")!;
 
             foreach (string uri in uris)
             {
@@ -142,7 +142,7 @@ namespace Opc.Ua
             }
 
             ServerUris = new StringTable();
-            uris = decoder.ReadStringArray("ServerUris");
+            uris = decoder.ReadStringArray("ServerUris")!;
 
             foreach (string uri in uris)
             {
@@ -150,7 +150,7 @@ namespace Opc.Ua
             }
 
             LocaleIds = new StringTable();
-            uris = decoder.ReadStringArray("LocaleIds");
+            uris = decoder.ReadStringArray("LocaleIds")!;
             foreach (string uri in uris)
             {
                 LocaleIds.Append(uri);

@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -122,7 +122,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public virtual bool IsEqual(IEncodeable encodeable)
+        public virtual bool IsEqual(IEncodeable? encodeable)
         {
             if (ReferenceEquals(this, encodeable))
             {
@@ -143,9 +143,9 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public bool Equals(RelativePath other)
+        public bool Equals(RelativePath? other)
         {
-            return IsEqual(other);
+            return IsEqual(other)!;
         }
 
         /// <inheritdoc/>
@@ -155,7 +155,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return IsEqual(obj as IEncodeable);
         }
@@ -281,6 +281,11 @@ namespace Opc.Ua
             // parse the string.
             var formatter = RelativePathFormatter.Parse(browsePath, currentTable, targetTable);
             var elements = new List<RelativePathElement>();
+
+            if (formatter == null)
+            {
+                return new RelativePath { Elements = elements.ToArrayOf() };
+            }
 
             foreach (RelativePathFormatter.Element element in formatter.Elements)
             {

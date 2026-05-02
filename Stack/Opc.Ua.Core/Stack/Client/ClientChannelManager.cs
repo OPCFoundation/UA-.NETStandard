@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -26,8 +26,6 @@
  * The complete license agreement can be found here:
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
-
-#nullable enable
 
 using System;
 using Opc.Ua.Bindings;
@@ -81,7 +79,7 @@ namespace Opc.Ua
                     m_configuration,
                     connection,
                     endpoint.Description,
-                    endpoint.Configuration,
+                    endpoint.Configuration!,
                     clientCertificate,
                     clientCertificateChain,
                     context,
@@ -93,7 +91,7 @@ namespace Opc.Ua
                 channel = await CreateUaBinaryChannelAsync(
                     m_configuration,
                     endpoint.Description,
-                    endpoint.Configuration,
+                    endpoint.Configuration!,
                     clientCertificate,
                     clientCertificateChain,
                     context,
@@ -172,7 +170,7 @@ namespace Opc.Ua
 
             if (configuration != null)
             {
-                settings.CertificateValidator = configuration.CertificateValidator
+                settings.CertificateValidator = configuration.CertificateValidator!
                     .GetChannelValidator();
             }
 
@@ -251,7 +249,7 @@ namespace Opc.Ua
 
             if (configuration != null)
             {
-                settings.CertificateValidator = configuration.CertificateValidator
+                settings.CertificateValidator = configuration.CertificateValidator!
                     .GetChannelValidator();
             }
 

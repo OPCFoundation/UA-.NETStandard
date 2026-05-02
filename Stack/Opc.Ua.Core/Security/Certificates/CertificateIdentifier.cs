@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -57,7 +57,7 @@ namespace Opc.Ua
         /// A <see cref="string"/> containing the value of the current instance in the specified format.
         /// </returns>
         /// <exception cref="FormatException"></exception>
-        public string ToString(string format, IFormatProvider formatProvider)
+        public string ToString(string? format, IFormatProvider? formatProvider)
         {
             if (format != null)
             {
@@ -80,13 +80,13 @@ namespace Opc.Ua
                 return GetDisplayName(m_certificate);
             }
 
-            return m_subjectName ?? m_thumbprint;
+            return m_subjectName ?? m_thumbprint ?? string.Empty;
         }
 
         /// <summary>
         /// Returns true if the objects are equal.
         /// </summary>
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             if (ReferenceEquals(this, obj))
             {
@@ -146,7 +146,7 @@ namespace Opc.Ua
         /// Gets or sets the actual certificate.
         /// </summary>
         /// <value>The X509 certificate used by this instance.</value>
-        public X509Certificate2 Certificate
+        public X509Certificate2? Certificate
         {
             get => m_certificate;
             set
@@ -162,9 +162,9 @@ namespace Opc.Ua
         /// <summary>
         /// Finds a certificate in a store.
         /// </summary>
-        public Task<X509Certificate2> FindAsync(
-            string applicationUri = null,
-            ITelemetryContext telemetry = null,
+        public Task<X509Certificate2?> FindAsync(
+            string? applicationUri = null,
+            ITelemetryContext? telemetry = null,
             CancellationToken ct = default)
         {
             return FindAsync(false, applicationUri, telemetry, ct);
@@ -173,16 +173,16 @@ namespace Opc.Ua
         /// <summary>
         /// Loads the private key for the certificate with an optional password.
         /// </summary>
-        public Task<X509Certificate2> LoadPrivateKeyAsync(
-            char[] password,
-            string applicationUri = null,
-            ITelemetryContext telemetry = null,
+        public Task<X509Certificate2?> LoadPrivateKeyAsync(
+            char[]? password,
+            string? applicationUri = null,
+            ITelemetryContext? telemetry = null,
             CancellationToken ct = default)
         {
             return LoadPrivateKeyExAsync(
                 password != null && password.Length != 0 ?
                     new CertificatePasswordProvider(password) :
-                    null,
+                    null!,
                 applicationUri,
                 telemetry,
                 ct);
@@ -191,25 +191,25 @@ namespace Opc.Ua
         /// <summary>
         /// Loads the private key for the certificate with an optional password provider.
         /// </summary>
-        public async Task<X509Certificate2> LoadPrivateKeyExAsync(
+        public async Task<X509Certificate2?> LoadPrivateKeyExAsync(
             ICertificatePasswordProvider passwordProvider,
-            string applicationUri = null,
-            ITelemetryContext telemetry = null,
+            string? applicationUri = null,
+            ITelemetryContext? telemetry = null,
             CancellationToken ct = default)
         {
             if (StoreType != CertificateStoreType.X509Store)
             {
                 var certificateStoreIdentifier = new CertificateStoreIdentifier(
-                    StorePath,
-                    StoreType,
+                    StorePath ?? string.Empty,
+                    StoreType ?? string.Empty,
                     false);
-                using ICertificateStore store = certificateStoreIdentifier.OpenStore(telemetry);
+                using ICertificateStore store = certificateStoreIdentifier.OpenStore(telemetry!);
                 if (store?.SupportsLoadPrivateKey == true)
                 {
-                    char[] password = passwordProvider?.GetPassword(this);
+                    char[]? password = passwordProvider?.GetPassword(this);
                     m_certificate = await store
                         .LoadPrivateKeyAsync(
-                            Thumbprint,
+                            Thumbprint ?? string.Empty,
                             SubjectName,
                             applicationUri: null,
                             CertificateType,
@@ -222,7 +222,7 @@ namespace Opc.Ua
                     {
                         m_certificate = await store
                             .LoadPrivateKeyAsync(
-                                Thumbprint,
+                                Thumbprint ?? string.Empty,
                                 subjectName: null,
                                 applicationUri,
                                 CertificateType,
@@ -247,7 +247,7 @@ namespace Opc.Ua
         /// <returns>An instance of the <see cref="X509Certificate2"/> that is embedded by this instance or find it in
         /// the selected store pointed out by the <see cref="StorePath"/> using selected <see cref="SubjectName"/> or if specified applicationUri.</returns>
         [Obsolete("Use FindAsync instead")]
-        public Task<X509Certificate2> Find(bool needPrivateKey, string applicationUri = null)
+        public Task<X509Certificate2?> Find(bool needPrivateKey, string? applicationUri = null)
         {
             return FindAsync(needPrivateKey, applicationUri);
         }
@@ -262,13 +262,13 @@ namespace Opc.Ua
         /// <param name="ct">Cancellation token to cancel action</param>
         /// <returns>An instance of the <see cref="X509Certificate2"/> that is embedded by this instance or find it in
         /// the selected store pointed out by the <see cref="StorePath"/> using selected <see cref="SubjectName"/> or if specified applicationUri.</returns>
-        public async Task<X509Certificate2> FindAsync(
+        public async Task<X509Certificate2?> FindAsync(
             bool needPrivateKey,
-            string applicationUri = null,
-            ITelemetryContext telemetry = null,
+            string? applicationUri = null,
+            ITelemetryContext? telemetry = null,
             CancellationToken ct = default)
         {
-            X509Certificate2 certificate = null;
+            X509Certificate2? certificate = null;
 
             // check if the entire certificate has been specified.
             if (m_certificate != null && (!needPrivateKey || m_certificate.HasPrivateKey))
@@ -278,8 +278,8 @@ namespace Opc.Ua
             else
             {
                 // open store.
-                var certificateStoreIdentifier = new CertificateStoreIdentifier(StorePath, false);
-                using ICertificateStore store = certificateStoreIdentifier.OpenStore(telemetry);
+                var certificateStoreIdentifier = new CertificateStoreIdentifier(StorePath ?? string.Empty, false);
+                using ICertificateStore store = certificateStoreIdentifier.OpenStore(telemetry!);
                 if (store == null)
                 {
                     return null;
@@ -395,22 +395,22 @@ namespace Opc.Ua
         /// <returns>
         /// The best matching certificate according to the selection criteria, or <c>null</c> if the collection is empty or no suitable certificate is found.
         /// </returns>
-        private static X509Certificate2 PickBestCertificate(X509Certificate2Collection collection)
+        private static X509Certificate2? PickBestCertificate(X509Certificate2Collection collection)
         {
             if (collection == null || collection.Count == 0)
             {
                 return null;
             }
 
-            X509Certificate2 bestValid = null;
+            X509Certificate2? bestValid = null;
             TimeSpan bestValidRemaining = TimeSpan.MinValue;
             bool bestValidIsCASigned = false;
 
-            X509Certificate2 bestExpired = null;
+            X509Certificate2? bestExpired = null;
             TimeSpan bestExpiredTime = TimeSpan.MaxValue; // Most recently expired (closest to now)
             bool bestExpiredIsCASigned = false;
 
-            X509Certificate2 bestNotYetValid = null;
+            X509Certificate2? bestNotYetValid = null;
             TimeSpan bestNotYetValidTime = TimeSpan.MaxValue; // Soonest to become valid
             bool bestNotYetValidIsCASigned = false;
 
@@ -524,11 +524,11 @@ namespace Opc.Ua
         /// <param name="applicationUri">ApplicationUri in the SubjectAltNameExtension of the certificate.</param>
         /// <param name="certificateType">The certificate type.</param>
         /// <param name="needPrivateKey">if set to <c>true</c> [need private key].</param>
-        public static X509Certificate2 Find(
+        public static X509Certificate2? Find(
             X509Certificate2Collection collection,
-            string thumbprint,
-            string subjectName,
-            string applicationUri,
+            string? thumbprint,
+            string? subjectName,
+            string? applicationUri,
             NodeId certificateType,
             bool needPrivateKey)
         {
@@ -546,7 +546,7 @@ namespace Opc.Ua
                             return certificate;
                         }
 
-                        List<string> subjectName2 = X509Utils.ParseDistinguishedName(subjectName);
+                        List<string> subjectName2 = X509Utils.ParseDistinguishedName(subjectName!);
 
                         if (X509Utils.CompareDistinguishedName(certificate, subjectName2))
                         {
@@ -558,12 +558,12 @@ namespace Opc.Ua
                 return null;
             }
 
-            X509Certificate2Collection matchesOnCriteria = null;
+            X509Certificate2Collection? matchesOnCriteria = null;
 
             // find by subject name.
             if (!string.IsNullOrEmpty(subjectName))
             {
-                List<string> parsedSubjectName = X509Utils.ParseDistinguishedName(subjectName);
+                List<string> parsedSubjectName = X509Utils.ParseDistinguishedName(subjectName!);
 
                 foreach (X509Certificate2 certificate in collection)
                 {
@@ -581,15 +581,15 @@ namespace Opc.Ua
                     return PickBestCertificate(matchesOnCriteria);
                 }
 
-                bool hasCommonName = subjectName.Contains("CN=", StringComparison.OrdinalIgnoreCase);
+                bool hasCommonName = subjectName!.Contains("CN=", StringComparison.OrdinalIgnoreCase);
 
                 // If parsedSubjectName did not match the certificate distinguished name
                 // If "CN=" exists in the subject name than an exact match on CN is required
                 if (hasCommonName)
                 {
-                    string commonNameEntry = parsedSubjectName
+                    string? commonNameEntry = parsedSubjectName
                         .FirstOrDefault(s => s.StartsWith("CN=", StringComparison.OrdinalIgnoreCase));
-                    string commonName = commonNameEntry?.Length > 3
+                    string? commonName = commonNameEntry?.Length > 3
                         ? commonNameEntry[3..].Trim()
                         : null;
 
@@ -640,7 +640,7 @@ namespace Opc.Ua
             {
                 foreach (X509Certificate2 certificate in collection)
                 {
-                    if (X509Utils.CompareApplicationUriWithCertificate(certificate, applicationUri) &&
+                    if (X509Utils.CompareApplicationUriWithCertificate(certificate, applicationUri!) &&
                         ValidateCertificateType(certificate, certificateType) &&
                         (!needPrivateKey || certificate.HasPrivateKey))
                     {
@@ -663,7 +663,7 @@ namespace Opc.Ua
         [Obsolete("Use OpenStore(ITelemetryContext) instead")]
         public ICertificateStore OpenStore()
         {
-            return OpenStore(null);
+            return OpenStore(null!);
         }
 
         /// <summary>
@@ -675,8 +675,8 @@ namespace Opc.Ua
         /// <returns>A disposable instance of the <see cref="ICertificateStore"/>.</returns>
         public ICertificateStore OpenStore(ITelemetryContext telemetry)
         {
-            ICertificateStore store = CertificateStoreIdentifier.CreateStore(StoreType, telemetry);
-            store.Open(StorePath, false);
+            ICertificateStore store = CertificateStoreIdentifier.CreateStore(StoreType ?? string.Empty, telemetry);
+            store.Open(StorePath ?? string.Empty, false);
             return store;
         }
 
@@ -744,7 +744,7 @@ namespace Opc.Ua
                     {
                         return false;
                     }
-                    else if (certType == certificateType)
+                    else if (Utils.IsEqual(certType, certificateType))
                     {
                         return true;
                     }
@@ -841,7 +841,7 @@ namespace Opc.Ua
         /// </summary>
         public void DisposeCertificate()
         {
-            X509Certificate2 certificate = m_certificate;
+            X509Certificate2? certificate = m_certificate;
             m_certificate = null;
             certificate?.Dispose();
         }
@@ -933,7 +933,7 @@ namespace Opc.Ua
         /// The tags of the supported certificate types used to encode the NodeId coressponding to existing value.
         /// </summary>
         // TODO: remove if not used
-        private static string EncodeCertificateType(NodeId certificateType)
+        private static string? EncodeCertificateType(NodeId certificateType)
         {
             if (certificateType.IsNull)
             {
@@ -956,7 +956,7 @@ namespace Opc.Ua
         /// The tags of the supported certificate types used to decode the NodeId coressponding to existing value.
         /// </summary>
         // TODO: remove if not used
-        private static NodeId DecodeCertificateType(string certificateType)
+        private static NodeId DecodeCertificateType(string? certificateType)
         {
             if (certificateType == null)
             {
@@ -1054,7 +1054,7 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < m_certificates.Count; ii++)
             {
-                X509Certificate2 certificate = await m_certificates[ii].FindAsync(
+                X509Certificate2? certificate = await m_certificates[ii].FindAsync(
                     false,
                     applicationUri: null,
                     m_telemetry,
@@ -1073,7 +1073,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public async Task AddAsync(
             X509Certificate2 certificate,
-            char[] password = null,
+            char[]? password = null,
             CancellationToken ct = default)
         {
             if (certificate == null)
@@ -1083,7 +1083,7 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < m_certificates.Count; ii++)
             {
-                X509Certificate2 current = await m_certificates[ii].FindAsync(
+                X509Certificate2? current = await m_certificates[ii].FindAsync(
                     false,
                     applicationUri: null,
                     m_telemetry,
@@ -1112,7 +1112,7 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < m_certificates.Count; ii++)
             {
-                X509Certificate2 certificate = await m_certificates[ii].FindAsync(
+                X509Certificate2? certificate = await m_certificates[ii].FindAsync(
                     false,
                     applicationUri: null,
                     m_telemetry,
@@ -1136,12 +1136,12 @@ namespace Opc.Ua
         {
             if (string.IsNullOrEmpty(thumbprint))
             {
-                return null;
+                return [];
             }
 
             for (int ii = 0; ii < m_certificates.Count; ii++)
             {
-                X509Certificate2 certificate = await m_certificates[ii].FindAsync(
+                X509Certificate2? certificate = await m_certificates[ii].FindAsync(
                     false,
                     applicationUri: null,
                     m_telemetry,
@@ -1161,15 +1161,15 @@ namespace Opc.Ua
         public bool SupportsLoadPrivateKey => false;
 
         /// <inheritdoc/>
-        public Task<X509Certificate2> LoadPrivateKeyAsync(
+        public Task<X509Certificate2?> LoadPrivateKeyAsync(
             string thumbprint,
-            string subjectName,
-            string applicationUri,
+            string? subjectName,
+            string? applicationUri,
             NodeId certificateType,
-            char[] password,
+            char[]? password,
             CancellationToken ct = default)
         {
-            return Task.FromResult<X509Certificate2>(null);
+            return Task.FromResult<X509Certificate2?>(null);
         }
 
         /// <inheritdoc/>

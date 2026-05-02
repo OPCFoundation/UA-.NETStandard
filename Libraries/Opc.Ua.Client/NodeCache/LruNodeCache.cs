@@ -29,8 +29,6 @@
 
 #if NET8_0_OR_GREATER
 
-#nullable enable
-
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -168,6 +166,9 @@ namespace Opc.Ua.Client
                 }
             }
             Debug.Assert(!result.Any(r => r == null)); // None now should be null
+            // The Debug.Assert above proves all entries are non-null at runtime; the bang
+            // converts ArrayOf<INode?> to ArrayOf<INode> since C# nullable analysis cannot
+            // propagate per-element null state from a Debug.Assert across a collection.
             return ValueTask.FromResult<ArrayOf<INode>>(result.ToArrayOf()!);
         }
 
@@ -214,6 +215,7 @@ namespace Opc.Ua.Client
                 }
             }
             Debug.Assert(!result.Any(r => r == null)); // None now should be null
+            // See note in GetNodesAsync: bang converts ArrayOf<DataValue?> to ArrayOf<DataValue>.
             return ValueTask.FromResult<ArrayOf<DataValue>>(result.ToArrayOf()!);
         }
 
@@ -552,6 +554,7 @@ namespace Opc.Ua.Client
                 result[resultMissingIndex] = nodes[index];
             }
             Debug.Assert(!result.Any(r => r == null)); // None now should be null
+            // See note in GetNodesAsync: bang converts ArrayOf<INode?> to ArrayOf<INode>.
             return result.ToArrayOf()!;
         }
 
@@ -593,6 +596,7 @@ namespace Opc.Ua.Client
                 result[resultMissingIndex] = values[index];
             }
             Debug.Assert(!result.Any(r => r == null)); // None now should be null
+            // See note in GetNodesAsync: bang converts ArrayOf<DataValue?> to ArrayOf<DataValue>.
             return result.ToArrayOf()!;
         }
 

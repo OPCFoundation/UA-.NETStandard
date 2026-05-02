@@ -201,9 +201,9 @@ namespace Opc.Ua.Mcp.Tools
                         ["statusCode"] = OpcUaJsonHelper.StatusCodeToString(histResult.StatusCode)
                     };
 
-                    if (histResult.HistoryData.TryGetValue(out HistoryData historyData))
+                    if (histResult.HistoryData.TryGetValue(out HistoryData? historyData))
                     {
-                        resultDict["dataValues"] = historyData.DataValues
+                        resultDict["dataValues"] = historyData!.DataValues
                             .ToArray()!.Select(OpcUaJsonHelper.DataValueToDict)
                             .ToList();
                     }

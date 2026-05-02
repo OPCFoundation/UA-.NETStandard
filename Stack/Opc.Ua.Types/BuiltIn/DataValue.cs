@@ -206,7 +206,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return obj switch
             {
@@ -217,7 +217,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public bool Equals(DataValue other)
+        public bool Equals(DataValue? other)
         {
             if (ReferenceEquals(this, other))
             {
@@ -263,13 +263,13 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public static bool operator ==(DataValue a, DataValue b)
+        public static bool operator ==(DataValue? a, DataValue? b)
         {
             return a is null ? b is null : a.Equals(b);
         }
 
         /// <inheritdoc/>
-        public static bool operator !=(DataValue a, DataValue b)
+        public static bool operator !=(DataValue? a, DataValue? b)
         {
             return !(a == b);
         }
@@ -292,7 +292,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public string ToString(string format, IFormatProvider formatProvider)
+        public string ToString(string? format, IFormatProvider? formatProvider)
         {
             if (format == null)
             {
@@ -331,7 +331,7 @@ namespace Opc.Ua
         /// The value of data value.
         /// </summary>
         [Obsolete("Use WrappedValue to access The value.")]
-        public object Value
+        public object? Value
         {
             get => m_value.AsBoxedObject(Variant.BoxingBehavior.Legacy);
             set => VariantHelper.TryCastFrom(value, out m_value);
@@ -381,7 +381,7 @@ namespace Opc.Ua
         /// Returns true if the status code is good.
         /// </summary>
         /// <param name="value">The value to check the quality of</param>
-        public static bool IsGood(DataValue value)
+        public static bool IsGood(DataValue? value)
         {
             if (value != null)
             {
@@ -395,7 +395,7 @@ namespace Opc.Ua
         /// Returns true if the status is bad or uncertain.
         /// </summary>
         /// <param name="value">The value to check the quality of</param>
-        public static bool IsNotGood(DataValue value)
+        public static bool IsNotGood(DataValue? value)
         {
             if (value != null)
             {
@@ -409,7 +409,7 @@ namespace Opc.Ua
         /// Returns true if the status code is uncertain.
         /// </summary>
         /// <param name="value">The value to checck the quality of</param>
-        public static bool IsUncertain(DataValue value)
+        public static bool IsUncertain(DataValue? value)
         {
             if (value != null)
             {
@@ -423,7 +423,7 @@ namespace Opc.Ua
         /// Returns true if the status is good or uncertain.
         /// </summary>
         /// <param name="value">The value to check the quality of</param>
-        public static bool IsNotUncertain(DataValue value)
+        public static bool IsNotUncertain(DataValue? value)
         {
             if (value != null)
             {
@@ -437,7 +437,7 @@ namespace Opc.Ua
         /// Returns true if the status code is bad.
         /// </summary>
         /// <param name="value">The value to check the quality of</param>
-        public static bool IsBad(DataValue value)
+        public static bool IsBad(DataValue? value)
         {
             if (value != null)
             {
@@ -451,7 +451,7 @@ namespace Opc.Ua
         /// Returns true if the status is good or uncertain.
         /// </summary>
         /// <param name="value">The value to check the quality of</param>
-        public static bool IsNotBad(DataValue value)
+        public static bool IsNotBad(DataValue? value)
         {
             if (value != null)
             {
@@ -466,9 +466,9 @@ namespace Opc.Ua
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
         [Obsolete("Use WrappedValue and Variant API")]
-        public object GetValue(Type expectedType)
+        public object? GetValue(Type expectedType)
         {
-            object value = WrappedValue.AsBoxedObject();
+            object? value = WrappedValue.AsBoxedObject();
 
             if (expectedType != null && value != null)
             {
@@ -479,9 +479,9 @@ namespace Opc.Ua
                 }
 
                 if (value is ExtensionObject extension &&
-                    extension.TryGetValue(out IEncodeable encodeable))
+                    extension.TryGetValue(out IEncodeable? encodeable))
                 {
-                    value = encodeable;
+                    value = encodeable!;
                 }
 
                 if (!expectedType.IsInstanceOfType(value))
@@ -509,7 +509,7 @@ namespace Opc.Ua
         /// </remarks>
         /// <exception cref="ServiceResultException"></exception>
         [Obsolete("Use WrappedValue and Variant API")]
-        public T GetValueOrDefault<T>()
+        public T? GetValueOrDefault<T>()
         {
             // return default for a DataValue with bad status code.
             if (StatusCode.IsBad(StatusCode))
@@ -520,7 +520,7 @@ namespace Opc.Ua
             if (!WrappedValue.IsNull)
             {
                 if (WrappedValue.TryGetValue(out ExtensionObject extension) &&
-                    extension.TryGetValue(out IEncodeable encodeable) &&
+                    extension.TryGetValue(out IEncodeable? encodeable) &&
                     encodeable is T typed)
                 {
                     return typed;
@@ -568,7 +568,7 @@ namespace Opc.Ua
             }
 
             if (WrappedValue.TryGetValue(out ExtensionObject extension) &&
-                extension.TryGetValue(out IEncodeable encodeable) &&
+                extension.TryGetValue(out IEncodeable? encodeable) &&
                 encodeable is T typedBody)
             {
                 return typedBody;

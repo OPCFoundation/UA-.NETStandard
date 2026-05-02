@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -70,7 +70,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="name">The name-portion to store as part of
         /// the fully qualified name</param>
-        public QualifiedName(string name)
+        public QualifiedName(string? name)
         {
             NamespaceIndex = 0;
             Name = name;
@@ -83,7 +83,7 @@ namespace Opc.Ua
         /// name</param>
         /// <param name="namespaceIndex">The index of the namespace
         /// within the namespace-table</param>
-        public QualifiedName(string name, ushort namespaceIndex)
+        public QualifiedName(string? name, ushort namespaceIndex)
         {
             NamespaceIndex = namespaceIndex;
             Name = name;
@@ -97,7 +97,7 @@ namespace Opc.Ua
         /// <summary>
         /// The unqualified name.
         /// </summary>
-        public string Name { get; }
+        public string? Name { get; }
 
         /// <summary>
         /// The index of the namespace that qualifies the name.
@@ -123,7 +123,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public int CompareTo(object obj)
+        public int CompareTo(object? obj)
         {
             return obj switch
             {
@@ -169,7 +169,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public int CompareTo(string obj)
+        public int CompareTo(string? obj)
         {
             if (NamespaceIndex != 0)
             {
@@ -204,7 +204,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return obj switch
             {
@@ -237,7 +237,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public bool Equals(string qname)
+        public bool Equals(string? qname)
         {
             if (NamespaceIndex != 0)
             {
@@ -277,7 +277,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public string ToString(string format, IFormatProvider formatProvider)
+        public string ToString(string? format, IFormatProvider? formatProvider)
         {
             if (format == null)
             {
@@ -404,7 +404,7 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(namespaceTable));
             }
 
-            ServiceMessageContext context = ServiceMessageContext.CreateEmpty(null);
+            ServiceMessageContext context = ServiceMessageContext.CreateEmpty(null!);
             context.NamespaceUris = namespaceTable;
 
             // Parse(IServiceMessageContext, string, bool) is already strict on
@@ -530,11 +530,11 @@ namespace Opc.Ua
             {
                 if (useNamespaceUri)
                 {
-                    string namespaceUri = context.NamespaceUris.GetString(NamespaceIndex);
+                    string? namespaceUri = context.NamespaceUris.GetString(NamespaceIndex);
                     if (!string.IsNullOrEmpty(namespaceUri))
                     {
                         buffer.Append("nsu=")
-                            .Append(CoreUtils.EscapeUri(namespaceUri))
+                            .Append(CoreUtils.EscapeUri(namespaceUri!))
                             .Append(';');
                     }
                     else

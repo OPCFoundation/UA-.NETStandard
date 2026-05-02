@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -59,7 +59,7 @@ namespace Opc.Ua
         /// Creates a node from another node (copies attributes - not references).
         /// </summary>
         /// <param name="source">The source.</param>
-        public Node(ILocalNode source)
+        public Node(ILocalNode? source)
         {
             Initialize();
 
@@ -108,7 +108,7 @@ namespace Opc.Ua
         /// Node id
         /// </summary>
         [DataMember(Name = "NodeId", IsRequired = false, Order = 1)]
-        public NodeId NodeId { get; set; }
+        public NodeId NodeId { get; set; } = NodeId.Null;
 
         /// <summary>
         /// Node class
@@ -120,19 +120,19 @@ namespace Opc.Ua
         /// Browse name
         /// </summary>
         [DataMember(Name = "BrowseName", IsRequired = false, Order = 3)]
-        public QualifiedName BrowseName { get; set; }
+        public QualifiedName BrowseName { get; set; } = QualifiedName.Null;
 
         /// <summary>
         /// Display name
         /// </summary>
         [DataMember(Name = "DisplayName", IsRequired = false, Order = 4)]
-        public LocalizedText DisplayName { get; set; }
+        public LocalizedText DisplayName { get; set; } = LocalizedText.Null;
 
         /// <summary>
         /// Description
         /// </summary>
         [DataMember(Name = "Description", IsRequired = false, Order = 5)]
-        public LocalizedText Description { get; set; }
+        public LocalizedText Description { get; set; } = LocalizedText.Null;
 
         /// <summary>
         /// Write mask
@@ -220,7 +220,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public virtual bool IsEqual(IEncodeable encodeable)
+        public virtual bool IsEqual(IEncodeable? encodeable)
         {
             if (ReferenceEquals(this, encodeable))
             {
@@ -322,7 +322,7 @@ namespace Opc.Ua
         /// <param name="source">The source.</param>
         /// <returns>A copy of the source node</returns>
         /// <exception cref="ServiceResultException"></exception>
-        public static Node Copy(ILocalNode source)
+        public static Node? Copy(ILocalNode source)
         {
             if (source == null)
             {
@@ -399,7 +399,7 @@ namespace Opc.Ua
         /// An opaque handle that can be associated with the node.
         /// </summary>
         /// <value>The handle.</value>
-        public object Handle { get; set; }
+        public object Handle { get; set; } = null!;
 
         /// <summary>
         /// Returns the string representation of the object.
@@ -408,18 +408,18 @@ namespace Opc.Ua
         /// <param name="formatProvider">The provider.</param>
         /// <returns>String representation of the object.</returns>
         /// <exception cref="FormatException"></exception>
-        public string ToString(string format, IFormatProvider formatProvider)
+        public string ToString(string? format, IFormatProvider? formatProvider)
         {
             if (format == null)
             {
                 if (!string.IsNullOrEmpty(DisplayName.Text))
                 {
-                    return DisplayName.Text;
+                    return DisplayName.Text!;
                 }
 
                 if (!BrowseName.IsNull)
                 {
-                    return BrowseName.Name;
+                    return BrowseName.Name!;
                 }
 
                 return CoreUtils.Format(
@@ -520,7 +520,7 @@ namespace Opc.Ua
         /// <returns>Copy of the node</returns>
         public ILocalNode CreateCopy(NodeId nodeId)
         {
-            Node node = Copy(this);
+            Node node = Copy(this)!;
             node.NodeId = nodeId;
             return node;
         }
@@ -656,7 +656,7 @@ namespace Opc.Ua
         /// <remarks>
         /// Includes subtypes of HasSubtype if typeTree != null.
         /// </remarks>
-        public ExpandedNodeId GetSuperType(ITypeTable typeTree)
+        public ExpandedNodeId GetSuperType(ITypeTable? typeTree)
         {
             if (m_referenceTable != null)
             {
@@ -758,6 +758,6 @@ namespace Opc.Ua
             return ServiceResult.Good;
         }
 
-        private ReferenceCollection m_referenceTable;
+        private ReferenceCollection? m_referenceTable;
     }
 }

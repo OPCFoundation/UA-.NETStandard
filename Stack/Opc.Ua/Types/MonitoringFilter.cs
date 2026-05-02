@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -711,7 +711,7 @@ namespace Opc.Ua
             /// <summary>
             /// The result for the entire filter.
             /// </summary>
-            public ServiceResult Status { get; set; }
+            public ServiceResult Status { get; set; } = ServiceResult.Good;
 
             /// <summary>
             /// Returns a string containing the errors reported.
@@ -732,7 +732,7 @@ namespace Opc.Ua
                     }
                 }
 
-                if (ServiceResult.IsBad(WhereClauseResult.Status))
+                if (WhereClauseResult != null && ServiceResult.IsBad(WhereClauseResult.Status))
                 {
                     buffer.AppendFormat(
                         CultureInfo.InvariantCulture,
@@ -777,7 +777,7 @@ namespace Opc.Ua
             /// <summary>
             /// The results for the where clause.
             /// </summary>
-            public ContentFilter.Result WhereClauseResult { get; internal set; }
+            public ContentFilter.Result? WhereClauseResult { get; internal set; }
 
             /// <summary>
             /// Converts the object to an EventFilterResult.
@@ -809,7 +809,7 @@ namespace Opc.Ua
                             result.SelectClauseResults =
                                 result.SelectClauseResults.AddItem(StatusCodes.Good);
                             result.SelectClauseDiagnosticInfos =
-                                result.SelectClauseDiagnosticInfos.AddItem(null);
+                                result.SelectClauseDiagnosticInfos.AddItem(null!); // intentional null sentinel for "no diagnostic"
                         }
                     }
                 }
@@ -825,7 +825,7 @@ namespace Opc.Ua
                 return result;
             }
 
-            private List<ServiceResult> m_selectClauseResults;
+            private List<ServiceResult>? m_selectClauseResults;
         }
 
         /// <summary>
@@ -861,7 +861,7 @@ namespace Opc.Ua
 
             foreach (SimpleAttributeOperand clause in m_selectClauses)
             {
-                ServiceResult clauseResult = null;
+                ServiceResult? clauseResult = null;
 
                 // check for null.
                 if (clause == null)
@@ -886,7 +886,7 @@ namespace Opc.Ua
                 }
 
                 // clause ok.
-                result.SelectClauseResults.Add(null);
+                result.SelectClauseResults.Add(null!); // intentional null sentinel: List is cleared if no errors, otherwise non-null entries indicate failures
             }
 
             if (error)
@@ -980,7 +980,7 @@ namespace Opc.Ua
         /// A <see cref="string"/> containing the value of the current instance in the specified format.
         /// </returns>
         /// <exception cref="FormatException"></exception>
-        public string ToString(string format, IFormatProvider formatProvider)
+        public string ToString(string? format, IFormatProvider? formatProvider)
         {
             if (format == null)
             {
@@ -1037,7 +1037,9 @@ namespace Opc.Ua
             {
                 try
                 {
-                    m_parsedIndexRange = NumericRange.Parse(m_indexRange);
+                    // m_indexRange is non-empty (and thus non-null) here; legacy BCL targets
+                    // lack [NotNullWhen(false)] on string.IsNullOrEmpty.
+                    m_parsedIndexRange = NumericRange.Parse(m_indexRange!);
                 }
                 catch (Exception e)
                 {
@@ -1045,7 +1047,7 @@ namespace Opc.Ua
                         e,
                         StatusCodes.BadIndexRangeInvalid,
                         "SimpleAttributeOperand does not specify a valid BrowsePath ({0}).",
-                        m_indexRange);
+                        m_indexRange!);
                 }
 
                 if (m_attributeId != Attributes.Value)
@@ -1069,7 +1071,7 @@ namespace Opc.Ua
         {
             var buffer = new StringBuilder();
 
-            INode node = nodeTable.Find(TypeDefinitionId);
+            INode? node = nodeTable.Find(TypeDefinitionId);
 
             if (node != null)
             {
@@ -1091,7 +1093,7 @@ namespace Opc.Ua
                 buffer.AppendFormat(
                     CultureInfo.InvariantCulture,
                     "[{0}]",
-                    NumericRange.Parse(IndexRange));
+                    NumericRange.Parse(IndexRange!)); // IndexRange property re-read; non-null per IsNullOrEmpty
             }
 
             return buffer.ToString();
@@ -1131,7 +1133,7 @@ namespace Opc.Ua
                         browseName.NamespaceIndex);
                 }
 
-                for (int jj = 0; jj < browseName.Name.Length; jj++)
+                for (int jj = 0; jj < browseName.Name!.Length; jj++) // QualifiedName.IsNull is false here, so Name is non-null
                 {
                     char ch = browseName.Name[jj];
 

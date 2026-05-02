@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -70,6 +70,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         /// <param name="uriScheme">The uri scheme.</param>
         /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
+        [return: MaybeNull]
         T GetBinding(string uriScheme, ITelemetryContext telemetry);
 
         /// <summary>

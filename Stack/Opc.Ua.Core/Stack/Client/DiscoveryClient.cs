@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -48,14 +48,14 @@ namespace Opc.Ua
         public static DiscoveryClient Create(
             Uri discoveryUrl)
         {
-            DiscoveryClient client = null;
+            DiscoveryClient? client = null;
             try
             {
                 client = CreateAsync(
                     discoveryUrl,
                     null,
-                    (ITelemetryContext)null).GetAwaiter().GetResult();
-                var result = client;
+                    (ITelemetryContext?)null).GetAwaiter().GetResult();
+                DiscoveryClient result = client;
                 client = null;
                 return result;
             }
@@ -75,14 +75,14 @@ namespace Opc.Ua
             Uri discoveryUrl,
             EndpointConfiguration configuration)
         {
-            DiscoveryClient client = null;
+            DiscoveryClient? client = null;
             try
             {
                 client = CreateAsync(
                     discoveryUrl,
                     configuration,
-                    (ITelemetryContext)null).GetAwaiter().GetResult();
-                var result = client;
+                    (ITelemetryContext?)null).GetAwaiter().GetResult();
+                DiscoveryClient result = client;
                 client = null;
                 return result;
             }
@@ -100,14 +100,14 @@ namespace Opc.Ua
             ITransportWaitingConnection connection,
             EndpointConfiguration configuration)
         {
-            DiscoveryClient client = null;
+            DiscoveryClient? client = null;
             try
             {
                 client = CreateAsync(
                     connection,
                     configuration,
                     null).GetAwaiter().GetResult();
-                var result = client;
+                DiscoveryClient result = client;
                 client = null;
                 return result;
             }
@@ -125,13 +125,13 @@ namespace Opc.Ua
             ApplicationConfiguration application,
             Uri discoveryUrl)
         {
-            DiscoveryClient client = null;
+            DiscoveryClient? client = null;
             try
             {
                 client = CreateAsync(
                     application,
                     discoveryUrl).GetAwaiter().GetResult();
-                var result = client;
+                DiscoveryClient result = client;
                 client = null;
                 return result;
             }
@@ -150,14 +150,14 @@ namespace Opc.Ua
             Uri discoveryUrl,
             EndpointConfiguration configuration)
         {
-            DiscoveryClient client = null;
+            DiscoveryClient? client = null;
             try
             {
                 client = CreateAsync(
                     application,
                     discoveryUrl,
                     configuration).GetAwaiter().GetResult();
-                var result = client;
+                DiscoveryClient result = client;
                 client = null;
                 return result;
             }
@@ -176,14 +176,14 @@ namespace Opc.Ua
             ITransportWaitingConnection connection,
             EndpointConfiguration configuration)
         {
-            DiscoveryClient client = null;
+            DiscoveryClient? client = null;
             try
             {
                 client = CreateAsync(
                     application,
                     connection,
                     configuration).GetAwaiter().GetResult();
-                var result = client;
+                DiscoveryClient result = client;
                 client = null;
                 return result;
             }
@@ -202,17 +202,17 @@ namespace Opc.Ua
         [Obsolete("Use CreateAsync instead.")]
         public static DiscoveryClient Create(
             Uri discoveryUrl,
-            EndpointConfiguration endpointConfiguration,
+            EndpointConfiguration? endpointConfiguration,
             ApplicationConfiguration applicationConfiguration)
         {
-            DiscoveryClient client = null;
+            DiscoveryClient? client = null;
             try
             {
                 client = CreateAsync(
                     discoveryUrl,
                     endpointConfiguration,
                     applicationConfiguration).GetAwaiter().GetResult();
-                var result = client;
+                DiscoveryClient result = client;
                 client = null;
                 return result;
             }
@@ -259,7 +259,7 @@ namespace Opc.Ua
         public static async Task<DiscoveryClient> CreateAsync(
             ApplicationConfiguration application,
             Uri discoveryUrl,
-            EndpointConfiguration configuration,
+            EndpointConfiguration? configuration,
             DiagnosticsMasks returnDiagnostics = DiagnosticsMasks.None,
             CancellationToken ct = default)
         {
@@ -291,7 +291,7 @@ namespace Opc.Ua
         public static async Task<DiscoveryClient> CreateAsync(
             ApplicationConfiguration application,
             ITransportWaitingConnection connection,
-            EndpointConfiguration configuration,
+            EndpointConfiguration? configuration,
             DiagnosticsMasks returnDiagnostics = DiagnosticsMasks.None,
             CancellationToken ct = default)
         {
@@ -327,7 +327,7 @@ namespace Opc.Ua
         /// <exception cref="ArgumentNullException"><paramref name="applicationConfiguration"/> is <c>null</c>.</exception>
         public static async Task<DiscoveryClient> CreateAsync(
             Uri discoveryUrl,
-            EndpointConfiguration endpointConfiguration,
+            EndpointConfiguration? endpointConfiguration,
             ApplicationConfiguration applicationConfiguration,
             DiagnosticsMasks returnDiagnostics = DiagnosticsMasks.None,
             CancellationToken ct = default)
@@ -340,13 +340,13 @@ namespace Opc.Ua
             endpointConfiguration ??= EndpointConfiguration.Create();
 
             // check if application configuration contains instance certificate.
-            X509Certificate2 clientCertificate = null;
+            X509Certificate2? clientCertificate = null;
 
             ServiceMessageContext messageContext = applicationConfiguration.CreateMessageContext();
             try
             {
                 // Will always use the first certificate
-                CertificateIdentifier applicationCertificate = applicationConfiguration
+                CertificateIdentifier? applicationCertificate = applicationConfiguration
                     .SecurityConfiguration?
                     .ApplicationCertificate;
                 if (applicationCertificate != null)
@@ -384,7 +384,7 @@ namespace Opc.Ua
         /// <param name="ct">A cancellation token to cancel the operation with</param>
         public static Task<DiscoveryClient> CreateAsync(
             Uri discoveryUrl,
-            ITelemetryContext telemetry,
+            ITelemetryContext? telemetry,
             DiagnosticsMasks returnDiagnostics = DiagnosticsMasks.None,
             CancellationToken ct = default)
         {
@@ -396,8 +396,8 @@ namespace Opc.Ua
         /// </summary>
         public static async Task<DiscoveryClient> CreateAsync(
             ITransportWaitingConnection connection,
-            EndpointConfiguration configuration,
-            ITelemetryContext telemetry,
+            EndpointConfiguration? configuration,
+            ITelemetryContext? telemetry,
             DiagnosticsMasks returnDiagnostics = DiagnosticsMasks.None,
             CancellationToken ct = default)
         {
@@ -410,7 +410,7 @@ namespace Opc.Ua
                 ServiceMessageContext.Create(telemetry),
                 null,
                 ct).ConfigureAwait(false);
-            return new DiscoveryClient(channel, telemetry)
+            return new DiscoveryClient(channel, telemetry!)
             {
                 ReturnDiagnostics = returnDiagnostics
             };
@@ -426,15 +426,15 @@ namespace Opc.Ua
         /// <param name="ct">A cancellation token to cancel the operation with</param>
         public static async Task<DiscoveryClient> CreateAsync(
             Uri discoveryUrl,
-            EndpointConfiguration endpointConfiguration,
-            ITelemetryContext telemetry,
+            EndpointConfiguration? endpointConfiguration,
+            ITelemetryContext? telemetry,
             DiagnosticsMasks returnDiagnostics = DiagnosticsMasks.None,
             CancellationToken ct = default)
         {
             endpointConfiguration ??= EndpointConfiguration.Create();
 
             // check if application configuration contains instance certificate.
-            X509Certificate2 clientCertificate = null;
+            X509Certificate2? clientCertificate = null;
 
             ITransportChannel channel = await CreateChannelAsync(
                 null,
@@ -443,7 +443,7 @@ namespace Opc.Ua
                 ServiceMessageContext.Create(telemetry),
                 clientCertificate,
                 ct).ConfigureAwait(false);
-            return new DiscoveryClient(channel, telemetry)
+            return new DiscoveryClient(channel, telemetry!)
             {
                 ReturnDiagnostics = returnDiagnostics
             };
@@ -577,7 +577,7 @@ namespace Opc.Ua
             Uri discoveryUrl,
             EndpointConfiguration endpointConfiguration,
             IServiceMessageContext messageContext,
-            X509Certificate2 clientCertificate = null,
+            X509Certificate2? clientCertificate = null,
             CancellationToken ct = default)
         {
             // create a default description.
@@ -591,7 +591,7 @@ namespace Opc.Ua
             endpoint.Server.ApplicationType = ApplicationType.DiscoveryServer;
 
             return ClientChannelManager.CreateUaBinaryChannelAsync(
-                null,
+                null!,
                 endpoint,
                 endpointConfiguration,
                 clientCertificate,
@@ -605,11 +605,11 @@ namespace Opc.Ua
         /// Creates a new transport channel that supports the ITransportWaitingConnection service contract.
         /// </summary>
         internal static ValueTask<ITransportChannel> CreateChannelAsync(
-            ApplicationConfiguration configuration,
+            ApplicationConfiguration? configuration,
             ITransportWaitingConnection connection,
             EndpointConfiguration endpointConfiguration,
             IServiceMessageContext messageContext,
-            X509Certificate2 clientCertificate = null,
+            X509Certificate2? clientCertificate = null,
             CancellationToken ct = default)
         {
             // create a default description.
@@ -623,7 +623,7 @@ namespace Opc.Ua
             endpoint.Server.ApplicationType = ApplicationType.DiscoveryServer;
 
             return ClientChannelManager.CreateUaBinaryChannelAsync(
-                configuration,
+                configuration!,
                 connection,
                 endpoint,
                 endpointConfiguration,
@@ -638,11 +638,11 @@ namespace Opc.Ua
         /// Creates a new transport channel.
         /// </summary>
         internal static ValueTask<ITransportChannel> CreateChannelAsync(
-            ApplicationConfiguration configuration,
+            ApplicationConfiguration? configuration,
             Uri discoveryUrl,
             EndpointConfiguration endpointConfiguration,
             IServiceMessageContext messageContext,
-            X509Certificate2 clientCertificate = null,
+            X509Certificate2? clientCertificate = null,
             CancellationToken ct = default)
         {
             // create a default description.
@@ -656,7 +656,7 @@ namespace Opc.Ua
             endpoint.Server.ApplicationType = ApplicationType.DiscoveryServer;
 
             return ClientChannelManager.CreateUaBinaryChannelAsync(
-                configuration,
+                configuration!,
                 endpoint,
                 endpointConfiguration,
                 clientCertificate,
@@ -676,13 +676,13 @@ namespace Opc.Ua
             // it may return URLs that are not accessible to the client. This problem can be avoided
             // by assuming that the domain in the URL used to call GetEndpoints can be used to
             // access any of the endpoints. This code patches the returned endpoints accordingly.
-            Uri endpointUrl = Utils.ParseUri(Endpoint.EndpointUrl);
+            Uri? endpointUrl = Utils.ParseUri(Endpoint.EndpointUrl);
             if (endpointUrl != null)
             {
                 // patch discovery Url to endpoint Url used for service call
                 foreach (EndpointDescription discoveryEndPoint in endpoints)
                 {
-                    Uri discoveryEndPointUri = Utils.ParseUri(discoveryEndPoint.EndpointUrl);
+                    Uri? discoveryEndPointUri = Utils.ParseUri(discoveryEndPoint.EndpointUrl);
                     if (discoveryEndPointUri == null)
                     {
                         m_logger.LogWarning(
@@ -704,7 +704,7 @@ namespace Opc.Ua
                     if (discoveryEndPoint.Server != null &&
                         !discoveryEndPoint.Server.DiscoveryUrls.IsNull)
                     {
-                        discoveryEndPoint.Server.DiscoveryUrls = [Endpoint.EndpointUrl];
+                        discoveryEndPoint.Server.DiscoveryUrls = [Endpoint.EndpointUrl!];
                     }
                 }
             }

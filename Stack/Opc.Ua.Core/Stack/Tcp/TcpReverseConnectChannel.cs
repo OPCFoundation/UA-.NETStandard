@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -118,9 +118,9 @@ namespace Opc.Ua.Bindings
                     messageChunk.Count);
 
                 // read peer information.
-                string serverUri = decoder.ReadString(null);
-                string endpointUrlString = decoder.ReadString(null);
-                var endpointUri = new Uri(endpointUrlString);
+                string? serverUri = decoder.ReadString(null);
+                string? endpointUrlString = decoder.ReadString(null);
+                var endpointUri = new Uri(endpointUrlString!);
 
                 State = TcpChannelState.Connecting;
 
@@ -129,7 +129,7 @@ namespace Opc.Ua.Bindings
                     try
                     {
                         if (!await Listener
-                                .TransferListenerChannelAsync(Id, serverUri, endpointUri)
+                                .TransferListenerChannelAsync(Id, serverUri!, endpointUri)
                                 .ConfigureAwait(false))
                         {
                             SetResponseRequired(true);

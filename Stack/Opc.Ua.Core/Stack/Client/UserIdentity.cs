@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -80,7 +80,7 @@ namespace Opc.Ua
             CertificateIdentifier certificateId,
             CertificatePasswordProvider certificatePasswordProvider)
             : this(certificateId.LoadPrivateKeyExAsync(
-                certificatePasswordProvider).GetAwaiter().GetResult())
+                certificatePasswordProvider).GetAwaiter().GetResult()!)
         {
         }
 
@@ -143,11 +143,11 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(certificateId));
             }
 
-            X509Certificate2 certificate = await certificateId.LoadPrivateKeyExAsync(
+            X509Certificate2 certificate = (await certificateId.LoadPrivateKeyExAsync(
                 certificatePasswordProvider,
                 applicationUri: null,
                 telemetry,
-                ct).ConfigureAwait(false);
+                ct).ConfigureAwait(false))!;
 
             if (certificate == null || !certificate.HasPrivateKey)
             {
@@ -195,7 +195,7 @@ namespace Opc.Ua
         [DataMember(Name = "PolicyId", IsRequired = false, Order = 10)]
         public string PolicyId
         {
-            get => m_token.Token.PolicyId;
+            get => m_token.Token.PolicyId!;
             set => m_token.Token.PolicyId = value;
         }
 
@@ -223,13 +223,13 @@ namespace Opc.Ua
                 {
                     return new(null, issuedToken.IssuedTokenTypeProfileUri);
                 }
-                return field;
+                return field!;
             }
             set
             {
                 if (m_token is IssuedIdentityTokenHandler issuedToken)
                 {
-                    issuedToken.IssuedTokenTypeProfileUri = value.Namespace;
+                    issuedToken.IssuedTokenTypeProfileUri = value?.Namespace;
                     return;
                 }
                 field = value;
@@ -255,7 +255,7 @@ namespace Opc.Ua
         public ArrayOf<NodeId> GrantedRoleIds => [ObjectIds.WellKnownRole_Anonymous];
 
         /// <inheritdoc/>
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             if (obj is UserIdentity identity)
             {
@@ -305,6 +305,6 @@ namespace Opc.Ua
         /// <summary>
         /// The security principal being impersonated.
         /// </summary>
-        public IPrincipal Principal { get; set; }
+        public IPrincipal? Principal { get; set; }
     }
 }

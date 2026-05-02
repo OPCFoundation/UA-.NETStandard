@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -92,7 +92,7 @@ namespace Opc.Ua.Bindings
             foreach (ArraySegment<byte> buffer in this)
             {
                 count += buffer.Count;
-                bufferManager.ReturnBuffer(buffer.Array, owner);
+                bufferManager.ReturnBuffer(buffer.Array!, owner);
             }
 
             Clear();
@@ -197,7 +197,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         /// <param name="buffer">The buffer.</param>
         /// <param name="owner">The owner.</param>
-        public void TransferBuffer(byte[] buffer, string owner)
+        public void TransferBuffer(byte[]? buffer, string owner)
         {
 #if TRACK_MEMORY
             if (buffer == null)
@@ -277,7 +277,7 @@ namespace Opc.Ua.Bindings
         /// <param name="buffer">The buffer.</param>
         /// <param name="owner">The owner.</param>
         /// <exception cref="InvalidOperationException"></exception>
-        public void ReturnBuffer(byte[] buffer, string owner)
+        public void ReturnBuffer(byte[]? buffer, string owner)
         {
             if (buffer == null)
             {

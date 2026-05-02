@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -48,7 +48,7 @@ namespace Opc.Ua.Redaction
         /// <inheritdoc />
         public override string ToString()
         {
-            return RedactionStrategies.CurrentStrategy.Redact(m_value);
+            return RedactionStrategies.CurrentStrategy.Redact(m_value!);
         }
     }
 }

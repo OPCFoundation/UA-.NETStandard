@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -97,7 +97,7 @@ namespace Opc.Ua
         /// <param name="ct">Cancellation token to cancel operation with</param>
         Task AddAsync(
             X509Certificate2 certificate,
-            char[] password = null,
+            char[]? password = null,
             CancellationToken ct = default);
 
         /// <summary>
@@ -146,12 +146,12 @@ namespace Opc.Ua
         /// <param name="ct">Cancellation token to cancel operation with</param>
         /// <remarks>Returns always null if SupportsLoadPrivateKey returns false.</remarks>
         /// <returns>The matching certificate with private key</returns>
-        Task<X509Certificate2> LoadPrivateKeyAsync(
+        Task<X509Certificate2?> LoadPrivateKeyAsync(
             string thumbprint,
-            string subjectName,
-            string applicationUri,
+            string? subjectName,
+            string? applicationUri,
             NodeId certificateType,
-            char[] password,
+            char[]? password,
             CancellationToken ct = default);
 
         /// <summary>

@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -60,7 +60,7 @@ namespace Opc.Ua
         /// Name
         /// </summary>
         [DataMember(Name = "Name", IsRequired = false, Order = 1)]
-        public string Name { get; set; }
+        public string? Name { get; set; }
 
         /// <summary>
         /// Data Type
@@ -90,7 +90,7 @@ namespace Opc.Ua
         /// The value for the argument.
         /// </summary>
         [IgnoreDataMember]
-        public object Value { get; set; }
+        public object? Value { get; set; }
 
         /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.Argument;
@@ -130,7 +130,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public virtual bool IsEqual(IEncodeable encodeable)
+        public virtual bool IsEqual(IEncodeable? encodeable)
         {
             if (ReferenceEquals(this, encodeable))
             {
@@ -171,9 +171,9 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
-            return IsEqual(obj as IEncodeable);
+            return IsEqual((obj as IEncodeable)!);
         }
 
         /// <inheritdoc/>
@@ -188,19 +188,23 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public bool Equals(Argument other)
+        public bool Equals(Argument? other)
         {
-            return IsEqual(other);
+            return other is not null && IsEqual(other);
         }
 
         /// <inheritdoc/>
-        public static bool operator ==(Argument left, Argument right)
+        public static bool operator ==(Argument? left, Argument? right)
         {
-            return EqualityComparer<Argument>.Default.Equals(left, right);
+            if (left is null)
+            {
+                return right is null;
+            }
+            return left.Equals(right);
         }
 
         /// <inheritdoc/>
-        public static bool operator !=(Argument left, Argument right)
+        public static bool operator !=(Argument? left, Argument? right)
         {
             return !(left == right);
         }

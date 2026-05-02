@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Xml;
 
 // suppress warnings until OAuth 2.0 is supported
@@ -10,10 +10,10 @@ namespace Opc.Ua
     public sealed partial class OAuth2ServerSettings
     {
         [DataTypeField(Order = 0)]
-        public string ApplicationUri { get; set; }
+        public string? ApplicationUri { get; set; }
 
         [DataTypeField(Order = 1)]
-        public string ResourceId { get; set; }
+        public string? ResourceId { get; set; }
 
         [DataTypeField(Order = 2)]
         public ArrayOf<string> Scopes { get; set; }
@@ -23,30 +23,30 @@ namespace Opc.Ua
     public partial class OAuth2Credential
     {
         [DataTypeField(Order = 0)]
-        public string AuthorityUrl { get; set; }
+        public string? AuthorityUrl { get; set; }
 
         [DataTypeField(Order = 1)]
-        public string GrantType { get; set; }
+        public string? GrantType { get; set; }
 
         [DataTypeField(Order = 2)]
-        public string ClientId { get; set; }
+        public string? ClientId { get; set; }
 
         [DataTypeField(Order = 3)]
-        public string ClientSecret { get; set; }
+        public string? ClientSecret { get; set; }
 
         [DataTypeField(Order = 4)]
-        public string RedirectUrl { get; set; }
+        public string? RedirectUrl { get; set; }
 
         [DataTypeField(Order = 5)]
-        public string TokenEndpoint { get; set; }
+        public string? TokenEndpoint { get; set; }
 
         [DataTypeField(Order = 6)]
-        public string AuthorizationEndpoint { get; set; }
+        public string? AuthorizationEndpoint { get; set; }
 
         [DataTypeField(Order = 7)]
         public ArrayOf<OAuth2ServerSettings> Servers { get; set; }
 
-        public OAuth2ServerSettings SelectedServer { get; set; }
+        public OAuth2ServerSettings? SelectedServer { get; set; }
     }
 
     public static class OAuth2CredentialCollection
@@ -67,7 +67,7 @@ namespace Opc.Ua
             lock (configuration.PropertiesLock)
             {
                 if (configuration.Properties.TryGetValue(
-                    "OAuth2Credentials", out object value) &&
+                    "OAuth2Credentials", out object? value) &&
                     value is ArrayOf<OAuth2Credential> existing)
                 {
                     return existing;
@@ -75,7 +75,7 @@ namespace Opc.Ua
 
                 list = configuration.ParseExtension(
                     s_elementName,
-                    static decoder => decoder.ReadEncodeableArray<OAuth2Credential>(null));
+                    static decoder => decoder.ReadEncodeableArray<OAuth2Credential>(null!));
 
                 configuration.Properties["OAuth2Credentials"] = list;
             }
@@ -83,7 +83,7 @@ namespace Opc.Ua
             return list;
         }
 
-        public static OAuth2Credential FindByServerUri(
+        public static OAuth2Credential? FindByServerUri(
             ApplicationConfiguration configuration,
             string serverApplicationUri)
         {
@@ -102,7 +102,7 @@ namespace Opc.Ua
             {
                 foreach (OAuth2ServerSettings jj in ii.Servers)
                 {
-                    string uri = jj.ApplicationUri.Replace(
+                    string uri = jj.ApplicationUri!.Replace(
                         "localhost",
                         System.Net.Dns.GetHostName().ToLowerInvariant(),
                         StringComparison.Ordinal);
@@ -127,7 +127,7 @@ namespace Opc.Ua
             return null;
         }
 
-        public static OAuth2Credential FindByAuthorityUrl(
+        public static OAuth2Credential? FindByAuthorityUrl(
             ApplicationConfiguration configuration,
             string authorityUrl)
         {
@@ -148,7 +148,7 @@ namespace Opc.Ua
 
             foreach (OAuth2Credential ii in list)
             {
-                string uri = ii.AuthorityUrl.Replace(
+                string uri = ii.AuthorityUrl!.Replace(
                     "localhost",
                     System.Net.Dns.GetHostName().ToLowerInvariant(),
                     StringComparison.Ordinal);

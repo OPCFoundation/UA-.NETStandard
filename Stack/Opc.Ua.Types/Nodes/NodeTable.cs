@@ -69,7 +69,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="nodeId">The node identifier.</param>
         /// <returns>Returns null if the node does not exist.</returns>
-        INode Find(ExpandedNodeId nodeId);
+        INode? Find(ExpandedNodeId nodeId);
 
         /// <summary>
         /// Follows the reference from the source and returns the first target with the specified browse name.
@@ -82,7 +82,7 @@ namespace Opc.Ua
         /// <returns>
         /// Returns null if the source does not exist or if there is no matching target.
         /// </returns>
-        INode Find(
+        INode? Find(
             ExpandedNodeId sourceId,
             NodeId referenceTypeId,
             bool isInverse,
@@ -117,7 +117,7 @@ namespace Opc.Ua
         /// <param name="namespaceUris">The namespace URIs.</param>
         /// <param name="serverUris">The server URIs.</param>
         /// <param name="typeTree">The type tree.</param>
-        public NodeTable(NamespaceTable namespaceUris, StringTable serverUris, TypeTable typeTree)
+        public NodeTable(NamespaceTable namespaceUris, StringTable serverUris, TypeTable? typeTree)
         {
             NamespaceUris = namespaceUris;
             ServerUris = serverUris;
@@ -133,7 +133,7 @@ namespace Opc.Ua
         public StringTable ServerUris { get; }
 
         /// <inheritdoc/>
-        public ITypeTable TypeTree => m_typeTree;
+        public ITypeTable TypeTree => m_typeTree!;
 
         /// <inheritdoc/>
         public bool Exists(ExpandedNodeId nodeId)
@@ -142,13 +142,13 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public INode Find(ExpandedNodeId nodeId)
+        public INode? Find(ExpandedNodeId nodeId)
         {
             return InternalFind(nodeId);
         }
 
         /// <inheritdoc/>
-        public INode Find(
+        public INode? Find(
             ExpandedNodeId sourceId,
             NodeId referenceTypeId,
             bool isInverse,
@@ -156,7 +156,7 @@ namespace Opc.Ua
             QualifiedName browseName)
         {
             // find the source.
-            INode source = InternalFind(sourceId);
+            INode? source = InternalFind(sourceId);
 
             if (source == null)
             {
@@ -179,7 +179,7 @@ namespace Opc.Ua
             // look for the target.
             foreach (IReference reference in references)
             {
-                INode target = InternalFind(reference.TargetId);
+                INode? target = InternalFind(reference.TargetId);
 
                 if (target == null)
                 {
@@ -212,7 +212,7 @@ namespace Opc.Ua
             List<INode> nodes = [];
 
             // find the source.
-            INode source = InternalFind(sourceId);
+            INode? source = InternalFind(sourceId);
 
             if (source == null)
             {
@@ -235,7 +235,7 @@ namespace Opc.Ua
             // look for the targets.
             foreach (IReference reference in references)
             {
-                INode target = InternalFind(reference.TargetId);
+                INode? target = InternalFind(reference.TargetId);
 
                 if (target != null)
                 {
@@ -288,7 +288,7 @@ namespace Opc.Ua
         /// <param name="externalReferences">The external references.</param>
         public List<Node> Import(
             NodeSet nodeSet,
-            IDictionary<NodeId, IList<IReference>> externalReferences)
+            IDictionary<NodeId, IList<IReference>>? externalReferences)
         {
             var importedNodes = new List<Node>();
 
@@ -396,7 +396,7 @@ namespace Opc.Ua
 
                             if (!externalReferences.TryGetValue(
                                 targetId,
-                                out IList<IReference> referenceList))
+                                out IList<IReference>? referenceList))
                             {
                                 externalReferences[targetId] = referenceList = [];
                             }
@@ -435,10 +435,10 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="reference">The reference.</param>
         /// <returns>Node</returns>
-        public INode Import(ReferenceDescription reference)
+        public INode? Import(ReferenceDescription reference)
         {
             // find any existing node.
-            INode target = Find(reference.NodeId);
+            INode? target = Find(reference.NodeId);
 
             // create a new object.
             if (target == null)
@@ -577,7 +577,7 @@ namespace Opc.Ua
         public bool Remove(ExpandedNodeId nodeId)
         {
             // find the target.
-            INode source = Find(nodeId);
+            INode? source = Find(nodeId);
 
             if (source == null)
             {
@@ -593,7 +593,7 @@ namespace Opc.Ua
             // remove references.
             foreach (IReference reference in sourceNode.References)
             {
-                INode target = InternalFind(reference.TargetId);
+                INode? target = InternalFind(reference.TargetId);
 
                 if (target == null)
                 {
@@ -695,7 +695,7 @@ namespace Opc.Ua
         /// Finds the specified node. Returns null if the node does node exist.
         /// </summary>
         /// <param name="nodeId">The node identifier.</param>
-        private INode InternalFind(ExpandedNodeId nodeId)
+        private INode? InternalFind(ExpandedNodeId nodeId)
         {
             if (nodeId.IsNull)
             {
@@ -705,7 +705,7 @@ namespace Opc.Ua
             // check for remote node.
             if (nodeId.ServerIndex != 0)
             {
-                if (m_remoteNodes.TryGetValue(nodeId, out RemoteNode remoteNode))
+                if (m_remoteNodes.TryGetValue(nodeId, out RemoteNode? remoteNode))
                 {
                     return remoteNode;
                 }
@@ -721,7 +721,7 @@ namespace Opc.Ua
                 return null;
             }
 
-            if (m_localNodes.TryGetValue(localId, out ILocalNode node))
+            if (m_localNodes.TryGetValue(localId, out ILocalNode? node))
             {
                 return node;
             }
@@ -745,7 +745,7 @@ namespace Opc.Ua
                 m_refs = 0;
                 NodeClass = NodeClass.Unspecified;
                 BrowseName = QualifiedName.From("(Unknown)");
-                DisplayName = LocalizedText.From(BrowseName.Name);
+                DisplayName = LocalizedText.From(BrowseName.Name!);
                 TypeDefinitionId = default;
             }
 
@@ -809,6 +809,6 @@ namespace Opc.Ua
 
         private readonly NodeIdDictionary<ILocalNode> m_localNodes;
         private readonly SortedDictionary<ExpandedNodeId, RemoteNode> m_remoteNodes;
-        private readonly TypeTable m_typeTree;
+        private readonly TypeTable? m_typeTree;
     }
 }

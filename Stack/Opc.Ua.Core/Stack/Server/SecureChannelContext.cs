@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -45,11 +45,11 @@ namespace Opc.Ua
         /// <param name="serverChannelCertificate">The server certificate used to establish the secure channel.</param>
         public SecureChannelContext(
             string secureChannelId,
-            EndpointDescription endpointDescription,
+            EndpointDescription? endpointDescription,
             RequestEncoding messageEncoding,
-            byte[] clientChannelCertificate = null,
-            byte[] serverChannelCertificate = null,
-            byte[] channelThumbprint = null)
+            byte[]? clientChannelCertificate = null,
+            byte[]? serverChannelCertificate = null,
+            byte[]? channelThumbprint = null)
         {
             SecureChannelId = secureChannelId;
             EndpointDescription = endpointDescription;
@@ -67,9 +67,12 @@ namespace Opc.Ua
 
         /// <summary>
         /// The description of the endpoint used with the channel.
+        /// May be <c>null</c> for discovery requests on listeners that match endpoints lazily
+        /// (HTTPS listener for GetEndpoints/FindServers/FindServersOnNetwork without a security
+        /// policy header), in which case the endpoint is not known at channel-context creation time.
         /// </summary>
         /// <value>The endpoint description.</value>
-        public EndpointDescription EndpointDescription { get; }
+        public EndpointDescription? EndpointDescription { get; }
 
         /// <summary>
         /// The encoding used with the channel.
@@ -80,17 +83,17 @@ namespace Opc.Ua
         /// <summary>
         /// The unique hash for the secure channel calculated during channel creation.
         /// </summary>
-        public byte[] ChannelThumbprint { get; }
+        public byte[]? ChannelThumbprint { get; }
 
         /// <summary>
         /// The client certificate used to establsih the secure channel.
         /// </summary>
-        public byte[] ClientChannelCertificate { get; }
+        public byte[]? ClientChannelCertificate { get; }
 
         /// <summary>
         /// The server certificate used to establsih the secure channel.
         /// </summary>
-        public byte[] ServerChannelCertificate { get; }
+        public byte[]? ServerChannelCertificate { get; }
     }
 
     /// <summary>

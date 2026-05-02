@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -26,8 +26,6 @@
  * The complete license agreement can be found here:
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
-
-#nullable enable
 
 using System;
 using System.Collections.Generic;
@@ -133,7 +131,7 @@ namespace Opc.Ua.Encoders
         {
             decoder.PushNamespace(XmlNamespace);
 
-            EncodingMask = decoder.ReadEncodingMask(null);
+            EncodingMask = decoder.ReadEncodingMask(null!);
 
             // try again if the mask is implicitly defined by the JSON keys
             if (EncodingMask == 0 && decoder is JsonDecoder)
@@ -143,7 +141,7 @@ namespace Opc.Ua.Encoders
                 {
                     if (property.IsOptional)
                     {
-                        masks.Add(property.Name);
+                        masks.Add(property.Name!);
                     }
                 }
 
@@ -164,7 +162,7 @@ namespace Opc.Ua.Encoders
         }
 
         /// <inheritdoc/>
-        public override bool IsEqual(IEncodeable encodeable)
+        public override bool IsEqual(IEncodeable? encodeable)
         {
             if (ReferenceEquals(this, encodeable))
             {

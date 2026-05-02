@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -102,7 +102,7 @@ namespace Opc.Ua
         /// A handle assigned to the item during processing.
         /// </summary>
         [IgnoreDataMember]
-        public object Handle { get; set; }
+        public object? Handle { get; set; }
 
         /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.BrowseDescription;
@@ -144,7 +144,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public virtual bool IsEqual(IEncodeable encodeable)
+        public virtual bool IsEqual(IEncodeable? encodeable)
         {
             if (ReferenceEquals(this, encodeable))
             {
@@ -190,7 +190,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return IsEqual(obj as IEncodeable);
         }
@@ -208,19 +208,20 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public bool Equals(BrowseDescription other)
+        public bool Equals(BrowseDescription? other)
         {
-            return IsEqual(other);
+            return IsEqual(other)!;
         }
 
         /// <inheritdoc/>
-        public static bool operator ==(BrowseDescription left, BrowseDescription right)
+        public static bool operator ==(BrowseDescription? left, BrowseDescription? right)
         {
-            return EqualityComparer<BrowseDescription>.Default.Equals(left, right);
+            if (left is null) return right is null;
+            return left.Equals(right);
         }
 
         /// <inheritdoc/>
-        public static bool operator !=(BrowseDescription left, BrowseDescription right)
+        public static bool operator !=(BrowseDescription? left, BrowseDescription? right)
         {
             return !(left == right);
         }

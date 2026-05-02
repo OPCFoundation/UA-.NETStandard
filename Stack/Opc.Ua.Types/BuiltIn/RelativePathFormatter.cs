@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -95,7 +95,7 @@ namespace Opc.Ua
                 targetTable.Append("---");
             }
 
-            string[] uris = new string[mappings.Length];
+            string?[] uris = new string?[mappings.Length];
 
             for (int ii = 2; ii < mappings.Length; ii++)
             {
@@ -103,7 +103,7 @@ namespace Opc.Ua
 
                 if (uris[ii] != null)
                 {
-                    mappings[ii] = targetTable.GetIndex(uris[ii]);
+                    mappings[ii] = targetTable.GetIndex(uris[ii]!);
                 }
             }
 
@@ -119,7 +119,7 @@ namespace Opc.Ua
                     mappings[qname.NamespaceIndex] == -1)
                 {
                     mappings[qname.NamespaceIndex] = targetTable.GetIndexOrAppend(
-                        uris[qname.NamespaceIndex]);
+                        uris[qname.NamespaceIndex]!);
                 }
 
                 // check target name.
@@ -131,7 +131,7 @@ namespace Opc.Ua
                     mappings[qname.NamespaceIndex] == -1)
                 {
                     mappings[qname.NamespaceIndex] = targetTable.GetIndexOrAppend(
-                        uris[qname.NamespaceIndex]);
+                        uris[qname.NamespaceIndex]!);
                 }
             }
         }
@@ -151,7 +151,7 @@ namespace Opc.Ua
             mappings[0] = 0;
 
             // copy mappings.
-            string[] uris = new string[mappings.Length];
+            string?[] uris = new string?[mappings.Length];
 
             for (int ii = 1; ii < mappings.Length; ii++)
             {
@@ -159,7 +159,7 @@ namespace Opc.Ua
 
                 if (uris[ii] != null)
                 {
-                    mappings[ii] = targetTable.GetIndex(uris[ii]);
+                    mappings[ii] = targetTable.GetIndex(uris[ii]!);
                 }
             }
 
@@ -230,7 +230,7 @@ namespace Opc.Ua
         /// <param name="format">(Unused) Always pass null</param>
         /// <param name="formatProvider">(Unused) Always pass null</param>
         /// <exception cref="FormatException">Thrown if non-null parameters are passed</exception>
-        public string ToString(string format, IFormatProvider formatProvider)
+        public string ToString(string? format, IFormatProvider? formatProvider)
         {
             if (format == null)
             {
@@ -267,12 +267,12 @@ namespace Opc.Ua
         /// Parses a string representing a relative path.
         /// </remarks>
         /// <exception cref="ServiceResultException">Thrown if any errors occur during parsing</exception>
-        public static RelativePathFormatter Parse(
+        public static RelativePathFormatter? Parse(
             string textToParse,
             NamespaceTable currentTable,
             NamespaceTable targetTable)
         {
-            RelativePathFormatter path = Parse(textToParse);
+            RelativePathFormatter? path = Parse(textToParse);
 
             path?.TranslateNamespaceIndexes(currentTable, targetTable);
 
@@ -413,7 +413,7 @@ namespace Opc.Ua
             /// <param name="formatProvider">(Unused) Always pass null</param>
             /// <exception cref="FormatException">Thrown if non-null parameters are passed</exception>
             /// <exception cref="ServiceResultException"></exception>
-            public string ToString(string format, IFormatProvider formatProvider)
+            public string ToString(string? format, IFormatProvider? formatProvider)
             {
                 if (format == null)
                 {
@@ -453,7 +453,7 @@ namespace Opc.Ua
                                         ReferenceTypeName.NamespaceIndex);
                                 }
 
-                                EncodeName(path, ReferenceTypeName.Name);
+                                EncodeName(path, ReferenceTypeName.Name!);
                                 path.Append('>');
                             }
 
@@ -471,7 +471,7 @@ namespace Opc.Ua
                             path.AppendFormat(formatProvider, "{0}:", TargetName.NamespaceIndex);
                         }
 
-                        EncodeName(path, TargetName.Name);
+                        EncodeName(path, TargetName.Name!);
                     }
 
                     return path.ToString();

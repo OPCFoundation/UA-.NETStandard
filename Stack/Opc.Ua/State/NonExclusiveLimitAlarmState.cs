@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -132,7 +132,7 @@ namespace Opc.Ua
             }
 
             limit.Value = new LocalizedText(state);
-            limit.Id.Value = active;
+            limit.Id!.Value = active; // Id property is initialized as part of the LimitAlarm state machine construction
 
             limit.TransitionTime?.Value = DateTime.UtcNow;
         }

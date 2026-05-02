@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -53,9 +53,9 @@ namespace Opc.Ua.Security
             string implementationInfo,
             string endpointUrl,
             string secureChannelId,
-            EndpointDescription endpoint,
-            X509Certificate2 clientCertificate,
-            X509Certificate2 serverCertificate,
+            EndpointDescription? endpoint,
+            X509Certificate2? clientCertificate,
+            X509Certificate2? serverCertificate,
             BinaryEncodingSupport encodingSupport)
         {
             if (endpoint != null)
@@ -81,7 +81,7 @@ namespace Opc.Ua.Security
                     secureChannelId,
                     endpointUrl,
                     endpoint.SecurityMode.ToString(),
-                    SecurityPolicies.GetDisplayName(endpoint.SecurityPolicyUri),
+                    SecurityPolicies.GetDisplayName(endpoint.SecurityPolicyUri ?? string.Empty),
                     encoding);
 
                 if (endpoint.SecurityMode != MessageSecurityMode.None)
@@ -89,11 +89,11 @@ namespace Opc.Ua.Security
                     logger.LogInformation(
                         Utils.TraceMasks.Security,
                         "Client Certificate: {Certificate}",
-                        clientCertificate.AsLogSafeString());
+                        clientCertificate?.AsLogSafeString());
                     logger.LogInformation(
                         Utils.TraceMasks.Security,
                         "Server Certificate: {Certificate}",
-                        serverCertificate.AsLogSafeString());
+                        serverCertificate?.AsLogSafeString());
                 }
             }
             else

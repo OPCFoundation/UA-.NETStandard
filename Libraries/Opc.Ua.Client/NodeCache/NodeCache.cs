@@ -101,7 +101,7 @@ namespace Opc.Ua.Client
             }
 
             m_cacheLock.EnterReadLock();
-            INode node;
+            INode? node;
             try
             {
                 // check if node already exists.
@@ -155,7 +155,7 @@ namespace Opc.Ua.Client
             int ii;
             for (ii = 0; ii < count; ii++)
             {
-                INode node;
+                INode? node;
 
                 m_cacheLock.EnterReadLock();
                 try
@@ -1224,7 +1224,7 @@ namespace Opc.Ua.Client
             ReferenceDescription reference,
             CancellationToken ct = default)
         {
-            if (reference == null || reference.NodeId.IsNull)
+            if (reference is null || reference.NodeId.IsNull)
             {
                 return string.Empty;
             }

@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -43,7 +43,7 @@ namespace Opc.Ua
         /// Ctor of a certificate store.
         /// </summary>
         public CertificateStoreIdentifier()
-            : this(null, true)
+            : this(null!, true)
         {
         }
 
@@ -70,8 +70,8 @@ namespace Opc.Ua
             string storeType,
             bool noPrivateKeys = true)
         {
-            StorePath = storePath;
-            StoreType = storeType;
+            StorePath = storePath ?? string.Empty;
+            StoreType = storeType ?? string.Empty;
             m_noPrivateKeys = noPrivateKeys;
         }
 
@@ -88,7 +88,7 @@ namespace Opc.Ua
         /// A <see cref="string"/> containing the value of the current instance in the specified format.
         /// </returns>
         /// <exception cref="FormatException"></exception>
-        public string ToString(string format, IFormatProvider formatProvider)
+        public string ToString(string? format, IFormatProvider? formatProvider)
         {
             if (format != null)
             {
@@ -108,10 +108,10 @@ namespace Opc.Ua
         {
             if (string.IsNullOrEmpty(StoreType))
             {
-                return Utils.Format("{0}", StorePath);
+                return Utils.Format("{0}", StorePath ?? string.Empty);
             }
 
-            return Utils.Format("[{0}]{1}", StoreType, StorePath);
+            return Utils.Format("[{0}]{1}", StoreType ?? string.Empty, StorePath ?? string.Empty);
         }
 
         /// <summary>
@@ -166,9 +166,9 @@ namespace Opc.Ua
 
             foreach (string storeTypeName in CertificateStoreType.RegisteredStoreTypeNames)
             {
-                ICertificateStoreType storeType = CertificateStoreType
+                ICertificateStoreType? storeType = CertificateStoreType
                     .GetCertificateStoreTypeByName(storeTypeName);
-                if (storeType.SupportsStorePath(storePath))
+                if (storeType != null && storeType.SupportsStorePath(storePath))
                 {
                     return storeTypeName;
                 }
@@ -198,7 +198,7 @@ namespace Opc.Ua
                     store = new DirectoryCertificateStore(telemetry);
                     break;
                 default:
-                    ICertificateStoreType storeType = CertificateStoreType
+                    ICertificateStoreType? storeType = CertificateStoreType
                         .GetCertificateStoreTypeByName(storeTypeName);
                     if (storeType != null)
                     {
@@ -216,7 +216,7 @@ namespace Opc.Ua
         [Obsolete("Use OpenStore(ITelemetryContext) instead")]
         public ICertificateStore OpenStore()
         {
-            return OpenStore(null);
+            return OpenStore(null!);
         }
 
         /// <summary>
@@ -231,7 +231,7 @@ namespace Opc.Ua
         /// <returns>A disposable instance of the <see cref="ICertificateStore"/>.</returns>
         public virtual ICertificateStore OpenStore(ITelemetryContext telemetry)
         {
-            ICertificateStore store = m_store;
+            ICertificateStore? store = m_store;
 
             // determine if the store configuration changed
             if (store != null &&
@@ -240,7 +240,7 @@ namespace Opc.Ua
                     store.StorePath != StorePath ||
                     store.NoPrivateKeys != m_noPrivateKeys))
             {
-                ICertificateStore previousStore = Interlocked.CompareExchange(
+                ICertificateStore? previousStore = Interlocked.CompareExchange(
                     ref m_store,
                     null,
                     store);
@@ -253,8 +253,8 @@ namespace Opc.Ua
                 !string.IsNullOrEmpty(StoreType) &&
                 !string.IsNullOrEmpty(StorePath))
             {
-                store = CreateStore(StoreType, telemetry);
-                ICertificateStore currentStore = Interlocked.CompareExchange(
+                store = CreateStore(StoreType!, telemetry);
+                ICertificateStore? currentStore = Interlocked.CompareExchange(
                     ref m_store,
                     store,
                     null);
@@ -265,12 +265,12 @@ namespace Opc.Ua
                 }
             }
 
-            store?.Open(StorePath, m_noPrivateKeys);
+            store?.Open(StorePath ?? string.Empty, m_noPrivateKeys);
 
-            return store;
+            return store!;
         }
 
-        private ICertificateStore m_store;
+        private ICertificateStore? m_store;
         private readonly bool m_noPrivateKeys;
     }
 
@@ -294,9 +294,9 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the registered type for a custom certificate store.
         /// </summary>
-        public static ICertificateStoreType GetCertificateStoreTypeByName(string storeTypeName)
+        public static ICertificateStoreType? GetCertificateStoreTypeByName(string storeTypeName)
         {
-            s_registeredStoreTypes.TryGetValue(storeTypeName, out ICertificateStoreType result);
+            s_registeredStoreTypes.TryGetValue(storeTypeName, out ICertificateStoreType? result);
             return result;
         }
 

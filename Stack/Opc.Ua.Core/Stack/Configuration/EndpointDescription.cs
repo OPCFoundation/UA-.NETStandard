@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -47,7 +47,7 @@ namespace Opc.Ua
                 get
                 {
                     if (!string.IsNullOrEmpty(endpointDescription.EndpointUrl) &&
-                        endpointDescription.EndpointUrl.StartsWith(
+                        endpointDescription.EndpointUrl!.StartsWith(
                             Utils.UriSchemeOpcTcp,
                             StringComparison.Ordinal))
                     {
@@ -55,7 +55,7 @@ namespace Opc.Ua
                     }
 
                     endpointDescription.TransportProfileUri =
-                        Profiles.NormalizeUri(endpointDescription.TransportProfileUri);
+                        Profiles.NormalizeUri(endpointDescription.TransportProfileUri!);
                     return endpointDescription.TransportProfileUri == Profiles.HttpsBinaryTransport ?
                         BinaryEncodingSupport.Required : BinaryEncodingSupport.None;
                 }
@@ -64,10 +64,10 @@ namespace Opc.Ua
             /// <summary>
             /// Finds the user token policy with the specified id and securtyPolicyUri
             /// </summary>
-            public UserTokenPolicy FindUserTokenPolicy(string policyId, string tokenSecurityPolicyUri)
+            public UserTokenPolicy? FindUserTokenPolicy(string policyId, string tokenSecurityPolicyUri)
             {
-                UserTokenPolicy sameEncryptionAlgorithm = null;
-                UserTokenPolicy unspecifiedSecPolicy = null;
+                UserTokenPolicy? sameEncryptionAlgorithm = null;
+                UserTokenPolicy? unspecifiedSecPolicy = null;
                 // The specified security policies take precedence
                 foreach (UserTokenPolicy policy in endpointDescription.UserIdentityTokens)
                 {
@@ -80,12 +80,12 @@ namespace Opc.Ua
                         else if ((
                                 policy.SecurityPolicyUri != null &&
                                 tokenSecurityPolicyUri != null &&
-                                CryptoUtils.IsEccPolicy(policy.SecurityPolicyUri) &&
-                                CryptoUtils.IsEccPolicy(tokenSecurityPolicyUri)
+                                CryptoUtils.IsEccPolicy(policy.SecurityPolicyUri!) &&
+                                CryptoUtils.IsEccPolicy(tokenSecurityPolicyUri!)
                             ) ||
                             (
-                                !CryptoUtils.IsEccPolicy(policy.SecurityPolicyUri) &&
-                                !CryptoUtils.IsEccPolicy(tokenSecurityPolicyUri)))
+                                !CryptoUtils.IsEccPolicy(policy.SecurityPolicyUri!) &&
+                                !CryptoUtils.IsEccPolicy(tokenSecurityPolicyUri!)))
                         {
                             sameEncryptionAlgorithm ??= policy;
                         }
@@ -107,7 +107,7 @@ namespace Opc.Ua
             /// <summary>
             /// Finds a token policy that matches the user identity specified.
             /// </summary>
-            public UserTokenPolicy FindUserTokenPolicy(
+            public UserTokenPolicy? FindUserTokenPolicy(
                 UserTokenType tokenType,
                 XmlQualifiedName issuedTokenType,
                 string tokenSecurityPolicyUri)
@@ -116,7 +116,7 @@ namespace Opc.Ua
                 {
                     return endpointDescription.FindUserTokenPolicy(
                         tokenType,
-                        (string)null,
+                        (string?)null,
                         tokenSecurityPolicyUri);
                 }
 
@@ -129,16 +129,16 @@ namespace Opc.Ua
             /// <summary>
             /// Finds a token policy that matches the user identity specified.
             /// </summary>
-            public UserTokenPolicy FindUserTokenPolicy(
+            public UserTokenPolicy? FindUserTokenPolicy(
                 UserTokenType tokenType,
-                string issuedTokenType,
+                string? issuedTokenType,
                 string tokenSecurityPolicyUri)
             {
                 // construct issuer type.
-                string issuedTokenTypeText = issuedTokenType;
+                string? issuedTokenTypeText = issuedTokenType;
 
-                UserTokenPolicy sameEncryptionAlgorithm = null;
-                UserTokenPolicy unspecifiedSecPolicy = null;
+                UserTokenPolicy? sameEncryptionAlgorithm = null;
+                UserTokenPolicy? unspecifiedSecPolicy = null;
                 // The specified security policies take precedence
                 foreach (UserTokenPolicy policy in endpointDescription.UserIdentityTokens)
                 {
@@ -153,12 +153,12 @@ namespace Opc.Ua
                         else if ((
                                 policy.SecurityPolicyUri != null &&
                                 tokenSecurityPolicyUri != null &&
-                                CryptoUtils.IsEccPolicy(policy.SecurityPolicyUri) &&
-                                CryptoUtils.IsEccPolicy(tokenSecurityPolicyUri)
+                                CryptoUtils.IsEccPolicy(policy.SecurityPolicyUri!) &&
+                                CryptoUtils.IsEccPolicy(tokenSecurityPolicyUri!)
                             ) ||
                             (
-                                !CryptoUtils.IsEccPolicy(policy.SecurityPolicyUri) &&
-                                !CryptoUtils.IsEccPolicy(tokenSecurityPolicyUri)))
+                                !CryptoUtils.IsEccPolicy(policy.SecurityPolicyUri!) &&
+                                !CryptoUtils.IsEccPolicy(tokenSecurityPolicyUri!)))
                         {
                             sameEncryptionAlgorithm ??= policy;
                         }

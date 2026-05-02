@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -26,8 +26,6 @@
  * The complete license agreement can be found here:
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
-
-#nullable enable
 
 using System;
 using System.Collections.Concurrent;
@@ -57,10 +55,10 @@ namespace Opc.Ua.Bindings
             BufferManager bufferManager,
             IMessageSocketFactory socketFactory,
             ChannelQuotas quotas,
-            X509Certificate2 clientCertificate,
-            X509Certificate2Collection clientCertificateChain,
-            X509Certificate2 serverCertificate,
-            EndpointDescription endpoint,
+            X509Certificate2? clientCertificate,
+            X509Certificate2Collection? clientCertificateChain,
+            X509Certificate2? serverCertificate,
+            EndpointDescription? endpoint,
             ITelemetryContext telemetry)
             : base(
                 contextId,
@@ -589,7 +587,7 @@ namespace Opc.Ua.Bindings
                 out byte[] signature);
 
             // don't keep signature if secure channel enhancements are not used.
-            m_oscRequestSignature = (SecurityPolicy.SecureChannelEnhancements) ? signature : null;
+            m_oscRequestSignature = (SecurityPolicy!.SecureChannelEnhancements) ? signature : null;
 
             // save token.
             m_requestedToken = token;
@@ -637,7 +635,7 @@ namespace Opc.Ua.Bindings
             // parse the security header.
             uint channelId;
 
-            X509Certificate2 serverCertificate;
+            X509Certificate2? serverCertificate;
 
             uint requestId;
 
@@ -752,7 +750,10 @@ namespace Opc.Ua.Bindings
                 m_waitBetweenReconnects = Timeout.Infinite;
 
                 // schedule reconnect before token expires.
-                ScheduleTokenRenewal(CurrentToken);
+                if (CurrentToken != null)
+                {
+                    ScheduleTokenRenewal(CurrentToken);
+                }
 
                 // connect finally complete.
                 m_handshakeOperation.Complete(0);
@@ -800,8 +801,8 @@ namespace Opc.Ua.Bindings
         /// Called when a write operation completes.
         /// </summary>
         protected override void HandleWriteComplete(
-            BufferCollection buffers,
-            object state,
+            BufferCollection? buffers,
+            object? state,
             int bytesWritten,
             ServiceResult result)
         {
@@ -1293,7 +1294,7 @@ namespace Opc.Ua.Bindings
                 m_requestedToken = null;
                 m_reconnecting = false;
 
-                IMessageSocket socket = Socket;
+                IMessageSocket? socket = Socket;
                 if (socket != null)
                 {
                     Socket = null;

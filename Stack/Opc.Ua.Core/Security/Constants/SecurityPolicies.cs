@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -328,7 +328,7 @@ namespace Opc.Ua
         /// Returns the info object associated with the SecurityPolicyUri.
         /// Supports both full URI and short name (without BaseUri prefix).
         /// </summary>
-        public static SecurityPolicyInfo GetInfo(string securityPolicyUri)
+        public static SecurityPolicyInfo? GetInfo(string securityPolicyUri)
         {
             if (String.IsNullOrEmpty(securityPolicyUri))
             {
@@ -336,7 +336,7 @@ namespace Opc.Ua
             }
 
             // Try full URI lookup first (e.g., "http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256")
-            if (s_securityPolicyUriToInfo.Value.TryGetValue(securityPolicyUri, out SecurityPolicyInfo info) &&
+            if (s_securityPolicyUriToInfo.Value.TryGetValue(securityPolicyUri, out SecurityPolicyInfo? info) &&
                 IsPlatformSupportedName(info.Name))
             {
                 return info;
@@ -356,9 +356,9 @@ namespace Opc.Ua
         /// Returns the uri associated with the display name. This includes http and all
         /// other supported platform security policies.
         /// </summary>
-        public static string GetUri(string displayName)
+        public static string? GetUri(string displayName)
         {
-            if (s_securityPolicyNameToUri.Value.TryGetValue(displayName, out string policyUri) &&
+            if (s_securityPolicyNameToUri.Value.TryGetValue(displayName, out string? policyUri) &&
                 IsPlatformSupportedName(displayName))
             {
                 return policyUri;
@@ -371,9 +371,9 @@ namespace Opc.Ua
         /// Returns a display name for a security policy uri. This includes http and all
         /// other supported platform security policies.
         /// </summary>
-        public static string GetDisplayName(string policyUri)
+        public static string? GetDisplayName(string policyUri)
         {
-            if (s_securityPolicyUriToName.Value.TryGetValue(policyUri, out string displayName) &&
+            if (s_securityPolicyUriToName.Value.TryGetValue(policyUri, out string? displayName) &&
                 IsPlatformSupportedName(displayName))
             {
                 return displayName;
@@ -423,7 +423,7 @@ namespace Opc.Ua
             var defaultUris = new List<string>();
             foreach (string name in defaultNames)
             {
-                string uri = GetUri(name);
+                string? uri = GetUri(name);
                 if (uri != null)
                 {
                     defaultUris.Add(uri);
@@ -446,7 +446,7 @@ namespace Opc.Ua
             var defaultUris = new List<string>();
             foreach (string name in defaultNames)
             {
-                string uri = GetUri(name);
+                string? uri = GetUri(name);
                 if (uri != null)
                 {
                     defaultUris.Add(uri);
@@ -470,7 +470,7 @@ namespace Opc.Ua
             var defaultUris = new List<string>();
             foreach (string name in defaultNames)
             {
-                string uri = GetUri(name);
+                string? uri = GetUri(name);
                 if (uri != null)
                 {
                     defaultUris.Add(uri);
@@ -562,10 +562,10 @@ namespace Opc.Ua
         /// Decrypts the CipherText using the SecurityPolicyUri and returns the PlainText.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public static byte[] Decrypt(
+        public static byte[]? Decrypt(
             X509Certificate2 certificate,
             string securityPolicyUri,
-            EncryptedData dataToDecrypt,
+            EncryptedData? dataToDecrypt,
             ILogger logger)
         {
             // check if nothing to do.
@@ -602,7 +602,7 @@ namespace Opc.Ua
                         if (dataToDecrypt.Algorithm == SecurityAlgorithms.RsaOaep)
                         {
                             return RsaUtils.Decrypt(
-                                new ArraySegment<byte>(dataToDecrypt.Data),
+                                new ArraySegment<byte>(dataToDecrypt.Data!),
                                 certificate,
                                 RsaUtils.Padding.OaepSHA1,
                                 logger);
@@ -615,7 +615,7 @@ namespace Opc.Ua
                         if (dataToDecrypt.Algorithm == SecurityAlgorithms.Rsa15)
                         {
                             return RsaUtils.Decrypt(
-                                new ArraySegment<byte>(dataToDecrypt.Data),
+                                new ArraySegment<byte>(dataToDecrypt.Data!),
                                 certificate,
                                 RsaUtils.Padding.Pkcs1,
                                 logger);
@@ -629,7 +629,7 @@ namespace Opc.Ua
                         if (dataToDecrypt.Algorithm == SecurityAlgorithms.RsaOaepSha256)
                         {
                             return RsaUtils.Decrypt(
-                                new ArraySegment<byte>(dataToDecrypt.Data),
+                                new ArraySegment<byte>(dataToDecrypt.Data!),
                                 certificate,
                                 RsaUtils.Padding.OaepSHA256,
                                 logger);
@@ -647,7 +647,7 @@ namespace Opc.Ua
             throw ServiceResultException.Create(
                 StatusCodes.BadIdentityTokenInvalid,
                 "Unexpected encryption algorithm : {0}",
-                dataToDecrypt.Algorithm);
+                dataToDecrypt.Algorithm ?? string.Empty);
         }
 
         /// <summary>
@@ -656,12 +656,12 @@ namespace Opc.Ua
         public static SignatureData CreateSignatureData(
             string securityPolicyUri,
             X509Certificate2 signingCertificate,
-            byte[] secureChannelSecret,
-            byte[] remoteCertificate,
-            byte[] remoteChannelCertificate,
-            byte[] localChannelCertificate,
-            byte[] remoteNonce,
-            byte[] localNonce)
+            byte[]? secureChannelSecret,
+            byte[]? remoteCertificate,
+            byte[]? remoteChannelCertificate,
+            byte[]? localChannelCertificate,
+            byte[]? remoteNonce,
+            byte[]? localNonce)
         {
             var signatureData = new SignatureData();
 
@@ -709,6 +709,13 @@ namespace Opc.Ua
            byte[] dataToSign)
         {
             var info = GetInfo(securityPolicyUri);
+            if (info == null)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadSecurityPolicyRejected,
+                    "Unsupported security policy: {0}",
+                    securityPolicyUri);
+            }
             return CreateSignatureData(info, localCertificate, dataToSign);
         }
 
@@ -769,12 +776,12 @@ namespace Opc.Ua
             SignatureData signature,
             string securityPolicyUri,
             X509Certificate2 signingCertificate,
-            byte[] secureChannelSecret,
-            byte[] localCertificate,
-            byte[] localChannelCertificate,
-            byte[] remoteChannelCertificate,
-            byte[] localNonce,
-            byte[] remoteNonce)
+            byte[]? secureChannelSecret,
+            byte[]? localCertificate,
+            byte[]? localChannelCertificate,
+            byte[]? remoteChannelCertificate,
+            byte[]? localNonce,
+            byte[]? remoteNonce)
         {
             var signatureData = new SignatureData();
 
@@ -823,6 +830,13 @@ namespace Opc.Ua
             byte[] dataToVerify)
         {
             var info = GetInfo(securityPolicyUri);
+            if (info == null)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadSecurityPolicyRejected,
+                    "Unsupported security policy: {0}",
+                    securityPolicyUri);
+            }
             return VerifySignatureData(signature, info, signingCertificate, dataToVerify);
         }
 
@@ -922,7 +936,7 @@ namespace Opc.Ua
             throw ServiceResultException.Create(
                 StatusCodes.BadSecurityChecksFailed,
                 "Unexpected SignatureData algorithm: {0}",
-                signature.Algorithm);
+                signature.Algorithm ?? string.Empty);
         }
 
         /// <summary>
@@ -932,10 +946,10 @@ namespace Opc.Ua
             new(() =>
             {
 #if NET8_0_OR_GREATER
-                return s_securityPolicyNameToUri.Value.ToFrozenDictionary(k => k.Value, k => k.Key);
+                return s_securityPolicyNameToUri!.Value.ToFrozenDictionary(k => k.Value, k => k.Key);
 #else
                 return new ReadOnlyDictionary<string, string>(
-                    s_securityPolicyNameToUri.Value.ToDictionary(k => k.Value, k => k.Key));
+                    s_securityPolicyNameToUri!.Value.ToDictionary(k => k.Value, k => k.Key));
 #endif
             });
 
@@ -951,8 +965,9 @@ namespace Opc.Ua
                 var keyValuePairs = new Dictionary<string, string>();
                 foreach (FieldInfo field in fields)
                 {
-                    string policyUri = (string)field.GetValue(typeof(SecurityPolicies));
-                    if (field.Name == nameof(BaseUri) ||
+                    string? policyUri = (string?)field.GetValue(typeof(SecurityPolicies));
+                    if (policyUri == null ||
+                        field.Name == nameof(BaseUri) ||
                         field.Name == nameof(Https) ||
                         !policyUri.StartsWith(BaseUri, StringComparison.Ordinal))
                     {
@@ -975,10 +990,10 @@ namespace Opc.Ua
             new(() =>
             {
 #if NET8_0_OR_GREATER
-                return s_securityPolicyNameToInfo.Value.ToFrozenDictionary(k => k.Value.Uri, k => k.Value);
+                return s_securityPolicyNameToInfo!.Value.ToFrozenDictionary(k => k.Value.Uri, k => k.Value);
 #else
                 return new ReadOnlyDictionary<string, SecurityPolicyInfo>(
-                    s_securityPolicyNameToInfo.Value.ToDictionary(k => k.Value.Uri, k => k.Value));
+                    s_securityPolicyNameToInfo!.Value.ToDictionary(k => k.Value.Uri, k => k.Value));
 #endif
             });
 
@@ -997,8 +1012,9 @@ namespace Opc.Ua
                 var keyValuePairs = new Dictionary<string, SecurityPolicyInfo>();
                 foreach (FieldInfo field in policyFields)
                 {
-                    string policyUri = (string)field.GetValue(typeof(SecurityPolicies));
-                    if (field.Name == nameof(BaseUri) ||
+                    string? policyUri = (string?)field.GetValue(typeof(SecurityPolicies));
+                    if (policyUri == null ||
+                        field.Name == nameof(BaseUri) ||
                         field.Name == nameof(Https) ||
                         !policyUri.StartsWith(BaseUri, StringComparison.Ordinal))
                     {
@@ -1006,11 +1022,14 @@ namespace Opc.Ua
                     }
 
                     // Find the corresponding SecurityPolicyInfo field by name
-                    FieldInfo infoField = Array.Find(infoFields, f => f.Name == field.Name);
+                    FieldInfo? infoField = Array.Find(infoFields, f => f.Name == field.Name);
                     if (infoField != null && infoField.FieldType == typeof(SecurityPolicyInfo))
                     {
-                        SecurityPolicyInfo info = (SecurityPolicyInfo)infoField.GetValue(null);
-                        keyValuePairs.Add(field.Name, info);
+                        SecurityPolicyInfo? info = (SecurityPolicyInfo?)infoField.GetValue(null);
+                        if (info != null)
+                        {
+                            keyValuePairs.Add(field.Name, info);
+                        }
                     }
                     else
                     {

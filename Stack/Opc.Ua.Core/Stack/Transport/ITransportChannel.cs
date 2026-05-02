@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 using System;
 using System.Threading;
 using System.Threading.Tasks;
@@ -41,8 +39,8 @@ namespace Opc.Ua
     /// </summary>
     public delegate void ChannelTokenActivatedEventHandler(
         ITransportChannel channel,
-        ChannelToken currentToken,
-        ChannelToken previousToken);
+        ChannelToken? currentToken,
+        ChannelToken? previousToken);
 
     /// <summary>
     /// Secure channels implement this interface and the

@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -51,7 +51,9 @@ namespace Opc.Ua
         /// Get the provider which is invoked when a password
         /// for a private key is requested.
         /// </summary>
-        public ICertificatePasswordProvider CertificatePasswordProvider { get; set; }
+        // Set externally by callers (e.g. ApplicationInstance, ApplicationConfigurationBuilder)
+        // after the configuration is loaded; treated as required for callers that need a password.
+        public ICertificatePasswordProvider CertificatePasswordProvider { get; set; } = null!;
 
         /// <summary>
         /// Adds a certificate as a trusted peer.
@@ -124,7 +126,7 @@ namespace Opc.Ua
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
         private static void ValidateStore(
-            CertificateTrustList storeIdentifier,
+            CertificateTrustList? storeIdentifier,
             string storeName,
             ITelemetryContext telemetry)
         {
@@ -135,7 +137,7 @@ namespace Opc.Ua
             }
             try
             {
-                ICertificateStore store = storeIdentifier.OpenStore(telemetry) ??
+                ICertificateStore store = storeIdentifier!.OpenStore(telemetry) ??
                     throw ServiceResultException.ConfigurationError(
                         "Failed to open {0} store", storeName);
                 store.Close();
@@ -151,7 +153,7 @@ namespace Opc.Ua
         /// <summary>
         /// Find application certificate for a security policy.
         /// </summary>
-        public async Task<X509Certificate2> FindApplicationCertificateAsync(
+        public async Task<X509Certificate2?> FindApplicationCertificateAsync(
             string securityPolicy,
             bool privateKey,
             ITelemetryContext telemetry,
@@ -160,26 +162,26 @@ namespace Opc.Ua
             foreach (NodeId certType in CertificateIdentifier.MapSecurityPolicyToCertificateTypes(
                 securityPolicy))
             {
-                CertificateIdentifier id = ApplicationCertificates.ToArray().FirstOrDefault(certId =>
+                CertificateIdentifier? id = ApplicationCertificates.ToArray()!.FirstOrDefault(certId =>
                     certId.CertificateType == certType);
                 if (id == null)
                 {
                     if (certType == ObjectTypeIds.RsaSha256ApplicationCertificateType)
                     {
                         // undefined certificate type as RsaSha256
-                        id = ApplicationCertificates.ToArray().FirstOrDefault(
+                        id = ApplicationCertificates.ToArray()!.FirstOrDefault(
                             certId => certId.CertificateType.IsNull);
                     }
                     else if (certType == ObjectTypeIds.ApplicationCertificateType)
                     {
                         // first certificate
-                        id = ApplicationCertificates.ToArray().FirstOrDefault();
+                        id = ApplicationCertificates.ToArray()!.FirstOrDefault();
                     }
                     else if (certType == ObjectTypeIds.EccApplicationCertificateType)
                     {
                         // first Ecc certificate
-                        id = ApplicationCertificates.ToArray().FirstOrDefault(certId =>
-                            X509Utils.IsECDsaSignature(certId.Certificate));
+                        id = ApplicationCertificates.ToArray()!.FirstOrDefault(certId =>
+                            certId.Certificate != null && X509Utils.IsECDsaSignature(certId.Certificate));
                     }
                 }
 

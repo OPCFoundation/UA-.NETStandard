@@ -239,8 +239,8 @@ namespace Opc.Ua.Mcp
 
                 if (autoAcceptCerts)
                 {
-                    m_configuration!.CertificateValidator.CertificateValidation -= AutoAcceptCertificateValidation;
-                    m_configuration.CertificateValidator.CertificateValidation += AutoAcceptCertificateValidation;
+                    m_configuration!.CertificateValidator!.CertificateValidation -= AutoAcceptCertificateValidation;
+                    m_configuration.CertificateValidator!.CertificateValidation += AutoAcceptCertificateValidation;
                 }
 
                 m_logger.LogInformation("Connecting to {EndpointUrl} as '{Name}'...", endpointUrl, name);
@@ -261,7 +261,7 @@ namespace Opc.Ua.Mcp
                     endpoint,
                     true,
                     false,
-                    m_configuration!.ApplicationName,
+                    m_configuration!.ApplicationName!,
                     60_000,
                     identity,
                     default,
@@ -449,7 +449,7 @@ namespace Opc.Ua.Mcp
 
             if (autoAcceptCerts)
             {
-                config.CertificateValidator.CertificateValidation += AutoAcceptCertificateValidation;
+                config.CertificateValidator!.CertificateValidation += AutoAcceptCertificateValidation;
             }
 
             m_configuration = config;

@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -92,17 +90,17 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public EndpointDescription? Endpoint => NullableTransportChannel?.EndpointDescription;
+        public EndpointDescription Endpoint => NullableTransportChannel!.EndpointDescription;
 
         /// <inheritdoc/>
-        public EndpointConfiguration? EndpointConfiguration
-            => NullableTransportChannel?.EndpointConfiguration;
+        public EndpointConfiguration EndpointConfiguration
+            => NullableTransportChannel!.EndpointConfiguration;
 
         /// <inheritdoc/>
-        public IServiceMessageContext? MessageContext => NullableTransportChannel?.MessageContext;
+        public IServiceMessageContext MessageContext => NullableTransportChannel!.MessageContext;
 
         /// <inheritdoc/>
-        public ITransportChannel? NullableTransportChannel
+        public ITransportChannel NullableTransportChannel
         {
             get
             {
@@ -116,7 +114,7 @@ namespace Opc.Ua
                         "Channel is set but client has been disposed.");
                 }
 
-                return channel;
+                return channel!;
             }
         }
 
@@ -431,10 +429,10 @@ namespace Opc.Ua
                         = new ExtensionObject(additionalHeader);
                 }
                 else if (request.RequestHeader.AdditionalHeader.TryGetValue(
-                    out AdditionalParametersType existingParameters))
+                    out AdditionalParametersType? existingParameters))
                 {
                     // Merge the trace data into the existing parameters.
-                    existingParameters.Parameters =
+                    existingParameters!.Parameters =
                         existingParameters.Parameters.AddItem(spanContextParameter);
                 }
             }

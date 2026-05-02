@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -132,7 +132,7 @@ namespace Opc.Ua
         public string StoreType => CertificateStoreType.X509Store;
 
         /// <inheritdoc/>
-        public string StorePath { get; private set; }
+        public string StorePath { get; private set; } = string.Empty;
 
         /// <inheritdoc/>
         public bool NoPrivateKeys { get; private set; }
@@ -148,7 +148,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public Task AddAsync(
             X509Certificate2 certificate,
-            char[] password = null,
+            char[]? password = null,
             CancellationToken ct = default)
         {
             if (certificate == null)
@@ -235,15 +235,15 @@ namespace Opc.Ua
 
         /// <inheritdoc/>
         /// <remarks>The LoadPrivateKey special handling is not necessary in this store.</remarks>
-        public Task<X509Certificate2> LoadPrivateKeyAsync(
+        public Task<X509Certificate2?> LoadPrivateKeyAsync(
             string thumbprint,
-            string subjectName,
-            string applicationUri,
+            string? subjectName,
+            string? applicationUri,
             NodeId certificateType,
-            char[] password,
+            char[]? password,
             CancellationToken ct = default)
         {
-            return Task.FromResult<X509Certificate2>(null);
+            return Task.FromResult<X509Certificate2?>(null);
         }
 
         /// <inheritdoc/>
@@ -393,7 +393,7 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(crl));
             }
 
-            X509Certificate2 issuer = null;
+            X509Certificate2? issuer = null;
             X509Certificate2Collection certificates = await EnumerateAsync(ct).ConfigureAwait(
                 false);
             foreach (X509Certificate2 certificate in certificates)

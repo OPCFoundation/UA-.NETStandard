@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -153,7 +153,7 @@ namespace Opc.Ua.Test
         /// <summary>
         /// Initializes the data generator.
         /// </summary>
-        public DataGenerator(IRandomSource random, ITelemetryContext telemetry)
+        public DataGenerator(IRandomSource? random, ITelemetryContext telemetry)
         {
             MaxArrayLength = 100;
             MaxStringLength = 100;
@@ -161,14 +161,11 @@ namespace Opc.Ua.Test
             MaxXmlElementCount = 10;
             MinDateTimeValue = new DateTimeUtc(1900, 1, 1, 0, 0, 0);
             MaxDateTimeValue = new DateTimeUtc(2100, 1, 1, 0, 0, 0);
-            m_random = random;
+            m_random = random ?? new RandomSource();
             m_logger = telemetry.CreateLogger<DataGenerator>();
             BoundaryValueFrequency = 20;
             NamespaceUris = new NamespaceTable();
             ServerUris = new StringTable();
-
-            // create a random source if none provided.
-            m_random ??= new RandomSource();
 
             // load the localized tokens.
             m_tokenValues = LoadStringData("Opc.Ua.Types.Utils.LocalizedData.txt");
@@ -239,8 +236,8 @@ namespace Opc.Ua.Test
         public Variant GetRandom(
             NodeId dataType,
             int valueRank,
-            uint[] arrayDimensions,
-            ITypeTable typeTree)
+            uint[]? arrayDimensions,
+            ITypeTable? typeTree)
         {
             BuiltInType expectedType = TypeInfo.GetBuiltInType(dataType, typeTree);
             // calculate total number of dimensions.
@@ -988,7 +985,7 @@ namespace Opc.Ua.Test
 
             return GetBoundaryValue(useBoundaryValues,
                 new DataValue(variant, statusCode, sourceTimeStamp, DateTimeUtc.Now),
-                [new DataValue(), default]);
+                [new DataValue(), default!])!;
         }
 
         /// <summary>
@@ -1002,7 +999,7 @@ namespace Opc.Ua.Test
                 DiagnosticsMasks.NoInnerStatus,
                 true,
                 new StringTable(),
-                m_logger), [new DiagnosticInfo(), default]);
+                m_logger), [new DiagnosticInfo(), default!])!;
         }
 
         /// <summary>
@@ -1588,7 +1585,7 @@ namespace Opc.Ua.Test
         /// Helper to get a boundary value from the provided list if the flag is passed.
         /// </summary>
         /// <typeparam name="T"></typeparam>
-        private T GetBoundaryValue<T>(bool useBoundaryValues, T value, T[] boundaryValues)
+        private T GetBoundaryValue<T>(bool useBoundaryValues, T value, T[]? boundaryValues)
         {
             if (useBoundaryValues)
             {
@@ -1648,10 +1645,10 @@ namespace Opc.Ua.Test
 
             try
             {
-                string locale = null;
-                List<string> tokens = null;
+                string? locale = null;
+                List<string>? tokens = null;
 
-                Stream istrm = typeof(DataGenerator).GetTypeInfo().Assembly
+                Stream? istrm = typeof(DataGenerator).GetTypeInfo().Assembly
                     .GetManifestResourceStream(resourceName);
                 if (istrm == null)
                 {
@@ -1662,7 +1659,7 @@ namespace Opc.Ua.Test
 
                 using (var reader = new StreamReader(istrm))
                 {
-                    for (string line = reader.ReadLine(); line != null; line = reader.ReadLine())
+                    for (string? line = reader.ReadLine(); line != null; line = reader.ReadLine())
                     {
                         string token = line.Trim();
 
@@ -1673,7 +1670,7 @@ namespace Opc.Ua.Test
 
                         if (token.StartsWith('='))
                         {
-                            if (locale != null)
+                            if (locale != null && tokens != null)
                             {
                                 dictionary.Add(locale, [.. tokens]);
                             }
@@ -1683,7 +1680,7 @@ namespace Opc.Ua.Test
                             continue;
                         }
 
-                        tokens.Add(token);
+                        tokens?.Add(token);
                     }
                 }
 
@@ -1751,7 +1748,7 @@ namespace Opc.Ua.Test
         /// </summary>
         private string CreateString(string locale, bool isSymbol, bool useBoundaryValues = false)
         {
-            if (!m_tokenValues.TryGetValue(locale, out string[] tokens))
+            if (!m_tokenValues.TryGetValue(locale, out string[]? tokens))
             {
                 tokens = m_tokenValues["en-US"];
             }
@@ -1785,7 +1782,7 @@ namespace Opc.Ua.Test
                 }
             }
 
-            return GetBoundaryValue(useBoundaryValues, buffer.ToString(), [string.Empty, default]);
+            return GetBoundaryValue(useBoundaryValues, buffer.ToString(), [string.Empty, default!]);
         }
 
         private readonly ILogger m_logger;

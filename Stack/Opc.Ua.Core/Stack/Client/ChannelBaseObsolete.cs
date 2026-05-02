@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -146,7 +146,7 @@ namespace Opc.Ua
             Uri discoveryUrl,
             EndpointConfiguration endpointConfiguration,
             IServiceMessageContext messageContext,
-            X509Certificate2 clientCertificate = null)
+            X509Certificate2? clientCertificate = null)
         {
             return DiscoveryClient.CreateChannelAsync(
                 discoveryUrl,
@@ -164,7 +164,7 @@ namespace Opc.Ua
             ITransportWaitingConnection connection,
             EndpointConfiguration endpointConfiguration,
             IServiceMessageContext messageContext,
-            X509Certificate2 clientCertificate = null)
+            X509Certificate2? clientCertificate = null)
         {
             return DiscoveryClient.CreateChannelAsync(
                 configuration,
@@ -183,7 +183,7 @@ namespace Opc.Ua
             Uri discoveryUrl,
             EndpointConfiguration endpointConfiguration,
             IServiceMessageContext messageContext,
-            X509Certificate2 clientCertificate = null)
+            X509Certificate2? clientCertificate = null)
         {
             return DiscoveryClient.CreateChannelAsync(
                 configuration,
@@ -246,7 +246,7 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the object with the specified binding and endpoint address.
         /// </summary>
-        protected UaChannelBase(ITelemetryContext telemetry = null)
+        protected UaChannelBase(ITelemetryContext telemetry)
         {
             Telemetry = telemetry;
         }
@@ -276,7 +276,7 @@ namespace Opc.Ua
         /// Gets the inner channel.
         /// </summary>
         /// <value>The channel.</value>
-        protected TChannel Channel { get; private set; }
+        protected TChannel? Channel { get; private set; }
 
         /// <summary>
         /// Logger to be used by the concrete channel implementation. Shall
@@ -287,7 +287,7 @@ namespace Opc.Ua
         protected ILogger m_logger { get; private set; } = LoggerUtils.Null.Logger;
 #pragma warning restore IDE1006 // Naming Styles
 
-        private readonly ITelemetryContext m_telemetry;
+        private readonly ITelemetryContext m_telemetry = null!;
     }
 
     /// <summary>
@@ -366,9 +366,9 @@ namespace Opc.Ua
             /// <param name="logger">A contextual logger to log to</param>
             public UaChannelAsyncResult(
                 TChannel channel,
-                AsyncCallback callback,
-                object callbackData,
-                ILogger logger = null)
+                AsyncCallback? callback,
+                object? callbackData,
+                ILogger? logger = null)
                 : base(callback, callbackData, 0, logger)
             {
                 Channel = channel;
@@ -464,7 +464,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="response">The response. May be null if an error is provided.</param>
         /// <param name="error">An error to result as a fault.</param>
-        void OperationCompleted(IServiceResponse response, ServiceResult error);
+        void OperationCompleted(IServiceResponse? response, ServiceResult error);
     }
 
     /// <summary>

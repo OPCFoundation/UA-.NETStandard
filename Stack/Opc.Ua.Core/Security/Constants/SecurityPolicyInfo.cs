@@ -1,4 +1,4 @@
-/* Copyright (c) 1996-2022 The OPC Foundation. All rights reserved.
+﻿/* Copyright (c) 1996-2022 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
      - RCL: for OPC Foundation Corporate Members in good-standing
      - GPL V2: everybody else
@@ -27,7 +27,7 @@ namespace Opc.Ua
         /// <param name="uri">The unique identifier.</param>
         /// <param name="name">The display name.</param>
         /// <exception cref="ArgumentNullException"></exception>
-        public SecurityPolicyInfo(string uri, string name = null)
+        public SecurityPolicyInfo(string uri, string? name = null)
         {
             if (string.IsNullOrEmpty(uri))
             {
@@ -177,13 +177,13 @@ namespace Opc.Ua
         /// Returns the data to be signed by the server when creating a session.
         /// </summary>
         public byte[] GetUserTokenSignatureData(
-            byte[] channelThumbprint,
-            byte[] serverNonce,
-            byte[] serverCertificate,
-            byte[] serverChannelCertificate,
-            byte[] clientCertificate,
-            byte[] clientChannelCertificate,
-            byte[] clientNonce)
+            byte[]? channelThumbprint,
+            byte[]? serverNonce,
+            byte[]? serverCertificate,
+            byte[]? serverChannelCertificate,
+            byte[]? clientCertificate,
+            byte[]? clientChannelCertificate,
+            byte[]? clientNonce)
         {
             if (SecureChannelEnhancements)
             {
@@ -195,13 +195,13 @@ namespace Opc.Ua
                     _ => throw new NotSupportedException()
                 };
 
-                var serverCertificateHash =
+                byte[]? serverCertificateHash =
                     serverCertificate != null ? hash.ComputeHash(serverCertificate) : null;
-                var serverChannelCertificateHash =
+                byte[]? serverChannelCertificateHash =
                     serverChannelCertificate != null ? hash.ComputeHash(serverChannelCertificate) : null;
-                var clientCertificateHash =
+                byte[]? clientCertificateHash =
                     clientCertificate != null ? hash.ComputeHash(clientCertificate) : null;
-                var clientChannelCertificateHash =
+                byte[]? clientChannelCertificateHash =
                     clientChannelCertificate != null ? hash.ComputeHash(clientChannelCertificate) : null;
 
                 return Utils.Append(
@@ -226,12 +226,12 @@ namespace Opc.Ua
         /// </summary>
         /// <exception cref="NotSupportedException"></exception>
         public byte[] GetServerSignatureData(
-            byte[] channelThumbprint,
-            byte[] clientNonce,
-            byte[] serverChannelCertificate,
-            byte[] clientCertificate,
-            byte[] clientChannelCertificate,
-            byte[] serverNonce)
+            byte[]? channelThumbprint,
+            byte[]? clientNonce,
+            byte[]? serverChannelCertificate,
+            byte[]? clientCertificate,
+            byte[]? clientChannelCertificate,
+            byte[]? serverNonce)
         {
             if (SecureChannelEnhancements)
             {
@@ -243,9 +243,9 @@ namespace Opc.Ua
                     _ => throw new NotSupportedException()
                 };
 
-                var serverChannelCertificateHash =
+                byte[]? serverChannelCertificateHash =
                     serverChannelCertificate != null ? hash.ComputeHash(serverChannelCertificate) : null;
-                var clientChannelCertificateHash =
+                byte[]? clientChannelCertificateHash =
                     clientChannelCertificate != null ? hash.ComputeHash(clientChannelCertificate) : null;
 
                 return Utils.Append(
@@ -267,14 +267,14 @@ namespace Opc.Ua
         /// Returns the data to be signed by the client when creating a session.
         /// </summary>
         public byte[] GetClientSignatureData(
-            byte[] channelThumbprint,
-            byte[] serverNonce,
-            byte[] serverCertificate,
-            byte[] serverChannelCertificate,
-            byte[] clientChannelCertificate,
-            byte[] clientNonce)
+            byte[]? channelThumbprint,
+            byte[]? serverNonce,
+            byte[]? serverCertificate,
+            byte[]? serverChannelCertificate,
+            byte[]? clientChannelCertificate,
+            byte[]? clientNonce)
         {
-            byte[] data = null;
+            byte[] data;
             if (SecureChannelEnhancements)
             {
                 using HashAlgorithm hash = CertificateThumbprintAlgorithm switch
@@ -285,9 +285,9 @@ namespace Opc.Ua
                     _ => throw new NotSupportedException()
                 };
 
-                var serverCertificateHash = serverCertificate != null ? hash.ComputeHash(serverCertificate) : null;
-                var serverChannelCertificateHash = serverChannelCertificate != null ? hash.ComputeHash(serverChannelCertificate) : null;
-                var clientChannelCertificateHash = clientChannelCertificate != null ? hash.ComputeHash(clientChannelCertificate) : null;
+                byte[]? serverCertificateHash = serverCertificate != null ? hash.ComputeHash(serverCertificate) : null;
+                byte[]? serverChannelCertificateHash = serverChannelCertificate != null ? hash.ComputeHash(serverChannelCertificate) : null;
+                byte[]? clientChannelCertificateHash = clientChannelCertificate != null ? hash.ComputeHash(clientChannelCertificate) : null;
 
                 data = Utils.Append(
                     channelThumbprint,
@@ -309,7 +309,7 @@ namespace Opc.Ua
         /// <summary>
         /// Returns a HMAC based on the symmetric signature algorithm.
         /// </summary>
-        public HMAC CreateSignatureHmac(byte[] signingKey)
+        public HMAC? CreateSignatureHmac(byte[] signingKey)
         {
 #pragma warning disable CA5350 // Do Not Use Weak Cryptographic Algorithms
             return SymmetricSignatureAlgorithm switch

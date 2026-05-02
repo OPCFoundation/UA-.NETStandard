@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -37,11 +37,11 @@ namespace Opc.Ua
         /// <summary>
         /// The algorithm used to encrypt the data.
         /// </summary>
-        public string Algorithm { get; set; }
+        public string? Algorithm { get; set; }
 
         /// <summary>
         /// The encrypted data.
         /// </summary>
-        public byte[] Data { get; set; }
+        public byte[]? Data { get; set; }
     }
 }

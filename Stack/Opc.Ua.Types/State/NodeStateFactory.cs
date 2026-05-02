@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -39,15 +39,15 @@ namespace Opc.Ua
     public class NodeStateFactory : INodeStateFactory, INodeStateFactoryBuilder
     {
         /// <inheritdoc/>
-        public virtual NodeState CreateInstance(
+        public virtual NodeState? CreateInstance(
             ISystemContext context,
-            NodeState parent,
+            NodeState? parent,
             NodeClass nodeClass,
             QualifiedName browseName,
             NodeId referenceTypeId,
             NodeId typeDefinitionId)
         {
-            INodeStateFactory factory;
+            INodeStateFactory? factory;
             if (typeDefinitionId.IsNull)
             {
                 factory = DefaultNodeStateActivator.Instance;
@@ -115,9 +115,9 @@ namespace Opc.Ua
         public static DefaultNodeStateActivator Instance { get; } = new();
 
         /// <inheritdoc/>
-        public NodeState CreateInstance(
+        public NodeState? CreateInstance(
             ISystemContext context,
-            NodeState parent,
+            NodeState? parent,
             NodeClass nodeClass,
             QualifiedName browseName,
             NodeId referenceTypeId,
@@ -158,7 +158,7 @@ namespace Opc.Ua
                     child = new ViewState();
                     break;
                 case NodeClass.Unspecified:
-                    child = null;
+                    child = null!;
                     break;
                 default:
                     throw ServiceResultException.Unexpected(

@@ -45,13 +45,13 @@ namespace Opc.Ua.Configuration
         /// Gets the application configuration used when the Start() method was called.
         /// </summary>
         /// <value>The application configuration.</value>
-        ApplicationConfiguration ApplicationConfiguration { get; set; }
+        ApplicationConfiguration? ApplicationConfiguration { get; set; }
 
         /// <summary>
         /// Gets or sets the name of the application.
         /// </summary>
         /// <value>The name of the application.</value>
-        string ApplicationName { get; set; }
+        string? ApplicationName { get; set; }
 
         /// <summary>
         /// Gets or sets the type of the application.
@@ -62,21 +62,21 @@ namespace Opc.Ua.Configuration
         /// <summary>
         /// Get or set the certificate password provider.
         /// </summary>
-        ICertificatePasswordProvider CertificatePasswordProvider { get; set; }
+        ICertificatePasswordProvider? CertificatePasswordProvider { get; set; }
 
         /// <summary>
         /// Gets or sets the name of the config section containing the path
         /// to the application configuration file.
         /// </summary>
         /// <value>The name of the config section.</value>
-        string ConfigSectionName { get; set; }
+        string? ConfigSectionName { get; set; }
 
         /// <summary>
         /// Gets or sets the type of configuration file.
         /// </summary>
         /// <value>The type of configuration file.</value>
         [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)]
-        Type ConfigurationType { get; set; }
+        Type? ConfigurationType { get; set; }
 
         /// <summary>
         /// Get or set bool which indicates if the auto creation
@@ -95,7 +95,7 @@ namespace Opc.Ua.Configuration
         /// Gets the server.
         /// </summary>
         /// <value>The server.</value>
-        IServerBase Server { get; }
+        IServerBase? Server { get; }
 
         /// <summary>
         /// Adds a Certificate to the Trusted Store of the Application, needed e.g. for the GDS to trust it´s own CA
@@ -122,7 +122,7 @@ namespace Opc.Ua.Configuration
         /// Deletes all application certificates.
         /// </summary>
         /// <exception cref="ArgumentException"></exception>
-        ValueTask DeleteApplicationInstanceCertificateAsync(string[] profileIds = null, CancellationToken ct = default);
+        ValueTask DeleteApplicationInstanceCertificateAsync(string[]? profileIds = null, CancellationToken ct = default);
 
         /// <summary>
         /// Loads the application configuration.

@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -55,11 +55,11 @@ namespace Opc.Ua.Bindings
         /// <inheritdoc/>
         public void Dispose()
         {
-            BufferSegment segment = m_firstSegment;
+            BufferSegment? segment = m_firstSegment;
             while (segment != null)
             {
                 m_bufferManager.ReturnBuffer(segment.Array(), m_owner);
-                segment = (BufferSegment)segment.Next;
+                segment = (BufferSegment?)segment.Next;
             }
             Sequence = ReadOnlySequence<byte>.Empty;
             m_firstSegment = null;
@@ -72,7 +72,7 @@ namespace Opc.Ua.Bindings
         public ReadOnlySequence<byte> Sequence { get; private set; }
 
         private readonly BufferManager m_bufferManager;
-        private BufferSegment m_firstSegment;
+        private BufferSegment? m_firstSegment;
         private readonly string m_owner;
     }
 }

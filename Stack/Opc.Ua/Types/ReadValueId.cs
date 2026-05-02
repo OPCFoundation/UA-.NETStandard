@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -54,7 +54,7 @@ namespace Opc.Ua
         /// <summary>
         /// Validates a read value id parameter.
         /// </summary>
-        public static ServiceResult Validate(ReadValueId valueId)
+        public static ServiceResult? Validate(ReadValueId valueId)
         {
             // check for null structure.
             if (valueId == null)
@@ -96,7 +96,7 @@ namespace Opc.Ua
             {
                 try
                 {
-                    valueId.ParsedIndexRange = NumericRange.Parse(valueId.IndexRange);
+                    valueId.ParsedIndexRange = NumericRange.Parse(valueId.IndexRange!); // IndexRange property re-read after IsNullOrEmpty
                 }
                 catch (Exception e)
                 {

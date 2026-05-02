@@ -364,7 +364,7 @@ namespace Opc.Ua.Configuration
         /// </summary>
         IApplicationConfigurationBuilderServerSelected AsServer(
             string[] baseAddresses,
-            string[] alternateBaseAddresses = null);
+            string[]? alternateBaseAddresses = null);
     }
 
     /// <summary>
@@ -464,9 +464,9 @@ namespace Opc.Ua.Configuration
         )]
         IApplicationConfigurationBuilderSecurityOptions AddSecurityConfiguration(
             string subjectName,
-            string pkiRoot = null,
-            string appRoot = null,
-            string rejectedRoot = null);
+            string? pkiRoot = null,
+            string? appRoot = null,
+            string? rejectedRoot = null);
 
         /// <summary>
         /// Add the security configuration.
@@ -481,8 +481,8 @@ namespace Opc.Ua.Configuration
         /// <param name="rejectedRoot">The path to the rejected certificate store.</param>
         IApplicationConfigurationBuilderSecurityOptions AddSecurityConfiguration(
             ArrayOf<CertificateIdentifier> certIdList,
-            string pkiRoot = null,
-            string rejectedRoot = null);
+            string? pkiRoot = null,
+            string? rejectedRoot = null);
 
         /// <summary>
         /// Add the security configuration for mandatory application, issuer and trusted stores.
@@ -498,7 +498,7 @@ namespace Opc.Ua.Configuration
             string appRoot,
             string trustedRoot,
             string issuerRoot,
-            string rejectedRoot = null);
+            string? rejectedRoot = null);
     }
 
     /// <summary>
@@ -653,7 +653,7 @@ namespace Opc.Ua.Configuration
         /// <param name="elementName">The name of the extension, null to use the type name.</param>
         /// <param name="value">The IEncodeable object to add and encode.</param>
         IApplicationConfigurationBuilderExtension AddExtension<T>(
-            XmlQualifiedName elementName,
+            XmlQualifiedName? elementName,
             T value) where T : IEncodeable;
     }
 

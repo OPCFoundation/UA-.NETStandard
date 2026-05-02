@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -52,7 +52,7 @@ namespace Opc.Ua
         /// <summary>
         /// Validates a write value parameter.
         /// </summary>
-        public static ServiceResult Validate(WriteValue value)
+        public static ServiceResult? Validate(WriteValue value)
         {
             // check for null structure.
             if (value == null)
@@ -76,7 +76,7 @@ namespace Opc.Ua
             if (!string.IsNullOrEmpty(value.IndexRange))
             {
                 ServiceResult result = NumericRange.Validate(
-                    value.IndexRange,
+                    value.IndexRange!, // IndexRange property re-read after IsNullOrEmpty
                     out NumericRange range);
                 if (ServiceResult.IsBad(result))
                 {

@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -38,7 +38,7 @@ namespace Opc.Ua
     public sealed class Tracing
     {
         private static readonly Lock s_syncRoot = new();
-        private static Tracing s_instance;
+        private static Tracing? s_instance;
 
         /// <summary>
         /// Private constructor.
@@ -78,7 +78,7 @@ namespace Opc.Ua
         /// <summary>
         /// Occurs when a trace call is made.
         /// </summary>
-        public event EventHandler<TraceEventArgs> TraceEventHandler;
+        public event EventHandler<TraceEventArgs>? TraceEventHandler;
 
         internal void RaiseTraceEvent(TraceEventArgs eventArgs)
         {

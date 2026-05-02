@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -26,8 +26,6 @@
  * The complete license agreement can be found here:
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
-
-#nullable enable
 
 using System;
 using System.Buffers;
@@ -491,7 +489,7 @@ namespace Opc.Ua
         Matrix IConvertableToMatrix.ToMatrix(BuiltInType builtInType)
         {
 #pragma warning disable CS0618 // Type or member is obsolete
-            return new Matrix(CreateArrayInstance(), builtInType, Dimensions);
+            return new Matrix(CreateArrayInstance()!, builtInType, Dimensions);
 #pragma warning restore CS0618 // Type or member is obsolete
         }
 

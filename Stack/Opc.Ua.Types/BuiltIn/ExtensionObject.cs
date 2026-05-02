@@ -29,8 +29,8 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.Contracts;
-using System.Runtime.CompilerServices;
 using System.Text.Json.Serialization;
 using Opc.Ua.Types;
 
@@ -54,7 +54,6 @@ namespace Opc.Ua
     /// how it is encoded.
     /// </para>
     /// </remarks>
-    [Union]
     public readonly struct ExtensionObject :
         IFormattable,
         INullable,
@@ -160,7 +159,7 @@ namespace Opc.Ua
                     StatusCodes.BadNotSupported,
                     CoreUtils.Format(
                         "Cannot add an object with type '{0}' to an extension object.",
-                        body.GetType().FullName));
+                        body.GetType().FullName!));
             }
         }
 
@@ -183,7 +182,7 @@ namespace Opc.Ua
         /// </summary>
         [Obsolete("Use TryGetAsXXX API for type safe access to body.")]
 #pragma warning disable RCS1085 // Use auto-implemented property
-        public object Body => m_body;
+        public object? Body => m_body;
 #pragma warning restore RCS1085 // Use auto-implemented property
 
         /// <summary>
@@ -209,7 +208,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return obj switch
             {
@@ -240,15 +239,15 @@ namespace Opc.Ua
                         b == (value.TryGetAsBinary(out ByteString b2) ? b2 : default),
                     string s => StringComparer.Ordinal.Equals(
                         s,
-                        value.TryGetAsJson(out string s2) ? s2 : default),
+                        value.TryGetAsJson(out string? s2) ? s2 : default),
                     XmlElement x =>
                         x == (value.TryGetAsXml(out XmlElement x2) ? x2 : default),
                     IEncodeable e => e.IsEqual(
-                        value.TryGetValue(out IEncodeable e2) ? e2 : default),
+                        value.TryGetValue(out IEncodeable? e2) ? e2 : default),
                     _ => false
                 };
             }
-            return CoreUtils.IsEqual(m_body, value.m_body);
+            return CoreUtils.IsEqual(m_body!, value.m_body!);
         }
 
         /// <inheritdoc/>
@@ -270,7 +269,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public string ToString(string format, IFormatProvider formatProvider)
+        public string ToString(string? format, IFormatProvider? formatProvider)
         {
             if (format == null)
             {
@@ -324,19 +323,11 @@ namespace Opc.Ua
         public bool IsNull => TypeId.IsNull && m_body == null;
 
         /// <summary>
-        /// Returns <c>true</c> if the ExtensionObject currently holds a body
-        /// (i.e. is not Null). This is the inverse of <see cref="IsNull"/>
-        /// and matches the non-boxing access member shape proposed for
-        /// C# 15 union types.
-        /// </summary>
-        public bool HasValue => !IsNull;
-
-        /// <summary>
         /// Try get encodeable from the extension object
         /// </summary>
         public bool TryGetValue(
-            out IEncodeable encodeable,
-            IServiceMessageContext messageContext = null)
+            [NotNullWhen(true)] out IEncodeable? encodeable,
+            IServiceMessageContext? messageContext = null)
         {
             if (m_body is IEncodeable e)
             {
@@ -360,11 +351,11 @@ namespace Opc.Ua
         /// </summary>
         /// <typeparam name="T"></typeparam>
         public bool TryGetValue<T>(
-            out T encodeable,
-            IServiceMessageContext messageContext = null)
+            [NotNullWhen(true)] out T? encodeable,
+            IServiceMessageContext? messageContext = null)
             where T : IEncodeable
         {
-            if (TryGetValue(out IEncodeable e, messageContext) &&
+            if (TryGetValue(out IEncodeable? e, messageContext) &&
                 e is T typedEncodeable)
             {
                 encodeable = typedEncodeable;
@@ -378,8 +369,8 @@ namespace Opc.Ua
         /// Try get as json
         /// </summary>
         public bool TryGetAsJson(
-            out string json,
-            IServiceMessageContext messageContext = null)
+            [System.Diagnostics.CodeAnalysis.MaybeNullWhen(false)] out string json,
+            IServiceMessageContext? messageContext = null)
         {
             if (m_body is string s)
             {
@@ -403,7 +394,7 @@ namespace Opc.Ua
         /// </summary>
         public bool TryGetAsXml(
             out XmlElement xml,
-            IServiceMessageContext messageContext = null)
+            IServiceMessageContext? messageContext = null)
         {
             if (m_body is XmlElement x)
             {
@@ -427,7 +418,7 @@ namespace Opc.Ua
         /// </summary>
         public bool TryGetAsBinary(
             out ByteString binary,
-            IServiceMessageContext messageContext = null)
+            IServiceMessageContext? messageContext = null)
         {
             if (m_body is ByteString b)
             {
@@ -451,7 +442,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="extension">The extension object to convert to an encodeable object</param>
         /// <returns>Instance of <see cref="IEncodeable"/> for the embedded object.</returns>
-        public static IEncodeable ToEncodeable(ExtensionObject extension)
+        public static IEncodeable? ToEncodeable(ExtensionObject extension)
         {
             return extension.m_body as IEncodeable;
         }
@@ -474,9 +465,10 @@ namespace Opc.Ua
             var output = new T[extensions.Count];
             for (int ii = 0; ii < output.Length; ii++)
             {
-                if (extensions[ii].TryGetValue(out T element))
+                if (extensions[ii].TryGetValue(out IEncodeable? element) &&
+                    element is T typedElement)
                 {
-                    output[ii] = element;
+                    output[ii] = typedElement;
                 }
             }
             return output;
@@ -498,7 +490,7 @@ namespace Opc.Ua
             };
         }
 
-        private readonly object m_body;
+        private readonly object? m_body;
     }
 
     /// <summary>

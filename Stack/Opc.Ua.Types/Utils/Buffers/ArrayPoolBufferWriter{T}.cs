@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -46,8 +46,8 @@ namespace Opc.Ua.Buffers
         private int m_chunkSize;
         private readonly int m_maxChunkSize;
         private T[] m_currentBuffer;
-        private ArrayPoolBufferSegment<T> m_firstSegment;
-        private ArrayPoolBufferSegment<T> m_nextSegment;
+        private ArrayPoolBufferSegment<T>? m_firstSegment;
+        private ArrayPoolBufferSegment<T>? m_nextSegment;
         private int m_offset;
         private bool m_disposed;
 
@@ -86,11 +86,11 @@ namespace Opc.Ua.Buffers
         {
             if (m_firstSegment != null)
             {
-                ArrayPoolBufferSegment<T> segment = m_firstSegment;
+                ArrayPoolBufferSegment<T>? segment = m_firstSegment;
                 while (segment != null)
                 {
                     segment.Return(m_clearArray);
-                    segment = (ArrayPoolBufferSegment<T>)segment.Next;
+                    segment = (ArrayPoolBufferSegment<T>?)segment.Next;
                 }
 
                 m_firstSegment = m_nextSegment = null;
@@ -191,7 +191,7 @@ namespace Opc.Ua.Buffers
                 }
                 else
                 {
-                    m_nextSegment = m_nextSegment.Append(m_currentBuffer, 0, m_offset);
+                    m_nextSegment = m_nextSegment!.Append(m_currentBuffer, 0, m_offset);
                 }
             }
             else if (m_currentBuffer.Length > 0)

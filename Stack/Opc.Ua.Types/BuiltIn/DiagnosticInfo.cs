@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -113,7 +113,7 @@ namespace Opc.Ua
             int namespaceUri,
             int locale,
             int localizedText,
-            string additionalInfo)
+            string? additionalInfo)
         {
             SymbolicId = symbolicId;
             NamespaceUri = namespaceUri;
@@ -286,27 +286,27 @@ namespace Opc.Ua
 
             if ((DiagnosticsMasks.ServiceSymbolicId & diagnosticsMask) != 0)
             {
-                string symbolicId = result.SymbolicId;
-                string namespaceUri = result.NamespaceUri;
+                string? symbolicId = result.SymbolicId;
+                string? namespaceUri = result.NamespaceUri;
 
                 if (!string.IsNullOrEmpty(symbolicId))
                 {
-                    SymbolicId = stringTable.GetIndex(result.SymbolicId);
+                    SymbolicId = stringTable.GetIndex(symbolicId!);
 
                     if (SymbolicId == -1)
                     {
                         SymbolicId = stringTable.Count;
-                        stringTable.Append(symbolicId);
+                        stringTable.Append(symbolicId!);
                     }
 
                     if (!string.IsNullOrEmpty(namespaceUri))
                     {
-                        NamespaceUri = stringTable.GetIndex(namespaceUri);
+                        NamespaceUri = stringTable.GetIndex(namespaceUri!);
 
                         if (NamespaceUri == -1)
                         {
                             NamespaceUri = stringTable.Count;
-                            stringTable.Append(namespaceUri);
+                            stringTable.Append(namespaceUri!);
                         }
                     }
                 }
@@ -317,21 +317,21 @@ namespace Opc.Ua
             {
                 if (!string.IsNullOrEmpty(result.LocalizedText.Locale))
                 {
-                    Locale = stringTable.GetIndex(result.LocalizedText.Locale);
+                    Locale = stringTable.GetIndex(result.LocalizedText.Locale!);
 
                     if (Locale == -1)
                     {
                         Locale = stringTable.Count;
-                        stringTable.Append(result.LocalizedText.Locale);
+                        stringTable.Append(result.LocalizedText.Locale!);
                     }
                 }
 
-                LocalizedText = stringTable.GetIndex(result.LocalizedText.Text);
+                LocalizedText = stringTable.GetIndex(result.LocalizedText.Text!);
 
                 if (LocalizedText == -1)
                 {
                     LocalizedText = stringTable.Count;
-                    stringTable.Append(result.LocalizedText.Text);
+                    stringTable.Append(result.LocalizedText.Text!);
                 }
             }
 
@@ -399,7 +399,7 @@ namespace Opc.Ua
         /// The additional debugging or trace information.
         /// </summary>
         [DataMember(Order = 5, IsRequired = false, EmitDefaultValue = false)]
-        public string AdditionalInfo { get; set; }
+        public string? AdditionalInfo { get; set; }
 
         /// <summary>
         /// The status code returned from an underlying system.
@@ -411,7 +411,7 @@ namespace Opc.Ua
         /// The diagnostic info returned from a underlying system.
         /// </summary>
         [DataMember(Order = 7, IsRequired = false, EmitDefaultValue = false)]
-        public DiagnosticInfo InnerDiagnosticInfo { get; set; }
+        public DiagnosticInfo? InnerDiagnosticInfo { get; set; }
 
         /// <summary>
         /// Whether the object represents a Null DiagnosticInfo.
@@ -428,7 +428,7 @@ namespace Opc.Ua
         /// <summary>
         /// Determines if the specified object is equal to the object.
         /// </summary>
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return Equals(obj, 0);
         }
@@ -463,7 +463,7 @@ namespace Opc.Ua
         /// <param name="format">(Unused). Always pass a null</param>
         /// <param name="formatProvider">(Unused) The provider.</param>
         /// <exception cref="FormatException">Thrown if the <i>format</i> parameter is NOT null</exception>
-        public string ToString(string format, IFormatProvider formatProvider)
+        public string ToString(string? format, IFormatProvider? formatProvider)
         {
             if (format == null)
             {
@@ -520,7 +520,7 @@ namespace Opc.Ua
         /// Determines if the specified object is equal to this object.
         /// Limits the depth of the comparison to avoid infinite recursion.
         /// </summary>
-        private bool Equals(object obj, int depth)
+        private bool Equals(object? obj, int depth)
         {
             if (ReferenceEquals(this, obj))
             {

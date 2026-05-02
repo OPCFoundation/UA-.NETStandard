@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 namespace Opc.Ua
 {
     /// <summary>
@@ -44,7 +42,7 @@ namespace Opc.Ua
         /// <summary>
         /// Name of the field
         /// </summary>
-        string Name { get; }
+        string? Name { get; }
 
         /// <summary>
         /// Whether the field is optional

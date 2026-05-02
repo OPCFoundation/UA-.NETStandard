@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 using System;
 using System.Buffers;
 using System.Collections.Generic;
@@ -36,6 +34,7 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
@@ -182,7 +181,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public void SetMappingTables(NamespaceTable namespaceUris, StringTable serverUris)
+        public void SetMappingTables(NamespaceTable? namespaceUris, StringTable? serverUris)
         {
             m_namespaceMappings = null;
 
@@ -192,17 +191,17 @@ namespace Opc.Ua
 
                 for (uint ii = 0; ii < namespaceUris.Count; ii++)
                 {
-                    string uri = namespaceUris.GetString(ii);
+                    string? uri = namespaceUris.GetString(ii);
 
                     if (m_options.UpdateNamespaceTable)
                     {
                         namespaceMappings[ii] =
-                            Context.NamespaceUris.GetIndexOrAppend(uri);
+                            Context.NamespaceUris.GetIndexOrAppend(uri!);
                     }
                     else
                     {
                         int index =
-                            Context.NamespaceUris.GetIndex(namespaceUris.GetString(ii));
+                            Context.NamespaceUris.GetIndex(namespaceUris.GetString(ii)!);
                         namespaceMappings[ii] =
                             index >= 0 ? (ushort)index : ushort.MaxValue;
                     }
@@ -219,17 +218,17 @@ namespace Opc.Ua
 
                 for (uint ii = 0; ii < serverUris.Count; ii++)
                 {
-                    string uri = serverUris.GetString(ii);
+                    string? uri = serverUris.GetString(ii);
 
                     if (m_options.UpdateNamespaceTable)
                     {
                         serverMappings[ii] =
-                            Context.ServerUris.GetIndexOrAppend(uri);
+                            Context.ServerUris.GetIndexOrAppend(uri!);
                     }
                     else
                     {
                         int index =
-                            Context.ServerUris.GetIndex(serverUris.GetString(ii));
+                            Context.ServerUris.GetIndex(serverUris.GetString(ii)!);
                         serverMappings[ii] =
                             index >= 0 ? (ushort)index : ushort.MaxValue;
                     }
@@ -292,7 +291,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public bool ReadBoolean(string fieldName)
+        public bool ReadBoolean(string? fieldName)
         {
             if (TryGetBooleanFromElement(
                 GetPropertyElement(fieldName),
@@ -304,7 +303,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public ArrayOf<bool> ReadBooleanArray(string fieldName)
+        public ArrayOf<bool> ReadBooleanArray(string? fieldName)
         {
             if (TryGetBooleanArrayFromElement(
                 GetPropertyElement(fieldName),
@@ -316,7 +315,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public byte ReadByte(string fieldName)
+        public byte ReadByte(string? fieldName)
         {
             if (TryGetByteFromElement(
                 GetPropertyElement(fieldName),
@@ -328,7 +327,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public ArrayOf<byte> ReadByteArray(string fieldName)
+        public ArrayOf<byte> ReadByteArray(string? fieldName)
         {
             if (TryGetByteArrayFromElement(
                 GetPropertyElement(fieldName),
@@ -340,7 +339,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public ByteString ReadByteString(string fieldName)
+        public ByteString ReadByteString(string? fieldName)
         {
             if (TryGetByteStringFromElement(
                 GetPropertyElement(fieldName),
@@ -352,7 +351,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public ArrayOf<ByteString> ReadByteStringArray(string fieldName)
+        public ArrayOf<ByteString> ReadByteStringArray(string? fieldName)
         {
             if (TryGetByteStringArrayFromElement(
                 GetPropertyElement(fieldName),
@@ -364,7 +363,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public DataValue? ReadDataValue(string fieldName)
+        public DataValue? ReadDataValue(string? fieldName)
         {
             if (TryGetDataValueFromElement(
                 GetPropertyElement(fieldName),
@@ -376,7 +375,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public ArrayOf<DataValue?> ReadDataValueArray(string fieldName)
+        public ArrayOf<DataValue?> ReadDataValueArray(string? fieldName)
         {
             if (TryGetDataValueArrayFromElement(
                 GetPropertyElement(fieldName),
@@ -388,7 +387,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public DateTimeUtc ReadDateTime(string fieldName)
+        public DateTimeUtc ReadDateTime(string? fieldName)
         {
             if (TryGetDateTimeFromElement(
                 GetPropertyElement(fieldName),
@@ -400,7 +399,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public ArrayOf<DateTimeUtc> ReadDateTimeArray(string fieldName)
+        public ArrayOf<DateTimeUtc> ReadDateTimeArray(string? fieldName)
         {
             if (TryGetDateTimeArrayFromElement(
                 GetPropertyElement(fieldName),
@@ -412,7 +411,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public DiagnosticInfo? ReadDiagnosticInfo(string fieldName)
+        public DiagnosticInfo? ReadDiagnosticInfo(string? fieldName)
         {
             if (TryGetDiagnosticInfoFromElement(
                 GetPropertyElement(fieldName),
@@ -424,7 +423,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public ArrayOf<DiagnosticInfo?> ReadDiagnosticInfoArray(string fieldName)
+        public ArrayOf<DiagnosticInfo?> ReadDiagnosticInfoArray(string? fieldName)
         {
             if (TryGetDiagnosticInfoArrayFromElement(
                 GetPropertyElement(fieldName),
@@ -436,7 +435,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public double ReadDouble(string fieldName)
+        public double ReadDouble(string? fieldName)
         {
             if (TryGetDoubleFromElement(
                 GetPropertyElement(fieldName),
@@ -448,7 +447,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public ArrayOf<double> ReadDoubleArray(string fieldName)
+        public ArrayOf<double> ReadDoubleArray(string? fieldName)
         {
             if (TryGetDoubleArrayFromElement(
                 GetPropertyElement(fieldName),
@@ -485,7 +484,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public EnumValue ReadEnumerated(string fieldName)
+        public EnumValue ReadEnumerated(string? fieldName)
         {
             if (TryGetEnumerationFromElement(
                 GetPropertyElement(fieldName),
@@ -497,7 +496,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public ArrayOf<EnumValue> ReadEnumeratedArray(string fieldName)
+        public ArrayOf<EnumValue> ReadEnumeratedArray(string? fieldName)
         {
             if (TryGetEnumerationArrayFromElement(
                 GetPropertyElement(fieldName),
@@ -509,7 +508,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public ExpandedNodeId ReadExpandedNodeId(string fieldName)
+        public ExpandedNodeId ReadExpandedNodeId(string? fieldName)
         {
             if (TryGetExpandedNodeIdFromElement(
                 GetPropertyElement(fieldName),
@@ -521,7 +520,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public ArrayOf<ExpandedNodeId> ReadExpandedNodeIdArray(string fieldName)
+        public ArrayOf<ExpandedNodeId> ReadExpandedNodeIdArray(string? fieldName)
         {
             if (TryGetExpandedNodeIdArrayFromElement(
                 GetPropertyElement(fieldName),
@@ -533,7 +532,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public ExtensionObject ReadExtensionObject(string fieldName)
+        public ExtensionObject ReadExtensionObject(string? fieldName)
         {
             if (TryGetExtensionObjectFromElement(
                 GetPropertyElement(fieldName),
@@ -545,7 +544,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public ArrayOf<ExtensionObject> ReadExtensionObjectArray(string fieldName)
+        public ArrayOf<ExtensionObject> ReadExtensionObjectArray(string? fieldName)
         {
             if (TryGetExtensionObjectArrayFromElement(
                 GetPropertyElement(fieldName),
@@ -557,7 +556,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public float ReadFloat(string fieldName)
+        public float ReadFloat(string? fieldName)
         {
             if (TryGetFloatFromElement(
                 GetPropertyElement(fieldName),
@@ -569,7 +568,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public ArrayOf<float> ReadFloatArray(string fieldName)
+        public ArrayOf<float> ReadFloatArray(string? fieldName)
         {
             if (TryGetFloatArrayFromElement(
                 GetPropertyElement(fieldName),
@@ -581,7 +580,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public Uuid ReadGuid(string fieldName)
+        public Uuid ReadGuid(string? fieldName)
         {
             if (TryGetGuidFromElement(
                 GetPropertyElement(fieldName),
@@ -593,7 +592,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public ArrayOf<Uuid> ReadGuidArray(string fieldName)
+        public ArrayOf<Uuid> ReadGuidArray(string? fieldName)
         {
             if (TryGetGuidArrayFromElement(
                 GetPropertyElement(fieldName),
@@ -605,7 +604,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public short ReadInt16(string fieldName)
+        public short ReadInt16(string? fieldName)
         {
             if (TryGetInt16FromElement(
                 GetPropertyElement(fieldName),
@@ -617,7 +616,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public ArrayOf<short> ReadInt16Array(string fieldName)
+        public ArrayOf<short> ReadInt16Array(string? fieldName)
         {
             if (TryGetInt16ArrayFromElement(
                 GetPropertyElement(fieldName),
@@ -629,7 +628,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public int ReadInt32(string fieldName)
+        public int ReadInt32(string? fieldName)
         {
             if (TryGetInt32FromElement(
                 GetPropertyElement(fieldName),
@@ -641,7 +640,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public ArrayOf<int> ReadInt32Array(string fieldName)
+        public ArrayOf<int> ReadInt32Array(string? fieldName)
         {
             if (TryGetInt32ArrayFromElement(
                 GetPropertyElement(fieldName),
@@ -653,7 +652,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public long ReadInt64(string fieldName)
+        public long ReadInt64(string? fieldName)
         {
             if (TryGetInt64FromElement(
                 GetPropertyElement(fieldName),
@@ -665,7 +664,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public ArrayOf<long> ReadInt64Array(string fieldName)
+        public ArrayOf<long> ReadInt64Array(string? fieldName)
         {
             if (TryGetInt64ArrayFromElement(
                 GetPropertyElement(fieldName),
@@ -677,7 +676,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public LocalizedText ReadLocalizedText(string fieldName)
+        public LocalizedText ReadLocalizedText(string? fieldName)
         {
             if (TryGetLocalizedTextFromElement(
                 GetPropertyElement(fieldName),
@@ -689,7 +688,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public ArrayOf<LocalizedText> ReadLocalizedTextArray(string fieldName)
+        public ArrayOf<LocalizedText> ReadLocalizedTextArray(string? fieldName)
         {
             if (TryGetLocalizedTextArrayFromElement(
                 GetPropertyElement(fieldName),
@@ -701,7 +700,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public NodeId ReadNodeId(string fieldName)
+        public NodeId ReadNodeId(string? fieldName)
         {
             if (TryGetNodeIdFromElement(
                 GetPropertyElement(fieldName),
@@ -713,7 +712,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public ArrayOf<NodeId> ReadNodeIdArray(string fieldName)
+        public ArrayOf<NodeId> ReadNodeIdArray(string? fieldName)
         {
             if (TryGetNodeIdArrayFromElement(
                 GetPropertyElement(fieldName),
@@ -725,7 +724,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public QualifiedName ReadQualifiedName(string fieldName)
+        public QualifiedName ReadQualifiedName(string? fieldName)
         {
             if (TryGetQualifiedNameFromElement(
                 GetPropertyElement(fieldName),
@@ -737,7 +736,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public ArrayOf<QualifiedName> ReadQualifiedNameArray(string fieldName)
+        public ArrayOf<QualifiedName> ReadQualifiedNameArray(string? fieldName)
         {
             if (TryGetQualifiedNameArrayFromElement(
                 GetPropertyElement(fieldName),
@@ -749,7 +748,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public sbyte ReadSByte(string fieldName)
+        public sbyte ReadSByte(string? fieldName)
         {
             if (TryGetSByteFromElement(
                 GetPropertyElement(fieldName),
@@ -761,7 +760,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public ArrayOf<sbyte> ReadSByteArray(string fieldName)
+        public ArrayOf<sbyte> ReadSByteArray(string? fieldName)
         {
             if (TryGetSByteArrayFromElement(
                 GetPropertyElement(fieldName),
@@ -773,7 +772,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public StatusCode ReadStatusCode(string fieldName)
+        public StatusCode ReadStatusCode(string? fieldName)
         {
             if (TryGetStatusCodeFromElement(
                 GetPropertyElement(fieldName),
@@ -785,7 +784,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public ArrayOf<StatusCode> ReadStatusCodeArray(string fieldName)
+        public ArrayOf<StatusCode> ReadStatusCodeArray(string? fieldName)
         {
             if (TryGetStatusCodeArrayFromElement(
                 GetPropertyElement(fieldName),
@@ -797,7 +796,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public string? ReadString(string fieldName)
+        public string? ReadString(string? fieldName)
         {
             if (TryGetStringFromElement(
                 GetPropertyElement(fieldName),
@@ -809,7 +808,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public ArrayOf<string?> ReadStringArray(string fieldName)
+        public ArrayOf<string?> ReadStringArray(string? fieldName)
         {
             if (TryGetStringArrayFromElement(
                 GetPropertyElement(fieldName),
@@ -917,7 +916,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public ushort ReadUInt16(string fieldName)
+        public ushort ReadUInt16(string? fieldName)
         {
             if (TryGetUInt16FromElement(
                 GetPropertyElement(fieldName),
@@ -929,7 +928,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public ArrayOf<ushort> ReadUInt16Array(string fieldName)
+        public ArrayOf<ushort> ReadUInt16Array(string? fieldName)
         {
             if (TryGetUInt16ArrayFromElement(
                 GetPropertyElement(fieldName),
@@ -941,7 +940,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public uint ReadUInt32(string fieldName)
+        public uint ReadUInt32(string? fieldName)
         {
             if (TryGetUInt32FromElement(
                 GetPropertyElement(fieldName),
@@ -953,7 +952,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public ArrayOf<uint> ReadUInt32Array(string fieldName)
+        public ArrayOf<uint> ReadUInt32Array(string? fieldName)
         {
             if (TryGetUInt32ArrayFromElement(
                 GetPropertyElement(fieldName),
@@ -965,7 +964,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public ulong ReadUInt64(string fieldName)
+        public ulong ReadUInt64(string? fieldName)
         {
             if (TryGetUInt64FromElement(
                 GetPropertyElement(fieldName),
@@ -977,7 +976,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public ArrayOf<ulong> ReadUInt64Array(string fieldName)
+        public ArrayOf<ulong> ReadUInt64Array(string? fieldName)
         {
             if (TryGetUInt64ArrayFromElement(
                 GetPropertyElement(fieldName),
@@ -989,7 +988,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public Variant ReadVariant(string fieldName)
+        public Variant ReadVariant(string? fieldName)
         {
             if (TryGetVariantFromElement(
                 GetPropertyElement(fieldName),
@@ -1001,7 +1000,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public ArrayOf<Variant> ReadVariantArray(string fieldName)
+        public ArrayOf<Variant> ReadVariantArray(string? fieldName)
         {
             if (TryGetVariantArrayFromElement(
                 GetPropertyElement(fieldName),
@@ -1027,7 +1026,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public XmlElement ReadXmlElement(string fieldName)
+        public XmlElement ReadXmlElement(string? fieldName)
         {
             if (TryGetXmlElementFromElement(
                 GetPropertyElement(fieldName),
@@ -1039,7 +1038,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public ArrayOf<XmlElement> ReadXmlElementArray(string fieldName)
+        public ArrayOf<XmlElement> ReadXmlElementArray(string? fieldName)
         {
             if (TryGetXmlElementArrayFromElement(
                 GetPropertyElement(fieldName),
@@ -1807,7 +1806,7 @@ namespace Opc.Ua
                 case JsonValueKind.String:
                     return ExpandedNodeId.TryParse(
                         Context,
-                        element.GetString(),
+                        element.GetString()!,
                         new NodeIdParsingOptions
                         {
                             UpdateTables = m_options.UpdateNamespaceTable,
@@ -2314,7 +2313,7 @@ namespace Opc.Ua
                                 GetPropertyElement(JsonProperties.Text),
                                 out string? text))
                         {
-                            value = new LocalizedText(locale, text);
+                            value = new LocalizedText(locale!, text!);
                             return true;
                         }
                         value = LocalizedText.Null;
@@ -2325,7 +2324,7 @@ namespace Opc.Ua
                         m_stack.Pop();
                     }
                 case JsonValueKind.String:
-                    value = LocalizedText.From(element.GetString());
+                    value = LocalizedText.From(element.GetString()!);
                     return true;
                 default:
                     value = LocalizedText.Null;
@@ -2378,7 +2377,7 @@ namespace Opc.Ua
                 case JsonValueKind.String:
                     if (ExpandedNodeId.TryParse(
                         Context,
-                        element.GetString(),
+                        element.GetString()!,
                         new NodeIdParsingOptions
                         {
                             UpdateTables = m_options.UpdateNamespaceTable,
@@ -2449,7 +2448,7 @@ namespace Opc.Ua
                 case JsonValueKind.String:
                     value = QualifiedName.Parse(
                         Context,
-                        element.GetString(),
+                        element.GetString()!,
                         m_options.UpdateNamespaceTable);
                     return true;
                 default:
@@ -2712,7 +2711,7 @@ namespace Opc.Ua
                                     if (TryGetByteStringFromElement(uaBody, out ByteString bytes))
                                     {
                                         using var decoder = new BinaryDecoder(bytes.ToArray(), Context);
-                                        value = decoder.ReadEncodeable<T>(null, typeId);
+                                        value = decoder.ReadEncodeable<T>(null!, typeId);
                                         return true;
                                     }
                                     break;
@@ -3281,7 +3280,7 @@ namespace Opc.Ua
                     case BuiltInType.String when TryGetStringFromElement(
                         element,
                         out string? v):
-                        value = Variant.From(v);
+                        value = Variant.From(v!);
                         return true;
                     case BuiltInType.DateTime when TryGetDateTimeFromElement(
                         element,
@@ -3331,7 +3330,7 @@ namespace Opc.Ua
                     case BuiltInType.DataValue when TryGetDataValueFromElement(
                         element,
                         out DataValue? v):
-                        value = Variant.From(v);
+                        value = Variant.From(v!);
                         return true;
                     case BuiltInType.ExtensionObject when TryGetExtensionObjectFromElement(
                         element,
@@ -3429,7 +3428,9 @@ namespace Opc.Ua
                     case BuiltInType.String when TryGetStringArrayFromElement(
                         element,
                         out ArrayOf<string?> v):
+#pragma warning disable CS8620 // Argument cannot be used due to nullability differences. ArrayOf<string?> and ArrayOf<string> share runtime layout; null elements are tolerated by Variant.
                         value = Variant.From(v);
+#pragma warning restore CS8620
                         return true;
                     case BuiltInType.DateTime when TryGetDateTimeArrayFromElement(
                         element,
@@ -3478,7 +3479,9 @@ namespace Opc.Ua
                     case BuiltInType.DataValue when TryGetDataValueArrayFromElement(
                         element,
                         out ArrayOf<DataValue?> v):
+#pragma warning disable CS8620 // Argument cannot be used due to nullability differences. ArrayOf<DataValue?> and ArrayOf<DataValue> share runtime layout; null elements are tolerated by Variant.
                         value = Variant.From(v);
+#pragma warning restore CS8620
                         return true;
                     case BuiltInType.ExtensionObject when TryGetExtensionObjectArrayFromElement(
                         element,
@@ -3613,7 +3616,9 @@ namespace Opc.Ua
                         case BuiltInType.String when TryGetStringArrayFromElement(
                             element,
                             out ArrayOf<string?> v):
+#pragma warning disable CS8620 // Argument cannot be used due to nullability differences. MatrixOf<string?> and MatrixOf<string> share runtime layout; null elements are tolerated by Variant.
                             value = Variant.From(v.ToMatrix(dims));
+#pragma warning restore CS8620
                             return true;
                         case BuiltInType.DateTime when TryGetDateTimeArrayFromElement(
                             element,
@@ -3662,7 +3667,9 @@ namespace Opc.Ua
                         case BuiltInType.DataValue when TryGetDataValueArrayFromElement(
                             element,
                             out ArrayOf<DataValue?> v):
+#pragma warning disable CS8620 // Argument cannot be used due to nullability differences. MatrixOf<DataValue?> and MatrixOf<DataValue> share runtime layout; null elements are tolerated by Variant.
                             value = Variant.From(v.ToMatrix(dims));
+#pragma warning restore CS8620
                             return true;
                         case BuiltInType.ExtensionObject when TryGetExtensionObjectArrayFromElement(
                             element,
@@ -3927,11 +3934,11 @@ namespace Opc.Ua
                             NamespaceTable namespaces =
                                 namespaceUris.Count == 0
                                     ? Context.NamespaceUris
-                                    : new NamespaceTable(namespaceUris.ToArray());
+                                    : new NamespaceTable(namespaceUris.ToArray()!.Cast<string>());
                             StringTable servers =
                                 serverUris.Count == 0
                                     ? Context.ServerUris
-                                    : new StringTable(serverUris.ToArray());
+                                    : new StringTable(serverUris.ToArray()!.Cast<string>());
 
                             SetMappingTables(namespaces, servers);
                         }
@@ -3976,7 +3983,7 @@ namespace Opc.Ua
         /// Try get top element or named element from object
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        private JsonElement GetPropertyElement(string fieldName)
+        private JsonElement GetPropertyElement(string? fieldName)
         {
             if (m_stack.Count == 0)
             {
@@ -3990,7 +3997,7 @@ namespace Opc.Ua
                 throw ServiceResultException.Create(StatusCodes.BadDecodingError,
                     "Expected object at top of stack");
             }
-            else if (o.TryGetProperty(fieldName, out JsonElement element))
+            else if (o.TryGetProperty(fieldName!, out JsonElement element))
             {
                 return element;
             }

@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -61,7 +61,7 @@ namespace Opc.Ua
         /// <summary>
         /// Completes writing and returns the encoded text.
         /// </summary>
-        string CloseAndReturnText();
+        string? CloseAndReturnText();
 
         /// <summary>
         /// Initializes the tables used to map namespace and server uris during encoding.
@@ -96,134 +96,134 @@ namespace Opc.Ua
         /// <summary>
         /// Writes a boolean to the stream.
         /// </summary>
-        void WriteBoolean(string fieldName, bool value);
+        void WriteBoolean(string? fieldName, bool value);
 
         /// <summary>
         /// Writes a sbyte to the stream.
         /// </summary>
-        void WriteSByte(string fieldName, sbyte value);
+        void WriteSByte(string? fieldName, sbyte value);
 
         /// <summary>
         /// Writes a byte to the stream.
         /// </summary>
-        void WriteByte(string fieldName, byte value);
+        void WriteByte(string? fieldName, byte value);
 
         /// <summary>
         /// Writes a short to the stream.
         /// </summary>
-        void WriteInt16(string fieldName, short value);
+        void WriteInt16(string? fieldName, short value);
 
         /// <summary>
         /// Writes a ushort to the stream.
         /// </summary>
-        void WriteUInt16(string fieldName, ushort value);
+        void WriteUInt16(string? fieldName, ushort value);
 
         /// <summary>
         /// Writes an int to the stream.
         /// </summary>
-        void WriteInt32(string fieldName, int value);
+        void WriteInt32(string? fieldName, int value);
 
         /// <summary>
         /// Writes a uint to the stream.
         /// </summary>
-        void WriteUInt32(string fieldName, uint value);
+        void WriteUInt32(string? fieldName, uint value);
 
         /// <summary>
         /// Writes a long to the stream.
         /// </summary>
-        void WriteInt64(string fieldName, long value);
+        void WriteInt64(string? fieldName, long value);
 
         /// <summary>
         /// Writes a ulong to the stream.
         /// </summary>
-        void WriteUInt64(string fieldName, ulong value);
+        void WriteUInt64(string? fieldName, ulong value);
 
         /// <summary>
         /// Writes a float to the stream.
         /// </summary>
-        void WriteFloat(string fieldName, float value);
+        void WriteFloat(string? fieldName, float value);
 
         /// <summary>
         /// Writes a double to the stream.
         /// </summary>
-        void WriteDouble(string fieldName, double value);
+        void WriteDouble(string? fieldName, double value);
 
         /// <summary>
         /// Writes a string to the stream.
         /// </summary>
-        void WriteString(string fieldName, string value);
+        void WriteString(string? fieldName, string? value);
 
         /// <summary>
         /// Writes a UTC date/time to the stream.
         /// </summary>
-        void WriteDateTime(string fieldName, DateTimeUtc value);
+        void WriteDateTime(string? fieldName, DateTimeUtc value);
 
         /// <summary>
         /// Writes a GUID to the stream.
         /// </summary>
-        void WriteGuid(string fieldName, Uuid value);
+        void WriteGuid(string? fieldName, Uuid value);
 
         /// <summary>
         /// Writes a byte string to the stream.
         /// </summary>
-        void WriteByteString(string fieldName, ByteString value);
+        void WriteByteString(string? fieldName, ByteString value);
 
 #if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
         /// <summary>
         /// Writes a byte string to the stream.
         /// </summary>
-        void WriteByteString(string fieldName, ReadOnlySpan<byte> value);
+        void WriteByteString(string? fieldName, ReadOnlySpan<byte> value);
 #endif
 
         /// <summary>
         /// Writes a XmlElement to the stream.
         /// </summary>
-        void WriteXmlElement(string fieldName, XmlElement value);
+        void WriteXmlElement(string? fieldName, XmlElement value);
 
         /// <summary>
         /// Writes a NodeId to the stream.
         /// </summary>
-        void WriteNodeId(string fieldName, NodeId value);
+        void WriteNodeId(string? fieldName, NodeId value);
 
         /// <summary>
         /// Writes an ExpandedNodeId to the stream.
         /// </summary>
-        void WriteExpandedNodeId(string fieldName, ExpandedNodeId value);
+        void WriteExpandedNodeId(string? fieldName, ExpandedNodeId value);
 
         /// <summary>
         /// Writes a StatusCode to the stream.
         /// </summary>
-        void WriteStatusCode(string fieldName, StatusCode value);
+        void WriteStatusCode(string? fieldName, StatusCode value);
 
         /// <summary>
         /// Writes a DiagnosticInfo to the stream.
         /// </summary>
-        void WriteDiagnosticInfo(string fieldName, DiagnosticInfo value);
+        void WriteDiagnosticInfo(string? fieldName, DiagnosticInfo? value);
 
         /// <summary>
         /// Writes a QualifiedName to the stream.
         /// </summary>
-        void WriteQualifiedName(string fieldName, QualifiedName value);
+        void WriteQualifiedName(string? fieldName, QualifiedName value);
 
         /// <summary>
         /// Writes a LocalizedText to the stream.
         /// </summary>
-        void WriteLocalizedText(string fieldName, LocalizedText value);
+        void WriteLocalizedText(string? fieldName, LocalizedText value);
 
         /// <summary>
         /// Writes a Variant to the stream.
         /// </summary>
-        void WriteVariant(string fieldName, Variant value);
+        void WriteVariant(string? fieldName, Variant value);
 
         /// <summary>
         /// Writes a DataValue to the stream.
         /// </summary>
-        void WriteDataValue(string fieldName, DataValue value);
+        void WriteDataValue(string? fieldName, DataValue? value);
 
         /// <summary>
         /// Writes an ExtensionObject to the stream.
         /// </summary>
-        void WriteExtensionObject(string fieldName, ExtensionObject value);
+        void WriteExtensionObject(string? fieldName, ExtensionObject value);
 
         /// <summary>
         /// Writes an encodeable object to the stream.
@@ -256,132 +256,132 @@ namespace Opc.Ua
         /// <summary>
         /// Writes an enumerated value to the stream.
         /// </summary>
-        void WriteEnumerated(string fieldName, EnumValue value);
+        void WriteEnumerated(string? fieldName, EnumValue value);
 
         /// <summary>
         /// Writes a boolean array to the stream.
         /// </summary>
-        void WriteBooleanArray(string fieldName, ArrayOf<bool> values);
+        void WriteBooleanArray(string? fieldName, ArrayOf<bool> values);
 
         /// <summary>
         /// Writes a sbyte array to the stream.
         /// </summary>
-        void WriteSByteArray(string fieldName, ArrayOf<sbyte> values);
+        void WriteSByteArray(string? fieldName, ArrayOf<sbyte> values);
 
         /// <summary>
         /// Writes a byte array to the stream.
         /// </summary>
-        void WriteByteArray(string fieldName, ArrayOf<byte> values);
+        void WriteByteArray(string? fieldName, ArrayOf<byte> values);
 
         /// <summary>
         /// Writes a short array to the stream.
         /// </summary>
-        void WriteInt16Array(string fieldName, ArrayOf<short> values);
+        void WriteInt16Array(string? fieldName, ArrayOf<short> values);
 
         /// <summary>
         /// Writes a ushort array to the stream.
         /// </summary>
-        void WriteUInt16Array(string fieldName, ArrayOf<ushort> values);
+        void WriteUInt16Array(string? fieldName, ArrayOf<ushort> values);
 
         /// <summary>
         /// Writes a int array to the stream.
         /// </summary>
-        void WriteInt32Array(string fieldName, ArrayOf<int> values);
+        void WriteInt32Array(string? fieldName, ArrayOf<int> values);
 
         /// <summary>
         /// Writes a uint array to the stream.
         /// </summary>
-        void WriteUInt32Array(string fieldName, ArrayOf<uint> values);
+        void WriteUInt32Array(string? fieldName, ArrayOf<uint> values);
 
         /// <summary>
         /// Writes a long array to the stream.
         /// </summary>
-        void WriteInt64Array(string fieldName, ArrayOf<long> values);
+        void WriteInt64Array(string? fieldName, ArrayOf<long> values);
 
         /// <summary>
         /// Writes a ulong array to the stream.
         /// </summary>
-        void WriteUInt64Array(string fieldName, ArrayOf<ulong> values);
+        void WriteUInt64Array(string? fieldName, ArrayOf<ulong> values);
 
         /// <summary>
         /// Writes a float array to the stream.
         /// </summary>
-        void WriteFloatArray(string fieldName, ArrayOf<float> values);
+        void WriteFloatArray(string? fieldName, ArrayOf<float> values);
 
         /// <summary>
         /// Writes a double array to the stream.
         /// </summary>
-        void WriteDoubleArray(string fieldName, ArrayOf<double> values);
+        void WriteDoubleArray(string? fieldName, ArrayOf<double> values);
 
         /// <summary>
         /// Writes a string array to the stream.
         /// </summary>
-        void WriteStringArray(string fieldName, ArrayOf<string> values);
+        void WriteStringArray(string? fieldName, ArrayOf<string> values);
 
         /// <summary>
         /// Writes a UTC date/time array to the stream.
         /// </summary>
-        void WriteDateTimeArray(string fieldName, ArrayOf<DateTimeUtc> values);
+        void WriteDateTimeArray(string? fieldName, ArrayOf<DateTimeUtc> values);
 
         /// <summary>
         /// Writes a GUID array to the stream.
         /// </summary>
-        void WriteGuidArray(string fieldName, ArrayOf<Uuid> values);
+        void WriteGuidArray(string? fieldName, ArrayOf<Uuid> values);
 
         /// <summary>
         /// Writes a byte string array to the stream.
         /// </summary>
-        void WriteByteStringArray(string fieldName, ArrayOf<ByteString> values);
+        void WriteByteStringArray(string? fieldName, ArrayOf<ByteString> values);
 
         /// <summary>
         /// Writes a XmlElement array to the stream.
         /// </summary>
-        void WriteXmlElementArray(string fieldName, ArrayOf<XmlElement> values);
+        void WriteXmlElementArray(string? fieldName, ArrayOf<XmlElement> values);
 
         /// <summary>
         /// Writes a NodeId array to the stream.
         /// </summary>
-        void WriteNodeIdArray(string fieldName, ArrayOf<NodeId> values);
+        void WriteNodeIdArray(string? fieldName, ArrayOf<NodeId> values);
 
         /// <summary>
         /// Writes an ExpandedNodeId array to the stream.
         /// </summary>
-        void WriteExpandedNodeIdArray(string fieldName, ArrayOf<ExpandedNodeId> values);
+        void WriteExpandedNodeIdArray(string? fieldName, ArrayOf<ExpandedNodeId> values);
 
         /// <summary>
         /// Writes a StatusCode array to the stream.
         /// </summary>
-        void WriteStatusCodeArray(string fieldName, ArrayOf<StatusCode> values);
+        void WriteStatusCodeArray(string? fieldName, ArrayOf<StatusCode> values);
 
         /// <summary>
         /// Writes a DiagnosticInfo array to the stream.
         /// </summary>
-        void WriteDiagnosticInfoArray(string fieldName, ArrayOf<DiagnosticInfo> values);
+        void WriteDiagnosticInfoArray(string? fieldName, ArrayOf<DiagnosticInfo> values);
 
         /// <summary>
         /// Writes a QualifiedName array to the stream.
         /// </summary>
-        void WriteQualifiedNameArray(string fieldName, ArrayOf<QualifiedName> values);
+        void WriteQualifiedNameArray(string? fieldName, ArrayOf<QualifiedName> values);
 
         /// <summary>
         /// Writes a LocalizedText array to the stream.
         /// </summary>
-        void WriteLocalizedTextArray(string fieldName, ArrayOf<LocalizedText> values);
+        void WriteLocalizedTextArray(string? fieldName, ArrayOf<LocalizedText> values);
 
         /// <summary>
         /// Writes a Variant array to the stream.
         /// </summary>
-        void WriteVariantArray(string fieldName, ArrayOf<Variant> values);
+        void WriteVariantArray(string? fieldName, ArrayOf<Variant> values);
 
         /// <summary>
         /// Writes a DataValue array to the stream.
         /// </summary>
-        void WriteDataValueArray(string fieldName, ArrayOf<DataValue> values);
+        void WriteDataValueArray(string? fieldName, ArrayOf<DataValue> values);
 
         /// <summary>
         /// Writes an extension object array to the stream.
         /// </summary>
-        void WriteExtensionObjectArray(string fieldName, ArrayOf<ExtensionObject> values);
+        void WriteExtensionObjectArray(string? fieldName, ArrayOf<ExtensionObject> values);
 
         /// <summary>
         /// Writes an array of structures of type T (a field inside another
@@ -418,7 +418,7 @@ namespace Opc.Ua
         /// <summary>
         /// Writes an enumerated value array to the stream.
         /// </summary>
-        void WriteEnumeratedArray(string fieldName, ArrayOf<EnumValue> values);
+        void WriteEnumeratedArray(string? fieldName, ArrayOf<EnumValue> values);
 
         /// <summary>
         /// Writes just the value inside the variant. In essence
@@ -433,7 +433,7 @@ namespace Opc.Ua
         /// type safe manner and did essentially the same here just for
         /// arrays while this method also handles scalar values.
         /// </remarks>
-        void WriteVariantValue(string fieldName, Variant value);
+        void WriteVariantValue(string? fieldName, Variant value);
 
         /// <summary>
         /// Writes a matrix of structures of type T (a field inside another
@@ -460,7 +460,7 @@ namespace Opc.Ua
         /// <params name="fieldName">Returns an alternate fieldName for the
         /// encoded union property if the encoder requires it, null otherwise.
         /// </params>
-        void WriteSwitchField(uint switchField, out string fieldName);
+        void WriteSwitchField(uint switchField, out string? fieldName);
 
         /// <summary>
         /// Encode the encoding mask for a structure with optional fields.
