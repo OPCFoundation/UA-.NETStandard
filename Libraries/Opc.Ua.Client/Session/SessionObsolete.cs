@@ -221,14 +221,15 @@ namespace Opc.Ua.Client
                 }
 
                 // check expected type.
-                if (expectedTypes[ii] != null &&
-                    !expectedTypes[ii]!.IsInstanceOfType(value))
+                Type? expectedType = expectedTypes[ii];
+                if (expectedType != null &&
+                    !expectedType.IsInstanceOfType(value))
                 {
                     errors[ii] = ServiceResult.Create(
                         StatusCodes.BadTypeMismatch,
                         "Value {0} does not have expected type: {1}.",
                         value!,
-                        expectedTypes[ii]!.Name);
+                        expectedType.Name);
                     continue;
                 }
 
@@ -464,14 +465,15 @@ namespace Opc.Ua.Client
                 }
 
                 // check expected type.
-                if (expectedTypes[ii] != null &&
-                    !expectedTypes[ii]!.IsInstanceOfType(value))
+                Type? expectedType = expectedTypes[ii];
+                if (expectedType != null &&
+                    !expectedType.IsInstanceOfType(value))
                 {
                     errorsBuffer[ii] = ServiceResult.Create(
                         StatusCodes.BadTypeMismatch,
                         "Value {0} does not have expected type: {1}.",
                         value!,
-                        expectedTypes[ii]!.Name);
+                        expectedType.Name);
 
                     continue;
                 }
@@ -837,6 +839,8 @@ namespace Opc.Ua.Client
         {
             return Create(
                 configuration,
+                // No reverse-connect transport in this overload; the modern API requires
+                // a non-nullable parameter so this obsolete bridge forwards null!.
                 (ITransportWaitingConnection)null!,
                 endpoint,
                 updateBeforeConnect,
@@ -861,6 +865,8 @@ namespace Opc.Ua.Client
             ArrayOf<string> discoveryProfileUris = default)
         {
             return Create(
+                // Telemetry context is nullable on this obsolete bridge but required by the
+                // modern API; null! preserves the pre-nullable lookup behavior.
                 null!,
                 configuration,
                 channel,
@@ -977,6 +983,8 @@ namespace Opc.Ua.Client
             CancellationToken ct = default)
         {
             return CreateAsync(
+                // Telemetry context is nullable on this obsolete bridge but required by the
+                // modern API; null! preserves the pre-nullable lookup behavior.
                 null!,
                 configuration,
                 connection,
@@ -1300,6 +1308,8 @@ namespace Opc.Ua.Client
             /// Obsolete default constructor
             /// </summary>
             public TraceableSessionFactory()
+                // Telemetry is required by the base ctor; this obsolete parameterless ctor
+                // forwards null! to preserve the pre-nullable instantiation pattern.
                 : base(null!)
             {
             }

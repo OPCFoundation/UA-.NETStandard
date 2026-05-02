@@ -37,6 +37,12 @@ namespace Opc.Ua.Client
     /// <summary>
     /// Defines numerous re-useable utility functions for clients.
     /// </summary>
+    /// <remarks>
+    /// All overloads in this file are obsolete bridges that forward to modern overloads
+    /// requiring a non-nullable <see cref="ITelemetryContext"/> argument. Each call site
+    /// passes <c>null!</c> to preserve the pre-nullable behavior of these legacy entry
+    /// points; downstream code is expected to fall back to ambient/default telemetry.
+    /// </remarks>
     public static partial class CoreClientUtils
     {
         /// <summary>

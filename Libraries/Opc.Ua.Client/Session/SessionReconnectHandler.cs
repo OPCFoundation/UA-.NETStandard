@@ -92,6 +92,8 @@ namespace Opc.Ua.Client
         /// </summary>
         [Obsolete("Use SessionReconnectHandler(ITelemetryContext, bool, int) instead.")]
         public SessionReconnectHandler(bool reconnectAbort = false, int maxReconnectPeriod = -1)
+            // Telemetry is required by the modern ctor; this obsolete bridge forwards null!
+            // to preserve the parameterless reconnect-handler instantiation pattern.
             : this(null!, reconnectAbort, maxReconnectPeriod)
         {
         }
@@ -602,6 +604,11 @@ namespace Opc.Ua.Client
             ConfiguredEndpoint endpoint,
             ITransportWaitingConnection? connection = null)
         {
+            // EndpointUrl and SecurityPolicyUri are nullable on ConfiguredEndpoint but every
+            // session entering reconnect was created with both values populated, so the
+            // bangs reflect that lifecycle invariant. The null! arguments in the catch block
+            // are intentional sentinels for "no security policy" passed to the modern API
+            // which retains a non-nullable parameter for backward compatibility.
             try
             {
                 if (connection != null)
