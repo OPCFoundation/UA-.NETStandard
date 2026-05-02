@@ -160,7 +160,6 @@ namespace Opc.Ua.Client.ComplexTypes
             ExpandedNodeId typeId,
             ExpandedNodeId binaryEncodingId,
             ExpandedNodeId xmlEncodingId,
-            ExpandedNodeId jsonEncodingId,
             EnumDefinition enumDefinition)
         {
             throw new NotSupportedException(

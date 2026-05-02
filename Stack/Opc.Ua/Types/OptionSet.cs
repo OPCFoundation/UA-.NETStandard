@@ -63,7 +63,6 @@ namespace Opc.Ua.Encoders
             ExpandedNodeId typeId,
             ExpandedNodeId binaryEncodingId,
             ExpandedNodeId xmlEncodingId,
-            ExpandedNodeId jsonEncodingId,
             EnumDefinition enumDefinition)
         {
             XmlName = xmlName ?? throw new ArgumentNullException(nameof(xmlName));
@@ -71,7 +70,6 @@ namespace Opc.Ua.Encoders
             m_typeId = typeId;
             m_binaryEncodingId = binaryEncodingId;
             m_xmlEncodingId = xmlEncodingId;
-            m_jsonEncodingId = jsonEncodingId;
             m_byteLength = ComputeByteLength(enumDefinition);
         }
 
@@ -82,7 +80,6 @@ namespace Opc.Ua.Encoders
             m_typeId = source.m_typeId;
             m_binaryEncodingId = source.m_binaryEncodingId;
             m_xmlEncodingId = source.m_xmlEncodingId;
-            m_jsonEncodingId = source.m_jsonEncodingId;
             m_byteLength = source.m_byteLength;
             if (copyValues)
             {
@@ -125,9 +122,6 @@ namespace Opc.Ua.Encoders
 
         /// <inheritdoc/>
         public override ExpandedNodeId XmlEncodingId => m_xmlEncodingId;
-
-        /// <inheritdoc/>
-        public override ExpandedNodeId JsonEncodingId => m_jsonEncodingId;
 
         /// <inheritdoc/>
         public IEncodeable CreateInstance()
@@ -322,6 +316,5 @@ namespace Opc.Ua.Encoders
         private readonly ExpandedNodeId m_typeId;
         private readonly ExpandedNodeId m_binaryEncodingId;
         private readonly ExpandedNodeId m_xmlEncodingId;
-        private readonly ExpandedNodeId m_jsonEncodingId;
     }
 }

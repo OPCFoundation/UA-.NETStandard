@@ -38,7 +38,7 @@ namespace Opc.Ua
     /// Browse description
     /// </summary>
     [DataContract(Namespace = Types.Namespaces.OpcUaXsd)]
-    public class BrowseDescription : IEncodeable, IJsonEncodeable, IEquatable<BrowseDescription>
+    public class BrowseDescription : IEncodeable, IEquatable<BrowseDescription>
     {
         /// <inheritdoc/>
         public BrowseDescription()
@@ -112,9 +112,6 @@ namespace Opc.Ua
 
         /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.BrowseDescription_Encoding_DefaultXml;
-
-        /// <inheritdoc/>
-        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.BrowseDescription_Encoding_DefaultJson;
 
         /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)

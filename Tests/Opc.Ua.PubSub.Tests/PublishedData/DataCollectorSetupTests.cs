@@ -300,7 +300,7 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
             var dataStore = new UaPubSubDataStore();
             dataStore.WritePublishedDataItem(
                 new NodeId("BadField", NamespaceIndex), Attributes.Value,
-                new DataValue(StatusCodes.Bad));
+                DataValue.FromStatusCode(StatusCodes.Bad));
 
             DataCollector collector = CreateCollector(dataStore);
             PublishedDataSetDataType pds = CreateSimpleDataSet("DS1", ("BadField", DataTypeIds.Int32));

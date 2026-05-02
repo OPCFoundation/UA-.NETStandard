@@ -1784,9 +1784,6 @@ namespace Opc.Ua.Schema.Model
                             case BrowseNames.DefaultXml:
                                 node.SymbolicName = nameof(BrowseNames.DefaultXml);
                                 break;
-                            case BrowseNames.DefaultJson:
-                                node.SymbolicName = nameof(BrowseNames.DefaultJson);
-                                break;
                         }
                     }
                     else if (node.SymbolicName == "DefaultXML")

@@ -202,7 +202,7 @@ namespace Opc.Ua.Client.Tests
             using var sut = SessionMock.Create();
             CancellationToken ct = CancellationToken.None;
 
-            ArrayOf<DataValue> dataValues = [new DataValue(StatusCodes.BadUnexpectedError)];
+            ArrayOf<DataValue> dataValues = [DataValue.FromStatusCode(StatusCodes.BadUnexpectedError)];
             ArrayOf<DiagnosticInfo> diagnosticInfos = [];
 
             sut.Channel
@@ -594,7 +594,7 @@ namespace Opc.Ua.Client.Tests
             CancellationToken ct = CancellationToken.None;
 
             var namespaceArray = new DataValue(new Variant([Ua.Namespaces.OpcUa, "http://namespace2"]));
-            var serverArray = new DataValue(StatusCodes.BadUnexpectedError);
+            var serverArray = DataValue.FromStatusCode(StatusCodes.BadUnexpectedError);
 
             sut.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -653,8 +653,8 @@ namespace Opc.Ua.Client.Tests
             using var sut = SessionMock.Create();
             CancellationToken ct = CancellationToken.None;
 
-            var namespaceArray = new DataValue(StatusCodes.BadUnexpectedError);
-            var serverArray = new DataValue(StatusCodes.BadUnexpectedError);
+            var namespaceArray = DataValue.FromStatusCode(StatusCodes.BadUnexpectedError);
+            var serverArray = DataValue.FromStatusCode(StatusCodes.BadUnexpectedError);
 
             sut.Channel
                 .Setup(c => c.SendRequestAsync(

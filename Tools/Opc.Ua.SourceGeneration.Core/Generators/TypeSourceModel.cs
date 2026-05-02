@@ -78,10 +78,6 @@ namespace Opc.Ua.SourceGeneration
         /// </summary>
         public string XmlEncodingId { get; set; }
 
-        /// <summary>
-        /// JSON encoding id string, or null.
-        /// </summary>
-        public string JsonEncodingId { get; set; }
 
         /// <summary>
         /// True if the type is a C# record type.

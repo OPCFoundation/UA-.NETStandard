@@ -168,7 +168,7 @@ namespace Opc.Ua.SourceGeneration
         public static string BaseT => nameof(BaseT);
         public static string XsRestrictionBaseType => nameof(XsRestrictionBaseType);
         public static string AccessorSymbol => nameof(AccessorSymbol);
-        public static string JsonEncodingId => nameof(JsonEncodingId);
+
         public static string ServerMethodAsync => nameof(ServerMethodAsync);
         public static string ClientMethodAsync => nameof(ClientMethodAsync);
         public static string ClientMethodSync => nameof(ClientMethodSync);

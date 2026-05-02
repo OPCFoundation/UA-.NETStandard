@@ -110,13 +110,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(vd.XmlEncodingId, Is.EqualTo(ObjectIds.ViewDescription_Encoding_DefaultXml));
         }
 
-        [Test]
-        public void JsonEncodingIdReturnsExpectedValue()
-        {
-            var vd = new ViewDescription();
-
-            Assert.That(vd.JsonEncodingId, Is.EqualTo(ObjectIds.ViewDescription_Encoding_DefaultJson));
-        }
 
         [Test]
         public void EncodeDecodeRoundTripPreservesAllProperties()

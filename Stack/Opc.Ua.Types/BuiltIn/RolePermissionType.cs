@@ -40,7 +40,6 @@ namespace Opc.Ua
     [DataContract(Namespace = Types.Namespaces.OpcUaXsd)]
     public class RolePermissionType :
         IEncodeable,
-        IJsonEncodeable,
         IEquatable<RolePermissionType>
     {
         /// <summary>
@@ -63,9 +62,6 @@ namespace Opc.Ua
 
         /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.RolePermissionType_Encoding_DefaultXml;
-
-        /// <inheritdoc/>
-        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.RolePermissionType_Encoding_DefaultJson;
 
         /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)

@@ -97,7 +97,6 @@ namespace Opc.Ua.Client.Tests.ComplexTypes
                 s_typeId,
                 s_binaryId,
                 s_xmlId,
-                ExpandedNodeId.Null,
                 definition);
 
             Assert.That(encodeableType, Is.Not.Null);
@@ -123,7 +122,7 @@ namespace Opc.Ua.Client.Tests.ComplexTypes
             EnumDefinition definition = CreateAccessRightsDefinition();
             var optionSet = new OptionSetEncoder(
                 new XmlQualifiedName("AccessRights", kTypeNamespace),
-                s_typeId, s_binaryId, s_xmlId, ExpandedNodeId.Null,
+                s_typeId, s_binaryId, s_xmlId,
                 definition);
 
             optionSet["CurrentRead"] = true;
@@ -150,7 +149,7 @@ namespace Opc.Ua.Client.Tests.ComplexTypes
             EnumDefinition definition = CreateAccessRightsDefinition();
             var optionSet = new OptionSetEncoder(
                 new XmlQualifiedName("AccessRights", kTypeNamespace),
-                s_typeId, s_binaryId, s_xmlId, ExpandedNodeId.Null,
+                s_typeId, s_binaryId, s_xmlId,
                 definition);
 
             Assert.That(optionSet[0], Is.False);
@@ -168,7 +167,7 @@ namespace Opc.Ua.Client.Tests.ComplexTypes
             // Register the type for decode via the factory.
             IEncodeableType type = m_builder.AddOptionSetType(
                 QualifiedName.From("AccessRights"),
-                s_typeId, s_binaryId, s_xmlId, ExpandedNodeId.Null,
+                s_typeId, s_binaryId, s_xmlId,
                 definition);
             context.Factory.Builder
                 .AddEncodeableType(s_binaryId, type)
@@ -219,7 +218,7 @@ namespace Opc.Ua.Client.Tests.ComplexTypes
 
             IEncodeableType type = m_builder.AddOptionSetType(
                 QualifiedName.From("AccessRights"),
-                s_typeId, s_binaryId, s_xmlId, ExpandedNodeId.Null,
+                s_typeId, s_binaryId, s_xmlId,
                 definition);
             context.Factory.Builder
                 .AddEncodeableType(s_binaryId, type)
@@ -268,7 +267,7 @@ namespace Opc.Ua.Client.Tests.ComplexTypes
             EnumDefinition definition = CreateAccessRightsDefinition();
             IEncodeableType type = m_builder.AddOptionSetType(
                 QualifiedName.From("AccessRights"),
-                s_typeId, s_binaryId, s_xmlId, ExpandedNodeId.Null,
+                s_typeId, s_binaryId, s_xmlId,
                 definition);
 
             var a = (OptionSetEncoder)type.CreateInstance();
@@ -286,7 +285,7 @@ namespace Opc.Ua.Client.Tests.ComplexTypes
             EnumDefinition definition = CreateAccessRightsDefinition();
             var optionSet = new OptionSetEncoder(
                 new XmlQualifiedName("AccessRights", kTypeNamespace),
-                s_typeId, s_binaryId, s_xmlId, ExpandedNodeId.Null,
+                s_typeId, s_binaryId, s_xmlId,
                 definition);
             optionSet["HistoryRead"] = true;
 
@@ -305,14 +304,14 @@ namespace Opc.Ua.Client.Tests.ComplexTypes
             // Bits 0..3 => ceil(4 / 8) = 1 byte.
             var oneByte = new OptionSetEncoder(
                 new XmlQualifiedName("AccessRights", kTypeNamespace),
-                s_typeId, s_binaryId, s_xmlId, ExpandedNodeId.Null,
+                s_typeId, s_binaryId, s_xmlId,
                 CreateAccessRightsDefinition());
             Assert.That(oneByte.ByteLength, Is.EqualTo(1));
 
             // Bit 10 => ceil(11 / 8) = 2 bytes.
             var twoBytes = new OptionSetEncoder(
                 new XmlQualifiedName("TwoByteOptionSet", kTypeNamespace),
-                s_typeId, s_binaryId, s_xmlId, ExpandedNodeId.Null,
+                s_typeId, s_binaryId, s_xmlId,
                 new EnumDefinition
                 {
                     IsOptionSet = true,
@@ -331,10 +330,10 @@ namespace Opc.Ua.Client.Tests.ComplexTypes
             // AccessRights-style OptionSet has max bit 3, so ByteLength == 1.
             var optionSet = new OptionSetEncoder(
                 new XmlQualifiedName("AccessRights", kTypeNamespace),
-                s_typeId, s_binaryId, s_xmlId, ExpandedNodeId.Null,
+                s_typeId, s_binaryId, s_xmlId,
                 CreateAccessRightsDefinition());
 
-            // Bit 8 is outside the 1-byte fixed length — must throw per Part 3 §8.40.
+            // Bit 8 is outside the 1-byte fixed length— must throw per Part 3 §8.40.
             Assert.That(
                 () => optionSet[8] = true,
                 Throws.TypeOf<System.ArgumentOutOfRangeException>());
@@ -346,7 +345,7 @@ namespace Opc.Ua.Client.Tests.ComplexTypes
             // Max bit 10 => ByteLength 2.
             var optionSet = new OptionSetEncoder(
                 new XmlQualifiedName("TwoByteOptionSet", kTypeNamespace),
-                s_typeId, s_binaryId, s_xmlId, ExpandedNodeId.Null,
+                s_typeId, s_binaryId, s_xmlId,
                 new EnumDefinition
                 {
                     IsOptionSet = true,

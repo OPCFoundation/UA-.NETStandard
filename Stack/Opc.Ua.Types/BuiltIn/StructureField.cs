@@ -40,7 +40,6 @@ namespace Opc.Ua
     [DataContract(Namespace = Types.Namespaces.OpcUaXsd)]
     public class StructureField :
         IEncodeable,
-        IJsonEncodeable,
         IEquatable<StructureField>
     {
         /// <summary>
@@ -93,9 +92,6 @@ namespace Opc.Ua
 
         /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.StructureField_Encoding_DefaultXml;
-
-        /// <inheritdoc/>
-        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.StructureField_Encoding_DefaultJson;
 
         /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)

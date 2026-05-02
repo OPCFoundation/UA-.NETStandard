@@ -39,5 +39,8 @@
     <None Update="Quickstarts.ReferenceServer.Config.xml">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
+    <None Update="Ctt.ReferenceServer.Config.xml">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 </Project>

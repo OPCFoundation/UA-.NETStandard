@@ -41,6 +41,7 @@
       - [IEncodeableFactoryBuilder changes](#iencodeablefactorybuilder-changes)
       - [EncodeableFactory.GlobalFactory removed](#encodeablefactoryglobalfactory-removed)
       - [ExtensionObject array helpers changed](#extensionobject-array-helpers-changed)
+      - [IJsonEncodeable interface removed](#ijsonencodeable-interface-removed)
     - [Complex Types](#complex-types)
       - [ComplexTypes moved to Opc.Ua.Client assembly](#complextypes-moved-to-opcuaclient-assembly)
       - [OptionSet DataType support](#optionset-datatype-support)
@@ -318,6 +319,7 @@ No changes are required, however there can be subtle bugs exposed, e.g.:
 - `new Variant(object)` -> use `Variant.From(T)`
 - `Variant.Value` -> use `Variant.TryGet`, cast, or `AsBoxedObject` if absolutely necessary.
 - `DataValue.GetValue`, `DataValue.GetValueOrDefault`, ,`DataValue.Value` -> use `DataValue.WrappedValue` and the new API on Variant (e.g. `Get[Type]`,  `TryGet`)
+- `new DataValue(StatusCode)` and `new DataValue(StatusCode, DateTimeUtc)` -> use `DataValue.FromStatusCode(StatusCode)` and `DataValue.FromStatusCode(StatusCode, DateTimeUtc)`. The constructors suffered from a C# overload resolution bug where `new DataValue(42)` silently resolved to `DataValue(StatusCode)` instead of `DataValue(Variant)`, losing the value.
 
 #### APIs permanently removed
 
@@ -338,6 +340,7 @@ No changes are required, however there can be subtle bugs exposed, e.g.:
 - new `Variant(byte[])` -> use `Variant.From(ByteString)` or `new Variant(ByteString)` or `Variant.From(ArrayOf<byte>)` or `new Variant(ArrayOf<byte>)`
 - Session `Call/CallAsync(param object[])` -> use `Call/CallAsync(param Variant[])`
 - `byte[]` as ByteString -> use `ByteString`
+- `new DataValue(DataValue)` copy constructor -> use `DataValue.Copy()` instance method or `Clone()`
 
 ### Encoders and Decoders
 
@@ -617,6 +620,25 @@ The `[Obsolete]` static `EncodeableFactory.GlobalFactory` was removed. `Encodeab
 #### ExtensionObject array helpers changed
 
 `ExtensionObject.ToArray(object, Type)` and `ToList<T>(object)` removed. Use `extensionObjects.GetStructuresOf<T>()` or `ExtensionObject.ToArray<T>(ArrayOf<ExtensionObject>)`.
+
+#### IJsonEncodeable interface removed
+
+The `IJsonEncodeable` interface and the entire "Default JSON Encoding" infrastructure have been removed. OPC UA JSON encoding is handled by the `JsonEncoder`/`JsonDecoder` classes which do not require per-type encoding node IDs — those classes are unaffected by this change.
+
+**Migration steps:**
+
+1. Remove `IJsonEncodeable` from any custom class that implements it:
+
+    ```diff
+    - public class MyType : IEncodeable, IJsonEncodeable
+    + public class MyType : IEncodeable
+    ```
+
+2. Remove the `JsonEncodingId` property from those classes:
+
+    ```diff
+    - public ExpandedNodeId JsonEncodingId => ...;
+    ```
 
 ### Complex Types
 

@@ -38,7 +38,7 @@ namespace Opc.Ua
     /// Enum value
     /// </summary>
     [DataContract(Namespace = Types.Namespaces.OpcUaXsd)]
-    public class EnumValueType : IEncodeable, IJsonEncodeable, IEquatable<EnumValueType>
+    public class EnumValueType : IEncodeable, IEquatable<EnumValueType>
     {
         /// <summary>
         /// Enum value
@@ -66,9 +66,6 @@ namespace Opc.Ua
 
         /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.EnumValueType_Encoding_DefaultXml;
-
-        /// <inheritdoc/>
-        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.EnumValueType_Encoding_DefaultJson;
 
         /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)

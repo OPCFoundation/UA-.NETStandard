@@ -123,7 +123,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                     {
                         xmlEncodingId = NormalizeExpandedNodeId(reference.TargetId);
                     }
-                    else if (encodingNode.BrowseName.Name != BrowseNames.DefaultJson)
+                    else if (encodingNode.BrowseName.Name != BrowseNames.DefaultXml
+                        && encodingNode.BrowseName.Name != BrowseNames.DefaultBinary)
                     {
                         continue;
                     }

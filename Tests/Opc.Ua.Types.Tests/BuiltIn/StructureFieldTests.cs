@@ -87,15 +87,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 Is.EqualTo(ObjectIds.StructureField_Encoding_DefaultXml));
         }
 
-        [Test]
-        public void JsonEncodingIdReturnsCorrectValue()
-        {
-            var field = new StructureField();
-
-            Assert.That(
-                field.JsonEncodingId,
-                Is.EqualTo(ObjectIds.StructureField_Encoding_DefaultJson));
-        }
 
         [Test]
         public void EncodeDecodeRoundTripWithAllFieldsSet()

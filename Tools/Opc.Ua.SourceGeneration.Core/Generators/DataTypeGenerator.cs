@@ -1277,9 +1277,7 @@ namespace Opc.Ua.SourceGeneration
                 { Tokens.BinaryEncodingId,
                     CoreUtils.Format("{0}_Encoding_DefaultBinary", dataType.SymbolicName.Name) },
                 { Tokens.XmlEncodingId,
-                    CoreUtils.Format("{0}_Encoding_DefaultXml", dataType.SymbolicName.Name) },
-                { Tokens.JsonEncodingId,
-                    CoreUtils.Format("{0}_Encoding_DefaultJson", dataType.SymbolicName.Name) }
+                    CoreUtils.Format("{0}_Encoding_DefaultXml", dataType.SymbolicName.Name) }
             };
             foreach (KeyValuePair<string, string> kv in encodings)
             {

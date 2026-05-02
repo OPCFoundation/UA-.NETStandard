@@ -83,15 +83,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 Is.EqualTo(ObjectIds.EnumField_Encoding_DefaultXml));
         }
 
-        [Test]
-        public void JsonEncodingIdReturnsCorrectValue()
-        {
-            var field = new EnumField();
-
-            Assert.That(
-                field.JsonEncodingId,
-                Is.EqualTo(ObjectIds.EnumField_Encoding_DefaultJson));
-        }
 
         [Test]
         public void EncodeDecodeRoundTripWithAllFieldsSet()

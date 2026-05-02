@@ -1618,7 +1618,7 @@ namespace Opc.Ua
             if (DataTypeAttribute.TryGetTypeIdsFromType(
                 type,
                 out ExpandedNodeId typeId,
-                out _, out _, out _) &&
+                out _, out _) &&
                 !typeId.IsNull)
             {
                 return new XmlQualifiedName(type.Name, typeId.NamespaceUri);

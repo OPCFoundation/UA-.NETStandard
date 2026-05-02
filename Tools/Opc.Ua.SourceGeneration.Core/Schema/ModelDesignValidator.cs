@@ -1234,15 +1234,6 @@ namespace Opc.Ua.Schema.Model
                     EncodingType.Xml,
                     nodes);
 
-                if (m_standardVersion != SpecificationVersion.V103)
-                {
-                    AddDataTypeDictionary(
-                        dictionary,
-                        TargetNamespace,
-                        EncodingType.Json,
-                        nodes);
-                }
-
                 foreach (NodeDesign node in dictionary.Items)
                 {
                     if (node is DataTypeDesign dataTypeDesign)
@@ -2065,7 +2056,6 @@ namespace Opc.Ua.Schema.Model
             DictionaryDesign dictionary = null;
             var descriptions = new List<InstanceDesign>();
 
-            if (encodingType != EncodingType.Json)
             {
                 dictionary = new DictionaryDesign();
 
@@ -2289,7 +2279,7 @@ namespace Opc.Ua.Schema.Model
         {
             VariableDesign description = null;
 
-            if (encodingType != EncodingType.Json && !dataType.NotInAddressSpace)
+            if (!dataType.NotInAddressSpace)
             {
                 description = new VariableDesign
                 {
@@ -2381,8 +2371,7 @@ namespace Opc.Ua.Schema.Model
         private enum EncodingType
         {
             Binary = 0,
-            Xml = 1,
-            Json = 2
+            Xml = 1
         }
 
         private void AddDataTypeEncoding(
@@ -2404,14 +2393,6 @@ namespace Opc.Ua.Schema.Model
                     dataType.SymbolicId.Namespace);
                 encoding.SymbolicName = new XmlQualifiedName("DefaultXml", Ua.Types.Namespaces.OpcUa);
                 encoding.BrowseName = "Default XML";
-            }
-            else if (encodingType == EncodingType.Json)
-            {
-                encoding.SymbolicId = new XmlQualifiedName(
-                    dataType.SymbolicId.Name + "_Encoding_DefaultJson",
-                    dataType.SymbolicId.Namespace);
-                encoding.SymbolicName = new XmlQualifiedName("DefaultJson", Ua.Types.Namespaces.OpcUa);
-                encoding.BrowseName = "Default JSON";
             }
             else
             {
@@ -3950,17 +3931,7 @@ namespace Opc.Ua.Schema.Model
                             dataType,
                             new XmlQualifiedName("DefaultBinary", Ua.Types.Namespaces.OpcUa));
 
-                        if (m_standardVersion != SpecificationVersion.V103)
-                        {
-                            EncodingDesign jsonEncoding = CreateEncoding(
-                                dataType,
-                                new XmlQualifiedName("DefaultJson", Ua.Types.Namespaces.OpcUa));
-                            dataType.Encodings = [xmlEncoding, binaryEncoding, jsonEncoding];
-                        }
-                        else
-                        {
-                            dataType.Encodings = [xmlEncoding, binaryEncoding];
-                        }
+                        dataType.Encodings = [xmlEncoding, binaryEncoding];
 
                         dataType.HasEncodings = true;
                     }

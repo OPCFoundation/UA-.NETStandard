@@ -243,7 +243,7 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(node.TypeId, Is.EqualTo(DataTypeIds.Node));
             Assert.That(node.BinaryEncodingId, Is.EqualTo(ObjectIds.Node_Encoding_DefaultBinary));
             Assert.That(node.XmlEncodingId, Is.EqualTo(ObjectIds.Node_Encoding_DefaultXml));
-            Assert.That(node.JsonEncodingId, Is.EqualTo(ObjectIds.Node_Encoding_DefaultJson));
+
         }
 
         [Test]

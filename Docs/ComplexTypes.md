@@ -180,7 +180,7 @@ If you have already implemented (or generated) a class that implements `IEncodea
 // using System.Runtime.Serialization;
 
 [DataContract(Namespace = "http://www.siemens.com/simatic-s7-opcua")]
-public class UDT_SemVer : IEncodeable, IJsonEncodeable
+public class UDT_SemVer : IEncodeable
 {
     public UDT_SemVer() { Initialize(); }
 
@@ -210,10 +210,6 @@ public class UDT_SemVer : IEncodeable, IJsonEncodeable
             "nsu=http://www.siemens.com/simatic-s7-opcua;s=TE_\"UDT_SemVer\"");
 
     public ExpandedNodeId XmlEncodingId => ExpandedNodeId.Null;
-
-    // Return Null if the server does not expose a JSON encoding NodeId for this type.
-    // If the server provides a JSON encoding node, set this to match it.
-    public ExpandedNodeId JsonEncodingId => ExpandedNodeId.Null;
 
     public void Encode(IEncoder encoder)
     {

@@ -406,6 +406,53 @@ namespace Quickstarts.ReferenceServer
                     });
                     variables.Add(decimalVariable);
 
+                    // Enumeration variable (NodeClass is a concrete subtype of Enumeration)
+                    BaseDataVariableState enumerationVariable = CreateVariable(
+                        staticFolder,
+                        scalarStatic + "Enumeration",
+                        "Enumeration",
+                        new NodeId(DataTypes.NodeClass),
+                        ValueRanks.Scalar);
+                    enumerationVariable.Value = new Variant((int)NodeClass.Object);
+                    variables.Add(enumerationVariable);
+
+                    // Image type variables (ByteString subtypes)
+                    variables.Add(
+                        CreateVariable(
+                            staticFolder,
+                            scalarStatic + "Image",
+                            "Image",
+                            new NodeId(DataTypes.Image),
+                            ValueRanks.Scalar));
+                    variables.Add(
+                        CreateVariable(
+                            staticFolder,
+                            scalarStatic + "ImageBMP",
+                            "ImageBMP",
+                            new NodeId(DataTypes.ImageBMP),
+                            ValueRanks.Scalar));
+                    variables.Add(
+                        CreateVariable(
+                            staticFolder,
+                            scalarStatic + "ImageGIF",
+                            "ImageGIF",
+                            new NodeId(DataTypes.ImageGIF),
+                            ValueRanks.Scalar));
+                    variables.Add(
+                        CreateVariable(
+                            staticFolder,
+                            scalarStatic + "ImageJPG",
+                            "ImageJPG",
+                            new NodeId(DataTypes.ImageJPG),
+                            ValueRanks.Scalar));
+                    variables.Add(
+                        CreateVariable(
+                            staticFolder,
+                            scalarStatic + "ImagePNG",
+                            "ImagePNG",
+                            new NodeId(DataTypes.ImagePNG),
+                            ValueRanks.Scalar));
+
                     ResetRandomGenerator(2);
                     FolderState arraysFolder = CreateFolder(
                         staticFolder,
@@ -567,7 +614,7 @@ namespace Quickstarts.ReferenceServer
                     stringArrayVar.Value = Variant.From(
                     [
                         "Лошадь_ Пурпурово( Змейка( Слон",
-                        "猪 绿色 绵羊 大象~ 狗 菠萝 猪鼠",
+                        "猪 绿色 绵羊 大象~ 狗 菠萝 猪鼠猪 绿色 绵羊 大象~ 狗 菠萝 猪鼠",
                         "Лошадь Овцы Голубика Овцы Змейка",
                         "Чернота` Дракон Бело Дракон",
                         "Horse# Black Lemon Lemon Grape",
@@ -2103,6 +2150,15 @@ namespace Quickstarts.ReferenceServer
                         DataTypeIds.UInt64,
                         s_stringArray9);
 
+                    FolderState arrayItemTypeFolder = CreateFolder(daFolder, "DataAccess_ArrayItemType", "ArrayItemType");
+                    const string daArrayItemType = "DataAccess_ArrayItemType_";
+
+                    CreateYArrayItemVariable(arrayItemTypeFolder, daArrayItemType + "YArray", "YArray");
+                    CreateXYArrayItemVariable(arrayItemTypeFolder, daArrayItemType + "XYArray", "XYArray");
+                    CreateImageItemVariable(arrayItemTypeFolder, daArrayItemType + "Image", "Image");
+                    CreateCubeItemVariable(arrayItemTypeFolder, daArrayItemType + "Cube", "Cube");
+                    CreateNDimensionArrayItemVariable(arrayItemTypeFolder, daArrayItemType + "NDimension", "NDimension");
+
                     ResetRandomGenerator(14);
                     FolderState referencesFolder = CreateFolder(root, "References", "References");
                     const string referencesPrefix = "References_";
@@ -2197,6 +2253,23 @@ namespace Quickstarts.ReferenceServer
                         has3InverseReferences,
                         variables[0]);
                     variables.Add(hasForwardAndInverseReferences);
+
+                    // Node with both a ReferenceType and a SubType of that ReferenceType
+                    // (HasComponent forward + HasOrderedComponent forward, where HasOrderedComponent
+                    // is a subtype of HasComponent — satisfies CTT "HasReferencesOfReferenceTypeAndSubType")
+                    BaseDataVariableState hasReferenceTypeAndSubType = CreateMeshVariable(
+                        referencesFolder,
+                        referencesPrefix + "HasReferenceTypeAndSubType",
+                        "HasReferenceTypeAndSubType");
+                    hasReferenceTypeAndSubType.AddReference(
+                        ReferenceTypeIds.HasComponent,
+                        false,
+                        variables[0].NodeId);
+                    hasReferenceTypeAndSubType.AddReference(
+                        ReferenceTypeIds.HasOrderedComponent,
+                        false,
+                        variables[1].NodeId);
+                    variables.Add(hasReferenceTypeAndSubType);
 
                     ResetRandomGenerator(15);
                     FolderState folderAccessRights = CreateFolder(
@@ -2569,6 +2642,27 @@ namespace Quickstarts.ReferenceServer
                         ValueRanks.Scalar);
                     opaqueNodeId.NodeId = new NodeId(ByteString.From([9, 2, 0, 5]), NamespaceIndex);
                     variables.Add(opaqueNodeId);
+
+                    FolderState eventsFolder = CreateFolder(nodeIdsFolder, "NodeIds_Events", "Events");
+                    const string nodeIdsEvents = "NodeIds_Events_";
+
+                    BaseDataVariableState triggerNode01 = CreateVariable(
+                        eventsFolder,
+                        nodeIdsEvents + "TriggerNode01",
+                        "TriggerNode01",
+                        DataTypeIds.Int32,
+                        ValueRanks.Scalar);
+                    triggerNode01.OnSimpleWriteValue = OnWriteTriggerNode;
+                    variables.Add(triggerNode01);
+
+                    BaseDataVariableState triggerNode02 = CreateVariable(
+                        eventsFolder,
+                        nodeIdsEvents + "TriggerNode02",
+                        "TriggerNode02",
+                        DataTypeIds.Int32,
+                        ValueRanks.Scalar);
+                    triggerNode02.OnSimpleWriteValue = OnWriteTriggerNode;
+                    variables.Add(triggerNode02);
 
                     ResetRandomGenerator(17);
                     FolderState methodsFolder = CreateFolder(root, "Methods", "Methods");
@@ -4439,6 +4533,383 @@ namespace Quickstarts.ReferenceServer
             value = Variant.FromStructure(newRange);
 
             return ServiceResult.Good;
+        }
+
+        /// <summary>
+        /// Fires a base event whenever the trigger node is written to.
+        /// </summary>
+        private ServiceResult OnWriteTriggerNode(
+            ISystemContext context,
+            NodeState node,
+            ref Variant value)
+        {
+            using var e = new BaseEventState(null);
+            e.Initialize(
+                context,
+                node,
+                EventSeverity.Medium,
+                new LocalizedText($"Trigger event from '{node.DisplayName.Text}'"));
+            Server.ReportEvent(context, e);
+            return ServiceResult.Good;
+        }
+
+        /// <summary>
+        /// Creates a default <see cref="AxisInformation"/> instance with the given title.
+        /// </summary>
+        private static AxisInformation CreateDefaultAxisInformation(string title) =>
+            new AxisInformation
+            {
+                EngineeringUnits = new EUInformation("s", "seconds", "http://www.opcfoundation.org/UA/units/un/cefact"),
+                EURange = new Range(100, 0),
+                Title = new LocalizedText("en", title),
+                AxisScaleType = AxisScaleEnumeration.Linear
+            };
+
+        /// <summary>
+        /// Applies common read/write access settings to a mandatory child property of an array item variable.
+        /// </summary>
+        private static void SetArrayItemChildAccess<T>(PropertyState<T> property)
+        {
+            if (property != null)
+            {
+                property.AccessLevel = AccessLevels.CurrentReadOrWrite;
+                property.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
+            }
+        }
+
+        /// <summary>
+        /// Creates and adds a <see cref="YArrayItemState"/> variable to the address space.
+        /// </summary>
+        private YArrayItemState CreateYArrayItemVariable(NodeState parent, string path, string name)
+        {
+            var variable = new YArrayItemState(parent)
+            {
+                BrowseName = new QualifiedName(path, NamespaceIndex)
+            };
+            try
+            {
+                variable.Create(
+                    SystemContext,
+                    new NodeId(path, NamespaceIndex),
+                    variable.BrowseName,
+                    default,
+                    true);
+
+                variable.NodeId = new NodeId(path, NamespaceIndex);
+                variable.SymbolicName = name;
+                variable.DisplayName = new LocalizedText("en", name);
+                variable.WriteMask = AttributeWriteMask.None;
+                variable.UserWriteMask = AttributeWriteMask.None;
+                variable.ReferenceTypeId = ReferenceTypeIds.Organizes;
+                variable.DataType = DataTypeIds.Double;
+                variable.ValueRank = ValueRanks.OneDimension;
+                variable.ArrayDimensions = [0];
+                variable.AccessLevel = AccessLevels.CurrentReadOrWrite;
+                variable.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
+                variable.Historizing = false;
+                variable.Value = Variant.From(s_doubleArray);
+                variable.StatusCode = StatusCodes.Good;
+
+                if (variable.XAxisDefinition != null)
+                {
+                    variable.XAxisDefinition.Value = CreateDefaultAxisInformation("X Axis");
+                    SetArrayItemChildAccess(variable.XAxisDefinition);
+                }
+                if (variable.EURange != null)
+                {
+                    variable.EURange.Value = new Range(100, 0);
+                    SetArrayItemChildAccess(variable.EURange);
+                }
+                if (variable.InstrumentRange != null)
+                {
+                    variable.InstrumentRange.Value = new Range(120, -10);
+                    SetArrayItemChildAccess(variable.InstrumentRange);
+                }
+
+                parent?.AddChild(variable);
+            }
+            catch
+            {
+                variable.Dispose();
+                throw;
+            }
+            return variable;
+        }
+
+        /// <summary>
+        /// Creates and adds a <see cref="XYArrayItemState"/> variable to the address space.
+        /// </summary>
+        private XYArrayItemState CreateXYArrayItemVariable(NodeState parent, string path, string name)
+        {
+            var variable = new XYArrayItemState(parent)
+            {
+                BrowseName = new QualifiedName(path, NamespaceIndex)
+            };
+            try
+            {
+                variable.Create(
+                    SystemContext,
+                    new NodeId(path, NamespaceIndex),
+                    variable.BrowseName,
+                    default,
+                    true);
+
+                variable.NodeId = new NodeId(path, NamespaceIndex);
+                variable.SymbolicName = name;
+                variable.DisplayName = new LocalizedText("en", name);
+                variable.WriteMask = AttributeWriteMask.None;
+                variable.UserWriteMask = AttributeWriteMask.None;
+                variable.ReferenceTypeId = ReferenceTypeIds.Organizes;
+                variable.DataType = new NodeId(DataTypes.XVType);
+                variable.ValueRank = ValueRanks.OneDimension;
+                variable.ArrayDimensions = [0];
+                variable.AccessLevel = AccessLevels.CurrentReadOrWrite;
+                variable.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
+                variable.Historizing = false;
+                variable.Value = Variant.FromStructure(ArrayOf.Wrapped(
+                    new XVType { X = 0.0, Value = 0.0f },
+                    new XVType { X = 1.0, Value = 1.0f },
+                    new XVType { X = 2.0, Value = 4.0f },
+                    new XVType { X = 3.0, Value = 9.0f },
+                    new XVType { X = 4.0, Value = 16.0f }
+                ));
+                variable.StatusCode = StatusCodes.Good;
+
+                if (variable.XAxisDefinition != null)
+                {
+                    variable.XAxisDefinition.Value = CreateDefaultAxisInformation("X Axis");
+                    SetArrayItemChildAccess(variable.XAxisDefinition);
+                }
+                if (variable.EURange != null)
+                {
+                    variable.EURange.Value = new Range(100, 0);
+                    SetArrayItemChildAccess(variable.EURange);
+                }
+                if (variable.InstrumentRange != null)
+                {
+                    variable.InstrumentRange.Value = new Range(120, -10);
+                    SetArrayItemChildAccess(variable.InstrumentRange);
+                }
+
+                parent?.AddChild(variable);
+            }
+            catch
+            {
+                variable.Dispose();
+                throw;
+            }
+            return variable;
+        }
+
+        /// <summary>
+        /// Creates and adds an <see cref="ImageItemState"/> variable to the address space.
+        /// </summary>
+        private ImageItemState CreateImageItemVariable(NodeState parent, string path, string name)
+        {
+            var variable = new ImageItemState(parent)
+            {
+                BrowseName = new QualifiedName(path, NamespaceIndex)
+            };
+            try
+            {
+                variable.Create(
+                    SystemContext,
+                    new NodeId(path, NamespaceIndex),
+                    variable.BrowseName,
+                    default,
+                    true);
+
+                variable.NodeId = new NodeId(path, NamespaceIndex);
+                variable.SymbolicName = name;
+                variable.DisplayName = new LocalizedText("en", name);
+                variable.WriteMask = AttributeWriteMask.None;
+                variable.UserWriteMask = AttributeWriteMask.None;
+                variable.ReferenceTypeId = ReferenceTypeIds.Organizes;
+                variable.DataType = DataTypeIds.Double;
+                variable.ValueRank = ValueRanks.TwoDimensions;
+                variable.ArrayDimensions = [0, 0];
+                variable.AccessLevel = AccessLevels.CurrentReadOrWrite;
+                variable.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
+                variable.Historizing = false;
+                variable.Value = Variant.From(
+                    MatrixOf<double>.CreateFromArray(new double[,]
+                    {
+                        { 0.0, 1.0, 2.0 },
+                        { 3.0, 4.0, 5.0 }
+                    }));
+                variable.StatusCode = StatusCodes.Good;
+
+                if (variable.XAxisDefinition != null)
+                {
+                    variable.XAxisDefinition.Value = CreateDefaultAxisInformation("X Axis");
+                    SetArrayItemChildAccess(variable.XAxisDefinition);
+                }
+                if (variable.YAxisDefinition != null)
+                {
+                    variable.YAxisDefinition.Value = CreateDefaultAxisInformation("Y Axis");
+                    SetArrayItemChildAccess(variable.YAxisDefinition);
+                }
+                if (variable.EURange != null)
+                {
+                    variable.EURange.Value = new Range(100, 0);
+                    SetArrayItemChildAccess(variable.EURange);
+                }
+                if (variable.InstrumentRange != null)
+                {
+                    variable.InstrumentRange.Value = new Range(120, -10);
+                    SetArrayItemChildAccess(variable.InstrumentRange);
+                }
+
+                parent?.AddChild(variable);
+            }
+            catch
+            {
+                variable.Dispose();
+                throw;
+            }
+            return variable;
+        }
+
+        /// <summary>
+        /// Creates and adds a <see cref="CubeItemState"/> variable to the address space.
+        /// </summary>
+        private CubeItemState CreateCubeItemVariable(NodeState parent, string path, string name)
+        {
+            var variable = new CubeItemState(parent)
+            {
+                BrowseName = new QualifiedName(path, NamespaceIndex)
+            };
+            try
+            {
+                variable.Create(
+                    SystemContext,
+                    new NodeId(path, NamespaceIndex),
+                    variable.BrowseName,
+                    default,
+                    true);
+
+                variable.NodeId = new NodeId(path, NamespaceIndex);
+                variable.SymbolicName = name;
+                variable.DisplayName = new LocalizedText("en", name);
+                variable.WriteMask = AttributeWriteMask.None;
+                variable.UserWriteMask = AttributeWriteMask.None;
+                variable.ReferenceTypeId = ReferenceTypeIds.Organizes;
+                variable.DataType = DataTypeIds.Double;
+                variable.ValueRank = 3;
+                variable.ArrayDimensions = [0, 0, 0];
+                variable.AccessLevel = AccessLevels.CurrentReadOrWrite;
+                variable.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
+                variable.Historizing = false;
+                variable.Value = Variant.From(
+                    MatrixOf<double>.CreateFromArray(new double[,,]
+                    {
+                        { { 0.0, 1.0 }, { 2.0, 3.0 } },
+                        { { 4.0, 5.0 }, { 6.0, 7.0 } }
+                    }));
+                variable.StatusCode = StatusCodes.Good;
+
+                if (variable.XAxisDefinition != null)
+                {
+                    variable.XAxisDefinition.Value = CreateDefaultAxisInformation("X Axis");
+                    SetArrayItemChildAccess(variable.XAxisDefinition);
+                }
+                if (variable.YAxisDefinition != null)
+                {
+                    variable.YAxisDefinition.Value = CreateDefaultAxisInformation("Y Axis");
+                    SetArrayItemChildAccess(variable.YAxisDefinition);
+                }
+                if (variable.ZAxisDefinition != null)
+                {
+                    variable.ZAxisDefinition.Value = CreateDefaultAxisInformation("Z Axis");
+                    SetArrayItemChildAccess(variable.ZAxisDefinition);
+                }
+                if (variable.EURange != null)
+                {
+                    variable.EURange.Value = new Range(100, 0);
+                    SetArrayItemChildAccess(variable.EURange);
+                }
+                if (variable.InstrumentRange != null)
+                {
+                    variable.InstrumentRange.Value = new Range(120, -10);
+                    SetArrayItemChildAccess(variable.InstrumentRange);
+                }
+
+                parent?.AddChild(variable);
+            }
+            catch
+            {
+                variable.Dispose();
+                throw;
+            }
+            return variable;
+        }
+
+        /// <summary>
+        /// Creates and adds an <see cref="NDimensionArrayItemState"/> variable to the address space.
+        /// </summary>
+        private NDimensionArrayItemState CreateNDimensionArrayItemVariable(NodeState parent, string path, string name)
+        {
+            var variable = new NDimensionArrayItemState(parent)
+            {
+                BrowseName = new QualifiedName(path, NamespaceIndex)
+            };
+            try
+            {
+                variable.Create(
+                    SystemContext,
+                    new NodeId(path, NamespaceIndex),
+                    variable.BrowseName,
+                    default,
+                    true);
+
+                variable.NodeId = new NodeId(path, NamespaceIndex);
+                variable.SymbolicName = name;
+                variable.DisplayName = new LocalizedText("en", name);
+                variable.WriteMask = AttributeWriteMask.None;
+                variable.UserWriteMask = AttributeWriteMask.None;
+                variable.ReferenceTypeId = ReferenceTypeIds.Organizes;
+                variable.DataType = DataTypeIds.Double;
+                variable.ValueRank = ValueRanks.TwoDimensions;
+                variable.ArrayDimensions = [0, 0];
+                variable.AccessLevel = AccessLevels.CurrentReadOrWrite;
+                variable.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
+                variable.Historizing = false;
+                variable.Value = Variant.From(
+                    MatrixOf<double>.CreateFromArray(new double[,]
+                    {
+                        { 0.0, 1.0, 2.0 },
+                        { 3.0, 4.0, 5.0 }
+                    }));
+                variable.StatusCode = StatusCodes.Good;
+
+                if (variable.AxisDefinition != null)
+                {
+                    variable.AxisDefinition.Value = new AxisInformation[]
+                    {
+                        CreateDefaultAxisInformation("X Axis"),
+                        CreateDefaultAxisInformation("Y Axis")
+                    }.ToArrayOf();
+                    SetArrayItemChildAccess(variable.AxisDefinition);
+                }
+                if (variable.EURange != null)
+                {
+                    variable.EURange.Value = new Range(100, 0);
+                    SetArrayItemChildAccess(variable.EURange);
+                }
+                if (variable.InstrumentRange != null)
+                {
+                    variable.InstrumentRange.Value = new Range(120, -10);
+                    SetArrayItemChildAccess(variable.InstrumentRange);
+                }
+
+                parent?.AddChild(variable);
+            }
+            catch
+            {
+                variable.Dispose();
+                throw;
+            }
+            return variable;
         }
 
         /// <summary>

@@ -63,7 +63,6 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
 
             Assert.That(result, Does.Contain("partial class MyConfig"));
             Assert.That(result, Does.Contain("IEncodeable"));
-            Assert.That(result, Does.Contain("IJsonEncodeable"));
             Assert.That(result, Does.Contain("encoder.WriteString(\"Name\", Name)"));
             Assert.That(result, Does.Contain("encoder.WriteInt32(\"Port\", Port)"));
             Assert.That(result, Does.Contain("encoder.WriteBoolean(\"Enabled\", Enabled)"));
@@ -230,7 +229,6 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 DataTypeId = "i=12345",
                 BinaryEncodingId = "i=12346",
                 XmlEncodingId = "i=12347",
-                JsonEncodingId = "i=12348",
                 IsEnum = false,
                 IsRecord = false,
                 Fields = []
@@ -241,7 +239,6 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             Assert.That(result, Does.Contain("i=12345"));
             Assert.That(result, Does.Contain("i=12346"));
             Assert.That(result, Does.Contain("i=12347"));
-            Assert.That(result, Does.Contain("i=12348"));
         }
 
         [Test]
