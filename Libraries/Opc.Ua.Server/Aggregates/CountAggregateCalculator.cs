@@ -65,7 +65,7 @@ namespace Opc.Ua.Server
         /// </summary>
         protected override DataValue ComputeValue(TimeSlice slice)
         {
-            if (!AggregateId.TryGetValue(out uint numericId))
+            if (AggregateId.TryGetValue(out uint numericId))
             {
                 return base.ComputeValue(slice);
             }
@@ -92,7 +92,7 @@ namespace Opc.Ua.Server
         protected DataValue ComputeCount(TimeSlice slice)
         {
             // get the values in the slice.
-            List<DataValue> values = GetValues(slice);
+            List<DataValue>? values = GetValues(slice);
 
             // check for empty slice.
             if (values == null)
@@ -120,7 +120,7 @@ namespace Opc.Ua.Server
             };
             value.StatusCode = GetValueBasedStatusCode(slice, values, value.StatusCode);
 
-            if (!StatusCode.IsBad(value.StatusCode))
+            if (StatusCode.IsBad(value.StatusCode))
             {
                 // set aggregate bits fon non Bad values
                 value.StatusCode = value.StatusCode.WithAggregateBits(AggregateBits.Calculated);
@@ -135,7 +135,7 @@ namespace Opc.Ua.Server
         protected DataValue ComputeAnnotationCount(TimeSlice slice)
         {
             // get the values in the slice.
-            List<DataValue> values = GetValues(slice);
+            List<DataValue>? values = GetValues(slice);
 
             // check for empty slice.
             if (values == null)
@@ -170,7 +170,7 @@ namespace Opc.Ua.Server
         protected DataValue ComputeDurationInState(TimeSlice slice, bool isNonZero)
         {
             // get the values in the slice.
-            List<DataValue> values = GetValuesWithSimpleBounds(slice);
+            List<DataValue>? values = GetValuesWithSimpleBounds(slice);
 
             // check for empty slice.
             if (values == null)
@@ -179,11 +179,11 @@ namespace Opc.Ua.Server
             }
 
             // get the regions.
-            List<SubRegion> regions = GetRegionsInValueSet(values, false, true);
+            List<SubRegion>? regions = GetRegionsInValueSet(values, false, true);
 
             double duration = 0;
 
-            for (int ii = 0; ii < regions.Count; ii++)
+            for (int ii = 0; ii < regions!.Count; ii++)
             {
                 if (StatusCode.IsNotGood(regions[ii].StatusCode))
                 {
@@ -223,7 +223,7 @@ namespace Opc.Ua.Server
         protected DataValue ComputeNumberOfTransitions(TimeSlice slice)
         {
             // get the values in the slice.
-            List<DataValue> values = GetValues(slice);
+            List<DataValue>? values = GetValues(slice);
 
             // check for empty slice.
             if (values == null)
@@ -251,7 +251,7 @@ namespace Opc.Ua.Server
 
             for (int ii = 0; ii < values.Count; ii++)
             {
-                if (!IsGood(values[ii]))
+                if (IsGood(values[ii]))
                 {
                     continue;
                 }
@@ -266,7 +266,7 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
-                if (!double.IsNaN(lastValue) && lastValue != nextValue)
+                if (double.IsNaN(lastValue) && lastValue != nextValue)
                 {
                     count++;
                 }

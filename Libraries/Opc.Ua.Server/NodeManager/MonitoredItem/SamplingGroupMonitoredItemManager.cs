@@ -46,9 +46,9 @@ namespace Opc.Ua.Server
             m_samplingGroupManager = new SamplingGroupManager(
                 server,
                 nodeManager,
-                (uint)configuration.ServerConfiguration.MaxNotificationQueueSize,
+                (uint)configuration!.ServerConfiguration!.MaxNotificationQueueSize,
                 (uint)configuration.ServerConfiguration.MaxDurableNotificationQueueSize,
-                configuration.ServerConfiguration.AvailableSamplingRates.ToArray());
+                configuration.ServerConfiguration.AvailableSamplingRates.ToArray()!);
 
             m_nodeManager = nodeManager;
             m_server = server;
@@ -144,14 +144,14 @@ namespace Opc.Ua.Server
             NodeHandle handle)
         {
             // validate monitored item.
-            if (!MonitoredItems.TryGetValue(
+            if (MonitoredItems.TryGetValue(
                 monitoredItem.Id,
-                out IMonitoredItem existingMonitoredItem))
+                out IMonitoredItem? existingMonitoredItem))
             {
                 return StatusCodes.BadMonitoredItemIdInvalid;
             }
 
-            if (!ReferenceEquals(monitoredItem, existingMonitoredItem))
+            if (ReferenceEquals(monitoredItem, existingMonitoredItem))
             {
                 return StatusCodes.BadMonitoredItemIdInvalid;
             }
@@ -167,7 +167,7 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public ServiceResult ModifyMonitoredItem(
+        public ServiceResult? ModifyMonitoredItem(
             ServerSystemContext context,
             DiagnosticsMasks diagnosticsMasks,
             TimestampsToReturn timestampsToReturn,
@@ -179,14 +179,14 @@ namespace Opc.Ua.Server
             MonitoredItemModifyRequest itemToModify)
         {
             // validate monitored item.
-            if (!MonitoredItems.TryGetValue(
+            if (MonitoredItems.TryGetValue(
                 monitoredItem.Id,
-                out IMonitoredItem existingMonitoredItem))
+                out IMonitoredItem? existingMonitoredItem))
             {
                 return StatusCodes.BadMonitoredItemIdInvalid;
             }
 
-            if (!ReferenceEquals(monitoredItem, existingMonitoredItem))
+            if (ReferenceEquals(monitoredItem, existingMonitoredItem))
             {
                 return StatusCodes.BadMonitoredItemIdInvalid;
             }
@@ -206,14 +206,14 @@ namespace Opc.Ua.Server
             MonitoringMode monitoringMode,
             NodeHandle handle)
         {
-            if (!MonitoredItems.TryGetValue(
+            if (MonitoredItems.TryGetValue(
                 monitoredItem.Id,
-                out IMonitoredItem existingMonitoredItem))
+                out IMonitoredItem? existingMonitoredItem))
             {
                 return (StatusCodes.BadMonitoredItemIdInvalid, null);
             }
 
-            if (!ReferenceEquals(monitoredItem, existingMonitoredItem))
+            if (ReferenceEquals(monitoredItem, existingMonitoredItem))
             {
                 return (StatusCodes.BadMonitoredItemIdInvalid, null);
             }
@@ -247,7 +247,7 @@ namespace Opc.Ua.Server
                     }
                 }
 
-                monitoredItem.QueueValue(initialValue, null);
+                monitoredItem.QueueValue(initialValue, null!);
             }
 
             return (StatusCodes.Good, previousMode);
@@ -277,27 +277,27 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public (MonitoredNode2, ServiceResult) SubscribeToEvents(
+        public (MonitoredNode2?, ServiceResult) SubscribeToEvents(
             ServerSystemContext context,
             NodeState source,
             IEventMonitoredItem monitoredItem,
             bool unsubscribe)
         {
-            MonitoredNode2 monitoredNode = null;
+            MonitoredNode2? monitoredNode = null;
             // handle unsubscribe.
             if (unsubscribe)
             {
                 // check for existing monitored node.
-                if (!MonitoredNodes.TryGetValue(source.NodeId, out monitoredNode))
+                if (MonitoredNodes.TryGetValue(source.NodeId, out monitoredNode))
                 {
                     return (null, StatusCodes.BadNodeIdUnknown);
                 }
 
-                monitoredNode.Remove(monitoredItem);
+                monitoredNode!.Remove(monitoredItem);
                 MonitoredItems.TryRemove(monitoredItem.Id, out _);
 
                 // check if node is no longer being monitored.
-                if (!monitoredNode.HasMonitoredItems)
+                if (monitoredNode.HasMonitoredItems)
                 {
                     MonitoredNodes.Remove(source.NodeId);
                 }
@@ -317,7 +317,7 @@ namespace Opc.Ua.Server
             }
 
             // check for existing monitored node.
-            if (!MonitoredNodes.TryGetValue(source.NodeId, out monitoredNode))
+            if (MonitoredNodes.TryGetValue(source.NodeId, out monitoredNode))
             {
                 MonitoredNodes[source.NodeId]
                     = monitoredNode = new MonitoredNode2(m_nodeManager, m_server, source);
@@ -325,7 +325,7 @@ namespace Opc.Ua.Server
 
             // remove existing monitored items with the same Id prior to insertion in order to avoid duplicates
             // this is necessary since the SubscribeToEvents method is called also from ModifyMonitoredItemsForEvents
-            monitoredNode.EventMonitoredItems.TryRemove(monitoredItem.Id, out _);
+            monitoredNode!.EventMonitoredItems.TryRemove(monitoredItem.Id, out _);
 
             // this links the node to specified monitored item and ensures all events
             // reported by the node are added to the monitored item's queue.

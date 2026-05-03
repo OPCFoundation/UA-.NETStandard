@@ -74,19 +74,19 @@ namespace Opc.Ua.Server.UserDatabase
             /// The user name.
             /// </summary>
             [DataMember(Name = "UserName", IsRequired = true, Order = 20)]
-            public string UserName { get; set; }
+            public string UserName { get; set; } = null!;
 
             /// <summary>
             /// The hashed password.
             /// </summary>
             [DataMember(Name = "Hash", IsRequired = true, Order = 30)]
-            public string Hash { get; set; }
+            public string Hash { get; set; } = null!;
 
             /// <summary>
             /// The associated roles with the user.
             /// </summary>
             [DataMember(Name = "Roles", IsRequired = false, Order = 40)]
-            public ICollection<Role> Roles { get; set; }
+            public ICollection<Role> Roles { get; set; } = null!;
         }
 
         /// <summary>
@@ -113,7 +113,7 @@ namespace Opc.Ua.Server.UserDatabase
             string hash = Hash(password);
 
             bool added = true;
-            User newUser = m_users.AddOrUpdate(userName,
+            User newUser = m_users!.AddOrUpdate(userName,
                 (key) => new User
                 {
                     ID = Guid.NewGuid(),
@@ -142,7 +142,7 @@ namespace Opc.Ua.Server.UserDatabase
                 throw new ArgumentException("UserName cannot be empty.", nameof(userName));
             }
 
-            return m_users.TryRemove(userName, out _);
+            return m_users!.TryRemove(userName, out _);
         }
 
         /// <inheritdoc/>
@@ -158,12 +158,12 @@ namespace Opc.Ua.Server.UserDatabase
                 throw new ArgumentException("Password cannot be empty.", nameof(password));
             }
 
-            if (!m_users.TryGetValue(userName, out User user))
+            if (m_users!.TryGetValue(userName, out User? user))
             {
                 return false;
             }
 
-            return Check(user.Hash, password);
+            return Check(user!.Hash, password);
         }
 
         /// <inheritdoc/>
@@ -174,12 +174,12 @@ namespace Opc.Ua.Server.UserDatabase
                 throw new ArgumentException("UserName cannot be empty.", nameof(userName));
             }
 
-            if (!m_users.TryGetValue(userName, out User user))
+            if (m_users!.TryGetValue(userName, out User? user))
             {
                 throw new ArgumentException("No user found with the UserName " + userName);
             }
 
-            return user.Roles;
+            return user!.Roles;
         }
 
         /// <inheritdoc/>
@@ -202,12 +202,12 @@ namespace Opc.Ua.Server.UserDatabase
                 throw new ArgumentException("New Password cannot be empty.", nameof(newPassword));
             }
 
-            if (!m_users.TryGetValue(userName, out User user))
+            if (m_users!.TryGetValue(userName, out User? user))
             {
                 return false;
             }
 
-            if (Check(user.Hash, oldPassword))
+            if (Check(user!.Hash, oldPassword))
             {
                 user.Hash = Hash(newPassword);
                 return true;
@@ -229,12 +229,12 @@ namespace Opc.Ua.Server.UserDatabase
         [DataMember(Name = "Users", IsRequired = true, Order = 10)]
         public User[] Users
         {
-            get => [.. m_users.Values];
+            get => [.. m_users!.Values];
             set
             {
                 foreach (User user in value)
                 {
-                    m_users.TryAdd(user.UserName, user);
+                    m_users!.TryAdd(user.UserName, user);
                 }
             }
         }
@@ -349,7 +349,7 @@ namespace Opc.Ua.Server.UserDatabase
             Initialize();
         }
 
-        private ConcurrentDictionary<string, User> m_users;
+        private ConcurrentDictionary<string, User>? m_users;
     }
 
     /// <summary>

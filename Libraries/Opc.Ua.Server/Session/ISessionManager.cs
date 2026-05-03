@@ -98,7 +98,7 @@ namespace Opc.Ua.Server
         /// Find and return a session specified by authentication token
         /// </summary>
         /// <returns>The requested session.</returns>
-        ISession GetSession(NodeId authenticationToken);
+        ISession? GetSession(NodeId authenticationToken);
 
         /// <summary>
         /// Creates a new session.
@@ -106,12 +106,12 @@ namespace Opc.Ua.Server
         ValueTask<CreateSessionResult> CreateSessionAsync(
             OperationContext context,
             X509Certificate2 serverCertificate,
-            string sessionName,
+            string? sessionName,
             ByteString clientNonce,
-            ApplicationDescription clientDescription,
-            string endpointUrl,
-            X509Certificate2 clientCertificate,
-            X509Certificate2Collection clientCertificateChain,
+            ApplicationDescription? clientDescription,
+            string? endpointUrl,
+            X509Certificate2? clientCertificate,
+            X509Certificate2Collection? clientCertificateChain,
             double requestedSessionTimeout,
             uint maxResponseMessageSize,
             CancellationToken cancellationToken = default);
@@ -122,9 +122,9 @@ namespace Opc.Ua.Server
         ValueTask<(bool IdentityContextChanged, ByteString ServerNonce)> ActivateSessionAsync(
             OperationContext context,
             NodeId authenticationToken,
-            SignatureData clientSignature,
+            SignatureData? clientSignature,
             ExtensionObject userIdentityToken,
-            SignatureData userTokenSignature,
+            SignatureData? userTokenSignature,
             ArrayOf<string> localeIds,
             CancellationToken cancellationToken = default);
 
@@ -145,7 +145,7 @@ namespace Opc.Ua.Server
         /// and that the sequence number is not out of order (update requests only).
         /// </remarks>
         ValueTask<OperationContext> ValidateRequestAsync(
-            RequestHeader requestHeader,
+            RequestHeader? requestHeader,
             SecureChannelContext secureChannelContext,
             RequestType requestType,
             RequestLifetime requestLifetime);
@@ -238,13 +238,13 @@ namespace Opc.Ua.Server
         /// Creates a new instance.
         /// </summary>
         public ImpersonateEventArgs(
-            IUserIdentityTokenHandler newIdentityHandler,
-            UserTokenPolicy userTokenPolicy,
-            EndpointDescription endpointDescription = null)
+            IUserIdentityTokenHandler? newIdentityHandler,
+            UserTokenPolicy? userTokenPolicy,
+            EndpointDescription? endpointDescription = null)
         {
-            UserIdentityTokenHandler = newIdentityHandler;
-            UserTokenPolicy = userTokenPolicy;
-            EndpointDescription = endpointDescription;
+            UserIdentityTokenHandler = newIdentityHandler!;
+            UserTokenPolicy = userTokenPolicy!;
+            EndpointDescription = endpointDescription!;
         }
 
         /// <summary>
@@ -266,17 +266,17 @@ namespace Opc.Ua.Server
         /// <summary>
         /// An application defined handle that can be used for access control operations.
         /// </summary>
-        public IUserIdentity Identity { get; set; }
+        public IUserIdentity Identity { get; set; } = null!;
 
         /// <summary>
         /// An application defined handle that can be used for access control operations.
         /// </summary>
-        public IUserIdentity EffectiveIdentity { get; set; }
+        public IUserIdentity EffectiveIdentity { get; set; } = null!;
 
         /// <summary>
         /// Set to indicate that an error occurred validating the identity and that it should be rejected.
         /// </summary>
-        public ServiceResult IdentityValidationError { get; set; }
+        public ServiceResult IdentityValidationError { get; set; } = null!;
 
         /// <summary>
         /// Get the EndpointDescription
@@ -318,11 +318,11 @@ namespace Opc.Ua.Server
         /// <summary>
         /// The identity to associate with the session-less request.
         /// </summary>
-        public IUserIdentity Identity { get; set; }
+        public IUserIdentity Identity { get; set; } = null!;
 
         /// <summary>
         /// Set to indicate that an error occurred validating the session-less request and that it should be rejected.
         /// </summary>
-        public ServiceResult Error { get; set; }
+        public ServiceResult Error { get; set; } = null!;
     }
 }

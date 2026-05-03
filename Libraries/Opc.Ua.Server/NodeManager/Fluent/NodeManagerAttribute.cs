@@ -66,14 +66,14 @@ namespace Opc.Ua.Server.Fluent
         /// Optional when there is exactly one design — in that case the
         /// generator binds to it automatically.
         /// </remarks>
-        public string NamespaceUri { get; set; }
+        public string NamespaceUri { get; set; } = null!;
 
         /// <summary>
         /// Optional design file logical name (the file name without
         /// extension). Alternative selector when matching by
         /// <see cref="NamespaceUri"/> is inconvenient.
         /// </summary>
-        public string Design { get; set; }
+        public string Design { get; set; } = null!;
 
         /// <summary>
         /// When <c>true</c> (default) the generator also emits a

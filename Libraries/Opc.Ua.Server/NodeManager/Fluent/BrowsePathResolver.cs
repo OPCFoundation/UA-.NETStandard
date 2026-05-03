@@ -105,7 +105,7 @@ namespace Opc.Ua.Server.Fluent
 
             for (int i = 1; i < segments.Count; i++)
             {
-                BaseInstanceState child = current.FindChild(context, segments[i]);
+                BaseInstanceState? child = current.FindChild(context, segments[i]);
                 if (child == null)
                 {
                     throw ServiceResultException.Create(
@@ -211,7 +211,7 @@ namespace Opc.Ua.Server.Fluent
                 }
 
                 ReadOnlySpan<char> nsText = segment.Slice(3, semi);
-                if (!ushort.TryParse(
+                if (ushort.TryParse(
                     nsText.ToString(),
                     NumberStyles.None,
                     CultureInfo.InvariantCulture,

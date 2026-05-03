@@ -205,7 +205,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Removes a message from the message queue.
         /// </summary>
-        ServiceResult Acknowledge(OperationContext context, uint sequenceNumber);
+        ServiceResult? Acknowledge(OperationContext context, uint sequenceNumber);
 
         /// <summary>
         /// Deletes the subscription.
@@ -240,7 +240,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Returns all available notifications.
         /// </summary>
-        NotificationMessage Publish(
+        NotificationMessage? Publish(
             OperationContext context,
             out ArrayOf<uint> availableSequenceNumbers,
             out bool moreNotifications);

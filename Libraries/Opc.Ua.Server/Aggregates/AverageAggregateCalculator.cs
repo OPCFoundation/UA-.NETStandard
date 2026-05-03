@@ -65,7 +65,7 @@ namespace Opc.Ua.Server
         /// </summary>
         protected override DataValue ComputeValue(TimeSlice slice)
         {
-            if (!AggregateId.TryGetValue(out uint numericId))
+            if (AggregateId.TryGetValue(out uint numericId))
             {
                 return base.ComputeValue(slice);
             }
@@ -92,7 +92,7 @@ namespace Opc.Ua.Server
         protected DataValue ComputeAverage(TimeSlice slice)
         {
             // get the values in the slice.
-            List<DataValue> values = GetValues(slice);
+            List<DataValue>? values = GetValues(slice);
 
             // check for empty slice.
             if (values == null || values.Count == 0)
@@ -150,7 +150,7 @@ namespace Opc.Ua.Server
         protected DataValue ComputeTimeAverage(TimeSlice slice, bool useSimpleBounds, int valueType)
         {
             // get the values in the slice.
-            List<DataValue> values;
+            List<DataValue>? values;
             if (useSimpleBounds)
             {
                 values = GetValuesWithSimpleBounds(slice);
@@ -167,13 +167,13 @@ namespace Opc.Ua.Server
             }
 
             // get the regions.
-            List<SubRegion> regions = GetRegionsInValueSet(values, !useSimpleBounds, Stepped);
+            List<SubRegion>? regions = GetRegionsInValueSet(values, !useSimpleBounds, Stepped);
 
             double total = 0;
             double totalDuration = 0;
             bool nonGoodRegionsExists = false;
 
-            for (int ii = 0; ii < regions.Count; ii++)
+            for (int ii = 0; ii < regions!.Count; ii++)
             {
                 double duration = regions[ii].Duration / 1000.0;
 

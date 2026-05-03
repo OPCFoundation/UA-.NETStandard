@@ -73,27 +73,27 @@ namespace Opc.Ua.Server
             // If maxTrustListSize is 0 (unlimited), use a sensible default limit
             m_maxTrustListSize = maxTrustListSize > 0 ? maxTrustListSize : kDefaultMaxTrustListSize;
 
-            node.Open.OnCall = new OpenMethodStateMethodCallHandler(Open);
+            node!.Open!.OnCall = new OpenMethodStateMethodCallHandler(Open);
             node.Open.OnCallAsync = new OpenMethodStateMethodAsyncCallHandler(OpenAsync);
-            node.OpenWithMasks.OnCall
+            node!.OpenWithMasks!.OnCall
                 = new OpenWithMasksMethodStateMethodCallHandler(OpenWithMasks);
             node.OpenWithMasks.OnCallAsync
                 = new OpenWithMasksMethodStateMethodAsyncCallHandler(OpenWithMasksAsync);
-            node.Read.OnCall = new ReadMethodStateMethodCallHandler(Read);
+            node!.Read!.OnCall = new ReadMethodStateMethodCallHandler(Read);
             node.Read.OnCallAsync = new ReadMethodStateMethodAsyncCallHandler(ReadAsync);
-            node.Write.OnCall = new WriteMethodStateMethodCallHandler(Write);
+            node!.Write!.OnCall = new WriteMethodStateMethodCallHandler(Write);
             node.Write.OnCallAsync = new WriteMethodStateMethodAsyncCallHandler(WriteAsync);
-            node.Close.OnCall = new CloseMethodStateMethodCallHandler(Close);
+            node!.Close!.OnCall = new CloseMethodStateMethodCallHandler(Close);
             node.Close.OnCallAsync = new CloseMethodStateMethodAsyncCallHandler(CloseAsync);
-            node.CloseAndUpdate.OnCall
+            node!.CloseAndUpdate!.OnCall
                 = new CloseAndUpdateMethodStateMethodCallHandler(CloseAndUpdate);
             node.CloseAndUpdate.OnCallAsync
                 = new CloseAndUpdateMethodStateMethodAsyncCallHandler(CloseAndUpdateAsync);
-            node.AddCertificate.OnCall
+            node!.AddCertificate!.OnCall
                 = new AddCertificateMethodStateMethodCallHandler(AddCertificate);
             node.AddCertificate.OnCallAsync
                 = new AddCertificateMethodStateMethodAsyncCallHandler(AddCertificateAsync);
-            node.RemoveCertificate.OnCall
+            node!.RemoveCertificate!.OnCall
                 = new RemoveCertificateMethodStateMethodCallHandler(RemoveCertificate);
             node.RemoveCertificate.OnCallAsync
                 = new RemoveCertificateMethodStateMethodAsyncCallHandler(RemoveCertificateAsync);
@@ -206,7 +206,7 @@ namespace Opc.Ua.Server
             }
 
             uint fileHandle = 0;
-            MemoryStream strm = null;
+            MemoryStream? strm = null;
 
             try
             {
@@ -286,20 +286,20 @@ namespace Opc.Ua.Server
 
                 lock (m_lock)
                 {
-                    if (!m_sessionId.IsNull)
+                    if (m_sessionId.IsNull)
                     {
                         // to avoid deadlocks, last open always wins
                         m_sessionId = default;
                         m_strm?.Dispose();
                         m_strm = null;
-                        m_node.OpenCount.Value = 0;
+                        m_node!.OpenCount!.Value = 0;
                     }
 
                     m_sessionId = (context as ISessionSystemContext)?.SessionId ?? default;
                     fileHandle = ++m_fileHandle;
                     m_totalBytesProcessed = 0; // Reset counter for new file operation
                     m_strm = strm;
-                    m_node.OpenCount.Value = 1;
+                    m_node!.OpenCount!.Value = 1;
                 }
             }
             catch
@@ -349,7 +349,7 @@ namespace Opc.Ua.Server
             lock (m_lock)
             {
                 if (context is ISessionSystemContext session &&
-                    m_sessionId != null && !m_sessionId.Equals(session.SessionId))
+                    m_sessionId != null! && !m_sessionId.Equals(session.SessionId))
                 {
                     return new ValueTask<ReadMethodStateResult>(new ReadMethodStateResult
                     {
@@ -385,7 +385,7 @@ namespace Opc.Ua.Server
                 }
 
                 byte[] buffer = new byte[length];
-                int bytesRead = m_strm.Read(buffer, 0, length);
+                int bytesRead = m_strm!.Read(buffer, 0, length);
                 Debug.Assert(bytesRead >= 0);
                 data = ByteString.From(buffer)[..bytesRead];
 
@@ -429,7 +429,7 @@ namespace Opc.Ua.Server
             lock (m_lock)
             {
                 if (context is ISessionSystemContext session &&
-                    m_sessionId != null && !m_sessionId.Equals(session.SessionId))
+                    m_sessionId != null! && !m_sessionId.Equals(session.SessionId))
                 {
                     return new ValueTask<WriteMethodStateResult>(new WriteMethodStateResult
                     {
@@ -457,7 +457,7 @@ namespace Opc.Ua.Server
                     });
                 }
 
-                m_strm.Write(data.ToArray(), 0, data.Length);
+                m_strm!.Write(data.ToArray(), 0, data.Length);
                 m_totalBytesProcessed += data.Length;
             }
 
@@ -494,7 +494,7 @@ namespace Opc.Ua.Server
             lock (m_lock)
             {
                 if (context is ISessionSystemContext session &&
-                    m_sessionId != null && !m_sessionId.Equals(session.SessionId))
+                    m_sessionId != null! && !m_sessionId.Equals(session.SessionId))
                 {
                     return new ValueTask<CloseMethodStateResult>(new CloseMethodStateResult
                     {
@@ -513,7 +513,7 @@ namespace Opc.Ua.Server
                 m_sessionId = default;
                 m_strm?.Dispose();
                 m_strm = null;
-                m_node.OpenCount.Value = 0;
+                m_node!.OpenCount!.Value = 0;
             }
 
             return new ValueTask<CloseMethodStateResult>(new CloseMethodStateResult
@@ -558,12 +558,12 @@ namespace Opc.Ua.Server
 
             ServiceResult result = StatusCodes.Good;
 
-            MemoryStream strm = null;
+            MemoryStream? strm = null;
 
             lock (m_lock)
             {
                 if (context is ISessionSystemContext session &&
-                    m_sessionId != null && !m_sessionId.Equals(session.SessionId))
+                    m_sessionId != null! && !m_sessionId.Equals(session.SessionId))
                 {
                     return new CloseAndUpdateMethodStateResult
                     {
@@ -586,13 +586,13 @@ namespace Opc.Ua.Server
 
             try
             {
-                TrustListDataType trustList = DecodeTrustListData(context, strm);
+                TrustListDataType trustList = DecodeTrustListData(context, strm!);
                 int masks = (int)trustList.SpecifiedLists;
 
-                X509Certificate2Collection issuerCertificates = null;
-                X509CRLCollection issuerCrls = null;
-                X509Certificate2Collection trustedCertificates = null;
-                X509CRLCollection trustedCrls = null;
+                X509Certificate2Collection? issuerCertificates = null;
+                X509CRLCollection? issuerCrls = null;
+                X509Certificate2Collection? trustedCertificates = null;
+                X509CRLCollection? trustedCrls = null;
 
                 // test integrity of all CRLs
                 if ((masks & (int)TrustListMasks.IssuerCertificates) != 0)
@@ -631,24 +631,24 @@ namespace Opc.Ua.Server
                 // update store
                 int updateMasks = (int)TrustListMasks.None;
                 if ((masks & (int)TrustListMasks.IssuerCertificates) != 0 &&
-                    await UpdateStoreCertificatesAsync(m_issuerStore, issuerCertificates, cancellationToken)
+                    await UpdateStoreCertificatesAsync(m_issuerStore, issuerCertificates!, cancellationToken)
                         .ConfigureAwait(false))
                 {
                     updateMasks |= (int)TrustListMasks.IssuerCertificates;
                 }
                 if ((masks & (int)TrustListMasks.IssuerCrls) != 0 &&
-                    await UpdateStoreCrlsAsync(m_issuerStore, issuerCrls, cancellationToken).ConfigureAwait(false))
+                    await UpdateStoreCrlsAsync(m_issuerStore, issuerCrls!, cancellationToken).ConfigureAwait(false))
                 {
                     updateMasks |= (int)TrustListMasks.IssuerCrls;
                 }
                 if ((masks & (int)TrustListMasks.TrustedCertificates) != 0 &&
-                    await UpdateStoreCertificatesAsync(m_trustedStore, trustedCertificates, cancellationToken)
+                    await UpdateStoreCertificatesAsync(m_trustedStore, trustedCertificates!, cancellationToken)
                         .ConfigureAwait(false))
                 {
                     updateMasks |= (int)TrustListMasks.TrustedCertificates;
                 }
                 if ((masks & (int)TrustListMasks.TrustedCrls) != 0 &&
-                    await UpdateStoreCrlsAsync(m_trustedStore, trustedCrls, cancellationToken).ConfigureAwait(false))
+                    await UpdateStoreCrlsAsync(m_trustedStore, trustedCrls!, cancellationToken).ConfigureAwait(false))
                 {
                     updateMasks |= (int)TrustListMasks.TrustedCrls;
                 }
@@ -669,8 +669,8 @@ namespace Opc.Ua.Server
                     m_sessionId = default;
                     m_strm?.Dispose();
                     m_strm = null;
-                    m_node.LastUpdateTime.Value = DateTime.UtcNow;
-                    m_node.OpenCount.Value = 0;
+                    m_node!.LastUpdateTime!.Value = DateTime.UtcNow;
+                    m_node!.OpenCount!.Value = 0;
                 }
             }
 
@@ -744,7 +744,7 @@ namespace Opc.Ua.Server
             }
             else
             {
-                X509Certificate2 cert = null;
+                 X509Certificate2? cert = null;
                 try
                 {
                     cert = CertificateFactory.Create(certificate);
@@ -777,7 +777,7 @@ namespace Opc.Ua.Server
 
                     lock (m_lock)
                     {
-                        m_node.LastUpdateTime.Value = DateTime.UtcNow;
+                        m_node!.LastUpdateTime!.Value = DateTime.UtcNow;
                     }
                 }
             }
@@ -892,7 +892,7 @@ namespace Opc.Ua.Server
                             }
                         }
 
-                        if (!await store.DeleteAsync(thumbprint, cancellationToken)
+                        if (await store.DeleteAsync(thumbprint, cancellationToken)
                             .ConfigureAwait(false))
                         {
                             result = StatusCodes.BadInvalidArgument;
@@ -901,7 +901,7 @@ namespace Opc.Ua.Server
                         {
                             foreach (X509CRL crl in crlsToDelete)
                             {
-                                if (!await store.DeleteCRLAsync(crl, cancellationToken)
+                                if (await store.DeleteCRLAsync(crl, cancellationToken)
                                     .ConfigureAwait(false))
                                 {
                                     // intentionally ignore errors, try best effort
@@ -916,7 +916,7 @@ namespace Opc.Ua.Server
 
                 lock (m_lock)
                 {
-                    m_node.LastUpdateTime.Value = DateTime.UtcNow;
+                    m_node!.LastUpdateTime!.Value = DateTime.UtcNow;
                 }
             }
 
@@ -949,7 +949,7 @@ namespace Opc.Ua.Server
             var strm = new MemoryStream();
             using (var encoder = new BinaryEncoder(strm, messageContext, true))
             {
-                encoder.WriteEncodeable(null, trustList);
+                encoder.WriteEncodeable(null!, trustList);
             }
             strm.Position = 0;
             return strm;
@@ -995,7 +995,7 @@ namespace Opc.Ua.Server
                         .ConfigureAwait(false);
                     foreach (X509CRL crl in storeCrls)
                     {
-                        if (!updatedCrls.Remove(crl) &&
+                        if (updatedCrls.Remove(crl) &&
                             !await store.DeleteCRLAsync(crl, cancellationToken).ConfigureAwait(false))
                         {
                             result = false;
@@ -1039,9 +1039,9 @@ namespace Opc.Ua.Server
                         .ConfigureAwait(false);
                     foreach (X509Certificate2 cert in storeCerts)
                     {
-                        if (!updatedCerts.Contains(cert))
+                        if (updatedCerts.Contains(cert))
                         {
-                            if (!await store.DeleteAsync(cert.Thumbprint, cancellationToken).ConfigureAwait(false))
+                            if (await store.DeleteAsync(cert.Thumbprint, cancellationToken).ConfigureAwait(false))
                             {
                                 result = false;
                             }
@@ -1102,7 +1102,7 @@ namespace Opc.Ua.Server
         private readonly ITelemetryContext m_telemetry;
         private readonly ILogger m_logger;
         private readonly TrustListState m_node;
-        private MemoryStream m_strm;
+        private MemoryStream? m_strm;
         private readonly int m_maxTrustListSize;
         private long m_totalBytesProcessed;
     }

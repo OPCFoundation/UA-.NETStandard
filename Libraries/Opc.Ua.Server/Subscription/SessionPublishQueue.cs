@@ -74,7 +74,7 @@ namespace Opc.Ua.Server
                 {
                     while (m_queuedRequests.Count > 0)
                     {
-                        QueuedPublishRequest request = m_queuedRequests.First.Value;
+                        QueuedPublishRequest request = m_queuedRequests!.First!.Value;
                         m_queuedRequests.RemoveFirst();
 
                         try
@@ -107,7 +107,7 @@ namespace Opc.Ua.Server
                     new ServiceResultException(StatusCodes.BadNoSubscription));
             }
 
-            QueuedSubscription subscriptionToPublish;
+            QueuedSubscription? subscriptionToPublish;
             lock (m_lock)
             {
                 // find the waiting subscription with the highest priority.
@@ -156,7 +156,7 @@ namespace Opc.Ua.Server
                 // set any waiting publish requests to Status BadSessionClosed.
                 while (m_queuedRequests.Count > 0)
                 {
-                    QueuedPublishRequest request = m_queuedRequests.First.Value;
+                    QueuedPublishRequest request = m_queuedRequests!.First!.Value;
                     m_queuedRequests.RemoveFirst();
                     request.Tcs.TrySetException(new ServiceResultException(StatusCodes.BadSessionClosed));
                     request.Dispose();
@@ -224,7 +224,7 @@ namespace Opc.Ua.Server
         /// </summary>
         public void RemoveQueuedRequests()
         {
-            if (!m_queuedSubscriptions.IsEmpty)
+            if (m_queuedSubscriptions.IsEmpty)
             {
                 return;
             }
@@ -234,7 +234,7 @@ namespace Opc.Ua.Server
                 // remove any outstanding publishes.
                 while (m_queuedRequests.Count > 0)
                 {
-                    QueuedPublishRequest request = m_queuedRequests.First.Value;
+                    QueuedPublishRequest request = m_queuedRequests!.First!.Value;
                     m_queuedRequests.RemoveFirst();
                     request.Tcs.TrySetException(new ServiceResultException(StatusCodes.BadNoSubscription));
                     request.Dispose();
@@ -256,7 +256,7 @@ namespace Opc.Ua.Server
             {
                 while (m_queuedRequests.Count > 0)
                 {
-                    QueuedPublishRequest request = m_queuedRequests.Last.Value;
+                    QueuedPublishRequest request = m_queuedRequests!.Last!.Value;
                     m_queuedRequests.RemoveLast();
                     if (request.Tcs.Task.IsCompleted)
                     {
@@ -268,7 +268,7 @@ namespace Opc.Ua.Server
                     // to publish queued StatusMessages from there
                     if (ServiceResult.IsGood(statusCode))
                     {
-                        request.Tcs.TrySetResult(null);
+                        request.Tcs.TrySetResult(null!);
                     }
                     // throw a ServiceResultException for bad status codes
                     else
@@ -306,9 +306,9 @@ namespace Opc.Ua.Server
             {
                 SubscriptionAcknowledgement acknowledgement = subscriptionAcknowledgements[ii];
 
-                if (m_queuedSubscriptions.TryGetValue(acknowledgement.SubscriptionId, out QueuedSubscription subscription))
+                if (m_queuedSubscriptions.TryGetValue(acknowledgement.SubscriptionId, out QueuedSubscription? subscription))
                 {
-                    ServiceResult result = subscription.Subscription.Acknowledge(
+                    ServiceResult? result = subscription.Subscription.Acknowledge(
                         context,
                         acknowledgement.SequenceNumber);
 
@@ -318,22 +318,22 @@ namespace Opc.Ua.Server
 
                         if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
                         {
-                            acknowledgeDiagnosticInfoList.Add(null);
+                            acknowledgeDiagnosticInfoList.Add(null!);
                         }
                     }
                     else
                     {
-                        acknowledgeResultList.Add(result.Code);
+                        acknowledgeResultList.Add(result!.Code);
 
                         if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
                         {
-                            DiagnosticInfo diagnosticInfo = ServerUtils
+                            DiagnosticInfo? diagnosticInfo = ServerUtils
                                 .CreateDiagnosticInfo(
                                     m_server,
                                     context,
                                     result,
                                     m_logger);
-                            acknowledgeDiagnosticInfoList.Add(diagnosticInfo);
+                            acknowledgeDiagnosticInfoList.Add(diagnosticInfo!);
                             diagnosticsExist = true;
                         }
                     }
@@ -345,18 +345,18 @@ namespace Opc.Ua.Server
 
                     if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
                     {
-                        DiagnosticInfo diagnosticInfo = ServerUtils.CreateDiagnosticInfo(
+                        DiagnosticInfo? diagnosticInfo = ServerUtils.CreateDiagnosticInfo(
                             m_server,
                             context,
                             result,
                             m_logger);
-                        acknowledgeDiagnosticInfoList.Add(diagnosticInfo);
+                        acknowledgeDiagnosticInfoList.Add(diagnosticInfo!);
                         diagnosticsExist = true;
                     }
                 }
             }
 
-            if (!diagnosticsExist)
+            if (diagnosticsExist)
             {
                 acknowledgeDiagnosticInfoList.Clear();
             }
@@ -370,7 +370,7 @@ namespace Opc.Ua.Server
         public void PublishCompleted(ISubscription subscription, bool moreNotifications)
         {
             if (m_queuedSubscriptions.TryGetValue(subscription.Id,
-                out QueuedSubscription queuedSubscription))
+                out QueuedSubscription? queuedSubscription))
             {
                 lock (m_lock)
                 {
@@ -394,7 +394,7 @@ namespace Opc.Ua.Server
         /// </summary>
         public void Requeue(ISubscription subscription)
         {
-            if (m_queuedSubscriptions.TryGetValue(subscription.Id, out QueuedSubscription queuedSubscription))
+            if (m_queuedSubscriptions.TryGetValue(subscription.Id, out QueuedSubscription? queuedSubscription))
             {
                 lock (m_lock)
                 {
@@ -441,11 +441,11 @@ namespace Opc.Ua.Server
                 }
 
                 // assign subscription to request if one is available.
-                if (!subscription.Publishing)
+                if (subscription.Publishing)
                 {
                     lock (m_lock)
                     {
-                        if (!subscription.Publishing)
+                        if (subscription.Publishing)
                         {
                             AssignSubscriptionToRequest(subscription);
                         }
@@ -467,7 +467,7 @@ namespace Opc.Ua.Server
                 // find a request.
                 while (m_queuedRequests.Count > 0)
                 {
-                    QueuedPublishRequest request = m_queuedRequests.First.Value;
+                    QueuedPublishRequest request = m_queuedRequests!.First!.Value;
                     m_queuedRequests.RemoveFirst();
 
                     if (request.Tcs.Task.IsCompleted)
@@ -477,7 +477,7 @@ namespace Opc.Ua.Server
                     }
 
                     // check secure channel.
-                    if (!m_session.IsSecureChannelValid(request.SecureChannelId))
+                    if (m_session.IsSecureChannelValid(request.SecureChannelId))
                     {
                         m_logger.LogWarning("Publish abandoned because the secure channel changed.");
                         request.Tcs.TrySetException(new ServiceResultException(StatusCodes.BadSecureChannelIdInvalid));
@@ -505,7 +505,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Selects a subscription to publish based on priority and timestamp.
         /// </summary>
-        private QueuedSubscription GetSubscriptionToPublish()
+        private QueuedSubscription? GetSubscriptionToPublish()
         {
             var availableSubscriptions = new List<QueuedSubscription>();
 
@@ -523,7 +523,7 @@ namespace Opc.Ua.Server
             {
                 byte maxPriority = 0;
                 DateTime earliestTimestamp = DateTime.MaxValue;
-                QueuedSubscription subscriptionToPublish = null;
+                QueuedSubscription? subscriptionToPublish = null;
 
                 for (int ii = 0; ii < availableSubscriptions.Count; ii++)
                 {
@@ -543,7 +543,7 @@ namespace Opc.Ua.Server
                     }
                 }
 
-                subscriptionToPublish.Publishing = true;
+                subscriptionToPublish!.Publishing = true;
                 return subscriptionToPublish;
             }
 
@@ -584,7 +584,7 @@ namespace Opc.Ua.Server
             public readonly DateTime OperationTimeout;
             public readonly TaskCompletionSource<ISubscription> Tcs;
             private readonly CancellationTokenRegistration m_cancellationTokenRegistration;
-            private readonly CancellationTokenSource m_cancellationTokenSource;
+            private readonly CancellationTokenSource? m_cancellationTokenSource;
             private readonly CancellationTokenRegistration m_cancellationTokenRegistration2;
         }
 
@@ -621,12 +621,12 @@ namespace Opc.Ua.Server
             //    - readyToPublishCount
             //    - expiredCount
             // 4. Emit single structured LogTrace with constant template.
-            if (!m_logger.IsEnabled(LogLevel.Trace))
+            if (m_logger.IsEnabled(LogLevel.Trace))
             {
                 return;
             }
 
-            object sessionId = null;
+            object? sessionId = null;
             int subscriptionCount;
             int requestCount;
             int readyToPublishCount = 0;

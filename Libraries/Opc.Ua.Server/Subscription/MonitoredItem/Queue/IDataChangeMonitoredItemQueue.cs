@@ -85,7 +85,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// returns the oldest value in the queue without dequeueing. Null if queue is empty
         /// </summary>
-        DataValue PeekOldestValue();
+        DataValue? PeekOldestValue();
 
         /// <summary>
         /// Replace the last (newest) value in the queue with the provided Value. Used when values are provided faster than the sampling interval
@@ -98,6 +98,6 @@ namespace Opc.Ua.Server
         /// Returns the last (newest) value in the queue without dequeuing
         /// </summary>
         /// <returns>the last value, null if queue is empty</returns>
-        DataValue PeekLastValue();
+        DataValue? PeekLastValue();
     }
 }

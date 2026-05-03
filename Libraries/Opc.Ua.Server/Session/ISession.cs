@@ -140,7 +140,7 @@ namespace Opc.Ua.Server
         /// Create new ECC ephemeral key
         /// </summary>
         /// <returns>A new ephemeral key</returns>
-        EphemeralKeyType GetNewEphemeralKey();
+        EphemeralKeyType? GetNewEphemeralKey();
 
         /// <summary>
         /// Checks if the secure channel is currently valid.
@@ -153,14 +153,14 @@ namespace Opc.Ua.Server
         /// <remarks>
         /// The caller is responsible for disposing the continuation point returned.
         /// </remarks>
-        ContinuationPoint RestoreContinuationPoint(ByteString continuationPoint);
+        ContinuationPoint? RestoreContinuationPoint(ByteString continuationPoint);
 
         /// <summary>
         /// Restores a previously saves history continuation point.
         /// </summary>
         /// <param name="continuationPoint">The identifier for the continuation point.</param>
         /// <returns>The save continuation point. null if not found.</returns>
-        object RestoreHistoryContinuationPoint(ByteString continuationPoint);
+        object? RestoreHistoryContinuationPoint(ByteString continuationPoint);
 
         /// <summary>
         /// Saves a continuation point for a session.
@@ -200,8 +200,8 @@ namespace Opc.Ua.Server
             SignatureData clientSignature,
             ExtensionObject userIdentityToken,
             SignatureData userTokenSignature,
-            out IUserIdentityTokenHandler identityToken,
-            out UserTokenPolicy userTokenPolicy);
+            out IUserIdentityTokenHandler? identityToken,
+            out UserTokenPolicy? userTokenPolicy);
 
         /// <summary>
         /// Validate the diagnostic info.

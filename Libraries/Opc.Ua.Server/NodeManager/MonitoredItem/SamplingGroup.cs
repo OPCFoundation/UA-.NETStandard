@@ -50,7 +50,7 @@ namespace Opc.Ua.Server
             List<SamplingRateGroup> samplingRates,
             OperationContext context,
             double samplingInterval,
-            IUserIdentity savedOwnerIdentity = null)
+            IUserIdentity? savedOwnerIdentity = null)
         {
             m_server = server ?? throw new ArgumentNullException(nameof(server));
             m_logger = server.Telemetry.CreateLogger<SamplingGroup>();
@@ -157,7 +157,7 @@ namespace Opc.Ua.Server
         public bool StartMonitoring(
             OperationContext context,
             ISampledDataChangeMonitoredItem monitoredItem,
-            IUserIdentity savedOwnerIdentity = null)
+            IUserIdentity? savedOwnerIdentity = null)
         {
             lock (m_lock)
             {
@@ -284,7 +284,7 @@ namespace Opc.Ua.Server
         private bool MeetsGroupCriteria(
             OperationContext context,
             ISampledDataChangeMonitoredItem monitoredItem,
-            IUserIdentity savedOwnerIdentity = null)
+            IUserIdentity? savedOwnerIdentity = null)
         {
             // can only sample variables.
             if ((monitoredItem.MonitoredItemType & MonitoredItemTypeMask.DataChange) == 0)
@@ -307,7 +307,7 @@ namespace Opc.Ua.Server
             if (m_session == null && context?.SessionId == null)
             {
                 // fallback to compare user Identity if session is not set.
-                if (!m_effectiveIdentity.Equals(savedOwnerIdentity))
+                if (m_effectiveIdentity!.Equals(savedOwnerIdentity))
                 {
                     return false;
                 }
@@ -322,7 +322,7 @@ namespace Opc.Ua.Server
             }
 
             // check the diagnostics marks.
-            return m_diagnosticsMask == (context.DiagnosticsMask & DiagnosticsMasks.OperationAll);
+            return m_diagnosticsMask == (context!.DiagnosticsMask & DiagnosticsMasks.OperationAll);
         }
 
         /// <summary>
@@ -414,7 +414,7 @@ namespace Opc.Ua.Server
                             }
 
                             // check whether the item should be sampled.
-                            //if (!monitoredItem.SamplingIntervalExpired())
+                            //if (monitoredItem.SamplingIntervalExpired())
                             //{
                             //    continue;
                             //}
@@ -473,8 +473,8 @@ namespace Opc.Ua.Server
                         readValueId.Processed = false;
                         itemsToRead.Add(readValueId);
 
-                        values.Add(null);
-                        errors.Add(null);
+                        values.Add(null!);
+                        errors.Add(null!);
                     }
 
                     OperationContext context;
@@ -518,8 +518,8 @@ namespace Opc.Ua.Server
         private readonly ILogger m_logger;
         private readonly IServerInternal m_server;
         private readonly INodeManager m_nodeManager;
-        private ISession m_session;
-        private readonly IUserIdentity m_effectiveIdentity;
+        private ISession? m_session;
+        private readonly IUserIdentity? m_effectiveIdentity;
         private readonly DiagnosticsMasks m_diagnosticsMask;
         private readonly double m_samplingInterval;
         private readonly List<ISampledDataChangeMonitoredItem> m_itemsToAdd;
@@ -527,6 +527,6 @@ namespace Opc.Ua.Server
         private readonly Dictionary<uint, ISampledDataChangeMonitoredItem> m_items;
         private readonly ManualResetEvent m_shutdownEvent;
         private readonly List<SamplingRateGroup> m_samplingRates;
-        private Task m_samplingTask;
+        private Task? m_samplingTask;
     }
 }

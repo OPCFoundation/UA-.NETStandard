@@ -93,12 +93,12 @@ namespace Opc.Ua.Server
             bool createDurable,
             IMonitoredItemQueueFactory queueFactory,
             ITelemetryContext telemetry,
-            Action discardedValueHandler = null)
+            Action? discardedValueHandler = null)
         {
             m_logger = telemetry.CreateLogger<DataChangeQueueHandler>();
             m_dataValueQueue = queueFactory.CreateDataChangeQueue(createDurable, monitoredItemId);
 
-            m_discardedValueHandler = discardedValueHandler;
+            m_discardedValueHandler = discardedValueHandler!;
             m_monitoredItemId = monitoredItemId;
             m_discardOldest = false;
             m_overflow = null;
@@ -115,14 +115,14 @@ namespace Opc.Ua.Server
             bool discardOldest,
             double samplingInterval,
             ITelemetryContext telemetry,
-            Action discardedValueHandler = null)
+            Action? discardedValueHandler = null)
         {
             m_logger = telemetry.CreateLogger<DataChangeQueueHandler>();
 
             m_dataValueQueue = dataValueQueue;
             m_monitoredItemId = dataValueQueue.QueueSize;
             m_discardOldest = discardOldest;
-            m_discardedValueHandler = discardedValueHandler;
+            m_discardedValueHandler = discardedValueHandler!;
             m_nextSampleTime = 0;
             m_overflow = null;
             SetSamplingInterval(samplingInterval);
@@ -144,8 +144,8 @@ namespace Opc.Ua.Server
             m_discardOldest = discardOldest;
 
             // copy existing values.
-            List<DataValue> existingValues = null;
-            List<ServiceResult> existingErrors = null;
+            List<DataValue>? existingValues = null;
+            List<ServiceResult>? existingErrors = null;
 
             if (ItemsInQueue > 0)
             {
@@ -168,7 +168,7 @@ namespace Opc.Ua.Server
             {
                 for (int ii = 0; ii < existingValues.Count; ii++)
                 {
-                    Enqueue(existingValues[ii], existingErrors[ii]);
+                    Enqueue(existingValues[ii], existingErrors![ii]);
                 }
             }
         }
@@ -220,12 +220,12 @@ namespace Opc.Ua.Server
                 {
                     if (m_logger.IsEnabled(LogLevel.Trace))
                     {
-                        DataValue overwrittenValue = m_dataValueQueue.PeekLastValue();
+                        DataValue? overwrittenValue = m_dataValueQueue.PeekLastValue();
 
                         m_logger.LogTrace(
                             "OVERWRITTEN VALUE (TOO SOON FOR ANOTHER SAMPLE): Value={Value} CODE={Code}<{Code:X8}> SamplingInterval={SamplingInterval}" +
                             "QueueValueCall {Now} NextSampleTime {NextSampleTime}",
-                            overwrittenValue.WrappedValue,
+                            overwrittenValue!.WrappedValue,
                             overwrittenValue.StatusCode.Code,
                             value.StatusCode.Code,
                             m_samplingInterval,
@@ -276,7 +276,7 @@ namespace Opc.Ua.Server
                     m_overflow = null;
                 }
 
-                if (!noEventLog && m_logger.IsEnabled(LogLevel.Trace))
+                if (noEventLog && m_logger.IsEnabled(LogLevel.Trace))
                 {
                     m_logger.LogTrace(
                         "DEQUEUE VALUE: Value={Value} CODE={Code}<{Code:X8}> OVERFLOW={Overflow}",
@@ -326,12 +326,12 @@ namespace Opc.Ua.Server
             {
                 m_discardedValueHandler?.Invoke();
 
-                if (!m_discardOldest)
+                if (m_discardOldest)
                 {
                     ServerUtils.ReportDiscardedValue(
                         default,
                         m_monitoredItemId,
-                        m_dataValueQueue.PeekLastValue());
+                        m_dataValueQueue.PeekLastValue()!);
 
                     //set overflow bit in newest value
                     m_overflow = value;
@@ -415,6 +415,6 @@ namespace Opc.Ua.Server
         private long m_nextSampleTime;
         private long m_samplingInterval;
         private readonly Action m_discardedValueHandler;
-        private DataValue m_overflow;
+        private DataValue? m_overflow;
     }
 }

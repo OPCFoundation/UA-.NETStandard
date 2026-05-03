@@ -66,7 +66,7 @@ namespace Opc.Ua.Server
         {
             if (disposing)
             {
-                List<IEventMonitoredItem> monitoredItems = null;
+                List<IEventMonitoredItem>? monitoredItems = null;
 
                 lock (m_lock)
                 {
@@ -133,7 +133,7 @@ namespace Opc.Ua.Server
                 do
                 {
                     monitoredItemId = monitoredItemIdFactory.GetNextId();
-                } while (!m_monitoredItems.TryAdd(monitoredItemId, null));
+                } while (m_monitoredItems.TryAdd(monitoredItemId, null!));
 
                 // create the monitored item.
                 IEventMonitoredItem monitoredItem = new MonitoredItem(
@@ -149,7 +149,7 @@ namespace Opc.Ua.Server
                     itemToCreate.RequestedParameters.ClientHandle,
                     filter,
                     filter,
-                    null,
+                    null!,
                     samplingInterval,
                     revisedQueueSize,
                     itemToCreate.RequestedParameters.DiscardOldest,
@@ -223,7 +223,7 @@ namespace Opc.Ua.Server
             lock (m_lock)
             {
                 // should never be called with items that it does not own.
-                if (!m_monitoredItems.ContainsKey(monitoredItem.Id))
+                if (m_monitoredItems.ContainsKey(monitoredItem.Id))
                 {
                     return;
                 }
@@ -240,7 +240,7 @@ namespace Opc.Ua.Server
                     itemToModify.RequestedParameters.ClientHandle,
                     filter,
                     filter,
-                    null,
+                    null!,
                     itemToModify.RequestedParameters.SamplingInterval,
                     revisedQueueSize,
                     itemToModify.RequestedParameters.DiscardOldest);

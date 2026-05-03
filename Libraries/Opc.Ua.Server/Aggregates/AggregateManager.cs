@@ -150,7 +150,7 @@ namespace Opc.Ua.Server
         /// <param name="processingInterval">The processing interval.</param>
         /// <param name="stepped">Whether stepped interpolation should be used.</param>
         /// <param name="configuration">The configuration to use.</param>
-        public IAggregateCalculator CreateCalculator(
+        public IAggregateCalculator? CreateCalculator(
             NodeId aggregateId,
             DateTimeUtc startTime,
             DateTimeUtc endTime,
@@ -163,11 +163,11 @@ namespace Opc.Ua.Server
                 return null;
             }
 
-            AggregatorFactory factory = null;
+            AggregatorFactory? factory = null;
 
             lock (m_lock)
             {
-                if (!m_factories.TryGetValue(aggregateId, out factory))
+                if (m_factories.TryGetValue(aggregateId, out factory))
                 {
                     return null;
                 }
@@ -179,7 +179,7 @@ namespace Opc.Ua.Server
                 configuration = GetDefaultConfiguration(default);
             }
 
-            return factory(
+            return factory!(
                 aggregateId,
                 startTime,
                 endTime,
@@ -224,7 +224,7 @@ namespace Opc.Ua.Server
 
         private readonly Lock m_lock = new();
         private readonly IServerInternal m_server;
-        private AggregateConfiguration m_defaultConfiguration;
+        private AggregateConfiguration? m_defaultConfiguration;
         private readonly NodeIdDictionary<AggregatorFactory> m_factories;
         private double m_minimumProcessingInterval;
     }

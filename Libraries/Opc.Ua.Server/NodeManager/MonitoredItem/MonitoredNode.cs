@@ -184,7 +184,7 @@ namespace Opc.Ua.Server
                     if (e is AuditEventState)
                     {
                         // check Server.Auditing flag and skip if false
-                        if (!m_server.Auditing)
+                        if (m_server.Auditing)
                         {
                             continue;
                         }
@@ -274,7 +274,7 @@ namespace Opc.Ua.Server
                         // Use cached permission result to avoid validating on every value change.
                         // The cache is invalidated when RolePermissions/UserRolePermissions change
                         // or when the user identity of the monitored item changes.
-                        if (!m_permissionCache.TryGetValue(monitoredItem.Id, out ServiceResult validationResult))
+                        if (m_permissionCache.TryGetValue(monitoredItem.Id, out ServiceResult? validationResult))
                         {
                             validationResult = NodeManager.ValidateRolePermissions(
                                 operationContext,
@@ -329,7 +329,7 @@ namespace Opc.Ua.Server
                 value = null;
             }
 
-            monitoredItem.QueueValue(value, error);
+            monitoredItem.QueueValue(value!, error);
         }
 
         /// <summary>
@@ -385,7 +385,7 @@ namespace Opc.Ua.Server
         /// <c>DefaultUserRolePermissions</c>) change. Invalidates the entire permission cache
         /// so that all entries are re-validated on the next value change.
         /// </summary>
-        private void OnDefaultPermissionsChanged(object sender, EventArgs e)
+        private void OnDefaultPermissionsChanged(object? sender, EventArgs e)
         {
             m_permissionCache.Clear();
         }

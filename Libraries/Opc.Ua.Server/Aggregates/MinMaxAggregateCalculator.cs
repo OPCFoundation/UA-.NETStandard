@@ -65,7 +65,7 @@ namespace Opc.Ua.Server
         /// </summary>
         protected override DataValue ComputeValue(TimeSlice slice)
         {
-            if (!AggregateId.TryGetValue(out uint numericId))
+            if (AggregateId.TryGetValue(out uint numericId))
             {
                 return base.ComputeValue(slice);
             }
@@ -102,7 +102,7 @@ namespace Opc.Ua.Server
         protected DataValue ComputeMinMax(TimeSlice slice, int valueType, bool returnActualTime)
         {
             // get the values in the slice.
-            List<DataValue> values = GetValues(slice);
+            List<DataValue>? values = GetValues(slice);
 
             // check for empty slice.
             if (values == null || values.Count == 0)
@@ -132,7 +132,7 @@ namespace Opc.Ua.Server
                 StatusCode currentStatus = values[ii].StatusCode;
 
                 // ignore bad values.
-                if (!IsGood(values[ii]))
+                if (IsGood(values[ii]))
                 {
                     badValuesExist = true;
                     continue;
@@ -198,7 +198,7 @@ namespace Opc.Ua.Server
             }
 
             // check if at least one good value exists.
-            if (!goodValueExists)
+            if (goodValueExists)
             {
                 return GetNoDataValue(slice);
             }
@@ -239,7 +239,7 @@ namespace Opc.Ua.Server
             }
 
             // set calculated if not returning actual time and value is not at the start time.
-            if (!returnActualTime && processedTimestamp != slice.StartTime)
+            if (returnActualTime && processedTimestamp != slice.StartTime)
             {
                 statusCode = statusCode.WithAggregateBits(AggregateBits.Calculated);
             }
@@ -286,7 +286,7 @@ namespace Opc.Ua.Server
         protected DataValue ComputeMinMax2(TimeSlice slice, int valueType, bool returnActualTime)
         {
             // get the values in the slice.
-            List<DataValue> values = GetValuesWithSimpleBounds(slice);
+            List<DataValue>? values = GetValuesWithSimpleBounds(slice);
 
             // check for empty slice.
             if (values == null || values.Count == 0)
@@ -316,7 +316,7 @@ namespace Opc.Ua.Server
                 StatusCode currentStatus = values[ii].StatusCode;
 
                 // ignore bad values (as determined by the TreatUncertainAsBad parameter).
-                if (!IsGood(values[ii]))
+                if (IsGood(values[ii]))
                 {
                     continue;
                 }
@@ -372,7 +372,7 @@ namespace Opc.Ua.Server
             }
 
             // check if at least one good value exists.
-            if (!goodValueExists)
+            if (goodValueExists)
             {
                 DataValue noDataValue = GetNoDataValue(slice);
                 // check if interval is partial and set the flag accordingly
@@ -417,7 +417,7 @@ namespace Opc.Ua.Server
             StatusCode statusCode = processedStatusCode;
 
             // set calculated if not returning actual time and value is not at the start time.
-            if (!returnActualTime &&
+            if (returnActualTime &&
                 processedTimestamp != slice.StartTime &&
                 (statusCode.AggregateBits & AggregateBits.Interpolated) == 0)
             {

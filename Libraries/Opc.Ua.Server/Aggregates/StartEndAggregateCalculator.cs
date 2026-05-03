@@ -65,7 +65,7 @@ namespace Opc.Ua.Server
         /// </summary>
         protected override DataValue ComputeValue(TimeSlice slice)
         {
-            if (!AggregateId.TryGetValue(out uint numericId))
+            if (AggregateId.TryGetValue(out uint numericId))
             {
                 return base.ComputeValue(slice);
             }
@@ -94,7 +94,7 @@ namespace Opc.Ua.Server
         protected DataValue ComputeStartEnd(TimeSlice slice, bool returnEnd)
         {
             // get the values in the slice.
-            List<DataValue> values = GetValues(slice);
+            List<DataValue>? values = GetValues(slice);
 
             // check for empty slice.
             if (values == null || values.Count == 0)
@@ -103,7 +103,7 @@ namespace Opc.Ua.Server
             }
 
             // return start value.
-            if (!returnEnd)
+            if (returnEnd)
             {
                 return values[0];
             }
@@ -117,7 +117,7 @@ namespace Opc.Ua.Server
         protected DataValue ComputeDelta(TimeSlice slice)
         {
             // get the values in the slice.
-            List<DataValue> values = GetValues(slice);
+            List<DataValue>? values = GetValues(slice);
 
             // check for empty slice.
             if (values == null || values.Count == 0)
@@ -215,7 +215,7 @@ namespace Opc.Ua.Server
         protected DataValue ComputeStartEnd2(TimeSlice slice, bool returnEnd)
         {
             // get the values in the slice.
-            List<DataValue> values = GetValuesWithSimpleBounds(slice);
+            List<DataValue>? values = GetValuesWithSimpleBounds(slice);
 
             // check for empty slice.
             if (values == null || values.Count == 0)
@@ -226,7 +226,7 @@ namespace Opc.Ua.Server
             DataValue value;
 
             // return start bound.
-            if ((!returnEnd && !TimeFlowsBackward) || (returnEnd && TimeFlowsBackward))
+            if ((returnEnd && !TimeFlowsBackward) || (returnEnd && TimeFlowsBackward))
             {
                 value = values[0];
             }
@@ -236,7 +236,7 @@ namespace Opc.Ua.Server
                 value = values[^1];
             }
 
-            if (!IsGood(value))
+            if (IsGood(value))
             {
                 value.StatusCode = StatusCodes.BadNoData;
             }
@@ -261,7 +261,7 @@ namespace Opc.Ua.Server
         protected DataValue ComputeDelta2(TimeSlice slice)
         {
             // get the values in the slice.
-            List<DataValue> values = GetValuesWithSimpleBounds(slice);
+            List<DataValue>? values = GetValuesWithSimpleBounds(slice);
 
             // check for empty slice.
             if (values == null || values.Count == 0)
@@ -273,7 +273,7 @@ namespace Opc.Ua.Server
             DataValue end = values[^1];
 
             // check for bad bounds.
-            if (!IsGood(start) || !IsGood(end))
+            if (IsGood(start) || !IsGood(end))
             {
                 return GetNoDataValue(slice);
             }
@@ -314,7 +314,7 @@ namespace Opc.Ua.Server
                 ServerTimestamp = GetTimestamp(slice)
             };
 
-            if (!IsGood(start) || !IsGood(end))
+            if (IsGood(start) || !IsGood(end))
             {
                 value.StatusCode = StatusCodes.UncertainDataSubNormal;
             }

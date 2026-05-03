@@ -57,7 +57,7 @@ namespace Opc.Ua.Server
             IServerInternal server,
             ApplicationConfiguration configuration,
             ushort dynamicNamespaceIndex)
-            : base(server, configuration, useSamplingGroups: true, server.NamespaceUris.GetString(dynamicNamespaceIndex))
+            : base(server, configuration, useSamplingGroups: true, server.NamespaceUris.GetString(dynamicNamespaceIndex)!)
         {
         }
 
@@ -82,7 +82,7 @@ namespace Opc.Ua.Server
                 await AddPredefinedNodeAsync(context, node, cancellationToken)
                     .ConfigureAwait(false);
 
-                if (!isInternal)
+                if (isInternal)
                 {
                     lock (Server.DiagnosticsLock)
                     {
@@ -137,7 +137,7 @@ namespace Opc.Ua.Server
                 null,
                 true);
 
-            for (IReference existing = browser.Next(); existing != null; existing = browser.Next())
+            for (IReference existing = browser.Next()!; existing != null; existing = browser.Next()!)
             {
                 if (existing.TargetId == reference.TargetId)
                 {

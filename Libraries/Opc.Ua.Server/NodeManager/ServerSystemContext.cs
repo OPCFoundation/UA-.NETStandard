@@ -41,7 +41,7 @@ namespace Opc.Ua.Server
         public ServerSystemContext(IServerInternal server)
             : base(server.Telemetry)
         {
-            OperationContext = null;
+            OperationContext = null!;
             NamespaceUris = server.NamespaceUris;
             ServerUris = server.ServerUris;
             TypeTable = server.TypeTree;
@@ -71,7 +71,7 @@ namespace Opc.Ua.Server
         public ServerSystemContext(IServerInternal server, ISession session)
              : base(server.Telemetry)
         {
-            OperationContext = null;
+            OperationContext = null!;
             SessionId = session.Id;
             UserIdentity = session.Identity;
             PreferredLocales = session.PreferredLocales;
@@ -87,7 +87,7 @@ namespace Opc.Ua.Server
         /// <value>The operation context.</value>
         public new OperationContext OperationContext
         {
-            get => base.OperationContext as OperationContext;
+            get => (base.OperationContext as OperationContext)!;
             set => base.OperationContext = value;
         }
 
@@ -130,7 +130,7 @@ namespace Opc.Ua.Server
         {
             var copy = (ServerSystemContext)MemberwiseClone();
 
-            copy.OperationContext = null;
+            copy.OperationContext = null!;
 
             if (session != null)
             {

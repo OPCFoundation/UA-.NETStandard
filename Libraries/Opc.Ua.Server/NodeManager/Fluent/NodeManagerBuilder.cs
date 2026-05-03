@@ -188,7 +188,7 @@ namespace Opc.Ua.Server.Fluent
         public INodeBuilder NodeFromTypeId(NodeId typeDefinitionId)
         {
             ThrowIfSealed();
-            NodeState node = ResolveByTypeDefinition(typeDefinitionId, (QualifiedName)null);
+            NodeState node = ResolveByTypeDefinition(typeDefinitionId, (QualifiedName)null!);
             return new NodeBuilder(this, node);
         }
 
@@ -205,7 +205,7 @@ namespace Opc.Ua.Server.Fluent
             where TState : NodeState
         {
             ThrowIfSealed();
-            NodeState node = ResolveByTypeDefinition(typeDefinitionId, (QualifiedName)null);
+            NodeState node = ResolveByTypeDefinition(typeDefinitionId, (QualifiedName)null!);
             if (node is not TState typed)
             {
                 throw ServiceResultException.Create(
@@ -249,7 +249,7 @@ namespace Opc.Ua.Server.Fluent
             out ServiceResult status)
         {
             if (node != null
-                && m_historyRead.TryGetValue(node.NodeId, out HistoryReadHandler handler))
+                && m_historyRead.TryGetValue(node.NodeId, out HistoryReadHandler? handler))
             {
                 status = handler(
                     context,
@@ -275,7 +275,7 @@ namespace Opc.Ua.Server.Fluent
             out ServiceResult status)
         {
             if (node != null
-                && m_historyUpdate.TryGetValue(node.NodeId, out HistoryUpdateHandler handler))
+                && m_historyUpdate.TryGetValue(node.NodeId, out HistoryUpdateHandler? handler))
             {
                 status = handler(context, node, nodeToUpdate, result);
                 return true;
@@ -292,7 +292,7 @@ namespace Opc.Ua.Server.Fluent
             ISampledDataChangeMonitoredItem monitoredItem)
         {
             if (source != null
-                && m_monitoredItemCreated.TryGetValue(source.NodeId, out MonitoredItemCreatedHandler handler))
+                && m_monitoredItemCreated.TryGetValue(source.NodeId, out MonitoredItemCreatedHandler? handler))
             {
                 handler(context, source, monitoredItem);
             }
@@ -302,7 +302,7 @@ namespace Opc.Ua.Server.Fluent
         public void NotifyNodeAdded(ISystemContext context, NodeState node)
         {
             if (node != null
-                && m_nodeAdded.TryGetValue(node.NodeId, out NodeLifecycleHandler handler))
+                && m_nodeAdded.TryGetValue(node.NodeId, out NodeLifecycleHandler? handler))
             {
                 handler(context, node);
             }
@@ -312,7 +312,7 @@ namespace Opc.Ua.Server.Fluent
         public void NotifyNodeRemoved(ISystemContext context, NodeState node)
         {
             if (node != null
-                && m_nodeRemoved.TryGetValue(node.NodeId, out NodeLifecycleHandler handler))
+                && m_nodeRemoved.TryGetValue(node.NodeId, out NodeLifecycleHandler? handler))
             {
                 handler(context, node);
             }
@@ -371,7 +371,7 @@ namespace Opc.Ua.Server.Fluent
 
         private NodeState ResolveByTypeDefinition(NodeId typeDefinitionId, QualifiedName browseName)
         {
-            if (typeDefinitionId == null || typeDefinitionId.IsNull)
+            if (typeDefinitionId == null! || typeDefinitionId.IsNull)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadNodeIdInvalid,
@@ -389,7 +389,7 @@ namespace Opc.Ua.Server.Fluent
                     typeDefinitionId);
             }
 
-            if (browseName == null)
+            if (browseName == null!)
             {
                 if (candidates.Count > 1)
                 {
@@ -403,7 +403,7 @@ namespace Opc.Ua.Server.Fluent
                 return candidates[0];
             }
 
-            NodeState match = null;
+             NodeState? match = null;
             for (int i = 0; i < candidates.Count; i++)
             {
                 if (candidates[i].BrowseName == browseName)

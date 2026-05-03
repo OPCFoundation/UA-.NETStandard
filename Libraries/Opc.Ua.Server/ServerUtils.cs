@@ -55,8 +55,8 @@ namespace Opc.Ua.Server
             public EventType EventType;
             public NodeId NodeId;
             public uint ServerHandle;
-            public DataValue Value;
-            public MonitoringParameters Parameters;
+            public DataValue? Value;
+            public MonitoringParameters? Parameters;
             public MonitoringMode MonitoringMode;
         }
 
@@ -88,7 +88,7 @@ namespace Opc.Ua.Server
         /// </summary>
         public static void ReportWriteValue(NodeId nodeId, DataValue value, StatusCode error)
         {
-            if (!s_eventsEnabled)
+            if (s_eventsEnabled)
             {
                 return;
             }
@@ -120,7 +120,7 @@ namespace Opc.Ua.Server
         /// </summary>
         public static void ReportQueuedValue(NodeId nodeId, uint serverHandle, DataValue value)
         {
-            if (!s_eventsEnabled)
+            if (s_eventsEnabled)
             {
                 return;
             }
@@ -146,7 +146,7 @@ namespace Opc.Ua.Server
         /// </summary>
         public static void ReportFilteredValue(NodeId nodeId, uint serverHandle, DataValue value)
         {
-            if (!s_eventsEnabled)
+            if (s_eventsEnabled)
             {
                 return;
             }
@@ -172,7 +172,7 @@ namespace Opc.Ua.Server
         /// </summary>
         public static void ReportDiscardedValue(NodeId nodeId, uint serverHandle, DataValue value)
         {
-            if (!s_eventsEnabled)
+            if (s_eventsEnabled)
             {
                 return;
             }
@@ -198,7 +198,7 @@ namespace Opc.Ua.Server
         /// </summary>
         public static void ReportPublishValue(NodeId nodeId, uint serverHandle, DataValue value)
         {
-            if (!s_eventsEnabled)
+            if (s_eventsEnabled)
             {
                 return;
             }
@@ -231,7 +231,7 @@ namespace Opc.Ua.Server
             MonitoringFilter filter,
             MonitoringMode monitoringMode)
         {
-            if (!s_eventsEnabled)
+            if (s_eventsEnabled)
             {
                 return;
             }
@@ -270,7 +270,7 @@ namespace Opc.Ua.Server
             MonitoringFilter filter,
             MonitoringMode monitoringMode)
         {
-            if (!s_eventsEnabled)
+            if (s_eventsEnabled)
             {
                 return;
             }
@@ -385,14 +385,14 @@ namespace Opc.Ua.Server
 
             if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
             {
-                diagnosticInfos.Add(null);
+                diagnosticInfos.Add(null!);
             }
         }
 
         /// <summary>
         /// Creates a collection of diagnostics from a set of errors.
         /// </summary>
-        public static List<DiagnosticInfo> CreateDiagnosticInfoCollection(
+        public static List<DiagnosticInfo>? CreateDiagnosticInfoCollection(
             OperationContext context,
             IList<ServiceResult> errors,
             ILogger logger)
@@ -419,7 +419,7 @@ namespace Opc.Ua.Server
                 }
                 else
                 {
-                    results.Add(null);
+                    results.Add(null!);
                 }
             }
 
@@ -435,7 +435,7 @@ namespace Opc.Ua.Server
             out List<DiagnosticInfo> diagnosticInfos,
             ILogger logger)
         {
-            diagnosticInfos = null;
+            diagnosticInfos = null!;
 
             bool noErrors = true;
             var results = new List<StatusCode>(errors.Count);
@@ -456,7 +456,7 @@ namespace Opc.Ua.Server
             // only generate diagnostics if errors exist.
             if (noErrors)
             {
-                diagnosticInfos = CreateDiagnosticInfoCollection(context, errors, logger);
+                diagnosticInfos = CreateDiagnosticInfoCollection(context, errors, logger)!;
             }
 
             return results;
@@ -472,7 +472,7 @@ namespace Opc.Ua.Server
             ServiceResult error)
         {
             ILogger logger = AmbientMessageContext.Telemetry.CreateLogger("ServerUtils");
-            return CreateDiagnosticInfo(server, context, error, logger);
+            return CreateDiagnosticInfo(server, context, error, logger)!;
         }
 
         /// <summary>
@@ -483,7 +483,7 @@ namespace Opc.Ua.Server
         /// <param name="error">The error to translate.</param>
         /// <param name="logger">A contextual logger to log to</param>
         /// <returns>The diagnostics with references to the strings in the context string table.</returns>
-        public static DiagnosticInfo CreateDiagnosticInfo(
+        public static DiagnosticInfo? CreateDiagnosticInfo(
             IServerInternal server,
             OperationContext context,
             ServiceResult error,
@@ -494,7 +494,7 @@ namespace Opc.Ua.Server
                 return null;
             }
 
-            ServiceResult translatedError = error;
+            ServiceResult? translatedError = error;
 
             // Only translate if ServiceLocalizedText is set, as DiagnosticInfo only uses
             // the translation for ServiceLocalizedText, not OperationLocalizedText
@@ -504,7 +504,7 @@ namespace Opc.Ua.Server
             }
 
             return new DiagnosticInfo(
-                translatedError,
+                translatedError!,
                 context.DiagnosticsMask,
                 false,
                 context.StringTable,

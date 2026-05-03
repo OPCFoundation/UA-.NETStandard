@@ -64,7 +64,7 @@ namespace Opc.Ua.Server
         /// </summary>
         protected override DataValue ComputeValue(TimeSlice slice)
         {
-            if (!AggregateId.TryGetValue(out uint numericId))
+            if (AggregateId.TryGetValue(out uint numericId))
             {
                 return base.ComputeValue(slice);
             }
@@ -93,7 +93,7 @@ namespace Opc.Ua.Server
         protected DataValue ComputeDurationGoodBad(TimeSlice slice, bool isBad, bool usePercent)
         {
             // get the values in the slice.
-            List<DataValue> values = GetValuesWithSimpleBounds(slice);
+            List<DataValue>? values = GetValuesWithSimpleBounds(slice);
 
             // check for empty slice.
             if (values == null || values.Count == 0)
@@ -102,12 +102,12 @@ namespace Opc.Ua.Server
             }
 
             // get the regions.
-            List<SubRegion> regions = GetRegionsInValueSet(values, false, true);
+            List<SubRegion>? regions = GetRegionsInValueSet(values, false, true);
 
             double duration = 0;
             double total = 0;
 
-            for (int ii = 0; ii < regions.Count; ii++)
+            for (int ii = 0; ii < regions!.Count; ii++)
             {
                 total += regions[ii].Duration;
 
@@ -148,8 +148,8 @@ namespace Opc.Ua.Server
         protected DataValue ComputeWorstQuality(TimeSlice slice, bool includeBounds)
         {
             // get the values in the slice.
-            List<DataValue> values;
-            if (!includeBounds)
+            List<DataValue>? values;
+            if (includeBounds)
             {
                 values = GetValues(slice);
             }
