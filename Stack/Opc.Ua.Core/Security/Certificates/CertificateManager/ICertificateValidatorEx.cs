@@ -65,7 +65,7 @@ namespace Opc.Ua
         Task<CertificateValidationResult> ValidateAsync(
             CertificateCollection chain,
             TrustListIdentifier? trustList = null,
-            CertificateValidationOptions? options = null,
+            Opc.Ua.Security.Certificates.CertificateValidationOptions? options = null,
             CancellationToken ct = default);
 
         /// <summary>

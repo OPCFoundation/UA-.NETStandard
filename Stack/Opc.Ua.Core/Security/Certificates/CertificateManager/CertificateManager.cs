@@ -313,11 +313,34 @@ namespace Opc.Ua
         public async Task<CertificateValidationResult> ValidateAsync(
             CertificateCollection chain,
             TrustListIdentifier? trustList = null,
-            CertificateValidationOptions? options = null,
+            Opc.Ua.Security.Certificates.CertificateValidationOptions? options = null,
             CancellationToken ct = default)
         {
             trustList ??= TrustListIdentifier.Peers;
             CertificateValidator validator = GetOrCreateValidator(trustList);
+
+            CertificateValidationEventHandler? handler = null;
+            if (options?.AcceptError != null)
+            {
+                Func<Certificate, ServiceResult, bool> acceptError = options.AcceptError;
+                handler = (sender, e) =>
+                {
+                    try
+                    {
+                        if (acceptError(e.Certificate, e.Error))
+                        {
+                            e.Accept = true;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        m_logger.LogError(
+                            ex,
+                            "CertificateValidationOptions.AcceptError callback threw; treating as reject.");
+                    }
+                };
+                validator.CertificateValidation += handler;
+            }
 
             try
             {
@@ -331,6 +354,13 @@ namespace Opc.Ua
                     ex.StatusCode,
                     [ex.Result],
                     isSuppressible: false);
+            }
+            finally
+            {
+                if (handler != null)
+                {
+                    validator.CertificateValidation -= handler;
+                }
             }
         }
 
