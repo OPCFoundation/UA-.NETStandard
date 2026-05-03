@@ -35,6 +35,9 @@ using Opc.Ua.Bindings;
 using Opc.Ua.Security;
 using Opc.Ua.Security.Certificates;
 
+// FILE-PRAGMA: legacy CertificateValidator/ICertificateValidator API kept for binary compat
+#pragma warning disable CS0618
+
 namespace Opc.Ua
 {
     /// <summary>

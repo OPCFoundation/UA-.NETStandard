@@ -43,6 +43,10 @@ using Opc.Ua.Security.Certificates;
 using Opc.Ua.Tests;
 using X509AuthorityKeyIdentifierExtension = Opc.Ua.Security.Certificates.X509AuthorityKeyIdentifierExtension;
 
+// FILE-PRAGMA: legacy CertificateValidator/ICertificateValidator API kept for binary compat
+// TODO: remove these legacy tests once the obsolete API is removed in a future major.
+#pragma warning disable CS0618
+
 namespace Opc.Ua.Core.Tests.Security.Certificates
 {
     /// <summary>

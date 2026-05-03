@@ -43,6 +43,10 @@ using Opc.Ua;
 using Opc.Ua.Client;
 using Opc.Ua.Configuration;
 
+// FILE-PRAGMA: legacy CertificateValidator/ICertificateValidator API kept for binary compat
+// TODO: migrate from CertificateValidation event to AcceptError callback after the legacy class is removed.
+#pragma warning disable CS0618
+
 namespace Opc.Ua.Mcp
 {
     /// <summary>

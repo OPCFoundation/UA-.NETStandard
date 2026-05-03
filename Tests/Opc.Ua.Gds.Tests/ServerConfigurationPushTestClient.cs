@@ -35,6 +35,9 @@ using Microsoft.Extensions.Logging;
 using Opc.Ua.Configuration;
 using Opc.Ua.Gds.Client;
 
+// FILE-PRAGMA: legacy CertificateValidator/ICertificateValidator API kept for binary compat
+#pragma warning disable CS0618
+
 namespace Opc.Ua.Gds.Tests
 {
     public sealed class ServerConfigurationPushTestClient : IDisposable

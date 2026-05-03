@@ -36,6 +36,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
 
+// FILE-PRAGMA: legacy CertificateValidator/ICertificateValidator API kept for binary compat
+#pragma warning disable CS0618
+
 namespace Opc.Ua.Configuration
 {
     /// <summary>
@@ -350,6 +353,7 @@ namespace Opc.Ua.Configuration
 #pragma warning disable CS0618 // Type or member is obsolete
             ApplicationConfiguration.TraceConfiguration?.ApplySettings();
 #pragma warning restore CS0618 // Type or member is obsolete
+#pragma warning disable CS0618 // re-enable file-level legacy CertificateValidator pragma
 
             await ApplicationConfiguration.ValidateAsync(ApplicationInstance.ApplicationType, ct)
                 .ConfigureAwait(false);

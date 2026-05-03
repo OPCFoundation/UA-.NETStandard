@@ -49,6 +49,9 @@ using System.Collections.Generic;
 using System.Security.Cryptography;
 #endif
 
+// FILE-PRAGMA: legacy CertificateValidator/ICertificateValidator API kept for binary compat
+#pragma warning disable CS0618
+
 namespace Opc.Ua.Bindings
 {
     /// <summary>

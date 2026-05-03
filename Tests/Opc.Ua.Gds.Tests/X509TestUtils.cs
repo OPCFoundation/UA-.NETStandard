@@ -36,6 +36,9 @@ using NUnit.Framework;
 using Opc.Ua.Security.Certificates;
 using X509AuthorityKeyIdentifierExtension = Opc.Ua.Security.Certificates.X509AuthorityKeyIdentifierExtension;
 
+// FILE-PRAGMA: legacy CertificateValidator/ICertificateValidator API kept for binary compat
+#pragma warning disable CS0618
+
 namespace Opc.Ua.Gds.Tests
 {
     public static class X509TestUtils

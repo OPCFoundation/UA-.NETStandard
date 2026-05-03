@@ -40,6 +40,9 @@ using Microsoft.Extensions.Logging;
 using Opc.Ua.Bindings;
 using Opc.Ua.Security.Certificates;
 
+// FILE-PRAGMA: legacy CertificateValidator/ICertificateValidator API kept for binary compat
+#pragma warning disable CS0618
+
 namespace Opc.Ua
 {
     /// <summary>
@@ -1440,10 +1443,12 @@ namespace Opc.Ua
 
             // load the instance certificate.
             Certificate defaultInstanceCertificate = null;
+#pragma warning disable CS0618 // legacy CertificateTypesProvider kept for compatibility on ServerBase
             InstanceCertificateTypesProvider = new CertificateTypesProvider(
                 configuration,
                 m_telemetry);
             InstanceCertificateTypesProvider.InitializeAsync().GetAwaiter().GetResult();
+#pragma warning restore CS0618
 
             // Initialize the new CertificateManager if not already set.
             if (CertificateManager == null)

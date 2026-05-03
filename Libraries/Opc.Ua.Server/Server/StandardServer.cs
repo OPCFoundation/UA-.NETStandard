@@ -39,6 +39,9 @@ using Microsoft.Extensions.Logging;
 using Opc.Ua.Bindings;
 using Opc.Ua.Security.Certificates;
 
+// FILE-PRAGMA: legacy CertificateValidator/ICertificateValidator API kept for binary compat
+#pragma warning disable CS0618
+
 namespace Opc.Ua.Server
 {
     /// <inheritdoc/>
@@ -2735,6 +2738,7 @@ namespace Opc.Ua.Server
 #pragma warning disable CS0618 // Type or member is obsolete
                 Configuration.TraceConfiguration.ApplySettings();
 #pragma warning restore CS0618 // Type or member is obsolete
+#pragma warning disable CS0618 // re-enable file-level legacy CertificateValidator pragma
             }
             catch (Exception e)
             {

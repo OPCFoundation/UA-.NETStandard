@@ -32,6 +32,9 @@ using Opc.Ua.Client;
 using Quickstarts.ReferenceServer;
 using TUnit.Core.Interfaces;
 
+// FILE-PRAGMA: legacy CertificateValidator/ICertificateValidator API kept for binary compat
+#pragma warning disable CS0618
+
 namespace Opc.Ua.Aot.Tests
 {
     /// <summary>

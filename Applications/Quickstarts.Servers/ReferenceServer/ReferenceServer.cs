@@ -34,6 +34,9 @@ using Opc.Ua;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Server;
 
+// FILE-PRAGMA: legacy CertificateValidator/ICertificateValidator API kept for binary compat
+#pragma warning disable CS0618
+
 namespace Quickstarts.ReferenceServer
 {
     /// <summary>

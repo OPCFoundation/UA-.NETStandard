@@ -38,6 +38,9 @@ using System.Threading.Tasks;
 using System.Xml;
 using Microsoft.Extensions.Logging;
 
+// FILE-PRAGMA: legacy CertificateValidator/ICertificateValidator API kept for binary compat
+#pragma warning disable CS0618
+
 namespace Opc.Ua
 {
     /// <summary>
@@ -728,6 +731,7 @@ namespace Opc.Ua
             // load trust lists into a CertificateValidator instance. Once a
             // CertificateManager-driven equivalent is exposed via
             // ICertificateValidatorEx, this cast can be removed.
+#pragma warning disable CS0618 // legacy CertificateValidator reference for trust-list update
             if (CertificateValidator is CertificateValidator legacyValidator)
             {
                 await legacyValidator.UpdateAsync(
@@ -736,6 +740,7 @@ namespace Opc.Ua
                     ct)
                     .ConfigureAwait(false);
             }
+#pragma warning restore CS0618
         }
 
         /// <summary>

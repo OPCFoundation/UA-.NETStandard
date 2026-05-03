@@ -38,6 +38,9 @@ using Opc.Ua.Configuration;
 using Opc.Ua.Gds.Client;
 using Opc.Ua.Security.Certificates;
 
+// FILE-PRAGMA: legacy CertificateValidator/ICertificateValidator API kept for binary compat
+#pragma warning disable CS0618
+
 namespace Opc.Ua.Gds.Tests
 {
     public sealed class GlobalDiscoveryTestClient : IDisposable

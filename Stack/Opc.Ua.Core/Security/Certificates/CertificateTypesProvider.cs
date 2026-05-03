@@ -40,6 +40,10 @@ namespace Opc.Ua.Security.Certificates
     /// <summary>
     /// The provider for the X509 application certificates.
     /// </summary>
+    /// <summary>
+    /// Provider for instance application certificates of a specific certificate type.
+    /// </summary>
+    [Obsolete("Use ICertificateRegistry (composed in ICertificateManager) instead. See Docs/CertificateManager.md.")]
     public class CertificateTypesProvider : IDisposable
     {
         /// <summary>

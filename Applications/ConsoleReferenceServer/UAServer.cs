@@ -39,6 +39,9 @@ using Opc.Ua;
 using Opc.Ua.Configuration;
 using Opc.Ua.Server;
 
+// FILE-PRAGMA: legacy CertificateValidator/ICertificateValidator API kept for binary compat
+#pragma warning disable CS0618
+
 namespace Quickstarts
 {
     public class UAServer<T> where T : StandardServer
