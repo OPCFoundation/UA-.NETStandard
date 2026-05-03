@@ -212,7 +212,7 @@ namespace Opc.Ua
             Nonce ephemeralKey = null,
             Certificate senderCertificate = null,
             CertificateCollection senderIssuerCertificates = null,
-            CertificateValidator validator = null)
+            ICertificateValidatorEx validator = null)
         {
             // handle no encryption.
             if (string.IsNullOrEmpty(securityPolicyUri) ||

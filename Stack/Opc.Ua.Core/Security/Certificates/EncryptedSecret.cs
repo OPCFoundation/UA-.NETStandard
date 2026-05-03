@@ -46,7 +46,7 @@ namespace Opc.Ua
             Nonce? receiverNonce,
             Certificate? senderCertificate,
             Nonce? senderNonce,
-            CertificateValidator? validator = null,
+            ICertificateValidatorEx? validator = null,
             bool doNotEncodeSenderCertificate = false)
         {
             SenderCertificate = senderCertificate;
@@ -95,7 +95,7 @@ namespace Opc.Ua
             Nonce receiverNonce,
             Certificate senderCertificate,
             Nonce senderNonce,
-            CertificateValidator? validator = null,
+            ICertificateValidatorEx? validator = null,
             bool doNotEncodeSenderCertificate = false)
         {
             return new EncryptedSecret(
@@ -143,7 +143,7 @@ namespace Opc.Ua
         /// <summary>
         /// Gets or sets the certificate validator.
         /// </summary>
-        public CertificateValidator? Validator { get; }
+        public ICertificateValidatorEx? Validator { get; }
 
         /// <summary>
         /// Gets or sets the security policy.
