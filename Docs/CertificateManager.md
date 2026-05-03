@@ -69,6 +69,20 @@ CertificateValidationResult userResult = await manager.ValidateAsync(
 CertificateValidationResult mqttResult = await manager.ValidateAsync(
     brokerCertChain,
     new TrustListIdentifier("MqttBrokers"));
+
+// Validate with per-call options, including a per-error accept callback
+// (the new-design replacement for the legacy CertificateValidation event).
+var options = new CertificateValidationOptions
+{
+    AutoAcceptUntrustedCertificates = true,
+    AcceptError = (certificate, error) =>
+        // Suppress chain-incomplete errors only for self-test scenarios.
+        error.StatusCode == StatusCodes.BadCertificateChainIncomplete
+};
+CertificateValidationResult devResult = await manager.ValidateAsync(
+    serverCertificate,
+    TrustListIdentifier.Peers,
+    options);
 ```
 
 #### Subscribing to Certificate Changes
@@ -172,6 +186,17 @@ Validates certificates against any trust-list. Works with both stored and epheme
 | `ValidateAsync(Certificate, TrustListIdentifier?, ...)` | Validate a single certificate |
 
 Returns `CertificateValidationResult` with `IsValid`, `StatusCode`, `Errors`, and `IsSuppressible`.
+
+Per-call validation behaviour can be overridden via
+`CertificateValidationOptions`:
+
+| Option | Description |
+|--------|-------------|
+| `RejectSHA1SignedCertificates` | Override the global SHA-1 rejection policy. |
+| `RejectUnknownRevocationStatus` | Override the global revocation-unknown rejection policy. |
+| `MinimumCertificateKeySize` | Override the minimum acceptable RSA key size. |
+| `AutoAcceptUntrustedCertificates` | Override the global auto-accept policy. |
+| `AcceptError` | `Func<Certificate, ServiceResult, bool>` — invoked for each suppressible error encountered. Returning `true` accepts the specific error and validation continues. Structured replacement for the legacy `CertificateValidator.CertificateValidation += handler` + mutable `e.Accept = true` pattern. |
 
 #### ICertificateLifecycle
 
