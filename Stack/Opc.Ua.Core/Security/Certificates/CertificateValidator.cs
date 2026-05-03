@@ -49,7 +49,7 @@ namespace Opc.Ua
     /// <summary>
     /// Validates certificates.
     /// </summary>
-    public class CertificateValidator : ICertificateValidator, IDisposable
+    public class CertificateValidator : ICertificateValidator, ICertificateValidatorEx, IDisposable
     {
         /// <summary>
         /// default number of rejected certificates for history
@@ -592,6 +592,88 @@ namespace Opc.Ua
             CancellationToken ct)
         {
             return ValidateAsync(certificateChain, null!, ct);
+        }
+
+        /// <summary>
+        /// Explicit <see cref="ICertificateValidatorEx"/> implementation that
+        /// adapts the throwing legacy validator into the structured result
+        /// returned by the new design. Errors thrown by
+        /// <see cref="ValidateAsync(CertificateCollection, CancellationToken)"/>
+        /// are converted to a <see cref="CertificateValidationResult"/>
+        /// with <see cref="CertificateValidationResult.IsValid"/> set to
+        /// <see langword="false"/>. The <paramref name="trustList"/>
+        /// argument is informational only on this legacy validator (the
+        /// validator is configured with a single trust list at
+        /// construction); the <paramref name="options"/> argument is
+        /// honored for the
+        /// <see cref="Opc.Ua.Security.Certificates.CertificateValidationOptions.AcceptError"/>
+        /// per-error accept callback.
+        /// </summary>
+        async Task<CertificateValidationResult> ICertificateValidatorEx.ValidateAsync(
+            CertificateCollection chain,
+            TrustListIdentifier? trustList,
+            Opc.Ua.Security.Certificates.CertificateValidationOptions? options,
+            CancellationToken ct)
+        {
+            CertificateValidationEventHandler? handler = null;
+            if (options?.AcceptError != null)
+            {
+                Func<Certificate, ServiceResult, bool> acceptError = options.AcceptError;
+                handler = (sender, e) =>
+                {
+                    try
+                    {
+                        if (acceptError(e.Certificate, e.Error))
+                        {
+                            e.Accept = true;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        m_logger.LogError(
+                            ex,
+                            "CertificateValidationOptions.AcceptError callback threw; treating as reject.");
+                    }
+                };
+                CertificateValidation += handler;
+            }
+
+            try
+            {
+                await ValidateAsync(chain, ct).ConfigureAwait(false);
+                return CertificateValidationResult.Success;
+            }
+            catch (ServiceResultException ex)
+            {
+                return new CertificateValidationResult(
+                    isValid: false,
+                    statusCode: ex.StatusCode,
+                    errors: [ex.Result],
+                    isSuppressible: false);
+            }
+            finally
+            {
+                if (handler != null)
+                {
+                    CertificateValidation -= handler;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Explicit <see cref="ICertificateValidatorEx"/> implementation
+        /// for the single-certificate overload. Wraps the certificate
+        /// in a transient <see cref="CertificateCollection"/> and
+        /// delegates to the chain overload.
+        /// </summary>
+        Task<CertificateValidationResult> ICertificateValidatorEx.ValidateAsync(
+            Certificate certificate,
+            TrustListIdentifier? trustList,
+            CancellationToken ct)
+        {
+            ICertificateValidatorEx self = this;
+            using var chain = new CertificateCollection { certificate };
+            return self.ValidateAsync(chain, trustList, options: null, ct);
         }
 
         /// <summary>

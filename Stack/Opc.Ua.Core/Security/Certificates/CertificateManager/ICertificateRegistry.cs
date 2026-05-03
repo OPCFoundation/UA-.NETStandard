@@ -40,6 +40,20 @@ namespace Opc.Ua
     public interface ICertificateRegistry
     {
         /// <summary>
+        /// Gets a value indicating whether the application should send
+        /// the complete certificate chain when establishing a secure
+        /// channel.
+        /// </summary>
+        /// <remarks>
+        /// Mirrors <see cref="SecurityConfiguration.SendCertificateChain"/>.
+        /// When <see langword="true"/>, transports include the full DER-
+        /// encoded chain blob (instance certificate followed by issuers)
+        /// in the channel handshake; when <see langword="false"/>, only
+        /// the instance certificate is sent.
+        /// </remarks>
+        bool SendCertificateChain { get; }
+
+        /// <summary>
         /// Gets the list of all application certificate entries.
         /// </summary>
         IReadOnlyList<CertificateEntry> ApplicationCertificates { get; }
@@ -80,5 +94,19 @@ namespace Opc.Ua
         /// </param>
         /// <returns>The encoded chain blob.</returns>
         byte[] GetEncodedChainBlob(string securityPolicyUri);
+
+        /// <summary>
+        /// Returns the DER-encoded chain blob for a specific application
+        /// certificate, or <see langword="null"/> if the certificate is
+        /// not registered.
+        /// </summary>
+        /// <param name="certificate">
+        /// The instance certificate to look up.
+        /// </param>
+        /// <returns>
+        /// The DER-encoded chain blob (instance certificate followed by
+        /// issuers), or <see langword="null"/> if no entry matches.
+        /// </returns>
+        byte[]? LoadCertificateChainRaw(Certificate certificate);
     }
 }

@@ -55,6 +55,7 @@ namespace Opc.Ua
         private readonly ITelemetryContext m_telemetry;
         private readonly ILogger m_logger;
         private readonly int m_maxRejectedCertificates;
+        private bool m_sendCertificateChain;
         private RejectedCertificateProcessor? m_rejectedProcessor;
         private CertificateLifecycleMonitor? m_lifecycleMonitor;
         private CertificateValidator? m_peerValidator;
@@ -207,6 +208,8 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(config));
             }
 
+            m_sendCertificateChain = config.SendCertificateChain;
+
             if (config.TrustedPeerCertificates != null)
             {
                 RegisterTrustList(
@@ -240,6 +243,9 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
+        public bool SendCertificateChain => m_sendCertificateChain;
+
+        /// <inheritdoc/>
         public IReadOnlyList<CertificateEntry> ApplicationCertificates => m_applicationCertificates;
 
         /// <inheritdoc/>
@@ -269,6 +275,28 @@ namespace Opc.Ua
         {
             CertificateEntry? entry = GetInstanceCertificate(securityPolicyUri);
             return entry?.GetEncodedChainBlob() ?? [];
+        }
+
+        /// <inheritdoc/>
+        public byte[]? LoadCertificateChainRaw(Certificate certificate)
+        {
+            if (certificate == null)
+            {
+                return null;
+            }
+
+            string thumbprint = certificate.Thumbprint;
+            for (int i = 0; i < m_applicationCertificates.Count; i++)
+            {
+                CertificateEntry entry = m_applicationCertificates[i];
+                if (string.Equals(entry.Certificate.Thumbprint, thumbprint, StringComparison.Ordinal))
+                {
+                    return entry.GetEncodedChainBlob();
+                }
+            }
+
+            // Not a registered application certificate: return the raw cert bytes.
+            return certificate.RawData;
         }
 
         /// <summary>
