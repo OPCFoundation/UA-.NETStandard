@@ -690,12 +690,14 @@ namespace Opc.Ua
         /// The object used to verify client certificates
         /// </summary>
         /// <value>The identifier for an X509 certificate.</value>
+        [Obsolete("Use ServerBase.CertificateManager (ICertificateManager) instead. See Docs/CertificateManager.md.")]
         public ICertificateValidatorEx CertificateValidator { get; private set; }
 
         /// <summary>
         /// The server's application instance certificate types provider.
         /// </summary>
         /// <value>The provider for the X.509 certificates.</value>
+        [Obsolete("Use ServerBase.CertificateManager (ICertificateRegistry) instead. See Docs/CertificateManager.md.")]
         public CertificateTypesProvider InstanceCertificateTypesProvider { get; private set; }
 
         /// <summary>
@@ -1383,6 +1385,7 @@ namespace Opc.Ua
 #pragma warning disable CS0618 // Type or member is obsolete
             OnUpdateConfiguration(configuration);
 #pragma warning restore CS0618 // Type or member is obsolete
+#pragma warning disable CS0618 // re-enable file-level legacy CertificateValidator pragma
             return default;
         }
 
@@ -1449,6 +1452,7 @@ namespace Opc.Ua
                 m_telemetry);
             InstanceCertificateTypesProvider.InitializeAsync().GetAwaiter().GetResult();
 #pragma warning restore CS0618
+#pragma warning disable CS0618 // re-enable file-level legacy CertificateValidator pragma
 
             // Initialize the new CertificateManager if not already set.
             if (CertificateManager == null)

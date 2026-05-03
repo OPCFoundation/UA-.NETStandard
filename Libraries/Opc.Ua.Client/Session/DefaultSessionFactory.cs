@@ -32,6 +32,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Security.Certificates;
 
+// FILE-PRAGMA: legacy CertificateValidator/ICertificateValidator API kept for binary compat
+#pragma warning disable CS0618
+
 namespace Opc.Ua.Client
 {
     /// <summary>

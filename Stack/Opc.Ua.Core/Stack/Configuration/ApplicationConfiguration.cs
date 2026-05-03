@@ -106,6 +106,7 @@ namespace Opc.Ua
         /// <summary>
         /// Gets or sets the certificate validator which is configured to use.
         /// </summary>
+        [Obsolete("Use ApplicationConfiguration.CertificateManager (ICertificateManager) instead. See Docs/CertificateManager.md.")]
         public ICertificateValidatorEx CertificateValidator { get; set; }
 
         /// <summary>
