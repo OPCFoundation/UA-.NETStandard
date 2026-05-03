@@ -66,14 +66,10 @@ namespace Opc.Ua.Server
         /// <param name="serverDescription">The server description.</param>
         /// <param name="configuration">The configuration.</param>
         /// <param name="messageContext">The message context.</param>
-        /// <param name="certificateValidator">The certificate validator.</param>
-        /// <param name="instanceCertificateProvider">The certificate type provider.</param>
         public ServerInternalData(
             ServerProperties serverDescription,
             ApplicationConfiguration configuration,
-            IServiceMessageContext messageContext,
-            CertificateValidator certificateValidator,
-            CertificateTypesProvider instanceCertificateProvider)
+            IServiceMessageContext messageContext)
         {
             m_serverDescription = serverDescription;
             m_configuration = configuration;
@@ -102,6 +98,32 @@ namespace Opc.Ua.Server
 
             // create the default system context.
             DefaultSystemContext = new ServerSystemContext(this);
+        }
+
+        /// <summary>
+        /// Initializes the datastore with the server configuration.
+        /// </summary>
+        /// <param name="serverDescription">The server description.</param>
+        /// <param name="configuration">The configuration.</param>
+        /// <param name="messageContext">The message context.</param>
+        /// <param name="certificateValidator">
+        /// Unused. The constructor never stored or consumed this parameter.
+        /// </param>
+        /// <param name="instanceCertificateProvider">
+        /// Unused. The constructor never stored or consumed this parameter.
+        /// </param>
+        [Obsolete("Use the constructor without certificateValidator and instanceCertificateProvider; both parameters were unused.")]
+        public ServerInternalData(
+            ServerProperties serverDescription,
+            ApplicationConfiguration configuration,
+            IServiceMessageContext messageContext,
+            CertificateValidator certificateValidator,
+            CertificateTypesProvider instanceCertificateProvider)
+            : this(serverDescription, configuration, messageContext)
+        {
+            // certificateValidator and instanceCertificateProvider are deliberately unused.
+            _ = certificateValidator;
+            _ = instanceCertificateProvider;
         }
 
         /// <summary>

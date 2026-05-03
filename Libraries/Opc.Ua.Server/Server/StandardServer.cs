@@ -2867,9 +2867,7 @@ namespace Opc.Ua.Server
                 m_serverInternal = new ServerInternalData(
                     ServerProperties,
                     configuration,
-                    MessageContext,
-                    new CertificateValidator(MessageContext.Telemetry),
-                    InstanceCertificateTypesProvider);
+                    MessageContext);
 
                 // create the manager responsible for providing localized string resources.
                 m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - CreateResourceManager.");

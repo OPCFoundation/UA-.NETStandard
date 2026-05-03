@@ -95,9 +95,7 @@ namespace Opc.Ua.Server.Tests
             return new ServerInternalData(
                 m_serverProperties,
                 m_configuration,
-                m_messageContext,
-                null,
-                null);
+                m_messageContext);
         }
 
         [Test]
