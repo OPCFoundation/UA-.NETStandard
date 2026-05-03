@@ -288,11 +288,31 @@ cert.Dispose();    // refcount=0 → X509Certificate2.Dispose() called
 
 ### Backward Compatibility
 
-The existing `CertificateValidator`, `CertificateFactory`, and
-`ICertificateValidator` types remain available as functional forwarders
-to the new design — existing applications continue to work without
-changes. The forwarders are progressively being marked `[Obsolete]` as
-the new design covers their feature surface.
+The legacy `CertificateValidator` class and `ICertificateValidator`
+interface, the `CertificateTypesProvider` class, and the
+`ApplicationConfiguration.CertificateValidator` /
+`ServerBase.CertificateValidator` /
+`ServerBase.InstanceCertificateTypesProvider` properties are now
+marked `[Obsolete]`. They remain functional bridges into the new
+design so that existing applications continue to compile and run
+without changes:
+
+- The legacy `CertificateValidator` class implements **both**
+  `ICertificateValidator` (legacy) and `ICertificateValidatorEx`
+  (new). This is the single most important compatibility bridge:
+  every existing `new CertificateValidator(telemetry)` instance
+  satisfies the new property type swap on
+  `ApplicationConfiguration.CertificateValidator` (now
+  `ICertificateValidatorEx`).
+- The legacy `CertificateValidator.CertificateValidation` event
+  with mutable `e.Accept = true` continues to fire. New code
+  should use `CertificateValidationOptions.AcceptError` instead
+  (see Quick Start above).
+- `ApplicationConfiguration.CertificateManager` is a parallel
+  property that exposes the new manager. It is populated by
+  `ApplicationInstance.CheckApplicationInstanceCertificatesAsync`
+  alongside the legacy `CertificateValidator` property so that
+  both surfaces can coexist during migration.
 
 `CertificateValidatorAdapter` bridges the new `ICertificateValidatorEx`
 to the old `ICertificateValidator` interface and is the canonical
@@ -319,6 +339,21 @@ and forward to `Certificate.FromRawData(...)`,
 `DefaultHashSize` constants are intentionally kept un-obsoleted because
 they remain the canonical default values used across configuration
 sites.
+
+#### Suppressing CS0618 during migration
+
+Files that intentionally bridge to the legacy types (sample apps,
+test fixtures, internal cast bridges) carry a single, searchable
+file-level marker:
+
+```csharp
+// FILE-PRAGMA: legacy CertificateValidator/ICertificateValidator API kept for binary compat
+#pragma warning disable CS0618
+```
+
+This makes it trivial to grep the codebase for every site that
+still depends on the obsolete API and to retire the bridge in a
+future major release.
 
 ### OPC UA Specification Alignment
 

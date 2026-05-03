@@ -798,6 +798,50 @@ functional forwarders to the new design for binary-compatibility, but emit `CS06
 | `CertificateFactory.CreateCertificateWithPEMPrivateKey(...)` | `DefaultCertificateFactory.Instance.CreateWithPEMPrivateKey(...)` |
 | `CertificateFactory.CreateCertificateWithPrivateKey(...)` | `DefaultCertificateFactory.Instance.CreateWithPrivateKey(...)` |
 | `CertificateStoreIdentifier.RegisterCertificateStoreType(...)` | Register `ICertificateStoreProvider` via DI or pass to the `CertificateManager` constructor |
+| `CertificateValidator` (class) | `ICertificateManager` (composed of `ICertificateValidatorEx` for validation, `ICertificateRegistry` for app certs, `ICertificateTrustListManager` for trust lists, `ICertificateLifecycle` for change events). Construct via `CertificateManagerFactory.Create(securityConfiguration, telemetry, ...)` |
+| `ICertificateValidator` (interface) | `ICertificateValidatorEx` from `ICertificateManager`. The new interface returns a structured `CertificateValidationResult` (`IsValid`, `StatusCode`, `Errors`, `IsBeingTrustedTransiently`) instead of throwing. Per-error accept logic moves from the `CertificateValidation` event to the new `CertificateValidationOptions.AcceptError` callback. |
+| `CertificateTypesProvider` (class) | `ICertificateRegistry` (composed in `ICertificateManager`). Use `manager.GetInstanceCertificate(securityPolicyUri)` and `manager.LoadCertificateChainAsync(...)`. |
+| `ApplicationConfiguration.CertificateValidator` (property) | `ApplicationConfiguration.CertificateManager` (parallel property — set in `ApplicationInstance.CheckApplicationInstanceCertificatesAsync`) |
+| `ServerBase.CertificateValidator` (property) | `ServerBase.CertificateManager` |
+| `ServerBase.InstanceCertificateTypesProvider` (property) | `ServerBase.CertificateManager` (use `ICertificateRegistry` surface) |
+
+##### Migrating the `CertificateValidator.CertificateValidation` event
+
+The legacy event with mutable `e.Accept = true` mutability has been replaced by
+the structured `CertificateValidationOptions.AcceptError` callback:
+
+```csharp
+// Before:
+configuration.CertificateValidator.CertificateValidation += (s, e) =>
+{
+    if (e.Error.StatusCode == StatusCodes.BadCertificateUntrusted)
+    {
+        e.Accept = true;
+    }
+};
+await configuration.CertificateValidator.ValidateAsync(cert);
+
+// After:
+var options = new CertificateValidationOptions
+{
+    AcceptError = (cert, error) =>
+        error.StatusCode == StatusCodes.BadCertificateUntrusted
+};
+CertificateValidationResult result =
+    await applicationInstance.CertificateManager.ValidateAsync(cert, options: options);
+if (!result.IsValid)
+{
+    throw new ServiceResultException(result.StatusCode);
+}
+```
+
+##### Endpoint-aware validation helpers
+
+`CertificateValidator.ValidateApplicationUri(...)` and
+`CertificateValidator.ValidateDomains(...)` are now exposed as extension
+methods on `ICertificateValidatorEx` in the
+`Opc.Ua.CertificateValidationExtensions` static class. Existing call sites
+that previously used the legacy class continue to work transparently.
 
 > The `CertificateFactory.DefaultKeySize` / `DefaultLifeTime` / `DefaultHashSize` constants are
 > intentionally **not** marked obsolete; they remain the canonical default values used across
