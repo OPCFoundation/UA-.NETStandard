@@ -119,6 +119,9 @@ namespace Opc.Ua.Security.Certificates
             NextUpdate = DateTime.MinValue;
             m_revokedCertificates = [];
             CrlExtensions = [];
+            // Late-init: set by chained constructors or by CreateSignature for RawData.
+            IssuerName = null!;
+            RawData = null!;
         }
 
         /// <inheritdoc/>
@@ -272,8 +275,9 @@ namespace Opc.Ua.Security.Certificates
         /// <returns>The signed CRL.</returns>
         public IX509CRL CreateForRSA(X509Certificate2 issuerCertificate)
         {
-            using RSA rsa = issuerCertificate.GetRSAPrivateKey();
-            var generator = X509SignatureGenerator.CreateForRSA(rsa, RSASignaturePadding.Pkcs1);
+            using RSA? rsa = issuerCertificate.GetRSAPrivateKey();
+            // TODO: validate non-null private key before signing.
+            var generator = X509SignatureGenerator.CreateForRSA(rsa!, RSASignaturePadding.Pkcs1);
             return CreateSignature(generator);
         }
 
@@ -283,8 +287,9 @@ namespace Opc.Ua.Security.Certificates
         /// <returns>The signed CRL.</returns>
         public IX509CRL CreateForECDsa(X509Certificate2 issuerCertificate)
         {
-            using ECDsa ecdsa = issuerCertificate.GetECDsaPrivateKey();
-            var generator = X509SignatureGenerator.CreateForECDsa(ecdsa);
+            using ECDsa? ecdsa = issuerCertificate.GetECDsaPrivateKey();
+            // TODO: validate non-null private key before signing.
+            var generator = X509SignatureGenerator.CreateForECDsa(ecdsa!);
             return CreateSignature(generator);
         }
 

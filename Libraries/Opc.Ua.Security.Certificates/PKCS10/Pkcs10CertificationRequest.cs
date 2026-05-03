@@ -111,7 +111,7 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// Gets the attributes from the CSR.
         /// </summary>
-        public byte[] Attributes { get; }
+        public byte[]? Attributes { get; }
 
         /// <summary>
         /// Verifies the signature of the certificate request.
@@ -184,7 +184,7 @@ namespace Opc.Ua.Security.Certificates
             return m_certificationRequestInfo;
         }
 
-        private static (X500DistinguishedName subject, byte[] subjectPublicKeyInfo, byte[] attributes)
+        private static (X500DistinguishedName subject, byte[] subjectPublicKeyInfo, byte[]? attributes)
             ParseCertificationRequestInfo(byte[] certificationRequestInfo)
         {
             var infoReader = new AsnReader(certificationRequestInfo, AsnEncodingRules.DER);
@@ -201,7 +201,7 @@ namespace Opc.Ua.Security.Certificates
             byte[] subjectPublicKeyInfo = infoSequence.ReadEncodedValue().ToArray();
 
             // Read attributes [0] IMPLICIT
-            byte[] attributes = null;
+            byte[]? attributes = null;
             if (infoSequence.HasData)
             {
                 // Attributes are context-specific tag [0]

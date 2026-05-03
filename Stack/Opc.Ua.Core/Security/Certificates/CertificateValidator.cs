@@ -1078,7 +1078,7 @@ namespace Opc.Ua
             // check for authority key id match.
             if (!string.IsNullOrEmpty(authorityKeyId))
             {
-                X509SubjectKeyIdentifierExtension subjectKeyId =
+                X509SubjectKeyIdentifierExtension? subjectKeyId =
                     certificate.FindExtension<X509SubjectKeyIdentifierExtension>();
 
                 if (subjectKeyId != null)
@@ -1116,7 +1116,7 @@ namespace Opc.Ua
             string? serialNumber = null;
 
             // find the authority key identifier.
-            X509AuthorityKeyIdentifierExtension authority =
+            X509AuthorityKeyIdentifierExtension? authority =
                 certificate.FindExtension<X509AuthorityKeyIdentifierExtension>();
             if (authority != null)
             {

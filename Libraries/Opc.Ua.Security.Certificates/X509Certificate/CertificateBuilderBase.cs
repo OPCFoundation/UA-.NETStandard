@@ -277,17 +277,17 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         private void SetHashAlgorithmSize(ECCurve curve)
         {
-            if (curve.Oid.FriendlyName
+            if (curve.Oid!.FriendlyName!
                     .Equals(ECCurve.NamedCurves.nistP384.Oid.FriendlyName, StringComparison.Ordinal) ||
                 curve.Oid.FriendlyName
                     .Equals(ECCurve.NamedCurves.brainpoolP384r1.Oid.FriendlyName, StringComparison.Ordinal) ||
                 // special case for linux where friendly name could be ECDSA_P384 instead of nistP384
                 (curve.Oid?.Value != null &&
-                    curve.Oid.Value.Equals(ECCurve.NamedCurves.nistP384.Oid.Value, StringComparison.Ordinal)))
+                    curve.Oid.Value.Equals(ECCurve.NamedCurves.nistP384.Oid.Value!, StringComparison.Ordinal)))
             {
                 SetHashAlgorithm(HashAlgorithmName.SHA384);
             }
-            if (curve.Oid.FriendlyName
+            if (curve.Oid!.FriendlyName!
                     .Equals(ECCurve.NamedCurves.nistP521.Oid.FriendlyName, StringComparison.Ordinal) ||
                 curve.Oid.FriendlyName
                     .Equals(ECCurve.NamedCurves.brainpoolP512r1.Oid.FriendlyName, StringComparison.Ordinal))
@@ -299,7 +299,7 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// The issuer CA certificate.
         /// </summary>
-        protected X509Certificate2 IssuerCAKeyCert { get; private set; }
+        protected X509Certificate2? IssuerCAKeyCert { get; private set; }
 
         /// <summary>
         /// Validate and adjust settings to avoid creation of invalid certificates.
@@ -358,17 +358,17 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// The serial number as a little endian byte array.
         /// </summary>
-        private protected byte[] m_serialNumber;
+        private protected byte[] m_serialNumber = null!;
 
         /// <summary>
         /// The collection of X509Extension to add to the certificate.
         /// </summary>
-        private protected X509ExtensionCollection m_extensions;
+        private protected X509ExtensionCollection m_extensions = null!;
 
         /// <summary>
         /// The RSA public to use when if a certificate is signed.
         /// </summary>
-        private protected RSA m_rsaPublicKey;
+        private protected RSA? m_rsaPublicKey;
 
         /// <summary>
         /// The size of a RSA key pair to create.
@@ -378,7 +378,7 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// The ECDsa public to use when if a certificate is signed.
         /// </summary>
-        private protected ECDsa m_ecdsaPublicKey;
+        private protected ECDsa? m_ecdsaPublicKey;
 
         /// <summary>
         /// The ECCurve to use.

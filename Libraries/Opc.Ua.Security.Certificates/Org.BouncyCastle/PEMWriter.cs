@@ -29,6 +29,7 @@
 
 #if NETFRAMEWORK
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using Opc.Ua.Security.Certificates.BouncyCastle;
@@ -65,7 +66,7 @@ namespace Opc.Ua.Security.Certificates
                         nameof(password));
                 }
 
-                RsaPrivateCrtKeyParameters privateKeyParameter = X509Utils
+                RsaPrivateCrtKeyParameters? privateKeyParameter = X509Utils
                     .GetRsaPrivateKeyParameter(certificate);
                 // write private key as PKCS#8
                 PrivateKeyInfo privateKeyInfo = PrivateKeyInfoFactory.CreatePrivateKeyInfo(
@@ -98,7 +99,7 @@ namespace Opc.Ua.Security.Certificates
         public static bool TryRemovePublicKeyFromPEM(
             string thumbprint,
             byte[] pemDataBlob,
-            out byte[] modifiedPemDataBlob)
+            [NotNullWhen(true)] out byte[]? modifiedPemDataBlob)
         {
             modifiedPemDataBlob = null;
             const string label = "CERTIFICATE";

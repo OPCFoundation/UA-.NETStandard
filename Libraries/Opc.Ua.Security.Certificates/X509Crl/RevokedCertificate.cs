@@ -87,7 +87,7 @@ namespace Opc.Ua.Security.Certificates
         public RevokedCertificate(string serialNumber)
             : this()
         {
-            UserCertificate = [.. ((IEnumerable<byte>)serialNumber.FromHexString()).Reverse()];
+            UserCertificate = [.. ((IEnumerable<byte>)serialNumber.FromHexString()!).Reverse()];
         }
 
         /// <summary>
@@ -104,6 +104,7 @@ namespace Opc.Ua.Security.Certificates
         {
             RevocationDate = DateTime.UtcNow;
             CrlEntryExtensions = [];
+            UserCertificate = null!;
         }
 
         /// <summary>

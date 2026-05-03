@@ -405,7 +405,7 @@ namespace Opc.Ua
                                     if (PEMWriter.TryRemovePublicKeyFromPEM(
                                             entry.Certificate.Thumbprint,
                                             File.ReadAllBytes(entry.CertificateFile.FullName),
-                                            out byte[] newContent))
+                                            out byte[]? newContent))
                                     {
                                         var writer = new BinaryWriter(
                                             entry.CertificateFile

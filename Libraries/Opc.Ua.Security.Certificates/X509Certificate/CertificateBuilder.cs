@@ -92,8 +92,8 @@ namespace Opc.Ua.Security.Certificates
                     "Cannot use a public key without an issuer certificate with a private key.");
             }
 
-            RSA rsaKeyPair = null;
-            RSA rsaPublicKey = m_rsaPublicKey;
+            RSA? rsaKeyPair = null;
+            RSA? rsaPublicKey = m_rsaPublicKey;
             if (rsaPublicKey == null)
             {
                 rsaKeyPair = RSA.Create(m_keySize == 0 ? X509Defaults.RSAKeySize : m_keySize);
@@ -113,10 +113,10 @@ namespace Opc.Ua.Security.Certificates
             byte[] serialNumber = [.. ((IEnumerable<byte>)m_serialNumber).Reverse()];
             if (IssuerCAKeyCert != null)
             {
-                using RSA rsaIssuerKey = IssuerCAKeyCert.GetRSAPrivateKey();
+                using RSA? rsaIssuerKey = IssuerCAKeyCert.GetRSAPrivateKey();
                 signedCert = request.Create(
                     IssuerCAKeyCert.SubjectName,
-                    X509SignatureGenerator.CreateForRSA(rsaIssuerKey, padding),
+                    X509SignatureGenerator.CreateForRSA(rsaIssuerKey!, padding),
                     NotBefore,
                     NotAfter,
                     serialNumber);
@@ -125,7 +125,7 @@ namespace Opc.Ua.Security.Certificates
             {
                 signedCert = request.Create(
                     SubjectName,
-                    X509SignatureGenerator.CreateForRSA(rsaKeyPair, padding),
+                    X509SignatureGenerator.CreateForRSA(rsaKeyPair!, padding),
                     NotBefore,
                     NotAfter,
                     serialNumber);
@@ -151,8 +151,8 @@ namespace Opc.Ua.Security.Certificates
                 issuerSubjectName = IssuerCAKeyCert.SubjectName;
             }
 
-            RSA rsaKeyPair = null;
-            RSA rsaPublicKey = m_rsaPublicKey;
+            RSA? rsaKeyPair = null;
+            RSA? rsaPublicKey = m_rsaPublicKey;
             if (rsaPublicKey == null)
             {
                 rsaKeyPair = RSA.Create(m_keySize == 0 ? X509Defaults.RSAKeySize : m_keySize);
@@ -194,11 +194,11 @@ namespace Opc.Ua.Security.Certificates
 
             CreateDefaults();
 
-            ECDsa key = null;
-            ECDsa publicKey = m_ecdsaPublicKey;
+            ECDsa? key = null;
+            ECDsa? publicKey = m_ecdsaPublicKey;
             if (publicKey == null)
             {
-                key = ECDsa.Create((ECCurve)m_curve);
+                key = ECDsa.Create((ECCurve)m_curve!);
                 publicKey = key;
             }
 
@@ -211,10 +211,10 @@ namespace Opc.Ua.Security.Certificates
             X509Certificate2 cert;
             if (IssuerCAKeyCert != null)
             {
-                using ECDsa issuerKey = IssuerCAKeyCert.GetECDsaPrivateKey();
+                using ECDsa? issuerKey = IssuerCAKeyCert.GetECDsaPrivateKey();
                 cert = request.Create(
                     IssuerCAKeyCert.SubjectName,
-                    X509SignatureGenerator.CreateForECDsa(issuerKey),
+                    X509SignatureGenerator.CreateForECDsa(issuerKey!),
                     NotBefore,
                     NotAfter,
                     serialNumber);
@@ -223,7 +223,7 @@ namespace Opc.Ua.Security.Certificates
             {
                 cert = request.Create(
                     SubjectName,
-                    X509SignatureGenerator.CreateForECDsa(key),
+                    X509SignatureGenerator.CreateForECDsa(key!),
                     NotBefore,
                     NotAfter,
                     serialNumber);
@@ -249,11 +249,11 @@ namespace Opc.Ua.Security.Certificates
 
             CreateDefaults();
 
-            ECDsa key = null;
-            ECDsa publicKey = m_ecdsaPublicKey;
+            ECDsa? key = null;
+            ECDsa? publicKey = m_ecdsaPublicKey;
             if (publicKey == null)
             {
-                key = ECDsa.Create((ECCurve)m_curve);
+                key = ECDsa.Create((ECCurve)m_curve!);
                 publicKey = key;
             }
 
@@ -428,7 +428,7 @@ namespace Opc.Ua.Security.Certificates
                     IssuerCAKeyCert != null
                         ? IssuerCAKeyCert.BuildAuthorityKeyIdentifier()
                         : new X509AuthorityKeyIdentifierExtension(
-                            ski.SubjectKeyIdentifier.FromHexString(),
+                            ski.SubjectKeyIdentifier.FromHexString()!,
                             IssuerName,
                             m_serialNumber);
                 request.CertificateExtensions.Add(authorityKeyIdentifier);

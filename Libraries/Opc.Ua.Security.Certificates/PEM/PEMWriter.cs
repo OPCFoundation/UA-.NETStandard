@@ -32,6 +32,7 @@ using System.IO;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 #if NETSTANDARD2_1 || NET5_0_OR_GREATER
+using System.Diagnostics.CodeAnalysis;
 using System.Security.Cryptography;
 #endif
 
@@ -72,10 +73,11 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         public static byte[] ExportPublicKeyAsPEM(X509Certificate2 certificate)
         {
-            byte[] exportedPublicKey = null;
-            using (RSA rsaPublicKey = certificate.GetRSAPublicKey())
+            byte[] exportedPublicKey;
+            using (RSA? rsaPublicKey = certificate.GetRSAPublicKey())
             {
-                exportedPublicKey = rsaPublicKey.ExportSubjectPublicKeyInfo();
+                // TODO: validate non-null public key before dereferencing.
+                exportedPublicKey = rsaPublicKey!.ExportSubjectPublicKeyInfo();
             }
             return EncodeAsPEM(exportedPublicKey, "PUBLIC KEY");
         }
@@ -85,11 +87,12 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         public static byte[] ExportRSAPrivateKeyAsPEM(X509Certificate2 certificate)
         {
-            byte[] exportedRSAPrivateKey = null;
-            using (RSA rsaPrivateKey = certificate.GetRSAPrivateKey())
+            byte[] exportedRSAPrivateKey;
+            using (RSA? rsaPrivateKey = certificate.GetRSAPrivateKey())
             {
+                // TODO: validate non-null private key before dereferencing.
                 // write private key as PKCS#1
-                exportedRSAPrivateKey = rsaPrivateKey.ExportRSAPrivateKey();
+                exportedRSAPrivateKey = rsaPrivateKey!.ExportRSAPrivateKey();
             }
             return EncodeAsPEM(exportedRSAPrivateKey, "RSA PRIVATE KEY");
         }
@@ -99,11 +102,12 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         public static byte[] ExportECDsaPrivateKeyAsPEM(X509Certificate2 certificate)
         {
-            byte[] exportedECPrivateKey = null;
-            using (ECDsa ecdsaPrivateKey = certificate.GetECDsaPrivateKey())
+            byte[] exportedECPrivateKey;
+            using (ECDsa? ecdsaPrivateKey = certificate.GetECDsaPrivateKey())
             {
+                // TODO: validate non-null private key before dereferencing.
                 // write private key as PKCS#1
-                exportedECPrivateKey = ecdsaPrivateKey.ExportECPrivateKey();
+                exportedECPrivateKey = ecdsaPrivateKey!.ExportECPrivateKey();
             }
             return EncodeAsPEM(exportedECPrivateKey, "EC PRIVATE KEY");
         }
@@ -115,8 +119,8 @@ namespace Opc.Ua.Security.Certificates
             X509Certificate2 certificate,
             ReadOnlySpan<char> password = default)
         {
-            byte[] exportedPkcs8PrivateKey = null;
-            using (RSA rsaPrivateKey = certificate.GetRSAPrivateKey())
+            byte[]? exportedPkcs8PrivateKey = null;
+            using (RSA? rsaPrivateKey = certificate.GetRSAPrivateKey())
             {
                 if (rsaPrivateKey != null)
                 {
@@ -132,7 +136,7 @@ namespace Opc.Ua.Security.Certificates
                 }
                 else
                 {
-                    using ECDsa ecdsaPrivateKey = certificate.GetECDsaPrivateKey();
+                    using ECDsa? ecdsaPrivateKey = certificate.GetECDsaPrivateKey();
                     if (ecdsaPrivateKey != null)
                     {
                         // write private key as PKCS#8
@@ -148,8 +152,9 @@ namespace Opc.Ua.Security.Certificates
                 }
             }
 
+            // TODO: returns null content if neither RSA nor ECDsa private key is present.
             return EncodeAsPEM(
-                exportedPkcs8PrivateKey,
+                exportedPkcs8PrivateKey!,
                 password.IsEmpty || password.IsWhiteSpace() ? "PRIVATE KEY" : "ENCRYPTED PRIVATE KEY");
         }
 
@@ -159,7 +164,7 @@ namespace Opc.Ua.Security.Certificates
         public static bool TryRemovePublicKeyFromPEM(
             string thumbprint,
             ReadOnlySpan<byte> pemDataBlob,
-            out byte[] modifiedPemDataBlob)
+            [NotNullWhen(true)] out byte[]? modifiedPemDataBlob)
         {
             modifiedPemDataBlob = null;
             const string label = "CERTIFICATE";

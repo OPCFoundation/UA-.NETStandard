@@ -88,8 +88,8 @@ namespace Opc.Ua.Security.Certificates
             try
             {
                 // verify the public and private key match
-                using RSA rsaPrivateKey = certWithPrivateKey.GetRSAPrivateKey();
-                using RSA rsaPublicKey = certWithPublicKey.GetRSAPublicKey();
+                using RSA? rsaPrivateKey = certWithPrivateKey.GetRSAPrivateKey();
+                using RSA? rsaPublicKey = certWithPublicKey.GetRSAPublicKey();
                 // For non RSA certificates, RSA keys are null
                 if (rsaPrivateKey != null && rsaPublicKey != null)
                 {
@@ -140,7 +140,7 @@ namespace Opc.Ua.Security.Certificates
             ReadOnlySpan<char> password,
             bool noEphemeralKeySet = false)
         {
-            Exception ex = null;
+            Exception? ex = null;
 
             X509KeyStorageFlags defaultStorageSet = X509KeyStorageFlags.DefaultKeySet;
             if (!noEphemeralKeySet && !RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
@@ -159,7 +159,7 @@ namespace Opc.Ua.Security.Certificates
             // try some combinations of storage flags, support is platform dependent
             foreach (X509KeyStorageFlags flag in storageFlags)
             {
-                X509Certificate2 certificate = null;
+                X509Certificate2? certificate = null;
                 try
                 {
                     // merge first cert with private key into X509Certificate2
@@ -246,8 +246,8 @@ namespace Opc.Ua.Security.Certificates
             bool throwOnError = false)
         {
             bool result = false;
-            using (ECDsa ecdsaPublicKey = certWithPublicKey.GetECDsaPublicKey())
-            using (ECDsa ecdsaPrivateKey = certWithPrivateKey.GetECDsaPrivateKey())
+            using (ECDsa? ecdsaPublicKey = certWithPublicKey.GetECDsaPublicKey())
+            using (ECDsa? ecdsaPrivateKey = certWithPrivateKey.GetECDsaPrivateKey())
             {
                 try
                 {
@@ -255,7 +255,7 @@ namespace Opc.Ua.Security.Certificates
                     X509KeyUsageFlags keyUsage = GetKeyUsage(certWithPublicKey);
                     if ((keyUsage & X509KeyUsageFlags.DigitalSignature) != 0)
                     {
-                        result = VerifyECDsaKeyPairSign(ecdsaPublicKey, ecdsaPrivateKey);
+                        result = VerifyECDsaKeyPairSign(ecdsaPublicKey!, ecdsaPrivateKey!);
                     }
                     else if (throwOnError)
                     {

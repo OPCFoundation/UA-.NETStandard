@@ -133,7 +133,7 @@ namespace Opc.Ua
 
             return CertificateBuilder
                 .Create(subjectName)
-                .AddExtension(new X509SubjectAltNameExtension(applicationUri, domainNames.ToArray()));
+                .AddExtension(new X509SubjectAltNameExtension(applicationUri, domainNames.ToArray()!));
         }
 
         /// <summary>
@@ -185,7 +185,7 @@ namespace Opc.Ua
             {
                 foreach (X509CRL issuerCrl in issuerCrls)
                 {
-                    X509CrlNumberExtension extension = issuerCrl.CrlExtensions
+                    X509CrlNumberExtension? extension = issuerCrl.CrlExtensions
                         .FindExtension<X509CrlNumberExtension>();
                     if (extension != null && extension.CrlNumber > crlSerialNumber)
                     {
@@ -265,7 +265,7 @@ namespace Opc.Ua
                 request = new CertificateRequest(
                     certificate.SubjectName,
                     rsaPublicKey!,
-                    Oids.GetHashAlgorithmName(certificate.SignatureAlgorithm.Value),
+                    Oids.GetHashAlgorithmName(certificate.SignatureAlgorithm.Value!),
                     RSASignaturePadding.Pkcs1);
             }
             else
@@ -274,9 +274,9 @@ namespace Opc.Ua
                 request = new CertificateRequest(
                     certificate.SubjectName,
                     eCDsaPublicKey!,
-                    Oids.GetHashAlgorithmName(certificate.SignatureAlgorithm.Value));
+                    Oids.GetHashAlgorithmName(certificate.SignatureAlgorithm.Value!));
             }
-            X509SubjectAltNameExtension alternateName = certificate
+            X509SubjectAltNameExtension? alternateName = certificate
                 .FindExtension<X509SubjectAltNameExtension>();
             var domainNameList = domainNames.ToList();
             if (alternateName != null)

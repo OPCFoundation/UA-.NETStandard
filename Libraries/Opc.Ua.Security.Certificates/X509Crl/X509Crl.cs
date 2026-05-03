@@ -89,6 +89,9 @@ namespace Opc.Ua.Security.Certificates
             NextUpdate = DateTime.MinValue;
             m_revokedCertificates = [];
             CrlExtensions = [];
+            // Late-init: set by Decode() called from EnsureDecoded(), or by chained constructors.
+            IssuerName = null!;
+            RawData = null!;
         }
 
         /// <inheritdoc/>
@@ -248,7 +251,7 @@ namespace Opc.Ua.Security.Certificates
                                     while (crlEntryExtensions.HasData)
                                     {
                                         X509Extension extension = crlEntryExtensions
-                                            .ReadExtension();
+                                            .ReadExtension()!;
                                         revokedCertificate.CrlEntryExtensions.Add(extension);
                                     }
                                     crlEntryExtensions.ThrowIfNotEmpty();
@@ -269,7 +272,7 @@ namespace Opc.Ua.Security.Certificates
                             AsnReader crlExtensions = optReader.ReadSequence();
                             while (crlExtensions.HasData)
                             {
-                                X509Extension extension = crlExtensions.ReadExtension();
+                                X509Extension extension = crlExtensions.ReadExtension()!;
                                 crlExtensionList.Add(extension);
                             }
                             CrlExtensions = crlExtensionList;
@@ -326,7 +329,7 @@ namespace Opc.Ua.Security.Certificates
         }
 
         private bool m_decoded;
-        private X509Signature m_signature;
+        private X509Signature m_signature = null!;
         private List<RevokedCertificate> m_revokedCertificates;
     }
 

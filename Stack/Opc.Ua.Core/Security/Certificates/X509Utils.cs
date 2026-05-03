@@ -84,7 +84,7 @@ namespace Opc.Ua
             }
 
             // extract the alternate domains from the subject alternate name extension.
-            X509SubjectAltNameExtension alternateName = certificate
+            X509SubjectAltNameExtension? alternateName = certificate
                 .FindExtension<X509SubjectAltNameExtension>();
             if (alternateName != null)
             {
@@ -174,7 +174,7 @@ namespace Opc.Ua
         public static string GetApplicationUriFromCertificate(X509Certificate2 certificate)
         {
             // extract the alternate domains from the subject alternate name extension.
-            X509SubjectAltNameExtension alternateName = certificate
+            X509SubjectAltNameExtension? alternateName = certificate
                 .FindExtension<X509SubjectAltNameExtension>();
 
             // get the application uri.
@@ -194,7 +194,7 @@ namespace Opc.Ua
         public static IReadOnlyList<string> GetApplicationUrisFromCertificate(X509Certificate2 certificate)
         {
             // extract the alternate domains from the subject alternate name extension.
-            X509SubjectAltNameExtension alternateName = certificate
+            X509SubjectAltNameExtension? alternateName = certificate
                 .FindExtension<X509SubjectAltNameExtension>();
 
             // get the application uris.
@@ -257,7 +257,7 @@ namespace Opc.Ua
         public static bool HasApplicationURN(X509Certificate2 certificate)
         {
             // extract the alternate domains from the subject alternate name extension.
-            X509SubjectAltNameExtension alternateName = certificate
+            X509SubjectAltNameExtension? alternateName = certificate
                 .FindExtension<X509SubjectAltNameExtension>();
 
             // find the application urn.
@@ -305,7 +305,7 @@ namespace Opc.Ua
         /// </summary>
         public static bool IsIssuerAllowed(X509Certificate2 certificate)
         {
-            X509BasicConstraintsExtension constraints = certificate
+            X509BasicConstraintsExtension? constraints = certificate
                 .FindExtension<X509BasicConstraintsExtension>();
 
             if (constraints != null)
@@ -321,7 +321,7 @@ namespace Opc.Ua
         /// </summary>
         public static bool IsCertificateAuthority(X509Certificate2 certificate)
         {
-            X509BasicConstraintsExtension constraints = certificate
+            X509BasicConstraintsExtension? constraints = certificate
                 .FindExtension<X509BasicConstraintsExtension>();
             if (constraints != null)
             {
@@ -793,7 +793,7 @@ namespace Opc.Ua
             {
                 if (CompareDistinguishedName(certificate.SubjectName, issuer))
                 {
-                    X509SubjectKeyIdentifierExtension subject = certificate.FindExtension<X509SubjectKeyIdentifierExtension>();
+                    X509SubjectKeyIdentifierExtension? subject = certificate.FindExtension<X509SubjectKeyIdentifierExtension>();
                     if (subject != null && Utils.IsEqual(subject.SubjectKeyIdentifier, keyIdentifier))
                     {
                         return certificate;
