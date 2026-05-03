@@ -237,7 +237,7 @@ namespace Opc.Ua.Client.Subscriptions
         /// <inheritdoc/>
         protected override async ValueTask DisposeAsync(bool disposing)
         {
-            if (disposing)
+            if (disposing && !Disposed)
             {
                 try
                 {
