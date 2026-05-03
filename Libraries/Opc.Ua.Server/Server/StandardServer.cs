@@ -2192,17 +2192,11 @@ namespace Opc.Ua.Server
         {
             var configuration = new ApplicationConfiguration(Configuration)
             {
-                // use a dedicated certificate validator with the registration, but derive behavior from server config
-                CertificateValidator = new CertificateValidator(MessageContext.Telemetry)
+                // share the server's CertificateManager so the registration channel uses
+                // the same trust list, rejected store, and cached validation results.
+                CertificateManager = CertificateManager,
+                CertificateValidator = CertificateValidator
             };
-            if (configuration.CertificateValidator is CertificateValidator regValidator)
-            {
-                await regValidator.UpdateAsync(
-                        configuration.SecurityConfiguration,
-                        configuration.ApplicationUri,
-                        ct)
-                    .ConfigureAwait(false);
-            }
 
             // try each endpoint.
             if (m_registrationEndpoints != null)
