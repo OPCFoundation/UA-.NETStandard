@@ -61,7 +61,7 @@ namespace Opc.Ua.PubSub.Transport
         private readonly MessageMapping m_messageMapping;
         private readonly MessageCreator m_messageCreator;
 
-        private CertificateValidator m_certificateValidator;
+        private CertificateManager m_certificateManager;
         private MqttClientTlsOptions m_mqttClientTlsOptions;
         private MqttClientOptions m_publisherMqttClientOptions;
         private MqttClientOptions m_subscriberMqttClientOptions;
@@ -191,6 +191,17 @@ namespace Opc.Ua.PubSub.Transport
             m_logger.LogInformation(
                 "MqttPubSubConnection with name '{Name}' was created.",
                 pubSubConnectionDataType.Name);
+        }
+
+        /// <inheritdoc/>
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                m_certificateManager?.Dispose();
+                m_certificateManager = null;
+            }
+            base.Dispose(disposing);
         }
 
         /// <summary>
@@ -878,10 +889,8 @@ namespace Opc.Ua.PubSub.Transport
 
                 mqttOptions = mqttClientOptionsBuilder.Build();
 
-                // Create the certificate validator for broker certificates.
-                m_certificateValidator = CreateCertificateValidator(mqttTlsOptions, Telemetry);
-                m_certificateValidator.CertificateValidation
-                    += CertificateValidator_CertificateValidation;
+                // Create the certificate manager for broker certificate validation.
+                m_certificateManager = CreateCertificateManager(mqttTlsOptions, Telemetry);
                 m_mqttClientTlsOptions = mqttOptions?.ChannelOptions?.TlsOptions;
             }
             // MQTT mqttConnection
@@ -915,17 +924,16 @@ namespace Opc.Ua.PubSub.Transport
         }
 
         /// <summary>
-        /// Set up a new instance of a certificate validator based on passed in tls options
+        /// Set up a new instance of a <see cref="CertificateManager"/> based
+        /// on the passed in TLS options.
         /// </summary>
         /// <param name="mqttTlsOptions"><see cref="MqttTlsOptions"/></param>
-        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
-        /// <returns>A new instance of stack validator <see cref="CertificateValidator"/></returns>
-        private static CertificateValidator CreateCertificateValidator(
+        /// <param name="telemetry">The telemetry context to use to create observability instruments</param>
+        /// <returns>A new instance of <see cref="CertificateManager"/></returns>
+        private static CertificateManager CreateCertificateManager(
             MqttTlsOptions mqttTlsOptions,
             ITelemetryContext telemetry)
         {
-            var certificateValidator = new CertificateValidator(telemetry);
-
             var securityConfiguration = new SecurityConfiguration
             {
                 TrustedIssuerCertificates = (CertificateTrustList)mqttTlsOptions
@@ -939,9 +947,7 @@ namespace Opc.Ua.PubSub.Transport
                 RejectUnknownRevocationStatus = !mqttTlsOptions.IgnoreRevocationListErrors
             };
 
-            certificateValidator.UpdateAsync(securityConfiguration).Wait();
-
-            return certificateValidator;
+            return CertificateManagerFactory.Create(securityConfiguration, telemetry);
         }
 
         /// <summary>
@@ -950,7 +956,7 @@ namespace Opc.Ua.PubSub.Transport
         /// <param name="context">The context of the validation</param>
         private bool ValidateBrokerCertificate(MqttClientCertificateValidationEventArgs context)
         {
-            Certificate brokerCertificate = Certificate.FromRawData(
+            using Certificate brokerCertificate = Certificate.FromRawData(
                 context.Certificate.GetRawCertData());
 
             try
@@ -961,7 +967,17 @@ namespace Opc.Ua.PubSub.Transport
                     return Application.OnValidateBrokerCertificate(brokerCertificate);
                 }
 
-                m_certificateValidator?.ValidateAsync(brokerCertificate, default).GetAwaiter().GetResult();
+                if (m_certificateManager != null)
+                {
+                    CertificateValidationResult result = m_certificateManager
+                        .ValidateAsync(brokerCertificate)
+                        .GetAwaiter()
+                        .GetResult();
+                    if (!result.IsValid && !IsAcceptableValidationFailure(result))
+                    {
+                        throw new ServiceResultException(result.StatusCode);
+                    }
+                }
             }
             catch (Exception ex)
             {
@@ -982,42 +998,60 @@ namespace Opc.Ua.PubSub.Transport
         }
 
         /// <summary>
-        /// Handler for validation errors of MQTT broker certificate.
+        /// Determines whether the given validation outcome is acceptable
+        /// given the configured MQTT TLS options. Mirrors the legacy
+        /// per-error <c>CertificateValidation</c> event handling: a result
+        /// is acceptable only when every reported error is individually
+        /// ignorable.
         /// </summary>
-        private void CertificateValidator_CertificateValidation(
-            CertificateValidator sender,
-            CertificateValidationEventArgs e)
+        private bool IsAcceptableValidationFailure(CertificateValidationResult result)
         {
-            try
+            if (result.Errors == null || result.Errors.Count == 0)
             {
-                if ((
-                        (e.Error.StatusCode == StatusCodes.BadCertificateRevocationUnknown) ||
-                        (e.Error.StatusCode == StatusCodes.BadCertificateIssuerRevocationUnknown) ||
-                        (e.Error.StatusCode == StatusCodes.BadCertificateRevoked) ||
-                        (e.Error.StatusCode == StatusCodes.BadCertificateIssuerRevoked)
-                    ) &&
-                    (m_mqttClientTlsOptions?.IgnoreCertificateRevocationErrors ?? false))
+                return IsAcceptableStatus(result.StatusCode);
+            }
+
+            foreach (ServiceResult err in result.Errors)
+            {
+                if (!IsAcceptableStatus(err.StatusCode))
                 {
-                    // Accept broker certificate with revocation errors.
-                    e.Accept = true;
-                }
-                else if ((e.Error.StatusCode == StatusCodes.BadCertificateChainIncomplete) &&
-                    (m_mqttClientTlsOptions?.IgnoreCertificateChainErrors ?? false))
-                {
-                    // Accept broker certificate with chain errors.
-                    e.Accept = true;
-                }
-                else if ((e.Error.StatusCode == StatusCodes.BadCertificateUntrusted) &&
-                    (m_mqttClientTlsOptions?.AllowUntrustedCertificates ?? false))
-                {
-                    // Accept untrusted broker certificate.
-                    e.Accept = true;
+                    return false;
                 }
             }
-            catch (Exception ex)
+            return true;
+        }
+
+        /// <summary>
+        /// Returns <c>true</c> if the given status code can be ignored
+        /// according to the current <see cref="MqttClientTlsOptions"/>.
+        /// </summary>
+        private bool IsAcceptableStatus(StatusCode statusCode)
+        {
+            uint code = statusCode.Code;
+            bool ignoreRevocation = m_mqttClientTlsOptions?.IgnoreCertificateRevocationErrors ?? false;
+            bool ignoreChain = m_mqttClientTlsOptions?.IgnoreCertificateChainErrors ?? false;
+            bool allowUntrusted = m_mqttClientTlsOptions?.AllowUntrustedCertificates ?? false;
+
+            if (ignoreRevocation && (
+                    code == StatusCodes.BadCertificateRevocationUnknown ||
+                    code == StatusCodes.BadCertificateIssuerRevocationUnknown ||
+                    code == StatusCodes.BadCertificateRevoked ||
+                    code == StatusCodes.BadCertificateIssuerRevoked))
             {
-                m_logger.LogError(ex, "MqttPubSubConnection.CertificateValidation error.");
+                return true;
             }
+
+            if (ignoreChain && code == StatusCodes.BadCertificateChainIncomplete)
+            {
+                return true;
+            }
+
+            if (allowUntrusted && code == StatusCodes.BadCertificateUntrusted)
+            {
+                return true;
+            }
+
+            return false;
         }
 
         /// <summary>
