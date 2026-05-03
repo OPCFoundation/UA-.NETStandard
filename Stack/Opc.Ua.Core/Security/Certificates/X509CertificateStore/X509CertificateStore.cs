@@ -30,6 +30,7 @@
 #nullable enable
 
 using System;
+using System.Runtime.InteropServices;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
@@ -166,14 +167,41 @@ namespace Opc.Ua
                 {
                     if (certificate.HasPrivateKey && !NoPrivateKeys)
                     {
-                        // X509Store needs a persisted private key — export from
-                        // the original (exportable) cert, reimport with PersistKeySet
-                        byte[] pfx = certificate.Export(X509ContentType.Pfx);
-                        using X509Certificate2 persistedX509 = X509CertificateLoader.LoadPkcs12(
-                            pfx,
-                            (string?)null,
-                            X509KeyStorageFlags.PersistKeySet);
-                        store.Add(persistedX509);
+                        // Adding a private-key certificate to an X509Store
+                        // requires a key handle the platform store can
+                        // persist:
+                        //   * On Windows, the key must be re-imported with
+                        //     PersistKeySet so it lands in the appropriate
+                        //     CryptoAPI/CNG container.
+                        //   * On macOS and Linux, the platform store
+                        //     (Keychain / OpenSSL on-disk store) only
+                        //     accepts certs whose key is reachable through
+                        //     the existing handle. Re-importing a PKCS#12
+                        //     blob there yields a transient key that the
+                        //     keychain refuses to retrieve, surfacing as
+                        //     "AppleCommonCryptoCryptographicException:
+                        //     The contents of this item cannot be
+                        //     retrieved." For these platforms we therefore
+                        //     pass the original cert through, matching
+                        //     the legacy CreateCopyWithPrivateKey
+                        //     behaviour.
+                        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+                        {
+                            byte[] pfx = certificate.Export(X509ContentType.Pfx);
+                            using X509Certificate2 persistedX509 = X509CertificateLoader.LoadPkcs12(
+                                pfx,
+                                (string?)null,
+                                X509KeyStorageFlags.PersistKeySet);
+                            store.Add(persistedX509);
+                        }
+                        else
+                        {
+                            // Pass the original X509Certificate2 wrapped by
+                            // the Certificate. Re-importing via PFX changes
+                            // the platform key handle in a way that the
+                            // macOS Keychain refuses to persist.
+                            store.Add(certificate.X509);
+                        }
                     }
                     else if (certificate.HasPrivateKey && NoPrivateKeys)
                     {

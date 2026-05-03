@@ -11,6 +11,7 @@
   </PropertyGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Opc.Ua.Security.Certificates.Tests" />
+    <InternalsVisibleTo Include="Opc.Ua.Core" />
     <InternalsVisibleTo Include="Opc.Ua.Core.Tests" />
   </ItemGroup>
   <ItemGroup>
