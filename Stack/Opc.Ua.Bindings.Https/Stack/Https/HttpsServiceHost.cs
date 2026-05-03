@@ -194,7 +194,7 @@ namespace Opc.Ua.Bindings
                         endpoints,
                         endpointConfiguration,
                         listener,
-                        configuration.CertificateValidator.GetChannelValidator());
+                        configuration.CertificateValidator);
                 }
                 else
                 {

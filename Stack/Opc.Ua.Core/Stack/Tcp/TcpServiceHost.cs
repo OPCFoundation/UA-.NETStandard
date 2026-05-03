@@ -136,7 +136,7 @@ namespace Opc.Ua.Bindings
                         listenerEndpoints,
                         endpointConfiguration,
                         listener,
-                        configuration.CertificateValidator.GetChannelValidator());
+                        configuration.CertificateValidator);
 
                     endpoints.AddRange(listenerEndpoints);
                 }

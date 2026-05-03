@@ -172,8 +172,7 @@ namespace Opc.Ua
 
             if (configuration != null)
             {
-                settings.CertificateValidator = configuration.CertificateValidator
-                    .GetChannelValidator();
+                settings.CertificateValidator = configuration.CertificateValidator;
             }
 
             settings.NamespaceUris = messageContext.NamespaceUris;
@@ -251,8 +250,7 @@ namespace Opc.Ua
 
             if (configuration != null)
             {
-                settings.CertificateValidator = configuration.CertificateValidator
-                    .GetChannelValidator();
+                settings.CertificateValidator = configuration.CertificateValidator;
             }
 
             settings.NamespaceUris = messageContext.NamespaceUris;

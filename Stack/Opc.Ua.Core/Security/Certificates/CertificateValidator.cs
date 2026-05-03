@@ -392,7 +392,7 @@ namespace Opc.Ua
             {
                 var args = new CertificateUpdateEventArgs(
                     securityConfiguration,
-                    GetChannelValidator());
+                    this);
                 callback(this, args);
             }
         }
@@ -1856,6 +1856,18 @@ namespace Opc.Ua
         /// <summary>
         /// Returns an object that can be used with a UA channel.
         /// </summary>
+        /// <summary>
+        /// Returns this validator as an <see cref="ICertificateValidator"/>.
+        /// </summary>
+        /// <remarks>
+        /// This helper is preserved for backward compatibility. The
+        /// <see cref="CertificateValidator"/> class already implements
+        /// <see cref="ICertificateValidator"/>; new code should cast or
+        /// assign directly to the interface, or use
+        /// <see cref="CertificateValidatorAdapter"/> when bridging from
+        /// an <see cref="ICertificateValidatorEx"/>.
+        /// </remarks>
+        [Obsolete("CertificateValidator already implements ICertificateValidator; assign directly, or use CertificateValidatorAdapter for ICertificateValidatorEx.")]
         public ICertificateValidator GetChannelValidator()
         {
             return this;
