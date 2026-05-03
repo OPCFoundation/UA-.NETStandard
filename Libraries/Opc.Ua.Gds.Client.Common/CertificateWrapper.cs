@@ -37,10 +37,10 @@ namespace Opc.Ua.Gds.Client
     [DataContract(Namespace = Namespaces.OpcUaXsd)]
     public sealed class CertificateWrapper : IFormattable
     {
-        public X509Certificate2 Certificate { get; set; }
+        public X509Certificate2? Certificate { get; set; }
 
         [DataMember(Order = 1)]
-        public string SubjectName
+        public string? SubjectName
         {
             get
             {
@@ -55,7 +55,7 @@ namespace Opc.Ua.Gds.Client
         }
 
         [DataMember(Order = 2)]
-        public string IssuerName
+        public string? IssuerName
         {
             get
             {
@@ -100,7 +100,7 @@ namespace Opc.Ua.Gds.Client
         }
 
         [DataMember(Order = 5)]
-        public string SerialNumber
+        public string? SerialNumber
         {
             get
             {
@@ -115,7 +115,7 @@ namespace Opc.Ua.Gds.Client
         }
 
         [DataMember(Order = 6)]
-        public string Thumbprint
+        public string? Thumbprint
         {
             get
             {
@@ -130,7 +130,7 @@ namespace Opc.Ua.Gds.Client
         }
 
         [DataMember(Order = 7)]
-        public string SignatureAlgorithm
+        public string? SignatureAlgorithm
         {
             get
             {
@@ -145,7 +145,7 @@ namespace Opc.Ua.Gds.Client
         }
 
         [DataMember(Order = 8)]
-        public string PublicKeyAlgorithm
+        public string? PublicKeyAlgorithm
         {
             get
             {
@@ -160,7 +160,7 @@ namespace Opc.Ua.Gds.Client
         }
 
         [DataMember(Order = 9)]
-        public byte[] PublicKey
+        public byte[]? PublicKey
         {
             get
             {
@@ -191,7 +191,7 @@ namespace Opc.Ua.Gds.Client
         }
 
         [DataMember(Order = 11)]
-        public string ApplicationUri
+        public string? ApplicationUri
         {
             get
             {
@@ -215,7 +215,7 @@ namespace Opc.Ua.Gds.Client
         }
 
         [DataMember(Order = 12)]
-        public IList<string> Domains
+        public IList<string>? Domains
         {
             get
             {
@@ -241,14 +241,16 @@ namespace Opc.Ua.Gds.Client
             return ToString(null, null);
         }
 
-        public string ToString(string format, IFormatProvider formatProvider)
+        public string ToString(string? format, IFormatProvider? formatProvider)
         {
             if (format != null)
             {
                 throw new FormatException(Utils.Format("Invalid format string: '{0}'.", format));
             }
 
-            return SubjectName;
+            // SubjectName is null when Certificate has not been assigned; preserves
+            // pre-nullable runtime behavior of returning null from ToString in that case.
+            return SubjectName!;
         }
 
         public CertificateWrapper Clone()

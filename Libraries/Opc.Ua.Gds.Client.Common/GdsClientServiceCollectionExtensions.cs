@@ -52,7 +52,7 @@ namespace Opc.Ua.Gds.Client
         /// <see cref="GdsClientOptions"/>.</param>
         public static IServiceCollection AddOpcUaGdsClient(
             this IServiceCollection services,
-            Action<GdsClientOptions> configure = null)
+            Action<GdsClientOptions>? configure = null)
         {
             if (services == null) throw new ArgumentNullException(nameof(services));
 
@@ -67,7 +67,7 @@ namespace Opc.Ua.Gds.Client
             {
                 ApplicationConfiguration configuration = sp
                     .GetRequiredService<ApplicationConfiguration>();
-                ISessionFactory sessionFactory = sp.GetService<ISessionFactory>();
+                ISessionFactory? sessionFactory = sp.GetService<ISessionFactory>();
                 GdsClientOptions options = sp
                     .GetRequiredService<IOptions<GdsClientOptions>>().Value;
                 return new GlobalDiscoveryServerClient(
@@ -81,7 +81,7 @@ namespace Opc.Ua.Gds.Client
             {
                 ApplicationConfiguration configuration = sp
                     .GetRequiredService<ApplicationConfiguration>();
-                ISessionFactory sessionFactory = sp.GetService<ISessionFactory>();
+                ISessionFactory? sessionFactory = sp.GetService<ISessionFactory>();
                 GdsClientOptions options = sp
                     .GetRequiredService<IOptions<GdsClientOptions>>().Value;
                 return new ServerPushConfigurationClient(

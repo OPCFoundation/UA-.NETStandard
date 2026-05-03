@@ -49,46 +49,46 @@ namespace Opc.Ua.Gds.Client
         IServiceMessageContext MessageContext { get; }
 
         /// <summary>The administrator credentials used to elevate calls.</summary>
-        IUserIdentity AdminCredentials { get; set; }
+        IUserIdentity? AdminCredentials { get; set; }
 
         /// <summary>The endpoint URL of the connected server, when available.</summary>
-        string EndpointUrl { get; }
+        string? EndpointUrl { get; }
 
         /// <summary><c>true</c> when an active session exists.</summary>
         bool IsConnected { get; }
 
         /// <summary>The active session, when connected.</summary>
-        ISession Session { get; }
+        ISession? Session { get; }
 
         /// <summary>The endpoint to connect to. Write-once before connect.</summary>
-        ConfiguredEndpoint Endpoint { get; set; }
+        ConfiguredEndpoint? Endpoint { get; set; }
 
         /// <summary>Locales preferred by the client.</summary>
         ArrayOf<string> PreferredLocales { get; set; }
 
         /// <summary>NodeId of the DefaultApplicationGroup.</summary>
-        NodeId DefaultApplicationGroup { get; }
+        NodeId? DefaultApplicationGroup { get; }
 
         /// <summary>NodeId of the DefaultHttpsGroup.</summary>
-        NodeId DefaultHttpsGroup { get; }
+        NodeId? DefaultHttpsGroup { get; }
 
         /// <summary>NodeId of the DefaultUserTokenGroup.</summary>
-        NodeId DefaultUserTokenGroup { get; }
+        NodeId? DefaultUserTokenGroup { get; }
 
         /// <summary>NodeId of the application certificate type.</summary>
         NodeId ApplicationCertificateType { get; }
 
         /// <summary>Raised when administrator credentials are needed.</summary>
-        event EventHandler<AdminCredentialsRequiredEventArgs> AdminCredentialsRequired;
+        event EventHandler<AdminCredentialsRequiredEventArgs>? AdminCredentialsRequired;
 
         /// <summary>Raised when the connection status changes.</summary>
-        event EventHandler ConnectionStatusChanged;
+        event EventHandler? ConnectionStatusChanged;
 
         /// <summary>Raised on every keep-alive callback.</summary>
-        event KeepAliveEventHandler KeepAlive;
+        event KeepAliveEventHandler? KeepAlive;
 
         /// <summary>Raised when monitored item notifications change server status.</summary>
-        event MonitoredItemNotificationEventHandler ServerStatusChanged;
+        event MonitoredItemNotificationEventHandler? ServerStatusChanged;
 
         /// <summary>Clears the cached <see cref="AdminCredentials"/>.</summary>
         void ResetCredentials();
@@ -100,7 +100,7 @@ namespace Opc.Ua.Gds.Client
         ValueTask ConnectAsync(string endpointUrl, CancellationToken ct = default);
 
         /// <summary>Connects to the supplied configured endpoint.</summary>
-        ValueTask ConnectAsync(ConfiguredEndpoint endpoint, CancellationToken ct = default);
+        ValueTask ConnectAsync(ConfiguredEndpoint? endpoint, CancellationToken ct = default);
 
         /// <summary>Disconnects the active session.</summary>
         ValueTask DisconnectAsync(CancellationToken ct = default);

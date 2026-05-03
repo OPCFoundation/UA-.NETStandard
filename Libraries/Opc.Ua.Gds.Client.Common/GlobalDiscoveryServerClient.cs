@@ -51,8 +51,8 @@ namespace Opc.Ua.Gds.Client
         /// <param name="diagnosticsMasks">Return diagnostics to use for all requests</param>
         public GlobalDiscoveryServerClient(
             ApplicationConfiguration configuration,
-            IUserIdentity adminUserIdentity = null,
-            ISessionFactory sessionFactory = null,
+            IUserIdentity? adminUserIdentity = null,
+            ISessionFactory? sessionFactory = null,
             DiagnosticsMasks diagnosticsMasks = DiagnosticsMasks.None)
             : this(configuration, options: null, adminUserIdentity, sessionFactory, diagnosticsMasks)
         {
@@ -69,9 +69,9 @@ namespace Opc.Ua.Gds.Client
         /// <param name="diagnosticsMasks">Return diagnostics to use for all requests.</param>
         public GlobalDiscoveryServerClient(
             ApplicationConfiguration configuration,
-            GdsClientOptions options,
-            IUserIdentity adminUserIdentity = null,
-            ISessionFactory sessionFactory = null,
+            GdsClientOptions? options,
+            IUserIdentity? adminUserIdentity = null,
+            ISessionFactory? sessionFactory = null,
             DiagnosticsMasks diagnosticsMasks = DiagnosticsMasks.None)
         {
             if (configuration == null) throw new ArgumentNullException(nameof(configuration));
@@ -94,10 +94,10 @@ namespace Opc.Ua.Gds.Client
         public IServiceMessageContext MessageContext { get; }
 
         /// <inheritdoc/>
-        public IUserIdentity AdminCredentials { get; set; }
+        public IUserIdentity? AdminCredentials { get; set; }
 
         /// <inheritdoc/>
-        public string EndpointUrl => m_endpoint?.EndpointUrl.ToString();
+        public string? EndpointUrl => m_endpoint?.EndpointUrl?.ToString();
 
         /// <inheritdoc/>
         public ArrayOf<string> PreferredLocales { get; set; }
@@ -156,20 +156,20 @@ namespace Opc.Ua.Gds.Client
         {
             get
             {
-                ISession session = Session;
+                ISession? session = Session;
                 return session is { Connected: true };
             }
         }
 
         /// <inheritdoc/>
-        public ISession Session { get; private set; }
+        public ISession? Session { get; private set; }
 
         /// <summary>
         /// Typed proxy for methods declared on the DirectoryType ObjectType
         /// (Find/Get/Query/Register/Unregister/UpdateApplication). Constructed
         /// after a successful connect and cleared on disconnect/dispose.
         /// </summary>
-        public DirectoryTypeClient Directory => m_directory;
+        public DirectoryTypeClient? Directory => m_directory;
 
         /// <summary>
         /// Typed proxy for methods declared on the CertificateDirectoryType
@@ -177,11 +177,11 @@ namespace Opc.Ua.Gds.Client
         /// RevokeCertificate/GetCertificate*/GetTrustList/CheckRevocationStatus).
         /// Constructed after a successful connect and cleared on disconnect/dispose.
         /// </summary>
-        public CertificateDirectoryTypeClient CertificateDirectory => m_certificateDirectory;
+        public CertificateDirectoryTypeClient? CertificateDirectory => m_certificateDirectory;
 
-        private DirectoryTypeClient m_directory;
+        private DirectoryTypeClient? m_directory;
 
-        private CertificateDirectoryTypeClient m_certificateDirectory;
+        private CertificateDirectoryTypeClient? m_certificateDirectory;
 
         /// <summary>
         /// Gets the endpoint. The setter is write-once: an endpoint may be
@@ -190,11 +190,11 @@ namespace Opc.Ua.Gds.Client
         /// credentials after a successful disconnect.
         /// </summary>
         /// <exception cref="InvalidOperationException"/>
-        public ConfiguredEndpoint Endpoint
+        public ConfiguredEndpoint? Endpoint
         {
             get
             {
-                ISession session = Session;
+                ISession? session = Session;
                 return session?.ConfiguredEndpoint ?? m_endpoint;
             }
             set
@@ -216,7 +216,7 @@ namespace Opc.Ua.Gds.Client
         }
         /// <inheritdoc/>
         public async ValueTask<List<string>> GetDefaultServerUrlsAsync(
-            LocalDiscoveryServerClient lds,
+            LocalDiscoveryServerClient? lds,
             CancellationToken ct = default)
         {
             var serverUrls = new List<string>();
@@ -239,7 +239,7 @@ namespace Opc.Ua.Gds.Client
                     {
                         continue;
                     }
-                    serverUrls.Add(server.DiscoveryUrl);
+                    serverUrls.Add(server.DiscoveryUrl!);
                 }
             }
             catch (Exception exception)
@@ -251,7 +251,7 @@ namespace Opc.Ua.Gds.Client
         }
         /// <inheritdoc/>
         public async ValueTask<List<string>> GetDefaultGdsUrlsAsync(
-            LocalDiscoveryServerClient lds,
+            LocalDiscoveryServerClient? lds,
             CancellationToken ct = default)
         {
             var gdsUrls = new List<string>();
@@ -269,7 +269,7 @@ namespace Opc.Ua.Gds.Client
                 {
                     if (server.ServerCapabilities.ToList().Contains(ServerCapability.GDS))
                     {
-                        gdsUrls.Add(server.DiscoveryUrl);
+                        gdsUrls.Add(server.DiscoveryUrl!);
                     }
                 }
             }
@@ -302,12 +302,12 @@ namespace Opc.Ua.Gds.Client
 
             int maxAttempts = m_options.MaxConnectAttempts;
             int backoffMs = (int)m_options.ConnectBackoff.TotalMilliseconds;
-            ServiceResultException lastException = null;
+            ServiceResultException? lastException = null;
             for (int attempt = 0; attempt < maxAttempts; attempt++)
             {
                 try
                 {
-                    EndpointDescription endpointDescription =
+                    EndpointDescription? endpointDescription =
                         await CoreClientUtils.SelectEndpointAsync(
                             Configuration,
                             endpointUrl,
@@ -317,7 +317,7 @@ namespace Opc.Ua.Gds.Client
                     var endpointConfiguration = EndpointConfiguration.Create(Configuration);
                     var endpoint = new ConfiguredEndpoint(
                         null,
-                        endpointDescription,
+                        endpointDescription!,
                         endpointConfiguration);
 
                     await ConnectInternalAsync(endpoint, false, ct).ConfigureAwait(false);
@@ -342,7 +342,7 @@ namespace Opc.Ua.Gds.Client
                 maxAttempts);
         }
         /// <inheritdoc/>
-        public async ValueTask ConnectAsync(ConfiguredEndpoint endpoint, CancellationToken ct = default)
+        public async ValueTask ConnectAsync(ConfiguredEndpoint? endpoint, CancellationToken ct = default)
         {
             if (endpoint == null)
             {
@@ -356,7 +356,7 @@ namespace Opc.Ua.Gds.Client
 
             int maxAttempts = m_options.MaxConnectAttempts;
             int backoffMs = (int)m_options.ConnectBackoff.TotalMilliseconds;
-            ServiceResultException lastException = null;
+            ServiceResultException? lastException = null;
             for (int attempt = 0; attempt < maxAttempts; attempt++)
             {
                 try
@@ -388,7 +388,7 @@ namespace Opc.Ua.Gds.Client
             await m_lock.WaitAsync(ct).ConfigureAwait(false);
             try
             {
-                ISession session = Session;
+                ISession? session = Session;
                 Session = null;
                 m_directory = null;
                 m_certificateDirectory = null;
@@ -399,7 +399,7 @@ namespace Opc.Ua.Gds.Client
                 }
                 try
                 {
-                    KeepAlive?.Invoke(session, null);
+                    KeepAlive?.Invoke(session, null!);
                     await session.CloseAsync(ct).ConfigureAwait(false);
                 }
                 finally
@@ -447,7 +447,7 @@ namespace Opc.Ua.Gds.Client
                     {
                         if (ReferenceEquals(session, Session))
                         {
-                            Session.Dispose();
+                            Session?.Dispose();
                             Session = null;
                             m_directory = null;
                             m_certificateDirectory = null;
@@ -465,36 +465,36 @@ namespace Opc.Ua.Gds.Client
             });
         }
 
-        private void Session_SessionClosing(object sender, EventArgs e)
+        private void Session_SessionClosing(object? sender, EventArgs e)
         {
             m_logger.LogInformation("The GDS Client session is closing.");
         }
 
         /// <inheritdoc/>
-        public event KeepAliveEventHandler KeepAlive;
+        public event KeepAliveEventHandler? KeepAlive;
 
         /// <summary>
         /// Occurs when the server status changes.
         /// </summary>
 #pragma warning disable CS0067
-        public event MonitoredItemNotificationEventHandler ServerStatusChanged;
+        public event MonitoredItemNotificationEventHandler? ServerStatusChanged;
 #pragma warning restore CS0067
         /// <inheritdoc/>
         public async ValueTask<ArrayOf<ApplicationRecordDataType>> FindApplicationAsync(
-            string applicationUri,
+            string? applicationUri,
             CancellationToken ct = default)
         {
             _ = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
-            return await m_directory.FindApplicationsAsync(
+            return await m_directory!.FindApplicationsAsync(
                 applicationUri ?? string.Empty,
                 ct).ConfigureAwait(false);
         }
         /// <inheritdoc/>
         public async ValueTask<ArrayOf<ServerOnNetwork>> QueryServersAsync(
             uint maxRecordsToReturn,
-            string applicationName,
-            string applicationUri,
-            string productUri,
+            string? applicationName,
+            string? applicationUri,
+            string? productUri,
             ArrayOf<string> serverCapabilities,
             CancellationToken ct = default)
         {
@@ -511,14 +511,14 @@ namespace Opc.Ua.Gds.Client
         public async ValueTask<(ArrayOf<ServerOnNetwork> servers, DateTimeUtc lastCounterResetTime)> QueryServersAsync(
             uint startingRecordId,
             uint maxRecordsToReturn,
-            string applicationName,
-            string applicationUri,
-            string productUri,
+            string? applicationName,
+            string? applicationUri,
+            string? productUri,
             ArrayOf<string> serverCapabilities,
             CancellationToken ct = default)
         {
             _ = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
-            (DateTimeUtc lastCounterResetTime, ArrayOf<ServerOnNetwork> servers) = await m_directory.QueryServersAsync(
+            (DateTimeUtc lastCounterResetTime, ArrayOf<ServerOnNetwork> servers) = await m_directory!.QueryServersAsync(
                 startingRecordId,
                 maxRecordsToReturn,
                 applicationName ?? string.Empty,
@@ -548,16 +548,16 @@ namespace Opc.Ua.Gds.Client
             uint nextRecordId)> QueryApplicationsAsync(
             uint startingRecordId,
             uint maxRecordsToReturn,
-            string applicationName,
-            string applicationUri,
+            string? applicationName,
+            string? applicationUri,
             uint applicationType,
-            string productUri,
+            string? productUri,
             ArrayOf<string> serverCapabilities,
             CancellationToken ct = default)
         {
             _ = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
             (DateTimeUtc lastCounterResetTime, uint nextRecordId, ArrayOf<ApplicationDescription> applications) =
-                await m_directory.QueryApplicationsAsync(
+                await m_directory!.QueryApplicationsAsync(
                     startingRecordId,
                     maxRecordsToReturn,
                     applicationName ?? string.Empty,
@@ -574,7 +574,7 @@ namespace Opc.Ua.Gds.Client
             CancellationToken ct = default)
         {
             _ = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
-            return await m_directory.GetApplicationAsync(applicationId, ct).ConfigureAwait(false);
+            return await m_directory!.GetApplicationAsync(applicationId, ct).ConfigureAwait(false);
         }
         /// <inheritdoc/>
         public async ValueTask<NodeId> RegisterApplicationAsync(
@@ -582,7 +582,7 @@ namespace Opc.Ua.Gds.Client
             CancellationToken ct = default)
         {
             _ = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
-            return await m_directory.RegisterApplicationAsync(application, ct).ConfigureAwait(false);
+            return await m_directory!.RegisterApplicationAsync(application, ct).ConfigureAwait(false);
         }
         /// <summary>
         /// Returns the Certificates assigned to Application and associated with the CertificateGroup.
@@ -601,7 +601,7 @@ namespace Opc.Ua.Gds.Client
             CancellationToken ct = default)
         {
             _ = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
-            return await m_certificateDirectory.GetCertificatesAsync(
+            return await m_certificateDirectory!.GetCertificatesAsync(
                 applicationId,
                 certificateGroupId,
                 ct).ConfigureAwait(false);
@@ -612,25 +612,25 @@ namespace Opc.Ua.Gds.Client
             CancellationToken ct = default)
         {
             _ = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
-            return await m_certificateDirectory.CheckRevocationStatusAsync(certificate, ct).ConfigureAwait(false);
+            return await m_certificateDirectory!.CheckRevocationStatusAsync(certificate, ct).ConfigureAwait(false);
         }
         /// <inheritdoc/>
         public async ValueTask UpdateApplicationAsync(ApplicationRecordDataType application, CancellationToken ct = default)
         {
             _ = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
-            await m_directory.UpdateApplicationAsync(application, ct).ConfigureAwait(false);
+            await m_directory!.UpdateApplicationAsync(application, ct).ConfigureAwait(false);
         }
         /// <inheritdoc/>
         public async ValueTask UnregisterApplicationAsync(NodeId applicationId, CancellationToken ct = default)
         {
             _ = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
-            await m_directory.UnregisterApplicationAsync(applicationId, ct).ConfigureAwait(false);
+            await m_directory!.UnregisterApplicationAsync(applicationId, ct).ConfigureAwait(false);
         }
         /// <inheritdoc/>
         public async ValueTask RevokeCertificateAsync(NodeId applicationId, ByteString certificate, CancellationToken ct = default)
         {
             _ = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
-            await m_certificateDirectory.RevokeCertificateAsync(applicationId, certificate, ct).ConfigureAwait(false);
+            await m_certificateDirectory!.RevokeCertificateAsync(applicationId, certificate, ct).ConfigureAwait(false);
         }
         /// <inheritdoc/>
         public async ValueTask<NodeId> StartNewKeyPairRequestAsync(
@@ -644,7 +644,7 @@ namespace Opc.Ua.Gds.Client
             CancellationToken ct = default)
         {
             _ = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
-            return await m_certificateDirectory.StartNewKeyPairRequestAsync(
+            return await m_certificateDirectory!.StartNewKeyPairRequestAsync(
                 applicationId,
                 certificateGroupId,
                 certificateTypeId,
@@ -663,7 +663,7 @@ namespace Opc.Ua.Gds.Client
             CancellationToken ct = default)
         {
             _ = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
-            return await m_certificateDirectory.StartSigningRequestAsync(
+            return await m_certificateDirectory!.StartSigningRequestAsync(
                 applicationId,
                 certificateGroupId,
                 certificateTypeId,
@@ -684,20 +684,20 @@ namespace Opc.Ua.Gds.Client
         {
             _ = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
             (ByteString certificate, ByteString privateKey, ArrayOf<ByteString> issuerCertificates) =
-                await m_certificateDirectory.FinishRequestAsync(applicationId, requestId, ct).ConfigureAwait(false);
+                await m_certificateDirectory!.FinishRequestAsync(applicationId, requestId, ct).ConfigureAwait(false);
             return (certificate, privateKey, issuerCertificates);
         }
         /// <inheritdoc/>
         public async ValueTask<ArrayOf<NodeId>> GetCertificateGroupsAsync(NodeId applicationId, CancellationToken ct = default)
         {
             _ = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
-            return await m_certificateDirectory.GetCertificateGroupsAsync(applicationId, ct).ConfigureAwait(false);
+            return await m_certificateDirectory!.GetCertificateGroupsAsync(applicationId, ct).ConfigureAwait(false);
         }
         /// <inheritdoc/>
         public async ValueTask<NodeId> GetTrustListAsync(NodeId applicationId, NodeId certificateGroupId, CancellationToken ct = default)
         {
             _ = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
-            return await m_certificateDirectory.GetTrustListAsync(
+            return await m_certificateDirectory!.GetTrustListAsync(
                 applicationId,
                 certificateGroupId,
                 ct).ConfigureAwait(false);
@@ -710,7 +710,7 @@ namespace Opc.Ua.Gds.Client
             CancellationToken ct = default)
         {
             _ = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
-            return await m_certificateDirectory.GetCertificateStatusAsync(
+            return await m_certificateDirectory!.GetCertificateStatusAsync(
                 applicationId,
                 certificateGroupId,
                 certificateTypeId,
@@ -772,7 +772,7 @@ namespace Opc.Ua.Gds.Client
                     endpoint,
                     updateBeforeConnect,
                     false,
-                    Configuration.ApplicationName,
+                    Configuration.ApplicationName!,
                     (uint)m_options.SessionTimeout.TotalMilliseconds,
                     AdminCredentials,
                     PreferredLocales,
@@ -840,7 +840,7 @@ namespace Opc.Ua.Gds.Client
         private readonly ILogger m_logger;
         private readonly GdsClientOptions m_options;
         private readonly CancellationTokenSource m_disposeCts = new();
-        private ConfiguredEndpoint m_endpoint;
+        private ConfiguredEndpoint? m_endpoint;
         private bool m_disposed;
     }
 }

@@ -51,63 +51,63 @@ namespace Opc.Ua.Gds.Client
     public sealed record RegisteredApplication
     {
         /// <summary>The application URI.</summary>
-        public string ApplicationUri { get; set; }
+        public string? ApplicationUri { get; set; }
 
         /// <summary>The human readable application name.</summary>
-        public string ApplicationName { get; set; }
+        public string? ApplicationName { get; set; }
 
         /// <summary>The product URI.</summary>
-        public string ProductUri { get; set; }
+        public string? ProductUri { get; set; }
 
         /// <summary>The discovery URLs of the application.</summary>
         [XmlElement("DiscoveryUrl")]
-        public string[] DiscoveryUrl { get; set; }
+        public string[]? DiscoveryUrl { get; set; }
 
         /// <summary>The server capability identifiers.</summary>
         [XmlElement("ServerCapability")]
-        public string[] ServerCapability { get; set; }
+        public string[]? ServerCapability { get; set; }
 
         /// <summary>Configuration file path.</summary>
-        public string ConfigurationFile { get; set; }
+        public string? ConfigurationFile { get; set; }
 
         /// <summary>The base server URL.</summary>
-        public string ServerUrl { get; set; }
+        public string? ServerUrl { get; set; }
 
         /// <summary>Path to the certificate store.</summary>
-        public string CertificateStorePath { get; set; }
+        public string? CertificateStorePath { get; set; }
 
         /// <summary>Subject name for the application certificate.</summary>
-        public string CertificateSubjectName { get; set; }
+        public string? CertificateSubjectName { get; set; }
 
         /// <summary>Path to the public key portion of the application certificate.</summary>
-        public string CertificatePublicKeyPath { get; set; }
+        public string? CertificatePublicKeyPath { get; set; }
 
         /// <summary>Path to the private key portion of the application certificate.</summary>
-        public string CertificatePrivateKeyPath { get; set; }
+        public string? CertificatePrivateKeyPath { get; set; }
 
         /// <summary>Path to the trust list store.</summary>
-        public string TrustListStorePath { get; set; }
+        public string? TrustListStorePath { get; set; }
 
         /// <summary>Path to the issuer list store.</summary>
-        public string IssuerListStorePath { get; set; }
+        public string? IssuerListStorePath { get; set; }
 
         /// <summary>Path to the public key portion of the HTTPS certificate.</summary>
-        public string HttpsCertificatePublicKeyPath { get; set; }
+        public string? HttpsCertificatePublicKeyPath { get; set; }
 
         /// <summary>Path to the private key portion of the HTTPS certificate.</summary>
-        public string HttpsCertificatePrivateKeyPath { get; set; }
+        public string? HttpsCertificatePrivateKeyPath { get; set; }
 
         /// <summary>Path to the HTTPS trust list store.</summary>
-        public string HttpsTrustListStorePath { get; set; }
+        public string? HttpsTrustListStorePath { get; set; }
 
         /// <summary>Path to the HTTPS issuer list store.</summary>
-        public string HttpsIssuerListStorePath { get; set; }
+        public string? HttpsIssuerListStorePath { get; set; }
 
         /// <summary>Outstanding certificate request identifier.</summary>
-        public string CertificateRequestId { get; set; }
+        public string? CertificateRequestId { get; set; }
 
         /// <summary>Comma separated list of additional domain names.</summary>
-        public string Domains { get; set; }
+        public string? Domains { get; set; }
 
         /// <summary>The registration kind.</summary>
         [XmlAttribute]
@@ -115,14 +115,14 @@ namespace Opc.Ua.Gds.Client
 
         /// <summary>The application identifier assigned by the GDS.</summary>
         [XmlIgnore]
-        public string ApplicationId { get; set; }
+        public string? ApplicationId { get; set; }
 
         /// <summary>
         /// Gets the host name to use as the HTTPS domain. Returns the IDN host
         /// of the first well formed discovery URL, with <c>localhost</c>
         /// replaced by the local host name.
         /// </summary>
-        public string GetHttpsDomainName()
+        public string? GetHttpsDomainName()
         {
             if (DiscoveryUrl != null)
             {
@@ -145,14 +145,16 @@ namespace Opc.Ua.Gds.Client
         /// based on the registration kind and the supplied set of formats
         /// supported by the server.
         /// </summary>
-        public string GetPrivateKeyFormat(string[] privateKeyFormats = null)
+        public string GetPrivateKeyFormat(string[]? privateKeyFormats = null)
         {
             string privateKeyFormat = "PFX";
 
             if (RegistrationType != RegistrationType.ServerPush)
             {
+                // string.IsNullOrEmpty is not annotated with [NotNullWhen(false)] on
+                // net472/net48, so the post-condition does not flow through there.
                 if (!string.IsNullOrEmpty(CertificatePrivateKeyPath) &&
-                    CertificatePrivateKeyPath.EndsWith("PEM", StringComparison.OrdinalIgnoreCase))
+                    CertificatePrivateKeyPath!.EndsWith("PEM", StringComparison.OrdinalIgnoreCase))
                 {
                     privateKeyFormat = "PEM";
                 }
@@ -170,13 +172,15 @@ namespace Opc.Ua.Gds.Client
         /// Returns the list of domain names to include in a certificate
         /// request for the application.
         /// </summary>
-        public List<string> GetDomainNames(X509Certificate2 certificate)
+        public List<string> GetDomainNames(X509Certificate2? certificate)
         {
             var domainNames = new List<string>();
 
             if (!string.IsNullOrEmpty(Domains))
             {
-                string[] domains = Domains.Split(',');
+                // string.IsNullOrEmpty is not annotated with [NotNullWhen(false)] on
+                // net472/net48, so the post-condition does not flow through there.
+                string[] domains = Domains!.Split(',');
                 var trimmedDomains = new List<string>();
 
                 foreach (string domain in domains)
@@ -243,7 +247,7 @@ namespace Opc.Ua.Gds.Client
                 }
 
                 List<string> fields = X509Utils.ParseDistinguishedName(certificate.Subject);
-                string name = null;
+                string? name = null;
 
                 foreach (string field in fields)
                 {

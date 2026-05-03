@@ -90,8 +90,8 @@ namespace Opc.Ua.Gds.Client
         }
 
         public async ValueTask<ArrayOf<ApplicationDescription>> FindServersAsync(
-            string endpointUrl,
-            string endpointTransportProfileUri,
+            string? endpointUrl,
+            string? endpointTransportProfileUri,
             CancellationToken ct = default)
         {
             DiscoveryClient client = await CreateClientAsync(
@@ -115,7 +115,7 @@ namespace Opc.Ua.Gds.Client
 
         public async ValueTask<ArrayOf<EndpointDescription>> GetEndpointsAsync(
             string endpointUrl,
-            string endpointTransportProfileUri,
+            string? endpointTransportProfileUri,
             CancellationToken ct = default)
         {
             DiscoveryClient client = await CreateClientAsync(endpointUrl, endpointTransportProfileUri, ct).ConfigureAwait(false);
@@ -145,8 +145,8 @@ namespace Opc.Ua.Gds.Client
         }
 
         public async ValueTask<(ArrayOf<ServerOnNetwork>, DateTimeUtc lastCounterResetTime)> FindServersOnNetworkAsync(
-            string endpointUrl,
-            string endpointTransportProfileUri,
+            string? endpointUrl,
+            string? endpointTransportProfileUri,
             uint startingRecordId,
             uint maxRecordsToReturn,
             ArrayOf<string> serverCapabilityFilters,
@@ -164,8 +164,8 @@ namespace Opc.Ua.Gds.Client
             return (response.Servers, response.LastCounterResetTime);
         }
         protected virtual Task<DiscoveryClient> CreateClientAsync(
-            string endpointUrl,
-            string endpointTransportProfileUri,
+            string? endpointUrl,
+            string? endpointTransportProfileUri,
             CancellationToken ct = default)
         {
             if (string.IsNullOrEmpty(endpointUrl))

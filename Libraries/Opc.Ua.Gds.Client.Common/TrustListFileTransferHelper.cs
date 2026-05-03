@@ -132,7 +132,7 @@ namespace Opc.Ua.Gds.Client
             using var strm = new MemoryStream();
             using (var encoder = new BinaryEncoder(strm, messageContext, true))
             {
-                encoder.WriteEncodeable(null, trustList);
+                encoder.WriteEncodeable(null!, trustList);
             }
             strm.Position = 0;
 
