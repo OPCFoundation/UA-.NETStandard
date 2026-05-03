@@ -35,6 +35,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Security.Certificates;
 using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
 using System.Diagnostics;
 #if !NET9_0_OR_GREATER
 using System.Runtime.InteropServices;
@@ -612,17 +613,78 @@ namespace Opc.Ua.Server
                 {
                     try
                     {
-                        // verify cert with issuer chain
-                        var certValidator = new CertificateValidator(Server.Telemetry);
-                        var issuerStore = new CertificateTrustList();
-                        var issuerList = new List<CertificateIdentifier>();
+                        // Verify chain integrity: build a chain rooted at any of the provided
+                        // issuer certificates and ensure all signatures are valid. We do not
+                        // consult the application's trust list here — the caller is supplying
+                        // the issuer chain as part of the UpdateCertificate input.
+                        var chainPolicy = new X509ChainPolicy
+                        {
+                            RevocationFlag = X509RevocationFlag.EntireChain,
+                            RevocationMode = X509RevocationMode.NoCheck,
+                            VerificationFlags
+                                = X509VerificationFlags.AllowUnknownCertificateAuthority |
+                                  X509VerificationFlags.IgnoreCertificateAuthorityRevocationUnknown |
+                                  X509VerificationFlags.IgnoreEndRevocationUnknown |
+                                  X509VerificationFlags.IgnoreRootRevocationUnknown,
+#if NET5_0_OR_GREATER
+                            DisableCertificateDownloads = true,
+#endif
+                            UrlRetrievalTimeout = TimeSpan.FromMilliseconds(1)
+                        };
+
+                        var extraIssuers = new List<X509Certificate2>(newIssuerCollection.Count);
                         foreach (Certificate issuerCert in newIssuerCollection)
                         {
-                            issuerList.Add(new CertificateIdentifier(issuerCert));
+                            X509Certificate2 issuerX509 = issuerCert.AsX509Certificate2();
+                            extraIssuers.Add(issuerX509);
+                            chainPolicy.ExtraStore.Add(issuerX509);
                         }
-                        issuerStore.TrustedCertificates = issuerList.ToArrayOf();
-                        certValidator.Update(issuerStore, issuerStore, null);
-                        await certValidator.ValidateAsync(newCert, ct).ConfigureAwait(false);
+
+                        try
+                        {
+                            using var chain = new X509Chain { ChainPolicy = chainPolicy };
+                            using X509Certificate2 newCertX509 = newCert.AsX509Certificate2();
+                            chain.Build(newCertX509);
+
+                            foreach (X509ChainStatus chainStatus in chain.ChainStatus ?? [])
+                            {
+                                if (chainStatus.Status == X509ChainStatusFlags.NoError ||
+                                    chainStatus.Status == X509ChainStatusFlags.UntrustedRoot)
+                                {
+                                    continue;
+                                }
+                                if (chainStatus.Status == X509ChainStatusFlags.NotSignatureValid ||
+                                    chainStatus.Status == X509ChainStatusFlags.PartialChain ||
+                                    chainStatus.Status == X509ChainStatusFlags.NotValidForUsage ||
+                                    chainStatus.Status == X509ChainStatusFlags.InvalidBasicConstraints)
+                                {
+                                    throw new ServiceResultException(
+                                        StatusCodes.BadSecurityChecksFailed,
+                                        Utils.Format(
+                                            "Certificate chain validation failed. {0}: {1}",
+                                            chainStatus.Status,
+                                            chainStatus.StatusInformation));
+                                }
+                            }
+
+                            if (newIssuerCollection.Count + 1 != chain.ChainElements.Count)
+                            {
+                                throw new ServiceResultException(
+                                    StatusCodes.BadSecurityChecksFailed,
+                                    "The supplied issuer chain is incomplete.");
+                            }
+                        }
+                        finally
+                        {
+                            foreach (X509Certificate2 extra in extraIssuers)
+                            {
+                                extra.Dispose();
+                            }
+                        }
+                    }
+                    catch (ServiceResultException)
+                    {
+                        throw;
                     }
                     catch (Exception ex)
                     {
