@@ -59,7 +59,7 @@ namespace Opc.Ua
         /// This is the object used by the channel to validate received certificates.
         /// Validatation errors are reported to the application via this object.
         /// </remarks>
-        public ICertificateValidator CertificateValidator { get; set; }
+        public ICertificateValidatorEx CertificateValidator { get; set; }
 
         /// <summary>
         /// Gets or sets a reference to the table of namespaces for the server.

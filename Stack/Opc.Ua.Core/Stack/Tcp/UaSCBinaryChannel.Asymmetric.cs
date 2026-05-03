@@ -1066,13 +1066,12 @@ namespace Opc.Ua.Bindings
                         Quotas.CertificateValidator != null &&
                         securityPolicyUri != SecurityPolicies.None)
                     {
-                        if (Quotas.CertificateValidator is CertificateValidator certificateValidator)
+                        CertificateValidationResult validationResult = Quotas.CertificateValidator
+                            .ValidateAsync(senderCertificateChain, ct: default)
+                            .GetAwaiter().GetResult();
+                        if (!validationResult.IsValid)
                         {
-                            certificateValidator.ValidateAsync(senderCertificateChain, default).GetAwaiter().GetResult();
-                        }
-                        else
-                        {
-                            Quotas.CertificateValidator.ValidateAsync(senderCertificate, default).GetAwaiter().GetResult();
+                            throw new ServiceResultException(validationResult.StatusCode);
                         }
                     }
                 }

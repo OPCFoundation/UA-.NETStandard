@@ -78,7 +78,7 @@ namespace Opc.Ua
         /// Updates the application certificate for a listener.
         /// </summary>
         void CertificateUpdate(
-            ICertificateValidator validator,
+            ICertificateValidatorEx validator,
             CertificateTypesProvider serverCertificateTypes);
 
         /// <summary>

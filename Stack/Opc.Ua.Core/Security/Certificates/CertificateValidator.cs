@@ -2652,7 +2652,7 @@ namespace Opc.Ua
         /// </summary>
         public CertificateUpdateEventArgs(
             SecurityConfiguration configuration,
-            ICertificateValidator validator)
+            ICertificateValidatorEx validator)
         {
             SecurityConfiguration = configuration;
             CertificateValidator = validator;
@@ -2666,7 +2666,7 @@ namespace Opc.Ua
         /// <summary>
         /// The new certificate validator.
         /// </summary>
-        public ICertificateValidator CertificateValidator { get; }
+        public ICertificateValidatorEx CertificateValidator { get; }
     }
 
     /// <summary>

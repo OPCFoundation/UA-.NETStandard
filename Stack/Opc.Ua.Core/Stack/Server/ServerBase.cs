@@ -829,7 +829,7 @@ namespace Opc.Ua
             List<EndpointDescription> endpoints,
             EndpointConfiguration endpointConfiguration,
             ITransportListener listener,
-            ICertificateValidator certificateValidator)
+            ICertificateValidatorEx certificateValidator)
         {
             // create the stack listener.
             try

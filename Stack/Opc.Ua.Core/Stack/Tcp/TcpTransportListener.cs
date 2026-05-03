@@ -799,7 +799,7 @@ namespace Opc.Ua.Bindings
         /// Called when a UpdateCertificate event occured.
         /// </summary>
         public void CertificateUpdate(
-            ICertificateValidator validator,
+            ICertificateValidatorEx validator,
             CertificateTypesProvider serverCertificateTypes)
         {
             m_quotas.CertificateValidator = validator;
