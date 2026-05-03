@@ -875,6 +875,189 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             }
         }
 
+        [Test]
+        [Order(900)]
+        [CancelAfter(120_000)]
+        public async Task TransferSubscriptionsKeepsV2SubscriptionWorkingAfterReconnect(
+            CancellationToken ct)
+        {
+            // End-to-end exercise of the V2 subscription engine's
+            // TransferSubscriptions code path:
+            //   1. Connect a ManagedSession (V2 engine, default).
+            //   2. Create a V2 subscription with a monitored item and
+            //      verify it delivers data.
+            //   3. Capture the inner SessionId.
+            //   4. Force a transport-level reconnect (channel disposal).
+            //      Session.ReconnectAsync replaces the channel but keeps
+            //      the SessionId, so the V2 subscription state stays
+            //      bound to the same logical session.
+            //   5. Verify data resumes after reconnect.
+            //   6. Set V2 SubscriptionManager.TransferSubscriptionsOnRecreate
+            //      to true and call its internal RecreateSubscriptionsAsync
+            //      with the original SessionId. This drives the V2
+            //      TransferSubscriptions service call against the inner
+            //      session for every Created subscription. Because the
+            //      subscriptions are already members of the current
+            //      session, the server returns BadNothingToDo for each,
+            //      which the V2 manager treats as a successful transfer
+            //      (the subscription stays Created and continues to
+            //      publish).
+            //   7. Verify that the V2 subscription still reports Created
+            //      and continues to deliver data after the transfer
+            //      attempt, i.e. the transfer plumbing leaves the
+            //      subscription in a working state on the (reconnected)
+            //      session.
+            //
+            // Note: a true cross-session transfer (subscription created
+            // on session A, adopted by V2 manager bound to session B)
+            // requires V2 engine support for session swap that does not
+            // yet exist (see the SubscriptionAfterFailoverIsNotRecreated
+            // _KnownLimitation test). This test pins the in-process V2
+            // transfer path which is the only path the engine currently
+            // wires up.
+            ConfiguredEndpoint endpoint = await ClientFixture
+                .GetEndpointAsync(ServerUrl, SecurityPolicies.None)
+                .ConfigureAwait(false);
+
+            ManagedSessionType session = await new ManagedSessionBuilder(
+                    ClientFixture.Config, Telemetry)
+                .UseEndpoint(endpoint)
+                .WithSessionName(
+                    nameof(TransferSubscriptionsKeepsV2SubscriptionWorkingAfterReconnect))
+                .WithSessionTimeout(TimeSpan.FromSeconds(60))
+                .WithReconnectPolicy(p => p with
+                {
+                    Strategy = BackoffStrategy.Constant,
+                    InitialDelay = TimeSpan.FromMilliseconds(200),
+                    MaxRetries = 0,
+                    JitterFactor = 0.0
+                })
+                .ConnectAsync(ct)
+                .ConfigureAwait(false);
+
+            session.KeepAliveInterval = 1_000;
+
+            var handler = new SubscriptionRecordingHandler();
+            try
+            {
+                V2.ISubscription subscription = session.AddSubscription(
+                    handler,
+                    new V2.SubscriptionOptions
+                    {
+                        PublishingEnabled = true,
+                        PublishingInterval = TimeSpan.FromMilliseconds(250),
+                        KeepAliveCount = 10,
+                        LifetimeCount = 100,
+                        Priority = 0
+                    });
+
+                Assert.That(
+                    subscription.TryAddMonitoredItem(
+                        "ServerCurrentTime",
+                        VariableIds.Server_ServerStatus_CurrentTime,
+                        opt => opt with
+                        {
+                            SamplingInterval = TimeSpan.FromMilliseconds(250),
+                            QueueSize = 10
+                        },
+                        out _),
+                    Is.True,
+                    "TryAddMonitoredItem should succeed.");
+
+                Assert.That(
+                    await WaitForAsync(
+                        () => subscription.Created,
+                        TimeSpan.FromSeconds(15), ct).ConfigureAwait(false),
+                    Is.True,
+                    "Subscription should be created on the server.");
+
+                Assert.That(
+                    await handler.WaitForDataAsync(
+                        TimeSpan.FromSeconds(10), ct).ConfigureAwait(false),
+                    Is.True,
+                    "Initial data change must arrive before reconnect.");
+
+                NodeId originalSessionId = session.SessionId;
+                Assert.That(
+                    originalSessionId, Is.Not.EqualTo(NodeId.Null),
+                    "Inner session must have a SessionId after Connect.");
+
+                // Force an automatic reconnect by disposing the
+                // transport channel.
+                var reconnected = new TaskCompletionSource<bool>(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
+                session.ConnectionStateChanged += (_, e) =>
+                {
+                    if (e.PreviousState == ConnectionState.Reconnecting &&
+                        e.NewState == ConnectionState.Connected)
+                    {
+                        reconnected.TrySetResult(true);
+                    }
+                };
+
+                TestContext.Out.WriteLine(
+                    "Closing transport channel to force reconnect…");
+                session.InnerSession.TransportChannel.Dispose();
+
+                bool reconnectOk = await WaitOrCanceledAsync(
+                    reconnected.Task,
+                    TimeSpan.FromSeconds(60),
+                    ct).ConfigureAwait(false);
+                Assert.That(
+                    reconnectOk, Is.True,
+                    "Session must auto-reconnect after channel loss.");
+                Assert.That(session.Connected, Is.True);
+                Assert.That(
+                    session.SessionId, Is.EqualTo(originalSessionId),
+                    "Reconnect must preserve the inner SessionId.");
+
+                handler.ResetDataSignal();
+                Assert.That(
+                    await handler.WaitForDataAsync(
+                        TimeSpan.FromSeconds(20), ct).ConfigureAwait(false),
+                    Is.True,
+                    "Subscription must continue to deliver data after " +
+                    "the reconnect (before the explicit transfer).");
+
+                // Drive the V2 TransferSubscriptions code path against
+                // the (reconnected) inner session. The concrete
+                // SubscriptionManager type is internal but accessible
+                // to this test project via InternalsVisibleTo.
+                var concreteManager =
+                    (V2.SubscriptionManager)session.SubscriptionManager;
+                concreteManager.TransferSubscriptionsOnRecreate = true;
+
+                int snapshotCountBeforeTransfer = handler.DataChangeCount;
+
+                await concreteManager
+                    .RecreateSubscriptionsAsync(originalSessionId, ct)
+                    .ConfigureAwait(false);
+
+                Assert.That(
+                    subscription.Created, Is.True,
+                    "Subscription must remain Created after the V2 " +
+                    "TransferSubscriptions service call.");
+
+                handler.ResetDataSignal();
+                Assert.That(
+                    await handler.WaitForDataAsync(
+                        TimeSpan.FromSeconds(20), ct).ConfigureAwait(false),
+                    Is.True,
+                    "Subscription must continue to deliver data after " +
+                    "the explicit V2 TransferSubscriptions call.");
+
+                Assert.That(
+                    handler.DataChangeCount,
+                    Is.GreaterThan(snapshotCountBeforeTransfer),
+                    "DataChangeCount must increase after the transfer.");
+            }
+            finally
+            {
+                await session.CloseAsync().ConfigureAwait(false);
+                await session.DisposeAsync().ConfigureAwait(false);
+            }
+        }
+
         /// <summary>
         /// Test double for <see cref="V2.ISubscriptionNotificationHandler"/>
         /// that records data-change/keep-alive/event counts and exposes a
