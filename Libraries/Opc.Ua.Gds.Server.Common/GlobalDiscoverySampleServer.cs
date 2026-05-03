@@ -215,7 +215,7 @@ namespace Opc.Ua.Gds.Server
             {
                 if (m_contexts.TryGetValue(
                     context.RequestId,
-                    out ImpersonationContext impersonationContext))
+                    out ImpersonationContext? impersonationContext))
                 {
                     m_contexts.Remove(context.RequestId);
                 }
@@ -234,7 +234,7 @@ namespace Opc.Ua.Gds.Server
             {
                 IEnumerable<Role> roles = m_userDatabase.GetUserRoles(userNameToken.UserName);
 
-                UserIdentity tempIdentity = null;
+                UserIdentity? tempIdentity = null;
                 try
                 {
                     tempIdentity = new UserIdentity(userNameToken);
@@ -283,24 +283,24 @@ namespace Opc.Ua.Gds.Server
         /// <param name="session">the session</param>
         private bool VerifiyApplicationRegistered(ISession session)
         {
-            X509Certificate2 applicationInstanceCertificate = session.ClientCertificate;
+            X509Certificate2? applicationInstanceCertificate = session.ClientCertificate;
             bool applicationRegistered = false;
 
-            Uri applicationUri = Utils.ParseUri(
+            Uri? applicationUri = Utils.ParseUri(
                 session.SessionDiagnostics.ClientDescription.ApplicationUri);
-            X509Utils.DoesUrlMatchCertificate(applicationInstanceCertificate, applicationUri);
+            X509Utils.DoesUrlMatchCertificate(applicationInstanceCertificate!, applicationUri!);
 
             // get access to GDS configuration section to find out ApplicationCertificatesStorePath
             GlobalDiscoveryServerConfiguration configuration =
-                Configuration.ParseExtension<GlobalDiscoveryServerConfiguration>()
+                Configuration!.ParseExtension<GlobalDiscoveryServerConfiguration>()
                 ?? new GlobalDiscoveryServerConfiguration();
             // check if application certificate is in the Store of the GDS
             var certificateStoreIdentifier = new CertificateStoreIdentifier(
-                configuration.ApplicationCertificatesStorePath);
+                configuration.ApplicationCertificatesStorePath!);
             using (ICertificateStore applicationsStore = certificateStoreIdentifier.OpenStore(MessageContext.Telemetry))
             {
                 X509Certificate2Collection matchingCerts = applicationsStore
-                    .FindByThumbprintAsync(applicationInstanceCertificate.Thumbprint)
+                    .FindByThumbprintAsync(applicationInstanceCertificate!.Thumbprint)
                     .Result;
 
                 if (matchingCerts.Contains(applicationInstanceCertificate))
@@ -315,7 +315,7 @@ namespace Opc.Ua.Gds.Server
             }
             // check if application certificate is revoked
             certificateStoreIdentifier = new CertificateStoreIdentifier(
-                configuration.AuthoritiesStorePath);
+                configuration.AuthoritiesStorePath!);
             using (ICertificateStore authoritiesStore = certificateStoreIdentifier.OpenStore(MessageContext.Telemetry))
             {
                 foreach (X509CRL crl in authoritiesStore.EnumerateCRLsAsync().Result)
@@ -338,8 +338,8 @@ namespace Opc.Ua.Gds.Server
             using var x509TokenHandler = new X509IdentityTokenHandler(token);
             try
             {
-                CertificateValidator.ValidateAsync(
-                    x509TokenHandler.Certificate,
+                CertificateValidator!.ValidateAsync(
+                    x509TokenHandler.Certificate!,
                     default).GetAwaiter().GetResult();
             }
             catch (Exception e)
@@ -353,7 +353,7 @@ namespace Opc.Ua.Gds.Server
                         "InvalidCertificate",
                         "en-US",
                         "'{0}' is an invalid user certificate.",
-                        x509TokenHandler.Certificate.Subject);
+                        x509TokenHandler.Certificate!.Subject);
 
                     result = StatusCodes.BadIdentityTokenInvalid;
                 }
@@ -364,7 +364,7 @@ namespace Opc.Ua.Gds.Server
                         "UntrustedCertificate",
                         "en-US",
                         "'{0}' is not a trusted user certificate.",
-                        x509TokenHandler.Certificate.Subject);
+                        x509TokenHandler.Certificate!.Subject);
                 }
 
                 // create an exception with a vendor defined sub-code.
@@ -390,8 +390,8 @@ namespace Opc.Ua.Gds.Server
         /// <param name="args">the impersonateEventArgs</param>
         private void ImpersonateAsApplicationSelfAdmin(ISession session, ImpersonateEventArgs args)
         {
-            string applicationUri = session.SessionDiagnostics.ClientDescription.ApplicationUri;
-            ApplicationRecordDataType[] application = m_database.FindApplications(applicationUri);
+            string? applicationUri = session.SessionDiagnostics.ClientDescription.ApplicationUri;
+            ApplicationRecordDataType[]? application = m_database.FindApplications(applicationUri!);
             if (application == null || application.Length != 1)
             {
                 m_logger.LogInformation(
@@ -399,11 +399,11 @@ namespace Opc.Ua.Gds.Server
                     applicationUri);
                 return;
             }
-            NodeId applicationId = application.FirstOrDefault().ApplicationId;
+            NodeId applicationId = application.FirstOrDefault()!.ApplicationId;
             m_logger.LogInformation(
                 "Application {ApplicationUri} accepted based on ApplicationInstanceCertificate as ApplicationSelfAdmin",
                 applicationUri);
-            UserIdentity tempIdentity = null;
+            UserIdentity? tempIdentity = null;
             try
             {
                 tempIdentity = new UserIdentity();

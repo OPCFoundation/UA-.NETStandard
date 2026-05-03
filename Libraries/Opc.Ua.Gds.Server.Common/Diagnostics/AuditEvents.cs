@@ -61,7 +61,7 @@ namespace Opc.Ua.Gds.Server.Diagnostics
                     "en-US",
                     "CertificateUpdateRequestedAuditEvent.");
 
-                e.Initialize(systemContext, null, EventSeverity.Min, new LocalizedText(message), true, DateTime.UtcNow); // initializes Status, ActionTimeStamp, ServerId, ClientAuditEntryId, ClientUserId
+                e.Initialize(systemContext, null!, EventSeverity.Min, new LocalizedText(message), true, DateTime.UtcNow); // initializes Status, ActionTimeStamp, ServerId, ClientAuditEntryId, ClientUserId
 
                 e.SetChildValue(systemContext, Ua.BrowseNames.SourceNode, objectId, false);
                 e.SetChildValue(
@@ -113,7 +113,7 @@ namespace Opc.Ua.Gds.Server.Diagnostics
             NodeId certificateGroupId,
             NodeId certificateTypeId,
             ILogger logger,
-            Exception exception = null)
+            Exception? exception = null)
         {
             try
             {
@@ -137,7 +137,7 @@ namespace Opc.Ua.Gds.Server.Diagnostics
 
                 e.Initialize(
                     systemContext,
-                    null,
+                    null!,
                     EventSeverity.Min,
                     new LocalizedText(message),
                     exception == null,
@@ -210,7 +210,7 @@ namespace Opc.Ua.Gds.Server.Diagnostics
                     "en-US",
                     "ApplicationRegistrationChangedAuditEvent.");
 
-                e.Initialize(systemContext, null, EventSeverity.Min, new LocalizedText(message), true, DateTime.UtcNow); // initializes Status, ActionTimeStamp, ServerId, ClientAuditEntryId, ClientUserId
+                e.Initialize(systemContext, null!, EventSeverity.Min, new LocalizedText(message), true, DateTime.UtcNow); // initializes Status, ActionTimeStamp, ServerId, ClientAuditEntryId, ClientUserId
 
                 e.SetChildValue(systemContext, Ua.BrowseNames.SourceNode, objectId, false);
                 e.SetChildValue(

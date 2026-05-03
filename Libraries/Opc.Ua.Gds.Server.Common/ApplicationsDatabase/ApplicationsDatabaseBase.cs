@@ -153,18 +153,18 @@ namespace Opc.Ua.Gds.Server.Database
             ValidateApplicationNodeId(applicationId);
         }
 
-        public virtual ApplicationRecordDataType GetApplication(NodeId applicationId)
+        public virtual ApplicationRecordDataType? GetApplication(NodeId applicationId)
         {
             ValidateApplicationNodeId(applicationId);
             return null;
         }
 
-        public virtual ApplicationRecordDataType[] FindApplications(string applicationUri)
+        public virtual ApplicationRecordDataType[]? FindApplications(string applicationUri)
         {
             return null;
         }
 
-        public virtual ServerOnNetwork[] QueryServers(
+        public virtual ServerOnNetwork[]? QueryServers(
             uint startingRecordId,
             uint maxRecordsToReturn,
             string applicationName,
@@ -177,7 +177,7 @@ namespace Opc.Ua.Gds.Server.Database
             return null;
         }
 
-        public virtual ApplicationDescription[] QueryApplications(
+        public virtual ApplicationDescription[]? QueryApplications(
             uint startingRecordId,
             uint maxRecordsToReturn,
             string applicationName,
@@ -224,7 +224,7 @@ namespace Opc.Ua.Gds.Server.Database
         public virtual bool GetApplicationTrustLists(
             NodeId applicationId,
             string certificateTypeId,
-            out string trustListId)
+            out string? trustListId)
         {
             trustListId = null;
             ValidateApplicationNodeId(applicationId);
@@ -238,9 +238,9 @@ namespace Opc.Ua.Gds.Server.Database
         /// <param name="target">String to check for a pattern match.</param>
         /// <param name="pattern">Pattern to match with the target string.</param>
         /// <returns>true if the target string matches the pattern, otherwise false.</returns>
-        public static bool Match(string target, string pattern)
+        public static bool Match(string? target, string pattern)
         {
-            if (string.IsNullOrEmpty(target))
+            if (target == null || target.Length == 0)
             {
                 return false;
             }
@@ -338,7 +338,7 @@ namespace Opc.Ua.Gds.Server.Database
             return id;
         }
 
-        protected string GetNodeIdString(NodeId nodeId)
+        protected string? GetNodeIdString(NodeId nodeId)
         {
             if (nodeId.IsNull)
             {

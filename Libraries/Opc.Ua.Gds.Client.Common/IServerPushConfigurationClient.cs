@@ -67,13 +67,13 @@ namespace Opc.Ua.Gds.Client
         ArrayOf<string> PreferredLocales { get; set; }
 
         /// <summary>NodeId of the DefaultApplicationGroup.</summary>
-        NodeId? DefaultApplicationGroup { get; }
+        NodeId DefaultApplicationGroup { get; }
 
         /// <summary>NodeId of the DefaultHttpsGroup.</summary>
-        NodeId? DefaultHttpsGroup { get; }
+        NodeId DefaultHttpsGroup { get; }
 
         /// <summary>NodeId of the DefaultUserTokenGroup.</summary>
-        NodeId? DefaultUserTokenGroup { get; }
+        NodeId DefaultUserTokenGroup { get; }
 
         /// <summary>NodeId of the application certificate type.</summary>
         NodeId ApplicationCertificateType { get; }
