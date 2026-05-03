@@ -41,7 +41,7 @@ namespace Opc.Ua.Gds.Tests
     [Parallelizable]
     public class RegisteredApplicationTests
     {
-        private static readonly ICertificateFactory s_factory = new DefaultCertificateFactory();
+        private static readonly ICertificateFactory s_factory = DefaultCertificateFactory.Instance;
         private static readonly string[] s_pfxPemFormats = ["PFX", "PEM"];
         private static readonly string[] s_pemOnlyFormats = ["PEM"];
 

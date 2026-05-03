@@ -44,7 +44,7 @@ namespace Opc.Ua.Security.Certificates.Tests
     [SetCulture("en-us")]
     public class Pkcs10CertificationRequestTests
     {
-        private static readonly ICertificateFactory s_factory = new DefaultCertificateFactory();
+        private static readonly ICertificateFactory s_factory = DefaultCertificateFactory.Instance;
         /// <summary>
         /// Test parsing a valid RSA CSR from file.
         /// </summary>

@@ -51,7 +51,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
     [SetCulture("en-us")]
     public class CertificateStoreTest
     {
-        private static readonly ICertificateFactory s_factory = new DefaultCertificateFactory();
+        private static readonly ICertificateFactory s_factory = DefaultCertificateFactory.Instance;
 
         public const string X509StoreSubject
             = "CN=Opc.Ua.Core.Tests, O=OPC Foundation, OU=X509Store, C=US";

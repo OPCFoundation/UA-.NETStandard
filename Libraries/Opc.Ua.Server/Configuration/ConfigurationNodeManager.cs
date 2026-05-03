@@ -1413,6 +1413,6 @@ namespace Opc.Ua.Server
         private readonly Dictionary<string, NamespaceMetadataState> m_namespaceMetadataStates = [];
         private readonly Dictionary<ushort, NamespaceMetadataState> m_namespaceMetadataStatesByIndex = [];
         private readonly Lock m_namespaceMetadataStatesLock = new();
-        private static readonly ICertificateFactory s_certificateFactory = new DefaultCertificateFactory();
+        private static readonly ICertificateFactory s_certificateFactory = DefaultCertificateFactory.Instance;
     }
 }

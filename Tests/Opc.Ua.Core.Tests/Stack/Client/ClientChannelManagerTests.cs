@@ -50,7 +50,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
     [Parallelizable]
     public sealed class ClientChannelManagerTests
     {
-        private static readonly ICertificateFactory s_factory = new DefaultCertificateFactory();
+        private static readonly ICertificateFactory s_factory = DefaultCertificateFactory.Instance;
 
         [Test]
         public async Task CreateChannelShouldCreateChannelWithConnectionAsync()

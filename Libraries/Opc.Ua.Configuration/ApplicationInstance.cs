@@ -904,7 +904,7 @@ namespace Opc.Ua.Configuration
                 Utils.GetAbsoluteDirectoryPath(id.StorePath, true, true, true);
             }
 
-            Security.Certificates.ICertificateBuilder builder = new DefaultCertificateFactory()
+            Security.Certificates.ICertificateBuilder builder = DefaultCertificateFactory.Instance
                 .CreateApplicationCertificate(
                     configuration.ApplicationUri,
                     configuration.ApplicationName,

@@ -51,8 +51,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
     [SetCulture("en-us")]
     public class CertificateFactoryTest
     {
-        private static readonly ICertificateFactory s_factory = new DefaultCertificateFactory();
-        private static readonly ICertificateIssuer s_issuer = new DefaultCertificateIssuer();
+        private static readonly ICertificateFactory s_factory = DefaultCertificateFactory.Instance;
+        private static readonly ICertificateIssuer s_issuer = DefaultCertificateIssuer.Instance;
 
         [DatapointSource]
         public KeyHashPair[] KeyHashPairs = new KeyHashPairCollection

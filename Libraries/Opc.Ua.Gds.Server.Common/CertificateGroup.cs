@@ -260,7 +260,7 @@ namespace Opc.Ua.Gds.Server
                 ct)
                 .ConfigureAwait(false);
 
-            ICertificateBuilderIssuer builder = new DefaultCertificateFactory()
+            ICertificateBuilderIssuer builder = DefaultCertificateFactory.Instance
                 .CreateApplicationCertificate(
                     application.ApplicationUri,
                     application.ApplicationNames.Count > 0
@@ -474,7 +474,7 @@ namespace Opc.Ua.Gds.Server
             }
 
             DateTime yesterday = DateTime.Today.AddDays(-1);
-            ICertificateBuilder builder = new DefaultCertificateFactory()
+            ICertificateBuilder builder = DefaultCertificateFactory.Instance
                 .CreateCertificate(subjectName)
                 .SetNotBefore(yesterday)
                 .SetLifeTime(Configuration.CACertificateLifetime)

@@ -41,7 +41,7 @@ namespace Opc.Ua.Gds.Tests
     [Parallelizable]
     public class CertificateWrapperTests
     {
-        private static readonly ICertificateFactory s_factory = new DefaultCertificateFactory();
+        private static readonly ICertificateFactory s_factory = DefaultCertificateFactory.Instance;
         private static readonly string[] s_localhostDomains = ["localhost"];
         private Certificate m_testCertificate;
 

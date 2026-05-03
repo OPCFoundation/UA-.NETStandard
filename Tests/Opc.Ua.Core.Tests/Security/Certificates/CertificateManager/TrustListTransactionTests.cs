@@ -48,7 +48,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
     [SetUICulture("en-us")]
     public class TrustListTransactionTests
     {
-        private static readonly ICertificateIssuer s_issuer = new DefaultCertificateIssuer();
+        private static readonly ICertificateIssuer s_issuer = DefaultCertificateIssuer.Instance;
         private ITelemetryContext m_telemetry;
         private readonly List<string> m_tempDirs = [];
 

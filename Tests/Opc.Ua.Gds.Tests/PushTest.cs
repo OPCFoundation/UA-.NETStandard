@@ -57,7 +57,7 @@ namespace Opc.Ua.Gds.Tests
     [NonParallelizable]
     public class PushTest
     {
-        private static readonly ICertificateFactory s_factory = new DefaultCertificateFactory();
+        private static readonly ICertificateFactory s_factory = DefaultCertificateFactory.Instance;
 
         private static readonly HashSet<string> s_supportedPolicyUris =
         [
