@@ -243,6 +243,199 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         [Test]
+        public async Task DuplicateSequenceNumberShouldNotRedispatchAsync()
+        {
+            var availableSequenceNumbers = new List<uint> { 1, 2, 3 };
+            var stringTable = new List<string> { "test" };
+
+            await using var sut = new TestMessageProcessor(m_mockServices.Object,
+                m_mockCompletion.Object, m_mockObservability.Object)
+            {
+                Id = 7
+            };
+
+            var message = new NotificationMessage
+            {
+                SequenceNumber = 5,
+                NotificationData =
+                [
+                    new ExtensionObject(new DataChangeNotification
+                    {
+                        MonitoredItems =
+                        [
+                            new MonitoredItemNotification()
+                        ]
+                    })
+                ]
+            };
+
+            // First arrival
+            await sut.OnPublishReceivedAsync(message, availableSequenceNumbers, stringTable)
+                .ConfigureAwait(false);
+            await sut.DataChangeNotificationReceived.WaitAsync()
+                .WaitAsync(TimeSpan.FromSeconds(1))
+                .ConfigureAwait(false);
+
+            int firstCount = sut.ReceivedSequenceNumbers.Count;
+            Assert.That(firstCount, Is.GreaterThanOrEqualTo(1));
+            Assert.That(sut.LastSequenceNumberProcessed, Is.EqualTo(5));
+
+            // Reset signaling
+            sut.DataChangeNotificationReceived.Reset();
+
+            // Same sequence number arriving again
+            await sut.OnPublishReceivedAsync(message, availableSequenceNumbers, stringTable)
+                .ConfigureAwait(false);
+            // Give the processor a moment in case it tries to dispatch
+            await Task.Delay(50).ConfigureAwait(false);
+
+            // The duplicate should not re-fire the data-change handler.
+            Assert.That(
+                sut.DataChangeNotificationReceived.IsSet, Is.False,
+                "Duplicate sequence number must not re-dispatch the notification");
+            Assert.That(sut.LastSequenceNumberProcessed, Is.EqualTo(5));
+        }
+
+        [Test]
+        public async Task KeepAliveInterleavedWithNotificationsAsync()
+        {
+            var availableSequenceNumbers = new List<uint> { 1, 2, 3 };
+            var stringTable = new List<string> { "test" };
+
+            await using var sut = new TestMessageProcessor(m_mockServices.Object,
+                m_mockCompletion.Object, m_mockObservability.Object)
+            {
+                Id = 5
+            };
+
+            // 1: notification
+            await sut.OnPublishReceivedAsync(new NotificationMessage
+            {
+                SequenceNumber = 1,
+                NotificationData =
+                [
+                    new ExtensionObject(new DataChangeNotification
+                    {
+                        MonitoredItems = [new MonitoredItemNotification()]
+                    })
+                ]
+            }, availableSequenceNumbers, stringTable).ConfigureAwait(false);
+            await sut.DataChangeNotificationReceived.WaitAsync()
+                .WaitAsync(TimeSpan.FromSeconds(1))
+                .ConfigureAwait(false);
+
+            // 2: keep-alive (no NotificationData)
+            sut.KeepAliveNotificationReceived.Reset();
+            await sut.OnPublishReceivedAsync(new NotificationMessage
+            {
+                SequenceNumber = 2
+            }, availableSequenceNumbers, stringTable).ConfigureAwait(false);
+            await sut.KeepAliveNotificationReceived.WaitAsync()
+                .WaitAsync(TimeSpan.FromSeconds(1))
+                .ConfigureAwait(false);
+
+            // 3: another notification
+            sut.DataChangeNotificationReceived.Reset();
+            await sut.OnPublishReceivedAsync(new NotificationMessage
+            {
+                SequenceNumber = 3,
+                NotificationData =
+                [
+                    new ExtensionObject(new DataChangeNotification
+                    {
+                        MonitoredItems = [new MonitoredItemNotification()]
+                    })
+                ]
+            }, availableSequenceNumbers, stringTable).ConfigureAwait(false);
+            await sut.DataChangeNotificationReceived.WaitAsync()
+                .WaitAsync(TimeSpan.FromSeconds(1))
+                .ConfigureAwait(false);
+
+            // All three sequence numbers should appear in order.
+            Assert.That(sut.ReceivedSequenceNumbers,
+                Is.EqualTo(new uint[] { 1, 2, 3 }));
+            Assert.That(sut.LastSequenceNumberProcessed, Is.EqualTo(3));
+        }
+
+        [Test]
+        public async Task EmptyNotificationDataIsTreatedAsKeepAliveAsync()
+        {
+            var availableSequenceNumbers = new List<uint> { 1, 2, 3 };
+            var stringTable = new List<string> { "test" };
+
+            await using var sut = new TestMessageProcessor(m_mockServices.Object,
+                m_mockCompletion.Object, m_mockObservability.Object)
+            {
+                Id = 9
+            };
+
+            // NotificationData is null/default.
+            await sut.OnPublishReceivedAsync(new NotificationMessage
+            {
+                SequenceNumber = 7
+            }, availableSequenceNumbers, stringTable).ConfigureAwait(false);
+            await sut.KeepAliveNotificationReceived.WaitAsync()
+                .WaitAsync(TimeSpan.FromSeconds(1))
+                .ConfigureAwait(false);
+
+            Assert.That(sut.KeepAliveNotificationReceived.IsSet, Is.True);
+            Assert.That(sut.DataChangeNotificationReceived.IsSet, Is.False);
+            Assert.That(sut.EventNotificationReceived.IsSet, Is.False);
+            Assert.That(sut.LastSequenceNumberProcessed, Is.EqualTo(7));
+        }
+
+        [Test]
+        public async Task RepublishFailureLogsButContinuesProcessingAsync()
+        {
+            var availableSequenceNumbers = new List<uint> { 1, 2, 3 };
+            var stringTable = new List<string> { "test" };
+
+            await using var sut = new TestMessageProcessor(m_mockServices.Object,
+                m_mockCompletion.Object, m_mockObservability.Object)
+            {
+                Id = 11
+            };
+
+            // First message at sequence 1.
+            await sut.OnPublishReceivedAsync(new NotificationMessage
+            {
+                SequenceNumber = 1
+            }, availableSequenceNumbers, stringTable).ConfigureAwait(false);
+
+            // Republish for the gap (sequence 2) returns an error.
+            m_mockServices
+                .Setup(c => c.RepublishAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.Is<uint>(id => id == sut.Id),
+                    It.Is<uint>(s => s == 2),
+                    It.IsAny<CancellationToken>()))
+                .ThrowsAsync(new ServiceResultException(
+                    StatusCodes.BadMessageNotAvailable))
+                .Verifiable(Times.AtLeastOnce);
+
+            // Skip to sequence 3 to force the gap.
+            await sut.OnPublishReceivedAsync(new NotificationMessage
+            {
+                SequenceNumber = 3,
+                NotificationData =
+                [
+                    new ExtensionObject(new EventNotificationList
+                    {
+                        Events = [new EventFieldList()]
+                    })
+                ]
+            }, availableSequenceNumbers, stringTable).ConfigureAwait(false);
+            await sut.EventNotificationReceived.WaitAsync()
+                .WaitAsync(TimeSpan.FromSeconds(2))
+                .ConfigureAwait(false);
+
+            // Even though republish failed, the next message must still
+            // be dispatched.
+            Assert.That(sut.EventNotificationReceived.IsSet, Is.True);
+            m_mockServices.Verify();
+        }
+
+        [Test]
         public async Task ReceivingTransferStatusUpdateShouldUpdatePublishStateAsync()
         {
             // Arrange
