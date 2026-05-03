@@ -30,9 +30,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
-using System.Runtime.CompilerServices;
-#endif
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -772,28 +769,6 @@ namespace Opc.Ua.Client
                     .ConfigureAwait(false);
             }
         }
-
-#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
-        /// <inheritdoc/>
-        public async IAsyncEnumerable<BrowseResult> BrowseStreamAsync(
-            RequestHeader? requestHeader,
-            ViewDescription? view,
-            ArrayOf<BrowseDescription> nodesToBrowse,
-            [EnumeratorCancellation] CancellationToken ct = default)
-        {
-            using (await m_serviceLock.ReaderLockAsync(ct)
-                .ConfigureAwait(false))
-            {
-                await foreach (BrowseResult? result in InnerSession
-                    .BrowseStreamAsync(
-                        requestHeader, view, nodesToBrowse, ct)
-                    .ConfigureAwait(false))
-                {
-                    yield return result;
-                }
-            }
-        }
-#endif
 
         /// <inheritdoc/>
         public void AttachChannel(ITransportChannel channel)
