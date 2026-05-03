@@ -255,11 +255,19 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         /// <summary>
-        /// Process message. The logic will chewck whether any message was missed
+        /// Process message. The logic checks whether any message was missed
         /// and try to republish. Any new messages received that already were
         /// handled are discarded. The message is then dispatched to the appropriate
         /// callbacks that must be overridden by the derived class.
         /// </summary>
+        /// <remarks>
+        /// Sequence numbers are circular per OPC UA Part 4 §7.30.5 — they
+        /// wrap from <see cref="uint.MaxValue"/> to 1 (skipping 0). The
+        /// implementation uses unsigned-difference arithmetic to detect
+        /// "older vs newer" across a wraparound, and walks the
+        /// missing-message range explicitly wrapping past
+        /// <see cref="uint.MaxValue"/> to 1.
+        /// </remarks>
         /// <param name="incoming"></param>
         /// <param name="ct"></param>
         /// <returns></returns>
@@ -269,12 +277,15 @@ namespace Opc.Ua.Client.Subscriptions
             uint curSeqNum = incoming.Message.SequenceNumber;
             if (prevSeqNum != 0)
             {
-                for (uint missing = prevSeqNum + 1; missing < curSeqNum; missing++)
-                {
-                    // Try to republish missing messages from retransmission queue
-                    await TryRepublishAsync(missing, curSeqNum, ct).ConfigureAwait(false);
-                }
-                if (prevSeqNum >= curSeqNum)
+                // Forward distance prevSeqNum -> curSeqNum modulo 2^32. A
+                // delta of zero means duplicate; a delta in the upper half
+                // of the unsigned range means the new sequence is "older"
+                // than what we have already processed (e.g. an out-of-order
+                // republish or a server reset).
+                uint delta = unchecked(curSeqNum - prevSeqNum);
+                const uint kBackwardThreshold = 1u << 31;
+
+                if (delta == 0 || delta >= kBackwardThreshold)
                 {
                     // Can occur if we republished a message
                     if (!Logger.IsEnabled(LogLevel.Debug))
@@ -300,6 +311,19 @@ namespace Opc.Ua.Client.Subscriptions
                             prevSeqNum);
                     }
                     return;
+                }
+
+                // Walk the gap (prevSeqNum, curSeqNum) wrapping past
+                // uint.MaxValue to 1.
+                uint missing = prevSeqNum;
+                while (true)
+                {
+                    missing = missing == uint.MaxValue ? 1u : missing + 1u;
+                    if (missing == curSeqNum)
+                    {
+                        break;
+                    }
+                    await TryRepublishAsync(missing, curSeqNum, ct).ConfigureAwait(false);
                 }
             }
             LastSequenceNumberProcessed = curSeqNum;

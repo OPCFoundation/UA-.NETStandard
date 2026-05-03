@@ -436,6 +436,51 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         [Test]
+        public async Task SequenceNumberWraparoundAdvancesLastProcessedAsync()
+        {
+            // Per OPC UA Part 4 §7.30.5, sequence numbers wrap from
+            // uint.MaxValue to 1 (skipping 0). The processor must accept
+            // this wrap as forward progress, not silently drop the
+            // post-wrap message as "old".
+            var availableSequenceNumbers = new List<uint>();
+            var stringTable = new List<string> { "test" };
+
+            await using var sut = new TestMessageProcessor(m_mockServices.Object,
+                m_mockCompletion.Object, m_mockObservability.Object)
+            {
+                Id = 13
+            };
+
+            // Republish for the first message's "missing" gap (we start
+            // from LastSequenceNumberProcessed=0 so no gap is computed
+            // for this first one) — but for the second message, the gap
+            // is empty because we wrap directly from uint.MaxValue to 1.
+            await sut.OnPublishReceivedAsync(new NotificationMessage
+            {
+                SequenceNumber = uint.MaxValue
+            }, availableSequenceNumbers, stringTable).ConfigureAwait(false);
+            await sut.KeepAliveNotificationReceived.WaitAsync()
+                .WaitAsync(TimeSpan.FromSeconds(1))
+                .ConfigureAwait(false);
+            Assert.That(sut.LastSequenceNumberProcessed,
+                Is.EqualTo(uint.MaxValue));
+
+            sut.KeepAliveNotificationReceived.Reset();
+            await sut.OnPublishReceivedAsync(new NotificationMessage
+            {
+                SequenceNumber = 1
+            }, availableSequenceNumbers, stringTable).ConfigureAwait(false);
+            await sut.KeepAliveNotificationReceived.WaitAsync()
+                .WaitAsync(TimeSpan.FromSeconds(1))
+                .ConfigureAwait(false);
+
+            Assert.That(sut.KeepAliveNotificationReceived.IsSet, Is.True,
+                "Wrapped sequence number must be accepted as forward progress, " +
+                "not dropped as duplicate/old.");
+            Assert.That(sut.LastSequenceNumberProcessed, Is.EqualTo(1));
+        }
+
+        [Test]
         public async Task ReceivingTransferStatusUpdateShouldUpdatePublishStateAsync()
         {
             // Arrange
