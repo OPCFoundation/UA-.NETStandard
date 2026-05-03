@@ -745,7 +745,7 @@ namespace Opc.Ua.Gds.Server
                 {
                     certificate
                 };
-                ICertificateIssuer issuer = certificateIssuer ?? new DefaultCertificateIssuer();
+                ICertificateIssuer issuer = certificateIssuer ?? DefaultCertificateIssuer.Instance;
                 updatedCRL = issuer.RevokeCertificates(
                     certCAWithPrivateKey,
                     certCACrl,
