@@ -64,6 +64,12 @@ namespace Opc.Ua.Client
             public bool Closing => m_session.Closing;
 
             /// <inheritdoc/>
+            public bool KeepAliveStopped => m_session.KeepAliveStopped;
+
+            /// <inheritdoc/>
+            public DateTime LastKeepAliveTime => m_session.LastKeepAliveTime;
+
+            /// <inheritdoc/>
             public bool Disposed => m_session.Disposed;
 
             /// <inheritdoc/>

@@ -255,6 +255,33 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
+        public void BeginPublishSkipsWhenSessionKeepAliveStopped()
+        {
+            // Arrange — session looks healthy except KeepAliveStopped is true.
+            m_mockContext.Setup(c => c.Connected).Returns(true);
+            m_mockContext.Setup(c => c.Reconnecting).Returns(false);
+            m_mockContext.Setup(c => c.Closing).Returns(false);
+            m_mockContext.Setup(c => c.KeepAliveStopped).Returns(true);
+            m_mockContext.Setup(c => c.LastKeepAliveTime)
+                .Returns(DateTime.UtcNow.AddSeconds(-30));
+
+            using var engine =
+                new ClassicSubscriptionEngine(m_mockContext.Object);
+
+            // Act
+            bool result = engine.BeginPublish(timeout: 5000);
+
+            // Assert — guard short-circuited; no PublishAsync was invoked.
+            Assert.That(result, Is.False);
+            m_mockContext.Verify(
+                c => c.PublishAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.IsAny<ArrayOf<SubscriptionAcknowledgement>>(),
+                    It.IsAny<CancellationToken>()),
+                Times.Never);
+        }
+
+        [Test]
         public void MaxPublishRequestCountRespectsMinimum()
         {
             using var engine =

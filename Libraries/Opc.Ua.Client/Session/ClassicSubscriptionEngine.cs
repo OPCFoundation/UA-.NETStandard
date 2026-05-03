@@ -207,6 +207,15 @@ namespace Opc.Ua.Client
                 return false;
             }
 
+            if (m_context.KeepAliveStopped)
+            {
+                m_logger.LogWarning(
+                    "Publish skipped due to session lost connection. " +
+                    "Last successful keepalive: {LastKeepAlive}",
+                    m_context.LastKeepAliveTime);
+                return false;
+            }
+
             // collect the current set of acknowledgements.
             List<SubscriptionAcknowledgement>? acknowledgementsToSend = null;
             lock (m_acknowledgementsToSendLock)

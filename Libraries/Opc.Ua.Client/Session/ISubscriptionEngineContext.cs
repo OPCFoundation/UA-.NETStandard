@@ -67,6 +67,21 @@ namespace Opc.Ua.Client
         bool Closing { get; }
 
         /// <summary>
+        /// Whether the session keep-alive has stopped (i.e. the
+        /// session is treated as lost). When true, additional publish
+        /// requests should be skipped to avoid spawning excessive
+        /// tasks that will only fail.
+        /// </summary>
+        bool KeepAliveStopped { get; }
+
+        /// <summary>
+        /// The UTC time of the last successful keep-alive. Useful for
+        /// diagnostic logging when <see cref="KeepAliveStopped"/> is
+        /// true.
+        /// </summary>
+        DateTime LastKeepAliveTime { get; }
+
+        /// <summary>
         /// Whether the session has been disposed. The engine should
         /// stop processing if this is true.
         /// </summary>
