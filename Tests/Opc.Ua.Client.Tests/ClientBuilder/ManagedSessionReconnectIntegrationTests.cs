@@ -406,6 +406,264 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             }
         }
 
+        [Test]
+        [Order(500)]
+        [CancelAfter(120_000)]
+        public async Task FailoverInvokesRedundancyHandlerWhenReconnectExhausted(
+            CancellationToken ct)
+        {
+            ConfiguredEndpoint endpoint = await ClientFixture
+                .GetEndpointAsync(ServerUrl, SecurityPolicies.None)
+                .ConfigureAwait(false);
+
+            // The fake handler returns the same endpoint as the failover
+            // target — we only have one reference fixture, so "failover"
+            // recreates a session against the same server. This is
+            // enough to exercise the entire ManagedSession.HandleFailoverAsync
+            // path: SelectFailoverTarget -> SessionFactory.CreateAsync ->
+            // WireSessionEvents -> dispose old session.
+            var fakeHandler = new FakeRedundancyHandler(endpoint);
+
+            ManagedSessionType session = await new ManagedSessionBuilder(
+                    ClientFixture.Config, Telemetry)
+                .UseEndpoint(endpoint)
+                .WithSessionName(nameof(FailoverInvokesRedundancyHandlerWhenReconnectExhausted))
+                .WithSessionTimeout(TimeSpan.FromSeconds(60))
+                .WithReconnectPolicy(p => p with
+                {
+                    Strategy = BackoffStrategy.Constant,
+                    InitialDelay = TimeSpan.FromMilliseconds(50),
+                    MaxRetries = 1,
+                    JitterFactor = 0.0
+                })
+                .WithServerRedundancy(fakeHandler)
+                .ConnectAsync(ct)
+                .ConfigureAwait(false);
+
+            // Force the reconnect attempt itself to fail so the state
+            // machine exhausts its retries and falls through to the
+            // Failover state. Without this, the channel is restored on
+            // the same alive server and reconnect succeeds on attempt 0.
+            session.StateMachine.ReconnectAsync = _ =>
+                Task.FromResult(new ServiceResult(StatusCodes.BadNotConnected));
+
+            var states = new ConcurrentQueue<ConnectionState>();
+            var failoverEntered = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var connectedAfterFailover = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            session.ConnectionStateChanged += (_, e) =>
+            {
+                states.Enqueue(e.NewState);
+                if (e.NewState == ConnectionState.Failover)
+                {
+                    failoverEntered.TrySetResult(true);
+                }
+                if (e.PreviousState == ConnectionState.Failover &&
+                    e.NewState == ConnectionState.Connected)
+                {
+                    connectedAfterFailover.TrySetResult(true);
+                }
+            };
+
+            try
+            {
+                Assert.That(session.Connected, Is.True);
+                Assert.That(
+                    fakeHandler.FetchCount, Is.GreaterThanOrEqualTo(1),
+                    "ManagedSession should fetch redundancy info on connect.");
+
+                TestContext.Out.WriteLine(
+                    "Triggering reconnect with stub returning BadNotConnected " +
+                    "so retries exhaust and Failover engages…");
+                session.StateMachine.TriggerReconnect();
+
+                bool sawFailover = await WaitOrCanceledAsync(
+                    failoverEntered.Task,
+                    TimeSpan.FromSeconds(60),
+                    ct).ConfigureAwait(false);
+
+                Assert.That(
+                    sawFailover, Is.True,
+                    "State machine should reach Failover after reconnect retries are exhausted.");
+
+                bool sawConnectedAfter = await WaitOrCanceledAsync(
+                    connectedAfterFailover.Task,
+                    TimeSpan.FromSeconds(60),
+                    ct).ConfigureAwait(false);
+
+                Assert.That(
+                    sawConnectedAfter, Is.True,
+                    "After failover the session should return to Connected.");
+                Assert.That(
+                    fakeHandler.SelectCount, Is.GreaterThanOrEqualTo(1),
+                    "ManagedSession.HandleFailoverAsync should call SelectFailoverTarget.");
+                Assert.That(session.Connected, Is.True);
+
+                // The session that completes the failover must answer
+                // service calls.
+                DataValue valueAfter = await session
+                    .ReadValueAsync(VariableIds.Server_ServerStatus_State, ct)
+                    .ConfigureAwait(false);
+                Assert.That(valueAfter, Is.Not.Null);
+
+                // We must have observed Reconnecting → Failover → Connected.
+                Assert.That(states, Has.Member(ConnectionState.Reconnecting));
+                Assert.That(states, Has.Member(ConnectionState.Failover));
+                Assert.That(states, Has.Member(ConnectionState.Connected));
+
+                TestContext.Out.WriteLine(
+                    "Observed state transitions: {0}",
+                    string.Join(" -> ", states));
+            }
+            finally
+            {
+                await session.CloseAsync().ConfigureAwait(false);
+                await session.DisposeAsync().ConfigureAwait(false);
+            }
+        }
+
+        [Test]
+        [Order(600)]
+        [CancelAfter(60_000)]
+        public async Task FailoverWithNullTargetReturnsToDisconnected(
+            CancellationToken ct)
+        {
+            ConfiguredEndpoint endpoint = await ClientFixture
+                .GetEndpointAsync(ServerUrl, SecurityPolicies.None)
+                .ConfigureAwait(false);
+
+            // Handler always picks "no failover target available".
+            var fakeHandler = new FakeRedundancyHandler(target: null);
+
+            ManagedSessionType session = await new ManagedSessionBuilder(
+                    ClientFixture.Config, Telemetry)
+                .UseEndpoint(endpoint)
+                .WithSessionName(nameof(FailoverWithNullTargetReturnsToDisconnected))
+                .WithReconnectPolicy(p => p with
+                {
+                    Strategy = BackoffStrategy.Constant,
+                    InitialDelay = TimeSpan.FromMilliseconds(50),
+                    MaxRetries = 1,
+                    JitterFactor = 0.0
+                })
+                .WithServerRedundancy(fakeHandler)
+                .ConnectAsync(ct)
+                .ConfigureAwait(false);
+
+            // Force reconnect attempts to fail so the state machine
+            // proceeds to Failover.
+            session.StateMachine.ReconnectAsync = _ =>
+                Task.FromResult(new ServiceResult(StatusCodes.BadNotConnected));
+
+            var failoverEntered = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var leftFailover = new TaskCompletionSource<ConnectionState>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            session.ConnectionStateChanged += (_, e) =>
+            {
+                if (e.NewState == ConnectionState.Failover)
+                {
+                    failoverEntered.TrySetResult(true);
+                }
+                if (e.PreviousState == ConnectionState.Failover)
+                {
+                    leftFailover.TrySetResult(e.NewState);
+                }
+            };
+
+            try
+            {
+                Assert.That(session.Connected, Is.True);
+                Assert.That(
+                    fakeHandler.FetchCount, Is.GreaterThanOrEqualTo(1),
+                    "FetchRedundancyInfoAsync should have been called on connect.");
+
+                session.StateMachine.TriggerReconnect();
+
+                bool sawFailover = await WaitOrCanceledAsync(
+                    failoverEntered.Task,
+                    TimeSpan.FromSeconds(30),
+                    ct).ConfigureAwait(false);
+                Assert.That(sawFailover, Is.True);
+
+                using var leftCts = new CancellationTokenSource(
+                    TimeSpan.FromSeconds(30));
+                using var leftLinked = CancellationTokenSource
+                    .CreateLinkedTokenSource(leftCts.Token, ct);
+                ConnectionState next = await leftFailover.Task
+                    .WaitAsync(leftLinked.Token)
+                    .ConfigureAwait(false);
+
+                // SelectFailoverTarget runs inside HandleFailoverAsync
+                // before the state leaves Failover, so it must be
+                // observed by the time leftFailover signals.
+                Assert.That(
+                    fakeHandler.SelectCount, Is.GreaterThanOrEqualTo(1),
+                    "SelectFailoverTarget must be called even when it returns null.");
+
+                // BadNothingToDo from HandleFailoverAsync drops the state
+                // machine back to Disconnected (not Connected).
+                Assert.That(
+                    next, Is.EqualTo(ConnectionState.Disconnected),
+                    "When no failover target is available the session " +
+                    "should return to Disconnected.");
+            }
+            finally
+            {
+                await session.DisposeAsync().ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Test double for <see cref="IServerRedundancyHandler"/> that
+        /// records call counts and returns a caller-supplied failover
+        /// endpoint. Always reports a non-transparent redundancy mode so
+        /// the failover path is engaged.
+        /// </summary>
+        private sealed class FakeRedundancyHandler : IServerRedundancyHandler
+        {
+            public FakeRedundancyHandler(ConfiguredEndpoint? target)
+            {
+                m_target = target;
+            }
+
+            public int FetchCount { get; private set; }
+            public int SelectCount { get; private set; }
+
+            public ValueTask<ServerRedundancyInfo> FetchRedundancyInfoAsync(
+                ISession session,
+                CancellationToken ct = default)
+            {
+                FetchCount++;
+                return new ValueTask<ServerRedundancyInfo>(
+                    new ServerRedundancyInfo
+                    {
+                        Mode = RedundancyMode.Cold,
+                        ServiceLevel = 200,
+                        RedundantServers =
+                        [
+                            new RedundantServer
+                            {
+                                ServerUri = "urn:fake:redundant",
+                                ServerState = ServerState.Running,
+                                ServiceLevel = 250
+                            }
+                        ]
+                    });
+            }
+
+            public ConfiguredEndpoint? SelectFailoverTarget(
+                ServerRedundancyInfo redundancyInfo,
+                ConfiguredEndpoint currentEndpoint)
+            {
+                SelectCount++;
+                return m_target;
+            }
+
+            private readonly ConfiguredEndpoint? m_target;
+        }
+
         private static async Task<bool> WaitOrCanceledAsync(
             Task<bool> waitTask,
             TimeSpan timeout,
