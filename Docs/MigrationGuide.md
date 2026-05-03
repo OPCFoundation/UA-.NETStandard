@@ -785,15 +785,23 @@ See [CertificateManager.md](CertificateManager.md) for the full API reference an
 
 #### Obsoleted certificate APIs
 
-The following APIs are marked `[Obsolete]` and will be removed in the next minor version:
+The following APIs are marked `[Obsolete]` and will be removed in the next minor version. They remain
+functional forwarders to the new design for binary-compatibility, but emit `CS0618` warnings when used.
 
 | Obsolete API | Replacement |
 |-------------|-------------|
-| `CertificateFactory.CreateCertificate(string)` | `ICertificateFactory.CreateCertificate(string)` |
-| `CertificateFactory.CreateCertificate(string, string, string, ArrayOf<string>)` | `ICertificateFactory.CreateApplicationCertificate(...)` |
-| `CertificateFactory.CreateSigningRequest(...)` | `ICertificateFactory.CreateSigningRequest(...)` |
-| `CertificateFactory.RevokeCertificate(...)` | `ICertificateIssuer.RevokeCertificates(...)` |
-| `CertificateStoreType.RegisterCertificateStoreType(...)` | Register `ICertificateStoreProvider` via DI or pass to `CertificateManager` constructor |
+| `CertificateFactory.Create(ReadOnlyMemory<byte>)` | `Certificate.FromRawData(ReadOnlyMemory<byte>)` or `DefaultCertificateFactory.Instance.CreateFromRawData(...)` |
+| `CertificateFactory.CreateCertificate(string)` | `DefaultCertificateFactory.Instance.CreateCertificate(string)` |
+| `CertificateFactory.CreateCertificate(string, string, string, ArrayOf<string>)` | `DefaultCertificateFactory.Instance.CreateApplicationCertificate(...)` |
+| `CertificateFactory.CreateSigningRequest(...)` | `DefaultCertificateFactory.Instance.CreateSigningRequest(...)` |
+| `CertificateFactory.RevokeCertificate(...)` | `DefaultCertificateIssuer.Instance.RevokeCertificates(...)` |
+| `CertificateFactory.CreateCertificateWithPEMPrivateKey(...)` | `DefaultCertificateFactory.Instance.CreateWithPEMPrivateKey(...)` |
+| `CertificateFactory.CreateCertificateWithPrivateKey(...)` | `DefaultCertificateFactory.Instance.CreateWithPrivateKey(...)` |
+| `CertificateStoreIdentifier.RegisterCertificateStoreType(...)` | Register `ICertificateStoreProvider` via DI or pass to the `CertificateManager` constructor |
+
+> The `CertificateFactory.DefaultKeySize` / `DefaultLifeTime` / `DefaultHashSize` constants are
+> intentionally **not** marked obsolete; they remain the canonical default values used across
+> configuration sites.
 
 To suppress `CS0618` warnings while migrating, add at the top of affected files:
 ```csharp

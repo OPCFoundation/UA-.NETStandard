@@ -263,14 +263,37 @@ cert.Dispose();    // refcount=0 → X509Certificate2.Dispose() called
 
 ### Backward Compatibility
 
-The existing `CertificateValidator`, `CertificateFactory`, and `ICertificateValidator` continue to work. The `CertificateValidatorAdapter` bridges the new `ICertificateValidatorEx` to the old `ICertificateValidator` interface:
+The existing `CertificateValidator`, `CertificateFactory`, and
+`ICertificateValidator` types remain available as functional forwarders
+to the new design — existing applications continue to work without
+changes. The forwarders are progressively being marked `[Obsolete]` as
+the new design covers their feature surface.
+
+`CertificateValidatorAdapter` bridges the new `ICertificateValidatorEx`
+to the old `ICertificateValidator` interface and is the canonical
+adapter used internally:
 
 ```csharp
-// Wrap new interface in old interface
+// Wrap a manager (or any ICertificateValidatorEx) as the legacy interface.
 ICertificateValidator oldApi = new CertificateValidatorAdapter(manager);
+
+// Scope the bridge to a specific trust list (e.g. for X.509 user identity):
+ICertificateValidator userApi = new CertificateValidatorAdapter(
+    manager,
+    TrustListIdentifier.Users);
 ```
 
-Static methods on `CertificateFactory` (e.g., `CreateCertificate`, `CreateSigningRequest`, `RevokeCertificate`) are marked `[Obsolete]` pointing to the new `ICertificateFactory` and `ICertificateIssuer` interfaces.
+The static methods on `CertificateFactory`
+(`Create(ReadOnlyMemory<byte>)`, `CreateCertificate(...)`,
+`CreateSigningRequest(...)`, `RevokeCertificate(...)`,
+`CreateCertificateWith{,PEM}PrivateKey(...)`) are marked `[Obsolete]`
+and forward to `Certificate.FromRawData(...)`,
+`DefaultCertificateFactory.Instance.*`, and
+`DefaultCertificateIssuer.Instance.*` respectively. The
+`CertificateFactory.DefaultKeySize` / `DefaultLifeTime` /
+`DefaultHashSize` constants are intentionally kept un-obsoleted because
+they remain the canonical default values used across configuration
+sites.
 
 ### OPC UA Specification Alignment
 

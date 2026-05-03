@@ -206,10 +206,15 @@ is available. Such code shall be gradually refactored.
 
 ### Other temporary compromises
 
-The current codebase is still relying heavily on static methods and static classes (e.g. CertificateFactory), the
+The current codebase is still relying on some static methods and static classes, the
 telemetry context is added as argument to these static methods or to methods that belong to classes that are
 instantiated via default constructors and are effectively static too (e.g. anything that is DataContract
 serializable). The goal is to eventually remove static utilities and pass the context through constructors only.
+
+The static `CertificateFactory.Create / CreateCertificate / CreateCertificateWith{,PEM}PrivateKey` methods are
+now `[Obsolete]` and forward to `Certificate.FromRawData(...)` / `DefaultCertificateFactory.Instance.*` /
+`DefaultCertificateIssuer.Instance.*`. Internal callers have been migrated; new code should use the new
+factory/issuer interfaces (or their singletons) directly. See [CertificateManager.md](CertificateManager.md).
 
 Meanwhile, any passing of `ITelemetryContext` to "public" static methods was done by adding it as the last optional
 argument with a default null value except for async methods, where it comes before the CancellationToken argument.
