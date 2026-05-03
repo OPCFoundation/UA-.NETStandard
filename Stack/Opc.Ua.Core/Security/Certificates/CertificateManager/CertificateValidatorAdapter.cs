@@ -43,6 +43,7 @@ namespace Opc.Ua
     public sealed class CertificateValidatorAdapter : ICertificateValidator
     {
         private readonly ICertificateValidatorEx m_inner;
+        private readonly TrustListIdentifier? m_trustList;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="CertificateValidatorAdapter"/> class.
@@ -52,14 +53,35 @@ namespace Opc.Ua
         /// Thrown when <paramref name="inner"/> is <see langword="null"/>.
         /// </exception>
         public CertificateValidatorAdapter(ICertificateValidatorEx inner)
+            : this(inner, null)
+        {
+        }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="CertificateValidatorAdapter"/> class
+        /// scoped to the specified trust list.
+        /// </summary>
+        /// <param name="inner">The extended validator to wrap.</param>
+        /// <param name="trustList">
+        /// An optional trust list to validate against. When <see langword="null"/>,
+        /// the default trust list (typically <see cref="TrustListIdentifier.Peers"/>)
+        /// is used.
+        /// </param>
+        /// <exception cref="ArgumentNullException">
+        /// Thrown when <paramref name="inner"/> is <see langword="null"/>.
+        /// </exception>
+        public CertificateValidatorAdapter(
+            ICertificateValidatorEx inner,
+            TrustListIdentifier? trustList)
         {
             m_inner = inner ?? throw new ArgumentNullException(nameof(inner));
+            m_trustList = trustList;
         }
 
         /// <inheritdoc/>
         public async Task ValidateAsync(Certificate certificate, CancellationToken ct)
         {
-            CertificateValidationResult result = await m_inner.ValidateAsync(certificate, ct: ct).ConfigureAwait(false);
+            CertificateValidationResult result = await m_inner.ValidateAsync(certificate, m_trustList, ct).ConfigureAwait(false);
             if (!result.IsValid)
             {
                 throw new ServiceResultException(result.StatusCode);
@@ -69,7 +91,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public async Task ValidateAsync(CertificateCollection certificateChain, CancellationToken ct)
         {
-            CertificateValidationResult result = await m_inner.ValidateAsync(certificateChain, ct: ct).ConfigureAwait(false);
+            CertificateValidationResult result = await m_inner.ValidateAsync(certificateChain, m_trustList, ct: ct).ConfigureAwait(false);
             if (!result.IsValid)
             {
                 throw new ServiceResultException(result.StatusCode);

@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
+using Opc.Ua.Security.Certificates;
 using Opc.Ua.Server;
 
 namespace Quickstarts.ReferenceServer
@@ -292,16 +293,13 @@ namespace Quickstarts.ReferenceServer
                     if (configuration.SecurityConfiguration.TrustedUserCertificates != null &&
                         configuration.SecurityConfiguration.UserIssuerCertificates != null)
                     {
-                        var certificateValidator = new CertificateValidator(MessageContext.Telemetry);
-                        certificateValidator.UpdateAsync(configuration.SecurityConfiguration)
-                            .Wait();
-                        certificateValidator.Update(
-                            configuration.SecurityConfiguration.UserIssuerCertificates,
-                            configuration.SecurityConfiguration.TrustedUserCertificates,
-                            configuration.SecurityConfiguration.RejectedCertificateStore);
-
-                        // set custom validator for user certificates.
-                        m_userCertificateValidator = certificateValidator.GetChannelValidator();
+                        // The server's CertificateManager already maps
+                        // TrustedUserCertificates / UserIssuerCertificates to the
+                        // Users trust list during MapFromSecurityConfiguration().
+                        // Use a CertificateValidatorAdapter scoped to that trust list.
+                        m_userCertificateValidator = new CertificateValidatorAdapter(
+                            CertificateManager,
+                            TrustListIdentifier.Users);
                     }
                 }
             }
