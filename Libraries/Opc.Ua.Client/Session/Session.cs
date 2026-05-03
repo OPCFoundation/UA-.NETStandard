@@ -1155,20 +1155,20 @@ namespace Opc.Ua.Client
 
                 if (requireEncryption)
                 {
-                    if (checkDomain)
+                    ICertificateValidatorEx validator =
+                        (ICertificateValidatorEx?)m_configuration.CertificateManager
+                        ?? m_configuration.CertificateValidator;
+                    CertificateValidationResult result = await validator
+                        .ValidateAsync(serverCertificateChain, ct: ct)
+                        .ConfigureAwait(false);
+                    if (!result.IsValid)
                     {
-                        await m_configuration
-                            .CertificateValidator.ValidateAsync(
-                                serverCertificateChain,
-                                m_endpoint,
-                                ct)
-                            .ConfigureAwait(false);
+                        throw new ServiceResultException(result.StatusCode);
                     }
-                    else
+
+                    if (checkDomain && serverCertificateChain.Count > 0)
                     {
-                        await m_configuration
-                            .CertificateValidator.ValidateAsync(serverCertificateChain, ct)
-                            .ConfigureAwait(false);
+                        validator.ValidateDomains(serverCertificateChain[0], m_endpoint);
                     }
                     // save for reconnect
                     m_checkDomain = checkDomain;

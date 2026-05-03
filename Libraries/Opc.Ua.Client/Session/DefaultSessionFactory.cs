@@ -245,7 +245,10 @@ namespace Opc.Ua.Client
             if (checkDomain && endpoint.Description.ServerCertificate.Length > 0)
             {
                 using Certificate certificate = Certificate.FromRawData(endpoint.Description.ServerCertificate);
-                configuration.CertificateValidator?.ValidateDomains(certificate, endpoint);
+                ICertificateValidatorEx? validator =
+                    (ICertificateValidatorEx?)configuration.CertificateManager
+                    ?? configuration.CertificateValidator;
+                validator?.ValidateDomains(certificate, endpoint);
             }
 
             Certificate? clientCertificate = null;
