@@ -237,10 +237,11 @@ namespace Opc.Ua.Mcp
 
                 await EnsureConfigurationInternalAsync(autoAcceptCerts, ct).ConfigureAwait(false);
 
-                if (autoAcceptCerts)
+                if (autoAcceptCerts &&
+                    m_configuration!.CertificateValidator is CertificateValidator legacyValidator)
                 {
-                    m_configuration!.CertificateValidator.CertificateValidation -= AutoAcceptCertificateValidation;
-                    m_configuration.CertificateValidator.CertificateValidation += AutoAcceptCertificateValidation;
+                    legacyValidator.CertificateValidation -= AutoAcceptCertificateValidation;
+                    legacyValidator.CertificateValidation += AutoAcceptCertificateValidation;
                 }
 
                 m_logger.LogInformation("Connecting to {EndpointUrl} as '{Name}'...", endpointUrl, name);
@@ -447,9 +448,10 @@ namespace Opc.Ua.Mcp
                 m_logger.LogWarning("Application certificate not found. Security may be limited.");
             }
 
-            if (autoAcceptCerts)
+            if (autoAcceptCerts &&
+                config.CertificateValidator is CertificateValidator legacyValidator)
             {
-                config.CertificateValidator.CertificateValidation += AutoAcceptCertificateValidation;
+                legacyValidator.CertificateValidation += AutoAcceptCertificateValidation;
             }
 
             m_configuration = config;

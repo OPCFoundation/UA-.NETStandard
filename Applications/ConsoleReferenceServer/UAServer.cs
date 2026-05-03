@@ -118,9 +118,10 @@ namespace Quickstarts
                     throw new ErrorExitException("Application instance certificate invalid!");
                 }
 
-                if (!config.SecurityConfiguration.AutoAcceptUntrustedCertificates)
+                if (!config.SecurityConfiguration.AutoAcceptUntrustedCertificates &&
+                    config.CertificateValidator is CertificateValidator legacyValidator)
                 {
-                    config.CertificateValidator.CertificateValidation += new CertificateValidationEventHandler(
+                    legacyValidator.CertificateValidation += new CertificateValidationEventHandler(
                         CertificateValidator_CertificateValidation
                     );
                 }

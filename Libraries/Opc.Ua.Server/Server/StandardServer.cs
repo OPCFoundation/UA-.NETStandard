@@ -76,9 +76,9 @@ namespace Opc.Ua.Server
                     m_serverInternal = null;
                 }
 
-                if (CertificateValidator != null)
+                if (CertificateValidator is CertificateValidator legacyValidator)
                 {
-                    CertificateValidator.CertificateUpdate -= OnCertificateUpdateAsync;
+                    legacyValidator.CertificateUpdate -= OnCertificateUpdateAsync;
                 }
 
                 m_certManagerSubscription?.Dispose();
@@ -384,7 +384,13 @@ namespace Opc.Ua.Server
                                         clientDescription.ApplicationUri);
                                 }
 
-                                await CertificateValidator.ValidateAsync(clientCertificateChain, requestLifetime.CancellationToken).ConfigureAwait(false);
+                                CertificateValidationResult clientCertResult = await CertificateValidator
+                                    .ValidateAsync(clientCertificateChain, ct: requestLifetime.CancellationToken)
+                                    .ConfigureAwait(false);
+                                if (!clientCertResult.IsValid)
+                                {
+                                    throw new ServiceResultException(clientCertResult.StatusCode);
+                                }
                             }
                         }
                     }
@@ -451,7 +457,7 @@ namespace Opc.Ua.Server
                         CertificateValidator.ValidateDomains(
                             instanceCertificate,
                             configuredEndpoint,
-                            true);
+                            serverValidation: true);
                     }
                     catch (ServiceResultException sre)
                         when (sre.StatusCode == StatusCodes.BadCertificateHostNameInvalid)
@@ -2189,12 +2195,14 @@ namespace Opc.Ua.Server
                 // use a dedicated certificate validator with the registration, but derive behavior from server config
                 CertificateValidator = new CertificateValidator(MessageContext.Telemetry)
             };
-            await configuration
-                .CertificateValidator.UpdateAsync(
-                    configuration.SecurityConfiguration,
-                    configuration.ApplicationUri,
-                    ct)
-                .ConfigureAwait(false);
+            if (configuration.CertificateValidator is CertificateValidator regValidator)
+            {
+                await regValidator.UpdateAsync(
+                        configuration.SecurityConfiguration,
+                        configuration.ApplicationUri,
+                        ct)
+                    .ConfigureAwait(false);
+            }
 
             // try each endpoint.
             if (m_registrationEndpoints != null)
@@ -2718,9 +2726,13 @@ namespace Opc.Ua.Server
                     .SecurityConfiguration
                     .RejectedCertificateStore;
 
-                await Configuration.CertificateValidator.UpdateAsync(
-                    Configuration.SecurityConfiguration,
-                    ct: cancellationToken).ConfigureAwait(false);
+                if (Configuration.CertificateValidator is CertificateValidator cfgUpdateValidator)
+                {
+                    await cfgUpdateValidator.UpdateAsync(
+                            Configuration.SecurityConfiguration,
+                            ct: cancellationToken)
+                        .ConfigureAwait(false);
+                }
 
                 // update trace configuration.
                 Configuration.TraceConfiguration = configuration.TraceConfiguration ??
@@ -3075,7 +3087,10 @@ namespace Opc.Ua.Server
                 m_configurationWatcher.Changed += OnConfigurationChangedAsync;
             }
 
-            CertificateValidator.CertificateUpdate += OnCertificateUpdateAsync;
+            if (CertificateValidator is CertificateValidator legacyCertValidator)
+            {
+                legacyCertValidator.CertificateUpdate += OnCertificateUpdateAsync;
+            }
 
             // Log availability of the new CertificateManager
             if (CertificateManager != null)

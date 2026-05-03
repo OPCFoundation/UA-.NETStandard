@@ -111,8 +111,10 @@ namespace Opc.Ua.Aot.Tests
             };
             await m_clientConfiguration.ValidateAsync(
                 ApplicationType.Client).ConfigureAwait(false);
-            m_clientConfiguration.CertificateValidator
-                .CertificateValidation += (s, e) => e.Accept = true;
+            if (m_clientConfiguration.CertificateValidator is CertificateValidator legacyValidator)
+            {
+                legacyValidator.CertificateValidation += (s, e) => e.Accept = true;
+            }
 
             // Connect session
             EndpointDescription endpointDescription = await CoreClientUtils.SelectEndpointAsync(

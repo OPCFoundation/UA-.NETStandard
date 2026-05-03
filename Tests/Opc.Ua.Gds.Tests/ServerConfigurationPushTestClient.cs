@@ -136,9 +136,12 @@ namespace Opc.Ua.Gds.Tests
                 throw new InvalidOperationException("Application instance certificate invalid!");
             }
 
-            Config.CertificateValidator.CertificateValidation
-                += new CertificateValidationEventHandler(
-                CertificateValidator_CertificateValidation);
+            if (Config.CertificateValidator is CertificateValidator legacyValidator)
+            {
+                legacyValidator.CertificateValidation
+                    += new CertificateValidationEventHandler(
+                    CertificateValidator_CertificateValidation);
+            }
 
             ServerConfigurationPushTestClientConfiguration clientConfiguration =
                 m_application.ApplicationConfiguration

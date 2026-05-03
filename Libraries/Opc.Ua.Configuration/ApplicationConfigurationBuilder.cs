@@ -354,12 +354,14 @@ namespace Opc.Ua.Configuration
             await ApplicationConfiguration.ValidateAsync(ApplicationInstance.ApplicationType, ct)
                 .ConfigureAwait(false);
 
-            await ApplicationConfiguration
-                .CertificateValidator.UpdateAsync(
-                    ApplicationConfiguration.SecurityConfiguration,
-                    applicationUri: null,
-                    ct)
-                .ConfigureAwait(false);
+            if (ApplicationConfiguration.CertificateValidator is CertificateValidator legacyValidator)
+            {
+                await legacyValidator.UpdateAsync(
+                        ApplicationConfiguration.SecurityConfiguration,
+                        applicationUri: null,
+                        ct)
+                    .ConfigureAwait(false);
+            }
 
             return ApplicationConfiguration;
         }

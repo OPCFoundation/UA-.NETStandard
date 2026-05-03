@@ -103,7 +103,7 @@ namespace Opc.Ua
         /// <summary>
         /// Gets or sets the certificate validator which is configured to use.
         /// </summary>
-        public CertificateValidator CertificateValidator { get; set; }
+        public ICertificateValidatorEx CertificateValidator { get; set; }
 
         /// <summary>
         /// Gets or sets the certificate manager that owns this application's
@@ -724,11 +724,18 @@ namespace Opc.Ua
                 ServerConfiguration.PublishingResolution = 50;
             }
 
-            await CertificateValidator.UpdateAsync(
-                SecurityConfiguration,
-                applicationUri: null,
-                ct)
-                .ConfigureAwait(false);
+            // The legacy validator UpdateAsync is still the canonical way to
+            // load trust lists into a CertificateValidator instance. Once a
+            // CertificateManager-driven equivalent is exposed via
+            // ICertificateValidatorEx, this cast can be removed.
+            if (CertificateValidator is CertificateValidator legacyValidator)
+            {
+                await legacyValidator.UpdateAsync(
+                    SecurityConfiguration,
+                    applicationUri: null,
+                    ct)
+                    .ConfigureAwait(false);
+            }
         }
 
         /// <summary>

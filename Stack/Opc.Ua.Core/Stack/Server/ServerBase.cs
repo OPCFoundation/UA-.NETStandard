@@ -687,7 +687,7 @@ namespace Opc.Ua
         /// The object used to verify client certificates
         /// </summary>
         /// <value>The identifier for an X509 certificate.</value>
-        public CertificateValidator CertificateValidator { get; private set; }
+        public ICertificateValidatorEx CertificateValidator { get; private set; }
 
         /// <summary>
         /// The server's application instance certificate types provider.

@@ -102,7 +102,10 @@ namespace Quickstarts
                     .LoadApplicationConfigurationAsync(silent: false, ct: ct)
                     .ConfigureAwait(false);
 
-                m_configuration.CertificateValidator.CertificateValidation += CertificateValidation;
+                if (m_configuration.CertificateValidator is CertificateValidator legacyValidator)
+                {
+                    legacyValidator.CertificateValidation += CertificateValidation;
+                }
 
                 // check the application certificate.
                 bool haveAppCertificate = await application

@@ -70,7 +70,10 @@ namespace Quickstarts
             m_logger = telemetry.CreateLogger<UAClient>();
             m_telemetry = telemetry;
             m_configuration = configuration;
-            m_configuration.CertificateValidator.CertificateValidation += CertificateValidation;
+            if (m_configuration.CertificateValidator is CertificateValidator legacyValidator)
+            {
+                legacyValidator.CertificateValidation += CertificateValidation;
+            }
             m_reverseConnectManager = reverseConnectManager;
         }
 
@@ -95,7 +98,10 @@ namespace Quickstarts
             {
                 m_reconnectHandler?.Dispose();
                 Session?.Dispose();
-                m_configuration.CertificateValidator.CertificateValidation -= CertificateValidation;
+                if (m_configuration.CertificateValidator is CertificateValidator legacyValidator)
+                {
+                    legacyValidator.CertificateValidation -= CertificateValidation;
+                }
             }
             m_disposed = true;
         }

@@ -4816,9 +4816,12 @@ namespace Opc.Ua.Client
                 try
                 {
                     List<CertificateIdentifier> issuers = [];
-                    await configuration
-                        .CertificateValidator.GetIssuersAsync(clientCertificate, issuers, ct)
-                        .ConfigureAwait(false);
+                    if (configuration.CertificateValidator is CertificateValidator getIssuersValidator)
+                    {
+                        await getIssuersValidator
+                            .GetIssuersAsync(clientCertificate, issuers, ct)
+                            .ConfigureAwait(false);
+                    }
 
                     for (int i = 0; i < issuers.Count; i++)
                     {

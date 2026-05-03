@@ -134,9 +134,10 @@ namespace Opc.Ua.Gds.Tests
                 throw new InvalidOperationException("Application instance certificate invalid!");
             }
 
-            if (!Config.SecurityConfiguration.AutoAcceptUntrustedCertificates)
+            if (!Config.SecurityConfiguration.AutoAcceptUntrustedCertificates &&
+                Config.CertificateValidator is CertificateValidator legacyValidator)
             {
-                Config.CertificateValidator.CertificateValidation
+                legacyValidator.CertificateValidation
                     += new CertificateValidationEventHandler(
                     CertificateValidator_CertificateValidation);
             }

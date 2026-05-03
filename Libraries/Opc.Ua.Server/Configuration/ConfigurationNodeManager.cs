@@ -1093,11 +1093,13 @@ namespace Opc.Ua.Server
                             Utils.TraceMasks.Security,
                             "----- Apply Changes for application certificate update running...");
 
-                        await m_configuration
-                            .CertificateValidator.UpdateCertificateAsync(
-                                m_configuration.SecurityConfiguration,
-                                m_configuration.ApplicationUri)
-                            .ConfigureAwait(false);
+                        if (m_configuration.CertificateValidator is CertificateValidator cnmCertValidator)
+                        {
+                            await cnmCertValidator.UpdateCertificateAsync(
+                                    m_configuration.SecurityConfiguration,
+                                    m_configuration.ApplicationUri)
+                                .ConfigureAwait(false);
+                        }
 
                         m_logger.LogInformation(
                             Utils.TraceMasks.Security,

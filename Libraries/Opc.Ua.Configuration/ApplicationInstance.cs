@@ -61,7 +61,7 @@ namespace Opc.Ua.Configuration
                 Server = null;
             }
 
-            ApplicationConfiguration?.CertificateValidator?.Dispose();
+            (ApplicationConfiguration?.CertificateValidator as IDisposable)?.Dispose();
 
             if (ApplicationConfiguration?.SecurityConfiguration?.ApplicationCertificates != null)
             {
@@ -975,9 +975,12 @@ namespace Opc.Ua.Configuration
                 ct)
                 .ConfigureAwait(false);
 
-            await configuration
-                .CertificateValidator.UpdateAsync(configuration.SecurityConfiguration, applicationUri: null, ct)
-                .ConfigureAwait(false);
+            if (configuration.CertificateValidator is CertificateValidator legacyValidator)
+            {
+                await legacyValidator
+                    .UpdateAsync(configuration.SecurityConfiguration, applicationUri: null, ct)
+                    .ConfigureAwait(false);
+            }
 
             m_logger.LogInformation(
                 "Certificate {Certificate} created for {ApplicationUri}.",
