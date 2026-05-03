@@ -1537,9 +1537,16 @@ namespace Opc.Ua.Client
                 requireEncryption &&
                 identity.TokenType != UserTokenType.Anonymous)
             {
-                await m_configuration.CertificateValidator.ValidateAsync(
-                    m_serverCertificate,
-                    ct).ConfigureAwait(false);
+                ICertificateValidatorEx validator =
+                    (ICertificateValidatorEx?)m_configuration.CertificateManager
+                    ?? m_configuration.CertificateValidator;
+                CertificateValidationResult result = await validator
+                    .ValidateAsync(m_serverCertificate, ct: ct)
+                    .ConfigureAwait(false);
+                if (!result.IsValid)
+                {
+                    throw new ServiceResultException(result.StatusCode);
+                }
             }
 
             // validate server nonce and security parameters for user identity.
@@ -4177,7 +4184,10 @@ namespace Opc.Ua.Client
         {
             if (serverCertificate != null)
             {
-                m_configuration.CertificateValidator.ValidateApplicationUri(serverCertificate, endpoint);
+                ICertificateValidatorEx validator =
+                    (ICertificateValidatorEx?)m_configuration.CertificateManager
+                    ?? m_configuration.CertificateValidator;
+                validator.ValidateApplicationUri(serverCertificate, endpoint);
             }
         }
 
