@@ -2065,7 +2065,7 @@ namespace Opc.Ua
             }
         }
 
-        private static ServiceResult ValidateServerCertificateApplicationUri(Certificate serverCertificate, ConfiguredEndpoint endpoint)
+        internal static ServiceResult ValidateServerCertificateApplicationUri(Certificate serverCertificate, ConfiguredEndpoint endpoint)
         {
             string? applicationUri = endpoint?.Description?.Server?.ApplicationUri;
 
@@ -2314,7 +2314,7 @@ namespace Opc.Ua
         /// <param name="serverCertificate">The server certificate which is tested for domain names.</param>
         /// <param name="endpointUrl">The endpoint Url which was used to connect.</param>
         /// <returns>True if domain was found.</returns>
-        private static bool FindDomain(Certificate serverCertificate, Uri endpointUrl)
+        internal static bool FindDomain(Certificate serverCertificate, Uri endpointUrl)
         {
             bool domainFound = false;
 

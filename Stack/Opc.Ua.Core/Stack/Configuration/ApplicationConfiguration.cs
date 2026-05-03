@@ -106,6 +106,21 @@ namespace Opc.Ua
         public CertificateValidator CertificateValidator { get; set; }
 
         /// <summary>
+        /// Gets or sets the certificate manager that owns this application's
+        /// certificates and trust lists.
+        /// </summary>
+        /// <remarks>
+        /// Populated by <c>ApplicationInstance</c> during
+        /// <c>CheckApplicationInstanceCertificatesAsync</c>. New code should
+        /// prefer this property over <see cref="CertificateValidator"/> for
+        /// validation, lifecycle, and trust-list operations. The legacy
+        /// <see cref="CertificateValidator"/> property continues to work
+        /// (the same trust lists, populated via
+        /// <see cref="CertificateValidator.UpdateAsync(SecurityConfiguration, string?, System.Threading.CancellationToken)"/>).
+        /// </remarks>
+        public ICertificateManager CertificateManager { get; set; }
+
+        /// <summary>
         /// Returns the domain names which the server is configured to use.
         /// </summary>
         /// <returns>A list of domain names.</returns>

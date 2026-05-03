@@ -353,6 +353,11 @@ namespace Opc.Ua.Configuration
                 securityConfiguration,
                 m_telemetry);
 
+            // Make the manager visible via the configuration so consumers
+            // that only see ApplicationConfiguration (e.g. Session) can
+            // route validation through the new pipeline.
+            ApplicationConfiguration.CertificateManager = CertificateManager;
+
             // Note: The FindAsync method searches certificates in this order: thumbprint, subjectName, then applicationUri.
             // When SubjectName or Thumbprint is specified, certificates may be loaded even if their ApplicationUri
             // doesn't match ApplicationConfiguration.ApplicationUri, however each certificate is validated individually
