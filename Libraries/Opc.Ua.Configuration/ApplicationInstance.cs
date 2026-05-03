@@ -346,6 +346,13 @@ namespace Opc.Ua.Configuration
                 throw ServiceResultException.ConfigurationError("Need at least one Application Certificate.");
             }
 
+            // Initialize CertificateManager early so CheckApplicationInstanceCertificateAsync
+            // can use the new ICertificateValidatorEx pipeline (with CertificateValidationOptions.AcceptError)
+            // for per-certificate validation below.
+            CertificateManager ??= CertificateManagerFactory.Create(
+                securityConfiguration,
+                m_telemetry);
+
             // Note: The FindAsync method searches certificates in this order: thumbprint, subjectName, then applicationUri.
             // When SubjectName or Thumbprint is specified, certificates may be loaded even if their ApplicationUri
             // doesn't match ApplicationConfiguration.ApplicationUri, however each certificate is validated individually
@@ -365,11 +372,6 @@ namespace Opc.Ua.Configuration
                     .ConfigureAwait(false);
                 result = result && nextResult;
             }
-
-            // Initialize CertificateManager from security configuration
-            CertificateManager ??= CertificateManagerFactory.Create(
-                securityConfiguration,
-                m_telemetry);
 
             return result;
         }
@@ -656,16 +658,6 @@ namespace Opc.Ua.Configuration
                 StatusCodes.BadCertificateRevocationUnknown,
                 StatusCodes.BadCertificateIssuerRevocationUnknown
             ];
-            void OnCertificateValidation(object sender, CertificateValidationEventArgs e)
-            {
-                if (approvedCodes.Contains(e.Error.StatusCode))
-                {
-                    m_logger.LogWarning(
-                        "Application Certificate Validation suppressed {ErrorMessage}",
-                        e.Error.StatusCode);
-                    e.Accept = true;
-                }
-            }
 
             m_logger.LogInformation(
                 "Check application instance certificate {Certificate}.",
@@ -673,16 +665,41 @@ namespace Opc.Ua.Configuration
 
             try
             {
-                // validate certificate.
-                configuration.CertificateValidator.CertificateValidation += OnCertificateValidation;
+                // validate certificate via the new CertificateManager pipeline,
+                // suppressing the same set of errors that the legacy
+                // CertificateValidation event handler used to accept.
+                var options = new Opc.Ua.Security.Certificates.CertificateValidationOptions
+                {
+                    AcceptError = (cert, error) =>
+                    {
+                        if (approvedCodes.Contains(error.StatusCode))
+                        {
+                            m_logger.LogWarning(
+                                "Application Certificate Validation suppressed {ErrorMessage}",
+                                error.StatusCode);
+                            return true;
+                        }
+                        return false;
+                    }
+                };
+
                 using Certificate publicKeyCert = certificate.HasPrivateKey
                     ? Certificate.FromRawData(certificate.RawData)
                     : null;
-                await configuration
-                    .CertificateValidator.ValidateAsync(
-                        publicKeyCert ?? certificate,
-                        ct)
+                using var chain = new CertificateCollection { publicKeyCert ?? certificate };
+
+                CertificateValidationResult result = await CertificateManager
+                    .ValidateAsync(
+                        chain,
+                        trustList: null,
+                        options: options,
+                        ct: ct)
                     .ConfigureAwait(false);
+
+                if (!result.IsValid)
+                {
+                    throw new ServiceResultException(result.StatusCode);
+                }
             }
             catch (Exception ex)
             {
@@ -693,10 +710,6 @@ namespace Opc.Ua.Configuration
                 {
                     return false;
                 }
-            }
-            finally
-            {
-                configuration.CertificateValidator.CertificateValidation -= OnCertificateValidation;
             }
 
             // check key size
