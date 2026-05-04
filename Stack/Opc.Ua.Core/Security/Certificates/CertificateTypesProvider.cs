@@ -149,12 +149,24 @@ namespace Opc.Ua.Security.Certificates
         /// <param name="securityPolicyUri">The security policy Uri</param>
         public Certificate? GetInstanceCertificate(string securityPolicyUri)
         {
-            // Prefer the registry-backed lookup when available.
-            if (m_registry != null)
+            // Always read from the live SecurityConfiguration first so that hot
+            // updates (e.g. via CertificateValidator.UpdateCertificateAsync from
+            // the GDS push path) are picked up immediately. If the config has
+            // not been hot-swapped (still null/empty), fall back to the
+            // registry's preloaded snapshot.
+            Certificate? configCert = GetInstanceCertificateFromSecurityConfiguration(
+                securityPolicyUri);
+            if (configCert != null)
             {
-                return m_registry.GetInstanceCertificate(securityPolicyUri)?.Certificate;
+                return configCert;
             }
 
+            return m_registry?.GetInstanceCertificate(securityPolicyUri)?.Certificate;
+        }
+
+        private Certificate? GetInstanceCertificateFromSecurityConfiguration(
+            string securityPolicyUri)
+        {
             if (securityPolicyUri == SecurityPolicies.None)
             {
                 // return the default certificate for None

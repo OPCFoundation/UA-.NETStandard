@@ -478,7 +478,7 @@ namespace Opc.Ua
             {
                 SerializableVariant s => Equals(s),
                 Variant n => Equals(n),
-                _ => false
+                _ => Value.Equals(obj)
             };
         }
 
