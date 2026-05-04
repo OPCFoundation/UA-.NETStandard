@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -484,6 +485,125 @@ namespace Opc.Ua.Client.Subscriptions
             m_subscriptionManager.Add(m_mockNotificationDataHandler.Object, Mock.Of<IOptionsMonitor<SubscriptionOptions>>());
             await m_subscriptionManager.RecreateSubscriptionsAsync(null, CancellationToken.None).ConfigureAwait(false);
             mockSubscription.Verify(s => s.RecreateAsync(It.IsAny<CancellationToken>()), Times.Once);
+        }
+
+        [Test]
+        public async Task DrainAsyncReturnsImmediatelyWhenNoPublishesActiveAsync()
+        {
+            // No worker started — counter is zero — DrainAsync should
+            // complete synchronously.
+            using var ct = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            await m_subscriptionManager
+                .DrainAsync(ct.Token).ConfigureAwait(false);
+        }
+
+        [Test]
+        [CancelAfter(30_000)]
+        public async Task DrainAsyncWaitsForInFlightPublishToCompleteAsync(
+            CancellationToken testCt)
+        {
+            ILoggerFactory loggerFactory = m_mockLoggerFactory.Object;
+            var session = new Mock<ISubscriptionManagerContext>();
+            OptionsMonitor<SubscriptionOptions> options =
+                OptionsFactory.Create<SubscriptionOptions>();
+            var ms1 = new Mock<IManagedSubscription>();
+            ms1.SetupGet(s => s.Id).Returns(1u);
+            ms1.SetupGet(s => s.Created).Returns(true);
+
+            var sut = new SubscriptionManager(session.Object,
+                loggerFactory, DiagnosticsMasks.None);
+            try
+            {
+
+            session
+                .Setup(s => s.CreateSubscription(
+                    It.IsAny<ISubscriptionNotificationHandler>(),
+                    It.Is<IOptionsMonitor<SubscriptionOptions>>(o => o == options),
+                    It.Is<IMessageAckQueue>(q => q == sut)))
+                .Returns(() => ms1.Object);
+
+            // Block the publish call so a worker stays "in flight".
+            var publishGate = new TaskCompletionSource<PublishResponse>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var publishCalled = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+
+            session
+                .Setup(s => s.PublishAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.IsAny<ArrayOf<SubscriptionAcknowledgement>>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(new Func<RequestHeader,
+                    ArrayOf<SubscriptionAcknowledgement>,
+                    CancellationToken,
+                    ValueTask<PublishResponse>>(
+                    (h, a, ct) =>
+                    {
+                        publishCalled.TrySetResult(true);
+                        return new ValueTask<PublishResponse>(
+                            publishGate.Task);
+                    }));
+
+            sut.MaxPublishWorkerCount = 1;
+            sut.MinPublishWorkerCount = 1;
+            ISubscription _ = sut.Add(
+                m_mockNotificationDataHandler.Object, options);
+            sut.Resume();
+
+            // Wait until the worker has called PublishAsync at least
+            // once so the active-publish counter is non-zero.
+            await publishCalled.Task.WaitAsync(testCt).ConfigureAwait(false);
+
+            // Pause is soft: it stops *new* publishes from being
+            // issued, but the in-flight publish call is still
+            // outstanding. Drain must wait for it.
+            sut.Pause();
+
+            using var drainCts = CancellationTokenSource
+                .CreateLinkedTokenSource(testCt);
+            drainCts.CancelAfter(TimeSpan.FromMilliseconds(300));
+            try
+            {
+                await sut.DrainAsync(drainCts.Token).ConfigureAwait(false);
+                Assert.Fail(
+                    "DrainAsync must not return while a publish is " +
+                    "in flight; expected OperationCanceledException.");
+            }
+            catch (OperationCanceledException)
+            {
+                // expected — drain timed out because the publish is
+                // still in flight.
+            }
+
+            // Complete the publish, releasing the worker.
+            publishGate.TrySetResult(new PublishResponse
+            {
+                AvailableSequenceNumbers = [],
+                NotificationMessage = new NotificationMessage
+                {
+                    SequenceNumber = 1u
+                },
+                Results = ArrayOf<StatusCode>.Empty,
+                SubscriptionId = 1,
+                MoreNotifications = false,
+                ResponseHeader = new ResponseHeader
+                {
+                    ServiceResult = StatusCodes.Good,
+                    StringTable = []
+                }
+            });
+
+            // The publish worker decrements the counter in finally,
+            // so DrainAsync now returns.
+            using var drainCts2 = CancellationTokenSource
+                .CreateLinkedTokenSource(testCt);
+            drainCts2.CancelAfter(TimeSpan.FromSeconds(5));
+            await sut.DrainAsync(drainCts2.Token).ConfigureAwait(false);
+            }
+            finally
+            {
+                await sut.DisposeAsync().ConfigureAwait(false);
+            }
         }
 
         private Mock<ISubscriptionManagerContext> m_mockSession;
