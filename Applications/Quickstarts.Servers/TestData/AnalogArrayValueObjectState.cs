@@ -43,52 +43,52 @@ namespace TestData
 
             InitializeVariable(
                 context,
-                SByteValue,
+                SByteValue!,
                 Variables.AnalogArrayValueObjectType_SByteValue);
-            InitializeVariable(context, ByteValue, Variables.AnalogArrayValueObjectType_ByteValue);
+            InitializeVariable(context, ByteValue!, Variables.AnalogArrayValueObjectType_ByteValue);
             InitializeVariable(
                 context,
-                Int16Value,
+                Int16Value!,
                 Variables.AnalogArrayValueObjectType_Int16Value);
             InitializeVariable(
                 context,
-                UInt16Value,
+                UInt16Value!,
                 Variables.AnalogArrayValueObjectType_UInt16Value);
             InitializeVariable(
                 context,
-                Int32Value,
+                Int32Value!,
                 Variables.AnalogArrayValueObjectType_Int32Value);
             InitializeVariable(
                 context,
-                UInt32Value,
+                UInt32Value!,
                 Variables.AnalogArrayValueObjectType_UInt32Value);
             InitializeVariable(
                 context,
-                Int64Value,
+                Int64Value!,
                 Variables.AnalogArrayValueObjectType_Int64Value);
             InitializeVariable(
                 context,
-                UInt64Value,
+                UInt64Value!,
                 Variables.AnalogArrayValueObjectType_UInt64Value);
             InitializeVariable(
                 context,
-                FloatValue,
+                FloatValue!,
                 Variables.AnalogArrayValueObjectType_FloatValue);
             InitializeVariable(
                 context,
-                DoubleValue,
+                DoubleValue!,
                 Variables.AnalogArrayValueObjectType_DoubleValue);
             InitializeVariable(
                 context,
-                NumberValue,
+                NumberValue!,
                 Variables.AnalogArrayValueObjectType_NumberValue);
             InitializeVariable(
                 context,
-                IntegerValue,
+                IntegerValue!,
                 Variables.AnalogArrayValueObjectType_IntegerValue);
             InitializeVariable(
                 context,
-                UIntegerValue,
+                UIntegerValue!,
                 Variables.AnalogArrayValueObjectType_UIntegerValue);
         }
 
@@ -106,20 +106,20 @@ namespace TestData
                 return StatusCodes.BadOutOfService;
             }
 
-            GenerateValue(system, SByteValue);
-            GenerateValue(system, ByteValue);
-            GenerateValue(system, Int16Value);
-            GenerateValue(system, UInt16Value);
-            GenerateValue(system, Int32Value);
-            GenerateValue(system, UInt32Value);
-            GenerateValue(system, UInt32Value);
-            GenerateValue(system, Int64Value);
-            GenerateValue(system, UInt64Value);
-            GenerateValue(system, FloatValue);
-            GenerateValue(system, DoubleValue);
-            GenerateValue(system, NumberValue);
-            GenerateValue(system, IntegerValue);
-            GenerateValue(system, UIntegerValue);
+            GenerateValue(system, SByteValue!);
+            GenerateValue(system, ByteValue!);
+            GenerateValue(system, Int16Value!);
+            GenerateValue(system, UInt16Value!);
+            GenerateValue(system, Int32Value!);
+            GenerateValue(system, UInt32Value!);
+            GenerateValue(system, UInt32Value!);
+            GenerateValue(system, Int64Value!);
+            GenerateValue(system, UInt64Value!);
+            GenerateValue(system, FloatValue!);
+            GenerateValue(system, DoubleValue!);
+            GenerateValue(system, NumberValue!);
+            GenerateValue(system, IntegerValue!);
+            GenerateValue(system, UIntegerValue!);
 
             return base.OnGenerateValues(context, method, objectId, count);
         }

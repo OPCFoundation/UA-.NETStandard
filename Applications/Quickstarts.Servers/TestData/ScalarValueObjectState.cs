@@ -41,75 +41,75 @@ namespace TestData
         {
             base.OnAfterCreate(context, node, ct);
 
-            InitializeVariable(context, BooleanValue, Variables.ScalarValueObjectType_BooleanValue);
-            InitializeVariable(context, SByteValue, Variables.ScalarValueObjectType_SByteValue);
-            InitializeVariable(context, ByteValue, Variables.ScalarValueObjectType_ByteValue);
-            InitializeVariable(context, Int16Value, Variables.ScalarValueObjectType_Int16Value);
-            InitializeVariable(context, UInt16Value, Variables.ScalarValueObjectType_UInt16Value);
-            InitializeVariable(context, Int32Value, Variables.ScalarValueObjectType_Int32Value);
-            InitializeVariable(context, UInt32Value, Variables.ScalarValueObjectType_UInt32Value);
-            InitializeVariable(context, Int64Value, Variables.ScalarValueObjectType_Int64Value);
-            InitializeVariable(context, UInt64Value, Variables.ScalarValueObjectType_UInt64Value);
-            InitializeVariable(context, FloatValue, Variables.ScalarValueObjectType_FloatValue);
-            InitializeVariable(context, DoubleValue, Variables.ScalarValueObjectType_DoubleValue);
-            InitializeVariable(context, StringValue, Variables.ScalarValueObjectType_StringValue);
+            InitializeVariable(context, BooleanValue!, Variables.ScalarValueObjectType_BooleanValue);
+            InitializeVariable(context, SByteValue!, Variables.ScalarValueObjectType_SByteValue);
+            InitializeVariable(context, ByteValue!, Variables.ScalarValueObjectType_ByteValue);
+            InitializeVariable(context, Int16Value!, Variables.ScalarValueObjectType_Int16Value);
+            InitializeVariable(context, UInt16Value!, Variables.ScalarValueObjectType_UInt16Value);
+            InitializeVariable(context, Int32Value!, Variables.ScalarValueObjectType_Int32Value);
+            InitializeVariable(context, UInt32Value!, Variables.ScalarValueObjectType_UInt32Value);
+            InitializeVariable(context, Int64Value!, Variables.ScalarValueObjectType_Int64Value);
+            InitializeVariable(context, UInt64Value!, Variables.ScalarValueObjectType_UInt64Value);
+            InitializeVariable(context, FloatValue!, Variables.ScalarValueObjectType_FloatValue);
+            InitializeVariable(context, DoubleValue!, Variables.ScalarValueObjectType_DoubleValue);
+            InitializeVariable(context, StringValue!, Variables.ScalarValueObjectType_StringValue);
             InitializeVariable(
                 context,
-                DateTimeValue,
+                DateTimeValue!,
                 Variables.ScalarValueObjectType_DateTimeValue);
-            InitializeVariable(context, GuidValue, Variables.ScalarValueObjectType_GuidValue);
+            InitializeVariable(context, GuidValue!, Variables.ScalarValueObjectType_GuidValue);
             InitializeVariable(
                 context,
-                ByteStringValue,
+                ByteStringValue!,
                 Variables.ScalarValueObjectType_ByteStringValue);
             InitializeVariable(
                 context,
-                XmlElementValue,
+                XmlElementValue!,
                 Variables.ScalarValueObjectType_XmlElementValue);
-            InitializeVariable(context, NodeIdValue, Variables.ScalarValueObjectType_NodeIdValue);
+            InitializeVariable(context, NodeIdValue!, Variables.ScalarValueObjectType_NodeIdValue);
             InitializeVariable(
                 context,
-                ExpandedNodeIdValue,
+                ExpandedNodeIdValue!,
                 Variables.ScalarValueObjectType_ExpandedNodeIdValue);
             InitializeVariable(
                 context,
-                QualifiedNameValue,
+                QualifiedNameValue!,
                 Variables.ScalarValueObjectType_QualifiedNameValue);
             InitializeVariable(
                 context,
-                LocalizedTextValue,
+                LocalizedTextValue!,
                 Variables.ScalarValueObjectType_LocalizedTextValue);
             InitializeVariable(
                 context,
-                StatusCodeValue,
+                StatusCodeValue!,
                 Variables.ScalarValueObjectType_StatusCodeValue);
-            InitializeVariable(context, VariantValue, Variables.ScalarValueObjectType_VariantValue);
+            InitializeVariable(context, VariantValue!, Variables.ScalarValueObjectType_VariantValue);
             InitializeVariable(
                 context,
-                EnumerationValue,
+                EnumerationValue!,
                 Variables.ScalarValueObjectType_EnumerationValue);
             InitializeVariable(
                 context,
-                StructureValue,
+                StructureValue!,
                 Variables.ScalarValueObjectType_StructureValue);
-            InitializeVariable(context, NumberValue, Variables.ScalarValueObjectType_NumberValue);
-            InitializeVariable(context, IntegerValue, Variables.ScalarValueObjectType_IntegerValue);
+            InitializeVariable(context, NumberValue!, Variables.ScalarValueObjectType_NumberValue);
+            InitializeVariable(context, IntegerValue!, Variables.ScalarValueObjectType_IntegerValue);
             InitializeVariable(
                 context,
-                UIntegerValue,
+                UIntegerValue!,
                 Variables.ScalarValueObjectType_UIntegerValue);
-            InitializeVariable(context, VectorValue, Variables.ScalarValueObjectType_VectorValue);
+            InitializeVariable(context, VectorValue!, Variables.ScalarValueObjectType_VectorValue);
             InitializeVariable(
                 context,
-                VectorUnionValue,
+                VectorUnionValue!,
                 Variables.ScalarValueObjectType_VectorUnionValue);
             InitializeVariable(
                 context,
-                VectorWithOptionalFieldsValue,
+                VectorWithOptionalFieldsValue!,
                 Variables.ScalarValueObjectType_VectorWithOptionalFieldsValue);
             InitializeVariable(
                 context,
-                MultipleVectorsValue,
+                MultipleVectorsValue!,
                 Variables.ScalarValueObjectType_MultipleVectorsValue);
         }
 
@@ -127,38 +127,38 @@ namespace TestData
                 return StatusCodes.BadOutOfService;
             }
 
-            GenerateValue(system, BooleanValue);
-            GenerateValue(system, SByteValue);
-            GenerateValue(system, ByteValue);
-            GenerateValue(system, Int16Value);
-            GenerateValue(system, UInt16Value);
-            GenerateValue(system, Int32Value);
-            GenerateValue(system, UInt32Value);
-            GenerateValue(system, UInt32Value);
-            GenerateValue(system, Int64Value);
-            GenerateValue(system, UInt64Value);
-            GenerateValue(system, FloatValue);
-            GenerateValue(system, DoubleValue);
-            GenerateValue(system, StringValue);
-            GenerateValue(system, DateTimeValue);
-            GenerateValue(system, GuidValue);
-            GenerateValue(system, ByteStringValue);
-            GenerateValue(system, XmlElementValue);
-            GenerateValue(system, NodeIdValue);
-            GenerateValue(system, ExpandedNodeIdValue);
-            GenerateValue(system, QualifiedNameValue);
-            GenerateValue(system, LocalizedTextValue);
-            GenerateValue(system, StatusCodeValue);
-            GenerateValue(system, VariantValue);
-            GenerateValue(system, EnumerationValue);
-            GenerateValue(system, StructureValue);
-            GenerateValue(system, NumberValue);
-            GenerateValue(system, IntegerValue);
-            GenerateValue(system, UIntegerValue);
-            GenerateValue(system, VectorValue);
-            GenerateValue(system, VectorUnionValue);
-            GenerateValue(system, VectorWithOptionalFieldsValue);
-            GenerateValue(system, MultipleVectorsValue);
+            GenerateValue(system, BooleanValue!);
+            GenerateValue(system, SByteValue!);
+            GenerateValue(system, ByteValue!);
+            GenerateValue(system, Int16Value!);
+            GenerateValue(system, UInt16Value!);
+            GenerateValue(system, Int32Value!);
+            GenerateValue(system, UInt32Value!);
+            GenerateValue(system, UInt32Value!);
+            GenerateValue(system, Int64Value!);
+            GenerateValue(system, UInt64Value!);
+            GenerateValue(system, FloatValue!);
+            GenerateValue(system, DoubleValue!);
+            GenerateValue(system, StringValue!);
+            GenerateValue(system, DateTimeValue!);
+            GenerateValue(system, GuidValue!);
+            GenerateValue(system, ByteStringValue!);
+            GenerateValue(system, XmlElementValue!);
+            GenerateValue(system, NodeIdValue!);
+            GenerateValue(system, ExpandedNodeIdValue!);
+            GenerateValue(system, QualifiedNameValue!);
+            GenerateValue(system, LocalizedTextValue!);
+            GenerateValue(system, StatusCodeValue!);
+            GenerateValue(system, VariantValue!);
+            GenerateValue(system, EnumerationValue!);
+            GenerateValue(system, StructureValue!);
+            GenerateValue(system, NumberValue!);
+            GenerateValue(system, IntegerValue!);
+            GenerateValue(system, UIntegerValue!);
+            GenerateValue(system, VectorValue!);
+            GenerateValue(system, VectorUnionValue!);
+            GenerateValue(system, VectorWithOptionalFieldsValue!);
+            GenerateValue(system, MultipleVectorsValue!);
 
             return base.OnGenerateValues(context, method, objectId, count);
         }

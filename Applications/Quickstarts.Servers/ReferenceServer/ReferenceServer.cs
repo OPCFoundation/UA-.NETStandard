@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Security.Cryptography.X509Certificates;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.Server;
@@ -62,7 +63,7 @@ namespace Quickstarts.ReferenceServer
         /// <summary>
         /// Token validator
         /// </summary>
-        public ITokenValidator TokenValidator { get; set; }
+        public ITokenValidator? TokenValidator { get; set; }
 
         /// <summary>
         /// If true the ReferenceNodeManager is set to work with a sampling group mechanism
@@ -149,7 +150,7 @@ namespace Quickstarts.ReferenceServer
         /// <param name="server">The server.</param>
         /// <param name="configuration">The configuration.</param>
         /// <returns>Returns a subscriptionStore for a server, the return type is <seealso cref="ISubscriptionStore"/>.</returns>
-        protected override ISubscriptionStore CreateSubscriptionStore(
+        protected override ISubscriptionStore? CreateSubscriptionStore(
             IServerInternal server,
             ApplicationConfiguration configuration)
         {
@@ -230,7 +231,7 @@ namespace Quickstarts.ReferenceServer
                 ServerInternal.UpdateServerStatus(
                     status =>
                         // allow a faster sampling interval for CurrentTime node.
-                        status.Variable.CurrentTime.MinimumSamplingInterval = 250);
+                        status.Variable!.CurrentTime!.MinimumSamplingInterval = 250);
             }
             catch
             {
@@ -281,9 +282,10 @@ namespace Quickstarts.ReferenceServer
         /// </summary>
         private void CreateUserIdentityValidators(ApplicationConfiguration configuration)
         {
-            for (int ii = 0; ii < configuration.ServerConfiguration.UserTokenPolicies.Count; ii++)
+            ServerConfiguration serverConfiguration = configuration.ServerConfiguration!;
+            for (int ii = 0; ii < serverConfiguration.UserTokenPolicies.Count; ii++)
             {
-                UserTokenPolicy policy = configuration.ServerConfiguration.UserTokenPolicies[ii];
+                UserTokenPolicy policy = serverConfiguration.UserTokenPolicies[ii];
 
                 // create a validator for a certificate token policy.
                 if (policy.TokenType == UserTokenType.Certificate)
@@ -298,7 +300,7 @@ namespace Quickstarts.ReferenceServer
                         certificateValidator.Update(
                             configuration.SecurityConfiguration.UserIssuerCertificates,
                             configuration.SecurityConfiguration.TrustedUserCertificates,
-                            configuration.SecurityConfiguration.RejectedCertificateStore);
+                            configuration.SecurityConfiguration.RejectedCertificateStore!);
 
                         // set custom validator for user certificates.
                         m_userCertificateValidator = certificateValidator.GetChannelValidator();
@@ -349,7 +351,7 @@ namespace Quickstarts.ReferenceServer
             if (args.UserIdentityTokenHandler is IssuedIdentityTokenHandler issuedToken)
             {
                 // set AuthenticatedUser role for accepted identity token
-                args.Identity = new RoleBasedIdentity(VerifyIssuedToken(issuedToken),
+                args.Identity = new RoleBasedIdentity(VerifyIssuedToken(issuedToken)!,
                     [Role.AuthenticatedUser],
                     ServerInternal.MessageContext.NamespaceUris);
                 return;
@@ -389,7 +391,7 @@ namespace Quickstarts.ReferenceServer
         private IUserIdentity VerifyPassword(UserNameIdentityTokenHandler userTokenHandler)
         {
             string userName = userTokenHandler.UserName;
-            byte[] password = userTokenHandler.DecryptedPassword;
+            byte[]? password = userTokenHandler.DecryptedPassword;
             if (string.IsNullOrEmpty(userName))
             {
                 // an empty username is not accepted.
@@ -460,18 +462,22 @@ namespace Quickstarts.ReferenceServer
         /// <exception cref="ServiceResultException"></exception>
         private void VerifyX509IdentityToken(X509IdentityTokenHandler x509TokenHandler)
         {
+            X509Certificate2 certificate = x509TokenHandler.Certificate
+                ?? throw ServiceResultException.Create(
+                    StatusCodes.BadIdentityTokenInvalid,
+                    "X509 identity token has no certificate.");
             try
             {
                 if (m_userCertificateValidator != null)
                 {
                     m_userCertificateValidator.ValidateAsync(
-                        x509TokenHandler.Certificate,
+                        certificate,
                         default).GetAwaiter().GetResult();
                 }
                 else
                 {
-                    CertificateValidator.ValidateAsync(
-                        x509TokenHandler.Certificate,
+                    CertificateValidator!.ValidateAsync(
+                        certificate,
                         default).GetAwaiter().GetResult();
                 }
             }
@@ -486,7 +492,7 @@ namespace Quickstarts.ReferenceServer
                         "InvalidCertificate",
                         "en-US",
                         "'{0}' is an invalid user certificate.",
-                        x509TokenHandler.Certificate.Subject);
+                        certificate.Subject);
 
                     result = StatusCodes.BadIdentityTokenInvalid;
                 }
@@ -497,7 +503,7 @@ namespace Quickstarts.ReferenceServer
                         "UntrustedCertificate",
                         "en-US",
                         "'{0}' is not a trusted user certificate.",
-                        x509TokenHandler.Certificate.Subject);
+                        certificate.Subject);
                 }
 
                 // create an exception with a vendor defined sub-code.
@@ -509,7 +515,7 @@ namespace Quickstarts.ReferenceServer
             }
         }
 
-        private IUserIdentity VerifyIssuedToken(IssuedIdentityTokenHandler issuedTokenHandler)
+        private IUserIdentity? VerifyIssuedToken(IssuedIdentityTokenHandler issuedTokenHandler)
         {
             if (TokenValidator == null)
             {
@@ -560,6 +566,6 @@ namespace Quickstarts.ReferenceServer
             }
         }
 
-        private ICertificateValidator m_userCertificateValidator;
+        private ICertificateValidator? m_userCertificateValidator;
     }
 }

@@ -203,7 +203,7 @@ namespace Opc.Ua.Mcp.Tools
 
                     if (histResult.HistoryData.TryGetValue(out HistoryData? historyData))
                     {
-                        resultDict["dataValues"] = historyData!.DataValues
+                        resultDict["dataValues"] = historyData.DataValues
                             .ToArray()!.Select(OpcUaJsonHelper.DataValueToDict)
                             .ToList();
                     }

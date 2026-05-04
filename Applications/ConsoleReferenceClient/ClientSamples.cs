@@ -67,8 +67,8 @@ namespace Quickstarts
 
         public ClientSamples(
             ITelemetryContext telemetry,
-            Action<IList, IList> validateResponse,
-            ManualResetEvent quitEvent = null,
+            Action<IList, IList>? validateResponse,
+            ManualResetEvent? quitEvent = null,
             bool verbose = false)
         {
             m_telemetry = telemetry;
@@ -587,9 +587,11 @@ namespace Quickstarts
             // add root node
             if (addRootNode)
             {
-                INode rootNode = await uaClient.Session.NodeCache.FindAsync(startingNode, ct)
+                INode? rootNode = await uaClient.Session.NodeCache.FindAsync(startingNode, ct)
                     .ConfigureAwait(false);
-                nodeDictionary[rootNode.NodeId] = rootNode;
+                // TODO: Consider adding a null check on rootNode before indexing — pre-existing
+                // latent NRE if FindAsync returns null for an unknown startingNode.
+                nodeDictionary[rootNode!.NodeId] = rootNode;
             }
 
             int searchDepth = 0;
@@ -625,7 +627,7 @@ namespace Quickstarts
                             // no need to browse property types
                             if (node is VariableNode variableNode)
                             {
-                                IReference hasTypeDefinition = variableNode.ReferenceTable
+                                IReference? hasTypeDefinition = variableNode.ReferenceTable
                                     .FirstOrDefault(r =>
                                         r.ReferenceTypeId
                                             .Equals(ReferenceTypeIds.HasTypeDefinition));
@@ -712,7 +714,7 @@ namespace Quickstarts
         public async Task<ArrayOf<ReferenceDescription>> ManagedBrowseFullAddressSpaceAsync(
             IUAClient uaClient,
             NodeId startingNode = default,
-            BrowseDescription browseDescription = null,
+            BrowseDescription? browseDescription = null,
             CancellationToken ct = default)
         {
             ContinuationPointPolicy policyBackup = uaClient.Session.ContinuationPointPolicy;
@@ -888,7 +890,7 @@ namespace Quickstarts
         public async Task<ArrayOf<ReferenceDescription>> BrowseFullAddressSpaceAsync(
             IUAClient uaClient,
             NodeId startingNode = default,
-            BrowseDescription browseDescription = null,
+            BrowseDescription? browseDescription = null,
             CancellationToken ct = default)
         {
             var stopWatch = new Stopwatch();
@@ -1176,8 +1178,8 @@ namespace Quickstarts
             CancellationToken ct = default)
         {
             bool retrySingleRead = false;
-            List<DataValue> values = null;
-            List<ServiceResult> errors = null;
+            List<DataValue>? values = null;
+            List<ServiceResult>? errors = null;
 
             do
             {
@@ -1259,7 +1261,7 @@ namespace Quickstarts
                 }
             } while (retrySingleRead);
 
-            return ResultSet.From(values, errors);
+            return ResultSet.From(values!, errors!);
         }
 
         /// <summary>
@@ -1361,7 +1363,7 @@ namespace Quickstarts
             IServiceMessageContext messageContext,
             string name,
             DataValue value,
-            JsonEncoderOptions jsonEncodingType = null)
+            JsonEncoderOptions? jsonEncodingType = null)
         {
             string textbuffer;
             using (var jsonEncoder = new JsonEncoder(messageContext, jsonEncodingType))
@@ -1436,8 +1438,10 @@ namespace Quickstarts
             try
             {
                 // Log MonitoredItem Notification event
+                // TODO: Consider adding a null check on `notification` — `as` returns null for
+                // type mismatch and the deref below would NRE (pre-existing latent bug).
                 var notification = e.NotificationValue as MonitoredItemNotification;
-                DateTime localTime = notification.Value.SourceTimestamp.ToLocalTime();
+                DateTime localTime = notification!.Value.SourceTimestamp.ToLocalTime();
                 m_logger.LogInformation(
                     "Notification: {SequenceNumber} \"{NodeId}\" and Value = {Value} at [{CurrentTime}].",
                     notification.Message.SequenceNumber,
@@ -1461,11 +1465,13 @@ namespace Quickstarts
             try
             {
                 // Log MonitoredItem Notification event
+                // TODO: Consider adding a null check on `notification` — `as` returns null for
+                // type mismatch and the deref below would NRE (pre-existing latent bug).
                 var notification = e.NotificationValue as EventFieldList;
 
                 foreach (KeyValuePair<int, ArrayOf<QualifiedName>> entry in m_desiredEventFields)
                 {
-                    Variant field = notification.EventFields[entry.Key];
+                    Variant field = notification!.EventFields[entry.Key];
                     if (field.TypeInfo.BuiltInType != BuiltInType.Null)
                     {
                         var fieldPath = new StringBuilder();
@@ -1559,7 +1565,7 @@ namespace Quickstarts
             var browseDescriptionCollection = new List<BrowseDescription>();
             foreach (NodeId nodeId in nodeIdCollection)
             {
-                BrowseDescription browseDescription = CoreUtils.Clone(template);
+                BrowseDescription browseDescription = CoreUtils.Clone(template)!;
                 browseDescription.NodeId = nodeId;
                 browseDescriptionCollection.Add(browseDescription);
             }
@@ -1621,7 +1627,7 @@ namespace Quickstarts
             ISession session,
             IList<INode> nodes,
             string outputDirectory,
-            IReadOnlyCollection<string> targetNamespaces = null,
+            IReadOnlyCollection<string>? targetNamespaces = null,
             CancellationToken cancellationToken = default)
         {
             if (session == null)
@@ -1637,7 +1643,7 @@ namespace Quickstarts
                 throw new ArgumentException("Value cannot be null or whitespace.", nameof(outputDirectory));
             }
 
-            HashSet<string> targetSet = targetNamespaces is { Count: > 0 }
+            HashSet<string>? targetSet = targetNamespaces is { Count: > 0 }
                 ? new HashSet<string>(targetNamespaces, StringComparer.OrdinalIgnoreCase)
                 : null;
 
@@ -1658,7 +1664,7 @@ namespace Quickstarts
                 .GroupBy(node => node.NodeId.NamespaceIndex)
                 .Where(group =>
                 {
-                    string namespaceUri = session.NamespaceUris.GetString(group.Key);
+                    string? namespaceUri = session.NamespaceUris.GetString(group.Key);
                     if (string.IsNullOrEmpty(namespaceUri))
                     {
                         return false;
@@ -1666,8 +1672,9 @@ namespace Quickstarts
 
                     if (targetSet != null)
                     {
-                        // Caller asked for a specific set of namespaces.
-                        return targetSet.Contains(namespaceUri);
+                        // Caller asked for a specific set of namespaces. namespaceUri is non-null
+                        // after !IsNullOrEmpty (NotNullWhen attribute not available on net48).
+                        return targetSet.Contains(namespaceUri!);
                     }
 
                     // Default: exclude only the OPC UA base namespace; include companion specs.
@@ -1684,7 +1691,8 @@ namespace Quickstarts
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                string namespaceUri = session.NamespaceUris.GetString(kvp.Key);
+                // The Where clause above filtered out null/empty namespace URIs.
+                string namespaceUri = session.NamespaceUris.GetString(kvp.Key)!;
 
                 // Create a safe filename from the namespace URI
 
@@ -1786,7 +1794,7 @@ namespace Quickstarts
         {
             if (m_validate != null)
             {
-                m_validate(requests.ToArray(), responses.ToArray());
+                m_validate(requests.ToArray()!, responses.ToArray()!);
             }
             else
             {
@@ -1794,10 +1802,10 @@ namespace Quickstarts
             }
         }
 
-        private readonly Action<IList, IList> m_validate;
+        private readonly Action<IList, IList>? m_validate;
         private readonly ITelemetryContext m_telemetry;
         private readonly ILogger m_logger;
-        private readonly ManualResetEvent m_quitEvent;
+        private readonly ManualResetEvent? m_quitEvent;
         private readonly bool m_verbose;
         private readonly Dictionary<int, ArrayOf<QualifiedName>> m_desiredEventFields;
         private int m_processedEvents;

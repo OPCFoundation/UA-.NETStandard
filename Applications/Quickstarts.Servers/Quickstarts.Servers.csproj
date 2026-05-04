@@ -6,6 +6,7 @@
     <PackageId>OPCFoundation.NetStandard.Opc.Ua.Quickstarts.Servers</PackageId>
     <RootNamespace>Quickstarts.Servers</RootNamespace>
     <Description>OPC UA Quickstarts Servers Class Library</Description>
+    <Nullable>enable</Nullable>
     <RestoreProjectStyle>PackageReference</RestoreProjectStyle>
     <NoWarn>CS1591;CS1573;RCS1139</NoWarn>
     <IsPackable>true</IsPackable>

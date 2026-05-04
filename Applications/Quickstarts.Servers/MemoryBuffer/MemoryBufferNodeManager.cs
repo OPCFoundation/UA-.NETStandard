@@ -44,7 +44,7 @@ namespace MemoryBuffer
         /// <inheritdoc/>
         public INodeManager Create(IServerInternal server, ApplicationConfiguration configuration)
         {
-            return new MemoryBufferNodeManager(server, configuration, NamespacesUris.ToArray());
+            return new MemoryBufferNodeManager(server, configuration, NamespacesUris.ToArray()!);
         }
 
         /// <inheritdoc/>
@@ -98,7 +98,7 @@ namespace MemoryBuffer
                     .GetIndexOrAppend(Namespaces.MemoryBuffer);
 
                 BaseInstanceState root = FindPredefinedNode<BaseInstanceState>(
-                    new NodeId(Objects.MemoryBuffers, namespaceIndex));
+                    new NodeId(Objects.MemoryBuffers, namespaceIndex))!;
 
                 // create the nodes from configuration.
                 namespaceIndex = Server.NamespaceUris
@@ -108,10 +108,10 @@ namespace MemoryBuffer
                 {
                     for (int ii = 0; ii < m_configuration.Buffers.Count; ii++)
                     {
-                        MemoryBufferInstance instance = m_configuration.Buffers[ii];
+                        MemoryBufferInstance instance = m_configuration.Buffers[ii]!;
 
                         // create a new buffer.
-                        MemoryBufferState bufferNode = null;
+                        MemoryBufferState? bufferNode = null;
                         try
                         {
                             bufferNode = new MemoryBufferState(SystemContext, instance);
@@ -170,10 +170,10 @@ namespace MemoryBuffer
         /// NodeManager it should return a handle that does not require the NodeId to be validated again when
         /// the handle is passed into other methods such as 'Read' or 'Write'.
         /// </remarks>
-        protected override object GetManagerHandle(
+        protected override object? GetManagerHandle(
             ISystemContext context,
             NodeId nodeId,
-            IDictionary<NodeId, NodeState> cache)
+            IDictionary<NodeId, NodeState>? cache)
         {
             lock (Lock)
             {
@@ -182,17 +182,17 @@ namespace MemoryBuffer
                     return null;
                 }
 
-                if (nodeId.TryGetValue(out string id))
+                if (nodeId.TryGetValue(out string? id))
                 {
                     // check for a reference to the buffer.
 
-                    if (m_buffers.TryGetValue(id, out MemoryBufferState buffer))
+                    if (m_buffers.TryGetValue(id!, out MemoryBufferState? buffer))
                     {
                         return buffer;
                     }
 
                     // tag ids have the syntax <bufferName>[<address>]
-                    if (id[^1] != ']')
+                    if (id![^1] != ']')
                     {
                         return null;
                     }
@@ -226,7 +226,7 @@ namespace MemoryBuffer
                     // check range on offset.
                     uint offset = Convert.ToUInt32(offsetText, CultureInfo.InvariantCulture);
 
-                    if (offset >= buffer.SizeInBytes.Value)
+                    if (offset >= buffer.SizeInBytes!.Value)
                     {
                         return null;
                     }
@@ -263,8 +263,8 @@ namespace MemoryBuffer
             out MonitoringFilterResult filterError,
             out IMonitoredItem monitoredItem)
         {
-            filterError = null;
-            monitoredItem = null;
+            filterError = null!;
+            monitoredItem = null!;
 
             // use default behavior for non-tag sources.
             if (source is not MemoryTagState tag)
@@ -287,7 +287,7 @@ namespace MemoryBuffer
             MonitoringParameters parameters = itemToCreate.RequestedParameters;
 
             // no filters supported at this time.
-            var filter = (MonitoringFilter)ExtensionObject.ToEncodeable(parameters.Filter);
+            var filter = (MonitoringFilter?)ExtensionObject.ToEncodeable(parameters.Filter);
 
             if (filter != null)
             {
@@ -343,7 +343,7 @@ namespace MemoryBuffer
 
             // create the item.
             MemoryBufferMonitoredItem datachangeItem = buffer.CreateDataChangeItem(
-                context as ServerSystemContext,
+                (context as ServerSystemContext)!,
                 tag,
                 subscriptionId,
                 monitoredItemIdFactory.GetNextId(),
@@ -374,7 +374,7 @@ namespace MemoryBuffer
             IStoredMonitoredItem storedMonitoredItem,
             out IMonitoredItem monitoredItem)
         {
-            monitoredItem = null;
+            monitoredItem = null!;
 
             // use default behavior for non-tag sources.
             if (source is not MemoryTagState tag)
@@ -411,7 +411,7 @@ namespace MemoryBuffer
             MonitoredItemModifyRequest itemToModify,
             out MonitoringFilterResult filterError)
         {
-            filterError = null;
+            filterError = null!;
 
             // check for valid handle.
             if (monitoredItem.ManagerHandle is not MemoryBufferState)
@@ -438,7 +438,7 @@ namespace MemoryBuffer
             MonitoringParameters parameters = itemToModify.RequestedParameters;
 
             // no filters supported at this time.
-            var filter = (MonitoringFilter)ExtensionObject.ToEncodeable(parameters.Filter);
+            var filter = (MonitoringFilter?)ExtensionObject.ToEncodeable(parameters.Filter);
 
             if (filter != null)
             {

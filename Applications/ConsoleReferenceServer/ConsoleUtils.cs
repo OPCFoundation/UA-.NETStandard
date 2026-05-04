@@ -51,9 +51,9 @@ namespace Quickstarts
     /// </summary>
     public sealed class ConsoleTelemetry : ITelemetryContext, IDisposable
     {
-        private readonly Action<ILoggingBuilder> m_configure;
+        private readonly Action<ILoggingBuilder>? m_configure;
 
-        public ConsoleTelemetry(Action<ILoggingBuilder> configure = null)
+        public ConsoleTelemetry(Action<ILoggingBuilder>? configure = null)
         {
             m_configure = configure;
 
@@ -155,7 +155,7 @@ namespace Quickstarts
             LogLevel fileLevel = LogLevel.Information;
 
             // switch for Trace/Verbose output
-            int traceMasks = configuration.TraceConfiguration.TraceMasks;
+            int traceMasks = configuration.TraceConfiguration!.TraceMasks;
             if ((traceMasks &
                 ~(
                     Utils.TraceMasks.Information |
@@ -171,11 +171,11 @@ namespace Quickstarts
             // add file logging if configured
             if (logFile)
             {
-                string outputFilePath = configuration.TraceConfiguration.OutputFilePath;
+                string? outputFilePath = configuration.TraceConfiguration!.OutputFilePath;
                 if (!string.IsNullOrWhiteSpace(outputFilePath))
                 {
                     loggerConfiguration.WriteTo.File(
-                        Utils.ReplaceSpecialFolderNames(outputFilePath),
+                        Utils.ReplaceSpecialFolderNames(outputFilePath)!,
                         outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff} [{Level:u3}] {Message:lj}{NewLine}{Exception}",
                         restrictedToMinimumLevel: (LogEventLevel)fileLevel,
                         rollOnFileSizeLimit: true
@@ -214,7 +214,7 @@ namespace Quickstarts
         }
 
         private void CurrentDomain_UnhandledException(
-            object sender,
+            object? sender,
             UnhandledExceptionEventArgs args)
         {
             m_logger.LogCritical(
@@ -224,7 +224,7 @@ namespace Quickstarts
         }
 
         private void Unobserved_TaskException(
-            object sender,
+            object? sender,
             UnobservedTaskExceptionEventArgs args)
         {
             m_logger.LogCritical(
@@ -327,7 +327,7 @@ namespace Quickstarts
                 string name = option.Name.TrimStart('-');
                 if (name.Length >= 3)
                 {
-                    string envKey = config[name.ToUpperInvariant()];
+                    string? envKey = config[name.ToUpperInvariant()];
                     if (envKey != null)
                     {
                         if (string.IsNullOrWhiteSpace(envKey))

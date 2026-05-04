@@ -91,8 +91,8 @@ namespace Opc.Ua.Sample
             double samplingInterval,
             uint queueSize,
             bool discardOldest,
-            DataChangeFilter filter,
-            Range range,
+            DataChangeFilter? filter,
+            Range? range,
             bool alwaysReportUpdates)
         {
             m_source = source;
@@ -278,8 +278,8 @@ namespace Opc.Ua.Sample
                 samplingInterval,
                 0,
                 false,
-                null,
-                null);
+                filter: null,
+                range: null);
         }
 
         /// <summary>
@@ -292,8 +292,8 @@ namespace Opc.Ua.Sample
             double samplingInterval,
             uint queueSize,
             bool discardOldest,
-            DataChangeFilter filter,
-            Range range)
+            DataChangeFilter? filter,
+            Range? range)
         {
             lock (m_lock)
             {
@@ -397,7 +397,7 @@ namespace Opc.Ua.Sample
                     return subscription.Session;
                 }
 
-                return null;
+                return null!;
             }
         }
 
@@ -409,7 +409,7 @@ namespace Opc.Ua.Sample
             get
             {
                 ISubscription subscription = SubscriptionCallback;
-                return subscription?.EffectiveIdentity;
+                return (subscription?.EffectiveIdentity)!;
             }
         }
 
@@ -444,7 +444,7 @@ namespace Opc.Ua.Sample
         /// <summary>
         /// The callback to use to notify the subscription when values are ready to publish.
         /// </summary>
-        public ISubscription SubscriptionCallback { get; set; }
+        public ISubscription SubscriptionCallback { get; set; } = null!;
 
         /// <summary>
         /// The handle assigned to the monitored item by the node manager.
@@ -733,7 +733,7 @@ namespace Opc.Ua.Sample
         /// <summary>
         /// No filters supported.
         /// </summary>
-        public DataChangeFilter DataChangeFilter { get; private set; }
+        public DataChangeFilter? DataChangeFilter { get; private set; }
 
         public bool IsDurable => false;
 
@@ -828,8 +828,8 @@ namespace Opc.Ua.Sample
         /// </summary>
         private void Publish(
             OperationContext context,
-            DataValue value,
-            ServiceResult error,
+            DataValue? value,
+            ServiceResult? error,
             Queue<MonitoredItemNotification> notifications,
             Queue<DiagnosticInfo> diagnostics,
             ILogger logger)
@@ -851,23 +851,23 @@ namespace Opc.Ua.Sample
             }
 
             // copy data value.
-            var item = new MonitoredItemNotification { ClientHandle = ClientHandle, Value = value };
+            var item = new MonitoredItemNotification { ClientHandle = ClientHandle, Value = value! };
 
             // apply timestamp filter.
             if (m_timestampsToReturn is not TimestampsToReturn.Server and not TimestampsToReturn.Both)
             {
-                item.Value.ServerTimestamp = DateTime.MinValue;
+                item.Value!.ServerTimestamp = DateTime.MinValue;
             }
 
             if (m_timestampsToReturn is not TimestampsToReturn.Source and not TimestampsToReturn.Both)
             {
-                item.Value.SourceTimestamp = DateTime.MinValue;
+                item.Value!.SourceTimestamp = DateTime.MinValue;
             }
 
             notifications.Enqueue(item);
 
             // update diagnostic info.
-            DiagnosticInfo diagnosticInfo = null;
+            DiagnosticInfo? diagnosticInfo = null;
 
             if (m_lastError != null && (m_diagnosticsMasks & DiagnosticsMasks.OperationAll) != 0)
             {
@@ -878,7 +878,7 @@ namespace Opc.Ua.Sample
                     logger);
             }
 
-            diagnostics.Enqueue(diagnosticInfo);
+            diagnostics.Enqueue(diagnosticInfo!);
         }
 
         /// <inheritdoc/>
@@ -900,14 +900,14 @@ namespace Opc.Ua.Sample
         }
 
         private readonly Lock m_lock = new();
-        private readonly IMonitoredItemQueueFactory m_monitoredItemQueueFactory;
+        private readonly IMonitoredItemQueueFactory? m_monitoredItemQueueFactory;
         private readonly MonitoredNode m_source;
-        private DataValue m_lastValue;
-        private ServiceResult m_lastError;
+        private DataValue? m_lastValue;
+        private ServiceResult? m_lastError;
         private TimestampsToReturn m_timestampsToReturn;
         private DiagnosticsMasks m_diagnosticsMasks;
         private double m_samplingInterval;
-        private DataChangeQueueHandler m_queue;
+        private DataChangeQueueHandler? m_queue;
         private uint m_queueSize;
         private double m_range;
         private long m_nextSampleTime;

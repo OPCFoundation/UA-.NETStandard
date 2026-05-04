@@ -74,13 +74,13 @@ namespace Quickstarts.ConsoleReferencePublisher
             {
                 bool useMqttUadp = parseResult.GetValue(mqttUadpOption);
                 bool useUdpUadp = parseResult.GetValue(udpUadpOption);
-                string publisherUrl = parseResult.GetValue(publisherUrlOption);
+                string? publisherUrl = parseResult.GetValue(publisherUrlOption);
 
                 try
                 {
                     var telemetry = new ConsoleTelemetry();
 
-                    PubSubConfigurationDataType pubSubConfiguration = null;
+                    PubSubConfigurationDataType? pubSubConfiguration = null;
                     if (useUdpUadp)
                     {
                         // set default UDP Publisher Url to local multi-cast if not sent in args.
@@ -90,7 +90,7 @@ namespace Quickstarts.ConsoleReferencePublisher
                         }
 
                         // Create configuration using UDP protocol and UADP Encoding
-                        pubSubConfiguration = CreatePublisherConfiguration_UdpUadp(publisherUrl);
+                        pubSubConfiguration = CreatePublisherConfiguration_UdpUadp(publisherUrl!);
                         Console.WriteLine(
                             "The PubSub Connection was initialized using UDP & UADP Profile.");
                     }
@@ -105,14 +105,14 @@ namespace Quickstarts.ConsoleReferencePublisher
                         if (useMqttUadp)
                         {
                             // Create configuration using MQTT protocol and UADP Encoding
-                            pubSubConfiguration = CreatePublisherConfiguration_MqttUadp(publisherUrl);
+                            pubSubConfiguration = CreatePublisherConfiguration_MqttUadp(publisherUrl!);
                             Console.WriteLine(
                                 "The PubSub Connection was initialized using MQTT & UADP Profile.");
                         }
                         else
                         {
                             // Create configuration using MQTT protocol and JSON Encoding
-                            pubSubConfiguration = CreatePublisherConfiguration_MqttJson(publisherUrl);
+                            pubSubConfiguration = CreatePublisherConfiguration_MqttJson(publisherUrl!);
                             Console.WriteLine(
                                 "The PubSub Connection was initialized using MQTT & JSON Profile.");
                         }
@@ -637,7 +637,7 @@ namespace Quickstarts.ConsoleReferencePublisher
                     new PublishedVariableDataType
                     {
                         PublishedVariable = new NodeId(
-                            field.Name,
+                            field.Name!,
                             PublishedValuesWrites.NamespaceIndexSimple),
                         AttributeId = Attributes.Value
                     }
@@ -807,7 +807,7 @@ namespace Quickstarts.ConsoleReferencePublisher
                     new PublishedVariableDataType
                     {
                         PublishedVariable = new NodeId(
-                            field.Name,
+                            field.Name!,
                             PublishedValuesWrites.NamespaceIndexAllTypes),
                         AttributeId = Attributes.Value
                     }

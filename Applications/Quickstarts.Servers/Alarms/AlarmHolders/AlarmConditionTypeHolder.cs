@@ -101,7 +101,7 @@ namespace Alarms
             base.Initialize(alarmTypeIdentifier, name);
 
             alarm.SetActiveState(SystemContext, active: false);
-            alarm.InputNode.Value = m_trigger.NodeId;
+            alarm.InputNode!.Value = m_trigger.NodeId;
 
             if (Optional)
             {
@@ -111,17 +111,17 @@ namespace Alarms
                     shelved: false,
                     oneShot: false,
                     shelvingTime: double.MaxValue);
-                alarm.ShelvingState.LastTransition.Value = new LocalizedText(string.Empty);
-                alarm.ShelvingState.LastTransition.Id.Value = default;
+                alarm.ShelvingState!.LastTransition!.Value = new LocalizedText(string.Empty);
+                alarm.ShelvingState.LastTransition.Id!.Value = default;
 
                 alarm.OnShelve = OnShelve;
                 alarm.OnTimedUnshelve = OnTimedUnshelve;
                 alarm.UnshelveTimeUpdateRate = 2000;
 
-                alarm.MaxTimeShelved.Value = maxTimeShelved;
+                alarm.MaxTimeShelved!.Value = maxTimeShelved;
 
-                alarm.LatchedState.Value = new LocalizedText(string.Empty);
-                alarm.LatchedState.Id.Value = false;
+                alarm.LatchedState!.Value = new LocalizedText(string.Empty);
+                alarm.LatchedState.Id!.Value = false;
             }
             else
             {
@@ -150,7 +150,7 @@ namespace Alarms
                 if (message.Length == 0)
                 {
                     message = "Updating due to Shelving State Update: " +
-                        alarm.ShelvingState.CurrentState.Value;
+                        alarm.ShelvingState!.CurrentState!.Value;
                 }
                 setValue = true;
             }
@@ -158,7 +158,7 @@ namespace Alarms
             {
                 if (message.Length == 0)
                 {
-                    message = "Updating due to Suppression Update: " + alarm.SuppressedState.Value;
+                    message = "Updating due to Suppression Update: " + alarm.SuppressedState!.Value;
                 }
                 setValue = true;
             }
@@ -175,11 +175,11 @@ namespace Alarms
 
             bool retainState = true;
 
-            if (!alarm.ActiveState.Id.Value && alarm.AckedState.Id.Value)
+            if (!alarm.ActiveState!.Id!.Value && alarm.AckedState!.Id!.Value)
             {
                 if (Optional)
                 {
-                    if (alarm.ConfirmedState.Id.Value)
+                    if (alarm.ConfirmedState!.Id!.Value)
                     {
                         retainState = false;
                     }
@@ -227,7 +227,7 @@ namespace Alarms
             return update;
         }
 
-        private AlarmConditionState GetAlarm(BaseEventState alarm = null)
+        private AlarmConditionState GetAlarm(BaseEventState? alarm = null)
         {
             alarm ??= m_alarm;
             return (AlarmConditionState)alarm;
@@ -260,7 +260,7 @@ namespace Alarms
                 shelved = "Unshelved";
             }
 
-            alarm.Message.Value = LocalizedText.From("The alarm is " + shelved + dueTo);
+            alarm.Message!.Value = LocalizedText.From("The alarm is " + shelved + dueTo);
             alarm.SetShelvingState(context, shelving, oneShot, shelvingTime);
 
             return ServiceResult.Good;
@@ -272,10 +272,10 @@ namespace Alarms
         private ServiceResult OnTimedUnshelve(ISystemContext context, AlarmConditionState alarm)
         {
             // update the alarm state and produce and event.
-            alarm.Message.Value = LocalizedText.From("The timed shelving period expired.");
+            alarm.Message!.Value = LocalizedText.From("The timed shelving period expired.");
             alarm.SetShelvingState(context, false, false, 0);
 
-            base.SetValue(alarm.Message.Value.Text);
+            base.SetValue(alarm.Message!.Value.Text!);
 
             return ServiceResult.Good;
         }

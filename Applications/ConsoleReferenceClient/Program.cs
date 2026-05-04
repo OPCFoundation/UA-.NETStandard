@@ -207,19 +207,19 @@ namespace Quickstarts.ConsoleReferenceClient
             {
                 bool autoAccept = parseResult.GetValue(autoAcceptOption);
                 bool noSecurity = parseResult.GetValue(noSecurityOption);
-                string username = parseResult.GetValue(usernameOption);
-                byte[] userpassword =
+                string? username = parseResult.GetValue(usernameOption);
+                byte[]? userpassword =
                     parseResult.GetValue(userPasswordOption) is string upStr ?
                         Encoding.UTF8.GetBytes(upStr) : null;
-                string userCertificateThumbprint =
+                string? userCertificateThumbprint =
                     parseResult.GetValue(userCertificateOption);
-                byte[] userCertificatePassword =
+                byte[]? userCertificatePassword =
                     parseResult.GetValue(userCertificatePasswordOption) is string ucpStr ?
                         Encoding.UTF8.GetBytes(ucpStr) : null;
                 bool logConsole = parseResult.GetValue(consoleOption);
                 bool appLog = parseResult.GetValue(logOption);
                 bool fileLog = parseResult.GetValue(fileOption);
-                byte[] pfxPassword =
+                byte[]? pfxPassword =
                     parseResult.GetValue(passwordOption) is string pfxStr ?
                         Encoding.UTF8.GetBytes(pfxStr) : null;
                 bool renewCertificate = parseResult.GetValue(renewOption);
@@ -228,30 +228,31 @@ namespace Quickstarts.ConsoleReferenceClient
                 {
                     timeout *= 1000;
                 }
-                string logFile = parseResult.GetValue(logFileOption);
+                string? logFile = parseResult.GetValue(logFileOption);
                 bool loadTypes = parseResult.GetValue(loadTypesOption);
                 bool managedbrowseall =
                     parseResult.GetValue(managedBrowseAllOption);
                 bool browseall = parseResult.GetValue(browseAllOption);
                 bool exportNodes = parseResult.GetValue(exportOption);
-                string[] exportNamespacesRaw = parseResult.GetValue(exportNamespaceOption);
-                HashSet<string> exportNamespaces = exportNamespacesRaw is { Length: > 0 }
+                string[]? exportNamespacesRaw = parseResult.GetValue(exportNamespaceOption);
+                HashSet<string>? exportNamespaces = exportNamespacesRaw is { Length: > 0 }
                     ? new HashSet<string>(exportNamespacesRaw, StringComparer.OrdinalIgnoreCase)
                     : null;
                 bool fetchall = parseResult.GetValue(fetchAllOption);
                 bool jsonvalues = parseResult.GetValue(jsonOption);
                 bool verbose = parseResult.GetValue(verboseOption);
                 bool subscribe = parseResult.GetValue(subscribeOption);
-                string reverseConnectUrlString =
+                string? reverseConnectUrlString =
                     parseResult.GetValue(reverseConnectOption);
                 bool forever = parseResult.GetValue(foreverOption);
                 bool leakChannels = parseResult.GetValue(leakChannelsOption);
                 bool enableDurableSubscriptions =
                     parseResult.GetValue(durableSubscriptionOption);
-                var serverUrl = new Uri(parseResult.GetValue(serverUrlArgument));
+                // serverUrlArgument has DefaultValueFactory so GetValue returns non-null at runtime.
+                var serverUrl = new Uri(parseResult.GetValue(serverUrlArgument)!);
                 var testallEndpoints = parseResult.GetValue(testallEndpointsOption);
 
-                ReverseConnectManager reverseConnectManager = null;
+                ReverseConnectManager? reverseConnectManager = null;
                 using var telemetry = new ConsoleTelemetry();
                 ILogger logger = LoggerUtils.Null.Logger;
                 try
@@ -264,7 +265,8 @@ namespace Quickstarts.ConsoleReferenceClient
 
                     // Define the UA Client application
                     ApplicationInstance.MessageDlg = new ApplicationMessageDlg();
-                    var passwordProvider = new CertificatePasswordProvider(pfxPassword);
+                    // Lib param is annotated non-null but the impl tolerates null at runtime.
+                    var passwordProvider = new CertificatePasswordProvider(pfxPassword!);
                     var application = new ApplicationInstance(telemetry)
                     {
                         ApplicationName = applicationName,
@@ -277,13 +279,16 @@ namespace Quickstarts.ConsoleReferenceClient
                     ApplicationConfiguration config = await application
                         .LoadApplicationConfigurationAsync(silent: false, ct: cancellationToken)
                         .ConfigureAwait(false);
+                    // After LoadApplicationConfigurationAsync the property is set; cache the
+                    // non-null reference so we don't repeat the null-forgiving operator.
+                    ApplicationConfiguration appConfig = application.ApplicationConfiguration!;
 
                     // override logfile
                     if (logFile != null)
                     {
-                        string logFilePath = config.TraceConfiguration.OutputFilePath;
-                        string filename = Path.GetFileNameWithoutExtension(logFilePath);
-                        config.TraceConfiguration.OutputFilePath = logFilePath.Replace(
+                        string? logFilePath = config.TraceConfiguration!.OutputFilePath;
+                        string filename = Path.GetFileNameWithoutExtension(logFilePath)!;
+                        config.TraceConfiguration.OutputFilePath = logFilePath!.Replace(
                             filename,
                             logFile,
                             StringComparison.Ordinal
@@ -356,18 +361,20 @@ namespace Quickstarts.ConsoleReferenceClient
                             Console.WriteLine($"No password provided for user {username}, using empty password.");
                         }
 
-                        userIdentity = new UserIdentity(username, userpassword ?? ""u8);
+                        // username is non-null after !IsNullOrEmpty (NotNullWhen attribute not
+                        // available on netstandard2.0/net48 reference assemblies).
+                        userIdentity = new UserIdentity(username!, userpassword ?? ""u8);
                         Console.WriteLine($"Connect with user identity for user {username}");
                     }
 
                     // set user identity of type certificate
                     if (!string.IsNullOrEmpty(userCertificateThumbprint))
                     {
-                        CertificateIdentifier userCertificateIdentifier
+                        CertificateIdentifier? userCertificateIdentifier
                                 = await FindUserCertificateIdentifierAsync(
-                                    userCertificateThumbprint,
-                                    application.ApplicationConfiguration.SecurityConfiguration
-                                        .TrustedUserCertificates,
+                                    userCertificateThumbprint!,
+                                    appConfig.SecurityConfiguration
+                                        .TrustedUserCertificates!,
                                     telemetry,
                                     ct
                                 )
@@ -377,7 +384,7 @@ namespace Quickstarts.ConsoleReferenceClient
                         {
                             userIdentity = UserIdentity.CreateAsync(
                                 userCertificateIdentifier,
-                                new CertificatePasswordProvider(userCertificatePassword),
+                                new CertificatePasswordProvider(userCertificatePassword!),
                                 telemetry,
                                 ct
                             ).GetAwaiter().GetResult();
@@ -417,7 +424,7 @@ namespace Quickstarts.ConsoleReferenceClient
 
                         // create the UA Client object and connect to configured server.
                         using var uaClient = new UAClient(
-                            application.ApplicationConfiguration,
+                            appConfig,
                             reverseConnectManager,
                             telemetry,
                             null
@@ -458,8 +465,8 @@ namespace Quickstarts.ConsoleReferenceClient
 
                             if (browseall || fetchall || jsonvalues || managedbrowseall)
                             {
-                                List<NodeId> variableIds = null;
-                                List<NodeId> variableIdsManagedBrowse = null;
+                                List<NodeId>? variableIds = null;
+                                List<NodeId>? variableIdsManagedBrowse = null;
                                 ArrayOf<ReferenceDescription> referenceDescriptions = default;
                                 ArrayOf<ReferenceDescription> referenceDescriptionsFromManagedBrowse = default;
 
@@ -511,7 +518,7 @@ namespace Quickstarts.ConsoleReferenceClient
                                     browseall = managedbrowseall;
                                 }
 
-                                IList<INode> allNodes = null;
+                                IList<INode>? allNodes = null;
                                 if (fetchall)
                                 {
                                     allNodes = await samples
@@ -567,7 +574,7 @@ namespace Quickstarts.ConsoleReferenceClient
                                     if (fetchall)
                                     {
                                         variables.AddRange(
-                                            allNodes
+                                            allNodes!
                                                 .Where(r =>
                                                     r.NodeClass == NodeClass.Variable &&
                                                     r.NodeId.NamespaceIndex > 1
@@ -767,13 +774,13 @@ namespace Quickstarts.ConsoleReferenceClient
         /// <param name="trustedUserCertificates">the trustlist of the user certificates</param>
         /// <param name="ct">the cancellation token</param>
         /// <returns>Certificate Identifier</returns>
-        private static async Task<CertificateIdentifier> FindUserCertificateIdentifierAsync(
+        private static async Task<CertificateIdentifier?> FindUserCertificateIdentifierAsync(
             string thumbprint,
             CertificateTrustList trustedUserCertificates,
             ITelemetryContext telemetry,
             CancellationToken ct = default)
         {
-            CertificateIdentifier userCertificateIdentifier = null;
+            CertificateIdentifier? userCertificateIdentifier = null;
 
             X509Certificate2Collection userCertificatesWithMatchingThumbprint =
                 await trustedUserCertificates.GetCertificatesAsync(telemetry, ct).ConfigureAwait(false);
@@ -804,7 +811,7 @@ namespace Quickstarts.ConsoleReferenceClient
             private string m_message = string.Empty;
             private bool m_ask;
 
-            public ApplicationMessageDlg(TextWriter output = null)
+            public ApplicationMessageDlg(TextWriter? output = null)
             {
                 m_output = output ?? Console.Out;
             }

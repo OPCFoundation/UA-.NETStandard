@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Opc.Ua;
 using Opc.Ua.Server;
 
@@ -44,7 +45,7 @@ namespace Quickstarts.Servers
         /// <summary>
         /// Invoked when the queue is disposed
         /// </summary>
-        public event EventHandler Disposed;
+        public event EventHandler? Disposed;
 
         /// <summary>
         /// Creates an empty queue.
@@ -73,13 +74,14 @@ namespace Quickstarts.Servers
             IBatchPersistor batchPersistor)
         {
             IsDurable = queue.IsDurable;
-            m_enqueueBatch = queue.EnqueueBatch;
+            m_enqueueBatch = queue.EnqueueBatch!;
             m_eventBatches = queue.EventBatches;
-            m_dequeueBatch = queue.DequeueBatch;
+            m_dequeueBatch = queue.DequeueBatch!;
             QueueSize = queue.QueueSize;
             ItemsInQueue = 0;
             MonitoredItemId = queue.MonitoredItemId;
             m_batchPersistor = batchPersistor;
+            m_logger = NullLogger<DurableEventMonitoredItemQueue>.Instance;
         }
 
         /// <inheritdoc/>
@@ -97,7 +99,7 @@ namespace Quickstarts.Servers
         /// <inheritdoc/>
         public bool Dequeue(out EventFieldList value)
         {
-            value = null;
+            value = null!;
             if (ItemsInQueue > 0)
             {
                 if (m_dequeueBatch.IsPersisted)
@@ -413,14 +415,14 @@ namespace Quickstarts.Servers
 
         public override void SetPersisted()
         {
-            Events = null;
+            Events = null!;
             IsPersisted = true;
             PersistingInProgress = false;
         }
 
-        public void Restore(List<EventFieldList> events)
+        public void Restore(List<EventFieldList>? events)
         {
-            Events = events;
+            Events = events!;
             IsPersisted = false;
             RestoreInProgress = false;
         }
@@ -432,11 +434,11 @@ namespace Quickstarts.Servers
 
         public uint MonitoredItemId { get; set; }
 
-        public EventBatch EnqueueBatch { get; set; }
+        public EventBatch? EnqueueBatch { get; set; }
 
-        public List<EventBatch> EventBatches { get; set; }
+        public List<EventBatch> EventBatches { get; set; } = null!;
 
-        public EventBatch DequeueBatch { get; set; }
+        public EventBatch? DequeueBatch { get; set; }
 
         public uint QueueSize { get; set; }
     }

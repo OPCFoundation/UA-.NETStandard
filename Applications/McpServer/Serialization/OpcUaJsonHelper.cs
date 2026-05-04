@@ -316,7 +316,7 @@ namespace Opc.Ua.Mcp.Serialization
 
             if (ext.TryGetValue(out IEncodeable? encodeable))
             {
-                result["body"] = encodeable!.ToString();
+                result["body"] = encodeable.ToString();
             }
 
             return result;

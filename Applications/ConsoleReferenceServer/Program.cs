@@ -115,8 +115,8 @@ namespace Quickstarts.ReferenceServer
                 bool logConsole = parseResult.GetValue(consoleOption);
                 bool appLog = parseResult.GetValue(logOption);
                 bool fileLog = parseResult.GetValue(fileOption);
-                string passwordStr = parseResult.GetValue(passwordOption);
-                char[] password = passwordStr?.ToCharArray();
+                string? passwordStr = parseResult.GetValue(passwordOption);
+                char[]? password = passwordStr?.ToCharArray();
                 bool renewCertificate = parseResult.GetValue(renewOption);
                 int timeoutSec = parseResult.GetValue(timeoutOption);
                 int timeout = timeoutSec >= 0 ? timeoutSec * 1000 : -1;
@@ -124,7 +124,7 @@ namespace Quickstarts.ReferenceServer
                 bool samplingGroups = parseResult.GetValue(samplingGroupsOption);
                 bool cttMode = parseResult.GetValue(cttOption);
                 bool provisioningMode = parseResult.GetValue(provisionOption);
-                string reverseConnectUrlString = parseResult.GetValue(reverseConnectOption);
+                string? reverseConnectUrlString = parseResult.GetValue(reverseConnectOption);
 
                 // Use CTT-specific config when CTT mode is enabled.
                 // Mono uses a separate server (MonoReferenceServer) with its own config, so CTT config is not applicable there.
@@ -159,21 +159,21 @@ namespace Quickstarts.ReferenceServer
                     if (shadowConfig)
                     {
                         Console.WriteLine("Using shadow configuration.");
+                        // --shadowconfig requires TraceConfiguration.OutputFilePath and SourceFilePath to be set;
+                        // null values would have thrown NullReferenceException historically — preserve that behavior.
                         string shadowPath = Directory
                             .GetParent(
                                 Path.GetDirectoryName(
-                                    Utils.ReplaceSpecialFolderNames(server.Configuration.TraceConfiguration.OutputFilePath)
-                                )
-                            )
+                                    Utils.ReplaceSpecialFolderNames(server.Configuration.TraceConfiguration!.OutputFilePath))!)!
                             .FullName;
                         string shadowFilePath = Path.Combine(
                             shadowPath,
-                            Path.GetFileName(server.Configuration.SourceFilePath)
+                            Path.GetFileName(server.Configuration.SourceFilePath)!
                         );
                         if (!File.Exists(shadowFilePath))
                         {
                             Console.WriteLine("Create a copy of the config in the shadow location.");
-                            File.Copy(server.Configuration.SourceFilePath, shadowFilePath, true);
+                            File.Copy(server.Configuration.SourceFilePath!, shadowFilePath, true);
                         }
                         Console.WriteLine($"Reloading configuration from shadow location {shadowFilePath}.");
                         await server
@@ -203,14 +203,14 @@ namespace Quickstarts.ReferenceServer
                     if (gdsConfig != null)
                     {
                         Console.WriteLine("GDS configuration found. Adding GDS node manager.");
-                        server.Server.AddNodeManager(new GdsNodeManagerFactory(gdsConfig));
+                        server.Server!.AddNodeManager(new GdsNodeManagerFactory(gdsConfig));
                     }
 
                     // enable provisioning mode if requested
                     if (provisioningMode)
                     {
                         Console.WriteLine("Enabling provisioning mode.");
-                        Servers.Utils.EnableProvisioningMode(server.Server);
+                        Servers.Utils.EnableProvisioningMode(server.Server!);
                         // Auto-accept is required in provisioning mode
                         if (!autoAccept)
                         {
@@ -223,7 +223,7 @@ namespace Quickstarts.ReferenceServer
                     // enable the sampling groups if requested
                     if (samplingGroups)
                     {
-                        Servers.Utils.UseSamplingGroupsInReferenceNodeManager(server.Server);
+                        Servers.Utils.UseSamplingGroupsInReferenceNodeManager(server.Server!);
                     }
 
                     // start the server
@@ -237,7 +237,7 @@ namespace Quickstarts.ReferenceServer
                         {
                             Console.WriteLine($"Adding reverse connection to {reverseConnectUrlString}.");
                             var reverseConnectUrl = new Uri(reverseConnectUrlString);
-                            server.Server.AddReverseConnection(reverseConnectUrl);
+                            server.Server!.AddReverseConnection(reverseConnectUrl);
                         }
                         catch (UriFormatException ex)
                         {
@@ -253,7 +253,7 @@ namespace Quickstarts.ReferenceServer
                     {
                         Console.WriteLine("Apply settings for CTT.");
                         // start Alarms and other settings for CTT test
-                        await Servers.Utils.ApplyCTTModeAsync(Console.Out, server.Server)
+                        await Servers.Utils.ApplyCTTModeAsync(Console.Out, server.Server!)
                             .ConfigureAwait(false);
                     }
 
