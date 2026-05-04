@@ -283,6 +283,24 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         /// <summary>
+        /// Wait for all in-flight publish requests to complete or be
+        /// cancelled. Used together with <see cref="Pause"/> by callers
+        /// that need a hard quiesce (e.g. a session re-create) before
+        /// rebinding session state. <see cref="Pause"/> alone is a
+        /// soft signal — workers complete their current cycle before
+        /// observing the pause.
+        /// </summary>
+        /// <param name="ct">Cancellation token.</param>
+        internal Task DrainAsync(CancellationToken ct)
+        {
+            if (Volatile.Read(ref m_activePublishRequests) == 0)
+            {
+                return Task.CompletedTask;
+            }
+            return m_drainSignal.WaitAsync(ct);
+        }
+
+        /// <summary>
         /// Recreate subscriptions
         /// </summary>
         /// <param name="previousSessionId"></param>
@@ -639,51 +657,66 @@ namespace Opc.Ua.Client.Subscriptions
                             acks = await WaitForAcksAsync(ackWaitTimeout, ct).ConfigureAwait(false);
                         }
                         publishLatency.Restart();
-                        PublishResponse response = await m_outer.m_session.PublishAsync(new RequestHeader
+                        if (Interlocked.Increment(ref m_outer.m_activePublishRequests) == 1)
                         {
-                            TimeoutHint = timeoutHint,
-                            ReturnDiagnostics = (uint)(int)m_outer.ReturnDiagnostics,
-                            RequestHandle = handle
-                        }, acks, ct).ConfigureAwait(false);
-
-                        moreNotifications = response.MoreNotifications;
-                        uint subscriptionId = response.SubscriptionId;
-                        NotificationMessage notificationMessage = response.NotificationMessage;
-                        ArrayOf<uint> availableSequenceNumbers = response.AvailableSequenceNumbers;
-
-                        ArrayOf<StatusCode> acknowledgeResults = response.Results;
-                        ArrayOf<DiagnosticInfo> acknowledgeDiagnosticInfos = response.DiagnosticInfos;
-                        ClientBase.ValidateResponse(acknowledgeResults, acks);
-                        ClientBase.ValidateDiagnosticInfos(acknowledgeDiagnosticInfos, acks);
-                        TooManyPublishRequests = false;
-
-                        // Get the subscription with the provided identifier
-                        IManagedSubscription? subscription = m_outer.GetById(subscriptionId);
-                        publishLatency.Stop();
-                        if (subscription != null)
-                        {
-                            // deliver to subscription
-                            await subscription.OnPublishReceivedAsync(
-                                notificationMessage,
-                                availableSequenceNumbers.ToList(),
-                                response.ResponseHeader.StringTable.ToList()).ConfigureAwait(false);
-                            Interlocked.Increment(ref m_outer.m_goodPublishRequestCount);
+                            m_outer.m_drainSignal.Reset();
                         }
-                        else if (!ct.IsCancellationRequested &&
-                            !m_outer.m_subscriptionHistory.Contains(subscriptionId))
+                        try
                         {
-                            // ignore messages with a subscription that was deleted
-                            // Do not delete publish requests of stale subscriptions
-                            m_logger.LogInformation(
-                                "PUBLISH Worker #{Handle}-{Id} - Received Publish Response " +
-                                "for Unknown SubscriptionId={SubscriptionId}. Deleting...",
-                                Index, handle, subscriptionId);
-                            Interlocked.Increment(ref m_outer.m_badPublishRequestCount);
-                            await m_outer.m_session.DeleteSubscriptionsAsync(
-                                null,
-                                [subscriptionId],
-                                ct).ConfigureAwait(false);
-                            moreNotifications = true;
+                            PublishResponse response = await m_outer.m_session.PublishAsync(new RequestHeader
+                            {
+                                TimeoutHint = timeoutHint,
+                                ReturnDiagnostics = (uint)(int)m_outer.ReturnDiagnostics,
+                                RequestHandle = handle
+                            }, acks, ct).ConfigureAwait(false);
+
+                            moreNotifications = response.MoreNotifications;
+                            uint subscriptionId = response.SubscriptionId;
+                            NotificationMessage notificationMessage = response.NotificationMessage;
+                            ArrayOf<uint> availableSequenceNumbers = response.AvailableSequenceNumbers;
+
+                            ArrayOf<StatusCode> acknowledgeResults = response.Results;
+                            ArrayOf<DiagnosticInfo> acknowledgeDiagnosticInfos = response.DiagnosticInfos;
+                            ClientBase.ValidateResponse(acknowledgeResults, acks);
+                            ClientBase.ValidateDiagnosticInfos(acknowledgeDiagnosticInfos, acks);
+                            TooManyPublishRequests = false;
+
+                            // Get the subscription with the provided identifier
+                            IManagedSubscription? subscription = m_outer.GetById(subscriptionId);
+                            publishLatency.Stop();
+                            if (subscription != null)
+                            {
+                                // deliver to subscription
+                                await subscription.OnPublishReceivedAsync(
+                                    notificationMessage,
+                                    availableSequenceNumbers.ToList(),
+                                    response.ResponseHeader.StringTable.ToList()).ConfigureAwait(false);
+                                Interlocked.Increment(ref m_outer.m_goodPublishRequestCount);
+                            }
+                            else if (!ct.IsCancellationRequested &&
+                                !m_outer.m_subscriptionHistory.Contains(subscriptionId))
+                            {
+                                // ignore messages with a subscription that was deleted
+                                // Do not delete publish requests of stale subscriptions
+                                m_logger.LogInformation(
+                                    "PUBLISH Worker #{Handle}-{Id} - Received Publish Response " +
+                                    "for Unknown SubscriptionId={SubscriptionId}. Deleting...",
+                                    Index, handle, subscriptionId);
+                                Interlocked.Increment(ref m_outer.m_badPublishRequestCount);
+                                await m_outer.m_session.DeleteSubscriptionsAsync(
+                                    null,
+                                    [subscriptionId],
+                                    ct).ConfigureAwait(false);
+                                moreNotifications = true;
+                            }
+                        }
+                        finally
+                        {
+                            int active = Interlocked.Decrement(ref m_outer.m_activePublishRequests);
+                            if (active == 0)
+                            {
+                                m_outer.m_drainSignal.Set();
+                            }
                         }
                     }
                     catch (OperationCanceledException)
@@ -933,6 +966,8 @@ namespace Opc.Ua.Client.Subscriptions
         private readonly Channel<SubscriptionAcknowledgement> m_acks;
         private readonly Nito.AsyncEx.AsyncManualResetEvent m_running = new();
         private readonly Nito.AsyncEx.AsyncAutoResetEvent m_publishControl = new();
+        private readonly Nito.AsyncEx.AsyncManualResetEvent m_drainSignal = new(true);
+        private int m_activePublishRequests;
         private readonly ConcurrentQueue<uint> m_subscriptionHistory = new();
         private readonly Task m_publishController;
         private readonly Lock m_subscriptionLock = new();

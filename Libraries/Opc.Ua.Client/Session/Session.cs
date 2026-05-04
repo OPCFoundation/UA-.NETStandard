@@ -2311,6 +2311,232 @@ namespace Opc.Ua.Client
             return session;
         }
 
+        /// <summary>
+        /// Re-establishes the session in place on the same
+        /// <see cref="Session"/> instance instead of allocating a new one.
+        /// Tears down the current channel, optionally switches to a new
+        /// <paramref name="endpoint"/>, and re-runs the
+        /// <c>CreateSession</c>/<c>ActivateSession</c> sequence so the
+        /// server assigns a fresh session id. The
+        /// in-memory subscription engine (<see cref="m_engine"/>),
+        /// subscription manager, and per-subscription contexts continue
+        /// to reference <c>this</c>; once the new session is activated
+        /// the V2 engine is given a chance to drive transfer-or-recreate
+        /// against the new session id, and the
+        /// classic template-based recreate runs for V1 subscriptions
+        /// owned by <see cref="Subscriptions"/>.
+        /// </summary>
+        /// <remarks>
+        /// Designed to be the production wiring used by
+        /// <c>ManagedSession.HandleFailoverAsync</c> so that the inner
+        /// <see cref="Session"/> reference stays stable across a
+        /// failover. Differs from <see cref="ReconnectAsync"/> by
+        /// performing a full <c>CreateSession</c> against the server
+        /// (new server-side session id) instead of just re-activating
+        /// the existing one. Differs from
+        /// <see cref="RecreateAsync(CancellationToken)"/> overloads in
+        /// that the receiver is reused rather than cloned into a new
+        /// <see cref="Session"/> instance.
+        /// </remarks>
+        /// <param name="endpoint">Optional replacement endpoint. When
+        /// non-null and not the same instance as the current
+        /// <see cref="ConfiguredEndpoint"/> the new endpoint is adopted
+        /// before the channel is rebuilt.</param>
+        /// <param name="connection">Optional waiting reverse
+        /// connection. Mutually exclusive with
+        /// <paramref name="channel"/>.</param>
+        /// <param name="channel">Optional pre-built transport channel.
+        /// Mutually exclusive with <paramref name="connection"/>. When
+        /// neither is supplied a new outbound channel is built against
+        /// <see cref="ConfiguredEndpoint"/>.</param>
+        /// <param name="ct">Cancellation token.</param>
+        protected internal async Task RecreateInPlaceAsync(
+            ConfiguredEndpoint? endpoint = null,
+            ITransportWaitingConnection? connection = null,
+            ITransportChannel? channel = null,
+            CancellationToken ct = default)
+        {
+            ThrowIfDisposed();
+            using Activity? activity = m_telemetry.StartActivity();
+
+            NodeId previousSessionId = SessionId;
+
+            // Quiesce the V2 engine outside the reconnect lock so
+            // workers can complete their current cycle without
+            // contending with the reset path.
+            DefaultSubscriptionEngine? v2Engine = m_engine as DefaultSubscriptionEngine;
+            if (v2Engine != null)
+            {
+                v2Engine.PausePublishing();
+                if (v2Engine.SubscriptionManager
+                    is Subscriptions.SubscriptionManager v2Manager)
+                {
+                    await v2Manager.DrainAsync(ct).ConfigureAwait(false);
+                }
+            }
+
+            bool resetReconnect = false;
+            await m_reconnectLock.WaitAsync(ct).ConfigureAwait(false);
+            try
+            {
+                if (Reconnecting)
+                {
+                    m_reconnectLock.Release();
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadInvalidState,
+                        "Session is already attempting to reconnect.");
+                }
+
+                Reconnecting = true;
+                resetReconnect = true;
+                m_reconnectLock.Release();
+
+                m_logger.LogInformation(
+                    "Session RECREATE-IN-PLACE {SessionId} starting...",
+                    previousSessionId);
+
+                await StopKeepAliveTimerAsync().ConfigureAwait(false);
+
+                // need to refresh the identity (reprompt for password,
+                // refresh token).
+                RecreateRenewUserIdentity();
+
+                // Switch endpoint before the channel is built.
+                if (endpoint != null && !ReferenceEquals(endpoint, m_endpoint))
+                {
+                    m_endpoint = endpoint;
+                    m_effectiveEndpoint = endpoint;
+                }
+
+                // Build / install the new transport channel.
+                ITransportChannel newChannel;
+                if (channel != null)
+                {
+                    newChannel = channel;
+                }
+                else
+                {
+                    ServiceMessageContext messageContext = m_configuration
+                        .CreateMessageContext(Factory);
+
+                    if (connection != null)
+                    {
+                        newChannel = await UaChannelBase
+                            .CreateUaBinaryChannelAsync(
+                                m_configuration,
+                                connection,
+                                m_endpoint.Description,
+                                m_endpoint.Configuration,
+                                m_instanceCertificate,
+                                m_configuration.SecurityConfiguration
+                                        .SendCertificateChain
+                                    ? m_instanceCertificateChain
+                                    : null,
+                                messageContext,
+                                ct)
+                            .ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        newChannel = await UaChannelBase
+                            .CreateUaBinaryChannelAsync(
+                                m_configuration,
+                                m_endpoint.Description,
+                                m_endpoint.Configuration,
+                                m_instanceCertificate,
+                                m_configuration.SecurityConfiguration
+                                        .SendCertificateChain
+                                    ? m_instanceCertificateChain
+                                    : null,
+                                messageContext,
+                                ct)
+                            .ConfigureAwait(false);
+                    }
+                }
+
+                TransportChannel = newChannel;
+
+                // Clear server-assigned identity so OpenAsync below
+                // performs a full CreateSession rather than a re-
+                // activation of the (now invalid) prior session id.
+                lock (m_lock)
+                {
+                    SessionCreated(default, default);
+                }
+
+                // Reset the reconnecting flag so OpenAsync (which
+                // checks/raises its own state) can proceed.
+                await m_reconnectLock.WaitAsync(ct).ConfigureAwait(false);
+                Reconnecting = false;
+                resetReconnect = false;
+                m_reconnectLock.Release();
+
+                UserIdentity? tempIdentity = m_identity == null
+                    ? new UserIdentity()
+                    : null;
+                try
+                {
+                    await OpenAsync(
+                            m_sessionName,
+                            (uint)m_sessionTimeout,
+                            m_identity ?? tempIdentity!,
+                            m_preferredLocales,
+                            m_checkDomain,
+                            true,
+                            ct)
+                        .ConfigureAwait(false);
+                    tempIdentity = null;
+                }
+                finally
+                {
+                    tempIdentity?.Dispose();
+                }
+
+                // V1: drive the classic template-based recreate using
+                // the subscriptions still attached to this Session.
+                await RecreateSubscriptionsAsync(
+                        TransferSubscriptionsOnReconnect,
+                        Subscriptions,
+                        ct)
+                    .ConfigureAwait(false);
+
+                // V2: hand the previous session id to the engine so
+                // configured subscriptions can attempt transfer or
+                // fall back to recreate against the new session id.
+                await m_engine.RecreateSubscriptionsAsync(
+                        previousSessionId,
+                        ct)
+                    .ConfigureAwait(false);
+
+                m_logger.LogInformation(
+                    "Session RECREATE-IN-PLACE completed: " +
+                    "{OldSessionId} -> {NewSessionId}",
+                    previousSessionId,
+                    SessionId);
+            }
+            catch (Exception ex)
+            {
+                m_logger.LogError(
+                    ex,
+                    "Session RECREATE-IN-PLACE {SessionId} failed.",
+                    previousSessionId);
+                throw;
+            }
+            finally
+            {
+                if (resetReconnect)
+                {
+                    await m_reconnectLock
+                        .WaitAsync(CancellationToken.None)
+                        .ConfigureAwait(false);
+                    Reconnecting = false;
+                    m_reconnectLock.Release();
+                }
+
+                v2Engine?.ResumePublishing();
+            }
+        }
+
         /// <inheritdoc/>
         public override Task<StatusCode> CloseAsync(CancellationToken ct = default)
         {

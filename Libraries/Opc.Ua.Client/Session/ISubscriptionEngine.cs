@@ -81,6 +81,30 @@ namespace Opc.Ua.Client
         void NotifySubscriptionsChanged();
 
         /// <summary>
+        /// Drive a recreate / transfer pass for all subscriptions managed
+        /// by the engine after the underlying session has been
+        /// (re-)established. Implementations that maintain their own
+        /// subscription bookkeeping (e.g. the V2
+        /// <see cref="DefaultSubscriptionEngine"/>) drive
+        /// transfer-on-recreate or per-subscription recreate here.
+        /// Implementations that do not (e.g. the classic engine, where
+        /// the host <see cref="Session"/> drives recreate via subscription
+        /// templates) MUST treat this as a no-op.
+        /// </summary>
+        /// <param name="previousSessionId">
+        /// The previous server-assigned <see cref="NodeId"/> of the
+        /// session before it was re-created. May be <c>null</c> when the
+        /// caller has no prior session id (initial connect). When
+        /// non-null, V2 subscriptions configured for transfer-on-recreate
+        /// will attempt to transfer their server-side state from the
+        /// previous session into the current one.
+        /// </param>
+        /// <param name="ct">Cancellation token.</param>
+        ValueTask RecreateSubscriptionsAsync(
+            NodeId? previousSessionId,
+            CancellationToken ct = default);
+
+        /// <summary>
         /// The number of currently outstanding publish requests that
         /// have received a successful response.
         /// </summary>

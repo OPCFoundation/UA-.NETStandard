@@ -922,44 +922,27 @@ namespace Opc.Ua.Client
                 using (await m_serviceLock.WriterLockAsync(ct)
                     .ConfigureAwait(false))
                 {
-                    Session? oldSession = m_session;
-
-                    var newSession =
-                        (Session)await SessionFactory.CreateAsync(
-                            m_configuration,
-                            failoverEndpoint,
-                            updateBeforeConnect: true,
-                            m_checkDomain,
-                            m_sessionName,
-                            m_sessionTimeout,
-                            m_identity,
-                            m_preferredLocales,
-                            ct).ConfigureAwait(false);
-
-                    WireSessionEvents(newSession);
-
-                    if (oldSession != null)
+                    Session? session = m_session;
+                    if (session == null)
                     {
-                        UnwireSessionEvents(oldSession);
-                        try
-                        {
-                            await oldSession
-                                .CloseAsync(ct)
-                                .ConfigureAwait(false);
-                        }
-                        catch (Exception ex)
-                        {
-                            m_logger.LogDebug(
-                                ex,
-                                "ManagedSession: " +
-                                "Old session close failed " +
-                                "during failover.");
-                        }
-
-                        oldSession.Dispose();
+                        return new ServiceResult(
+                            StatusCodes.BadInvalidState);
                     }
 
-                    m_session = newSession;
+                    // Recreate in place: the inner Session reference is
+                    // preserved across failover so that the V2
+                    // SubscriptionEngine, SubscriptionManager, and any
+                    // external holders of InnerSession all continue to
+                    // operate on the same Session object. Session
+                    // internals re-run CreateSession+ActivateSession
+                    // against the new endpoint and drive subscription
+                    // recreate/transfer for both V1 templates and the
+                    // V2 engine.
+                    await session
+                        .RecreateInPlaceAsync(
+                            endpoint: failoverEndpoint,
+                            ct: ct)
+                        .ConfigureAwait(false);
                 }
 
                 m_reconnectPolicy.Reset();

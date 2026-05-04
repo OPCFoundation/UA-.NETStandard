@@ -146,6 +146,16 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
+        public ValueTask RecreateSubscriptionsAsync(
+            NodeId? previousSessionId,
+            CancellationToken ct = default)
+        {
+            ThrowIfDisposed();
+            return new ValueTask(m_manager.RecreateSubscriptionsAsync(
+                previousSessionId, ct));
+        }
+
+        /// <inheritdoc/>
         public void Dispose()
         {
             if (!m_disposed)

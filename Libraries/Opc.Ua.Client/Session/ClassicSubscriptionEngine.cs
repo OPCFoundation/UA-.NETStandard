@@ -163,6 +163,17 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
+        public ValueTask RecreateSubscriptionsAsync(
+            NodeId? previousSessionId,
+            CancellationToken ct = default)
+        {
+            // The classic engine does not own subscription state; the
+            // host Session drives recreate via subscription templates
+            // through Session.RecreateSubscriptionsAsync. No-op here.
+            return default;
+        }
+
+        /// <inheritdoc/>
         public void Dispose()
         {
             Dispose(true);

@@ -750,19 +750,15 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
         [Test]
         [Order(800)]
         [CancelAfter(60_000)]
-        public async Task SubscriptionAfterFailoverIsNotRecreated_KnownLimitation(
+        public async Task SubscriptionRecoversAfterFailover(
             CancellationToken ct)
         {
-            // Documents a known limitation: when ManagedSession.HandleFailoverAsync
-            // replaces m_session with a fresh Session instance, the V2
-            // SubscriptionManager still references the OLD session through
-            // SessionEngineContext (which captures one specific session in
-            // its constructor). The subscription is therefore not
-            // automatically recreated on the post-failover session. A
-            // future change in failover should rewire the V2 engine
-            // context against the new session and either transfer or
-            // recreate the subscriptions; for now this test pins the
-            // current behavior so any change is intentional.
+            // Verifies that ManagedSession.HandleFailoverAsync uses
+            // Session.RecreateInPlaceAsync to keep the inner Session
+            // reference stable AND drives a V2-engine-level
+            // RecreateSubscriptionsAsync against the new server-side
+            // session id. The subscription is recreated on the new
+            // session and resumes delivering data.
             ConfiguredEndpoint endpoint = await ClientFixture
                 .GetEndpointAsync(ServerUrl, SecurityPolicies.None)
                 .ConfigureAwait(false);
@@ -772,7 +768,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             ManagedSessionType session = await new ManagedSessionBuilder(
                     ClientFixture.Config, Telemetry)
                 .UseEndpoint(endpoint)
-                .WithSessionName(nameof(SubscriptionAfterFailoverIsNotRecreated_KnownLimitation))
+                .WithSessionName(nameof(SubscriptionRecoversAfterFailover))
                 .WithReconnectPolicy(p => p with
                 {
                     Strategy = BackoffStrategy.Constant,
@@ -825,8 +821,15 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
                 int preFailoverCount = recordingHandler.DataChangeCount;
                 Assert.That(preFailoverCount, Is.GreaterThan(0));
 
+                // Capture the inner-session reference and the original
+                // SessionId so we can verify the post-failover state.
+                ISession innerBefore = session.InnerSession;
+                NodeId sessionIdBefore = session.SessionId;
+
                 // Force reconnect attempts to fail so the state machine
-                // proceeds to Failover, which swaps in a brand-new Session.
+                // proceeds to Failover, which now drives
+                // Session.RecreateInPlaceAsync against the failover
+                // endpoint and rotates the server-side session id.
                 session.StateMachine.ReconnectAsync = _ =>
                     Task.FromResult(new ServiceResult(StatusCodes.BadNotConnected));
 
@@ -849,24 +852,44 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
                     ct).ConfigureAwait(false);
                 Assert.That(
                     sawConnectedAfter, Is.True,
-                    "Failover must successfully transition to Connected " +
-                    "(verifying the failover plumbing itself works).");
+                    "Failover must successfully transition to Connected.");
 
-                // Pin current behavior: subscription does NOT recover.
-                // When the engine is taught to rewire on session swap,
-                // flip these expectations and remove the
-                // _KnownLimitation suffix.
+                // Inner-session reference must be stable across failover.
+                Assert.That(
+                    ReferenceEquals(session.InnerSession, innerBefore),
+                    Is.True,
+                    "ManagedSession.InnerSession must remain the same " +
+                    "instance across an in-place failover recreate.");
+
+                // Server-side session id must have rotated since
+                // RecreateInPlaceAsync re-runs CreateSession.
+                Assert.That(
+                    session.SessionId, Is.Not.EqualTo(sessionIdBefore),
+                    "Failover must rotate the server-assigned " +
+                    "SessionId via CreateSession.");
+
+                // Subscription must continue to deliver data on the
+                // recreated session.
                 recordingHandler.ResetDataSignal();
+                int snapshotCount = recordingHandler.DataChangeCount;
+
                 bool sawDataPostFailover = await recordingHandler
-                    .WaitForDataAsync(TimeSpan.FromSeconds(5), ct)
+                    .WaitForDataAsync(TimeSpan.FromSeconds(20), ct)
                     .ConfigureAwait(false);
                 Assert.That(
-                    sawDataPostFailover, Is.False,
-                    "KNOWN LIMITATION: V2 subscription engine binds to the " +
-                    "original session via SessionEngineContext, so failover-" +
-                    "swapped sessions do not inherit existing subscriptions.");
+                    sawDataPostFailover, Is.True,
+                    "Subscription must deliver data after failover " +
+                    "(V2 engine drives RecreateSubscriptionsAsync " +
+                    "against the new server-side session id).");
 
-                await subscription.DisposeAsync().ConfigureAwait(false);
+                Assert.That(
+                    recordingHandler.DataChangeCount,
+                    Is.GreaterThan(snapshotCount),
+                    "DataChangeCount must increase after failover.");
+
+                Assert.That(
+                    subscription.Created, Is.True,
+                    "Subscription must remain Created after failover.");
             }
             finally
             {
