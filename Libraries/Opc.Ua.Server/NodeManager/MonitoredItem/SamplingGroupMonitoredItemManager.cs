@@ -46,7 +46,7 @@ namespace Opc.Ua.Server
             m_samplingGroupManager = new SamplingGroupManager(
                 server,
                 nodeManager,
-                (uint)configuration!.ServerConfiguration!.MaxNotificationQueueSize,
+                (uint)configuration.ServerConfiguration!.MaxNotificationQueueSize,
                 (uint)configuration.ServerConfiguration.MaxDurableNotificationQueueSize,
                 configuration.ServerConfiguration.AvailableSamplingRates.ToArray()!);
 
@@ -288,12 +288,12 @@ namespace Opc.Ua.Server
             if (unsubscribe)
             {
                 // check for existing monitored node.
-                if (MonitoredNodes.TryGetValue(source.NodeId, out monitoredNode))
+                if (!MonitoredNodes.TryGetValue(source.NodeId, out monitoredNode))
                 {
                     return (null, StatusCodes.BadNodeIdUnknown);
                 }
 
-                monitoredNode!.Remove(monitoredItem);
+                monitoredNode.Remove(monitoredItem);
                 MonitoredItems.TryRemove(monitoredItem.Id, out _);
 
                 // check if node is no longer being monitored.
@@ -317,7 +317,7 @@ namespace Opc.Ua.Server
             }
 
             // check for existing monitored node.
-            if (MonitoredNodes.TryGetValue(source.NodeId, out monitoredNode))
+            if (!MonitoredNodes.TryGetValue(source.NodeId, out monitoredNode))
             {
                 MonitoredNodes[source.NodeId]
                     = monitoredNode = new MonitoredNode2(m_nodeManager, m_server, source);
@@ -325,7 +325,7 @@ namespace Opc.Ua.Server
 
             // remove existing monitored items with the same Id prior to insertion in order to avoid duplicates
             // this is necessary since the SubscribeToEvents method is called also from ModifyMonitoredItemsForEvents
-            monitoredNode!.EventMonitoredItems.TryRemove(monitoredItem.Id, out _);
+            monitoredNode.EventMonitoredItems.TryRemove(monitoredItem.Id, out _);
 
             // this links the node to specified monitored item and ensures all events
             // reported by the node are added to the monitored item's queue.

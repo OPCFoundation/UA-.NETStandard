@@ -74,7 +74,7 @@ namespace Opc.Ua.Server
                 {
                     while (m_queuedRequests.Count > 0)
                     {
-                        QueuedPublishRequest request = m_queuedRequests!.First!.Value;
+                        QueuedPublishRequest request = m_queuedRequests.First!.Value;
                         m_queuedRequests.RemoveFirst();
 
                         try
@@ -156,7 +156,7 @@ namespace Opc.Ua.Server
                 // set any waiting publish requests to Status BadSessionClosed.
                 while (m_queuedRequests.Count > 0)
                 {
-                    QueuedPublishRequest request = m_queuedRequests!.First!.Value;
+                    QueuedPublishRequest request = m_queuedRequests.First!.Value;
                     m_queuedRequests.RemoveFirst();
                     request.Tcs.TrySetException(new ServiceResultException(StatusCodes.BadSessionClosed));
                     request.Dispose();
@@ -234,7 +234,7 @@ namespace Opc.Ua.Server
                 // remove any outstanding publishes.
                 while (m_queuedRequests.Count > 0)
                 {
-                    QueuedPublishRequest request = m_queuedRequests!.First!.Value;
+                    QueuedPublishRequest request = m_queuedRequests.First!.Value;
                     m_queuedRequests.RemoveFirst();
                     request.Tcs.TrySetException(new ServiceResultException(StatusCodes.BadNoSubscription));
                     request.Dispose();
@@ -256,7 +256,7 @@ namespace Opc.Ua.Server
             {
                 while (m_queuedRequests.Count > 0)
                 {
-                    QueuedPublishRequest request = m_queuedRequests!.Last!.Value;
+                    QueuedPublishRequest request = m_queuedRequests.Last!.Value;
                     m_queuedRequests.RemoveLast();
                     if (request.Tcs.Task.IsCompleted)
                     {
@@ -467,7 +467,7 @@ namespace Opc.Ua.Server
                 // find a request.
                 while (m_queuedRequests.Count > 0)
                 {
-                    QueuedPublishRequest request = m_queuedRequests!.First!.Value;
+                    QueuedPublishRequest request = m_queuedRequests.First!.Value;
                     m_queuedRequests.RemoveFirst();
 
                     if (request.Tcs.Task.IsCompleted)

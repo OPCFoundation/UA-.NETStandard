@@ -294,7 +294,7 @@ namespace Opc.Ua.Server
             // setup server configuration node
             m_serverConfigurationNode!.ServerCapabilities!.Value =
             [
-                .. configuration!.ServerConfiguration!.ServerCapabilities
+                .. configuration.ServerConfiguration!.ServerCapabilities
             ];
             m_serverConfigurationNode.ServerCapabilities.ValueRank = ValueRanks.OneDimension;
             m_serverConfigurationNode!.SupportedPrivateKeyFormats!.Value =
@@ -327,15 +327,15 @@ namespace Opc.Ua.Server
             // setup certificate group trust list handlers
             foreach (ServerCertificateGroup certGroup in m_certificateGroups)
             {
-                certGroup!.Node!.CertificateTypes!.Value = certGroup.CertificateTypes;
-                certGroup!.Node!.TrustList!.Handle = new TrustList(
+                certGroup.Node!.CertificateTypes!.Value = certGroup.CertificateTypes;
+                certGroup.Node!.TrustList!.Handle = new TrustList(
                     certGroup.Node.TrustList,
                     certGroup.TrustedStore,
                     certGroup.IssuerStore,
                     new TrustList.SecureAccess(HasApplicationSecureAdminAccess),
                     new TrustList.SecureAccess(HasApplicationSecureAdminAccess),
                     Server.Telemetry,
-                    m_configuration!.ServerConfiguration!.MaxTrustListSize);
+                    m_configuration.ServerConfiguration!.MaxTrustListSize);
                 certGroup.Node.ClearChangeMasks(systemContext, true);
             }
 
@@ -1097,7 +1097,7 @@ namespace Opc.Ua.Server
                             Utils.TraceMasks.Security,
                             "----- Apply Changes for application certificate update running...");
 
-                        await m_configuration!.CertificateValidator!
+                        await m_configuration.CertificateValidator!
                             .UpdateCertificateAsync(
                                 m_configuration.SecurityConfiguration,
                                 m_configuration.ApplicationUri)

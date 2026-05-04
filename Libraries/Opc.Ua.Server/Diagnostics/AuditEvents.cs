@@ -197,16 +197,16 @@ namespace Opc.Ua.Server
                 e.SetChildValue(
                     systemContext,
                     BrowseNames.ClientAuditEntryId,
-                    systemContext?.AuditEntryId!,
+                    systemContext.AuditEntryId!,
                     false);
 
                 e.SetChildValue(
-                    systemContext!,
+                    systemContext,
                     BrowseNames.AttributeId,
                     writeValue.AttributeId,
                     false);
                 e.SetChildValue(
-                    systemContext!,
+                    systemContext,
                     BrowseNames.IndexRange,
                     writeValue.IndexRange!,
                     false);
@@ -224,10 +224,10 @@ namespace Opc.Ua.Server
                     newValue = writeValue.Value?.WrappedValue ?? default;
                 }
 
-                e.SetChildValue(systemContext!, BrowseNames.NewValue, newValue, false);
-                e.SetChildValue(systemContext!, BrowseNames.OldValue, oldValue, false);
+                e.SetChildValue(systemContext, BrowseNames.NewValue, newValue, false);
+                e.SetChildValue(systemContext, BrowseNames.OldValue, oldValue, false);
 
-                server!.ReportAuditEvent(systemContext!, e);
+                server.ReportAuditEvent(systemContext, e);
             }
             catch (Exception ex)
             {
@@ -1366,7 +1366,7 @@ namespace Opc.Ua.Server
                     certificateTypeId,
                     false);
 
-                server!.ReportAuditEvent(systemContext!, e);
+                server!.ReportAuditEvent(systemContext, e);
             }
             catch (Exception ex)
             {
@@ -1856,13 +1856,13 @@ namespace Opc.Ua.Server
                 e.SetChildValue(
                     systemContext,
                     BrowseNames.ClientAuditEntryId,
-                    systemContext?.AuditEntryId!,
+                    systemContext.AuditEntryId!,
                     false);
 
-                e.SetChildValue(systemContext!, BrowseNames.MethodId, methodId, false);
-                e.SetChildValue(systemContext!, BrowseNames.InputArguments, inputArgs, false);
+                e.SetChildValue(systemContext, BrowseNames.MethodId, methodId, false);
+                e.SetChildValue(systemContext, BrowseNames.InputArguments, inputArgs, false);
 
-                server.ReportAuditEvent(systemContext!, e);
+                server.ReportAuditEvent(systemContext, e);
             }
             catch (Exception ex)
             {
@@ -2026,11 +2026,11 @@ namespace Opc.Ua.Server
             e.SetChildValue(
                 systemContext,
                 BrowseNames.ClientAuditEntryId,
-                systemContext?.AuditEntryId!,
+                systemContext.AuditEntryId!,
                 false);
 
             e.SetChildValue(
-                systemContext!,
+                systemContext,
                 BrowseNames.ParameterDataTypeId,
                 historyUpdateDetails.TypeId,
                 false);

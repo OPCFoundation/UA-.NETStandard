@@ -622,34 +622,34 @@ namespace Opc.Ua.Server
                 DiagnosticsNodeManager.FindPredefinedNode<ServerObjectState>(ObjectIds.Server);
 
             // update server capabilities.
-            serverObject!.ServiceLevel!.Value = 255;
-            serverObject!.ServerCapabilities!.LocaleIdArray!.Value = ResourceManager
+            ServerCapabilitiesState serverCapabilities = serverObject.ServerCapabilities!;
+            serverObject.ServiceLevel!.Value = 255;
+            serverCapabilities.LocaleIdArray!.Value = ResourceManager
                 .GetAvailableLocales();
-            serverObject!.ServerCapabilities!.ServerProfileArray!.Value =
+            serverCapabilities.ServerProfileArray!.Value =
             [
-                .. m_configuration!.ServerConfiguration!.ServerProfileArray
+                .. m_configuration.ServerConfiguration!.ServerProfileArray
             ];
-            serverObject!.ServerCapabilities!.MinSupportedSampleRate!.Value = 0;
-            serverObject!.ServerCapabilities!.MaxBrowseContinuationPoints!.Value = (ushort)
+            serverCapabilities.MinSupportedSampleRate!.Value = 0;
+            serverCapabilities.MaxBrowseContinuationPoints!.Value = (ushort)
                 m_configuration.ServerConfiguration.MaxBrowseContinuationPoints;
-            serverObject!.ServerCapabilities!.MaxQueryContinuationPoints!.Value = (ushort)
+            serverCapabilities.MaxQueryContinuationPoints!.Value = (ushort)
                 m_configuration.ServerConfiguration.MaxQueryContinuationPoints;
-            serverObject!.ServerCapabilities!.MaxHistoryContinuationPoints!.Value = (ushort)
+            serverCapabilities.MaxHistoryContinuationPoints!.Value = (ushort)
                 m_configuration.ServerConfiguration.MaxHistoryContinuationPoints;
-            serverObject!.ServerCapabilities!.MaxArrayLength!.Value = (uint)
-                m_configuration!.TransportQuotas!.MaxArrayLength;
-            serverObject!.ServerCapabilities!.MaxStringLength!.Value = (uint)
+            serverCapabilities.MaxArrayLength!.Value = (uint)
+                m_configuration.TransportQuotas!.MaxArrayLength;
+            serverCapabilities.MaxStringLength!.Value = (uint)
                 m_configuration.TransportQuotas.MaxStringLength;
-            serverObject!.ServerCapabilities!.MaxByteStringLength!.Value = (uint)
+            serverCapabilities.MaxByteStringLength!.Value = (uint)
                 m_configuration.TransportQuotas.MaxByteStringLength;
-            serverObject!.ServerCapabilities!.MaxSessions!.Value = (uint)
+            serverCapabilities.MaxSessions!.Value = (uint)
                 m_configuration.ServerConfiguration.MaxSessionCount;
-            serverObject!.ServerCapabilities!.MaxSubscriptions!.Value = (uint)
+            serverCapabilities.MaxSubscriptions!.Value = (uint)
                 m_configuration.ServerConfiguration.MaxSubscriptionCount;
 
             // Any operational limits Property that is provided shall have a non zero value.
-            OperationLimitsState? operationLimits = serverObject.ServerCapabilities
-                .OperationLimits;
+            OperationLimitsState? operationLimits = serverCapabilities.OperationLimits;
             OperationLimits configOperationLimits = m_configuration.ServerConfiguration
                 .OperationLimits;
             if (configOperationLimits != null)
@@ -723,14 +723,14 @@ namespace Opc.Ua.Server
             default_SupportedTransportProfiles.Value = "uadp";
 
             // setup callbacks for dynamic values.
-            serverObject!.NamespaceArray!.OnSimpleReadValue = OnReadNamespaceArray;
+            serverObject.NamespaceArray!.OnSimpleReadValue = OnReadNamespaceArray;
             serverObject.NamespaceArray.MinimumSamplingInterval = 1000;
 
-            serverObject!.ServerArray!.OnSimpleReadValue = OnReadServerArray;
+            serverObject.ServerArray!.OnSimpleReadValue = OnReadServerArray;
             serverObject.ServerArray.MinimumSamplingInterval = 1000;
 
             // dynamic change of enabledFlag is disabled to pass CTT
-            serverObject!.ServerDiagnostics!.EnabledFlag!.AccessLevel = AccessLevels.CurrentRead;
+            serverObject.ServerDiagnostics!.EnabledFlag!.AccessLevel = AccessLevels.CurrentRead;
             serverObject.ServerDiagnostics.EnabledFlag.UserAccessLevel = AccessLevels
                 .CurrentRead;
             serverObject.ServerDiagnostics.EnabledFlag.OnSimpleReadValue
@@ -765,8 +765,8 @@ namespace Opc.Ua.Server
                 null!);
             serverStatus.BuildInfo = buildInfoVariable.Value;
 
-            serverObject!.ServerStatus!.MinimumSamplingInterval = 1000;
-            serverObject!.ServerStatus!.CurrentTime!.MinimumSamplingInterval = 1000;
+            serverObject.ServerStatus!.MinimumSamplingInterval = 1000;
+            serverObject.ServerStatus.CurrentTime!.MinimumSamplingInterval = 1000;
 
             NonThreadSafeStatus = new ServerStatusValue(
                 serverObject.ServerStatus,
@@ -861,8 +861,8 @@ namespace Opc.Ua.Server
                     serverStatusValue.Variable is ServerStatusState serverStatusState)
                 {
                     serverStatusState.Timestamp = now;
-                    serverStatusState!.CurrentTime!.Timestamp = now;
-                    serverStatusState!.State!.Timestamp = now;
+                    serverStatusState.CurrentTime!.Timestamp = now;
+                    serverStatusState.State!.Timestamp = now;
                 }
             }
         }

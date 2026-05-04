@@ -1387,7 +1387,7 @@ namespace Opc.Ua.Server
 
                 // look up triggering item.
 
-                if (m_monitoredItems.TryGetValue(
+                if (!m_monitoredItems.TryGetValue(
                     triggeringItemId,
                     out LinkedListNode<IMonitoredItem>? triggerNode))
                 {
@@ -1396,7 +1396,7 @@ namespace Opc.Ua.Server
 
                 // lookup existing list.
 
-                if (m_itemsToTrigger.TryGetValue(
+                if (!m_itemsToTrigger.TryGetValue(
                     triggeringItemId,
                     out List<ITriggeredMonitoredItem>? triggeredItems))
                 {
@@ -1410,7 +1410,7 @@ namespace Opc.Ua.Server
 
                     bool found = false;
 
-                    for (int jj = 0; jj < triggeredItems!.Count; jj++)
+                    for (int jj = 0; jj < triggeredItems.Count; jj++)
                     {
                         if (triggeredItems[jj].Id == linksToRemove[ii])
                         {
@@ -1451,7 +1451,7 @@ namespace Opc.Ua.Server
                 {
                     addResultList.Add(StatusCodes.Good);
 
-                    if (m_monitoredItems.TryGetValue(
+                    if (!m_monitoredItems.TryGetValue(
                         linksToAdd[ii],
                         out LinkedListNode<IMonitoredItem>? node))
                     {
@@ -1474,7 +1474,7 @@ namespace Opc.Ua.Server
 
                     // check if triggering interface is supported.
 
-                    if (node!.Value is not ITriggeredMonitoredItem triggeredItem)
+                    if (node.Value is not ITriggeredMonitoredItem triggeredItem)
                     {
                         addResultList[ii] = StatusCodes.BadNotSupported;
 
@@ -1496,7 +1496,7 @@ namespace Opc.Ua.Server
                     // add value if not already in list.
                     bool found = false;
 
-                    for (int jj = 0; jj < triggeredItems!.Count; jj++)
+                    for (int jj = 0; jj < triggeredItems.Count; jj++)
                     {
                         if (triggeredItems[jj].Id == triggeredItem.Id)
                         {
@@ -1518,7 +1518,7 @@ namespace Opc.Ua.Server
                 }
 
                 // remove an empty list.
-                if (triggeredItems!.Count == 0)
+                if (triggeredItems.Count == 0)
                 {
                     m_itemsToTrigger.Remove(triggeringItemId);
                 }
@@ -1791,7 +1791,7 @@ namespace Opc.Ua.Server
                 {
                     filterResults.Add(null!);
 
-                    if (m_monitoredItems.TryGetValue(
+                    if (!m_monitoredItems.TryGetValue(
                             itemsToModify[ii].MonitoredItemId,
                             out LinkedListNode<IMonitoredItem>? node))
                     {
@@ -1813,7 +1813,7 @@ namespace Opc.Ua.Server
                         continue;
                     }
 
-                    IMonitoredItem monitoredItem = node!.Value;
+                    IMonitoredItem monitoredItem = node.Value;
                     monitoredItems.Add(monitoredItem);
                     originalSamplingIntervals[ii] = monitoredItem.SamplingInterval;
 
@@ -1974,7 +1974,7 @@ namespace Opc.Ua.Server
 
                 for (int ii = 0; ii < count; ii++)
                 {
-                    if (m_monitoredItems.TryGetValue(
+                    if (!m_monitoredItems.TryGetValue(
                         monitoredItemIds[ii],
                         out LinkedListNode<IMonitoredItem>? node))
                     {
@@ -1996,7 +1996,7 @@ namespace Opc.Ua.Server
                         continue;
                     }
 
-                    IMonitoredItem monitoredItem = node!.Value;
+                    IMonitoredItem monitoredItem = node.Value;
                     monitoredItems.Add(monitoredItem);
 
                     // remove the item from the internal lists.
@@ -2143,7 +2143,7 @@ namespace Opc.Ua.Server
 
                 for (int ii = 0; ii < count; ii++)
                 {
-                    if (m_monitoredItems.TryGetValue(
+                    if (!m_monitoredItems.TryGetValue(
                         monitoredItemIds[ii],
                         out LinkedListNode<IMonitoredItem>? node))
                     {
@@ -2165,7 +2165,7 @@ namespace Opc.Ua.Server
                         continue;
                     }
 
-                    IMonitoredItem monitoredItem = node!.Value;
+                    IMonitoredItem monitoredItem = node.Value;
                     monitoredItems.Add(monitoredItem);
                     originalMonitoringModes[ii] = monitoredItem.MonitoringMode;
 

@@ -350,7 +350,7 @@ namespace Opc.Ua.Server
                 return null;
             }
 
-            if (IsNodeIdInNamespace(source.NodeId))
+            if (!IsNodeIdInNamespace(source.NodeId))
             {
                 return null;
             }
@@ -396,9 +396,9 @@ namespace Opc.Ua.Server
 
                 NodeState? parent = null;
 
-                if (parentId.IsNull)
+                if (!parentId.IsNull)
                 {
-                    if (PredefinedNodes.TryGetValue(parentId, out parent))
+                    if (!PredefinedNodes.TryGetValue(parentId, out parent))
                     {
                         throw ServiceResultException.Create(
                             StatusCodes.BadNodeIdUnknown,
@@ -406,7 +406,7 @@ namespace Opc.Ua.Server
                             parentId);
                     }
 
-                    parent!.AddChild(instance);
+                    parent.AddChild(instance);
                 }
 
                 instance.Create(contextToUse, default, browseName, default, true);
@@ -425,7 +425,7 @@ namespace Opc.Ua.Server
 
             var referencesToRemove = new List<LocalReference>();
 
-            if (PredefinedNodes.TryGetValue(nodeId, out NodeState? node))
+            if (!PredefinedNodes.TryGetValue(nodeId, out NodeState? node))
             {
                 return false;
             }
@@ -628,7 +628,7 @@ namespace Opc.Ua.Server
             NodeState node,
             List<LocalReference> referencesToRemove)
         {
-            if (PredefinedNodes.TryRemove(node.NodeId, out _))
+            if (!PredefinedNodes.TryRemove(node.NodeId, out _))
             {
                 return;
             }
@@ -783,7 +783,7 @@ namespace Opc.Ua.Server
             IDictionary<NodeId, IList<IReference>> externalReferences)
         {
             // get list of references to external nodes.
-            if (externalReferences.TryGetValue(sourceId, out IList<IReference>? referencesToAdd))
+            if (!externalReferences.TryGetValue(sourceId, out IList<IReference>? referencesToAdd))
             {
                 externalReferences[sourceId] = referencesToAdd = [];
             }
@@ -796,7 +796,7 @@ namespace Opc.Ua.Server
                 TargetId = targetId
             };
 
-            referencesToAdd!.Add(referenceToAdd);
+            referencesToAdd.Add(referenceToAdd);
         }
 
         /// <summary>
@@ -824,7 +824,7 @@ namespace Opc.Ua.Server
         /// </summary>
         protected void AddTypesToTypeTree(NodeId typeId)
         {
-            if (PredefinedNodes.TryGetValue(typeId, out NodeState? node))
+            if (!PredefinedNodes.TryGetValue(typeId, out NodeState? node))
             {
                 return;
             }
@@ -849,7 +849,7 @@ namespace Opc.Ua.Server
                 return null;
             }
 
-            if (PredefinedNodes.TryGetValue(nodeId, out NodeState? node))
+            if (!PredefinedNodes.TryGetValue(nodeId, out NodeState? node))
             {
                 return null;
             }
@@ -874,7 +874,7 @@ namespace Opc.Ua.Server
                 return null;
             }
 
-            if (PredefinedNodes.TryGetValue(nodeId, out NodeState? node))
+            if (!PredefinedNodes.TryGetValue(nodeId, out NodeState? node))
             {
                 return null;
             }
@@ -969,7 +969,7 @@ namespace Opc.Ua.Server
             NodeId nodeId,
             IDictionary<NodeId, NodeState> cache)
         {
-            if (IsNodeIdInNamespace(nodeId))
+            if (!IsNodeIdInNamespace(nodeId))
             {
                 return null;
             }
@@ -1044,7 +1044,7 @@ namespace Opc.Ua.Server
             }
 
             // only support external references to nodes that are stored in memory.
-            if (source.Validated || source.Node == null)
+            if (!source.Validated || source.Node == null)
             {
                 return StatusCodes.BadNotSupported;
             }
@@ -1057,7 +1057,7 @@ namespace Opc.Ua.Server
                 if (deleteBidirectional)
                 {
                     // check if the target is also managed by this node manager.
-                    if (targetId.IsAbsolute)
+                    if (!targetId.IsAbsolute)
                     {
                         NodeHandle? target = GetManagerHandle(SystemContext, (NodeId)targetId, null!);
 
@@ -1299,7 +1299,7 @@ namespace Opc.Ua.Server
                     ?? throw new ServiceResultException(StatusCodes.BadNodeIdUnknown);
 
                 // check if node is in the view.
-                if (IsNodeInView(systemContext, continuationPoint, source))
+                if (!IsNodeInView(systemContext, continuationPoint, source))
                 {
                     throw new ServiceResultException(StatusCodes.BadNodeNotInView);
                 }
@@ -1458,7 +1458,7 @@ namespace Opc.Ua.Server
                 !reference.IsInverse);
 
             // check if reference is in the view.
-            if (IsReferenceInView(context, continuationPoint, reference))
+            if (!IsReferenceInView(context, continuationPoint, reference))
             {
                 return null;
             }
@@ -1512,7 +1512,7 @@ namespace Opc.Ua.Server
             }
 
             // check if target is in the view.
-            if (IsNodeInView(context, continuationPoint, target))
+            if (!IsNodeInView(context, continuationPoint, target))
             {
                 return null;
             }
@@ -1792,7 +1792,7 @@ namespace Opc.Ua.Server
             if (cache != null)
             {
                 // lookup component in local cache for request.
-                if (cache.TryGetValue(handle.NodeId, out NodeState? target))
+                if (!cache.TryGetValue(handle.NodeId, out NodeState? target))
                 {
                     return target;
                 }
@@ -3272,7 +3272,7 @@ namespace Opc.Ua.Server
             }
 
             // check for validation errors.
-            if (argumentsValid)
+            if (!argumentsValid)
             {
                 // Per OPC UA Part 4, Section 5.12: InputArgumentResults must be empty
                 // when StatusCode is Good. Therefore only set here.
@@ -5040,14 +5040,14 @@ namespace Opc.Ua.Server
 
                 if (string.IsNullOrEmpty(handle.ComponentPath))
                 {
-                    if (m_componentCache.TryGetValue(handle.RootId, out entry))
+                    if (!m_componentCache.TryGetValue(handle.RootId, out entry))
                     {
                         return entry!.Entry!.FindChildBySymbolicName(context, handle.ComponentPath);
                     }
                 }
-                else if (m_componentCache.TryGetValue(handle.NodeId, out entry))
+                else if (!m_componentCache.TryGetValue(handle.NodeId, out entry))
                 {
-                    return entry.Entry;
+                    return entry!.Entry;
                 }
 
                 return null;

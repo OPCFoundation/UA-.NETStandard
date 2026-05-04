@@ -260,19 +260,19 @@ namespace Opc.Ua.Server
                 return StatusCodes.BadInvalidArgument;
             }
 
-            if (Server.SubscriptionManager.TryGetSubscription(subscriptionId, out ISubscription? subscription))
+            if (!Server.SubscriptionManager.TryGetSubscription(subscriptionId, out ISubscription? subscription))
             {
                 return StatusCodes.BadSubscriptionIdInvalid;
             }
 
             if (context is ISessionSystemContext session &&
-                subscription!.SessionId != null! && !subscription.SessionId.Equals(session.SessionId))
+                subscription.SessionId != null! && !subscription.SessionId.Equals(session.SessionId))
             {
                 // user tries to access subscription of different session
                 return StatusCodes.BadUserAccessDenied;
             }
 
-            subscription!.GetMonitoredItems(
+            subscription.GetMonitoredItems(
                 out ArrayOf<uint> serverHandles,
                 out ArrayOf<uint> clientHandles);
 
@@ -296,18 +296,18 @@ namespace Opc.Ua.Server
                 return StatusCodes.BadInvalidArgument;
             }
 
-            if (inputArguments[0].TryGetValue(out uint subscriptionId))
+            if (!inputArguments[0].TryGetValue(out uint subscriptionId))
             {
                 return StatusCodes.BadInvalidArgument;
             }
 
-            if (Server.SubscriptionManager.TryGetSubscription(subscriptionId, out ISubscription? subscription))
+            if (!Server.SubscriptionManager.TryGetSubscription(subscriptionId, out ISubscription? subscription))
             {
                 return StatusCodes.BadSubscriptionIdInvalid;
             }
 
             if (context is not ServerSystemContext session ||
-                (subscription!.SessionId != null! && !subscription.SessionId.Equals(session.SessionId)))
+                (subscription.SessionId != null! && !subscription.SessionId.Equals(session.SessionId)))
             {
                 // user tries to access subscription of different session
                 return StatusCodes.BadUserAccessDenied;
@@ -1087,20 +1087,20 @@ namespace Opc.Ua.Server
                         cancellationToken).ConfigureAwait(false);
                     tempCapabilitiesNode = null; // ownership transferred to address space
 
-                    historyServerCapabilitiesNode!.AccessHistoryDataCapability!.Value = false;
-                    historyServerCapabilitiesNode!.AccessHistoryEventsCapability!.Value = false;
-                    historyServerCapabilitiesNode!.MaxReturnDataValues!.Value = 0;
-                    historyServerCapabilitiesNode!.MaxReturnEventValues!.Value = 0;
-                    historyServerCapabilitiesNode!.ReplaceDataCapability!.Value = false;
-                    historyServerCapabilitiesNode!.UpdateDataCapability!.Value = false;
-                    historyServerCapabilitiesNode!.InsertEventCapability!.Value = false;
-                    historyServerCapabilitiesNode!.ReplaceEventCapability!.Value = false;
-                    historyServerCapabilitiesNode!.UpdateEventCapability!.Value = false;
-                    historyServerCapabilitiesNode!.InsertAnnotationCapability!.Value = false;
-                    historyServerCapabilitiesNode!.InsertDataCapability!.Value = false;
-                    historyServerCapabilitiesNode!.DeleteRawCapability!.Value = false;
-                    historyServerCapabilitiesNode!.DeleteAtTimeCapability!.Value = false;
-                    historyServerCapabilitiesNode!.ServerTimestampSupported!.Value = false;
+                    historyServerCapabilitiesNode.AccessHistoryDataCapability!.Value = false;
+                    historyServerCapabilitiesNode.AccessHistoryEventsCapability!.Value = false;
+                    historyServerCapabilitiesNode.MaxReturnDataValues!.Value = 0;
+                    historyServerCapabilitiesNode.MaxReturnEventValues!.Value = 0;
+                    historyServerCapabilitiesNode.ReplaceDataCapability!.Value = false;
+                    historyServerCapabilitiesNode.UpdateDataCapability!.Value = false;
+                    historyServerCapabilitiesNode.InsertEventCapability!.Value = false;
+                    historyServerCapabilitiesNode.ReplaceEventCapability!.Value = false;
+                    historyServerCapabilitiesNode.UpdateEventCapability!.Value = false;
+                    historyServerCapabilitiesNode.InsertAnnotationCapability!.Value = false;
+                    historyServerCapabilitiesNode.InsertDataCapability!.Value = false;
+                    historyServerCapabilitiesNode.DeleteRawCapability!.Value = false;
+                    historyServerCapabilitiesNode.DeleteAtTimeCapability!.Value = false;
+                    historyServerCapabilitiesNode.ServerTimestampSupported!.Value = false;
 
                     ServerCapabilitiesState parent = FindPredefinedNode<ServerCapabilitiesState>(
                         ObjectIds.Server_ServerCapabilities);

@@ -261,7 +261,7 @@ namespace Opc.Ua.Server
             if (unsubscribe)
             {
                 // check for existing monitored node.
-                if (MonitoredNodes.TryGetValue(source.NodeId, out monitoredNode!))
+                if (!MonitoredNodes.TryGetValue(source.NodeId, out monitoredNode!))
                 {
                     return (null, StatusCodes.BadNodeIdUnknown);
                 }

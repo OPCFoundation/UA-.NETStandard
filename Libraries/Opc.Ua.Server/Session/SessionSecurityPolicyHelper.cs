@@ -56,7 +56,7 @@ namespace Opc.Ua.Server
             SecurityPolicyInfo? securityPolicy = SecurityPolicies.GetInfo(context.SecurityPolicyUri);
 
             byte[] dataToSign = securityPolicy!.GetServerSignatureData(
-                context.ChannelContext!.ChannelThumbprint,
+                context.ChannelContext.ChannelThumbprint,
                 clientNonce.ToArray(),
                 context.ChannelContext.ServerChannelCertificate,
                 parsedClientCertificate.RawData,

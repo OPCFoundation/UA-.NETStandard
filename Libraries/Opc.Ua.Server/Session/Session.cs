@@ -135,7 +135,7 @@ namespace Opc.Ua.Server
             if (description != null)
             {
                 m_securityDiagnostics.TransportProtocol = new Uri(description.EndpointUrl!).Scheme;
-                m_securityDiagnostics.SecurityMode = EndpointDescription!.SecurityMode;
+                m_securityDiagnostics.SecurityMode = EndpointDescription.SecurityMode;
                 m_securityDiagnostics.SecurityPolicyUri = EndpointDescription.SecurityPolicyUri;
             }
 

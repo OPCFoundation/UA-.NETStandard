@@ -330,7 +330,7 @@ namespace Opc.Ua.Server
                 }
 
                 bool requireEncryption = RequireEncryption(
-                    context.ChannelContext!.EndpointDescription!);
+                    context.ChannelContext.EndpointDescription!);
 
                 if (requireEncryption && !clientCertificate.IsEmpty)
                 {
@@ -2414,7 +2414,7 @@ namespace Opc.Ua.Server
                 throw new ServiceResultException(StatusCodes.BadServerHalted);
             }
 
-            base.ValidateRequest(requestHeader!);
+            base.ValidateRequest(requestHeader);
         }
 
         /// <summary>
@@ -2780,7 +2780,7 @@ namespace Opc.Ua.Server
             var hosts = new Dictionary<string, ServiceHost>();
 
             // ensure at least one security policy exists.
-            if (configuration!.ServerConfiguration!.SecurityPolicies.IsEmpty)
+            if (configuration.ServerConfiguration!.SecurityPolicies.IsEmpty)
             {
                 configuration.ServerConfiguration.SecurityPolicies =
                     configuration.ServerConfiguration.SecurityPolicies.AddItem(new ServerSecurityPolicy());
@@ -2967,7 +2967,7 @@ namespace Opc.Ua.Server
                 // setup registration information.
                 lock (m_registrationLock)
                 {
-                    m_maxRegistrationInterval = configuration!.ServerConfiguration!
+                    m_maxRegistrationInterval = configuration.ServerConfiguration!
                         .MaxRegistrationInterval;
 
                     ApplicationDescription serverDescription = ServerDescription!;

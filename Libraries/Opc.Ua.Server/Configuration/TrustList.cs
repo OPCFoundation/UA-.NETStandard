@@ -73,27 +73,27 @@ namespace Opc.Ua.Server
             // If maxTrustListSize is 0 (unlimited), use a sensible default limit
             m_maxTrustListSize = maxTrustListSize > 0 ? maxTrustListSize : kDefaultMaxTrustListSize;
 
-            node!.Open!.OnCall = new OpenMethodStateMethodCallHandler(Open);
+            node.Open!.OnCall = new OpenMethodStateMethodCallHandler(Open);
             node.Open.OnCallAsync = new OpenMethodStateMethodAsyncCallHandler(OpenAsync);
-            node!.OpenWithMasks!.OnCall
+            node.OpenWithMasks!.OnCall
                 = new OpenWithMasksMethodStateMethodCallHandler(OpenWithMasks);
             node.OpenWithMasks.OnCallAsync
                 = new OpenWithMasksMethodStateMethodAsyncCallHandler(OpenWithMasksAsync);
-            node!.Read!.OnCall = new ReadMethodStateMethodCallHandler(Read);
+            node.Read!.OnCall = new ReadMethodStateMethodCallHandler(Read);
             node.Read.OnCallAsync = new ReadMethodStateMethodAsyncCallHandler(ReadAsync);
-            node!.Write!.OnCall = new WriteMethodStateMethodCallHandler(Write);
+            node.Write!.OnCall = new WriteMethodStateMethodCallHandler(Write);
             node.Write.OnCallAsync = new WriteMethodStateMethodAsyncCallHandler(WriteAsync);
-            node!.Close!.OnCall = new CloseMethodStateMethodCallHandler(Close);
+            node.Close!.OnCall = new CloseMethodStateMethodCallHandler(Close);
             node.Close.OnCallAsync = new CloseMethodStateMethodAsyncCallHandler(CloseAsync);
-            node!.CloseAndUpdate!.OnCall
+            node.CloseAndUpdate!.OnCall
                 = new CloseAndUpdateMethodStateMethodCallHandler(CloseAndUpdate);
             node.CloseAndUpdate.OnCallAsync
                 = new CloseAndUpdateMethodStateMethodAsyncCallHandler(CloseAndUpdateAsync);
-            node!.AddCertificate!.OnCall
+            node.AddCertificate!.OnCall
                 = new AddCertificateMethodStateMethodCallHandler(AddCertificate);
             node.AddCertificate.OnCallAsync
                 = new AddCertificateMethodStateMethodAsyncCallHandler(AddCertificateAsync);
-            node!.RemoveCertificate!.OnCall
+            node.RemoveCertificate!.OnCall
                 = new RemoveCertificateMethodStateMethodCallHandler(RemoveCertificate);
             node.RemoveCertificate.OnCallAsync
                 = new RemoveCertificateMethodStateMethodAsyncCallHandler(RemoveCertificateAsync);
@@ -292,14 +292,14 @@ namespace Opc.Ua.Server
                         m_sessionId = default;
                         m_strm?.Dispose();
                         m_strm = null;
-                        m_node!.OpenCount!.Value = 0;
+                        m_node.OpenCount!.Value = 0;
                     }
 
                     m_sessionId = (context as ISessionSystemContext)?.SessionId ?? default;
                     fileHandle = ++m_fileHandle;
                     m_totalBytesProcessed = 0; // Reset counter for new file operation
                     m_strm = strm;
-                    m_node!.OpenCount!.Value = 1;
+                    m_node.OpenCount!.Value = 1;
                 }
             }
             catch
@@ -513,7 +513,7 @@ namespace Opc.Ua.Server
                 m_sessionId = default;
                 m_strm?.Dispose();
                 m_strm = null;
-                m_node!.OpenCount!.Value = 0;
+                m_node.OpenCount!.Value = 0;
             }
 
             return new ValueTask<CloseMethodStateResult>(new CloseMethodStateResult
@@ -669,8 +669,8 @@ namespace Opc.Ua.Server
                     m_sessionId = default;
                     m_strm?.Dispose();
                     m_strm = null;
-                    m_node!.LastUpdateTime!.Value = DateTime.UtcNow;
-                    m_node!.OpenCount!.Value = 0;
+                    m_node.LastUpdateTime!.Value = DateTime.UtcNow;
+                    m_node.OpenCount!.Value = 0;
                 }
             }
 
@@ -777,7 +777,7 @@ namespace Opc.Ua.Server
 
                     lock (m_lock)
                     {
-                        m_node!.LastUpdateTime!.Value = DateTime.UtcNow;
+                        m_node.LastUpdateTime!.Value = DateTime.UtcNow;
                     }
                 }
             }
@@ -916,7 +916,7 @@ namespace Opc.Ua.Server
 
                 lock (m_lock)
                 {
-                    m_node!.LastUpdateTime!.Value = DateTime.UtcNow;
+                    m_node.LastUpdateTime!.Value = DateTime.UtcNow;
                 }
             }
 

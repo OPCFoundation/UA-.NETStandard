@@ -167,7 +167,7 @@ namespace Opc.Ua.Server
 
             lock (m_lock)
             {
-                if (m_factories.TryGetValue(aggregateId, out factory))
+                if (!m_factories.TryGetValue(aggregateId, out factory))
                 {
                     return null;
                 }

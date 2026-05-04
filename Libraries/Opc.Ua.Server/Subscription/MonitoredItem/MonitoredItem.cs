@@ -678,33 +678,31 @@ namespace Opc.Ua.Server
                 QueueSize = queueSize;
 
                 // check if aggregate filter has been updated.
-                var aggregateFilter = filterToUse as ServerAggregateFilter;
-
-                if (filterToUse is ServerAggregateFilter)
+                if (filterToUse is ServerAggregateFilter aggregateFilter)
                 {
-                    var existingFilter = filterToUse as ServerAggregateFilter;
+                    var existingFilter = aggregateFilter;
 
-                    bool match = existingFilter != null;
+                    bool match = true;
 
-                    if (match && existingFilter!.AggregateType != aggregateFilter!.AggregateType)
+                    if (match && existingFilter.AggregateType != aggregateFilter.AggregateType)
                     {
                         match = false;
                     }
 
                     if (match &&
-                        existingFilter!.ProcessingInterval != aggregateFilter!.ProcessingInterval)
+                        existingFilter.ProcessingInterval != aggregateFilter.ProcessingInterval)
                     {
                         match = false;
                     }
 
-                    if (match && existingFilter!.StartTime != aggregateFilter!.StartTime)
+                    if (match && existingFilter.StartTime != aggregateFilter.StartTime)
                     {
                         match = false;
                     }
 
                     if (match &&
-                        !existingFilter!.AggregateConfiguration
-                            .IsEqual(aggregateFilter!.AggregateConfiguration))
+                        !existingFilter.AggregateConfiguration
+                            .IsEqual(aggregateFilter.AggregateConfiguration))
                     {
                         match = false;
                     }
@@ -712,7 +710,7 @@ namespace Opc.Ua.Server
                     if (match)
                     {
                         m_calculator = m_server.AggregateManager.CreateCalculator(
-                            aggregateFilter!.AggregateType,
+                            aggregateFilter.AggregateType,
                             (DateTime)aggregateFilter.StartTime,
                             DateTime.MaxValue,
                             aggregateFilter.ProcessingInterval,

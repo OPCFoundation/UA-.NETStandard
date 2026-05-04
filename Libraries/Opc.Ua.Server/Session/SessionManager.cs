@@ -56,7 +56,7 @@ namespace Opc.Ua.Server
             m_server = server ?? throw new ArgumentNullException(nameof(server));
             m_logger = server.Telemetry.CreateLogger<SessionManager>();
 
-            m_minSessionTimeout = configuration!.ServerConfiguration!.MinSessionTimeout;
+            m_minSessionTimeout = configuration.ServerConfiguration!.MinSessionTimeout;
             m_maxSessionTimeout = configuration.ServerConfiguration.MaxSessionTimeout;
             m_maxSessionCount = configuration.ServerConfiguration.MaxSessionCount;
             m_maxRequestAge = configuration.ServerConfiguration.MaxRequestAge;
@@ -198,7 +198,7 @@ namespace Opc.Ua.Server
                 // can assign a simple identifier if secured.
                 authenticationToken = default;
                 if (string.IsNullOrEmpty(context.ChannelContext.SecureChannelId) &&
-                    context!.ChannelContext!.EndpointDescription!
+                    context.ChannelContext.EndpointDescription!
                         .SecurityMode != MessageSecurityMode.None)
                 {
                     authenticationToken = new NodeId(
@@ -225,7 +225,7 @@ namespace Opc.Ua.Server
 
                 // create server nonce.
                 tempNonce = Nonce.CreateNonce(
-                    context!.ChannelContext!.EndpointDescription!.SecurityPolicyUri!);
+                    context.ChannelContext.EndpointDescription!.SecurityPolicyUri!);
                 Nonce serverNonceObject = tempNonce;
 
                 // assign client name.
@@ -349,7 +349,7 @@ namespace Opc.Ua.Server
 
                 // create new server nonce.
                 serverNonceObject = Nonce.CreateNonce(
-                    context!.ChannelContext!.EndpointDescription!.SecurityPolicyUri!);
+                    context.ChannelContext.EndpointDescription!.SecurityPolicyUri!);
 
                 // validate before activation.
                 session.ValidateBeforeActivate(

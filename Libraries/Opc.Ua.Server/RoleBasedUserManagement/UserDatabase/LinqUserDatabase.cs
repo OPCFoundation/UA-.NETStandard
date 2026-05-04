@@ -113,7 +113,7 @@ namespace Opc.Ua.Server.UserDatabase
             string hash = Hash(password);
 
             bool added = true;
-            User newUser = m_users!.AddOrUpdate(userName,
+            User newUser = m_users.AddOrUpdate(userName,
                 (key) => new User
                 {
                     ID = Guid.NewGuid(),
@@ -142,7 +142,7 @@ namespace Opc.Ua.Server.UserDatabase
                 throw new ArgumentException("UserName cannot be empty.", nameof(userName));
             }
 
-            return m_users!.TryRemove(userName, out _);
+            return m_users.TryRemove(userName, out _);
         }
 
         /// <inheritdoc/>
@@ -158,7 +158,7 @@ namespace Opc.Ua.Server.UserDatabase
                 throw new ArgumentException("Password cannot be empty.", nameof(password));
             }
 
-            if (m_users!.TryGetValue(userName, out User? user))
+            if (m_users.TryGetValue(userName, out User? user))
             {
                 return false;
             }
@@ -174,7 +174,7 @@ namespace Opc.Ua.Server.UserDatabase
                 throw new ArgumentException("UserName cannot be empty.", nameof(userName));
             }
 
-            if (m_users!.TryGetValue(userName, out User? user))
+            if (m_users.TryGetValue(userName, out User? user))
             {
                 throw new ArgumentException("No user found with the UserName " + userName);
             }
@@ -202,7 +202,7 @@ namespace Opc.Ua.Server.UserDatabase
                 throw new ArgumentException("New Password cannot be empty.", nameof(newPassword));
             }
 
-            if (m_users!.TryGetValue(userName, out User? user))
+            if (m_users.TryGetValue(userName, out User? user))
             {
                 return false;
             }
@@ -229,12 +229,12 @@ namespace Opc.Ua.Server.UserDatabase
         [DataMember(Name = "Users", IsRequired = true, Order = 10)]
         public User[] Users
         {
-            get => [.. m_users!.Values];
+            get => [.. m_users.Values];
             set
             {
                 foreach (User user in value)
                 {
-                    m_users!.TryAdd(user.UserName, user);
+                    m_users.TryAdd(user.UserName, user);
                 }
             }
         }
@@ -349,7 +349,7 @@ namespace Opc.Ua.Server.UserDatabase
             Initialize();
         }
 
-        private ConcurrentDictionary<string, User>? m_users;
+        private ConcurrentDictionary<string, User> m_users = new();
     }
 
     /// <summary>

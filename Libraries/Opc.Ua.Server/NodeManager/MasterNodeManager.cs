@@ -84,13 +84,13 @@ namespace Opc.Ua.Server
             m_logger = server.Telemetry.CreateLogger<MasterNodeManager>();
 
             m_nodeManagers = [];
-            m_maxContinuationPointsPerBrowse = (uint)configuration!.ServerConfiguration!
+            m_maxContinuationPointsPerBrowse = (uint)configuration.ServerConfiguration!
                 .MaxBrowseContinuationPoints;
 
             // ensure the dynamic namespace uris.
             int dynamicNamespaceIndex = 1;
 
-            if (string.IsNullOrEmpty(dynamicNamespaceUri))
+            if (!string.IsNullOrEmpty(dynamicNamespaceUri))
             {
                 dynamicNamespaceIndex = server.NamespaceUris.GetIndex(dynamicNamespaceUri!);
 
@@ -910,7 +910,7 @@ namespace Opc.Ua.Server
                     int depth = 0;
                     while (diagnosticInfo != null && depth++ < DiagnosticInfo.MaxInnerDepth)
                     {
-                        if (string.IsNullOrEmpty(diagnosticInfo.AdditionalInfo))
+                        if (!string.IsNullOrEmpty(diagnosticInfo.AdditionalInfo))
                         {
                             diagnosticsExist = true;
                             break;
@@ -921,7 +921,7 @@ namespace Opc.Ua.Server
                 }
             }
 
-            if (diagnosticsExist)
+            if (!diagnosticsExist)
             {
                 diagnosticInfos = null!;
             }
@@ -1091,7 +1091,7 @@ namespace Opc.Ua.Server
                         }
                     }
 
-                    if (found)
+                    if (!found)
                     {
                         targetIds.Add(externalTargetIds[ii]);
                     }
@@ -1691,7 +1691,7 @@ namespace Opc.Ua.Server
                                 cancellationToken)
                             .ConfigureAwait(false);
 
-                        if (include)
+                        if (!include)
                         {
                             continue;
                         }
@@ -1707,13 +1707,13 @@ namespace Opc.Ua.Server
                 // check if browse limit reached.
                 if (currentCp != null && referenceList.Count >= currentCp.MaxResultsToReturn)
                 {
-                    if (assignContinuationPoint)
+                    if (!assignContinuationPoint)
                     {
                         return (StatusCodes.BadNoContinuationPoints, currentCp, referenceList);
                     }
 
                     currentCp.Id = Guid.NewGuid();
-                    context!.Session.SaveContinuationPoint(currentCp);
+                    context.Session.SaveContinuationPoint(currentCp);
                     break;
                 }
             }
@@ -2597,7 +2597,7 @@ namespace Opc.Ua.Server
             {
                 MonitoredItemCreateRequest itemToCreate = itemsToCreate[ii];
 
-                if (itemToCreate.Processed)
+                if (!itemToCreate.Processed)
                 {
                     // all event subscriptions required an event filter.
                     if (itemToCreate.RequestedParameters.Filter.TryGetValue(out EventFilter? filter))
@@ -2615,14 +2615,14 @@ namespace Opc.Ua.Server
                     }
 
                     // the index range parameter has no meaning for event subscriptions.
-                    if (string.IsNullOrEmpty(itemToCreate.ItemToMonitor.IndexRange))
+                    if (!string.IsNullOrEmpty(itemToCreate.ItemToMonitor.IndexRange))
                     {
                         errors[ii] = StatusCodes.BadIndexRangeInvalid;
                         continue;
                     }
 
                     // the data encoding has no meaning for event subscriptions.
-                    if (itemToCreate.ItemToMonitor.DataEncoding.IsNull)
+                    if (!itemToCreate.ItemToMonitor.DataEncoding.IsNull)
                     {
                         errors[ii] = StatusCodes.BadDataEncodingInvalid;
                         continue;
@@ -2785,7 +2785,7 @@ namespace Opc.Ua.Server
             {
                 IStoredMonitoredItem item = itemsToRestore[ii];
 
-                if (item.IsRestored)
+                if (!item.IsRestored)
                 {
                     // all event subscriptions required an event filter.
                     if (item.OriginalFilter is not EventFilter)
@@ -3402,7 +3402,7 @@ namespace Opc.Ua.Server
         protected static ServiceResult? ValidateMonitoringFilter(ExtensionObject filter)
         {
             // check that no filter is specified for non-value attributes.
-            if (filter.IsNull)
+            if (!filter.IsNull)
             {
                 // validate data change filter.
                 if (filter.TryGetValue(out DataChangeFilter? datachangeFilter))
@@ -3468,7 +3468,7 @@ namespace Opc.Ua.Server
             if (item.ItemToMonitor.AttributeId is not Attributes.Value and not Attributes
                 .EventNotifier)
             {
-                if (attributes.Filter.IsNull)
+                if (!attributes.Filter.IsNull)
                 {
                     return new ServiceResult(StatusCodes.BadFilterNotAllowed);
                 }
@@ -3834,7 +3834,7 @@ namespace Opc.Ua.Server
 
                 if ((
                         encryptionRequired &&
-                        context!.ChannelContext!.EndpointDescription!
+                        context.ChannelContext.EndpointDescription!
                             .SecurityMode != MessageSecurityMode.SignAndEncrypt &&
                         context.ChannelContext.EndpointDescription.TransportProfileUri !=
                             Profiles.HttpsBinaryTransport &&
@@ -3842,7 +3842,7 @@ namespace Opc.Ua.Server
                     ) ||
                     (
                         signingRequired &&
-                        context!.ChannelContext!.EndpointDescription!
+                        context.ChannelContext.EndpointDescription!
                             .SecurityMode != MessageSecurityMode.Sign &&
                         context.ChannelContext.EndpointDescription
                             .SecurityMode != MessageSecurityMode.SignAndEncrypt &&
@@ -3886,7 +3886,7 @@ namespace Opc.Ua.Server
 
             // get the intersection of user role permissions and role permissions
             ArrayOf<RolePermissionType> userRolePermissions = default;
-            if (nodeMetadata.UserRolePermissions.IsEmpty)
+            if (!nodeMetadata.UserRolePermissions.IsEmpty)
             {
                 userRolePermissions = nodeMetadata.UserRolePermissions;
             }
@@ -3896,7 +3896,7 @@ namespace Opc.Ua.Server
             }
 
             ArrayOf<RolePermissionType> rolePermissions;
-            if (nodeMetadata.RolePermissions.IsEmpty)
+            if (!nodeMetadata.RolePermissions.IsEmpty)
             {
                 rolePermissions = nodeMetadata.RolePermissions;
             }
@@ -3913,7 +3913,7 @@ namespace Opc.Ua.Server
 
             // group all permissions defined in rolePermissions by RoleId
             var roleIdPermissions = new Dictionary<NodeId, PermissionType>();
-            if (rolePermissions.IsEmpty)
+            if (!rolePermissions.IsEmpty)
             {
                 foreach (RolePermissionType rolePermission in rolePermissions)
                 {
@@ -3932,7 +3932,7 @@ namespace Opc.Ua.Server
 
             // group all permissions defined in userRolePermissions by RoleId
             var roleIdPermissionsDefinedForUser = new Dictionary<NodeId, PermissionType>();
-            if (userRolePermissions.IsEmpty)
+            if (!userRolePermissions.IsEmpty)
             {
                 foreach (RolePermissionType rolePermission in userRolePermissions)
                 {
@@ -3950,12 +3950,12 @@ namespace Opc.Ua.Server
             }
 
             Dictionary<NodeId, PermissionType> commonRoleIdPermissions;
-            if (rolePermissions.IsEmpty)
+            if (!rolePermissions.IsEmpty)
             {
                 // there were no role permissions defined for this node only user role permissions
                 commonRoleIdPermissions = roleIdPermissionsDefinedForUser;
             }
-            else if (userRolePermissions.IsEmpty)
+            else if (!userRolePermissions.IsEmpty)
             {
                 // there were no role permissions defined for this node only user role permissions
                 commonRoleIdPermissions = roleIdPermissions;

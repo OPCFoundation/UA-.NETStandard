@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -64,7 +65,7 @@ namespace Opc.Ua.Server
         /// <param name="id">The id of the subscription</param>
         /// <param name="subscription">The subscription if found else null</param>
         /// <returns>True if found</returns>
-        bool TryGetSubscription(uint id, out ISubscription? subscription);
+        bool TryGetSubscription(uint id, [NotNullWhen(true)] out ISubscription? subscription);
 
         /// <summary>
         /// Set a subscription into durable mode
