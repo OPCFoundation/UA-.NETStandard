@@ -67,6 +67,31 @@ namespace Opc.Ua.Security.Certificates
                 = new ConcurrentDictionary<string, Tuple<CertificateCollection, byte[]>>();
         }
 
+        /// <summary>
+        /// Create an instance of the certificate provider that is backed by
+        /// an <see cref="ICertificateRegistry"/> (typically the application's
+        /// <see cref="CertificateManager"/>). When a registry is supplied, the
+        /// provider becomes a thin facade that delegates lookups to it; the
+        /// embedded legacy <see cref="CertificateValidator"/> is not used.
+        /// </summary>
+        /// <param name="config">The application configuration.</param>
+        /// <param name="registry">
+        /// The certificate registry (composed in <see cref="ICertificateManager"/>)
+        /// that owns the application's instance certificates and chain blobs.
+        /// </param>
+        /// <param name="telemetry">The telemetry context.</param>
+        public CertificateTypesProvider(
+            ApplicationConfiguration config,
+            ICertificateRegistry registry,
+            ITelemetryContext telemetry)
+        {
+            m_securityConfiguration = config.SecurityConfiguration;
+            m_certificateValidator = new CertificateValidator(telemetry);
+            m_certificateChain
+                = new ConcurrentDictionary<string, Tuple<CertificateCollection, byte[]>>();
+            m_registry = registry ?? throw new ArgumentNullException(nameof(registry));
+        }
+
         /// <inheritdoc/>
         public void Dispose()
         {
@@ -91,6 +116,14 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         public async Task InitializeAsync()
         {
+            // Registry-backed mode: nothing to initialize — the registry owns
+            // the trust list and application certificate cache.
+            if (m_registry != null)
+            {
+                ClearCachedChains();
+                return;
+            }
+
             await m_certificateValidator.UpdateAsync(m_securityConfiguration).ConfigureAwait(false);
 
             // for application certificates, allow untrusted and revocation status unknown, cache the known certs
@@ -107,7 +140,8 @@ namespace Opc.Ua.Security.Certificates
         /// <remarks>
         /// If set to true the complete certificate chain will be sent for CA signed certificates.
         /// </remarks>
-        public bool SendCertificateChain => m_securityConfiguration.SendCertificateChain;
+        public bool SendCertificateChain
+            => m_registry?.SendCertificateChain ?? m_securityConfiguration.SendCertificateChain;
 
         /// <summary>
         /// Return the instance certificate for a security policy.
@@ -115,6 +149,12 @@ namespace Opc.Ua.Security.Certificates
         /// <param name="securityPolicyUri">The security policy Uri</param>
         public Certificate? GetInstanceCertificate(string securityPolicyUri)
         {
+            // Prefer the registry-backed lookup when available.
+            if (m_registry != null)
+            {
+                return m_registry.GetInstanceCertificate(securityPolicyUri)?.Certificate;
+            }
+
             if (securityPolicyUri == SecurityPolicies.None)
             {
                 // return the default certificate for None
@@ -162,6 +202,11 @@ namespace Opc.Ua.Security.Certificates
                 return null;
             }
 
+            if (m_registry != null)
+            {
+                return m_registry.LoadCertificateChainRaw(certificate);
+            }
+
             if (m_certificateChain.TryGetValue(
                     certificate.Thumbprint,
                     out Tuple<CertificateCollection, byte[]>? result
@@ -184,6 +229,29 @@ namespace Opc.Ua.Security.Certificates
             if (certificate == null)
             {
                 return null;
+            }
+
+            // Registry-backed mode: build a caller-owned collection from the
+            // entry's pre-loaded issuer chain; no further trust-list traversal
+            // is needed because the registry is the source of truth.
+            if (m_registry != null)
+            {
+                string thumbprint = certificate.Thumbprint;
+                foreach (CertificateEntry entry in m_registry.ApplicationCertificates)
+                {
+                    if (string.Equals(
+                            entry.Certificate.Thumbprint, thumbprint, StringComparison.Ordinal))
+                    {
+                        var chainFromRegistry = new CertificateCollection { entry.Certificate };
+                        foreach (Certificate issuer in entry.IssuerChain)
+                        {
+                            chainFromRegistry.Add(issuer);
+                        }
+                        return chainFromRegistry;
+                    }
+                }
+                // Unknown certificate: return a single-element collection.
+                return new CertificateCollection { certificate };
             }
 
             if (m_certificateChain.TryGetValue(
@@ -286,6 +354,7 @@ namespace Opc.Ua.Security.Certificates
         }
 
         private readonly CertificateValidator m_certificateValidator;
+        private readonly ICertificateRegistry? m_registry;
         private SecurityConfiguration m_securityConfiguration;
         private readonly ConcurrentDictionary<string, Tuple<CertificateCollection, byte[]>> m_certificateChain;
     }

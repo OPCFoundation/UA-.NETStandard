@@ -1444,17 +1444,8 @@ namespace Opc.Ua
                 }
             }
 
-            // load the instance certificate.
-            Certificate defaultInstanceCertificate = null;
-#pragma warning disable CS0618 // legacy CertificateTypesProvider kept for compatibility on ServerBase
-            InstanceCertificateTypesProvider = new CertificateTypesProvider(
-                configuration,
-                m_telemetry);
-            InstanceCertificateTypesProvider.InitializeAsync().GetAwaiter().GetResult();
-#pragma warning restore CS0618
-#pragma warning disable CS0618 // re-enable file-level legacy CertificateValidator pragma
-
-            // Initialize the new CertificateManager if not already set.
+            // Initialize the new CertificateManager first so the provider can
+            // be backed by it (registry-mode).
             if (CertificateManager == null)
             {
                 CertificateManager = CertificateManagerFactory.Create(
@@ -1464,6 +1455,17 @@ namespace Opc.Ua
                     configuration.SecurityConfiguration,
                     configuration.ApplicationUri).GetAwaiter().GetResult();
             }
+
+            // load the instance certificate.
+            Certificate defaultInstanceCertificate = null;
+#pragma warning disable CS0618 // legacy CertificateTypesProvider kept for compatibility on ServerBase
+            InstanceCertificateTypesProvider = new CertificateTypesProvider(
+                configuration,
+                CertificateManager,
+                m_telemetry);
+            InstanceCertificateTypesProvider.InitializeAsync().GetAwaiter().GetResult();
+#pragma warning restore CS0618
+#pragma warning disable CS0618 // re-enable file-level legacy CertificateValidator pragma
 
             foreach (ServerSecurityPolicy securityPolicy in configuration.ServerConfiguration
                 .SecurityPolicies)
