@@ -275,6 +275,7 @@ namespace Opc.Ua.Client.Subscriptions
         {
             uint prevSeqNum = LastSequenceNumberProcessed;
             uint curSeqNum = incoming.Message.SequenceNumber;
+            const uint kBackwardThreshold = 1u << 31;
             if (prevSeqNum != 0)
             {
                 // Forward distance prevSeqNum -> curSeqNum modulo 2^32. A
@@ -283,7 +284,6 @@ namespace Opc.Ua.Client.Subscriptions
                 // than what we have already processed (e.g. an out-of-order
                 // republish or a server reset).
                 uint delta = unchecked(curSeqNum - prevSeqNum);
-                const uint kBackwardThreshold = 1u << 31;
 
                 if (delta == 0 || delta >= kBackwardThreshold)
                 {
@@ -324,6 +324,27 @@ namespace Opc.Ua.Client.Subscriptions
                         break;
                     }
                     await TryRepublishAsync(missing, curSeqNum, ct).ConfigureAwait(false);
+                }
+            }
+            else
+            {
+                // First message after subscription create / recreate /
+                // transfer. We don't know what came before, but the
+                // server may still hold older retransmissible messages
+                // (e.g. on a transferred subscription where the first
+                // received SequenceNumber is greater than 1). Walk only
+                // the published AvailableInRetransmissionQueue so the
+                // cost is bounded by the server's queue size, not the
+                // raw gap. Mirrors the V1 fix in PR #3565.
+                IReadOnlyList<uint> available = AvailableInRetransmissionQueue;
+                for (int i = 0; i < available.Count; i++)
+                {
+                    uint seq = available[i];
+                    uint delta = unchecked(curSeqNum - seq);
+                    if (delta != 0 && delta < kBackwardThreshold)
+                    {
+                        await TryRepublishAsync(seq, curSeqNum, ct).ConfigureAwait(false);
+                    }
                 }
             }
             LastSequenceNumberProcessed = curSeqNum;
