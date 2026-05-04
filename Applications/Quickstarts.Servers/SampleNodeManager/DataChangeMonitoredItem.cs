@@ -341,7 +341,7 @@ namespace Opc.Ua.Sample
                     m_queue ??= new DataChangeQueueHandler(
                         Id,
                         false,
-                        m_monitoredItemQueueFactory,
+                        m_monitoredItemQueueFactory!,
                         m_source.Server.Telemetry);
                     m_queue.SetQueueSize(
                         queueSize,
@@ -599,13 +599,13 @@ namespace Opc.Ua.Sample
                 DiagnosticsMasks = m_diagnosticsMasks,
                 IsDurable = false,
                 Encoding = DataEncoding,
-                FilterToUse = DataChangeFilter,
+                FilterToUse = DataChangeFilter!,
                 Id = Id,
-                LastError = m_lastError,
-                LastValue = m_lastValue,
+                LastError = m_lastError!,
+                LastValue = m_lastValue!,
                 MonitoringMode = MonitoringMode,
                 NodeId = m_source.Node.NodeId,
-                OriginalFilter = DataChangeFilter,
+                OriginalFilter = DataChangeFilter!,
                 Range = m_range,
                 TimestampsToReturn = m_timestampsToReturn,
                 ParsedIndexRange = IndexRange
@@ -613,13 +613,13 @@ namespace Opc.Ua.Sample
         }
 
         /// <inheritdoc/>
-        public void QueueValue(DataValue value, ServiceResult error)
+        public void QueueValue(DataValue value, ServiceResult? error)
         {
             QueueValue(value, error, false);
         }
 
         /// <inheritdoc/>
-        public void QueueValue(DataValue value, ServiceResult error, bool ignoreFilters)
+        public void QueueValue(DataValue? value, ServiceResult? error, bool ignoreFilters)
         {
             lock (m_lock)
             {
@@ -629,9 +629,9 @@ namespace Opc.Ua.Sample
                     !MonitoredItem.ValueChanged(
                         value,
                         error,
-                        m_lastValue,
-                        m_lastError,
-                        DataChangeFilter,
+                        m_lastValue!,
+                        m_lastError!,
+                        DataChangeFilter!,
                         m_range))
                 {
                     return;

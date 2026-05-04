@@ -2473,9 +2473,10 @@ namespace Opc.Ua
                 {
                     for (int ii = 0; ii < notifiers.Count; ii++)
                     {
-                        if (!notifiers[ii].IsInverse)
+                        NodeState? node = notifiers[ii].Node;
+                        if (!notifiers[ii].IsInverse && node != null)
                         {
-                            notifiers[ii].Node.SetAreEventsMonitored(
+                            node.SetAreEventsMonitored(
                                 context,
                                 areEventsMonitored,
                                 includeChildren);
@@ -2506,9 +2507,10 @@ namespace Opc.Ua
             {
                 for (int ii = 0; ii < notifiers.Count; ii++)
                 {
-                    if (notifiers[ii].IsInverse)
+                    NodeState? node = notifiers[ii].Node;
+                    if (notifiers[ii].IsInverse && node != null)
                     {
-                        notifiers[ii].Node.ReportEvent(context, e);
+                        node.ReportEvent(context, e);
                     }
                 }
             }
@@ -2525,7 +2527,7 @@ namespace Opc.Ua
             ISystemContext context,
             NodeId referenceTypeId,
             bool isInverse,
-            NodeState target)
+            NodeState? target)
         {
             if (referenceTypeId.IsNull)
             {
@@ -2533,7 +2535,7 @@ namespace Opc.Ua
             }
 
             // ensure duplicate references are not left over from the model design.
-            if (!target.NodeId.IsNull)
+            if (target != null && !target.NodeId.IsNull)
             {
                 RemoveReference(referenceTypeId, isInverse, target.NodeId);
             }
@@ -2689,9 +2691,10 @@ namespace Opc.Ua
                 {
                     for (int ii = 0; ii < notifiers.Count; ii++)
                     {
-                        if (!notifiers[ii].IsInverse)
+                        NodeState? node = notifiers[ii].Node;
+                        if (!notifiers[ii].IsInverse && node != null)
                         {
-                            notifiers[ii].Node.ConditionRefresh(context, events, true);
+                            node.ConditionRefresh(context, events, true);
                         }
                     }
                 }
@@ -3359,10 +3362,11 @@ namespace Opc.Ua
                 for (int ii = 0; ii < notifiers.Count; ii++)
                 {
                     Notifier entry = notifiers[ii];
+                    NodeState? node = entry.Node;
 
-                    if (browser.IsRequired(entry.ReferenceTypeId, entry.IsInverse))
+                    if (browser.IsRequired(entry.ReferenceTypeId, entry.IsInverse) && node != null)
                     {
-                        browser.Add(entry.ReferenceTypeId, entry.IsInverse, notifiers[ii].Node);
+                        browser.Add(entry.ReferenceTypeId, entry.IsInverse, node);
                     }
                 }
             }
@@ -5147,7 +5151,7 @@ namespace Opc.Ua
             /// <summary>
             /// The node state.
             /// </summary>
-            public NodeState Node = null!;
+            public NodeState? Node = null!;
 
             /// <summary>
             /// The reference type id.

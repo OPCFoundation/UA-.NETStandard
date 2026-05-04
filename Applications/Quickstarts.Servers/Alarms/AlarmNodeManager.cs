@@ -924,7 +924,7 @@ namespace Alarms
                 lock (Lock)
                 {
                     // check for valid handle.
-                    NodeHandle initialHandle = GetManagerHandle(
+                    NodeHandle? initialHandle = GetManagerHandle(
                         systemContext,
                         methodToCall.ObjectId,
                         operationCache);

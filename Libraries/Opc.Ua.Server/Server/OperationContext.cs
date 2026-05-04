@@ -46,7 +46,7 @@ namespace Opc.Ua.Server
         /// <param name="identity">The identity used in the request.</param>
         public OperationContext(
             RequestHeader requestHeader,
-            SecureChannelContext secureChannelContext,
+            SecureChannelContext? secureChannelContext,
             RequestType requestType,
             RequestLifetime requestLifetime,
             IUserIdentity? identity = null)
@@ -170,7 +170,7 @@ namespace Opc.Ua.Server
         /// The context for the secure channel used to send the request.
         /// </summary>
         /// <value>The channel context.</value>
-        public SecureChannelContext ChannelContext { get; } = null!;
+        public SecureChannelContext? ChannelContext { get; } = null!;
 
         /// <summary>
         /// The session associated with the context.

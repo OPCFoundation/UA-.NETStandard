@@ -193,7 +193,7 @@ namespace Opc.Ua
         /// <summary>
         /// Returns true if the view description represents the default (null) view.
         /// </summary>
-        public static bool IsDefault(ViewDescription view)
+        public static bool IsDefault(ViewDescription? view)
         {
             if (view == null)
             {

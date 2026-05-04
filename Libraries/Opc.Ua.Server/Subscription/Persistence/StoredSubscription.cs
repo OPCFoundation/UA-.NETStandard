@@ -59,7 +59,7 @@ namespace Opc.Ua.Server
         public byte Priority { get; set; }
 
         /// <inheritdoc/>
-        public UserIdentityToken UserIdentityToken { get; set; } = null!;
+        public UserIdentityToken? UserIdentityToken { get; set; } = null!;
 
         /// <inheritdoc/>
         public int LastSentMessage { get; set; }

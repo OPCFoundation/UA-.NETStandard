@@ -191,7 +191,10 @@ namespace Quickstarts.ReferenceServer
 
             foreach (StatusCode id in StatusCode.InternedStatusCodes)
             {
-                resourceManager.Add(id.SymbolicId, "en-US", id.SymbolicId);
+                if (id.SymbolicId is { } symbolicId)
+                {
+                    resourceManager.Add(symbolicId, "en-US", symbolicId);
+                }
             }
 
             return resourceManager;

@@ -424,7 +424,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// The filter used by the monitored item.
         /// </summary>
-        public MonitoringFilter Filter { get; private set; }
+        public MonitoringFilter? Filter { get; private set; }
 
         /// <summary>
         /// The event filter used by the monitored item.
@@ -651,9 +651,9 @@ namespace Opc.Ua.Server
             DiagnosticsMasks diagnosticsMasks,
             TimestampsToReturn timestampsToReturn,
             uint clientHandle,
-            MonitoringFilter originalFilter,
-            MonitoringFilter filterToUse,
-            Range range,
+            MonitoringFilter? originalFilter,
+            MonitoringFilter? filterToUse,
+            Range? range,
             double samplingInterval,
             uint queueSize,
             bool discardOldest)
@@ -826,7 +826,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Adds an event to the queue.
         /// </summary>
-        public virtual void QueueValue(DataValue value, ServiceResult error)
+        public virtual void QueueValue(DataValue value, ServiceResult? error)
         {
             QueueValue(value, error, false);
         }
@@ -835,7 +835,7 @@ namespace Opc.Ua.Server
         /// Updates the queue with a data value or an error.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public virtual void QueueValue(DataValue value, ServiceResult error, bool ignoreFilters)
+        public virtual void QueueValue(DataValue value, ServiceResult? error, bool ignoreFilters)
         {
             lock (m_lock)
             {
@@ -1939,7 +1939,7 @@ namespace Opc.Ua.Server
         private string? m_indexRange;
         private NumericRange m_parsedIndexRange;
         private TimestampsToReturn m_timestampsToReturn;
-        private MonitoringFilter m_filterToUse;
+        private MonitoringFilter? m_filterToUse;
         private DataChangeFilter? m_cachedDataChangeFilter;
         private double m_range;
         private double m_samplingInterval;

@@ -195,7 +195,7 @@ namespace TestData
                 }
 #endif
                 // link all conditions to the conditions folder.
-                NodeState conditionsFolder = FindPredefinedNode<NodeState>(
+                NodeState? conditionsFolder = FindPredefinedNode<NodeState>(
                     new NodeId(Objects.Data_Conditions, m_typeNamespaceIndex));
 
                 foreach (NodeState node in PredefinedNodes.Values)
@@ -223,7 +223,7 @@ namespace TestData
                 {
                     ScalarStructureVariableState variable
                         = FindTypeState<ScalarStructureVariableState>(
-                        Variables.Data_Static_Structure_ScalarStructure);
+                        Variables.Data_Static_Structure_ScalarStructure)!;
                     m_dataStaticStructureScalarStructure = new ScalarStructureVariableValue(
                         variable,
                         m_system.GetRandomScalarStructureDataType(),
@@ -232,7 +232,7 @@ namespace TestData
                 {
                     ScalarStructureVariableState variable
                         = FindTypeState<ScalarStructureVariableState>(
-                        Variables.Data_Dynamic_Structure_ScalarStructure);
+                        Variables.Data_Dynamic_Structure_ScalarStructure)!;
                     m_dataDynamicStructureScalarStructure = new ScalarStructureVariableValue(
                         variable,
                         m_system.GetRandomScalarStructureDataType(),
@@ -240,7 +240,7 @@ namespace TestData
                 }
                 {
                     VectorVariableState variable = FindTypeState<VectorVariableState>(
-                        Variables.Data_Static_Structure_VectorStructure);
+                        Variables.Data_Static_Structure_VectorStructure)!;
                     m_dataStaticStructureVectorStructure = new VectorVariableValue(
                         variable,
                         m_system.GetRandomVector(),
@@ -248,7 +248,7 @@ namespace TestData
                 }
                 {
                     VectorVariableState variable = FindTypeState<VectorVariableState>(
-                        Variables.Data_Dynamic_Structure_VectorStructure);
+                        Variables.Data_Dynamic_Structure_VectorStructure)!;
                     m_dataDynamicStructureVectorStructure = new VectorVariableValue(
                         variable,
                         m_system.GetRandomVector(),
@@ -256,7 +256,7 @@ namespace TestData
                 }
                 {
                     VectorVariableState variable = FindTypeState<VectorVariableState>(
-                        Variables.Data_Static_Scalar_VectorValue);
+                        Variables.Data_Static_Scalar_VectorValue)!;
                     m_dataStaticVectorScalarValue = new VectorVariableValue(
                         variable,
                         m_system.GetRandomVector(),
@@ -264,7 +264,7 @@ namespace TestData
                 }
                 {
                     VectorVariableState variable = FindTypeState<VectorVariableState>(
-                        Variables.Data_Dynamic_Scalar_VectorValue);
+                        Variables.Data_Dynamic_Scalar_VectorValue)!;
                     m_dataDynamicVectorScalarValue = new VectorVariableValue(
                         variable,
                         m_system.GetRandomVector(),
@@ -812,7 +812,7 @@ namespace TestData
             }
         }
 
-        private TS FindTypeState<TS>(uint nodeId)
+        private TS? FindTypeState<TS>(uint nodeId)
             where TS : NodeState
         {
             var expandedNodeId = new ExpandedNodeId(nodeId, Namespaces.TestData);

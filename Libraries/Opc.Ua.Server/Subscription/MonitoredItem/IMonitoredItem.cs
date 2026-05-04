@@ -225,7 +225,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Updates the queue with a data value or an error.
         /// </summary>
-        void QueueValue(DataValue value, ServiceResult error);
+        void QueueValue(DataValue value, ServiceResult? error);
 
         /// <summary>
         /// The filter used by the monitored item.
@@ -288,7 +288,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Updates the queue with a data value or an error.
         /// </summary>
-        void QueueValue(DataValue value, ServiceResult error, bool ignoreFilters);
+        void QueueValue(DataValue value, ServiceResult? error, bool ignoreFilters);
     }
 
     /// <summary>
