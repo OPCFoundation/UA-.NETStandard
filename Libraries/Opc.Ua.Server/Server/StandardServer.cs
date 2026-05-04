@@ -98,7 +98,7 @@ namespace Opc.Ua.Server
         {
             List<ApplicationDescription> servers = [];
 
-            ValidateRequest(requestHeader!);
+            ValidateRequest(requestHeader);
 
             await m_semaphoreSlim.WaitAsync(requestLifetime.CancellationToken).ConfigureAwait(false);
             try
@@ -118,7 +118,7 @@ namespace Opc.Ua.Server
                 {
                     return new FindServersResponse
                     {
-                        ResponseHeader = CreateResponse(requestHeader!, StatusCodes.Good),
+                        ResponseHeader = CreateResponse(requestHeader, StatusCodes.Good),
                         Servers = servers
                     };
                 }
@@ -172,7 +172,7 @@ namespace Opc.Ua.Server
 
             return new FindServersResponse
             {
-                ResponseHeader = CreateResponse(requestHeader!, StatusCodes.Good),
+                ResponseHeader = CreateResponse(requestHeader, StatusCodes.Good),
                 Servers = servers
             };
         }
@@ -188,7 +188,7 @@ namespace Opc.Ua.Server
         {
             ArrayOf<EndpointDescription> endpoints = default;
 
-            ValidateRequest(requestHeader!);
+            ValidateRequest(requestHeader);
 
             await m_semaphoreSlim.WaitAsync(requestLifetime.CancellationToken).ConfigureAwait(false);
             try
@@ -206,7 +206,7 @@ namespace Opc.Ua.Server
 
             return new GetEndpointsResponse
             {
-                ResponseHeader = CreateResponse(requestHeader!, StatusCodes.Good),
+                ResponseHeader = CreateResponse(requestHeader, StatusCodes.Good),
                 Endpoints = endpoints
             };
         }
@@ -468,7 +468,7 @@ namespace Opc.Ua.Server
 
                 AdditionalParametersType? parameters = CreateSessionProcessAdditionalParameters(
                     session,
-                    requestHeader!.AdditionalHeader);
+                    requestHeader.AdditionalHeader);
 
                 await m_semaphoreSlim.WaitAsync(requestLifetime.CancellationToken).ConfigureAwait(false);
                 try
@@ -519,7 +519,7 @@ namespace Opc.Ua.Server
                     revisedSessionTimeout,
                     m_logger);
 
-                ResponseHeader responseHeader = CreateResponse(requestHeader!, StatusCodes.Good);
+                ResponseHeader responseHeader = CreateResponse(requestHeader, StatusCodes.Good);
 
                 if (parameters != null)
                 {
@@ -568,7 +568,7 @@ namespace Opc.Ua.Server
                     }
                 }
 
-                throw TranslateException((DiagnosticsMasks)requestHeader!.ReturnDiagnostics, [], e)!;
+                throw TranslateException((DiagnosticsMasks)requestHeader.ReturnDiagnostics, [], e)!;
             }
             finally
             {
@@ -689,7 +689,7 @@ namespace Opc.Ua.Server
                 // activate the session.
                 (bool identityChanged, serverNonce) = await ServerInternal.SessionManager.ActivateSessionAsync(
                         context,
-                        requestHeader!.AuthenticationToken,
+                        requestHeader.AuthenticationToken,
                         clientSignature,
                         userIdentityToken,
                         userTokenSignature,
@@ -717,7 +717,7 @@ namespace Opc.Ua.Server
                     context.AuditEntryId!,
                     session!);
 
-                ResponseHeader responseHeader = CreateResponse(requestHeader!, StatusCodes.Good);
+                ResponseHeader responseHeader = CreateResponse(requestHeader, StatusCodes.Good);
 
                 if (parameters != null)
                 {
@@ -737,7 +737,7 @@ namespace Opc.Ua.Server
 
                 // report the audit event for failed session activate
                 ISession? session = ServerInternal.SessionManager
-                    .GetSession(requestHeader!.AuthenticationToken);
+                    .GetSession(requestHeader.AuthenticationToken);
                 ServerInternal.ReportAuditActivateSessionEvent(
                     m_logger,
                     context.AuditEntryId!,
@@ -757,7 +757,7 @@ namespace Opc.Ua.Server
                 }
 
                 throw TranslateException(
-                    (DiagnosticsMasks)requestHeader!.ReturnDiagnostics,
+                    (DiagnosticsMasks)requestHeader.ReturnDiagnostics,
                     localeIds,
                     e)!;
             }
@@ -849,7 +849,7 @@ namespace Opc.Ua.Server
             try
             {
                 ISession? session = ServerInternal.SessionManager
-                    .GetSession(requestHeader!.AuthenticationToken);
+                    .GetSession(requestHeader.AuthenticationToken);
 
                 await ServerInternal.CloseSessionAsync(context, context.Session.Id, deleteSubscriptions, requestLifetime.CancellationToken)
                     .ConfigureAwait(false);
@@ -863,7 +863,7 @@ namespace Opc.Ua.Server
 
                 return new CloseSessionResponse
                 {
-                    ResponseHeader = CreateResponse(requestHeader!, context.StringTable)
+                    ResponseHeader = CreateResponse(requestHeader, context.StringTable)
                 };
             }
             catch (ServiceResultException e)
@@ -903,7 +903,7 @@ namespace Opc.Ua.Server
 
                 response = new CancelResponse
                 {
-                    ResponseHeader = CreateResponse(requestHeader!, context.StringTable),
+                    ResponseHeader = CreateResponse(requestHeader, context.StringTable),
                     CancelCount = cancelCount
                 };
             }
@@ -960,7 +960,7 @@ namespace Opc.Ua.Server
                 {
                     Results = results,
                     DiagnosticInfos = diagnosticInfos,
-                    ResponseHeader = CreateResponse(requestHeader!, context.StringTable)
+                    ResponseHeader = CreateResponse(requestHeader, context.StringTable)
                 };
             }
             catch (ServiceResultException e)
@@ -1013,7 +1013,7 @@ namespace Opc.Ua.Server
                 {
                     Results = results,
                     DiagnosticInfos = diagnosticInfos,
-                    ResponseHeader = CreateResponse(requestHeader!, context.StringTable)
+                    ResponseHeader = CreateResponse(requestHeader, context.StringTable)
                 };
             }
             catch (ServiceResultException e)
@@ -1058,7 +1058,7 @@ namespace Opc.Ua.Server
 
                 response = new RegisterNodesResponse
                 {
-                    ResponseHeader = CreateResponse(requestHeader!, context.StringTable),
+                    ResponseHeader = CreateResponse(requestHeader, context.StringTable),
                     RegisteredNodeIds = registeredNodeIds
                 };
             }
@@ -1107,7 +1107,7 @@ namespace Opc.Ua.Server
 
                 response = new UnregisterNodesResponse
                 {
-                    ResponseHeader = CreateResponse(requestHeader!, context.StringTable)
+                    ResponseHeader = CreateResponse(requestHeader, context.StringTable)
                 };
             }
             catch (ServiceResultException e)
@@ -1168,7 +1168,7 @@ namespace Opc.Ua.Server
                 {
                     Results = results,
                     DiagnosticInfos = diagnosticInfos,
-                    ResponseHeader = CreateResponse(requestHeader!, context.StringTable)
+                    ResponseHeader = CreateResponse(requestHeader, context.StringTable)
                 };
             }
             catch (ServiceResultException e)
@@ -1222,7 +1222,7 @@ namespace Opc.Ua.Server
                 {
                     Results = results,
                     DiagnosticInfos = diagnosticInfos,
-                    ResponseHeader = CreateResponse(requestHeader!, context.StringTable)
+                    ResponseHeader = CreateResponse(requestHeader, context.StringTable)
                 };
             }
             catch (ServiceResultException e)
@@ -1292,7 +1292,7 @@ namespace Opc.Ua.Server
                 {
                     Results = results,
                     DiagnosticInfos = diagnosticInfos,
-                    ResponseHeader = CreateResponse(requestHeader!, context.StringTable)
+                    ResponseHeader = CreateResponse(requestHeader, context.StringTable)
                 };
             }
             catch (ServiceResultException e)
@@ -1343,7 +1343,7 @@ namespace Opc.Ua.Server
                 {
                     Results = results,
                     DiagnosticInfos = diagnosticInfos,
-                    ResponseHeader = CreateResponse(requestHeader!, context.StringTable)
+                    ResponseHeader = CreateResponse(requestHeader, context.StringTable)
                 };
             }
             catch (ServiceResultException e)
@@ -1396,7 +1396,7 @@ namespace Opc.Ua.Server
                 {
                     Results = results,
                     DiagnosticInfos = diagnosticInfos,
-                    ResponseHeader = CreateResponse(requestHeader!, context.StringTable)
+                    ResponseHeader = CreateResponse(requestHeader, context.StringTable)
                 };
             }
             catch (ServiceResultException e)
@@ -1449,7 +1449,7 @@ namespace Opc.Ua.Server
                     priority,
                     requestLifetime.CancellationToken).ConfigureAwait(false);
 
-                response.ResponseHeader = CreateResponse(requestHeader!, context.StringTable);
+                response.ResponseHeader = CreateResponse(requestHeader, context.StringTable);
 
                 return response;
             }
@@ -1497,7 +1497,7 @@ namespace Opc.Ua.Server
                     sendInitialValues,
                     requestLifetime.CancellationToken).ConfigureAwait(false);
 
-                response.ResponseHeader = CreateResponse(requestHeader!, context.StringTable);
+                response.ResponseHeader = CreateResponse(requestHeader, context.StringTable);
 
                 return response;
             }
@@ -1543,7 +1543,7 @@ namespace Opc.Ua.Server
                     subscriptionIds,
                     requestLifetime.CancellationToken).ConfigureAwait(false);
 
-                response.ResponseHeader = CreateResponse(requestHeader!, context.StringTable);
+                response.ResponseHeader = CreateResponse(requestHeader, context.StringTable);
 
                 return response;
             }
@@ -1595,7 +1595,7 @@ namespace Opc.Ua.Server
 
                 m_logger.LogTrace(
                     "PUBLISH #{RequestHandle} RECEIVED. TIME={Timestamp:hh:mm:ss.fff}",
-                    requestHeader!.RequestHandle,
+                    requestHeader.RequestHandle,
                     requestHeader.Timestamp);
 
                 PublishResponse response = await ServerInternal.SubscriptionManager.PublishAsync(
@@ -1603,7 +1603,7 @@ namespace Opc.Ua.Server
                     subscriptionAcknowledgements,
                     requestLifetime.CancellationToken).ConfigureAwait(false);
 
-                response.ResponseHeader = CreateResponse(requestHeader!, context.StringTable);
+                response.ResponseHeader = CreateResponse(requestHeader, context.StringTable);
 
                 /*
                 if (response.NotificationMessage != null)
@@ -1662,7 +1662,7 @@ namespace Opc.Ua.Server
 
                 response = new RepublishResponse
                 {
-                    ResponseHeader = CreateResponse(requestHeader!, context.StringTable),
+                    ResponseHeader = CreateResponse(requestHeader, context.StringTable),
                     NotificationMessage = notificationMessage
                 };
             }
@@ -1725,7 +1725,7 @@ namespace Opc.Ua.Server
                     RevisedPublishingInterval = revisedPublishingInterval,
                     RevisedLifetimeCount = revisedLifetimeCount,
                     RevisedMaxKeepAliveCount = revisedMaxKeepAliveCount,
-                    ResponseHeader = CreateResponse(requestHeader!, context.StringTable)
+                    ResponseHeader = CreateResponse(requestHeader, context.StringTable)
                 };
             }
             catch (ServiceResultException e)
@@ -1779,7 +1779,7 @@ namespace Opc.Ua.Server
                 {
                     Results = results,
                     DiagnosticInfos = diagnosticInfos,
-                    ResponseHeader = CreateResponse(requestHeader!, context.StringTable)
+                    ResponseHeader = CreateResponse(requestHeader, context.StringTable)
                 };
             }
             catch (ServiceResultException e)
@@ -1850,7 +1850,7 @@ namespace Opc.Ua.Server
                     AddDiagnosticInfos = addDiagnosticInfos,
                     RemoveResults = removeResults,
                     RemoveDiagnosticInfos = removeDiagnosticInfos,
-                    ResponseHeader = CreateResponse(requestHeader!, context.StringTable)
+                    ResponseHeader = CreateResponse(requestHeader, context.StringTable)
                 };
             }
             catch (ServiceResultException e)
@@ -1900,7 +1900,7 @@ namespace Opc.Ua.Server
                     itemsToCreate,
                     requestLifetime.CancellationToken).ConfigureAwait(false);
 
-                result.ResponseHeader = CreateResponse(requestHeader!, context.StringTable);
+                result.ResponseHeader = CreateResponse(requestHeader, context.StringTable);
 
                 return result;
             }
@@ -1950,7 +1950,7 @@ namespace Opc.Ua.Server
                     itemsToModify,
                     requestLifetime.CancellationToken).ConfigureAwait(false);
 
-                response.ResponseHeader = CreateResponse(requestHeader!, context.StringTable);
+                response.ResponseHeader = CreateResponse(requestHeader, context.StringTable);
 
                 return response;
             }
@@ -1998,7 +1998,7 @@ namespace Opc.Ua.Server
                     monitoredItemIds,
                     requestLifetime.CancellationToken).ConfigureAwait(false);
 
-                response.ResponseHeader = CreateResponse(requestHeader!, context.StringTable);
+                response.ResponseHeader = CreateResponse(requestHeader, context.StringTable);
 
                 return response;
             }
@@ -2054,7 +2054,7 @@ namespace Opc.Ua.Server
                 {
                     Results = results,
                     DiagnosticInfos = diagnosticInfos,
-                    ResponseHeader = CreateResponse(requestHeader!, context.StringTable)
+                    ResponseHeader = CreateResponse(requestHeader, context.StringTable)
                 };
             }
             catch (ServiceResultException e)
@@ -2102,7 +2102,7 @@ namespace Opc.Ua.Server
                 {
                     Results = results,
                     DiagnosticInfos = diagnosticInfos,
-                    ResponseHeader = CreateResponse(requestHeader!, context.StringTable)
+                    ResponseHeader = CreateResponse(requestHeader, context.StringTable)
                 };
             }
             catch (ServiceResultException e)
@@ -2396,7 +2396,7 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="requestHeader">The request header.</param>
         /// <exception cref="ServiceResultException"></exception>
-        protected override void ValidateRequest(RequestHeader requestHeader)
+        protected override void ValidateRequest([NotNull] RequestHeader? requestHeader)
         {
             // check for server error.
             ServiceResult error = ServerError;
@@ -2487,11 +2487,11 @@ namespace Opc.Ua.Server
         /// <exception cref="ServiceResultException"></exception>
         protected virtual async ValueTask<OperationContext> ValidateRequestAsync(
             SecureChannelContext secureChannelContext,
-            RequestHeader? requestHeader,
+            [NotNull] RequestHeader? requestHeader,
             RequestType requestType,
             RequestLifetime requestLifetime)
         {
-            base.ValidateRequest(requestHeader!);
+            base.ValidateRequest(requestHeader);
 
             if (!ServerInternal.IsRunning)
             {
@@ -3679,7 +3679,7 @@ namespace Opc.Ua.Server
         }
 
         private OperationLimitsState OperationLimits
-            => ServerInternal!.ServerObject!.ServerCapabilities!.OperationLimits!;
+            => ServerInternal.ServerObject!.ServerCapabilities!.OperationLimits!;
 
         private readonly Lock m_registrationLock = new();
         private readonly SemaphoreSlim m_semaphoreSlim = new(1, 1);

@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Linq;
 using System.Net;
@@ -1282,7 +1283,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="requestHeader">The object that contains description for the RequestHeader DataType.</param>
         /// <exception cref="ServiceResultException"></exception>
-        protected virtual void ValidateRequest(RequestHeader requestHeader)
+        protected virtual void ValidateRequest([NotNull] RequestHeader? requestHeader)
         {
             if (requestHeader == null)
             {
@@ -1395,6 +1396,11 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="configuration">The object that stores the configurable configuration information for a UA application.</param>
         /// <exception cref="ServiceResultException"></exception>
+        [MemberNotNull(
+            nameof(Configuration),
+            nameof(ServerProperties),
+            nameof(InstanceCertificateTypesProvider),
+            nameof(m_messageContext))]
         protected virtual void OnServerStarting(ApplicationConfiguration configuration)
         {
             // use the message context from the configuration to ensure the channels are
