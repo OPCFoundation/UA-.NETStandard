@@ -223,9 +223,9 @@ namespace Opc.Ua.Server
                     StatusResult tmpStatus;
                     bool gotStatus = field.TryGetStructure(out tmpStatus!);
                     StatusResult? statusResult = gotStatus ? tmpStatus : null;
-                    if (statusResult != null)
+                    if (statusResult is { } status)
                     {
-                        statusResult!.ApplyDiagnosticMasks(
+                        status.ApplyDiagnosticMasks(
                             context.DiagnosticsMask,
                             context.StringTable,
                             m_logger);

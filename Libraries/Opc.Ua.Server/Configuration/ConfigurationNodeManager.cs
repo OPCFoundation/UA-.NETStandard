@@ -292,37 +292,38 @@ namespace Opc.Ua.Server
             ApplicationConfiguration configuration)
         {
             // setup server configuration node
-            m_serverConfigurationNode!.ServerCapabilities!.Value =
+            ServerConfigurationState configNode = m_serverConfigurationNode!;
+            configNode.ServerCapabilities!.Value =
             [
                 .. configuration.ServerConfiguration!.ServerCapabilities
             ];
-            m_serverConfigurationNode.ServerCapabilities.ValueRank = ValueRanks.OneDimension;
-            m_serverConfigurationNode!.SupportedPrivateKeyFormats!.Value =
+            configNode.ServerCapabilities.ValueRank = ValueRanks.OneDimension;
+            configNode.SupportedPrivateKeyFormats!.Value =
             [
                 .. configuration.ServerConfiguration.SupportedPrivateKeyFormats
             ];
-            m_serverConfigurationNode.SupportedPrivateKeyFormats.ValueRank = ValueRanks
+            configNode.SupportedPrivateKeyFormats.ValueRank = ValueRanks
                 .OneDimension;
-            m_serverConfigurationNode!.MaxTrustListSize!.Value = (uint)configuration
+            configNode.MaxTrustListSize!.Value = (uint)configuration
                 .ServerConfiguration
                 .MaxTrustListSize;
-            m_serverConfigurationNode!.MulticastDnsEnabled!.Value = configuration.ServerConfiguration
+            configNode.MulticastDnsEnabled!.Value = configuration.ServerConfiguration
                 .MultiCastDnsEnabled;
 
-            m_serverConfigurationNode!.UpdateCertificate!.OnCallAsync
+            configNode.UpdateCertificate!.OnCallAsync
                 = new UpdateCertificateMethodStateMethodAsyncCallHandler(
                 UpdateCertificateAsync);
-            m_serverConfigurationNode!.CreateSigningRequest!.OnCallAsync =
+            configNode.CreateSigningRequest!.OnCallAsync =
                 new CreateSigningRequestMethodStateMethodAsyncCallHandler(CreateSigningRequestAsync);
-            m_serverConfigurationNode!.ApplyChanges!.OnCallMethod2
+            configNode.ApplyChanges!.OnCallMethod2
                 = new GenericMethodCalledEventHandler2(ApplyChanges);
-            m_serverConfigurationNode!.GetRejectedList!.OnCall
+            configNode.GetRejectedList!.OnCall
                 = new GetRejectedListMethodStateMethodCallHandler(
                 GetRejectedList);
-            m_serverConfigurationNode!.GetCertificates!.OnCall
+            configNode.GetCertificates!.OnCall
                 = new GetCertificatesMethodStateMethodCallHandler(
                 GetCertificates);
-            m_serverConfigurationNode.ClearChangeMasks(systemContext, true);
+            configNode.ClearChangeMasks(systemContext, true);
 
             // setup certificate group trust list handlers
             foreach (ServerCertificateGroup certGroup in m_certificateGroups)

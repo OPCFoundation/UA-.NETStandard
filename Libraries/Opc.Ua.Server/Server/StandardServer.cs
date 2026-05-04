@@ -2706,26 +2706,30 @@ namespace Opc.Ua.Server
                 // update security configuration.
                 configuration.SecurityConfiguration.Validate(MessageContext.Telemetry);
 
-                Configuration!.SecurityConfiguration.TrustedIssuerCertificates = configuration
+                ApplicationConfiguration currentConfiguration = Configuration!;
+                SecurityConfiguration currentSecurityConfiguration = currentConfiguration
+                    .SecurityConfiguration;
+
+                currentSecurityConfiguration.TrustedIssuerCertificates = configuration
                     .SecurityConfiguration
                     .TrustedIssuerCertificates;
-                Configuration!.SecurityConfiguration.TrustedPeerCertificates = configuration
+                currentSecurityConfiguration.TrustedPeerCertificates = configuration
                     .SecurityConfiguration
                     .TrustedPeerCertificates;
-                Configuration!.SecurityConfiguration.RejectedCertificateStore = configuration
+                currentSecurityConfiguration.RejectedCertificateStore = configuration
                     .SecurityConfiguration
                     .RejectedCertificateStore;
 
-                await Configuration!.CertificateValidator!.UpdateAsync(
-                    Configuration!.SecurityConfiguration,
+                await currentConfiguration.CertificateValidator!.UpdateAsync(
+                    currentSecurityConfiguration,
                     ct: cancellationToken).ConfigureAwait(false);
 
                 // update trace configuration.
-                Configuration!.TraceConfiguration = configuration.TraceConfiguration ??
+                currentConfiguration.TraceConfiguration = configuration.TraceConfiguration ??
                     new TraceConfiguration();
 
 #pragma warning disable CS0618 // Type or member is obsolete
-                Configuration!.TraceConfiguration.ApplySettings();
+                currentConfiguration.TraceConfiguration.ApplySettings();
 #pragma warning restore CS0618 // Type or member is obsolete
             }
             catch (Exception e)
@@ -3177,12 +3181,13 @@ namespace Opc.Ua.Server
                             status.Value.ShutdownReason = new LocalizedText(
                                 "en-US",
                                 "Application is shutting down.");
-                            status!.Variable!.ShutdownReason!.Value = new LocalizedText(
+                            ServerStatusState statusVariable = status!.Variable!;
+                            statusVariable.ShutdownReason!.Value = new LocalizedText(
                                 "en-US",
                                 "Application is shutting down.");
                             status.Value.State = ServerState.Shutdown;
-                            status!.Variable!.State!.Value = ServerState.Shutdown;
-                            status.Variable
+                            statusVariable.State!.Value = ServerState.Shutdown;
+                            statusVariable
                                 .ClearChangeMasks(ServerInternal.DefaultSystemContext, true);
                         });
 

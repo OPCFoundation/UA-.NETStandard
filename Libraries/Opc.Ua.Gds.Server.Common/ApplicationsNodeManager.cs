@@ -459,18 +459,20 @@ namespace Opc.Ua.Gds.Server
                     activeNode.RevokeCertificate!.OnCall = OnRevokeCertificate;
                     activeNode.CheckRevocationStatus!.OnCallAsync = OnCheckRevocationStatusAsync;
 
+                    var defaultApplicationCertificateTypes = activeNode.CertificateGroups!
+                        .DefaultApplicationGroup!.CertificateTypes!;
                     if (m_certificateGroups.TryGetValue(
                             m_defaultApplicationGroupId,
                             out ICertificateGroup? applicationCertificateGroup))
                     {
-                        activeNode.CertificateGroups!.DefaultApplicationGroup!.CertificateTypes!.Value =
+                        defaultApplicationCertificateTypes.Value =
                         [
                             .. applicationCertificateGroup.CertificateTypes
                         ];
                     }
                     else
                     {
-                        activeNode.CertificateGroups!.DefaultApplicationGroup!.CertificateTypes!.Value =
+                        defaultApplicationCertificateTypes.Value =
                         [
                             Ua.ObjectTypeIds.ApplicationCertificateType
                         ];
@@ -482,18 +484,20 @@ namespace Opc.Ua.Gds.Server
                     activeNode.CertificateGroups.DefaultApplicationGroup.TrustList.UserWritable!.Value =
                         false;
 
+                    var defaultHttpsCertificateTypes = activeNode.CertificateGroups
+                        .DefaultHttpsGroup!.CertificateTypes!;
                     if (m_certificateGroups.TryGetValue(
                             m_defaultHttpsGroupId,
                             out ICertificateGroup? httpsCertificateGroup))
                     {
-                        activeNode.CertificateGroups.DefaultHttpsGroup!.CertificateTypes!.Value =
+                        defaultHttpsCertificateTypes.Value =
                         [
                             .. httpsCertificateGroup.CertificateTypes
                         ];
                     }
                     else
                     {
-                        activeNode.CertificateGroups.DefaultHttpsGroup!.CertificateTypes!.Value =
+                        defaultHttpsCertificateTypes.Value =
                         [
                             Ua.ObjectTypeIds.HttpsCertificateType
                         ];
@@ -505,18 +509,20 @@ namespace Opc.Ua.Gds.Server
                     activeNode.CertificateGroups.DefaultHttpsGroup.TrustList.UserWritable!.Value =
                         false;
 
+                    var defaultUserTokenCertificateTypes = activeNode.CertificateGroups
+                        .DefaultUserTokenGroup!.CertificateTypes!;
                     if (m_certificateGroups.TryGetValue(
                             m_defaultUserTokenGroupId,
                             out ICertificateGroup? userTokenCertificateGroup))
                     {
-                        activeNode.CertificateGroups.DefaultUserTokenGroup!.CertificateTypes!.Value =
+                        defaultUserTokenCertificateTypes.Value =
                         [
                             .. userTokenCertificateGroup.CertificateTypes
                         ];
                     }
                     else
                     {
-                        activeNode.CertificateGroups.DefaultUserTokenGroup!.CertificateTypes!.Value =
+                        defaultUserTokenCertificateTypes.Value =
                         [
                             Ua.ObjectTypeIds.UserCertificateType
                         ];
