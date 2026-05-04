@@ -74,7 +74,8 @@ namespace Opc.Ua.Client
             ArrayOf<string> preferredLocales,
             string sessionName,
             uint sessionTimeout,
-            bool checkDomain)
+            bool checkDomain,
+            bool transferSubscriptionsOnRecreate)
         {
             m_configuration = configuration
                 ?? throw new ArgumentNullException(nameof(configuration));
@@ -92,6 +93,7 @@ namespace Opc.Ua.Client
             m_sessionName = sessionName;
             m_sessionTimeout = sessionTimeout;
             m_checkDomain = checkDomain;
+            m_transferSubscriptionsOnRecreate = transferSubscriptionsOnRecreate;
 
             StateMachine = new ConnectionStateMachine(
                 reconnectPolicy, logger);
@@ -125,6 +127,14 @@ namespace Opc.Ua.Client
         /// (V2 engine) so that <see cref="SubscriptionManager"/> is
         /// available. Pass <see cref="ClassicSubscriptionEngineFactory"/>
         /// for legacy classic-engine behavior.</param>
+        /// <param name="transferSubscriptionsOnRecreate">When
+        /// <c>true</c>, opt the V2 subscription engine into
+        /// transfer-on-recreate. After a session re-create (e.g. a
+        /// failover via <see cref="Session.RecreateInPlaceAsync"/>)
+        /// the V2 manager attempts to transfer existing server-side
+        /// subscriptions before falling back to per-subscription
+        /// recreate. Default <c>false</c> — recreate is the universal
+        /// fallback; transfer requires server support.</param>
         /// <param name="ct">Cancellation token.</param>
         /// <returns>A connected <see cref="ManagedSession"/>.</returns>
         public static async Task<ManagedSession> CreateAsync(
@@ -140,6 +150,7 @@ namespace Opc.Ua.Client
             ArrayOf<string> preferredLocales = default,
             bool checkDomain = false,
             ISubscriptionEngineFactory? engineFactory = null,
+            bool transferSubscriptionsOnRecreate = false,
             CancellationToken ct = default)
         {
             telemetry ??= sessionFactory.Telemetry;
@@ -172,7 +183,8 @@ namespace Opc.Ua.Client
                 preferredLocales,
                 sessionName,
                 sessionTimeout,
-                checkDomain);
+                checkDomain,
+                transferSubscriptionsOnRecreate);
 
             managed.StateMachine.Start();
             managed.StateMachine.RequestConnect();
@@ -835,6 +847,21 @@ namespace Opc.Ua.Client
                 WireSessionEvents(session);
                 m_session = session;
 
+                // Apply opt-in V2 transfer-on-recreate. The V2 engine
+                // and SubscriptionManager survive in-place re-creates
+                // (failover via Session.RecreateInPlaceAsync), so this
+                // setting persists for the entire session lifetime
+                // once applied here. No-op when the classic engine is
+                // in use.
+                if (m_transferSubscriptionsOnRecreate &&
+                    session.SubscriptionEngine
+                        is DefaultSubscriptionEngine v2 &&
+                    v2.SubscriptionManager
+                        is Subscriptions.SubscriptionManager v2Manager)
+                {
+                    v2Manager.TransferSubscriptionsOnRecreate = true;
+                }
+
                 if (m_redundancyHandler != null)
                 {
                     m_redundancyInfo = await m_redundancyHandler
@@ -1161,6 +1188,7 @@ namespace Opc.Ua.Client
         private readonly string m_sessionName;
         private readonly uint m_sessionTimeout;
         private readonly bool m_checkDomain;
+        private readonly bool m_transferSubscriptionsOnRecreate;
         private ServerRedundancyInfo? m_redundancyInfo;
         private int m_disposed;
     }

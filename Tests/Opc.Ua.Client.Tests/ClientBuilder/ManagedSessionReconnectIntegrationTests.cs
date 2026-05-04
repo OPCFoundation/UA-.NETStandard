@@ -1081,6 +1081,150 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             }
         }
 
+        [Test]
+        [Order(1000)]
+        [CancelAfter(60_000)]
+        public async Task BuilderTransferSubscriptionsOnRecreateOptInAppliesToV2Manager(
+            CancellationToken ct)
+        {
+            // Verifies that the new
+            // ManagedSessionBuilder.WithTransferSubscriptionsOnRecreate(true)
+            // option propagates through ManagedSession.CreateAsync and is
+            // applied to the V2 SubscriptionManager once the session
+            // becomes connected. The setting persists across an
+            // in-place failover recreate (same V2 manager survives).
+            ConfiguredEndpoint endpoint = await ClientFixture
+                .GetEndpointAsync(ServerUrl, SecurityPolicies.None)
+                .ConfigureAwait(false);
+
+            var fakeHandler = new FakeRedundancyHandler(endpoint);
+
+            ManagedSessionType session = await new ManagedSessionBuilder(
+                    ClientFixture.Config, Telemetry)
+                .UseEndpoint(endpoint)
+                .WithSessionName(
+                    nameof(BuilderTransferSubscriptionsOnRecreateOptInAppliesToV2Manager))
+                .WithReconnectPolicy(p => p with
+                {
+                    Strategy = BackoffStrategy.Constant,
+                    InitialDelay = TimeSpan.FromMilliseconds(50),
+                    MaxRetries = 1,
+                    JitterFactor = 0.0
+                })
+                .WithServerRedundancy(fakeHandler)
+                .WithTransferSubscriptionsOnRecreate()
+                .ConnectAsync(ct)
+                .ConfigureAwait(false);
+
+            var handler = new SubscriptionRecordingHandler();
+            try
+            {
+                // After connect the V2 manager must already report the
+                // opt-in flag set.
+                var manager =
+                    (V2.SubscriptionManager)session.SubscriptionManager;
+                Assert.That(
+                    manager.TransferSubscriptionsOnRecreate, Is.True,
+                    "Builder.WithTransferSubscriptionsOnRecreate must " +
+                    "set V2 SubscriptionManager.TransferSubscriptionsOnRecreate.");
+
+                V2.ISubscription subscription = session.AddSubscription(
+                    handler,
+                    new V2.SubscriptionOptions
+                    {
+                        PublishingEnabled = true,
+                        PublishingInterval = TimeSpan.FromMilliseconds(250),
+                        KeepAliveCount = 10,
+                        LifetimeCount = 100,
+                        Priority = 0
+                    });
+
+                Assert.That(
+                    subscription.TryAddMonitoredItem(
+                        "ServerCurrentTime",
+                        VariableIds.Server_ServerStatus_CurrentTime,
+                        opt => opt with
+                        {
+                            SamplingInterval = TimeSpan.FromMilliseconds(250),
+                            QueueSize = 10
+                        },
+                        out _),
+                    Is.True);
+
+                Assert.That(
+                    await WaitForAsync(
+                        () => subscription.Created,
+                        TimeSpan.FromSeconds(15), ct).ConfigureAwait(false),
+                    Is.True);
+
+                Assert.That(
+                    await handler.WaitForDataAsync(
+                        TimeSpan.FromSeconds(10), ct).ConfigureAwait(false),
+                    Is.True,
+                    "Subscription must deliver data before failover.");
+
+                ISession innerBefore = session.InnerSession;
+
+                // Force a failover via the same fake-reconnect technique
+                // as SubscriptionRecoversAfterFailover.
+                session.StateMachine.ReconnectAsync = _ =>
+                    Task.FromResult(
+                        new ServiceResult(StatusCodes.BadNotConnected));
+
+                var connectedAfter = new TaskCompletionSource<bool>(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
+                session.ConnectionStateChanged += (_, e) =>
+                {
+                    if (e.PreviousState == ConnectionState.Failover &&
+                        e.NewState == ConnectionState.Connected)
+                    {
+                        connectedAfter.TrySetResult(true);
+                    }
+                };
+
+                session.StateMachine.TriggerReconnect();
+
+                Assert.That(
+                    await WaitOrCanceledAsync(
+                        connectedAfter.Task,
+                        TimeSpan.FromSeconds(60),
+                        ct).ConfigureAwait(false),
+                    Is.True,
+                    "Failover must succeed.");
+
+                // Same Session instance + same V2 manager + flag still
+                // set after failover.
+                Assert.That(
+                    ReferenceEquals(session.InnerSession, innerBefore),
+                    Is.True,
+                    "InnerSession must remain the same instance.");
+                Assert.That(
+                    ReferenceEquals(session.SubscriptionManager, manager),
+                    Is.True,
+                    "V2 SubscriptionManager must survive the failover.");
+                Assert.That(
+                    manager.TransferSubscriptionsOnRecreate, Is.True,
+                    "Opt-in flag must persist across failover.");
+
+                handler.ResetDataSignal();
+                Assert.That(
+                    await handler.WaitForDataAsync(
+                        TimeSpan.FromSeconds(20), ct).ConfigureAwait(false),
+                    Is.True,
+                    "Subscription must continue to deliver data after " +
+                    "failover with transfer-on-recreate enabled.");
+
+                Assert.That(
+                    subscription.Created, Is.True,
+                    "Subscription must remain Created after failover.");
+            }
+            finally
+            {
+                await session.CloseAsync().ConfigureAwait(false);
+                await session.DisposeAsync().ConfigureAwait(false);
+            }
+        }
+
         /// <summary>
         /// Test double for <see cref="V2.ISubscriptionNotificationHandler"/>
         /// that records data-change/keep-alive/event counts and exposes a

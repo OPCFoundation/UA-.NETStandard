@@ -233,6 +233,33 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Opt the V2 subscription engine into transfer-on-recreate.
+        /// When enabled, the V2 <c>SubscriptionManager</c> attempts to
+        /// transfer existing server-side subscriptions from the
+        /// previous session to the new one on each session re-create
+        /// (e.g. failover via
+        /// <see cref="Session.RecreateInPlaceAsync"/>) and falls back
+        /// to per-subscription recreate when transfer is not
+        /// available. Disabled by default — recreate is the
+        /// universal, server-agnostic fallback; transfer requires
+        /// server support.
+        /// </summary>
+        /// <remarks>
+        /// Has no effect when the classic subscription engine is in
+        /// use; the classic engine drives recreate through the
+        /// <see cref="Session"/>'s template-based path.
+        /// </remarks>
+        public ManagedSessionBuilder WithTransferSubscriptionsOnRecreate(
+            bool transferOnRecreate = true)
+        {
+            m_options = m_options with
+            {
+                TransferSubscriptionsOnRecreate = transferOnRecreate
+            };
+            return this;
+        }
+
+        /// <summary>
         /// Use a specific session factory. By default, the builder
         /// creates a new <see cref="DefaultSessionFactory"/> configured with
         /// the V2 subscription engine.
@@ -306,6 +333,7 @@ namespace Opc.Ua.Client
                 preferredLocales,
                 opts.CheckDomain,
                 engineFactory,
+                opts.TransferSubscriptionsOnRecreate,
                 ct);
         }
     }

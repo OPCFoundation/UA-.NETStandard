@@ -182,6 +182,10 @@ namespace Opc.Ua.Client
                 {
                     builder.WithServerRedundancy();
                 }
+                if (options.Session.TransferSubscriptionsOnRecreate)
+                {
+                    builder.WithTransferSubscriptionsOnRecreate();
+                }
 
                 return builder.ConnectAsync(ct);
             }

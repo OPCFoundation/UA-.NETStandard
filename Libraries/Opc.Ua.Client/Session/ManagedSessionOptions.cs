@@ -79,7 +79,7 @@ namespace Opc.Ua.Client
         /// When set, server-side redundancy failover is enabled using a
         /// default <see cref="DefaultServerRedundancyHandler"/>. To use a
         /// custom handler, pass it explicitly to
-        /// <see cref="ManagedSession.CreateAsync(ApplicationConfiguration, ConfiguredEndpoint, ISessionFactory, IUserIdentity?, IReconnectPolicy?, IServerRedundancyHandler?, ITelemetryContext?, string, uint, ArrayOf{string}, bool, ISubscriptionEngineFactory?, System.Threading.CancellationToken)"/>.
+        /// <see cref="ManagedSession"/>.<c>CreateAsync</c>.
         /// </summary>
         public bool EnableServerRedundancy { get; init; }
 
@@ -89,5 +89,25 @@ namespace Opc.Ua.Client
         /// <see cref="ManagedSession.SubscriptionManager"/> is available.
         /// </summary>
         public ISubscriptionEngineFactory? SubscriptionEngineFactory { get; init; }
+
+        /// <summary>
+        /// When <c>true</c>, opt the V2 subscription engine into
+        /// transfer-on-recreate. After a session re-create (e.g. a
+        /// <c>ManagedSession</c> failover via
+        /// <c>Session.RecreateInPlaceAsync</c>) the V2
+        /// <see cref="Subscriptions.ISubscriptionManager"/> first
+        /// attempts to transfer existing server-side subscriptions
+        /// from the previous session to the new one before falling
+        /// back to per-subscription recreate. Default: <c>false</c>
+        /// (recreate is the universal, server-agnostic fallback;
+        /// transfer requires server support and is opt-in).
+        /// </summary>
+        /// <remarks>
+        /// Has no effect when the classic subscription engine is in
+        /// use, because the classic engine drives recreate through
+        /// the <see cref="Session"/>'s template-based path, not the
+        /// V2 manager.
+        /// </remarks>
+        public bool TransferSubscriptionsOnRecreate { get; init; }
     }
 }
