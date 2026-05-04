@@ -814,7 +814,7 @@ If you currently rely on a `[Obsolete]` member, switch to the `Async` equivalent
 
 Version 1.6 introduces `ManagedSession`, a wrapper around `Session` that automatically handles connection lifecycle including reconnection and server redundancy failover.
 
-#### Key Changes
+**Key Changes**:
 
 - **`ManagedSessionFactory`** is a **new** factory that creates `ManagedSession` instances which handle reconnection and failover automatically. Use this when you want managed-session behavior.
 - **`DefaultSessionFactory`** is **unchanged** — it continues to create raw `Session` instances. Existing code that constructs `DefaultSessionFactory` directly keeps the same behavior in 1.6.
@@ -822,7 +822,7 @@ Version 1.6 introduces `ManagedSession`, a wrapper around `Session` that automat
 
 For a deeper architectural picture of how `Session`, `ManagedSession`, `SessionReconnectHandler`, and the subscription engines fit together, see [Sessions, Reconnection, and Subscription Engines](Sessions.md).
 
-#### Migration Steps
+**Migration**:
 
 **If you use `DefaultSessionFactory`:**
 No code changes are required — `DefaultSessionFactory` still returns raw `Session`. To opt into automatic reconnection and redundancy failover, switch to `ManagedSessionFactory`:
@@ -961,7 +961,7 @@ subscription.TryAddMonitoredItem(
 
 The `SubscriptionOptions` and `MonitoredItemOptions` records used by this API live in `Opc.Ua.Client.Subscriptions` and `Opc.Ua.Client.Subscriptions.MonitoredItems`. They are distinct from the classic types of the same names in the `Opc.Ua.Client` namespace; use namespace aliases (or fully-qualified names) when both are visible in the same file.
 
-The classic `ManagedSession.Subscriptions` collection (V1 `Subscription` objects) remains supported. Mixing classic subscriptions with the V2 manager on the same session is allowed; classic subscriptions still receive notifications via the internal `SubscriptionBridge` when the V2 engine is active.
+The classic `ManagedSession.Subscriptions` collection (V1 `Subscription` objects) remains supported. Mixing classic subscriptions with the V2 manager on the same session is allowed for the time being, but this will change in future releases; classic subscriptions still receive notifications via the internal `SubscriptionBridge` when the V2 engine is active.
 
 **Dependency Injection:**
 
@@ -994,79 +994,45 @@ The factory caches the connected session — subsequent awaits return the same i
 
 This iteration uses single-instance options (no named/keyed registrations); the underlying V2 manager consumes options via `IOptionsMonitor<T>` unfiltered. For one-off use, the `AddSubscription`/`TryAddMonitoredItem` extensions adapt plain options snapshots into the required `IOptionsMonitor<T>` automatically. Named-options DI is deferred to a future iteration.
 
-### `INodeCache` consolidation
+### `INodeCache` changes
 
-Version 1.6 collapses the two parallel node-cache contracts into a single
-public interface and removes the remaining synchronous wrappers from the
-cache surface.
+Version 1.6 collapses the two parallel node-cache contracts into a single public interface and removes the remaining synchronous wrappers from the cache surface.
 
-#### Key changes
+**Key changes**:
 
-- **`ILruNodeCache` is removed.** `LruNodeCache` now implements only
-  `INodeCache`. All members previously on `ILruNodeCache` (the
-  NodeId-keyed `Get*` family and `LoadTypeHierarchyAsync`) are now
+- **`ILruNodeCache` is removed.** `LruNodeCache` now implements only `INodeCache`. All members previously on `ILruNodeCache` (the   NodeId-keyed `Get*` family and `LoadTypeHierarchyAsync`) are now
   members of `INodeCache`.
-- **All async methods on `INodeCache` return `ValueTask` /
-  `ValueTask<T>`** (was `Task<T>` for `FindAsync`, `FetchNodeAsync`,
-  `FetchNodesAsync`, `FetchSuperTypesAsync`, `FindReferencesAsync`).
-  Callers that simply `await` these methods need no change. Callers
-  that store the result in a `Task` variable, return the bare task, or
-  re-await the same task must wrap with `.AsTask()` once.
-- **`void INodeCache.LoadUaDefinedTypes(ISystemContext)` is removed.**
-  The LRU implementation populates lazily and the prior method body
-  was a no-op. Drop the call from your code; the cache is ready to
+- **All async methods on `INodeCache` return `ValueTask` / `ValueTask<T>`** (was `Task<T>` for `FindAsync`, `FetchNodeAsync`, `FetchNodesAsync`, `FetchSuperTypesAsync`, `FindReferencesAsync`).
+  Callers that simply `await` these methods need no change. Callers that store the result in a `Task` variable, return the bare task, or re-await the same task must wrap with `.AsTask()` once.
+- **`void INodeCache.LoadUaDefinedTypes(ISystemContext)` is removed.** The LRU implementation populates lazily and the prior method body was a no-op. Drop the call from your code; the cache is ready to
   use.
-- **`bool ILruNodeCache.IsTypeOf(NodeId, NodeId)` is removed.** Use
-  `IAsyncTypeTable.IsTypeOfAsync(NodeId, NodeId, CancellationToken)`
-  instead — `INodeCache` inherits from `IAsyncTypeTable` so the
+- **`bool ILruNodeCache.IsTypeOf(NodeId, NodeId)` is removed.** Use `IAsyncTypeTable.IsTypeOfAsync(NodeId, NodeId, CancellationToken)` instead — `INodeCache` inherits from `IAsyncTypeTable` so the
   method is reachable on the same instance.
-- **`NodeCacheObsolete` synchronous extensions are removed.** The
-  blocking wrappers `Find`, `FetchNode`, `FetchNodes`, `FetchSuperTypes`,
-  `FindReferences`, `GetDisplayText`, `IsKnown`, `FindSuperType`, and
-  `Exists` no longer compile. Switch to the matching async methods
-  (`FindAsync`, `FetchNodeAsync`, …).
-- **`LruNodeCacheExtensions` is renamed to `NodeCacheExtensions`** and
-  retargets `this INodeCache cache`. The ExpandedNodeId convenience
-  overloads (`GetNodeAsync`, `GetNodesAsync`, `GetValueAsync`,
-  `GetValuesAsync`, `GetReferencesAsync`) keep the same shape. The
-  `IsTypeOf(this ILruNodeCache, ExpandedNodeId, NodeId)` extension is
-  removed.
-- **`void Clear()` is unchanged.** It is a pure local-state mutation
-  with no I/O and remains synchronous on the interface.
+- **`NodeCacheObsolete` synchronous extensions are removed.** The blocking wrappers `Find`, `FetchNode`, `FetchNodes`, `FetchSuperTypes`, `FindReferences`, `GetDisplayText`, `IsKnown`, `FindSuperType`, and
+  `Exists` were obsoleted in 1.5.378 and now no longer compile. Switch to the matching async methods (`FindAsync`, `FetchNodeAsync`, …).
+- ** Moving of several methods to extension classes**: The following members were moved to extension methods on `NodeCacheExtensions` (in the same `Opc.Ua` namespace, so no `using` changes needed). These methods are thin wrappers around the core `INodeCache` surface and preserve the old signatures where possible.
 
-#### Subsequent slim-down of `INodeCache` (post-merge)
+    | Removed from interface | Replacement |
+    |---|---|
+    | `GetSuperTypeAsync(NodeId, ct)` | inherited `IAsyncTypeTable.FindSuperTypeAsync(NodeId, ct)` (identical semantics — the interface methods returned the same `NodeId.Null`-on-miss value) |
+    | `FindReferencesAsync(ExpandedNodeId, NodeId, bool, bool, ct)` | inherited `IAsyncNodeTable.FindAsync(source, refType, isInverse, includeSubtypes, ct)` (identical signature). A thin extension method preserves the old name for callers that prefer it. |
+    | `FindReferencesAsync(ArrayOf<ExpandedNodeId>, ArrayOf<NodeId>, …)` | extension method on `NodeCacheExtensions` (same signature). |
+    | `FindAsync(ArrayOf<ExpandedNodeId>, ct)` | extension method on `NodeCacheExtensions` that loops over the inherited `FindAsync(ExpandedNodeId)`. |
+    | `FetchSuperTypesAsync(ExpandedNodeId, ct)` | extension method that loops `FindSuperTypeAsync`. |
+    | `GetNodeWithBrowsePathAsync(NodeId, ArrayOf<QualifiedName>, ct)` | extension method on `NodeCacheExtensions`. |
+    | `GetBuiltInTypeAsync(NodeId, ct)` | extension method on `NodeCacheExtensions`. |
+    | `GetDisplayTextAsync(INode | ExpandedNodeId | ReferenceDescription, ct)` | three extension methods on `NodeCacheExtensions`. |
 
-After the initial merge, `INodeCache` was further trimmed to remove
-duplications and demote pure helpers to extension methods. Removed
-**from the interface** (still callable on a `INodeCache` reference via
-`NodeCacheExtensions`):
+  External implementations of `INodeCache` no longer need to implement these members. Call sites that already used `using Opc.Ua;` keep compiling unchanged because the extensions live in the same namespace.
 
-| Removed from interface | Replacement |
-|---|---|
-| `GetSuperTypeAsync(NodeId, ct)` | inherited `IAsyncTypeTable.FindSuperTypeAsync(NodeId, ct)` (identical semantics — the interface methods returned the same `NodeId.Null`-on-miss value) |
-| `FindReferencesAsync(ExpandedNodeId, NodeId, bool, bool, ct)` | inherited `IAsyncNodeTable.FindAsync(source, refType, isInverse, includeSubtypes, ct)` (identical signature). A thin extension method preserves the old name for callers that prefer it. |
-| `FindReferencesAsync(ArrayOf<ExpandedNodeId>, ArrayOf<NodeId>, …)` | extension method on `NodeCacheExtensions` (same signature). |
-| `FindAsync(ArrayOf<ExpandedNodeId>, ct)` | extension method on `NodeCacheExtensions` that loops over the inherited `FindAsync(ExpandedNodeId)`. |
-| `FetchSuperTypesAsync(ExpandedNodeId, ct)` | extension method that loops `FindSuperTypeAsync`. |
-| `GetNodeWithBrowsePathAsync(NodeId, ArrayOf<QualifiedName>, ct)` | extension method on `NodeCacheExtensions`. |
-| `GetBuiltInTypeAsync(NodeId, ct)` | extension method on `NodeCacheExtensions`. |
-| `GetDisplayTextAsync(INode | ExpandedNodeId | ReferenceDescription, ct)` | three extension methods on `NodeCacheExtensions`. |
-
-External implementations of `INodeCache` no longer need to implement
-these members. Call sites that already used `using Opc.Ua;` keep
-compiling unchanged because the extensions live in the same namespace.
-
-#### Two complementary lookup families
-
-The merged `INodeCache` deliberately keeps two name conventions side by
-side. The XML doc on `INodeCache` spells this out as well:
+The new `INodeCache` deliberately keeps two name conventions side by side. The XML doc on `INodeCache` spells this out as well:
 
 | Family | Identity | Result | Behavior |
 |---|---|---|---|
 | `Find*` / `Fetch*` | `ExpandedNodeId` | nullable | `Find*` consults the cache, then the server; `Fetch*` always re-reads from the server. |
 | `Get*` | `NodeId` | non-nullable / throws | LRU-style direct hit; cheaper for in-process callers that already have a local `NodeId`. |
 
-#### Migration recipes
+**Migration**:
 
 ```csharp
 // Before — Task-returning + sync helpers
@@ -1084,31 +1050,6 @@ ArrayOf<INode?> nodes = await cache.FindAsync(nodeIds);
 ValueTask<Node?> tn = cache.FetchNodeAsync(nodeId);
 bool isType = await cache.IsTypeOfAsync(sub, super);
 ```
-
-#### Implementer / mock impact
-
-External implementations of `INodeCache` must:
-
-1. Add the `Get*` methods (NodeId-keyed) plus
-   `LoadTypeHierarchyAsync`.
-2. Convert their `Task<T>`-returning members to `ValueTask<T>`.
-3. Remove any `LoadUaDefinedTypes(ISystemContext)` override or call.
-
-Test doubles (Moq) need new `Setup` calls covering the `Get*` methods
-they exercise. Members moved to `NodeCacheExtensions` (e.g.
-`GetBuiltInTypeAsync`, `GetNodeWithBrowsePathAsync`,
-`GetDisplayTextAsync`, the `ExpandedNodeId`-keyed
-`FindReferencesAsync`/`FindAsync` overloads,
-`FetchSuperTypesAsync`) no longer need to be set up — the extensions
-delegate to the smaller core surface automatically.
-
-#### Out of scope
-
-`Session.TypeTree` continues to return a sync `ITypeTable` adapter for
-compatibility with code that uses the synchronous type-table surface
-in the server-side stack. Removing that adapter is out of scope of
-this change; if you only consume `INodeCache.TypeTree` (the
-`IAsyncTypeTable`), you can keep using the async surface end-to-end.
 
 ## Migrating from 1.05.377 to 1.05.378
 

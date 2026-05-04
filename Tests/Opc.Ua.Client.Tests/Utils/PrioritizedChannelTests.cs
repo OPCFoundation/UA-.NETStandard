@@ -41,6 +41,8 @@ namespace Opc.Ua.Types.Polyfills.Tests
     [TestFixture]
     [Category("Polyfills")]
     [Category("PrioritizedChannel")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
     public sealed class PrioritizedChannelTests
     {
         private Channel<int> CreateChannel(IComparer<int> comparer = null)

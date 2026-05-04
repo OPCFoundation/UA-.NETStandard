@@ -31,7 +31,7 @@ namespace Opc.Ua.Client
 {
     /// <summary>
     /// Top-level options for
-    /// <see cref="OpcUaClientServiceCollectionExtensions.AddOpcUaClient"/>.
+    /// <see cref="ServiceCollectionExtensions.AddOpcUaClient"/>.
     /// </summary>
     public sealed class OpcUaClientOptions
     {

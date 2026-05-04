@@ -48,12 +48,12 @@ namespace Opc.Ua.Client.Tests
     [SetUICulture("en-us")]
     public sealed class SessionReconnectHandlerTests
     {
-        private ITelemetryContext _telemetry;
+        private ITelemetryContext m_telemetry;
 
         [SetUp]
         public void SetUp()
         {
-            _telemetry = NUnitTelemetryContext.Create();
+            m_telemetry = NUnitTelemetryContext.Create();
         }
 
         /// <summary>
@@ -77,7 +77,7 @@ namespace Opc.Ua.Client.Tests
                 .ReturnsAsync(mockNewSession.Object);
 
             using var handler = new TestableSessionReconnectHandler(
-                _telemetry,
+                m_telemetry,
                 (endpoint, connection) =>
                 {
                     updateCallCount++;
@@ -118,7 +118,7 @@ namespace Opc.Ua.Client.Tests
                 .ReturnsAsync(mockNewSession.Object);
 
             using var handler = new TestableSessionReconnectHandler(
-                _telemetry,
+                m_telemetry,
                 (endpoint, connection) =>
                 {
                     updateCallCount++;
@@ -154,7 +154,7 @@ namespace Opc.Ua.Client.Tests
             Mock<ISession> mockSession = CreateMockSession(configuredEndpoint, mockFactory);
 
             using var handler = new TestableSessionReconnectHandler(
-                _telemetry,
+                m_telemetry,
                 (endpoint, connection) =>
                     throw new ServiceResultException(StatusCodes.BadNoCommunication));
 
@@ -223,7 +223,7 @@ namespace Opc.Ua.Client.Tests
             var mockSession = new Mock<ISession>();
             mockSession.SetupGet(s => s.SessionId).Returns(NodeId.Null);
 
-            using var handler = new SessionReconnectHandler(_telemetry);
+            using var handler = new SessionReconnectHandler(m_telemetry);
 
             Assert.That(
                 () => handler.BeginReconnect(
@@ -244,7 +244,7 @@ namespace Opc.Ua.Client.Tests
             var mockSession = new Mock<ISession>();
             mockSession.SetupGet(s => s.SessionId).Returns(NodeId.Null);
 
-            using var handler = new SessionReconnectHandler(_telemetry);
+            using var handler = new SessionReconnectHandler(m_telemetry);
 
             Assert.That(
                 () => handler.BeginReconnect(
@@ -263,7 +263,7 @@ namespace Opc.Ua.Client.Tests
         [Test]
         public void BeginReconnect_WithNullSession_DoesNotThrowAndStaysReady()
         {
-            using var handler = new SessionReconnectHandler(_telemetry);
+            using var handler = new SessionReconnectHandler(m_telemetry);
 
             SessionReconnectHandler.ReconnectState state = handler.BeginReconnect(
                 null,
@@ -298,7 +298,7 @@ namespace Opc.Ua.Client.Tests
             // Simulate: the handler successfully updates the endpoint
             // (the base class would have fallen back to best available endpoint here)
             using var handler = new TestableSessionReconnectHandler(
-                _telemetry,
+                m_telemetry,
                 (endpoint, connection) => Task.CompletedTask);
 
             SetSessionHandlerField(handler, "m_reconnectFailed", true);

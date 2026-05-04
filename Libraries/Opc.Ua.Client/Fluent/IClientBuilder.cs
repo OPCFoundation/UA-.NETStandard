@@ -33,10 +33,10 @@ namespace Opc.Ua.Client
 {
     /// <summary>
     /// Builder returned by
-    /// <see cref="OpcUaClientServiceCollectionExtensions.AddOpcUaClient"/>
+    /// <see cref="ServiceCollectionExtensions.AddOpcUaClient"/>
     /// for further configuration of the OPC UA client services.
     /// </summary>
-    public interface IOpcUaClientBuilder
+    public interface IClientBuilder
     {
         /// <summary>
         /// The underlying <see cref="IServiceCollection"/>.

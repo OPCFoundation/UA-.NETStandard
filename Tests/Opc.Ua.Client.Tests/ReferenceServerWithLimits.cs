@@ -110,7 +110,6 @@ namespace Opc.Ua.Client.Tests
                 Utils.TraceMasks.StartStop,
                 "Creating the Reference Server Node Manager.");
 
-            var asyncNodeManagers = new List<IAsyncNodeManager>();
             var nodeManagers = new List<INodeManager>();
 
             // create the custom node manager (ownership transfers to MasterNodeManager).
@@ -119,7 +118,7 @@ namespace Opc.Ua.Client.Tests
                 server,
                 configuration);
 #pragma warning restore CA2000
-            asyncNodeManagers = [referenceNodeManager];
+            List<IAsyncNodeManager> asyncNodeManagers = [referenceNodeManager];
 
             foreach (INodeManagerFactory nodeManagerFactory in NodeManagerFactories)
             {

@@ -31,7 +31,6 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Opc.Ua
 {
-
     /// <summary>
     /// Add services to the container
     /// </summary>

@@ -129,19 +129,6 @@ namespace Opc.Ua.Client.Tests
         }
 
         /// <summary>
-        /// Smoke test for the node cache instance returned by Session.
-        /// </summary>
-        [Test]
-        [Order(500)]
-        public void NodeCacheLoadUaDefinedTypes()
-        {
-            INodeCache nodeCache = Session.NodeCache;
-            Assert.That(nodeCache, Is.Not.Null);
-
-            // The LRU node cache populates lazily; nothing to pre-load.
-        }
-
-        /// <summary>
         /// Browse all variables in the objects folder.
         /// </summary>
         [Test]

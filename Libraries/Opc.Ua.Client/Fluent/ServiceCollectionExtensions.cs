@@ -43,10 +43,10 @@ namespace Opc.Ua.Client
     /// <remarks>
     /// Mirrors the server-side
     /// <c>OpcUaServerServiceCollectionExtensions.AddOpcUaServer</c> pattern.
-    /// The returned <see cref="IOpcUaClientBuilder"/> can be extended with
+    /// The returned <see cref="IClientBuilder"/> can be extended with
     /// further registrations.
     /// </remarks>
-    public static class OpcUaClientServiceCollectionExtensions
+    public static class ServiceCollectionExtensions
     {
         /// <summary>
         /// Registers OPC UA client services and a lazy
@@ -60,8 +60,8 @@ namespace Opc.Ua.Client
         /// <see cref="OpcUaClientOptions"/>. Must set
         /// <see cref="OpcUaClientOptions.Configuration"/> and
         /// <see cref="ManagedSessionOptions.Endpoint"/>.</param>
-        /// <returns>An <see cref="IOpcUaClientBuilder"/> for chaining.</returns>
-        public static IOpcUaClientBuilder AddOpcUaClient(
+        /// <returns>An <see cref="IClientBuilder"/> for chaining.</returns>
+        public static IClientBuilder AddOpcUaClient(
             this IServiceCollection services,
             Action<OpcUaClientOptions> configure)
         {
@@ -104,7 +104,7 @@ namespace Opc.Ua.Client
             return new OpcUaClientBuilder(services);
         }
 
-        private sealed class OpcUaClientBuilder : IOpcUaClientBuilder
+        private sealed class OpcUaClientBuilder : IClientBuilder
         {
             public OpcUaClientBuilder(IServiceCollection services)
             {

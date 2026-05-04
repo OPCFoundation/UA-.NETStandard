@@ -43,7 +43,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
 {
     /// <summary>
     /// End-to-end integration tests for <see cref="ManagedSessionBuilder"/>
-    /// + <see cref="ManagedSessionSubscriptionExtensions"/> against the
+    /// + <see cref="ManagedSessionExtensions"/> against the
     /// in-process reference fixture server. Verifies that the V2
     /// subscription engine, exposed through the new
     /// <see cref="ManagedSession.SubscriptionManager"/> property, can

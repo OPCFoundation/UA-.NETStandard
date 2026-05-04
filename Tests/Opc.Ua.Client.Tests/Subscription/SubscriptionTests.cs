@@ -39,6 +39,10 @@ using NUnit.Framework;
 namespace Opc.Ua.Client.Subscriptions
 {
     [TestFixture]
+    [Category("Client")]
+    [Category("SubscriptionManager")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
     public sealed class SubscriptionTests
     {
         [SetUp]

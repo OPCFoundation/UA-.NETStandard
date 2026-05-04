@@ -21,7 +21,7 @@ namespace Opc.Ua.Client.Tests
     [Category("Client")]
     [SetCulture("en-us")]
     [SetUICulture("en-us")]
-    public sealed class LruCacheTests
+    public sealed class NodeCacheTests
     {
         [Test]
         public async Task FetchRemainingNodesAsyncShouldHandleErrorsAsync()

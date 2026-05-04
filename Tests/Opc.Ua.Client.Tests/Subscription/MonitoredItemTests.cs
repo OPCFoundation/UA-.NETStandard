@@ -36,6 +36,10 @@ using NUnit.Framework;
 namespace Opc.Ua.Client.Subscriptions.MonitoredItems
 {
     [TestFixture]
+    [Category("Client")]
+    [Category("MonitoredItem")]
+    [SetCulture("en-us")]
+    [SetUICulture("en-us")]
     public sealed class MonitoredItemTests
     {
         [SetUp]

@@ -28,22 +28,19 @@
  * ======================================================================*/
 
 using System;
-using NewMonitoredItemOptions = Opc.Ua.Client.Subscriptions.MonitoredItems.MonitoredItemOptions;
-using NewSubscriptionOptions = Opc.Ua.Client.Subscriptions.SubscriptionOptions;
-using V2 = Opc.Ua.Client.Subscriptions;
 
 namespace Opc.Ua.Client
 {
     /// <summary>
     /// Convenience extensions on <see cref="ManagedSession"/> for working
     /// with the new options-based subscription API. These wrap plain
-    /// <see cref="V2.SubscriptionOptions"/> /
-    /// <see cref="V2.MonitoredItems.MonitoredItemOptions"/> snapshots into
+    /// <see cref="Subscriptions.SubscriptionOptions"/> /
+    /// <see cref="Subscriptions.MonitoredItems.MonitoredItemOptions"/> snapshots into
     /// <see cref="Microsoft.Extensions.Options.IOptionsMonitor{T}"/>
     /// adapters so callers don't need to set up a DI options pipeline for
     /// one-off use.
     /// </summary>
-    public static class ManagedSessionSubscriptionExtensions
+    public static class ManagedSessionExtensions
     {
         /// <summary>
         /// Add a new subscription to the session using the supplied options
@@ -51,10 +48,10 @@ namespace Opc.Ua.Client
         /// <see cref="ManagedSession.SubscriptionManager"/> and starts
         /// asynchronously.
         /// </summary>
-        public static V2.ISubscription AddSubscription(
+        public static Subscriptions.ISubscription AddSubscription(
             this ManagedSession session,
-            V2.ISubscriptionNotificationHandler handler,
-            NewSubscriptionOptions options)
+            Subscriptions.ISubscriptionNotificationHandler handler,
+            Subscriptions.SubscriptionOptions options)
         {
             if (session == null)
             {
@@ -68,19 +65,19 @@ namespace Opc.Ua.Client
             {
                 throw new ArgumentNullException(nameof(options));
             }
-            var monitor = new OptionsMonitor<NewSubscriptionOptions>(options);
+            var monitor = new OptionsMonitor<Subscriptions.SubscriptionOptions>(options);
             return session.SubscriptionManager.Add(handler, monitor);
         }
 
         /// <summary>
         /// Add a new subscription to the session, configuring options via
-        /// a callback over a fresh <see cref="V2.SubscriptionOptions"/>
+        /// a callback over a fresh <see cref="Subscriptions.SubscriptionOptions"/>
         /// record.
         /// </summary>
-        public static V2.ISubscription AddSubscription(
+        public static Subscriptions.ISubscription AddSubscription(
             this ManagedSession session,
-            V2.ISubscriptionNotificationHandler handler,
-            Func<NewSubscriptionOptions, NewSubscriptionOptions> configure)
+            Subscriptions.ISubscriptionNotificationHandler handler,
+            Func<Subscriptions.SubscriptionOptions, Subscriptions.SubscriptionOptions> configure)
         {
             if (session == null)
             {
@@ -94,7 +91,7 @@ namespace Opc.Ua.Client
             {
                 throw new ArgumentNullException(nameof(configure));
             }
-            return session.AddSubscription(handler, configure(new NewSubscriptionOptions()));
+            return session.AddSubscription(handler, configure(new Subscriptions.SubscriptionOptions()));
         }
 
         /// <summary>
@@ -102,10 +99,10 @@ namespace Opc.Ua.Client
         /// options snapshot.
         /// </summary>
         public static bool TryAddMonitoredItem(
-            this V2.ISubscription subscription,
+            this Subscriptions.ISubscription subscription,
             string name,
-            NewMonitoredItemOptions options,
-            out V2.MonitoredItems.IMonitoredItem? monitoredItem)
+            Subscriptions.MonitoredItems.MonitoredItemOptions options,
+            out Subscriptions.MonitoredItems.IMonitoredItem? monitoredItem)
         {
             if (subscription == null)
             {
@@ -119,22 +116,22 @@ namespace Opc.Ua.Client
             {
                 throw new ArgumentNullException(nameof(options));
             }
-            var monitor = new OptionsMonitor<NewMonitoredItemOptions>(options);
+            var monitor = new OptionsMonitor<Subscriptions.MonitoredItems.MonitoredItemOptions>(options);
             return subscription.MonitoredItems.TryAdd(name, monitor, out monitoredItem);
         }
 
         /// <summary>
         /// Add a monitored item to the subscription, configuring options
         /// via a callback over a fresh
-        /// <see cref="V2.MonitoredItems.MonitoredItemOptions"/>
+        /// <see cref="Subscriptions.MonitoredItems.MonitoredItemOptions"/>
         /// record initialized with the supplied node id.
         /// </summary>
         public static bool TryAddMonitoredItem(
-            this V2.ISubscription subscription,
+            this Subscriptions.ISubscription subscription,
             string name,
             NodeId nodeId,
-            Func<NewMonitoredItemOptions, NewMonitoredItemOptions> configure,
-            out V2.MonitoredItems.IMonitoredItem? monitoredItem)
+            Func<Subscriptions.MonitoredItems.MonitoredItemOptions, Subscriptions.MonitoredItems.MonitoredItemOptions> configure,
+            out Subscriptions.MonitoredItems.IMonitoredItem? monitoredItem)
         {
             if (subscription == null)
             {
@@ -150,7 +147,7 @@ namespace Opc.Ua.Client
             }
             return subscription.TryAddMonitoredItem(
                 name,
-                configure(new NewMonitoredItemOptions { StartNodeId = nodeId }),
+                configure(new Subscriptions.MonitoredItems.MonitoredItemOptions { StartNodeId = nodeId }),
                 out monitoredItem);
         }
     }

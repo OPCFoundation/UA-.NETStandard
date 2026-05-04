@@ -10,6 +10,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
+using Opc.Ua.Client;
 using Opc.Ua.Tests;
 
 namespace Opc.Ua.Client.Tests.ClientBuilder
@@ -25,8 +26,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
         [Test]
         public void AddOpcUaClientThrowsForNullArgs()
         {
-            Assert.That(() => OpcUaClientServiceCollectionExtensions
-                .AddOpcUaClient(null!, _ => { }), Throws.ArgumentNullException);
+            Assert.That(() => ServiceCollectionExtensions.AddOpcUaClient(null!, _ => { }), Throws.ArgumentNullException);
 
             var services = new ServiceCollection();
             Assert.That(() => services.AddOpcUaClient(null!), Throws.ArgumentNullException);
@@ -54,17 +54,14 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             Assert.That(sp.GetService<ITelemetryContext>(), Is.Not.Null);
             Assert.That(sp.GetService<ISessionFactory>(), Is.Not.Null);
             Assert.That(sp.GetService<ManagedSessionFactory>(), Is.Not.Null);
-            Assert.That(sp.GetService<Func<CancellationToken, Task<Opc.Ua.Client.ManagedSession>>>(), Is.Not.Null);
+            Assert.That(sp.GetService<Func<CancellationToken, Task<Client.ManagedSession>>>(), Is.Not.Null);
         }
 
         [Test]
         public void AddOpcUaClientReturnsBuilderWithServices()
         {
             var services = new ServiceCollection();
-            IOpcUaClientBuilder builder = services.AddOpcUaClient(opt =>
-            {
-                opt.Configuration = CreateConfig();
-            });
+            IClientBuilder builder = services.AddOpcUaClient(opt => opt.Configuration = CreateConfig());
 
             Assert.That(builder, Is.Not.Null);
             Assert.That(builder.Services, Is.SameAs(services));
@@ -74,13 +71,9 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
         public void SessionFactoryHasV2EngineByDefault()
         {
             var services = new ServiceCollection();
-            services.AddOpcUaClient(opt =>
-            {
-                opt.Configuration = CreateConfig();
-            });
+            services.AddOpcUaClient(opt => opt.Configuration = CreateConfig());
 
             using ServiceProvider sp = services.BuildServiceProvider();
-
             ISessionFactory? factory = sp.GetService<ISessionFactory>();
             Assert.That(factory, Is.Not.Null);
             Assert.That(factory, Is.InstanceOf<DefaultSessionFactory>());
