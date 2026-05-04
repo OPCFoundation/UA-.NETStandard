@@ -964,9 +964,9 @@ namespace Opc.Ua.Client.Subscriptions
         private int m_goodPublishRequestCount;
 #pragma warning restore IDE0032 // Use auto property
         private readonly Channel<SubscriptionAcknowledgement> m_acks;
-        private readonly Nito.AsyncEx.AsyncManualResetEvent m_running = new();
-        private readonly Nito.AsyncEx.AsyncAutoResetEvent m_publishControl = new();
-        private readonly Nito.AsyncEx.AsyncManualResetEvent m_drainSignal = new(true);
+        private readonly AsyncManualResetEvent m_running = new();
+        private readonly AsyncAutoResetEvent m_publishControl = new();
+        private readonly AsyncManualResetEvent m_drainSignal = new(true);
         private int m_activePublishRequests;
         private readonly ConcurrentQueue<uint> m_subscriptionHistory = new();
         private readonly Task m_publishController;

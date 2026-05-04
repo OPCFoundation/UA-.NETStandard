@@ -532,7 +532,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                     null, 0, TimestampsToReturn.Both,
                     new ArrayOf<ReadValueId>(), cts.Token)
                     .ConfigureAwait(false),
-                Throws.TypeOf<OperationCanceledException>());
+                Throws.InstanceOf<OperationCanceledException>());
         }
 
         [Test]

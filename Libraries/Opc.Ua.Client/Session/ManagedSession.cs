@@ -33,25 +33,24 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using Nito.AsyncEx;
 
 namespace Opc.Ua.Client
 {
     /// <summary>
-    /// A managed session that wraps a V1 <see cref="Session"/> and
-    /// automatically handles connection lifecycle, reconnection with
-    /// configurable policy, and server redundancy failover.
+    /// A managed session that wraps a unmanaged <see cref="Session"/>
+    /// and automatically handles connection lifecycle, reconnection
+    /// with configurable policy, and server redundancy failover.
     /// </summary>
     /// <remarks>
     /// <para>
     /// Service calls are gated during reconnect — callers transparently
-    /// wait until the session is reconnected. The gating uses a
-    /// <see cref="AsyncReaderWriterLock"/>: connected service calls
-    /// take a reader lock (cheap, concurrent), while reconnect holds
-    /// the writer lock exclusively.
+    /// wait until the session is reconnected. The gating uses an
+    /// <see cref="Opc.Ua.Client.AsyncReaderWriterLock"/>: connected
+    /// service calls take a reader lock (cheap, concurrent), while
+    /// reconnect / failover holds the writer lock exclusively.
     /// </para>
     /// <para>
-    /// This class uses composition, not inheritance, to wrap the V1
+    /// This class uses composition, not inheritance, to wrap the unmanaged
     /// <see cref="Session"/>. All <see cref="ISession"/> members are
     /// delegated to the inner session.
     /// </para>
@@ -197,7 +196,8 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Gets the inner V1 session. Throws if no session is available.
+        /// Gets the inner unmanaged session.
+        /// Throws if no session is available.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
         internal Session InnerSession => m_session ??
@@ -963,8 +963,8 @@ namespace Opc.Ua.Client
                     // operate on the same Session object. Session
                     // internals re-run CreateSession+ActivateSession
                     // against the new endpoint and drive subscription
-                    // recreate/transfer for both V1 templates and the
-                    // V2 engine.
+                    // recreate/transfer for both unamanged templates and
+                    // the new engine.
                     await session
                         .RecreateInPlaceAsync(
                             endpoint: failoverEndpoint,

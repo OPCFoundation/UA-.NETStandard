@@ -34,7 +34,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Moq;
-using Nito.AsyncEx;
 using NUnit.Framework;
 
 namespace Opc.Ua.Client.Subscriptions

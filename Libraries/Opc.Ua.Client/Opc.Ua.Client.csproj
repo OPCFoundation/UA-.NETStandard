@@ -23,7 +23,6 @@
     <PackageReference Include="BitFaster.Caching" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
     <PackageReference Include="Microsoft.Extensions.Options" />
-    <PackageReference Include="Nito.AsyncEx" />
     <PackageReference Include="System.Threading.Channels" />
     <PackageReference Include="Microsoft.Bcl.TimeProvider" />
   </ItemGroup>

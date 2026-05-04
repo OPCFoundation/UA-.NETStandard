@@ -766,7 +766,7 @@ namespace Opc.Ua.Client.Subscriptions
         private static readonly TimeSpan s_keepAliveTimerMargin = TimeSpan.FromSeconds(1);
         private TimeSpan m_keepAliveInterval;
         private int m_publishLateCount;
-        private readonly Nito.AsyncEx.AsyncAutoResetEvent m_stateControl = new();
+        private readonly AsyncAutoResetEvent m_stateControl = new();
         private readonly CancellationTokenSource m_cts = new();
         private readonly Task m_stateManagement;
         private readonly SemaphoreSlim m_stateLock = new(1, 1);
