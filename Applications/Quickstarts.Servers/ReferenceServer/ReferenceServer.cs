@@ -60,7 +60,7 @@ namespace Quickstarts.ReferenceServer
         public ReferenceServer(ITelemetryContext telemetry)
             : base(telemetry)
         {
-            m_userDatabase = new JsonUserDatabase("ReferenceServer_Users.json");
+            m_userDatabase = new LinqUserDatabase();
             m_userDatabase.CreateUser("sysadmin", "demo"u8, [Role.SecurityAdmin, Role.AuthenticatedUser]);
             m_userDatabase.CreateUser("user1", "password"u8, [Role.AuthenticatedUser]);
             m_userDatabase.CreateUser("user2", "password1"u8, [Role.AuthenticatedUser]);
@@ -571,6 +571,6 @@ namespace Quickstarts.ReferenceServer
         }
 
         private ICertificateValidator m_userCertificateValidator;
-        private readonly JsonUserDatabase m_userDatabase;
+        private readonly LinqUserDatabase m_userDatabase;
     }
 }
