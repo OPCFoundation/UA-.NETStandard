@@ -145,7 +145,7 @@ namespace Alarms
                 setValue = true;
             }
 
-            if (UpdateSuppression())
+            if (UpdateShelving())
             {
                 if (message.Length == 0)
                 {

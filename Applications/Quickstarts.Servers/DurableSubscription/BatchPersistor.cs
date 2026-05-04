@@ -259,7 +259,8 @@ namespace Quickstarts.Servers
 
                     foreach (FileInfo file in directory.GetFiles())
                     {
-                        if (!regex.IsMatch(file.Name))
+                        // Delete files matching this batch (a batch persists to a single file).
+                        if (regex.IsMatch(file.Name))
                         {
                             file.Delete();
                             return;

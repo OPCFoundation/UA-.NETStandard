@@ -134,7 +134,6 @@ namespace TestData
             GenerateValue(system, UInt16Value!);
             GenerateValue(system, Int32Value!);
             GenerateValue(system, UInt32Value!);
-            GenerateValue(system, UInt32Value!);
             GenerateValue(system, Int64Value!);
             GenerateValue(system, UInt64Value!);
             GenerateValue(system, FloatValue!);

@@ -589,9 +589,14 @@ namespace Quickstarts
             {
                 INode? rootNode = await uaClient.Session.NodeCache.FindAsync(startingNode, ct)
                     .ConfigureAwait(false);
-                // TODO: Consider adding a null check on rootNode before indexing — pre-existing
-                // latent NRE if FindAsync returns null for an unknown startingNode.
-                nodeDictionary[rootNode!.NodeId] = rootNode;
+                if (rootNode == null)
+                {
+                    m_logger.LogWarning("Root node {NodeId} not found, skipping", startingNode);
+                }
+                else
+                {
+                    nodeDictionary[rootNode.NodeId] = rootNode;
+                }
             }
 
             int searchDepth = 0;
@@ -1438,10 +1443,14 @@ namespace Quickstarts
             try
             {
                 // Log MonitoredItem Notification event
-                // TODO: Consider adding a null check on `notification` — `as` returns null for
-                // type mismatch and the deref below would NRE (pre-existing latent bug).
-                var notification = e.NotificationValue as MonitoredItemNotification;
-                DateTime localTime = notification!.Value.SourceTimestamp.ToLocalTime();
+                if (e.NotificationValue is not MonitoredItemNotification notification)
+                {
+                    m_logger.LogWarning(
+                        "Unexpected notification type: {Type}",
+                        e.NotificationValue?.GetType().Name ?? "null");
+                    return;
+                }
+                DateTime localTime = notification.Value.SourceTimestamp.ToLocalTime();
                 m_logger.LogInformation(
                     "Notification: {SequenceNumber} \"{NodeId}\" and Value = {Value} at [{CurrentTime}].",
                     notification.Message.SequenceNumber,
@@ -1465,13 +1474,17 @@ namespace Quickstarts
             try
             {
                 // Log MonitoredItem Notification event
-                // TODO: Consider adding a null check on `notification` — `as` returns null for
-                // type mismatch and the deref below would NRE (pre-existing latent bug).
-                var notification = e.NotificationValue as EventFieldList;
+                if (e.NotificationValue is not EventFieldList notification)
+                {
+                    m_logger.LogWarning(
+                        "Unexpected event notification type: {Type}",
+                        e.NotificationValue?.GetType().Name ?? "null");
+                    return;
+                }
 
                 foreach (KeyValuePair<int, ArrayOf<QualifiedName>> entry in m_desiredEventFields)
                 {
-                    Variant field = notification!.EventFields[entry.Key];
+                    Variant field = notification.EventFields[entry.Key];
                     if (field.TypeInfo.BuiltInType != BuiltInType.Null)
                     {
                         var fieldPath = new StringBuilder();

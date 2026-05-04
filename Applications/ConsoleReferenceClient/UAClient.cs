@@ -304,13 +304,10 @@ namespace Quickstarts
                             m_telemetry,
                             true,
                             ReconnectPeriodExponentialBackoff);
-                    }
 
-                    // Session created successfully.
-                    // TODO: Consider moving this WriteLine inside the if(session != null && session.Connected)
-                    // block — when the session is not connected, Session may still be the late-init
-                    // null! sentinel and SessionName access could NRE (pre-existing latent bug).
-                    Console.WriteLine($"New Session Created with SessionName = {Session!.SessionName}");
+                        // Session created successfully.
+                        Console.WriteLine($"New Session Created with SessionName = {Session.SessionName}");
+                    }
                 }
 
                 return true;
