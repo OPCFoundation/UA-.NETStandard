@@ -59,6 +59,11 @@ namespace Opc.Ua
         private readonly ILogger m_logger;
         private readonly int m_maxRejectedCertificates;
         private bool m_sendCertificateChain;
+        private bool m_autoAcceptUntrustedCertificates;
+        private bool m_rejectSHA1SignedCertificates = true;
+        private bool m_rejectUnknownRevocationStatus;
+        private ushort m_minimumCertificateKeySize = CertificateFactory.DefaultKeySize;
+        private bool m_useValidatedCertificates;
         private RejectedCertificateProcessor? m_rejectedProcessor;
         private CertificateLifecycleMonitor? m_lifecycleMonitor;
         private CertificateValidator? m_peerValidator;
@@ -213,6 +218,27 @@ namespace Opc.Ua
             }
 
             m_sendCertificateChain = config.SendCertificateChain;
+
+            // Snapshot global validation flags from the SecurityConfiguration so
+            // that per-trust-list CertificateValidator instances created lazily
+            // by GetOrCreateValidator inherit them. Without this, the
+            // ApplicationConfiguration-level flags (AutoAcceptUntrustedCertificates
+            // etc.) are silently dropped and validation regresses to defaults.
+            m_autoAcceptUntrustedCertificates = config.AutoAcceptUntrustedCertificates;
+            m_rejectSHA1SignedCertificates = config.RejectSHA1SignedCertificates;
+            m_rejectUnknownRevocationStatus = config.RejectUnknownRevocationStatus;
+            if (config.MinimumCertificateKeySize > 0)
+            {
+                m_minimumCertificateKeySize = config.MinimumCertificateKeySize;
+            }
+            m_useValidatedCertificates = config.UseValidatedCertificates;
+
+            // Propagate to any already-created cached validators so behavior
+            // changes when MapFromSecurityConfiguration is called more than
+            // once on the same manager.
+            ApplyValidationFlags(m_peerValidator);
+            ApplyValidationFlags(m_userValidator);
+            ApplyValidationFlags(m_httpsValidator);
 
             if (config.TrustedPeerCertificates != null)
             {
@@ -724,6 +750,13 @@ namespace Opc.Ua
                 validator.Update(issuerStore, trustedStore, rejectedStore);
             }
 
+            // Propagate global validation flags captured from the source
+            // SecurityConfiguration. These would otherwise default to a
+            // strict policy (RejectUnknownRevocationStatus=true,
+            // AutoAcceptUntrustedCertificates=false, RejectSHA1=true) and
+            // ignore the user-configured AutoAcceptUntrustedCertificates flag.
+            ApplyValidationFlags(validator);
+
             // Cache well-known validators for reuse.
             if (trustList == TrustListIdentifier.Peers)
             {
@@ -739,6 +772,28 @@ namespace Opc.Ua
             }
 
             return validator;
+        }
+
+        /// <summary>
+        /// Applies the global validation flags captured from the
+        /// SecurityConfiguration to a (possibly already-created) validator.
+        /// Safe to call with a null validator.
+        /// </summary>
+        private void ApplyValidationFlags(CertificateValidator? validator)
+        {
+            if (validator == null)
+            {
+                return;
+            }
+
+            validator.AutoAcceptUntrustedCertificates = m_autoAcceptUntrustedCertificates;
+            validator.RejectSHA1SignedCertificates = m_rejectSHA1SignedCertificates;
+            validator.RejectUnknownRevocationStatus = m_rejectUnknownRevocationStatus;
+            if (m_minimumCertificateKeySize > 0)
+            {
+                validator.MinimumCertificateKeySize = m_minimumCertificateKeySize;
+            }
+            validator.UseValidatedCertificates = m_useValidatedCertificates;
         }
 
         /// <summary>
