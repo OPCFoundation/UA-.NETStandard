@@ -57,7 +57,9 @@ namespace Opc.Ua.Client.ComplexTypes
             ExpandedNodeId binaryEncodingId,
             ExpandedNodeId xmlEncodingId)
         {
-            m_structureBuilder.StructureTypeIdAttribute(
+            // m_structureBuilder is non-null until CreateType has been called.
+            TypeBuilder builder = m_structureBuilder!;
+            builder.StructureTypeIdAttribute(
                 complexTypeId,
                 binaryEncodingId,
                 xmlEncodingId);
@@ -66,9 +68,12 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <inheritdoc/>
         [UnconditionalSuppressMessage("AOT", "IL3050",
             Justification = "Complex types are dynamically built via Reflection.Emit.")]
-        public void AddField(StructureField field, IType fieldType, int order, bool allowSubTypes)
+        public void AddField(StructureField field, IType? fieldType, int order, bool allowSubTypes)
         {
-            Type typeOfField = fieldType.Type;
+            // Caller is required to supply a non-null fieldType when adding a field
+            // for a structure; the interface allows null only because some callers may
+            // skip unresolved fields before reaching this point.
+            Type typeOfField = fieldType!.Type;
             bool isEnum = fieldType is IEnumeratedType || typeOfField.IsEnum;
             if (field.ValueRank == ValueRanks.OneDimension)
             {
@@ -78,12 +83,16 @@ namespace Opc.Ua.Client.ComplexTypes
             {
                 typeOfField = typeOfField.MakeArrayType(field.ValueRank);
             }
-            FieldBuilder fieldBuilder = m_structureBuilder.DefineField(
-                "_" + field.Name,
+            // m_structureBuilder is non-null until CreateType has been called; AddField is only
+            // valid before CreateType, so dereference is safe here.
+            TypeBuilder structureBuilder = m_structureBuilder!;
+            string fieldName = field.Name!;
+            FieldBuilder fieldBuilder = structureBuilder.DefineField(
+                "_" + fieldName,
                 typeOfField,
                 FieldAttributes.Private);
-            PropertyBuilder propertyBuilder = m_structureBuilder.DefineProperty(
-                field.Name,
+            PropertyBuilder propertyBuilder = structureBuilder.DefineProperty(
+                fieldName,
                 PropertyAttributes.None,
                 typeOfField,
                 null);
@@ -92,8 +101,8 @@ namespace Opc.Ua.Client.ComplexTypes
                 System.Reflection.MethodAttributes.HideBySig |
                 System.Reflection.MethodAttributes.Virtual;
 
-            MethodBuilder setBuilder = m_structureBuilder.DefineMethod(
-                "set_" + field.Name,
+            MethodBuilder setBuilder = structureBuilder.DefineMethod(
+                "set_" + fieldName,
                 methodAttributes,
                 null,
                 [typeOfField]);
@@ -104,17 +113,19 @@ namespace Opc.Ua.Client.ComplexTypes
             if (m_structureType is StructureType.Union or StructureType.UnionWithSubtypedValues)
             {
                 // set the union selector to the new field index
+                // The internal field is defined directly on UnionComplexType in this assembly,
+                // so reflection lookup is guaranteed to succeed at runtime.
                 FieldInfo unionField = typeof(UnionComplexType).GetField(
                     "m_switchField",
-                    BindingFlags.NonPublic | BindingFlags.Instance);
+                    BindingFlags.NonPublic | BindingFlags.Instance)!;
                 setIl.Emit(OpCodes.Ldarg_0);
                 setIl.Emit(OpCodes.Ldc_I4, order);
                 setIl.Emit(OpCodes.Stfld, unionField);
             }
             setIl.Emit(OpCodes.Ret);
 
-            MethodBuilder getBuilder = m_structureBuilder.DefineMethod(
-                "get_" + field.Name,
+            MethodBuilder getBuilder = structureBuilder.DefineMethod(
+                "get_" + fieldName,
                 methodAttributes,
                 typeOfField,
                 Type.EmptyTypes);
@@ -125,22 +136,26 @@ namespace Opc.Ua.Client.ComplexTypes
 
             propertyBuilder.SetGetMethod(getBuilder);
             propertyBuilder.SetSetMethod(setBuilder);
-            propertyBuilder.DataMemberAttribute(field.Name, false, order);
+            propertyBuilder.DataMemberAttribute(fieldName, false, order);
             propertyBuilder.StructureFieldAttribute(field, allowSubTypes, isEnum);
         }
 
         /// <inheritdoc/>
         public IEncodeableType CreateType()
         {
-            Type complexType = m_structureBuilder.CreateType();
+            // The structure builder produces a complex type that always implements
+            // IEncodeableType because it derives from BaseComplexType / OptionalFieldsComplexType
+            // / UnionComplexType which are all IEncodeable.
+            TypeBuilder structureBuilder = m_structureBuilder!;
+            Type complexType = structureBuilder.CreateType();
             m_structureBuilder = null;
-            return ReflectionBasedType.From(complexType) as IEncodeableType;
+            return (ReflectionBasedType.From(complexType) as IEncodeableType)!;
         }
 
         /// <inheritdoc/>
         public IEncodeableType GetStructureType()
         {
-            return new Stub(m_structureBuilder);
+            return new Stub(m_structureBuilder!);
         }
 
         /// <summary>
@@ -159,7 +174,7 @@ namespace Opc.Ua.Client.ComplexTypes
             }
         }
 
-        private TypeBuilder m_structureBuilder;
+        private TypeBuilder? m_structureBuilder;
         private readonly StructureType m_structureType;
     }
 }

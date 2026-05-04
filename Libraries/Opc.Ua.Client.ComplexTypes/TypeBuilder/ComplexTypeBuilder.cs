@@ -48,7 +48,7 @@ namespace Opc.Ua.Client.ComplexTypes
             AssemblyModule moduleFactory,
             string targetNamespace,
             int targetNamespaceIndex,
-            string moduleName = null)
+            string? moduleName = null)
         {
             TargetNamespace = targetNamespace;
             TargetNamespaceIndex = targetNamespaceIndex;
@@ -89,7 +89,9 @@ namespace Opc.Ua.Client.ComplexTypes
                 // The type name should not be null or empty then the type definition
                 // or xml is broken. For the latter we want to go into the fallback path
                 // And try to read the data type definition's enum definition.
-                return null;
+                // TODO: IComplexTypeBuilder.AddEnumType should declare a nullable return
+                // type to match this fallback behaviour. Callers already null-check the result.
+                return null!;
             }
 
             EnumBuilder enumBuilder = m_moduleBuilder.DefineEnum(
@@ -101,21 +103,26 @@ namespace Opc.Ua.Client.ComplexTypes
             foreach (EnumField enumValue in enumDefinition.Fields)
             {
                 // Create a field from the type name and ensure it is not a duplicate
-                string fieldName = enumValue.Name;
+                string? fieldName = enumValue.Name;
                 if (string.IsNullOrEmpty(fieldName))
                 {
                     // This is to be super safe, but we should never get here.
                     fieldName = $"{typeName.Name}_{enumValue.Value}";
                 }
-                if (fieldNames.Add(fieldName))
+                // After the IsNullOrEmpty branch fieldName is non-null; older TFMs lack
+                // the [NotNullWhen(false)] annotation on string.IsNullOrEmpty so the
+                // compiler cannot infer that, hence the suppression.
+                if (fieldNames.Add(fieldName!))
                 {
                     FieldBuilder newEnum = enumBuilder.DefineLiteral(
-                        fieldName,
+                        fieldName!,
                         (int)enumValue.Value);
-                    newEnum.EnumMemberAttribute(fieldName, (int)enumValue.Value);
+                    newEnum.EnumMemberAttribute(fieldName!, (int)enumValue.Value);
                 }
             }
-            return ReflectionBasedType.From(enumBuilder.CreateTypeInfo()) as IEnumeratedType;
+            // The dynamically generated enum is always recognised as IEnumeratedType
+            // by ReflectionBasedType.From because we just defined an enum type.
+            return (ReflectionBasedType.From(enumBuilder.CreateTypeInfo()) as IEnumeratedType)!;
         }
 
         /// <summary>
@@ -170,7 +177,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary>
         /// Create a unique namespace module name for the type.
         /// </summary>
-        private static string FindModuleName(string moduleName, string targetNamespace)
+        private static string FindModuleName(string? moduleName, string targetNamespace)
         {
             if (string.IsNullOrWhiteSpace(moduleName))
             {
@@ -186,7 +193,9 @@ namespace Opc.Ua.Client.ComplexTypes
                 string[] splitName = tempName.Split(':');
                 moduleName = splitName[^1];
             }
-            return moduleName;
+            // moduleName is non-null after the if (either reassigned, or non-whitespace
+            // already); older TFMs lack [NotNullWhen(false)] on IsNullOrWhiteSpace.
+            return moduleName!;
         }
 
         /// <summary>
