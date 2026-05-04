@@ -1,4 +1,4 @@
-using Microsoft.Extensions.DependencyInjection;/* ========================================================================
+/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -26,6 +26,8 @@ using Microsoft.Extensions.DependencyInjection;/* ==============================
  * The complete license agreement can be found here:
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
+
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Opc.Ua
 {

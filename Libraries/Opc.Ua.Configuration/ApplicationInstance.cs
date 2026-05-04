@@ -651,21 +651,13 @@ namespace Opc.Ua.Configuration
             {
                 // validate certificate.
                 configuration.CertificateValidator.CertificateValidation += OnCertificateValidation;
-                X509Certificate2 certToValidate = certificate.HasPrivateKey
-                    ? CertificateFactory.Create(certificate.RawData)
-                    : null;
-                try
-                {
-                    await configuration
-                        .CertificateValidator.ValidateAsync(
-                            certToValidate ?? certificate,
-                            ct)
-                        .ConfigureAwait(false);
-                }
-                finally
-                {
-                    certToValidate?.Dispose();
-                }
+                await configuration
+                    .CertificateValidator.ValidateAsync(
+                        certificate.HasPrivateKey
+                            ? CertificateFactory.Create(certificate.RawData)
+                            : certificate,
+                        ct)
+                    .ConfigureAwait(false);
             }
             catch (Exception ex)
             {
