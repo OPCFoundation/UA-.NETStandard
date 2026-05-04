@@ -813,9 +813,9 @@ namespace TestData
                     {
                         generateValues.Add(variable);
                     }
-                    else if (variable.Parent is ITestDataSystemValuesGenerator)
+                    else if (variable.Parent is ITestDataSystemValuesGenerator and BaseVariableState parentVariable)
                     {
-                        generateValues.Add((variable.Parent as BaseVariableState)!);
+                        generateValues.Add(parentVariable);
                     }
                     else
                     {

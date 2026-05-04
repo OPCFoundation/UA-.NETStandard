@@ -725,12 +725,13 @@ namespace TestData
             ISampledDataChangeMonitoredItem monitoredItem)
         {
             if (SystemScanRequired(handle.MonitoredNode, monitoredItem) &&
-                monitoredItem.MonitoringMode != MonitoringMode.Disabled)
+                monitoredItem.MonitoringMode != MonitoringMode.Disabled &&
+                handle.Node is BaseVariableState variable)
             {
                 m_system.StartMonitoringValue(
                     monitoredItem.Id,
                     monitoredItem.SamplingInterval,
-                    (handle.Node as BaseVariableState)!);
+                    variable);
             }
         }
 

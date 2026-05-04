@@ -149,7 +149,7 @@ namespace Opc.Ua.Client.ComplexTypes
             TypeBuilder structureBuilder = m_structureBuilder!;
             Type complexType = structureBuilder.CreateType();
             m_structureBuilder = null;
-            return (ReflectionBasedType.From(complexType) as IEncodeableType)!;
+            return (IEncodeableType)ReflectionBasedType.From(complexType)!;
         }
 
         /// <inheritdoc/>

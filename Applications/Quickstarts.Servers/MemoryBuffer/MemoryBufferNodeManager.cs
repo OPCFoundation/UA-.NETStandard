@@ -343,7 +343,7 @@ namespace MemoryBuffer
 
             // create the item.
             MemoryBufferMonitoredItem datachangeItem = buffer.CreateDataChangeItem(
-                (context as ServerSystemContext)!,
+                (ServerSystemContext)context,
                 tag,
                 subscriptionId,
                 monitoredItemIdFactory.GetNextId(),

@@ -1273,7 +1273,7 @@ namespace Opc.Ua.Server
                                 m_server.TypeTree,
                                 Session?.PreferredLocales!,
                                 m_server.Telemetry),
-                            (m_filterToUse as EventFilter)!,
+                            (EventFilter)m_filterToUse,
                             e);
                     }
 

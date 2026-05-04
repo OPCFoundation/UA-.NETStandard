@@ -159,7 +159,7 @@ namespace Opc.Ua.Server
             m_namespaceUris = namespaceUris;
             m_namespaceIndexes = namespaceIndexes;
 
-            m_syncNodeManager = (this.ToSyncNodeManager() as INodeManager3)!;
+            m_syncNodeManager = (INodeManager3)this.ToSyncNodeManager();
 
             // create a monitored item manager that owns sampling groups / monitoredNodes
             if (useSamplingGroups)

@@ -173,7 +173,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public override bool Equals(object? obj)
         {
-            return IsEqual((obj as IEncodeable)!);
+            return IsEqual(obj as IEncodeable);
         }
 
         /// <inheritdoc/>

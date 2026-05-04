@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
+
 namespace Opc.Ua.Server
 {
     /// <summary>
@@ -85,9 +87,15 @@ namespace Opc.Ua.Server
         /// The operation context associated with system context.
         /// </summary>
         /// <value>The operation context.</value>
+        /// <exception cref="InvalidOperationException">
+        /// Thrown when the operation context has not been set or is not a
+        /// <see cref="OperationContext"/> instance.
+        /// </exception>
         public new OperationContext OperationContext
         {
-            get => (base.OperationContext as OperationContext)!;
+            get => base.OperationContext as OperationContext
+                ?? throw new InvalidOperationException(
+                    "The OperationContext has not been initialized for this ServerSystemContext.");
             set => base.OperationContext = value;
         }
 

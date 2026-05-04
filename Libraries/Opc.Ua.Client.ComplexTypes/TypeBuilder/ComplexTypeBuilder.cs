@@ -122,7 +122,7 @@ namespace Opc.Ua.Client.ComplexTypes
             }
             // The dynamically generated enum is always recognised as IEnumeratedType
             // by ReflectionBasedType.From because we just defined an enum type.
-            return (ReflectionBasedType.From(enumBuilder.CreateTypeInfo()) as IEnumeratedType)!;
+            return (IEnumeratedType)ReflectionBasedType.From(enumBuilder.CreateTypeInfo())!;
         }
 
         /// <summary>

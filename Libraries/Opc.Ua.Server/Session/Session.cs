@@ -947,32 +947,32 @@ namespace Opc.Ua.Server
                 switch (policy.TokenType)
                 {
                     case UserTokenType.Anonymous:
-                        userToken = (BaseVariableState.DecodeExtensionObject(
-                                null!,
-                                typeof(AnonymousIdentityToken),
-                                identityToken,
-                                true) as AnonymousIdentityToken)!;
+                        userToken = (AnonymousIdentityToken)BaseVariableState.DecodeExtensionObject(
+                            null!,
+                            typeof(AnonymousIdentityToken),
+                            identityToken,
+                            true)!;
                         break;
                     case UserTokenType.UserName:
-                        userToken = (BaseVariableState.DecodeExtensionObject(
-                                null!,
-                                typeof(UserNameIdentityToken),
-                                identityToken,
-                                true) as UserNameIdentityToken)!;
+                        userToken = (UserNameIdentityToken)BaseVariableState.DecodeExtensionObject(
+                            null!,
+                            typeof(UserNameIdentityToken),
+                            identityToken,
+                            true)!;
                         break;
                     case UserTokenType.Certificate:
-                        userToken = (BaseVariableState.DecodeExtensionObject(
-                                null!,
-                                typeof(X509IdentityToken),
-                                identityToken,
-                                true) as X509IdentityToken)!;
+                        userToken = (X509IdentityToken)BaseVariableState.DecodeExtensionObject(
+                            null!,
+                            typeof(X509IdentityToken),
+                            identityToken,
+                            true)!;
                         break;
                     case UserTokenType.IssuedToken:
-                        userToken = (BaseVariableState.DecodeExtensionObject(
-                                null!,
-                                typeof(IssuedIdentityToken),
-                                identityToken,
-                                true) as IssuedIdentityToken)!;
+                        userToken = (IssuedIdentityToken)BaseVariableState.DecodeExtensionObject(
+                            null!,
+                            typeof(IssuedIdentityToken),
+                            identityToken,
+                            true)!;
                         break;
                     default:
                         throw ServiceResultException.Create(
