@@ -75,7 +75,7 @@ namespace Opc.Ua
     /// Use <see cref="SerializableNodeId"/> as part of your contracts</b>
     /// </para>
     /// </remarks>
-    [Union]
+    // [Union]
     public readonly struct NodeId :
         IEquatable<NodeId>, IComparable<NodeId>,
         IEquatable<ExpandedNodeId>, IComparable<ExpandedNodeId>,

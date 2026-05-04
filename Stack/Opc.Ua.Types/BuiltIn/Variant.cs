@@ -57,7 +57,7 @@ namespace Opc.Ua
     /// OPC UA data-types.
     /// <br/></para>
     /// </remarks>
-    [Union]
+    // [Union]
     public readonly struct Variant :
         INullable,
         IFormattable,
