@@ -32,6 +32,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Security.Certificates;
 
+// FILE-PRAGMA: legacy CertificateValidator/ICertificateValidator API kept for binary compat
+#pragma warning disable CS0618
+
 namespace Opc.Ua.Client
 {
     /// <summary>
@@ -244,8 +247,11 @@ namespace Opc.Ua.Client
             // checks the domains in the certificate.
             if (checkDomain && endpoint.Description.ServerCertificate.Length > 0)
             {
-                using Certificate certificate = CertificateFactory.Create(endpoint.Description.ServerCertificate);
-                configuration.CertificateValidator?.ValidateDomains(certificate, endpoint);
+                using Certificate certificate = Certificate.FromRawData(endpoint.Description.ServerCertificate);
+                ICertificateValidatorEx? validator =
+                    (ICertificateValidatorEx?)configuration.CertificateManager
+                    ?? configuration.CertificateValidator;
+                validator?.ValidateDomains(certificate, endpoint);
             }
 
             Certificate? clientCertificate = null;

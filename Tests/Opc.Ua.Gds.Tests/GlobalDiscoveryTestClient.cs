@@ -38,6 +38,9 @@ using Opc.Ua.Configuration;
 using Opc.Ua.Gds.Client;
 using Opc.Ua.Security.Certificates;
 
+// FILE-PRAGMA: legacy CertificateValidator/ICertificateValidator API kept for binary compat
+#pragma warning disable CS0618
+
 namespace Opc.Ua.Gds.Tests
 {
     public sealed class GlobalDiscoveryTestClient : IDisposable
@@ -176,9 +179,12 @@ namespace Opc.Ua.Gds.Tests
                 throw new InvalidOperationException("Application instance certificate invalid!");
             }
 
-            Configuration.CertificateValidator.CertificateValidation
-                += new CertificateValidationEventHandler(
-                CertificateValidator_CertificateValidation);
+            if (Configuration.CertificateValidator is CertificateValidator legacyValidator)
+            {
+                legacyValidator.CertificateValidation
+                    += new CertificateValidationEventHandler(
+                    CertificateValidator_CertificateValidation);
+            }
 
             GlobalDiscoveryTestClientConfiguration gdsClientConfiguration =
                 Configuration.ParseExtension<GlobalDiscoveryTestClientConfiguration>();
@@ -283,9 +289,8 @@ namespace Opc.Ua.Gds.Tests
             ByteString certificate,
             ByteString privateKey)
         {
-            using Certificate x509 = CertificateFactory.Create(certificate.ToArray());
-            Certificate certWithPrivateKey = CertificateFactory
-                .CreateCertificateWithPEMPrivateKey(
+            using Certificate x509 = Certificate.FromRawData(certificate.ToArray());
+            Certificate certWithPrivateKey = DefaultCertificateFactory.Instance.CreateWithPEMPrivateKey(
                     x509,
                     privateKey.ToArray());
             GDSClient.Configuration.SecurityConfiguration.ApplicationCertificate

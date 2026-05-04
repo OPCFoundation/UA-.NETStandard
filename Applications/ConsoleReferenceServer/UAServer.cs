@@ -37,7 +37,11 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.Configuration;
+using Opc.Ua.Security.Certificates;
 using Opc.Ua.Server;
+
+// FILE-PRAGMA: legacy CertificateValidator/ICertificateValidator API kept for binary compat
+#pragma warning disable CS0618
 
 namespace Quickstarts
 {
@@ -120,9 +124,7 @@ namespace Quickstarts
 
                 if (!config.SecurityConfiguration.AutoAcceptUntrustedCertificates)
                 {
-                    config.CertificateValidator.CertificateValidation += new CertificateValidationEventHandler(
-                        CertificateValidator_CertificateValidation
-                    );
+                    config.CertificateValidator.AcceptError = AcceptCertificate;
                 }
             }
             catch (Exception ex)
@@ -221,30 +223,26 @@ namespace Quickstarts
         }
 
         /// <summary>
-        /// The certificate validator is used
-        /// if auto accept is not selected in the configuration.
+        /// Per-error accept callback used when AutoAcceptUntrustedCertificates is false.
         /// </summary>
-        private void CertificateValidator_CertificateValidation(
-            CertificateValidator validator,
-            CertificateValidationEventArgs e
-        )
+        private bool AcceptCertificate(Certificate certificate, ServiceResult error)
         {
-            if (e.Error.StatusCode == StatusCodes.BadCertificateUntrusted && AutoAccept)
+            if (error.StatusCode == StatusCodes.BadCertificateUntrusted && AutoAccept)
             {
                 m_logger.LogInformation(
                     "Accepted Certificate: [{Subject}] [{Thumbprint}]",
-                    e.Certificate.Subject,
-                    e.Certificate.Thumbprint
+                    certificate.Subject,
+                    certificate.Thumbprint
                 );
-                e.Accept = true;
-                return;
+                return true;
             }
             m_logger.LogInformation(
                 "Rejected Certificate: {Error} [{Subject}] [{Thumbprint}]",
-                e.Error,
-                e.Certificate.Subject,
-                e.Certificate.Thumbprint
+                error,
+                certificate.Subject,
+                certificate.Thumbprint
             );
+            return false;
         }
 
         /// <summary>

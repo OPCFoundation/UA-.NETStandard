@@ -69,6 +69,20 @@ CertificateValidationResult userResult = await manager.ValidateAsync(
 CertificateValidationResult mqttResult = await manager.ValidateAsync(
     brokerCertChain,
     new TrustListIdentifier("MqttBrokers"));
+
+// Validate with per-call options, including a per-error accept callback
+// (the new-design replacement for the legacy CertificateValidation event).
+var options = new CertificateValidationOptions
+{
+    AutoAcceptUntrustedCertificates = true,
+    AcceptError = (certificate, error) =>
+        // Suppress chain-incomplete errors only for self-test scenarios.
+        error.StatusCode == StatusCodes.BadCertificateChainIncomplete
+};
+CertificateValidationResult devResult = await manager.ValidateAsync(
+    serverCertificate,
+    TrustListIdentifier.Peers,
+    options);
 ```
 
 #### Subscribing to Certificate Changes
@@ -170,8 +184,44 @@ Validates certificates against any trust-list. Works with both stored and epheme
 |--------|-------------|
 | `ValidateAsync(CertificateCollection, TrustListIdentifier?, ...)` | Validate a chain against a trust-list |
 | `ValidateAsync(Certificate, TrustListIdentifier?, ...)` | Validate a single certificate |
+| `AcceptError` (property) | `Func<Certificate, ServiceResult, bool>?` — global per-error accept callback that fires for **every** validation done through this validator. Modern replacement for the legacy `CertificateValidator.CertificateValidation` event. Per-call `CertificateValidationOptions.AcceptError` (when set) takes precedence over this global hook. |
 
 Returns `CertificateValidationResult` with `IsValid`, `StatusCode`, `Errors`, and `IsSuppressible`.
+
+##### Migrating from the legacy `CertificateValidation` event
+
+Set the global `AcceptError` property once on `ApplicationConfiguration.CertificateValidator` (or any `ICertificateValidatorEx` instance) and a single delegate handles every validation:
+
+```csharp
+// Before (legacy event):
+config.CertificateValidator.CertificateValidation += (s, e) =>
+{
+    if (e.Error.StatusCode == StatusCodes.BadCertificateUntrusted) { e.Accept = true; }
+};
+
+// After (modern global hook on ICertificateValidatorEx):
+config.CertificateValidator.AcceptError = (cert, error) =>
+    error.StatusCode == StatusCodes.BadCertificateUntrusted;
+
+// Or per-call (overrides the global hook for that call only):
+var options = new CertificateValidationOptions
+{
+    AcceptError = (cert, error) =>
+        error.StatusCode == StatusCodes.BadCertificateUntrusted
+};
+CertificateValidationResult result = await manager.ValidateAsync(chain, options: options);
+```
+
+Per-call validation behaviour can be overridden via
+`CertificateValidationOptions`:
+
+| Option | Description |
+|--------|-------------|
+| `RejectSHA1SignedCertificates` | Override the global SHA-1 rejection policy. |
+| `RejectUnknownRevocationStatus` | Override the global revocation-unknown rejection policy. |
+| `MinimumCertificateKeySize` | Override the minimum acceptable RSA key size. |
+| `AutoAcceptUntrustedCertificates` | Override the global auto-accept policy. |
+| `AcceptError` | `Func<Certificate, ServiceResult, bool>` — invoked for each suppressible error encountered. Returning `true` accepts the specific error and validation continues. Structured replacement for the legacy `CertificateValidator.CertificateValidation += handler` + mutable `e.Accept = true` pattern. |
 
 #### ICertificateLifecycle
 
@@ -263,14 +313,72 @@ cert.Dispose();    // refcount=0 → X509Certificate2.Dispose() called
 
 ### Backward Compatibility
 
-The existing `CertificateValidator`, `CertificateFactory`, and `ICertificateValidator` continue to work. The `CertificateValidatorAdapter` bridges the new `ICertificateValidatorEx` to the old `ICertificateValidator` interface:
+The legacy `CertificateValidator` class and `ICertificateValidator`
+interface, the `CertificateTypesProvider` class, and the
+`ApplicationConfiguration.CertificateValidator` /
+`ServerBase.CertificateValidator` /
+`ServerBase.InstanceCertificateTypesProvider` properties are now
+marked `[Obsolete]`. They remain functional bridges into the new
+design so that existing applications continue to compile and run
+without changes:
+
+- The legacy `CertificateValidator` class implements **both**
+  `ICertificateValidator` (legacy) and `ICertificateValidatorEx`
+  (new). This is the single most important compatibility bridge:
+  every existing `new CertificateValidator(telemetry)` instance
+  satisfies the new property type swap on
+  `ApplicationConfiguration.CertificateValidator` (now
+  `ICertificateValidatorEx`).
+- The legacy `CertificateValidator.CertificateValidation` event
+  with mutable `e.Accept = true` continues to fire. New code
+  should use `CertificateValidationOptions.AcceptError` instead
+  (see Quick Start above).
+- `ApplicationConfiguration.CertificateManager` is a parallel
+  property that exposes the new manager. It is populated by
+  `ApplicationInstance.CheckApplicationInstanceCertificatesAsync`
+  alongside the legacy `CertificateValidator` property so that
+  both surfaces can coexist during migration.
+
+`CertificateValidatorAdapter` bridges the new `ICertificateValidatorEx`
+to the old `ICertificateValidator` interface and is the canonical
+adapter used internally:
 
 ```csharp
-// Wrap new interface in old interface
+// Wrap a manager (or any ICertificateValidatorEx) as the legacy interface.
 ICertificateValidator oldApi = new CertificateValidatorAdapter(manager);
+
+// Scope the bridge to a specific trust list (e.g. for X.509 user identity):
+ICertificateValidator userApi = new CertificateValidatorAdapter(
+    manager,
+    TrustListIdentifier.Users);
 ```
 
-Static methods on `CertificateFactory` (e.g., `CreateCertificate`, `CreateSigningRequest`, `RevokeCertificate`) are marked `[Obsolete]` pointing to the new `ICertificateFactory` and `ICertificateIssuer` interfaces.
+The static methods on `CertificateFactory`
+(`Create(ReadOnlyMemory<byte>)`, `CreateCertificate(...)`,
+`CreateSigningRequest(...)`, `RevokeCertificate(...)`,
+`CreateCertificateWith{,PEM}PrivateKey(...)`) are marked `[Obsolete]`
+and forward to `Certificate.FromRawData(...)`,
+`DefaultCertificateFactory.Instance.*`, and
+`DefaultCertificateIssuer.Instance.*` respectively. The
+`CertificateFactory.DefaultKeySize` / `DefaultLifeTime` /
+`DefaultHashSize` constants are intentionally kept un-obsoleted because
+they remain the canonical default values used across configuration
+sites.
+
+#### Suppressing CS0618 during migration
+
+Files that intentionally bridge to the legacy types (sample apps,
+test fixtures, internal cast bridges) carry a single, searchable
+file-level marker:
+
+```csharp
+// FILE-PRAGMA: legacy CertificateValidator/ICertificateValidator API kept for binary compat
+#pragma warning disable CS0618
+```
+
+This makes it trivial to grep the codebase for every site that
+still depends on the obsolete API and to retire the bridge in a
+future major release.
 
 ### OPC UA Specification Alignment
 

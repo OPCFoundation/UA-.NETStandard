@@ -32,6 +32,10 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 
+// FILE-PRAGMA: legacy CertificateValidator/ICertificateValidator API kept for binary compat
+// TODO: remove these legacy tests once the obsolete API is removed in a future major.
+#pragma warning disable CS0618
+
 namespace Opc.Ua.Core.Tests
 {
     /// <summary>

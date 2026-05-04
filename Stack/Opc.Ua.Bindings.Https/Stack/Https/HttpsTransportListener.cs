@@ -49,6 +49,9 @@ using System.Collections.Generic;
 using System.Security.Cryptography;
 #endif
 
+// FILE-PRAGMA: legacy CertificateValidator/ICertificateValidator API kept for binary compat
+#pragma warning disable CS0618
+
 namespace Opc.Ua.Bindings
 {
     /// <summary>
@@ -534,7 +537,7 @@ namespace Opc.Ua.Bindings
         /// Called when a UpdateCertificate event occured.
         /// </summary>
         public void CertificateUpdate(
-            ICertificateValidator validator,
+            ICertificateValidatorEx validator,
             CertificateTypesProvider serverCertificateTypes)
         {
             Stop();
@@ -614,7 +617,13 @@ namespace Opc.Ua.Bindings
 
             try
             {
-                m_quotas.CertificateValidator.ValidateAsync(Certificate.FromRawData(clientCertificate.RawData), default).GetAwaiter().GetResult();
+                CertificateValidationResult result = m_quotas.CertificateValidator
+                    .ValidateAsync(Certificate.FromRawData(clientCertificate.RawData), ct: default)
+                    .GetAwaiter().GetResult();
+                if (!result.IsValid)
+                {
+                    return false;
+                }
             }
             catch (Exception)
             {

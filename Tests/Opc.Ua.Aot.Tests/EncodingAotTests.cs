@@ -158,9 +158,9 @@ namespace Opc.Ua.Aot.Tests
             using (var encoder = new BinaryEncoder(
                 stream, fixture.Session.MessageContext, true))
             {
-                foreach (Variant v in variants)
+                for (int i = 0; i < variants.Length; i++)
                 {
-                    encoder.WriteVariant("Variant", v);
+                    encoder.WriteVariant("Variant", variants[i]);
                 }
             }
 

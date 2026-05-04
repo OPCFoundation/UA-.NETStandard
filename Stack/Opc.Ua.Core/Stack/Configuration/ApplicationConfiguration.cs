@@ -38,6 +38,9 @@ using System.Threading.Tasks;
 using System.Xml;
 using Microsoft.Extensions.Logging;
 
+// FILE-PRAGMA: legacy CertificateValidator/ICertificateValidator API kept for binary compat
+#pragma warning disable CS0618
+
 namespace Opc.Ua
 {
     /// <summary>
@@ -103,7 +106,23 @@ namespace Opc.Ua
         /// <summary>
         /// Gets or sets the certificate validator which is configured to use.
         /// </summary>
-        public CertificateValidator CertificateValidator { get; set; }
+        [Obsolete("Use ApplicationConfiguration.CertificateManager (ICertificateManager) instead. See Docs/CertificateManager.md.")]
+        public ICertificateValidatorEx CertificateValidator { get; set; }
+
+        /// <summary>
+        /// Gets or sets the certificate manager that owns this application's
+        /// certificates and trust lists.
+        /// </summary>
+        /// <remarks>
+        /// Populated by <c>ApplicationInstance</c> during
+        /// <c>CheckApplicationInstanceCertificatesAsync</c>. New code should
+        /// prefer this property over <see cref="CertificateValidator"/> for
+        /// validation, lifecycle, and trust-list operations. The legacy
+        /// <see cref="CertificateValidator"/> property continues to work
+        /// (the same trust lists, populated via
+        /// <see cref="CertificateValidator.UpdateAsync(SecurityConfiguration, string?, System.Threading.CancellationToken)"/>).
+        /// </remarks>
+        public ICertificateManager CertificateManager { get; set; }
 
         /// <summary>
         /// Returns the domain names which the server is configured to use.
@@ -709,11 +728,20 @@ namespace Opc.Ua
                 ServerConfiguration.PublishingResolution = 50;
             }
 
-            await CertificateValidator.UpdateAsync(
-                SecurityConfiguration,
-                applicationUri: null,
-                ct)
-                .ConfigureAwait(false);
+            // The legacy validator UpdateAsync is still the canonical way to
+            // load trust lists into a CertificateValidator instance. Once a
+            // CertificateManager-driven equivalent is exposed via
+            // ICertificateValidatorEx, this cast can be removed.
+#pragma warning disable CS0618 // legacy CertificateValidator reference for trust-list update
+            if (CertificateValidator is CertificateValidator legacyValidator)
+            {
+                await legacyValidator.UpdateAsync(
+                    SecurityConfiguration,
+                    applicationUri: null,
+                    ct)
+                    .ConfigureAwait(false);
+            }
+#pragma warning restore CS0618
         }
 
         /// <summary>

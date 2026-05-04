@@ -29,6 +29,8 @@
 
 #nullable enable
 
+using System;
+
 namespace Opc.Ua.Security.Certificates
 {
     /// <summary>
@@ -64,5 +66,22 @@ namespace Opc.Ua.Security.Certificates
         /// <c>null</c> means the global setting is used.
         /// </summary>
         public bool? AutoAcceptUntrustedCertificates { get; set; }
+
+        /// <summary>
+        /// Gets or sets an optional per-error accept callback. If set,
+        /// the callback is invoked for each suppressible certificate
+        /// validation error encountered during validation, with the
+        /// failing certificate and the corresponding
+        /// <see cref="ServiceResult"/>. Returning <see langword="true"/>
+        /// accepts the specific error and allows validation to continue.
+        /// </summary>
+        /// <remarks>
+        /// This is the structured replacement for the legacy
+        /// <c>CertificateValidator.CertificateValidation</c> event with
+        /// mutable <c>e.Accept</c>. The callback is invoked only for
+        /// suppressible errors; non-suppressible errors always cause
+        /// validation to fail.
+        /// </remarks>
+        public Func<Certificate, ServiceResult, bool>? AcceptError { get; set; }
     }
 }

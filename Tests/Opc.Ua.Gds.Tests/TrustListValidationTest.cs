@@ -43,7 +43,7 @@ namespace Opc.Ua.Gds.Tests
     [NonParallelizable]
     public class TrustListValidationTest
     {
-        private static readonly ICertificateFactory s_factory = new DefaultCertificateFactory();
+        private static readonly ICertificateFactory s_factory = DefaultCertificateFactory.Instance;
         private GlobalDiscoveryTestServer m_server;
         private ServerConfigurationPushTestClient m_pushClient;
         private ITelemetryContext m_telemetry;

@@ -510,7 +510,10 @@ Three store types are supported out of the box. Custom store types can be regist
 
 #### Certificate List Population
 
-The `CertificateValidator` is populated through the following process:
+Both the new `CertificateManager` and the legacy `CertificateValidator`
+(via the `CertificateValidatorAdapter` bridge) source their trust lists
+from the same `SecurityConfiguration` defined in
+`ApplicationConfiguration`.
 
 ##### 1. Initialization via ApplicationConfiguration
 
@@ -520,8 +523,19 @@ ApplicationConfiguration config = await ApplicationConfiguration
     .Load(new FileInfo("MyApp.Config.xml"), ApplicationType.Client, null)
     .ConfigureAwait(false);
 
-// Update validator with configuration
-await config.CertificateValidator.UpdateAsync(config).ConfigureAwait(false);
+// Recommended: build a CertificateManager from the SecurityConfiguration.
+// CertificateManagerFactory automatically registers the well-known trust
+// lists (Peers, Users, Https, Rejected) from the configuration.
+using CertificateManager manager = CertificateManagerFactory.Create(
+    config.SecurityConfiguration,
+    telemetry);
+await manager
+    .LoadApplicationCertificatesAsync(config.SecurityConfiguration, config.ApplicationUri)
+    .ConfigureAwait(false);
+
+// `ApplicationInstance` and `ServerBase` automatically construct and own
+// the `CertificateManager` during `Start*Async`. Access it via
+// `applicationInstance.CertificateManager` or `Server.CertificateManager`.
 ```
 
 ##### 2. Internal Update Process
@@ -565,12 +579,13 @@ Applications can dynamically add certificates to trust lists:
 byte[] certificateData = File.ReadAllBytes("peer-cert.der");
 config.SecurityConfiguration.AddTrustedPeer(certificateData);
 
-// Or add to the explicit list
-var certId = new CertificateIdentifier(certificateData);
-config.SecurityConfiguration.TrustedPeerCertificates.TrustedCertificates.Add(certId);
-
-// Update the validator to apply changes
-await config.CertificateValidator.UpdateAsync(config).ConfigureAwait(false);
+// Or use the CertificateManager transactional update API:
+await using ITrustListTransaction tx = await manager
+    .BeginUpdateAsync(TrustListIdentifier.Peers)
+    .ConfigureAwait(false);
+using Certificate trusted = Certificate.FromRawData(certificateData);
+await tx.AddTrustedCertificateAsync(trusted).ConfigureAwait(false);
+await tx.CommitAsync().ConfigureAwait(false);
 ```
 
 #### Certificate Store Management
@@ -709,118 +724,134 @@ The following validation errors can be suppressed by handling the `CertificateVa
 
 All other validation errors are **non-suppressible** and will always cause the validation to fail.
 
-### Registering a Certificate Validation Callback
+### Inspecting Certificate Validation Results
 
-To handle certificate validation errors and decide whether to accept or reject certificates, register a callback handler:
+The new `ICertificateValidatorEx` (composed in `ICertificateManager`)
+returns a structured `CertificateValidationResult` describing the
+outcome of each validation. Callers can examine the result to decide
+whether to accept errors:
 
 ```csharp
-// Register the callback
-configuration.CertificateValidator.CertificateValidation += CertificateValidationCallback;
+CertificateValidationResult result = await manager
+    .ValidateAsync(certificate, TrustListIdentifier.Peers)
+    .ConfigureAwait(false);
 
-// Implement the callback
-private void CertificateValidationCallback(
-    CertificateValidator sender,
-    CertificateValidationEventArgs e)
+if (!result.IsValid)
 {
-    // Log the validation error
-    Console.WriteLine($"Certificate validation error: {e.Error}");
-    Console.WriteLine($"Certificate Subject: {e.Certificate.Subject}");
-
-    // Decide whether to accept the certificate
-    // For example, auto-accept BadCertificateUntrusted in development
-    if (e.Error.StatusCode == StatusCodes.BadCertificateUntrusted)
+    Console.WriteLine($"Validation failed: {result.StatusCode}");
+    foreach (ServiceResult error in result.Errors)
     {
-        Console.WriteLine("Auto-accepting untrusted certificate in development mode.");
-        e.Accept = true; // Accept this specific error
+        Console.WriteLine($"  • {error}");
     }
 
-    // To accept all errors for this certificate (use with caution):
-    // e.AcceptAll = true;
-
-    // To provide a custom error message:
-    // e.ApplicationErrorMsg = "Custom error message";
+    // Accept specific suppressible errors (e.g. untrusted certificates
+    // in development) by inspecting the StatusCode.
+    bool autoAccept = false;
+    if (result.IsSuppressible &&
+        result.StatusCode == StatusCodes.BadCertificateUntrusted &&
+        autoAccept)
+    {
+        // Application-specific accept logic.
+    }
+    else
+    {
+        throw new ServiceResultException(result.StatusCode);
+    }
 }
-
-// Don't forget to unregister when disposing
-configuration.CertificateValidator.CertificateValidation -= CertificateValidationCallback;
 ```
+
+Per-call validation behavior (e.g. auto-accepting untrusted
+certificates, or relaxing revocation checks) can also be overridden
+via `CertificateValidationOptions`:
+
+```csharp
+var options = new CertificateValidationOptions
+{
+    AutoAcceptUntrustedCertificates = true,
+    RejectUnknownRevocationStatus = false
+};
+CertificateValidationResult result = await manager
+    .ValidateAsync(certificate, TrustListIdentifier.Peers, options)
+    .ConfigureAwait(false);
+```
+
+Subscribe to `manager.CertificateChanges` (an
+`IObservable<CertificateChangeEvent>`) for lifecycle notifications such
+as `ApplicationCertificateUpdated`, `TrustListUpdated`,
+`CrlUpdated`, `CertificateRejected`, and `CertificateExpiring`. See
+[CertificateManager.md](CertificateManager.md) for the full reference.
+
+> **Legacy callback (deprecated)**: the
+> `CertificateValidator.CertificateValidation` event with mutable
+> `e.Accept = true` continues to work for existing applications via the
+> backward‑compat `CertificateValidator` class. New code should prefer
+> the structured result above.
 
 ### Configuring a Custom Certificate Validator
 
-To use a custom certificate validator instead of the default `CertificateValidator`, implement the `ICertificateValidator` interface:
+To use a custom certificate validator, implement the new
+`ICertificateValidatorEx` interface (or wrap your implementation in a
+`CertificateValidatorAdapter` to expose the legacy
+`ICertificateValidator` surface):
 
 ```csharp
-public class CustomCertificateValidator : ICertificateValidator
+public sealed class CustomCertificateValidator : ICertificateValidatorEx
 {
-    public Task ValidateAsync(X509Certificate2 certificate, CancellationToken ct)
-    {
-        return ValidateAsync(new X509Certificate2Collection { certificate }, ct);
-    }
-
-    public Task ValidateAsync(X509Certificate2Collection certificateChain, CancellationToken ct)
-    {
-        // Implement your custom validation logic
-        X509Certificate2 certificate = certificateChain[0];
-
-        // Example: Check custom requirements
-        if (!MeetsCustomRequirements(certificate))
-        {
-            throw new ServiceResultException(
-                StatusCodes.BadCertificateInvalid,
-                "Certificate does not meet custom requirements.");
-        }
-
-        return Task.CompletedTask;
-    }
-
-    private bool MeetsCustomRequirements(X509Certificate2 certificate)
-    {
-        // Implement your custom validation logic
-        return true;
-    }
-}
-
-// To use the custom validator:
-var customValidator = new CustomCertificateValidator();
-configuration.CertificateValidator = customValidator;
-```
-
-Alternatively, you can extend the default `CertificateValidator` class to customize specific aspects:
-
-```csharp
-public class ExtendedCertificateValidator : CertificateValidator
-{
-    public ExtendedCertificateValidator(ITelemetryContext telemetry)
-        : base(telemetry)
-    {
-    }
-
-    protected override async Task InternalValidateAsync(
-        X509Certificate2Collection certificates,
-        ConfiguredEndpoint endpoint,
+    public Task<CertificateValidationResult> ValidateAsync(
+        Certificate certificate,
+        TrustListIdentifier? trustList = null,
         CancellationToken ct = default)
     {
-        // Call base validation first
-        await base.InternalValidateAsync(certificates, endpoint, ct);
-
-        // Add your custom validation logic
-        X509Certificate2 certificate = certificates[0];
-
-        if (!CustomValidationCheck(certificate))
-        {
-            throw new ServiceResultException(
-                StatusCodes.BadCertificateInvalid,
-                "Custom validation failed.");
-        }
+        return ValidateAsync(
+            new CertificateCollection(new[] { certificate }),
+            trustList,
+            options: null,
+            ct);
     }
 
-    private bool CustomValidationCheck(X509Certificate2 certificate)
+    public Task<CertificateValidationResult> ValidateAsync(
+        CertificateCollection chain,
+        TrustListIdentifier? trustList = null,
+        CertificateValidationOptions? options = null,
+        CancellationToken ct = default)
     {
-        // Implement additional validation logic
+        Certificate certificate = chain[0];
+
+        if (!MeetsCustomRequirements(certificate))
+        {
+            return Task.FromResult(new CertificateValidationResult(
+                isValid: false,
+                statusCode: StatusCodes.BadCertificateInvalid,
+                errors: new[]
+                {
+                    new ServiceResult(
+                        StatusCodes.BadCertificateInvalid,
+                        "Certificate does not meet custom requirements.")
+                },
+                isSuppressible: false));
+        }
+
+        return Task.FromResult(CertificateValidationResult.Success);
+    }
+
+    private static bool MeetsCustomRequirements(Certificate certificate)
+    {
+        // Implement your custom validation logic
         return true;
     }
 }
+
+// Bridge a custom ICertificateValidatorEx to legacy ICertificateValidator:
+ICertificateValidator legacyApi = new CertificateValidatorAdapter(
+    new CustomCertificateValidator());
 ```
+
+> **Note**: Replacing
+> `ApplicationConfiguration.CertificateValidator` with a custom
+> implementation is still supported for backward compatibility but is
+> discouraged in new code. Prefer providing a custom
+> `ICertificateValidatorEx` (or `ICertificateManager`) and consuming it
+> directly in your transport / channel pipeline.
 
 ### Best Practices
 

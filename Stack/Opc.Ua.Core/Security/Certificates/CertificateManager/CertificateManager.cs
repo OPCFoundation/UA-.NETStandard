@@ -37,6 +37,9 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Security.Certificates;
 
+// FILE-PRAGMA: legacy CertificateValidator/ICertificateValidator API kept for binary compat
+#pragma warning disable CS0618
+
 namespace Opc.Ua
 {
     /// <summary>
@@ -55,11 +58,18 @@ namespace Opc.Ua
         private readonly ITelemetryContext m_telemetry;
         private readonly ILogger m_logger;
         private readonly int m_maxRejectedCertificates;
+        private bool m_sendCertificateChain;
+        private bool m_autoAcceptUntrustedCertificates;
+        private bool m_rejectSHA1SignedCertificates = true;
+        private bool m_rejectUnknownRevocationStatus;
+        private ushort m_minimumCertificateKeySize = CertificateFactory.DefaultKeySize;
+        private bool m_useValidatedCertificates;
         private RejectedCertificateProcessor? m_rejectedProcessor;
         private CertificateLifecycleMonitor? m_lifecycleMonitor;
         private CertificateValidator? m_peerValidator;
         private CertificateValidator? m_userValidator;
         private CertificateValidator? m_httpsValidator;
+        private Func<Certificate, ServiceResult, bool>? m_acceptError;
         private bool m_disposed;
 
         /// <summary>
@@ -207,6 +217,29 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(config));
             }
 
+            m_sendCertificateChain = config.SendCertificateChain;
+
+            // Snapshot global validation flags from the SecurityConfiguration so
+            // that per-trust-list CertificateValidator instances created lazily
+            // by GetOrCreateValidator inherit them. Without this, the
+            // ApplicationConfiguration-level flags (AutoAcceptUntrustedCertificates
+            // etc.) are silently dropped and validation regresses to defaults.
+            m_autoAcceptUntrustedCertificates = config.AutoAcceptUntrustedCertificates;
+            m_rejectSHA1SignedCertificates = config.RejectSHA1SignedCertificates;
+            m_rejectUnknownRevocationStatus = config.RejectUnknownRevocationStatus;
+            if (config.MinimumCertificateKeySize > 0)
+            {
+                m_minimumCertificateKeySize = config.MinimumCertificateKeySize;
+            }
+            m_useValidatedCertificates = config.UseValidatedCertificates;
+
+            // Propagate to any already-created cached validators so behavior
+            // changes when MapFromSecurityConfiguration is called more than
+            // once on the same manager.
+            ApplyValidationFlags(m_peerValidator);
+            ApplyValidationFlags(m_userValidator);
+            ApplyValidationFlags(m_httpsValidator);
+
             if (config.TrustedPeerCertificates != null)
             {
                 RegisterTrustList(
@@ -240,6 +273,16 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
+        public bool SendCertificateChain => m_sendCertificateChain;
+
+        /// <inheritdoc/>
+        public Func<Certificate, ServiceResult, bool>? AcceptError
+        {
+            get => m_acceptError;
+            set => m_acceptError = value;
+        }
+
+        /// <inheritdoc/>
         public IReadOnlyList<CertificateEntry> ApplicationCertificates => m_applicationCertificates;
 
         /// <inheritdoc/>
@@ -269,6 +312,28 @@ namespace Opc.Ua
         {
             CertificateEntry? entry = GetInstanceCertificate(securityPolicyUri);
             return entry?.GetEncodedChainBlob() ?? [];
+        }
+
+        /// <inheritdoc/>
+        public byte[]? LoadCertificateChainRaw(Certificate certificate)
+        {
+            if (certificate == null)
+            {
+                return null;
+            }
+
+            string thumbprint = certificate.Thumbprint;
+            for (int i = 0; i < m_applicationCertificates.Count; i++)
+            {
+                CertificateEntry entry = m_applicationCertificates[i];
+                if (string.Equals(entry.Certificate.Thumbprint, thumbprint, StringComparison.Ordinal))
+                {
+                    return entry.GetEncodedChainBlob();
+                }
+            }
+
+            // Not a registered application certificate: return the raw cert bytes.
+            return certificate.RawData;
         }
 
         /// <summary>
@@ -313,11 +378,38 @@ namespace Opc.Ua
         public async Task<CertificateValidationResult> ValidateAsync(
             CertificateCollection chain,
             TrustListIdentifier? trustList = null,
-            CertificateValidationOptions? options = null,
+            Opc.Ua.Security.Certificates.CertificateValidationOptions? options = null,
             CancellationToken ct = default)
         {
             trustList ??= TrustListIdentifier.Peers;
             CertificateValidator validator = GetOrCreateValidator(trustList);
+
+            // Per-call AcceptError takes precedence over the global hook.
+            Func<Certificate, ServiceResult, bool>? acceptError =
+                options?.AcceptError ?? m_acceptError;
+
+            CertificateValidationEventHandler? handler = null;
+            if (acceptError != null)
+            {
+                Func<Certificate, ServiceResult, bool> callback = acceptError;
+                handler = (sender, e) =>
+                {
+                    try
+                    {
+                        if (callback(e.Certificate, e.Error))
+                        {
+                            e.Accept = true;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        m_logger.LogError(
+                            ex,
+                            "CertificateValidationOptions.AcceptError callback threw; treating as reject.");
+                    }
+                };
+                validator.CertificateValidation += handler;
+            }
 
             try
             {
@@ -331,6 +423,13 @@ namespace Opc.Ua
                     ex.StatusCode,
                     [ex.Result],
                     isSuppressible: false);
+            }
+            finally
+            {
+                if (handler != null)
+                {
+                    validator.CertificateValidation -= handler;
+                }
             }
         }
 
@@ -651,6 +750,13 @@ namespace Opc.Ua
                 validator.Update(issuerStore, trustedStore, rejectedStore);
             }
 
+            // Propagate global validation flags captured from the source
+            // SecurityConfiguration. These would otherwise default to a
+            // strict policy (RejectUnknownRevocationStatus=true,
+            // AutoAcceptUntrustedCertificates=false, RejectSHA1=true) and
+            // ignore the user-configured AutoAcceptUntrustedCertificates flag.
+            ApplyValidationFlags(validator);
+
             // Cache well-known validators for reuse.
             if (trustList == TrustListIdentifier.Peers)
             {
@@ -666,6 +772,28 @@ namespace Opc.Ua
             }
 
             return validator;
+        }
+
+        /// <summary>
+        /// Applies the global validation flags captured from the
+        /// SecurityConfiguration to a (possibly already-created) validator.
+        /// Safe to call with a null validator.
+        /// </summary>
+        private void ApplyValidationFlags(CertificateValidator? validator)
+        {
+            if (validator == null)
+            {
+                return;
+            }
+
+            validator.AutoAcceptUntrustedCertificates = m_autoAcceptUntrustedCertificates;
+            validator.RejectSHA1SignedCertificates = m_rejectSHA1SignedCertificates;
+            validator.RejectUnknownRevocationStatus = m_rejectUnknownRevocationStatus;
+            if (m_minimumCertificateKeySize > 0)
+            {
+                validator.MinimumCertificateKeySize = m_minimumCertificateKeySize;
+            }
+            validator.UseValidatedCertificates = m_useValidatedCertificates;
         }
 
         /// <summary>

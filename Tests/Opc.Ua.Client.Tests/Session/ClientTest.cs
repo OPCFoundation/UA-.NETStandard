@@ -192,7 +192,7 @@ namespace Opc.Ua.Client.Tests
 
                 if (!endpoint.ServerCertificate.IsEmpty)
                 {
-                    using Certificate cert = CertificateFactory.Create(
+                    using Certificate cert = Certificate.FromRawData(
                         endpoint.ServerCertificate);
                     TestContext.Out.WriteLine("  [{0}]", cert.Thumbprint);
                 }

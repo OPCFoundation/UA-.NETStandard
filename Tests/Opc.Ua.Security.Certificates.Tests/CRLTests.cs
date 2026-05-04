@@ -241,7 +241,7 @@ namespace Opc.Ua.Security.Certificates.Tests
                 Assert.That(x509Crl.CrlExtensions, Has.Count.EqualTo(2));
             }
 
-            using Certificate issuerPubKey = CertificateFactory.Create(
+            using Certificate issuerPubKey = Certificate.FromRawData(
                 m_issuerCert.RawData);
             Assert.That(x509Crl.VerifySignature(issuerPubKey, true), Is.True);
         }
@@ -293,7 +293,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             Assert.That(x509Crl.RevokedCertificates[0].UserCertificate, Is.EqualTo(serial));
             Assert.That(x509Crl.RevokedCertificates[1].SerialNumber, Is.EqualTo(serstring));
             Assert.That(x509Crl.CrlExtensions, Has.Count.EqualTo(2));
-            using Certificate issuerPubKey = CertificateFactory.Create(
+            using Certificate issuerPubKey = Certificate.FromRawData(
                 m_issuerCert.RawData);
             Assert.That(x509Crl.VerifySignature(issuerPubKey, true), Is.True);
         }

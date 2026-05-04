@@ -32,6 +32,9 @@ using System.Collections.Generic;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Security.Certificates;
 
+// FILE-PRAGMA: legacy CertificateValidator/ICertificateValidator API kept for binary compat
+#pragma warning disable CS0618
+
 namespace Opc.Ua.Bindings
 {
     /// <summary>
@@ -194,7 +197,7 @@ namespace Opc.Ua.Bindings
                         endpoints,
                         endpointConfiguration,
                         listener,
-                        configuration.CertificateValidator.GetChannelValidator());
+                        configuration.CertificateValidator);
                 }
                 else
                 {

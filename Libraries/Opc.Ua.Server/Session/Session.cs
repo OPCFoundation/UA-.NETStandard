@@ -1015,7 +1015,7 @@ namespace Opc.Ua.Server
                 if (m_serverCertificate == null)
                 {
                     // check for valid certificate.
-                    m_serverCertificate = CertificateFactory.Create(
+                    m_serverCertificate = Certificate.FromRawData(
                         EndpointDescription.ServerCertificate) ??
                         throw ServiceResultException.ConfigurationError(
                             "ApplicationCertificate cannot be found.");

@@ -41,6 +41,10 @@ using Opc.Ua.Client;
 using Opc.Ua.Configuration;
 using Opc.Ua.Security.Certificates;
 
+// FILE-PRAGMA: legacy CertificateValidator/ICertificateValidator API kept for binary compat
+// TODO: migrate from CertificateValidation event to AcceptError callback after the legacy class is removed.
+#pragma warning disable CS0618
+
 namespace Quickstarts
 {
     /// <summary>
@@ -102,7 +106,7 @@ namespace Quickstarts
                     .LoadApplicationConfigurationAsync(silent: false, ct: ct)
                     .ConfigureAwait(false);
 
-                m_configuration.CertificateValidator.CertificateValidation += CertificateValidation;
+                m_configuration.CertificateValidator.AcceptError = AcceptCertificate;
 
                 // check the application certificate.
                 bool haveAppCertificate = await application
@@ -349,38 +353,29 @@ namespace Quickstarts
             return await client.GetEndpointsAsync(default, ct).ConfigureAwait(false);
         }
 
-        private void CertificateValidation(
-            CertificateValidator sender,
-            CertificateValidationEventArgs e)
+        private bool AcceptCertificate(Certificate certificate, ServiceResult error)
         {
-            bool certificateAccepted = false;
-
             // ****
             // Implement a custom logic to decide if the certificate should be
-            // accepted or not and set certificateAccepted flag accordingly.
-            // The certificate can be retrieved from the e.Certificate field
+            // accepted. Return true to accept, false to reject.
             // ***
-
-            ServiceResult error = e.Error;
             m_logger.LogInformation("{ServiceResult}", error);
-            if (error.StatusCode == StatusCodes.BadCertificateUntrusted)
-            {
-                certificateAccepted = true;
-            }
+            bool certificateAccepted = error.StatusCode == StatusCodes.BadCertificateUntrusted;
 
             if (certificateAccepted)
             {
                 m_logger.LogInformation(
                     "Untrusted Certificate accepted. Subject = {Subject}",
-                    e.Certificate.Subject);
-                e.Accept = true;
+                    certificate.Subject);
             }
             else
             {
                 m_logger.LogInformation(
                     "Untrusted Certificate rejected. Subject = {Subject}",
-                    e.Certificate.Subject);
+                    certificate.Subject);
             }
+
+            return certificateAccepted;
         }
 
         /// <summary>

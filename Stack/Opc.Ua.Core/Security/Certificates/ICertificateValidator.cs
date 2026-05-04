@@ -29,6 +29,7 @@
 
 #nullable enable
 
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Security.Certificates;
@@ -38,6 +39,7 @@ namespace Opc.Ua
     /// <summary>
     /// An abstract interface to the certificate validator.
     /// </summary>
+    [Obsolete("Use ICertificateValidatorEx (from ICertificateManager) instead. See Docs/CertificateManager.md.")]
     public interface ICertificateValidator
     {
         /// <summary>

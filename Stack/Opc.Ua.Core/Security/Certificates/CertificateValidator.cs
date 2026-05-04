@@ -44,12 +44,16 @@ using Opc.Ua.Redaction;
 using Opc.Ua.Security.Certificates;
 using X509AuthorityKeyIdentifierExtension = Opc.Ua.Security.Certificates.X509AuthorityKeyIdentifierExtension;
 
+// FILE-PRAGMA: legacy CertificateValidator/ICertificateValidator API kept for binary compat
+#pragma warning disable CS0618
+
 namespace Opc.Ua
 {
     /// <summary>
     /// Validates certificates.
     /// </summary>
-    public class CertificateValidator : ICertificateValidator, IDisposable
+    [Obsolete("Use ICertificateManager (CertificateManagerFactory.Create) and ICertificateValidatorEx instead. See Docs/CertificateManager.md.")]
+    public class CertificateValidator : ICertificateValidator, ICertificateValidatorEx, IDisposable
     {
         /// <summary>
         /// default number of rejected certificates for history
@@ -392,7 +396,7 @@ namespace Opc.Ua
             {
                 var args = new CertificateUpdateEventArgs(
                     securityConfiguration,
-                    GetChannelValidator());
+                    this);
                 callback(this, args);
             }
         }
@@ -593,6 +597,101 @@ namespace Opc.Ua
         {
             return ValidateAsync(certificateChain, null!, ct);
         }
+
+        /// <summary>
+        /// Explicit <see cref="ICertificateValidatorEx"/> implementation that
+        /// adapts the throwing legacy validator into the structured result
+        /// returned by the new design. Errors thrown by
+        /// <see cref="ValidateAsync(CertificateCollection, CancellationToken)"/>
+        /// are converted to a <see cref="CertificateValidationResult"/>
+        /// with <see cref="CertificateValidationResult.IsValid"/> set to
+        /// <see langword="false"/>. The <paramref name="trustList"/>
+        /// argument is informational only on this legacy validator (the
+        /// validator is configured with a single trust list at
+        /// construction); the <paramref name="options"/> argument is
+        /// honored for the
+        /// <see cref="Opc.Ua.Security.Certificates.CertificateValidationOptions.AcceptError"/>
+        /// per-error accept callback.
+        /// </summary>
+        async Task<CertificateValidationResult> ICertificateValidatorEx.ValidateAsync(
+            CertificateCollection chain,
+            TrustListIdentifier? trustList,
+            Opc.Ua.Security.Certificates.CertificateValidationOptions? options,
+            CancellationToken ct)
+        {
+            // Per-call AcceptError takes precedence over the global hook.
+            Func<Certificate, ServiceResult, bool>? acceptError =
+                options?.AcceptError ?? m_globalAcceptError;
+
+            CertificateValidationEventHandler? handler = null;
+            if (acceptError != null)
+            {
+                Func<Certificate, ServiceResult, bool> callback = acceptError;
+                handler = (sender, e) =>
+                {
+                    try
+                    {
+                        if (callback(e.Certificate, e.Error))
+                        {
+                            e.Accept = true;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        m_logger.LogError(
+                            ex,
+                            "CertificateValidationOptions.AcceptError callback threw; treating as reject.");
+                    }
+                };
+                CertificateValidation += handler;
+            }
+
+            try
+            {
+                await ValidateAsync(chain, ct).ConfigureAwait(false);
+                return CertificateValidationResult.Success;
+            }
+            catch (ServiceResultException ex)
+            {
+                return new CertificateValidationResult(
+                    isValid: false,
+                    statusCode: ex.StatusCode,
+                    errors: [ex.Result],
+                    isSuppressible: false);
+            }
+            finally
+            {
+                if (handler != null)
+                {
+                    CertificateValidation -= handler;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Explicit <see cref="ICertificateValidatorEx"/> implementation
+        /// for the single-certificate overload. Wraps the certificate
+        /// in a transient <see cref="CertificateCollection"/> and
+        /// delegates to the chain overload.
+        /// </summary>
+        Task<CertificateValidationResult> ICertificateValidatorEx.ValidateAsync(
+            Certificate certificate,
+            TrustListIdentifier? trustList,
+            CancellationToken ct)
+        {
+            ICertificateValidatorEx self = this;
+            using var chain = new CertificateCollection { certificate };
+            return self.ValidateAsync(chain, trustList, options: null, ct);
+        }
+
+        /// <inheritdoc/>
+        Func<Certificate, ServiceResult, bool>? ICertificateValidatorEx.AcceptError
+        {
+            get => m_globalAcceptError;
+            set => m_globalAcceptError = value;
+        }
+
+        private Func<Certificate, ServiceResult, bool>? m_globalAcceptError;
 
         /// <summary>
         /// Validates a certificate with domain validation check.
@@ -1856,6 +1955,18 @@ namespace Opc.Ua
         /// <summary>
         /// Returns an object that can be used with a UA channel.
         /// </summary>
+        /// <summary>
+        /// Returns this validator as an <see cref="ICertificateValidator"/>.
+        /// </summary>
+        /// <remarks>
+        /// This helper is preserved for backward compatibility. The
+        /// <see cref="CertificateValidator"/> class already implements
+        /// <see cref="ICertificateValidator"/>; new code should cast or
+        /// assign directly to the interface, or use
+        /// <see cref="CertificateValidatorAdapter"/> when bridging from
+        /// an <see cref="ICertificateValidatorEx"/>.
+        /// </remarks>
+        [Obsolete("CertificateValidator already implements ICertificateValidator; assign directly, or use CertificateValidatorAdapter for ICertificateValidatorEx.")]
         public ICertificateValidator GetChannelValidator()
         {
             return this;
@@ -1971,7 +2082,7 @@ namespace Opc.Ua
             }
         }
 
-        private static ServiceResult ValidateServerCertificateApplicationUri(Certificate serverCertificate, ConfiguredEndpoint endpoint)
+        internal static ServiceResult ValidateServerCertificateApplicationUri(Certificate serverCertificate, ConfiguredEndpoint endpoint)
         {
             string? applicationUri = endpoint?.Description?.Server?.ApplicationUri;
 
@@ -2220,7 +2331,7 @@ namespace Opc.Ua
         /// <param name="serverCertificate">The server certificate which is tested for domain names.</param>
         /// <param name="endpointUrl">The endpoint Url which was used to connect.</param>
         /// <returns>True if domain was found.</returns>
-        private static bool FindDomain(Certificate serverCertificate, Uri endpointUrl)
+        internal static bool FindDomain(Certificate serverCertificate, Uri endpointUrl)
         {
             bool domainFound = false;
 
@@ -2558,7 +2669,7 @@ namespace Opc.Ua
         /// </summary>
         public CertificateUpdateEventArgs(
             SecurityConfiguration configuration,
-            ICertificateValidator validator)
+            ICertificateValidatorEx validator)
         {
             SecurityConfiguration = configuration;
             CertificateValidator = validator;
@@ -2572,7 +2683,7 @@ namespace Opc.Ua
         /// <summary>
         /// The new certificate validator.
         /// </summary>
-        public ICertificateValidator CertificateValidator { get; }
+        public ICertificateValidatorEx CertificateValidator { get; }
     }
 
     /// <summary>

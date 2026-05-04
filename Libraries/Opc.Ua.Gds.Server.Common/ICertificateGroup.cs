@@ -48,7 +48,7 @@ namespace Opc.Ua.Gds.Server
         {
             if (certificate.HasPrivateKey)
             {
-                certificate = CertificateFactory.Create(certificate.RawData);
+                certificate = Certificate.FromRawData(certificate.RawData);
             }
             Certificate = certificate;
             PrivateKeyFormat = privateKeyFormat;

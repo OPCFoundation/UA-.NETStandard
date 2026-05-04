@@ -1770,7 +1770,7 @@ namespace Opc.Ua
                     certificateData = AsnUtils.ParseX509Blob(certificateData);
                 }
 #endif
-                return CertificateFactory.Create(certificateData);
+                return Certificate.FromRawData(certificateData);
             }
             catch (Exception e)
             {
@@ -1810,7 +1810,7 @@ namespace Opc.Ua
                         certBlob = AsnUtils.ParseX509Blob(certBlob);
                     }
 #endif
-                    certificate = CertificateFactory.Create(certBlob);
+                    certificate = Certificate.FromRawData(certBlob);
                     certificateChain.Add(certificate);
                     offset += certificate.RawData.Length;
                 }

@@ -43,6 +43,16 @@ namespace Opc.Ua.Security.Certificates
     /// </summary>
     public sealed class DefaultCertificateFactory : ICertificateFactory
     {
+        /// <summary>
+        /// Gets the shared singleton instance of <see cref="DefaultCertificateFactory"/>.
+        /// </summary>
+        /// <remarks>
+        /// Use this singleton when no dependency-injected
+        /// <see cref="ICertificateFactory"/> is available. The default factory
+        /// is stateless and safe to share across threads.
+        /// </remarks>
+        public static ICertificateFactory Instance { get; } = new DefaultCertificateFactory();
+
         /// <inheritdoc/>
         public Certificate CreateFromRawData(ReadOnlyMemory<byte> encodedData)
         {

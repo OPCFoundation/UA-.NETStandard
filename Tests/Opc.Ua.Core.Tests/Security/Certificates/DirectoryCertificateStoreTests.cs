@@ -209,7 +209,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 .SetLifeTime(365)
                 .CreateForRSA();
 
-            using Certificate publicKey = CertificateFactory.Create(cert.RawData);
+            using Certificate publicKey = Certificate.FromRawData(cert.RawData);
             await store.AddAsync(publicKey).ConfigureAwait(false);
 
             using CertificateCollection certs = await store.EnumerateAsync().ConfigureAwait(false);
@@ -228,7 +228,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 .SetLifeTime(365)
                 .CreateForRSA();
 
-            using Certificate publicKey = CertificateFactory.Create(cert.RawData);
+            using Certificate publicKey = Certificate.FromRawData(cert.RawData);
             await store.AddAsync(publicKey).ConfigureAwait(false);
 
             using CertificateCollection found = await store.FindByThumbprintAsync(publicKey.Thumbprint)
@@ -248,7 +248,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 .SetLifeTime(365)
                 .CreateForRSA();
 
-            using Certificate publicKey = CertificateFactory.Create(cert.RawData);
+            using Certificate publicKey = Certificate.FromRawData(cert.RawData);
             await store.AddAsync(publicKey).ConfigureAwait(false);
 
             string path = store.GetPublicKeyFilePath(publicKey.Thumbprint);
@@ -267,7 +267,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 .SetLifeTime(365)
                 .CreateForRSA();
 
-            using Certificate publicKey = CertificateFactory.Create(cert.RawData);
+            using Certificate publicKey = Certificate.FromRawData(cert.RawData);
             await store.AddAsync(publicKey).ConfigureAwait(false);
 
             bool deleted = await store.DeleteAsync(publicKey.Thumbprint).ConfigureAwait(false);
@@ -333,7 +333,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     .Create($"CN=RejectedCert{i}")
                     .SetLifeTime(365)
                     .CreateForRSA();
-                using Certificate publicKey = CertificateFactory.Create(cert.RawData);
+                using Certificate publicKey = Certificate.FromRawData(cert.RawData);
                 certs.Add(publicKey);
             }
 
@@ -377,7 +377,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     .SetLifeTime(365)
                     .CreateForRSA();
 
-                using Certificate publicKey = CertificateFactory.Create(cert.RawData);
+                using Certificate publicKey = Certificate.FromRawData(cert.RawData);
                 await store.AddAsync(publicKey).ConfigureAwait(false);
 
                 store.Open(tempDir2);

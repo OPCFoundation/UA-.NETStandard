@@ -35,6 +35,9 @@ using Opc.Ua.Bindings;
 using Opc.Ua.Security;
 using Opc.Ua.Security.Certificates;
 
+// FILE-PRAGMA: legacy CertificateValidator/ICertificateValidator API kept for binary compat
+#pragma warning disable CS0618
+
 namespace Opc.Ua
 {
     /// <summary>
@@ -1963,7 +1966,7 @@ namespace Opc.Ua
                 }
 
                 m_certificate?.Dispose();
-                m_certificate = CertificateFactory.Create(value);
+                m_certificate = Certificate.FromRawData(value);
                 m_subjectName = m_certificate.Subject;
                 m_thumbprint = m_certificate.Thumbprint;
                 CertificateType = GetCertificateType(m_certificate);

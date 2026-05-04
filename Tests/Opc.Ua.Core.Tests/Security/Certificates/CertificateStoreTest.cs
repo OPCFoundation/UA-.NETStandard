@@ -51,7 +51,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
     [SetCulture("en-us")]
     public class CertificateStoreTest
     {
-        private static readonly ICertificateFactory s_factory = new DefaultCertificateFactory();
+        private static readonly ICertificateFactory s_factory = DefaultCertificateFactory.Instance;
 
         public const string X509StoreSubject
             = "CN=Opc.Ua.Core.Tests, O=OPC Foundation, OU=X509Store, C=US";
@@ -121,7 +121,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 storePath,
                 telemetry: telemetry)
                 .ConfigureAwait(false);
-            using Certificate publicKey = CertificateFactory.Create(
+            using Certificate publicKey = Certificate.FromRawData(
                 appCertificate.RawData);
             Assert.That(publicKey, Is.Not.Null);
             Assert.That(publicKey.HasPrivateKey, Is.False);
@@ -170,7 +170,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             await appCertificate.AddToStoreAsync(certificateStoreIdentifier, password, telemetry: telemetry)
                 .ConfigureAwait(false);
 
-            using Certificate publicKey = CertificateFactory.Create(
+            using Certificate publicKey = Certificate.FromRawData(
                 appCertificate.RawData);
             Assert.That(publicKey, Is.Not.Null);
             Assert.That(publicKey.HasPrivateKey, Is.False);

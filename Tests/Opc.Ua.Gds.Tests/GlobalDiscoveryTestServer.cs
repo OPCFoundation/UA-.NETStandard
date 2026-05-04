@@ -39,6 +39,9 @@ using Opc.Ua.Gds.Server.Database.Linq;
 using Opc.Ua.Server;
 using Opc.Ua.Server.UserDatabase;
 
+// FILE-PRAGMA: legacy CertificateValidator/ICertificateValidator API kept for binary compat
+#pragma warning disable CS0618
+
 namespace Opc.Ua.Gds.Tests
 {
     public class GlobalDiscoveryTestServer
@@ -134,9 +137,10 @@ namespace Opc.Ua.Gds.Tests
                 throw new InvalidOperationException("Application instance certificate invalid!");
             }
 
-            if (!Config.SecurityConfiguration.AutoAcceptUntrustedCertificates)
+            if (!Config.SecurityConfiguration.AutoAcceptUntrustedCertificates &&
+                Config.CertificateValidator is CertificateValidator legacyValidator)
             {
-                Config.CertificateValidator.CertificateValidation
+                legacyValidator.CertificateValidation
                     += new CertificateValidationEventHandler(
                     CertificateValidator_CertificateValidation);
             }

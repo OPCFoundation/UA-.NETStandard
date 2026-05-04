@@ -280,7 +280,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 Descriptions = new List<EndpointDescription>(),
                 Configuration = EndpointConfiguration.Create(),
                 ServerCertificateTypesProvider = null,
-                CertificateValidator = new Mock<ICertificateValidator>().Object,
+                CertificateValidator = new Mock<ICertificateValidatorEx>().Object,
                 NamespaceUris = new NamespaceTable(),
                 Factory = null
             };
@@ -302,7 +302,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 Descriptions = new List<EndpointDescription>(),
                 Configuration = EndpointConfiguration.Create(),
                 ServerCertificateTypesProvider = null,
-                CertificateValidator = new Mock<ICertificateValidator>().Object,
+                CertificateValidator = new Mock<ICertificateValidatorEx>().Object,
                 NamespaceUris = new NamespaceTable(),
                 Factory = null
             };
@@ -415,7 +415,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 Descriptions = new List<EndpointDescription>(),
                 Configuration = EndpointConfiguration.Create(),
                 ServerCertificateTypesProvider = null,
-                CertificateValidator = new Mock<ICertificateValidator>().Object,
+                CertificateValidator = new Mock<ICertificateValidatorEx>().Object,
                 NamespaceUris = new NamespaceTable(),
                 Factory = null
             };

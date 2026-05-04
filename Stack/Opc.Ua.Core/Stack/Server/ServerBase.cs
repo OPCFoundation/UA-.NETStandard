@@ -40,6 +40,9 @@ using Microsoft.Extensions.Logging;
 using Opc.Ua.Bindings;
 using Opc.Ua.Security.Certificates;
 
+// FILE-PRAGMA: legacy CertificateValidator/ICertificateValidator API kept for binary compat
+#pragma warning disable CS0618
+
 namespace Opc.Ua
 {
     /// <summary>
@@ -687,12 +690,14 @@ namespace Opc.Ua
         /// The object used to verify client certificates
         /// </summary>
         /// <value>The identifier for an X509 certificate.</value>
-        public CertificateValidator CertificateValidator { get; private set; }
+        [Obsolete("Use ServerBase.CertificateManager (ICertificateManager) instead. See Docs/CertificateManager.md.")]
+        public ICertificateValidatorEx CertificateValidator { get; private set; }
 
         /// <summary>
         /// The server's application instance certificate types provider.
         /// </summary>
         /// <value>The provider for the X.509 certificates.</value>
+        [Obsolete("Use ServerBase.CertificateManager (ICertificateRegistry) instead. See Docs/CertificateManager.md.")]
         public CertificateTypesProvider InstanceCertificateTypesProvider { get; private set; }
 
         /// <summary>
@@ -829,7 +834,7 @@ namespace Opc.Ua
             List<EndpointDescription> endpoints,
             EndpointConfiguration endpointConfiguration,
             ITransportListener listener,
-            ICertificateValidator certificateValidator)
+            ICertificateValidatorEx certificateValidator)
         {
             // create the stack listener.
             try
@@ -1380,6 +1385,7 @@ namespace Opc.Ua
 #pragma warning disable CS0618 // Type or member is obsolete
             OnUpdateConfiguration(configuration);
 #pragma warning restore CS0618 // Type or member is obsolete
+#pragma warning disable CS0618 // re-enable file-level legacy CertificateValidator pragma
             return default;
         }
 
@@ -1438,14 +1444,8 @@ namespace Opc.Ua
                 }
             }
 
-            // load the instance certificate.
-            Certificate defaultInstanceCertificate = null;
-            InstanceCertificateTypesProvider = new CertificateTypesProvider(
-                configuration,
-                m_telemetry);
-            InstanceCertificateTypesProvider.InitializeAsync().GetAwaiter().GetResult();
-
-            // Initialize the new CertificateManager if not already set.
+            // Initialize the new CertificateManager first so the provider can
+            // be backed by it (registry-mode).
             if (CertificateManager == null)
             {
                 CertificateManager = CertificateManagerFactory.Create(
@@ -1455,6 +1455,17 @@ namespace Opc.Ua
                     configuration.SecurityConfiguration,
                     configuration.ApplicationUri).GetAwaiter().GetResult();
             }
+
+            // load the instance certificate.
+            Certificate defaultInstanceCertificate = null;
+#pragma warning disable CS0618 // legacy CertificateTypesProvider kept for compatibility on ServerBase
+            InstanceCertificateTypesProvider = new CertificateTypesProvider(
+                configuration,
+                CertificateManager,
+                m_telemetry);
+            InstanceCertificateTypesProvider.InitializeAsync().GetAwaiter().GetResult();
+#pragma warning restore CS0618
+#pragma warning disable CS0618 // re-enable file-level legacy CertificateValidator pragma
 
             foreach (ServerSecurityPolicy securityPolicy in configuration.ServerConfiguration
                 .SecurityPolicies)

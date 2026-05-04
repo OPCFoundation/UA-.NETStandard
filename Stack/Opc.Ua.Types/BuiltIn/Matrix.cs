@@ -267,7 +267,7 @@ namespace Opc.Ua
         private static void SanityCheckArrayElements(Array elements, BuiltInType builtInType)
         {
 #if DEBUG
-            var sanityCheck = TypeInfo.Construct(elements);
+            var sanityCheck = TypeInfo.Construct((object)elements);
             Debug.Assert(
                 sanityCheck.BuiltInType == builtInType ||
                 builtInType == BuiltInType.Enumeration ||

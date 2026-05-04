@@ -38,6 +38,9 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Security.Certificates;
 
+// FILE-PRAGMA: legacy CertificateValidator/ICertificateValidator API kept for binary compat
+#pragma warning disable CS0618
+
 namespace Opc.Ua.Client
 {
     /// <summary>
@@ -925,7 +928,7 @@ namespace Opc.Ua.Client
             m_sessionName = sessionConfiguration.SessionName ?? "SessionName";
             m_serverCertificate =
                 !serverCertificate.IsEmpty
-                    ? CertificateFactory.Create(serverCertificate)
+                    ? Certificate.FromRawData(serverCertificate)
                     : null;
             m_identity = sessionConfiguration.Identity ?? new UserIdentity();
             m_checkDomain = sessionConfiguration.CheckDomain;
@@ -1155,20 +1158,20 @@ namespace Opc.Ua.Client
 
                 if (requireEncryption)
                 {
-                    if (checkDomain)
+                    ICertificateValidatorEx validator =
+                        (ICertificateValidatorEx?)m_configuration.CertificateManager
+                        ?? m_configuration.CertificateValidator;
+                    CertificateValidationResult result = await validator
+                        .ValidateAsync(serverCertificateChain, ct: ct)
+                        .ConfigureAwait(false);
+                    if (!result.IsValid)
                     {
-                        await m_configuration
-                            .CertificateValidator.ValidateAsync(
-                                serverCertificateChain,
-                                m_endpoint,
-                                ct)
-                            .ConfigureAwait(false);
+                        throw new ServiceResultException(result.StatusCode);
                     }
-                    else
+
+                    if (checkDomain && serverCertificateChain.Count > 0)
                     {
-                        await m_configuration
-                            .CertificateValidator.ValidateAsync(serverCertificateChain, ct)
-                            .ConfigureAwait(false);
+                        validator.ValidateDomains(serverCertificateChain[0], m_endpoint);
                     }
                     // save for reconnect
                     m_checkDomain = checkDomain;
@@ -1537,9 +1540,16 @@ namespace Opc.Ua.Client
                 requireEncryption &&
                 identity.TokenType != UserTokenType.Anonymous)
             {
-                await m_configuration.CertificateValidator.ValidateAsync(
-                    m_serverCertificate,
-                    ct).ConfigureAwait(false);
+                ICertificateValidatorEx validator =
+                    (ICertificateValidatorEx?)m_configuration.CertificateManager
+                    ?? m_configuration.CertificateValidator;
+                CertificateValidationResult result = await validator
+                    .ValidateAsync(m_serverCertificate, ct: ct)
+                    .ConfigureAwait(false);
+                if (!result.IsValid)
+                {
+                    throw new ServiceResultException(result.StatusCode);
+                }
             }
 
             // validate server nonce and security parameters for user identity.
@@ -4177,7 +4187,10 @@ namespace Opc.Ua.Client
         {
             if (serverCertificate != null)
             {
-                m_configuration.CertificateValidator.ValidateApplicationUri(serverCertificate, endpoint);
+                ICertificateValidatorEx validator =
+                    (ICertificateValidatorEx?)m_configuration.CertificateManager
+                    ?? m_configuration.CertificateValidator;
+                validator.ValidateApplicationUri(serverCertificate, endpoint);
             }
         }
 
@@ -4806,9 +4819,12 @@ namespace Opc.Ua.Client
                 try
                 {
                     List<CertificateIdentifier> issuers = [];
-                    await configuration
-                        .CertificateValidator.GetIssuersAsync(clientCertificate, issuers, ct)
-                        .ConfigureAwait(false);
+                    if (configuration.CertificateValidator is CertificateValidator getIssuersValidator)
+                    {
+                        await getIssuersValidator
+                            .GetIssuersAsync(clientCertificate, issuers, ct)
+                            .ConfigureAwait(false);
+                    }
 
                     for (int i = 0; i < issuers.Count; i++)
                     {

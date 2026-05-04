@@ -33,6 +33,9 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Tests;
 
+// FILE-PRAGMA: legacy CertificateValidator/ICertificateValidator API kept for binary compat
+#pragma warning disable CS0618
+
 namespace Opc.Ua.Core.Tests
 {
     [TestFixture]

@@ -36,6 +36,9 @@ using NUnit.Framework;
 using Opc.Ua.Security.Certificates;
 using X509AuthorityKeyIdentifierExtension = Opc.Ua.Security.Certificates.X509AuthorityKeyIdentifierExtension;
 
+// FILE-PRAGMA: legacy CertificateValidator/ICertificateValidator API kept for binary compat
+#pragma warning disable CS0618
+
 namespace Opc.Ua.Gds.Tests
 {
     public static class X509TestUtils
@@ -48,7 +51,7 @@ namespace Opc.Ua.Gds.Tests
             byte[][] issuerCertificates,
             ITelemetryContext telemetry)
         {
-            using Certificate newCert = CertificateFactory.Create(certificate);
+            using Certificate newCert = Certificate.FromRawData(certificate);
             Assert.That(newCert, Is.Not.Null);
             Certificate newPrivateKeyCert = null;
             if (privateKeyFormat == "PFX")
@@ -59,7 +62,7 @@ namespace Opc.Ua.Gds.Tests
             }
             else if (privateKeyFormat == "PEM")
             {
-                newPrivateKeyCert = CertificateFactory.CreateCertificateWithPEMPrivateKey(
+                newPrivateKeyCert = DefaultCertificateFactory.Instance.CreateWithPEMPrivateKey(
                     newCert,
                     privateKey,
                     privateKeyPassword);
@@ -75,7 +78,7 @@ namespace Opc.Ua.Gds.Tests
             var issuerCertIdList = new List<CertificateIdentifier>();
             foreach (byte[] issuer in issuerCertificates)
             {
-                Certificate issuerCert = CertificateFactory.Create(issuer);
+                Certificate issuerCert = Certificate.FromRawData(issuer);
                 Assert.That(issuerCert, Is.Not.Null);
                 issuerCertIdList.Add(new CertificateIdentifier(issuerCert));
             }
@@ -101,8 +104,8 @@ namespace Opc.Ua.Gds.Tests
             byte[] rawSignedCert,
             byte[][] rawIssuerCerts)
         {
-            Certificate signedCert = CertificateFactory.Create(rawSignedCert);
-            Certificate issuerCert = CertificateFactory.Create(rawIssuerCerts[0]);
+            Certificate signedCert = Certificate.FromRawData(rawSignedCert);
+            Certificate issuerCert = Certificate.FromRawData(rawIssuerCerts[0]);
 
             TestContext.Out.WriteLine($"Signed cert: {signedCert}");
             TestContext.Out.WriteLine($"Issuer cert: {issuerCert}");

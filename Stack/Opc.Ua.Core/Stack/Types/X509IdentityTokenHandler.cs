@@ -46,7 +46,7 @@ namespace Opc.Ua
 
             if (!m_token.CertificateData.IsEmpty)
             {
-                m_certificate = CertificateFactory.Create(m_token.CertificateData);
+                m_certificate = Certificate.FromRawData(m_token.CertificateData);
             }
 
             m_ownsCertificate = true;
@@ -105,7 +105,7 @@ namespace Opc.Ua
             {
                 if (m_certificate == null && !m_token.CertificateData.IsEmpty)
                 {
-                    m_certificate = CertificateFactory.Create(m_token.CertificateData);
+                    m_certificate = Certificate.FromRawData(m_token.CertificateData);
                 }
                 return m_certificate;
             }
@@ -149,7 +149,7 @@ namespace Opc.Ua
             Nonce ephemeralKey = null,
             Certificate senderCertificate = null,
             CertificateCollection senderIssuerCertificates = null,
-            CertificateValidator validator = null)
+            ICertificateValidatorEx validator = null)
         {
         }
 
@@ -161,7 +161,7 @@ namespace Opc.Ua
             SecurityPolicyInfo info = SecurityPolicies.GetInfo(securityPolicyUri);
             Certificate ownedCert = null;
             Certificate certificate = Certificate ??
-                (ownedCert = CertificateFactory.Create(m_token.CertificateData));
+                (ownedCert = Certificate.FromRawData(m_token.CertificateData));
 
             try
             {
@@ -187,7 +187,7 @@ namespace Opc.Ua
                 SecurityPolicyInfo info = SecurityPolicies.GetInfo(securityPolicyUri);
                 Certificate ownedCert = null;
                 Certificate certificate = Certificate ??
-                    (ownedCert = CertificateFactory.Create(m_token.CertificateData));
+                    (ownedCert = Certificate.FromRawData(m_token.CertificateData));
 
                 try
                 {

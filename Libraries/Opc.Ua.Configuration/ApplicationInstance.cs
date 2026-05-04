@@ -39,6 +39,9 @@ using Microsoft.Extensions.Logging;
 using System.Security.Cryptography;
 using Opc.Ua.Security.Certificates;
 
+// FILE-PRAGMA: legacy CertificateValidator/ICertificateValidator API kept for binary compat
+#pragma warning disable CS0618
+
 namespace Opc.Ua.Configuration
 {
     /// <inheritdoc/>
@@ -61,7 +64,7 @@ namespace Opc.Ua.Configuration
                 Server = null;
             }
 
-            ApplicationConfiguration?.CertificateValidator?.Dispose();
+            (ApplicationConfiguration?.CertificateValidator as IDisposable)?.Dispose();
 
             if (ApplicationConfiguration?.SecurityConfiguration?.ApplicationCertificates != null)
             {
@@ -298,6 +301,7 @@ namespace Opc.Ua.Configuration
 #pragma warning disable CS0618 // Type or member is obsolete
             ApplicationConfiguration.TraceConfiguration.ApplySettings();
 #pragma warning restore CS0618 // Type or member is obsolete
+#pragma warning disable CS0618 // re-enable file-level legacy CertificateValidator pragma
 
             return new ApplicationConfigurationBuilder(this);
         }
@@ -346,6 +350,18 @@ namespace Opc.Ua.Configuration
                 throw ServiceResultException.ConfigurationError("Need at least one Application Certificate.");
             }
 
+            // Initialize CertificateManager early so CheckApplicationInstanceCertificateAsync
+            // can use the new ICertificateValidatorEx pipeline (with CertificateValidationOptions.AcceptError)
+            // for per-certificate validation below.
+            CertificateManager ??= CertificateManagerFactory.Create(
+                securityConfiguration,
+                m_telemetry);
+
+            // Make the manager visible via the configuration so consumers
+            // that only see ApplicationConfiguration (e.g. Session) can
+            // route validation through the new pipeline.
+            ApplicationConfiguration.CertificateManager = CertificateManager;
+
             // Note: The FindAsync method searches certificates in this order: thumbprint, subjectName, then applicationUri.
             // When SubjectName or Thumbprint is specified, certificates may be loaded even if their ApplicationUri
             // doesn't match ApplicationConfiguration.ApplicationUri, however each certificate is validated individually
@@ -365,11 +381,6 @@ namespace Opc.Ua.Configuration
                     .ConfigureAwait(false);
                 result = result && nextResult;
             }
-
-            // Initialize CertificateManager from security configuration
-            CertificateManager ??= CertificateManagerFactory.Create(
-                securityConfiguration,
-                m_telemetry);
 
             return result;
         }
@@ -656,16 +667,6 @@ namespace Opc.Ua.Configuration
                 StatusCodes.BadCertificateRevocationUnknown,
                 StatusCodes.BadCertificateIssuerRevocationUnknown
             ];
-            void OnCertificateValidation(object sender, CertificateValidationEventArgs e)
-            {
-                if (approvedCodes.Contains(e.Error.StatusCode))
-                {
-                    m_logger.LogWarning(
-                        "Application Certificate Validation suppressed {ErrorMessage}",
-                        e.Error.StatusCode);
-                    e.Accept = true;
-                }
-            }
 
             m_logger.LogInformation(
                 "Check application instance certificate {Certificate}.",
@@ -673,16 +674,41 @@ namespace Opc.Ua.Configuration
 
             try
             {
-                // validate certificate.
-                configuration.CertificateValidator.CertificateValidation += OnCertificateValidation;
+                // validate certificate via the new CertificateManager pipeline,
+                // suppressing the same set of errors that the legacy
+                // CertificateValidation event handler used to accept.
+                var options = new Opc.Ua.Security.Certificates.CertificateValidationOptions
+                {
+                    AcceptError = (cert, error) =>
+                    {
+                        if (approvedCodes.Contains(error.StatusCode))
+                        {
+                            m_logger.LogWarning(
+                                "Application Certificate Validation suppressed {ErrorMessage}",
+                                error.StatusCode);
+                            return true;
+                        }
+                        return false;
+                    }
+                };
+
                 using Certificate publicKeyCert = certificate.HasPrivateKey
-                    ? CertificateFactory.Create(certificate.RawData)
+                    ? Certificate.FromRawData(certificate.RawData)
                     : null;
-                await configuration
-                    .CertificateValidator.ValidateAsync(
-                        publicKeyCert ?? certificate,
-                        ct)
+                using var chain = new CertificateCollection { publicKeyCert ?? certificate };
+
+                CertificateValidationResult result = await CertificateManager
+                    .ValidateAsync(
+                        chain,
+                        trustList: null,
+                        options: options,
+                        ct: ct)
                     .ConfigureAwait(false);
+
+                if (!result.IsValid)
+                {
+                    throw new ServiceResultException(result.StatusCode);
+                }
             }
             catch (Exception ex)
             {
@@ -693,10 +719,6 @@ namespace Opc.Ua.Configuration
                 {
                     return false;
                 }
-            }
-            finally
-            {
-                configuration.CertificateValidator.CertificateValidation -= OnCertificateValidation;
             }
 
             // check key size
@@ -891,7 +913,7 @@ namespace Opc.Ua.Configuration
                 Utils.GetAbsoluteDirectoryPath(id.StorePath, true, true, true);
             }
 
-            Security.Certificates.ICertificateBuilder builder = new DefaultCertificateFactory()
+            Security.Certificates.ICertificateBuilder builder = DefaultCertificateFactory.Instance
                 .CreateApplicationCertificate(
                     configuration.ApplicationUri,
                     configuration.ApplicationName,
@@ -957,9 +979,12 @@ namespace Opc.Ua.Configuration
                 ct)
                 .ConfigureAwait(false);
 
-            await configuration
-                .CertificateValidator.UpdateAsync(configuration.SecurityConfiguration, applicationUri: null, ct)
-                .ConfigureAwait(false);
+            if (configuration.CertificateValidator is CertificateValidator legacyValidator)
+            {
+                await legacyValidator
+                    .UpdateAsync(configuration.SecurityConfiguration, applicationUri: null, ct)
+                    .ConfigureAwait(false);
+            }
 
             m_logger.LogInformation(
                 "Certificate {Certificate} created for {ApplicationUri}.",
@@ -1155,7 +1180,7 @@ namespace Opc.Ua.Configuration
                     }
 
                     // add new certificate.
-                    using Certificate publicKey = CertificateFactory.Create(certificate.RawData);
+                    using Certificate publicKey = Certificate.FromRawData(certificate.RawData);
                     await store.AddAsync(publicKey, ct: ct).ConfigureAwait(false);
 
                     m_logger.LogInformation("Added application certificate to trusted peer store.");

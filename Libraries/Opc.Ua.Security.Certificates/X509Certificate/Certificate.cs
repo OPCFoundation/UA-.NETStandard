@@ -196,6 +196,19 @@ namespace Opc.Ua.Security.Certificates
         }
 
         /// <summary>
+        /// Creates a public-key-only <see cref="Certificate"/> from
+        /// DER or PEM encoded raw data.
+        /// </summary>
+        /// <param name="rawData">The DER or PEM encoded certificate data.</param>
+        /// <returns>
+        /// A new <see cref="Certificate"/> containing only the public key.
+        /// </returns>
+        public static Certificate FromRawData(ReadOnlyMemory<byte> rawData)
+        {
+            return new Certificate(rawData.ToArray());
+        }
+
+        /// <summary>
         /// Creates a copy of the inner <see cref="X509Certificate2"/>.
         /// The caller owns the returned instance and must dispose it.
         /// Private keys are preserved if present.

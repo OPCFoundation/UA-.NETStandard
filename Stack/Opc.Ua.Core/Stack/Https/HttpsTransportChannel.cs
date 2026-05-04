@@ -467,7 +467,16 @@ namespace Opc.Ua.Bindings
                                 }
 
                                 using CertificateCollection validationCollection = CertificateCollection.From(validationChain);
-                                m_quotas.CertificateValidator?.ValidateAsync(validationCollection, default).GetAwaiter().GetResult();
+                                if (m_quotas.CertificateValidator != null)
+                                {
+                                    CertificateValidationResult validationResult = m_quotas.CertificateValidator
+                                        .ValidateAsync(validationCollection, ct: default)
+                                        .GetAwaiter().GetResult();
+                                    if (!validationResult.IsValid)
+                                    {
+                                        throw new ServiceResultException(validationResult.StatusCode);
+                                    }
+                                }
                                 ServerChannelCertificate = cert.RawData;
                                 return true;
                             }

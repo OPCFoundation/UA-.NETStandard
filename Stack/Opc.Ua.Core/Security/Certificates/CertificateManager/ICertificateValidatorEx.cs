@@ -65,7 +65,7 @@ namespace Opc.Ua
         Task<CertificateValidationResult> ValidateAsync(
             CertificateCollection chain,
             TrustListIdentifier? trustList = null,
-            CertificateValidationOptions? options = null,
+            Opc.Ua.Security.Certificates.CertificateValidationOptions? options = null,
             CancellationToken ct = default);
 
         /// <summary>
@@ -85,6 +85,21 @@ namespace Opc.Ua
             TrustListIdentifier? trustList = null,
             CancellationToken ct = default);
 
-        // TODO: Add CertificateValidation event when Core dependency is resolved
+        /// <summary>
+        /// Gets or sets a global per-error accept callback that is consulted on
+        /// every validation performed by this validator. The callback receives
+        /// the offending <see cref="Certificate"/> and the <see cref="ServiceResult"/>
+        /// describing the error. Returning <see langword="true"/> accepts the
+        /// individual error; returning <see langword="false"/> (or throwing)
+        /// rejects it.
+        /// </summary>
+        /// <remarks>
+        /// This is the modern replacement for the legacy
+        /// <c>CertificateValidator.CertificateValidation</c> event. Per-call
+        /// <see cref="Opc.Ua.Security.Certificates.CertificateValidationOptions.AcceptError"/>
+        /// callbacks (when set on a particular <c>ValidateAsync</c> call) take
+        /// precedence over this global hook.
+        /// </remarks>
+        System.Func<Certificate, ServiceResult, bool>? AcceptError { get; set; }
     }
 }

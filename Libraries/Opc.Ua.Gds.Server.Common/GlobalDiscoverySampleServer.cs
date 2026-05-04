@@ -338,9 +338,17 @@ namespace Opc.Ua.Gds.Server
             using var x509TokenHandler = new X509IdentityTokenHandler(token);
             try
             {
-                CertificateValidator.ValidateAsync(
-                    x509TokenHandler.Certificate,
-                    default).GetAwaiter().GetResult();
+                // Validate against the Users trust list using the new
+                // CertificateManager pipeline. Throws on validation failure.
+                CertificateValidationResult result = CertificateManager
+                    .ValidateAsync(
+                        x509TokenHandler.Certificate,
+                        TrustListIdentifier.Users)
+                    .GetAwaiter().GetResult();
+                if (!result.IsValid)
+                {
+                    throw new ServiceResultException(result.StatusCode);
+                }
             }
             catch (Exception e)
             {
