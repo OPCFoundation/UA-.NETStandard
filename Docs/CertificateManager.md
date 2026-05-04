@@ -184,8 +184,33 @@ Validates certificates against any trust-list. Works with both stored and epheme
 |--------|-------------|
 | `ValidateAsync(CertificateCollection, TrustListIdentifier?, ...)` | Validate a chain against a trust-list |
 | `ValidateAsync(Certificate, TrustListIdentifier?, ...)` | Validate a single certificate |
+| `AcceptError` (property) | `Func<Certificate, ServiceResult, bool>?` — global per-error accept callback that fires for **every** validation done through this validator. Modern replacement for the legacy `CertificateValidator.CertificateValidation` event. Per-call `CertificateValidationOptions.AcceptError` (when set) takes precedence over this global hook. |
 
 Returns `CertificateValidationResult` with `IsValid`, `StatusCode`, `Errors`, and `IsSuppressible`.
+
+##### Migrating from the legacy `CertificateValidation` event
+
+Set the global `AcceptError` property once on `ApplicationConfiguration.CertificateValidator` (or any `ICertificateValidatorEx` instance) and a single delegate handles every validation:
+
+```csharp
+// Before (legacy event):
+config.CertificateValidator.CertificateValidation += (s, e) =>
+{
+    if (e.Error.StatusCode == StatusCodes.BadCertificateUntrusted) { e.Accept = true; }
+};
+
+// After (modern global hook on ICertificateValidatorEx):
+config.CertificateValidator.AcceptError = (cert, error) =>
+    error.StatusCode == StatusCodes.BadCertificateUntrusted;
+
+// Or per-call (overrides the global hook for that call only):
+var options = new CertificateValidationOptions
+{
+    AcceptError = (cert, error) =>
+        error.StatusCode == StatusCodes.BadCertificateUntrusted
+};
+CertificateValidationResult result = await manager.ValidateAsync(chain, options: options);
+```
 
 Per-call validation behaviour can be overridden via
 `CertificateValidationOptions`:
