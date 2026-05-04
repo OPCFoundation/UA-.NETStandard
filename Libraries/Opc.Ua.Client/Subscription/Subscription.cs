@@ -44,7 +44,6 @@ namespace Opc.Ua.Client
     /// </summary>
     public class Subscription : ISnapshotRestore<SubscriptionState>, IDisposable, ICloneable
     {
-        private const int kMinKeepAliveTimerInterval = 1000;
         private const int kKeepAliveTimerMargin = 1000;
         private const int kRepublishMessageExpiredTimeout = 10000;
 
@@ -52,6 +51,11 @@ namespace Opc.Ua.Client
         /// Duration to wait before republishing missed notification
         /// </summary>
         public const int RepublishMessageTimeout = 2500;
+
+        /// <summary>
+        /// Minimum keep alive interval
+        /// </summary>
+        public const int MinKeepAliveTimerInterval = 1000;
 
         /// <summary>
         /// Create subscription
@@ -2125,7 +2129,9 @@ namespace Opc.Ua.Client
 
             if (session != null &&
                 session.Connected &&
-                !session.Reconnecting)
+                !session.Reconnecting &&
+                !session.KeepAliveStopped
+                )
             {
                 TraceState("PUBLISHING STOPPED");
 
@@ -2219,7 +2225,7 @@ namespace Opc.Ua.Client
         {
             return Math.Max(
                 Math.Min(m_keepAliveInterval * 3, int.MaxValue),
-                kMinKeepAliveTimerInterval);
+                MinKeepAliveTimerInterval);
         }
 
         /// <summary>
@@ -2333,12 +2339,12 @@ namespace Opc.Ua.Client
         {
             int keepAliveInterval = (int)
                 Math.Min(CurrentPublishingInterval * (CurrentKeepAliveCount + 1), int.MaxValue);
-            if (keepAliveInterval < kMinKeepAliveTimerInterval)
+            if (keepAliveInterval < MinKeepAliveTimerInterval)
             {
                 keepAliveInterval = (int)Math.Min(
                     PublishingInterval * (KeepAliveCount + 1),
                     int.MaxValue);
-                keepAliveInterval = Math.Max(kMinKeepAliveTimerInterval, keepAliveInterval);
+                keepAliveInterval = Math.Max(MinKeepAliveTimerInterval, keepAliveInterval);
             }
             return keepAliveInterval;
         }
