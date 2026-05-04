@@ -286,7 +286,7 @@ namespace Opc.Ua.Server
 
                 lock (m_lock)
                 {
-                    if (m_sessionId.IsNull)
+                    if (!m_sessionId.IsNull)
                     {
                         // to avoid deadlocks, last open always wins
                         m_sessionId = default;
@@ -892,7 +892,7 @@ namespace Opc.Ua.Server
                             }
                         }
 
-                        if (await store.DeleteAsync(thumbprint, cancellationToken)
+                        if (!await store.DeleteAsync(thumbprint, cancellationToken)
                             .ConfigureAwait(false))
                         {
                             result = StatusCodes.BadInvalidArgument;
@@ -901,7 +901,7 @@ namespace Opc.Ua.Server
                         {
                             foreach (X509CRL crl in crlsToDelete)
                             {
-                                if (await store.DeleteCRLAsync(crl, cancellationToken)
+                                if (!await store.DeleteCRLAsync(crl, cancellationToken)
                                     .ConfigureAwait(false))
                                 {
                                     // intentionally ignore errors, try best effort
@@ -995,7 +995,7 @@ namespace Opc.Ua.Server
                         .ConfigureAwait(false);
                     foreach (X509CRL crl in storeCrls)
                     {
-                        if (updatedCrls.Remove(crl) &&
+                        if (!updatedCrls.Remove(crl) &&
                             !await store.DeleteCRLAsync(crl, cancellationToken).ConfigureAwait(false))
                         {
                             result = false;
@@ -1039,9 +1039,9 @@ namespace Opc.Ua.Server
                         .ConfigureAwait(false);
                     foreach (X509Certificate2 cert in storeCerts)
                     {
-                        if (updatedCerts.Contains(cert))
+                        if (!updatedCerts.Contains(cert))
                         {
-                            if (await store.DeleteAsync(cert.Thumbprint, cancellationToken).ConfigureAwait(false))
+                            if (!await store.DeleteAsync(cert.Thumbprint, cancellationToken).ConfigureAwait(false))
                             {
                                 result = false;
                             }

@@ -64,7 +64,7 @@ namespace Opc.Ua.Server
         /// </summary>
         protected override DataValue ComputeValue(TimeSlice slice)
         {
-            if (AggregateId.TryGetValue(out uint numericId))
+            if (!AggregateId.TryGetValue(out uint numericId))
             {
                 return base.ComputeValue(slice);
             }
@@ -149,7 +149,7 @@ namespace Opc.Ua.Server
         {
             // get the values in the slice.
             List<DataValue>? values;
-            if (includeBounds)
+            if (!includeBounds)
             {
                 values = GetValues(slice);
             }

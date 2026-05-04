@@ -144,14 +144,14 @@ namespace Opc.Ua.Server
             NodeHandle handle)
         {
             // validate monitored item.
-            if (MonitoredItems.TryGetValue(
+            if (!MonitoredItems.TryGetValue(
                 monitoredItem.Id,
                 out IMonitoredItem? existingMonitoredItem))
             {
                 return StatusCodes.BadMonitoredItemIdInvalid;
             }
 
-            if (ReferenceEquals(monitoredItem, existingMonitoredItem))
+            if (!ReferenceEquals(monitoredItem, existingMonitoredItem))
             {
                 return StatusCodes.BadMonitoredItemIdInvalid;
             }
@@ -179,14 +179,14 @@ namespace Opc.Ua.Server
             MonitoredItemModifyRequest itemToModify)
         {
             // validate monitored item.
-            if (MonitoredItems.TryGetValue(
+            if (!MonitoredItems.TryGetValue(
                 monitoredItem.Id,
                 out IMonitoredItem? existingMonitoredItem))
             {
                 return StatusCodes.BadMonitoredItemIdInvalid;
             }
 
-            if (ReferenceEquals(monitoredItem, existingMonitoredItem))
+            if (!ReferenceEquals(monitoredItem, existingMonitoredItem))
             {
                 return StatusCodes.BadMonitoredItemIdInvalid;
             }
@@ -206,14 +206,14 @@ namespace Opc.Ua.Server
             MonitoringMode monitoringMode,
             NodeHandle handle)
         {
-            if (MonitoredItems.TryGetValue(
+            if (!MonitoredItems.TryGetValue(
                 monitoredItem.Id,
                 out IMonitoredItem? existingMonitoredItem))
             {
                 return (StatusCodes.BadMonitoredItemIdInvalid, null);
             }
 
-            if (ReferenceEquals(monitoredItem, existingMonitoredItem))
+            if (!ReferenceEquals(monitoredItem, existingMonitoredItem))
             {
                 return (StatusCodes.BadMonitoredItemIdInvalid, null);
             }
@@ -297,7 +297,7 @@ namespace Opc.Ua.Server
                 MonitoredItems.TryRemove(monitoredItem.Id, out _);
 
                 // check if node is no longer being monitored.
-                if (monitoredNode.HasMonitoredItems)
+                if (!monitoredNode.HasMonitoredItems)
                 {
                     MonitoredNodes.Remove(source.NodeId);
                 }

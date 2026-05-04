@@ -391,7 +391,7 @@ namespace Opc.Ua.Server
                 }
 
                 // verify that session has been activated.
-                if (Activated && requestType != RequestType.CloseSession)
+                if (!Activated && requestType != RequestType.CloseSession)
                 {
                     UpdateDiagnosticCounters(requestType, true, true);
                     throw new ServiceResultException(StatusCodes.BadSessionNotActivated);
@@ -443,7 +443,7 @@ namespace Opc.Ua.Server
             {
                 string[] ids = [.. localeIds];
 
-                if (Utils.IsEqual(ids, PreferredLocales))
+                if (!Utils.IsEqual(ids, PreferredLocales))
                 {
                     PreferredLocales = ids;
 
@@ -510,7 +510,7 @@ namespace Opc.Ua.Server
                         context.ChannelContext.ClientChannelCertificate,
                         ClientNonce.ToArray());
 
-                    if (SecurityPolicies.VerifySignatureData(
+                    if (!SecurityPolicies.VerifySignatureData(
                             clientSignature!,
                             EndpointDescription.SecurityPolicyUri!,
                             ClientCertificate,
@@ -543,7 +543,7 @@ namespace Opc.Ua.Server
                                 context.ChannelContext.ClientChannelCertificate,
                                 ClientNonce.ToArray());
 
-                            if (SecurityPolicies.VerifySignatureData(
+                            if (!SecurityPolicies.VerifySignatureData(
                                   clientSignature!,
                                   EndpointDescription.SecurityPolicyUri!,
                                   ClientCertificate,
@@ -561,7 +561,7 @@ namespace Opc.Ua.Server
                     }
                 }
 
-                if (Activated)
+                if (!Activated)
                 {
                     // must active the session on the channel that was used to create it.
                     if (SecureChannelId != context.ChannelContext.SecureChannelId)
@@ -609,7 +609,7 @@ namespace Opc.Ua.Server
                     changed = true;
                 }
 
-                if (Activated)
+                if (!Activated)
                 {
                     // toggle the activated flag.
                     Activated = true;
@@ -876,7 +876,7 @@ namespace Opc.Ua.Server
                 identityToken.TryGetValue(out AnonymousIdentityToken? _))
             {
                 // check if an anonymous login is permitted.
-                if (EndpointDescription.UserIdentityTokens.IsEmpty)
+                if (!EndpointDescription.UserIdentityTokens.IsEmpty)
                 {
                     bool found = false;
 
@@ -891,7 +891,7 @@ namespace Opc.Ua.Server
                         }
                     }
 
-                    if (found)
+                    if (!found)
                     {
                         throw ServiceResultException.Create(
                             StatusCodes.BadIdentityTokenRejected,
@@ -1054,7 +1054,7 @@ namespace Opc.Ua.Server
                         context.ChannelContext.ClientChannelCertificate,
                         ClientNonce.ToArray());
 
-                    if (token.Verify(dataToSign, userTokenSignature, securityPolicyUri!))
+                    if (!token.Verify(dataToSign, userTokenSignature, securityPolicyUri!))
                     {
                         // verify for certificate chain in endpoint.
                         // validate the signature with complete chain if the check with leaf certificate failed.
@@ -1082,7 +1082,7 @@ namespace Opc.Ua.Server
                                 context.ChannelContext.ClientChannelCertificate,
                                 ClientNonce.ToArray());
 
-                            if (token.Verify(dataToSign, userTokenSignature, securityPolicyUri!))
+                            if (!token.Verify(dataToSign, userTokenSignature, securityPolicyUri!))
                             {
                                 throw new ServiceResultException(
                                     StatusCodes.BadIdentityTokenRejected,
@@ -1158,7 +1158,7 @@ namespace Opc.Ua.Server
 
             lock (DiagnosticsLock)
             {
-                if (error)
+                if (!error)
                 {
                     SessionDiagnostics.ClientLastContactTime = DateTime.UtcNow;
                     m_lastContactTickCount = HiResClock.TickCount64;

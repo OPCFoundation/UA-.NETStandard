@@ -224,7 +224,7 @@ namespace Opc.Ua.Server
         /// </summary>
         public void RemoveQueuedRequests()
         {
-            if (m_queuedSubscriptions.IsEmpty)
+            if (!m_queuedSubscriptions.IsEmpty)
             {
                 return;
             }
@@ -356,7 +356,7 @@ namespace Opc.Ua.Server
                 }
             }
 
-            if (diagnosticsExist)
+            if (!diagnosticsExist)
             {
                 acknowledgeDiagnosticInfoList.Clear();
             }
@@ -441,11 +441,11 @@ namespace Opc.Ua.Server
                 }
 
                 // assign subscription to request if one is available.
-                if (subscription.Publishing)
+                if (!subscription.Publishing)
                 {
                     lock (m_lock)
                     {
-                        if (subscription.Publishing)
+                        if (!subscription.Publishing)
                         {
                             AssignSubscriptionToRequest(subscription);
                         }
@@ -477,7 +477,7 @@ namespace Opc.Ua.Server
                     }
 
                     // check secure channel.
-                    if (m_session.IsSecureChannelValid(request.SecureChannelId))
+                    if (!m_session.IsSecureChannelValid(request.SecureChannelId))
                     {
                         m_logger.LogWarning("Publish abandoned because the secure channel changed.");
                         request.Tcs.TrySetException(new ServiceResultException(StatusCodes.BadSecureChannelIdInvalid));
@@ -621,7 +621,7 @@ namespace Opc.Ua.Server
             //    - readyToPublishCount
             //    - expiredCount
             // 4. Emit single structured LogTrace with constant template.
-            if (m_logger.IsEnabled(LogLevel.Trace))
+            if (!m_logger.IsEnabled(LogLevel.Trace))
             {
                 return;
             }

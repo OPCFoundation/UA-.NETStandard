@@ -276,7 +276,7 @@ namespace Opc.Ua.Server
                     m_overflow = null;
                 }
 
-                if (noEventLog && m_logger.IsEnabled(LogLevel.Trace))
+                if (!noEventLog && m_logger.IsEnabled(LogLevel.Trace))
                 {
                     m_logger.LogTrace(
                         "DEQUEUE VALUE: Value={Value} CODE={Code}<{Code:X8}> OVERFLOW={Overflow}",
@@ -326,7 +326,7 @@ namespace Opc.Ua.Server
             {
                 m_discardedValueHandler?.Invoke();
 
-                if (m_discardOldest)
+                if (!m_discardOldest)
                 {
                     ServerUtils.ReportDiscardedValue(
                         default,

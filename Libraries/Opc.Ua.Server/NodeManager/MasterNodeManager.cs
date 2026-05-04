@@ -176,7 +176,7 @@ namespace Opc.Ua.Server
                     }
 
                     // add manager to list for the namespace.
-                    if (namespaceManagers.TryGetValue(index, out registeredManagers!))
+                    if (!namespaceManagers.TryGetValue(index, out registeredManagers!))
                     {
                         namespaceManagers[index] = registeredManagers = [];
                     }
@@ -240,7 +240,7 @@ namespace Opc.Ua.Server
                 TargetId = targetId
             };
 
-            if (externalReferences.TryGetValue(sourceId, out IList<IReference>? references))
+            if (!externalReferences.TryGetValue(sourceId, out IList<IReference>? references))
             {
                 externalReferences[sourceId] = references = [];
             }
@@ -508,7 +508,7 @@ namespace Opc.Ua.Server
             m_namespaceManagersSemaphoreSlim.Wait();
             try
             {
-                if (NamespaceManagers.TryGetValue(namespaceIndex, out IReadOnlyList<IAsyncNodeManager>? readOnlyNodeManagers))
+                if (!NamespaceManagers.TryGetValue(namespaceIndex, out IReadOnlyList<IAsyncNodeManager>? readOnlyNodeManagers))
                 {
                     return false;
                 }
@@ -559,7 +559,7 @@ namespace Opc.Ua.Server
             int index = nodeId.NamespaceIndex;
 
             // check if node managers are registered - use the core node manager if unknown.
-            if (NamespaceManagers.TryGetValue(index, out IReadOnlyList<IAsyncNodeManager>? nodeManagers))
+            if (!NamespaceManagers.TryGetValue(index, out IReadOnlyList<IAsyncNodeManager>? nodeManagers))
             {
                 handle = m_nodeManagers[1].SyncNodeManager.GetManagerHandle(nodeId);
 
@@ -614,7 +614,7 @@ namespace Opc.Ua.Server
             int index = nodeId.NamespaceIndex;
 
             // check if node managers are registered - use the core node manager if unknown.
-            if (NamespaceManagers.TryGetValue(index, out IReadOnlyList<IAsyncNodeManager>? nodeManagers))
+            if (!NamespaceManagers.TryGetValue(index, out IReadOnlyList<IAsyncNodeManager>? nodeManagers))
             {
                 handle = await m_nodeManagers[1].GetManagerHandleAsync(nodeId, cancellationToken)
                     .ConfigureAwait(false);
@@ -1031,7 +1031,7 @@ namespace Opc.Ua.Server
             RelativePathElement element = relativePath.Elements[index];
 
             // check for valid reference type.
-            if (element.IncludeSubtypes && element.ReferenceTypeId.IsNull)
+            if (!element.IncludeSubtypes && element.ReferenceTypeId.IsNull)
             {
                 return;
             }
@@ -1291,7 +1291,7 @@ namespace Opc.Ua.Server
                 }
 
                 // check for continuation point.
-                if (result.ContinuationPoint.IsEmpty)
+                if (!result.ContinuationPoint.IsEmpty)
                 {
                     continuationPointsAssigned++;
                 }
@@ -1362,7 +1362,7 @@ namespace Opc.Ua.Server
                     nodeId = (nodesList[i] as CallMethodRequest)?.ObjectId ?? default;
                 }
 
-                if (nodeId.IsNull)
+                if (!nodeId.IsNull)
                 {
                     uniqueNodes.Add(nodeId);
                 }
@@ -1487,7 +1487,7 @@ namespace Opc.Ua.Server
                     }
 
                     // check for continuation point.
-                    if (result.ContinuationPoint.IsEmpty)
+                    if (!result.ContinuationPoint.IsEmpty)
                     {
                         continuationPointsAssigned++;
                     }
@@ -1552,7 +1552,7 @@ namespace Opc.Ua.Server
                 return StatusCodes.BadNodeIdUnknown;
             }
 
-            if (nodeToBrowse.ReferenceTypeId.IsNull &&
+            if (!nodeToBrowse.ReferenceTypeId.IsNull &&
                 !Server.TypeTree.IsKnown(nodeToBrowse.ReferenceTypeId))
             {
                 return StatusCodes.BadReferenceTypeIdInvalid;
@@ -1896,7 +1896,7 @@ namespace Opc.Ua.Server
                 DataValue value = values[ii];
 
                 // set an error code for nodes that were not handled by any node manager.
-                if (nodesToRead[ii].Processed)
+                if (!nodesToRead[ii].Processed)
                 {
                     value = values[ii] = DataValue.FromStatusCode(
                         StatusCodes.BadNodeIdUnknown,
@@ -1955,7 +1955,7 @@ namespace Opc.Ua.Server
                 throw new ServiceResultException(StatusCodes.BadHistoryOperationInvalid);
             }
 
-            if (historyReadDetails.TryGetValue(out HistoryReadDetails? details))
+            if (!historyReadDetails.TryGetValue(out HistoryReadDetails? details))
             {
                 throw new ServiceResultException(StatusCodes.BadHistoryOperationInvalid);
             }
@@ -2033,7 +2033,7 @@ namespace Opc.Ua.Server
                     HistoryReadResult result = results[ii];
 
                     // set an error code for nodes that were not handled by any node manager.
-                    if (nodesToRead[ii].Processed)
+                    if (!nodesToRead[ii].Processed)
                     {
                         nodesToRead[ii].Processed = true;
                         result = results[ii] = new HistoryReadResult();
@@ -2138,7 +2138,7 @@ namespace Opc.Ua.Server
 
                 for (int ii = 0; ii < nodesToWrite.Count; ii++)
                 {
-                    if (nodesToWrite[ii].Processed)
+                    if (!nodesToWrite[ii].Processed)
                     {
                         errors[ii] = StatusCodes.BadNodeIdUnknown;
                     }
@@ -2189,7 +2189,7 @@ namespace Opc.Ua.Server
                 {
                     continue;
                 }
-                if (details.TryGetValue(out HistoryUpdateDetails? historyUpdateDetail))
+                if (!details.TryGetValue(out HistoryUpdateDetails? historyUpdateDetail))
                 {
                     nodesToUpdate.Add(null!); // Retain old behavior
                     continue;
@@ -2274,7 +2274,7 @@ namespace Opc.Ua.Server
                     HistoryUpdateResult result = results[ii];
 
                     // set an error code for nodes that were not handled by any node manager.
-                    if (nodesToUpdate[ii].Processed)
+                    if (!nodesToUpdate[ii].Processed)
                     {
                         nodesToUpdate[ii].Processed = true;
                         result = results[ii] = new HistoryUpdateResult();
@@ -2382,7 +2382,7 @@ namespace Opc.Ua.Server
             for (int ii = 0; ii < methodsToCall.Count; ii++)
             {
                 // set an error code for calls that were not handled by any node manager.
-                if (methodsToCall[ii].Processed)
+                if (!methodsToCall[ii].Processed)
                 {
                     results[ii] = new CallMethodResult();
                     errors[ii] = StatusCodes.BadNodeIdUnknown;
@@ -2569,7 +2569,7 @@ namespace Opc.Ua.Server
                 // fill results for unknown nodes.
                 for (int ii = 0; ii < errors.Count; ii++)
                 {
-                    if (itemsToCreate[ii].Processed)
+                    if (!itemsToCreate[ii].Processed)
                     {
                         errors[ii] = new ServiceResult(StatusCodes.BadNodeIdUnknown);
                     }
@@ -2600,7 +2600,7 @@ namespace Opc.Ua.Server
                 if (!itemToCreate.Processed)
                 {
                     // all event subscriptions required an event filter.
-                    if (itemToCreate.RequestedParameters.Filter.TryGetValue(out EventFilter? filter))
+                    if (!itemToCreate.RequestedParameters.Filter.TryGetValue(out EventFilter? filter))
                     {
                         continue;
                     }
@@ -2971,7 +2971,7 @@ namespace Opc.Ua.Server
                 // update results.
                 for (int ii = 0; ii < errors.Count; ii++)
                 {
-                    if (itemsToModify[ii].Processed)
+                    if (!itemsToModify[ii].Processed)
                     {
                         errors[ii] = new ServiceResult(StatusCodes.BadMonitoredItemIdInvalid);
                     }
@@ -3012,7 +3012,7 @@ namespace Opc.Ua.Server
 
                 // all event subscriptions required an event filter.
 
-                if (itemToModify.RequestedParameters.Filter.TryGetValue(out EventFilter? filter))
+                if (!itemToModify.RequestedParameters.Filter.TryGetValue(out EventFilter? filter))
                 {
                     errors[ii] = StatusCodes.BadEventFilterInvalid;
                     continue;
@@ -3206,7 +3206,7 @@ namespace Opc.Ua.Server
             // fill results for unknown nodes.
             for (int ii = 0; ii < errors.Count; ii++)
             {
-                if (processedItems[ii])
+                if (!processedItems[ii])
                 {
                     errors[ii] = StatusCodes.BadMonitoredItemIdInvalid;
                 }
@@ -3322,7 +3322,7 @@ namespace Opc.Ua.Server
             // fill results for unknown nodes.
             for (int ii = 0; ii < errors.Count; ii++)
             {
-                if (processedItems[ii])
+                if (!processedItems[ii])
                 {
                     errors[ii] = StatusCodes.BadMonitoredItemIdInvalid;
                 }
@@ -3386,7 +3386,7 @@ namespace Opc.Ua.Server
             }
 
             // If a filter was specified, it needs to be a known filter structure.
-            if (attributes.Filter.IsNull &&
+            if (!attributes.Filter.IsNull &&
                 !attributes.Filter.TryGetValue(out MonitoringFilter? _))
             {
                 return new ServiceResult(StatusCodes.BadMonitoredItemFilterInvalid);
@@ -3890,7 +3890,7 @@ namespace Opc.Ua.Server
             {
                 userRolePermissions = nodeMetadata.UserRolePermissions;
             }
-            else if (nodeMetadata.DefaultUserRolePermissions.IsEmpty)
+            else if (!nodeMetadata.DefaultUserRolePermissions.IsEmpty)
             {
                 userRolePermissions = nodeMetadata.DefaultUserRolePermissions;
             }

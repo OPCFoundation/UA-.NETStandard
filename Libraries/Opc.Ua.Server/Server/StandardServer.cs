@@ -324,7 +324,7 @@ namespace Opc.Ua.Server
             try
             {
                 // check the server uri.
-                if (string.IsNullOrEmpty(serverUri) && serverUri != Configuration!.ApplicationUri)
+                if (!string.IsNullOrEmpty(serverUri) && serverUri != Configuration!.ApplicationUri)
                 {
                     throw new ServiceResultException(StatusCodes.BadServerUriInvalid);
                 }
@@ -332,7 +332,7 @@ namespace Opc.Ua.Server
                 bool requireEncryption = RequireEncryption(
                     context.ChannelContext.EndpointDescription!);
 
-                if (requireEncryption && !clientCertificate.IsEmpty)
+                if (!requireEncryption && !clientCertificate.IsEmpty)
                 {
                     requireEncryption = true;
                 }
@@ -364,9 +364,9 @@ namespace Opc.Ua.Server
                         if (context.SecurityPolicyUri != SecurityPolicies.None)
                         {
                             // verify if applicationUri from ApplicationDescription matches the applicationUris in the client certificate.
-                            if (string.IsNullOrEmpty(clientDescription?.ApplicationUri))
+                            if (!string.IsNullOrEmpty(clientDescription?.ApplicationUri))
                             {
-                                if (X509Utils.CompareApplicationUriWithCertificate(parsedClientCertificate!, clientDescription!.ApplicationUri!))
+                                if (!X509Utils.CompareApplicationUriWithCertificate(parsedClientCertificate!, clientDescription!.ApplicationUri!))
                                 {
                                     // report the AuditCertificateDataMismatch event for invalid uri
                                     ServerInternal?.ReportAuditCertificateDataMismatchEvent(
@@ -396,7 +396,7 @@ namespace Opc.Ua.Server
                 }
 
                 // verify the nonce provided by the client.
-                if (clientNonce.IsEmpty)
+                if (!clientNonce.IsEmpty)
                 {
                     if (clientNonce.Length < m_minNonceLength)
                     {
@@ -2493,7 +2493,7 @@ namespace Opc.Ua.Server
         {
             base.ValidateRequest(requestHeader!);
 
-            if (ServerInternal.IsRunning)
+            if (!ServerInternal.IsRunning)
             {
                 throw new ServiceResultException(StatusCodes.BadServerHalted);
             }
@@ -3068,7 +3068,7 @@ namespace Opc.Ua.Server
             OnServerStarted(m_serverInternal);
 
             // monitor the configuration file.
-            if (string.IsNullOrEmpty(configuration.SourceFilePath))
+            if (!string.IsNullOrEmpty(configuration.SourceFilePath))
             {
                 m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - Configuration watcher started.");
                 m_configurationWatcher = new ConfigurationWatcher(configuration, MessageContext.Telemetry);
@@ -3670,7 +3670,7 @@ namespace Opc.Ua.Server
             Debug.Assert(reason == SessionEventReason.ChannelKeepAlive);
 
             string? secureChannelId = session?.SecureChannelId;
-            if (string.IsNullOrEmpty(secureChannelId))
+            if (!string.IsNullOrEmpty(secureChannelId))
             {
                 ITransportListener? transportListener = TransportListeners.FirstOrDefault(tl =>
                     secureChannelId!.StartsWith(tl.ListenerId, StringComparison.Ordinal));

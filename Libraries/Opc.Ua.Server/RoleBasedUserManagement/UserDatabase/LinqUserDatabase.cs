@@ -158,7 +158,7 @@ namespace Opc.Ua.Server.UserDatabase
                 throw new ArgumentException("Password cannot be empty.", nameof(password));
             }
 
-            if (m_users.TryGetValue(userName, out User? user))
+            if (!m_users.TryGetValue(userName, out User? user))
             {
                 return false;
             }
@@ -174,7 +174,7 @@ namespace Opc.Ua.Server.UserDatabase
                 throw new ArgumentException("UserName cannot be empty.", nameof(userName));
             }
 
-            if (m_users.TryGetValue(userName, out User? user))
+            if (!m_users.TryGetValue(userName, out User? user))
             {
                 throw new ArgumentException("No user found with the UserName " + userName);
             }
@@ -202,7 +202,7 @@ namespace Opc.Ua.Server.UserDatabase
                 throw new ArgumentException("New Password cannot be empty.", nameof(newPassword));
             }
 
-            if (m_users.TryGetValue(userName, out User? user))
+            if (!m_users.TryGetValue(userName, out User? user))
             {
                 return false;
             }

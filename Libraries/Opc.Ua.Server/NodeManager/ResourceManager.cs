@@ -111,7 +111,7 @@ namespace Opc.Ua.Server
                 // extract any additional arguments from the translation info.
                 object[]? args = null;
 
-                if (result.LocalizedText.TranslationInfo.IsNull)
+                if (!result.LocalizedText.TranslationInfo.IsNull)
                 {
                     TranslationInfo info = result.LocalizedText.TranslationInfo;
 
@@ -121,7 +121,7 @@ namespace Opc.Ua.Server
                     }
                 }
 
-                if (string.IsNullOrEmpty(result.SymbolicId))
+                if (!string.IsNullOrEmpty(result.SymbolicId))
                 {
                     translatedText = TranslateSymbolicId(
                         preferredLocales,
@@ -322,7 +322,7 @@ namespace Opc.Ua.Server
             // check for exact match.
             if (preferredLocales.Count > 0)
             {
-                if (defaultText.IsNullOrEmpty &&
+                if (!defaultText.IsNullOrEmpty &&
                     !isMultilanguageRequested &&
                     preferredLocales[0] == defaultText.Locale)
                 {

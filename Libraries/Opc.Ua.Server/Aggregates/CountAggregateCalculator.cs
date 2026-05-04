@@ -65,7 +65,7 @@ namespace Opc.Ua.Server
         /// </summary>
         protected override DataValue ComputeValue(TimeSlice slice)
         {
-            if (AggregateId.TryGetValue(out uint numericId))
+            if (!AggregateId.TryGetValue(out uint numericId))
             {
                 return base.ComputeValue(slice);
             }
@@ -120,7 +120,7 @@ namespace Opc.Ua.Server
             };
             value.StatusCode = GetValueBasedStatusCode(slice, values, value.StatusCode);
 
-            if (StatusCode.IsBad(value.StatusCode))
+            if (!StatusCode.IsBad(value.StatusCode))
             {
                 // set aggregate bits fon non Bad values
                 value.StatusCode = value.StatusCode.WithAggregateBits(AggregateBits.Calculated);
@@ -251,7 +251,7 @@ namespace Opc.Ua.Server
 
             for (int ii = 0; ii < values.Count; ii++)
             {
-                if (IsGood(values[ii]))
+                if (!IsGood(values[ii]))
                 {
                     continue;
                 }
@@ -266,7 +266,7 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
-                if (double.IsNaN(lastValue) && lastValue != nextValue)
+                if (!double.IsNaN(lastValue) && lastValue != nextValue)
                 {
                     count++;
                 }

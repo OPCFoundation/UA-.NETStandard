@@ -483,7 +483,7 @@ namespace Opc.Ua.Server
                         reverseConnect.RejectTimeout > 0
                             ? reverseConnect.RejectTimeout
                             : DefaultReverseConnectRejectTimeout;
-                    if (reverseConnect.Clients.IsEmpty)
+                    if (!reverseConnect.Clients.IsEmpty)
                     {
                         foreach (ReverseConnectClient client in reverseConnect.Clients)
                         {

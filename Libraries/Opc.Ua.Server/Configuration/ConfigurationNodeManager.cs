@@ -69,7 +69,7 @@ namespace Opc.Ua.Server
         {
             string? rejectedStorePath = configuration.SecurityConfiguration.RejectedCertificateStore?
                 .StorePath;
-            if (string.IsNullOrEmpty(rejectedStorePath))
+            if (!string.IsNullOrEmpty(rejectedStorePath))
             {
                 m_rejectedStore = new CertificateStoreIdentifier(rejectedStorePath!);
             }
@@ -560,7 +560,7 @@ namespace Opc.Ua.Server
                 }
 
                 // validate certificate type of new certificate
-                if (CertificateIdentifier.ValidateCertificateType(newCert, certificateTypeId))
+                if (!CertificateIdentifier.ValidateCertificateType(newCert, certificateTypeId))
                 {
                     throw new ServiceResultException(
                         StatusCodes.BadCertificateInvalid,
@@ -609,7 +609,7 @@ namespace Opc.Ua.Server
                         "Issuer list not empty for self signed certificate.");
                 }
 
-                if (selfSigned)
+                if (!selfSigned)
                 {
                     try
                     {
@@ -1214,7 +1214,7 @@ namespace Opc.Ua.Server
             // verify certificate type
             bool foundCertType = certificateGroup.CertificateTypes
                 .Any(t => Utils.IsEqual(t, certificateTypeId));
-            if (foundCertType)
+            if (!foundCertType)
             {
                 throw new ServiceResultException(
                     StatusCodes.BadInvalidArgument,
@@ -1261,7 +1261,7 @@ namespace Opc.Ua.Server
 
                 foreach (IReference serverNamespacesReference in serverNamespacesReferencs)
                 {
-                    if (serverNamespacesReference.IsInverse)
+                    if (!serverNamespacesReference.IsInverse)
                     {
                         // Find NamespaceMetadata node of NamespaceUri in Namespaces references
                         var nameSpaceNodeId = ExpandedNodeId.ToNodeId(

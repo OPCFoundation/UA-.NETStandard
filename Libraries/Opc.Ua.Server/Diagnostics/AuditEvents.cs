@@ -212,7 +212,7 @@ namespace Opc.Ua.Server
                     false);
 
                 Variant newValue;
-                if (writeValue.ParsedIndexRange.IsNull)
+                if (!writeValue.ParsedIndexRange.IsNull)
                 {
                     newValue = oldValue;
                     writeValue.ParsedIndexRange.UpdateRange(

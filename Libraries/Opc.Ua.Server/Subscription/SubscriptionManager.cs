@@ -306,7 +306,7 @@ namespace Opc.Ua.Server
         public virtual ValueTask StoreSubscriptionsAsync(CancellationToken cancellationToken = default)
         {
             // only store subscriptions if durable subscriptions are enabled
-            if (m_durableSubscriptionsEnabled || m_subscriptionStore == null)
+            if (!m_durableSubscriptionsEnabled || m_subscriptionStore == null)
             {
                 return default;
             }
@@ -315,7 +315,7 @@ namespace Opc.Ua.Server
             foreach (ISubscription subscription in m_subscriptions.Values)
             {
                 // only store durable subscriptions
-                if (subscription.IsDurable)
+                if (!subscription.IsDurable)
                 {
                     continue;
                 }
@@ -354,7 +354,7 @@ namespace Opc.Ua.Server
             }
 
             // only restore subscriptions if durable subscriptions are enabeld
-            if (m_durableSubscriptionsEnabled || m_subscriptionStore == null)
+            if (!m_durableSubscriptionsEnabled || m_subscriptionStore == null)
             {
                 return;
             }
@@ -371,7 +371,7 @@ namespace Opc.Ua.Server
                 return;
             }
 
-            if (restoreResult.Success ||
+            if (!restoreResult.Success ||
                 restoreResult.Subscriptions == null ||
                 !restoreResult.Subscriptions.Any())
             {
@@ -448,7 +448,7 @@ namespace Opc.Ua.Server
             uint publishingIntervalCount;
 
             // save subscription.
-            if (m_subscriptions.TryAdd(subscription.Id, subscription))
+            if (!m_subscriptions.TryAdd(subscription.Id, subscription))
             {
                 throw new ServiceResultException(StatusCodes.BadInternalError, "Failed to create subscription in Server");
             }
@@ -573,7 +573,7 @@ namespace Opc.Ua.Server
             ServiceResultException? serviceResultException = null;
             lock (m_conditionRefreshLock)
             {
-                if (m_conditionRefreshQueue.Contains(conditionRefreshTask))
+                if (!m_conditionRefreshQueue.Contains(conditionRefreshTask))
                 {
                     m_conditionRefreshQueue.Enqueue(conditionRefreshTask);
                 }
@@ -616,7 +616,7 @@ namespace Opc.Ua.Server
 
             lock (m_conditionRefreshLock)
             {
-                if (m_conditionRefreshQueue.Contains(conditionRefreshTask))
+                if (!m_conditionRefreshQueue.Contains(conditionRefreshTask))
                 {
                     m_conditionRefreshQueue.Enqueue(conditionRefreshTask);
                 }
@@ -689,7 +689,7 @@ namespace Opc.Ua.Server
                 {
                     NodeId sessionId = subscription.SessionId;
 
-                    if (sessionId.IsNull)
+                    if (!sessionId.IsNull)
                     {
                         // check that the subscription is the owner.
                         if (context != null &&
@@ -788,7 +788,7 @@ namespace Opc.Ua.Server
             {
                 double publishingInterval = kvp.Value.PublishingInterval;
 
-                if (publishingDiagnostics.TryGetValue(publishingInterval, out uint total))
+                if (!publishingDiagnostics.TryGetValue(publishingInterval, out uint total))
                 {
                     total = 0;
                 }
@@ -864,7 +864,7 @@ namespace Opc.Ua.Server
             try
             {
                 // save subscription.
-                if (m_subscriptions.TryAdd(subscriptionId, subscription))
+                if (!m_subscriptions.TryAdd(subscriptionId, subscription))
                 {
                     throw new ServiceResultException(StatusCodes.BadInternalError, "Failed to create subscription in Server");
                 }
@@ -899,7 +899,7 @@ namespace Opc.Ua.Server
 
             lock (m_statusMessagesLock)
             {
-                if (m_statusMessages.TryGetValue(
+                if (!m_statusMessages.TryGetValue(
                     session.Id,
                     out Queue<StatusMessage>? messagesQueue))
                 {
@@ -983,7 +983,7 @@ namespace Opc.Ua.Server
                 }
             }
 
-            if (diagnosticsExist)
+            if (!diagnosticsExist)
             {
                 diagnosticInfos.Clear();
             }
@@ -1009,7 +1009,7 @@ namespace Opc.Ua.Server
                     Message = subscription.PublishTimeout()
                 };
 
-                if (subscription.SessionId.IsNull &&
+                if (!subscription.SessionId.IsNull &&
                     m_statusMessages.TryGetValue(
                         subscription.SessionId,
                         out Queue<StatusMessage>? queue))
@@ -1347,7 +1347,7 @@ namespace Opc.Ua.Server
                     }
                 }
 
-                if (diagnosticsExist)
+                if (!diagnosticsExist)
                 {
                     diagnosticInfoList.Clear();
                 }
@@ -1430,7 +1430,7 @@ namespace Opc.Ua.Server
                     }
 
                     // continue if identity check failed
-                    if (validIdentity)
+                    if (!validIdentity)
                     {
                         result.StatusCode = StatusCodes.BadUserAccessDenied;
                         results.Add(result);
@@ -1459,7 +1459,7 @@ namespace Opc.Ua.Server
                         }
 
                         // add to queue in new session, create queue if necessary
-                        if (m_publishQueues.TryGetValue(
+                        if (!m_publishQueues.TryGetValue(
                                 context.SessionId,
                                 out SessionPublishQueue? publishQueue) ||
                             publishQueue == null)
@@ -1527,7 +1527,7 @@ namespace Opc.Ua.Server
                         bool statusQueued = false;
                         lock (m_statusMessagesLock)
                         {
-                            if (ownerSession.Id.IsNull &&
+                            if (!ownerSession.Id.IsNull &&
                                 m_statusMessages.TryGetValue(
                                     ownerSession.Id,
                                     out Queue<StatusMessage>? queue))
@@ -1556,7 +1556,7 @@ namespace Opc.Ua.Server
                                     // queue the status message
                                     bool success = ownerPublishQueue.TryPublishCustomStatus(
                                         StatusCodes.GoodSubscriptionTransferred);
-                                    if (success)
+                                    if (!success)
                                     {
                                         m_logger.LogWarning(
                                             "Failed to queue Good_SubscriptionTransferred for SessionId {SessionId}, SubscriptionId {SubscriptionId} due to an empty request queue.",

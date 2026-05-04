@@ -88,7 +88,7 @@ namespace Opc.Ua.Server
         /// </summary>
         public static void ReportWriteValue(NodeId nodeId, DataValue value, StatusCode error)
         {
-            if (s_eventsEnabled)
+            if (!s_eventsEnabled)
             {
                 return;
             }
@@ -120,7 +120,7 @@ namespace Opc.Ua.Server
         /// </summary>
         public static void ReportQueuedValue(NodeId nodeId, uint serverHandle, DataValue value)
         {
-            if (s_eventsEnabled)
+            if (!s_eventsEnabled)
             {
                 return;
             }
@@ -146,7 +146,7 @@ namespace Opc.Ua.Server
         /// </summary>
         public static void ReportFilteredValue(NodeId nodeId, uint serverHandle, DataValue value)
         {
-            if (s_eventsEnabled)
+            if (!s_eventsEnabled)
             {
                 return;
             }
@@ -172,7 +172,7 @@ namespace Opc.Ua.Server
         /// </summary>
         public static void ReportDiscardedValue(NodeId nodeId, uint serverHandle, DataValue value)
         {
-            if (s_eventsEnabled)
+            if (!s_eventsEnabled)
             {
                 return;
             }
@@ -198,7 +198,7 @@ namespace Opc.Ua.Server
         /// </summary>
         public static void ReportPublishValue(NodeId nodeId, uint serverHandle, DataValue value)
         {
-            if (s_eventsEnabled)
+            if (!s_eventsEnabled)
             {
                 return;
             }
@@ -231,7 +231,7 @@ namespace Opc.Ua.Server
             MonitoringFilter filter,
             MonitoringMode monitoringMode)
         {
-            if (s_eventsEnabled)
+            if (!s_eventsEnabled)
             {
                 return;
             }
@@ -270,7 +270,7 @@ namespace Opc.Ua.Server
             MonitoringFilter filter,
             MonitoringMode monitoringMode)
         {
-            if (s_eventsEnabled)
+            if (!s_eventsEnabled)
             {
                 return;
             }

@@ -255,7 +255,7 @@ namespace Opc.Ua.Server
                 return StatusCodes.BadInvalidArgument;
             }
 
-            if (inputArguments[0].TryGetValue(out uint subscriptionId))
+            if (!inputArguments[0].TryGetValue(out uint subscriptionId))
             {
                 return StatusCodes.BadInvalidArgument;
             }
@@ -435,7 +435,7 @@ namespace Opc.Ua.Server
 
             NodeId typeId = passiveNode.TypeDefinitionId;
 
-            if (IsNodeIdInNamespace(typeId) || !typeId.TryGetValue(out uint numericId))
+            if (!IsNodeIdInNamespace(typeId) || !typeId.TryGetValue(out uint numericId))
             {
                 return predefinedNode;
             }
@@ -527,7 +527,7 @@ namespace Opc.Ua.Server
                 return false;
             }
 
-            if (IsDiagnosticsStructureNode(node))
+            if (!IsDiagnosticsStructureNode(node))
             {
                 if (node is not BaseInstanceState instance)
                 {
@@ -603,7 +603,7 @@ namespace Opc.Ua.Server
 
                 DiagnosticsEnabled = enabled;
 
-                if (enabled)
+                if (!enabled)
                 {
                     // stop scans.
                     m_diagnosticsScanTimer?.Dispose();
@@ -812,7 +812,7 @@ namespace Opc.Ua.Server
                 securityDiagnostics.SessionId = nodeId;
 
                 // check if diagnostics have been enabled.
-                if (DiagnosticsEnabled)
+                if (!DiagnosticsEnabled)
                 {
                     return nodeId;
                 }
@@ -940,7 +940,7 @@ namespace Opc.Ua.Server
             try
             {
                 // check if diagnostics have been enabled.
-                if (DiagnosticsEnabled)
+                if (!DiagnosticsEnabled)
                 {
                     return default;
                 }
@@ -988,7 +988,7 @@ namespace Opc.Ua.Server
 
                 array?.AddReference(ReferenceTypeIds.HasComponent, false, diagnosticsNode.NodeId);
 
-                if (diagnostics.SessionId.IsNull)
+                if (!diagnostics.SessionId.IsNull)
                 {
                     // add reference to session subscription array.
                     diagnosticsNode.AddReference(
@@ -1580,7 +1580,7 @@ namespace Opc.Ua.Server
         {
             lock (m_diagnosticsLock)
             {
-                if (DiagnosticsEnabled)
+                if (!DiagnosticsEnabled)
                 {
                     return;
                 }
@@ -1604,7 +1604,7 @@ namespace Opc.Ua.Server
         {
             lock (m_diagnosticsLock)
             {
-                if (DiagnosticsEnabled)
+                if (!DiagnosticsEnabled)
                 {
                     return StatusCodes.BadOutOfService;
                 }
@@ -1697,7 +1697,7 @@ namespace Opc.Ua.Server
             {
                 lock (m_diagnosticsLock)
                 {
-                    if (DiagnosticsEnabled || m_doScanBusy)
+                    if (!DiagnosticsEnabled || m_doScanBusy)
                     {
                         return;
                     }

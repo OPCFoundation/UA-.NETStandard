@@ -179,7 +179,7 @@ namespace Opc.Ua.Server
             }
 
             // check if a value can be produced.
-            if (CurrentSlice.Complete && !returnPartial)
+            if (!CurrentSlice.Complete && !returnPartial)
             {
                 return null;
             }
@@ -208,7 +208,7 @@ namespace Opc.Ua.Server
                         value.StatusCode.AggregateBits | AggregateBits.Partial);
                 }
 
-                if (UsingExtrapolation &&
+                if (!UsingExtrapolation &&
                     !TimeFlowsBackward &&
                     m_endOfData >= earlyTime &&
                     m_endOfData < lateTime)
@@ -258,7 +258,7 @@ namespace Opc.Ua.Server
 
             // check if more to be done.
             Complete =
-                (TimeFlowsBackward && CurrentSlice.EndTime >= EndTime) ||
+                (!TimeFlowsBackward && CurrentSlice.EndTime >= EndTime) ||
                 (TimeFlowsBackward && CurrentSlice.StartTime <= EndTime);
 
             if (Complete)
@@ -619,7 +619,7 @@ namespace Opc.Ua.Server
             // restart processing from where it left off.
             LinkedListNode<DataValue>? start = m_values.First;
 
-            if (TimeFlowsBackward && slice.LastProcessedValue != null)
+            if (!TimeFlowsBackward && slice.LastProcessedValue != null)
             {
                 start = slice.LastProcessedValue.Next;
             }
@@ -812,7 +812,7 @@ namespace Opc.Ua.Server
 
             DataValue dataValue;
             // check if the required bounds are available.
-            if (Stepped)
+            if (!Stepped)
             {
                 // check if sloped interpolation is possible.
                 if (slice.EarlyBound != null && slice.LateBound != null)
@@ -822,7 +822,7 @@ namespace Opc.Ua.Server
                         slice.EarlyBound.Value,
                         slice.LateBound.Value);
 
-                    if (ReferenceEquals(slice.EarlyBound.Next, slice.LateBound))
+                    if (!ReferenceEquals(slice.EarlyBound.Next, slice.LateBound))
                     {
                         dataValue.StatusCode = dataValue.StatusCode
                             .WithCodeBits(StatusCodes.UncertainDataSubNormal);
@@ -1043,7 +1043,7 @@ namespace Opc.Ua.Server
             bool revertToStepped = false;
             LinkedListNode<DataValue>? endBound = startBound.Next;
 
-            if (Stepped)
+            if (!Stepped)
             {
                 if (endBound != null)
                 {
@@ -1302,7 +1302,7 @@ namespace Opc.Ua.Server
                     // always keep the first region.
                     if (currentRegion != null)
                     {
-                        if (IsGood(values[ii]))
+                        if (!IsGood(values[ii]))
                         {
                             // set the status to sub normal if bad end data ignored.
                             if (StatusCode.IsNotBad(currentRegion.StatusCode))
@@ -1316,7 +1316,7 @@ namespace Opc.Ua.Server
                                 continue;
                             }
                         }
-                        else if (useSteppedCalculations &&
+                        else if (!useSteppedCalculations &&
                             StatusCode.IsNotGood(values[ii].StatusCode))
                         {
                             currentRegion.StatusCode = StatusCodes.UncertainDataSubNormal;
@@ -1358,7 +1358,7 @@ namespace Opc.Ua.Server
 
                     // if at end of data then duration is 1 tick.
                     // must be end of data if start of region is good yet end bound is bad.
-                    if (ignoreBadData &&
+                    if (!ignoreBadData &&
                         IsGood(currentRegion.DataPoint!) &&
                         currentStatus == StatusCodes.BadNoData &&
                         ii == values.Count - 1)
@@ -1488,7 +1488,7 @@ namespace Opc.Ua.Server
 
                 // Take into account the Uncertain status code
                 if (StatusCode.IsGood(region.StatusCode) ||
-                    (Configuration.TreatUncertainAsBad &&
+                    (!Configuration.TreatUncertainAsBad &&
                         StatusCode.IsUncertain(region.StatusCode)))
                 {
                     goodDuration += region.Duration;

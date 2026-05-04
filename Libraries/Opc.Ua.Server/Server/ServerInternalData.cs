@@ -543,7 +543,7 @@ namespace Opc.Ua.Server
         /// <param name="e">The event.</param>
         public void ReportEvent(ISystemContext context, IFilterTarget e)
         {
-            if ((Auditing) && (e is AuditEventState))
+            if ((!Auditing) && (e is AuditEventState))
             {
                 // do not report auditing events if server Auditing flag is false
                 return;
@@ -603,7 +603,7 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public void ReportAuditEvent(ISystemContext context, AuditEventState e)
         {
-            if (Auditing)
+            if (!Auditing)
             {
                 // do not report auditing events if server Auditing flag is false
                 return;

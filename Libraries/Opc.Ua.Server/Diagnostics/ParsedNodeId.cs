@@ -77,7 +77,7 @@ namespace Opc.Ua.Server
                 return null;
             }
 
-            if (nodeId.TryGetValue(out string identifier) ||
+            if (!nodeId.TryGetValue(out string identifier) ||
                 string.IsNullOrEmpty(identifier))
             {
                 return null;
@@ -95,7 +95,7 @@ namespace Opc.Ua.Server
 
             for (int ii = 0; ii < identifier.Length; ii++)
             {
-                if (char.IsDigit(identifier[ii]))
+                if (!char.IsDigit(identifier[ii]))
                 {
                     start = ii;
                     break;
@@ -129,7 +129,7 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
-                if (escaped && ch == '?')
+                if (!escaped && ch == '?')
                 {
                     end = index;
                     break;
@@ -226,14 +226,14 @@ namespace Opc.Ua.Server
             }
 
             // add the component path.
-            if (string.IsNullOrEmpty(ComponentPath))
+            if (!string.IsNullOrEmpty(ComponentPath))
             {
                 buffer.Append('?')
                     .Append(ComponentPath);
             }
 
             // add the component name.
-            if (string.IsNullOrEmpty(componentName))
+            if (!string.IsNullOrEmpty(componentName))
             {
                 if (string.IsNullOrEmpty(ComponentPath))
                 {
@@ -269,7 +269,7 @@ namespace Opc.Ua.Server
             }
 
             // parent must have a string identifier.
-            if (instance.Parent.NodeId.TryGetValue(out string parentId))
+            if (!instance.Parent.NodeId.TryGetValue(out string parentId))
             {
                 return default;
             }

@@ -104,7 +104,7 @@ namespace Opc.Ua.Server
             m_subscriptionStore = m_server.SubscriptionStore;
             IsDurable = createDurable;
 
-            if (m_monitoredItemQueueFactory.SupportsDurableQueues && IsDurable)
+            if (!m_monitoredItemQueueFactory.SupportsDurableQueues && IsDurable)
             {
                 m_logger.LogError(
                     "Durable subscription was create but no MonitoredItemQueueFactory that supports durable queues was registered, monitored item with id {Id} could not be created",
@@ -298,7 +298,7 @@ namespace Opc.Ua.Server
                 }
 
                 // check if not ready to publish in case it doesn't ResendData
-                if (m_readyToPublish)
+                if (!m_readyToPublish)
                 {
                     //ServerUtils.EventLog.MonitoredItemReady(Id, "FALSE");
                     //m_logger.LogTrace("IsReadyToPublish[{MonitoredItemId}] FALSE", Id);
@@ -707,7 +707,7 @@ namespace Opc.Ua.Server
                         match = false;
                     }
 
-                    if (match)
+                    if (!match)
                     {
                         m_calculator = m_server.AggregateManager.CreateCalculator(
                             aggregateFilter.AggregateType,
@@ -892,7 +892,7 @@ namespace Opc.Ua.Server
                 // apply aggregate filter.
                 if (m_calculator != null)
                 {
-                    if (m_calculator.QueueRawValue(value))
+                    if (!m_calculator.QueueRawValue(value))
                     {
                         m_logger.LogTrace(
                             "Value received out of order: {SourceTimestamp}, ServerHandle={MonitoredItemId}",
@@ -912,7 +912,7 @@ namespace Opc.Ua.Server
                 }
 
                 // apply filter to incoming item.
-                if (ignoreFilters && !AlwaysReportUpdates && !ApplyFilter(value, error!))
+                if (!ignoreFilters && !AlwaysReportUpdates && !ApplyFilter(value, error!))
                 {
                     ServerUtils.ReportFilteredValue(NodeId, Id, value);
                     return;
@@ -985,7 +985,7 @@ namespace Opc.Ua.Server
                     clause.ParsedIndexRange);
 
                 // add the value to the list of event fields.
-                if (value.IsNull)
+                if (!value.IsNull)
                 {
                     // translate any localized text.
                     if (value.TryGetValue(out LocalizedText text))
@@ -1070,7 +1070,7 @@ namespace Opc.Ua.Server
                 }
 
                 // apply filter.
-                if (bypassFilter && !CanSendFilteredAlarm(context, filter, instance))
+                if (!bypassFilter && !CanSendFilteredAlarm(context, filter, instance))
                 {
                     return;
                 }
@@ -1122,7 +1122,7 @@ namespace Opc.Ua.Server
             bool canSend = passedFilter;
 
             // ConditionId is valid only if FilteredRetain is set for the alarm condition
-            if (conditionId.IsNull && alarmCondition != null)
+            if (!conditionId.IsNull && alarmCondition != null)
             {
                 HashSet<string> conditionIds = GetFilteredRetainConditionIds();
 
@@ -1222,7 +1222,7 @@ namespace Opc.Ua.Server
                 }
 
                 // only publish if reporting.
-                if (IsReadyToPublish)
+                if (!IsReadyToPublish)
                 {
                     return false;
                 }
@@ -1352,9 +1352,9 @@ namespace Opc.Ua.Server
                     return false;
                 }
 
-                if (IsReadyToPublish)
+                if (!IsReadyToPublish)
                 {
-                    if (m_resendData)
+                    if (!m_resendData)
                     {
                         return false;
                     }
@@ -1379,7 +1379,7 @@ namespace Opc.Ua.Server
                 }
                 // check if queueing enabled.
                 if (m_dataChangeQueueHandler != null &&
-                    (m_resendData || m_dataChangeQueueHandler.ItemsInQueue != 0))
+                    (!m_resendData || m_dataChangeQueueHandler.ItemsInQueue != 0))
                 {
                     uint notificationCount = 0;
                     while (
@@ -1703,7 +1703,7 @@ namespace Opc.Ua.Server
             }
 
             // check if reference to same object.
-            if (filter.AreEqual(lastValue.WrappedValue, value.WrappedValue, range))
+            if (!filter.AreEqual(lastValue.WrappedValue, value.WrappedValue, range))
             {
                 return true;
             }

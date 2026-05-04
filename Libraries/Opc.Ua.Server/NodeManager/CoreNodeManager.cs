@@ -82,7 +82,7 @@ namespace Opc.Ua.Server
                 await AddPredefinedNodeAsync(context, node, cancellationToken)
                     .ConfigureAwait(false);
 
-                if (isInternal)
+                if (!isInternal)
                 {
                     lock (Server.DiagnosticsLock)
                     {

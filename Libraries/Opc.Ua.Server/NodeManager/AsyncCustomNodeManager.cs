@@ -643,7 +643,7 @@ namespace Opc.Ua.Server
                     {
                         activeNode.OnReportEvent = OnReportEvent;
 
-                        if (activeNode.ReferenceExists(
+                        if (!activeNode.ReferenceExists(
                             ReferenceTypeIds.HasNotifier,
                             true,
                             ObjectIds.Server))
@@ -796,7 +796,7 @@ namespace Opc.Ua.Server
                     {
                         lock (target)
                         {
-                            if (target.ReferenceExists(
+                            if (!target.ReferenceExists(
                             reference.ReferenceTypeId,
                             !reference.IsInverse,
                             source.NodeId))
@@ -867,7 +867,7 @@ namespace Opc.Ua.Server
         /// </summary>
         protected void AddTypesToTypeTree(BaseTypeState type)
         {
-            if (type.SuperTypeId.IsNull && !Server.TypeTree.IsKnown(type.SuperTypeId))
+            if (!type.SuperTypeId.IsNull && !Server.TypeTree.IsKnown(type.SuperTypeId))
             {
                 AddTypesToTypeTree(type.SuperTypeId);
             }
@@ -941,7 +941,7 @@ namespace Opc.Ua.Server
             int depth = 0;
             NodeId typeId = typeDefinitionId;
 
-            while (typeId.IsNull && depth++ < maxHierarchyDepth)
+            while (!typeId.IsNull && depth++ < maxHierarchyDepth)
             {
                 NodeState typeNode = FindPredefinedNode<NodeState>(typeId);
                 if (typeNode != null)
@@ -1050,7 +1050,7 @@ namespace Opc.Ua.Server
                 {
                     lock (source.Node)
                     {
-                        if (source.Node.ReferenceExists(
+                        if (!source.Node.ReferenceExists(
                                 reference.ReferenceTypeId,
                                 reference.IsInverse,
                                 reference.TargetId))
@@ -1678,7 +1678,7 @@ namespace Opc.Ua.Server
                         var targetId = (NodeId)reference.TargetId;
 
                         // the target may be a reference to a node in another node manager.
-                        if (IsNodeIdInNamespace(targetId))
+                        if (!IsNodeIdInNamespace(targetId))
                         {
                             unresolvedTargetIds.Add((NodeId)reference.TargetId);
                             continue;
@@ -1870,7 +1870,7 @@ namespace Opc.Ua.Server
                 }
 
                 // lookup root in local cache for request.
-                if (string.IsNullOrEmpty(handle.ComponentPath) &&
+                if (!string.IsNullOrEmpty(handle.ComponentPath) &&
                     cache.TryGetValue(rootId, out target))
                 {
                     NodeState? child;
@@ -2131,7 +2131,7 @@ namespace Opc.Ua.Server
                         errors[ii]?.StatusCode ?? StatusCodes.Good,
                         m_logger);
 
-                    if (ServiceResult.IsGood(errors[ii]))
+                    if (!ServiceResult.IsGood(errors[ii]))
                     {
                         continue;
                     }
@@ -3513,7 +3513,7 @@ namespace Opc.Ua.Server
                 {
                     notifier.OnReportEvent = OnReportEvent;
 
-                    if (notifier.ReferenceExists(
+                    if (!notifier.ReferenceExists(
                         ReferenceTypeIds.HasNotifier,
                         true,
                         ObjectIds.Server))
@@ -3683,7 +3683,7 @@ namespace Opc.Ua.Server
                     // check for server subscription.
                     if (monitoredItem.NodeId == ObjectIds.Server)
                     {
-                        if (RootNotifiers.IsEmpty)
+                        if (!RootNotifiers.IsEmpty)
                         {
                             nodesToRefresh.AddRange(RootNotifiers.Values);
                         }
@@ -3691,7 +3691,7 @@ namespace Opc.Ua.Server
                     else
                     {
                         // check if monitored Item is managed by this node manager
-                        if (MonitoredItems.ContainsKey(monitoredItem.Id))
+                        if (!MonitoredItems.ContainsKey(monitoredItem.Id))
                         {
                             continue;
                         }
@@ -3824,7 +3824,7 @@ namespace Opc.Ua.Server
                             savedOwnerIdentity,
                             out monitoredItem);
 
-                        if (success)
+                        if (!success)
                         {
                             continue;
                         }
@@ -3864,7 +3864,7 @@ namespace Opc.Ua.Server
             monitoredItem = null;
 
             // validate attribute.
-            if (Attributes.IsValid(handle.Node.NodeClass, storedMonitoredItem.AttributeId))
+            if (!Attributes.IsValid(handle.Node.NodeClass, storedMonitoredItem.AttributeId))
             {
                 return false;
             }
@@ -4051,7 +4051,7 @@ namespace Opc.Ua.Server
             MonitoringParameters parameters = itemToCreate.RequestedParameters;
 
             // validate attribute.
-            if (Attributes.IsValid(handle.Node.NodeClass, itemToCreate.ItemToMonitor.AttributeId))
+            if (!Attributes.IsValid(handle.Node.NodeClass, itemToCreate.ItemToMonitor.AttributeId))
             {
                 return (StatusCodes.BadAttributeIdInvalid, filterResult, monitoredItem);
             }
@@ -4328,7 +4328,7 @@ namespace Opc.Ua.Server
                     return result;
                 }
 
-                if (Server.AggregateManager.IsSupported(aggregateFilter.AggregateType))
+                if (!Server.AggregateManager.IsSupported(aggregateFilter.AggregateType))
                 {
                     result.StatusCode = StatusCodes.BadAggregateNotSupported;
                     return result;
@@ -4392,7 +4392,7 @@ namespace Opc.Ua.Server
             }
 
             // deadband filters can only be used for numeric values.
-            if (Server.TypeTree.IsTypeOf(variable.DataType, DataTypeIds.Number))
+            if (!Server.TypeTree.IsTypeOf(variable.DataType, DataTypeIds.Number))
             {
                 result.StatusCode = StatusCodes.BadFilterNotAllowed;
                 return result;
@@ -5176,7 +5176,7 @@ namespace Opc.Ua.Server
                             ref value,
                             ref sourceTimestamp);
 
-                    if (value.IsNull)
+                    if (!value.IsNull)
                     {
                         metadata.DefaultAccessRestrictions =
                             value.GetEnumeration<AccessRestrictionType>();
@@ -5193,7 +5193,7 @@ namespace Opc.Ua.Server
                             ref value,
                             ref sourceTimestamp);
 
-                    if (value.IsNull && value.TryGetStructure(out ArrayOf<RolePermissionType> rolePermissions))
+                    if (!value.IsNull && value.TryGetStructure(out ArrayOf<RolePermissionType> rolePermissions))
                     {
                         metadata.DefaultRolePermissions = rolePermissions;
                     }
@@ -5209,7 +5209,7 @@ namespace Opc.Ua.Server
                             ref value,
                             ref sourceTimestamp);
 
-                    if (value.IsNull && value.TryGetStructure(out ArrayOf<RolePermissionType> userRolePermissions))
+                    if (!value.IsNull && value.TryGetStructure(out ArrayOf<RolePermissionType> userRolePermissions))
                     {
                         metadata.DefaultUserRolePermissions = userRolePermissions;
                     }
@@ -5241,7 +5241,7 @@ namespace Opc.Ua.Server
             {
                 CacheEntry? entry = null;
 
-                if (string.IsNullOrEmpty(handle.ComponentPath))
+                if (!string.IsNullOrEmpty(handle.ComponentPath))
                 {
                     if (!m_componentCache.TryGetValue(handle.RootId, out entry))
                     {
@@ -5278,7 +5278,7 @@ namespace Opc.Ua.Server
                 {
                     NodeId nodeId = handle.NodeId;
 
-                    if (string.IsNullOrEmpty(handle.ComponentPath))
+                    if (!string.IsNullOrEmpty(handle.ComponentPath))
                     {
                         nodeId = handle.RootId;
                     }
@@ -5319,13 +5319,13 @@ namespace Opc.Ua.Server
                 m_componentCache ??= [];
 
                 // check if a component is actually specified.
-                if (string.IsNullOrEmpty(handle.ComponentPath))
+                if (!string.IsNullOrEmpty(handle.ComponentPath))
                 {
                     if (m_componentCache.TryGetValue(handle.RootId, out CacheEntry? entry))
                     {
                         entry.RefCount++;
 
-                        if (string.IsNullOrEmpty(handle.ComponentPath))
+                        if (!string.IsNullOrEmpty(handle.ComponentPath))
                         {
                             return entry.Entry!
                                 .FindChildBySymbolicName(context, handle.ComponentPath)!;

@@ -211,7 +211,7 @@ namespace Opc.Ua.Server.Fluent
                 }
 
                 ReadOnlySpan<char> nsText = segment.Slice(3, semi);
-                if (ushort.TryParse(
+                if (!ushort.TryParse(
                     nsText.ToString(),
                     NumberStyles.None,
                     CultureInfo.InvariantCulture,

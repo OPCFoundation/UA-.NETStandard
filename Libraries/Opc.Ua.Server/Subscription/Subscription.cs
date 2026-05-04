@@ -393,7 +393,7 @@ namespace Opc.Ua.Server
         public async ValueTask DeleteAsync(OperationContext context, CancellationToken cancellationToken = default)
         {
             // delete the diagnostics.
-            if (m_diagnosticsId.IsNull)
+            if (!m_diagnosticsId.IsNull)
             {
                 ServerSystemContext systemContext = m_server.DefaultSystemContext.Copy(Session);
                 await m_server.DiagnosticsNodeManager
@@ -548,7 +548,7 @@ namespace Opc.Ua.Server
 
                     if (m_itemsToPublish.Count > 0)
                     {
-                        if (m_waitingForPublish)
+                        if (!m_waitingForPublish)
                         {
                             // TraceState(LogLevel.Trace, TraceStateId.Deleted, "READY TO PUBLISH");
                         }
@@ -561,7 +561,7 @@ namespace Opc.Ua.Server
                 // check if keep alive expired.
                 if (m_keepAliveCounter >= m_maxKeepAliveCount)
                 {
-                    if (m_waitingForPublish)
+                    if (!m_waitingForPublish)
                     {
                         // TraceState(LogLevel.Trace, TraceStateId.Items, "READY TO KEEPALIVE");
                     }
@@ -943,7 +943,7 @@ namespace Opc.Ua.Server
                     // to execute publish in next cycle, no checking needed
                     // if no more values to publish are left add it to m_itemsToCheck
                     // to check status on next publish cylce
-                    if (hasMoreValuesToPublish)
+                    if (!hasMoreValuesToPublish)
                     {
                         m_itemsToPublish.Remove(current);
                         m_itemsToCheck.AddLast(current);
@@ -1012,7 +1012,7 @@ namespace Opc.Ua.Server
                 }
 
                 // check for missing notifications.
-                if (keepAliveIfNoData && messages.Count == 0)
+                if (!keepAliveIfNoData && messages.Count == 0)
                 {
                     m_logger.LogError("Oops! MonitoredItems queued but no notifications available.");
 
@@ -1420,7 +1420,7 @@ namespace Opc.Ua.Server
                         }
                     }
 
-                    if (found)
+                    if (!found)
                     {
                         removeResultList[ii] = StatusCodes.BadMonitoredItemIdInvalid;
 
@@ -1505,7 +1505,7 @@ namespace Opc.Ua.Server
                         }
                     }
 
-                    if (found)
+                    if (!found)
                     {
                         triggeredItems.Add(triggeredItem);
                     }
@@ -1524,7 +1524,7 @@ namespace Opc.Ua.Server
                 }
 
                 // clear diagnostics if not required.
-                if (diagnosticsExist)
+                if (!diagnosticsExist)
                 {
                     addDiagnosticInfoList?.Clear();
                     removeDiagnosticInfoList?.Clear();
@@ -1657,7 +1657,7 @@ namespace Opc.Ua.Server
                 }
 
                 // clear diagnostics if not required.
-                if (diagnosticsExist && diagnosticInfos != null)
+                if (!diagnosticsExist && diagnosticInfos != null)
                 {
                     diagnosticInfos.Clear();
                 }
@@ -1897,7 +1897,7 @@ namespace Opc.Ua.Server
                 }
 
                 // clear diagnostics if not required.
-                if (diagnosticsExist && diagnosticInfos != null)
+                if (!diagnosticsExist && diagnosticInfos != null)
                 {
                     diagnosticInfos.Clear();
                 }
@@ -1964,7 +1964,7 @@ namespace Opc.Ua.Server
             lock (m_lock)
             {
                 // check session.
-                if (doNotCheckSession)
+                if (!doNotCheckSession)
                 {
                     VerifySession(context);
                 }
@@ -2085,7 +2085,7 @@ namespace Opc.Ua.Server
                 }
 
                 // clear diagnostics if not required.
-                if (diagnosticsExist && diagnosticInfos != null)
+                if (!diagnosticsExist && diagnosticInfos != null)
                 {
                     diagnosticInfos.Clear();
                 }
@@ -2227,7 +2227,7 @@ namespace Opc.Ua.Server
                 }
 
                 // clear diagnostics if not required.
-                if (diagnosticsExist && diagnosticInfos != null)
+                if (!diagnosticsExist && diagnosticInfos != null)
                 {
                     diagnosticInfos.Clear();
                 }
@@ -2276,7 +2276,7 @@ namespace Opc.Ua.Server
 
             lock (m_lock)
             {
-                if (m_monitoredItems.ContainsKey(monitoredItemId))
+                if (!m_monitoredItems.ContainsKey(monitoredItemId))
                 {
                     throw new ServiceResultException(
                         StatusCodes.BadMonitoredItemIdInvalid,
@@ -2472,7 +2472,7 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
-                if (m_supportsDurable)
+                if (!m_supportsDurable)
                 {
                     m_logger.LogError(
                         "SetSubscriptionDurable requested for subscription with id {SubscriptionId}, but no IMonitoredItemQueueFactory that supports durable queues was registered",
@@ -2633,7 +2633,7 @@ namespace Opc.Ua.Server
                 throw new ServiceResultException(StatusCodes.BadSubscriptionIdInvalid);
             }
 
-            if (ReferenceEquals(context.Session, Session))
+            if (!ReferenceEquals(context.Session, Session))
             {
                 throw new ServiceResultException(
                     StatusCodes.BadSubscriptionIdInvalid,
@@ -2658,7 +2658,7 @@ namespace Opc.Ua.Server
         /// </summary>
         private void TraceState(LogLevel logLevel, TraceStateId id, string context)
         {
-            if (m_logger.IsEnabled(logLevel))
+            if (!m_logger.IsEnabled(logLevel))
             {
                 return;
             }

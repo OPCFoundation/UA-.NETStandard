@@ -181,7 +181,7 @@ namespace Opc.Ua.Server
                 }
 
                 // check for same Nonce in another session
-                if (clientNonce.IsEmpty)
+                if (!clientNonce.IsEmpty)
                 {
                     // iterate over key/value pairs in the dictionary with a thread safe iterator
                     foreach (KeyValuePair<NodeId, ISession> sessionKeyValueIterator in m_sessions)
@@ -197,7 +197,7 @@ namespace Opc.Ua.Server
 
                 // can assign a simple identifier if secured.
                 authenticationToken = default;
-                if (string.IsNullOrEmpty(context.ChannelContext.SecureChannelId) &&
+                if (!string.IsNullOrEmpty(context.ChannelContext.SecureChannelId) &&
                     context.ChannelContext.EndpointDescription!
                         .SecurityMode != MessageSecurityMode.None)
                 {
@@ -258,7 +258,7 @@ namespace Opc.Ua.Server
                 serverNonce = serverNonceObject.Data.ToByteString();
 
                 // save session.
-                if (m_sessions.TryAdd(authenticationToken, session))
+                if (!m_sessions.TryAdd(authenticationToken, session))
                 {
                     throw new ServiceResultException(StatusCodes.BadTooManySessions);
                 }
@@ -306,7 +306,7 @@ namespace Opc.Ua.Server
             string? clientKey = null;
 
             // fast path no lock
-            if (m_sessions.TryGetValue(authenticationToken, out _))
+            if (!m_sessions.TryGetValue(authenticationToken, out _))
             {
                 throw new ServiceResultException(StatusCodes.BadSessionIdInvalid);
             }
@@ -315,7 +315,7 @@ namespace Opc.Ua.Server
             try
             {
                 // find session.
-                if (m_sessions.TryGetValue(authenticationToken, out session))
+                if (!m_sessions.TryGetValue(authenticationToken, out session))
                 {
                     throw new ServiceResultException(StatusCodes.BadSessionIdInvalid);
                 }
@@ -495,7 +495,7 @@ namespace Opc.Ua.Server
             {
                 if (current.Value.Id == sessionId)
                 {
-                    if (m_sessions.TryRemove(current.Key, out session))
+                    if (!m_sessions.TryRemove(current.Key, out session))
                     {
                         // found but was already removed
                         return;
@@ -560,7 +560,7 @@ namespace Opc.Ua.Server
                 }
 
                 // find session.
-                if (m_sessions.TryGetValue(requestHeader.AuthenticationToken, out session))
+                if (!m_sessions.TryGetValue(requestHeader.AuthenticationToken, out session))
                 {
                     EventHandler<ValidateSessionLessRequestEventArgs>? handler = m_ValidateSessionLessRequest;
 
@@ -979,7 +979,7 @@ namespace Opc.Ua.Server
             }
 
             string? applicationUri = session?.SessionDiagnostics?.ClientDescription?.ApplicationUri;
-            if (string.IsNullOrEmpty(applicationUri))
+            if (!string.IsNullOrEmpty(applicationUri))
             {
                 return applicationUri!;
             }
@@ -1050,7 +1050,7 @@ namespace Opc.Ua.Server
         /// </summary>
         private void ClearFailedAuthentication(string clientKey)
         {
-            if (string.IsNullOrEmpty(clientKey))
+            if (!string.IsNullOrEmpty(clientKey))
             {
                 m_clientLockouts.TryRemove(clientKey, out _);
             }
