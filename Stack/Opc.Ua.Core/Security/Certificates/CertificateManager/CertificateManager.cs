@@ -240,7 +240,8 @@ namespace Opc.Ua
             ApplyValidationFlags(m_userValidator);
             ApplyValidationFlags(m_httpsValidator);
 
-            if (config.TrustedPeerCertificates != null)
+            if (config.TrustedPeerCertificates != null &&
+                !string.IsNullOrEmpty(config.TrustedPeerCertificates.StorePath))
             {
                 RegisterTrustList(
                     TrustListIdentifier.Peers,
@@ -248,7 +249,8 @@ namespace Opc.Ua
                     config.TrustedIssuerCertificates?.StorePath);
             }
 
-            if (config.TrustedUserCertificates != null)
+            if (config.TrustedUserCertificates != null &&
+                !string.IsNullOrEmpty(config.TrustedUserCertificates.StorePath))
             {
                 RegisterTrustList(
                     TrustListIdentifier.Users,
@@ -256,7 +258,8 @@ namespace Opc.Ua
                     config.UserIssuerCertificates?.StorePath);
             }
 
-            if (config.TrustedHttpsCertificates != null)
+            if (config.TrustedHttpsCertificates != null &&
+                !string.IsNullOrEmpty(config.TrustedHttpsCertificates.StorePath))
             {
                 RegisterTrustList(
                     TrustListIdentifier.Https,
@@ -264,7 +267,8 @@ namespace Opc.Ua
                     config.HttpsIssuerCertificates?.StorePath);
             }
 
-            if (config.RejectedCertificateStore != null)
+            if (config.RejectedCertificateStore != null &&
+                !string.IsNullOrEmpty(config.RejectedCertificateStore.StorePath))
             {
                 RegisterTrustList(
                     TrustListIdentifier.Rejected,
