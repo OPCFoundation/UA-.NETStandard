@@ -11,9 +11,6 @@
     <DefineConstants>$(DefineConstants);OPCUA_V1_CLIENT</DefineConstants>
     <IsAotCompatible Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net10.0'))">true</IsAotCompatible>
   </PropertyGroup>
-  <PropertyGroup Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net8.0'))">
-    <DefineConstants>$(DefineConstants);OPCUA_CLIENT_V2</DefineConstants>
-  </PropertyGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Opc.Ua.Client.Tests" />
     <InternalsVisibleTo Include="Opc.Ua.Client.ComplexTypes.Tests" />
@@ -28,8 +25,6 @@
     <PackageReference Include="Microsoft.Extensions.Options" />
     <PackageReference Include="Nito.AsyncEx" />
     <PackageReference Include="System.Threading.Channels" />
-  </ItemGroup>
-  <ItemGroup Condition="!$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net8.0'))">
     <PackageReference Include="Microsoft.Bcl.TimeProvider" />
   </ItemGroup>
   <ItemGroup>

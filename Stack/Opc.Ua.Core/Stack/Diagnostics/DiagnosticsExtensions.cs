@@ -50,6 +50,7 @@ namespace Microsoft.Extensions.DependencyInjection
             builder.Services.AddLogging();
             return builder;
         }
+
         /// <summary>
         /// Add logging to the builder
         /// </summary>

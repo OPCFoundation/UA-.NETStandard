@@ -555,7 +555,6 @@ namespace Opc.Ua.Client
             return ResultSet.From(result.ConvertAll(l => (ArrayOf<ReferenceDescription>)l), errors);
         }
 
-#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
         /// <summary>
         /// Browse the server address space returning results as an async stream.
         /// Automatically handles continuation points and releases them on
@@ -674,7 +673,6 @@ namespace Opc.Ua.Client
                 }
             }
         }
-#endif
 
         /// <summary>
         /// Call the browse service asynchronously and call browse next,

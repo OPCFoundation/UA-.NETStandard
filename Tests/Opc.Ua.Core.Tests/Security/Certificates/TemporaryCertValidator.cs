@@ -88,7 +88,6 @@ namespace Opc.Ua.Core.Tests
             if (disposing && Interlocked.CompareExchange(ref m_disposed, 1, 0) == 0)
             {
                 CleanupValidatorAndStoresAsync(true).GetAwaiter().GetResult();
-                m_certificateValidator?.Dispose();
                 m_issuerStore = null;
                 m_trustedStore = null;
                 m_rejectedStore = null;
