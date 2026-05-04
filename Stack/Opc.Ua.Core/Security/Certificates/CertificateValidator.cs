@@ -619,15 +619,19 @@ namespace Opc.Ua
             Opc.Ua.Security.Certificates.CertificateValidationOptions? options,
             CancellationToken ct)
         {
+            // Per-call AcceptError takes precedence over the global hook.
+            Func<Certificate, ServiceResult, bool>? acceptError =
+                options?.AcceptError ?? m_globalAcceptError;
+
             CertificateValidationEventHandler? handler = null;
-            if (options?.AcceptError != null)
+            if (acceptError != null)
             {
-                Func<Certificate, ServiceResult, bool> acceptError = options.AcceptError;
+                Func<Certificate, ServiceResult, bool> callback = acceptError;
                 handler = (sender, e) =>
                 {
                     try
                     {
-                        if (acceptError(e.Certificate, e.Error))
+                        if (callback(e.Certificate, e.Error))
                         {
                             e.Accept = true;
                         }
@@ -679,6 +683,15 @@ namespace Opc.Ua
             using var chain = new CertificateCollection { certificate };
             return self.ValidateAsync(chain, trustList, options: null, ct);
         }
+
+        /// <inheritdoc/>
+        Func<Certificate, ServiceResult, bool>? ICertificateValidatorEx.AcceptError
+        {
+            get => m_globalAcceptError;
+            set => m_globalAcceptError = value;
+        }
+
+        private Func<Certificate, ServiceResult, bool>? m_globalAcceptError;
 
         /// <summary>
         /// Validates a certificate with domain validation check.

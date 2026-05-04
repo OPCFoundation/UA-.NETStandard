@@ -64,6 +64,7 @@ namespace Opc.Ua
         private CertificateValidator? m_peerValidator;
         private CertificateValidator? m_userValidator;
         private CertificateValidator? m_httpsValidator;
+        private Func<Certificate, ServiceResult, bool>? m_acceptError;
         private bool m_disposed;
 
         /// <summary>
@@ -249,6 +250,13 @@ namespace Opc.Ua
         public bool SendCertificateChain => m_sendCertificateChain;
 
         /// <inheritdoc/>
+        public Func<Certificate, ServiceResult, bool>? AcceptError
+        {
+            get => m_acceptError;
+            set => m_acceptError = value;
+        }
+
+        /// <inheritdoc/>
         public IReadOnlyList<CertificateEntry> ApplicationCertificates => m_applicationCertificates;
 
         /// <inheritdoc/>
@@ -350,15 +358,19 @@ namespace Opc.Ua
             trustList ??= TrustListIdentifier.Peers;
             CertificateValidator validator = GetOrCreateValidator(trustList);
 
+            // Per-call AcceptError takes precedence over the global hook.
+            Func<Certificate, ServiceResult, bool>? acceptError =
+                options?.AcceptError ?? m_acceptError;
+
             CertificateValidationEventHandler? handler = null;
-            if (options?.AcceptError != null)
+            if (acceptError != null)
             {
-                Func<Certificate, ServiceResult, bool> acceptError = options.AcceptError;
+                Func<Certificate, ServiceResult, bool> callback = acceptError;
                 handler = (sender, e) =>
                 {
                     try
                     {
-                        if (acceptError(e.Certificate, e.Error))
+                        if (callback(e.Certificate, e.Error))
                         {
                             e.Accept = true;
                         }

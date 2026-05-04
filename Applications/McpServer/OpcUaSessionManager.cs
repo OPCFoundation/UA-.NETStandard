@@ -42,6 +42,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Opc.Ua;
 using Opc.Ua.Client;
 using Opc.Ua.Configuration;
+using Opc.Ua.Security.Certificates;
 
 // FILE-PRAGMA: legacy CertificateValidator/ICertificateValidator API kept for binary compat
 // TODO: migrate from CertificateValidation event to AcceptError callback after the legacy class is removed.
@@ -241,11 +242,9 @@ namespace Opc.Ua.Mcp
 
                 await EnsureConfigurationInternalAsync(autoAcceptCerts, ct).ConfigureAwait(false);
 
-                if (autoAcceptCerts &&
-                    m_configuration!.CertificateValidator is CertificateValidator legacyValidator)
+                if (autoAcceptCerts)
                 {
-                    legacyValidator.CertificateValidation -= AutoAcceptCertificateValidation;
-                    legacyValidator.CertificateValidation += AutoAcceptCertificateValidation;
+                    m_configuration!.CertificateValidator.AcceptError = AutoAcceptError;
                 }
 
                 m_logger.LogInformation("Connecting to {EndpointUrl} as '{Name}'...", endpointUrl, name);
@@ -452,10 +451,9 @@ namespace Opc.Ua.Mcp
                 m_logger.LogWarning("Application certificate not found. Security may be limited.");
             }
 
-            if (autoAcceptCerts &&
-                config.CertificateValidator is CertificateValidator legacyValidator)
+            if (autoAcceptCerts)
             {
-                legacyValidator.CertificateValidation += AutoAcceptCertificateValidation;
+                config.CertificateValidator.AcceptError = AutoAcceptError;
             }
 
             m_configuration = config;
@@ -685,11 +683,11 @@ namespace Opc.Ua.Mcp
                 info.Session.ServerUris?.ToArray().FirstOrDefault() ?? "unknown");
         }
 
-        private static void AutoAcceptCertificateValidation(
-            CertificateValidator sender,
-            CertificateValidationEventArgs e)
+        private static bool AutoAcceptError(
+            Certificate certificate,
+            ServiceResult error)
         {
-            e.Accept = true;
+            return true;
         }
 
         private sealed class NullTelemetry : ITelemetryContext
