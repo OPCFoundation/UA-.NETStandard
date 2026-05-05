@@ -5040,14 +5040,14 @@ namespace Opc.Ua.Server
 
                 if (!string.IsNullOrEmpty(handle.ComponentPath))
                 {
-                    if (!m_componentCache.TryGetValue(handle.RootId, out entry))
+                    if (m_componentCache.TryGetValue(handle.RootId, out entry))
                     {
-                        return entry!.Entry!.FindChildBySymbolicName(context, handle.ComponentPath);
+                        return entry.Entry!.FindChildBySymbolicName(context, handle.ComponentPath);
                     }
                 }
-                else if (!m_componentCache.TryGetValue(handle.NodeId, out entry))
+                else if (m_componentCache.TryGetValue(handle.NodeId, out entry))
                 {
-                    return entry!.Entry;
+                    return entry.Entry;
                 }
 
                 return null;
