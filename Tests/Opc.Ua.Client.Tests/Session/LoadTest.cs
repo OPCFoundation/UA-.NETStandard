@@ -675,12 +675,12 @@ namespace Opc.Ua.Client.Tests
                     TestContext.Out.WriteLine($"Average event delivery delay: {averageDelay.TotalMilliseconds:F2} ms");
                 }
 
-                NUnit.Framework.Assert.That(
+                Assert.That(
                     received,
                     Is.GreaterThan(0),
                     "No event notifications were received.");
 
-                NUnit.Framework.Assert.That(
+                Assert.That(
                     receiveRatio,
                     Is.GreaterThan(0.99),
                     "The event notification receive ratio is too low.");

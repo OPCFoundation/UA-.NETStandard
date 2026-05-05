@@ -359,9 +359,9 @@ namespace Opc.Ua.Core.Tests.Stack.Types
             aes.Padding = PaddingMode.None;
             aes.Key = encryptingKey;
             aes.IV = iv;
-#pragma warning restore CA5401
 
             using ICryptoTransform encryptor = aes.CreateEncryptor();
+#pragma warning restore CA5401
             return encryptor.TransformFinalBlock(encryptedPayload, 0, encryptedPayload.Length);
         }
 
@@ -375,8 +375,10 @@ namespace Opc.Ua.Core.Tests.Stack.Types
 
         private static byte[] ComputeSha1Hash(byte[] data)
         {
+#pragma warning disable CA5350 // Do Not Use Weak Cryptographic Algorithms
             using SHA1 sha1 = SHA1.Create();
             return sha1.ComputeHash(data);
+#pragma warning restore CA5350 // Do Not Use Weak Cryptographic Algorithms
         }
     }
 }

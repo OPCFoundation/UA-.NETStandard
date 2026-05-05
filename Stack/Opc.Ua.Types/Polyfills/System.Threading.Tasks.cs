@@ -37,7 +37,7 @@ namespace System.Threading.Tasks
 #if !NET6_0_OR_GREATER
         /// <summary>
         /// Gets a System.Threading.Tasks.Task that will complete when this System.Threading.Tasks.Task
-        ///     completes, when the specified timeout expires, or when the specified System.Threading.CancellationToken
+        /// completes, when the specified timeout expires, or when the specified System.Threading.CancellationToken
         /// </summary>
         /// <typeparam name="T">Task return type</typeparam>
         /// <param name="task">The task to wait for. Can't be <see langword="null"></see></param>
@@ -47,7 +47,7 @@ namespace System.Threading.Tasks
         /// </param>
         /// <param name="ct">The System.Threading.CancellationToken to monitor for a cancellation request.</param>
         /// <returns>The System.Threading.Tasks.Task representing the asynchronous wait. It may or
-        ///     may not be the same instance as the current instance.</returns>
+        /// may not be the same instance as the current instance.</returns>
         /// <exception cref="ArgumentNullException"></exception>
         /// <exception cref="TimeoutException"></exception>
         public static async Task<T> WaitAsync<T>(this Task<T> task, TimeSpan timeout, CancellationToken ct = default)
@@ -71,6 +71,48 @@ namespace System.Threading.Tasks
                     }
                 }
                 return await task.ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+            {
+                throw new TimeoutException("The operation has timed out.");
+            }
+        }
+
+        /// <summary>
+        /// Gets a System.Threading.Tasks.Task that will complete when this System.Threading.Tasks.Task
+        /// completes, when the specified timeout expires, or when the specified System.Threading.CancellationToken
+        /// </summary>
+        /// <param name="task">The task to wait for. Can't be <see langword="null"></see></param>
+        /// <param name="timeout">
+        /// The timeout after which the System.Threading.Tasks.Task should be faulted with
+        /// <br></br>a System.TimeoutException if it hasn't otherwise completed.
+        /// </param>
+        /// <param name="ct">The System.Threading.CancellationToken to monitor for a cancellation request.</param>
+        /// <returns>The System.Threading.Tasks.Task representing the asynchronous wait. It may or
+        /// may not be the same instance as the current instance.</returns>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="TimeoutException"></exception>
+        public static async Task WaitAsync(this Task task, TimeSpan timeout, CancellationToken ct = default)
+        {
+            if (task is null)
+            {
+                throw new ArgumentNullException(nameof(task));
+            }
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            cts.CancelAfter(timeout);
+            try
+            {
+                var tcs = new TaskCompletionSource<bool>();
+                using (cts.Token.Register(() => tcs.TrySetCanceled(), useSynchronizationContext: false))
+                {
+                    Task completedTask = await Task.WhenAny(task, tcs.Task).ConfigureAwait(false);
+                    if (task != completedTask)
+                    {
+                        ct.ThrowIfCancellationRequested();
+                        throw new TimeoutException("The operation has timed out.");
+                    }
+                }
+                await task.ConfigureAwait(false);
             }
             catch (OperationCanceledException) when (!ct.IsCancellationRequested)
             {

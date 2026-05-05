@@ -31,7 +31,6 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
-using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using Microsoft.Extensions.Logging;
@@ -823,7 +822,7 @@ namespace Opc.Ua.Bindings
                     // reset the encoder to write the plaintext for the next chunk into the same buffer.
                     if (bytesToWrite > 0)
                     {
-                        encoder?.Dispose();
+                        encoder.Dispose();
                         // ostrm is disposed by the encoder.
                         var ostrm = new MemoryStream(buffer, 0, SendBufferSize);
                         ostrm.Seek(header.Count, SeekOrigin.Current);
@@ -1366,7 +1365,6 @@ namespace Opc.Ua.Bindings
                         receiverCertificate,
                         RsaUtils.Padding.OaepSHA256);
                 default:
-                case AsymmetricEncryptionAlgorithm.RsaPkcs15Sha1:
                     return Rsa_Encrypt(
                         dataToEncrypt,
                         headerToCopy,
@@ -1423,9 +1421,6 @@ namespace Opc.Ua.Bindings
                         receiverCertificate,
                         RsaUtils.Padding.OaepSHA1);
                 default:
-                case SecurityPolicies.Aes256_Sha256_RsaPss:
-                case SecurityPolicies.RSA_DH_AesGcm:
-                case SecurityPolicies.RSA_DH_ChaChaPoly:
                     return Rsa_Decrypt(
                         dataToDecrypt,
                         headerToCopy,

@@ -436,8 +436,8 @@ namespace Opc.Ua
                 aes.Padding = PaddingMode.None;
                 aes.Key = encryptingKey;
                 aes.IV = iv;
-#pragma warning restore CA5401
                 using ICryptoTransform encryptor = aes.CreateEncryptor();
+#pragma warning restore CA5401
                 int bytesEncrypted = encryptor.TransformBlock(
                     encryptedPayload,
                     0,
@@ -525,10 +525,7 @@ namespace Opc.Ua
                     ZeroMemory(keyData);
                 }
 
-                if (encryptedPayload != null)
-                {
-                    ZeroMemory(encryptedPayload);
-                }
+                ZeroMemory(encryptedPayload);
             }
         }
 
@@ -711,30 +708,11 @@ namespace Opc.Ua
                     ZeroMemory(keyData);
                 }
 
-                if (signingKey != null)
-                {
-                    ZeroMemory(signingKey);
-                }
-
-                if (encryptingKey != null)
-                {
-                    ZeroMemory(encryptingKey);
-                }
-
-                if (iv != null)
-                {
-                    ZeroMemory(iv);
-                }
-
-                if (encryptedPayload != null)
-                {
-                    ZeroMemory(encryptedPayload);
-                }
-
-                if (payload != null)
-                {
-                    ZeroMemory(payload);
-                }
+                ZeroMemory(signingKey);
+                ZeroMemory(encryptingKey);
+                ZeroMemory(iv);
+                ZeroMemory(encryptedPayload);
+                ZeroMemory(payload);
             }
         }
 
@@ -1045,7 +1023,7 @@ namespace Opc.Ua
             return sha1.ComputeHash(data);
         }
 
-        private static void ZeroMemory(byte[] buffer)
+        private static void ZeroMemory(byte[]? buffer)
         {
             if (buffer == null)
             {

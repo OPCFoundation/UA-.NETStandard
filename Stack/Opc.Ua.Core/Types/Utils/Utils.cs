@@ -644,7 +644,7 @@ namespace Opc.Ua
         /// <remarks>If the platform returns a FQDN, only the host name is returned.</remarks>
         public static string GetHostName()
         {
-            var hostName = Dns.GetHostName();
+            string hostName = Dns.GetHostName();
             // If platform returns an IPv4 or IPv6 address return it as is
             if (IPAddress.TryParse(hostName, out _))
             {
@@ -1578,12 +1578,12 @@ namespace Opc.Ua
 
             var document = new XmlDocument();
 
-            if (value != null)
+            if (!EqualityComparer<T>.Default.Equals(value!, default!))
             {
                 using IDisposable scope = AmbientMessageContext.SetScopedContext(telemetry!);
                 using var encoder = new XmlEncoder(AmbientMessageContext.CurrentContext);
                 encoder.Push(elementName.Name, elementName.Namespace);
-                value.Encode(encoder);
+                value!.Encode(encoder);
                 encoder.Pop();
                 string xml = encoder.CloseAndReturnText()!;
                 document.LoadInnerXml(xml);
@@ -1604,7 +1604,7 @@ namespace Opc.Ua
                         element.LocalName == elementName.Name &&
                         element.NamespaceURI == elementName.Namespace)
                     {
-                        if (value == null)
+                        if (EqualityComparer<T>.Default.Equals(value!, default!))
                         {
                             xmlElements.RemoveAt(ii);
                             extensions = xmlElements.ToArrayOf();
@@ -1618,7 +1618,7 @@ namespace Opc.Ua
                 }
             }
 
-            if (value != null)
+            if (!EqualityComparer<T>.Default.Equals(value!, default!))
             {
                 xmlElements.Add(XmlElement.From(document.DocumentElement));
                 extensions = xmlElements.ToArrayOf();
@@ -1629,6 +1629,7 @@ namespace Opc.Ua
         /// Gets the XML qualified name for an IEncodeable type,
         /// checking [DataContract] first, then [DataType] attribute.
         /// </summary>
+        /// <exception cref="ArgumentException"></exception>
         private static XmlQualifiedName GetEncodeableXmlName(Type type)
         {
             // Try [DataContract] attribute
@@ -1648,8 +1649,9 @@ namespace Opc.Ua
                 return new XmlQualifiedName(type.Name, typeId.NamespaceUri);
             }
 
-            return qname ?? throw new ArgumentException(
-                "Cannot determine XML name for type " + type.Name);
+            return qname ??
+                throw new ArgumentException(
+                    "Cannot determine XML name for type " + type.Name);
         }
 
         private static readonly DateTime s_baseDateTime = new(

@@ -53,17 +53,11 @@ namespace Opc.Ua.Bindings
         {
             if (!m_disposed)
             {
-                if (ServerHmac != null)
-                {
-                    ServerHmac.Dispose();
-                    ServerHmac = null;
-                }
+                ServerHmac?.Dispose();
+                ServerHmac = null;
 
-                if (ClientHmac != null)
-                {
-                    ClientHmac.Dispose();
-                    ClientHmac = null;
-                }
+                ClientHmac?.Dispose();
+                ClientHmac = null;
 
                 m_disposed = true;
             }

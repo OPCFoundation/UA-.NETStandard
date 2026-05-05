@@ -35,8 +35,14 @@ using System.Threading.Tasks;
 namespace Opc.Ua.Client
 {
     /// <summary>
-    /// Object that creates instances of an Opc.Ua.Client.Session object.
+    /// Session factory that creates raw <see cref="Session"/> instances
+    /// without automatic reconnection or failover.
     /// </summary>
+    /// <remarks>
+    /// Use <see cref="ManagedSessionFactory"/> instead to get
+    /// <see cref="ManagedSession"/> instances that handle reconnection
+    /// and failover automatically.
+    /// </remarks>
     public class DefaultSessionFactory : ISessionFactory
     {
         /// <summary>
@@ -44,7 +50,7 @@ namespace Opc.Ua.Client
         /// </summary>
         // Telemetry is required by the modern ctor; this obsolete singleton forwards null!
         // to preserve the pre-nullable static-instance pattern.
-        [Obsolete("Use new DefaultSessionFactory instead.")]
+        [Obsolete("Use new DefaultSessionFactory(ITelemetryContext) instead.")]
         public static readonly DefaultSessionFactory Instance = new(null!);
 
         /// <inheritdoc/>
@@ -52,6 +58,13 @@ namespace Opc.Ua.Client
 
         /// <inheritdoc/>
         public DiagnosticsMasks ReturnDiagnostics { get; set; }
+
+        /// <summary>
+        /// Optional subscription engine factory to use when constructing
+        /// a <see cref="Session"/>. When <c>null</c>, the session uses the
+        /// classic engine (<see cref="ClassicSubscriptionEngineFactory"/>).
+        /// </summary>
+        public ISubscriptionEngineFactory? SubscriptionEngineFactory { get; init; }
 
         /// <summary>
         /// Obsolete default constructor
@@ -65,7 +78,7 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Force use of the default instance.
+        /// Creates a new instance of the <see cref="DefaultSessionFactory"/>.
         /// </summary>
         public DefaultSessionFactory(ITelemetryContext telemetry)
         {
@@ -252,9 +265,8 @@ namespace Opc.Ua.Client
             // checks the domains in the certificate.
             if (checkDomain && endpoint.Description.ServerCertificate.Length > 0)
             {
-                configuration.CertificateValidator?.ValidateDomains(
-                    CertificateFactory.Create(endpoint.Description.ServerCertificate),
-                    endpoint);
+                using X509Certificate2 serverCert = CertificateFactory.Create(endpoint.Description.ServerCertificate);
+                configuration.CertificateValidator?.ValidateDomains(serverCert, endpoint);
             }
 
             X509Certificate2? clientCertificate = null;
@@ -366,7 +378,8 @@ namespace Opc.Ua.Client
                 clientCertificate,
                 clientCertificateChain,
                 availableEndpoints,
-                discoveryProfileUris)
+                discoveryProfileUris,
+                SubscriptionEngineFactory)
             {
                 ReturnDiagnostics = ReturnDiagnostics
             };

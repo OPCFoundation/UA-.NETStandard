@@ -228,15 +228,9 @@ namespace Opc.Ua.Client
         protected virtual void Dispose(bool disposing)
         {
             // close the watcher.
-            if (m_configurationWatcher != null)
-            {
-                m_configurationWatcher.Dispose();
-                m_configurationWatcher = null;
-            }
-            if (m_cts != null)
-            {
-                m_cts.Dispose();
-            }
+            m_configurationWatcher?.Dispose();
+            m_configurationWatcher = null;
+            m_cts?.Dispose();
             DisposeHosts();
         }
 
@@ -455,7 +449,7 @@ namespace Opc.Ua.Client
                 {
                     m_logger.LogError(e, "Unexpected error starting reverse connect manager.");
                     m_state = ReverseConnectManagerState.Errored;
-                    ServiceResult error = ServiceResult.Create(
+                    var error = ServiceResult.Create(
                         e,
                         StatusCodes.BadInternalError,
                         "Unexpected error starting application");
@@ -495,7 +489,7 @@ namespace Opc.Ua.Client
                 {
                     m_logger.LogError(e, "Unexpected error starting reverse connect manager.");
                     m_state = ReverseConnectManagerState.Errored;
-                    ServiceResult error = ServiceResult.Create(
+                    var error = ServiceResult.Create(
                         e,
                         StatusCodes.BadInternalError,
                         "Unexpected error starting reverse connect manager");

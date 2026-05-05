@@ -9,3 +9,5 @@ MODELGEN002 | ModelSourceGenerator | Warning | ModelSourceGenerator
 MODELGEN003 | ModelSourceGenerator | Error | ModelSourceGenerator
 MODELGEN010 | ModelSourceGenerator | Warning | [NodeManager] attribute binding error
 MODELGEN011 | ModelSourceGenerator | Error | [NodeManager] class must be partial
+MODELGEN012 | ModelSourceGenerator | Info | Multiple referenced assemblies expose same model
+MODELGEN013 | ModelSourceGenerator | Info | Model already provided by referenced assembly

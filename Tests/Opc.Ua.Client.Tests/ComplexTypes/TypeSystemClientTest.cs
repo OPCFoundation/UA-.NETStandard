@@ -36,9 +36,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
 using NUnit.Framework;
+using Opc.Ua.Client.ComplexTypes;
 using Opc.Ua.Server.Tests;
 using Opc.Ua.Tests;
-using Opc.Ua.Client.ComplexTypes;
 using Quickstarts;
 using Quickstarts.ReferenceServer;
 

@@ -123,7 +123,7 @@ namespace Opc.Ua.Server.Hosting
             await optionsBuilder
                 .AddSecurityConfiguration(certs, pkiRoot)
                 .SetAutoAcceptUntrustedCertificates(m_options.AutoAcceptUntrustedCertificates)
-                .CreateAsync()
+                .CreateAsync(stoppingToken)
                 .ConfigureAwait(false);
 
             bool haveCert = await m_application

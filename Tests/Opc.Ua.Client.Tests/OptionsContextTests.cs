@@ -50,12 +50,12 @@ namespace Opc.Ua.Client.Tests
             Assert.That(options.BrowseDirection, Is.EqualTo(BrowseDirection.Forward));
             Assert.That(options.IncludeSubtypes, Is.True);
             Assert.That(options.ResultMask, Is.EqualTo((uint)BrowseResultMask.All));
-            Assert.That(options.MaxReferencesReturned, Is.EqualTo(0u));
+            Assert.That(options.MaxReferencesReturned, Is.Zero);
             Assert.That(options.ContinuationPointPolicy,
                 Is.EqualTo(ContinuationPointPolicy.Default));
-            Assert.That(options.MaxNodesPerBrowse, Is.EqualTo(0u));
-            Assert.That(options.MaxBrowseContinuationPoints, Is.EqualTo((ushort)0));
-            Assert.That(options.NodeClassMask, Is.EqualTo(0));
+            Assert.That(options.MaxNodesPerBrowse, Is.Zero);
+            Assert.That(options.MaxBrowseContinuationPoints, Is.Zero);
+            Assert.That(options.NodeClassMask, Is.Zero);
             Assert.That(options.ReferenceTypeId, Is.EqualTo(NodeId.Null));
             Assert.That(options.RequestHeader, Is.Null);
             Assert.That(options.View, Is.Null);
@@ -137,20 +137,20 @@ namespace Opc.Ua.Client.Tests
             var options = new SubscriptionOptions();
 
             Assert.That(options.DisplayName, Is.EqualTo("Subscription"));
-            Assert.That(options.PublishingInterval, Is.EqualTo(0));
-            Assert.That(options.KeepAliveCount, Is.EqualTo(0u));
-            Assert.That(options.LifetimeCount, Is.EqualTo(0u));
-            Assert.That(options.MaxNotificationsPerPublish, Is.EqualTo(0u));
+            Assert.That(options.PublishingInterval, Is.Zero);
+            Assert.That(options.KeepAliveCount, Is.Zero);
+            Assert.That(options.LifetimeCount, Is.Zero);
+            Assert.That(options.MaxNotificationsPerPublish, Is.Zero);
             Assert.That(options.PublishingEnabled, Is.False);
-            Assert.That(options.Priority, Is.EqualTo((byte)0));
+            Assert.That(options.Priority, Is.Zero);
             Assert.That(options.TimestampsToReturn,
                 Is.EqualTo(TimestampsToReturn.Both));
             Assert.That(options.MaxMessageCount, Is.EqualTo(10));
-            Assert.That(options.MinLifetimeInterval, Is.EqualTo(0u));
+            Assert.That(options.MinLifetimeInterval, Is.Zero);
             Assert.That(options.DisableMonitoredItemCache, Is.False);
             Assert.That(options.SequentialPublishing, Is.False);
             Assert.That(options.RepublishAfterTransfer, Is.False);
-            Assert.That(options.TransferId, Is.EqualTo(0u));
+            Assert.That(options.TransferId, Is.Zero);
         }
 
         [Test]
@@ -240,7 +240,7 @@ namespace Opc.Ua.Client.Tests
                 Is.EqualTo(MonitoringMode.Reporting));
             Assert.That(options.SamplingInterval, Is.EqualTo(-1));
             Assert.That(options.Filter, Is.Null);
-            Assert.That(options.QueueSize, Is.EqualTo(0u));
+            Assert.That(options.QueueSize, Is.Zero);
             Assert.That(options.DiscardOldest, Is.True);
         }
 
@@ -408,7 +408,7 @@ namespace Opc.Ua.Client.Tests
             Assert.That(state.CurrentPublishingInterval, Is.EqualTo(500.0));
             Assert.That(state.CurrentKeepAliveCount, Is.EqualTo(10u));
             Assert.That(state.CurrentLifetimeCount, Is.EqualTo(30u));
-            Assert.That(state.MonitoredItems, Is.Not.Null);
+            Assert.That(state.MonitoredItems.IsNull, Is.False);
         }
 
         [Test]
@@ -434,7 +434,7 @@ namespace Opc.Ua.Client.Tests
             Assert.That(state.QueueSize, Is.EqualTo(5u));
             Assert.That(state.ServerId, Is.EqualTo(42u));
             Assert.That(state.ClientId, Is.EqualTo(7u));
-            Assert.That(state.TriggeringItemId, Is.EqualTo(0u));
+            Assert.That(state.TriggeringItemId, Is.Zero);
             Assert.That(state.CacheQueueSize, Is.EqualTo(10u));
             Assert.That(state.Timestamp, Is.Not.EqualTo(default(System.DateTime)));
         }
