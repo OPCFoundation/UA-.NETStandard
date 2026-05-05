@@ -37,8 +37,6 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Security.Certificates;
 
-// FILE-PRAGMA: legacy CertificateValidator/ICertificateValidator API kept for binary compat
-#pragma warning disable CS0618
 
 namespace Opc.Ua
 {
@@ -66,9 +64,11 @@ namespace Opc.Ua
         private bool m_useValidatedCertificates;
         private RejectedCertificateProcessor? m_rejectedProcessor;
         private CertificateLifecycleMonitor? m_lifecycleMonitor;
+#pragma warning disable CS0618 // Type or member is obsolete
         private CertificateValidator? m_peerValidator;
         private CertificateValidator? m_userValidator;
         private CertificateValidator? m_httpsValidator;
+#pragma warning restore CS0618
         private Func<Certificate, ServiceResult, bool>? m_acceptError;
         private bool m_disposed;
 
@@ -386,7 +386,9 @@ namespace Opc.Ua
             CancellationToken ct = default)
         {
             trustList ??= TrustListIdentifier.Peers;
+#pragma warning disable CS0618 // Type or member is obsolete
             CertificateValidator validator = GetOrCreateValidator(trustList);
+#pragma warning restore CS0618
 
             // Per-call AcceptError takes precedence over the global hook.
             Func<Certificate, ServiceResult, bool>? acceptError =
@@ -721,6 +723,7 @@ namespace Opc.Ua
         /// Gets or creates a <see cref="CertificateValidator"/> configured
         /// for the specified trust list.
         /// </summary>
+#pragma warning disable CS0618 // Type or member is obsolete
         private CertificateValidator GetOrCreateValidator(TrustListIdentifier trustList)
         {
             // Return a cached validator for well-known trust lists.
@@ -777,12 +780,14 @@ namespace Opc.Ua
 
             return validator;
         }
+#pragma warning restore CS0618
 
         /// <summary>
         /// Applies the global validation flags captured from the
         /// SecurityConfiguration to a (possibly already-created) validator.
         /// Safe to call with a null validator.
         /// </summary>
+#pragma warning disable CS0618 // Type or member is obsolete
         private void ApplyValidationFlags(CertificateValidator? validator)
         {
             if (validator == null)
@@ -799,11 +804,13 @@ namespace Opc.Ua
             }
             validator.UseValidatedCertificates = m_useValidatedCertificates;
         }
+#pragma warning restore CS0618
 
         /// <summary>
         /// Returns the cached validator for a well-known trust list,
         /// or <see langword="null"/> if none is cached yet.
         /// </summary>
+#pragma warning disable CS0618 // Type or member is obsolete
         private CertificateValidator? GetCachedValidator(TrustListIdentifier trustList)
         {
             if (trustList == TrustListIdentifier.Peers)
@@ -823,6 +830,7 @@ namespace Opc.Ua
 
             return null;
         }
+#pragma warning restore CS0618
 
         /// <summary>
         /// Opens a certificate store at the given path, resolving the

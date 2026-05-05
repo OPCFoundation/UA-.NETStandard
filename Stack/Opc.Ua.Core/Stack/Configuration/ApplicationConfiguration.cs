@@ -38,8 +38,6 @@ using System.Threading.Tasks;
 using System.Xml;
 using Microsoft.Extensions.Logging;
 
-// FILE-PRAGMA: legacy CertificateValidator/ICertificateValidator API kept for binary compat
-#pragma warning disable CS0618
 
 namespace Opc.Ua
 {

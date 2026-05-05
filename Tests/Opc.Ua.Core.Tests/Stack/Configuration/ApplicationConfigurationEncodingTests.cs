@@ -33,8 +33,6 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Tests;
 
-// FILE-PRAGMA: legacy CertificateValidator/ICertificateValidator API kept for binary compat
-#pragma warning disable CS0618
 
 namespace Opc.Ua.Core.Tests
 {
@@ -80,7 +78,9 @@ namespace Opc.Ua.Core.Tests
             Assert.That(config.Properties, Is.Not.Null);
             Assert.That(config.ExtensionObjects, Is.Not.Null);
             Assert.That(config.PropertiesLock, Is.Not.Null);
+#pragma warning disable CS0618 // Type or member is obsolete
             Assert.That(config.CertificateValidator, Is.Not.Null);
+#pragma warning restore CS0618
         }
 
         [Test]

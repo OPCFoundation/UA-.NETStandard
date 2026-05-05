@@ -41,9 +41,6 @@ using Opc.Ua.Security.Certificates;
 using Opc.Ua.Security.Certificates.Tests;
 using Opc.Ua.Tests;
 
-// FILE-PRAGMA: legacy CertificateValidator/ICertificateValidator API kept for binary compat
-// TODO: remove these legacy tests once the obsolete API is removed in a future major.
-#pragma warning disable CS0618
 
 namespace Opc.Ua.Core.Tests.Security.Certificates
 {
@@ -299,7 +296,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
             // verify cert with issuer chain
             using var validator = TemporaryCertValidator.Create(telemetry, true);
+#pragma warning disable CS0618 // Type or member is obsolete
             CertificateValidator certValidator = validator.Update();
+#pragma warning restore CS0618
             foreach (Certificate cert in m_appSelfSignedCerts)
             {
                 using Certificate publicKey = Certificate.FromRawData(cert.RawData);
@@ -358,7 +357,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 }
             }
 
+#pragma warning disable CS0618 // Type or member is obsolete
             CertificateValidator certValidator = validator.Update();
+#pragma warning restore CS0618
             foreach (Certificate cert in m_appSelfSignedCerts)
             {
                 using Certificate publicKey = Certificate.FromRawData(cert.RawData);
@@ -394,7 +395,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 Assert.That(
                     issuerCerts,
                     Has.Count.EqualTo(m_appSelfSignedCerts.Count));
-                CertificateValidator certValidator = validator.Update();
+    #pragma warning disable CS0618 // Type or member is obsolete
+            CertificateValidator certValidator = validator.Update();
+#pragma warning restore CS0618
                 foreach (Certificate cert in m_appSelfSignedCerts)
                 {
                     using Certificate publicKey = Certificate.FromRawData(cert.RawData);
@@ -439,7 +442,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.That(certificates, Has.Count.EqualTo(m_appSelfSignedCerts.Count));
             certificates.Dispose();
 
+#pragma warning disable CS0618 // Type or member is obsolete
             CertificateValidator certValidator = validator.Update();
+#pragma warning restore CS0618
             certValidator.MaxRejectedCertificates = kNumberOfRejectCertsHistory;
             try
             {
@@ -596,7 +601,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.That(
                 trustedCerts,
                 Has.Count.EqualTo(m_appSelfSignedCerts.Count));
+#pragma warning disable CS0618 // Type or member is obsolete
             CertificateValidator certValidator = validator.Update();
+#pragma warning restore CS0618
             foreach (Certificate cert in m_appSelfSignedCerts)
             {
                 using Certificate publicKey = Certificate.FromRawData(cert.RawData);
@@ -619,7 +626,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 await validator.TrustedStore.AddAsync(cert).ConfigureAwait(false);
                 await validator.IssuerStore.AddAsync(cert).ConfigureAwait(false);
             }
+#pragma warning disable CS0618 // Type or member is obsolete
             CertificateValidator certValidator = validator.Update();
+#pragma warning restore CS0618
             foreach (Certificate cert in m_appSelfSignedCerts)
             {
                 using Certificate publicKey = Certificate.FromRawData(cert.RawData);
@@ -653,7 +662,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     await store.AddCRLAsync(m_crlChain[i]).ConfigureAwait(false);
                 }
                 TestContext.Out.WriteLine($"AddChains: {stopWatch.ElapsedMilliseconds - start}");
-                CertificateValidator certValidator = validator.Update();
+    #pragma warning disable CS0618 // Type or member is obsolete
+            CertificateValidator certValidator = validator.Update();
+#pragma warning restore CS0618
                 TestContext.Out
                     .WriteLine($"InitValidator: {stopWatch.ElapsedMilliseconds - start}");
                 foreach (ApplicationTestData app in m_goodApplicationTestSet)
@@ -687,7 +698,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     await store.AddAsync(m_caChain[i]).ConfigureAwait(false);
                     await store.AddCRLAsync(m_crlChain[i]).ConfigureAwait(false);
                 }
-                CertificateValidator certValidator = validator.Update();
+    #pragma warning disable CS0618 // Type or member is obsolete
+            CertificateValidator certValidator = validator.Update();
+#pragma warning restore CS0618
                 foreach (ApplicationTestData app in m_goodApplicationTestSet)
                 {
                     using Certificate publicKey = Certificate.FromRawData(app.Certificate);
@@ -717,7 +730,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                             .ConfigureAwait(false);
                     }
                 }
-                CertificateValidator certValidator = validator.Update();
+    #pragma warning disable CS0618 // Type or member is obsolete
+            CertificateValidator certValidator = validator.Update();
+#pragma warning restore CS0618
                 foreach (ApplicationTestData app in m_goodApplicationTestSet)
                 {
                     using Certificate publicKey = Certificate.FromRawData(app.Certificate);
@@ -761,7 +776,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                             .ConfigureAwait(false);
                     }
                 }
-                CertificateValidator certValidator = validator.Update();
+    #pragma warning disable CS0618 // Type or member is obsolete
+            CertificateValidator certValidator = validator.Update();
+#pragma warning restore CS0618
                 foreach (ApplicationTestData app in m_goodApplicationTestSet)
                 {
                     using Certificate publicKey = Certificate.FromRawData(app.Certificate);
@@ -799,7 +816,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     await store.AddAsync(m_caDupeChain[i]).ConfigureAwait(false);
                     await store.AddCRLAsync(m_crlDupeChain[i]).ConfigureAwait(false);
                 }
-                CertificateValidator certValidator = validator.Update();
+    #pragma warning disable CS0618 // Type or member is obsolete
+            CertificateValidator certValidator = validator.Update();
+#pragma warning restore CS0618
                 foreach (ApplicationTestData app in m_goodApplicationTestSet)
                 {
                     using Certificate publicKey = Certificate.FromRawData(app.Certificate);
@@ -835,7 +854,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                             .ConfigureAwait(false);
                     }
                 }
-                CertificateValidator certValidator = validator.Update();
+    #pragma warning disable CS0618 // Type or member is obsolete
+            CertificateValidator certValidator = validator.Update();
+#pragma warning restore CS0618
                 foreach (ApplicationTestData app in m_goodApplicationTestSet)
                 {
                     using Certificate publicKey = Certificate.FromRawData(app.Certificate);
@@ -879,7 +900,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                             .ConfigureAwait(false);
                     }
                 }
-                CertificateValidator certValidator = validator.Update();
+    #pragma warning disable CS0618 // Type or member is obsolete
+            CertificateValidator certValidator = validator.Update();
+#pragma warning restore CS0618
                 foreach (ApplicationTestData app in m_goodApplicationTestSet)
                 {
                     using Certificate publicKey = Certificate.FromRawData(app.Certificate);
@@ -930,7 +953,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                         .TrustedStore.AddAsync(publicKeyAdd)
                         .ConfigureAwait(false);
                 }
-                CertificateValidator certValidator = validator.Update();
+    #pragma warning disable CS0618 // Type or member is obsolete
+            CertificateValidator certValidator = validator.Update();
+#pragma warning restore CS0618
                 foreach (ApplicationTestData app in m_goodApplicationTestSet)
                 {
                     using Certificate publicKey = Certificate.FromRawData(app.Certificate);
@@ -973,7 +998,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                             .ConfigureAwait(false);
                     }
                 }
-                CertificateValidator certValidator = validator.Update();
+    #pragma warning disable CS0618 // Type or member is obsolete
+            CertificateValidator certValidator = validator.Update();
+#pragma warning restore CS0618
                 foreach (ApplicationTestData app in m_goodApplicationTestSet)
                 {
                     using Certificate publicKey = Certificate.FromRawData(app.Certificate);
@@ -1023,7 +1050,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                         .TrustedStore.AddAsync(publicKeyAdd)
                         .ConfigureAwait(false);
                 }
-                CertificateValidator certValidator = validator.Update();
+    #pragma warning disable CS0618 // Type or member is obsolete
+            CertificateValidator certValidator = validator.Update();
+#pragma warning restore CS0618
                 foreach (ApplicationTestData app in m_goodApplicationTestSet)
                 {
                     using Certificate publicKey = Certificate.FromRawData(app.Certificate);
@@ -1066,7 +1095,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     .ConfigureAwait(false);
             }
 
+#pragma warning disable CS0618 // Type or member is obsolete
             CertificateValidator certValidator = validator.Update();
+#pragma warning restore CS0618
             foreach (ApplicationTestData app in m_goodApplicationTestSet)
             {
                 using Certificate publicKey = Certificate.FromRawData(app.Certificate);
@@ -1106,7 +1137,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                         .ConfigureAwait(false);
                 }
 
-                CertificateValidator certValidator = validator.Update();
+    #pragma warning disable CS0618 // Type or member is obsolete
+            CertificateValidator certValidator = validator.Update();
+#pragma warning restore CS0618
                 foreach (ApplicationTestData app in m_goodApplicationTestSet)
                 {
                     using Certificate publicKey = Certificate.FromRawData(app.Certificate);
@@ -1252,7 +1285,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             {
                 await validator.TrustedStore.AddAsync(cert).ConfigureAwait(false);
             }
+#pragma warning disable CS0618 // Type or member is obsolete
             CertificateValidator certValidator = validator.Update();
+#pragma warning restore CS0618
             ServiceResultException serviceResultException = Assert
                 .ThrowsAsync<ServiceResultException>(async () =>
                     await certValidator.ValidateAsync(cert, CancellationToken.None).ConfigureAwait(false));
@@ -1308,7 +1343,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             {
                 await validator.TrustedStore.AddAsync(cert).ConfigureAwait(false);
             }
+#pragma warning disable CS0618 // Type or member is obsolete
             CertificateValidator certValidator = validator.Update();
+#pragma warning restore CS0618
             ServiceResultException serviceResultException = Assert
                 .ThrowsAsync<ServiceResultException>(async () =>
                     await certValidator.ValidateAsync(cert, CancellationToken.None).ConfigureAwait(false));
@@ -1358,7 +1395,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             {
                 await validator.TrustedStore.AddAsync(cert).ConfigureAwait(false);
             }
+#pragma warning disable CS0618 // Type or member is obsolete
             CertificateValidator certValidator = validator.Update();
+#pragma warning restore CS0618
             ServiceResultException serviceResultException = Assert
                 .ThrowsAsync<ServiceResultException>(async () =>
                     await certValidator.ValidateAsync(cert, CancellationToken.None).ConfigureAwait(false));
@@ -1386,7 +1425,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
             using var validator = TemporaryCertValidator.Create(telemetry);
+#pragma warning disable CS0618 // Type or member is obsolete
             CertificateValidator certValidator = validator.Update();
+#pragma warning restore CS0618
             Assert.Throws<ArgumentNullException>(() =>
                 certValidator.UpdateAsync((SecurityConfiguration)null).GetAwaiter().GetResult());
             Assert.Throws<ArgumentNullException>(() =>
@@ -1402,7 +1443,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
             using var validator = TemporaryCertValidator.Create(telemetry);
+#pragma warning disable CS0618 // Type or member is obsolete
             CertificateValidator certValidator = validator.Update();
+#pragma warning restore CS0618
             certValidator.CertificateUpdate += OnCertificateUpdate;
             certValidator.CertificateValidation += OnCertificateValidation;
             certValidator.CertificateUpdate -= OnCertificateUpdate;
@@ -1430,7 +1473,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             {
                 await validator.TrustedStore.AddAsync(cert).ConfigureAwait(false);
             }
+#pragma warning disable CS0618 // Type or member is obsolete
             CertificateValidator certValidator = validator.Update();
+#pragma warning restore CS0618
             certValidator.RejectSHA1SignedCertificates = rejectSHA1;
             if (rejectSHA1)
             {
@@ -1496,7 +1541,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             {
                 await validator.TrustedStore.AddAsync(cert).ConfigureAwait(false);
             }
+#pragma warning disable CS0618 // Type or member is obsolete
             CertificateValidator certValidator = validator.Update();
+#pragma warning restore CS0618
             ServiceResultException serviceResultException = Assert
                 .ThrowsAsync<ServiceResultException>(async () =>
                     await certValidator.ValidateAsync(cert, CancellationToken.None).ConfigureAwait(false));
@@ -1558,7 +1605,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             {
                 await validator.TrustedStore.AddAsync(cert).ConfigureAwait(false);
             }
+#pragma warning disable CS0618 // Type or member is obsolete
             CertificateValidator certValidator = validator.Update();
+#pragma warning restore CS0618
             var approver = new CertValidationApprover([StatusCodes.BadCertificateUntrusted]);
             certValidator.CertificateValidation += approver.OnCertificateValidation;
             ServiceResult innerResult;
@@ -1616,7 +1665,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             {
                 await validator.TrustedStore.AddAsync(cert).ConfigureAwait(false);
             }
+#pragma warning disable CS0618 // Type or member is obsolete
             CertificateValidator certValidator = validator.Update();
+#pragma warning restore CS0618
             ServiceResultException serviceResultException = Assert
                 .ThrowsAsync<ServiceResultException>(async () =>
                     await certValidator.ValidateAsync(cert, CancellationToken.None).ConfigureAwait(false));
@@ -1678,7 +1729,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
                 using var validator = TemporaryCertValidator.Create(telemetry);
                 await validator.TrustedStore.AddAsync(cert).ConfigureAwait(false);
-                CertificateValidator certValidator = validator.Update();
+    #pragma warning disable CS0618 // Type or member is obsolete
+            CertificateValidator certValidator = validator.Update();
+#pragma warning restore CS0618
 
                 ServiceResultException serviceResultException = Assert
                     .ThrowsAsync<ServiceResultException>(
@@ -1712,7 +1765,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             {
                 await validator.TrustedStore.AddAsync(cert).ConfigureAwait(false);
             }
+#pragma warning disable CS0618 // Type or member is obsolete
             CertificateValidator certValidator = validator.Update();
+#pragma warning restore CS0618
             certValidator.AutoAcceptUntrustedCertificates = autoAccept;
             if (autoAccept || trusted)
             {
@@ -1773,12 +1828,14 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.DoesNotThrow(() =>
             {
                 ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+#pragma warning disable CS0618 // Type or member is obsolete
                 var appConfig = new ApplicationConfiguration(telemetry)
                 {
                     CertificateValidator = new CertificateValidator(telemetry)
                 };
                 Assert.That(appConfig, Is.Not.Null);
                 Assert.That(appConfig.CertificateValidator, Is.Not.Null);
+#pragma warning restore CS0618
             });
         }
 
@@ -1814,7 +1871,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                         await validator.IssuerStore.AddAsync(m_caChain[i]).ConfigureAwait(false);
                     }
                 }
-                CertificateValidator certValidator = validator.Update();
+    #pragma warning disable CS0618 // Type or member is obsolete
+            CertificateValidator certValidator = validator.Update();
+#pragma warning restore CS0618
 
                 // ****** setting under test ******
                 certValidator.RejectUnknownRevocationStatus = rejectUnknownRevocationStatus;
@@ -1865,7 +1924,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                         await validator.IssuerStore.AddAsync(m_caChain[i]).ConfigureAwait(false);
                     }
                 }
-                CertificateValidator certValidator = validator.Update();
+    #pragma warning disable CS0618 // Type or member is obsolete
+            CertificateValidator certValidator = validator.Update();
+#pragma warning restore CS0618
 
                 // ****** setting under test ******
                 certValidator.RejectUnknownRevocationStatus = true;
@@ -1934,7 +1995,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                             .ConfigureAwait(false);
                     }
                 }
-                CertificateValidator certValidator = validator.Update();
+    #pragma warning disable CS0618 // Type or member is obsolete
+            CertificateValidator certValidator = validator.Update();
+#pragma warning restore CS0618
 
                 // ****** setting under test ******
                 certValidator.RejectUnknownRevocationStatus = rejectUnknownRevocationStatus;
@@ -1985,7 +2048,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                         await validator.TrustedStore.AddAsync(m_caChain[i]).ConfigureAwait(false);
                     }
                 }
-                CertificateValidator certValidator = validator.Update();
+    #pragma warning disable CS0618 // Type or member is obsolete
+            CertificateValidator certValidator = validator.Update();
+#pragma warning restore CS0618
 
                 // ****** setting under test ******
                 certValidator.RejectUnknownRevocationStatus = rejectUnknownRevocationStatus;
@@ -2041,7 +2106,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                             .ConfigureAwait(false);
                     }
                 }
-                CertificateValidator certValidator = validator.Update();
+    #pragma warning disable CS0618 // Type or member is obsolete
+            CertificateValidator certValidator = validator.Update();
+#pragma warning restore CS0618
 
                 // ****** setting under test ******
                 certValidator.RejectUnknownRevocationStatus = rejectUnknownRevocationStatus;
@@ -2088,7 +2155,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                         await validator.IssuerStore.AddAsync(m_caChain[i]).ConfigureAwait(false);
                     }
                 }
-                CertificateValidator certValidator = validator.Update();
+    #pragma warning disable CS0618 // Type or member is obsolete
+            CertificateValidator certValidator = validator.Update();
+#pragma warning restore CS0618
 
                 // ****** setting under test ******
                 certValidator.RejectUnknownRevocationStatus = rejectUnknownRevocationStatus;
@@ -2158,7 +2227,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                             .ConfigureAwait(false);
                     }
                 }
-                CertificateValidator certValidator = validator.Update();
+    #pragma warning disable CS0618 // Type or member is obsolete
+            CertificateValidator certValidator = validator.Update();
+#pragma warning restore CS0618
 
                 // ****** setting under test ******
                 certValidator.RejectUnknownRevocationStatus = rejectUnknownRevocationStatus;

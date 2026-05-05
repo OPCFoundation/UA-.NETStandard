@@ -37,8 +37,6 @@ using Opc.Ua.Security.Certificates;
 using Opc.Ua.Server;
 using Opc.Ua.Server.UserDatabase;
 
-// FILE-PRAGMA: legacy CertificateValidator/ICertificateValidator API kept for binary compat
-#pragma warning disable CS0618
 
 namespace Quickstarts.ReferenceServer
 {
@@ -481,9 +479,11 @@ namespace Quickstarts.ReferenceServer
                 }
                 else
                 {
+#pragma warning disable CS0618 // Type or member is obsolete
                     CertificateValidator.ValidateAsync(
                         x509TokenHandler.Certificate,
                         default).GetAwaiter().GetResult();
+#pragma warning restore CS0618
                 }
             }
             catch (Exception e)
@@ -571,7 +571,9 @@ namespace Quickstarts.ReferenceServer
             }
         }
 
+#pragma warning disable CS0618 // Type or member is obsolete
         private ICertificateValidator m_userCertificateValidator;
+#pragma warning restore CS0618
         private readonly LinqUserDatabase m_userDatabase;
     }
 }

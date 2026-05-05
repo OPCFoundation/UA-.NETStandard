@@ -44,8 +44,6 @@ using Opc.Ua.Redaction;
 using Opc.Ua.Security.Certificates;
 using X509AuthorityKeyIdentifierExtension = Opc.Ua.Security.Certificates.X509AuthorityKeyIdentifierExtension;
 
-// FILE-PRAGMA: legacy CertificateValidator/ICertificateValidator API kept for binary compat
-#pragma warning disable CS0618
 
 namespace Opc.Ua
 {
@@ -2655,9 +2653,11 @@ namespace Opc.Ua
     /// <summary>
     /// Used to handled certificate validation errors.
     /// </summary>
+#pragma warning disable CS0618 // Type or member is obsolete
     public delegate void CertificateValidationEventHandler(
         CertificateValidator sender,
         CertificateValidationEventArgs e);
+#pragma warning restore CS0618
 
     /// <summary>
     /// The event arguments provided when a certificate update occurs.
@@ -2689,7 +2689,9 @@ namespace Opc.Ua
     /// <summary>
     /// Used to handle certificate update events.
     /// </summary>
+#pragma warning disable CS0618 // Type or member is obsolete
     public delegate void CertificateUpdateEventHandler(
         CertificateValidator sender,
         CertificateUpdateEventArgs e);
+#pragma warning restore CS0618
 }

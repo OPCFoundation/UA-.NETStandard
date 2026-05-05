@@ -32,8 +32,6 @@
 using System;
 using Opc.Ua.Security.Certificates;
 
-// FILE-PRAGMA: legacy CertificateValidator/ICertificateValidator API kept for binary compat
-#pragma warning disable CS0618
 
 namespace Opc.Ua
 {
@@ -84,6 +82,7 @@ namespace Opc.Ua
             // Prefer the legacy validator's instance method when available
             // so its CertificateValidation event and rejected-store writer
             // continue to fire (preserves existing behaviour).
+#pragma warning disable CS0618 // Type or member is obsolete
             if (validator is CertificateValidator legacy)
             {
                 legacy.ValidateApplicationUri(serverCertificate, endpoint);
@@ -93,6 +92,7 @@ namespace Opc.Ua
             ServiceResult serviceResult = CertificateValidator.ValidateServerCertificateApplicationUri(
                 serverCertificate,
                 endpoint);
+#pragma warning restore CS0618
             if (ServiceResult.IsBad(serviceResult))
             {
                 throw new ServiceResultException(serviceResult);
@@ -128,6 +128,7 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(validator));
             }
 
+#pragma warning disable CS0618 // Type or member is obsolete
             if (validator is CertificateValidator legacy)
             {
                 legacy.ValidateDomains(serverCertificate, endpoint, serverValidation);
@@ -143,6 +144,7 @@ namespace Opc.Ua
                     "The domain '{0}' is not listed in the server certificate.",
                     endpointUrl.IdnHost);
             }
+#pragma warning restore CS0618
         }
     }
 }

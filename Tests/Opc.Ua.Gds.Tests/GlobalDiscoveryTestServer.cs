@@ -39,8 +39,6 @@ using Opc.Ua.Gds.Server.Database.Linq;
 using Opc.Ua.Server;
 using Opc.Ua.Server.UserDatabase;
 
-// FILE-PRAGMA: legacy CertificateValidator/ICertificateValidator API kept for binary compat
-#pragma warning disable CS0618
 
 namespace Opc.Ua.Gds.Tests
 {
@@ -137,6 +135,7 @@ namespace Opc.Ua.Gds.Tests
                 throw new InvalidOperationException("Application instance certificate invalid!");
             }
 
+#pragma warning disable CS0618 // Type or member is obsolete
             if (!Config.SecurityConfiguration.AutoAcceptUntrustedCertificates &&
                 Config.CertificateValidator is CertificateValidator legacyValidator)
             {
@@ -144,6 +143,7 @@ namespace Opc.Ua.Gds.Tests
                     += new CertificateValidationEventHandler(
                     CertificateValidator_CertificateValidation);
             }
+#pragma warning restore CS0618
 
             // get the DatabaseStorePath configuration parameter.
             GlobalDiscoveryServerConfiguration gdsConfiguration =
@@ -208,9 +208,11 @@ namespace Opc.Ua.Gds.Tests
             }
         }
 
+#pragma warning disable CS0618 // Type or member is obsolete
         private void CertificateValidator_CertificateValidation(
             CertificateValidator validator,
             CertificateValidationEventArgs e)
+#pragma warning restore CS0618
         {
             if (e.Error.StatusCode == StatusCodes.BadCertificateUntrusted)
             {

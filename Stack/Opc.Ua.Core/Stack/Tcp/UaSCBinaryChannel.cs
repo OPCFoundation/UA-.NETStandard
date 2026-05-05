@@ -35,8 +35,6 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Security.Certificates;
 
-// FILE-PRAGMA: legacy CertificateValidator/ICertificateValidator API kept for binary compat
-#pragma warning disable CS0618
 
 namespace Opc.Ua.Bindings
 {
@@ -73,6 +71,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Attaches the object to an existing socket.
         /// </summary>
+#pragma warning disable CS0618 // Type or member is obsolete
         public UaSCUaBinaryChannel(
             string contextId,
             BufferManager bufferManager,
@@ -94,10 +93,12 @@ namespace Opc.Ua.Bindings
                 telemetry)
         {
         }
+#pragma warning restore CS0618
 
         /// <summary>
         /// Attaches the object to an existing socket.
         /// </summary>
+#pragma warning disable CS0618 // Type or member is obsolete
         private UaSCUaBinaryChannel(
             string contextId,
             BufferManager bufferManager,
@@ -108,6 +109,7 @@ namespace Opc.Ua.Bindings
             MessageSecurityMode securityMode,
             string securityPolicyUri,
             ITelemetryContext telemetry)
+#pragma warning restore CS0618
         {
             // create a unique contex if none provided.
             m_contextId = contextId;

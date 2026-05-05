@@ -49,8 +49,6 @@ using System.Collections.Generic;
 using System.Security.Cryptography;
 #endif
 
-// FILE-PRAGMA: legacy CertificateValidator/ICertificateValidator API kept for binary compat
-#pragma warning disable CS0618
 
 namespace Opc.Ua.Bindings
 {
@@ -536,9 +534,11 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Called when a UpdateCertificate event occured.
         /// </summary>
+#pragma warning disable CS0618 // Type or member is obsolete
         public void CertificateUpdate(
             ICertificateValidatorEx validator,
             CertificateTypesProvider serverCertificateTypes)
+#pragma warning restore CS0618
         {
             Stop();
 
@@ -641,7 +641,9 @@ namespace Opc.Ua.Bindings
 #else
         private IWebHost m_host;
 #endif
+#pragma warning disable CS0618 // Type or member is obsolete
         private CertificateTypesProvider m_serverCertProvider;
+#pragma warning restore CS0618
         private bool m_mutualTlsEnabled;
         private readonly ILogger m_logger;
         private readonly ITelemetryContext m_telemetry;

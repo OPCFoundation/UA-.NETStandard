@@ -40,8 +40,6 @@ using Microsoft.Extensions.Logging;
 using Opc.Ua.Bindings;
 using Opc.Ua.Security.Certificates;
 
-// FILE-PRAGMA: legacy CertificateValidator/ICertificateValidator API kept for binary compat
-#pragma warning disable CS0618
 
 namespace Opc.Ua
 {
@@ -108,7 +106,9 @@ namespace Opc.Ua
 
                 m_requestQueue?.Dispose();
 
+#pragma warning disable CS0618 // Type or member is obsolete
                 InstanceCertificateTypesProvider?.Dispose();
+#pragma warning restore CS0618
             }
         }
 
@@ -627,6 +627,7 @@ namespace Opc.Ua
         /// <param name="description">the endpoint Description to set the server certificate</param>
         /// <param name="certificateTypesProvider">The provider to get the server certificate per certificate type.</param>
         /// <param name="checkRequireEncryption">only set certificate if the endpoint does require Encryption</param>
+#pragma warning disable CS0618 // Type or member is obsolete
         public static void SetServerCertificateInEndpointDescription(
             EndpointDescription description,
             CertificateTypesProvider certificateTypesProvider,
@@ -649,6 +650,7 @@ namespace Opc.Ua
                 }
             }
         }
+#pragma warning restore CS0618
 
         /// <summary>
         /// Stores information about a base address.
@@ -785,6 +787,7 @@ namespace Opc.Ua
         {
             try
             {
+#pragma warning disable CS0618 // Type or member is obsolete
                 InstanceCertificateTypesProvider.Update(e.SecurityConfiguration);
 
                 ArrayOf<CertificateIdentifier> applicationCertificates = Configuration.SecurityConfiguration.ApplicationCertificates;
@@ -813,6 +816,7 @@ namespace Opc.Ua
                         e.CertificateValidator,
                         InstanceCertificateTypesProvider);
                 }
+#pragma warning restore CS0618
             }
             catch (Exception ex)
             {
@@ -841,6 +845,7 @@ namespace Opc.Ua
             {
                 IServiceMessageContext messageContext = m_messageContext
                     ?? throw new ServiceResultException(StatusCodes.BadServerHalted);
+#pragma warning disable CS0618 // Type or member is obsolete
                 var settings = new TransportListenerSettings
                 {
                     Descriptions = endpoints,
@@ -851,6 +856,7 @@ namespace Opc.Ua
                     Factory = messageContext.Factory,
                     MaxChannelCount = 0
                 };
+#pragma warning restore CS0618
 
                 settings.MaxChannelCount = Configuration.ServerConfiguration.MaxChannelCount;
                 if (Utils.IsUriHttpsScheme(endpointUri.AbsoluteUri))
@@ -1385,7 +1391,6 @@ namespace Opc.Ua
 #pragma warning disable CS0618 // Type or member is obsolete
             OnUpdateConfiguration(configuration);
 #pragma warning restore CS0618 // Type or member is obsolete
-#pragma warning disable CS0618 // re-enable file-level legacy CertificateValidator pragma
             return default;
         }
 
@@ -1458,14 +1463,12 @@ namespace Opc.Ua
 
             // load the instance certificate.
             Certificate defaultInstanceCertificate = null;
-#pragma warning disable CS0618 // legacy CertificateTypesProvider kept for compatibility on ServerBase
+#pragma warning disable CS0618 // Type or member is obsolete
             InstanceCertificateTypesProvider = new CertificateTypesProvider(
                 configuration,
                 CertificateManager,
                 m_telemetry);
             InstanceCertificateTypesProvider.InitializeAsync().GetAwaiter().GetResult();
-#pragma warning restore CS0618
-#pragma warning disable CS0618 // re-enable file-level legacy CertificateValidator pragma
 
             foreach (ServerSecurityPolicy securityPolicy in configuration.ServerConfiguration
                 .SecurityPolicies)
@@ -1533,6 +1536,7 @@ namespace Opc.Ua
 
             // save the certificate validator.
             CertificateValidator = configuration.CertificateValidator;
+#pragma warning restore CS0618
         }
 
         /// <summary>

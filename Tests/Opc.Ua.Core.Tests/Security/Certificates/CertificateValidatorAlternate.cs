@@ -43,9 +43,6 @@ using Opc.Ua.Security.Certificates;
 using Opc.Ua.Tests;
 using X509AuthorityKeyIdentifierExtension = Opc.Ua.Security.Certificates.X509AuthorityKeyIdentifierExtension;
 
-// FILE-PRAGMA: legacy CertificateValidator/ICertificateValidator API kept for binary compat
-// TODO: remove these legacy tests once the obsolete API is removed in a future major.
-#pragma warning disable CS0618
 
 namespace Opc.Ua.Core.Tests.Security.Certificates
 {
@@ -82,7 +79,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         private Certificate m_rootAltCert;
         private X509CRL m_rootCrl;
         private TemporaryCertValidator m_validator;
+#pragma warning disable CS0618 // Type or member is obsolete
         private CertificateValidator m_certValidator;
+#pragma warning restore CS0618
 
         /// <summary>
         /// A web server to host root CA and CRL
@@ -357,7 +356,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             {
                 await validator.IssuerStore.AddAsync(rootCert).ConfigureAwait(false);
                 await validator.TrustedStore.AddAsync(subCACert).ConfigureAwait(false);
+#pragma warning disable CS0618 // Type or member is obsolete
                 CertificateValidator certValidator = validator.Update();
+#pragma warning restore CS0618
                 await certValidator.ValidateAsync(leafCert, CancellationToken.None).ConfigureAwait(false);
             }
 
@@ -368,7 +369,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 rootReverseCert };
             using (var validator = TemporaryCertValidator.Create(telemetry))
             {
+#pragma warning disable CS0618 // Type or member is obsolete
                 CertificateValidator certValidator = validator.Update();
+#pragma warning restore CS0618
                 ServiceResultException result = Assert
                     .ThrowsAsync<ServiceResultException>(async () =>
                         await certValidator.ValidateAsync(collection, CancellationToken.None).ConfigureAwait(false));
@@ -381,7 +384,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             {
                 await validator.IssuerStore.AddAsync(rootReverseCert).ConfigureAwait(false);
                 await validator.TrustedStore.AddAsync(subCACert).ConfigureAwait(false);
+#pragma warning disable CS0618 // Type or member is obsolete
                 CertificateValidator certValidator = validator.Update();
+#pragma warning restore CS0618
                 ServiceResultException result = Assert
                     .ThrowsAsync<ServiceResultException>(async () =>
                         await certValidator.ValidateAsync(collection, CancellationToken.None).ConfigureAwait(false));

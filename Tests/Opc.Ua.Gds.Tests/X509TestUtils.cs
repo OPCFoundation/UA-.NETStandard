@@ -36,8 +36,6 @@ using NUnit.Framework;
 using Opc.Ua.Security.Certificates;
 using X509AuthorityKeyIdentifierExtension = Opc.Ua.Security.Certificates.X509AuthorityKeyIdentifierExtension;
 
-// FILE-PRAGMA: legacy CertificateValidator/ICertificateValidator API kept for binary compat
-#pragma warning disable CS0618
 
 namespace Opc.Ua.Gds.Tests
 {
@@ -86,7 +84,9 @@ namespace Opc.Ua.Gds.Tests
             var issuerCertIdCollection = issuerCertIdList.ToArrayOf();
 
             // verify cert with issuer chain
+#pragma warning disable CS0618 // Type or member is obsolete
             var certValidator = new CertificateValidator(telemetry);
+#pragma warning restore CS0618
             var issuerStore = new CertificateTrustList();
             var trustedStore = new CertificateTrustList
             {

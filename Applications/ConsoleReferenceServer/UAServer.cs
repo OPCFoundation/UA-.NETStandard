@@ -40,8 +40,6 @@ using Opc.Ua.Configuration;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Server;
 
-// FILE-PRAGMA: legacy CertificateValidator/ICertificateValidator API kept for binary compat
-#pragma warning disable CS0618
 
 namespace Quickstarts
 {
@@ -124,7 +122,9 @@ namespace Quickstarts
 
                 if (!config.SecurityConfiguration.AutoAcceptUntrustedCertificates)
                 {
+#pragma warning disable CS0618 // Type or member is obsolete
                     config.CertificateValidator.AcceptError = AcceptCertificate;
+#pragma warning restore CS0618
                 }
             }
             catch (Exception ex)

@@ -35,8 +35,6 @@ using Opc.Ua.Bindings;
 using Opc.Ua.Security;
 using Opc.Ua.Security.Certificates;
 
-// FILE-PRAGMA: legacy CertificateValidator/ICertificateValidator API kept for binary compat
-#pragma warning disable CS0618
 
 namespace Opc.Ua
 {
@@ -56,7 +54,9 @@ namespace Opc.Ua
             m_properties = [];
             m_extensionObjects = [];
 
+#pragma warning disable CS0618 // Type or member is obsolete
             CertificateValidator = new CertificateValidator(m_telemetry);
+#pragma warning restore CS0618
             m_logger = m_telemetry.CreateLogger<ApplicationConfiguration>();
         }
 
@@ -72,7 +72,9 @@ namespace Opc.Ua
 
             m_telemetry = telemetry;
             m_logger = telemetry.CreateLogger<ApplicationConfiguration>();
+#pragma warning disable CS0618 // Type or member is obsolete
             CertificateValidator = new CertificateValidator(m_telemetry);
+#pragma warning restore CS0618
         }
 
         /// <summary>
@@ -89,7 +91,9 @@ namespace Opc.Ua
             ServerConfiguration = template.ServerConfiguration;
             ClientConfiguration = template.ClientConfiguration;
             DisableHiResClock = template.DisableHiResClock;
+#pragma warning disable CS0618 // Type or member is obsolete
             CertificateValidator = template.CertificateValidator;
+#pragma warning restore CS0618
             TransportQuotas = template.TransportQuotas;
             TraceConfiguration = template.TraceConfiguration;
             m_extensions = template.m_extensions;

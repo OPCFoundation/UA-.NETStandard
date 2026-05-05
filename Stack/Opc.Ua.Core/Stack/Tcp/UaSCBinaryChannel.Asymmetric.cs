@@ -35,8 +35,6 @@ using System.Text;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Security.Certificates;
 
-// FILE-PRAGMA: legacy CertificateValidator/ICertificateValidator API kept for binary compat
-#pragma warning disable CS0618
 
 namespace Opc.Ua.Bindings
 {
@@ -1415,7 +1413,9 @@ namespace Opc.Ua.Bindings
 
         private readonly List<EndpointDescription> m_endpoints;
         private EndpointDescription m_selectedEndpoint;
+#pragma warning disable CS0618 // Type or member is obsolete
         private readonly CertificateTypesProvider m_serverCertificateTypesProvider;
+#pragma warning restore CS0618
         private bool m_uninitialized;
         private Nonce m_localNonce;
         private Nonce m_remoteNonce;

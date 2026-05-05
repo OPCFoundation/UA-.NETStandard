@@ -39,8 +39,6 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Security.Certificates;
 
-// FILE-PRAGMA: legacy CertificateValidator/ICertificateValidator API kept for binary compat
-#pragma warning disable CS0618
 
 namespace Opc.Ua.Bindings
 {
@@ -801,9 +799,11 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Called when a UpdateCertificate event occured.
         /// </summary>
+#pragma warning disable CS0618 // Type or member is obsolete
         public void CertificateUpdate(
             ICertificateValidatorEx validator,
             CertificateTypesProvider serverCertificateTypes)
+#pragma warning restore CS0618
         {
             m_quotas.CertificateValidator = validator;
             m_serverCertificateTypesProvider = serverCertificateTypes;
@@ -1203,7 +1203,9 @@ namespace Opc.Ua.Bindings
         private List<EndpointDescription> m_descriptions;
         private BufferManager m_bufferManager;
         private ChannelQuotas m_quotas;
+#pragma warning disable CS0618 // Type or member is obsolete
         private CertificateTypesProvider m_serverCertificateTypesProvider;
+#pragma warning restore CS0618
         private int m_lastChannelId;
         private Socket m_listeningSocket;
         private Socket m_listeningSocketIPv6;

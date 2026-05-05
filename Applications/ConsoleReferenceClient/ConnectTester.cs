@@ -41,9 +41,6 @@ using Opc.Ua.Client;
 using Opc.Ua.Configuration;
 using Opc.Ua.Security.Certificates;
 
-// FILE-PRAGMA: legacy CertificateValidator/ICertificateValidator API kept for binary compat
-// TODO: migrate from CertificateValidation event to AcceptError callback after the legacy class is removed.
-#pragma warning disable CS0618
 
 namespace Quickstarts
 {
@@ -106,7 +103,9 @@ namespace Quickstarts
                     .LoadApplicationConfigurationAsync(silent: false, ct: ct)
                     .ConfigureAwait(false);
 
+#pragma warning disable CS0618 // Type or member is obsolete
                 m_configuration.CertificateValidator.AcceptError = AcceptCertificate;
+#pragma warning restore CS0618
 
                 // check the application certificate.
                 bool haveAppCertificate = await application

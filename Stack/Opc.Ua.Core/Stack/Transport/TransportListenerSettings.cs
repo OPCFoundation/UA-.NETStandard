@@ -30,8 +30,6 @@
 using System.Collections.Generic;
 using Opc.Ua.Security.Certificates;
 
-// FILE-PRAGMA: legacy CertificateValidator/ICertificateValidator API kept for binary compat
-#pragma warning disable CS0618
 
 namespace Opc.Ua
 {
@@ -53,7 +51,9 @@ namespace Opc.Ua
         /// <summary>
         /// Gets or sets the server certificate type provider.
         /// </summary>
+#pragma warning disable CS0618 // Type or member is obsolete
         public CertificateTypesProvider ServerCertificateTypesProvider { get; set; }
+#pragma warning restore CS0618
 
         /// <summary>
         /// Gets or Sets the certificate validator.

@@ -41,8 +41,6 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 #endif
 
-// FILE-PRAGMA: legacy CertificateValidator/ICertificateValidator API kept for binary compat
-#pragma warning disable CS0618
 
 namespace Opc.Ua.Server
 {
@@ -1158,6 +1156,7 @@ namespace Opc.Ua.Server
                             Utils.TraceMasks.Security,
                             "----- Apply Changes for application certificate update running...");
 
+#pragma warning disable CS0618 // Type or member is obsolete
                         if (m_configuration.CertificateValidator is CertificateValidator cnmCertValidator)
                         {
                             await cnmCertValidator.UpdateCertificateAsync(
@@ -1165,6 +1164,7 @@ namespace Opc.Ua.Server
                                     m_configuration.ApplicationUri)
                                 .ConfigureAwait(false);
                         }
+#pragma warning restore CS0618
 
                         m_logger.LogInformation(
                             Utils.TraceMasks.Security,

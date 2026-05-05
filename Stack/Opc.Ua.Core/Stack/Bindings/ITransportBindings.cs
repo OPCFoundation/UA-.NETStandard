@@ -33,8 +33,6 @@ using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using Opc.Ua.Security.Certificates;
 
-// FILE-PRAGMA: legacy CertificateValidator/ICertificateValidator API kept for binary compat
-#pragma warning disable CS0618
 
 namespace Opc.Ua.Bindings
 {
@@ -117,6 +115,7 @@ namespace Opc.Ua.Bindings
         /// <param name="serverDescription">The server description.</param>
         /// <param name="securityPolicies">The list of supported security policies.</param>
         /// <param name="instanceCertificateTypesProvider">The provider for application certificates.</param>
+#pragma warning disable CS0618 // Type or member is obsolete
         List<EndpointDescription> CreateServiceHost(
             ServerBase serverBase,
             IDictionary<string, ServiceHost> hosts,
@@ -125,6 +124,7 @@ namespace Opc.Ua.Bindings
             ApplicationDescription serverDescription,
             ArrayOf<ServerSecurityPolicy> securityPolicies,
             CertificateTypesProvider instanceCertificateTypesProvider);
+#pragma warning restore CS0618
     }
 
     /// <summary>

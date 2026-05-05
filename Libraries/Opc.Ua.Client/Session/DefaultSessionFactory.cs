@@ -32,8 +32,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Security.Certificates;
 
-// FILE-PRAGMA: legacy CertificateValidator/ICertificateValidator API kept for binary compat
-#pragma warning disable CS0618
 
 namespace Opc.Ua.Client
 {
@@ -248,9 +246,11 @@ namespace Opc.Ua.Client
             if (checkDomain && endpoint.Description.ServerCertificate.Length > 0)
             {
                 using Certificate certificate = Certificate.FromRawData(endpoint.Description.ServerCertificate);
+#pragma warning disable CS0618 // Type or member is obsolete
                 ICertificateValidatorEx? validator =
                     (ICertificateValidatorEx?)configuration.CertificateManager
                     ?? configuration.CertificateValidator;
+#pragma warning restore CS0618
                 validator?.ValidateDomains(certificate, endpoint);
             }
 

@@ -32,9 +32,6 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Tests;
 
-// FILE-PRAGMA: legacy CertificateValidator/ICertificateValidator API kept for binary compat
-// TODO: remove these legacy tests once the obsolete API is removed in a future major.
-#pragma warning disable CS0618
 
 namespace Opc.Ua.Core.Tests
 {
@@ -270,7 +267,9 @@ namespace Opc.Ua.Core.Tests
         public void CertificateValidatorDefaultIsNotNull()
         {
             var config = new ApplicationConfiguration(m_telemetry);
+#pragma warning disable CS0618 // Type or member is obsolete
             Assert.That(config.CertificateValidator, Is.Not.Null);
+#pragma warning restore CS0618
         }
 
         [Test]
@@ -278,9 +277,11 @@ namespace Opc.Ua.Core.Tests
         public void CertificateValidatorGetSet()
         {
             var config = new ApplicationConfiguration(m_telemetry);
+#pragma warning disable CS0618 // Type or member is obsolete
             var validator = new CertificateValidator(m_telemetry);
             config.CertificateValidator = validator;
             Assert.That(config.CertificateValidator, Is.SameAs(validator));
+#pragma warning restore CS0618
         }
 
         [Test]
@@ -612,6 +613,7 @@ namespace Opc.Ua.Core.Tests
         /// Copy constructor copies CertificateValidator reference.
         public void CopyConstructorCopiesCertificateValidator()
         {
+#pragma warning disable CS0618 // Type or member is obsolete
             var validator = new CertificateValidator(m_telemetry);
             var original = new ApplicationConfiguration(m_telemetry)
             {
@@ -621,6 +623,7 @@ namespace Opc.Ua.Core.Tests
 
             var copy = new ApplicationConfiguration(original);
             Assert.That(copy.CertificateValidator, Is.SameAs(validator));
+#pragma warning restore CS0618
         }
 
         [Test]

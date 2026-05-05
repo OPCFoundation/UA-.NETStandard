@@ -31,8 +31,6 @@ using System;
 using System.Threading.Tasks;
 using Opc.Ua.Security.Certificates;
 
-// FILE-PRAGMA: legacy CertificateValidator/ICertificateValidator API kept for binary compat
-#pragma warning disable CS0618
 
 namespace Opc.Ua
 {
@@ -80,9 +78,11 @@ namespace Opc.Ua
         /// <summary>
         /// Updates the application certificate for a listener.
         /// </summary>
+#pragma warning disable CS0618 // Type or member is obsolete
         void CertificateUpdate(
             ICertificateValidatorEx validator,
             CertificateTypesProvider serverCertificateTypes);
+#pragma warning restore CS0618
 
         /// <summary>
         /// Raised when a new connection is waiting for a client.

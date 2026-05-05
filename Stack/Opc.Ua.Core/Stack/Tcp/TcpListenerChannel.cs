@@ -34,8 +34,6 @@ using System.Net.Sockets;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Security.Certificates;
 
-// FILE-PRAGMA: legacy CertificateValidator/ICertificateValidator API kept for binary compat
-#pragma warning disable CS0618
 
 namespace Opc.Ua.Bindings
 {
@@ -47,6 +45,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Attaches the object to an existing socket.
         /// </summary>
+#pragma warning disable CS0618 // Type or member is obsolete
         public TcpListenerChannel(
             string contextId,
             ITcpChannelListener listener,
@@ -68,6 +67,7 @@ namespace Opc.Ua.Bindings
             m_logger = telemetry.CreateLogger<TcpListenerChannel>();
             Listener = listener;
         }
+#pragma warning restore CS0618
 
         /// <summary>
         /// An overrideable version of the Dispose.

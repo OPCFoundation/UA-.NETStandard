@@ -32,8 +32,6 @@ using System.Collections.Generic;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Security.Certificates;
 
-// FILE-PRAGMA: legacy CertificateValidator/ICertificateValidator API kept for binary compat
-#pragma warning disable CS0618
 
 namespace Opc.Ua.Bindings
 {
@@ -58,6 +56,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Create a new service host for UA HTTPS.
         /// </summary>
+#pragma warning disable CS0618 // Type or member is obsolete
         public List<EndpointDescription> CreateServiceHost(
             ServerBase serverBase,
             IDictionary<string, ServiceHost> hosts,
@@ -66,6 +65,7 @@ namespace Opc.Ua.Bindings
             ApplicationDescription serverDescription,
             ArrayOf<ServerSecurityPolicy> securityPolicies,
             CertificateTypesProvider instanceCertificateTypesProvider)
+#pragma warning restore CS0618
         {
             // generate a unique host name.
             string hostName = hostName = "/Https";
@@ -197,7 +197,9 @@ namespace Opc.Ua.Bindings
                         endpoints,
                         endpointConfiguration,
                         listener,
+#pragma warning disable CS0618 // Type or member is obsolete
                         configuration.CertificateValidator);
+#pragma warning restore CS0618
                 }
                 else
                 {

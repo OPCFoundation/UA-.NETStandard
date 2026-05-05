@@ -39,8 +39,6 @@ using Microsoft.Extensions.Logging;
 using System.Security.Cryptography;
 using Opc.Ua.Security.Certificates;
 
-// FILE-PRAGMA: legacy CertificateValidator/ICertificateValidator API kept for binary compat
-#pragma warning disable CS0618
 
 namespace Opc.Ua.Configuration
 {
@@ -64,7 +62,9 @@ namespace Opc.Ua.Configuration
                 Server = null;
             }
 
+#pragma warning disable CS0618 // Type or member is obsolete
             (ApplicationConfiguration?.CertificateValidator as IDisposable)?.Dispose();
+#pragma warning restore CS0618
 
             if (ApplicationConfiguration?.SecurityConfiguration?.ApplicationCertificates != null)
             {

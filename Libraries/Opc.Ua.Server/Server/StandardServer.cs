@@ -39,8 +39,6 @@ using Microsoft.Extensions.Logging;
 using Opc.Ua.Bindings;
 using Opc.Ua.Security.Certificates;
 
-// FILE-PRAGMA: legacy CertificateValidator/ICertificateValidator API kept for binary compat
-#pragma warning disable CS0618
 
 namespace Opc.Ua.Server
 {
@@ -79,10 +77,12 @@ namespace Opc.Ua.Server
                     m_serverInternal = null;
                 }
 
+#pragma warning disable CS0618 // Type or member is obsolete
                 if (CertificateValidator is CertificateValidator legacyValidator)
                 {
                     legacyValidator.CertificateUpdate -= OnCertificateUpdateAsync;
                 }
+#pragma warning restore CS0618
 
                 m_certManagerSubscription?.Dispose();
 
@@ -387,9 +387,11 @@ namespace Opc.Ua.Server
                                         clientDescription.ApplicationUri);
                                 }
 
+#pragma warning disable CS0618 // Type or member is obsolete
                                 CertificateValidationResult clientCertResult = await CertificateValidator
                                     .ValidateAsync(clientCertificateChain, ct: requestLifetime.CancellationToken)
                                     .ConfigureAwait(false);
+#pragma warning restore CS0618
                                 if (!clientCertResult.IsValid)
                                 {
                                     throw new ServiceResultException(clientCertResult.StatusCode);
@@ -422,9 +424,11 @@ namespace Opc.Ua.Server
                 }
 
                 // load the certificate for the security profile
+#pragma warning disable CS0618 // Type or member is obsolete
                 Certificate instanceCertificate = InstanceCertificateTypesProvider
                     .GetInstanceCertificate(
                         context.SecurityPolicyUri);
+#pragma warning restore CS0618
 
                 // create the session.
                 CreateSessionResult result = await ServerInternal.SessionManager.CreateSessionAsync(
@@ -457,10 +461,12 @@ namespace Opc.Ua.Server
                             EndpointUrl = new Uri(endpointUrl)
                         };
 
+#pragma warning disable CS0618 // Type or member is obsolete
                         CertificateValidator.ValidateDomains(
                             instanceCertificate,
                             configuredEndpoint,
                             serverValidation: true);
+#pragma warning restore CS0618
                     }
                     catch (ServiceResultException sre)
                         when (sre.StatusCode == StatusCodes.BadCertificateHostNameInvalid)
@@ -488,11 +494,13 @@ namespace Opc.Ua.Server
                     if (requireEncryption)
                     {
                         // check if complete chain should be sent.
+#pragma warning disable CS0618 // Type or member is obsolete
                         if (InstanceCertificateTypesProvider.SendCertificateChain)
                         {
                             serverCertificate = InstanceCertificateTypesProvider
                                 .LoadCertificateChainRaw(instanceCertificate).ToByteString();
                         }
+#pragma warning restore CS0618
                         else
                         {
                             serverCertificate = instanceCertificate.RawData.ToByteString();
@@ -2198,7 +2206,9 @@ namespace Opc.Ua.Server
                 // share the server's CertificateManager so the registration channel uses
                 // the same trust list, rejected store, and cached validation results.
                 CertificateManager = CertificateManager,
+#pragma warning disable CS0618 // Type or member is obsolete
                 CertificateValidator = CertificateValidator
+#pragma warning restore CS0618
             };
 
             // try each endpoint.
@@ -2237,10 +2247,12 @@ namespace Opc.Ua.Server
                             };
 
                             // create the client.
+#pragma warning disable CS0618 // Type or member is obsolete
                             Certificate instanceCertificate =
                                 InstanceCertificateTypesProvider.GetInstanceCertificate(
                                     endpoint.Description?.SecurityPolicyUri ??
                                     SecurityPolicies.None);
+#pragma warning restore CS0618
                             client = await RegistrationClient.CreateAsync(
                                 configuration,
                                 endpoint.Description,
@@ -2736,6 +2748,7 @@ namespace Opc.Ua.Server
                     .SecurityConfiguration
                     .RejectedCertificateStore;
 
+#pragma warning disable CS0618 // Type or member is obsolete
                 if (Configuration.CertificateValidator is CertificateValidator cfgUpdateValidator)
                 {
                     await cfgUpdateValidator.UpdateAsync(
@@ -2743,6 +2756,7 @@ namespace Opc.Ua.Server
                             ct: cancellationToken)
                         .ConfigureAwait(false);
                 }
+#pragma warning restore CS0618
 
                 // update trace configuration.
                 Configuration.TraceConfiguration = configuration.TraceConfiguration ??
@@ -2751,7 +2765,6 @@ namespace Opc.Ua.Server
 #pragma warning disable CS0618 // Type or member is obsolete
                 Configuration.TraceConfiguration.ApplySettings();
 #pragma warning restore CS0618 // Type or member is obsolete
-#pragma warning disable CS0618 // re-enable file-level legacy CertificateValidator pragma
             }
             catch (Exception e)
             {
@@ -2846,7 +2859,9 @@ namespace Opc.Ua.Server
                         configuration.ServerConfiguration.BaseAddresses,
                         serverDescription,
                         configuration.ServerConfiguration.SecurityPolicies,
+#pragma warning disable CS0618 // Type or member is obsolete
                         InstanceCertificateTypesProvider);
+#pragma warning restore CS0618
                     endpointsList.AddRange(endpointsForHost);
                 }
             }
@@ -3098,10 +3113,12 @@ namespace Opc.Ua.Server
                 m_configurationWatcher.Changed += OnConfigurationChangedAsync;
             }
 
+#pragma warning disable CS0618 // Type or member is obsolete
             if (CertificateValidator is CertificateValidator legacyCertValidator)
             {
                 legacyCertValidator.CertificateUpdate += OnCertificateUpdateAsync;
             }
+#pragma warning restore CS0618
 
             // Log availability of the new CertificateManager
             if (CertificateManager != null)

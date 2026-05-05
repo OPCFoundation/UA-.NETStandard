@@ -367,13 +367,15 @@ sites.
 
 #### Suppressing CS0618 during migration
 
-Files that intentionally bridge to the legacy types (sample apps,
-test fixtures, internal cast bridges) carry a single, searchable
-file-level marker:
+Sites that intentionally bridge to the legacy types (sample apps,
+test fixtures, internal cast bridges) wrap each obsolete call in a
+narrow pragma so the rest of the file still benefits from the
+analyzer warnings:
 
 ```csharp
-// FILE-PRAGMA: legacy CertificateValidator/ICertificateValidator API kept for binary compat
-#pragma warning disable CS0618
+#pragma warning disable CS0618 // Type or member is obsolete
+var legacyValidator = new CertificateValidator(telemetry);
+#pragma warning restore CS0618
 ```
 
 This makes it trivial to grep the codebase for every site that

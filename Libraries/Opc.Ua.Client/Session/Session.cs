@@ -38,8 +38,6 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Security.Certificates;
 
-// FILE-PRAGMA: legacy CertificateValidator/ICertificateValidator API kept for binary compat
-#pragma warning disable CS0618
 
 namespace Opc.Ua.Client
 {
@@ -289,7 +287,9 @@ namespace Opc.Ua.Client
             {
                 configurationField = "SecurityConfiguration";
             }
+#pragma warning disable CS0618 // Type or member is obsolete
             else if (configuration.CertificateValidator == null)
+#pragma warning restore CS0618
             {
                 configurationField = "CertificateValidator";
             }
@@ -1158,9 +1158,11 @@ namespace Opc.Ua.Client
 
                 if (requireEncryption)
                 {
+#pragma warning disable CS0618 // Type or member is obsolete
                     ICertificateValidatorEx validator =
                         (ICertificateValidatorEx?)m_configuration.CertificateManager
                         ?? m_configuration.CertificateValidator;
+#pragma warning restore CS0618
                     CertificateValidationResult result = await validator
                         .ValidateAsync(serverCertificateChain, ct: ct)
                         .ConfigureAwait(false);
@@ -1540,9 +1542,11 @@ namespace Opc.Ua.Client
                 requireEncryption &&
                 identity.TokenType != UserTokenType.Anonymous)
             {
+#pragma warning disable CS0618 // Type or member is obsolete
                 ICertificateValidatorEx validator =
                     (ICertificateValidatorEx?)m_configuration.CertificateManager
                     ?? m_configuration.CertificateValidator;
+#pragma warning restore CS0618
                 CertificateValidationResult result = await validator
                     .ValidateAsync(m_serverCertificate, ct: ct)
                     .ConfigureAwait(false);
@@ -4187,9 +4191,11 @@ namespace Opc.Ua.Client
         {
             if (serverCertificate != null)
             {
+#pragma warning disable CS0618 // Type or member is obsolete
                 ICertificateValidatorEx validator =
                     (ICertificateValidatorEx?)m_configuration.CertificateManager
                     ?? m_configuration.CertificateValidator;
+#pragma warning restore CS0618
                 validator.ValidateApplicationUri(serverCertificate, endpoint);
             }
         }
@@ -4819,12 +4825,14 @@ namespace Opc.Ua.Client
                 try
                 {
                     List<CertificateIdentifier> issuers = [];
+#pragma warning disable CS0618 // Type or member is obsolete
                     if (configuration.CertificateValidator is CertificateValidator getIssuersValidator)
                     {
                         await getIssuersValidator
                             .GetIssuersAsync(clientCertificate, issuers, ct)
                             .ConfigureAwait(false);
                     }
+#pragma warning restore CS0618
 
                     for (int i = 0; i < issuers.Count; i++)
                     {

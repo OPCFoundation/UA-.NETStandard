@@ -32,9 +32,6 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 
-// FILE-PRAGMA: legacy CertificateValidator/ICertificateValidator API kept for binary compat
-// TODO: remove these legacy tests once the obsolete API is removed in a future major.
-#pragma warning disable CS0618
 
 namespace Opc.Ua.Core.Tests
 {
@@ -118,7 +115,9 @@ namespace Opc.Ua.Core.Tests
         /// <summary>
         /// The certificate validator for the stores.
         /// </summary>
+#pragma warning disable CS0618 // Type or member is obsolete
         public ICertificateValidator CertificateValidator => m_certificateValidator;
+#pragma warning restore CS0618
 
         /// <summary>
         /// The issuer store, contains certs used for chain validation.
@@ -138,6 +137,7 @@ namespace Opc.Ua.Core.Tests
         /// <summary>
         /// Creates the validator using the issuer and trusted store.
         /// </summary>
+#pragma warning disable CS0618 // Type or member is obsolete
         public CertificateValidator Update()
         {
             m_certificateValidator?.Dispose();
@@ -165,6 +165,7 @@ namespace Opc.Ua.Core.Tests
             m_certificateValidator = certValidator;
             return certValidator;
         }
+#pragma warning restore CS0618
 
         /// <summary>
         /// Clean up (delete) the content of the issuer and trusted store.
@@ -178,7 +179,9 @@ namespace Opc.Ua.Core.Tests
         }
 
         private int m_disposed;
+#pragma warning disable CS0618 // Type or member is obsolete
         private CertificateValidator m_certificateValidator;
+#pragma warning restore CS0618
         private DirectoryCertificateStore m_issuerStore;
         private DirectoryCertificateStore m_trustedStore;
         private DirectoryCertificateStore m_rejectedStore;

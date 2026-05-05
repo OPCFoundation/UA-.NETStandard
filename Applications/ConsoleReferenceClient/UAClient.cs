@@ -36,9 +36,6 @@ using Opc.Ua;
 using Opc.Ua.Client;
 using Opc.Ua.Security.Certificates;
 
-// FILE-PRAGMA: legacy CertificateValidator/ICertificateValidator API kept for binary compat
-// TODO: migrate from CertificateValidation event to AcceptError callback after the legacy class is removed.
-#pragma warning disable CS0618
 
 namespace Quickstarts
 {
@@ -77,7 +74,9 @@ namespace Quickstarts
             m_configuration = configuration;
             // Modern global accept hook on ICertificateValidatorEx — fires for
             // every certificate validation done via this validator.
+#pragma warning disable CS0618 // Type or member is obsolete
             m_configuration.CertificateValidator.AcceptError = AcceptCertificate;
+#pragma warning restore CS0618
             m_reverseConnectManager = reverseConnectManager;
         }
 
@@ -102,7 +101,9 @@ namespace Quickstarts
             {
                 m_reconnectHandler?.Dispose();
                 Session?.Dispose();
+#pragma warning disable CS0618 // Type or member is obsolete
                 m_configuration.CertificateValidator.AcceptError = null;
+#pragma warning restore CS0618
             }
             m_disposed = true;
         }

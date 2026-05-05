@@ -37,8 +37,6 @@ using System.Threading.Tasks;
 using System.Threading;
 using Opc.Ua.Security.Certificates;
 
-// FILE-PRAGMA: legacy CertificateValidator/ICertificateValidator API kept for binary compat
-#pragma warning disable CS0618
 
 namespace Opc.Ua
 {
@@ -175,7 +173,9 @@ namespace Opc.Ua
 
             if (configuration != null)
             {
+#pragma warning disable CS0618 // Type or member is obsolete
                 settings.CertificateValidator = configuration.CertificateValidator;
+#pragma warning restore CS0618
             }
 
             settings.NamespaceUris = messageContext.NamespaceUris;
@@ -253,7 +253,9 @@ namespace Opc.Ua
 
             if (configuration != null)
             {
+#pragma warning disable CS0618 // Type or member is obsolete
                 settings.CertificateValidator = configuration.CertificateValidator;
+#pragma warning restore CS0618
             }
 
             settings.NamespaceUris = messageContext.NamespaceUris;

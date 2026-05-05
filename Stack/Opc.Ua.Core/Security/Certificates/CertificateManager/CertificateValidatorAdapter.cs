@@ -34,8 +34,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Security.Certificates;
 
-// FILE-PRAGMA: legacy CertificateValidator/ICertificateValidator API kept for binary compat
-#pragma warning disable CS0618
 
 namespace Opc.Ua
 {
@@ -43,7 +41,9 @@ namespace Opc.Ua
     /// Adapter that wraps the new <see cref="ICertificateValidatorEx"/>
     /// and exposes the legacy <see cref="ICertificateValidator"/> interface.
     /// </summary>
+#pragma warning disable CS0618 // Type or member is obsolete
     public sealed class CertificateValidatorAdapter : ICertificateValidator
+#pragma warning restore CS0618
     {
         private readonly ICertificateValidatorEx m_inner;
         private readonly TrustListIdentifier? m_trustList;
