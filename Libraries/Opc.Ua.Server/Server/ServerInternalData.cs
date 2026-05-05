@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
@@ -148,6 +149,11 @@ namespace Opc.Ua.Server
         /// Stores the MasterNodeManager, the DiagnosticsNodeManager and the CoreNodeManager
         /// </summary>
         /// <param name="nodeManager">The node manager.</param>
+        [MemberNotNull(
+            nameof(NodeManager),
+            nameof(DiagnosticsNodeManager),
+            nameof(ConfigurationNodeManager),
+            nameof(CoreNodeManager))]
         public void SetNodeManager(IMasterNodeManager nodeManager)
         {
             NodeManager = nodeManager;
@@ -160,6 +166,7 @@ namespace Opc.Ua.Server
         /// Stores the MainNodeManagerFactory
         /// </summary>
         /// <param name="mainNodeManagerFactory">The main node manager factory.</param>
+        [MemberNotNull(nameof(MainNodeManagerFactory))]
         public void SetMainNodeManagerFactory(IMainNodeManagerFactory mainNodeManagerFactory)
         {
             MainNodeManagerFactory = mainNodeManagerFactory;
@@ -172,6 +179,13 @@ namespace Opc.Ua.Server
         /// <param name="resourceManager">The resource manager.</param>
         /// <param name="requestManager">The request manager.</param>
         /// <param name="cancellationToken">The cancellation token.</param>
+        [MemberNotNull(
+            nameof(EventManager),
+            nameof(ResourceManager),
+            nameof(RequestManager),
+            nameof(ServerObject),
+            nameof(NonThreadSafeStatus),
+            nameof(ServerDiagnostics))]
         public async ValueTask CreateServerObjectAsync(
             EventManager eventManager,
             ResourceManager resourceManager,
@@ -191,6 +205,7 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="sessionManager">The session manager.</param>
         /// <param name="subscriptionManager">The subscription manager.</param>
+        [MemberNotNull(nameof(SessionManager), nameof(SubscriptionManager))]
         public void SetSessionManager(
             ISessionManager sessionManager,
             ISubscriptionManager subscriptionManager)
@@ -203,6 +218,7 @@ namespace Opc.Ua.Server
         /// Stores the MonitoredItemQueueFactory in the datastore.
         /// </summary>
         /// <param name="monitoredItemQueueFactory">The MonitoredItemQueueFactory.</param>
+        [MemberNotNull(nameof(MonitoredItemQueueFactory))]
         public void SetMonitoredItemQueueFactory(
             IMonitoredItemQueueFactory monitoredItemQueueFactory)
         {
@@ -213,6 +229,7 @@ namespace Opc.Ua.Server
         /// Stores the Subscriptionstore in the datastore.
         /// </summary>
         /// <param name="subscriptionStore">The subscriptionstore.</param>
+        [MemberNotNull(nameof(SubscriptionStore))]
         public void SetSubscriptionStore(ISubscriptionStore subscriptionStore)
         {
             SubscriptionStore = subscriptionStore;
@@ -222,6 +239,7 @@ namespace Opc.Ua.Server
         /// Stores the AggregateManager in the datastore.
         /// </summary>
         /// <param name="aggregateManager">The AggregateManager.</param>
+        [MemberNotNull(nameof(AggregateManager))]
         public void SetAggregateManager(AggregateManager aggregateManager)
         {
             AggregateManager = aggregateManager;
@@ -231,6 +249,7 @@ namespace Opc.Ua.Server
         /// Stores the ModellingRulesManager in the datastore.
         /// </summary>
         /// <param name="modellingRulesManager">The ModellingRulesManager.</param>
+        [MemberNotNull(nameof(ModellingRulesManager))]
         public void SetModellingRulesManager(ModellingRulesManager modellingRulesManager)
         {
             ModellingRulesManager = modellingRulesManager;
@@ -615,6 +634,10 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Creates the ServerObject and attaches it to the NodeManager.
         /// </summary>
+        [MemberNotNull(
+            nameof(ServerObject),
+            nameof(NonThreadSafeStatus),
+            nameof(ServerDiagnostics))]
         private async ValueTask CreateServerObjectAsync(CancellationToken cancellationToken = default)
         {
             // get the server object.

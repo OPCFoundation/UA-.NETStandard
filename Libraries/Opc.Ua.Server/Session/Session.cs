@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
@@ -1113,6 +1114,7 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <returns>true if the new identity is different from the old identity.</returns>
         /// <exception cref="ArgumentNullException"><paramref name="identityToken"/> is <c>null</c>.</exception>
+        [MemberNotNull(nameof(EffectiveIdentity), nameof(IdentityToken))]
         private bool UpdateUserIdentity(
             IUserIdentityTokenHandler identityToken,
             IUserIdentity identity,

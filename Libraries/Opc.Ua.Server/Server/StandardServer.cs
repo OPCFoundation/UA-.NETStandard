@@ -3697,7 +3697,7 @@ namespace Opc.Ua.Server
         }
 
         private OperationLimitsState OperationLimits
-            => ServerInternal.ServerObject!.ServerCapabilities!.OperationLimits!;
+            => ServerInternal.ServerObject.ServerCapabilities!.OperationLimits!;
 
         private readonly Lock m_registrationLock = new();
         private readonly SemaphoreSlim m_semaphoreSlim = new(1, 1);

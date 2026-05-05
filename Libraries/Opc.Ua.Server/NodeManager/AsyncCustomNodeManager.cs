@@ -5159,7 +5159,7 @@ namespace Opc.Ua.Server
         {
             // check if NamespaceMetadata is defined for NamespaceIndex of the node.
             NamespaceMetadataState namespaceMetadataState =
-                Server!.NodeManager!.ConfigurationNodeManager!.GetNamespaceMetadataState(target.NodeId.NamespaceIndex)!;
+                Server.NodeManager.ConfigurationNodeManager!.GetNamespaceMetadataState(target.NodeId.NamespaceIndex)!;
 
             if (namespaceMetadataState != null)
             {
