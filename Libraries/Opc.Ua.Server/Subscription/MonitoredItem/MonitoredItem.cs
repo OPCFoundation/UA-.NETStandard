@@ -150,7 +150,7 @@ namespace Opc.Ua.Server
                 m_samplingInterval,
                 QueueSize,
                 m_discardOldest,
-                m_filterToUse,
+                m_filterToUse!,
                 MonitoringMode);
 
             InitializeQueue();
@@ -224,7 +224,7 @@ namespace Opc.Ua.Server
                 m_samplingInterval,
                 QueueSize,
                 m_discardOldest,
-                m_filterToUse,
+                m_filterToUse!,
                 MonitoringMode);
 
             RestoreQueue();
