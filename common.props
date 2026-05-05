@@ -2,7 +2,7 @@
   <PropertyGroup>
     <Product>OPC UA .NET Standard Library</Product>
     <RepositoryUrl>https://github.com/OPCFoundation/UA-.NETStandard</RepositoryUrl>
-    <VersionPrefix>1.05.374</VersionPrefix>
+    <VersionPrefix>1.6</VersionPrefix>
     <VersionSuffix>preview-$([System.DateTime]::Now.ToString("yyyyMMdd"))</VersionSuffix>
     <Copyright>Copyright © 2004-2025 OPC Foundation, Inc</Copyright>
     <PackagePrefix>OPCFoundation.NetStandard</PackagePrefix>
@@ -46,7 +46,8 @@
     <PackageIcon>images/logo.jpg</PackageIcon>
     <PackageProjectUrl>$(RepositoryUrl)</PackageProjectUrl>
     <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
-    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <!--<PackageLicenseExpression>MIT</PackageLicenseExpression>-->
+    <PackageLicenseFile>LICENSE.txt</PackageLicenseFile>
     <PackageReleaseNotes>$(RepositoryUrl)/releases</PackageReleaseNotes>
     <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>
     <PackageTags>OPCFoundation OPC UA ios linux dotnet net netcore</PackageTags>
