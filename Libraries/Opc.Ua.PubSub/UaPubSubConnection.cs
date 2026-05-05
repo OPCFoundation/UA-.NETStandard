@@ -462,24 +462,28 @@ namespace Opc.Ua.PubSub
 
             foreach (ushort dataSetWriterId in dataSetWriterIds)
             {
-                var response = new DataSetWriterConfigurationResponse();
+                DataSetWriterConfigurationResponse response;
 
                 if (!writerGroupsIds.Contains(dataSetWriterId))
                 {
-                    response.DataSetWriterIds = [dataSetWriterId];
-
-                    response.StatusCodes = [StatusCodes.BadNotFound];
+                    response = new DataSetWriterConfigurationResponse
+                    {
+                        DataSetWriterIds = [dataSetWriterId],
+                        StatusCodes = [StatusCodes.BadNotFound]
+                    };
                 }
                 else
                 {
+                    response = new DataSetWriterConfigurationResponse
+                    {
+                        DataSetWriterIds = [dataSetWriterId],
+                        StatusCodes = [StatusCodes.Good]
+                    };
+
                     response.DataSetWriterConfig = PubSubConnectionConfiguration.WriterGroups.ToList()
                         .First(group =>
                             group.DataSetWriters.ToList()
                             .First(writer => writer.DataSetWriterId == dataSetWriterId) != null);
-
-                    response.DataSetWriterIds = [dataSetWriterId];
-
-                    response.StatusCodes = [StatusCodes.Good];
                 }
 
                 responses.Add(response);
