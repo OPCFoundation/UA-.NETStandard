@@ -1633,7 +1633,13 @@ namespace Opc.Ua.Server
                     new LocalizedText(message),
                     exception == null,
                     actionTimestamp
-                ); // initializes Status, ActionTimeStamp, ServerId, ClientAuditEntryId, ClientUserId
+                ); // initializes Status, ActionTimeStamp, ServerId, ClientUserId
+
+                e.SetChildValue(
+                    systemContext,
+                    BrowseNames.ClientAuditEntryId,
+                    request?.RequestHeader?.AuditEntryId,
+                    false);
 
                 e.SetChildValue(
                     systemContext,
