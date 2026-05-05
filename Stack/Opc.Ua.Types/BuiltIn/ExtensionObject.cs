@@ -54,7 +54,7 @@ namespace Opc.Ua
     /// how it is encoded.
     /// </para>
     /// </remarks>
-    [Union]
+    // [Union]
     public readonly struct ExtensionObject :
         IFormattable,
         INullable,

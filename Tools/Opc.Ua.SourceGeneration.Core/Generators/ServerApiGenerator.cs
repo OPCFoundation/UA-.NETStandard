@@ -52,7 +52,18 @@ namespace Opc.Ua.SourceGeneration
         {
             List<ServiceSet> serviceSets =
             [
-                new ServiceSet("Session", ServiceCategory.Discovery, ServiceCategory.Session, ServiceCategory.Test),
+                new ServiceSet(
+                    "Session",
+                    ServiceCategory.Discovery,
+                    ServiceCategory.Session,
+                    ServiceCategory.Attribute,
+                    ServiceCategory.View,
+                    ServiceCategory.Method,
+                    ServiceCategory.MonitoredItem,
+                    ServiceCategory.Subscription,
+                    ServiceCategory.NodeManagement,
+                    ServiceCategory.Query,
+                    ServiceCategory.Test),
                 new ServiceSet("Discovery", ServiceCategory.Discovery, ServiceCategory.Registration)
             ];
 

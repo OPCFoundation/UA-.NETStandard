@@ -1,17 +1,33 @@
-/* Copyright (c) 1996-2022 The OPC Foundation. All rights reserved.
-   The source code in this file is covered under a dual-license scenario:
-     - RCL: for OPC Foundation Corporate Members in good-standing
-     - GPL V2: everybody else
-   RCL license terms accompanied with this source code. See http://opcfoundation.org/License/RCL/1.00/
-   GNU General Public License as published by the Free Software Foundation;
-   version 2 of the License are accompanied with this source code. See http://opcfoundation.org/License/GPLv2
-   This source code is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-*/
+/* ========================================================================
+ * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
+ * ======================================================================*/
 
 using System;
-using System.IO;
 using System.Security.Cryptography;
 
 namespace Opc.Ua
@@ -157,25 +173,26 @@ namespace Opc.Ua
         /// Whether the padding is required with symmetric encryption.
         /// </summary>
         public bool NoSymmetricEncryptionPadding =>
-            SymmetricEncryptionAlgorithm == SymmetricEncryptionAlgorithm.Aes256Gcm ||
-            SymmetricEncryptionAlgorithm == SymmetricEncryptionAlgorithm.Aes128Gcm ||
-            SymmetricEncryptionAlgorithm == SymmetricEncryptionAlgorithm.ChaCha20Poly1305;
+            SymmetricEncryptionAlgorithm is SymmetricEncryptionAlgorithm.Aes256Gcm or
+            SymmetricEncryptionAlgorithm.Aes128Gcm or
+            SymmetricEncryptionAlgorithm.ChaCha20Poly1305;
 
         /// <summary>
         /// Returns the derived server key data length.
         /// </summary>
         public int ServerKeyDataLength =>
-             (DerivedSignatureKeyLength + SymmetricEncryptionKeyLength + InitializationVectorLength);
+             DerivedSignatureKeyLength + SymmetricEncryptionKeyLength + InitializationVectorLength;
 
         /// <summary>
         /// Returns the derived client key data length.
         /// </summary>
         public int ClientKeyDataLength =>
-             (DerivedSignatureKeyLength + SymmetricEncryptionKeyLength + InitializationVectorLength);
+             DerivedSignatureKeyLength + SymmetricEncryptionKeyLength + InitializationVectorLength;
 
         /// <summary>
         /// Returns the data to be signed by the server when creating a session.
         /// </summary>
+        /// <exception cref="NotSupportedException"></exception>
         public byte[] GetUserTokenSignatureData(
             byte[] channelThumbprint,
             byte[] serverNonce,
@@ -195,13 +212,13 @@ namespace Opc.Ua
                     _ => throw new NotSupportedException()
                 };
 
-                var serverCertificateHash =
+                byte[] serverCertificateHash =
                     serverCertificate != null ? hash.ComputeHash(serverCertificate) : null;
-                var serverChannelCertificateHash =
+                byte[] serverChannelCertificateHash =
                     serverChannelCertificate != null ? hash.ComputeHash(serverChannelCertificate) : null;
-                var clientCertificateHash =
+                byte[] clientCertificateHash =
                     clientCertificate != null ? hash.ComputeHash(clientCertificate) : null;
-                var clientChannelCertificateHash =
+                byte[] clientChannelCertificateHash =
                     clientChannelCertificate != null ? hash.ComputeHash(clientChannelCertificate) : null;
 
                 return Utils.Append(
@@ -213,12 +230,10 @@ namespace Opc.Ua
                     clientChannelCertificateHash,
                     clientNonce);
             }
-            else
-            {
-                return Utils.Append(
-                    serverCertificate,
-                    serverNonce);
-            }
+
+            return Utils.Append(
+                serverCertificate,
+                serverNonce);
         }
 
         /// <summary>
@@ -243,9 +258,9 @@ namespace Opc.Ua
                     _ => throw new NotSupportedException()
                 };
 
-                var serverChannelCertificateHash =
+                byte[] serverChannelCertificateHash =
                     serverChannelCertificate != null ? hash.ComputeHash(serverChannelCertificate) : null;
-                var clientChannelCertificateHash =
+                byte[] clientChannelCertificateHash =
                     clientChannelCertificate != null ? hash.ComputeHash(clientChannelCertificate) : null;
 
                 return Utils.Append(
@@ -255,17 +270,16 @@ namespace Opc.Ua
                     clientChannelCertificateHash,
                     serverNonce);
             }
-            else
-            {
-                return Utils.Append(
-                    clientCertificate,
-                    clientNonce);
-            }
+
+            return Utils.Append(
+                clientCertificate,
+                clientNonce);
         }
 
         /// <summary>
         /// Returns the data to be signed by the client when creating a session.
         /// </summary>
+        /// <exception cref="NotSupportedException"></exception>
         public byte[] GetClientSignatureData(
             byte[] channelThumbprint,
             byte[] serverNonce,
@@ -274,7 +288,6 @@ namespace Opc.Ua
             byte[] clientChannelCertificate,
             byte[] clientNonce)
         {
-            byte[] data = null;
             if (SecureChannelEnhancements)
             {
                 using HashAlgorithm hash = CertificateThumbprintAlgorithm switch
@@ -285,11 +298,11 @@ namespace Opc.Ua
                     _ => throw new NotSupportedException()
                 };
 
-                var serverCertificateHash = serverCertificate != null ? hash.ComputeHash(serverCertificate) : null;
-                var serverChannelCertificateHash = serverChannelCertificate != null ? hash.ComputeHash(serverChannelCertificate) : null;
-                var clientChannelCertificateHash = clientChannelCertificate != null ? hash.ComputeHash(clientChannelCertificate) : null;
+                byte[] serverCertificateHash = serverCertificate != null ? hash.ComputeHash(serverCertificate) : null;
+                byte[] serverChannelCertificateHash = serverChannelCertificate != null ? hash.ComputeHash(serverChannelCertificate) : null;
+                byte[] clientChannelCertificateHash = clientChannelCertificate != null ? hash.ComputeHash(clientChannelCertificate) : null;
 
-                data = Utils.Append(
+                return Utils.Append(
                     channelThumbprint,
                     serverNonce,
                     serverCertificateHash,
@@ -297,13 +310,10 @@ namespace Opc.Ua
                     clientChannelCertificateHash,
                     clientNonce);
             }
-            else
-            {
-                data = Utils.Append(
-                    serverCertificate,
-                    serverNonce);
-            }
-            return data;
+
+            return Utils.Append(
+                serverCertificate,
+                serverNonce);
         }
 
         /// <summary>
@@ -498,7 +508,7 @@ namespace Opc.Ua
         /// <summary>
         /// ECC curve25519 is a required minimum security policy. It uses ChaChaPoly and 256 bit encryption.
         /// </summary>
-        public readonly static SecurityPolicyInfo ECC_curve25519 = new(SecurityPolicies.ECC_curve25519)
+        public static readonly SecurityPolicyInfo ECC_curve25519 = new(SecurityPolicies.ECC_curve25519)
         {
             DerivedSignatureKeyLength = 0,
             SymmetricEncryptionKeyLength = 256 / 8,
@@ -525,7 +535,7 @@ namespace Opc.Ua
         /// <summary>
         /// ECC curve25519 is a required minimum security policy. It uses AES-GCM for symmetric encryption.
         /// </summary>
-        public readonly static SecurityPolicyInfo ECC_curve25519_AesGcm = new(SecurityPolicies.ECC_curve25519_AesGcm)
+        public static readonly SecurityPolicyInfo ECC_curve25519_AesGcm = new(SecurityPolicies.ECC_curve25519_AesGcm)
         {
             DerivedSignatureKeyLength = 0,
             SymmetricEncryptionKeyLength = 128 / 8,
@@ -552,7 +562,7 @@ namespace Opc.Ua
         /// <summary>
         /// ECC curve25519 is a required minimum security policy. It uses ChaCha20Poly1305 for symmetric encryption.
         /// </summary>
-        public readonly static SecurityPolicyInfo ECC_curve25519_ChaChaPoly = new(SecurityPolicies.ECC_curve25519_ChaChaPoly)
+        public static readonly SecurityPolicyInfo ECC_curve25519_ChaChaPoly = new(SecurityPolicies.ECC_curve25519_ChaChaPoly)
         {
             DerivedSignatureKeyLength = 0,
             SymmetricEncryptionKeyLength = 256 / 8,
@@ -579,7 +589,7 @@ namespace Opc.Ua
         /// <summary>
         /// ECC curve448 is a required minimum security policy. It uses ChaChaPoly and 256 bit encryption.
         /// </summary>
-        public readonly static SecurityPolicyInfo ECC_curve448 = new(SecurityPolicies.ECC_curve448)
+        public static readonly SecurityPolicyInfo ECC_curve448 = new(SecurityPolicies.ECC_curve448)
         {
             DerivedSignatureKeyLength = 0,
             SymmetricEncryptionKeyLength = 256 / 8,
@@ -606,7 +616,7 @@ namespace Opc.Ua
         /// <summary>
         /// ECC curve448 is a required minimum security policy. It uses AES-GCM for symmetric encryption.
         /// </summary>
-        public readonly static SecurityPolicyInfo ECC_curve448_AesGcm = new(SecurityPolicies.ECC_curve448_AesGcm)
+        public static readonly SecurityPolicyInfo ECC_curve448_AesGcm = new(SecurityPolicies.ECC_curve448_AesGcm)
         {
             DerivedSignatureKeyLength = 0,
             SymmetricEncryptionKeyLength = 256 / 8,
@@ -633,7 +643,7 @@ namespace Opc.Ua
         /// <summary>
         /// ECC Curve448 is a required minimum security policy. It uses ChaCha20Poly1305 for symmetric encryption.
         /// </summary>
-        public readonly static SecurityPolicyInfo ECC_curve448_ChaChaPoly = new(SecurityPolicies.ECC_curve448_ChaChaPoly)
+        public static readonly SecurityPolicyInfo ECC_curve448_ChaChaPoly = new(SecurityPolicies.ECC_curve448_ChaChaPoly)
         {
             DerivedSignatureKeyLength = 0,
             SymmetricEncryptionKeyLength = 256 / 8,
@@ -660,7 +670,7 @@ namespace Opc.Ua
         /// <summary>
         /// The ECC nistP256 is a required minimum security policy.
         /// </summary>
-        public readonly static SecurityPolicyInfo ECC_nistP256 = new(SecurityPolicies.ECC_nistP256)
+        public static readonly SecurityPolicyInfo ECC_nistP256 = new(SecurityPolicies.ECC_nistP256)
         {
             DerivedSignatureKeyLength = 256 / 8,
             SymmetricEncryptionKeyLength = 128 / 8,
@@ -687,7 +697,7 @@ namespace Opc.Ua
         /// <summary>
         /// The ECC_nistP256_AesGcm is an ECC nistP256 variant that uses AES-GCM for symmetric encryption.
         /// </summary>
-        public readonly static SecurityPolicyInfo ECC_nistP256_AesGcm = new(SecurityPolicies.ECC_nistP256_AesGcm)
+        public static readonly SecurityPolicyInfo ECC_nistP256_AesGcm = new(SecurityPolicies.ECC_nistP256_AesGcm)
         {
             DerivedSignatureKeyLength = 0,
             SymmetricEncryptionKeyLength = 128 / 8,
@@ -714,7 +724,7 @@ namespace Opc.Ua
         /// <summary>
         /// The ECC_nistP256_AesGcm is an ECC nistP256 variant that uses ChaCha20Poly1305 for symmetric encryption.
         /// </summary>
-        public readonly static SecurityPolicyInfo ECC_nistP256_ChaChaPoly = new(SecurityPolicies.ECC_nistP256_ChaChaPoly)
+        public static readonly SecurityPolicyInfo ECC_nistP256_ChaChaPoly = new(SecurityPolicies.ECC_nistP256_ChaChaPoly)
         {
             DerivedSignatureKeyLength = 0,
             SymmetricEncryptionKeyLength = 256 / 8,
@@ -741,7 +751,7 @@ namespace Opc.Ua
         /// <summary>
         /// The ECC nistP384 is an optional high security policy.
         /// </summary>
-        public readonly static SecurityPolicyInfo ECC_nistP384 = new(SecurityPolicies.ECC_nistP384)
+        public static readonly SecurityPolicyInfo ECC_nistP384 = new(SecurityPolicies.ECC_nistP384)
         {
             DerivedSignatureKeyLength = 384 / 8,
             SymmetricEncryptionKeyLength = 256 / 8,
@@ -768,7 +778,7 @@ namespace Opc.Ua
         /// <summary>
         /// The ECC nistP384 is an optional high security policy that uses AES-GCM for symmetric encryption.
         /// </summary>
-        public readonly static SecurityPolicyInfo ECC_nistP384_AesGcm = new(SecurityPolicies.ECC_nistP384_AesGcm)
+        public static readonly SecurityPolicyInfo ECC_nistP384_AesGcm = new(SecurityPolicies.ECC_nistP384_AesGcm)
         {
             DerivedSignatureKeyLength = 0,
             SymmetricEncryptionKeyLength = 256 / 8,
@@ -795,7 +805,7 @@ namespace Opc.Ua
         /// <summary>
         /// The ECC nistP384 is an optional high security policy that uses ChaCha20Poly1305 for symmetric encryption.
         /// </summary>
-        public readonly static SecurityPolicyInfo ECC_nistP384_ChaChaPoly = new(SecurityPolicies.ECC_nistP384_ChaChaPoly)
+        public static readonly SecurityPolicyInfo ECC_nistP384_ChaChaPoly = new(SecurityPolicies.ECC_nistP384_ChaChaPoly)
         {
             DerivedSignatureKeyLength = 0,
             SymmetricEncryptionKeyLength = 256 / 8,
@@ -822,7 +832,7 @@ namespace Opc.Ua
         /// <summary>
         /// The ECC brainpoolP256r1 is a required minimum security policy.
         /// </summary>
-        public readonly static SecurityPolicyInfo ECC_brainpoolP256r1 = new(SecurityPolicies.ECC_brainpoolP256r1)
+        public static readonly SecurityPolicyInfo ECC_brainpoolP256r1 = new(SecurityPolicies.ECC_brainpoolP256r1)
         {
             DerivedSignatureKeyLength = 256 / 8,
             SymmetricEncryptionKeyLength = 128 / 8,
@@ -849,7 +859,7 @@ namespace Opc.Ua
         /// <summary>
         /// The ECC_brainpoolP256r1_AesGcm is an ECC brainpoolP256 variant that uses AES-GCM for symmetric encryption.
         /// </summary>
-        public readonly static SecurityPolicyInfo ECC_brainpoolP256r1_AesGcm = new (SecurityPolicies.ECC_brainpoolP256r1_AesGcm)
+        public static readonly SecurityPolicyInfo ECC_brainpoolP256r1_AesGcm = new(SecurityPolicies.ECC_brainpoolP256r1_AesGcm)
         {
             DerivedSignatureKeyLength = 0,
             SymmetricEncryptionKeyLength = 128 / 8,
@@ -876,7 +886,7 @@ namespace Opc.Ua
         /// <summary>
         /// The ECC_brainpoolP256_AES is an ECC brainpoolP256 variant that uses ChaCha20Poly1305 for symmetric encryption.
         /// </summary>
-        public readonly static SecurityPolicyInfo ECC_brainpoolP256r1_ChaChaPoly = new(SecurityPolicies.ECC_brainpoolP256r1_ChaChaPoly)
+        public static readonly SecurityPolicyInfo ECC_brainpoolP256r1_ChaChaPoly = new(SecurityPolicies.ECC_brainpoolP256r1_ChaChaPoly)
         {
             DerivedSignatureKeyLength = 0,
             SymmetricEncryptionKeyLength = 256 / 8,
@@ -903,7 +913,7 @@ namespace Opc.Ua
         /// <summary>
         /// The ECC brainpoolP384r1 is an optional high security policy.
         /// </summary>
-        public readonly static SecurityPolicyInfo ECC_brainpoolP384r1 = new(SecurityPolicies.ECC_brainpoolP384r1)
+        public static readonly SecurityPolicyInfo ECC_brainpoolP384r1 = new(SecurityPolicies.ECC_brainpoolP384r1)
         {
             DerivedSignatureKeyLength = 384 / 8,
             SymmetricEncryptionKeyLength = 256 / 8,
@@ -930,7 +940,7 @@ namespace Opc.Ua
         /// <summary>
         /// The ECC brainpoolP384r1 is an optional high security policy that uses AES-GCM for symmetric encryption.
         /// </summary>
-        public readonly static SecurityPolicyInfo ECC_brainpoolP384r1_AesGcm = new(SecurityPolicies.ECC_brainpoolP384r1_AesGcm)
+        public static readonly SecurityPolicyInfo ECC_brainpoolP384r1_AesGcm = new(SecurityPolicies.ECC_brainpoolP384r1_AesGcm)
         {
             DerivedSignatureKeyLength = 0,
             SymmetricEncryptionKeyLength = 256 / 8,
@@ -957,7 +967,7 @@ namespace Opc.Ua
         /// <summary>
         /// The ECC brainpoolP384r1 is an optional high security policy that uses ChaCha20Poly1305 for symmetric encryption.
         /// </summary>
-        public readonly static SecurityPolicyInfo ECC_brainpoolP384r1_ChaChaPoly = new(SecurityPolicies.ECC_brainpoolP384r1_ChaChaPoly)
+        public static readonly SecurityPolicyInfo ECC_brainpoolP384r1_ChaChaPoly = new(SecurityPolicies.ECC_brainpoolP384r1_ChaChaPoly)
         {
             DerivedSignatureKeyLength = 0,
             SymmetricEncryptionKeyLength = 256 / 8,
@@ -984,7 +994,7 @@ namespace Opc.Ua
         /// <summary>
         /// The RSA_DH_AES_GCM is an high security policy that uses AES GCM for symmetric encryption.
         /// </summary>
-        public readonly static SecurityPolicyInfo RSA_DH_AesGcm = new(SecurityPolicies.RSA_DH_AesGcm)
+        public static readonly SecurityPolicyInfo RSA_DH_AesGcm = new(SecurityPolicies.RSA_DH_AesGcm)
         {
             DerivedSignatureKeyLength = 0,
             SymmetricEncryptionKeyLength = 128 / 8,
@@ -1011,7 +1021,7 @@ namespace Opc.Ua
         /// <summary>
         /// The RSA_DH_ChaChaPoly is an high security policy that uses ChaCha20Poly1305 for symmetric encryption.
         /// </summary>
-        public readonly static SecurityPolicyInfo RSA_DH_ChaChaPoly = new(SecurityPolicies.RSA_DH_ChaChaPoly)
+        public static readonly SecurityPolicyInfo RSA_DH_ChaChaPoly = new(SecurityPolicies.RSA_DH_ChaChaPoly)
         {
             DerivedSignatureKeyLength = 0,
             SymmetricEncryptionKeyLength = 256 / 8,

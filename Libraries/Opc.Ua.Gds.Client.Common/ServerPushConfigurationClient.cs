@@ -715,7 +715,7 @@ namespace Opc.Ua.Gds.Client
             }
         }
 
-        private void Session_KeepAliveAsync(ISession session, KeepAliveEventArgs e)
+        private void Session_KeepAlive(ISession session, KeepAliveEventArgs e)
         {
             if (m_disposed)
             {
@@ -782,7 +782,7 @@ namespace Opc.Ua.Gds.Client
                     ct)
                 .ConfigureAwait(false);
 
-                Session.KeepAlive += Session_KeepAliveAsync;
+                Session.KeepAlive += Session_KeepAlive;
 
                 if (!Session.Factory.ContainsEncodeableType(Ua.DataTypeIds.TrustListDataType))
                 {

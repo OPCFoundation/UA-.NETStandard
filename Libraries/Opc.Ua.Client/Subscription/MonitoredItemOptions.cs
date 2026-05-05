@@ -27,158 +27,79 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-namespace Opc.Ua.Client
+using System;
+
+namespace Opc.Ua.Client.Subscriptions.MonitoredItems
 {
     /// <summary>
-    /// Serializable options for a client monitored item.
-    /// <para>
-    /// These options map to parameters used when creating and modifying monitored
-    /// items within a subscription. See OPC UA Part4 v1.05 Sections 5.13 and 5.14
-    /// (Subscription / MonitoredItem Service Sets):
-    /// https://reference.opcfoundation.org/Core/Part4/v105/docs/5.13 and
-    /// https://reference.opcfoundation.org/Core/Part4/v105/docs/5.14.
-    /// </para>
+    /// Monitored item options base
     /// </summary>
-    [DataType(Namespace = Namespaces.OpcUaXsd)]
-    public partial record class MonitoredItemOptions
+    public record class MonitoredItemOptions
     {
         /// <summary>
-        /// Default constructor
+        /// The order of the item in the subscription
         /// </summary>
-        public MonitoredItemOptions()
-        {
-            DisplayName = "MonitoredItem";
-            StartNodeId = NodeId.Null;
-            NodeClass = NodeClass.Variable;
-            AttributeId = Attributes.Value;
-            Encoding = QualifiedName.Null;
-            MonitoringMode = MonitoringMode.Reporting;
-            SamplingInterval = -1;
-            DiscardOldest = true;
-        }
+        public uint Order { get; init; }
 
         /// <summary>
-        /// Local human readable display name used by the client for logging and
-        /// diagnostics of the monitored item. This is not the DisplayName attribute
-        /// of the target node and is not sent in the CreateMonitoredItems request.
-        /// Choose a name that reflects the business purpose (e.g. "Tank1.Level").
-        /// <para>Spec Context: Client side metadata.</para>
-        /// <para>Reference: Part4 Section5.13.</para>
+        /// The start node for the browse path that
+        /// identifies the node to monitor.
         /// </summary>
-        [DataTypeField(Order = 1)]
-        public partial string DisplayName { get; init; }
+        public NodeId StartNodeId { get; init; }
+            = NodeId.Null;
 
         /// <summary>
-        /// Starting <c>NodeId</c> used with <c>RelativePath</c> to resolve the
-        /// target node. If <c>RelativePath</c> is null the StartNodeId is the node
-        /// directly monitored. This corresponds to the <c>nodeId</c> when constructed
-        /// after path resolution. <c>NodeId.Null</c> indicates it is not set yet.
-        /// <para>Spec: ReadValueId.nodeId.</para>
-        /// <para>Reference: Part4 Section5.13.</para>
+        /// Timestamps to return
         /// </summary>
-        [DataTypeField(Order = 2)]
-        public partial NodeId StartNodeId { get; init; }
+        public TimestampsToReturn TimestampsToReturn { get; init; }
+            = TimestampsToReturn.Both;
 
         /// <summary>
-        /// A relative browse path (client side string form) from <c>StartNodeId</c>
-        /// to the final target node or attribute to monitor. When supplied the client
-        /// resolves it to a NodeId using Browse / TranslateBrowsePaths services before
-        /// creating the monitored item. Null means no path; monitor the StartNodeId
-        /// directly.
+        /// The attribute to monitor.
         /// </summary>
-        [DataTypeField(Order = 3)]
-        public partial string? RelativePath { get; init; }
+        public uint AttributeId { get; init; }
+            = Attributes.Value;
 
         /// <summary>
-        /// The expected NodeClass of the target node (Variable, Object, etc.).
-        /// Primarily used for client validation after resolving the NodeId.
-        /// Monitoring Variables yields DataChange notifications; monitoring Events
-        /// uses Object / View and an EventFilter. Ensuring the correct NodeClass
-        /// helps avoid invalid monitored item creation requests.
+        /// The range of array indexes to monitor.
         /// </summary>
-        [DataTypeField(Order = 4)]
-        public partial NodeClass NodeClass { get; init; }
+        public string? IndexRange { get; init; }
 
         /// <summary>
-        /// The AttributeId to monitor on the target node. For data changes this
-        /// is typically <c>Attributes.Value</c>; for Events the attribute may be
-        /// <c>Attributes.EventNotifier</c>; for other use cases StatusCode or Timestamp
-        /// attributes may be monitored. Maps to <c>ReadValueId.AttributeId</c> in
-        /// the service request.
+        /// The encoding to use when returning notifications.
         /// </summary>
-        [DataTypeField(Order = 5)]
-        public partial uint AttributeId { get; init; }
+        public QualifiedName? Encoding { get; init; }
 
         /// <summary>
-        /// IndexRange selecting a subset of an array or matrix value (e.g. "0:9"
-        /// for first10 elements). If null the entire value is monitored. This
-        /// corresponds to <c>ReadValueId.indexRange</c> and is applied by the
-        /// server when generating notifications, reducing bandwidth for large arrays.
+        /// The monitoring mode.
         /// </summary>
-        [DataTypeField(Order = 6)]
-        public partial string? IndexRange { get; init; }
+        public MonitoringMode MonitoringMode { get; init; }
+            = MonitoringMode.Reporting;
 
         /// <summary>
-        /// Requested data encoding (QualifiedName) for complex values (e.g.
-        /// specific DataTypeEncoding). This maps to <c>ReadValueId.dataEncoding</c>.
-        /// Use <c>QualifiedName.Null</c> for default encoding. Ensures notifications
-        /// are serialized in a form understood by the client.
+        /// The sampling interval.
         /// </summary>
-        [DataTypeField(Order = 7)]
-        public partial QualifiedName Encoding { get; init; }
+        public TimeSpan SamplingInterval { get; init; }
 
         /// <summary>
-        /// Requested <c>MonitoringMode</c> for the item: Disabled (no sampling),
-        /// Sampling (server samples but does not queue notifications), Reporting
-        /// (samples and queues notifications for Publish). This value may be changed
-        /// later via SetMonitoringMode. Default is Reporting for typical data
-        /// collection.
+        /// The filter to use to select values to return.
         /// </summary>
-        [DataTypeField(Order = 8)]
-        public partial MonitoringMode MonitoringMode { get; init; }
+        public MonitoringFilter? Filter { get; init; }
 
         /// <summary>
-        /// Requested <c>samplingInterval</c> (ms) for the server's data sampling
-        /// of the underlying value. A value of -1 requests the server default.
-        /// The actual revised interval may differ; use the created MonitoredItem's
-        /// server-revised value for final timing. Very small intervals increase
-        /// load; very large intervals reduce data freshness.
+        /// The length of the queue used to buffer values.
         /// </summary>
-        [DataTypeField(Order = 9)]
-        public partial int SamplingInterval { get; init; }
+        public uint QueueSize { get; init; }
 
         /// <summary>
-        /// Optional server side filter controlling which data changes or events
-        /// generate notifications. For Variables use <c>DataChangeFilter</c> or
-        /// <c>AggregateFilter</c>; for Events use <c>EventFilter</c>. Null means
-        /// no additional filtering beyond sampling and queueing. Proper filters
-        /// reduce bandwidth and client processing.
-        /// <para>Spec: MonitoringFilter types (DataChangeFilter, EventFilter,
-        /// AggregateFilter).</para>
-        /// <para>Reference: Part4 Section5.13.</para>
+        /// Whether to discard the oldest entries in the
+        /// queue when it is full.
         /// </summary>
-        [DataTypeField(Order = 10, StructureHandling = StructureHandling.ExtensionObject)]
-        public partial MonitoringFilter? Filter { get; init; }
+        public bool DiscardOldest { get; init; } = true;
 
         /// <summary>
-        /// Requested <c>queueSize</c> specifying the maximum number of notifications
-        /// the server retains for this item between Publish responses.0 (or 1
-        /// depending on server) means minimal queue.
-        /// Larger queues reduce risk of data loss during short client delays but
-        /// increase memory usage. Maps to <c>requestedParameters.queueSize</c>.
-        /// The server may revise.
+        /// Auto calculate a queue size and apply
         /// </summary>
-        [DataTypeField(Order = 11)]
-        public partial uint QueueSize { get; init; }
-
-        /// <summary>
-        /// <c>discardOldest</c> policy: if true the server discards the oldest
-        /// entry when the queue is full and a new notification arrives; if false
-        /// it discards the newest notification. The usual recommendation is true
-        /// for streaming latest-value scenarios; false preserves the earliest
-        /// samples for batch integrity.
-        /// </summary>
-        [DataTypeField(Order = 12)]
-        public partial bool DiscardOldest { get; init; }
+        public bool AutoSetQueueSize { get; init; }
     }
 }

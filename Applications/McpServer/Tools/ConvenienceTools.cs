@@ -247,7 +247,7 @@ namespace Opc.Ua.Mcp.Tools
                             {
                                 var childNodeId = ExpandedNodeId.ToNodeId(
                                     reference.NodeId, session.NamespaceUris);
-                                if (childNodeId != null)
+                                if (!childNodeId.IsNull)
                                 {
                                     queue.Enqueue((childNodeId, depth + 1));
                                 }

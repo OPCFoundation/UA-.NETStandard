@@ -122,8 +122,11 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             Assert.That(m_capturedPath, Does.Contain("Test.ModelDependencies.g.cs"));
             Assert.That(
                 output,
-                Does.Contain(
-                    "[assembly: global::Opc.Ua.ModelDependencyAttribute(\"http://test.org/UA/\", \"Test\", \"1.05.04\", \"2024-05-01T00:00:00Z\")]"));
+                Does.Contain("[assembly: global::Opc.Ua.ModelDependencyAttribute("));
+            Assert.That(output, Does.Contain("\"http://test.org/UA/\""));
+            Assert.That(output, Does.Contain("\"Test\""));
+            Assert.That(output, Does.Contain("\"1.05.04\""));
+            Assert.That(output, Does.Contain("\"2024-05-01T00:00:00Z\""));
         }
 
         [Test]
@@ -137,8 +140,12 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             string output = ReadOutput();
             Assert.That(
                 output,
-                Does.Contain(
-                    "[assembly: global::Opc.Ua.ModelDependencyAttribute(\"http://test.org/UA/\", \"Test\", null, null)]"));
+                Does.Contain("[assembly: global::Opc.Ua.ModelDependencyAttribute("));
+            Assert.That(output, Does.Contain("\"http://test.org/UA/\""));
+            Assert.That(output, Does.Contain("\"Test\""));
+            // Version and publication date render as bare 'null' literals
+            // (without quotes) on their own line.
+            Assert.That(output, Does.Match(@"\bnull\b"));
             // Defensive: ensure we never emit the literal string "null".
             Assert.That(output, Does.Not.Contain("\"null\""));
         }

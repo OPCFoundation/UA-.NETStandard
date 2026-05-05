@@ -60,8 +60,11 @@ namespace Opc.Ua.PubSub.Tests
 
             Assert.That(runner.Id, Is.EqualTo("runner1"));
             Assert.That(runner.Interval, Is.EqualTo(100));
-            Assert.That(runner.CanExecuteFunc, Is.SameAs(canExecute));
-            Assert.That(runner.IntervalActionAsync, Is.SameAs(action));
+            // Cast to object to suppress NUnit's auto-invocation of
+            // Func<T> actuals — we want reference equality on the
+            // delegate, not the bool the delegate returns.
+            Assert.That((object)runner.CanExecuteFunc, Is.SameAs(canExecute));
+            Assert.That((object)runner.IntervalActionAsync, Is.SameAs(action));
         }
 
         [Test]

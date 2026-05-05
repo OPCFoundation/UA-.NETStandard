@@ -31,7 +31,6 @@ using System;
 using System.IO;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
-using System.Text;
 using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Bindings
@@ -41,79 +40,6 @@ namespace Opc.Ua.Bindings
     /// </summary>
     public partial class UaSCUaBinaryChannel
     {
-        /// <summary>
-        /// Creates an RSA PKCS#1 v1.5 or PSS signature of a hash algorithm for the stream.
-        /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
-        private static byte[] Rsa_Sign(
-            ArraySegment<byte> dataToSign,
-            X509Certificate2 signingCertificate,
-            HashAlgorithmName algorithm,
-            RSASignaturePadding padding)
-        {
-            // extract the private key.
-            using RSA rsa =
-                signingCertificate.GetRSAPrivateKey()
-                ?? throw ServiceResultException.Create(
-                    StatusCodes.BadSecurityChecksFailed,
-                    "No private key for certificate.");
-
-            // create the signature.
-            var signature = rsa.SignData(
-                dataToSign.Array,
-                dataToSign.Offset,
-                dataToSign.Count,
-                algorithm,
-                padding);
-
-            return signature;
-        }
-
-        /// <summary>
-        /// Verifies an RSA PKCS#1 v1.5 or PSS signature of a hash algorithm for the stream.
-        /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
-        private bool Rsa_Verify(
-            ArraySegment<byte> dataToVerify,
-            byte[] signature,
-            X509Certificate2 signingCertificate,
-            HashAlgorithmName algorithm,
-            RSASignaturePadding padding)
-        {
-            // extract the public key.
-            using RSA rsa =
-                signingCertificate.GetRSAPublicKey()
-                ?? throw ServiceResultException.Create(
-                    StatusCodes.BadSecurityChecksFailed,
-                    "No public key for certificate.");
-
-            // verify signature.
-            if (!rsa.VerifyData(
-                    dataToVerify.Array,
-                    dataToVerify.Offset,
-                    dataToVerify.Count,
-                    signature,
-                    algorithm,
-                    padding))
-            {
-                string messageType = Encoding.UTF8
-                    .GetString(dataToVerify.Array, dataToVerify.Offset, 4);
-                int messageLength = BitConverter.ToInt32(
-                    dataToVerify.Array,
-                    dataToVerify.Offset + 4);
-                string actualSignature = Utils.ToHexString(signature);
-                m_logger.LogError("Could not validate signature.");
-                m_logger.LogError("Certificate: {Certificate}", signingCertificate.AsLogSafeString());
-                m_logger.LogError(
-                    "MessageType ={MessageType}, Length ={Length}, ActualSignature={ActualSignature}",
-                    messageType,
-                    messageLength,
-                    actualSignature);
-                return false;
-            }
-            return true;
-        }
-
         /// <summary>
         /// Encrypts the message using RSA encryption.
         /// </summary>

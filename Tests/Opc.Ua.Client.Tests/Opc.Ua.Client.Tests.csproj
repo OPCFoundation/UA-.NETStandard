@@ -25,6 +25,9 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
   </ItemGroup>
+  <ItemGroup Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net8.0'))">
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+  </ItemGroup>
   <ItemGroup>
     <Compile Include="..\Common\Main.cs" />
     <Compile Include="..\..\Applications\ConsoleReferenceClient\ClientSamples.cs" Link="Links\ClientSamples.cs" />

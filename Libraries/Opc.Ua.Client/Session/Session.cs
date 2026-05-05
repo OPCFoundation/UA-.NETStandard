@@ -37,7 +37,6 @@ using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using Opc.Ua.Bindings;
 
 namespace Opc.Ua.Client
 {
@@ -48,11 +47,6 @@ namespace Opc.Ua.Client
         ISnapshotRestore<SessionState>, ISnapshotRestore<SessionConfiguration>
     {
         private const int kReconnectTimeout = 15000;
-        private const int kMinPublishRequestCountMax = 100;
-        private const int kMaxPublishRequestCountMax = ushort.MaxValue;
-        private const int kDefaultPublishRequestCount = 1;
-        private const int kPublishRequestSequenceNumberOutOfOrderThreshold = 10;
-        private const int kPublishRequestSequenceNumberOutdatedThreshold = 100;
 
         /// <summary>
         /// Constructs a new instance of the <see cref="Session"/> class.
@@ -70,7 +64,8 @@ namespace Opc.Ua.Client
                     transportChannel :
                     throw new ArgumentException("not a transport channel"),
                   configuration,
-                  endpoint)
+                  endpoint,
+                  engineFactory: null)
         {
         }
 
@@ -87,6 +82,9 @@ namespace Opc.Ua.Client
         /// by server in GetEndpoints() response.</param>
         /// <param name="discoveryProfileUris">The value of profileUris used in
         /// GetEndpoints() request.</param>
+        /// <param name="engineFactory">Optional subscription engine factory. When
+        /// <c>null</c> the session uses <see cref="ClassicSubscriptionEngineFactory"/>
+        /// by default.</param>
         /// <remarks>
         /// The application configuration is used to look up the certificate if none
         /// is provided. The clientCertificate must have the private key. This will
@@ -103,12 +101,14 @@ namespace Opc.Ua.Client
             X509Certificate2? clientCertificate = null,
             X509Certificate2Collection? clientCertificateChain = null,
             ArrayOf<EndpointDescription> availableEndpoints = default,
-            ArrayOf<string> discoveryProfileUris = default)
+            ArrayOf<string> discoveryProfileUris = default,
+            ISubscriptionEngineFactory? engineFactory = null)
             : this(
                   channel,
                   configuration,
                   endpoint,
-                  channel.MessageContext ?? configuration.CreateMessageContext())
+                  channel.MessageContext ?? configuration.CreateMessageContext(),
+                  engineFactory)
         {
             m_instanceCertificate = clientCertificate;
             m_instanceCertificateChain = clientCertificateChain;
@@ -127,7 +127,8 @@ namespace Opc.Ua.Client
                   channel,
                   template.m_configuration,
                   template.ConfiguredEndpoint,
-                  channel.MessageContext ?? template.m_configuration.CreateMessageContext())
+                  channel.MessageContext ?? template.m_configuration.CreateMessageContext(),
+                  template.SubscriptionEngineFactory)
         {
             m_instanceCertificate = template.m_instanceCertificate;
             m_instanceCertificateChain = template.m_instanceCertificateChain;
@@ -139,8 +140,8 @@ namespace Opc.Ua.Client
             PublishRequestCancelDelayOnCloseSession = template.PublishRequestCancelDelayOnCloseSession;
             m_sessionTimeout = template.m_sessionTimeout;
             m_maxRequestMessageSize = template.m_maxRequestMessageSize;
-            m_minPublishRequestCount = template.m_minPublishRequestCount;
-            m_maxPublishRequestCount = template.m_maxPublishRequestCount;
+            m_engine.MinPublishRequestCount = template.m_engine.MinPublishRequestCount;
+            m_engine.MaxPublishRequestCount = template.m_engine.MaxPublishRequestCount;
             m_preferredLocales = template.PreferredLocales;
             m_sessionName = template.SessionName;
             Handle = template.Handle;
@@ -184,7 +185,8 @@ namespace Opc.Ua.Client
             ITransportChannel channel,
             ApplicationConfiguration configuration,
             ConfiguredEndpoint endpoint,
-            IServiceMessageContext messageContext)
+            IServiceMessageContext messageContext,
+            ISubscriptionEngineFactory? engineFactory = null)
             : base(channel, messageContext.Telemetry)
         {
             if (messageContext == null)
@@ -204,8 +206,6 @@ namespace Opc.Ua.Client
             ServerUris = new StringTable();
             Factory = EncodeableFactory.Create();
             m_keepAliveInterval = 5000;
-            m_minPublishRequestCount = kDefaultPublishRequestCount;
-            m_maxPublishRequestCount = kMaxPublishRequestCountMax;
             m_sessionName = string.Empty;
             DeleteSubscriptionsOnClose = true;
             PublishRequestCancelDelayOnCloseSession = 5000; // 5 seconds default
@@ -249,6 +249,11 @@ namespace Opc.Ua.Client
 
             // Create timer for keep alive event triggering but in off state
             m_keepAliveTimer = new Timer(_ => m_keepAliveEvent.Set(), this, Timeout.Infinite, Timeout.Infinite);
+
+            // Create the subscription engine.
+            SubscriptionEngineFactory = engineFactory
+                ?? ClassicSubscriptionEngineFactory.Instance;
+            m_engine = SubscriptionEngineFactory.Create(new SessionEngineContext(this));
 
             // set the default preferred locales.
             m_preferredLocales = [CultureInfo.CurrentCulture.Name];
@@ -367,16 +372,65 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Closes the session and the underlying channel.
         /// </summary>
+#pragma warning disable CA2215 // Dispose methods should call base class dispose
         protected override void Dispose(bool disposing)
+#pragma warning restore CA2215 // Dispose methods should call base class dispose
         {
-            if (Disposed && disposing)
+            if (!m_disposeAsyncCalled)
+            {
+                DisposeAsyncCore(disposing).AsTask().GetAwaiter().GetResult();
+            }
+        }
+
+        /// <inheritdoc/>
+        public async ValueTask DisposeAsync()
+        {
+            GC.SuppressFinalize(this);
+            await DisposeAsyncCore(true).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Core async dispose logic for the session.
+        /// </summary>
+        /// <param name="disposing">True if called from dispose, false otherwise.</param>
+#pragma warning disable IDE1006 // Standard IAsyncDisposable pattern name
+        protected virtual async ValueTask DisposeAsyncCore(bool disposing)
+#pragma warning restore IDE1006
+        {
+            if (m_disposeAsyncCalled)
             {
                 return;
             }
+            m_disposeAsyncCalled = true;
 
             if (disposing)
             {
-                StopKeepAliveTimerAsync().AsTask().GetAwaiter().GetResult();
+                if (Disposed)
+                {
+                    return;
+                }
+
+                try
+                {
+                    await StopKeepAliveTimerAsync().ConfigureAwait(false);
+                }
+                catch (Exception ex) when (ex is not OutOfMemoryException)
+                {
+                    m_logger.LogDebug(ex, "Error stopping keep alive timer during dispose.");
+                }
+
+                try
+                {
+                    if (Connected)
+                    {
+                        await WaitForOrCancelOutstandingPublishRequestsAsync(default).ConfigureAwait(false);
+                        await base.CloseSessionAsync(null, DeleteSubscriptionsOnClose, default).ConfigureAwait(false);
+                    }
+                }
+                catch (Exception ex) when (ex is not OutOfMemoryException)
+                {
+                    m_logger.LogDebug(ex, "Error closing session during dispose.");
+                }
 
                 m_defaultSubscription?.Dispose();
                 m_nodeCache?.Dispose();
@@ -397,6 +451,9 @@ namespace Opc.Ua.Client
                 m_reconnectLock.Dispose();
                 m_eccServerEphemeralKey?.Dispose();
                 m_eccServerEphemeralKey = null;
+                m_keepAliveCancellation?.Dispose();
+                m_keepAliveCancellation = null;
+                m_engine?.Dispose();
             }
 
             base.Dispose(disposing);
@@ -498,6 +555,18 @@ namespace Opc.Ua.Client
         /// A session factory that was used to create the session.
         /// </summary>
         public ISessionFactory SessionFactory { get; set; }
+
+        /// <summary>
+        /// Gets the subscription engine factory used by this session.
+        /// </summary>
+        public ISubscriptionEngineFactory SubscriptionEngineFactory { get; }
+
+        /// <summary>
+        /// Gets the active subscription engine. Internal — exposes the
+        /// engine for adapter scenarios such as <see cref="ManagedSession"/>
+        /// surfacing the new V2 <c>ISubscriptionManager</c>.
+        /// </summary>
+        internal ISubscriptionEngine SubscriptionEngine => m_engine;
 
         /// <summary>
         /// Gets the endpoint used to connect to the server.
@@ -796,23 +865,8 @@ namespace Opc.Ua.Client
         /// <exception cref="ArgumentOutOfRangeException"></exception>
         public int MinPublishRequestCount
         {
-            get => m_minPublishRequestCount;
-            set
-            {
-                lock (m_lock)
-                {
-                    if (value is >= kDefaultPublishRequestCount and <= kMinPublishRequestCountMax)
-                    {
-                        m_minPublishRequestCount = value;
-                    }
-                    else
-                    {
-                        throw new ArgumentOutOfRangeException(
-                            nameof(MinPublishRequestCount),
-                            $"Minimum publish request count must be between {kDefaultPublishRequestCount} and {kMinPublishRequestCountMax}.");
-                    }
-                }
-            }
+            get => m_engine.MinPublishRequestCount;
+            set => m_engine.MinPublishRequestCount = value;
         }
 
         /// <summary>
@@ -821,23 +875,8 @@ namespace Opc.Ua.Client
         /// <exception cref="ArgumentOutOfRangeException"></exception>
         public int MaxPublishRequestCount
         {
-            get => Math.Max(m_minPublishRequestCount, m_maxPublishRequestCount);
-            set
-            {
-                lock (m_lock)
-                {
-                    if (value is >= kDefaultPublishRequestCount and <= kMaxPublishRequestCountMax)
-                    {
-                        m_maxPublishRequestCount = value;
-                    }
-                    else
-                    {
-                        throw new ArgumentOutOfRangeException(
-                            nameof(MaxPublishRequestCount),
-                            $"Maximum publish request count must be between {kDefaultPublishRequestCount} and {kMaxPublishRequestCountMax}.");
-                    }
-                }
-            }
+            get => m_engine.MaxPublishRequestCount;
+            set => m_engine.MaxPublishRequestCount = value;
         }
 
         /// <inheritdoc/>
@@ -924,7 +963,9 @@ namespace Opc.Ua.Client
                 !serverCertificate.IsEmpty
                     ? CertificateFactory.Create(serverCertificate)
                     : null;
+#pragma warning disable CA2000 // Ownership transfers to m_identity field, disposed when Session is disposed
             m_identity = sessionConfiguration.Identity ?? new UserIdentity();
+#pragma warning restore CA2000
             m_checkDomain = sessionConfiguration.CheckDomain;
             m_serverNonce = sessionConfiguration.ServerNonce;
             m_clientNonce = !sessionConfiguration.ClientNonce.IsNull
@@ -1175,7 +1216,7 @@ namespace Opc.Ua.Client
             // create a nonce.
             int length = m_configuration.SecurityConfiguration.NonceLength;
             m_clientNonce = Nonce.CreateRandomNonceData(length);
-            ByteString clientNonce = ByteString.From(m_clientNonce);
+            var clientNonce = ByteString.From(m_clientNonce);
 
             // send the application instance certificate for the client.
             BuildCertificateData(
@@ -1197,8 +1238,7 @@ namespace Opc.Ua.Client
 
             // select the security policy for the user token.
             RequestHeader requestHeader = CreateRequestHeaderPerUserTokenPolicy(
-                identityPolicy.SecurityPolicyUri,
-                m_endpoint.Description.SecurityPolicyUri);
+                identityPolicy.SecurityPolicyUri);
 
             bool successCreateSession = false;
             CreateSessionResponse? response = null;
@@ -1366,7 +1406,7 @@ namespace Opc.Ua.Client
                     m_preferredLocales = preferredLocales;
                 }
 
-                var header = CreateRequestHeaderForActivateSession(securityPolicy, tokenSecurityPolicyUri!);
+                RequestHeader? header = CreateRequestHeaderForActivateSession(tokenSecurityPolicyUri!);
 
                 // activate session.
                 ActivateSessionResponse activateResponse = await ActivateSessionAsync(
@@ -1512,19 +1552,14 @@ namespace Opc.Ua.Client
             UserTokenPolicy identityPolicy =
                 m_endpoint.Description.FindUserTokenPolicy(
                     identity.TokenHandler.Token.PolicyId,
-                    securityPolicyUri);
-
-            if (identityPolicy == null)
-            {
-                identityPolicy =
-                    m_endpoint.Description.FindUserTokenPolicy(
-                        identity.TokenType,
-                        identity.IssuedTokenType,
-                        securityPolicyUri)
+                    securityPolicyUri) ??
+                m_endpoint.Description.FindUserTokenPolicy(
+                    identity.TokenType,
+                    identity.IssuedTokenType,
+                    securityPolicyUri)
                     ?? throw ServiceResultException.Create(
-                        StatusCodes.BadIdentityTokenInvalid,
-                        "Endpoint does not support the user identity type provided.");
-            }
+                    StatusCodes.BadIdentityTokenInvalid,
+                    "Endpoint does not support the user identity type provided.");
 
             // select the security policy for the user token.
             string? tokenSecurityPolicyUri = string.IsNullOrEmpty(identityPolicy.SecurityPolicyUri)
@@ -1589,7 +1624,6 @@ namespace Opc.Ua.Client
             m_userTokenSecurityPolicyUri = tokenSecurityPolicyUri;
 
             RequestHeader? requestHeader = CreateRequestHeaderForActivateSession(
-                securityPolicy,
                 tokenSecurityPolicyUri!);
 
             ActivateSessionResponse response = await ActivateSessionAsync(
@@ -1816,14 +1850,13 @@ namespace Opc.Ua.Client
                                     ct)
                                 .ConfigureAwait(false))
                             {
-                                lock (m_acknowledgementsToSendLock)
+                                // create ack for available sequence numbers
+                                foreach (uint sequenceNumber in results[ii]
+                                    .AvailableSequenceNumbers)
                                 {
-                                    // create ack for available sequence numbers
-                                    foreach (uint sequenceNumber in results[ii]
-                                        .AvailableSequenceNumbers)
+                                    if (m_engine is ClassicSubscriptionEngine classicEngine)
                                     {
-                                        AddAcknowledgementToSend(
-                                            m_acknowledgementsToSend,
+                                        classicEngine.AddPendingAcknowledgement(
                                             subscriptionIds[ii],
                                             sequenceNumber);
                                     }
@@ -2263,6 +2296,242 @@ namespace Opc.Ua.Client
             return session;
         }
 
+        /// <summary>
+        /// Re-establishes the session in place on the same
+        /// <see cref="Session"/> instance instead of allocating a new one.
+        /// Tears down the current channel, optionally switches to a new
+        /// <paramref name="endpoint"/>, and re-runs the
+        /// <c>CreateSession</c>/<c>ActivateSession</c> sequence so the
+        /// server assigns a fresh session id. The
+        /// in-memory subscription engine (<see cref="m_engine"/>),
+        /// subscription manager, and per-subscription contexts continue
+        /// to reference <c>this</c>; once the new session is activated
+        /// the V2 engine is given a chance to drive transfer-or-recreate
+        /// against the new session id, and the
+        /// classic template-based recreate runs for V1 subscriptions
+        /// owned by <see cref="Subscriptions"/>.
+        /// </summary>
+        /// <remarks>
+        /// Designed to be the production wiring used by
+        /// <c>ManagedSession.HandleFailoverAsync</c> so that the inner
+        /// <see cref="Session"/> reference stays stable across a
+        /// failover. Differs from <see cref="ReconnectAsync"/> by
+        /// performing a full <c>CreateSession</c> against the server
+        /// (new server-side session id) instead of just re-activating
+        /// the existing one. Differs from
+        /// <see cref="RecreateAsync(CancellationToken)"/> overloads in
+        /// that the receiver is reused rather than cloned into a new
+        /// <see cref="Session"/> instance.
+        /// </remarks>
+        /// <param name="endpoint">Optional replacement endpoint. When
+        /// non-null and not the same instance as the current
+        /// <see cref="ConfiguredEndpoint"/> the new endpoint is adopted
+        /// before the channel is rebuilt.</param>
+        /// <param name="connection">Optional waiting reverse
+        /// connection. Mutually exclusive with
+        /// <paramref name="channel"/>.</param>
+        /// <param name="channel">Optional pre-built transport channel.
+        /// Mutually exclusive with <paramref name="connection"/>. When
+        /// neither is supplied a new outbound channel is built against
+        /// <see cref="ConfiguredEndpoint"/>.</param>
+        /// <param name="ct">Cancellation token.</param>
+        protected internal async Task RecreateInPlaceAsync(
+            ConfiguredEndpoint? endpoint = null,
+            ITransportWaitingConnection? connection = null,
+            ITransportChannel? channel = null,
+            CancellationToken ct = default)
+        {
+            ThrowIfDisposed();
+            using Activity? activity = m_telemetry.StartActivity();
+
+            NodeId previousSessionId = SessionId;
+
+            // Quiesce the V2 engine outside the reconnect lock so
+            // workers can complete their current cycle without
+            // contending with the reset path. The classic engine has
+            // different publish semantics and does not need a drain.
+#if OPCUA_V1_CLIENT
+            if (m_engine is not ClassicSubscriptionEngine)
+#endif
+            {
+                m_engine.PausePublishing();
+                if (m_engine is DefaultSubscriptionEngine v2Engine &&
+                    v2Engine.SubscriptionManager
+                        is Subscriptions.SubscriptionManager v2Manager)
+                {
+                    await v2Manager.DrainAsync(ct).ConfigureAwait(false);
+                }
+            }
+
+            bool resetReconnect = false;
+            await m_reconnectLock.WaitAsync(ct).ConfigureAwait(false);
+            try
+            {
+                if (Reconnecting)
+                {
+                    m_reconnectLock.Release();
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadInvalidState,
+                        "Session is already attempting to reconnect.");
+                }
+
+                Reconnecting = true;
+                resetReconnect = true;
+                m_reconnectLock.Release();
+
+                m_logger.LogInformation(
+                    "Session RECREATE-IN-PLACE {SessionId} starting...",
+                    previousSessionId);
+
+                await StopKeepAliveTimerAsync().ConfigureAwait(false);
+
+                // need to refresh the identity (reprompt for password,
+                // refresh token).
+                RecreateRenewUserIdentity();
+
+                // Switch endpoint before the channel is built.
+                if (endpoint != null && !ReferenceEquals(endpoint, m_endpoint))
+                {
+                    m_endpoint = endpoint;
+                    m_effectiveEndpoint = endpoint;
+                }
+
+                // Build / install the new transport channel.
+                ITransportChannel newChannel;
+                if (channel != null)
+                {
+                    newChannel = channel;
+                }
+                else
+                {
+                    ServiceMessageContext messageContext = m_configuration
+                        .CreateMessageContext(Factory);
+
+                    if (connection != null)
+                    {
+                        newChannel = await UaChannelBase
+                            .CreateUaBinaryChannelAsync(
+                                m_configuration,
+                                connection,
+                                m_endpoint.Description,
+                                m_endpoint.Configuration,
+                                m_instanceCertificate,
+                                m_configuration.SecurityConfiguration
+                                        .SendCertificateChain
+                                    ? m_instanceCertificateChain
+                                    : null,
+                                messageContext,
+                                ct)
+                            .ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        newChannel = await UaChannelBase
+                            .CreateUaBinaryChannelAsync(
+                                m_configuration,
+                                m_endpoint.Description,
+                                m_endpoint.Configuration,
+                                m_instanceCertificate,
+                                m_configuration.SecurityConfiguration
+                                        .SendCertificateChain
+                                    ? m_instanceCertificateChain
+                                    : null,
+                                messageContext,
+                                ct)
+                            .ConfigureAwait(false);
+                    }
+                }
+
+                TransportChannel = newChannel;
+
+                // Clear server-assigned identity so OpenAsync below
+                // performs a full CreateSession rather than a re-
+                // activation of the (now invalid) prior session id.
+                lock (m_lock)
+                {
+                    SessionCreated(default, default);
+                }
+
+                // Reset the reconnecting flag so OpenAsync (which
+                // checks/raises its own state) can proceed.
+                await m_reconnectLock.WaitAsync(ct).ConfigureAwait(false);
+                Reconnecting = false;
+                resetReconnect = false;
+                m_reconnectLock.Release();
+
+                UserIdentity? tempIdentity = m_identity == null
+                    ? new UserIdentity()
+                    : null;
+                try
+                {
+                    await OpenAsync(
+                            m_sessionName,
+                            (uint)m_sessionTimeout,
+                            m_identity ?? tempIdentity!,
+                            m_preferredLocales,
+                            m_checkDomain,
+                            true,
+                            ct)
+                        .ConfigureAwait(false);
+                    tempIdentity = null;
+                }
+                finally
+                {
+                    tempIdentity?.Dispose();
+                }
+
+#if OPCUA_V1_CLIENT
+                // V1: drive the classic template-based recreate using
+                // the subscriptions still attached to this Session.
+                await RecreateSubscriptionsAsync(
+                        TransferSubscriptionsOnReconnect,
+                        Subscriptions,
+                        ct)
+                    .ConfigureAwait(false);
+#endif
+
+                // V2: hand the previous session id to the engine so
+                // configured subscriptions can attempt transfer or
+                // fall back to recreate against the new session id.
+                await m_engine.RecreateSubscriptionsAsync(
+                        previousSessionId,
+                        ct)
+                    .ConfigureAwait(false);
+
+                m_logger.LogInformation(
+                    "Session RECREATE-IN-PLACE completed: " +
+                    "{OldSessionId} -> {NewSessionId}",
+                    previousSessionId,
+                    SessionId);
+            }
+            catch (Exception ex)
+            {
+                m_logger.LogError(
+                    ex,
+                    "Session RECREATE-IN-PLACE {SessionId} failed.",
+                    previousSessionId);
+                throw;
+            }
+            finally
+            {
+                if (resetReconnect)
+                {
+                    await m_reconnectLock
+                        .WaitAsync(CancellationToken.None)
+                        .ConfigureAwait(false);
+                    Reconnecting = false;
+                    m_reconnectLock.Release();
+                }
+
+#if OPCUA_V1_CLIENT
+                if (m_engine is not ClassicSubscriptionEngine)
+#endif
+                {
+                    m_engine.ResumePublishing();
+                }
+            }
+        }
+
         /// <inheritdoc/>
         public override Task<StatusCode> CloseAsync(CancellationToken ct = default)
         {
@@ -2612,14 +2881,9 @@ namespace Opc.Ua.Client
 
                 m_logger.LogInformation("Session RE-ACTIVATING {SessionId}.", SessionId);
 
-                var header = CreateRequestHeaderForActivateSession(
-                    securityPolicy,
-                    tokenSecurityPolicyUri!);
-
-                if (header == null)
-                {
-                    header = new RequestHeader();
-                }
+                RequestHeader? header = CreateRequestHeaderForActivateSession(
+                    tokenSecurityPolicyUri!) ??
+                    new RequestHeader();
 
                 header.TimeoutHint = kReconnectTimeout;
 
@@ -2663,7 +2927,7 @@ namespace Opc.Ua.Client
                 catch (OperationCanceledException)
                     when (timeout.IsCancellationRequested && !ct.IsCancellationRequested)
                 {
-                    ServiceResult error = ServiceResult.Create(
+                    var error = ServiceResult.Create(
                         StatusCodes.BadRequestTimeout,
                         "ACTIVATE SESSION timed out. {0}/{1}",
                         GoodPublishRequestCount,
@@ -2687,6 +2951,7 @@ namespace Opc.Ua.Client
             }
         }
 
+#if OPCUA_V1_CLIENT
         /// <inheritdoc/>
         public async Task<(bool, ServiceResult)> RepublishAsync(
             uint subscriptionId,
@@ -2694,12 +2959,23 @@ namespace Opc.Ua.Client
             CancellationToken ct)
         {
             using Activity? activity = m_telemetry.StartActivity();
+
+            // Republish is part of the classic publish flow. With the V2
+            // subscription engine, the SubscriptionManager handles republish
+            // internally and this method is not used.
+            if (m_engine is not ClassicSubscriptionEngine classicEngine)
+            {
+                throw new InvalidOperationException(
+                    "RepublishAsync is only supported when the session uses the classic " +
+                    "subscription engine. The V2 engine handles republish internally.");
+            }
+
             // send republish request.
             var requestHeader = new RequestHeader
             {
                 TimeoutHint = (uint)OperationTimeout,
                 ReturnDiagnostics = (uint)(int)ReturnDiagnostics,
-                RequestHandle = Utils.IncrementIdentifier(ref m_publishCounter)
+                RequestHandle = Utils.IncrementIdentifier(ref classicEngine.PublishCounter)
             };
 
             try
@@ -2726,7 +3002,7 @@ namespace Opc.Ua.Client
                     responseHeader.ServiceResult);
 
                 // process response.
-                ProcessPublishResponse(
+                classicEngine.ProcessPublishResponse(
                     responseHeader,
                     subscriptionId,
                     default,
@@ -2737,9 +3013,10 @@ namespace Opc.Ua.Client
             }
             catch (Exception e)
             {
-                return ProcessRepublishResponseError(e, subscriptionId, sequenceNumber);
+                return classicEngine.ProcessRepublishResponseError(e, subscriptionId, sequenceNumber);
             }
         }
+#endif
 
         /// <summary>
         /// Recreate the subscriptions in a recreated session.
@@ -2909,6 +3186,23 @@ namespace Opc.Ua.Client
                 // send initial keep alive.
                 m_keepAliveTimer.Change(0, m_keepAliveInterval);
             }
+        }
+
+        /// <inheritdoc/>
+        protected override void RequestCompleted(
+            IServiceRequest request,
+            IServiceResponse response,
+            string serviceName)
+        {
+            StatusCode? sr = response?.ResponseHeader?.ServiceResult;
+            if (sr != null && StatusCode.IsGood(sr.Value))
+            {
+                // Any successful response proves the server is alive —
+                // reset keep-alive so we don't send a redundant read.
+                ResetKeepAliveTimer();
+            }
+
+            base.RequestCompleted(request, response!, serviceName);
         }
 
         /// <summary>
@@ -3530,387 +3824,28 @@ namespace Opc.Ua.Client
             }
         }
 
+#if OPCUA_V1_CLIENT
         /// <summary>
         /// Sends an additional publish request.
+        /// Only valid when using the classic subscription engine; the V2
+        /// engine drives publishing through its own worker pool.
         /// </summary>
         public bool BeginPublish(int timeout)
         {
-            // do not publish if reconnecting or the session is in closed state.
-            if (!Connected)
+            if (m_engine is ClassicSubscriptionEngine classicEngine)
             {
-                m_logger.LogWarning("Publish skipped due to session not connected");
-                return false;
+                return classicEngine.BeginPublish(timeout);
             }
-
-            if (Reconnecting)
-            {
-                m_logger.LogWarning("Publish skipped due to session reconnect");
-                return false;
-            }
-
-            if (Closing)
-            {
-                m_logger.LogWarning("Publish cancelled due to session closed");
-                return false;
-            }
-
-            if (KeepAliveStopped)
-            {
-                m_logger.LogWarning("Publish skipped due to session lost connection. Last successfull keepalive: {LastKeepAlive}", LastKeepAliveTime);
-                return false;
-            }
-
-            // get event handler to modify ack list
-            PublishSequenceNumbersToAcknowledgeEventHandler? callback
-                = m_PublishSequenceNumbersToAcknowledge;
-
-            // collect the current set if acknowledgements.
-            List<SubscriptionAcknowledgement>? acknowledgementsToSend = null;
-            lock (m_acknowledgementsToSendLock)
-            {
-                if (callback != null)
-                {
-                    try
-                    {
-                        var deferredAcknowledgementsToSend
-                            = new List<SubscriptionAcknowledgement>();
-                        callback(
-                            this,
-                            new PublishSequenceNumbersToAcknowledgeEventArgs(
-                                m_acknowledgementsToSend,
-                                deferredAcknowledgementsToSend));
-                        acknowledgementsToSend = m_acknowledgementsToSend;
-                        m_acknowledgementsToSend = deferredAcknowledgementsToSend;
-                    }
-                    catch (Exception e2)
-                    {
-                        m_logger.LogError(
-                            e2,
-                            "Session: Unexpected error invoking PublishSequenceNumbersToAcknowledgeEventArgs.");
-                    }
-                }
-
-                if (acknowledgementsToSend == null)
-                {
-                    // send all ack values, clear list
-                    acknowledgementsToSend = m_acknowledgementsToSend;
-                    m_acknowledgementsToSend = [];
-                }
-#if DEBUG_SEQUENTIALPUBLISHING
-                foreach (var toSend in acknowledgementsToSend)
-                {
-                    m_latestAcknowledgementsSent[toSend.SubscriptionId] = toSend.SequenceNumber;
-                }
-#endif
-            }
-
-            uint timeoutHint = timeout > 0 ? (uint)timeout : uint.MaxValue;
-            timeoutHint = Math.Min((uint)(OperationTimeout / 2), timeoutHint);
-
-            // send publish request.
-            var requestHeader = new RequestHeader
-            {
-                // ensure the publish request is discarded before the timeout occurs to ensure the channel is dropped.
-                TimeoutHint = timeoutHint,
-                ReturnDiagnostics = (uint)(int)ReturnDiagnostics,
-                RequestHandle = Utils.IncrementIdentifier(ref m_publishCounter)
-            };
-
-            m_logger.LogTrace("PUBLISH #{RequestHandle} SENT", requestHeader.RequestHandle);
-            CoreClientUtils.EventLog.PublishStart((int)requestHeader.RequestHandle);
-
-            try
-            {
-                Activity? activity = m_telemetry.StartActivity();
-                Task<PublishResponse> task = PublishAsync(
-                    requestHeader,
-                    acknowledgementsToSend,
-                    default).AsTask(); // TODO: Need a session scoped cancellation token.
-                AsyncRequestStarted(task, activity, requestHeader.RequestHandle, DataTypes.PublishRequest);
-                task.ConfigureAwait(false)
-                    .GetAwaiter()
-                    .OnCompleted(() => OnPublishComplete(
-                        task,
-                        SessionId,
-                        acknowledgementsToSend,
-                        requestHeader));
-                return true;
-            }
-            catch (Exception e)
-            {
-                m_logger.LogError(e, "Unexpected error sending publish request.");
-                return false;
-            }
+            return false;
         }
+#endif
 
         /// <summary>
         /// Create the publish requests for the active subscriptions.
         /// </summary>
         public void StartPublishing(int timeout, bool fullQueue)
         {
-            int publishCount = GetDesiredPublishRequestCount(true);
-
-            // refill pipeline. Send at least one publish request if subscriptions are active.
-            if (publishCount > 0 && BeginPublish(timeout))
-            {
-                int startCount = fullQueue ? 1 : GoodPublishRequestCount + 1;
-                for (int ii = startCount; ii < publishCount; ii++)
-                {
-                    if (!BeginPublish(timeout))
-                    {
-                        break;
-                    }
-                }
-            }
-        }
-
-        /// <summary>
-        /// Completes an asynchronous publish operation.
-        /// </summary>
-        private void OnPublishComplete(
-            Task<PublishResponse> task,
-            NodeId sessionId,
-            List<SubscriptionAcknowledgement>? acknowledgementsToSend,
-            RequestHeader requestHeader)
-        {
-            // extract state information.
-            uint subscriptionId = 0;
-
-            AsyncRequestCompleted(task, requestHeader.RequestHandle, DataTypes.PublishRequest);
-
-            m_logger.LogTrace("PUBLISH #{RequestHandle} RECEIVED", requestHeader.RequestHandle);
-            CoreClientUtils.EventLog.PublishStop((int)requestHeader.RequestHandle);
-
-            // Bail out early if the session has been disposed — any access to
-            // m_reconnectLock or rescheduling a publish would either throw
-            // ObjectDisposedException or keep the session "alive" indefinitely.
-            if (Disposed)
-            {
-                return;
-            }
-
-            try
-            {
-                // gate entry if transfer/reactivate is busy
-                try
-                {
-                    m_reconnectLock.Wait();
-                }
-                catch (ObjectDisposedException)
-                {
-                    // Session was disposed while this publish completion was in flight.
-                    return;
-                }
-                bool reconnecting = Reconnecting;
-                try
-                {
-                    m_reconnectLock.Release();
-                }
-                catch (ObjectDisposedException)
-                {
-                    return;
-                }
-
-                // complete publish.
-                PublishResponse response = task.Result;
-                ResponseHeader responseHeader = response.ResponseHeader;
-                subscriptionId = response.SubscriptionId;
-                ArrayOf<uint> availableSequenceNumbers = response.AvailableSequenceNumbers;
-                bool moreNotifications = response.MoreNotifications;
-                NotificationMessage notificationMessage = response.NotificationMessage;
-                ArrayOf<StatusCode> acknowledgeResults = response.Results;
-                ArrayOf<DiagnosticInfo> acknowledgeDiagnosticInfos = response.DiagnosticInfos;
-
-                LogLevel logLevel = LogLevel.Warning;
-                foreach (StatusCode code in acknowledgeResults)
-                {
-                    if (StatusCode.IsBad(code) && code != StatusCodes.BadSequenceNumberUnknown)
-                    {
-                        m_logger.Log(
-                            logLevel,
-                            "Publish Ack Response. ResultCode={StatusCode}; SubscriptionId={SubscriptionId}",
-                            code,
-                            subscriptionId);
-                        // only show the first error as warning
-                        logLevel = LogLevel.Trace;
-                    }
-                }
-
-                // nothing more to do if we were never connected
-                if (sessionId.IsNull)
-                {
-                    return;
-                }
-
-                // nothing more to do if session changed.
-                if (sessionId != SessionId)
-                {
-                    m_logger.LogWarning(
-                        "Publish response discarded because session id changed: Old {PreviousSessionId} != New {SessionId}",
-                        sessionId,
-                        SessionId);
-                    return;
-                }
-
-                m_logger.LogTrace(
-                    "NOTIFICATION RECEIVED: SubId={SubscriptionId}, SeqNo={SequenceNumber}",
-                    subscriptionId,
-                    notificationMessage.SequenceNumber);
-                CoreClientUtils.EventLog.NotificationReceived(
-                    (int)subscriptionId,
-                    (int)notificationMessage.SequenceNumber);
-
-                // process response.
-                ProcessPublishResponse(
-                    responseHeader,
-                    subscriptionId,
-                    availableSequenceNumbers,
-                    moreNotifications,
-                    notificationMessage);
-
-                // nothing more to do if reconnecting.
-                if (reconnecting)
-                {
-                    m_logger.LogWarning("No new publish sent because of reconnect in progress.");
-                    return;
-                }
-            }
-            catch (Exception e)
-            {
-                if (m_subscriptions.Count == 0)
-                {
-                    // Publish responses with error should occur after deleting the last subscription.
-                    m_logger.LogWarning(
-                        "Publish #{RequestHandle}, Subscription count = 0, Error: {Message}",
-                        requestHeader.RequestHandle,
-                        e.Message);
-                }
-                else
-                {
-                    m_logger.LogError(
-                        "Publish #{RequestHandle}, Reconnecting={Reconnecting}, Error: {Message}",
-                        requestHeader.RequestHandle,
-                        Reconnecting,
-                        e.Message);
-                }
-
-                // raise an error event.
-                var error = new ServiceResult(e);
-
-                // raise publish error even for BadNoSubscription if there are active subscriptions.
-                if (error.Code != StatusCodes.BadNoSubscription || m_subscriptions.Any(s => s.Created))
-                {
-                    PublishErrorEventHandler? callback = m_PublishError;
-
-                    if (callback != null)
-                    {
-                        try
-                        {
-                            callback(this, new PublishErrorEventArgs(error, subscriptionId, 0));
-                        }
-                        catch (Exception e2)
-                        {
-                            m_logger.LogError(
-                                e2,
-                                "Session: Unexpected error invoking PublishErrorCallback.");
-                        }
-                    }
-                }
-
-                // ignore errors if reconnecting
-                if (Reconnecting)
-                {
-                    m_logger.LogInformation(
-                        "Publish abandoned after error {Message} due to session {SessionId} reconnecting",
-                        e.Message,
-                        sessionId);
-                    return;
-                }
-
-                // nothing more to do if session changed.
-                if (sessionId != SessionId)
-                {
-                    if (Connected)
-                    {
-                        m_logger.LogError(
-                            "Publish abandoned after error {Message} because session id changed: Old {PreviousSessionId} != New {SessionId}",
-                            e.Message,
-                            sessionId,
-                            SessionId);
-                    }
-                    else
-                    {
-                        m_logger.LogInformation(
-                            "Publish abandoned after error {Message} because session {SessionId} was closed.",
-                            e.Message,
-                            sessionId);
-                    }
-                    return;
-                }
-
-                // try to acknowledge the notifications again in the next publish.
-                if (acknowledgementsToSend != null)
-                {
-                    lock (m_acknowledgementsToSendLock)
-                    {
-                        m_acknowledgementsToSend.AddRange(acknowledgementsToSend);
-                    }
-                }
-
-                // don't send another publish for these errors,
-                // or throttle to avoid server overload.
-                if (error.StatusCode == StatusCodes.BadTooManyPublishRequests)
-                {
-                    int tooManyPublishRequests = GoodPublishRequestCount;
-                    if (BelowPublishRequestLimit(tooManyPublishRequests))
-                    {
-                        m_tooManyPublishRequests = tooManyPublishRequests;
-                        m_logger.LogInformation(
-                            "PUBLISH - Too many requests, set limit to GoodPublishRequestCount={GoodRequestCount}.",
-                            m_tooManyPublishRequests);
-                    }
-                    return;
-                }
-                if (error.StatusCode == StatusCodes.BadNoSubscription ||
-                    error.StatusCode == StatusCodes.BadSessionClosed ||
-                    error.StatusCode == StatusCodes.BadSecurityChecksFailed ||
-                    error.StatusCode == StatusCodes.BadCertificateInvalid ||
-                    error.StatusCode == StatusCodes.BadServerHalted)
-                {
-                    return;
-                }
-                if (error.StatusCode == StatusCodes.BadSessionIdInvalid ||
-                    error.StatusCode == StatusCodes.BadSecureChannelIdInvalid ||
-                    error.StatusCode == StatusCodes.BadSecureChannelClosed)
-                {
-                    OnKeepAliveError(error);
-                    return;
-                }
-                // Servers may return this error when overloaded
-                if (error.StatusCode != StatusCodes.BadTimeout &&
-                    error.StatusCode != StatusCodes.BadRequestTimeout)
-                {
-                    if (error.StatusCode != StatusCodes.BadTooManyOperations &&
-                        error.StatusCode != StatusCodes.BadTcpServerTooBusy &&
-                        error.StatusCode != StatusCodes.BadServerTooBusy)
-                    {
-                        m_logger.LogError(
-                            e,
-                            "PUBLISH #{RequestHandle} - Unhandled error {StatusCode} during Publish.",
-                            requestHeader.RequestHandle,
-                            error.StatusCode);
-                    }
-                    // throttle the next publish to reduce server load
-                    _ = Task.Run(async () =>
-                    {
-                        await Task.Delay(100).ConfigureAwait(false);
-                        QueueBeginPublish();
-                    });
-                    return;
-                }
-            }
-
-            QueueBeginPublish();
+            m_engine.StartPublishing(timeout, fullQueue);
         }
 
         /// <summary>
@@ -3921,24 +3856,7 @@ namespace Opc.Ua.Client
             if (m_RenewUserIdentity != null)
             {
                 IUserIdentity renewed = m_RenewUserIdentity(this, m_identity);
-                UserIdentity? tempIdentity = null;
-                try
-                {
-                    if (renewed != null)
-                    {
-                        m_identity = renewed;
-                    }
-                    else
-                    {
-                        tempIdentity = new UserIdentity();
-                        m_identity = tempIdentity;
-                        tempIdentity = null; // ownership transferred to field
-                    }
-                }
-                finally
-                {
-                    tempIdentity?.Dispose();
-                }
+                m_identity = renewed ?? new UserIdentity();
             }
         }
 
@@ -3954,34 +3872,6 @@ namespace Opc.Ua.Client
                 "Could not recreate session {0}:{1}",
                 sessionName,
                 e.Message);
-        }
-
-        /// <summary>
-        /// Queues a publish request if there are not enough outstanding requests.
-        /// </summary>
-        private void QueueBeginPublish()
-        {
-            if (Disposed)
-            {
-                return;
-            }
-
-            int requestCount = GoodPublishRequestCount;
-
-            int minPublishRequestCount = GetDesiredPublishRequestCount(false);
-
-            if (requestCount < minPublishRequestCount)
-            {
-                BeginPublish(OperationTimeout);
-            }
-            else
-            {
-                m_logger.LogDebug(
-                    "PUBLISH - Did not send another publish request. " +
-                    "GoodPublishRequestCount={GoodRequestCount}, MinPublishRequestCount={MinRequestCount}",
-                    requestCount,
-                    minPublishRequestCount);
-            }
         }
 
         /// <summary>
@@ -4345,332 +4235,6 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Process Republish error response.
-        /// </summary>
-        /// <param name="e">The exception that occurred during the republish operation.</param>
-        /// <param name="subscriptionId">The subscription Id for which the republish was requested. </param>
-        /// <param name="sequenceNumber">The sequencenumber for which the republish was requested.</param>
-        private (bool, ServiceResult) ProcessRepublishResponseError(
-            Exception e,
-            uint subscriptionId,
-            uint sequenceNumber)
-        {
-            var error = new ServiceResult(e);
-
-            bool result = true;
-            if (error.StatusCode == StatusCodes.BadSubscriptionIdInvalid ||
-                error.StatusCode == StatusCodes.BadMessageNotAvailable)
-            {
-                m_logger.LogWarning(
-                    "Message {SubscriptionId}-{SequenceNumber} no longer available.",
-                    subscriptionId,
-                    sequenceNumber);
-            }
-            else if (error.StatusCode == StatusCodes.BadEncodingLimitsExceeded)
-            {
-                // if encoding limits are exceeded, the issue is logged and
-                // the published data is acknowledged to prevent the endless republish loop.
-                m_logger.LogError(
-                    e,
-                    "Message {SubscriptionId}-{SequenceNumber} exceeded size limits, ignored.",
-                    subscriptionId,
-                    sequenceNumber);
-                lock (m_acknowledgementsToSendLock)
-                {
-                    AddAcknowledgementToSend(
-                        m_acknowledgementsToSend,
-                        subscriptionId,
-                        sequenceNumber);
-                }
-            }
-            else
-            {
-                result = false;
-                m_logger.LogError(e, "Unexpected error sending republish request.");
-            }
-
-            PublishErrorEventHandler? callback = m_PublishError;
-
-            // raise an error event.
-            if (callback != null)
-            {
-                try
-                {
-                    var args = new PublishErrorEventArgs(error, subscriptionId, sequenceNumber);
-
-                    callback(this, args);
-                }
-                catch (Exception e2)
-                {
-                    m_logger.LogError(e2, "Session: Unexpected error invoking PublishErrorCallback.");
-                }
-            }
-
-            return (result, error);
-        }
-
-        /// <summary>
-        /// Processes the response from a publish request.
-        /// </summary>
-        private void ProcessPublishResponse(
-            ResponseHeader responseHeader,
-            uint subscriptionId,
-            ArrayOf<uint> availableSequenceNumbers,
-            bool moreNotifications,
-            NotificationMessage notificationMessage)
-        {
-            Subscription? subscription = null;
-            var availableSequenceNumberList = availableSequenceNumbers.ToList();
-
-            // send notification that the server is alive.
-            OnKeepAlive(m_serverState, (DateTime)responseHeader.Timestamp);
-
-            // collect the current set of acknowledgements.
-            lock (m_acknowledgementsToSendLock)
-            {
-                // clear out acknowledgements for messages that the server does not have any more.
-                var acknowledgementsToSend = new List<SubscriptionAcknowledgement>();
-
-                uint latestSequenceNumberToSend = 0;
-
-                // create an acknowledgement to be sent back to the server.
-                if (notificationMessage.NotificationData.Count > 0)
-                {
-                    AddAcknowledgementToSend(
-                        acknowledgementsToSend,
-                        subscriptionId,
-                        notificationMessage.SequenceNumber);
-                    UpdateLatestSequenceNumberToSend(
-                        ref latestSequenceNumberToSend,
-                        notificationMessage.SequenceNumber);
-
-                    availableSequenceNumberList.Remove(notificationMessage.SequenceNumber);
-                }
-
-                // match an acknowledgement to be sent back to the server.
-                for (int ii = 0; ii < m_acknowledgementsToSend.Count; ii++)
-                {
-                    SubscriptionAcknowledgement acknowledgement = m_acknowledgementsToSend[ii];
-
-                    if (acknowledgement.SubscriptionId != subscriptionId)
-                    {
-                        acknowledgementsToSend.Add(acknowledgement);
-                    }
-                    else if (availableSequenceNumberList.Remove(acknowledgement.SequenceNumber))
-                    {
-                        acknowledgementsToSend.Add(acknowledgement);
-                        UpdateLatestSequenceNumberToSend(
-                            ref latestSequenceNumberToSend,
-                            acknowledgement.SequenceNumber);
-                    }
-                    // a publish response may by processed out of order,
-                    // allow for a tolerance until the sequence number is removed.
-                    else if (Math.Abs(
-                            (int)(acknowledgement.SequenceNumber - latestSequenceNumberToSend)) <
-                        kPublishRequestSequenceNumberOutOfOrderThreshold)
-                    {
-                        acknowledgementsToSend.Add(acknowledgement);
-                    }
-                    else
-                    {
-                        m_logger.LogWarning(
-                            "SessionId {SessionId}, SubscriptionId {SubscriptionId}, Sequence number={SequenceNumber} was not received in the available sequence numbers.",
-                            SessionId,
-                            subscriptionId,
-                            acknowledgement.SequenceNumber);
-                    }
-                }
-
-                // Check for outdated sequence numbers. May have been not acked due to a network glitch.
-                if (latestSequenceNumberToSend != 0 && availableSequenceNumberList.Count > 0)
-                {
-                    foreach (uint sequenceNumber in availableSequenceNumberList)
-                    {
-                        if ((int)(latestSequenceNumberToSend - sequenceNumber) >
-                            kPublishRequestSequenceNumberOutdatedThreshold)
-                        {
-                            AddAcknowledgementToSend(
-                                acknowledgementsToSend,
-                                subscriptionId,
-                                sequenceNumber);
-                            m_logger.LogWarning(
-                                "SessionId {SessionId}, SubscriptionId {SubscriptionId}, Sequence number={SequenceNumber} was outdated, acknowledged.",
-                                SessionId,
-                                subscriptionId,
-                                sequenceNumber);
-                        }
-                    }
-                }
-
-#if DEBUG_SEQUENTIALPUBLISHING
-                // Checks for debug info only.
-                // Once more than a single publish request is queued, the checks are invalid
-                // because a publish response may not include the latest ack information yet.
-
-                uint lastSentSequenceNumber = 0;
-                if (availableSequenceNumberList != null)
-                {
-                    foreach (uint availableSequenceNumber in availableSequenceNumberList)
-                    {
-                        if (m_latestAcknowledgementsSent.ContainsKey(subscriptionId))
-                        {
-                            lastSentSequenceNumber = m_latestAcknowledgementsSent[subscriptionId];
-                            // If the last sent sequence number is uint.Max do not display the warning;
-                            // the counter rolled over
-                            // If the last sent sequence number is greater or equal to the available
-                            // sequence number (returned by the publish), a warning must be logged.
-                            if ((
-                                    (lastSentSequenceNumber >= availableSequenceNumber)
-                                    && (lastSentSequenceNumber != uint.MaxValue))
-                                || (lastSentSequenceNumber == availableSequenceNumber)
-                                    && (lastSentSequenceNumber == uint.MaxValue))
-                            {
-                                m_logger.LogWarning(
-                                    "Received sequence number which was already acknowledged={0}",
-                                    availableSequenceNumber);
-                            }
-                        }
-                    }
-                }
-
-                if (m_latestAcknowledgementsSent.ContainsKey(subscriptionId))
-                {
-                    lastSentSequenceNumber = m_latestAcknowledgementsSent[subscriptionId];
-
-                    // If the last sent sequence number is uint.Max do not display the warning;
-                    // the counter rolled over
-                    // If the last sent sequence number is greater or equal to the notificationMessage's
-                    // sequence number (returned by the publish) a warning must be logged.
-                    if ((
-                            (lastSentSequenceNumber >= notificationMessage.SequenceNumber)
-                            && (lastSentSequenceNumber != uint.MaxValue))
-                        || (lastSentSequenceNumber == notificationMessage.SequenceNumber)
-                            && (lastSentSequenceNumber == uint.MaxValue))
-                    {
-                        m_logger.LogWarning(
-                            "Received sequence number which was already acknowledged={0}",
-                            notificationMessage.SequenceNumber);
-                    }
-                }
-#endif
-
-                m_acknowledgementsToSend = acknowledgementsToSend;
-
-                if (notificationMessage.IsEmpty)
-                {
-                    m_logger.LogTrace(
-                        "Empty notification message received for SessionId {SessionId} with PublishTime {PublishTime}",
-                        SessionId,
-                        notificationMessage.PublishTime.ToDateTime().ToLocalTime());
-                }
-            }
-
-            bool subscriptionCreationInProgress = false;
-
-            lock (m_lock)
-            {
-                // find the subscription.
-                foreach (Subscription current in m_subscriptions)
-                {
-                    if (current.Id == subscriptionId)
-                    {
-                        subscription = current;
-                        break;
-                    }
-                    if (current.Id == default)
-                    {
-                        // Subscription is being created, disable cleanup mechanism
-                        subscriptionCreationInProgress = true;
-                    }
-                }
-            }
-
-            // ignore messages with a subscription that has been deleted.
-            if (subscription != null)
-            {
-#if DEBUG
-                // Validate publish time and reject old values.
-                if (notificationMessage.PublishTime.AddMilliseconds(
-                        subscription.CurrentPublishingInterval * subscription.CurrentLifetimeCount
-                    ) < DateTimeUtc.Now)
-                {
-                    m_logger.LogTrace(
-                        "PublishTime {PublishTime} in publish response is too old for SubscriptionId {SubscriptionId}.",
-                        notificationMessage.PublishTime.ToLocalTime(),
-                        subscription.Id);
-                }
-
-                // Validate publish time and reject old values.
-                if (notificationMessage.PublishTime >
-                    DateTimeUtc.Now.AddMilliseconds(
-                        subscription.CurrentPublishingInterval * subscription.CurrentLifetimeCount))
-                {
-                    m_logger.LogTrace(
-                        "PublishTime {PublishTime} in publish response is newer than actual time for SubscriptionId {SubscriptionId}.",
-                        notificationMessage.PublishTime.ToLocalTime(),
-                        subscription.Id);
-                }
-#endif
-                // save the information that more notifications are expected
-                notificationMessage.MoreNotifications = moreNotifications;
-
-                // save the string table that came with the notification.
-                notificationMessage.StringTable = responseHeader.StringTable;
-
-                // update subscription cache.
-                subscription.SaveMessageInCache(availableSequenceNumberList, notificationMessage);
-
-                // raise the notification.
-                NotificationEventHandler? publishEventHandler = m_Publish;
-                if (publishEventHandler != null)
-                {
-                    var args = new NotificationEventArgs(
-                        subscription,
-                        notificationMessage,
-                        responseHeader.StringTable);
-
-                    _ = Task.Run(() => OnRaisePublishNotification(publishEventHandler, args));
-                }
-            }
-            else if (DeleteSubscriptionsOnClose && !Reconnecting && !subscriptionCreationInProgress)
-            {
-                // Delete abandoned subscription from server.
-                m_logger.LogWarning(
-                    "Received Publish Response for Unknown SubscriptionId={SubscriptionId}. Deleting abandoned subscription from server.",
-                    subscriptionId);
-
-                _ = Task.Run(() => DeleteSubscriptionAsync(subscriptionId));
-            }
-            else
-            {
-                // Do not delete publish requests of stale subscriptions
-                m_logger.LogWarning(
-                    "Received Publish Response for Unknown SubscriptionId={SubscriptionId}. Ignored.",
-                    subscriptionId);
-            }
-        }
-
-        /// <summary>
-        /// Raises an event indicating that publish has returned a notification.
-        /// </summary>
-        private void OnRaisePublishNotification(
-            NotificationEventHandler callback,
-            NotificationEventArgs args)
-        {
-            try
-            {
-                if (callback != null && args.Subscription.Id != 0)
-                {
-                    callback(this, args);
-                }
-            }
-            catch (Exception e)
-            {
-                m_logger.LogError(e, "Session: Unexpected error while raising Notification event.");
-            }
-        }
-
-        /// <summary>
         /// Invokes a DeleteSubscriptions call for the specified subscriptionId.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
@@ -4753,12 +4317,9 @@ namespace Opc.Ua.Client
                     m_endpoint.Description.SecurityPolicyUri,
                     m_telemetry,
                     ct)
-                    .ConfigureAwait(false);
-                if (m_instanceCertificate == null)
-                {
+                    .ConfigureAwait(false) ??
                     throw ServiceResultException.ConfigurationError(
                         "The client configuration does not specify an application instance certificate.");
-                }
                 m_effectiveEndpoint = m_endpoint;
                 m_instanceCertificateChain = null; // Reload the chain too
             }
@@ -4824,105 +4385,6 @@ namespace Opc.Ua.Client
             return clientCertificateChain;
         }
 
-        private void AddAcknowledgementToSend(
-            List<SubscriptionAcknowledgement> acknowledgementsToSend,
-            uint subscriptionId,
-            uint sequenceNumber)
-        {
-            if (acknowledgementsToSend == null)
-            {
-                throw new ArgumentNullException(nameof(acknowledgementsToSend));
-            }
-
-            Debug.Assert(Monitor.IsEntered(m_acknowledgementsToSendLock));
-
-            var acknowledgement = new SubscriptionAcknowledgement
-            {
-                SubscriptionId = subscriptionId,
-                SequenceNumber = sequenceNumber
-            };
-
-            acknowledgementsToSend.Add(acknowledgement);
-        }
-
-        /// <summary>
-        /// Returns true if the Bad_TooManyPublishRequests limit
-        /// has not been reached.
-        /// </summary>
-        /// <param name="requestCount">The actual number of publish requests.</param>
-        /// <returns>If the publish request limit was reached.</returns>
-        private bool BelowPublishRequestLimit(int requestCount)
-        {
-            return (m_tooManyPublishRequests == 0) || (requestCount < m_tooManyPublishRequests);
-        }
-
-        /// <summary>
-        /// Returns the desired number of active publish request that should be used.
-        /// </summary>
-        /// <remarks>
-        /// Returns 0 if there are no subscriptions.
-        /// </remarks>
-        /// <param name="createdOnly">False if call when re-queuing.</param>
-        /// <returns>The number of desired publish requests for the session.</returns>
-        protected virtual int GetDesiredPublishRequestCount(bool createdOnly)
-        {
-            lock (m_lock)
-            {
-                if (m_subscriptions.Count == 0)
-                {
-                    return 0;
-                }
-
-                int publishCount;
-
-                if (createdOnly)
-                {
-                    int count = 0;
-                    foreach (Subscription subscription in m_subscriptions)
-                    {
-                        if (subscription.Created)
-                        {
-                            count++;
-                        }
-                    }
-
-                    if (count == 0)
-                    {
-                        return 0;
-                    }
-                    publishCount = count;
-                }
-                else
-                {
-                    publishCount = m_subscriptions.Count;
-                }
-
-                //
-                // If a dynamic limit was set because of badTooManyPublishRequest error.
-                // limit the number of publish requests to this value.
-                //
-                if (m_tooManyPublishRequests > 0 && publishCount > m_tooManyPublishRequests)
-                {
-                    publishCount = m_tooManyPublishRequests;
-                }
-
-                //
-                // Limit resulting to a number between min and max request count.
-                // If max is below min, we honor the min publish request count.
-                // See return from MinPublishRequestCount property which the max of both.
-                //
-                if (publishCount > m_maxPublishRequestCount)
-                {
-                    publishCount = m_maxPublishRequestCount;
-                }
-                if (publishCount < m_minPublishRequestCount)
-                {
-                    publishCount = m_minPublishRequestCount;
-                }
-                return publishCount;
-            }
-        }
-
         /// <summary>
         /// Creates and validates the subscription ids for a transfer.
         /// </summary>
@@ -4976,29 +4438,11 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Helper to update the latest sequence number to send.
-        /// Handles wrap around of sequence numbers.
-        /// </summary>
-        private static void UpdateLatestSequenceNumberToSend(
-            ref uint latestSequenceNumberToSend,
-            uint sequenceNumber)
-        {
-            // Handle wrap around with subtraction and test result is int.
-            // Assume sequence numbers to ack do not differ by more than uint.Max / 2
-            if (latestSequenceNumberToSend == 0 ||
-                ((int)(sequenceNumber - latestSequenceNumberToSend)) > 0)
-            {
-                latestSequenceNumberToSend = sequenceNumber;
-            }
-        }
-
-        /// <summary>
         /// Creates a request header with additional parameters
         /// for the ecc user token security policy, if needed.
         /// </summary>
         private RequestHeader CreateRequestHeaderPerUserTokenPolicy(
-            string? identityTokenSecurityPolicyUri,
-            string? endpointSecurityPolicyUri)
+            string? identityTokenSecurityPolicyUri)
         {
             var requestHeader = new RequestHeader();
             string userTokenSecurityPolicyUri = identityTokenSecurityPolicyUri ?? string.Empty;
@@ -5009,19 +4453,21 @@ namespace Opc.Ua.Client
 
             m_userTokenSecurityPolicyUri = userTokenSecurityPolicyUri;
 
-            var securityPolicy = SecurityPolicies.GetInfo(userTokenSecurityPolicyUri);
+            SecurityPolicyInfo securityPolicy = SecurityPolicies.GetInfo(userTokenSecurityPolicyUri);
 
             if (securityPolicy.EphemeralKeyAlgorithm != CertificateKeyAlgorithm.None)
             {
-                var parameters = new AdditionalParametersType();
-                parameters.Parameters =
-                [
-                    new KeyValuePair
-                    {
-                        Key = QualifiedName.From(AdditionalParameterNames.ECDHPolicyUri),
-                        Value = userTokenSecurityPolicyUri
-                    }
-                ];
+                var parameters = new AdditionalParametersType
+                {
+                    Parameters =
+                    [
+                        new KeyValuePair
+                        {
+                            Key = QualifiedName.From(AdditionalParameterNames.ECDHPolicyUri),
+                            Value = userTokenSecurityPolicyUri
+                        }
+                    ]
+                };
                 requestHeader.AdditionalHeader = new ExtensionObject(parameters);
 
                 m_logger.LogWarning("Request EphemeralKey for {Policy}.", userTokenSecurityPolicyUri);
@@ -5031,7 +4477,6 @@ namespace Opc.Ua.Client
         }
 
         private RequestHeader? CreateRequestHeaderForActivateSession(
-            SecurityPolicyInfo securityPolicy,
             string userTokenSecurityPolicyUri)
         {
             var requestHeader = new RequestHeader();
@@ -5039,7 +4484,7 @@ namespace Opc.Ua.Client
 
             if (!string.IsNullOrEmpty(userTokenSecurityPolicyUri))
             {
-                var userTokenSecurityPolicy = SecurityPolicies.GetInfo(userTokenSecurityPolicyUri);
+                SecurityPolicyInfo userTokenSecurityPolicy = SecurityPolicies.GetInfo(userTokenSecurityPolicyUri);
 
                 if (userTokenSecurityPolicy.EphemeralKeyAlgorithm != CertificateKeyAlgorithm.None)
                 {
@@ -5218,45 +4663,46 @@ namespace Opc.Ua.Client
         /// Time in milliseconds added to <see cref="m_keepAliveInterval"/> before <see cref="KeepAliveStopped"/> is set to true
         /// </summary>
         protected int m_keepAliveGuardBand = 1000;
-        private List<SubscriptionAcknowledgement> m_acknowledgementsToSend = [];
-        private readonly object m_acknowledgementsToSendLock = new();
-#if DEBUG_SEQUENTIALPUBLISHING
-        private Dictionary<uint, uint> m_latestAcknowledgementsSent = [];
-#endif
         private readonly Lock m_lock = new();
         private readonly List<Subscription> m_subscriptions = [];
         private uint m_maxRequestMessageSize;
         private readonly SessionSystemContext m_systemContext;
+#pragma warning disable CA2213 // Disposed in DisposeAsyncCore/Dispose
         private readonly NodeCache m_nodeCache;
+#pragma warning restore CA2213
         private readonly List<IUserIdentity> m_identityHistory = [];
-        // Created locally and consumed by byte[]-based signature helpers; server nonces
-        // stay as ByteString because they originate from service responses.
         private byte[]? m_clientNonce;
         private ByteString m_serverNonce;
         private ByteString m_previousServerNonce;
         private X509Certificate2? m_serverCertificate;
-        private uint m_publishCounter;
-        private int m_tooManyPublishRequests;
         private long m_lastKeepAliveTime;
         private StatusCode m_lastKeepAliveErrorStatusCode;
         private ServerState m_serverState;
         private int m_keepAliveInterval;
+#pragma warning disable CA2213 // Disposed in DisposeAsyncCore/Dispose
         private readonly Timer m_keepAliveTimer;
+#pragma warning restore CA2213
         private readonly AsyncAutoResetEvent m_keepAliveEvent = new();
         private uint m_keepAliveCounter;
         private Task? m_keepAliveWorker;
         private bool m_inKeepAliveCallback;
+#pragma warning disable CA2213 // Disposed in DisposeAsyncCore/Dispose
         private CancellationTokenSource? m_keepAliveCancellation;
         private readonly SemaphoreSlim m_reconnectLock = new(1, 1);
-        private int m_minPublishRequestCount;
-        private int m_maxPublishRequestCount;
+#pragma warning restore CA2213
         private readonly LinkedList<AsyncRequestState> m_outstandingRequests = [];
         private string? m_userTokenSecurityPolicyUri;
+#pragma warning disable CA2213 // Disposed in DisposeAsyncCore/Dispose
         private Nonce? m_eccServerEphemeralKey;
+#pragma warning restore CA2213
         private Subscription? m_defaultSubscription;
+        private bool m_disposeAsyncCalled;
         private readonly ArrayOf<EndpointDescription> m_discoveryServerEndpoints;
         private readonly ArrayOf<string> m_discoveryProfileUris;
         private new readonly ILogger m_logger;
+#pragma warning disable CA2213 // Disposed in DisposeAsyncCore/Dispose
+        private readonly ISubscriptionEngine m_engine;
+#pragma warning restore CA2213
 
         private sealed class AsyncRequestState : IDisposable
         {

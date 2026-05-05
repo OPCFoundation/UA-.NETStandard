@@ -38,6 +38,7 @@ namespace Opc.Ua
     /// <summary>
     /// An object used by clients to access a UA discovery service.
     /// </summary>
+#pragma warning disable CA2000 // Factory methods transfer ownership to the caller
     public partial class DiscoveryClient
     {
         /// <summary>
@@ -48,21 +49,10 @@ namespace Opc.Ua
         public static DiscoveryClient Create(
             Uri discoveryUrl)
         {
-            DiscoveryClient client = null;
-            try
-            {
-                client = CreateAsync(
-                    discoveryUrl,
-                    null,
-                    (ITelemetryContext)null).GetAwaiter().GetResult();
-                var result = client;
-                client = null;
-                return result;
-            }
-            finally
-            {
-                client?.Dispose();
-            }
+            return CreateAsync(
+                discoveryUrl,
+                null,
+                (ITelemetryContext)null).GetAwaiter().GetResult();
         }
 
         /// <summary>
@@ -75,21 +65,10 @@ namespace Opc.Ua
             Uri discoveryUrl,
             EndpointConfiguration configuration)
         {
-            DiscoveryClient client = null;
-            try
-            {
-                client = CreateAsync(
-                    discoveryUrl,
-                    configuration,
-                    (ITelemetryContext)null).GetAwaiter().GetResult();
-                var result = client;
-                client = null;
-                return result;
-            }
-            finally
-            {
-                client?.Dispose();
-            }
+            return CreateAsync(
+                discoveryUrl,
+                configuration,
+                (ITelemetryContext)null).GetAwaiter().GetResult();
         }
 
         /// <summary>
@@ -100,21 +79,10 @@ namespace Opc.Ua
             ITransportWaitingConnection connection,
             EndpointConfiguration configuration)
         {
-            DiscoveryClient client = null;
-            try
-            {
-                client = CreateAsync(
-                    connection,
-                    configuration,
-                    null).GetAwaiter().GetResult();
-                var result = client;
-                client = null;
-                return result;
-            }
-            finally
-            {
-                client?.Dispose();
-            }
+            return CreateAsync(
+                connection,
+                configuration,
+                null).GetAwaiter().GetResult();
         }
 
         /// <summary>
@@ -125,20 +93,9 @@ namespace Opc.Ua
             ApplicationConfiguration application,
             Uri discoveryUrl)
         {
-            DiscoveryClient client = null;
-            try
-            {
-                client = CreateAsync(
-                    application,
-                    discoveryUrl).GetAwaiter().GetResult();
-                var result = client;
-                client = null;
-                return result;
-            }
-            finally
-            {
-                client?.Dispose();
-            }
+            return CreateAsync(
+                application,
+                discoveryUrl).GetAwaiter().GetResult();
         }
 
         /// <summary>
@@ -150,21 +107,10 @@ namespace Opc.Ua
             Uri discoveryUrl,
             EndpointConfiguration configuration)
         {
-            DiscoveryClient client = null;
-            try
-            {
-                client = CreateAsync(
-                    application,
-                    discoveryUrl,
-                    configuration).GetAwaiter().GetResult();
-                var result = client;
-                client = null;
-                return result;
-            }
-            finally
-            {
-                client?.Dispose();
-            }
+            return CreateAsync(
+                application,
+                discoveryUrl,
+                configuration).GetAwaiter().GetResult();
         }
 
         /// <summary>
@@ -176,21 +122,10 @@ namespace Opc.Ua
             ITransportWaitingConnection connection,
             EndpointConfiguration configuration)
         {
-            DiscoveryClient client = null;
-            try
-            {
-                client = CreateAsync(
-                    application,
-                    connection,
-                    configuration).GetAwaiter().GetResult();
-                var result = client;
-                client = null;
-                return result;
-            }
-            finally
-            {
-                client?.Dispose();
-            }
+            return CreateAsync(
+                application,
+                connection,
+                configuration).GetAwaiter().GetResult();
         }
 
         /// <summary>
@@ -205,22 +140,12 @@ namespace Opc.Ua
             EndpointConfiguration endpointConfiguration,
             ApplicationConfiguration applicationConfiguration)
         {
-            DiscoveryClient client = null;
-            try
-            {
-                client = CreateAsync(
-                    discoveryUrl,
-                    endpointConfiguration,
-                    applicationConfiguration).GetAwaiter().GetResult();
-                var result = client;
-                client = null;
-                return result;
-            }
-            finally
-            {
-                client?.Dispose();
-            }
+            return CreateAsync(
+                discoveryUrl,
+                endpointConfiguration,
+                applicationConfiguration).GetAwaiter().GetResult();
         }
+#pragma warning restore CA2000
 
         /// <summary>
         /// Creates a binding for to use for discovering servers.

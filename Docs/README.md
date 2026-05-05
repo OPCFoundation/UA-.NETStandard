@@ -6,6 +6,7 @@ Here is a list of available documentation for different topics:
 
 * [OPC UA Profiles and Facets](Profiles.md) - Overview of supported OPC UA profiles, facets, security policies, and transport protocols.
 * [Migration Guide](MigrationGuide.md) - How to migrate from a previous version.
+* [Sessions, Reconnection, and Subscription Engines](Sessions.md) - Architectural overview of `Session`, `ManagedSession`, `SessionReconnectHandler`, and the classic / V2 subscription engines, including guidance on which to use.
 * About [.NET platform](PlatformBuild.md) support, Nuget packages and versioning.
 * How X.509 [Certificates](Certificates.md) are used in the certificate stores.
 * Using the [Reverse Connect](ReverseConnect.md) for the UA-TCP transport.

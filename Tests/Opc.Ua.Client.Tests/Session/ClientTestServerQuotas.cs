@@ -154,7 +154,7 @@ namespace Opc.Ua.Client.Tests
 
             byte[] buffer = new byte[MaxByteStringLengthForTest];
             UnsecureRandom.Shared.NextBytes(buffer);
-            ByteString chunk = ByteString.From(buffer);
+            var chunk = ByteString.From(buffer);
 
             var writeValue = new WriteValue
             {

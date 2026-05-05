@@ -148,8 +148,8 @@ namespace Opc.Ua.Bindings
         /// <inheritdoc/>
         public event ChannelTokenActivatedEventHandler OnTokenActivated
         {
-            add {}
-            remove {}
+            add { }
+            remove { }
         }
 
         /// <inheritdoc/>

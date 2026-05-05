@@ -98,10 +98,7 @@ namespace Opc.Ua
                     ServiceHosts.Clear();
                 }
 
-                if (UserTokenPolicys != null)
-                {
-                    UserTokenPolicys.Clear();
-                }
+                UserTokenPolicys?.Clear();
 
                 m_requestQueue?.Dispose();
             }
@@ -573,10 +570,7 @@ namespace Opc.Ua
             }
 
             // clear policies
-            if (UserTokenPolicys != null)
-            {
-                UserTokenPolicys.Clear();
-            }
+            UserTokenPolicys?.Clear();
 
             m_messageContext = null;
         }

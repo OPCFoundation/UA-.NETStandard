@@ -218,7 +218,7 @@ namespace Opc.Ua.Bindings
                             e,
                             "Exception while closing old channel during Reconnect.");
                     }
-                    previousChannel?.Dispose();
+                    previousChannel.Dispose();
                 }
             }
         }
@@ -446,7 +446,7 @@ namespace Opc.Ua.Bindings
                         "Waiting Connection Handle is not of type IMessageSocket.");
             }
 
-            var id = Guid.NewGuid().ToString();
+            string id = Guid.NewGuid().ToString();
 
             // create the channel.
             var channel = new UaSCUaBinaryClientChannel(

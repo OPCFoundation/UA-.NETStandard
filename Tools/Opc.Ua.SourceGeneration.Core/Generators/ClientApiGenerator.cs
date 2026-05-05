@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using Opc.Ua.Schema.Model;
 
 namespace Opc.Ua.SourceGeneration
@@ -52,9 +53,37 @@ namespace Opc.Ua.SourceGeneration
         /// </summary>
         private static List<ServiceSet> ServiceSets =>
         [
-            new ServiceSet("Session", ServiceCategory.Session, ServiceCategory.Test),
-            new ServiceSet("Discovery", ServiceCategory.Discovery),
-            new ServiceSet("Registration", ServiceCategory.Registration)
+            new ServiceSet("AttributeServiceSet", [], EmitClass: false, ServiceCategory.Attribute),
+            new ServiceSet("ViewServiceSet", [], EmitClass: false, ServiceCategory.View),
+            new ServiceSet("MethodServiceSet", [], EmitClass: false, ServiceCategory.Method),
+            new ServiceSet("MonitoredItemServiceSet", [], EmitClass: false, ServiceCategory.MonitoredItem),
+            new ServiceSet("SubscriptionServiceSet", [], EmitClass: false, ServiceCategory.Subscription),
+            new ServiceSet("NodeManagementServiceSet", [], EmitClass: false, ServiceCategory.NodeManagement),
+            new ServiceSet("QueryServiceSet", [], EmitClass: false, ServiceCategory.Query),
+            new ServiceSet("Session",
+            [
+                "IAttributeServiceSetClientMethods",
+                "IViewServiceSetClientMethods",
+                "IMethodServiceSetClientMethods",
+                "IMonitoredItemServiceSetClientMethods",
+                "ISubscriptionServiceSetClientMethods",
+                "INodeManagementServiceSetClientMethods",
+                "IQueryServiceSetClientMethods"
+            ],
+            [ServiceCategory.Session, ServiceCategory.Test],
+            [
+                ServiceCategory.Session,
+                ServiceCategory.Attribute,
+                ServiceCategory.View,
+                ServiceCategory.Method,
+                ServiceCategory.MonitoredItem,
+                ServiceCategory.Subscription,
+                ServiceCategory.NodeManagement,
+                ServiceCategory.Query,
+                ServiceCategory.Test
+            ]),
+            new ServiceSet("Discovery", [], ServiceCategory.Discovery),
+            new ServiceSet("Registration", [], ServiceCategory.Registration)
         ];
 
         /// <inheritdoc/>
@@ -75,10 +104,26 @@ namespace Opc.Ua.SourceGeneration
                 Tokens.ServiceSets,
                 ClientApiTemplates.ServiceSet,
                 serviceSets,
-                WriteTemplate_ClientApiServiceSet);
+                onLoad: SelectServiceSetTemplate,
+                onWrite: WriteTemplate_ClientApiServiceSet);
 
             template.Render();
             return [fileName.AsTextFileResource()];
+        }
+
+        /// <summary>
+        /// Selects the appropriate template based on whether
+        /// the service set should emit a class or only an interface.
+        /// </summary>
+        private static TemplateString SelectServiceSetTemplate(ILoadContext context)
+        {
+            if (context.Target is ServiceSet serviceSet &&
+                !serviceSet.EmitClass)
+            {
+                return ClientApiTemplates.ServiceSetInterfaceOnly;
+            }
+
+            return context.TemplateString;
         }
 
         /// <summary>
@@ -91,30 +136,46 @@ namespace Opc.Ua.SourceGeneration
                 return false;
             }
 
-            // get datatypes.
-            Service[] serviceTypes = m_context.ModelDesign.GetListOfServices(serviceSet.Categories);
-            if (serviceTypes.Length == 0)
+            // get service types for interface (may be a subset).
+            Service[] interfaceServiceTypes = m_context.ModelDesign.GetListOfServices(serviceSet.InterfaceCategories);
+            if (interfaceServiceTypes.Length == 0 && serviceSet.BaseInterfaces.Length == 0)
             {
                 return false;
             }
 
             context.Template.AddReplacement(Tokens.ServiceSet, serviceSet.Name);
 
+            string baseInterfaces = serviceSet.BaseInterfaces.Length > 0
+                ? " :\n        " + string.Join(",\n        ", serviceSet.BaseInterfaces.Select(
+                    b => CoreUtils.Format("global::Opc.Ua.{0}", b)))
+                : string.Empty;
+            context.Template.AddReplacement(Tokens.BaseInterfaces, baseInterfaces);
+
             context.Template.AddReplacement(
                 Tokens.ClientMethod,
                 ClientApiTemplates.InterfaceMethods,
-                serviceTypes,
+                interfaceServiceTypes,
                 context => WriteTemplate_ClientApiMethod(
                     context,
                     isInterface: true));
 
-            context.Template.AddReplacement(
-                Tokens.ClientApi,
-                ClientApiTemplates.Methods,
-                serviceTypes,
-                context => WriteTemplate_ClientApiMethod(
-                    context,
-                    isInterface: false));
+            if (serviceSet.EmitClass)
+            {
+                // get service types for class (may include inherited categories).
+                Service[] classServiceTypes = m_context.ModelDesign.GetListOfServices(serviceSet.ClassCategories);
+                if (classServiceTypes.Length == 0)
+                {
+                    return false;
+                }
+
+                context.Template.AddReplacement(
+                    Tokens.ClientApi,
+                    ClientApiTemplates.Methods,
+                    classServiceTypes,
+                    context => WriteTemplate_ClientApiMethod(
+                        context,
+                        isInterface: false));
+            }
 
             return context.Template.Render();
         }
@@ -479,7 +540,23 @@ namespace Opc.Ua.SourceGeneration
         /// <summary>
         /// A set of services that are grouped into a single interface.
         /// </summary>
-        private sealed record class ServiceSet(string Name, params ServiceCategory[] Categories);
+        private sealed record class ServiceSet(
+            string Name,
+            string[] BaseInterfaces,
+            ServiceCategory[] InterfaceCategories,
+            ServiceCategory[] ClassCategories,
+            bool EmitClass = true)
+        {
+            public ServiceSet(string Name, string[] BaseInterfaces, params ServiceCategory[] Categories)
+                : this(Name, BaseInterfaces, Categories, Categories, EmitClass: true)
+            {
+            }
+
+            public ServiceSet(string Name, string[] BaseInterfaces, bool EmitClass, params ServiceCategory[] Categories)
+                : this(Name, BaseInterfaces, Categories, Categories, EmitClass)
+            {
+            }
+        };
 
         private readonly IGeneratorContext m_context;
     }
