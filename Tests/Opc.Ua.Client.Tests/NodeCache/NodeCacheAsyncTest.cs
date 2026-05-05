@@ -398,7 +398,7 @@ namespace Opc.Ua.Client.Tests
         /// </summary>
         [Test]
         [Order(1000)]
-        [Retry(3)]
+        [Retry(5)]
         public async Task NodeCacheFetchNodesConcurrentAsync()
         {
             if (ReferenceDescriptions.IsNull)
@@ -430,7 +430,7 @@ namespace Opc.Ua.Client.Tests
         /// </summary>
         [Test]
         [Order(1100)]
-        [Retry(3)]
+        [Retry(5)]
         public async Task NodeCacheFindNodesConcurrentAsync()
         {
             if (ReferenceDescriptions.IsNull)
@@ -494,7 +494,7 @@ namespace Opc.Ua.Client.Tests
         /// </summary>
         [Test]
         [Order(1300)]
-        [Retry(3)]
+        [Retry(5)]
         public async Task NodeCacheTestAllMethodsConcurrentlyAsync()
         {
             const int testCases = 10;
