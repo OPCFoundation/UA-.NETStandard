@@ -115,7 +115,7 @@ namespace MemoryBuffer
                 null,
                 samplingInterval,
                 0,
-                false);
+                false)!;
         }
 
         /// <summary>

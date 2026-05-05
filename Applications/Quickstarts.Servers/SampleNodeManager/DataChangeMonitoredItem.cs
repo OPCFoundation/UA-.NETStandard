@@ -627,8 +627,8 @@ namespace Opc.Ua.Sample
                 if (!AlwaysReportUpdates &&
                     !ignoreFilters &&
                     !MonitoredItem.ValueChanged(
-                        value,
-                        error,
+                        value!,
+                        error!,
                         m_lastValue!,
                         m_lastError!,
                         DataChangeFilter!,
@@ -661,7 +661,7 @@ namespace Opc.Ua.Sample
                 m_lastError = error;
 
                 // queue value.
-                m_queue?.QueueValue(value, error);
+                m_queue?.QueueValue(value!, error!);
 
                 // flag the item as ready to publish.
                 m_readyToPublish = true;

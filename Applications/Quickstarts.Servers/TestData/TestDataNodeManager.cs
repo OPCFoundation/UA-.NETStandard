@@ -204,7 +204,7 @@ namespace TestData
                         !ReferenceEquals(condition.Parent, conditionsFolder))
                     {
                         condition.AddNotifier(SystemContext, default, true, conditionsFolder);
-                        conditionsFolder.AddNotifier(SystemContext, default, false, condition);
+                        conditionsFolder!.AddNotifier(SystemContext, default, false, condition);
                     }
                 }
 
@@ -608,7 +608,7 @@ namespace TestData
                 NodeHandle handle = nodesToProcess[ii];
 
                 // validate node.
-                NodeState source = ValidateNode(context, handle, cache);
+                NodeState? source = ValidateNode(context, handle, cache);
 
                 if (source == null)
                 {
@@ -649,7 +649,7 @@ namespace TestData
                 NodeHandle handle = nodesToProcess[ii];
 
                 // validate node.
-                NodeState source = ValidateNode(context, handle, cache);
+                NodeState? source = ValidateNode(context, handle, cache);
 
                 if (source == null)
                 {

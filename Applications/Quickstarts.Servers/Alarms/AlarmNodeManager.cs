@@ -917,7 +917,7 @@ namespace Alarms
                         methodToCall);
 
                     // validate the source node.
-                    NodeState source = ValidateNode(systemContext, handle, operationCache);
+                    NodeState? source = ValidateNode(systemContext, handle, operationCache);
 
                     if (source == null)
                     {
