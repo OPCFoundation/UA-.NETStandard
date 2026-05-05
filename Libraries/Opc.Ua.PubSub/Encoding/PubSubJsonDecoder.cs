@@ -925,7 +925,7 @@ namespace Opc.Ua.PubSub.Encoding
 
                     if (index == null)
                     {
-                        serverIndex = ToServerIndex((serverUriToken as string)!);
+                        serverIndex = ToServerIndex((string)serverUriToken);
                     }
                     else if (index.Value is >= 0 and < uint.MaxValue)
                     {
@@ -1287,10 +1287,17 @@ namespace Opc.Ua.PubSub.Encoding
                     {
                         int[] dimensions = ReadInt32Array("Dimensions").ToArray()!;
 
+                        if (array.Value is not Array arrayValue)
+                        {
+                            throw new ServiceResultException(
+                                StatusCodes.BadDecodingError,
+                                "Variant array body is missing or not an array.");
+                        }
+
                         try
                         {
                             return new Variant(
-                                new Matrix((array.Value as Array)!, builtInType, dimensions));
+                                new Matrix(arrayValue, builtInType, dimensions));
                         }
                         catch (ArgumentException e)
                         {

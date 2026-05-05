@@ -358,7 +358,7 @@ namespace Opc.Ua.Bindings
                     using var encoder = new BinaryEncoder(ostrm, Quotas.MessageContext, true);
                     // BufferManager-backed ArraySegment is always created with a non-null backing array.
                     encoder.WriteRawBytes(
-                        rawBytes.Value.Array!,
+                        rawBytes.Value.GetArray(),
                         rawBytes.Value.Offset,
                         rawBytes.Value.Count);
                 }
@@ -383,7 +383,7 @@ namespace Opc.Ua.Bindings
                 {
                     ArraySegment<byte> chunkToProcess = chunksToProcess[ii];
                     // BufferManager-backed segment always has a non-null backing array.
-                    byte[] chunkArray = chunkToProcess.Array!;
+                    byte[] chunkArray = chunkToProcess.GetArray();
 
                     // nothing more to do if limits exceeded.
                     if (limitsExceeded)
@@ -617,7 +617,7 @@ namespace Opc.Ua.Bindings
             int headerSize = decoder.Position;
 
             // ArraySegment.Array is non-null because the buffer comes from BufferManager.
-            byte[] bufferArray = buffer.Array!;
+            byte[] bufferArray = buffer.GetArray();
             var dataToProcess = new ArraySegment<byte>(
                 bufferArray,
                 buffer.Offset,
@@ -644,7 +644,7 @@ namespace Opc.Ua.Bindings
 
             // return only the data contained in the message.
             return new ArraySegment<byte>(
-                dataToProcess.Array!,
+                dataToProcess.GetArray(),
                 dataToProcess.Offset + headerSize,
                 dataToProcess.Count - headerSize);
         }

@@ -698,7 +698,7 @@ namespace Opc.Ua.Bindings
 
                     // write the message body.
                     encoder.WriteRawBytes(
-                        messageBody.Array!,
+                        messageBody.GetArray(),
                         messageBody.Offset + startOfBytes,
                         payloadSize);
 
@@ -1161,10 +1161,10 @@ namespace Opc.Ua.Bindings
             // decrypt the body.
             ArraySegment<byte> plainText = Decrypt(
                 new ArraySegment<byte>(
-                    buffer.Array!,
+                    buffer.GetArray(),
                     buffer.Offset + headerSize,
                     buffer.Count - headerSize),
-                new ArraySegment<byte>(buffer.Array!, buffer.Offset, headerSize),
+                new ArraySegment<byte>(buffer.GetArray(), buffer.Offset, headerSize),
                 receiverCertificate!);
 
             // extract signature.
@@ -1174,7 +1174,7 @@ namespace Opc.Ua.Bindings
 
             for (int ii = 0; ii < signatureSize; ii++)
             {
-                signature[ii] = plainText.Array![plainText.Offset + plainText.Count - signatureSize + ii];
+                signature[ii] = plainText.GetArray()[plainText.Offset + plainText.Count - signatureSize + ii];
             }
 
             ArraySegment<byte> dataToVerify;
@@ -1183,21 +1183,21 @@ namespace Opc.Ua.Bindings
             {
                 // copy OpenSecureChannel request signature if provided before verifying.
                 dataToVerify = new ArraySegment<byte>(
-                    plainText.Array!,
+                    plainText.GetArray(),
                     plainText.Offset,
                     plainText.Count - signatureSize + oscRequestSignature.Length);
 
                 Array.Copy(
                     oscRequestSignature,
                     dataToVerify.Offset,
-                    dataToVerify.Array!,
+                    dataToVerify.GetArray(),
                     dataToVerify.Count - oscRequestSignature.Length,
                     oscRequestSignature.Length);
             }
             else
             {
                 dataToVerify = new ArraySegment<byte>(
-                    plainText.Array!,
+                    plainText.GetArray(),
                     plainText.Offset,
                     plainText.Count - signatureSize);
             }
@@ -1220,17 +1220,18 @@ namespace Opc.Ua.Bindings
                 receiverCertificate!.GetRSAPublicKey() != null)
             {
                 int paddingEnd;
+                byte[] plainTextArray = plainText.GetArray();
                 if (X509Utils.GetRSAPublicKeySize(receiverCertificate!) > TcpMessageLimits
                     .KeySizeExtraPadding)
                 {
                     paddingEnd = plainText.Offset + plainText.Count - signatureSize - 1;
-                    paddingCount = plainText.Array![paddingEnd - 1] +
-                        (plainText.Array[paddingEnd] * 256);
+                    paddingCount = plainTextArray[paddingEnd - 1] +
+                        (plainTextArray[paddingEnd] * 256);
 
                     //parse until paddingStart-1; the last one is actually the extrapaddingsize
                     for (int ii = paddingEnd - paddingCount; ii < paddingEnd; ii++)
                     {
-                        if (plainText.Array[ii] != plainText.Array[paddingEnd - 1])
+                        if (plainTextArray[ii] != plainTextArray[paddingEnd - 1])
                         {
                             throw ServiceResultException.Create(
                                 StatusCodes.BadSecurityChecksFailed,
@@ -1241,11 +1242,11 @@ namespace Opc.Ua.Bindings
                 else
                 {
                     paddingEnd = plainText.Offset + plainText.Count - signatureSize - 1;
-                    paddingCount = plainText.Array![paddingEnd];
+                    paddingCount = plainTextArray[paddingEnd];
 
                     for (int ii = paddingEnd - paddingCount; ii < paddingEnd; ii++)
                     {
-                        if (plainText.Array[ii] != plainText.Array[paddingEnd])
+                        if (plainTextArray[ii] != plainTextArray[paddingEnd])
                         {
                             throw ServiceResultException.Create(
                                 StatusCodes.BadSecurityChecksFailed,
@@ -1260,7 +1261,7 @@ namespace Opc.Ua.Bindings
             // decode message.
             using (
                 var decoder = new BinaryDecoder(
-                    plainText.Array!,
+                    plainText.GetArray(),
                     plainText.Offset + headerSize,
                     plainText.Count - headerSize,
                     Quotas.MessageContext))
@@ -1275,7 +1276,7 @@ namespace Opc.Ua.Bindings
 
             // return the body.
             return new ArraySegment<byte>(
-                plainText.Array!,
+                plainText.GetArray(),
                 plainText.Offset + headerSize,
                 plainText.Count - headerSize - signatureSize - paddingCount);
         }
@@ -1332,13 +1333,13 @@ namespace Opc.Ua.Bindings
                 byte[] encryptedBuffer = BufferManager.TakeBuffer(SendBufferSize, "Encrypt");
 
                 Array.Copy(
-                    headerToCopy.Array!,
+                    headerToCopy.GetArray(),
                     headerToCopy.Offset,
                     encryptedBuffer,
                     0,
                     headerToCopy.Count);
                 Array.Copy(
-                    dataToEncrypt.Array!,
+                    dataToEncrypt.GetArray(),
                     dataToEncrypt.Offset,
                     encryptedBuffer,
                     headerToCopy.Count,
@@ -1393,13 +1394,13 @@ namespace Opc.Ua.Bindings
                 byte[] decryptedBuffer = BufferManager.TakeBuffer(SendBufferSize, "Decrypt");
 
                 Array.Copy(
-                    headerToCopy.Array!,
+                    headerToCopy.GetArray(),
                     headerToCopy.Offset,
                     decryptedBuffer,
                     0,
                     headerToCopy.Count);
                 Array.Copy(
-                    dataToDecrypt.Array!,
+                    dataToDecrypt.GetArray(),
                     dataToDecrypt.Offset,
                     decryptedBuffer,
                     headerToCopy.Count,

@@ -92,7 +92,7 @@ namespace Opc.Ua.Bindings
             foreach (ArraySegment<byte> buffer in this)
             {
                 count += buffer.Count;
-                bufferManager.ReturnBuffer(buffer.Array!, owner);
+                bufferManager.ReturnBuffer(buffer.GetArray(), owner);
             }
 
             Clear();

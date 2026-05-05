@@ -467,11 +467,11 @@ namespace Opc.Ua.Bindings
         {
             try
             {
-                uint messageType = BitConverter.ToUInt32(message.Array!, message.Offset);
+                uint messageType = BitConverter.ToUInt32(message.GetArray(), message.Offset);
 
                 if (!HandleIncomingMessage(messageType, message))
                 {
-                    BufferManager.ReturnBuffer(message.Array!, "OnMessageReceived");
+                    BufferManager.ReturnBuffer(message.GetArray(), "OnMessageReceived");
                 }
             }
             catch (Exception e)
@@ -594,7 +594,7 @@ namespace Opc.Ua.Bindings
             try
             {
                 Interlocked.Increment(ref m_activeWriteRequests);
-                args.SetBuffer(buffer.Array!, buffer.Offset, buffer.Count);
+                args.SetBuffer(buffer.GetArray(), buffer.Offset, buffer.Count);
                 args.Completed += OnWriteComplete;
                 args.UserToken = state;
                 if (!Socket.Send(args))

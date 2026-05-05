@@ -128,7 +128,7 @@ namespace Opc.Ua.Bindings
             {
                 m_bufferManager?.TransferBuffer(m_buffers[ii].Array, owner);
                 buffers.Add(new ArraySegment<byte>(
-                    m_buffers[ii].Array!,
+                    m_buffers[ii].GetArray(),
                     m_buffers[ii].Offset,
                     GetBufferCount(ii)));
             }
@@ -158,7 +158,7 @@ namespace Opc.Ua.Bindings
             }
 
             int endIndex = GetBufferCount(0);
-            var firstSegment = new BufferSegment(m_buffers[0].Array!, m_buffers[0].Offset, endIndex);
+            var firstSegment = new BufferSegment(m_buffers[0].GetArray(), m_buffers[0].Offset, endIndex);
             m_bufferManager?.TransferBuffer(m_buffers[0].Array, owner);
             BufferSegment nextSegment = firstSegment;
             for (int ii = 1; ii < m_buffers.Count; ii++)
@@ -166,7 +166,7 @@ namespace Opc.Ua.Bindings
                 m_bufferManager?.TransferBuffer(m_buffers[ii].Array, owner);
                 endIndex = GetBufferCount(ii);
                 nextSegment = nextSegment.Append(
-                    m_buffers[ii].Array!,
+                    m_buffers[ii].GetArray(),
                     m_buffers[ii].Offset,
                     endIndex);
             }
@@ -222,7 +222,7 @@ namespace Opc.Ua.Bindings
 #if STREAM_WITH_SPAN_SUPPORT
                     return m_currentBuffer[m_currentPosition++];
 #else
-                    return m_currentBuffer.Array![m_currentBuffer.Offset + m_currentPosition++];
+                    return m_currentBuffer.GetArray()[m_currentBuffer.Offset + m_currentPosition++];
 #endif
                 }
 
@@ -302,7 +302,7 @@ namespace Opc.Ua.Bindings
                 if (bytesLeft > count)
                 {
                     Array.Copy(
-                        m_currentBuffer.Array!,
+                        m_currentBuffer.GetArray(),
                         m_currentPosition + m_currentBuffer.Offset,
                         buffer,
                         offset,
@@ -314,7 +314,7 @@ namespace Opc.Ua.Bindings
 
                 // copy the bytes available and move to next buffer.
                 Array.Copy(
-                    m_currentBuffer.Array!,
+                    m_currentBuffer.GetArray(),
                     m_currentPosition + m_currentBuffer.Offset,
                     buffer,
                     offset,
@@ -406,7 +406,7 @@ namespace Opc.Ua.Bindings
 #if STREAM_WITH_SPAN_SUPPORT
                     m_currentBuffer[m_currentPosition] = value;
 #else
-                    m_currentBuffer.Array![m_currentBuffer.Offset + m_currentPosition] = value;
+                    m_currentBuffer.GetArray()[m_currentBuffer.Offset + m_currentPosition] = value;
 #endif
                     UpdateCurrentPosition(1);
 
@@ -479,7 +479,7 @@ namespace Opc.Ua.Bindings
                     Array.Copy(
                         buffer,
                         offset,
-                        m_currentBuffer.Array!,
+                        m_currentBuffer.GetArray(),
                         m_currentPosition + m_currentBuffer.Offset,
                         count);
 
@@ -492,7 +492,7 @@ namespace Opc.Ua.Bindings
                 Array.Copy(
                     buffer,
                     offset,
-                    m_currentBuffer.Array!,
+                    m_currentBuffer.GetArray(),
                     m_currentPosition + m_currentBuffer.Offset,
                     bytesLeft);
 
@@ -528,7 +528,7 @@ namespace Opc.Ua.Bindings
             for (int ii = 0; ii < m_buffers.Count; ii++)
             {
                 int length = GetBufferCount(ii);
-                Array.Copy(m_buffers[ii].Array!, m_buffers[ii].Offset, buffer, offset, length);
+                Array.Copy(m_buffers[ii].GetArray(), m_buffers[ii].Offset, buffer, offset, length);
                 offset += length;
             }
 

@@ -3934,11 +3934,11 @@ namespace Opc.Ua
                             NamespaceTable namespaces =
                                 namespaceUris.Count == 0
                                     ? Context.NamespaceUris
-                                    : new NamespaceTable(namespaceUris.ToArray()!.Cast<string>());
+                                    : new NamespaceTable(namespaceUris.ToList().OfType<string>());
                             StringTable servers =
                                 serverUris.Count == 0
                                     ? Context.ServerUris
-                                    : new StringTable(serverUris.ToArray()!.Cast<string>());
+                                    : new StringTable(serverUris.ToList().OfType<string>());
 
                             SetMappingTables(namespaces, servers);
                         }

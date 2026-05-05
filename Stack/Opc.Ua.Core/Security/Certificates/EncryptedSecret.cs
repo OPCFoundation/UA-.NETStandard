@@ -691,7 +691,7 @@ namespace Opc.Ua
                     encryptingKey!,
                     iv!);
                 payload = new byte[plainText.Count];
-                Buffer.BlockCopy(plainText.Array!, plainText.Offset, payload, 0, payload.Length);
+                Buffer.BlockCopy(plainText.GetArray(), plainText.Offset, payload, 0, payload.Length);
 
                 using var payloadDecoder = new BinaryDecoder(payload, Context);
 
@@ -815,7 +815,7 @@ namespace Opc.Ua
             ITelemetryContext telemetry)
         {
             // Buffer-backed segment guarantees a non-null backing array.
-            byte[] dataArray = dataToDecrypt.Array!;
+            byte[] dataArray = dataToDecrypt.GetArray();
             using var decoder = new BinaryDecoder(
                 dataArray,
                 dataToDecrypt.Offset,
@@ -988,7 +988,7 @@ namespace Opc.Ua
                 iv);
 
             using var decoder = new BinaryDecoder(
-                plainText.Array!,
+                plainText.GetArray(),
                 plainText.Offset + dataToDecrypt.Offset,
                 plainText.Count - dataToDecrypt.Offset,
                 Context);
