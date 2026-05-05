@@ -57,17 +57,17 @@ namespace Opc.Ua.PubSub.Encoding
         private const char kRightSquareBracket = ']';
         private static readonly UTF8Encoding s_utf8Encoding = new(false);
         private const string kNull = "null";
-        private Stream m_stream;
-        private MemoryStream m_memoryStream;
-        private StreamWriter m_writer;
+        private Stream? m_stream;
+        private MemoryStream? m_memoryStream;
+        private StreamWriter m_writer = null!;
         private readonly Stack<string> m_namespaces = [];
         private bool m_commaRequired;
         private bool m_inVariantWithEncoding;
-        private ushort[] m_namespaceMappings;
-        private ushort[] m_serverMappings;
+        private ushort[]? m_namespaceMappings;
+        private ushort[]? m_serverMappings;
         private uint m_nestingLevel;
         private readonly bool m_topLevelIsArray;
-        private readonly ILogger m_logger;
+        private readonly ILogger m_logger = null!;
         private bool m_levelOneSkipped;
         private bool m_dontWriteClosing;
         private readonly bool m_leaveOpen;
@@ -110,7 +110,7 @@ namespace Opc.Ua.PubSub.Encoding
             IServiceMessageContext context,
             bool useReversibleEncoding,
             bool topLevelIsArray = false,
-            Stream stream = null,
+            Stream? stream = null,
             bool leaveOpen = false,
             int streamSize = kStreamWriterBufferSize)
             : this(
@@ -151,7 +151,7 @@ namespace Opc.Ua.PubSub.Encoding
             IServiceMessageContext context,
             PubSubJsonEncoding encoding,
             bool topLevelIsArray = false,
-            Stream stream = null,
+            Stream? stream = null,
             bool leaveOpen = false,
             int streamSize = kStreamWriterBufferSize)
              : this(encoding)
@@ -284,7 +284,7 @@ namespace Opc.Ua.PubSub.Encoding
         public void EncodeMessage<T>(T message, ExpandedNodeId encodeableTypeId)
             where T : IEncodeable
         {
-            if (EqualityComparer<T>.Default.Equals(message, default))
+            if (EqualityComparer<T>.Default.Equals(message, default!))
             {
                 throw new ArgumentNullException(nameof(message));
             }
@@ -302,7 +302,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <inheritdoc/>
         public void EncodeMessage<T>(T message) where T : IEncodeable, new()
         {
-            if (EqualityComparer<T>.Default.Equals(message, default))
+            if (EqualityComparer<T>.Default.Equals(message, default!))
             {
                 throw new ArgumentNullException(nameof(message));
             }
@@ -362,7 +362,7 @@ namespace Opc.Ua.PubSub.Encoding
             finally
             {
                 m_writer?.Dispose();
-                m_writer = null;
+                m_writer = null!;
             }
         }
 
@@ -394,7 +394,7 @@ namespace Opc.Ua.PubSub.Encoding
                 if (m_writer != null)
                 {
                     InternalClose(true);
-                    m_writer = null;
+                    m_writer = null!;
                 }
 
                 if (!m_leaveOpen)
@@ -414,7 +414,7 @@ namespace Opc.Ua.PubSub.Encoding
         public bool SuppressArtifacts { get; set; }
 
         /// <inheritdoc/>
-        public void PushStructure(string fieldName)
+        public void PushStructure(string? fieldName)
         {
             m_nestingLevel++;
 
@@ -442,7 +442,7 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <inheritdoc/>
-        public void PushArray(string fieldName)
+        public void PushArray(string? fieldName)
         {
             m_nestingLevel++;
 
@@ -541,7 +541,7 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <inheritdoc/>
-        public void WriteSwitchField(uint switchField, out string fieldName)
+        public void WriteSwitchField(uint switchField, out string? fieldName)
         {
             fieldName = null;
 
@@ -589,7 +589,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// The message context associated with the encoder.
         /// </summary>
-        public IServiceMessageContext Context { get; }
+        public IServiceMessageContext Context { get; } = null!;
 
         /// <summary>
         /// The Json encoder to encoder namespace URI instead of
@@ -722,11 +722,11 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Escapes a string and writes it to the stream.
         /// </summary>
-        private void EscapeString(string value)
+        private void EscapeString(string? value)
         {
             m_writer.Write(kQuotation);
 
-            foreach (char ch in value)
+            foreach (char ch in value!)
             {
                 bool found = false;
 
@@ -756,7 +756,7 @@ namespace Opc.Ua.PubSub.Encoding
         }
 #endif
 
-        private void WriteSimpleFieldNull(string fieldName)
+        private void WriteSimpleFieldNull(string? fieldName)
         {
             if (string.IsNullOrEmpty(fieldName))
             {
@@ -773,8 +773,8 @@ namespace Opc.Ua.PubSub.Encoding
 
 #if NETSTANDARD2_1_OR_GREATER || NET6_0_OR_GREATER
         private void WriteSimpleField(
-            string fieldName,
-            string value,
+            string? fieldName,
+            string? value,
             EscapeOptions options = EscapeOptions.None)
         {
             // unlike Span<byte>, Span<char> can not become null, handle the case here
@@ -788,7 +788,7 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         private void WriteSimpleFieldAsSpan(
-            string fieldName,
+            string? fieldName,
             ReadOnlySpan<char> value,
             EscapeOptions options)
         {
@@ -837,8 +837,8 @@ namespace Opc.Ua.PubSub.Encoding
         }
 #else
         private void WriteSimpleField(
-            string fieldName,
-            string value,
+            string? fieldName,
+            string? value,
             EscapeOptions options = EscapeOptions.None)
         {
             if (!string.IsNullOrEmpty(fieldName))
@@ -901,7 +901,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Writes a boolean to the stream.
         /// </summary>
-        public void WriteBoolean(string fieldName, bool value)
+        public void WriteBoolean(string? fieldName, bool value)
         {
             if (fieldName != null && !IncludeDefaultNumberValues && !value)
             {
@@ -921,7 +921,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Writes a sbyte to the stream.
         /// </summary>
-        public void WriteSByte(string fieldName, sbyte value)
+        public void WriteSByte(string? fieldName, sbyte value)
         {
             if (fieldName != null && !IncludeDefaultNumberValues && value == 0)
             {
@@ -934,7 +934,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Writes a byte to the stream.
         /// </summary>
-        public void WriteByte(string fieldName, byte value)
+        public void WriteByte(string? fieldName, byte value)
         {
             if (fieldName != null && !IncludeDefaultNumberValues && value == 0)
             {
@@ -947,7 +947,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Writes a short to the stream.
         /// </summary>
-        public void WriteInt16(string fieldName, short value)
+        public void WriteInt16(string? fieldName, short value)
         {
             if (fieldName != null && !IncludeDefaultNumberValues && value == 0)
             {
@@ -960,7 +960,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Writes a ushort to the stream.
         /// </summary>
-        public void WriteUInt16(string fieldName, ushort value)
+        public void WriteUInt16(string? fieldName, ushort value)
         {
             if (fieldName != null && !IncludeDefaultNumberValues && value == 0)
             {
@@ -973,7 +973,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Writes an int to the stream.
         /// </summary>
-        public void WriteInt32(string fieldName, int value)
+        public void WriteInt32(string? fieldName, int value)
         {
             if (fieldName != null && !IncludeDefaultNumberValues && value == 0)
             {
@@ -986,7 +986,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Writes a uint to the stream.
         /// </summary>
-        public void WriteUInt32(string fieldName, uint value)
+        public void WriteUInt32(string? fieldName, uint value)
         {
             if (fieldName != null && !IncludeDefaultNumberValues && value == 0)
             {
@@ -999,7 +999,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Writes a long to the stream.
         /// </summary>
-        public void WriteInt64(string fieldName, long value)
+        public void WriteInt64(string? fieldName, long value)
         {
             if (fieldName != null && !IncludeDefaultNumberValues && value == 0)
             {
@@ -1015,7 +1015,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Writes a ulong to the stream.
         /// </summary>
-        public void WriteUInt64(string fieldName, ulong value)
+        public void WriteUInt64(string? fieldName, ulong value)
         {
             if (fieldName != null && !IncludeDefaultNumberValues && value == 0)
             {
@@ -1031,7 +1031,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Writes a float to the stream.
         /// </summary>
-        public void WriteFloat(string fieldName, float value)
+        public void WriteFloat(string? fieldName, float value)
         {
             if (fieldName != null &&
                 !IncludeDefaultNumberValues &&
@@ -1062,7 +1062,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Writes a double to the stream.
         /// </summary>
-        public void WriteDouble(string fieldName, double value)
+        public void WriteDouble(string? fieldName, double value)
         {
             if (fieldName != null &&
                 !IncludeDefaultNumberValues &&
@@ -1093,7 +1093,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Writes a string to the stream.
         /// </summary>
-        public void WriteString(string fieldName, string value)
+        public void WriteString(string? fieldName, string? value)
         {
             if (fieldName != null && !IncludeDefaultValues && value == null)
             {
@@ -1106,7 +1106,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Writes a UTC date/time to the stream.
         /// </summary>
-        public void WriteDateTime(string fieldName, DateTimeUtc value)
+        public void WriteDateTime(string? fieldName, DateTimeUtc value)
         {
             WriteDateTime(fieldName, value, EscapeOptions.None);
         }
@@ -1114,7 +1114,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Writes a GUID to the stream.
         /// </summary>
-        public void WriteGuid(string fieldName, Uuid value)
+        public void WriteGuid(string? fieldName, Uuid value)
         {
             if (fieldName != null && !IncludeDefaultValues && value == Uuid.Empty)
             {
@@ -1128,7 +1128,7 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <inheritdoc/>
-        public void WriteByteString(string fieldName, ByteString value)
+        public void WriteByteString(string? fieldName, ByteString value)
         {
             WriteByteString(fieldName, value.ToArray(), 0, value.Length);
         }
@@ -1137,7 +1137,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// Writes a byte string to the stream with a given index and count.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public void WriteByteString(string fieldName, byte[] value, int index, int count)
+        public void WriteByteString(string? fieldName, byte[] value, int index, int count)
         {
             if (fieldName != null && !IncludeDefaultValues && value == null)
             {
@@ -1167,7 +1167,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// Writes a byte string to the stream.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public void WriteByteString(string fieldName, ReadOnlySpan<byte> value)
+        public void WriteByteString(string? fieldName, ReadOnlySpan<byte> value)
         {
             // == compares memory reference, comparing to empty means we compare to the default
             // If null array is converted to span the span is default
@@ -1194,7 +1194,7 @@ namespace Opc.Ua.PubSub.Encoding
             {
                 const int maxStackLimit = 1024;
                 int length = (value.Length + 2) / 3 * 4;
-                char[] arrayPool = null;
+                char[]? arrayPool = null;
                 Span<char> chars =
                     length <= maxStackLimit
                         ? stackalloc char[length]
@@ -1236,7 +1236,7 @@ namespace Opc.Ua.PubSub.Encoding
 #endif
 
         /// <inheritdoc/>
-        public void WriteXmlElement(string fieldName, XmlElement value)
+        public void WriteXmlElement(string? fieldName, XmlElement value)
         {
             if (fieldName != null && !IncludeDefaultValues && value.IsEmpty)
             {
@@ -1249,9 +1249,9 @@ namespace Opc.Ua.PubSub.Encoding
                 return;
             }
 
-            string xml = value.OuterXml;
+            string? xml = value.OuterXml;
 
-            int count = xml.Length;
+            int count = xml!.Length;
 
             if (Context.MaxStringLength > 0 && Context.MaxStringLength < count)
             {
@@ -1265,7 +1265,7 @@ namespace Opc.Ua.PubSub.Encoding
             WriteSimpleField(fieldName, xml, EscapeOptions.Quotes);
         }
 
-        private void WriteNamespaceIndex(string fieldName, ushort namespaceIndex)
+        private void WriteNamespaceIndex(string? fieldName, ushort namespaceIndex)
         {
             if (namespaceIndex == 0)
             {
@@ -1275,7 +1275,7 @@ namespace Opc.Ua.PubSub.Encoding
             if ((!UseReversibleEncoding || ForceNamespaceUri) &&
                 namespaceIndex > (ForceNamespaceUriForIndex1 ? 0 : 1))
             {
-                string uri = Context.NamespaceUris.GetString(namespaceIndex);
+                string? uri = Context.NamespaceUris.GetString(namespaceIndex);
                 if (!string.IsNullOrEmpty(uri))
                 {
                     WriteSimpleField(fieldName, uri, EscapeOptions.Quotes);
@@ -1294,7 +1294,7 @@ namespace Opc.Ua.PubSub.Encoding
             }
         }
 
-        private void WriteNodeIdContents(NodeId value, string namespaceUri = null)
+        private void WriteNodeIdContents(NodeId value, string? namespaceUri = null)
         {
             if (value.IdType > IdType.Numeric)
             {
@@ -1334,7 +1334,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Writes an NodeId to the stream.
         /// </summary>
-        public void WriteNodeId(string fieldName, NodeId value)
+        public void WriteNodeId(string? fieldName, NodeId value)
         {
             bool isNull = value.IsNull;
 
@@ -1359,7 +1359,7 @@ namespace Opc.Ua.PubSub.Encoding
                 ushort namespaceIndex = value.NamespaceIndex;
                 if (ForceNamespaceUri && namespaceIndex > (ForceNamespaceUriForIndex1 ? 0 : 1))
                 {
-                    string namespaceUri = Context.NamespaceUris.GetString(namespaceIndex);
+                    string? namespaceUri = Context.NamespaceUris.GetString(namespaceIndex);
                     WriteNodeIdContents(value, namespaceUri);
                 }
                 else
@@ -1374,7 +1374,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Writes an ExpandedNodeId to the stream.
         /// </summary>
-        public void WriteExpandedNodeId(string fieldName, ExpandedNodeId value)
+        public void WriteExpandedNodeId(string? fieldName, ExpandedNodeId value)
         {
             bool isNull = value.IsNull;
 
@@ -1396,7 +1396,7 @@ namespace Opc.Ua.PubSub.Encoding
 
             if (!isNull)
             {
-                string namespaceUri = value.NamespaceUri;
+                string? namespaceUri = value.NamespaceUri;
                 ushort namespaceIndex = value.InnerNodeId.NamespaceIndex;
                 if (ForceNamespaceUri &&
                     namespaceUri == null &&
@@ -1412,7 +1412,7 @@ namespace Opc.Ua.PubSub.Encoding
                 {
                     if (EncodingToUse == PubSubJsonEncoding.NonReversible)
                     {
-                        string uri = Context.ServerUris.GetString(serverIndex);
+                        string? uri = Context.ServerUris.GetString(serverIndex);
 
                         if (!string.IsNullOrEmpty(uri))
                         {
@@ -1444,7 +1444,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Writes an StatusCode to the stream.
         /// </summary>
-        public void WriteStatusCode(string fieldName, StatusCode value)
+        public void WriteStatusCode(string? fieldName, StatusCode value)
         {
             WriteStatusCode(fieldName, value, EscapeOptions.None);
         }
@@ -1452,7 +1452,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Writes a DiagnosticInfo to the stream.
         /// </summary>
-        public void WriteDiagnosticInfo(string fieldName, DiagnosticInfo value)
+        public void WriteDiagnosticInfo(string? fieldName, DiagnosticInfo? value)
         {
             WriteDiagnosticInfo(fieldName, value, 0);
         }
@@ -1460,7 +1460,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Writes an QualifiedName to the stream.
         /// </summary>
-        public void WriteQualifiedName(string fieldName, QualifiedName value)
+        public void WriteQualifiedName(string? fieldName, QualifiedName value)
         {
             bool isNull = value.IsNull;
 
@@ -1492,7 +1492,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Writes an LocalizedText to the stream.
         /// </summary>
-        public void WriteLocalizedText(string fieldName, LocalizedText value)
+        public void WriteLocalizedText(string? fieldName, LocalizedText value)
         {
             bool isNull = value.IsNullOrEmpty;
 
@@ -1534,7 +1534,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Writes an Variant to the stream.
         /// </summary>
-        public void WriteVariant(string fieldName, Variant value)
+        public void WriteVariant(string? fieldName, Variant value)
         {
             bool isNull =
                 value.TypeInfo.IsUnknown ||
@@ -1617,9 +1617,9 @@ namespace Opc.Ua.PubSub.Encoding
             }
         }
 
-        private void WriteVariantIntoObject(string fieldName, Variant value)
+        private void WriteVariantIntoObject(string? fieldName, Variant value)
         {
-            object boxed = value.AsBoxedObject();
+            object? boxed = value.AsBoxedObject();
             if (boxed is null)
             {
                 return;
@@ -1679,7 +1679,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Writes an DataValue array to the stream.
         /// </summary>
-        public void WriteDataValue(string fieldName, DataValue value)
+        public void WriteDataValue(string? fieldName, DataValue? value)
         {
             bool isNull = value == null;
 
@@ -1692,7 +1692,7 @@ namespace Opc.Ua.PubSub.Encoding
 
             if (!isNull)
             {
-                if (!value.WrappedValue.TypeInfo.IsUnknown &&
+                if (!value!.WrappedValue.TypeInfo.IsUnknown &&
                     value.WrappedValue.TypeInfo.BuiltInType != BuiltInType.Null)
                 {
                     if (EncodingToUse is not PubSubJsonEncoding.Compact and not PubSubJsonEncoding.Verbose)
@@ -1746,7 +1746,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Writes an ExtensionObject to the stream.
         /// </summary>
-        public void WriteExtensionObject(string fieldName, ExtensionObject value)
+        public void WriteExtensionObject(string? fieldName, ExtensionObject value)
         {
             bool isNull = value.IsNull || value.Encoding == ExtensionObjectEncoding.None;
 
@@ -1803,7 +1803,7 @@ namespace Opc.Ua.PubSub.Encoding
 
                     encodeable.Encode(this);
                 }
-                else if (value.TryGetAsJson(out string text))
+                else if (value.TryGetAsJson(out string? text))
                 {
                     if (!SuppressArtifacts && !localTypeId.IsNull)
                     {
@@ -1842,11 +1842,11 @@ namespace Opc.Ua.PubSub.Encoding
 
             if (encodeable != null)
             {
-                WriteEncodeable("Body", encodeable, null);
+                WriteEncodeable("Body", encodeable, null!);
             }
-            else if (value.TryGetAsJson(out string text))
+            else if (value.TryGetAsJson(out string? text))
             {
-                m_writer.Write(text.Trim()[1..^1]);
+                m_writer.Write(text!.Trim()[1..^1]);
             }
             else
             {
@@ -1862,7 +1862,7 @@ namespace Opc.Ua.PubSub.Encoding
                 }
                 else if (value.Encoding == ExtensionObjectEncoding.Json)
                 {
-                    WriteSimpleField("Body", value.TryGetAsJson(out string j) ? j : default);
+                    WriteSimpleField("Body", value.TryGetAsJson(out string? j) ? j! : default);
                 }
             }
 
@@ -1873,7 +1873,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// Writes an encodeable object to the stream.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public void WriteEncodeable(string fieldName, IEncodeable value, Type systemType)
+        public void WriteEncodeable(string? fieldName, IEncodeable value, Type systemType)
         {
             bool isNull = value == null;
 
@@ -1923,7 +1923,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Writes an enumerated value to the stream.
         /// </summary>
-        public void WriteEnumerated(string fieldName, Enum value)
+        public void WriteEnumerated(string? fieldName, Enum value)
         {
             int numeric = Convert.ToInt32(value, CultureInfo.InvariantCulture);
             string numericString = numeric.ToString(CultureInfo.InvariantCulture);
@@ -1944,7 +1944,7 @@ namespace Opc.Ua.PubSub.Encoding
                 {
                     WriteSimpleField(
                         fieldName,
-                        Utils.Format("{0}_{1}", valueString, numeric),
+                        Utils.Format("{0}_{1}", valueString!, numeric),
                         EscapeOptions.Quotes);
                 }
             }
@@ -1953,7 +1953,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Writes an enumerated EnumValue value to the stream.
         /// </summary>
-        public void WriteEnumerated(string fieldName, EnumValue value)
+        public void WriteEnumerated(string? fieldName, EnumValue value)
         {
             int numeric = value.Value;
             string numericString = numeric.ToString(CultureInfo.InvariantCulture);
@@ -1964,7 +1964,7 @@ namespace Opc.Ua.PubSub.Encoding
             }
             else
             {
-                string valueString = value.Symbol;
+                string? valueString = value.Symbol;
 
                 if (string.IsNullOrEmpty(valueString) || valueString == numericString)
                 {
@@ -1974,7 +1974,7 @@ namespace Opc.Ua.PubSub.Encoding
                 {
                     WriteSimpleField(
                         fieldName,
-                        Utils.Format("{0}_{1}", valueString, numeric),
+                        Utils.Format("{0}_{1}", valueString!, numeric),
                         EscapeOptions.Quotes);
                 }
             }
@@ -1984,7 +1984,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// Writes a boolean array to the stream.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public void WriteBooleanArray(string fieldName, ArrayOf<bool> values)
+        public void WriteBooleanArray(string? fieldName, ArrayOf<bool> values)
         {
             if (CheckForSimpleFieldNull(fieldName, values))
             {
@@ -2008,7 +2008,7 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <inheritdoc/>
-        public void WriteSByteArray(string fieldName, ArrayOf<sbyte> values)
+        public void WriteSByteArray(string? fieldName, ArrayOf<sbyte> values)
         {
             if (CheckForSimpleFieldNull(fieldName, values))
             {
@@ -2032,7 +2032,7 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <inheritdoc/>
-        public void WriteByteArray(string fieldName, ArrayOf<byte> values)
+        public void WriteByteArray(string? fieldName, ArrayOf<byte> values)
         {
             if (CheckForSimpleFieldNull(fieldName, values))
             {
@@ -2056,7 +2056,7 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <inheritdoc/>
-        public void WriteInt16Array(string fieldName, ArrayOf<short> values)
+        public void WriteInt16Array(string? fieldName, ArrayOf<short> values)
         {
             if (CheckForSimpleFieldNull(fieldName, values))
             {
@@ -2080,7 +2080,7 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <inheritdoc/>
-        public void WriteUInt16Array(string fieldName, ArrayOf<ushort> values)
+        public void WriteUInt16Array(string? fieldName, ArrayOf<ushort> values)
         {
             if (CheckForSimpleFieldNull(fieldName, values))
             {
@@ -2104,7 +2104,7 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <inheritdoc/>
-        public void WriteInt32Array(string fieldName, ArrayOf<int> values)
+        public void WriteInt32Array(string? fieldName, ArrayOf<int> values)
         {
             if (CheckForSimpleFieldNull(fieldName, values))
             {
@@ -2128,7 +2128,7 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <inheritdoc/>
-        public void WriteUInt32Array(string fieldName, ArrayOf<uint> values)
+        public void WriteUInt32Array(string? fieldName, ArrayOf<uint> values)
         {
             if (CheckForSimpleFieldNull(fieldName, values))
             {
@@ -2152,7 +2152,7 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <inheritdoc/>
-        public void WriteInt64Array(string fieldName, ArrayOf<long> values)
+        public void WriteInt64Array(string? fieldName, ArrayOf<long> values)
         {
             if (CheckForSimpleFieldNull(fieldName, values))
             {
@@ -2176,7 +2176,7 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <inheritdoc/>
-        public void WriteUInt64Array(string fieldName, ArrayOf<ulong> values)
+        public void WriteUInt64Array(string? fieldName, ArrayOf<ulong> values)
         {
             if (CheckForSimpleFieldNull(fieldName, values))
             {
@@ -2200,7 +2200,7 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <inheritdoc/>
-        public void WriteFloatArray(string fieldName, ArrayOf<float> values)
+        public void WriteFloatArray(string? fieldName, ArrayOf<float> values)
         {
             if (CheckForSimpleFieldNull(fieldName, values))
             {
@@ -2224,7 +2224,7 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <inheritdoc/>
-        public void WriteDoubleArray(string fieldName, ArrayOf<double> values)
+        public void WriteDoubleArray(string? fieldName, ArrayOf<double> values)
         {
             if (CheckForSimpleFieldNull(fieldName, values))
             {
@@ -2248,7 +2248,7 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <inheritdoc/>
-        public void WriteStringArray(string fieldName, ArrayOf<string> values)
+        public void WriteStringArray(string? fieldName, ArrayOf<string> values)
         {
             if (CheckForSimpleFieldNull(fieldName, values))
             {
@@ -2272,7 +2272,7 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <inheritdoc/>
-        public void WriteDateTimeArray(string fieldName, ArrayOf<DateTimeUtc> values)
+        public void WriteDateTimeArray(string? fieldName, ArrayOf<DateTimeUtc> values)
         {
             if (CheckForSimpleFieldNull(fieldName, values))
             {
@@ -2303,7 +2303,7 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <inheritdoc/>
-        public void WriteGuidArray(string fieldName, ArrayOf<Uuid> values)
+        public void WriteGuidArray(string? fieldName, ArrayOf<Uuid> values)
         {
             if (CheckForSimpleFieldNull(fieldName, values))
             {
@@ -2327,7 +2327,7 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <inheritdoc/>
-        public void WriteByteStringArray(string fieldName, ArrayOf<ByteString> values)
+        public void WriteByteStringArray(string? fieldName, ArrayOf<ByteString> values)
         {
             if (CheckForSimpleFieldNull(fieldName, values))
             {
@@ -2351,7 +2351,7 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <inheritdoc/>
-        public void WriteXmlElementArray(string fieldName, ArrayOf<XmlElement> values)
+        public void WriteXmlElementArray(string? fieldName, ArrayOf<XmlElement> values)
         {
             if (CheckForSimpleFieldNull(fieldName, values))
             {
@@ -2375,7 +2375,7 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <inheritdoc/>
-        public void WriteNodeIdArray(string fieldName, ArrayOf<NodeId> values)
+        public void WriteNodeIdArray(string? fieldName, ArrayOf<NodeId> values)
         {
             if (CheckForSimpleFieldNull(fieldName, values))
             {
@@ -2399,7 +2399,7 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <inheritdoc/>
-        public void WriteExpandedNodeIdArray(string fieldName, ArrayOf<ExpandedNodeId> values)
+        public void WriteExpandedNodeIdArray(string? fieldName, ArrayOf<ExpandedNodeId> values)
         {
             if (CheckForSimpleFieldNull(fieldName, values))
             {
@@ -2423,7 +2423,7 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <inheritdoc/>
-        public void WriteStatusCodeArray(string fieldName, ArrayOf<StatusCode> values)
+        public void WriteStatusCodeArray(string? fieldName, ArrayOf<StatusCode> values)
         {
             if (CheckForSimpleFieldNull(fieldName, values))
             {
@@ -2454,7 +2454,7 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <inheritdoc/>
-        public void WriteDiagnosticInfoArray(string fieldName, ArrayOf<DiagnosticInfo> values)
+        public void WriteDiagnosticInfoArray(string? fieldName, ArrayOf<DiagnosticInfo> values)
         {
             if (CheckForSimpleFieldNull(fieldName, values))
             {
@@ -2478,7 +2478,7 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <inheritdoc/>
-        public void WriteQualifiedNameArray(string fieldName, ArrayOf<QualifiedName> values)
+        public void WriteQualifiedNameArray(string? fieldName, ArrayOf<QualifiedName> values)
         {
             if (CheckForSimpleFieldNull(fieldName, values))
             {
@@ -2502,7 +2502,7 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <inheritdoc/>
-        public void WriteLocalizedTextArray(string fieldName, ArrayOf<LocalizedText> values)
+        public void WriteLocalizedTextArray(string? fieldName, ArrayOf<LocalizedText> values)
         {
             if (CheckForSimpleFieldNull(fieldName, values))
             {
@@ -2526,7 +2526,7 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <inheritdoc/>
-        public void WriteVariantArray(string fieldName, ArrayOf<Variant> values)
+        public void WriteVariantArray(string? fieldName, ArrayOf<Variant> values)
         {
             if (CheckForSimpleFieldNull(fieldName, values))
             {
@@ -2556,7 +2556,7 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <inheritdoc/>
-        public void WriteDataValueArray(string fieldName, ArrayOf<DataValue> values)
+        public void WriteDataValueArray(string? fieldName, ArrayOf<DataValue> values)
         {
             if (CheckForSimpleFieldNull(fieldName, values))
             {
@@ -2580,7 +2580,7 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <inheritdoc/>
-        public void WriteExtensionObjectArray(string fieldName, ArrayOf<ExtensionObject> values)
+        public void WriteExtensionObjectArray(string? fieldName, ArrayOf<ExtensionObject> values)
         {
             if (CheckForSimpleFieldNull(fieldName, values))
             {
@@ -2608,9 +2608,9 @@ namespace Opc.Ua.PubSub.Encoding
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
         public void WriteEncodeableArray(
-            string fieldName,
+            string? fieldName,
             ArrayOf<IEncodeable> values,
-            Type systemType)
+            Type? systemType)
         {
             if (CheckForSimpleFieldNull(fieldName, values))
             {
@@ -2630,7 +2630,7 @@ namespace Opc.Ua.PubSub.Encoding
 
                 for (int ii = 0; ii < values.Count; ii++)
                 {
-                    WriteEncodeable(null, values[ii], systemType);
+                    WriteEncodeable(null, values[ii], systemType!);
                 }
 
                 PopArray();
@@ -2657,7 +2657,7 @@ namespace Opc.Ua.PubSub.Encoding
 
                 for (int ii = 0; ii < values.Count; ii++)
                 {
-                    WriteEncodeable(null, values[ii], systemType);
+                    WriteEncodeable(null, values[ii], systemType!);
                 }
 
                 PopArray();
@@ -2668,7 +2668,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// Writes an enumerated value array to the stream.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public void WriteEnumeratedArray(string fieldName, Array values, Type systemType)
+        public void WriteEnumeratedArray(string? fieldName, Array? values, Type? systemType)
         {
             if (values == null || values.Length == 0)
             {
@@ -2685,8 +2685,8 @@ namespace Opc.Ua.PubSub.Encoding
             }
 
             // encode each element in the array.
-            Type arrayType = values.GetType().GetElementType();
-            if (arrayType.IsEnum)
+            Type? arrayType = values.GetType().GetElementType();
+            if (arrayType!.IsEnum)
             {
                 foreach (Enum value in values)
                 {
@@ -2701,7 +2701,7 @@ namespace Opc.Ua.PubSub.Encoding
                         StatusCodes.BadEncodingError,
                         Utils.Format(
                             "Type '{0}' is not allowed in an Enumeration.",
-                            arrayType.FullName));
+                            arrayType.FullName!));
                 }
                 foreach (int value in values)
                 {
@@ -2804,7 +2804,7 @@ namespace Opc.Ua.PubSub.Encoding
                         {
                             WriteEnumeratedArray(
                                 fieldName,
-                                (Array)array,
+                                (Array?)array,
                                 array?.GetType().GetElementType());
                             return;
                         }
@@ -2815,7 +2815,7 @@ namespace Opc.Ua.PubSub.Encoding
                     case BuiltInType.Variant:
                         if (array is null or Variant[])
                         {
-                            WriteVariantArray(fieldName, (Variant[])array);
+                            WriteVariantArray(fieldName, (Variant[])array!);
                             return;
                         }
 
@@ -2825,7 +2825,7 @@ namespace Opc.Ua.PubSub.Encoding
                             WriteEncodeableArray(
                                 fieldName,
                                 encodeableArray,
-                                array.GetType().GetElementType());
+                                array.GetType().GetElementType()!);
                             return;
                         }
 
@@ -2848,8 +2848,8 @@ namespace Opc.Ua.PubSub.Encoding
                         {
                             WriteEncodeableArray(
                                 fieldName,
-                                (IEncodeable[])array,
-                                array?.GetType().GetElementType());
+                                (IEncodeable[])array!,
+                                array?.GetType().GetElementType()!);
                             return;
                         }
                         throw ServiceResultException.Create(
@@ -2971,55 +2971,55 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <inheritdoc/>
-        public void WriteEncodeable<T>(string fieldName, T value) where T : IEncodeable, new()
+        public void WriteEncodeable<T>(string? fieldName, T value) where T : IEncodeable, new()
         {
             WriteEncodeable(fieldName, value, typeof(T));
         }
 
         /// <inheritdoc/>
-        public void WriteEncodeable<T>(string fieldName, T value, ExpandedNodeId encodeableTypeId) where T : IEncodeable
+        public void WriteEncodeable<T>(string? fieldName, T value, ExpandedNodeId encodeableTypeId) where T : IEncodeable
         {
             WriteEncodeable(fieldName, value, typeof(T));
         }
 
         /// <inheritdoc/>
-        public void WriteEncodeableAsExtensionObject<T>(string fieldName, T value) where T : IEncodeable
+        public void WriteEncodeableAsExtensionObject<T>(string? fieldName, T value) where T : IEncodeable
         {
             WriteExtensionObject(fieldName, new ExtensionObject(value));
         }
 
         /// <inheritdoc/>
-        public void WriteEnumerated<T>(string fieldName, T value) where T : struct, Enum
+        public void WriteEnumerated<T>(string? fieldName, T value) where T : struct, Enum
         {
             WriteEnumerated(fieldName, (Enum)value);
         }
 
         /// <inheritdoc/>
-        public void WriteEncodeableArray<T>(string fieldName, ArrayOf<T> values) where T : IEncodeable, new()
+        public void WriteEncodeableArray<T>(string? fieldName, ArrayOf<T> values) where T : IEncodeable, new()
         {
             WriteEncodeableArray(fieldName, values.ConvertAll(d => (IEncodeable)d), typeof(T));
         }
 
         /// <inheritdoc/>
-        public void WriteEncodeableArray<T>(string fieldName, ArrayOf<T> values, ExpandedNodeId encodeableTypeId) where T : IEncodeable
+        public void WriteEncodeableArray<T>(string? fieldName, ArrayOf<T> values, ExpandedNodeId encodeableTypeId) where T : IEncodeable
         {
             WriteEncodeableArray(fieldName, values.ConvertAll(d => (IEncodeable)d), typeof(T));
         }
 
         /// <inheritdoc/>
-        public void WriteEncodeableArrayAsExtensionObjects<T>(string fieldName, ArrayOf<T> values) where T : IEncodeable
+        public void WriteEncodeableArrayAsExtensionObjects<T>(string? fieldName, ArrayOf<T> values) where T : IEncodeable
         {
             WriteExtensionObjectArray(fieldName, values.ConvertAll(d => new ExtensionObject(d)));
         }
 
         /// <inheritdoc/>
-        public void WriteEnumeratedArray<T>(string fieldName, ArrayOf<T> values) where T : struct, Enum
+        public void WriteEnumeratedArray<T>(string? fieldName, ArrayOf<T> values) where T : struct, Enum
         {
             WriteEnumeratedArray(fieldName, values.ToArray(), typeof(T));
         }
 
         /// <inheritdoc/>
-        public void WriteEnumeratedArray(string fieldName, ArrayOf<EnumValue> values)
+        public void WriteEnumeratedArray(string? fieldName, ArrayOf<EnumValue> values)
         {
             if (values.IsEmpty)
             {
@@ -3045,17 +3045,17 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <inheritdoc/>
-        public void WriteVariantValue(string fieldName, Variant value)
+        public void WriteVariantValue(string? fieldName, Variant value)
         {
         }
 
         /// <inheritdoc/>
-        public void WriteEncodeableMatrix<T>(string fieldName, MatrixOf<T> values) where T : IEncodeable, new()
+        public void WriteEncodeableMatrix<T>(string? fieldName, MatrixOf<T> values) where T : IEncodeable, new()
         {
         }
 
         /// <inheritdoc/>
-        public void WriteEncodeableMatrix<T>(string fieldName, MatrixOf<T> values, ExpandedNodeId encodeableTypeId) where T : IEncodeable
+        public void WriteEncodeableMatrix<T>(string? fieldName, MatrixOf<T> values, ExpandedNodeId encodeableTypeId) where T : IEncodeable
         {
         }
 
@@ -3063,7 +3063,7 @@ namespace Opc.Ua.PubSub.Encoding
         {
             if (value is ExtensionObject eo)
             {
-                value = eo.Body;
+                value = eo.Body!;
             }
 
             if (value is IEncodeable encodeable)
@@ -3122,7 +3122,7 @@ namespace Opc.Ua.PubSub.Encoding
 
         private void WriteRawValueContents(FieldMetaData field, DataValue dv, bool dimensionsInline)
         {
-            object value = dv.WrappedValue.AsBoxedObject(Variant.BoxingBehavior.LegacyWithMatrix);
+            object? value = dv.WrappedValue.AsBoxedObject(Variant.BoxingBehavior.LegacyWithMatrix);
             TypeInfo typeInfo = dv.WrappedValue.TypeInfo;
 
             if (dv.WrappedValue == Variant.Null)
@@ -3157,7 +3157,7 @@ namespace Opc.Ua.PubSub.Encoding
             {
                 if (field.BuiltInType == (byte)BuiltInType.ExtensionObject)
                 {
-                    WriteRawExtensionObject(value);
+                    WriteRawExtensionObject(value!);
                     return;
                 }
             }
@@ -3259,7 +3259,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// Writes the contents of a Variant to the stream.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public void WriteVariantContents(object value, TypeInfo typeInfo)
+        public void WriteVariantContents(object? value, TypeInfo typeInfo)
         {
             bool inVariantWithEncoding = m_inVariantWithEncoding;
             try
@@ -3376,7 +3376,7 @@ namespace Opc.Ua.PubSub.Encoding
                         value = matrix.Elements;
                         valueRank = ValueRanks.OneDimension;
                     }
-                    WriteArray(null, value, valueRank, typeInfo.BuiltInType);
+                    WriteArray(null!, value, valueRank, typeInfo.BuiltInType);
                 }
             }
             finally
@@ -3389,7 +3389,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// Writes a Variant array to the stream.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public void WriteObjectArray(string fieldName, ArrayOf<object> values)
+        public void WriteObjectArray(string? fieldName, ArrayOf<object> values)
         {
             if (CheckForSimpleFieldNull(fieldName, values))
             {
@@ -3460,7 +3460,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// Writes an StatusCode to the stream.
         /// </summary>
         private void WriteStatusCode(
-            string fieldName,
+            string? fieldName,
             StatusCode value,
             EscapeOptions escapeOptions)
         {
@@ -3477,7 +3477,7 @@ namespace Opc.Ua.PubSub.Encoding
                 return;
             }
 
-            PushStructure(fieldName, escapeOptions);
+            PushStructure(fieldName!, escapeOptions);
 
             if (!isNull)
             {
@@ -3485,7 +3485,7 @@ namespace Opc.Ua.PubSub.Encoding
 
                 if (EncodingToUse is PubSubJsonEncoding.NonReversible or PubSubJsonEncoding.Verbose)
                 {
-                    string symbolicId = value.SymbolicId;
+                    string? symbolicId = value.SymbolicId;
                     if (!string.IsNullOrEmpty(symbolicId))
                     {
                         WriteSimpleField(
@@ -3502,7 +3502,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Writes a UTC date/time to the stream. Reduce escape overhead for fieldname.
         /// </summary>
-        private void WriteDateTime(string fieldName, DateTimeUtc value, EscapeOptions escapeOptions)
+        private void WriteDateTime(string? fieldName, DateTimeUtc value, EscapeOptions escapeOptions)
         {
             if (fieldName != null && !IncludeDefaultValues && value == DateTimeUtc.MinValue)
             {
@@ -3541,7 +3541,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// Returns true if a simple field can be written.
         /// </summary>
         /// <typeparam name="T"></typeparam>
-        private bool CheckForSimpleFieldNull<T>(string fieldName, ArrayOf<T> values)
+        private bool CheckForSimpleFieldNull<T>(string? fieldName, ArrayOf<T> values)
         {
             // always include default values for non reversible/verbose
             // include default values when encoding in a Variant
@@ -3595,7 +3595,7 @@ namespace Opc.Ua.PubSub.Encoding
             if (dispose)
             {
                 m_writer.Dispose();
-                m_writer = null;
+                m_writer = null!;
             }
             return length;
         }
@@ -3605,7 +3605,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// Ignores InnerDiagnosticInfo field if the nesting level
         /// <see cref="DiagnosticInfo.MaxInnerDepth"/> is exceeded.
         /// </summary>
-        private void WriteDiagnosticInfo(string fieldName, DiagnosticInfo value, int depth)
+        private void WriteDiagnosticInfo(string? fieldName, DiagnosticInfo? value, int depth)
         {
             bool isNull = value == null || value.IsNullDiagnosticInfo;
 
@@ -3761,7 +3761,7 @@ namespace Opc.Ua.PubSub.Encoding
                 {
                     // Create a slice of values for the top dimension
                     var copy = Array.CreateInstance(
-                        matrix.Elements.GetType().GetElementType(),
+                        matrix.Elements.GetType().GetElementType()!,
                         arrayLen);
                     Array.Copy(matrix.Elements, index, copy, 0, arrayLen);
                     // Write slice as value rank
@@ -3777,7 +3777,7 @@ namespace Opc.Ua.PubSub.Encoding
                     PushArray(fieldName);
                     for (int i = 0; i < arrayLen; i++)
                     {
-                        WriteStructureMatrix(null, matrix, dim + 1, ref index, typeInfo);
+                        WriteStructureMatrix(null!, matrix, dim + 1, ref index, typeInfo);
                     }
                     PopArray();
                 }

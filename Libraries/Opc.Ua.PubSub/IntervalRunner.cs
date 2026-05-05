@@ -49,13 +49,13 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// event used to cancel run
         /// </summary>
-        private CancellationTokenSource m_cancellationToken = new();
+        private CancellationTokenSource? m_cancellationToken = new();
 
         /// <summary>
         /// Create new instance of <see cref="IntervalRunner"/>.
         /// </summary>
         public IntervalRunner(
-            object id,
+            object? id,
             double interval,
             Func<bool> canExecuteFunc,
             Func<Task> intervalActionAsync,
@@ -71,7 +71,7 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// Identifier of current IntervalRunner
         /// </summary>
-        public object Id { get; }
+        public object? Id { get; }
 
         /// <summary>
         /// Get/set the Interval between Runs in milliseconds
@@ -110,7 +110,10 @@ namespace Opc.Ua.PubSub
         {
             lock (m_lock)
             {
-                if (m_cancellationToken.IsCancellationRequested)
+                // m_cancellationToken is only null after Dispose; the existing contract
+                // assumes Start is not called after Dispose (latent NRE preserved).
+                // TODO: Consider adding ObjectDisposedException check after Dispose.
+                if (m_cancellationToken!.IsCancellationRequested)
                 {
                     m_cancellationToken.Dispose();
                     m_cancellationToken = new CancellationTokenSource();
@@ -167,7 +170,9 @@ namespace Opc.Ua.PubSub
             {
                 m_nextPublishTick = HiResClock.Ticks;
             }
-            while (!m_cancellationToken.IsCancellationRequested)
+            // m_cancellationToken is only null after Dispose; ProcessAsync is started
+            // by Start before Dispose can be reached in normal usage.
+            while (!m_cancellationToken!.IsCancellationRequested)
             {
                 long nowTick = HiResClock.Ticks;
                 double nextPublishTick = 0;

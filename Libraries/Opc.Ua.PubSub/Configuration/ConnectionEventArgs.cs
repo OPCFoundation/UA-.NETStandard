@@ -44,6 +44,6 @@ namespace Opc.Ua.PubSub.Configuration
         /// <summary>
         /// Reference to <see cref="PubSubConnectionDataType"/> object
         /// </summary>
-        public PubSubConnectionDataType PubSubConnectionDataType { get; set; }
+        public PubSubConnectionDataType PubSubConnectionDataType { get; set; } = null!;
     }
 }

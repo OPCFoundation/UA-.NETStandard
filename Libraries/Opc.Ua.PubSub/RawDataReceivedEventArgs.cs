@@ -44,12 +44,12 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// Get/Set the message bytes
         /// </summary>
-        public byte[] Message { get; set; }
+        public byte[] Message { get; set; } = null!;
 
         /// <summary>
         /// Get/Set the message Source
         /// </summary>
-        public string Source { get; set; }
+        public string Source { get; set; } = null!;
 
         /// <summary>
         /// Get/Set the TransportProtocol for the message that was received
@@ -64,6 +64,6 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// Get/Set the PubSubConnection Configuration object for the connection that received this message
         /// </summary>
-        public PubSubConnectionDataType PubSubConnectionConfiguration { get; set; }
+        public PubSubConnectionDataType PubSubConnectionConfiguration { get; set; } = null!;
     }
 }

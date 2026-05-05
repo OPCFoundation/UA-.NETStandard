@@ -49,6 +49,6 @@ namespace Opc.Ua.PubSub.Configuration
         /// <summary>
         /// Reference to <see cref="DataSetReaderDataType"/> object
         /// </summary>
-        public DataSetReaderDataType DataSetReaderDataType { get; set; }
+        public DataSetReaderDataType DataSetReaderDataType { get; set; } = null!;
     }
 }

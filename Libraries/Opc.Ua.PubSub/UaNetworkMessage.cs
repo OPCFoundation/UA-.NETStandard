@@ -44,12 +44,12 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// The Default event for an error encountered during decoding the dataset messages
         /// </summary>
-        public event EventHandler<DataSetDecodeErrorEventArgs> DataSetDecodeErrorOccurred;
+        public event EventHandler<DataSetDecodeErrorEventArgs>? DataSetDecodeErrorOccurred;
 
         /// <summary>
         /// The DataSetMetaData
         /// </summary>
-        protected DataSetMetaDataType m_metadata;
+        protected DataSetMetaDataType? m_metadata;
 
         /// <summary>
         /// List of DataSet messages
@@ -70,7 +70,7 @@ namespace Opc.Ua.PubSub
         protected UaNetworkMessage(
             WriterGroupDataType writerGroupConfiguration,
             List<UaDataSetMessage> uaDataSetMessages,
-            ILogger logger = null)
+            ILogger? logger = null)
         {
             WriterGroupConfiguration = writerGroupConfiguration;
             m_uaDataSetMessages = uaDataSetMessages;
@@ -84,7 +84,7 @@ namespace Opc.Ua.PubSub
         protected UaNetworkMessage(
             WriterGroupDataType writerGroupConfiguration,
             DataSetMetaDataType metadata,
-            ILogger logger = null)
+            ILogger? logger = null)
         {
             WriterGroupConfiguration = writerGroupConfiguration;
             m_uaDataSetMessages = [];
@@ -127,7 +127,7 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// DataSetMetaData messages
         /// </summary>
-        public DataSetMetaDataType DataSetMetaData => m_metadata;
+        public DataSetMetaDataType? DataSetMetaData => m_metadata;
 
         /// <summary>
         /// TRUE if it is a metadata message.

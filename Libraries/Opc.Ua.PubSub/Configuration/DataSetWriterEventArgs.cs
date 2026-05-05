@@ -49,6 +49,6 @@ namespace Opc.Ua.PubSub.Configuration
         /// <summary>
         /// Reference to <see cref="DataSetWriterDataType"/> object
         /// </summary>
-        public DataSetWriterDataType DataSetWriterDataType { get; set; }
+        public DataSetWriterDataType DataSetWriterDataType { get; set; } = null!;
     }
 }

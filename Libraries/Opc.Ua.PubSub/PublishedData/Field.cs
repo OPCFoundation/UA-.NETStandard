@@ -39,7 +39,7 @@ namespace Opc.Ua.PubSub.PublishedData
         /// <summary>
         /// Get/Set Value
         /// </summary>
-        public DataValue Value { get; set; }
+        public DataValue? Value { get; set; }
 
         /// <summary>
         /// Get/Set Target NodeId
@@ -54,7 +54,7 @@ namespace Opc.Ua.PubSub.PublishedData
         /// <summary>
         /// Get configured <see cref="FieldMetaData"/> object for this <see cref="Field"/> instance.
         /// </summary>
-        public FieldMetaData FieldMetaData { get; internal set; }
+        public FieldMetaData? FieldMetaData { get; internal set; }
 
         /// <inheritdoc/>
         public virtual object Clone()
@@ -77,7 +77,8 @@ namespace Opc.Ua.PubSub.PublishedData
             {
                 copy.FieldMetaData = CoreUtils.Clone(FieldMetaData);
             }
-            return copy;
+            // base.MemberwiseClone() always returns a non-null Field instance.
+            return copy!;
         }
     }
 }

@@ -55,7 +55,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// Create new instance of UadpNetworkMessage
         /// </summary>
         internal UadpNetworkMessage(ILogger logger)
-            : this(null, [], logger)
+            : this(null!, [], logger)
         {
         }
 
@@ -68,7 +68,7 @@ namespace Opc.Ua.PubSub.Encoding
         public UadpNetworkMessage(
             WriterGroupDataType writerGroupConfiguration,
             List<UadpDataSetMessage> uadpDataSetMessages,
-            ILogger logger = null)
+            ILogger? logger = null)
             : base(
                 writerGroupConfiguration,
                 uadpDataSetMessages?.ConvertAll<UaDataSetMessage>(x => x) ?? [],
@@ -87,7 +87,7 @@ namespace Opc.Ua.PubSub.Encoding
         public UadpNetworkMessage(
             WriterGroupDataType writerGroupConfiguration,
             DataSetMetaDataType metadata,
-            ILogger logger = null)
+            ILogger? logger = null)
             : base(writerGroupConfiguration, metadata, logger)
         {
             UADPVersion = kUadpVersion;
@@ -105,8 +105,8 @@ namespace Opc.Ua.PubSub.Encoding
         /// </summary>
         public UadpNetworkMessage(
             UADPNetworkMessageDiscoveryType discoveryType,
-            ILogger logger = null)
-            : base(null, [], logger)
+            ILogger? logger = null)
+            : base(null!, [], logger)
         {
             UADPVersion = kUadpVersion;
             DataSetClassId = Uuid.Empty;
@@ -124,8 +124,8 @@ namespace Opc.Ua.PubSub.Encoding
         public UadpNetworkMessage(
             EndpointDescription[] publisherEndpoints,
             StatusCode publisherProvidesEndpoints,
-            ILogger logger = null)
-            : base(null, [], logger)
+            ILogger? logger = null)
+            : base(null!, [], logger)
         {
             UADPVersion = kUadpVersion;
             DataSetClassId = Uuid.Empty;
@@ -147,8 +147,8 @@ namespace Opc.Ua.PubSub.Encoding
             ushort[] writerIds,
             WriterGroupDataType writerConfig,
             StatusCode[] streamStatusCodes,
-            ILogger logger = null)
-            : base(null, [], logger)
+            ILogger? logger = null)
+            : base(null!, [], logger)
         {
             UADPVersion = kUadpVersion;
             DataSetClassId = Uuid.Empty;
@@ -182,17 +182,17 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Get/Set the StatusCodes
         /// </summary>
-        public StatusCode[] MessageStatusCodes { get; set; }
+        public StatusCode[]? MessageStatusCodes { get; set; }
 
         /// <summary>
         /// Get the DataSetWriterConfig
         /// </summary>
-        public WriterGroupDataType DataSetWriterConfiguration { get; set; }
+        public WriterGroupDataType? DataSetWriterConfiguration { get; set; }
 
         /// <summary>
         /// Discovery DataSetWriter Identifiers
         /// </summary>
-        public ushort[] DataSetWriterIds { get; set; }
+        public ushort[]? DataSetWriterIds { get; set; }
 
         /// <summary>
         /// Get and Set Uadp version
@@ -331,7 +331,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Get and Set MessageNonce contains [NonceLength]
         /// </summary>
-        public byte[] MessageNonce { get; set; }
+        public byte[]? MessageNonce { get; set; }
 
         /// <summary>
         /// Get and Set SecurityFooterSize
@@ -341,12 +341,12 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Get and Set SecurityFooter
         /// </summary>
-        public byte[] SecurityFooter { get; set; }
+        public byte[]? SecurityFooter { get; set; }
 
         /// <summary>
         /// Get and Set Signature
         /// </summary>
-        public byte[] Signature { get; set; }
+        public byte[]? Signature { get; set; }
 
         /// <summary>
         /// Discovery Publisher Endpoints message
@@ -480,7 +480,7 @@ namespace Opc.Ua.PubSub.Encoding
                 m_logger.LogInformation(
                     "The UADP DiscoveryResponse DataSetMetaData message cannot be encoded: The MetaData property is missing. Value null will be used.");
             }
-            binaryEncoder.WriteEncodeable("MetaData", m_metadata);
+            binaryEncoder.WriteEncodeable("MetaData", m_metadata!);
 
             binaryEncoder.WriteStatusCode("StatusCode", StatusCodes.Good);
         }
@@ -510,10 +510,10 @@ namespace Opc.Ua.PubSub.Encoding
             {
                 binaryEncoder.WriteEncodeable(
                     "DataSetWriterConfiguration",
-                    DataSetWriterConfiguration);
+                    DataSetWriterConfiguration!);
             }
 
-            binaryEncoder.WriteStatusCodeArray("StatusCodes", MessageStatusCodes);
+            binaryEncoder.WriteStatusCodeArray("StatusCodes", MessageStatusCodes!);
         }
 
         /// <summary>
@@ -868,7 +868,7 @@ namespace Opc.Ua.PubSub.Encoding
             DataSetWriterIds = [.. binaryDecoder.ReadUInt16Array("DataSetWriterIds")];
 
             WriterGroupDataType dataSetWriterConfigurationDecoded =
-                binaryDecoder.ReadEncodeable<WriterGroupDataType>("DataSetWriterConfiguration");
+                binaryDecoder.ReadEncodeable<WriterGroupDataType>("DataSetWriterConfiguration")!;
 
             DataSetWriterConfiguration =
                 dataSetWriterConfigurationDecoded.MaxNetworkMessageSize != 0
@@ -1101,7 +1101,7 @@ namespace Opc.Ua.PubSub.Encoding
         {
             if ((SecurityFlags & SecurityFlagsEncodingMask.SecurityFooter) != 0)
             {
-                encoder.WriteByteArray("SecurityFooter", SecurityFooter);
+                encoder.WriteByteArray("SecurityFooter", SecurityFooter!);
             }
         }
 
@@ -1134,7 +1134,7 @@ namespace Opc.Ua.PubSub.Encoding
         {
             // RequestType => InformationType
             binaryEncoder.WriteByte("RequestType", (byte)UADPDiscoveryType);
-            binaryEncoder.WriteUInt16Array("DataSetWriterIds", DataSetWriterIds);
+            binaryEncoder.WriteUInt16Array("DataSetWriterIds", DataSetWriterIds!);
         }
 
         /// <summary>
@@ -1194,7 +1194,7 @@ namespace Opc.Ua.PubSub.Encoding
                         m_publisherId = decoder.ReadUInt64("PublisherId");
                         break;
                     case PublisherIdTypeEncodingMask.String:
-                        m_publisherId = decoder.ReadString("PublisherId");
+                        m_publisherId = decoder.ReadString("PublisherId")!;
                         break;
                     case PublisherIdTypeEncodingMask.Byte:
                         m_publisherId = decoder.ReadByte("PublisherId");
@@ -1364,7 +1364,7 @@ namespace Opc.Ua.PubSub.Encoding
         {
             UADPDiscoveryType = (UADPNetworkMessageDiscoveryType)binaryDecoder.ReadByte(
                 "RequestType");
-            DataSetWriterIds = binaryDecoder.ReadUInt16Array("DataSetWriterIds").ToArray();
+            DataSetWriterIds = binaryDecoder.ReadUInt16Array("DataSetWriterIds")!.ToArray();
         }
 
         /// <summary>

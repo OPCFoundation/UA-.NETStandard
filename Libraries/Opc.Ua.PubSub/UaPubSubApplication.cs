@@ -50,33 +50,33 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// Event that is triggered when the <see cref="UaPubSubApplication"/> receives a message via its active connections
         /// </summary>
-        public event EventHandler<RawDataReceivedEventArgs> RawDataReceived;
+        public event EventHandler<RawDataReceivedEventArgs>? RawDataReceived;
 
         /// <summary>
         /// Event that is triggered when the <see cref="UaPubSubApplication"/> receives and decodes subscribed DataSets
         /// </summary>
-        public event EventHandler<SubscribedDataEventArgs> DataReceived;
+        public event EventHandler<SubscribedDataEventArgs>? DataReceived;
 
         /// <summary>
         /// Event that is triggered when the <see cref="UaPubSubApplication"/> receives and decodes subscribed DataSet MetaData
         /// </summary>
-        public event EventHandler<SubscribedDataEventArgs> MetaDataReceived;
+        public event EventHandler<SubscribedDataEventArgs>? MetaDataReceived;
 
         /// <summary>
         /// Event that is triggered when the <see cref="UaPubSubApplication"/> receives and decodes subscribed DataSet PublisherEndpoints
         /// </summary>
-        public event EventHandler<PublisherEndpointsEventArgs> PublisherEndpointsReceived;
+        public event EventHandler<PublisherEndpointsEventArgs>? PublisherEndpointsReceived;
 
         /// <summary>
         /// Event that is triggered before the configuration is updated with a new MetaData
         /// The configuration will not be updated if <see cref="ConfigurationUpdatingEventArgs.Cancel"/> flag is set on true.
         /// </summary>
-        public event EventHandler<ConfigurationUpdatingEventArgs> ConfigurationUpdating;
+        public event EventHandler<ConfigurationUpdatingEventArgs>? ConfigurationUpdating;
 
         /// <summary>
         /// Event that is triggered when the <see cref="UaPubSubApplication"/> receives and decodes subscribed DataSet MetaData
         /// </summary>
-        public event EventHandler<DataSetWriterConfigurationEventArgs> DataSetWriterConfigurationReceived;
+        public event EventHandler<DataSetWriterConfigurationEventArgs>? DataSetWriterConfigurationReceived;
 
         /// <summary>
         /// Raised when the MQTT broker certificate is validated.
@@ -84,7 +84,7 @@ namespace Opc.Ua.PubSub
         /// <returns>
         /// Returns whether the broker certificate is valid and trusted.
         /// </returns>
-        public ValidateBrokerCertificateHandler OnValidateBrokerCertificate;
+        public ValidateBrokerCertificateHandler? OnValidateBrokerCertificate;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="UaPubSubApplication"/> class.
@@ -95,8 +95,8 @@ namespace Opc.Ua.PubSub
         /// <param name="applicationId"> The application id for instance.</param>
         private UaPubSubApplication(
             ITelemetryContext telemetry,
-            IUaPubSubDataStore dataStore = null,
-            string applicationId = null)
+            IUaPubSubDataStore? dataStore = null,
+            string? applicationId = null)
         {
             m_logger = telemetry.CreateLogger<UaPubSubApplication>();
             m_uaPubSubConnections = [];
@@ -106,7 +106,7 @@ namespace Opc.Ua.PubSub
 
             if (!string.IsNullOrEmpty(applicationId))
             {
-                ApplicationId = applicationId;
+                ApplicationId = applicationId!;
             }
             else
             {
@@ -186,7 +186,7 @@ namespace Opc.Ua.PubSub
         public static UaPubSubApplication Create(
             string configFilePath,
             ITelemetryContext telemetry,
-            IUaPubSubDataStore dataStore = null)
+            IUaPubSubDataStore? dataStore = null)
         {
             // validate input argument
             if (configFilePath == null)
@@ -214,7 +214,7 @@ namespace Opc.Ua.PubSub
         public static UaPubSubApplication Create(
             ITelemetryContext telemetry)
         {
-            return Create(null, null, telemetry);
+            return Create(null!, null, telemetry);
         }
 
         /// <summary>
@@ -242,7 +242,7 @@ namespace Opc.Ua.PubSub
         /// <returns>New instance of <see cref="UaPubSubApplication"/></returns>
         public static UaPubSubApplication Create(
             PubSubConfigurationDataType pubSubConfiguration,
-            IUaPubSubDataStore dataStore,
+            IUaPubSubDataStore? dataStore,
             ITelemetryContext telemetry)
         {
             // if no argument received, start with empty configuration
@@ -374,7 +374,7 @@ namespace Opc.Ua.PubSub
         /// Handler for PublishedDataSetAdded event
         /// </summary>
         private void UaPubSubConfigurator_PublishedDataSetAdded(
-            object sender,
+            object? sender,
             PublishedDataSetEventArgs e)
         {
             DataCollector.AddPublishedDataSet(e.PublishedDataSetDataType);
@@ -384,7 +384,7 @@ namespace Opc.Ua.PubSub
         /// Handler for PublishedDataSetRemoved event
         /// </summary>
         private void UaPubSubConfigurator_PublishedDataSetRemoved(
-            object sender,
+            object? sender,
             PublishedDataSetEventArgs e)
         {
             DataCollector.RemovePublishedDataSet(e.PublishedDataSetDataType);
@@ -393,9 +393,9 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// Handler for ConnectionRemoved event
         /// </summary>
-        private void UaPubSubConfigurator_ConnectionRemoved(object sender, ConnectionEventArgs e)
+        private void UaPubSubConfigurator_ConnectionRemoved(object? sender, ConnectionEventArgs e)
         {
-            IUaPubSubConnection removedUaPubSubConnection = null;
+            IUaPubSubConnection? removedUaPubSubConnection = null;
             foreach (IUaPubSubConnection connection in m_uaPubSubConnections)
             {
                 if (connection.PubSubConnectionConfiguration.Equals(e.PubSubConnectionDataType))
@@ -414,7 +414,7 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// Handler for ConnectionAdded event
         /// </summary>
-        private void UaPubSubConfigurator_ConnectionAdded(object sender, ConnectionEventArgs e)
+        private void UaPubSubConfigurator_ConnectionAdded(object? sender, ConnectionEventArgs e)
         {
             m_uaPubSubConnections.Add(ObjectFactory.CreateConnection(
                 this,

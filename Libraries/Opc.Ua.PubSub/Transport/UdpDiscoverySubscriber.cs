@@ -125,7 +125,7 @@ namespace Opc.Ua.PubSub.Transport
                 .ToList()
                 .SelectMany(group => group.DataSetReaders.ToList())?
                 .Select(group => group.DataSetWriterId)?
-                .ToArray();
+                .ToArray()!;
 
             var discoveryRequestDataSetWriterConfiguration = new UadpNetworkMessage(
                 UADPNetworkMessageDiscoveryType.DataSetWriterConfiguration,
@@ -135,10 +135,10 @@ namespace Opc.Ua.PubSub.Transport
                 PublisherId = m_udpConnection.PubSubConnectionConfiguration.PublisherId
             };
 
-            byte[] bytes = discoveryRequestDataSetWriterConfiguration.Encode(MessageContext);
+            byte[] bytes = discoveryRequestDataSetWriterConfiguration.Encode(MessageContext!);
 
             // send the Discovery request message to all open UADPClient
-            foreach (UdpClient udpClient in m_discoveryUdpClients)
+            foreach (UdpClient udpClient in m_discoveryUdpClients!)
             {
                 try
                 {
@@ -163,7 +163,7 @@ namespace Opc.Ua.PubSub.Transport
         /// <param name="writerConfig">the configuration</param>
         public void UpdateDataSetWriterConfiguration(WriterGroupDataType writerConfig)
         {
-            WriterGroupDataType writerGroup = m_udpConnection.PubSubConnectionConfiguration
+            WriterGroupDataType? writerGroup = m_udpConnection.PubSubConnectionConfiguration
                 .WriterGroups
                 .ToList()
                 .Find(x => x.WriterGroupId == writerConfig.WriterGroupId);
@@ -189,10 +189,10 @@ namespace Opc.Ua.PubSub.Transport
                 PublisherId = m_udpConnection.PubSubConnectionConfiguration.PublisherId
             };
 
-            byte[] bytes = discoveryRequestPublisherEndpoints.Encode(MessageContext);
+            byte[] bytes = discoveryRequestPublisherEndpoints.Encode(MessageContext!);
 
             // send the PublisherEndpoints DiscoveryRequest message to all open UdpClients
-            foreach (UdpClient udpClient in m_discoveryUdpClients)
+            foreach (UdpClient udpClient in m_discoveryUdpClients!)
             {
                 try
                 {
@@ -219,7 +219,7 @@ namespace Opc.Ua.PubSub.Transport
         /// </summary>
         public void SendDiscoveryRequestDataSetMetaData()
         {
-            ushort[] dataSetWriterIds = null;
+            ushort[]? dataSetWriterIds = null;
             lock (Lock)
             {
                 dataSetWriterIds = [.. m_metadataWriterIdsToSend];
@@ -240,10 +240,10 @@ namespace Opc.Ua.PubSub.Transport
                 PublisherId = m_udpConnection.PubSubConnectionConfiguration.PublisherId
             };
 
-            byte[] bytes = discoveryRequestMetaDataMessage.Encode(MessageContext);
+            byte[] bytes = discoveryRequestMetaDataMessage.Encode(MessageContext!);
 
             // send the DataSetMetaData DiscoveryRequest message to all open UDPClient
-            foreach (UdpClient udpClient in m_discoveryUdpClients)
+            foreach (UdpClient udpClient in m_discoveryUdpClients!)
             {
                 try
                 {

@@ -44,12 +44,12 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// The the configuration object that should receive a <see cref="NewValue"/> in its <see cref="ChangedProperty"/>.
         /// </summary>
-        public object Parent { get; set; }
+        public object Parent { get; set; } = null!;
 
         /// <summary>
         /// The new value that shall be set to the <see cref="Parent"/> in <see cref="ChangedProperty"/> property.
         /// </summary>
-        public object NewValue { get; set; }
+        public object NewValue { get; set; } = null!;
 
         /// <summary>
         /// Flag that indicates if the Configuration update should be canceled.

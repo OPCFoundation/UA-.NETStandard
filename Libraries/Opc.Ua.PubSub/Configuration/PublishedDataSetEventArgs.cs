@@ -44,6 +44,6 @@ namespace Opc.Ua.PubSub.Configuration
         /// <summary>
         /// Reference to <see cref="PublishedDataSetDataType"/> object
         /// </summary>
-        public PublishedDataSetDataType PublishedDataSetDataType { get; set; }
+        public PublishedDataSetDataType PublishedDataSetDataType { get; set; } = null!;
     }
 }

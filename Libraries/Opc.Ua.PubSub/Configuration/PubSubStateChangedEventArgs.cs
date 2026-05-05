@@ -39,7 +39,7 @@ namespace Opc.Ua.PubSub.Configuration
         /// <summary>
         /// Reference to the object whose <see cref="PubSubState"/> was changed
         /// </summary>
-        public object ConfigurationObject { get; set; }
+        public object ConfigurationObject { get; set; } = null!;
 
         /// <summary>
         /// Configuration Id of the object whose <see cref="PubSubState"/> was changed
