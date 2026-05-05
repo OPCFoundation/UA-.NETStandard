@@ -178,8 +178,11 @@ namespace Opc.Ua.Server
             m_sentMessages = storedSubscription.SentMessages;
             m_supportsDurable = m_server.MonitoredItemQueueFactory.SupportsDurableQueues;
             IsDurable = storedSubscription.IsDurable;
-            m_savedOwnerIdentity = new UserIdentity(
-                storedSubscription.UserIdentityToken);
+            // UserIdentityToken is null for anonymous sessions; preserve the saved-owner
+            // identity in that case (the field already supports null).
+            m_savedOwnerIdentity = storedSubscription.UserIdentityToken != null
+                ? new UserIdentity(storedSubscription.UserIdentityToken)
+                : null;
             m_sequenceNumber = storedSubscription.SequenceNumber;
             m_lastSentMessage = storedSubscription.LastSentMessage;
 

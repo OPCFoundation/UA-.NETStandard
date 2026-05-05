@@ -726,7 +726,7 @@ namespace Opc.Ua.Server
                     m_samplingInterval,
                     QueueSize,
                     m_discardOldest,
-                    m_filterToUse,
+                    m_filterToUse!,
                     MonitoringMode);
 
                 InitializeQueue();
@@ -814,7 +814,7 @@ namespace Opc.Ua.Server
                     m_samplingInterval,
                     QueueSize,
                     m_discardOldest,
-                    m_filterToUse,
+                    m_filterToUse!,
                     MonitoringMode);
 
                 InitializeQueue();
@@ -1266,14 +1266,16 @@ namespace Opc.Ua.Server
                             false);
                         e.SetChildValue(systemContext, BrowseNames.SourceName, "Internal", false);
 
-                        // fetch the event fields.
+                        // fetch the event fields. The overflow path is reached only
+                        // when m_eventQueueHandler is active, which guarantees an
+                        // EventFilter has been configured for this monitored item.
                         overflowEvent = GetEventFields(
                             new FilterContext(
                                 m_server.NamespaceUris,
                                 m_server.TypeTree,
                                 Session?.PreferredLocales!,
                                 m_server.Telemetry),
-                            (EventFilter)m_filterToUse,
+                            (EventFilter)m_filterToUse!,
                             e);
                     }
 
@@ -1573,14 +1575,14 @@ namespace Opc.Ua.Server
                 DiscardOldest = m_discardOldest,
                 IsDurable = IsDurable,
                 Encoding = DataEncoding,
-                FilterToUse = m_filterToUse,
+                FilterToUse = m_filterToUse!,
                 Id = Id,
                 IndexRange = m_indexRange!,
                 LastError = m_lastError!,
                 LastValue = m_lastValue!,
                 MonitoringMode = MonitoringMode,
                 NodeId = NodeId,
-                OriginalFilter = Filter,
+                OriginalFilter = Filter!,
                 Range = m_range,
                 TimestampsToReturn = m_timestampsToReturn,
                 TypeMask = MonitoredItemType,

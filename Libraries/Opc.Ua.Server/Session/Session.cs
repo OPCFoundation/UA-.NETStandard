@@ -618,8 +618,9 @@ namespace Opc.Ua.Server
                 }
                 else
                 {
-                    // bind to the new secure channel.
-                    SecureChannelId = context.ChannelContext.SecureChannelId;
+                    // bind to the new secure channel. Activate is invoked from the
+                    // session activation pipeline, which always supplies a channel context.
+                    SecureChannelId = context.ChannelContext!.SecureChannelId;
 
                     TraceState("RE-ACTIVATION");
                 }
@@ -1045,13 +1046,17 @@ namespace Opc.Ua.Server
                 {
                     var securityPolicy = SecurityPolicies.GetInfo(securityPolicyUri!);
 
+                    // ValidateUserIdentityToken runs inside session activation, which
+                    // always carries a channel context.
+                    SecureChannelContext channelContext = context.ChannelContext!;
+
                     byte[] dataToSign = securityPolicy!.GetUserTokenSignatureData(
-                        context.ChannelContext.ChannelThumbprint,
+                        channelContext.ChannelThumbprint,
                         m_serverNonce.Data,
                         m_serverCertificate.RawData,
-                        context.ChannelContext.ServerChannelCertificate,
+                        channelContext.ServerChannelCertificate,
                         ClientCertificate?.RawData,
-                        context.ChannelContext.ClientChannelCertificate,
+                        channelContext.ClientChannelCertificate,
                         ClientNonce.ToArray());
 
                     if (!token.Verify(dataToSign, userTokenSignature, securityPolicyUri!))
@@ -1074,12 +1079,12 @@ namespace Opc.Ua.Server
                             }
 
                             dataToSign = securityPolicy.GetUserTokenSignatureData(
-                                context.ChannelContext.ChannelThumbprint,
+                                channelContext.ChannelThumbprint,
                                 m_serverNonce.Data,
                                 [.. serverCertificateChainList],
-                                context.ChannelContext.ServerChannelCertificate,
+                                channelContext.ServerChannelCertificate,
                                 ClientCertificate?.RawData,
-                                context.ChannelContext.ClientChannelCertificate,
+                                channelContext.ClientChannelCertificate,
                                 ClientNonce.ToArray());
 
                             if (!token.Verify(dataToSign, userTokenSignature, securityPolicyUri!))

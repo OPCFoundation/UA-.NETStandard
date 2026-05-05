@@ -55,12 +55,15 @@ namespace Opc.Ua.Server
 
             SecurityPolicyInfo? securityPolicy = SecurityPolicies.GetInfo(context.SecurityPolicyUri);
 
+            // CreateServerSignature is invoked only when a secure channel is bound.
+            SecureChannelContext channelContext = context.ChannelContext!;
+
             byte[] dataToSign = securityPolicy!.GetServerSignatureData(
-                context.ChannelContext.ChannelThumbprint,
+                channelContext.ChannelThumbprint,
                 clientNonce.ToArray(),
-                context.ChannelContext.ServerChannelCertificate,
+                channelContext.ServerChannelCertificate,
                 parsedClientCertificate.RawData,
-                context.ChannelContext.ClientChannelCertificate,
+                channelContext.ClientChannelCertificate,
                 serverNonce.ToArray());
 
             return SecurityPolicies.CreateSignatureData(

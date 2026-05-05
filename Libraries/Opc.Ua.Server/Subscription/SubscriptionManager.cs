@@ -1081,8 +1081,9 @@ namespace Opc.Ua.Server
                 do
                 {
                     // blocks until a subscription is available or timeout expires.
+                    // Publish requests always carry a channel context.
                     ISubscription subscription = await queue.PublishAsync(
-                        context.ChannelContext.SecureChannelId,
+                        context.ChannelContext!.SecureChannelId,
                         context.OperationDeadline,
                         requeue,
                         cancellationToken).ConfigureAwait(false);

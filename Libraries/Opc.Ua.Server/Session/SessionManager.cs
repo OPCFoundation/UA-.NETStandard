@@ -197,8 +197,10 @@ namespace Opc.Ua.Server
 
                 // can assign a simple identifier if secured.
                 authenticationToken = default;
-                if (!string.IsNullOrEmpty(context.ChannelContext.SecureChannelId) &&
-                    context.ChannelContext.EndpointDescription!
+                // CreateSession is reached only after a secure channel is bound.
+                SecureChannelContext channelContext = context.ChannelContext!;
+                if (!string.IsNullOrEmpty(channelContext.SecureChannelId) &&
+                    channelContext.EndpointDescription!
                         .SecurityMode != MessageSecurityMode.None)
                 {
                     authenticationToken = new NodeId(
@@ -225,7 +227,7 @@ namespace Opc.Ua.Server
 
                 // create server nonce.
                 tempNonce = Nonce.CreateNonce(
-                    context.ChannelContext.EndpointDescription!.SecurityPolicyUri!);
+                    channelContext.EndpointDescription!.SecurityPolicyUri!);
                 Nonce serverNonceObject = tempNonce;
 
                 // assign client name.
@@ -347,9 +349,9 @@ namespace Opc.Ua.Server
                     throw new ServiceResultException(StatusCodes.BadSessionClosed);
                 }
 
-                // create new server nonce.
+                // create new server nonce. Activate path always carries a channel context.
                 serverNonceObject = Nonce.CreateNonce(
-                    context.ChannelContext.EndpointDescription!.SecurityPolicyUri!);
+                    context.ChannelContext!.EndpointDescription!.SecurityPolicyUri!);
 
                 // validate before activation.
                 session.ValidateBeforeActivate(

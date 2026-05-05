@@ -3832,21 +3832,23 @@ namespace Opc.Ua.Server
                             or RequestType.BrowseNext
                             or RequestType.TranslateBrowsePathsToNodeIds;
 
+                // Access restriction validation runs while a request is being processed,
+                // which always carries a channel context with an endpoint description.
+                EndpointDescription endpointDescription =
+                    context.ChannelContext!.EndpointDescription!;
+
                 if ((
                         encryptionRequired &&
-                        context.ChannelContext.EndpointDescription!
-                            .SecurityMode != MessageSecurityMode.SignAndEncrypt &&
-                        context.ChannelContext.EndpointDescription.TransportProfileUri !=
+                        endpointDescription.SecurityMode != MessageSecurityMode.SignAndEncrypt &&
+                        endpointDescription.TransportProfileUri !=
                             Profiles.HttpsBinaryTransport &&
                         ((applyRestrictionsToBrowse && browseOperation) || !browseOperation)
                     ) ||
                     (
                         signingRequired &&
-                        context.ChannelContext.EndpointDescription!
-                            .SecurityMode != MessageSecurityMode.Sign &&
-                        context.ChannelContext.EndpointDescription
-                            .SecurityMode != MessageSecurityMode.SignAndEncrypt &&
-                        context.ChannelContext.EndpointDescription.TransportProfileUri !=
+                        endpointDescription.SecurityMode != MessageSecurityMode.Sign &&
+                        endpointDescription.SecurityMode != MessageSecurityMode.SignAndEncrypt &&
+                        endpointDescription.TransportProfileUri !=
                             Profiles.HttpsBinaryTransport &&
                         ((applyRestrictionsToBrowse && browseOperation) || !browseOperation)
                     ) ||
