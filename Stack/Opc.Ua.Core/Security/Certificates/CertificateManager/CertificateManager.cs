@@ -517,6 +517,44 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
+        public async Task ReloadApplicationCertificatesAsync(
+            SecurityConfiguration securityConfiguration,
+            string? applicationUri = null,
+            CancellationToken ct = default)
+        {
+            // Snapshot the previous primary entry (if any) so we can fire a
+            // CertificateChange notification once the reload completes.
+            CertificateEntry? oldPrimary = m_applicationCertificates.FirstOrDefault();
+            using Certificate? oldCertSnapshot = oldPrimary?.Certificate.AddRef();
+
+            await LoadApplicationCertificatesAsync(securityConfiguration, applicationUri, ct)
+                .ConfigureAwait(false);
+
+            // Invalidate cached validators so subsequent validations pick up
+            // any trust-list/cert changes implicit in the reload.
+            m_peerValidator?.Dispose();
+            m_peerValidator = null;
+            m_userValidator?.Dispose();
+            m_userValidator = null;
+            m_httpsValidator?.Dispose();
+            m_httpsValidator = null;
+
+            m_lifecycleMonitor?.Reset();
+
+            CertificateEntry? newPrimary = m_applicationCertificates.FirstOrDefault();
+            if (newPrimary != null)
+            {
+                m_changeSubject.Notify(new CertificateChangeEvent(
+                    CertificateChangeKind.ApplicationCertificateUpdated,
+                    TrustListIdentifier.Peers,
+                    newPrimary.CertificateType,
+                    oldCertSnapshot,
+                    newPrimary.Certificate,
+                    newPrimary.IssuerChain));
+            }
+        }
+
+        /// <inheritdoc/>
         public async Task<TrustListData> ReadTrustListAsync(
             TrustListIdentifier trustList,
             TrustListMasks masks = TrustListMasks.All,
@@ -700,11 +738,11 @@ namespace Opc.Ua
                         .AsTask().GetAwaiter().GetResult();
                 }
 
-                m_peerValidator?.ResetValidatedCertificates();
+                m_peerValidator?.Dispose();
                 m_peerValidator = null;
-                m_userValidator?.ResetValidatedCertificates();
+                m_userValidator?.Dispose();
                 m_userValidator = null;
-                m_httpsValidator?.ResetValidatedCertificates();
+                m_httpsValidator?.Dispose();
                 m_httpsValidator = null;
 
                 foreach (CertificateEntry entry in m_applicationCertificates)

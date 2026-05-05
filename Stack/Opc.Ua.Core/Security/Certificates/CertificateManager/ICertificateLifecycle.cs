@@ -75,5 +75,32 @@ namespace Opc.Ua
         Task RejectCertificateAsync(
             CertificateCollection chain,
             CancellationToken ct = default);
+
+        /// <summary>
+        /// Reloads the application certificate registry from the supplied
+        /// security configuration. Replaces all entries in the manager's
+        /// application certificate snapshot with freshly loaded ones,
+        /// disposing the previous entries.
+        /// </summary>
+        /// <remarks>
+        /// This is the integration point for the legacy
+        /// <c>CertificateValidator.UpdateCertificateAsync</c> hot-update path:
+        /// after the legacy validator mutates the
+        /// <see cref="SecurityConfiguration.ApplicationCertificates"/> in
+        /// place, callers (e.g. <c>CertificateTypesProvider.Update</c>) can
+        /// invoke this method to bring the registry's snapshot in sync.
+        /// </remarks>
+        /// <param name="securityConfiguration">
+        /// The (post-update) security configuration to load from.
+        /// </param>
+        /// <param name="applicationUri">
+        /// Optional application URI used for matching certificates.
+        /// </param>
+        /// <param name="ct">A cancellation token.</param>
+        /// <returns>A task that completes when the reload is finished.</returns>
+        Task ReloadApplicationCertificatesAsync(
+            SecurityConfiguration securityConfiguration,
+            string? applicationUri = null,
+            CancellationToken ct = default);
     }
 }

@@ -88,15 +88,13 @@ namespace Quickstarts
                 // Define the UA Client application
                 var passwordProvider = new CertificatePasswordProvider([]);
 
-#pragma warning disable CA2000 // Dispose objects before losing scope
-                var application = new ApplicationInstance(m_telemetry)
+                await using var application = new ApplicationInstance(m_telemetry)
                 {
                     ApplicationName = applicationName,
                     ApplicationType = ApplicationType.Client,
                     ConfigSectionName = configSectionName,
                     CertificatePasswordProvider = passwordProvider
                 };
-#pragma warning restore CA2000 // Dispose objects before losing scope
 
                 // load the application configuration.
                 ApplicationConfiguration configuration = m_configuration = await application
@@ -126,9 +124,7 @@ namespace Quickstarts
 
                 var endpointConfiguration = EndpointConfiguration.Create(m_configuration);
                 var sessionFactory = new DefaultSessionFactory(m_telemetry);
-#pragma warning disable CA2000 // Dispose objects before losing scope
-                var userNameidentity = new UserIdentity(kUserName, new UTF8Encoding(false).GetBytes(kPassword));
-#pragma warning restore CA2000 // Dispose objects before losing scope
+                using var userNameidentity = new UserIdentity(kUserName, new UTF8Encoding(false).GetBytes(kPassword));
 
                 foreach (EndpointDescription ii in endpoints.ToArray())
                 {

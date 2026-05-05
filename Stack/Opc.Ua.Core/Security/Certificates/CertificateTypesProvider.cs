@@ -149,19 +149,18 @@ namespace Opc.Ua.Security.Certificates
         /// <param name="securityPolicyUri">The security policy Uri</param>
         public Certificate? GetInstanceCertificate(string securityPolicyUri)
         {
-            // Always read from the live SecurityConfiguration first so that hot
-            // updates (e.g. via CertificateValidator.UpdateCertificateAsync from
-            // the GDS push path) are picked up immediately. If the config has
-            // not been hot-swapped (still null/empty), fall back to the
-            // registry's preloaded snapshot.
-            Certificate? configCert = GetInstanceCertificateFromSecurityConfiguration(
-                securityPolicyUri);
-            if (configCert != null)
+            // Prefer the registry-backed lookup when available; the registry
+            // is kept in sync with hot-update flows via Update(...) below.
+            if (m_registry != null)
             {
-                return configCert;
+                Certificate? regCert = m_registry.GetInstanceCertificate(securityPolicyUri)?.Certificate;
+                if (regCert != null)
+                {
+                    return regCert;
+                }
             }
 
-            return m_registry?.GetInstanceCertificate(securityPolicyUri)?.Certificate;
+            return GetInstanceCertificateFromSecurityConfiguration(securityPolicyUri);
         }
 
         private Certificate? GetInstanceCertificateFromSecurityConfiguration(
@@ -334,7 +333,20 @@ namespace Opc.Ua.Security.Certificates
         {
             m_securityConfiguration = securityConfiguration;
             ClearCachedChains();
-            //ToDo intialize internal CertificateValidator after Certificate Update to clear cache of old application certificates
+
+            // When backed by an ICertificateLifecycle (e.g. CertificateManager),
+            // reload the registry's application certificate snapshot so that
+            // GetInstanceCertificate / LoadCertificateChain* return the updated
+            // entries instead of the pre-update snapshot. Without this the
+            // legacy hot-update path (CertificateValidator.UpdateCertificateAsync
+            // mutating SecurityConfiguration in place) would leave the registry
+            // stale.
+            if (m_registry is ICertificateLifecycle lifecycle)
+            {
+                lifecycle.ReloadApplicationCertificatesAsync(securityConfiguration)
+                    .GetAwaiter()
+                    .GetResult();
+            }
         }
 
         /// <summary>
