@@ -56,6 +56,11 @@ namespace Opc.Ua
         private readonly ITelemetryContext m_telemetry;
         private readonly ILogger m_logger;
         private readonly int m_maxRejectedCertificates;
+        // Guards mutations of m_applicationCertificates and the cached
+        // per-trust-list validators. Reads of single fields (e.g.
+        // GetInstanceCertificate enumeration) take this lock too to
+        // prevent the C5 / C1 races from the code review.
+        private readonly object m_certificatesLock = new();
         private bool m_sendCertificateChain;
         private bool m_autoAcceptUntrustedCertificates;
         private bool m_rejectSHA1SignedCertificates = true;
@@ -282,33 +287,53 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public Func<Certificate, ServiceResult, bool>? AcceptError
         {
-            get => m_acceptError;
-            set => m_acceptError = value;
+            get => Volatile.Read(ref m_acceptError);
+            set => Volatile.Write(ref m_acceptError, value);
         }
 
         /// <inheritdoc/>
-        public IReadOnlyList<CertificateEntry> ApplicationCertificates => m_applicationCertificates;
+        public IReadOnlyList<CertificateEntry> ApplicationCertificates
+        {
+            get
+            {
+                lock (m_certificatesLock)
+                {
+                    // Return a snapshot so callers can iterate without
+                    // racing concurrent updates. The CertificateEntry
+                    // references remain owned by the manager — callers
+                    // must not Dispose them.
+                    return [.. m_applicationCertificates];
+                }
+            }
+        }
 
         /// <inheritdoc/>
         public CertificateEntry? GetApplicationCertificate(NodeId certificateType)
         {
-            return m_applicationCertificates.FirstOrDefault(
-                e => e.CertificateType == certificateType);
+            lock (m_certificatesLock)
+            {
+                return m_applicationCertificates.FirstOrDefault(
+                    e => e.CertificateType == certificateType);
+            }
         }
 
         /// <inheritdoc/>
         public CertificateEntry? GetInstanceCertificate(string securityPolicyUri)
         {
-            foreach (NodeId certType in CertificateIdentifier.MapSecurityPolicyToCertificateTypes(securityPolicyUri))
+            lock (m_certificatesLock)
             {
-                CertificateEntry? entry = GetApplicationCertificate(certType);
-                if (entry != null)
+                foreach (NodeId certType in CertificateIdentifier.MapSecurityPolicyToCertificateTypes(securityPolicyUri))
                 {
-                    return entry;
+                    CertificateEntry? entry = m_applicationCertificates.FirstOrDefault(
+                        e => e.CertificateType == certType);
+                    if (entry != null)
+                    {
+                        return entry;
+                    }
                 }
-            }
 
-            return m_applicationCertificates.Count > 0 ? m_applicationCertificates[0] : null;
+                return m_applicationCertificates.Count > 0 ? m_applicationCertificates[0] : null;
+            }
         }
 
         /// <inheritdoc/>
@@ -327,12 +352,15 @@ namespace Opc.Ua
             }
 
             string thumbprint = certificate.Thumbprint;
-            for (int i = 0; i < m_applicationCertificates.Count; i++)
+            lock (m_certificatesLock)
             {
-                CertificateEntry entry = m_applicationCertificates[i];
-                if (string.Equals(entry.Certificate.Thumbprint, thumbprint, StringComparison.Ordinal))
+                for (int i = 0; i < m_applicationCertificates.Count; i++)
                 {
-                    return entry.GetEncodedChainBlob();
+                    CertificateEntry entry = m_applicationCertificates[i];
+                    if (string.Equals(entry.Certificate.Thumbprint, thumbprint, StringComparison.Ordinal))
+                    {
+                        return entry.GetEncodedChainBlob();
+                    }
                 }
             }
 
@@ -355,25 +383,59 @@ namespace Opc.Ua
             string? applicationUri = null,
             CancellationToken ct = default)
         {
-            // Dispose existing entries before clearing the list.
-            foreach (CertificateEntry oldEntry in m_applicationCertificates)
-            {
-                oldEntry.Dispose();
-            }
-
-            m_applicationCertificates.Clear();
+            // Build the new entries OUTSIDE the lock (FindAsync is async and
+            // may be slow on file I/O), then atomically swap inside the lock.
             ArrayOf<CertificateIdentifier> appCerts = securityConfiguration.ApplicationCertificates;
-            for (int i = 0; i < appCerts.Count; i++)
+            var newEntries = new List<CertificateEntry>(appCerts.Count);
+            try
             {
-                CertificateIdentifier certId = appCerts[i];
-                using Certificate? certificate = await certId.FindAsync(true, applicationUri, m_telemetry, ct)
-                    .ConfigureAwait(false);
-                if (certificate != null)
+                for (int i = 0; i < appCerts.Count; i++)
                 {
-                    m_applicationCertificates.Add(new CertificateEntry(
-                        certificate,
-                        new CertificateCollection(),
-                        certId.CertificateType));
+                    CertificateIdentifier certId = appCerts[i];
+                    using Certificate? certificate = await certId.FindAsync(true, applicationUri, m_telemetry, ct)
+                        .ConfigureAwait(false);
+                    if (certificate != null)
+                    {
+                        newEntries.Add(new CertificateEntry(
+                            certificate,
+                            new CertificateCollection(),
+                            certId.CertificateType));
+                    }
+                }
+
+                List<CertificateEntry> oldEntries;
+                lock (m_certificatesLock)
+                {
+                    oldEntries = [.. m_applicationCertificates];
+                    m_applicationCertificates.Clear();
+                    foreach (CertificateEntry e in newEntries)
+                    {
+                        m_applicationCertificates.Add(e);
+                    }
+                }
+
+                // Dispose old entries OUTSIDE the lock so that any concurrent
+                // reader who captured a borrowed reference before the swap
+                // still has time to AddRef before disposal completes.
+                // (Borrowed-reference consumers are expected to AddRef before
+                // any long-lived use; this gives them at least the lock-free
+                // window between snapshot and dispose.)
+                foreach (CertificateEntry oldEntry in oldEntries)
+                {
+                    oldEntry.Dispose();
+                }
+
+                // ownership transferred into m_applicationCertificates; do not
+                // dispose newEntries on success.
+                newEntries.Clear();
+            }
+            finally
+            {
+                // If we threw before the swap, dispose any partially-built
+                // entries to avoid leaking ref-counted certs.
+                foreach (CertificateEntry pending in newEntries)
+                {
+                    pending.Dispose();
                 }
             }
         }
@@ -460,34 +522,45 @@ namespace Opc.Ua
             CancellationToken ct = default)
         {
             CertificateEntry? oldEntry = null;
+#pragma warning disable CS0618
+            CertificateValidator? oldPeer, oldUser, oldHttps;
+#pragma warning restore CS0618
 
-            // Find and replace the existing entry.
-            for (int i = 0; i < m_applicationCertificates.Count; i++)
+            lock (m_certificatesLock)
             {
-                if (m_applicationCertificates[i].CertificateType == certificateType)
+                // Find and replace the existing entry.
+                for (int i = 0; i < m_applicationCertificates.Count; i++)
                 {
-                    oldEntry = m_applicationCertificates[i];
-                    m_applicationCertificates[i] = new CertificateEntry(
+                    if (m_applicationCertificates[i].CertificateType == certificateType)
+                    {
+                        oldEntry = m_applicationCertificates[i];
+                        m_applicationCertificates[i] = new CertificateEntry(
+                            newCertificate,
+                            issuerChain ?? new CertificateCollection(),
+                            certificateType);
+                        break;
+                    }
+                }
+
+                // If not found, add a new entry.
+                if (oldEntry == null)
+                {
+                    m_applicationCertificates.Add(new CertificateEntry(
                         newCertificate,
                         issuerChain ?? new CertificateCollection(),
-                        certificateType);
-                    break;
+                        certificateType));
                 }
+
+                // Invalidate cached validators.
+                oldPeer = m_peerValidator; m_peerValidator = null;
+                oldUser = m_userValidator; m_userValidator = null;
+                oldHttps = m_httpsValidator; m_httpsValidator = null;
             }
 
-            // If not found, add a new entry.
-            if (oldEntry == null)
-            {
-                m_applicationCertificates.Add(new CertificateEntry(
-                    newCertificate,
-                    issuerChain ?? new CertificateCollection(),
-                    certificateType));
-            }
-
-            // Invalidate cached validators.
-            m_peerValidator = null;
-            m_userValidator = null;
-            m_httpsValidator = null;
+            // Dispose orphaned validators OUTSIDE the lock.
+            oldPeer?.Dispose();
+            oldUser?.Dispose();
+            oldHttps?.Dispose();
 
             m_lifecycleMonitor?.Reset();
 
@@ -524,24 +597,40 @@ namespace Opc.Ua
         {
             // Snapshot the previous primary entry (if any) so we can fire a
             // CertificateChange notification once the reload completes.
-            CertificateEntry? oldPrimary = m_applicationCertificates.FirstOrDefault();
+#pragma warning disable CS0618
+            CertificateValidator? oldPeer, oldUser, oldHttps;
+#pragma warning restore CS0618
+            CertificateEntry? oldPrimary;
+            lock (m_certificatesLock)
+            {
+                oldPrimary = m_applicationCertificates.FirstOrDefault();
+            }
             using Certificate? oldCertSnapshot = oldPrimary?.Certificate.AddRef();
 
             await LoadApplicationCertificatesAsync(securityConfiguration, applicationUri, ct)
                 .ConfigureAwait(false);
 
-            // Invalidate cached validators so subsequent validations pick up
-            // any trust-list/cert changes implicit in the reload.
-            m_peerValidator?.Dispose();
-            m_peerValidator = null;
-            m_userValidator?.Dispose();
-            m_userValidator = null;
-            m_httpsValidator?.Dispose();
-            m_httpsValidator = null;
+            lock (m_certificatesLock)
+            {
+                // Invalidate cached validators so subsequent validations pick up
+                // any trust-list/cert changes implicit in the reload.
+                oldPeer = m_peerValidator; m_peerValidator = null;
+                oldUser = m_userValidator; m_userValidator = null;
+                oldHttps = m_httpsValidator; m_httpsValidator = null;
+            }
+
+            // Dispose orphaned validators OUTSIDE the lock.
+            oldPeer?.Dispose();
+            oldUser?.Dispose();
+            oldHttps?.Dispose();
 
             m_lifecycleMonitor?.Reset();
 
-            CertificateEntry? newPrimary = m_applicationCertificates.FirstOrDefault();
+            CertificateEntry? newPrimary;
+            lock (m_certificatesLock)
+            {
+                newPrimary = m_applicationCertificates.FirstOrDefault();
+            }
             if (newPrimary != null)
             {
                 m_changeSubject.Notify(new CertificateChangeEvent(
@@ -764,14 +853,17 @@ namespace Opc.Ua
 #pragma warning disable CS0618 // Type or member is obsolete
         private CertificateValidator GetOrCreateValidator(TrustListIdentifier trustList)
         {
-            // Return a cached validator for well-known trust lists.
+            // Fast path: return a cached validator without taking the lock.
             CertificateValidator? cached = GetCachedValidator(trustList);
             if (cached != null)
             {
                 return cached;
             }
 
-            var validator = new CertificateValidator(m_telemetry);
+            // Slow path: build a candidate validator outside the lock,
+            // then atomically install it. If a peer thread won the race,
+            // dispose the loser.
+            var candidate = new CertificateValidator(m_telemetry);
 
             if (m_trustLists.TryGetValue(trustList, out TrustListEntry? entry))
             {
@@ -792,31 +884,39 @@ namespace Opc.Ua
                         rejectedEntry.TrustedStorePath);
                 }
 
-                validator.Update(issuerStore, trustedStore, rejectedStore);
+                candidate.Update(issuerStore, trustedStore, rejectedStore);
             }
 
-            // Propagate global validation flags captured from the source
-            // SecurityConfiguration. These would otherwise default to a
-            // strict policy (RejectUnknownRevocationStatus=true,
-            // AutoAcceptUntrustedCertificates=false, RejectSHA1=true) and
-            // ignore the user-configured AutoAcceptUntrustedCertificates flag.
-            ApplyValidationFlags(validator);
+            ApplyValidationFlags(candidate);
 
-            // Cache well-known validators for reuse.
-            if (trustList == TrustListIdentifier.Peers)
+            CertificateValidator winner;
+            lock (m_certificatesLock)
             {
-                m_peerValidator = validator;
-            }
-            else if (trustList == TrustListIdentifier.Users)
-            {
-                m_userValidator = validator;
-            }
-            else if (trustList == TrustListIdentifier.Https)
-            {
-                m_httpsValidator = validator;
+                if (trustList == TrustListIdentifier.Peers)
+                {
+                    winner = m_peerValidator ??= candidate;
+                }
+                else if (trustList == TrustListIdentifier.Users)
+                {
+                    winner = m_userValidator ??= candidate;
+                }
+                else if (trustList == TrustListIdentifier.Https)
+                {
+                    winner = m_httpsValidator ??= candidate;
+                }
+                else
+                {
+                    // Non-cached trust list — return the candidate directly.
+                    return candidate;
+                }
             }
 
-            return validator;
+            if (!ReferenceEquals(winner, candidate))
+            {
+                // Lost the race; dispose our orphaned candidate.
+                candidate.Dispose();
+            }
+            return winner;
         }
 #pragma warning restore CS0618
 
