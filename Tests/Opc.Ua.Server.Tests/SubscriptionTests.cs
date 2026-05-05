@@ -256,5 +256,78 @@ namespace Opc.Ua.Server.Tests
             // Verify IsReadyToTrigger on A was reset to false
             Assert.That(itemAMock.Object.IsReadyToTrigger, Is.False, "IsReadyToTrigger should be reset");
         }
+
+        private static void AddMonitoredItemToPublish(Subscription subscription, IMonitoredItem item)
+        {
+            FieldInfo itemsToPublishField = typeof(Subscription).GetField("m_itemsToPublish", BindingFlags.NonPublic | BindingFlags.Instance)
+                ?? throw new InvalidOperationException("Field m_itemsToPublish not found");
+            var itemsToPublish = (LinkedList<IMonitoredItem>)itemsToPublishField.GetValue(subscription);
+            itemsToPublish.AddLast(item);
+        }
+
+        [Test]
+        public void Publish_MultipleTimes_WithMaxMessageCount()
+        {
+            using var subscription = new Subscription(m_serverMock.Object, m_sessionMock.Object, 1, 100, 1000, 10, 1, 0, true, 2);
+            var itemMock = new Mock<IDataChangeMonitoredItem2>();
+
+            var values = new List<MonitoredItemNotification>
+            {
+                new MonitoredItemNotification { Value = new DataValue(1) },
+                new MonitoredItemNotification { Value = new DataValue(2) },
+                new MonitoredItemNotification { Value = new DataValue(3) }
+            };
+
+            int counter = 0;
+            itemMock.Setup(i => i.Publish(
+                It.IsAny<OperationContext>(),
+                It.IsAny<Queue<MonitoredItemNotification>>(),
+                It.IsAny<Queue<DiagnosticInfo>>(),
+                It.IsAny<uint>(),
+                It.IsAny<Microsoft.Extensions.Logging.ILogger>()))
+                .Returns<OperationContext, Queue<MonitoredItemNotification>, Queue<DiagnosticInfo>, uint, Microsoft.Extensions.Logging.ILogger>(
+                (ctx, nq, dq, max, logger) =>
+                {
+                    if (counter < values.Count)
+                    {
+                        nq.Enqueue(values[counter++]);
+                        dq.Enqueue(new DiagnosticInfo());
+                        itemMock.SetupGet(x => x.IsReadyToPublish).Returns(counter < values.Count);
+                        return counter < values.Count;
+                    }
+                    return false;
+                });
+            itemMock.SetupGet(i => i.Id).Returns(1);
+            itemMock.SetupGet(i => i.IsReadyToPublish).Returns(true);
+            itemMock.SetupGet(i => i.AttributeId).Returns(Attributes.Value);
+            itemMock.SetupGet(i => i.MonitoredItemType).Returns(MonitoredItemTypeMask.DataChange);
+
+            AddMonitoredItem(subscription, itemMock.Object);
+            SetExpiryTime(subscription, HiResClock.TickCount64 - 100);
+            PublishingState state = subscription.PublishTimerExpired();
+
+            AddMonitoredItemToPublish(subscription, itemMock.Object);
+
+            var messages = new List<NotificationMessage>();
+
+            // First publish
+            var ctx1 = new OperationContext(m_sessionMock.Object, new DiagnosticsMasks());
+            var message = subscription.Publish(ctx1, out var availableSequenceNumbers, out bool moreNotifications1);
+            messages.Add(message);
+
+            // Should be more because we generated multiple notifications and limit the max per publish to 1 for tests.
+            Assert.That(moreNotifications1, Is.True);
+
+            // Second publish
+            var message2 = subscription.Publish(ctx1, out availableSequenceNumbers, out bool moreNotifications2);
+
+            // third publish
+            var message3 = subscription.Publish(ctx1, out availableSequenceNumbers, out bool moreNotifications3);
+            
+            Assert.That(message2, Is.Not.Null);
+            Assert.That(message3, Is.Not.Null);
+            Assert.That(moreNotifications2, Is.True);
+            Assert.That(moreNotifications3, Is.False);
+        }
     }
 }
