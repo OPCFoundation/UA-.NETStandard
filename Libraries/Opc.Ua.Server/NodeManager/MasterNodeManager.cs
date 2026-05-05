@@ -1713,7 +1713,7 @@ namespace Opc.Ua.Server
                     }
 
                     currentCp.Id = Guid.NewGuid();
-                    context.Session!.SaveContinuationPoint(currentCp);
+                    context!.Session!.SaveContinuationPoint(currentCp);
                     break;
                 }
             }
