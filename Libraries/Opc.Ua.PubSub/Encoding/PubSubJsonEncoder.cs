@@ -2825,7 +2825,8 @@ namespace Opc.Ua.PubSub.Encoding
                             WriteEncodeableArray(
                                 fieldName,
                                 encodeableArray,
-                                array.GetType().GetElementType()!);
+                                array.GetType().GetElementType()
+                                    ?? throw new InvalidOperationException("Argument is not an array type."));
                             return;
                         }
 
@@ -2849,7 +2850,8 @@ namespace Opc.Ua.PubSub.Encoding
                             WriteEncodeableArray(
                                 fieldName,
                                 (IEncodeable[])array!,
-                                array?.GetType().GetElementType()!);
+                                array?.GetType().GetElementType()
+                                    ?? throw new InvalidOperationException("Argument is not an array type."));
                             return;
                         }
                         throw ServiceResultException.Create(
@@ -3761,7 +3763,8 @@ namespace Opc.Ua.PubSub.Encoding
                 {
                     // Create a slice of values for the top dimension
                     var copy = Array.CreateInstance(
-                        matrix.Elements.GetType().GetElementType()!,
+                        matrix.Elements.GetType().GetElementType()
+                            ?? throw new InvalidOperationException("Elements is not an array type."),
                         arrayLen);
                     Array.Copy(matrix.Elements, index, copy, 0, arrayLen);
                     // Write slice as value rank

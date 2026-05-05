@@ -1709,7 +1709,8 @@ namespace Opc.Ua
                     return Arrays.ExtensionObject;
                 }
 
-                if (systemType.GetTypeInfo().GetElementType()!.IsEnum)
+                if (systemType.GetTypeInfo().GetElementType() is Type enumElementType &&
+                    enumElementType.IsEnum)
                 {
                     return Arrays.Enumeration;
                 }
@@ -2313,7 +2314,9 @@ namespace Opc.Ua
             if (dataTypeId.IsNull)
             {
                 if (type.GetTypeInfo().IsEnum ||
-                    (type.IsArray && type.GetElementType()!.GetTypeInfo().IsEnum))
+                    (type.IsArray &&
+                        type.GetElementType() is Type elementType &&
+                        elementType.GetTypeInfo().IsEnum))
                 {
                     return DataTypeIds.Enumeration;
                 }
@@ -2367,7 +2370,9 @@ namespace Opc.Ua
             if (typeInfo.BuiltInType == BuiltInType.Null)
             {
                 if (type.GetTypeInfo().IsEnum ||
-                    (type.IsArray && type.GetElementType()!.GetTypeInfo().IsEnum))
+                    (type.IsArray &&
+                        type.GetElementType() is Type elementType &&
+                        elementType.GetTypeInfo().IsEnum))
                 {
                     if (type.IsArray)
                     {

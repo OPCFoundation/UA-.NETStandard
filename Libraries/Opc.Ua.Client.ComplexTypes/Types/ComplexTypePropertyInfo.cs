@@ -411,7 +411,9 @@ namespace Opc.Ua.Client.ComplexTypes
                     case BuiltInType.Enumeration:
                         PropertyInfo.SetValue(o, EnumHelper.Int32ArrayToEnumArray(
                             v.GetInt32Array(),
-                            PropertyInfo.PropertyType.GetElementType()!));
+                            PropertyInfo.PropertyType.GetElementType()
+                                ?? throw new InvalidOperationException(
+                                    "PropertyType is not an array type.")));
                         return;
                     case BuiltInType.UInt32:
                         PropertyInfo.SetValue(o, v.GetUInt32Array().ToArray());
@@ -502,7 +504,9 @@ namespace Opc.Ua.Client.ComplexTypes
                     case BuiltInType.Enumeration:
                         PropertyInfo.SetValue(o, EnumHelper.Int32MatrixToEnumArray(
                            v.GetInt32Matrix(),
-                           PropertyInfo.PropertyType.GetElementType()!));
+                           PropertyInfo.PropertyType.GetElementType()
+                                ?? throw new InvalidOperationException(
+                                    "PropertyType is not an array type.")));
                         return;
                     case BuiltInType.UInt32:
                         PropertyInfo.SetValue(o, v.GetUInt32Matrix().CreateArrayInstance());
@@ -597,7 +601,8 @@ namespace Opc.Ua.Client.ComplexTypes
         {
             // For arrays, GetElementType is non-null because PropertyType.IsArray is true.
             Type type = PropertyInfo.PropertyType.IsArray ?
-                PropertyInfo.PropertyType.GetElementType()! :
+                (PropertyInfo.PropertyType.GetElementType()
+                    ?? throw new InvalidOperationException("PropertyType is not an array type.")) :
                 PropertyInfo.PropertyType;
             StructureTypeIdAttribute? typeAttribute = type
                 .GetCustomAttribute<StructureTypeIdAttribute>();

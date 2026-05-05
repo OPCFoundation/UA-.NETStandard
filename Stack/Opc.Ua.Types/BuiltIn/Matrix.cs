@@ -118,7 +118,10 @@ namespace Opc.Ua
         {
             try
             {
-                var array = Array.CreateInstance(Elements.GetType().GetElementType()!, Dimensions);
+                var array = Array.CreateInstance(
+                    Elements.GetType().GetElementType()
+                        ?? throw new InvalidOperationException("Elements is not an array type."),
+                    Dimensions);
 
                 int[] indexes = new int[Dimensions.Length];
 
@@ -219,7 +222,8 @@ namespace Opc.Ua
                 buffer.AppendFormat(
                     formatProvider,
                     "{0}[",
-                    Elements.GetType().GetElementType()!.Name);
+                    (Elements.GetType().GetElementType()
+                        ?? throw new InvalidOperationException("Elements is not an array type.")).Name);
 
                 for (int ii = 0; ii < Dimensions.Length; ii++)
                 {
@@ -456,7 +460,10 @@ namespace Opc.Ua
             Justification = "Array.CreateInstance is used with known OPC UA element types.")]
         private static Array FlattenArray(Array array)
         {
-            var flatArray = Array.CreateInstance(array.GetType().GetElementType()!, array.Length);
+            var flatArray = Array.CreateInstance(
+                array.GetType().GetElementType()
+                    ?? throw new InvalidOperationException("Argument is not an array type."),
+                array.Length);
 
             int[] indexes = new int[array.Rank];
             int[] dimensions = new int[array.Rank];

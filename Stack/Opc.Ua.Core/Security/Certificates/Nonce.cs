@@ -489,7 +489,7 @@ namespace Opc.Ua
                 if (m_ecdh != null)
                 {
                     m_ecdh.Dispose();
-                    m_ecdh = null!;
+                    m_ecdh = null;
                 }
             }
         }

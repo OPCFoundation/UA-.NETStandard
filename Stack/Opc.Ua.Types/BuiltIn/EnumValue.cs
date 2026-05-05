@@ -277,9 +277,9 @@ namespace Opc.Ua
             {
                 return default;
             }
-            if (type.IsArray)
+            if (type.IsArray && type.GetElementType() is Type elementType)
             {
-                type = type.GetElementType()!;
+                type = elementType;
             }
             return EnumHelper.EnumArrayToInt32Array(value)
                 .ConvertAll(e => new EnumValue(e, type));
@@ -294,9 +294,9 @@ namespace Opc.Ua
             {
                 return default;
             }
-            if (type.IsArray)
+            if (type.IsArray && type.GetElementType() is Type elementType)
             {
-                type = type.GetElementType()!;
+                type = elementType;
             }
             return EnumHelper.EnumArrayToInt32Matrix(value)
                 .ConvertAll(e => new EnumValue(e, type));
