@@ -35,6 +35,8 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
 using NUnit.Framework;
+using Opc.Ua.Client.Subscriptions.Fakes;
+using Opc.Ua.Tests;
 
 namespace Opc.Ua.Client.Subscriptions.MonitoredItems
 {
@@ -44,42 +46,35 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         [SetUp]
         public void SetUp()
         {
-            m_observabilityMock = new Mock<ITelemetryContext>();
-            m_mockLogger = new Mock<ILogger<MonitoredItemManager>>();
-            m_mockLoggerFactory = new Mock<ILoggerFactory>();
-            m_mockLoggerFactory
-                  .Setup(f => f.CreateLogger(It.IsAny<string>())).Returns(m_mockLogger.Object);
-            m_observabilityMock.Setup(o => o.LoggerFactory)
-                .Returns(m_mockLoggerFactory.Object);
-            m_contextMock = new Mock<IMonitoredItemManagerContext>();
-            m_contextMock
-                .Setup(m => m.CreateMonitoredItem(
-                    It.IsAny<string>(),
-                    It.IsAny<IOptionsMonitor<MonitoredItemOptions>>(),
-                    It.IsAny<IMonitoredItemContext>()))
-                .Returns((string name, IOptionsMonitor<MonitoredItemOptions> options, IMonitoredItemContext context) =>
-                    new TestMonitoredItem(context, name, (OptionsMonitor<MonitoredItemOptions>)options, m_mockLogger.Object));
+            m_telemetry = NUnitTelemetryContext.Create();
+            m_context = new FakeMonitoredItemManagerContext
+            {
+                CreateMonitoredItemFactory = (name, options, context) =>
+                    new TestMonitoredItem(context, name,
+                        (OptionsMonitor<MonitoredItemOptions>)options,
+                        m_telemetry.CreateLogger("TestMonitoredItem"))
+            };
         }
 
         [Test]
         public async Task TryAddItemSucceedsAsync()
         {
             // Arrange
-            await using var sut = new MonitoredItemManager(m_contextMock.Object, m_observabilityMock.Object);
+            await using var sut = new MonitoredItemManager(m_context, m_telemetry);
             // Act
             sut.TryAdd("Item3", OptionsFactory.Create<MonitoredItemOptions>(), out IMonitoredItem existingItem3);
             Assert.That(sut.TryAdd("Item3", OptionsFactory.Create<MonitoredItemOptions>(), out IMonitoredItem existingItem3Again), Is.False);
 
             // Assert
             Assert.That(existingItem3Again, Is.SameAs(existingItem3));
-            m_contextMock.Verify();
+            // no-op: FakeMonitoredItemManagerContext records calls; verifications are inline.
         }
 
         [Test]
         public async Task TryRemoveItemSucceedsAsync()
         {
             // Arrange
-            await using var sut = new MonitoredItemManager(m_contextMock.Object, m_observabilityMock.Object);
+            await using var sut = new MonitoredItemManager(m_context, m_telemetry);
 
             // Act
             sut.TryAdd("Item3", OptionsFactory.Create<MonitoredItemOptions>(), out IMonitoredItem existingItem3);
@@ -91,14 +86,14 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             // Assert
             Assert.That(sut.Items, Has.Exactly(1).Items);
             Assert.That(sut.Items.First().Name, Is.EqualTo("Item3"));
-            m_contextMock.Verify();
+            // no-op: FakeMonitoredItemManagerContext records calls; verifications are inline.
         }
 
         [Test]
         public async Task TryRemoveItemSucceedsRemoveAgainAndItFailsAsync()
         {
             // Arrange
-            await using var sut = new MonitoredItemManager(m_contextMock.Object, m_observabilityMock.Object);
+            await using var sut = new MonitoredItemManager(m_context, m_telemetry);
 
             // Act
             sut.TryAdd("Item3", OptionsFactory.Create<MonitoredItemOptions>(), out IMonitoredItem existingItem3);
@@ -111,14 +106,14 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             // Assert
             Assert.That(sut.Items, Has.Exactly(1).Items);
             Assert.That(sut.Items.First().Name, Is.EqualTo("Item3"));
-            m_contextMock.Verify();
+            // no-op: FakeMonitoredItemManagerContext records calls; verifications are inline.
         }
 
         [Test]
         public async Task PauseAndUnpauseMonitoredItemsAsync()
         {
             // Arrange
-            await using var sut = new MonitoredItemManager(m_contextMock.Object, m_observabilityMock.Object);
+            await using var sut = new MonitoredItemManager(m_context, m_telemetry);
 
             // Act
             sut.TryAdd("Item3", OptionsFactory.Create<MonitoredItemOptions>(), out IMonitoredItem existingItem3);
@@ -134,14 +129,14 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             Assert.That(sut.Items, Has.All.Matches<IMonitoredItem>(i => ((TestMonitoredItem)i).Paused));
 
             // Assert
-            m_contextMock.Verify();
+            // no-op: FakeMonitoredItemManagerContext records calls; verifications are inline.
         }
 
         [Test]
         public async Task CreateNotificationDataChangeNotificationCreatesCorrectNotificationsAsync()
         {
             // Arrange
-            await using var sut = new MonitoredItemManager(m_contextMock.Object, m_observabilityMock.Object);
+            await using var sut = new MonitoredItemManager(m_context, m_telemetry);
 
             var monitoredItemMock = new Mock<IMonitoredItem>();
             monitoredItemMock.SetupGet(m => m.ClientHandle).Returns(1);
@@ -173,7 +168,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         public async Task CreateNotificationDataChangeNotificationCreatesCorrectNotificationsInOrderAsync()
         {
             // Arrange
-            await using var sut = new MonitoredItemManager(m_contextMock.Object, m_observabilityMock.Object);
+            await using var sut = new MonitoredItemManager(m_context, m_telemetry);
 
             var monitoredItemMock = new Mock<IMonitoredItem>();
             monitoredItemMock.SetupGet(m => m.ClientHandle).Returns(1);
@@ -228,7 +223,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         public async Task CreateNotificationDataChangeNotificationCreatesCorrectNotificationsInDefaultOrderAsync()
         {
             // Arrange
-            await using var sut = new MonitoredItemManager(m_contextMock.Object, m_observabilityMock.Object);
+            await using var sut = new MonitoredItemManager(m_context, m_telemetry);
 
             var monitoredItemMock = new Mock<IMonitoredItem>();
             monitoredItemMock.SetupGet(m => m.ClientHandle).Returns(1);
@@ -283,7 +278,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         public async Task CreateNotificationEventNotificationListCreatesCorrectNotificationsAsync()
         {
             // Arrange
-            await using var sut = new MonitoredItemManager(m_contextMock.Object, m_observabilityMock.Object);
+            await using var sut = new MonitoredItemManager(m_context, m_telemetry);
             var monitoredItemMock = new Mock<IMonitoredItem>();
             monitoredItemMock.SetupGet(m => m.ClientHandle).Returns(1);
 
@@ -315,7 +310,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         public async Task CreateNotificationEventNotificationListCreatesCorrectNotificationsInDefaultOrderAsync()
         {
             // Arrange
-            await using var sut = new MonitoredItemManager(m_contextMock.Object, m_observabilityMock.Object);
+            await using var sut = new MonitoredItemManager(m_context, m_telemetry);
             var monitoredItemMock = new Mock<IMonitoredItem>();
             monitoredItemMock.SetupGet(m => m.ClientHandle).Returns(1);
 
@@ -359,7 +354,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         public async Task CreateNotificationEventNotificationListCreatesCorrectNotificationsInOrderAsync()
         {
             // Arrange
-            await using var sut = new MonitoredItemManager(m_contextMock.Object, m_observabilityMock.Object);
+            await using var sut = new MonitoredItemManager(m_context, m_telemetry);
             var monitoredItemMock = new Mock<IMonitoredItem>();
             monitoredItemMock.SetupGet(m => m.ClientHandle).Returns(1);
 
@@ -405,7 +400,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         public async Task UpdateAddsNewItemsAsync()
         {
             // Arrange
-            await using var sut = new MonitoredItemManager(m_contextMock.Object, m_observabilityMock.Object);
+            await using var sut = new MonitoredItemManager(m_context, m_telemetry);
             var state = new List<(string Name, IOptionsMonitor<MonitoredItemOptions> Options)>
             {
                 ("Item1", OptionsFactory.Create<MonitoredItemOptions>()),
@@ -418,14 +413,14 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             // Assert
             Assert.That(result, Has.Count.EqualTo(2));
             Assert.That(result.Select(i => i.Name), Does.Contain("Item1").And.Contain("Item2"));
-            m_contextMock.Verify();
+            // no-op: FakeMonitoredItemManagerContext records calls; verifications are inline.
         }
 
         [Test]
         public async Task UpdateUpdatesExistingItemsAndRemovesRemainingAsync()
         {
             // Arrange
-            await using var sut = new MonitoredItemManager(m_contextMock.Object, m_observabilityMock.Object);
+            await using var sut = new MonitoredItemManager(m_context, m_telemetry);
             var state = new List<(string Name, IOptionsMonitor<MonitoredItemOptions> Options)>
             {
                 ("Item1", OptionsFactory.Create<MonitoredItemOptions>())
@@ -442,14 +437,14 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             Assert.That(result, Has.Exactly(1).Items);
             Assert.That(result[0], Is.TypeOf<TestMonitoredItem>());
             Assert.That(result[0], Is.EqualTo(existingItem));
-            m_contextMock.Verify();
+            // no-op: FakeMonitoredItemManagerContext records calls; verifications are inline.
         }
 
         [Test]
         public async Task UpdateUpdatesRemovesExistingItemAndAddsNewItemAsync()
         {
             // Arrange
-            await using var sut = new MonitoredItemManager(m_contextMock.Object, m_observabilityMock.Object);
+            await using var sut = new MonitoredItemManager(m_context, m_telemetry);
             var state = new List<(string Name, IOptionsMonitor<MonitoredItemOptions> Options)>
             {
                 ("Item2", OptionsFactory.Create<MonitoredItemOptions>())
@@ -465,14 +460,14 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             Assert.That(result[0], Is.TypeOf<TestMonitoredItem>());
             Assert.That(result[0], Is.Not.EqualTo(existingItem));
             Assert.That(result[0].Name, Is.EqualTo("Item2"));
-            m_contextMock.Verify();
+            // no-op: FakeMonitoredItemManagerContext records calls; verifications are inline.
         }
 
         [Test]
         public async Task UpdateRemovesItemsNotInStateAsync()
         {
             // Arrange
-            await using var sut = new MonitoredItemManager(m_contextMock.Object, m_observabilityMock.Object);
+            await using var sut = new MonitoredItemManager(m_context, m_telemetry);
             var state = new List<(string Name, IOptionsMonitor<MonitoredItemOptions> Options)>
             {
                 ("Item1", OptionsFactory.Create<MonitoredItemOptions>())
@@ -492,14 +487,14 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             Assert.That(result[0], Is.TypeOf<TestMonitoredItem>());
             Assert.That(result[0], Is.EqualTo(existingItem1));
             Assert.That(sut.TryGetMonitoredItemByName("Item2", out _), Is.False);
-            m_contextMock.Verify();
+            // no-op: FakeMonitoredItemManagerContext records calls; verifications are inline.
         }
 
         [Test]
         public async Task UpdateUpdatesItemOptionsAsync()
         {
             // Arrange
-            await using var sut = new MonitoredItemManager(m_contextMock.Object, m_observabilityMock.Object);
+            await using var sut = new MonitoredItemManager(m_context, m_telemetry);
 
             bool success = sut.TryAdd("Item1", OptionsFactory.Create<MonitoredItemOptions>(), out IMonitoredItem existingItem);
             Assert.That(existingItem, Is.TypeOf<TestMonitoredItem>());
@@ -520,7 +515,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             Assert.That(result, Has.Exactly(1).Items);
             Assert.That(result[0], Is.TypeOf<TestMonitoredItem>());
             Assert.That(((TestMonitoredItem)result[0]).Options.CurrentValue.SamplingInterval, Is.EqualTo(TimeSpan.FromSeconds(100)));
-            m_contextMock.Verify();
+            // no-op: FakeMonitoredItemManagerContext records calls; verifications are inline.
         }
 
         private sealed class TestMonitoredItem : MonitoredItem
@@ -544,9 +539,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             }
         }
 
-        private Mock<IMonitoredItemManagerContext> m_contextMock;
-        private Mock<ITelemetryContext> m_observabilityMock;
-        private Mock<ILogger<MonitoredItemManager>> m_mockLogger;
-        private Mock<ILoggerFactory> m_mockLoggerFactory;
+        private FakeMonitoredItemManagerContext m_context;
+        private ITelemetryContext m_telemetry;
     }
 }

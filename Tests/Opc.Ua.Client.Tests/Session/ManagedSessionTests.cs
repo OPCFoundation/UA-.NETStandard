@@ -34,6 +34,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
+using Opc.Ua.Tests;
 
 namespace Opc.Ua.Client.Tests.ManagedSession
 {
@@ -226,7 +227,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         public void InitialStateIsDisconnected()
         {
             var policy = new ReconnectPolicy();
-            ILogger logger = new Mock<ILogger>().Object;
+            ILogger logger = NUnitTelemetryContext.Create().CreateLogger("ManagedSession");
 
             using var cts = new CancellationTokenSource();
             var sm = new ConnectionStateMachine(policy, logger);
@@ -238,7 +239,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         public async Task DisposeTransitionsToClosedState()
         {
             var policy = new ReconnectPolicy();
-            ILogger logger = new Mock<ILogger>().Object;
+            ILogger logger = NUnitTelemetryContext.Create().CreateLogger("ManagedSession");
 
             var sm = new ConnectionStateMachine(policy, logger);
             sm.Start();

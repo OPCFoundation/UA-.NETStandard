@@ -33,8 +33,10 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
+using Opc.Ua.Client.Subscriptions.Fakes;
 using Opc.Ua.Client.Subscriptions.MonitoredItems;
 using NUnit.Framework;
+using Opc.Ua.Tests;
 
 namespace Opc.Ua.Client.Subscriptions
 {
@@ -51,25 +53,16 @@ namespace Opc.Ua.Client.Subscriptions
             m_mockSubscriptionServices = new Mock<ISubscriptionServiceSetClientMethods>();
             m_mockMonitoredItemServices = new Mock<IMonitoredItemServiceSetClientMethods>();
             m_mockMethodServices = new Mock<IMethodServiceSetClientMethods>();
-            m_mockSubscriptionServices = new Mock<ISubscriptionServiceSetClientMethods>();
-            m_mockSession = new Mock<ISubscriptionContext>();
-            m_mockSession
-                .Setup(m_mockSession => m_mockSession.SubscriptionServiceSet)
-                .Returns(m_mockSubscriptionServices.Object);
-            m_mockSession
-                .Setup(m_mockSession => m_mockSession.MethodServiceSet)
-                .Returns(m_mockMethodServices.Object);
-            m_mockSession
-                .Setup(m_mockSession => m_mockSession.MonitoredItemServiceSet)
-                .Returns(m_mockMonitoredItemServices.Object);
-            m_mockCompletion = new Mock<IMessageAckQueue>();
+            m_session = new FakeSubscriptionContext
+            {
+                SubscriptionServiceSet = m_mockSubscriptionServices.Object,
+                MethodServiceSet = m_mockMethodServices.Object,
+                MonitoredItemServiceSet = m_mockMonitoredItemServices.Object
+            };
+            m_completion = new FakeMessageAckQueue();
             m_options = OptionsFactory.Create<SubscriptionOptions>();
 
-            m_mockObservability = new Mock<ITelemetryContext>();
-            m_mockLogger = new Mock<ILogger<Subscription>>();
-            m_mockObservability
-                .Setup(o => o.LoggerFactory.CreateLogger(It.IsAny<string>()))
-                .Returns(m_mockLogger.Object);
+            m_telemetry = NUnitTelemetryContext.Create();
             m_mockNotificationDataHandler = new Mock<ISubscriptionNotificationHandler>();
         }
 
@@ -79,8 +72,8 @@ namespace Opc.Ua.Client.Subscriptions
             // Arrange
             OptionsMonitor<MonitoredItems.MonitoredItemOptions> options = OptionsFactory.Create<MonitoredItems.MonitoredItemOptions>();
 
-            var sut = new TestSubscription(m_mockSession.Object, m_mockNotificationDataHandler.Object,
-                m_mockCompletion.Object, m_options, m_mockObservability.Object);
+            var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
+                m_completion, m_options, m_telemetry);
 
             // Act
             bool success = sut.MonitoredItems.TryAdd("Test", options, out IMonitoredItem monitoredItem);
@@ -111,8 +104,8 @@ namespace Opc.Ua.Client.Subscriptions
                 .Verifiable(Times.Once);
 
             m_options.Configure(o => o with { Disabled = true });
-            var sut = new TestSubscription(m_mockSession.Object, m_mockNotificationDataHandler.Object,
-                m_mockCompletion.Object, m_options, m_mockObservability.Object);
+            var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
+                m_completion, m_options, m_telemetry);
             Assert.That(sut.Created, Is.False);
             Assert.That(sut.CurrentPublishingInterval, Is.EqualTo(TimeSpan.Zero));
             Assert.That(sut.CurrentKeepAliveCount, Is.Zero);
@@ -142,7 +135,7 @@ namespace Opc.Ua.Client.Subscriptions
             Assert.That(sut.CurrentMaxNotificationsPerPublish, Is.EqualTo(10));
             Assert.That(sut.CurrentPriority, Is.EqualTo(3));
             Assert.That(sut.Id, Is.EqualTo(22));
-            m_mockSession.Verify();
+            // m_mockSession.Verify() was no-op (no Verifiable setups on the context); inner-mock verifications retained.
         }
 
         [Test]
@@ -172,8 +165,8 @@ namespace Opc.Ua.Client.Subscriptions
                 })
                 .Verifiable(Times.Once);
 
-            var sut = new TestSubscription(m_mockSession.Object, m_mockNotificationDataHandler.Object,
-                m_mockCompletion.Object, m_options, m_mockObservability.Object, 22);
+            var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
+                m_completion, m_options, m_telemetry, 22);
 
             Assert.That(sut.Created, Is.True);
             Assert.That(sut.CurrentPublishingEnabled, Is.False);
@@ -202,7 +195,7 @@ namespace Opc.Ua.Client.Subscriptions
             Assert.That(sut.CurrentMaxNotificationsPerPublish, Is.Zero);
             Assert.That(sut.CurrentPriority, Is.EqualTo(4));
             Assert.That(sut.CurrentPublishingEnabled, Is.True);
-            m_mockSession.Verify();
+            // m_mockSession.Verify() was no-op (no Verifiable setups on the context); inner-mock verifications retained.
         }
 
         [Test]
@@ -221,8 +214,8 @@ namespace Opc.Ua.Client.Subscriptions
                 })
                 .Verifiable(Times.Once);
 
-            var sut = new TestSubscription(m_mockSession.Object, m_mockNotificationDataHandler.Object,
-                m_mockCompletion.Object, m_options, m_mockObservability.Object, 22);
+            var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
+                m_completion, m_options, m_telemetry, 22);
 
             Assert.That(sut.Created, Is.True);
             Assert.That(sut.CurrentPublishingEnabled, Is.False);
@@ -243,7 +236,7 @@ namespace Opc.Ua.Client.Subscriptions
 
             // Assert
             Assert.That(sut.CurrentPublishingEnabled, Is.True);
-            m_mockSession.Verify();
+            // m_mockSession.Verify() was no-op (no Verifiable setups on the context); inner-mock verifications retained.
         }
 
         [Test]
@@ -269,8 +262,8 @@ namespace Opc.Ua.Client.Subscriptions
                 })
                 .Verifiable(Times.Once);
 
-            var sut = new TestSubscription(m_mockSession.Object, m_mockNotificationDataHandler.Object,
-              m_mockCompletion.Object, m_options, m_mockObservability.Object, 2);
+            var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
+              m_completion, m_options, m_telemetry, 2);
 
             sut.SubscriptionStateChanged.Reset();
             bool success = sut.MonitoredItems.TryAdd("Test", OptionsFactory.Create(new MonitoredItems.MonitoredItemOptions
@@ -287,15 +280,15 @@ namespace Opc.Ua.Client.Subscriptions
             Assert.That(monitoredItem.CurrentSamplingInterval, Is.EqualTo(TimeSpan.FromSeconds(10)));
             Assert.That(monitoredItem.CurrentQueueSize, Is.EqualTo(10));
             Assert.That(monitoredItem.CurrentMonitoringMode, Is.EqualTo(MonitoringMode.Reporting));
-            m_mockSession.Verify();
+            // m_mockSession.Verify() was no-op (no Verifiable setups on the context); inner-mock verifications retained.
         }
 
         [Test]
         public async Task ChangeMonitoredItemOptionsShouldChangeSubscriptionAsync()
         {
             // Arrange
-            var sut = new TestSubscription(m_mockSession.Object, m_mockNotificationDataHandler.Object,
-              m_mockCompletion.Object, m_options, m_mockObservability.Object, 2);
+            var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
+              m_completion, m_options, m_telemetry, 2);
 
             OptionsMonitor<MonitoredItems.MonitoredItemOptions> options = OptionsFactory.Create<MonitoredItems.MonitoredItemOptions>();
             bool success = sut.MonitoredItems.TryAdd("Test", options, out IMonitoredItem monitoredItem);
@@ -339,15 +332,15 @@ namespace Opc.Ua.Client.Subscriptions
             Assert.That(monitoredItem.CurrentSamplingInterval, Is.EqualTo(TimeSpan.FromSeconds(100)));
             Assert.That(monitoredItem.CurrentQueueSize, Is.EqualTo(1000));
             Assert.That(monitoredItem.CurrentMonitoringMode, Is.EqualTo(MonitoringMode.Sampling));
-            m_mockSession.Verify();
+            // m_mockSession.Verify() was no-op (no Verifiable setups on the context); inner-mock verifications retained.
         }
 
         [Test]
         public async Task ChangeMonitoredItemOptionsNameShouldDeleteAndRecreateMonitoredItemAsync()
         {
             // Arrange
-            var sut = new TestSubscription(m_mockSession.Object, m_mockNotificationDataHandler.Object,
-              m_mockCompletion.Object, m_options, m_mockObservability.Object, 2);
+            var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
+              m_completion, m_options, m_telemetry, 2);
 
             OptionsMonitor<MonitoredItems.MonitoredItemOptions> options = OptionsFactory.Create<MonitoredItems.MonitoredItemOptions>();
             bool success = sut.MonitoredItems.TryAdd("Test", options, out IMonitoredItem monitoredItem);
@@ -401,15 +394,15 @@ namespace Opc.Ua.Client.Subscriptions
             Assert.That(monitoredItem.CurrentQueueSize, Is.EqualTo(10));
             Assert.That(monitoredItem.ServerId, Is.EqualTo(400));
             Assert.That(monitoredItem.CurrentMonitoringMode, Is.EqualTo(MonitoringMode.Reporting));
-            m_mockSession.Verify();
+            // m_mockSession.Verify() was no-op (no Verifiable setups on the context); inner-mock verifications retained.
         }
 
         [Test]
         public async Task UpdatingMonitoringModeOnlyShouldCallSetMonitoringModeAsync()
         {
             // Arrange
-            var sut = new TestSubscription(m_mockSession.Object, m_mockNotificationDataHandler.Object,
-                m_mockCompletion.Object, m_options, m_mockObservability.Object, 2);
+            var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
+                m_completion, m_options, m_telemetry, 2);
 
             OptionsMonitor<MonitoredItems.MonitoredItemOptions> options = OptionsFactory.Create<MonitoredItems.MonitoredItemOptions>();
             bool success = sut.MonitoredItems.TryAdd("Test", options, out IMonitoredItem monitoredItem);
@@ -442,15 +435,15 @@ namespace Opc.Ua.Client.Subscriptions
 
             // Assert
             Assert.That(monitoredItem.CurrentMonitoringMode, Is.EqualTo(MonitoringMode.Reporting));
-            m_mockSession.Verify();
+            // m_mockSession.Verify() was no-op (no Verifiable setups on the context); inner-mock verifications retained.
         }
 
         [Test]
         public async Task RemovingMonitoredItemShouldRemoveRemovedItemAsync()
         {
             // Arrange
-            var sut = new TestSubscription(m_mockSession.Object, m_mockNotificationDataHandler.Object,
-              m_mockCompletion.Object, m_options, m_mockObservability.Object, 2);
+            var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
+              m_completion, m_options, m_telemetry, 2);
             OptionsMonitor<MonitoredItems.MonitoredItemOptions> options = OptionsFactory.Create<MonitoredItems.MonitoredItemOptions>();
             bool success = sut.MonitoredItems.TryAdd("Test", options, out IMonitoredItem monitoredItem);
             Assert.That(success, Is.True);
@@ -478,15 +471,15 @@ namespace Opc.Ua.Client.Subscriptions
             // Assert
             Assert.That(success, Is.True);
             Assert.That(sut.MonitoredItems.Count, Is.Zero);
-            m_mockSession.Verify();
+            // m_mockSession.Verify() was no-op (no Verifiable setups on the context); inner-mock verifications retained.
         }
 
         [Test]
         public async Task RemovingMonitoredItemShouldTryAgainIfDeleteFailsAsync()
         {
             // Arrange
-            var sut = new TestSubscription(m_mockSession.Object, m_mockNotificationDataHandler.Object,
-              m_mockCompletion.Object, m_options, m_mockObservability.Object, 2);
+            var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
+              m_completion, m_options, m_telemetry, 2);
             OptionsMonitor<MonitoredItems.MonitoredItemOptions> options = OptionsFactory.Create<MonitoredItems.MonitoredItemOptions>();
             bool success = sut.MonitoredItems.TryAdd("Test", options, out IMonitoredItem monitoredItem);
             Assert.That(monitoredItem, Is.Not.Null);
@@ -525,15 +518,15 @@ namespace Opc.Ua.Client.Subscriptions
             // Assert
             Assert.That(success, Is.True);
             Assert.That(sut.MonitoredItems.Count, Is.Zero);
-            m_mockSession.Verify();
+            // m_mockSession.Verify() was no-op (no Verifiable setups on the context); inner-mock verifications retained.
         }
 
         [Test]
         public async Task ConditionRefreshAsyncShouldCallSessionCallAsync()
         {
             // Arrange
-            var sut = new TestSubscription(m_mockSession.Object, m_mockNotificationDataHandler.Object,
-                m_mockCompletion.Object, m_options, m_mockObservability.Object, 2);
+            var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
+                m_completion, m_options, m_telemetry, 2);
 
             // Assert
             m_mockMethodServices
@@ -556,15 +549,15 @@ namespace Opc.Ua.Client.Subscriptions
             await sut.ConditionRefreshAsync(default).ConfigureAwait(false);
 
             // Assert
-            m_mockSession.Verify();
+            // m_mockSession.Verify() was no-op (no Verifiable setups on the context); inner-mock verifications retained.
         }
 
         [Test]
         public async Task ConditionRefreshAsyncThrowsIfNotYetCreatedAsync()
         {
             // Arrange
-            var sut = new TestSubscription(m_mockSession.Object, m_mockNotificationDataHandler.Object,
-                m_mockCompletion.Object, m_options, m_mockObservability.Object);
+            var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
+                m_completion, m_options, m_telemetry);
 
             // Act
             Func<Task> act = async () => await sut.ConditionRefreshAsync(CancellationToken.None).ConfigureAwait(false);
@@ -572,7 +565,7 @@ namespace Opc.Ua.Client.Subscriptions
             // Assert
             ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(async () => await act().ConfigureAwait(false));
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadSubscriptionIdInvalid));
-            m_mockSession.Verify();
+            // m_mockSession.Verify() was no-op (no Verifiable setups on the context); inner-mock verifications retained.
         }
 
         [Test]
@@ -580,8 +573,8 @@ namespace Opc.Ua.Client.Subscriptions
         {
             // Arrange
 
-            var sut = new TestSubscription(m_mockSession.Object, m_mockNotificationDataHandler.Object,
-                m_mockCompletion.Object, m_options, m_mockObservability.Object, 22);
+            var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
+                m_completion, m_options, m_telemetry, 22);
 
             m_mockSubscriptionServices
                 .Setup(s => s.DeleteSubscriptionsAsync(
@@ -596,7 +589,7 @@ namespace Opc.Ua.Client.Subscriptions
             await sut.DeleteAsync(default).ConfigureAwait(false);
 
             // Assert
-            m_mockSession.Verify();
+            // m_mockSession.Verify() was no-op (no Verifiable setups on the context); inner-mock verifications retained.
         }
 
         [Test]
@@ -604,8 +597,8 @@ namespace Opc.Ua.Client.Subscriptions
         {
             // Arrange
 
-            var sut = new TestSubscription(m_mockSession.Object, m_mockNotificationDataHandler.Object,
-                m_mockCompletion.Object, m_options, m_mockObservability.Object, 22);
+            var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
+                m_completion, m_options, m_telemetry, 22);
 
             m_mockSubscriptionServices
                 .Setup(s => s.DeleteSubscriptionsAsync(
@@ -620,7 +613,7 @@ namespace Opc.Ua.Client.Subscriptions
             await sut.DisposeAsync().ConfigureAwait(false);
 
             // Assert
-            m_mockSession.Verify();
+            // m_mockSession.Verify() was no-op (no Verifiable setups on the context); inner-mock verifications retained.
             Assert.That(sut.MonitoredItems.Items, Is.Empty);
         }
 
@@ -628,8 +621,8 @@ namespace Opc.Ua.Client.Subscriptions
         public async Task DisableShouldCallSessionDeleteSubscriptionsButNotMonitoredItemsAsync()
         {
             // Arrange
-            var sut = new TestSubscription(m_mockSession.Object, m_mockNotificationDataHandler.Object,
-                m_mockCompletion.Object, m_options, m_mockObservability.Object, 22);
+            var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
+                m_completion, m_options, m_telemetry, 22);
             OptionsMonitor<MonitoredItems.MonitoredItemOptions> options = OptionsFactory.Create<MonitoredItems.MonitoredItemOptions>();
             bool success = sut.MonitoredItems.TryAdd("Test", options, out IMonitoredItem monitoredItem);
             Assert.That(success, Is.True);
@@ -650,7 +643,7 @@ namespace Opc.Ua.Client.Subscriptions
             await sut.SubscriptionStateChanged.WaitAsync().ConfigureAwait(false);
 
             // Assert
-            m_mockSession.Verify();
+            // m_mockSession.Verify() was no-op (no Verifiable setups on the context); inner-mock verifications retained.
             Assert.That(sut.MonitoredItems.Items, Is.Not.Empty);
         }
 
@@ -658,8 +651,8 @@ namespace Opc.Ua.Client.Subscriptions
         public async Task DeleteAsyncShouldCatchAllExceptionsAsync()
         {
             // Arrange
-            var sut = new TestSubscription(m_mockSession.Object, m_mockNotificationDataHandler.Object,
-                m_mockCompletion.Object, m_options, m_mockObservability.Object, 22);
+            var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
+                m_completion, m_options, m_telemetry, 22);
 
             m_mockSubscriptionServices
                 .Setup(s => s.DeleteSubscriptionsAsync(
@@ -675,14 +668,14 @@ namespace Opc.Ua.Client.Subscriptions
             await sut.DeleteAsync(default).ConfigureAwait(false);
 
             // Assert
-            m_mockSession.Verify();
+            // m_mockSession.Verify() was no-op (no Verifiable setups on the context); inner-mock verifications retained.
         }
 
         [Test]
         public async Task DisposeAsyncShouldDisposeCleanlyAsync()
         {
-            var sut = new TestSubscription(m_mockSession.Object, m_mockNotificationDataHandler.Object,
-                m_mockCompletion.Object, m_options, m_mockObservability.Object);
+            var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
+                m_completion, m_options, m_telemetry);
             // Act & Assert - should not throw
             await sut.DisposeAsync().ConfigureAwait(false);
         }
@@ -692,8 +685,8 @@ namespace Opc.Ua.Client.Subscriptions
         {
             // Arrange
             OptionsMonitor<MonitoredItems.MonitoredItemOptions> options = OptionsFactory.Create<MonitoredItems.MonitoredItemOptions>();
-            var sut = new TestSubscription(m_mockSession.Object, m_mockNotificationDataHandler.Object,
-                m_mockCompletion.Object, m_options, m_mockObservability.Object);
+            var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
+                m_completion, m_options, m_telemetry);
             bool success = sut.MonitoredItems.TryAdd("Test", options, out IMonitoredItem monitoredItem);
             Assert.That(monitoredItem, Is.Not.Null);
             Assert.That(success, Is.True);
@@ -712,8 +705,8 @@ namespace Opc.Ua.Client.Subscriptions
         {
             // Arrange
             OptionsMonitor<MonitoredItems.MonitoredItemOptions> options = OptionsFactory.Create<MonitoredItems.MonitoredItemOptions>();
-            var sut = new TestSubscription(m_mockSession.Object, m_mockNotificationDataHandler.Object,
-                m_mockCompletion.Object, m_options, m_mockObservability.Object);
+            var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
+                m_completion, m_options, m_telemetry);
             bool success = sut.MonitoredItems.TryAdd("Test", options, out _);
             Assert.That(success, Is.True);
 
@@ -732,8 +725,8 @@ namespace Opc.Ua.Client.Subscriptions
             // Arrange
             var message = new NotificationMessage();
 
-            var sut = new TestSubscription(m_mockSession.Object, m_mockNotificationDataHandler.Object,
-                m_mockCompletion.Object, m_options, m_mockObservability.Object);
+            var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
+                m_completion, m_options, m_telemetry);
 
             // Act & Assert - should not throw
             await sut.OnPublishReceivedAsync(message, null, null!).ConfigureAwait(false);
@@ -743,8 +736,8 @@ namespace Opc.Ua.Client.Subscriptions
         public async Task RecreateAsyncShouldReCreateSubscriptionAndMonitoredItemsAsync()
         {
             // Arrange
-            var sut = new TestSubscription(m_mockSession.Object, m_mockNotificationDataHandler.Object,
-                m_mockCompletion.Object, m_options, m_mockObservability.Object, 10);
+            var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
+                m_completion, m_options, m_telemetry, 10);
             OptionsMonitor<MonitoredItems.MonitoredItemOptions> options = OptionsFactory.Create<MonitoredItems.MonitoredItemOptions>();
             bool success = sut.MonitoredItems.TryAdd("Test", options, out IMonitoredItem monitoredItem);
             Assert.That(monitoredItem, Is.Not.Null);
@@ -797,7 +790,7 @@ namespace Opc.Ua.Client.Subscriptions
             Assert.That(sut.CurrentPriority, Is.EqualTo(3));
             Assert.That(sut.Id, Is.EqualTo(22));
             Assert.That(monitoredItem.ServerId, Is.EqualTo(200));
-            m_mockSession.Verify();
+            // m_mockSession.Verify() was no-op (no Verifiable setups on the context); inner-mock verifications retained.
         }
 
         [Test]
@@ -805,8 +798,8 @@ namespace Opc.Ua.Client.Subscriptions
         {
             // Arrange
 
-            var sut = new TestSubscription(m_mockSession.Object, m_mockNotificationDataHandler.Object,
-                m_mockCompletion.Object, m_options, m_mockObservability.Object, 10);
+            var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
+                m_completion, m_options, m_telemetry, 10);
 
             OptionsMonitor<MonitoredItems.MonitoredItemOptions> options = OptionsFactory.Create<MonitoredItems.MonitoredItemOptions>();
             bool success = sut.MonitoredItems.TryAdd("Test", options, out IMonitoredItem monitoredItem);
@@ -859,7 +852,7 @@ namespace Opc.Ua.Client.Subscriptions
             Assert.That(sut.Id, Is.EqualTo(22));
             Assert.That(sut.MonitoredItems.Count, Is.EqualTo(1));
             Assert.That(monitoredItem.ServerId, Is.EqualTo(200));
-            m_mockSession.Verify();
+            // m_mockSession.Verify() was no-op (no Verifiable setups on the context); inner-mock verifications retained.
         }
 
         [Test]
@@ -867,8 +860,8 @@ namespace Opc.Ua.Client.Subscriptions
         {
             // Arrange
             OptionsMonitor<MonitoredItems.MonitoredItemOptions> options = OptionsFactory.Create<MonitoredItems.MonitoredItemOptions>();
-            var sut = new TestSubscription(m_mockSession.Object, m_mockNotificationDataHandler.Object,
-                m_mockCompletion.Object, m_options, m_mockObservability.Object);
+            var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
+                m_completion, m_options, m_telemetry);
             bool success = sut.MonitoredItems.TryAdd("Test", options, out IMonitoredItem monitoredItem);
             Assert.That(monitoredItem, Is.Not.Null);
             Assert.That(success, Is.True);
@@ -885,8 +878,8 @@ namespace Opc.Ua.Client.Subscriptions
         public async Task TryCompleteTransferAsyncShouldReturnFalseWhenResponseWrong1Async()
         {
             // Arrange
-            var sut = new TestSubscription(m_mockSession.Object, m_mockNotificationDataHandler.Object,
-                m_mockCompletion.Object, m_options, m_mockObservability.Object, 2);
+            var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
+                m_completion, m_options, m_telemetry, 2);
 
             OptionsMonitor<MonitoredItems.MonitoredItemOptions> options = OptionsFactory.Create<MonitoredItems.MonitoredItemOptions>();
             bool success = sut.MonitoredItems.TryAdd("Test", options, out IMonitoredItem monitoredItem);
@@ -923,15 +916,15 @@ namespace Opc.Ua.Client.Subscriptions
 
             // Assert
             Assert.That(success, Is.False);
-            m_mockSession.Verify();
+            // m_mockSession.Verify() was no-op (no Verifiable setups on the context); inner-mock verifications retained.
         }
 
         [Test]
         public async Task TryCompleteTransferAsyncShouldReturnFalseWhenResponseWrong2Async()
         {
             // Arrange
-            var sut = new TestSubscription(m_mockSession.Object, m_mockNotificationDataHandler.Object,
-                m_mockCompletion.Object, m_options, m_mockObservability.Object, 2);
+            var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
+                m_completion, m_options, m_telemetry, 2);
 
             OptionsMonitor<MonitoredItems.MonitoredItemOptions> options = OptionsFactory.Create<MonitoredItems.MonitoredItemOptions>();
             bool success = sut.MonitoredItems.TryAdd("Test", options, out IMonitoredItem monitoredItem);
@@ -968,15 +961,15 @@ namespace Opc.Ua.Client.Subscriptions
 
             // Assert
             Assert.That(success, Is.False);
-            m_mockSession.Verify();
+            // m_mockSession.Verify() was no-op (no Verifiable setups on the context); inner-mock verifications retained.
         }
 
         [Test]
         public async Task TryCompleteTransferAsyncShouldCallGetMonitoredItemsAsyncAndCreateServerItemAsync()
         {
             // Arrange
-            var sut = new TestSubscription(m_mockSession.Object, m_mockNotificationDataHandler.Object,
-                m_mockCompletion.Object, m_options, m_mockObservability.Object, 2);
+            var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
+                m_completion, m_options, m_telemetry, 2);
 
             OptionsMonitor<MonitoredItems.MonitoredItemOptions> options = OptionsFactory.Create<MonitoredItems.MonitoredItemOptions>();
             bool success = sut.MonitoredItems.TryAdd("Test", options, out IMonitoredItem monitoredItem);
@@ -1013,7 +1006,7 @@ namespace Opc.Ua.Client.Subscriptions
             success = await sut.TryCompleteTransferAsync([], default).ConfigureAwait(false);
 
             // Assert
-            m_mockSession.Verify();
+            // m_mockSession.Verify() was no-op (no Verifiable setups on the context); inner-mock verifications retained.
             Assert.That(success, Is.True);
             Assert.That(monitoredItem.ServerId, Is.EqualTo(19900));
         }
@@ -1023,8 +1016,8 @@ namespace Opc.Ua.Client.Subscriptions
         {
             // Arrange
 
-            var sut = new TestSubscription(m_mockSession.Object, m_mockNotificationDataHandler.Object,
-                m_mockCompletion.Object, m_options, m_mockObservability.Object, 2);
+            var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
+                m_completion, m_options, m_telemetry, 2);
 
             OptionsMonitor<MonitoredItems.MonitoredItemOptions> options = OptionsFactory.Create<MonitoredItems.MonitoredItemOptions>();
             bool success = sut.MonitoredItems.TryAdd("Test", options, out IMonitoredItem monitoredItem);
@@ -1062,7 +1055,7 @@ namespace Opc.Ua.Client.Subscriptions
             success = await sut.TryCompleteTransferAsync([], default).ConfigureAwait(false);
 
             // Assert
-            m_mockSession.Verify();
+            // m_mockSession.Verify() was no-op (no Verifiable setups on the context); inner-mock verifications retained.
             Assert.That(monitoredItem.ServerId, Is.EqualTo(serverId));
             Assert.That(success, Is.True);
         }
@@ -1072,8 +1065,8 @@ namespace Opc.Ua.Client.Subscriptions
         {
             // Arrange
 
-            var sut = new TestSubscription(m_mockSession.Object, m_mockNotificationDataHandler.Object,
-                m_mockCompletion.Object, m_options, m_mockObservability.Object, 2);
+            var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
+                m_completion, m_options, m_telemetry, 2);
 
             m_mockMethodServices
                 .Setup(s => s.CallAsync(
@@ -1114,7 +1107,7 @@ namespace Opc.Ua.Client.Subscriptions
             bool success = await sut.TryCompleteTransferAsync([], default).ConfigureAwait(false);
 
             // Assert
-            m_mockSession.Verify();
+            // m_mockSession.Verify() was no-op (no Verifiable setups on the context); inner-mock verifications retained.
             Assert.That(success, Is.True);
         }
 
@@ -1122,8 +1115,8 @@ namespace Opc.Ua.Client.Subscriptions
         public async Task TryCompleteTransferAsyncShouldCallGetMonitoredItemsAsyncAndReturnFalseIfFailingAsync()
         {
             // Arrange
-            var sut = new TestSubscription(m_mockSession.Object, m_mockNotificationDataHandler.Object,
-                m_mockCompletion.Object, m_options, m_mockObservability.Object, 2);
+            var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
+                m_completion, m_options, m_telemetry, 2);
             OptionsMonitor<MonitoredItems.MonitoredItemOptions> options = OptionsFactory.Create<MonitoredItems.MonitoredItemOptions>();
             bool success = sut.MonitoredItems.TryAdd("Test", options, out IMonitoredItem monitoredItem);
             Assert.That(monitoredItem, Is.Not.Null);
@@ -1156,7 +1149,7 @@ namespace Opc.Ua.Client.Subscriptions
             success = await sut.TryCompleteTransferAsync([], default).ConfigureAwait(false);
 
             // Assert
-            m_mockSession.Verify();
+            // m_mockSession.Verify() was no-op (no Verifiable setups on the context); inner-mock verifications retained.
             Assert.That(success, Is.False);
             Assert.That(monitoredItem.Created, Is.False);
         }
@@ -1165,8 +1158,8 @@ namespace Opc.Ua.Client.Subscriptions
         public async Task TryCompleteTransferAsyncShouldAssignServerIdToMonitoredItemWithClientIdAsync()
         {
             // Arrange
-            var sut = new TestSubscription(m_mockSession.Object, m_mockNotificationDataHandler.Object,
-                m_mockCompletion.Object, m_options, m_mockObservability.Object, 2);
+            var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
+                m_completion, m_options, m_telemetry, 2);
             OptionsMonitor<MonitoredItems.MonitoredItemOptions> options = OptionsFactory.Create<MonitoredItems.MonitoredItemOptions>();
             bool success = sut.MonitoredItems.TryAdd("Test", options, out IMonitoredItem monitoredItem);
             Assert.That(monitoredItem, Is.Not.Null);
@@ -1205,7 +1198,7 @@ namespace Opc.Ua.Client.Subscriptions
             success = await sut.TryCompleteTransferAsync([], default).ConfigureAwait(false);
 
             // Assert
-            m_mockSession.Verify();
+            // m_mockSession.Verify() was no-op (no Verifiable setups on the context); inner-mock verifications retained.
             Assert.That(success, Is.True);
             Assert.That(monitoredItem.ClientHandle, Is.EqualTo(19900));
             Assert.That(monitoredItem.ServerId, Is.EqualTo(serverId));
@@ -1215,8 +1208,8 @@ namespace Opc.Ua.Client.Subscriptions
         public async Task TryCompleteTransferAsyncShouldCreateWhatIsMissingOnServerAsync()
         {
             // Arrange
-            var sut = new TestSubscription(m_mockSession.Object, m_mockNotificationDataHandler.Object,
-                m_mockCompletion.Object, m_options, m_mockObservability.Object, 2);
+            var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
+                m_completion, m_options, m_telemetry, 2);
             OptionsMonitor<MonitoredItems.MonitoredItemOptions> options = OptionsFactory.Create<MonitoredItems.MonitoredItemOptions>();
             bool success = sut.MonitoredItems.TryAdd("Test", options, out IMonitoredItem monitoredItem);
             Assert.That(monitoredItem, Is.Not.Null);
@@ -1288,7 +1281,7 @@ namespace Opc.Ua.Client.Subscriptions
             Assert.That(monitoredItem.ClientHandle, Is.EqualTo(clientId));
             Assert.That(monitoredItem.ServerId, Is.EqualTo(44444));
 
-            m_mockSession.Verify();
+            // m_mockSession.Verify() was no-op (no Verifiable setups on the context); inner-mock verifications retained.
             m_mockMonitoredItemServices.Verify();
         }
 
@@ -1394,7 +1387,8 @@ namespace Opc.Ua.Client.Subscriptions
                 ITelemetryContext telemetry)
             {
                 return new TestMonitoredItem(context, name,
-                    (Opc.Ua.OptionsMonitor<MonitoredItems.MonitoredItemOptions>)options, new Mock<ILogger>().Object);
+                    (Opc.Ua.OptionsMonitor<MonitoredItems.MonitoredItemOptions>)options,
+                    telemetry.CreateLogger("TestMonitoredItem"));
             }
 
             protected override ValueTask OnKeepAliveNotificationAsync(uint sequenceNumber,
@@ -1404,14 +1398,13 @@ namespace Opc.Ua.Client.Subscriptions
             }
         }
 
-        private Mock<IMessageAckQueue> m_mockCompletion;
+        private FakeMessageAckQueue m_completion;
         private Opc.Ua.OptionsMonitor<SubscriptionOptions> m_options;
-        private Mock<ITelemetryContext> m_mockObservability;
+        private ITelemetryContext m_telemetry;
         private Mock<ISubscriptionServiceSetClientMethods> m_mockSubscriptionServices;
         private Mock<IMonitoredItemServiceSetClientMethods> m_mockMonitoredItemServices;
         private Mock<IMethodServiceSetClientMethods> m_mockMethodServices;
-        private Mock<ISubscriptionContext> m_mockSession;
+        private FakeSubscriptionContext m_session;
         private Mock<ISubscriptionNotificationHandler> m_mockNotificationDataHandler;
-        private Mock<ILogger<Subscription>> m_mockLogger;
     }
 }

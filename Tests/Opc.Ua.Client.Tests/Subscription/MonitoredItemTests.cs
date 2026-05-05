@@ -28,10 +28,12 @@
  * ======================================================================*/
 
 using System;
+using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using Moq;
 using NUnit.Framework;
+using Opc.Ua.Client.Subscriptions.Fakes;
+using Opc.Ua.Tests;
 
 namespace Opc.Ua.Client.Subscriptions.MonitoredItems
 {
@@ -45,9 +47,9 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         [SetUp]
         public void SetUp()
         {
-            m_mockContext = new Mock<IMonitoredItemContext>();
+            m_context = new FakeMonitoredItemContext();
             m_options = OptionsFactory.Create<MonitoredItemOptions>();
-            m_mockLogger = new Mock<ILogger<MonitoredItem>>();
+            m_telemetry = NUnitTelemetryContext.Create();
         }
 
         [Test]
@@ -58,8 +60,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             {
                 StartNodeId = new NodeId("test", 0)
             });
-            var sut = new TestMonitoredItem(m_mockContext.Object,
-               m_options, m_mockLogger.Object);
+            var sut = new TestMonitoredItem(m_context,
+               m_options, m_telemetry.CreateLogger("MonitoredItem"));
             const uint serverId = 123u;
 
             // Act
@@ -96,8 +98,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             {
                 StartNodeId = new NodeId("test", 0)
             });
-            var sut = new TestMonitoredItem(m_mockContext.Object,
-              m_options, m_mockLogger.Object);
+            var sut = new TestMonitoredItem(m_context,
+              m_options, m_telemetry.CreateLogger("MonitoredItem"));
             bool result = sut.Created;
 
             // Assert
@@ -113,8 +115,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 MonitoringMode = MonitoringMode.Sampling,
                 StartNodeId = new NodeId("test", 0)
             });
-            var sut = new TestMonitoredItem(m_mockContext.Object,
-                m_options, m_mockLogger.Object);
+            var sut = new TestMonitoredItem(m_context,
+                m_options, m_telemetry.CreateLogger("MonitoredItem"));
 
             // Act
             Assert.That(sut.TryGetPendingChange(out MonitoredItem.Change change), Is.True);
@@ -123,11 +125,13 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 0, [], new ResponseHeader());
 
             // Assert
-            m_mockContext.Verify(s => s.NotifyItemChangeResult(sut, 1,
-                m_options.CurrentValue,
-                It.Is<ServiceResult>(s => s.StatusCode == StatusCodes.Bad),
-                false, null),
-                Times.Once);
+            Assert.That(m_context.NotifyItemChangeResultCalls
+                .Count(c => c.MonitoredItem == sut
+                    && c.RetryCount == 1
+                    && c.Source == m_options.CurrentValue
+                    && c.ServiceResult.StatusCode == StatusCodes.Bad
+                    && c.Final == false
+                    && c.FilterResult == null), Is.EqualTo(1));
         }
 
         [Test]
@@ -138,8 +142,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             {
                 StartNodeId = new NodeId("test", 0)
             });
-            var sut = new TestMonitoredItem(m_mockContext.Object,
-               m_options, m_mockLogger.Object);
+            var sut = new TestMonitoredItem(m_context,
+               m_options, m_telemetry.CreateLogger("MonitoredItem"));
 
             // Act
             Assert.That(sut.TryGetPendingChange(out MonitoredItem.Change change), Is.True);
@@ -160,11 +164,13 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             }, 0, [], new ResponseHeader());
 
             // Assert
-            m_mockContext.Verify(s => s.NotifyItemChangeResult(sut, 1,
-                m_options.CurrentValue,
-                It.Is<ServiceResult>(s => s.StatusCode == StatusCodes.Bad),
-                false, null),
-                Times.Once);
+            Assert.That(m_context.NotifyItemChangeResultCalls
+                .Count(c => c.MonitoredItem == sut
+                    && c.RetryCount == 1
+                    && c.Source == m_options.CurrentValue
+                    && c.ServiceResult.StatusCode == StatusCodes.Bad
+                    && c.Final == false
+                    && c.FilterResult == null), Is.EqualTo(1));
         }
 
         [Test]
@@ -175,8 +181,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             {
                 StartNodeId = new NodeId("test", 0)
             });
-            var sut = new TestMonitoredItem(m_mockContext.Object,
-               m_options, m_mockLogger.Object);
+            var sut = new TestMonitoredItem(m_context,
+               m_options, m_telemetry.CreateLogger("MonitoredItem"));
             var filterResult = new EventFilterResult();
 
             // Act
@@ -199,10 +205,13 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             }, 0, [], new ResponseHeader());
 
             // Assert
-            m_mockContext.Verify(s => s.NotifyItemChangeResult(sut, 0,
-                m_options.CurrentValue, ServiceResult.Good, true,
-                It.Is<MonitoringFilterResult>(o => Utils.IsEqual(o, filterResult))),
-                Times.Once);
+            Assert.That(m_context.NotifyItemChangeResultCalls
+                .Count(c => c.MonitoredItem == sut
+                    && c.RetryCount == 0
+                    && c.Source == m_options.CurrentValue
+                    && c.ServiceResult == ServiceResult.Good
+                    && c.Final == true
+                    && Utils.IsEqual(c.FilterResult, filterResult)), Is.EqualTo(1));
         }
 
         [Test]
@@ -214,8 +223,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 MonitoringMode = MonitoringMode.Reporting,
                 StartNodeId = new NodeId("test", 0)
             });
-            var sut = new TestMonitoredItem(m_mockContext.Object,
-                m_options, m_mockLogger.Object);
+            var sut = new TestMonitoredItem(m_context,
+                m_options, m_telemetry.CreateLogger("MonitoredItem"));
 
             Assert.That(sut.CurrentMonitoringMode, Is.Not.EqualTo(MonitoringMode.Sampling));
 
@@ -250,8 +259,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 MonitoringMode = MonitoringMode.Sampling,
                 StartNodeId = new NodeId("test", 0)
             });
-            var sut = new TestMonitoredItem(m_mockContext.Object,
-                m_options, m_mockLogger.Object);
+            var sut = new TestMonitoredItem(m_context,
+                m_options, m_telemetry.CreateLogger("MonitoredItem"));
 
             Assert.That(sut.CurrentMonitoringMode, Is.Not.EqualTo(MonitoringMode.Sampling));
 
@@ -273,8 +282,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             {
                 StartNodeId = new NodeId("test", 0)
             });
-            var sut = new TestMonitoredItem(m_mockContext.Object,
-               m_options, m_mockLogger.Object);
+            var sut = new TestMonitoredItem(m_context,
+               m_options, m_telemetry.CreateLogger("MonitoredItem"));
             var currentSamplingInterval = TimeSpan.FromMilliseconds(500);
 
             // Act
@@ -308,8 +317,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             {
                 StartNodeId = new NodeId("test", 0)
             });
-            var sut = new TestMonitoredItem(m_mockContext.Object,
-               m_options, m_mockLogger.Object);
+            var sut = new TestMonitoredItem(m_context,
+               m_options, m_telemetry.CreateLogger("MonitoredItem"));
             const uint currentQueueSize = 5u;
 
             // Act
@@ -343,8 +352,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             {
                 StartNodeId = new NodeId("test", 0)
             });
-            var sut = new TestMonitoredItem(m_mockContext.Object,
-               m_options, m_mockLogger.Object);
+            var sut = new TestMonitoredItem(m_context,
+               m_options, m_telemetry.CreateLogger("MonitoredItem"));
             uint result = sut.ClientHandle;
 
             // Assert
@@ -359,12 +368,13 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             {
                 StartNodeId = new NodeId("test", 0)
             });
-            var sut = new TestMonitoredItem(m_mockContext.Object,
-              m_options, m_mockLogger.Object);
+            var sut = new TestMonitoredItem(m_context,
+              m_options, m_telemetry.CreateLogger("MonitoredItem"));
             await sut.DisposeAsync().ConfigureAwait(false);
 
             // Assert
-            m_mockContext.Verify(s => s.NotifyItemChange(sut, true), Times.Once);
+            Assert.That(m_context.NotifyItemChangeCalls
+                .Count(c => c.MonitoredItem == sut && c.ItemDisposed == true), Is.EqualTo(1));
         }
 
         [Test]
@@ -375,21 +385,22 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             {
                 StartNodeId = new NodeId("test", 0)
             });
-            var sut = new TestMonitoredItem(m_mockContext.Object,
-              m_options, m_mockLogger.Object);
+            var sut = new TestMonitoredItem(m_context,
+              m_options, m_telemetry.CreateLogger("MonitoredItem"));
             await sut.DisposeAsync().ConfigureAwait(false);
             await sut.DisposeAsync().ConfigureAwait(false);
 
             // Assert
-            m_mockContext.Verify(s => s.NotifyItemChange(sut, true), Times.Once);
+            Assert.That(m_context.NotifyItemChangeCalls
+                .Count(c => c.MonitoredItem == sut && c.ItemDisposed == true), Is.EqualTo(1));
         }
 
         [Test]
         public void OnSubscriptionStateChangeShouldAdjustQueueSizeWhenAutoSetQueueSizeIsTrue()
         {
             // Arrange
-            var mockContext = new Mock<IMonitoredItemContext>();
-            var mockLogger = new Mock<ILogger>();
+            var mockContext = new FakeMonitoredItemContext();
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             OptionsMonitor<MonitoredItemOptions> options = OptionsFactory.Create<MonitoredItemOptions>();
             options.Configure(o => o with
             {
@@ -399,7 +410,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 SamplingInterval = TimeSpan.FromMilliseconds(100)
             });
 
-            var monitoredItem = new TestMonitoredItem(mockContext.Object, options, mockLogger.Object);
+            var monitoredItem = new TestMonitoredItem(mockContext, options, telemetry.CreateLogger("MonitoredItem"));
             while (monitoredItem.TryGetPendingChange(out MonitoredItem.Change c))
             {
                 monitoredItem.CompleteChange(c);
@@ -418,8 +429,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         public void OnSubscriptionStateChangeShouldNotAdjustQueueSizeWhenAutoSetQueueSizeIsFalse()
         {
             // Arrange
-            var mockContext = new Mock<IMonitoredItemContext>();
-            var mockLogger = new Mock<ILogger>();
+            var mockContext = new FakeMonitoredItemContext();
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             OptionsMonitor<MonitoredItemOptions> options = OptionsFactory.Create<MonitoredItemOptions>();
             options.Configure(o => o with
             {
@@ -429,7 +440,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 SamplingInterval = TimeSpan.FromMilliseconds(100)
             });
 
-            var monitoredItem = new TestMonitoredItem(mockContext.Object, options, mockLogger.Object);
+            var monitoredItem = new TestMonitoredItem(mockContext, options, telemetry.CreateLogger("MonitoredItem"));
             while (monitoredItem.TryGetPendingChange(out MonitoredItem.Change c))
             {
                 monitoredItem.CompleteChange(c);
@@ -446,8 +457,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         public void OnSubscriptionStateChangeShouldNotAdjustQueueSizeWhenPublishingIntervalIsZero()
         {
             // Arrange
-            var mockContext = new Mock<IMonitoredItemContext>();
-            var mockLogger = new Mock<ILogger>();
+            var mockContext = new FakeMonitoredItemContext();
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             OptionsMonitor<MonitoredItemOptions> options = OptionsFactory.Create<MonitoredItemOptions>();
             options.Configure(o => o with
             {
@@ -457,7 +468,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 SamplingInterval = TimeSpan.FromMilliseconds(100)
             });
 
-            var monitoredItem = new TestMonitoredItem(mockContext.Object, options, mockLogger.Object);
+            var monitoredItem = new TestMonitoredItem(mockContext, options, telemetry.CreateLogger("MonitoredItem"));
             while (monitoredItem.TryGetPendingChange(out MonitoredItem.Change c))
             {
                 monitoredItem.CompleteChange(c);
@@ -474,8 +485,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         public void OnSubscriptionStateChangeShouldNotAdjustQueueSizeWhenSamplingIntervalIsZero()
         {
             // Arrange
-            var mockContext = new Mock<IMonitoredItemContext>();
-            var mockLogger = new Mock<ILogger>();
+            var mockContext = new FakeMonitoredItemContext();
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             OptionsMonitor<MonitoredItemOptions> options = OptionsFactory.Create<MonitoredItemOptions>();
             options.Configure(o => o with
             {
@@ -485,7 +496,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 SamplingInterval = TimeSpan.Zero
             });
 
-            var monitoredItem = new TestMonitoredItem(mockContext.Object, options, mockLogger.Object);
+            var monitoredItem = new TestMonitoredItem(mockContext, options, telemetry.CreateLogger("MonitoredItem"));
             while (monitoredItem.TryGetPendingChange(out MonitoredItem.Change c))
             {
                 monitoredItem.CompleteChange(c);
@@ -502,8 +513,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         public void OnSubscriptionStateChangeShouldNotAdjustQueueSizeWhenSamplingIntervalIsNegative()
         {
             // Arrange
-            var mockContext = new Mock<IMonitoredItemContext>();
-            var mockLogger = new Mock<ILogger>();
+            var mockContext = new FakeMonitoredItemContext();
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             OptionsMonitor<MonitoredItemOptions> options = OptionsFactory.Create<MonitoredItemOptions>();
             options.Configure(o => o with
             {
@@ -513,7 +524,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 SamplingInterval = TimeSpan.FromMilliseconds(-100)
             });
 
-            var monitoredItem = new TestMonitoredItem(mockContext.Object, options, mockLogger.Object);
+            var monitoredItem = new TestMonitoredItem(mockContext, options, telemetry.CreateLogger("MonitoredItem"));
             while (monitoredItem.TryGetPendingChange(out MonitoredItem.Change c))
             {
                 monitoredItem.CompleteChange(c);
@@ -530,16 +541,16 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         public void ToStringShouldReturnExpectedString()
         {
             // Arrange
-            var mockContext = new Mock<IMonitoredItemContext>();
-            var mockLogger = new Mock<ILogger>();
+            var mockContext = new FakeMonitoredItemContext();
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             OptionsMonitor<MonitoredItemOptions> options = OptionsFactory.Create<MonitoredItemOptions>();
             options.Configure(o => o with
             {
                 StartNodeId = NodeId.Parse("ns=2;s=TestNode")
             });
 
-            mockContext.Setup(c => c.ToString()).Returns("Test");
-            var monitoredItem = new TestMonitoredItem(mockContext.Object, options, mockLogger.Object);
+            mockContext.ToStringValue = "Test";
+            var monitoredItem = new TestMonitoredItem(mockContext, options, telemetry.CreateLogger("MonitoredItem"));
 
             // Act
             string result = monitoredItem.ToString();
@@ -561,8 +572,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             }
         }
 
-        private Mock<IMonitoredItemContext> m_mockContext;
+        private FakeMonitoredItemContext m_context;
         private OptionsMonitor<MonitoredItemOptions> m_options;
-        private Mock<ILogger<MonitoredItem>> m_mockLogger;
+        private ITelemetryContext m_telemetry;
     }
 }

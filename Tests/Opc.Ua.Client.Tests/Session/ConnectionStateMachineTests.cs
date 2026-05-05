@@ -35,6 +35,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
+using Opc.Ua.Tests;
 
 namespace Opc.Ua.Client.Tests.ManagedSession
 {
@@ -50,7 +51,8 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         [OneTimeSetUp]
         public void OneTimeSetUp()
         {
-            m_logger = new Mock<ILogger>().Object;
+            m_logger = NUnitTelemetryContext.Create()
+                .CreateLogger("ConnectionStateMachine");
         }
 
         private ConnectionStateMachine CreateMachine(

@@ -35,6 +35,8 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
+using Opc.Ua.Client.Subscriptions.Fakes;
+using Opc.Ua.Tests;
 
 namespace Opc.Ua.Client.Subscriptions
 {
@@ -44,12 +46,9 @@ namespace Opc.Ua.Client.Subscriptions
         [SetUp]
         public void SetUp()
         {
-            m_mockCompletion = new Mock<IMessageAckQueue>();
-            m_mockObservability = new Mock<ITelemetryContext>();
+            m_completion = new FakeMessageAckQueue();
+            m_telemetry = NUnitTelemetryContext.Create();
             m_mockServices = new Mock<ISubscriptionServiceSetClientMethods>();
-            m_mockLogger = new Mock<ILogger<Subscription>>();
-            m_mockObservability.Setup(o => o.LoggerFactory.CreateLogger(It.IsAny<string>()))
-                .Returns(m_mockLogger.Object);
         }
 
         [Test]
@@ -57,23 +56,18 @@ namespace Opc.Ua.Client.Subscriptions
         {
             // Arrange
             var sut = new TestMessageProcessor(m_mockServices.Object,
-                m_mockCompletion.Object, m_mockObservability.Object)
+                m_completion, m_telemetry)
             {
                 Id = 3
             };
-            m_mockCompletion
-                .Setup(c => c.CompleteAsync(
-                    It.Is<uint>(i => i == 3),
-                    It.IsAny<CancellationToken>()))
-                .Returns(default(ValueTask))
-                .Verifiable(Times.Once);
 
             // Act
             await sut.DisposeAsync().ConfigureAwait(false);
 
             // Assert
             Assert.That(sut.PublishState, Is.EqualTo(PublishState.Completed));
-            m_mockCompletion.Verify();
+            Assert.That(m_completion.CompletedSubscriptions,
+                Is.EqualTo(new uint[] { 3 }));
         }
 
         [Test]
@@ -87,7 +81,7 @@ namespace Opc.Ua.Client.Subscriptions
             var availableSequenceNumbers = new List<uint> { 1, 2, 3 };
             var stringTable = new List<string> { "test" };
             await using var sut = new TestMessageProcessor(m_mockServices.Object,
-                m_mockCompletion.Object, m_mockObservability.Object)
+                m_completion, m_telemetry)
             {
                 Id = 3
             };
@@ -139,7 +133,7 @@ namespace Opc.Ua.Client.Subscriptions
             var stringTable = new List<string> { "test" };
 
             await using var sut = new TestMessageProcessor(m_mockServices.Object,
-                m_mockCompletion.Object, m_mockObservability.Object)
+                m_completion, m_telemetry)
             {
                 Id = 2
             };
@@ -214,7 +208,7 @@ namespace Opc.Ua.Client.Subscriptions
             UnsecureRandom.Shared.Shuffle(messages);
 
             await using var sut = new TestMessageProcessor(m_mockServices.Object,
-                m_mockCompletion.Object, m_mockObservability.Object)
+                m_completion, m_telemetry)
             {
                 Id = 3
             };
@@ -248,7 +242,7 @@ namespace Opc.Ua.Client.Subscriptions
             var stringTable = new List<string> { "test" };
 
             await using var sut = new TestMessageProcessor(m_mockServices.Object,
-                m_mockCompletion.Object, m_mockObservability.Object)
+                m_completion, m_telemetry)
             {
                 Id = 7
             };
@@ -302,7 +296,7 @@ namespace Opc.Ua.Client.Subscriptions
             var stringTable = new List<string> { "test" };
 
             await using var sut = new TestMessageProcessor(m_mockServices.Object,
-                m_mockCompletion.Object, m_mockObservability.Object)
+                m_completion, m_telemetry)
             {
                 Id = 5
             };
@@ -363,7 +357,7 @@ namespace Opc.Ua.Client.Subscriptions
             var stringTable = new List<string> { "test" };
 
             await using var sut = new TestMessageProcessor(m_mockServices.Object,
-                m_mockCompletion.Object, m_mockObservability.Object)
+                m_completion, m_telemetry)
             {
                 Id = 9
             };
@@ -390,7 +384,7 @@ namespace Opc.Ua.Client.Subscriptions
             var stringTable = new List<string> { "test" };
 
             await using var sut = new TestMessageProcessor(m_mockServices.Object,
-                m_mockCompletion.Object, m_mockObservability.Object)
+                m_completion, m_telemetry)
             {
                 Id = 11
             };
@@ -445,7 +439,7 @@ namespace Opc.Ua.Client.Subscriptions
             var stringTable = new List<string> { "test" };
 
             await using var sut = new TestMessageProcessor(m_mockServices.Object,
-                m_mockCompletion.Object, m_mockObservability.Object)
+                m_completion, m_telemetry)
             {
                 Id = 13
             };
@@ -486,7 +480,7 @@ namespace Opc.Ua.Client.Subscriptions
             var availableSequenceNumbers = new List<uint> { 1, 2, 3 };
             var stringTable = new List<string> { "test" };
             await using var sut = new TestMessageProcessor(m_mockServices.Object,
-                m_mockCompletion.Object, m_mockObservability.Object)
+                m_completion, m_telemetry)
             {
                 Id = 3
             };
@@ -630,9 +624,8 @@ namespace Opc.Ua.Client.Subscriptions
             }
         }
 
-        private Mock<IMessageAckQueue> m_mockCompletion;
-        private Mock<ILogger<Subscription>> m_mockLogger;
-        private Mock<ITelemetryContext> m_mockObservability;
+        private FakeMessageAckQueue m_completion;
+        private ITelemetryContext m_telemetry;
         private Mock<ISubscriptionServiceSetClientMethods> m_mockServices;
     }
 }

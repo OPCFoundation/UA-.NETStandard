@@ -34,6 +34,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
+using Opc.Ua.Tests;
 using Opc.Ua.Client.Subscriptions;
 using Opc.Ua.Client.Subscriptions.Engine;
 
@@ -45,22 +46,13 @@ namespace Opc.Ua.Client.Tests
     [Category("DefaultSubscriptionEngine")]
     public class DefaultSubscriptionEngineTests
     {
-        private Mock<ITelemetryContext> m_mockTelemetry;
-        private Mock<ILoggerFactory> m_mockLoggerFactory;
+        private ITelemetryContext m_telemetry;
         private Mock<ISubscriptionEngineContext> m_mockContext;
 
         [SetUp]
         public void SetUp()
         {
-            m_mockLoggerFactory = new Mock<ILoggerFactory>();
-            m_mockLoggerFactory
-                .Setup(f => f.CreateLogger(It.IsAny<string>()))
-                .Returns(new Mock<ILogger>().Object);
-
-            m_mockTelemetry = new Mock<ITelemetryContext>();
-            m_mockTelemetry
-                .Setup(t => t.LoggerFactory)
-                .Returns(m_mockLoggerFactory.Object);
+            m_telemetry = NUnitTelemetryContext.Create();
 
             m_mockContext = new Mock<ISubscriptionEngineContext>();
             m_mockContext
@@ -80,7 +72,7 @@ namespace Opc.Ua.Client.Tests
                 .Returns(false);
             m_mockContext
                 .Setup(c => c.Telemetry)
-                .Returns(m_mockTelemetry.Object);
+                .Returns(m_telemetry);
             m_mockContext
                 .Setup(c => c.OperationTimeout)
                 .Returns(60000);
@@ -234,10 +226,9 @@ namespace Opc.Ua.Client.Tests
         [Test]
         public void BridgeCanBeInstantiated()
         {
-            var mockSink = new Mock<ISubscriptionMessageSink>();
+            var sink = new RecordingSubscriptionMessageSink();
 
-            var bridge = new SubscriptionBridge(
-                mockSink.Object);
+            var bridge = new SubscriptionBridge(sink);
 
             Assert.That(bridge, Is.Not.Null);
         }
@@ -245,9 +236,8 @@ namespace Opc.Ua.Client.Tests
         [Test]
         public async Task BridgeOnKeepAliveForwardsToCacheSinkAsync()
         {
-            var mockSink = new Mock<ISubscriptionMessageSink>();
-            var bridge = new SubscriptionBridge(
-                mockSink.Object);
+            var sink = new RecordingSubscriptionMessageSink();
+            var bridge = new SubscriptionBridge(sink);
             var mockSubscription = new Mock<ISubscription>();
 
             await bridge.OnKeepAliveNotificationAsync(
@@ -257,20 +247,15 @@ namespace Opc.Ua.Client.Tests
                 publishStateMask: PublishState.None)
                 .ConfigureAwait(false);
 
-            mockSink.Verify(
-                s => s.SaveMessageInCache(
-                    It.IsAny<ArrayOf<uint>>(),
-                    It.Is<NotificationMessage>(
-                        m => m.SequenceNumber == 1)),
-                Times.Once);
+            Assert.That(sink.Calls, Has.Count.EqualTo(1));
+            Assert.That(sink.Calls[0].Message.SequenceNumber, Is.EqualTo(1u));
         }
 
         [Test]
         public async Task BridgeOnDataChangeForwardsToCacheSinkAsync()
         {
-            var mockSink = new Mock<ISubscriptionMessageSink>();
-            var bridge = new SubscriptionBridge(
-                mockSink.Object);
+            var sink = new RecordingSubscriptionMessageSink();
+            var bridge = new SubscriptionBridge(sink);
             var mockSubscription = new Mock<ISubscription>();
 
             var changes = new DataValueChange[]
@@ -290,20 +275,15 @@ namespace Opc.Ua.Client.Tests
                 stringTable: Array.Empty<string>())
                 .ConfigureAwait(false);
 
-            mockSink.Verify(
-                s => s.SaveMessageInCache(
-                    It.IsAny<ArrayOf<uint>>(),
-                    It.Is<NotificationMessage>(
-                        m => m.SequenceNumber == 5)),
-                Times.Once);
+            Assert.That(sink.Calls, Has.Count.EqualTo(1));
+            Assert.That(sink.Calls[0].Message.SequenceNumber, Is.EqualTo(5u));
         }
 
         [Test]
         public async Task BridgeOnEventNotificationForwardsToCacheSinkAsync()
         {
-            var mockSink = new Mock<ISubscriptionMessageSink>();
-            var bridge = new SubscriptionBridge(
-                mockSink.Object);
+            var sink = new RecordingSubscriptionMessageSink();
+            var bridge = new SubscriptionBridge(sink);
             var mockSubscription = new Mock<ISubscription>();
 
             var events = new EventNotification[]
@@ -323,28 +303,15 @@ namespace Opc.Ua.Client.Tests
                 stringTable: new List<string> { "ns-entry" })
                 .ConfigureAwait(false);
 
-            mockSink.Verify(
-                s => s.SaveMessageInCache(
-                    It.IsAny<ArrayOf<uint>>(),
-                    It.Is<NotificationMessage>(
-                        m => m.SequenceNumber == 10)),
-                Times.Once);
+            Assert.That(sink.Calls, Has.Count.EqualTo(1));
+            Assert.That(sink.Calls[0].Message.SequenceNumber, Is.EqualTo(10u));
         }
 
         [Test]
         public async Task BridgeDataChangeWithDiagnosticsPreservesDiagnosticInfoAsync()
         {
-            var mockSink = new Mock<ISubscriptionMessageSink>();
-            NotificationMessage captured = null;
-            mockSink
-                .Setup(s => s.SaveMessageInCache(
-                    It.IsAny<ArrayOf<uint>>(),
-                    It.IsAny<NotificationMessage>()))
-                .Callback<ArrayOf<uint>, NotificationMessage>(
-                    (_, msg) => captured = msg);
-
-            var bridge = new SubscriptionBridge(
-                mockSink.Object);
+            var sink = new RecordingSubscriptionMessageSink();
+            var bridge = new SubscriptionBridge(sink);
             var mockSubscription = new Mock<ISubscription>();
 
             var diag = new DiagnosticInfo
@@ -368,7 +335,8 @@ namespace Opc.Ua.Client.Tests
                 stringTable: Array.Empty<string>())
                 .ConfigureAwait(false);
 
-            Assert.That(captured, Is.Not.Null);
+            Assert.That(sink.Calls, Has.Count.EqualTo(1));
+            NotificationMessage captured = sink.Calls[0].Message;
             Assert.That(
                 captured.NotificationData.Count, Is.EqualTo(1));
             ExtensionObject ext = captured.NotificationData[0];
@@ -381,6 +349,29 @@ namespace Opc.Ua.Client.Tests
             Assert.That(
                 dcn.DiagnosticInfos[0].AdditionalInfo,
                 Is.EqualTo("test-diag"));
+        }
+
+        /// <summary>
+        /// Hand-rolled fake for <see cref="ISubscriptionMessageSink"/>
+        /// (internal interface) that records every <c>SaveMessageInCache</c>
+        /// call. Replaces a Moq-driven mock so that the test assembly does
+        /// not need <c>InternalsVisibleTo("DynamicProxyGenAssembly2")</c>
+        /// on the production assembly.
+        /// </summary>
+        private sealed class RecordingSubscriptionMessageSink
+            : ISubscriptionMessageSink
+        {
+            public List<(ArrayOf<uint> AvailableSequenceNumbers, NotificationMessage Message)> Calls
+            {
+                get;
+            } = new();
+
+            public void SaveMessageInCache(
+                ArrayOf<uint> availableSequenceNumbers,
+                NotificationMessage message)
+            {
+                Calls.Add((availableSequenceNumbers, message));
+            }
         }
     }
 }
