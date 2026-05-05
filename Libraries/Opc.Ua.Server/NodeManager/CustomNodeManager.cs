@@ -1565,7 +1565,7 @@ namespace Opc.Ua.Server
             lock (Lock)
             {
                 // validate node.
-                NodeState source = ValidateNode(systemContext, handle, operationCache);
+                NodeState? source = ValidateNode(systemContext, handle, operationCache);
 
                 if (source == null)
                 {
@@ -1838,7 +1838,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Verifies that the specified node exists.
         /// </summary>
-        protected virtual NodeState ValidateNode(
+        protected virtual NodeState? ValidateNode(
             ServerSystemContext context,
             NodeHandle handle,
             IDictionary<NodeId, NodeState> cache)
@@ -1881,7 +1881,7 @@ namespace Opc.Ua.Server
                 lock (Lock)
                 {
                     // validate node.
-                    NodeState source = ValidateNode(context, handle, cache);
+                    NodeState? source = ValidateNode(context, handle, cache);
 
                     if (source == null)
                     {
@@ -2268,7 +2268,7 @@ namespace Opc.Ua.Server
                 lock (Lock)
                 {
                     // validate node.
-                    NodeState source = ValidateNode(context, handle, cache);
+                    NodeState? source = ValidateNode(context, handle, cache);
 
                     if (source == null)
                     {
@@ -2408,7 +2408,7 @@ namespace Opc.Ua.Server
                 NodeHandle handle = nodesToProcess[ii];
 
                 // validate node.
-                NodeState source = ValidateNode(context, handle, cache);
+                NodeState? source = ValidateNode(context, handle, cache);
 
                 if (source == null)
                 {
@@ -2437,7 +2437,7 @@ namespace Opc.Ua.Server
                 NodeHandle handle = nodesToProcess[ii];
 
                 // validate node.
-                NodeState source = ValidateNode(context, handle, cache);
+                NodeState? source = ValidateNode(context, handle, cache);
 
                 if (source == null)
                 {
@@ -2466,7 +2466,7 @@ namespace Opc.Ua.Server
                 NodeHandle handle = nodesToProcess[ii];
 
                 // validate node.
-                NodeState source = ValidateNode(context, handle, cache);
+                NodeState? source = ValidateNode(context, handle, cache);
 
                 if (source == null)
                 {
@@ -2495,7 +2495,7 @@ namespace Opc.Ua.Server
                 NodeHandle handle = nodesToProcess[ii];
 
                 // validate node.
-                NodeState source = ValidateNode(context, handle, cache);
+                NodeState? source = ValidateNode(context, handle, cache);
 
                 if (source == null)
                 {
@@ -2524,7 +2524,7 @@ namespace Opc.Ua.Server
                 NodeHandle handle = nodesToProcess[ii];
 
                 // validate node.
-                NodeState source = ValidateNode(context, handle, cache);
+                NodeState? source = ValidateNode(context, handle, cache);
 
                 if (source == null)
                 {
@@ -2909,7 +2909,7 @@ namespace Opc.Ua.Server
                 NodeHandle handle = nodesToProcess[ii];
 
                 // validate node.
-                NodeState source = ValidateNode(context, handle, cache);
+                NodeState? source = ValidateNode(context, handle, cache);
 
                 if (source == null)
                 {
@@ -2936,7 +2936,7 @@ namespace Opc.Ua.Server
                 NodeHandle handle = nodesToProcess[ii];
 
                 // validate node.
-                NodeState source = ValidateNode(context, handle, cache);
+                NodeState? source = ValidateNode(context, handle, cache);
 
                 if (source == null)
                 {
@@ -2963,7 +2963,7 @@ namespace Opc.Ua.Server
                 NodeHandle handle = nodesToProcess[ii];
 
                 // validate node.
-                NodeState source = ValidateNode(context, handle, cache);
+                NodeState? source = ValidateNode(context, handle, cache);
 
                 if (source == null)
                 {
@@ -2990,7 +2990,7 @@ namespace Opc.Ua.Server
                 NodeHandle handle = nodesToProcess[ii];
 
                 // validate node.
-                NodeState source = ValidateNode(context, handle, cache);
+                NodeState? source = ValidateNode(context, handle, cache);
 
                 if (source == null)
                 {
@@ -3017,7 +3017,7 @@ namespace Opc.Ua.Server
                 NodeHandle handle = nodesToProcess[ii];
 
                 // validate node.
-                NodeState source = ValidateNode(context, handle, cache);
+                NodeState? source = ValidateNode(context, handle, cache);
 
                 if (source == null)
                 {
@@ -3044,7 +3044,7 @@ namespace Opc.Ua.Server
                 NodeHandle handle = nodesToProcess[ii];
 
                 // validate node.
-                NodeState source = ValidateNode(context, handle, cache);
+                NodeState? source = ValidateNode(context, handle, cache);
 
                 if (source == null)
                 {
@@ -3117,7 +3117,7 @@ namespace Opc.Ua.Server
                     methodToCall.Processed = true;
 
                     // validate the source node.
-                    NodeState source = ValidateNode(systemContext, handle, operationCache);
+                    NodeState? source = ValidateNode(systemContext, handle, operationCache);
 
                     if (source == null)
                     {
@@ -3356,7 +3356,7 @@ namespace Opc.Ua.Server
             lock (Lock)
             {
                 // check for valid node.
-                NodeState source = ValidateNode(systemContext, handle, null!);
+                NodeState? source = ValidateNode(systemContext, handle, null!);
 
                 if (source == null)
                 {
@@ -3705,7 +3705,7 @@ namespace Opc.Ua.Server
                     lock (Lock)
                     {
                         // validate node.
-                        NodeState source = ValidateNode(systemContext, handle, operationCache);
+                        NodeState? source = ValidateNode(systemContext, handle, operationCache);
 
                         if (source == null)
                         {
@@ -3866,7 +3866,7 @@ namespace Opc.Ua.Server
                     lock (Lock)
                     {
                         // validate node.
-                        NodeState source = ValidateNode(systemContext, handle, operationCache);
+                        NodeState? source = ValidateNode(systemContext, handle, operationCache);
 
                         if (source == null)
                         {
