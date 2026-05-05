@@ -313,7 +313,7 @@ namespace Opc.Ua.Server
                 return StatusCodes.BadUserAccessDenied;
             }
 
-            subscription.ResendData(session.OperationContext);
+            subscription.ResendData(session.OperationContext!);
 
             return ServiceResult.Good;
         }
@@ -492,7 +492,7 @@ namespace Opc.Ua.Server
         {
             ServerSystemContext systemContext = context as ServerSystemContext ?? SystemContext;
 
-            Server.ConditionRefresh(systemContext.OperationContext, subscriptionId);
+            Server.ConditionRefresh(systemContext.OperationContext!, subscriptionId);
 
             return ServiceResult.Good;
         }
@@ -510,7 +510,7 @@ namespace Opc.Ua.Server
             ServerSystemContext systemContext = context as ServerSystemContext ?? SystemContext;
 
             Server.ConditionRefresh2(
-                systemContext.OperationContext,
+                systemContext.OperationContext!,
                 subscriptionId,
                 monitoredItemId);
 

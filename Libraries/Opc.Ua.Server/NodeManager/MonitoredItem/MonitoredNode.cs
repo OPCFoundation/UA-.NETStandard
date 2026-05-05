@@ -259,7 +259,7 @@ namespace Opc.Ua.Server
                     if (context is ServerSystemContext serverContext)
                     {
                         ServerSystemContext serverSystemContextToUse = GetOrCreateContext(serverContext, monitoredItem);
-                        operationContext = serverSystemContextToUse.OperationContext;
+                        operationContext = serverSystemContextToUse.OperationContext!;
                         contextToUse = serverSystemContextToUse;
                     }
                     else
@@ -352,7 +352,7 @@ namespace Opc.Ua.Server
                     out (ServerSystemContext Context, int CreatedAtTicks) cachedEntry))
             {
                 // Check if the session or user identity has changed or the entry has expired
-                if (cachedEntry.Context.OperationContext.Session != monitoredItem.Session ||
+                if (cachedEntry.Context.OperationContext!.Session != monitoredItem.Session ||
                     cachedEntry.Context.OperationContext.UserIdentity != monitoredItem
                         .EffectiveIdentity ||
                     (currentTicks - cachedEntry.CreatedAtTicks) > m_cacheLifetimeTicks)

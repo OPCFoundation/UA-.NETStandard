@@ -92,7 +92,7 @@ namespace Opc.Ua.Server
             // create monitored item.
             ISampledDataChangeMonitoredItem monitoredItem =
                 m_samplingGroupManager.CreateMonitoredItem(
-                    context.OperationContext,
+                    context.OperationContext!,
                     subscriptionId,
                     publishingInterval,
                     timestampsToReturn,
@@ -192,7 +192,7 @@ namespace Opc.Ua.Server
             }
 
             return m_samplingGroupManager.ModifyMonitoredItem(
-                context.OperationContext,
+                context.OperationContext!,
                 timestampsToReturn,
                 monitoredItem,
                 itemToModify,
