@@ -1638,7 +1638,7 @@ namespace Opc.Ua.Server
                 e.SetChildValue(
                     systemContext,
                     BrowseNames.ClientAuditEntryId,
-                    request?.RequestHeader?.AuditEntryId,
+                    request?.RequestHeader?.AuditEntryId!,
                     false);
 
                 e.SetChildValue(

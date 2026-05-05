@@ -330,7 +330,7 @@ namespace Opc.Ua.Server
                 }
 
                 bool requireEncryption = RequireEncryption(
-                    context.ChannelContext.EndpointDescription!);
+                    context.ChannelContext!.EndpointDescription!);
 
                 if (!requireEncryption && !clientCertificate.IsEmpty)
                 {
