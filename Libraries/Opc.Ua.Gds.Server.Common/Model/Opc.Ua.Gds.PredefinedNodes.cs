@@ -50,13 +50,13 @@ namespace Opc.Ua.Gds
         public static NodeStateCollection Load(ISystemContext context)
         {
             byte[] initializationBuffer = Convert.FromBase64String(
-               "AQAAACAAAABodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvVUEvR0RTL/////8dAAAABGDACgEAAAAZAAAA" +
+               "AQAAACAAAABodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvVUEvR0RTL/////8eAAAABGDACgEAAAAZAAAA" +
                "T1BDVUFHRFNOYW1lc3BhY2VNZXRhZGF0YQEAIAAAAGh0dHA6Ly9vcGNmb3VuZGF0aW9uLm9yZy9VQS9H" +
                "RFMvAQHRAgAvAQBgLdECAAABAAAAAC8BAQDDLQsAAAAVYKkKAgAAAAAADAAAAE5hbWVzcGFjZVVyaQEB" +
                "0gIALgBE0gIAAAwgAAAAaHR0cDovL29wY2ZvdW5kYXRpb24ub3JnL1VBL0dEUy8ADP////8BAf////8A" +
                "AAAAFWCpCgIAAAAAABAAAABOYW1lc3BhY2VWZXJzaW9uAQHTAgAuAETTAgAADAcAAAAxLjA1LjA3AAz/" +
                "////AQH/////AAAAABVgqQoCAAAAAAAYAAAATmFtZXNwYWNlUHVibGljYXRpb25EYXRlAQHUAgAuAETU" +
-               "AgAADQDAh6FY0NwBAA3/////AQH/////AAAAABVgqQoCAAAAAAARAAAASXNOYW1lc3BhY2VTdWJzZXQB" +
+               "AgAADQAAE3T92NwBAA3/////AQH/////AAAAABVgqQoCAAAAAAARAAAASXNOYW1lc3BhY2VTdWJzZXQB" +
                "AdUCAC4ARNUCAAABAAAB/////wEB/////wAAAAAXYKkKAgAAAAAAEQAAAFN0YXRpY05vZGVJZFR5cGVz" +
                "AQHWAgAuAETWAgAAhgEAAAAAAAAAAQAAAQEAAAABAAAAAAAAAAEB/////wAAAAAXYKkKAgAAAAAAGAAA" +
                "AFN0YXRpY051bWVyaWNOb2RlSWRSYW5nZQEB1wIALgBE1wIAAIwBAAAADAAAADE6MjE0NzQ4MzY0NwEA" +
@@ -696,7 +696,7 @@ namespace Opc.Ua.Gds
                "TmFtZXNwYWNlPSJodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvVUEvR0RTL1R5cGVzLnhzZCINCiAgZWxl" +
                "bWVudEZvcm1EZWZhdWx0PSJxdWFsaWZpZWQiDQo+DQogIDx4czphbm5vdGF0aW9uPg0KICAgIDx4czph" +
                "cHBpbmZvPg0KICAgICAgPHVhOk1vZGVsIE1vZGVsVXJpPSJodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcv" +
-               "VUEvR0RTLyIgVmVyc2lvbj0iMS4wNS4wNyIgUHVibGljYXRpb25EYXRlPSIyMDI2LTA0LTIwVDAwOjAw" +
+               "VUEvR0RTLyIgVmVyc2lvbj0iMS4wNS4wNyIgUHVibGljYXRpb25EYXRlPSIyMDI2LTA1LTAxVDAwOjAw" +
                "OjAwWiIgLz4NCiAgICA8L3hzOmFwcGluZm8+DQogIDwveHM6YW5ub3RhdGlvbj4NCiAgDQogIDx4czpp" +
                "bXBvcnQgbmFtZXNwYWNlPSJodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvVUEvMjAwOC8wMi9UeXBlcy54" +
                "c2QiIC8+DQoNCiAgPHhzOmNvbXBsZXhUeXBlIG5hbWU9IkFwcGxpY2F0aW9uUmVjb3JkRGF0YVR5cGUi" +
@@ -725,7 +725,8 @@ namespace Opc.Ua.Gds
                "/////wEB/////wAAAAAVYKkKAgAAAAAACgAAAERlcHJlY2F0ZWQBAUQfAC4AREQfAAABAQAB/////wEB" +
                "/////wAAAAAVYKkKAgAAAAEAGQAAAEFwcGxpY2F0aW9uUmVjb3JkRGF0YVR5cGUBAYMAAC8ARYMAAAAM" +
                "LwAAAC8veHM6ZWxlbWVudFtAbmFtZT0nQXBwbGljYXRpb25SZWNvcmREYXRhVHlwZSddAAz/////AQH/" +
-               "////AAAAAA=="
+               "////AAAAAARgwAIBAAAACwAAAERlZmF1bHRKc29uAAAMAAAARGVmYXVsdCBKU09OAQFBHwBMQR8AAAEA" +
+               "AAAAJgEBAQEAAAAAAA=="
             );
             using (MemoryStream stream = new MemoryStream(initializationBuffer))
             {
