@@ -3145,7 +3145,7 @@ namespace Opc.Ua.Server
                         // reference to the method.
                         if (method == null && source is BaseInstanceState instanceState)
                         {
-                            MethodState? method2 = FindMethodInTypeHierarchy(systemContext, instanceState.TypeDefinitionId, methodToCall.MethodId);
+                            method = FindMethodInTypeHierarchy(systemContext, instanceState.TypeDefinitionId, methodToCall.MethodId);
                         }
 
                         if (method == null)

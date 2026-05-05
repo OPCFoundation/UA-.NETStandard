@@ -3952,14 +3952,14 @@ namespace Opc.Ua.Server
             }
 
             Dictionary<NodeId, PermissionType> commonRoleIdPermissions;
-            if (!rolePermissions.IsEmpty)
+            if (rolePermissions.IsEmpty)
             {
                 // there were no role permissions defined for this node only user role permissions
                 commonRoleIdPermissions = roleIdPermissionsDefinedForUser;
             }
-            else if (!userRolePermissions.IsEmpty)
+            else if (userRolePermissions.IsEmpty)
             {
-                // there were no role permissions defined for this node only user role permissions
+                // there were no user role permissions defined only role permissions for the node
                 commonRoleIdPermissions = roleIdPermissions;
             }
             else
