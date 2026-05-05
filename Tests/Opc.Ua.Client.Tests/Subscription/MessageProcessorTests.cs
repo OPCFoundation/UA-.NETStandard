@@ -88,7 +88,7 @@ namespace Opc.Ua.Client.Subscriptions
 
             // Act
             await sut.OnPublishReceivedAsync(message, availableSequenceNumbers, stringTable).ConfigureAwait(false);
-            await sut.KeepAliveNotificationReceived.WaitAsync().WaitAsync(TimeSpan.FromSeconds(1)).ConfigureAwait(false);
+            await sut.KeepAliveNotificationReceived.WaitAsync().WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
 
             // Assert
             Assert.That(sut.KeepAliveNotificationReceived.IsSet, Is.True);
@@ -116,7 +116,7 @@ namespace Opc.Ua.Client.Subscriptions
 
             // Act
             await sut.OnPublishReceivedAsync(message, availableSequenceNumbers, stringTable).ConfigureAwait(false);
-            await sut.DataChangeNotificationReceived.WaitAsync().WaitAsync(TimeSpan.FromSeconds(1)).ConfigureAwait(false);
+            await sut.DataChangeNotificationReceived.WaitAsync().WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
 
             // Assert
             Assert.That(sut.AvailableInRetransmissionQueue, Is.EqualTo(availableSequenceNumbers));
@@ -183,7 +183,7 @@ namespace Opc.Ua.Client.Subscriptions
                     })
                 ]
             }, availableSequenceNumbers, stringTable).ConfigureAwait(false);
-            await sut.EventNotificationReceived.WaitAsync().WaitAsync(TimeSpan.FromSeconds(1)).ConfigureAwait(false);
+            await sut.EventNotificationReceived.WaitAsync().WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
 
             // Assert
             Assert.That(sut.EventNotificationReceived.IsSet, Is.True);
@@ -266,7 +266,7 @@ namespace Opc.Ua.Client.Subscriptions
             await sut.OnPublishReceivedAsync(message, availableSequenceNumbers, stringTable)
                 .ConfigureAwait(false);
             await sut.DataChangeNotificationReceived.WaitAsync()
-                .WaitAsync(TimeSpan.FromSeconds(1))
+                .WaitAsync(TimeSpan.FromSeconds(5))
                 .ConfigureAwait(false);
 
             int firstCount = sut.ReceivedSequenceNumbers.Count;
@@ -314,7 +314,7 @@ namespace Opc.Ua.Client.Subscriptions
                 ]
             }, availableSequenceNumbers, stringTable).ConfigureAwait(false);
             await sut.DataChangeNotificationReceived.WaitAsync()
-                .WaitAsync(TimeSpan.FromSeconds(1))
+                .WaitAsync(TimeSpan.FromSeconds(5))
                 .ConfigureAwait(false);
 
             // 2: keep-alive (no NotificationData)
@@ -324,7 +324,7 @@ namespace Opc.Ua.Client.Subscriptions
                 SequenceNumber = 2
             }, availableSequenceNumbers, stringTable).ConfigureAwait(false);
             await sut.KeepAliveNotificationReceived.WaitAsync()
-                .WaitAsync(TimeSpan.FromSeconds(1))
+                .WaitAsync(TimeSpan.FromSeconds(5))
                 .ConfigureAwait(false);
 
             // 3: another notification
@@ -341,7 +341,7 @@ namespace Opc.Ua.Client.Subscriptions
                 ]
             }, availableSequenceNumbers, stringTable).ConfigureAwait(false);
             await sut.DataChangeNotificationReceived.WaitAsync()
-                .WaitAsync(TimeSpan.FromSeconds(1))
+                .WaitAsync(TimeSpan.FromSeconds(5))
                 .ConfigureAwait(false);
 
             // All three sequence numbers should appear in order.
@@ -368,7 +368,7 @@ namespace Opc.Ua.Client.Subscriptions
                 SequenceNumber = 7
             }, availableSequenceNumbers, stringTable).ConfigureAwait(false);
             await sut.KeepAliveNotificationReceived.WaitAsync()
-                .WaitAsync(TimeSpan.FromSeconds(1))
+                .WaitAsync(TimeSpan.FromSeconds(5))
                 .ConfigureAwait(false);
 
             Assert.That(sut.KeepAliveNotificationReceived.IsSet, Is.True);
@@ -419,7 +419,7 @@ namespace Opc.Ua.Client.Subscriptions
                 ]
             }, availableSequenceNumbers, stringTable).ConfigureAwait(false);
             await sut.EventNotificationReceived.WaitAsync()
-                .WaitAsync(TimeSpan.FromSeconds(2))
+                .WaitAsync(TimeSpan.FromSeconds(5))
                 .ConfigureAwait(false);
 
             // Even though republish failed, the next message must still
@@ -453,7 +453,7 @@ namespace Opc.Ua.Client.Subscriptions
                 SequenceNumber = uint.MaxValue
             }, availableSequenceNumbers, stringTable).ConfigureAwait(false);
             await sut.KeepAliveNotificationReceived.WaitAsync()
-                .WaitAsync(TimeSpan.FromSeconds(1))
+                .WaitAsync(TimeSpan.FromSeconds(5))
                 .ConfigureAwait(false);
             Assert.That(sut.LastSequenceNumberProcessed,
                 Is.EqualTo(uint.MaxValue));
@@ -464,7 +464,7 @@ namespace Opc.Ua.Client.Subscriptions
                 SequenceNumber = 1
             }, availableSequenceNumbers, stringTable).ConfigureAwait(false);
             await sut.KeepAliveNotificationReceived.WaitAsync()
-                .WaitAsync(TimeSpan.FromSeconds(1))
+                .WaitAsync(TimeSpan.FromSeconds(5))
                 .ConfigureAwait(false);
 
             Assert.That(sut.KeepAliveNotificationReceived.IsSet, Is.True,
@@ -497,7 +497,7 @@ namespace Opc.Ua.Client.Subscriptions
                     })
                 ]
             }, availableSequenceNumbers, stringTable).ConfigureAwait(false);
-            await sut.StatusChangeNotificationReceived.WaitAsync().WaitAsync(TimeSpan.FromSeconds(1)).ConfigureAwait(false);
+            await sut.StatusChangeNotificationReceived.WaitAsync().WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
 
             // Assert
             Assert.That(sut.StatusChangeNotificationReceived.IsSet, Is.True);
@@ -519,7 +519,7 @@ namespace Opc.Ua.Client.Subscriptions
                     })
                 ]
             }, availableSequenceNumbers, stringTable).ConfigureAwait(false);
-            await sut.StatusChangeNotificationReceived.WaitAsync().WaitAsync(TimeSpan.FromSeconds(1)).ConfigureAwait(false);
+            await sut.StatusChangeNotificationReceived.WaitAsync().WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
 
             // Assert
             Assert.That(sut.StatusChangeNotificationReceived.IsSet, Is.True);

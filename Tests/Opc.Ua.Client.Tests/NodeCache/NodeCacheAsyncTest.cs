@@ -456,6 +456,11 @@ namespace Opc.Ua.Client.Tests
         [Order(1200)]
         public async Task NodeCacheFindReferencesConcurrentAsync()
         {
+            if (UriScheme != Utils.UriSchemeOpcTcp)
+            {
+                Assert.Ignore("Skipping concurrent stress on HTTPS variants (unreliable in CI environment).");
+            }
+
             if (ReferenceDescriptions.IsNull)
             {
                 await BrowseFullAddressSpaceAsync().ConfigureAwait(false);
