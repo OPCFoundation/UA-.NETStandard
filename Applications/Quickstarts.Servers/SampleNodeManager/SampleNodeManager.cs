@@ -1943,7 +1943,7 @@ namespace Opc.Ua.Sample
                     }
 
                     // only fill in diagnostic info if it is requested.
-                    if ((systemContext!.OperationContext.DiagnosticsMask &
+                    if ((systemContext!.OperationContext!.DiagnosticsMask &
                         DiagnosticsMasks.OperationAll) != 0)
                     {
                         if (ServiceResult.IsBad(argumentError))
