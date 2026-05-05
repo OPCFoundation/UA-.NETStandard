@@ -328,6 +328,10 @@ namespace Opc.Ua.Bindings
                 m_disposed = true;
                 m_client?.Dispose();
                 m_client = null;
+                m_pinnedClientCertX509?.Dispose();
+                m_pinnedClientCertX509 = null;
+                m_pinnedClientCert?.Dispose();
+                m_pinnedClientCert = null;
             }
         }
 
@@ -401,8 +405,11 @@ namespace Opc.Ua.Bindings
                     // send client certificate for servers that require TLS client authentication
                     if (m_settings!.ClientCertificate != null)
                     {
-                        // prepare the server TLS certificate
-                        Certificate clientCertificate = m_settings.ClientCertificate;
+                        // prepare the client TLS certificate. AddRef so the
+                        // channel owns the cert independent of the source
+                        // (m_settings.ClientCertificate is a borrowed reference
+                        // owned by the application configuration).
+                        Certificate clientCertificate = m_settings.ClientCertificate.AddRef();
 #if NETSTANDARD2_1 || NET472_OR_GREATER || NET5_0_OR_GREATER
                         try
                         {
@@ -410,16 +417,28 @@ namespace Opc.Ua.Bindings
                             // which default to the ephemeral KeySet. Also a new certificate must be reloaded.
                             // If the key fails to copy, its probably a non exportable key from the X509Store.
                             // Then we can use the original certificate, the private key is already in the key store.
-                            clientCertificate = X509Utils.CreateCopyWithPrivateKey(
-                                m_settings.ClientCertificate,
-                                false);
+                            Certificate copy = X509Utils.CreateCopyWithPrivateKey(clientCertificate, false);
+                            if (!ReferenceEquals(copy, clientCertificate))
+                            {
+                                clientCertificate.Dispose();
+                                clientCertificate = copy;
+                            }
                         }
                         catch (CryptographicException ce)
                         {
                             m_logger.LogError(ce, "Copy of the private key for https was denied");
                         }
 #endif
-                        handler.ClientCertificates.Add(clientCertificate.AsX509Certificate2());
+                        // pin the cert for the lifetime of the channel so the
+                        // OS-level private key handle backing the X509Certificate2
+                        // we hand to HttpClientHandler cannot be invalidated by a
+                        // concurrent cert reload elsewhere in the process.
+                        m_pinnedClientCert?.Dispose();
+                        m_pinnedClientCert = clientCertificate;
+                        m_pinnedClientCertX509?.Dispose();
+                        m_pinnedClientCertX509 = clientCertificate.AsX509Certificate2();
+
+                        handler.ClientCertificates.Add(m_pinnedClientCertX509);
                         ClientChannelCertificate = clientCertificate.RawData;
                     }
 
@@ -531,6 +550,8 @@ namespace Opc.Ua.Bindings
         private TransportChannelSettings? m_settings;
         private ChannelQuotas? m_quotas;
         private HttpClient? m_client;
+        private Certificate? m_pinnedClientCert;
+        private X509Certificate2? m_pinnedClientCertX509;
         private bool m_disposed;
         private readonly ITelemetryContext m_telemetry;
         private readonly ILogger m_logger;

@@ -170,6 +170,10 @@ namespace Opc.Ua.Bindings
                 ConnectionWaiting = null;
                 m_host?.Dispose();
                 m_host = null;
+                m_pinnedServerCertX509?.Dispose();
+                m_pinnedServerCertX509 = null;
+                m_pinnedServerCert?.Dispose();
+                m_pinnedServerCert = null;
             }
         }
 
@@ -297,9 +301,13 @@ namespace Opc.Ua.Bindings
             Justification = "IWebHostBuilder is required for cross-framework compatibility; on NET8_0_OR_GREATER ConfigureWebHostDefaults passes IWebHostBuilder.")]
         private void ConfigureWebHost(IWebHostBuilder webHostBuilder)
         {
-            // prepare the server TLS certificate
+            // prepare the server TLS certificate. The provider returns a
+            // borrowed reference owned by the registry; AddRef so this
+            // listener owns the cert independent of the registry's lifetime
+            // (the registry may dispose its snapshot during cert hot-update,
+            // which would otherwise free the OS handle Kestrel still holds).
             Certificate serverCertificate = m_serverCertProvider.GetInstanceCertificate(
-                SecurityPolicies.Https);
+                SecurityPolicies.Https).AddRef();
 #if NETSTANDARD2_1 || NET472_OR_GREATER || NET5_0_OR_GREATER
             try
             {
@@ -307,13 +315,27 @@ namespace Opc.Ua.Bindings
                 // which default to the ephemeral KeySet. Also a new certificate must be reloaded.
                 // If the key fails to copy, its probably a non exportable key from the X509Store.
                 // Then we can use the original certificate, the private key is already in the key store.
-                serverCertificate = X509Utils.CreateCopyWithPrivateKey(serverCertificate, false);
+                Certificate copy = X509Utils.CreateCopyWithPrivateKey(serverCertificate, false);
+                if (!ReferenceEquals(copy, serverCertificate))
+                {
+                    serverCertificate.Dispose();
+                    serverCertificate = copy;
+                }
             }
             catch (CryptographicException ce)
             {
                 m_logger.LogTrace("Copy of the private key for https was denied: {Message}", ce.Message);
             }
 #endif
+            // pin the cert for the lifetime of the listener so that the
+            // OS-level private key handle backing the Kestrel-held
+            // X509Certificate2 cannot be invalidated by a concurrent cert
+            // reload elsewhere in the process.
+            m_pinnedServerCert?.Dispose();
+            m_pinnedServerCert = serverCertificate;
+            m_pinnedServerCertX509?.Dispose();
+            m_pinnedServerCertX509 = serverCertificate.AsX509Certificate2();
+
             // save the server certificate so it can be used in the secure channel context.
             ServerChannelCertificate = serverCertificate.RawData;
 
@@ -324,7 +346,7 @@ namespace Opc.Ua.Bindings
                     ? ClientCertificateMode.AllowCertificate
                     : ClientCertificateMode.NoCertificate,
                 // note: this is the TLS certificate!
-                ServerCertificate = serverCertificate.AsX509Certificate2(),
+                ServerCertificate = m_pinnedServerCertX509,
                 ClientCertificateValidation = ValidateClientCertificate,
                 SslProtocols = SslProtocols.None
             };
@@ -644,6 +666,8 @@ namespace Opc.Ua.Bindings
 #pragma warning disable CS0618 // Type or member is obsolete
         private CertificateTypesProvider m_serverCertProvider;
 #pragma warning restore CS0618
+        private Certificate m_pinnedServerCert;
+        private X509Certificate2 m_pinnedServerCertX509;
         private bool m_mutualTlsEnabled;
         private readonly ILogger m_logger;
         private readonly ITelemetryContext m_telemetry;
