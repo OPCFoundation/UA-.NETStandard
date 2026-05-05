@@ -1116,6 +1116,21 @@ namespace Opc.Ua.Bindings
             catch (Exception e)
             {
                 m_logger.LogError(e, "TCPLISTENER - Unexpected error processing request.");
+
+                // Send a service fault back to the client so it does not hang waiting
+                // for a response to a request the server failed to dispatch (e.g. when a
+                // certificate became invalid mid-flight during ApplyChanges).
+                try
+                {
+                    ServiceFault fault = EndpointBase.CreateFault(m_logger, request, e);
+                    ((TcpServerChannel)channel).SendResponse(requestId, fault);
+                }
+                catch (Exception faultEx)
+                {
+                    m_logger.LogError(
+                        faultEx,
+                        "TCPLISTENER - Failed to send fault response to client.");
+                }
             }
         }
 
