@@ -372,7 +372,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 }
             };
 
-            return new ConfiguredEndpoint(null, description);
+            return new ConfiguredEndpoint(null, description, configuration: null);
         }
 
         /// <summary>
