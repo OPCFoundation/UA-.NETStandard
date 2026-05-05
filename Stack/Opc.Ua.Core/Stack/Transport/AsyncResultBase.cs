@@ -110,11 +110,8 @@ namespace Opc.Ua
                 DisposeWaitHandle(true);
 
                 // dispose the cancellation token.
-                if (m_cts != null)
-                {
-                    m_cts?.Dispose();
-                    m_cts = null;
-                }
+                m_cts?.Dispose();
+                m_cts = null;
             }
         }
 

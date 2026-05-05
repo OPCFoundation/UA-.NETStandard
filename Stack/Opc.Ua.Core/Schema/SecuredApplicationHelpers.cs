@@ -406,8 +406,6 @@ namespace Opc.Ua.Security
                     break;
                 case SecurityPolicies.RSA_DH_AesGcm:
                 case SecurityPolicies.RSA_DH_ChaChaPoly:
-                    result = 12;
-                    break;
                 case SecurityPolicies.ECC_brainpoolP256r1_AesGcm:
                 case SecurityPolicies.ECC_brainpoolP256r1_ChaChaPoly:
                 case SecurityPolicies.ECC_nistP256_AesGcm:

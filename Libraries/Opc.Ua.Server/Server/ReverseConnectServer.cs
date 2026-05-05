@@ -431,11 +431,8 @@ namespace Opc.Ua.Server
             // start registration timer.
             lock (m_connectionsLock)
             {
-                if (m_reverseConnectTimer != null)
-                {
-                    m_reverseConnectTimer?.Dispose();
-                    m_reverseConnectTimer = null;
-                }
+                m_reverseConnectTimer?.Dispose();
+                m_reverseConnectTimer = null;
             }
         }
 

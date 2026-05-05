@@ -616,7 +616,7 @@ namespace Opc.Ua
             settings.CloseOutput = true;
             using var writer = XmlWriter.Create(ostrm, settings);
             using var encoder = new XmlEncoder(typeof(ApplicationConfiguration), writer, context);
-            this.Encode(encoder);
+            Encode(encoder);
             encoder.Close();
         }
 

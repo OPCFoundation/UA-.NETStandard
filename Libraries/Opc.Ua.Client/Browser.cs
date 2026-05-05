@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -103,7 +104,7 @@ namespace Opc.Ua.Client
         /// </summary>
         public ISessionClient? Session
         {
-            get => m_session;
+            get;
             set
             {
                 if (value is ISession session)
@@ -115,7 +116,7 @@ namespace Opc.Ua.Client
                     ContinuationPointPolicy =
                         session.ContinuationPointPolicy;
                 }
-                m_session = value;
+                field = value;
             }
         }
 
@@ -555,6 +556,125 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Browse the server address space returning results as an async stream.
+        /// Automatically handles continuation points and releases them on
+        /// disposal/cancellation. Uses the supplied
+        /// <paramref name="nodesToBrowse"/> verbatim — the caller controls
+        /// the browse description (NodeId, BrowseDirection, ReferenceTypeId,
+        /// IncludeSubtypes, NodeClassMask, ResultMask).
+        /// </summary>
+        /// <param name="requestHeader">The request header.</param>
+        /// <param name="view">The view to browse.</param>
+        /// <param name="nodesToBrowse">The set of browse operations to perform.</param>
+        /// <param name="ct">The cancellation token.</param>
+        /// <returns>An async stream of browse results.</returns>
+        /// <exception cref="ServiceResultException">Thrown when the browser
+        /// is not attached to a session.</exception>
+        public async IAsyncEnumerable<BrowseResult> BrowseStreamAsync(
+            RequestHeader? requestHeader,
+            ViewDescription? view,
+            ArrayOf<BrowseDescription> nodesToBrowse,
+            [EnumeratorCancellation] CancellationToken ct = default)
+        {
+            ISessionClient session = Session ??
+                throw new ServiceResultException(
+                    StatusCodes.BadServerNotConnected,
+                    "Cannot browse if not connected to a server.");
+
+            BrowseResponse first = await session.BrowseAsync(
+                requestHeader, view, 0, nodesToBrowse, ct).ConfigureAwait(false);
+            ClientBase.ValidateResponse(first.Results, nodesToBrowse);
+            ClientBase.ValidateDiagnosticInfos(first.DiagnosticInfos, nodesToBrowse);
+
+            var continuationPoints = new List<ByteString>();
+            for (int i = 0; i < first.Results.Count; i++)
+            {
+                BrowseResult result = first.Results[i];
+                if (StatusCode.IsGood(result.StatusCode) &&
+                    !result.ContinuationPoint.IsNull &&
+                    result.ContinuationPoint.Length != 0)
+                {
+                    if (result.References.Count > 0)
+                    {
+                        continuationPoints.Add(result.ContinuationPoint);
+                    }
+                    else
+                    {
+                        m_logger.LogWarning(
+                            "Browser: Server returned empty references but a " +
+                            "continuation point. Stopping to prevent denial of service.");
+                        yield return new BrowseResult
+                        {
+                            StatusCode = StatusCodes.BadNoData
+                        };
+                        continue;
+                    }
+                }
+                yield return result;
+            }
+
+            try
+            {
+                while (continuationPoints.Count > 0)
+                {
+                    BrowseNextResponse next = await session.BrowseNextAsync(
+                        requestHeader, false,
+                        continuationPoints.ToArrayOf(), ct).ConfigureAwait(false);
+                    ClientBase.ValidateResponse(
+                        next.Results, continuationPoints.ToArrayOf());
+                    ClientBase.ValidateDiagnosticInfos(
+                        next.DiagnosticInfos, continuationPoints.ToArrayOf());
+
+                    continuationPoints = [];
+                    for (int i = 0; i < next.Results.Count; i++)
+                    {
+                        BrowseResult result = next.Results[i];
+                        if (StatusCode.IsGood(result.StatusCode) &&
+                            !result.ContinuationPoint.IsNull &&
+                            result.ContinuationPoint.Length != 0)
+                        {
+                            if (result.References.Count > 0)
+                            {
+                                continuationPoints.Add(result.ContinuationPoint);
+                            }
+                            else
+                            {
+                                m_logger.LogWarning(
+                                    "Browser: Server returned empty references " +
+                                    "but a continuation point. Stopping to prevent " +
+                                    "denial of service.");
+                                yield return new BrowseResult
+                                {
+                                    StatusCode = StatusCodes.BadNoData
+                                };
+                                continue;
+                            }
+                        }
+                        yield return result;
+                    }
+                }
+            }
+            finally
+            {
+                if (continuationPoints.Count > 0)
+                {
+                    try
+                    {
+                        await session.BrowseNextAsync(
+                            requestHeader, true,
+                            continuationPoints.ToArrayOf(),
+                            default).ConfigureAwait(false);
+                    }
+                    catch (Exception ex)
+                    {
+                        m_logger.LogError(ex,
+                            "Browser: Failed to release continuation points.");
+                    }
+                }
+            }
+        }
+
+        /// <summary>
         /// Call the browse service asynchronously and call browse next,
         /// if applicable, immediately afterwards. Observe proper treatment
         /// of specific service results, specifically
@@ -722,7 +842,7 @@ namespace Opc.Ua.Client
             ArrayOf<string> serverUris = decoder.ReadStringArray(null);
             context.NamespaceUris = new NamespaceTable(nsUris.Memory.ToArray());
             context.ServerUris = new StringTable(serverUris.Memory.ToArray());
-            BrowserOptions options = new BrowserOptions();
+            var options = new BrowserOptions();
             options.Decode(decoder);
             return new Browser(telemetry, options);
         }
@@ -753,7 +873,6 @@ namespace Opc.Ua.Client
 
         private readonly ILogger m_logger;
         private readonly ITelemetryContext? m_telemetry;
-        private ISessionClient? m_session;
 
         private event BrowserEventHandler? m_MoreReferences;
     }

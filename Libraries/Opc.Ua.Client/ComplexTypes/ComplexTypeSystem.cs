@@ -1407,7 +1407,7 @@ namespace Opc.Ua.Client.ComplexTypes
             ExpandedNodeId dataTypeId,
             CancellationToken ct)
         {
-            NodeId superType = ExpandedNodeId.ToNodeId(
+            var superType = ExpandedNodeId.ToNodeId(
                 dataTypeId,
                 m_complexTypeResolver.NamespaceUris);
             while (!superType.IsNull)

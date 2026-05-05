@@ -85,11 +85,7 @@ namespace Opc.Ua.Bindings
         protected string SecurityPolicyUri
         {
             get => SecurityPolicy.Uri;
-
-            private set
-            {
-                SecurityPolicy = SecurityPolicies.GetInfo(value);
-            }
+            private set => SecurityPolicy = SecurityPolicies.GetInfo(value);
         }
 
         /// <summary>
@@ -792,7 +788,7 @@ namespace Opc.Ua.Bindings
                     // reset the encoder to write the plaintext for the next chunk into the same buffer.
                     if (bytesToWrite > 0)
                     {
-                        encoder?.Dispose();
+                        encoder.Dispose();
                         // ostrm is disposed by the encoder.
                         var ostrm = new MemoryStream(buffer, 0, SendBufferSize);
                         ostrm.Seek(header.Count, SeekOrigin.Current);

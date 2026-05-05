@@ -3181,11 +3181,8 @@ namespace Opc.Ua.Server
             finally
             {
                 // ensure that everything is cleaned up.
-                if (m_serverInternal != null)
-                {
-                    m_serverInternal?.Dispose();
-                    m_serverInternal = null;
-                }
+                m_serverInternal?.Dispose();
+                m_serverInternal = null;
             }
         }
 

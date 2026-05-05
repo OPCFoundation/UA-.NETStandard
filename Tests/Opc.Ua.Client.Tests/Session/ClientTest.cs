@@ -89,8 +89,8 @@ namespace Opc.Ua.Client.Tests
             {
                 CertificateKeyAlgorithm certificateKeyAlgorithm =
                     SecurityPolicies.GetInfo(policyUri).CertificateKeyAlgorithm;
-                return certificateKeyAlgorithm != CertificateKeyAlgorithm.Curve25519 &&
-                    certificateKeyAlgorithm != CertificateKeyAlgorithm.Curve448;
+                return certificateKeyAlgorithm is not CertificateKeyAlgorithm.Curve25519 and
+                    not CertificateKeyAlgorithm.Curve448;
             })
         ];
 
@@ -982,7 +982,7 @@ namespace Opc.Ua.Client.Tests
             await IgnoreIfPolicyNotAdvertisedAsync(securityPolicy).ConfigureAwait(false);
             await IgnoreIfPolicyNotAdvertisedAsync(userTokenPolicy).ConfigureAwait(false);
 
-            using UserIdentity userIdentity = new UserIdentity("user1", "password"u8);
+            using var userIdentity = new UserIdentity("user1", "password"u8);
 
             // the first channel determines the endpoint
             ConfiguredEndpoint endpoint = await ClientFixture
@@ -1010,7 +1010,7 @@ namespace Opc.Ua.Client.Tests
             }
             if (identityPolicy.SecurityPolicyUri != userTokenPolicy)
             {
-                NUnit.Framework.Assert.Fail(
+                Assert.Fail(
                     $"UserTokenPolicy SecurityPolicyUri {identityPolicy.SecurityPolicyUri} does not match test expected SecurityPolicyUri {userTokenPolicy}. " +
                     "Please fix test parameters or the test server configuration.");
             }
@@ -1424,7 +1424,7 @@ namespace Opc.Ua.Client.Tests
                 await BrowseFullAddressSpaceAsync(null).ConfigureAwait(false);
             }
 
-            foreach (ReferenceDescription reference in ReferenceDescriptions.SafeSlice(0, MaxReferences).ToList())
+            foreach (ReferenceDescription reference in ReferenceDescriptions[..MaxReferences].ToList())
             {
                 var nodeId = ExpandedNodeId.ToNodeId(reference.NodeId, Session.NamespaceUris);
                 Node node = await Session.ReadNodeAsync(nodeId).ConfigureAwait(false);
@@ -1455,7 +1455,7 @@ namespace Opc.Ua.Client.Tests
                 await BrowseFullAddressSpaceAsync(null).ConfigureAwait(false);
             }
 
-            foreach (ReferenceDescription reference in ReferenceDescriptions.SafeSlice(0, MaxReferences).ToList())
+            foreach (ReferenceDescription reference in ReferenceDescriptions[..MaxReferences].ToList())
             {
                 var nodeId = ExpandedNodeId.ToNodeId(reference.NodeId, Session.NamespaceUris);
                 INode node = await Session.ReadNodeAsync(nodeId).ConfigureAwait(false);
@@ -1491,7 +1491,7 @@ namespace Opc.Ua.Client.Tests
 
             ArrayOf<NodeId> nodes =
                 ReferenceDescriptions
-                    .SafeSlice(0, nodeCount)
+[..nodeCount]
                     .ConvertAll(reference => ExpandedNodeId.ToNodeId(
                         reference.NodeId,
                         Session.NamespaceUris));
@@ -1564,7 +1564,7 @@ namespace Opc.Ua.Client.Tests
             ArrayOf<NodeId> nodes =
                 ReferenceDescriptions
                     .Filter(reference => reference.NodeClass == NodeClass.Variable)
-                    .SafeSlice(0, nodeCount)
+[..nodeCount]
                     .ConvertAll(reference => ExpandedNodeId.ToNodeId(
                         reference.NodeId,
                         Session.NamespaceUris));
@@ -2372,7 +2372,7 @@ namespace Opc.Ua.Client.Tests
                 (securityPolicyUri.Contains("ECC_brainpoolP256r1", StringComparison.Ordinal) ||
                     securityPolicyUri.Contains("ECC_brainpoolP384r1", StringComparison.Ordinal)))
             {
-                NUnit.Framework.Assert.Ignore("Brainpool curve is not supported on Mac OS.");
+                Assert.Ignore("Brainpool curve is not supported on Mac OS.");
             }
         }
     }

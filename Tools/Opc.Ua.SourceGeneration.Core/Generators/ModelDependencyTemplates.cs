@@ -60,8 +60,10 @@ namespace Opc.Ua.SourceGeneration
         public static readonly TemplateString Entry = TemplateString.Parse(
             $$"""
             [assembly: global::Opc.Ua.ModelDependencyAttribute(
-                "{{Tokens.ModelUri}}", "{{Tokens.Prefix}}",
-                {{Tokens.ModelVersion}}, {{Tokens.ModelPublicationDate}})]
+                "{{Tokens.ModelUri}}",
+                "{{Tokens.Prefix}}",
+                {{Tokens.ModelVersion}},
+                {{Tokens.ModelPublicationDate}})]
 
             """);
     }

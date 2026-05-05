@@ -42,14 +42,14 @@ namespace Opc.Ua.Client.Tests
     [SetUICulture("en-us")]
     public sealed class SessionStateEncoderTests
     {
-        private ServiceMessageContext _context = null!;
+        private ServiceMessageContext m_context;
 
         [SetUp]
         public void SetUp()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            _context = ServiceMessageContext.Create(telemetry);
-            _context.Factory.Builder.AddOpcUaClientDataTypes();
+            m_context = ServiceMessageContext.Create(telemetry);
+            m_context.Factory.Builder.AddOpcUaClientDataTypes();
         }
 
         [Test]
@@ -165,7 +165,7 @@ namespace Opc.Ua.Client.Tests
             MonitoredItemState decoded = RoundTrip(original);
 
             Assert.That(decoded.Filter, Is.InstanceOf<EventFilter>());
-            var eventFilter = (EventFilter)decoded.Filter!;
+            var eventFilter = (EventFilter)decoded.Filter;
             Assert.That(eventFilter.SelectClauses.Count, Is.EqualTo(1));
         }
 
@@ -186,7 +186,6 @@ namespace Opc.Ua.Client.Tests
             Assert.That(decoded.TimestampsToReturn, Is.EqualTo(original.TimestampsToReturn));
             Assert.That(decoded.MaxMessageCount, Is.EqualTo(original.MaxMessageCount));
             Assert.That(decoded.MonitoredItems.IsEmpty, Is.True);
-
         }
 
         [Test]
@@ -268,7 +267,6 @@ namespace Opc.Ua.Client.Tests
             SubscriptionState decoded = RoundTrip(original);
 
             Assert.That(decoded.MonitoredItems.IsEmpty, Is.True);
-
         }
 
         [Test]
@@ -347,7 +345,7 @@ namespace Opc.Ua.Client.Tests
             Assert.That(decoded.SessionName, Is.EqualTo("EndpointSession"));
             Assert.That(decoded.CheckDomain, Is.True);
             Assert.That(decoded.ConfiguredEndpoint, Is.Not.Null);
-            Assert.That(decoded.ConfiguredEndpoint!.Description.EndpointUrl,
+            Assert.That(decoded.ConfiguredEndpoint.Description.EndpointUrl,
                 Is.EqualTo("opc.tcp://localhost:4840"));
             Assert.That(decoded.ConfiguredEndpoint.Description.SecurityMode,
                 Is.EqualTo(MessageSecurityMode.None));
@@ -385,7 +383,7 @@ namespace Opc.Ua.Client.Tests
             SessionConfiguration decoded = RoundTrip(original);
 
             Assert.That(decoded.ConfiguredEndpoint, Is.Not.Null);
-            Assert.That(decoded.ConfiguredEndpoint!.Configuration, Is.Not.Null);
+            Assert.That(decoded.ConfiguredEndpoint.Configuration, Is.Not.Null);
         }
 
         [Test]
@@ -399,8 +397,7 @@ namespace Opc.Ua.Client.Tests
                 SessionId = new NodeId(100),
                 AuthenticationToken = new NodeId(200),
                 Subscriptions = new List<SubscriptionState> {
-                    new SubscriptionState
-                    {
+                    new() {
                         DisplayName = "Sub1",
                         PublishingInterval = 500,
                         MonitoredItems =
@@ -459,7 +456,7 @@ namespace Opc.Ua.Client.Tests
             SessionConfiguration decoded = RoundTrip(original);
 
             Assert.That(decoded.Identity, Is.Not.Null);
-            Assert.That(decoded.Identity!.TokenType, Is.EqualTo(UserTokenType.Anonymous));
+            Assert.That(decoded.Identity.TokenType, Is.EqualTo(UserTokenType.Anonymous));
         }
 
         [Test]
@@ -479,7 +476,7 @@ namespace Opc.Ua.Client.Tests
             SessionConfiguration decoded = RoundTrip(original);
 
             Assert.That(decoded.Identity, Is.Not.Null);
-            Assert.That(decoded.Identity!.TokenType, Is.EqualTo(UserTokenType.UserName));
+            Assert.That(decoded.Identity.TokenType, Is.EqualTo(UserTokenType.UserName));
         }
 
         [Test]
@@ -514,8 +511,8 @@ namespace Opc.Ua.Client.Tests
             SessionConfiguration decoded = RoundTrip(original);
 
             Assert.That(decoded.ConfiguredEndpoint, Is.Not.Null);
-            Assert.That(decoded.ConfiguredEndpoint!.ReverseConnect, Is.Not.Null);
-            Assert.That(decoded.ConfiguredEndpoint.ReverseConnect!.Enabled, Is.True);
+            Assert.That(decoded.ConfiguredEndpoint.ReverseConnect, Is.Not.Null);
+            Assert.That(decoded.ConfiguredEndpoint.ReverseConnect.Enabled, Is.True);
             Assert.That(decoded.ConfiguredEndpoint.ReverseConnect.ServerUri, Is.EqualTo("urn:testserver"));
             Assert.That(decoded.ConfiguredEndpoint.ReverseConnect.Thumbprint, Is.EqualTo("AABBCCDD"));
         }
@@ -547,7 +544,7 @@ namespace Opc.Ua.Client.Tests
             SessionConfiguration decoded = RoundTrip(original);
 
             Assert.That(decoded.ConfiguredEndpoint, Is.Not.Null);
-            Assert.That(decoded.ConfiguredEndpoint!.ReverseConnect?.Enabled, Is.Not.True);
+            Assert.That(decoded.ConfiguredEndpoint.ReverseConnect?.Enabled, Is.Not.True);
         }
 
         [Test]
@@ -624,20 +621,20 @@ namespace Opc.Ua.Client.Tests
             byte[] data;
             using (var ms = new MemoryStream())
             {
-                using (var encoder = new BinaryEncoder(ms, _context, true))
+                using (var encoder = new BinaryEncoder(ms, m_context, true))
                 {
-                    encoder.WriteStringArray(null, _context.NamespaceUris.ToArray());
-                    encoder.WriteStringArray(null, _context.ServerUris.ToArray());
+                    encoder.WriteStringArray(null, m_context.NamespaceUris.ToArray());
+                    encoder.WriteStringArray(null, m_context.ServerUris.ToArray());
                     original.Encode(encoder);
                 }
                 data = ms.ToArray();
             }
 
             using var readStream = new MemoryStream(data);
-            SessionConfiguration decoded = SessionConfiguration.Create(readStream, telemetry);
+            var decoded = SessionConfiguration.Create(readStream, telemetry);
 
             Assert.That(decoded, Is.Not.Null);
-            Assert.That(decoded!.SessionName, Is.EqualTo("StreamSession"));
+            Assert.That(decoded.SessionName, Is.EqualTo("StreamSession"));
             Assert.That(decoded.SessionId, Is.EqualTo(new NodeId(999)));
             Assert.That(decoded.AuthenticationToken, Is.EqualTo(new NodeId(888)));
         }
@@ -680,7 +677,7 @@ namespace Opc.Ua.Client.Tests
 
             SessionConfiguration decoded = RoundTrip(original);
 
-            EndpointConfiguration cfg = decoded.ConfiguredEndpoint!.Configuration;
+            EndpointConfiguration cfg = decoded.ConfiguredEndpoint.Configuration;
             Assert.That(cfg.OperationTimeout, Is.EqualTo(30000));
             Assert.That(cfg.UseBinaryEncoding, Is.True);
             Assert.That(cfg.MaxMessageSize, Is.EqualTo(2097152));
@@ -703,7 +700,7 @@ namespace Opc.Ua.Client.Tests
 
             MonitoredItemState decoded = RoundTrip(original);
 
-            Assert.That(decoded.TriggeredItems.Count, Is.EqualTo(0));
+            Assert.That(decoded.TriggeredItems.Count, Is.Zero);
         }
 
         [Test]
@@ -732,8 +729,7 @@ namespace Opc.Ua.Client.Tests
                 AuthenticationToken = new NodeId(Guid.NewGuid()),
                 UserIdentityTokenPolicy = "policy1",
                 Subscriptions = new List<SubscriptionState> {
-                    new SubscriptionState
-                    {
+                    new() {
                         DisplayName = "Sub1",
                         PublishingInterval = 1000,
                         MonitoredItems =
@@ -742,8 +738,7 @@ namespace Opc.Ua.Client.Tests
                             new MonitoredItemState { DisplayName = "MI2" }
                         ]
                     },
-                    new SubscriptionState
-                    {
+                    new() {
                         DisplayName = "Sub2",
                         PublishingInterval = 2000,
                         MonitoredItems = []
@@ -796,11 +791,11 @@ namespace Opc.Ua.Client.Tests
 
             // Encode exactly like Session.Save does
             using var ms = new MemoryStream();
-            using (var encoder = new BinaryEncoder(ms, _context, true))
+            using (var encoder = new BinaryEncoder(ms, m_context, true))
             {
                 // Session.Save writes: nsUris, serverUris, count, then each state.Encode
-                encoder.WriteStringArray(null, _context.NamespaceUris.ToArrayOf());
-                encoder.WriteStringArray(null, _context.ServerUris.ToArrayOf());
+                encoder.WriteStringArray(null, m_context.NamespaceUris.ToArrayOf());
+                encoder.WriteStringArray(null, m_context.ServerUris.ToArrayOf());
                 encoder.WriteInt32(null, 1); // count = 1
                 original.Encode(encoder);
             }
@@ -809,7 +804,7 @@ namespace Opc.Ua.Client.Tests
 
             // Decode exactly like Session.Load does
             ms.Position = 0;
-            using var decoder = new BinaryDecoder(ms, _context);
+            using var decoder = new BinaryDecoder(ms, m_context);
             ArrayOf<string> nsUris = decoder.ReadStringArray(null);
             ArrayOf<string> serverUris = decoder.ReadStringArray(null);
             int count = decoder.ReadInt32(null);
@@ -965,13 +960,13 @@ namespace Opc.Ua.Client.Tests
         private T RoundTrip<T>(T original) where T : IEncodeable, new()
         {
             using var ms = new MemoryStream();
-            using (var encoder = new BinaryEncoder(ms, _context, true))
+            using (var encoder = new BinaryEncoder(ms, m_context, true))
             {
                 original.Encode(encoder);
             }
 
             ms.Position = 0;
-            using var decoder = new BinaryDecoder(ms, _context);
+            using var decoder = new BinaryDecoder(ms, m_context);
             var decoded = new T();
             decoded.Decode(decoder);
             return decoded;

@@ -50,7 +50,7 @@ namespace Opc.Ua.SourceGeneration
             """);
 
         /// <summary>
-        /// Client API service set template
+        /// Client API service set template (interface + class)
         /// </summary>
         public static readonly TemplateString ServiceSet = TemplateString.Parse(
             $$"""
@@ -58,7 +58,7 @@ namespace Opc.Ua.SourceGeneration
             /// An interface used by by clients to access a UA server.
             /// </summary>
             [global::System.CodeDom.Compiler.GeneratedCodeAttribute("{{Tokens.Tool}}", "{{Tokens.Version}}")]
-            public interface I{{Tokens.ServiceSet}}ClientMethods
+            public interface I{{Tokens.ServiceSet}}ClientMethods{{Tokens.BaseInterfaces}}
             {
                 {{Tokens.ClientMethod}}
             }
@@ -88,32 +88,30 @@ namespace Opc.Ua.SourceGeneration
             """);
 
         /// <summary>
+        /// Client API service set template (interface only, no class)
+        /// </summary>
+        public static readonly TemplateString ServiceSetInterfaceOnly = TemplateString.Parse(
+            $$"""
+            /// <summary>
+            /// An interface used by by clients to access a UA server.
+            /// </summary>
+            [global::System.CodeDom.Compiler.GeneratedCodeAttribute("{{Tokens.Tool}}", "{{Tokens.Version}}")]
+            public interface I{{Tokens.ServiceSet}}ClientMethods{{Tokens.BaseInterfaces}}
+            {
+                {{Tokens.ClientMethod}}
+            }
+
+            """);
+
+        /// <summary>
         /// Client API interface method template
         /// </summary>
         public static readonly TemplateString InterfaceMethods = TemplateString.Parse(
             $$"""
             /// <summary>
-            /// Invokes the {{Tokens.Name}} service using async Task based request.
-            /// </summary>
-            {{Tokens.ClientMethodAsync}}
-
-            /// <summary>
             /// Invokes the {{Tokens.Name}} service.
             /// </summary>
-            [global::System.Obsolete("Sync methods are deprecated in this version. Use {{Tokens.Name}}Async instead.")]
-            {{Tokens.ClientMethodSync}}
-
-            /// <summary>
-            /// Begins an asynchronous invocation of the {{Tokens.Name}} service.
-            /// </summary>
-            [global::System.Obsolete("Begin/End methods are deprecated in this version. Use {{Tokens.Name}}Async instead.")]
-            {{Tokens.ClientMethodBegin}}
-
-            /// <summary>
-            /// Finishes an asynchronous invocation of the {{Tokens.Name}} service.
-            /// </summary>
-            [global::System.Obsolete("Begin/End methods are deprecated in this version. Use {{Tokens.Name}}Async instead.")]
-            {{Tokens.ClientMethodEnd}}
+            {{Tokens.ClientMethodAsync}}
 
             """);
 
