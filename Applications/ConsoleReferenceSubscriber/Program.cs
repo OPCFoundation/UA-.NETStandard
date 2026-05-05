@@ -246,13 +246,13 @@ namespace Quickstarts.ConsoleReferenceSubscriber
                         dataSetMessage.SequenceNumber
                     );
 
-                    for (int i = 0; i < dataSet.Fields.Length; i++)
+                    for (int i = 0; i < dataSet.Fields!.Length; i++)
                     {
                         Console.WriteLine(
                             "\t\tTargetNodeId:{0}, Attribute:{1}, Value:{2}",
                             dataSet.Fields[i].TargetNodeId,
                             dataSet.Fields[i].TargetAttribute,
-                            dataSetMessage.DataSet.Fields[i].Value
+                            dataSetMessage.DataSet!.Fields![i].Value
                         );
                     }
                 }
@@ -279,7 +279,7 @@ namespace Quickstarts.ConsoleReferenceSubscriber
                         e.Source,
                         jsonMessage.PublisherId,
                         jsonMessage.DataSetWriterId,
-                        e.NetworkMessage.DataSetMetaData.Fields.Count
+                        e.NetworkMessage.DataSetMetaData!.Fields.Count
                     );
                 }
                 if (e.NetworkMessage is Encoding.UadpNetworkMessage uapdMessage)
@@ -289,13 +289,13 @@ namespace Quickstarts.ConsoleReferenceSubscriber
                         e.Source,
                         uapdMessage.PublisherId,
                         uapdMessage.DataSetWriterId,
-                        e.NetworkMessage.DataSetMetaData.Fields.Count
+                        e.NetworkMessage.DataSetMetaData!.Fields.Count
                     );
                 }
 
                 Console.WriteLine(
                     "\tMetaData.Name={0}, MajorVersion={1} MinorVersion={2}",
-                    e.NetworkMessage.DataSetMetaData.Name,
+                    e.NetworkMessage.DataSetMetaData!.Name,
                     e.NetworkMessage.DataSetMetaData.ConfigurationVersion.MajorVersion,
                     e.NetworkMessage.DataSetMetaData.ConfigurationVersion.MinorVersion
                 );
