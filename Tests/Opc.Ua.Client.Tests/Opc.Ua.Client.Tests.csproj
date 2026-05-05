@@ -4,6 +4,9 @@
     <TargetFrameworks>$(TestsTargetFrameworks)</TargetFrameworks>
     <RootNamespace>Opc.Ua.Client.Tests</RootNamespace>
     <GenerateProgramFile>false</GenerateProgramFile>
+    <!-- ClientSamples.cs (linked from Applications/ConsoleReferenceClient) uses
+         nullable annotations; enable annotation parsing so the linked file compiles. -->
+    <Nullable>annotations</Nullable>
   </PropertyGroup>
   <PropertyGroup Condition="'$(NetStandardTests)' == 'true'">
     <DefineConstants>$(DefineConstants);NET_STANDARD_TESTS</DefineConstants>
