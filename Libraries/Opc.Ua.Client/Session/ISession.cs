@@ -513,16 +513,19 @@ namespace Opc.Ua.Client
             bool sendInitialValues,
             CancellationToken ct = default);
 
+#if OPCUA_V1_CLIENT
         /// <summary>
         /// Sends an additional publish request.
         /// </summary>
         bool BeginPublish(int timeout);
+#endif
 
         /// <summary>
         /// Create the publish requests for the active subscriptions.
         /// </summary>
         void StartPublishing(int timeout, bool fullQueue);
 
+#if OPCUA_V1_CLIENT
         /// <summary>
         /// Sends a republish request.
         /// </summary>
@@ -530,5 +533,6 @@ namespace Opc.Ua.Client
             uint subscriptionId,
             uint sequenceNumber,
             CancellationToken ct = default);
+#endif
     }
 }

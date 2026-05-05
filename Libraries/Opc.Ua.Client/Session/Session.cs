@@ -2348,13 +2348,16 @@ namespace Opc.Ua.Client
 
             // Quiesce the V2 engine outside the reconnect lock so
             // workers can complete their current cycle without
-            // contending with the reset path.
-            DefaultSubscriptionEngine? v2Engine = m_engine as DefaultSubscriptionEngine;
-            if (v2Engine != null)
+            // contending with the reset path. The classic engine has
+            // different publish semantics and does not need a drain.
+#if OPCUA_V1_CLIENT
+            if (m_engine is not ClassicSubscriptionEngine)
+#endif
             {
-                v2Engine.PausePublishing();
-                if (v2Engine.SubscriptionManager
-                    is Subscriptions.SubscriptionManager v2Manager)
+                m_engine.PausePublishing();
+                if (m_engine is DefaultSubscriptionEngine v2Engine &&
+                    v2Engine.SubscriptionManager
+                        is Subscriptions.SubscriptionManager v2Manager)
                 {
                     await v2Manager.DrainAsync(ct).ConfigureAwait(false);
                 }
@@ -2477,6 +2480,7 @@ namespace Opc.Ua.Client
                     tempIdentity?.Dispose();
                 }
 
+#if OPCUA_V1_CLIENT
                 // V1: drive the classic template-based recreate using
                 // the subscriptions still attached to this Session.
                 await RecreateSubscriptionsAsync(
@@ -2484,6 +2488,7 @@ namespace Opc.Ua.Client
                         Subscriptions,
                         ct)
                     .ConfigureAwait(false);
+#endif
 
                 // V2: hand the previous session id to the engine so
                 // configured subscriptions can attempt transfer or
@@ -2518,7 +2523,12 @@ namespace Opc.Ua.Client
                     m_reconnectLock.Release();
                 }
 
-                v2Engine?.ResumePublishing();
+#if OPCUA_V1_CLIENT
+                if (m_engine is not ClassicSubscriptionEngine)
+#endif
+                {
+                    m_engine.ResumePublishing();
+                }
             }
         }
 
@@ -2941,6 +2951,7 @@ namespace Opc.Ua.Client
             }
         }
 
+#if OPCUA_V1_CLIENT
         /// <inheritdoc/>
         public async Task<(bool, ServiceResult)> RepublishAsync(
             uint subscriptionId,
@@ -3005,6 +3016,7 @@ namespace Opc.Ua.Client
                 return classicEngine.ProcessRepublishResponseError(e, subscriptionId, sequenceNumber);
             }
         }
+#endif
 
         /// <summary>
         /// Recreate the subscriptions in a recreated session.
@@ -3812,6 +3824,7 @@ namespace Opc.Ua.Client
             }
         }
 
+#if OPCUA_V1_CLIENT
         /// <summary>
         /// Sends an additional publish request.
         /// Only valid when using the classic subscription engine; the V2
@@ -3825,6 +3838,7 @@ namespace Opc.Ua.Client
             }
             return false;
         }
+#endif
 
         /// <summary>
         /// Create the publish requests for the active subscriptions.
