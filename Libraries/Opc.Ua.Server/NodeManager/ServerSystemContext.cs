@@ -88,10 +88,9 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <value>The operation context.</value>
         /// <remarks>
-        /// May return <c>null</c> if the underlying base context's
-        /// <see cref="ISystemContext.OperationContext"/> has not been set or is not an
-        /// <see cref="OperationContext"/> instance (e.g. during NodeManager startup
-        /// before any operation has begun).
+        /// May return <c>null</c> if the underlying base context's operation context
+        /// has not been set or is not an <see cref="OperationContext"/> instance
+        /// (e.g. during NodeManager startup before any operation has begun).
         /// </remarks>
         public new OperationContext? OperationContext
         {
