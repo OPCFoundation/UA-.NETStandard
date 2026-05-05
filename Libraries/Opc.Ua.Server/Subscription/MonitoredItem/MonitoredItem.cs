@@ -1255,7 +1255,7 @@ namespace Opc.Ua.Server
 
                         e.Initialize(
                             systemContext,
-                            null!,
+                            null,
                             EventSeverity.Low,
                             new LocalizedText(message));
 

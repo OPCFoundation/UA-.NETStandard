@@ -2390,7 +2390,7 @@ namespace Opc.Ua.Server
                     "en-US",
                     Utils.Format(messageTemplate, "started"));
 
-                e.Initialize(systemContext, null!, EventSeverity.Low, new LocalizedText(message));
+                e.Initialize(systemContext, null, EventSeverity.Low, new LocalizedText(message));
 
                 e.SetChildValue(systemContext, BrowseNames.SourceNode, m_diagnosticsId, false);
                 e.SetChildValue(
@@ -2443,7 +2443,7 @@ namespace Opc.Ua.Server
                     "en-US",
                     Utils.Format(messageTemplate, "completed"));
 
-                e.Initialize(systemContext, null!, EventSeverity.Low, new LocalizedText(message));
+                e.Initialize(systemContext, null, EventSeverity.Low, new LocalizedText(message));
 
                 e.SetChildValue(systemContext, BrowseNames.SourceNode, m_diagnosticsId, false);
                 e.SetChildValue(

@@ -949,7 +949,7 @@ namespace Opc.Ua.Server
             var strm = new MemoryStream();
             using (var encoder = new BinaryEncoder(strm, messageContext, true))
             {
-                encoder.WriteEncodeable(null!, trustList);
+                encoder.WriteEncodeable(null, trustList);
             }
             strm.Position = 0;
             return strm;

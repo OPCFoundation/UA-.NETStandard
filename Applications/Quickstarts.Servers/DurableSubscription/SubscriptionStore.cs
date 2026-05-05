@@ -225,10 +225,10 @@ namespace Quickstarts.Servers
             encoder.WriteUInt32(null, item.AttributeId);
             encoder.WriteString(null, item.IndexRange);
             encoder.WriteQualifiedName(null, item.Encoding);
-            encoder.WriteEnumerated(null!, item.DiagnosticsMasks);
-            encoder.WriteEnumerated(null!, item.TimestampsToReturn);
+            encoder.WriteEnumerated(null, item.DiagnosticsMasks);
+            encoder.WriteEnumerated(null, item.TimestampsToReturn);
             encoder.WriteUInt32(null, item.ClientHandle);
-            encoder.WriteEnumerated(null!, item.MonitoringMode);
+            encoder.WriteEnumerated(null, item.MonitoringMode);
             encoder.WriteExtensionObject(null,
                 item.OriginalFilter != null
                     ? new ExtensionObject(item.OriginalFilter)
@@ -312,10 +312,10 @@ namespace Quickstarts.Servers
                 AttributeId = decoder.ReadUInt32(null),
                 IndexRange = decoder.ReadString(null)!,
                 Encoding = decoder.ReadQualifiedName(null),
-                DiagnosticsMasks = decoder.ReadEnumerated<DiagnosticsMasks>(null!),
-                TimestampsToReturn = decoder.ReadEnumerated<TimestampsToReturn>(null!),
+                DiagnosticsMasks = decoder.ReadEnumerated<DiagnosticsMasks>(null),
+                TimestampsToReturn = decoder.ReadEnumerated<TimestampsToReturn>(null),
                 ClientHandle = decoder.ReadUInt32(null),
-                MonitoringMode = decoder.ReadEnumerated<MonitoringMode>(null!)
+                MonitoringMode = decoder.ReadEnumerated<MonitoringMode>(null)
             };
 
             ExtensionObject origFilterEo = decoder.ReadExtensionObject(null);

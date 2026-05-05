@@ -40,7 +40,7 @@ namespace Opc.Ua
         /// <param name="message">The default message.</param>
         public virtual void Initialize(
             ISystemContext context,
-            NodeState source,
+            NodeState? source,
             EventSeverity severity,
             LocalizedText message)
         {

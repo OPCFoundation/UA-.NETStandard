@@ -2222,7 +2222,7 @@ namespace Opc.Ua.Server
                 "en-US",
                 "SemanticChangeEvent.");
 
-            e.Initialize(systemContext, null!, EventSeverity.Min, new LocalizedText(message));
+            e.Initialize(systemContext, null, EventSeverity.Min, new LocalizedText(message));
 
             e.SetChildValue(
                 systemContext,

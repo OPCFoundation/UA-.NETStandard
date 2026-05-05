@@ -426,7 +426,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public void WriteEnumerated<T>(string fieldName, T value)
+        public void WriteEnumerated<T>(string? fieldName, T value)
              where T : struct, Enum
         {
             m_writer.WritePropertyName(fieldName!);
@@ -441,7 +441,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public void WriteEnumeratedArray<T>(string fieldName, ArrayOf<T> values)
+        public void WriteEnumeratedArray<T>(string? fieldName, ArrayOf<T> values)
              where T : struct, Enum
         {
             if (WriteArrayProperty(fieldName, values))
@@ -702,14 +702,14 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public void WriteEncodeable<T>(string fieldName, T value)
+        public void WriteEncodeable<T>(string? fieldName, T value)
             where T : IEncodeable, new()
         {
             WriteEncodeable(fieldName, value, default);
         }
 
         /// <inheritdoc/>
-        public void WriteEncodeable<T>(string fieldName, T value, ExpandedNodeId encodeableTypeId)
+        public void WriteEncodeable<T>(string? fieldName, T value, ExpandedNodeId encodeableTypeId)
             where T : IEncodeable
         {
             if (EqualityComparer<T>.Default.Equals(value, default!))
@@ -727,7 +727,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public void WriteEncodeableAsExtensionObject<T>(string fieldName, T value)
+        public void WriteEncodeableAsExtensionObject<T>(string? fieldName, T value)
             where T : IEncodeable
         {
             if (EqualityComparer<T>.Default.Equals(value, default!))
@@ -740,7 +740,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public void WriteEncodeableArrayAsExtensionObjects<T>(string fieldName, ArrayOf<T> values)
+        public void WriteEncodeableArrayAsExtensionObjects<T>(string? fieldName, ArrayOf<T> values)
             where T : IEncodeable
         {
             if (WriteArrayProperty(fieldName, values))
@@ -750,15 +750,14 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public void WriteEncodeableArray<T>(string fieldName, ArrayOf<T> values)
+        public void WriteEncodeableArray<T>(string? fieldName, ArrayOf<T> values)
             where T : IEncodeable, new()
         {
             WriteEncodeableArray(fieldName, values, default);
         }
 
         /// <inheritdoc/>
-        public void WriteEncodeableArray<T>(
-            string fieldName,
+        public void WriteEncodeableArray<T>(string? fieldName,
             ArrayOf<T> values,
             ExpandedNodeId encodeableTypeId) where T : IEncodeable
         {
@@ -769,15 +768,14 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public void WriteEncodeableMatrix<T>(string fieldName, MatrixOf<T> values)
+        public void WriteEncodeableMatrix<T>(string? fieldName, MatrixOf<T> values)
             where T : IEncodeable, new()
         {
             WriteEncodeableMatrix(fieldName, values, default);
         }
 
         /// <inheritdoc/>
-        public void WriteEncodeableMatrix<T>(
-            string fieldName,
+        public void WriteEncodeableMatrix<T>(string? fieldName,
             MatrixOf<T> values,
             ExpandedNodeId encodeableTypeId) where T : IEncodeable
         {

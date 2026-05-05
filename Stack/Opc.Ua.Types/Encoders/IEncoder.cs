@@ -229,28 +229,28 @@ namespace Opc.Ua
         /// Writes an encodeable object to the stream.
         /// </summary>
         /// <typeparam name="T">The type of the encodeable</typeparam>
-        void WriteEncodeable<T>(string fieldName, T value)
+        void WriteEncodeable<T>(string? fieldName, T value)
             where T : IEncodeable, new();
 
         /// <summary>
         /// Writes an encodeable object to the stream.
         /// </summary>
         /// <typeparam name="T">The type of the encodeable</typeparam>
-        void WriteEncodeable<T>(string fieldName, T value, ExpandedNodeId encodeableTypeId)
+        void WriteEncodeable<T>(string? fieldName, T value, ExpandedNodeId encodeableTypeId)
             where T : IEncodeable;
 
         /// <summary>
         /// Writes an encodeable object to the stream as extension object.
         /// </summary>
         /// <typeparam name="T">The type of the encodeable</typeparam>
-        void WriteEncodeableAsExtensionObject<T>(string fieldName, T value)
+        void WriteEncodeableAsExtensionObject<T>(string? fieldName, T value)
             where T : IEncodeable;
 
         /// <summary>
         /// Writes an enumerated value to the stream.
         /// </summary>
         /// <typeparam name="T">The type of the enumeration</typeparam>
-        void WriteEnumerated<T>(string fieldName, T value)
+        void WriteEnumerated<T>(string? fieldName, T value)
             where T : struct, Enum;
 
         /// <summary>
@@ -388,7 +388,7 @@ namespace Opc.Ua
         /// structure)
         /// </summary>
         /// <typeparam name="T">The type of the array elements</typeparam>
-        void WriteEncodeableArray<T>(string fieldName, ArrayOf<T> values)
+        void WriteEncodeableArray<T>(string? fieldName, ArrayOf<T> values)
             where T : IEncodeable, new();
 
         /// <summary>
@@ -397,7 +397,7 @@ namespace Opc.Ua
         /// </summary>
         /// <typeparam name="T">The type of the array elements</typeparam>
         void WriteEncodeableArray<T>(
-            string fieldName,
+            string? fieldName,
             ArrayOf<T> values,
             ExpandedNodeId encodeableTypeId) where T : IEncodeable;
 
@@ -405,14 +405,14 @@ namespace Opc.Ua
         /// Writes an array of structures to the stream as extension objects.
         /// </summary>
         /// <typeparam name="T">The type of the array elements</typeparam>
-        void WriteEncodeableArrayAsExtensionObjects<T>(string fieldName, ArrayOf<T> values)
+        void WriteEncodeableArrayAsExtensionObjects<T>(string? fieldName, ArrayOf<T> values)
             where T : IEncodeable;
 
         /// <summary>
         /// Writes an enumerated value array to the stream.
         /// </summary>
         /// <typeparam name="T">The type of the array elements</typeparam>
-        void WriteEnumeratedArray<T>(string fieldName, ArrayOf<T> values)
+        void WriteEnumeratedArray<T>(string? fieldName, ArrayOf<T> values)
             where T : struct, Enum;
 
         /// <summary>
@@ -440,7 +440,7 @@ namespace Opc.Ua
         /// structure)
         /// </summary>
         /// <typeparam name="T"></typeparam>
-        void WriteEncodeableMatrix<T>(string fieldName, MatrixOf<T> values)
+        void WriteEncodeableMatrix<T>(string? fieldName, MatrixOf<T> values)
             where T : IEncodeable, new();
 
         /// <summary>
@@ -449,7 +449,7 @@ namespace Opc.Ua
         /// </summary>
         /// <typeparam name="T"></typeparam>
         void WriteEncodeableMatrix<T>(
-            string fieldName,
+            string? fieldName,
             MatrixOf<T> values,
             ExpandedNodeId encodeableTypeId) where T : IEncodeable;
 

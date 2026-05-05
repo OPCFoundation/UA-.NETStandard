@@ -96,7 +96,7 @@ namespace Opc.Ua.Server
 
                 e.Initialize(
                     systemContext,
-                    null!,
+                    null,
                     EventSeverity.Min,
                     new LocalizedText(message),
                     StatusCode.IsGood(serviceResultException.StatusCode),
@@ -174,7 +174,7 @@ namespace Opc.Ua.Server
 
                 e.Initialize(
                     systemContext,
-                    null!,
+                    null,
                     EventSeverity.Min,
                     new LocalizedText(message),
                     StatusCode.IsGood(statusCode),
@@ -693,7 +693,7 @@ namespace Opc.Ua.Server
 
                     auditCertificateEventState.Initialize(
                         systemContext,
-                        null!,
+                        null,
                         EventSeverity.Min,
                         LocalizedText.From(sre.Message),
                         false,
@@ -767,7 +767,7 @@ namespace Opc.Ua.Server
 
                 e.Initialize(
                     systemContext,
-                    null!,
+                    null,
                     EventSeverity.Min,
                     default,
                     StatusCode.IsGood(statusCode),
@@ -838,7 +838,7 @@ namespace Opc.Ua.Server
 
                 e.Initialize(
                     systemContext,
-                    null!,
+                    null,
                     EventSeverity.Min,
                     LocalizedText.From($"Cancel requested for sessionId: {sessionId} with requestHandle: {requestHandle}"),
                     StatusCode.IsGood(statusCode),
@@ -900,7 +900,7 @@ namespace Opc.Ua.Server
 
                 e.Initialize(
                     systemContext,
-                    null!,
+                    null,
                     EventSeverity.Min,
                     LocalizedText.From($"RoleMappingRuleChanged - {method?.BrowseName}"),
                     status,
@@ -1333,7 +1333,7 @@ namespace Opc.Ua.Server
 
                 e.Initialize(
                     systemContext,
-                    null!,
+                    null,
                     EventSeverity.Min,
                     new LocalizedText(message),
                     exception == null,
@@ -1402,7 +1402,7 @@ namespace Opc.Ua.Server
                     "en-US",
                     "CertificateUpdateRequestedAuditEvent.");
 
-                e.Initialize(systemContext, null!, EventSeverity.Min, new LocalizedText(message), true, DateTime.UtcNow); // initializes Status, ActionTimeStamp, ServerId, ClientAuditEntryId, ClientUserId
+                e.Initialize(systemContext, null, EventSeverity.Min, new LocalizedText(message), true, DateTime.UtcNow); // initializes Status, ActionTimeStamp, ServerId, ClientAuditEntryId, ClientUserId
 
                 e.SetChildValue(systemContext, BrowseNames.SourceNode, objectId, false);
                 e.SetChildValue(
@@ -1463,7 +1463,7 @@ namespace Opc.Ua.Server
 
                 e.Initialize(
                     systemContext,
-                    null!,
+                    null,
                     EventSeverity.Min,
                     new LocalizedText(message),
                     StatusCode.IsGood(statusCode),
@@ -1526,7 +1526,7 @@ namespace Opc.Ua.Server
 
                 e.Initialize(
                     systemContext,
-                    null!,
+                    null,
                     EventSeverity.Min,
                     new LocalizedText(message),
                     StatusCode.IsGood(statusCode),
@@ -1628,7 +1628,7 @@ namespace Opc.Ua.Server
 
                 e.Initialize(
                     systemContext,
-                    null!,
+                    null,
                     EventSeverity.Min,
                     new LocalizedText(message),
                     exception == null,
@@ -1764,7 +1764,7 @@ namespace Opc.Ua.Server
 
                 e.Initialize(
                     systemContext,
-                    null!,
+                    null,
                     EventSeverity.Min,
                     new LocalizedText(message),
                     exception == null,
@@ -1839,7 +1839,7 @@ namespace Opc.Ua.Server
 
                 e.Initialize(
                     systemContext,
-                    null!,
+                    null,
                     EventSeverity.Min,
                     new LocalizedText(message),
                     StatusCode.IsGood(statusCode),
@@ -1908,7 +1908,7 @@ namespace Opc.Ua.Server
 
                 e.Initialize(
                     systemContext,
-                    null!,
+                    null,
                     EventSeverity.Min,
                     new LocalizedText(message),
                     StatusCode.IsGood(statusCode),
@@ -1962,7 +1962,7 @@ namespace Opc.Ua.Server
                     "en-US",
                     "TrustListUpdateRequestedAuditEvent.");
 
-                e.Initialize(systemContext, null!, EventSeverity.Min, new LocalizedText(message), true, DateTime.UtcNow); // initializes Status, ActionTimeStamp, ServerId, ClientAuditEntryId, ClientUserId
+                e.Initialize(systemContext, null, EventSeverity.Min, new LocalizedText(message), true, DateTime.UtcNow); // initializes Status, ActionTimeStamp, ServerId, ClientAuditEntryId, ClientUserId
 
                 e.SetChildValue(systemContext, BrowseNames.SourceNode, objectId, false);
                 e.SetChildValue(systemContext, BrowseNames.SourceName, sourceName, false);
@@ -2009,7 +2009,7 @@ namespace Opc.Ua.Server
 
             e.Initialize(
                 systemContext,
-                null!,
+                null,
                 EventSeverity.Min,
                 new LocalizedText(message),
                 StatusCode.IsGood(statusCode),
@@ -2055,7 +2055,7 @@ namespace Opc.Ua.Server
         {
             e.Initialize(
                 systemContext,
-                null!,
+                null,
                 EventSeverity.Min,
                 new LocalizedText(message),
                 status,

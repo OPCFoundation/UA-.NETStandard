@@ -194,7 +194,7 @@ namespace Opc.Ua
         {
             using var encoder = new BinaryEncoder(context);
             // Wrute body
-            encoder.WriteEncodeable(null!, encodeable, encodeable.TypeId);
+            encoder.WriteEncodeable(null, encodeable, encodeable.TypeId);
             // Return as byte string
             return ByteString.From(encoder.CloseAndReturnBuffer());
         }

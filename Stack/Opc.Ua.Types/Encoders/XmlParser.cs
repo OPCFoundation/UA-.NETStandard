@@ -1030,13 +1030,13 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public T ReadEncodeable<T>(string fieldName) where T : IEncodeable, new()
+        public T ReadEncodeable<T>(string? fieldName) where T : IEncodeable, new()
         {
             return ReadEncodeable(fieldName, new T());
         }
 
         /// <inheritdoc/>
-        public T ReadEncodeable<T>(string fieldName, ExpandedNodeId encodeableTypeId)
+        public T ReadEncodeable<T>(string? fieldName, ExpandedNodeId encodeableTypeId)
             where T : IEncodeable
         {
             if (!Context.Factory.TryGetEncodeableType(
@@ -1054,7 +1054,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public T ReadEncodeableAsExtensionObject<T>(string fieldName)
+        public T ReadEncodeableAsExtensionObject<T>(string? fieldName)
             where T : IEncodeable
         {
             ExtensionObject extensionObject = ReadExtensionObject(fieldName);
@@ -1068,7 +1068,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public T ReadEnumerated<T>(string fieldName) where T : struct, Enum
+        public T ReadEnumerated<T>(string? fieldName) where T : struct, Enum
         {
             T value = default;
 
@@ -1860,7 +1860,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public ArrayOf<T> ReadEncodeableArrayAsExtensionObjects<T>(string fieldName)
+        public ArrayOf<T> ReadEncodeableArrayAsExtensionObjects<T>(string? fieldName)
             where T : IEncodeable
         {
             if (BeginField(fieldName, true, out bool isNil))
@@ -1889,7 +1889,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public ArrayOf<T> ReadEncodeableArray<T>(string fieldName)
+        public ArrayOf<T> ReadEncodeableArray<T>(string? fieldName)
             where T : IEncodeable, new()
         {
             if (BeginField(fieldName, true, out bool isNil))
@@ -1919,8 +1919,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public ArrayOf<T> ReadEncodeableArray<T>(
-            string fieldName,
+        public ArrayOf<T> ReadEncodeableArray<T>(string? fieldName,
             ExpandedNodeId encodeableTypeId) where T : IEncodeable
         {
             if (BeginField(fieldName, true, out bool isNil))
@@ -1949,8 +1948,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public MatrixOf<T> ReadEncodeableMatrix<T>(
-            string fieldName,
+        public MatrixOf<T> ReadEncodeableMatrix<T>(string? fieldName,
             ExpandedNodeId encodeableTypeId) where T : IEncodeable
         {
             CheckAndIncrementNestingLevel();
@@ -1964,7 +1962,7 @@ namespace Opc.Ua
                     int[] dimensions = ReadInt32Array("Dimensions").ToArray() ?? [];
                     if (BeginField("Elements", true))
                     {
-                        value = ReadEncodeableArray<T>(null!, encodeableTypeId)
+                        value = ReadEncodeableArray<T>(null, encodeableTypeId)
                             .ToMatrix(dimensions);
                         EndField("Elements");
                     }
@@ -1982,7 +1980,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public ArrayOf<T> ReadEnumeratedArray<T>(string fieldName) where T : struct, Enum
+        public ArrayOf<T> ReadEnumeratedArray<T>(string? fieldName) where T : struct, Enum
         {
             if (BeginField(fieldName, true, out bool isNil))
             {
@@ -2083,7 +2081,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public Variant ReadVariantValue(string fieldName, TypeInfo typeInfo)
+        public Variant ReadVariantValue(string? fieldName, TypeInfo typeInfo)
         {
             CheckAndIncrementNestingLevel();
 
@@ -2566,7 +2564,7 @@ namespace Opc.Ua
             }
         }
 
-        private T ReadEncodeable<T>(string fieldName, T value) where T : IEncodeable
+        private T ReadEncodeable<T>(string? fieldName, T value) where T : IEncodeable
         {
             CheckAndIncrementNestingLevel();
             try

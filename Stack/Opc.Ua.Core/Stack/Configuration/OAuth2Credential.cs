@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Xml;
 
 // suppress warnings until OAuth 2.0 is supported
@@ -75,7 +75,7 @@ namespace Opc.Ua
 
                 list = configuration.ParseExtension(
                     s_elementName,
-                    static decoder => decoder.ReadEncodeableArray<OAuth2Credential>(null!));
+                    static decoder => decoder.ReadEncodeableArray<OAuth2Credential>(null));
 
                 configuration.Properties["OAuth2Credentials"] = list;
             }

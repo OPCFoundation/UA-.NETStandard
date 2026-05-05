@@ -261,7 +261,7 @@ namespace Opc.Ua
             var absoluteId = NodeId.ToExpandedNodeId(typeId, Context.NamespaceUris);
 
             // read the message.
-            T message = ReadEncodeable<T>(null!, absoluteId);
+            T message = ReadEncodeable<T>(null, absoluteId);
 
             // check that the max message size was not exceeded.
             int messageLength = Position - start;
@@ -890,7 +890,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public T ReadEncodeable<T>(string fieldName, ExpandedNodeId encodeableTypeId)
+        public T ReadEncodeable<T>(string? fieldName, ExpandedNodeId encodeableTypeId)
             where T : IEncodeable
         {
             if (!Context.Factory.TryGetEncodeableType(
@@ -917,7 +917,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public T ReadEncodeable<T>(string fieldName) where T : IEncodeable, new()
+        public T ReadEncodeable<T>(string? fieldName) where T : IEncodeable, new()
         {
             CheckAndIncrementNestingLevel();
             var encodeable = new T();
@@ -933,7 +933,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public T ReadEncodeableAsExtensionObject<T>(string fieldName)
+        public T ReadEncodeableAsExtensionObject<T>(string? fieldName)
             where T : IEncodeable
         {
             ExtensionObject extensionObject = ReadExtensionObject(fieldName);
@@ -945,7 +945,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public T ReadEnumerated<T>(string fieldName) where T : struct, Enum
+        public T ReadEnumerated<T>(string? fieldName) where T : struct, Enum
         {
             return EnumHelper.Int32ToEnum<T>(SafeReadInt32());
         }
@@ -1453,8 +1453,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public ArrayOf<T> ReadEncodeableArray<T>(
-            string fieldName,
+        public ArrayOf<T> ReadEncodeableArray<T>(string? fieldName,
             ExpandedNodeId encodeableTypeId) where T : IEncodeable
         {
             int length = ReadArrayLength();
@@ -1468,19 +1467,18 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < length; ii++)
             {
-                values[ii] = ReadEncodeable<T>(null!, encodeableTypeId);
+                values[ii] = ReadEncodeable<T>(null, encodeableTypeId);
             }
 
             return values;
         }
 
         /// <inheritdoc/>
-        public MatrixOf<T> ReadEncodeableMatrix<T>(
-            string fieldName,
+        public MatrixOf<T> ReadEncodeableMatrix<T>(string? fieldName,
             ExpandedNodeId encodeableTypeId) where T : IEncodeable
         {
             ArrayOf<int> dimensions = ReadInt32Array(null);
-            ArrayOf<T> array = ReadEncodeableArray<T>(null!, encodeableTypeId);
+            ArrayOf<T> array = ReadEncodeableArray<T>(null, encodeableTypeId);
             if (dimensions.IsEmpty)
             {
                 return default;
@@ -1489,7 +1487,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public ArrayOf<T> ReadEncodeableArrayAsExtensionObjects<T>(string fieldName)
+        public ArrayOf<T> ReadEncodeableArrayAsExtensionObjects<T>(string? fieldName)
             where T : IEncodeable
         {
             int length = ReadArrayLength();
@@ -1503,14 +1501,14 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < length; ii++)
             {
-                values[ii] = ReadEncodeableAsExtensionObject<T>(null!);
+                values[ii] = ReadEncodeableAsExtensionObject<T>(null);
             }
 
             return values;
         }
 
         /// <inheritdoc/>
-        public ArrayOf<T> ReadEncodeableArray<T>(string fieldName)
+        public ArrayOf<T> ReadEncodeableArray<T>(string? fieldName)
             where T : IEncodeable, new()
         {
             int length = ReadArrayLength();
@@ -1524,14 +1522,14 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < length; ii++)
             {
-                values[ii] = ReadEncodeable<T>(null!);
+                values[ii] = ReadEncodeable<T>(null);
             }
 
             return values;
         }
 
         /// <inheritdoc/>
-        public ArrayOf<T> ReadEnumeratedArray<T>(string fieldName) where T : struct, Enum
+        public ArrayOf<T> ReadEnumeratedArray<T>(string? fieldName) where T : struct, Enum
         {
             int length = ReadArrayLength();
 
@@ -1544,7 +1542,7 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < length; ii++)
             {
-                values[ii] = ReadEnumerated<T>(null!);
+                values[ii] = ReadEnumerated<T>(null);
             }
 
             return values;
@@ -1571,7 +1569,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public Variant ReadVariantValue(string fieldName, TypeInfo typeInfo)
+        public Variant ReadVariantValue(string? fieldName, TypeInfo typeInfo)
         {
             return ReadVariantValue(typeInfo, true);
         }

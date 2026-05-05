@@ -1,4 +1,4 @@
-﻿/* ========================================================================
+/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -459,7 +459,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public T ReadEnumerated<T>(string fieldName) where T : struct, Enum
+        public T ReadEnumerated<T>(string? fieldName) where T : struct, Enum
         {
             if (TryGetEnumerationFromElement(
                 GetPropertyElement(fieldName),
@@ -471,7 +471,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public ArrayOf<T> ReadEnumeratedArray<T>(string fieldName)
+        public ArrayOf<T> ReadEnumeratedArray<T>(string? fieldName)
             where T : struct, Enum
         {
             if (TryGetEnumerationArrayFromElement(
@@ -820,7 +820,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public T ReadEncodeable<T>(string fieldName, ExpandedNodeId encodeableTypeId)
+        public T ReadEncodeable<T>(string? fieldName, ExpandedNodeId encodeableTypeId)
             where T : IEncodeable
         {
             if (TryGetEncodeableFromElement(
@@ -834,7 +834,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public T ReadEncodeable<T>(string fieldName)
+        public T ReadEncodeable<T>(string? fieldName)
             where T : IEncodeable, new()
         {
             if (TryGetEncodeableFromElement(
@@ -847,7 +847,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public T ReadEncodeableAsExtensionObject<T>(string fieldName)
+        public T ReadEncodeableAsExtensionObject<T>(string? fieldName)
             where T : IEncodeable
         {
             if (TryGetEncodeableAsExtensionObjectFromElement(
@@ -860,7 +860,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public ArrayOf<T> ReadEncodeableArrayAsExtensionObjects<T>(string fieldName)
+        public ArrayOf<T> ReadEncodeableArrayAsExtensionObjects<T>(string? fieldName)
             where T : IEncodeable
         {
             if (TryGetEncodeableAsExtensionObjectArrayFromElement(
@@ -873,8 +873,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public ArrayOf<T> ReadEncodeableArray<T>(
-            string fieldName,
+        public ArrayOf<T> ReadEncodeableArray<T>(string? fieldName,
             ExpandedNodeId encodeableTypeId) where T : IEncodeable
         {
             if (TryGetEncodeableArrayFromElement(
@@ -888,7 +887,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public ArrayOf<T> ReadEncodeableArray<T>(string fieldName)
+        public ArrayOf<T> ReadEncodeableArray<T>(string? fieldName)
             where T : IEncodeable, new()
         {
             if (TryGetEncodeableArrayFromElement(
@@ -901,8 +900,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public MatrixOf<T> ReadEncodeableMatrix<T>(
-            string fieldName,
+        public MatrixOf<T> ReadEncodeableMatrix<T>(string? fieldName,
             ExpandedNodeId encodeableTypeId) where T : IEncodeable
         {
             if (TryGetEncodeableMatrixFromElement(
@@ -1012,7 +1010,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public Variant ReadVariantValue(string fieldName, TypeInfo typeInfo)
+        public Variant ReadVariantValue(string? fieldName, TypeInfo typeInfo)
         {
             if (TryGetVariantValueFromElement(
                 GetPropertyElement(fieldName),
@@ -2711,7 +2709,7 @@ namespace Opc.Ua
                                     if (TryGetByteStringFromElement(uaBody, out ByteString bytes))
                                     {
                                         using var decoder = new BinaryDecoder(bytes.ToArray(), Context);
-                                        value = decoder.ReadEncodeable<T>(null!, typeId);
+                                        value = decoder.ReadEncodeable<T>(null, typeId);
                                         return true;
                                     }
                                     break;

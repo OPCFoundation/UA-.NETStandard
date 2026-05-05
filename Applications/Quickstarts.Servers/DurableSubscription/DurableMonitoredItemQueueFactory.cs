@@ -473,7 +473,7 @@ namespace Quickstarts.Servers
             {
                 for (int i = 0; i < count; i++)
                 {
-                    encoder.WriteEncodeableAsExtensionObject(null!, batch.Events[i]);
+                    encoder.WriteEncodeableAsExtensionObject(null, batch.Events[i]);
                 }
             }
         }

@@ -869,7 +869,7 @@ namespace Opc.Ua.PubSub.Encoding
                         case ValueRanks.OneDimension:
                         case ValueRanks.TwoDimensions:
                             return binaryDecoder.ReadVariantValue(
-                                null!,
+                                null,
                                 TypeInfo.Create((BuiltInType)fieldMetaData.BuiltInType, fieldMetaData.ValueRank));
                         default:
                             m_logger.LogInformation(
@@ -897,55 +897,55 @@ namespace Opc.Ua.PubSub.Encoding
             switch ((BuiltInType)builtInType)
             {
                 case BuiltInType.Boolean:
-                    return binaryDecoder.ReadBoolean(null!);
+                    return binaryDecoder.ReadBoolean(null);
                 case BuiltInType.SByte:
-                    return binaryDecoder.ReadSByte(null!);
+                    return binaryDecoder.ReadSByte(null);
                 case BuiltInType.Byte:
-                    return binaryDecoder.ReadByte(null!);
+                    return binaryDecoder.ReadByte(null);
                 case BuiltInType.Int16:
-                    return binaryDecoder.ReadInt16(null!);
+                    return binaryDecoder.ReadInt16(null);
                 case BuiltInType.UInt16:
-                    return binaryDecoder.ReadUInt16(null!);
+                    return binaryDecoder.ReadUInt16(null);
                 case BuiltInType.Int32:
-                    return binaryDecoder.ReadInt32(null!);
+                    return binaryDecoder.ReadInt32(null);
                 case BuiltInType.UInt32:
-                    return binaryDecoder.ReadUInt32(null!);
+                    return binaryDecoder.ReadUInt32(null);
                 case BuiltInType.Int64:
-                    return binaryDecoder.ReadInt64(null!);
+                    return binaryDecoder.ReadInt64(null);
                 case BuiltInType.UInt64:
-                    return binaryDecoder.ReadUInt64(null!);
+                    return binaryDecoder.ReadUInt64(null);
                 case BuiltInType.Float:
-                    return binaryDecoder.ReadFloat(null!);
+                    return binaryDecoder.ReadFloat(null);
                 case BuiltInType.Double:
-                    return binaryDecoder.ReadDouble(null!);
+                    return binaryDecoder.ReadDouble(null);
                 case BuiltInType.String:
-                    return binaryDecoder.ReadString(null!);
+                    return binaryDecoder.ReadString(null);
                 case BuiltInType.DateTime:
-                    return binaryDecoder.ReadDateTime(null!);
+                    return binaryDecoder.ReadDateTime(null);
                 case BuiltInType.Guid:
-                    return binaryDecoder.ReadGuid(null!);
+                    return binaryDecoder.ReadGuid(null);
                 case BuiltInType.ByteString:
-                    return binaryDecoder.ReadByteString(null!);
+                    return binaryDecoder.ReadByteString(null);
                 case BuiltInType.XmlElement:
-                    return binaryDecoder.ReadXmlElement(null!);
+                    return binaryDecoder.ReadXmlElement(null);
                 case BuiltInType.NodeId:
-                    return binaryDecoder.ReadNodeId(null!);
+                    return binaryDecoder.ReadNodeId(null);
                 case BuiltInType.ExpandedNodeId:
-                    return binaryDecoder.ReadExpandedNodeId(null!);
+                    return binaryDecoder.ReadExpandedNodeId(null);
                 case BuiltInType.StatusCode:
-                    return binaryDecoder.ReadStatusCode(null!);
+                    return binaryDecoder.ReadStatusCode(null);
                 case BuiltInType.QualifiedName:
-                    return binaryDecoder.ReadQualifiedName(null!);
+                    return binaryDecoder.ReadQualifiedName(null);
                 case BuiltInType.LocalizedText:
-                    return binaryDecoder.ReadLocalizedText(null!);
+                    return binaryDecoder.ReadLocalizedText(null);
                 case BuiltInType.DataValue:
-                    return binaryDecoder.ReadDataValue(null!);
+                    return binaryDecoder.ReadDataValue(null);
                 case BuiltInType.Enumeration:
-                    return binaryDecoder.ReadInt32(null!);
+                    return binaryDecoder.ReadInt32(null);
                 case BuiltInType.Variant:
-                    return binaryDecoder.ReadVariant(null!);
+                    return binaryDecoder.ReadVariant(null);
                 case BuiltInType.ExtensionObject:
-                    return binaryDecoder.ReadExtensionObject(null!);
+                    return binaryDecoder.ReadExtensionObject(null);
                 case BuiltInType.Null:
                 case BuiltInType.DiagnosticInfo:
                 case BuiltInType.Number:

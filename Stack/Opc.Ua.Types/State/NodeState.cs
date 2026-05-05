@@ -1060,7 +1060,7 @@ namespace Opc.Ua
             BinaryEncoder encoder,
             AttributesToSave attributesToSave)
         {
-            encoder.WriteEnumerated(null!, NodeClass);
+            encoder.WriteEnumerated(null, NodeClass);
 
             if ((attributesToSave & AttributesToSave.SymbolicName) != 0)
             {
@@ -1089,12 +1089,12 @@ namespace Opc.Ua
 
             if ((attributesToSave & AttributesToSave.WriteMask) != 0)
             {
-                encoder.WriteEnumerated(null!, m_writeMask);
+                encoder.WriteEnumerated(null, m_writeMask);
             }
 
             if ((attributesToSave & AttributesToSave.UserWriteMask) != 0)
             {
-                encoder.WriteEnumerated(null!, m_userWriteMask);
+                encoder.WriteEnumerated(null, m_userWriteMask);
             }
         }
 
@@ -1111,7 +1111,7 @@ namespace Opc.Ua
         {
             if ((attributesToLoad & AttributesToSave.NodeClass) != 0)
             {
-                NodeClass = decoder.ReadEnumerated<NodeClass>(null!);
+                NodeClass = decoder.ReadEnumerated<NodeClass>(null);
             }
 
             if ((attributesToLoad & AttributesToSave.SymbolicName) != 0)
@@ -1151,12 +1151,12 @@ namespace Opc.Ua
 
             if ((attributesToLoad & AttributesToSave.WriteMask) != 0)
             {
-                m_writeMask = decoder.ReadEnumerated<AttributeWriteMask>(null!);
+                m_writeMask = decoder.ReadEnumerated<AttributeWriteMask>(null);
             }
 
             if ((attributesToLoad & AttributesToSave.UserWriteMask) != 0)
             {
-                m_userWriteMask = decoder.ReadEnumerated<AttributeWriteMask>(null!);
+                m_userWriteMask = decoder.ReadEnumerated<AttributeWriteMask>(null);
             }
         }
 
@@ -1223,7 +1223,7 @@ namespace Opc.Ua
             string? symbolicName = null;
             QualifiedName browseName = default;
 
-            NodeClass nodeClass = decoder.ReadEnumerated<NodeClass>(null!);
+            NodeClass nodeClass = decoder.ReadEnumerated<NodeClass>(null);
             attributesToLoad &= ~AttributesToSave.NodeClass;
 
             if ((attributesToLoad & AttributesToSave.SymbolicName) != 0)
@@ -1296,7 +1296,7 @@ namespace Opc.Ua
             string? symbolicName = null;
             QualifiedName browseName = default;
 
-            NodeClass nodeClass = decoder.ReadEnumerated<NodeClass>(null!);
+            NodeClass nodeClass = decoder.ReadEnumerated<NodeClass>(null);
             attributesToLoad &= ~AttributesToSave.NodeClass;
 
             if ((attributesToLoad & AttributesToSave.SymbolicName) != 0)
@@ -1969,13 +1969,13 @@ namespace Opc.Ua
 
             if ((attributesToLoad & AttributesToSave.WriteMask) != 0)
             {
-                writeMask = decoder.ReadEnumerated<AttributeWriteMask>(null!);
+                writeMask = decoder.ReadEnumerated<AttributeWriteMask>(null);
                 attributesToLoad &= ~AttributesToSave.WriteMask;
             }
 
             if ((attributesToLoad & AttributesToSave.UserWriteMask) != 0)
             {
-                userWriteMask = decoder.ReadEnumerated<AttributeWriteMask>(null!);
+                userWriteMask = decoder.ReadEnumerated<AttributeWriteMask>(null);
                 attributesToLoad &= ~AttributesToSave.UserWriteMask;
             }
 

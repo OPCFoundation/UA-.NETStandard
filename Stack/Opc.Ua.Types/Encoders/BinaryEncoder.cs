@@ -286,7 +286,7 @@ namespace Opc.Ua
             WriteNodeId(null, typeId);
 
             // write the message.
-            WriteEncodeable(null!, message, encodeableTypeId);
+            WriteEncodeable(null, message, encodeableTypeId);
 
             // check that the max message size was not exceeded.
             if (Context.MaxMessageSize > 0 &&
@@ -317,7 +317,7 @@ namespace Opc.Ua
             WriteNodeId(null, typeId);
 
             // write the message.
-            WriteEncodeable(null!, message, message.TypeId);
+            WriteEncodeable(null, message, message.TypeId);
 
             // check that the max message size was not exceeded.
             if (Context.MaxMessageSize > 0 &&
@@ -941,7 +941,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public void WriteEncodeable<T>(string fieldName, T value)
+        public void WriteEncodeable<T>(string? fieldName, T value)
             where T : IEncodeable, new()
         {
             if (EqualityComparer<T>.Default.Equals(value, default!))
@@ -953,8 +953,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public void WriteEncodeable<T>(
-            string fieldName,
+        public void WriteEncodeable<T>(string? fieldName,
             T value,
             ExpandedNodeId encodeableTypeId) where T : IEncodeable
         {
@@ -972,13 +971,13 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public void WriteEncodeableAsExtensionObject<T>(string fieldName, T value) where T : IEncodeable
+        public void WriteEncodeableAsExtensionObject<T>(string? fieldName, T value) where T : IEncodeable
         {
             WriteExtensionObject(fieldName, new ExtensionObject(value));
         }
 
         /// <inheritdoc/>
-        public void WriteEnumerated<T>(string fieldName, T value) where T : struct, Enum
+        public void WriteEnumerated<T>(string? fieldName, T value) where T : struct, Enum
         {
             WriteInt32(null, EnumHelper.EnumToInt32(value));
         }
@@ -1390,14 +1389,14 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public void WriteEncodeableArrayAsExtensionObjects<T>(string fieldName, ArrayOf<T> values)
+        public void WriteEncodeableArrayAsExtensionObjects<T>(string? fieldName, ArrayOf<T> values)
             where T : IEncodeable
         {
             WriteExtensionObjectArray(fieldName, values.ConvertAll(v => new ExtensionObject(v)));
         }
 
         /// <inheritdoc/>
-        public void WriteEncodeableArray<T>(string fieldName, ArrayOf<T> values)
+        public void WriteEncodeableArray<T>(string? fieldName, ArrayOf<T> values)
             where T : IEncodeable, new()
         {
             // write length.
@@ -1409,13 +1408,12 @@ namespace Opc.Ua
             // write contents.
             for (int ii = 0; ii < values.Count; ii++)
             {
-                WriteEncodeable(null!, values[ii]);
+                WriteEncodeable(null, values[ii]);
             }
         }
 
         /// <inheritdoc/>
-        public void WriteEncodeableArray<T>(
-            string fieldName,
+        public void WriteEncodeableArray<T>(string? fieldName,
             ArrayOf<T> values,
             ExpandedNodeId encodeableTypeId) where T : IEncodeable
         {
@@ -1428,12 +1426,12 @@ namespace Opc.Ua
             // write contents.
             for (int ii = 0; ii < values.Count; ii++)
             {
-                WriteEncodeable(null!, values[ii], encodeableTypeId);
+                WriteEncodeable(null, values[ii], encodeableTypeId);
             }
         }
 
         /// <inheritdoc/>
-        public void WriteEncodeableMatrix<T>(string fieldName, MatrixOf<T> values)
+        public void WriteEncodeableMatrix<T>(string? fieldName, MatrixOf<T> values)
             where T : IEncodeable, new()
         {
             // see https://reference.opcfoundation.org/Core/Part6/v105/docs/5.2.5
@@ -1445,12 +1443,11 @@ namespace Opc.Ua
             }
 
             WriteInt32Array(null, values.Dimensions);
-            WriteEncodeableArray(null!, values.ToArrayOf());
+            WriteEncodeableArray(null, values.ToArrayOf());
         }
 
         /// <inheritdoc/>
-        public void WriteEncodeableMatrix<T>(
-            string fieldName,
+        public void WriteEncodeableMatrix<T>(string? fieldName,
             MatrixOf<T> values,
             ExpandedNodeId encodeableTypeId) where T : IEncodeable
         {
@@ -1463,11 +1460,11 @@ namespace Opc.Ua
             }
 
             WriteInt32Array(null, values.Dimensions);
-            WriteEncodeableArray(null!, values.ToArrayOf(), encodeableTypeId);
+            WriteEncodeableArray(null, values.ToArrayOf(), encodeableTypeId);
         }
 
         /// <inheritdoc/>
-        public void WriteEnumeratedArray<T>(string fieldName, ArrayOf<T> values)
+        public void WriteEnumeratedArray<T>(string? fieldName, ArrayOf<T> values)
             where T : struct, Enum
         {
             // write length.
@@ -1479,7 +1476,7 @@ namespace Opc.Ua
             // write contents.
             for (int ii = 0; ii < values.Count; ii++)
             {
-                WriteEnumerated(null!, values[ii]);
+                WriteEnumerated(null, values[ii]);
             }
         }
 

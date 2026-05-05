@@ -214,7 +214,7 @@ namespace Opc.Ua
         /// instance that will be read.</param>
         /// <returns>A type of type <see cref="IEncodeable"/> that was read
         /// from the stream.</returns>
-        T ReadEncodeable<T>(string fieldName, ExpandedNodeId encodeableTypeId)
+        T ReadEncodeable<T>(string? fieldName, ExpandedNodeId encodeableTypeId)
             where T : IEncodeable;
 
         /// <summary>
@@ -225,7 +225,7 @@ namespace Opc.Ua
         /// <param name="fieldName">The encodeable object field name</param>
         /// <returns>A type of type <see cref="IEncodeable"/> that was read
         /// from the stream.</returns>
-        T ReadEncodeable<T>(string fieldName) where T : IEncodeable, new();
+        T ReadEncodeable<T>(string? fieldName) where T : IEncodeable, new();
 
         /// <summary>
         /// Read the encodeable as an extension object from the stream.
@@ -236,14 +236,14 @@ namespace Opc.Ua
         /// <typeparam name="T"></typeparam>
         /// <param name="fieldName"></param>
         /// <returns></returns>
-        T ReadEncodeableAsExtensionObject<T>(string fieldName)
+        T ReadEncodeableAsExtensionObject<T>(string? fieldName)
             where T : IEncodeable;
 
         /// <summary>
         /// Reads an enumerated value from the stream.
         /// </summary>
         /// <typeparam name="T">The type of the enum to be read</typeparam>
-        T ReadEnumerated<T>(string fieldName) where T : struct, Enum;
+        T ReadEnumerated<T>(string? fieldName) where T : struct, Enum;
 
         /// <summary>
         /// Reads an enumerated value from the stream.
@@ -381,7 +381,7 @@ namespace Opc.Ua
         /// <typeparam name="T">The type of the encodeable objects to be read
         /// </typeparam>
         /// <returns>An array of types of type <see cref="IEncodeable"/></returns>
-        ArrayOf<T> ReadEncodeableArray<T>(string fieldName) where T : IEncodeable, new();
+        ArrayOf<T> ReadEncodeableArray<T>(string? fieldName) where T : IEncodeable, new();
 
         /// <summary>
         /// Reads an encodeable array from the stream.
@@ -390,7 +390,7 @@ namespace Opc.Ua
         /// </typeparam>
         /// <returns>An array of types of type <see cref="IEncodeable"/></returns>
         ArrayOf<T> ReadEncodeableArray<T>(
-            string fieldName,
+            string? fieldName,
             ExpandedNodeId encodeableTypeId)
             where T : IEncodeable;
 
@@ -402,7 +402,7 @@ namespace Opc.Ua
         /// <typeparam name="T">The type of the encodeable objects to be read
         /// </typeparam>
         /// <returns>An array of types of type <see cref="IEncodeable"/></returns>
-        ArrayOf<T> ReadEncodeableArrayAsExtensionObjects<T>(string fieldName)
+        ArrayOf<T> ReadEncodeableArrayAsExtensionObjects<T>(string? fieldName)
             where T : IEncodeable;
 
         /// <summary>
@@ -412,14 +412,14 @@ namespace Opc.Ua
         /// </typeparam>
         /// <returns>A matrix of types of type <see cref="IEncodeable"/></returns>
         MatrixOf<T> ReadEncodeableMatrix<T>(
-            string fieldName,
+            string? fieldName,
             ExpandedNodeId encodeableTypeId) where T : IEncodeable;
 
         /// <summary>
         /// Reads an enumerated value array from the stream.
         /// </summary>
         /// <typeparam name="T">The type of the enum to be read</typeparam>
-        ArrayOf<T> ReadEnumeratedArray<T>(string fieldName)
+        ArrayOf<T> ReadEnumeratedArray<T>(string? fieldName)
             where T : struct, Enum;
 
         /// <summary>
@@ -441,7 +441,7 @@ namespace Opc.Ua
         /// <param name="typeInfo">The type info deciding the encoding to use
         /// for the built in type.</param>
         /// <returns></returns>
-        Variant ReadVariantValue(string fieldName, TypeInfo typeInfo);
+        Variant ReadVariantValue(string? fieldName, TypeInfo typeInfo);
 
         /// <summary>
         /// Decode the switch field for a union.
