@@ -485,7 +485,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             var decoded = new PubSubEncoding.JsonNetworkMessage();
             decoded.Decode(m_messageContext, encoded, [reader]);
 
-            Assert.That(decoded.DataSetMessages.Count, Is.GreaterThanOrEqualTo(0));
+            Assert.That(decoded.DataSetMessages, Has.Count.GreaterThanOrEqualTo(0));
         }
 
         [Test]

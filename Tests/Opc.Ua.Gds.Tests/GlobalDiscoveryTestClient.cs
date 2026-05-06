@@ -267,7 +267,7 @@ namespace Opc.Ua.Gds.Tests
                 }
                 finally
                 {
-                    gdsClient.Dispose();
+                    await gdsClient.DisposeAsync().ConfigureAwait(false);
                 }
             }
         }
@@ -298,7 +298,7 @@ namespace Opc.Ua.Gds.Tests
         private async Task<(ByteString certificate, ByteString privateKey)> FinishKeyPairAsync(
             ApplicationTestData ownApplicationTestData)
         {
-            GDSClient.ConnectAsync().GetAwaiter().GetResult();
+            await GDSClient.ConnectAsync().ConfigureAwait(false);
             //get cert
             (ByteString certificate, ByteString privateKey, _) = await GDSClient.FinishRequestAsync(
                 ownApplicationTestData.ApplicationRecord.ApplicationId,

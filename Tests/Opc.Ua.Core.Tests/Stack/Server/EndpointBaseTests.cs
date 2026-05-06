@@ -218,7 +218,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                     }
                 ]
             };
-            bool result = EndpointBase.TryExtractActivityContextFromParameters(parameters, out ActivityContext context);
+            bool result = EndpointBase.TryExtractActivityContextFromParameters(parameters, out _);
             Assert.That(result, Is.False);
         }
 
@@ -235,7 +235,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                     }
                 ]
             };
-            bool result = EndpointBase.TryExtractActivityContextFromParameters(parameters, out ActivityContext context);
+            bool result = EndpointBase.TryExtractActivityContextFromParameters(parameters, out _);
             Assert.That(result, Is.False);
         }
 

@@ -324,7 +324,7 @@ namespace Opc.Ua.Client
             ArrayOf<string> preferredLocales = default;
             if (opts.PreferredLocales is { Count: > 0 } locales)
             {
-                var arr = new string[locales.Count];
+                string[] arr = new string[locales.Count];
                 for (int i = 0; i < locales.Count; i++)
                 {
                     arr[i] = locales[i];
@@ -350,4 +350,3 @@ namespace Opc.Ua.Client
         }
     }
 }
-

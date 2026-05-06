@@ -168,6 +168,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             m_rootAltCert?.Dispose();
             m_validator?.Dispose();
             m_webServer?.Dispose();
+            m_certValidator?.Dispose();
             Directory.Delete(m_webServerPath, true);
         }
 
@@ -356,7 +357,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             {
                 await validator.IssuerStore.AddAsync(rootCert).ConfigureAwait(false);
                 await validator.TrustedStore.AddAsync(subCACert).ConfigureAwait(false);
-                ICertificateValidatorEx certValidator = validator.Update();
+                ICertificateValidatorEx certValidator = await validator.UpdateAsync().ConfigureAwait(false);
                 Opc.Ua.CertificateValidationResult result = await certValidator
                     .ValidateAsync(leafCert, ct: CancellationToken.None)
                     .ConfigureAwait(false);
@@ -364,13 +365,15 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             }
 
             // validate using server/client chain sent over the wire
-            using var collection = new CertificateCollection {
+            using var collection = new CertificateCollection
+            {
                 leafCert,
                 subCACert,
-                rootReverseCert };
+                rootReverseCert
+            };
             using (var validator = TemporaryCertificateManager.Create(telemetry))
             {
-                ICertificateValidatorEx certValidator = validator.Update();
+                ICertificateValidatorEx certValidator = await validator.UpdateAsync().ConfigureAwait(false);
                 Opc.Ua.CertificateValidationResult result = await certValidator
                     .ValidateAsync(collection, ct: CancellationToken.None)
                     .ConfigureAwait(false);
@@ -384,7 +387,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             {
                 await validator.IssuerStore.AddAsync(rootReverseCert).ConfigureAwait(false);
                 await validator.TrustedStore.AddAsync(subCACert).ConfigureAwait(false);
-                ICertificateValidatorEx certValidator = validator.Update();
+                ICertificateValidatorEx certValidator = await validator.UpdateAsync().ConfigureAwait(false);
                 Opc.Ua.CertificateValidationResult result = await certValidator
                     .ValidateAsync(collection, ct: CancellationToken.None)
                     .ConfigureAwait(false);
@@ -406,27 +409,30 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             }
 
             TestContext.Out.WriteLine("Start Web server at: {0}", url);
+            WebServer server;
+            try
+            {
 
-            // Tiny web server does not respond to localhost or ::1, use 127.0.0.1
-            string embedioUrl = url.Replace("localhost", "*", StringComparison.Ordinal);
-            WebServer server = new WebServer(
-                o => o.WithUrlPrefix(embedioUrl).WithMode(HttpListenerMode.EmbedIO))
-                .WithModule(
-                    new ActionModule(
-                        "/",
-                        HttpVerbs.Get,
-                        async ctx =>
-                        {
-                            TestContext.Out.WriteLine("GET: {0}", ctx.RequestedPath);
-                            // return the certificate as binary blob
-                            string path = Path.Combine(tempPath, ctx.RequestedPath[1..]);
-                            byte[] certBlob = File.ReadAllBytes(path);
-                            ctx.Response.ContentEncoding = null;
-                            ctx.Response.ContentType = "application/x-x509-ca-cert";
-                            ctx.Response.OutputStream.Write(certBlob, 0, certBlob.Length);
-                            ctx.SetHandled();
-                            await Task.Delay(0).ConfigureAwait(false);
-                        }))
+                // Tiny web server does not respond to localhost or ::1, use 127.0.0.1
+                string embedioUrl = url.Replace("localhost", "*", StringComparison.Ordinal);
+                server = new WebServer(
+                    o => o.WithUrlPrefix(embedioUrl).WithMode(HttpListenerMode.EmbedIO))
+                    .WithModule(
+                        new ActionModule(
+                            "/",
+                            HttpVerbs.Get,
+                            async ctx =>
+                            {
+                                TestContext.Out.WriteLine("GET: {0}", ctx.RequestedPath);
+                                // return the certificate as binary blob
+                                string path = Path.Combine(tempPath, ctx.RequestedPath[1..]);
+                                byte[] certBlob = File.ReadAllBytes(path);
+                                ctx.Response.ContentEncoding = null;
+                                ctx.Response.ContentType = "application/x-x509-ca-cert";
+                                ctx.Response.OutputStream.Write(certBlob, 0, certBlob.Length);
+                                ctx.SetHandled();
+                                await Task.Delay(0).ConfigureAwait(false);
+                            }))
 #if STATIC_FOLDER // returns error 406 when GET certificate is called by .NET ChainBuilder
                 .WithStaticFolder(
                     "/",
@@ -436,18 +442,24 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                         m.WithDirectoryLister(DirectoryLister.Html)
                             .WithCustomMimeType(".der", "application/x-x509-ca-cert"))
 #endif
-            ;
+                ;
 
-            TestContext.Out.WriteLine("Hosting content at: {0}", tempPath);
+                TestContext.Out.WriteLine("Hosting content at: {0}", tempPath);
 
-            // Listen for state changes.
-            server.StateChanged += (s, e) => TestContext.Out
-                .WriteLine($"WebServer New State - {e.NewState}");
-            server.Start(ct);
+                // Listen for state changes.
+                server.StateChanged += (s, e) => TestContext.Out
+                    .WriteLine($"WebServer New State - {e.NewState}");
+                server.Start(ct);
 
-            TestContext.Out.WriteLine("Server started.");
+                TestContext.Out.WriteLine("Server started.");
 
-            return server;
+                return server;
+            }
+            catch
+            {
+                server.Dispose();
+                throw;
+            }
         }
     }
 }

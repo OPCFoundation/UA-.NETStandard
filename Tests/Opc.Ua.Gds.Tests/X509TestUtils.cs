@@ -85,7 +85,7 @@ namespace Opc.Ua.Gds.Tests
 
             // verify cert with issuer chain
 #pragma warning disable CS0618 // Type or member is obsolete
-            var certValidator = new CertificateValidator(telemetry);
+            using var certValidator = new CertificateValidator(telemetry);
 #pragma warning restore CS0618
             var issuerStore = new CertificateTrustList();
             var trustedStore = new CertificateTrustList

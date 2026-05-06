@@ -116,8 +116,7 @@ namespace Opc.Ua.Export
             return new XmlSerializer(typeof(UANodeSet));
         }
 
-        private static readonly Lazy<XmlSerializer> s_serializer =
-            new Lazy<XmlSerializer>(CreateSerializer);
+        private static readonly Lazy<XmlSerializer> s_serializer = new (CreateSerializer);
 
 #if NET5_0_OR_GREATER
         /// <summary>

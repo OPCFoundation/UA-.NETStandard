@@ -357,7 +357,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 }
             }
 
-            ICertificateValidatorEx certValidator = validator.Update();
+            ICertificateValidatorEx certValidator = await validator.UpdateAsync().ConfigureAwait(false);
             foreach (Certificate cert in m_appSelfSignedCerts)
             {
                 using Certificate publicKey = Certificate.FromRawData(cert.RawData);
@@ -593,12 +593,12 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             {
                 await validator.TrustedStore.AddAsync(cert).ConfigureAwait(false);
             }
-            using CertificateCollection trustedCerts = validator
-                .TrustedStore.EnumerateAsync().Result;
+            using CertificateCollection trustedCerts =
+                await validator.TrustedStore.EnumerateAsync().ConfigureAwait(false);
             Assert.That(
                 trustedCerts,
                 Has.Count.EqualTo(m_appSelfSignedCerts.Count));
-            ICertificateValidatorEx certValidator = validator.Update();
+            ICertificateValidatorEx certValidator = await validator.UpdateAsync().ConfigureAwait(false);
             foreach (Certificate cert in m_appSelfSignedCerts)
             {
                 using Certificate publicKey = Certificate.FromRawData(cert.RawData);
@@ -624,7 +624,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 await validator.TrustedStore.AddAsync(cert).ConfigureAwait(false);
                 await validator.IssuerStore.AddAsync(cert).ConfigureAwait(false);
             }
-            ICertificateValidatorEx certValidator = validator.Update();
+            ICertificateValidatorEx certValidator = await validator.UpdateAsync().ConfigureAwait(false);
             foreach (Certificate cert in m_appSelfSignedCerts)
             {
                 using Certificate publicKey = Certificate.FromRawData(cert.RawData);
@@ -661,7 +661,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     await store.AddCRLAsync(m_crlChain[i]).ConfigureAwait(false);
                 }
                 TestContext.Out.WriteLine($"AddChains: {stopWatch.ElapsedMilliseconds - start}");
-                ICertificateValidatorEx certValidator = validator.Update();
+                ICertificateValidatorEx certValidator = await validator.UpdateAsync().ConfigureAwait(false);
                 TestContext.Out
                     .WriteLine($"InitValidator: {stopWatch.ElapsedMilliseconds - start}");
                 foreach (ApplicationTestData app in m_goodApplicationTestSet)
@@ -698,7 +698,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     await store.AddAsync(m_caChain[i]).ConfigureAwait(false);
                     await store.AddCRLAsync(m_crlChain[i]).ConfigureAwait(false);
                 }
-                ICertificateValidatorEx certValidator = validator.Update();
+                ICertificateValidatorEx certValidator = await validator.UpdateAsync().ConfigureAwait(false);
                 foreach (ApplicationTestData app in m_goodApplicationTestSet)
                 {
                     using Certificate publicKey = Certificate.FromRawData(app.Certificate);
@@ -731,7 +731,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                             .ConfigureAwait(false);
                     }
                 }
-                ICertificateValidatorEx certValidator = validator.Update();
+                ICertificateValidatorEx certValidator = await validator.UpdateAsync().ConfigureAwait(false);
                 foreach (ApplicationTestData app in m_goodApplicationTestSet)
                 {
                     using Certificate publicKey = Certificate.FromRawData(app.Certificate);
@@ -774,7 +774,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                             .ConfigureAwait(false);
                     }
                 }
-                ICertificateValidatorEx certValidator = validator.Update();
+                ICertificateValidatorEx certValidator = await validator.UpdateAsync().ConfigureAwait(false);
                 foreach (ApplicationTestData app in m_goodApplicationTestSet)
                 {
                     using Certificate publicKey = Certificate.FromRawData(app.Certificate);
@@ -811,7 +811,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     await store.AddAsync(m_caDupeChain[i]).ConfigureAwait(false);
                     await store.AddCRLAsync(m_crlDupeChain[i]).ConfigureAwait(false);
                 }
-                ICertificateValidatorEx certValidator = validator.Update();
+                ICertificateValidatorEx certValidator = await validator.UpdateAsync().ConfigureAwait(false);
                 foreach (ApplicationTestData app in m_goodApplicationTestSet)
                 {
                     using Certificate publicKey = Certificate.FromRawData(app.Certificate);
@@ -850,7 +850,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                             .ConfigureAwait(false);
                     }
                 }
-                ICertificateValidatorEx certValidator = validator.Update();
+                ICertificateValidatorEx certValidator = await validator.UpdateAsync().ConfigureAwait(false);
                 foreach (ApplicationTestData app in m_goodApplicationTestSet)
                 {
                     using Certificate publicKey = Certificate.FromRawData(app.Certificate);
@@ -893,7 +893,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                             .ConfigureAwait(false);
                     }
                 }
-                ICertificateValidatorEx certValidator = validator.Update();
+                ICertificateValidatorEx certValidator = await validator.UpdateAsync().ConfigureAwait(false);
                 foreach (ApplicationTestData app in m_goodApplicationTestSet)
                 {
                     using Certificate publicKey = Certificate.FromRawData(app.Certificate);
@@ -943,7 +943,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                         .TrustedStore.AddAsync(publicKeyAdd)
                         .ConfigureAwait(false);
                 }
-                ICertificateValidatorEx certValidator = validator.Update();
+                ICertificateValidatorEx certValidator = await validator.UpdateAsync().ConfigureAwait(false);
                 foreach (ApplicationTestData app in m_goodApplicationTestSet)
                 {
                     using Certificate publicKey = Certificate.FromRawData(app.Certificate);
@@ -985,7 +985,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                             .ConfigureAwait(false);
                     }
                 }
-                ICertificateValidatorEx certValidator = validator.Update();
+                ICertificateValidatorEx certValidator = await validator.UpdateAsync().ConfigureAwait(false);
                 foreach (ApplicationTestData app in m_goodApplicationTestSet)
                 {
                     using Certificate publicKey = Certificate.FromRawData(app.Certificate);
@@ -1034,7 +1034,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                         .TrustedStore.AddAsync(publicKeyAdd)
                         .ConfigureAwait(false);
                 }
-                ICertificateValidatorEx certValidator = validator.Update();
+                ICertificateValidatorEx certValidator = await validator.UpdateAsync().ConfigureAwait(false);
                 foreach (ApplicationTestData app in m_goodApplicationTestSet)
                 {
                     using Certificate publicKey = Certificate.FromRawData(app.Certificate);
@@ -1076,7 +1076,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     .ConfigureAwait(false);
             }
 
-            ICertificateValidatorEx certValidator = validator.Update();
+            ICertificateValidatorEx certValidator = await validator.UpdateAsync().ConfigureAwait(false);
             foreach (ApplicationTestData app in m_goodApplicationTestSet)
             {
                 using Certificate publicKey = Certificate.FromRawData(app.Certificate);
@@ -1119,7 +1119,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                         .ConfigureAwait(false);
                 }
 
-                ICertificateValidatorEx certValidator = validator.Update();
+                ICertificateValidatorEx certValidator = await validator.UpdateAsync().ConfigureAwait(false);
                 foreach (ApplicationTestData app in m_goodApplicationTestSet)
                 {
                     using Certificate publicKey = Certificate.FromRawData(app.Certificate);

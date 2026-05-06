@@ -635,7 +635,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
 
             m_configurator.RemovePublishedDataSet(pds);
 
-            Assert.That(wg.DataSetWriters.Count, Is.EqualTo(0));
+            Assert.That(wg.DataSetWriters.Count, Is.Zero);
         }
 
         /// <summary>

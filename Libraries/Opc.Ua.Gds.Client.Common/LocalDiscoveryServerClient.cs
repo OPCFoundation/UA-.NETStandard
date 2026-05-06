@@ -203,7 +203,7 @@ namespace Opc.Ua.Gds.Client
             m_disposed = true;
             try
             {
-                m_disposeCts.Cancel();
+                await m_disposeCts.CancelAsync().ConfigureAwait(false);
             }
             catch (ObjectDisposedException)
             {

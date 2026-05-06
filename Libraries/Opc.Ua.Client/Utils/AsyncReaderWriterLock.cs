@@ -207,9 +207,7 @@ namespace Opc.Ua.Client
         /// <see cref="WriterLockAsync"/>. Releases the corresponding
         /// lock on dispose.
         /// </summary>
-#pragma warning disable CA1815 // Override equals and operator equals on value types
         public readonly struct Releaser : IDisposable
-#pragma warning restore CA1815 // Override equals and operator equals on value types
         {
             private readonly AsyncReaderWriterLock m_owner;
             private readonly bool m_isWriter;

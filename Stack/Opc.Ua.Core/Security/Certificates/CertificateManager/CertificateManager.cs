@@ -60,7 +60,7 @@ namespace Opc.Ua
         // per-trust-list validators. Reads of single fields (e.g.
         // GetInstanceCertificate enumeration) take this lock too to
         // prevent the C5 / C1 races from the code review.
-        private readonly object m_certificatesLock = new();
+        private readonly Lock m_certificatesLock = new();
         private bool m_sendCertificateChain;
         private bool m_autoAcceptUntrustedCertificates;
         private bool m_rejectSHA1SignedCertificates = true;

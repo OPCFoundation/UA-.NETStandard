@@ -514,7 +514,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         public async Task ReadAsyncPassesCancellationTokenThrough()
         {
             using var cts = new CancellationTokenSource();
-            cts.Cancel();
+            await cts.CancelAsync().ConfigureAwait(false);
 
             m_innerSession.Channel
                 .Setup(c => c.SendRequestAsync(

@@ -174,15 +174,15 @@ namespace Opc.Ua.Aot.Tests
             const uint queueSize = 10;
 
 #pragma warning disable CA2000 // Dispose objects before losing scope
-        var subscription = new Subscription(session.DefaultSubscription)
-        {
-            DisplayName = "AotTest Subscription",
-            PublishingEnabled = true,
-            PublishingInterval = publishingInterval,
-            LifetimeCount = 0,
-            MinLifetimeInterval = 3,
-            KeepAliveCount = 5
-        };
+            var subscription = new Subscription(session.DefaultSubscription)
+            {
+                DisplayName = "AotTest Subscription",
+                PublishingEnabled = true,
+                PublishingInterval = publishingInterval,
+                LifetimeCount = 0,
+                MinLifetimeInterval = 3,
+                KeepAliveCount = 5
+            };
 #pragma warning restore CA2000 // Dispose objects before losing scope
 
             session.AddSubscription(subscription);

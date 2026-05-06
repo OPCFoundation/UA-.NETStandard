@@ -35,7 +35,6 @@ using Opc.Ua.Bindings;
 using Opc.Ua.Security;
 using Opc.Ua.Security.Certificates;
 
-
 namespace Opc.Ua
 {
     /// <summary>

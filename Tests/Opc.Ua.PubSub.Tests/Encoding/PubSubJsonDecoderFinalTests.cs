@@ -1710,7 +1710,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             var decoded = new PubSubEncoding.JsonNetworkMessage();
             decoded.Decode(m_context, encoded, [reader]);
 
-            Assert.That(decoded.DataSetMessages.Count, Is.GreaterThanOrEqualTo(0));
+            Assert.That(decoded.DataSetMessages, Has.Count.GreaterThanOrEqualTo(0));
         }
 
         private static Field MakeField(string name, BuiltInType builtInType, object value, int valueRank = ValueRanks.Scalar)

@@ -111,8 +111,7 @@ namespace Opc.Ua.Client.Subscriptions
                 try
                 {
                     m_messages.Writer.TryComplete();
-                    m_cts.Cancel();
-
+                    await m_cts.CancelAsync().ConfigureAwait(false);
                     await m_messageWorkerTask.ConfigureAwait(false);
                 }
                 finally
@@ -285,7 +284,7 @@ namespace Opc.Ua.Client.Subscriptions
                 // republish or a server reset).
                 uint delta = unchecked(curSeqNum - prevSeqNum);
 
-                if (delta == 0 || delta >= kBackwardThreshold)
+                if (delta is 0 or >= kBackwardThreshold)
                 {
                     // Can occur if we republished a message
                     if (!Logger.IsEnabled(LogLevel.Debug))
@@ -341,7 +340,7 @@ namespace Opc.Ua.Client.Subscriptions
                 {
                     uint seq = available[i];
                     uint delta = unchecked(curSeqNum - seq);
-                    if (delta != 0 && delta < kBackwardThreshold)
+                    if (delta is not 0 and < kBackwardThreshold)
                     {
                         await TryRepublishAsync(seq, curSeqNum, ct).ConfigureAwait(false);
                     }

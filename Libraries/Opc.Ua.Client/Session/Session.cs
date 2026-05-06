@@ -3253,7 +3253,7 @@ namespace Opc.Ua.Client
             Debug.Assert(keepAliveCancellation != null);
             try
             {
-                keepAliveCancellation!.Cancel();
+                await keepAliveCancellation!.CancelAsync().ConfigureAwait(false);
                 if (!m_inKeepAliveCallback)
                 {
                     // Make sure no circular loops

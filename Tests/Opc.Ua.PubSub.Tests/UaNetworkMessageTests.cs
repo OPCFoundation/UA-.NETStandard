@@ -172,7 +172,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             var dsMessage = new PubSubEncoding.JsonDataSetMessage { DataSetWriterId = 5 };
             msg.DataSetMessages.Add(dsMessage);
 
-            Assert.That(msg.DataSetMessages.Count, Is.EqualTo(1));
+            Assert.That(msg.DataSetMessages, Has.Count.EqualTo(1));
         }
 
         [Test]

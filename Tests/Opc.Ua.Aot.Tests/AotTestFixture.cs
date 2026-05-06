@@ -32,7 +32,6 @@ using Opc.Ua.Client;
 using Quickstarts.ReferenceServer;
 using TUnit.Core.Interfaces;
 
-
 namespace Opc.Ua.Aot.Tests
 {
     /// <summary>

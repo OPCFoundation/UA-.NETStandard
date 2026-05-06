@@ -88,7 +88,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 }
                 if (x509Store.SupportsCRLs)
                 {
-                    foreach (X509CRL crl in x509Store.EnumerateCRLsAsync().Result)
+                    foreach (X509CRL crl in await x509Store.EnumerateCRLsAsync().ConfigureAwait(false))
                     {
                         if (X509Utils.CompareDistinguishedName(X509StoreSubject, crl.Issuer))
                         {

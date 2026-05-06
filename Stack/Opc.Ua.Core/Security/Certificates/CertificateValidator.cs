@@ -1964,7 +1964,8 @@ namespace Opc.Ua
         /// <see cref="CertificateValidatorAdapter"/> when bridging from
         /// an <see cref="ICertificateValidatorEx"/>.
         /// </remarks>
-        [Obsolete("CertificateValidator already implements ICertificateValidator; assign directly, or use CertificateValidatorAdapter for ICertificateValidatorEx.")]
+        [Obsolete(
+            "CertificateValidator already implements ICertificateValidator; assign directly, or use CertificateValidatorAdapter for ICertificateValidatorEx.")]
         public ICertificateValidator GetChannelValidator()
         {
             return this;

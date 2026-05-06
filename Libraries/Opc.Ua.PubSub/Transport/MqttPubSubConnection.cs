@@ -546,7 +546,10 @@ namespace Opc.Ua.PubSub.Transport
         {
             // Cancel the reconnect handler before disconnecting so the disconnect event
             // does not attempt to reconnect after an intentional stop.
-            m_stopCts?.Cancel();
+            if (m_stopCts != null)
+            {
+                await m_stopCts.CancelAsync().ConfigureAwait(false);
+            }
 
             IMqttClient publisherMqttClient = m_publisherMqttClient;
             IMqttClient subscriberMqttClient = m_subscriberMqttClient;

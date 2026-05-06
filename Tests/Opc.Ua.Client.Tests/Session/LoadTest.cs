@@ -239,7 +239,7 @@ namespace Opc.Ua.Client.Tests
                 await Task.Delay(TimeSpan.FromSeconds(testDurationSeconds)).ConfigureAwait(false);
 
                 // Stop writer
-                writerCts.Cancel();
+                await writerCts.CancelAsync().ConfigureAwait(false);
                 try
                 {
                     await writerTask.ConfigureAwait(false);
