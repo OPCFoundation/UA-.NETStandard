@@ -262,7 +262,7 @@ namespace Opc.Ua.Security.Certificates
                     }
                 }
                 // Unknown certificate: return a single-element collection.
-                return new CertificateCollection { certificate };
+                return [certificate];
             }
 
             if (m_certificateChain.TryGetValue(

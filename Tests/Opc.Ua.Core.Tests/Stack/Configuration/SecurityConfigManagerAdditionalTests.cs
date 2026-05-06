@@ -317,9 +317,10 @@ namespace Opc.Ua.Core.Tests.Stack.Configuration
         public void ReadConfigurationWithDiscoveryServerConfig()
         {
             const string xml =
-@"<?xml version=""1.0"" encoding=""utf-8""?>
-<ApplicationConfiguration xmlns=""http://opcfoundation.org/UA/SDK/Configuration.xsd""
-    xmlns:ua=""http://opcfoundation.org/UA/2008/02/Types.xsd"">
+"""
+<?xml version="1.0" encoding="utf-8"?>
+<ApplicationConfiguration xmlns="http://opcfoundation.org/UA/SDK/Configuration.xsd"
+    xmlns:ua="http://opcfoundation.org/UA/2008/02/Types.xsd">
   <ApplicationName>DiscoveryApp</ApplicationName>
   <ApplicationUri>urn:test:discovery</ApplicationUri>
   <ApplicationType>DiscoveryServer_3</ApplicationType>
@@ -337,7 +338,8 @@ namespace Opc.Ua.Core.Tests.Stack.Configuration
       </ServerSecurityPolicy>
     </SecurityPolicies>
   </DiscoveryServerConfiguration>
-</ApplicationConfiguration>";
+</ApplicationConfiguration>
+""";
 
             string filePath = Path.Combine(m_tempDir, "read_discovery.xml");
             File.WriteAllText(filePath, xml, Encoding.UTF8);

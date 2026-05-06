@@ -139,6 +139,7 @@ namespace Opc.Ua.Encoders
         /// Gets or sets the bit corresponding to the given field name
         /// (as declared in <see cref="Definition"/>).
         /// </summary>
+        /// <exception cref="ArgumentException"></exception>
         public bool this[string fieldName]
         {
             get

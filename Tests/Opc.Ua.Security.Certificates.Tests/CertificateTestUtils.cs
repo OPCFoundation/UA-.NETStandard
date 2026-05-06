@@ -192,7 +192,7 @@ namespace Opc.Ua.Security.Certificates.Tests
     /// <summary>
     /// A Certificate as test asset.
     /// </summary>
-    public class CertificateAsset : IAsset, IFormattable, IDisposable
+    public sealed class CertificateAsset : IAsset, IFormattable, IDisposable
     {
         public string Path { get; private set; }
         public byte[] Cert { get; private set; }

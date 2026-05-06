@@ -46,7 +46,9 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
     /// </summary>
     internal sealed class FakeManagedSubscription : IManagedSubscription
     {
-        // ISubscription / IMessageProcessor settable state
+        /// <summary>
+        /// ISubscription / IMessageProcessor settable state
+        /// </summary>
         public uint Id { get; set; }
         public bool Created { get; set; }
         public TimeSpan CurrentPublishingInterval { get; set; }
@@ -57,7 +59,9 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
         public uint CurrentMaxNotificationsPerPublish { get; set; }
         public IMonitoredItemCollection MonitoredItems { get; set; } = null!;
 
-        // Recorded calls
+        /// <summary>
+        /// Recorded calls
+        /// </summary>
         public int DisposeAsyncCalls { get; private set; }
         public int RecreateAsyncCalls { get; private set; }
         public int ConditionRefreshAsyncCalls { get; private set; }
@@ -65,11 +69,15 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
         public List<TryCompleteTransferCall> TryCompleteTransferCalls { get; } = [];
         public List<OnPublishReceivedCall> OnPublishReceivedCalls { get; } = [];
 
-        // Optional overrides for behaviour
+        /// <summary>
+        /// Optional overrides for behaviour
+        /// </summary>
         public Func<NotificationMessage, IReadOnlyList<uint>?,
             IReadOnlyList<string>, ValueTask>? OnPublishReceivedAsyncFunc { get; set; }
+
         public Func<IReadOnlyList<uint>, CancellationToken, ValueTask<bool>>?
             OnTryCompleteTransferAsync { get; set; }
+
         public Func<CancellationToken, ValueTask>? OnRecreateAsync { get; set; }
         public Func<CancellationToken, ValueTask>? OnConditionRefreshAsync { get; set; }
         public Func<ValueTask>? OnDisposeAsync { get; set; }
@@ -81,7 +89,8 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
             OnPublishReceivedCalls.Add(new OnPublishReceivedCall(message,
                 availableSequenceNumbers, stringTable));
             return OnPublishReceivedAsyncFunc?.Invoke(message,
-                availableSequenceNumbers, stringTable) ?? default;
+                availableSequenceNumbers, stringTable) ??
+                default;
         }
 
         public ValueTask<bool> TryCompleteTransferAsync(

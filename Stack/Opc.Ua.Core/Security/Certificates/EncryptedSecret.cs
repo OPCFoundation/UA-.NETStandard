@@ -31,8 +31,10 @@ namespace Opc.Ua
     {
         private static readonly TimeSpan s_rsaEncryptedSecretMaxClockSkew = TimeSpan.FromMinutes(5);
         private static readonly TimeSpan s_rsaEncryptedSecretMaxTokenAge = TimeSpan.FromHours(1);
-        // ECC encrypted secrets use the same one-hour age window as RSA encrypted secrets
-        // to preserve consistent token replay tolerance across both encryption formats.
+        /// <summary>
+        /// ECC encrypted secrets use the same one-hour age window as RSA encrypted secrets
+        /// to preserve consistent token replay tolerance across both encryption formats.
+        /// </summary>
         private static readonly TimeSpan s_eccEncryptedSecretMaxTokenAge = TimeSpan.FromHours(1);
 
         /// <summary>
@@ -160,6 +162,7 @@ namespace Opc.Ua
         /// <summary>
         /// Creates the encrypting key and initialization vector (IV) for Elliptic Curve Cryptography (ECC) encryption or decryption.
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
         private static void CreateKeysForEcc(
             SecurityPolicyInfo securityPolicy,
             Nonce localNonce,
@@ -389,6 +392,7 @@ namespace Opc.Ua
         /// <summary>
         /// Encrypts a secret using RSAEncryptedSecret format.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public byte[] EncryptRsa(byte[] secret, byte[] nonce)
         {
             if (SecurityPolicy.EphemeralKeyAlgorithm != CertificateKeyAlgorithm.None)
@@ -547,6 +551,7 @@ namespace Opc.Ua
         /// <summary>
         /// Tries to decrypt an RSAEncryptedSecret payload.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public bool TryDecryptRsa(byte[] encodedSecret, byte[] expectedNonce, out byte[]? secret)
         {
             secret = null;
@@ -606,7 +611,8 @@ namespace Opc.Ua
             DateTime now = DateTime.UtcNow;
             // Accept tokens from the recent past to account for transit/processing delays while
             // only allowing a small future clock skew to prevent replay with future-dated tokens.
-            if (signingTime < now - s_rsaEncryptedSecretMaxTokenAge || signingTime > now + s_rsaEncryptedSecretMaxClockSkew)
+            if (signingTime < now - s_rsaEncryptedSecretMaxTokenAge ||
+                signingTime > now + s_rsaEncryptedSecretMaxClockSkew)
             {
                 throw new ServiceResultException(StatusCodes.BadInvalidTimestamp);
             }
@@ -803,6 +809,7 @@ namespace Opc.Ua
         /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         /// <returns>The encrypted data.</returns>
         /// <exception cref="ServiceResultException"></exception>
+        /// <exception cref="ArgumentNullException"></exception>
         private ArraySegment<byte> VerifyHeaderForEcc(
             ArraySegment<byte> dataToDecrypt,
             DateTime earliestTime,
@@ -1035,6 +1042,7 @@ namespace Opc.Ua
         /// <summary>
         /// Computes the SHA-1 hash required by the OPC UA RSAEncryptedSecret certificate hash field.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="data"/> is <c>null</c>.</exception>
         private static byte[] ComputeSha1Hash(byte[] data)
         {
             if (data == null)

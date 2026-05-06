@@ -313,8 +313,14 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         /// </summary>
         private sealed class TestObserver<T>(Action<T> onNext) : IObserver<T>
         {
-            public void OnCompleted() { }
-            public void OnError(Exception error) { }
+            public void OnCompleted()
+            {
+            }
+
+            public void OnError(Exception error)
+            {
+            }
+
             public void OnNext(T value)
             {
                 onNext(value);

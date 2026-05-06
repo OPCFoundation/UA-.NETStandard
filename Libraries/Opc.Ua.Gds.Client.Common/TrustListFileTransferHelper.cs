@@ -51,6 +51,9 @@ namespace Opc.Ua.Gds.Client
         /// <see cref="StatusCodes.BadEncodingLimitsExceeded"/>. The caller
         /// remains responsible for closing the file handle.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="file"/> is <c>null</c>.</exception>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
         public static async Task<TrustListDataType> ReadAsync(
             FileTypeClient file,
             uint fileHandle,
@@ -121,6 +124,9 @@ namespace Opc.Ua.Gds.Client
         /// <see cref="TrustListTypeClient.CloseAndUpdateAsync"/>. The size is
         /// bounded by <paramref name="maxTrustListSize"/>.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="trustListClient"/> is <c>null</c>.</exception>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
         public static async Task<bool> WriteAsync(
             TrustListTypeClient trustListClient,
             TrustListDataType trustList,

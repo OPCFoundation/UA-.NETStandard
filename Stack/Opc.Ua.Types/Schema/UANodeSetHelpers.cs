@@ -108,15 +108,15 @@ namespace Opc.Ua.Export
         [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(ReleaseStatus))]
         [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(DataTypePurpose))]
         [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(System.Xml.XmlElement))]
-        [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(System.Xml.XmlDocument))]
-        [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(System.Xml.XmlNode))]
+        [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(XmlDocument))]
+        [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(XmlNode))]
 #endif
         private static XmlSerializer CreateSerializer()
         {
             return new XmlSerializer(typeof(UANodeSet));
         }
 
-        private static readonly Lazy<XmlSerializer> s_serializer = new (CreateSerializer);
+        private static readonly Lazy<XmlSerializer> s_serializer = new(CreateSerializer);
 
 #if NET5_0_OR_GREATER
         /// <summary>
@@ -277,7 +277,9 @@ namespace Opc.Ua.Export
             private readonly (string Prefix, string Uri)[] m_declarations;
             private bool m_declared;
 
-            public DeclareRootNamespacesWriter(XmlWriter inner, params (string Prefix, string Uri)[] declarations)
+            public DeclareRootNamespacesWriter(
+                XmlWriter inner,
+                params (string Prefix, string Uri)[] declarations)
             {
                 m_inner = inner;
                 m_declarations = declarations;
@@ -297,6 +299,7 @@ namespace Opc.Ua.Export
             }
 
             public override WriteState WriteState => m_inner.WriteState;
+
             public override string LookupPrefix(string ns)
             {
                 foreach ((string prefix, string uri) in m_declarations)
@@ -308,6 +311,7 @@ namespace Opc.Ua.Export
                 }
                 return m_inner.LookupPrefix(ns);
             }
+
             public override void Flush()
             {
                 m_inner.Flush();
@@ -403,6 +407,7 @@ namespace Opc.Ua.Export
                 m_inner.WriteStartElement(prefix, localName, ns);
                 DeclareIfNeeded();
             }
+
             public override void WriteString(string text)
             {
                 m_inner.WriteString(text);

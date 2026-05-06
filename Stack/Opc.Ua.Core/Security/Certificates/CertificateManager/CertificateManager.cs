@@ -49,42 +49,6 @@ namespace Opc.Ua
         ICertificateManager,
         IDisposable
     {
-        private readonly Dictionary<TrustListIdentifier, TrustListEntry> m_trustLists = new();
-        private readonly List<CertificateEntry> m_applicationCertificates = [];
-        private readonly List<ICertificateStoreProvider> m_storeProviders;
-        private readonly CertificateChangeSubject m_changeSubject = new();
-        private readonly ITelemetryContext m_telemetry;
-        private readonly ILogger m_logger;
-        private readonly int m_maxRejectedCertificates;
-        // Guards mutations of m_applicationCertificates and the cached
-        // per-trust-list validators. Reads of single fields (e.g.
-        // GetInstanceCertificate enumeration) take this lock too to
-        // prevent the C5 / C1 races from the code review.
-        private readonly Lock m_certificatesLock = new();
-        private bool m_sendCertificateChain;
-        private bool m_autoAcceptUntrustedCertificates;
-        private bool m_rejectSHA1SignedCertificates = true;
-        private bool m_rejectUnknownRevocationStatus;
-        private ushort m_minimumCertificateKeySize = CertificateFactory.DefaultKeySize;
-        private bool m_useValidatedCertificates;
-        private RejectedCertificateProcessor? m_rejectedProcessor;
-        private CertificateLifecycleMonitor? m_lifecycleMonitor;
-#pragma warning disable CS0618 // Type or member is obsolete
-        private CertificateValidator? m_peerValidator;
-        private CertificateValidator? m_userValidator;
-        private CertificateValidator? m_httpsValidator;
-#pragma warning restore CS0618
-        private Func<Certificate, ServiceResult, bool>? m_acceptError;
-        private bool m_disposed;
-
-        /// <summary>
-        /// Internal record for a registered trust list.
-        /// </summary>
-        private sealed record TrustListEntry(
-            string TrustedStorePath,
-            string? IssuerStorePath,
-            string? StoreType);
-
         /// <summary>
         /// Initializes a new instance of the <see cref="CertificateManager"/> class.
         /// </summary>
@@ -215,6 +179,7 @@ namespace Opc.Ua
         /// to named trust lists (Peers, Users, Https, Rejected).
         /// </summary>
         /// <param name="config">The security configuration to map from.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="config"/> is <c>null</c>.</exception>
         public void MapFromSecurityConfiguration(SecurityConfiguration config)
         {
             if (config == null)
@@ -398,7 +363,7 @@ namespace Opc.Ua
                     {
                         newEntries.Add(new CertificateEntry(
                             certificate,
-                            new CertificateCollection(),
+                            [],
                             certId.CertificateType));
                     }
                 }
@@ -533,7 +498,7 @@ namespace Opc.Ua
                         oldEntry = m_applicationCertificates[i];
                         m_applicationCertificates[i] = new CertificateEntry(
                             newCertificate,
-                            issuerChain ?? new CertificateCollection(),
+                            issuerChain ?? [],
                             certificateType);
                         break;
                     }
@@ -544,7 +509,7 @@ namespace Opc.Ua
                 {
                     m_applicationCertificates.Add(new CertificateEntry(
                         newCertificate,
-                        issuerChain ?? new CertificateCollection(),
+                        issuerChain ?? [],
                         certificateType));
                 }
 
@@ -995,5 +960,43 @@ namespace Opc.Ua
             fallbackStore.Open(storePath);
             return fallbackStore;
         }
+
+        /// <summary>
+        /// Internal record for a registered trust list.
+        /// </summary>
+        private sealed record TrustListEntry(
+            string TrustedStorePath,
+            string? IssuerStorePath,
+            string? StoreType);
+
+        private readonly Dictionary<TrustListIdentifier, TrustListEntry> m_trustLists = [];
+        private readonly List<CertificateEntry> m_applicationCertificates = [];
+        private readonly List<ICertificateStoreProvider> m_storeProviders;
+        private readonly CertificateChangeSubject m_changeSubject = new();
+        private readonly ITelemetryContext m_telemetry;
+        private readonly ILogger m_logger;
+        private readonly int m_maxRejectedCertificates;
+        /// <summary>
+        /// Guards mutations of m_applicationCertificates and the cached
+        /// per-trust-list validators. Reads of single fields (e.g.
+        /// GetInstanceCertificate enumeration) take this lock too to
+        /// prevent the C5 / C1 races from the code review.
+        /// </summary>
+        private readonly Lock m_certificatesLock = new();
+        private bool m_sendCertificateChain;
+        private bool m_autoAcceptUntrustedCertificates;
+        private bool m_rejectSHA1SignedCertificates = true;
+        private bool m_rejectUnknownRevocationStatus;
+        private ushort m_minimumCertificateKeySize = CertificateFactory.DefaultKeySize;
+        private bool m_useValidatedCertificates;
+        private RejectedCertificateProcessor? m_rejectedProcessor;
+        private CertificateLifecycleMonitor? m_lifecycleMonitor;
+#pragma warning disable CS0618 // Type or member is obsolete
+        private CertificateValidator? m_peerValidator;
+        private CertificateValidator? m_userValidator;
+        private CertificateValidator? m_httpsValidator;
+#pragma warning restore CS0618
+        private Func<Certificate, ServiceResult, bool>? m_acceptError;
+        private bool m_disposed;
     }
 }

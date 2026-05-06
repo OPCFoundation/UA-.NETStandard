@@ -660,7 +660,7 @@ namespace Opc.Ua.Bindings
             }
             catch (Exception e)
             {
-                serverCertificate?.Dispose();
+                serverCertificate.Dispose();
 
                 m_logger.LogDebug(e,
                    "ChannelId {ChannelId}: Could not verify security on OpenSecureChannel response",

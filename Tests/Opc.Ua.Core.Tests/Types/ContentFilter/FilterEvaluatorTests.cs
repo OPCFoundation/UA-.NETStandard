@@ -467,7 +467,7 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
         public void ContentFilterExtensionEvaluate()
         {
             Ua.ContentFilter filter = BuildBinaryFilter(FilterOperator.Equals, Variant.From(1), Variant.From(1));
-            bool result = ContentFilterExtensions.Evaluate(filter, m_filterContext, m_target);
+            bool result = filter.Evaluate(m_filterContext, m_target);
             Assert.That(result, Is.True);
         }
 

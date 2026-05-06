@@ -46,12 +46,12 @@ namespace Opc.Ua
     internal sealed class TrustListTransaction : ITrustListTransaction
     {
         private readonly ICertificateTrustListManager m_manager;
-        private readonly List<Certificate> m_addTrusted = new();
-        private readonly List<string> m_removeTrusted = new();
-        private readonly List<Certificate> m_addIssuer = new();
-        private readonly List<string> m_removeIssuer = new();
-        private readonly List<X509CRL> m_addCrls = new();
-        private readonly List<X509CRL> m_removeCrls = new();
+        private readonly List<Certificate> m_addTrusted = [];
+        private readonly List<string> m_removeTrusted = [];
+        private readonly List<Certificate> m_addIssuer = [];
+        private readonly List<string> m_removeIssuer = [];
+        private readonly List<X509CRL> m_addCrls = [];
+        private readonly List<X509CRL> m_removeCrls = [];
         private bool m_committed;
         private bool m_disposed;
 

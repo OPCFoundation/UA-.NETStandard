@@ -529,8 +529,10 @@ namespace Opc.Ua
         private BigInteger m_publicKey;
         private int m_nonceLength;
 
-        // ffdhe2048 prime from RFC 7919 (hex, without whitespace).
-        // (RFC 7919 Appendix A.3 — use this canonical modulus in production.)
+        /// <summary>
+        /// ffdhe2048 prime from RFC 7919 (hex, without whitespace).
+        /// (RFC 7919 Appendix A.3 — use this canonical modulus in production.)
+        /// </summary>
         const string FFDHE2048_HEX = @"
             FFFFFFFF FFFFFFFF ADF85458 A2BB4A9A AFDC5620 273D3CF1
             D8B9C583 CE2D3695 A9E13641 146433FB CC939DCE 249B3EF9
@@ -603,7 +605,9 @@ namespace Opc.Ua
 
         private static readonly Lazy<RandomNumberGenerator> s_rng = new(() => RandomNumberGenerator.Create());
 
-        // Generator for FFDHE groups is 2
+        /// <summary>
+        /// Generator for FFDHE groups is 2
+        /// </summary>
         static readonly BigInteger s_G = new BigInteger(2);
 
         /// <summary>

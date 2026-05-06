@@ -142,7 +142,7 @@ namespace Quickstarts.ReferenceServer
                 }
                 finally
                 {
-                    referenceNodeManager?.Dispose();
+                    referenceNodeManager.Dispose();
                 }
 
                 foreach (INodeManagerFactory nodeManagerFactory in NodeManagerFactories)

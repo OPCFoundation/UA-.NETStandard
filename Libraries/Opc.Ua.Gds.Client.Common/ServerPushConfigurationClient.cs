@@ -40,7 +40,7 @@ namespace Opc.Ua.Gds.Client
     /// <summary>
     /// A class used to access the Push Configuration information model.
     /// </summary>
-    public class ServerPushConfigurationClient : IServerPushConfigurationClient, IDisposable
+    public sealed class ServerPushConfigurationClient : IServerPushConfigurationClient, IDisposable
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="ServerPushConfigurationClient"/> class.

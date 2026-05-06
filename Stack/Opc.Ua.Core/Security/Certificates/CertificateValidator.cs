@@ -576,7 +576,7 @@ namespace Opc.Ua
                 if (updateStore)
                 {
                     // enqueue a maintenance request to trim the rejected store
-                    m_rejectedWriter?.Enqueue(new CertificateCollection(), isMaintenance: true);
+                    m_rejectedWriter?.Enqueue([], isMaintenance: true);
                 }
             }
         }
@@ -2033,7 +2033,7 @@ namespace Opc.Ua
                             "Certificate {Certificate} rejected. Reason={ServiceResult}.",
                             serverCertificate,
                             Redact.Create(serviceResult));
-                        m_rejectedWriter?.Enqueue(new CertificateCollection { serverCertificate });
+                        m_rejectedWriter?.Enqueue([serverCertificate]);
                     }
 
                     throw serviceResult;
@@ -2074,7 +2074,7 @@ namespace Opc.Ua
                         "Certificate {Certificate} rejected. Reason={ServiceResult}.",
                         serverCertificate,
                         Redact.Create(serviceResult));
-                    m_rejectedWriter?.Enqueue(new CertificateCollection { serverCertificate });
+                    m_rejectedWriter?.Enqueue([serverCertificate]);
 
                     throw new ServiceResultException(serviceResult);
                 }

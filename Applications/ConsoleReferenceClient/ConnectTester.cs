@@ -488,8 +488,8 @@ namespace Quickstarts
         private SessionReconnectHandler m_reconnectHandler;
         private ApplicationConfiguration m_configuration;
         private SessionWrapper m_wrapper;
-        private ILogger m_logger;
-        private ITelemetryContext m_telemetry;
+        private readonly ILogger m_logger;
+        private readonly ITelemetryContext m_telemetry;
         private readonly ManualResetEvent m_quitEvent;
 
         private const string kServerUrl = "opc.tcp://localhost:62541";

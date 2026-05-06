@@ -2175,20 +2175,17 @@ namespace Opc.Ua.Schema.Model
                 }
             }
 
-            if (dictionary != null)
+            dictionary.Children = new ListOfChildren
             {
-                dictionary.Children = new ListOfChildren
-                {
-                    Items = [.. descriptions]
-                };
+                Items = [.. descriptions]
+            };
 
-                m_nodes[dictionary.SymbolicId] = dictionary;
-                m_logger.LogDebug(
-                    "Added {Type}: {Name}",
-                    dictionary.GetType().Name,
-                    dictionary.SymbolicId.Name);
-                nodesToAdd.Add(dictionary);
-            }
+            m_nodes[dictionary.SymbolicId] = dictionary;
+            m_logger.LogDebug(
+                "Added {Type}: {Name}",
+                dictionary.GetType().Name,
+                dictionary.SymbolicId.Name);
+            nodesToAdd.Add(dictionary);
         }
 
         private void AddProperty(

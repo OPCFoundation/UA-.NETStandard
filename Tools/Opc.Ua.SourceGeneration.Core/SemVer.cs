@@ -142,6 +142,7 @@ namespace Opc.Ua.SourceGeneration
         }
 
         /// <summary>Parses or throws.</summary>
+        /// <exception cref="FormatException"></exception>
         public static SemVer Parse(string text)
         {
             if (!TryParse(text, out SemVer v))

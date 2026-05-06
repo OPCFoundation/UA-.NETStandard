@@ -189,13 +189,13 @@ namespace Opc.Ua.SourceGeneration
         {
             if (objectType.BaseTypeNode is not ObjectTypeDesign parent)
             {
-                return RootBaseClass;
+                return kRootBaseClass;
             }
 
             string parentName = parent.SymbolicName?.Name;
             if (string.IsNullOrEmpty(parentName))
             {
-                return RootBaseClass;
+                return kRootBaseClass;
             }
 
             string parentNamespace = ResolveProxyNamespaceForType(parent);
@@ -237,9 +237,9 @@ namespace Opc.Ua.SourceGeneration
                     return mapped;
                 }
 
-                if (string.Equals(typeUri, StandardUaNamespaceUri, StringComparison.Ordinal))
+                if (string.Equals(typeUri, kStandardUaNamespaceUri, StringComparison.Ordinal))
                 {
-                    return StandardUaProxyNamespace;
+                    return kStandardUaProxyNamespace;
                 }
 
                 Namespace[] namespaces = m_context.ModelDesign.Namespaces;
@@ -697,11 +697,13 @@ namespace Opc.Ua.SourceGeneration
             return "_" + GetParameterName(parameter).TrimStart('@');
         }
 
-        // C# 12 reserved keywords that, when reused as parameter names,
-        // must be escaped with an '@' prefix. Kept narrow on purpose;
-        // contextual keywords (e.g. "value", "var") are intentionally
-        // omitted because they are valid identifiers.
-        private static readonly System.Collections.Generic.HashSet<string> s_csharpKeywords =
+        /// <summary>
+        /// C# 12 reserved keywords that, when reused as parameter names,
+        /// must be escaped with an '@' prefix. Kept narrow on purpose;
+        /// contextual keywords (e.g. "value", "var") are intentionally
+        /// omitted because they are valid identifiers.
+        /// </summary>
+        private static readonly HashSet<string> s_csharpKeywords =
         [
             "abstract", "as", "base", "bool", "break", "byte", "case", "catch",
             "char", "checked", "class", "const", "continue", "decimal", "default",
@@ -716,9 +718,9 @@ namespace Opc.Ua.SourceGeneration
             "unsafe", "ushort", "using", "virtual", "void", "volatile", "while"
         ];
 
-        private const string StandardUaNamespaceUri = "http://opcfoundation.org/UA/";
-        private const string StandardUaProxyNamespace = "Opc.Ua";
-        private const string RootBaseClass = "global::Opc.Ua.ObjectTypeClient";
+        private const string kStandardUaNamespaceUri = "http://opcfoundation.org/UA/";
+        private const string kStandardUaProxyNamespace = "Opc.Ua";
+        private const string kRootBaseClass = "global::Opc.Ua.ObjectTypeClient";
 
         private readonly IGeneratorContext m_context;
         private HashSet<string> m_inheritedMethodNames;

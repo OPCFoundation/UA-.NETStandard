@@ -72,6 +72,7 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// Returns a byte array containing the public key in PEM format.
         /// </summary>
+        /// <exception cref="CryptographicException"></exception>
         public static byte[] ExportPublicKeyAsPEM(Certificate certificate)
         {
             using RSA rsaPublicKey = certificate.GetRSAPublicKey()
@@ -83,6 +84,7 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// Returns a byte array containing the RSA private key in PEM format.
         /// </summary>
+        /// <exception cref="CryptographicException"></exception>
         public static byte[] ExportRSAPrivateKeyAsPEM(Certificate certificate)
         {
             using RSA rsaPrivateKey = certificate.GetRSAPrivateKey()
@@ -95,6 +97,7 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// Returns a byte array containing the ECDsa private key in PEM format.
         /// </summary>
+        /// <exception cref="CryptographicException"></exception>
         public static byte[] ExportECDsaPrivateKeyAsPEM(Certificate certificate)
         {
             using ECDsa ecdsaPrivateKey = certificate.GetECDsaPrivateKey()
@@ -107,6 +110,7 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// Returns a byte array containing the private key in PEM format.
         /// </summary>
+        /// <exception cref="CryptographicException"></exception>
         public static byte[] ExportPrivateKeyAsPEM(
             Certificate certificate,
             ReadOnlySpan<char> password = default)
