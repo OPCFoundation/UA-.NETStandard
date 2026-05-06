@@ -30,32 +30,33 @@
 #nullable enable
 
 using System;
-using System.Threading;
-using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua
 {
     /// <summary>
-    /// Extension methods for ICertificateValidator.
+    /// The event arguments provided when an application certificate update occurs.
     /// </summary>
-    public static class CertificateValidatorObsolete
+    public class CertificateUpdateEventArgs : EventArgs
     {
         /// <summary>
-        /// Validates a certificate.
+        /// Creates a new instance.
         /// </summary>
-        [Obsolete("Use ValidateAsync")]
-        public static void Validate(this ICertificateValidator validator, Certificate certificate)
+        public CertificateUpdateEventArgs(
+            SecurityConfiguration configuration,
+            ICertificateValidatorEx validator)
         {
-            validator.ValidateAsync(certificate, CancellationToken.None).GetAwaiter().GetResult();
+            SecurityConfiguration = configuration;
+            CertificateValidator = validator;
         }
 
         /// <summary>
-        /// Validates a certificate chain.
+        /// The new security configuration.
         /// </summary>
-        [Obsolete("Use ValidateAsync")]
-        public static void Validate(this ICertificateValidator validator, CertificateCollection certificateChain)
-        {
-            validator.ValidateAsync(certificateChain, CancellationToken.None).GetAwaiter().GetResult();
-        }
+        public SecurityConfiguration SecurityConfiguration { get; }
+
+        /// <summary>
+        /// The certificate validator (modern <see cref="ICertificateValidatorEx"/>).
+        /// </summary>
+        public ICertificateValidatorEx CertificateValidator { get; }
     }
 }

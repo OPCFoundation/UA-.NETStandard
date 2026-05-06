@@ -313,45 +313,16 @@ cert.Dispose();    // refcount=0 → X509Certificate2.Dispose() called
 
 ### Backward Compatibility
 
-The legacy `CertificateValidator` class and `ICertificateValidator`
-interface, the `CertificateTypesProvider` class, and the
+All migration is complete; the legacy `CertificateValidator` class,
+`ICertificateValidator` interface, `CertificateValidatorAdapter`
+bridge, `CertificateTypesProvider` class, and the legacy
 `ApplicationConfiguration.CertificateValidator` /
 `ServerBase.CertificateValidator` /
-`ServerBase.InstanceCertificateTypesProvider` properties are now
-marked `[Obsolete]`. They remain functional bridges into the new
-design so that existing applications continue to compile and run
-without changes:
-
-- The legacy `CertificateValidator` class implements **both**
-  `ICertificateValidator` (legacy) and `ICertificateValidatorEx`
-  (new). This is the single most important compatibility bridge:
-  every existing `new CertificateValidator(telemetry)` instance
-  satisfies the new property type swap on
-  `ApplicationConfiguration.CertificateValidator` (now
-  `ICertificateValidatorEx`).
-- The legacy `CertificateValidator.CertificateValidation` event
-  with mutable `e.Accept = true` continues to fire. New code
-  should use `CertificateValidationOptions.AcceptError` instead
-  (see Quick Start above).
-- `ApplicationConfiguration.CertificateManager` is a parallel
-  property that exposes the new manager. It is populated by
-  `ApplicationInstance.CheckApplicationInstanceCertificatesAsync`
-  alongside the legacy `CertificateValidator` property so that
-  both surfaces can coexist during migration.
-
-`CertificateValidatorAdapter` bridges the new `ICertificateValidatorEx`
-to the old `ICertificateValidator` interface and is the canonical
-adapter used internally:
-
-```csharp
-// Wrap a manager (or any ICertificateValidatorEx) as the legacy interface.
-ICertificateValidator oldApi = new CertificateValidatorAdapter(manager);
-
-// Scope the bridge to a specific trust list (e.g. for X.509 user identity):
-ICertificateValidator userApi = new CertificateValidatorAdapter(
-    manager,
-    TrustListIdentifier.Users);
-```
+`ServerBase.InstanceCertificateTypesProvider` properties have been
+removed. New code uses `CertificateManager` directly (or the
+`ICertificateValidatorEx`, `ICertificateRegistry`,
+`ICertificateLifecycle`, and `ITrustListFileAccess` interfaces it
+implements).
 
 The static methods on `CertificateFactory`
 (`Create(ReadOnlyMemory<byte>)`, `CreateCertificate(...)`,

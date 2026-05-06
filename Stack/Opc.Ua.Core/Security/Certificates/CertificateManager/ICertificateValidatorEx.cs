@@ -40,10 +40,8 @@ namespace Opc.Ua
     /// validation options, and structured validation results.
     /// </summary>
     /// <remarks>
-    /// This interface is distinct from the existing
-    /// <see cref="ICertificateValidator"/> which provides a simpler
-    /// validation contract. Implementations may wrap or extend
-    /// <see cref="ICertificateValidator"/>.
+    /// This is the modern certificate validation contract used by
+    /// <see cref="CertificateManager"/> and the OPC UA stack.
     /// </remarks>
     public interface ICertificateValidatorEx
     {
