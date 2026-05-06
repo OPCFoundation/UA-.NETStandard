@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
@@ -73,30 +74,97 @@ namespace Opc.Ua.Gds.Tests
             // verify the public cert matches the private key
             Assert.That(X509Utils.VerifyKeyPair(newCert, newPrivateKeyCert, true), Is.True);
             Assert.That(X509Utils.VerifyKeyPair(newPrivateKeyCert, newPrivateKeyCert, true), Is.True);
-            var issuerCertIdList = new List<CertificateIdentifier>();
-            foreach (byte[] issuer in issuerCertificates)
+
+            // Build a temporary directory-backed PKI so we can exercise the
+            // modern CertificateManager validation path. The first
+            // configuration places the issuer certificates only in the
+            // "issuer" store and asserts that validation fails: the issuer
+            // chain can be assembled but does not terminate at a trusted
+            // peer/CA. The second configuration also places the issuer
+            // certificates in the "trusted" store, making the chain
+            // trusted; validation must then succeed.
+            string pkiRoot = Path.Combine(
+                Path.GetTempPath(),
+                "X509TestUtils-" + Guid.NewGuid().ToString("N"));
+            string trustedPath = Path.Combine(pkiRoot, "trusted");
+            string issuerPath = Path.Combine(pkiRoot, "issuer");
+            try
             {
-                Certificate issuerCert = Certificate.FromRawData(issuer);
-                Assert.That(issuerCert, Is.Not.Null);
-                issuerCertIdList.Add(new CertificateIdentifier(issuerCert));
+                Directory.CreateDirectory(trustedPath);
+                Directory.CreateDirectory(issuerPath);
+
+                // Phase 1: issuer certificates only in the issuer store.
+                using (var issuerStoreOnly = new DirectoryCertificateStore(telemetry))
+                {
+                    issuerStoreOnly.Open(issuerPath, true);
+                    foreach (byte[] issuer in issuerCertificates)
+                    {
+                        using Certificate issuerCert = Certificate.FromRawData(issuer);
+                        await issuerStoreOnly.AddAsync(issuerCert).ConfigureAwait(false);
+                    }
+                }
+
+                var pkiConfig = new SecurityConfiguration {
+                    TrustedPeerCertificates = new CertificateTrustList {
+                        StoreType = CertificateStoreType.Directory,
+                        StorePath = trustedPath
+                    },
+                    TrustedIssuerCertificates = new CertificateTrustList {
+                        StoreType = CertificateStoreType.Directory,
+                        StorePath = issuerPath
+                    }
+                };
+
+                using (CertificateManager firstManager = CertificateManagerFactory.Create(
+                    pkiConfig, telemetry))
+                {
+                    CertificateValidationResult firstResult = await firstManager
+                        .ValidateAsync(newCert, ct: CancellationToken.None)
+                        .ConfigureAwait(false);
+                    Assert.That(
+                        firstResult.IsValid,
+                        Is.False,
+                        "Expected validation to fail when no peer/CA in the trusted store.");
+                }
+
+                // Phase 2: also place the issuer certificates in the trusted
+                // store so the chain root is trusted.
+                using (var trustedStore = new DirectoryCertificateStore(telemetry))
+                {
+                    trustedStore.Open(trustedPath, true);
+                    foreach (byte[] issuer in issuerCertificates)
+                    {
+                        using Certificate issuerCert = Certificate.FromRawData(issuer);
+                        await trustedStore.AddAsync(issuerCert).ConfigureAwait(false);
+                    }
+                }
+
+                using (CertificateManager secondManager = CertificateManagerFactory.Create(
+                    pkiConfig, telemetry))
+                {
+                    CertificateValidationResult secondResult = await secondManager
+                        .ValidateAsync(newCert, ct: CancellationToken.None)
+                        .ConfigureAwait(false);
+                    Assert.That(
+                        secondResult.IsValid,
+                        Is.True,
+                        secondResult.StatusCode.ToString());
+                }
             }
-
-            var issuerCertIdCollection = issuerCertIdList.ToArrayOf();
-
-            // verify cert with issuer chain
-#pragma warning disable CS0618 // Type or member is obsolete
-            var certValidator = new CertificateValidator(telemetry);
-#pragma warning restore CS0618
-            var issuerStore = new CertificateTrustList();
-            var trustedStore = new CertificateTrustList
+            finally
             {
-                TrustedCertificates = issuerCertIdCollection
-            };
-            certValidator.Update(trustedStore, issuerStore, null);
-            Assert.That(async () => await certValidator.ValidateAsync(newCert, CancellationToken.None).ConfigureAwait(false), Throws.Exception);
-            issuerStore.TrustedCertificates = issuerCertIdCollection;
-            certValidator.Update(issuerStore, trustedStore, null);
-            await certValidator.ValidateAsync(newCert, CancellationToken.None).ConfigureAwait(false);
+                try
+                {
+                    if (Directory.Exists(pkiRoot))
+                    {
+                        Directory.Delete(pkiRoot, true);
+                    }
+                }
+                catch (IOException)
+                {
+                    // best-effort cleanup
+                }
+            }
         }
 
         public static void VerifySignedApplicationCert(
