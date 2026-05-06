@@ -3767,9 +3767,13 @@ namespace Opc.Ua.Server
                 }
             }
 
-            public void OnError(Exception error) { }
+            public void OnError(Exception error)
+            {
+            }
 
-            public void OnCompleted() { }
+            public void OnCompleted()
+            {
+            }
         }
     }
 }

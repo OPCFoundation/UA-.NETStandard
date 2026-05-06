@@ -34,6 +34,8 @@ using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Globalization;
 using System.Threading;
+using System.Collections.Concurrent;
+
 #if DEBUG
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
@@ -318,7 +320,9 @@ namespace Opc.Ua.Security.Certificates
         public Oid SignatureAlgorithm => X509.SignatureAlgorithm;
 
         /// <inheritdoc/>
+#pragma warning disable CA1063 // Implement IDisposable Correctly
         public void Dispose()
+#pragma warning restore CA1063 // Implement IDisposable Correctly
         {
             Dispose(disposing: true);
         }
@@ -346,7 +350,9 @@ namespace Opc.Ua.Security.Certificates
                     // would mask AddRef-without-Dispose leaks: the
                     // managed wrapper would be reclaimed without
                     // running our finalizer-based leak reporter.
+#pragma warning disable CA1816 // Dispose methods should call SuppressFinalize
                     GC.SuppressFinalize(this);
+#pragma warning restore CA1816 // Dispose methods should call SuppressFinalize
                 }
             }
         }
@@ -510,14 +516,14 @@ namespace Opc.Ua.Security.Certificates
         {
             try
             {
-                var sb = new System.Text.StringBuilder(128);
-                sb.Append("[Subject=").Append(Subject);
-                sb.Append(", Thumbprint=").Append(Thumbprint);
-                sb.Append(", NotBefore=").Append(NotBefore
-                    .ToString("yyyy-MM-dd", CultureInfo.InvariantCulture));
-                sb.Append(", NotAfter=").Append(NotAfter
-                    .ToString("yyyy-MM-dd", CultureInfo.InvariantCulture));
-                sb.Append(", KeyAlgorithm=").Append(GetKeyAlgorithm());
+                var sb = new System.Text.StringBuilder(128)
+                    .Append("[Subject=").Append(Subject)
+                    .Append(", Thumbprint=").Append(Thumbprint)
+                    .Append(", NotBefore=").Append(
+                        NotBefore.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture))
+                    .Append(", NotAfter=").Append(
+                        NotAfter.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture))
+                    .Append(", KeyAlgorithm=").Append(GetKeyAlgorithm());
                 if (HasPrivateKey)
                 {
                     sb.Append(", HasPrivateKey");
@@ -605,26 +611,27 @@ namespace Opc.Ua.Security.Certificates
             }
         }
 
-        // Use a list of weak references for live-leak diagnostics.
-        // ConditionalWeakTable doesn't expose enumeration on .NET
-        // Framework, and we want the per-instance list anyway.
-        private static readonly System.Collections.Concurrent.ConcurrentBag<CertificateAllocationInfo> s_allocationTracker
-            = new();
+        /// <summary>
+        /// Use a list of weak references for live-leak diagnostics.
+        /// ConditionalWeakTable doesn't expose enumeration on .NET
+        /// Framework, and we want the per-instance list anyway.
+        /// </summary>
+        private static readonly ConcurrentBag<CertificateAllocationInfo> s_allocationTracker = [];
 
-        // Set of allocation infos for Certificates that were finalised
-        // while still holding a positive refcount (a real leak —
-        // someone called AddRef without a matching Dispose). Cached so
-        // the finalizer can record it before the instance dies.
-        private static readonly System.Collections.Concurrent.ConcurrentBag<CertificateAllocationInfo> s_finalizedWithLeakedRef
-            = new();
+        /// <summary>
+        /// Set of allocation infos for Certificates that were finalised
+        /// while still holding a positive refcount (a real leak —
+        /// someone called AddRef without a matching Dispose). Cached so
+        /// the finalizer can record it before the instance dies.
+        /// </summary>
+        private static readonly ConcurrentBag<CertificateAllocationInfo> s_finalizedWithLeakedRef = [];
 
         /// <summary>
         /// Dumps allocation info for live <see cref="Certificate"/>
         /// instances that are still reachable. Useful in tests to
         /// surface the call site that created a leaking certificate.
         /// </summary>
-        public static IEnumerable<(string Thumbprint, int RefCount, DateTime CreatedAt, string StackTrace)>
-            EnumerateLiveCertificates()
+        public static IEnumerable<(string Thumbprint, int RefCount, DateTime CreatedAt, string StackTrace)> EnumerateLiveCertificates()
         {
             foreach (CertificateAllocationInfo info in s_allocationTracker)
             {
@@ -644,8 +651,7 @@ namespace Opc.Ua.Security.Certificates
         /// that were finalized while still holding a positive refcount
         /// (i.e., AddRef without matching Dispose).
         /// </summary>
-        public static IEnumerable<(string Thumbprint, DateTime CreatedAt, string StackTrace)>
-            EnumerateFinalizedLeakedCertificates()
+        public static IEnumerable<(string Thumbprint, DateTime CreatedAt, string StackTrace)> EnumerateFinalizedLeakedCertificates()
         {
             foreach (CertificateAllocationInfo info in s_finalizedWithLeakedRef)
             {

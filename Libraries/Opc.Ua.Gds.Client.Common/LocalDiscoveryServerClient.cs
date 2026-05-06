@@ -34,8 +34,7 @@ using System.Threading.Tasks;
 
 namespace Opc.Ua.Gds.Client
 {
-    public class LocalDiscoveryServerClient
-        : ILocalDiscoveryServerClient, IAsyncDisposable
+    public class LocalDiscoveryServerClient : ILocalDiscoveryServerClient
     {
         /// <summary>
         /// Create local discovery client
@@ -197,11 +196,11 @@ namespace Opc.Ua.Gds.Client
         }
 
         /// <inheritdoc/>
-        public ValueTask DisposeAsync()
+        public async ValueTask DisposeAsync()
         {
             if (m_disposed)
             {
-                return default;
+                return;
             }
             m_disposed = true;
             try
@@ -213,7 +212,6 @@ namespace Opc.Ua.Gds.Client
             }
             m_disposeCts.Dispose();
             GC.SuppressFinalize(this);
-            return default;
         }
 
         private readonly CancellationTokenSource m_disposeCts = new();

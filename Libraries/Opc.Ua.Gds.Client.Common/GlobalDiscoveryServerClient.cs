@@ -40,7 +40,7 @@ namespace Opc.Ua.Gds.Client
     /// A class that provides access to a Global Discovery Server.
     /// </summary>
     public class GlobalDiscoveryServerClient
-        : IGlobalDiscoveryServerClient, IAsyncDisposable, IDisposable
+        : IGlobalDiscoveryServerClient, IDisposable
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="GlobalDiscoveryServerClient"/> class.

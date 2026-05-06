@@ -203,6 +203,7 @@ namespace Opc.Ua.Mcp
         /// <summary>
         /// Connects to an OPC UA server with endpoint selection and authentication options.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public async Task<string> ConnectAsync(
             string? name,
             string endpointUrl,

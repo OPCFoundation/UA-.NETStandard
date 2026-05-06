@@ -408,10 +408,7 @@ namespace Opc.Ua
                 {
                     oldEntries = [.. m_applicationCertificates];
                     m_applicationCertificates.Clear();
-                    foreach (CertificateEntry e in newEntries)
-                    {
-                        m_applicationCertificates.Add(e);
-                    }
+                    m_applicationCertificates.AddRange(newEntries);
                 }
 
                 // Dispose old entries OUTSIDE the lock so that any concurrent

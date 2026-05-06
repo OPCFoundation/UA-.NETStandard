@@ -132,7 +132,7 @@ namespace Opc.Ua.Mcp.Tools
                 {
                     ["error"] = true,
                     ["statusCode"] = ex.StatusCode.ToString(),
-                    ["message"] = ex.Message,
+                    ["message"] = ex.Message
                 });
             }
         }

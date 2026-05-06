@@ -138,7 +138,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         public void DisposeCertificateOnEmptyIdentifierDoesNotThrow()
         {
             using var id = new CertificateIdentifier();
-            Assert.DoesNotThrow(() => id.DisposeCertificate());
+            Assert.DoesNotThrow(id.DisposeCertificate);
         }
 
         [Test]

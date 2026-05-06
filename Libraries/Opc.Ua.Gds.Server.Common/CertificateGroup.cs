@@ -521,6 +521,7 @@ namespace Opc.Ua.Gds.Server
         /// <summary>
         /// load the authority signing key.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public virtual async Task<Certificate> LoadSigningKeyAsync(
             Certificate signingCertificate,
             char[] signingKeyPassword,

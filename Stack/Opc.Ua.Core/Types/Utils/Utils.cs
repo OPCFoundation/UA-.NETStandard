@@ -1592,7 +1592,7 @@ namespace Opc.Ua
                 }
             }
 
-            if (!EqualityComparer<T>.Default.Equals(value, default)
+            if (!EqualityComparer<T>.Default.Equals(value, default))
             {
                 xmlElements.Add(XmlElement.From(document.DocumentElement));
                 extensions = xmlElements.ToArrayOf();

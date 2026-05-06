@@ -141,7 +141,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         {
             using var store = new DirectoryCertificateStore(m_telemetry);
             store.Open(m_tempDir);
-            Assert.That(() => store.Close(), Throws.Nothing);
+            Assert.That(store.Close, Throws.Nothing);
         }
 
         [Test]
@@ -352,14 +352,14 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         {
             var store = new DirectoryCertificateStore(m_telemetry);
             store.Open(m_tempDir);
-            Assert.That(() => store.Dispose(), Throws.Nothing);
+            Assert.That(store.Dispose, Throws.Nothing);
         }
 
         [Test]
         public void DisposeWithoutOpenDoesNotThrow()
         {
             var store = new DirectoryCertificateStore(m_telemetry);
-            Assert.That(() => store.Dispose(), Throws.Nothing);
+            Assert.That(store.Dispose, Throws.Nothing);
         }
 
         [Test]

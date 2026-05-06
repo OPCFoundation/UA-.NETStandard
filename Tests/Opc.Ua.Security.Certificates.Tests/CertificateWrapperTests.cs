@@ -64,6 +64,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             Assert.That(cert.Thumbprint, Is.EqualTo(built.Thumbprint));
             Assert.That(cert.HasPrivateKey, Is.False);
         }
+
         [Test]
         public void FromWrapsX509Certificate2AndPreservesInstance()
         {
@@ -96,6 +97,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             Assert.That(cert.Thumbprint, Is.EqualTo(built.Thumbprint));
             Assert.That(cert.HasPrivateKey, Is.False);
         }
+
         [Test]
         public void AsX509Certificate2ReturnsNewInstance()
         {
@@ -127,6 +129,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             Assert.That(copy.HasPrivateKey, Is.True);
             Assert.That(copy.Thumbprint, Is.EqualTo(cert.Thumbprint));
         }
+
         [Test]
         public void PropertiesMatchUnderlyingX509Certificate2()
         {
@@ -165,6 +168,7 @@ namespace Opc.Ua.Security.Certificates.Tests
 
             Assert.That(cert.HashAlgorithmName, Is.EqualTo(HashAlgorithmName.SHA256));
         }
+
         [Test]
         public void GetRSAPrivateKeyReturnsKeyWhenPresent()
         {
@@ -252,6 +256,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             Assert.That(serialNumber.Length, Is.GreaterThan(0));
             Assert.That(serialNumber, Is.EqualTo(cert.X509.GetSerialNumber()));
         }
+
         [Test]
         public void CopyWithPrivateKeyAttachesRSAKey()
         {
@@ -270,6 +275,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             Assert.That(withKey.HasPrivateKey, Is.True);
             Assert.That(withKey.Thumbprint, Is.EqualTo(publicOnly.Thumbprint));
         }
+
         [Test]
         public void EqualsCertificatesFromSameDataAreEqual()
         {
@@ -335,6 +341,7 @@ namespace Opc.Ua.Security.Certificates.Tests
 
             Assert.That(cert1.Equals((object)cert2), Is.True);
         }
+
         [Test]
         public void ToStringReturnsNonEmptyString()
         {
@@ -347,6 +354,7 @@ namespace Opc.Ua.Security.Certificates.Tests
 
             Assert.That(result, Is.Not.Null.And.Not.Empty);
         }
+
         [Test]
         public void DisposeDoesNotThrow()
         {
@@ -426,6 +434,7 @@ namespace Opc.Ua.Security.Certificates.Tests
 
             Assert.That(collection.Count, Is.EqualTo(2));
         }
+
         [Test]
         public void AddIncreasesCount()
         {
@@ -441,6 +450,7 @@ namespace Opc.Ua.Security.Certificates.Tests
 
             Assert.That(collection.Count, Is.EqualTo(2));
         }
+
         [Test]
         public void FromCreatesCollectionFromX509Certificate2Collection()
         {
@@ -472,6 +482,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             Assert.Throws<ArgumentNullException>(
                 () => CertificateCollection.From(null));
         }
+
         [Test]
         public void AsX509Certificate2CollectionReturnsCopies()
         {
@@ -487,6 +498,7 @@ namespace Opc.Ua.Security.Certificates.Tests
 
             Assert.That(x509Col[0], Is.Not.SameAs(cert.X509));
         }
+
         [Test]
         public void FindByThumbprintReturnsMatchingCert()
         {
@@ -555,6 +567,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             Assert.That(found.Count, Is.EqualTo(1));
             Assert.That(found[0].SerialNumber, Is.EqualTo(cert1.SerialNumber));
         }
+
         [Test]
         public void ContainsReturnsTrueForAddedCert()
         {
@@ -592,6 +605,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             Assert.That(collection.IndexOf(cert1), Is.EqualTo(0));
             Assert.That(collection.IndexOf(cert2), Is.EqualTo(1));
         }
+
         [Test]
         public void RemoveDeletesEntry()
         {
@@ -626,6 +640,7 @@ namespace Opc.Ua.Security.Certificates.Tests
 
             cert1.Dispose();
         }
+
         [Test]
         public void ClearRemovesAllEntries()
         {
@@ -642,6 +657,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             cert1.Dispose();
             cert2.Dispose();
         }
+
         [Test]
         public void IndexerGetReturnsCorrectCertificate()
         {
@@ -670,6 +686,7 @@ namespace Opc.Ua.Security.Certificates.Tests
 
             cert1.Dispose();
         }
+
         [Test]
         public void InsertAddsAtCorrectPosition()
         {
@@ -685,6 +702,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             Assert.That(collection.Count, Is.EqualTo(3));
             Assert.That(collection[1], Is.SameAs(inserted));
         }
+
         [Test]
         public void CopyToCopiesElements()
         {
@@ -700,6 +718,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             Assert.That(array[0], Is.SameAs(cert1));
             Assert.That(array[1], Is.SameAs(cert2));
         }
+
         [Test]
         public void ForeachEnumeratesAllCertificates()
         {
@@ -713,10 +732,7 @@ namespace Opc.Ua.Security.Certificates.Tests
 
             var enumerated = new List<Certificate>();
 
-            foreach (Certificate c in collection)
-            {
-                enumerated.Add(c);
-            }
+            enumerated.AddRange(collection);
 
             Assert.That(enumerated.Count, Is.EqualTo(3));
             Assert.That(enumerated[0], Is.SameAs(cert1));
@@ -739,6 +755,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             Assert.That(subjects, Does.Contain(cert1.Subject));
             Assert.That(subjects, Does.Contain(cert2.Subject));
         }
+
         [Test]
         public void IsReadOnlyReturnsFalse()
         {
@@ -746,6 +763,7 @@ namespace Opc.Ua.Security.Certificates.Tests
 
             Assert.That(collection.IsReadOnly, Is.False);
         }
+
         [Test]
         public void DisposeDisposesAllContainedCertificates()
         {
@@ -804,6 +822,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             Assert.Throws<ObjectDisposedException>(
                 () => collection.Add(certY));
         }
+
         [Test]
         public void CertificateEntryOwnsIndependentRefs()
         {

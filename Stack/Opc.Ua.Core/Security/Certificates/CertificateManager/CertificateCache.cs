@@ -222,17 +222,23 @@ namespace Opc.Ua
         /// <summary>
         /// No caching on this platform.
         /// </summary>
-        public void Set(string thumbprint, Certificate certificate) { }
+        public void Set(string thumbprint, Certificate certificate)
+        {
+        }
 
         /// <summary>
         /// No caching on this platform.
         /// </summary>
-        public void Remove(string thumbprint) { }
+        public void Remove(string thumbprint)
+        {
+        }
 
         /// <summary>
         /// No caching on this platform.
         /// </summary>
-        public void Clear() { }
+        public void Clear()
+        {
+        }
 
         /// <inheritdoc/>
         public void Dispose()

@@ -65,17 +65,6 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         {
         }
 
-        [SetUp]
-        protected void SetUp()
-        {
-        }
-
-        [TearDown]
-        protected void TearDown()
-        {
-        }
-
-        // Verify constructor with https scheme creates a valid instance.
         [Test]
         public void ConstructorWithHttpsSchemeCreatesInstance()
         {
@@ -83,7 +72,6 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.That(listener, Is.Not.Null);
         }
 
-        // Verify constructor with opc.https scheme creates a valid instance.
         [Test]
         public void ConstructorWithOpcHttpsSchemeCreatesInstance()
         {
@@ -91,7 +79,6 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.That(listener, Is.Not.Null);
         }
 
-        // Verify UriScheme property returns the scheme passed to the constructor.
         [Test]
         public void UriSchemeReturnsHttpsWhenConstructedWithHttps()
         {
@@ -99,7 +86,6 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.That(listener.UriScheme, Is.EqualTo("https"));
         }
 
-        // Verify UriScheme property returns opc.https when constructed with that scheme.
         [Test]
         public void UriSchemeReturnsOpcHttpsWhenConstructedWithOpcHttps()
         {
@@ -107,7 +93,6 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.That(listener.UriScheme, Is.EqualTo("opc.https"));
         }
 
-        // Verify ListenerId is null before Open is called.
         [Test]
         public void ListenerIdIsNullBeforeOpen()
         {
@@ -115,7 +100,6 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.That(listener.ListenerId, Is.Null);
         }
 
-        // Verify EndpointUrl is null before Open is called.
         [Test]
         public void EndpointUrlIsNullBeforeOpen()
         {
@@ -123,41 +107,36 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.That(listener.EndpointUrl, Is.Null);
         }
 
-        // Verify Close on an unopened listener does not throw.
         [Test]
         public void CloseOnUnopenedListenerDoesNotThrow()
         {
             using var listener = new HttpsTransportListener(Utils.UriSchemeHttps, m_telemetry);
-            Assert.DoesNotThrow(() => listener.Close());
+            Assert.DoesNotThrow(listener.Close);
         }
 
-        // Verify Dispose on an unopened listener does not throw.
         [Test]
         public void DisposeOnUnopenedListenerDoesNotThrow()
         {
             using var listener = new HttpsTransportListener(Utils.UriSchemeHttps, m_telemetry);
-            Assert.DoesNotThrow(() => listener.Dispose());
+            Assert.DoesNotThrow(listener.Dispose);
         }
 
-        // Verify calling Dispose twice does not throw.
         [Test]
         public void DoubleDisposeDoesNotThrow()
         {
             using var listener = new HttpsTransportListener(Utils.UriSchemeHttps, m_telemetry);
             listener.Dispose();
-            Assert.DoesNotThrow(() => listener.Dispose());
+            Assert.DoesNotThrow(listener.Dispose);
         }
 
-        // Verify Close followed by Dispose does not throw.
         [Test]
         public void CloseFollowedByDisposeDoesNotThrow()
         {
             using var listener = new HttpsTransportListener(Utils.UriSchemeHttps, m_telemetry);
             listener.Close();
-            Assert.DoesNotThrow(() => listener.Dispose());
+            Assert.DoesNotThrow(listener.Dispose);
         }
 
-        // Verify CreateReverseConnection throws NotImplementedException.
         [Test]
         public void CreateReverseConnectionThrowsNotImplementedException()
         {
@@ -166,7 +145,6 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.Throws<NotImplementedException>(() => listener.CreateReverseConnection(uri, 30000));
         }
 
-        // Verify UpdateChannelLastActiveTime does not throw on unopened listener.
         [Test]
         public void UpdateChannelLastActiveTimeDoesNotThrow()
         {
@@ -174,7 +152,6 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.DoesNotThrow(() => listener.UpdateChannelLastActiveTime("test-channel-id"));
         }
 
-        // Verify UpdateChannelLastActiveTime with null does not throw.
         [Test]
         public void UpdateChannelLastActiveTimeWithNullDoesNotThrow()
         {
@@ -182,7 +159,6 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.DoesNotThrow(() => listener.UpdateChannelLastActiveTime(null));
         }
 
-        // Verify UpdateChannelLastActiveTime with empty string does not throw.
         [Test]
         public void UpdateChannelLastActiveTimeWithEmptyStringDoesNotThrow()
         {
@@ -190,7 +166,6 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.DoesNotThrow(() => listener.UpdateChannelLastActiveTime(string.Empty));
         }
 
-        // Verify the listener implements ITransportListener.
         [Test]
         public void ListenerImplementsITransportListener()
         {
@@ -198,7 +173,6 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.That(listener, Is.InstanceOf<ITransportListener>());
         }
 
-        // Verify the listener implements IDisposable.
         [Test]
         public void ListenerImplementsIDisposable()
         {
@@ -206,7 +180,6 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.That(listener, Is.InstanceOf<IDisposable>());
         }
 
-        // Verify HttpsTransportListenerFactory creates an instance with correct scheme.
         [Test]
         public void HttpsTransportListenerFactoryCreatesListener()
         {
@@ -216,7 +189,6 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.That(listener.UriScheme, Is.EqualTo("https"));
         }
 
-        // Verify HttpsTransportListenerFactory UriScheme property.
         [Test]
         public void HttpsTransportListenerFactoryUriSchemeIsHttps()
         {
@@ -224,7 +196,6 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.That(factory.UriScheme, Is.EqualTo("https"));
         }
 
-        // Verify OpcHttpsTransportListenerFactory creates an instance with correct scheme.
         [Test]
         public void OpcHttpsTransportListenerFactoryCreatesListener()
         {
@@ -234,7 +205,6 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.That(listener.UriScheme, Is.EqualTo("opc.https"));
         }
 
-        // Verify OpcHttpsTransportListenerFactory UriScheme property.
         [Test]
         public void OpcHttpsTransportListenerFactoryUriSchemeIsOpcHttps()
         {
@@ -242,7 +212,6 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.That(factory.UriScheme, Is.EqualTo("opc.https"));
         }
 
-        // Verify factory-created listener has null ListenerId before Open.
         [Test]
         public void FactoryCreatedListenerHasNullListenerId()
         {
@@ -251,7 +220,6 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.That(listener.ListenerId, Is.Null);
         }
 
-        // Verify CreateReverseConnection with null uri throws NotImplementedException.
         [Test]
         public void CreateReverseConnectionWithNullUriThrowsNotImplementedException()
         {
@@ -259,16 +227,14 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.Throws<NotImplementedException>(() => listener.CreateReverseConnection(null, 0));
         }
 
-        // Verify multiple Close calls on an unopened listener do not throw.
         [Test]
         public void MultipleCloseCallsDoNotThrow()
         {
             using var listener = new HttpsTransportListener(Utils.UriSchemeHttps, m_telemetry);
             listener.Close();
-            Assert.DoesNotThrow(() => listener.Close());
+            Assert.DoesNotThrow(listener.Close);
         }
 
-        // Verify Open throws when ServerCertificateTypesProvider is null.
         [Test]
         public void OpenThrowsWhenCertProviderIsNull()
         {
@@ -290,7 +256,6 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 Throws.Exception);
         }
 
-        // Verify Open sets ListenerId and EndpointUrl before Start fails.
         [Test]
         public void OpenSetsFieldsBeforeStartFails()
         {
@@ -313,17 +278,15 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.That(listener.EndpointUrl, Is.EqualTo(baseAddress));
         }
 
-        // Verify Stop is equivalent to Dispose.
         [Test]
         public void StopDoesNotThrowOnUnopenedListener()
         {
             using var listener = new HttpsTransportListener(Utils.UriSchemeHttps, m_telemetry);
             listener.Stop();
-            Assert.DoesNotThrow(() => listener.Dispose());
+            Assert.DoesNotThrow(listener.Dispose);
         }
 
 #if NET8_0_OR_GREATER
-        // Verify SendAsync returns 501 NotImplemented when callback is null.
         [Test]
         public async Task SendAsyncReturnsNotImplementedWhenCallbackIsNullAsync()
         {
@@ -337,7 +300,6 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.That(context.Response.StatusCode, Is.EqualTo((int)HttpStatusCode.NotImplemented));
         }
 
-        // Verify SendAsync returns BadRequest for unsupported content type.
         [Test]
         public async Task SendAsyncReturnsBadRequestForWrongContentTypeAsync()
         {
@@ -352,7 +314,6 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.That(context.Response.StatusCode, Is.EqualTo((int)HttpStatusCode.BadRequest));
         }
 
-        // Verify SendAsync returns BadRequest when buffer length does not match.
         [Test]
         public async Task SendAsyncReturnsBadRequestForBufferLengthMismatchAsync()
         {
@@ -369,7 +330,6 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.That(context.Response.StatusCode, Is.EqualTo((int)HttpStatusCode.BadRequest));
         }
 
-        // Verify SendAsync returns InternalServerError for invalid binary payload.
         [Test]
         public async Task SendAsyncReturnsInternalServerErrorForInvalidBodyAsync()
         {
@@ -386,7 +346,6 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.That(context.Response.StatusCode, Is.EqualTo((int)HttpStatusCode.InternalServerError));
         }
 
-        // Verify SendAsync response body contains an error message for wrong content type.
         [Test]
         public async Task SendAsyncWritesErrorMessageForWrongContentTypeAsync()
         {

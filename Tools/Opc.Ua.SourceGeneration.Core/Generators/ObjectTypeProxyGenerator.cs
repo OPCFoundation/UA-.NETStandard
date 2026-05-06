@@ -479,13 +479,14 @@ namespace Opc.Ua.SourceGeneration
                 {
                     builder.Append(", ");
                 }
-                builder.Append(outputs[ii].DataTypeNode.GetMethodArgumentTypeAsCode(
-                    outputs[ii].ValueRank,
-                    targetNamespace,
-                    namespaces,
-                    outputs[ii].IsOptional));
-                builder.Append(' ');
-                builder.Append(GetParameterName(outputs[ii]));
+                builder
+                    .Append(outputs[ii].DataTypeNode.GetMethodArgumentTypeAsCode(
+                        outputs[ii].ValueRank,
+                        targetNamespace,
+                        namespaces,
+                        outputs[ii].IsOptional))
+                    .Append(' ')
+                    .Append(GetParameterName(outputs[ii]));
             }
             builder.Append(")>");
             return builder.ToString();
