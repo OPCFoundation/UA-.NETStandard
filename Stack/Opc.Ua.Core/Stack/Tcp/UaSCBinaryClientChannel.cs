@@ -637,9 +637,7 @@ namespace Opc.Ua.Bindings
             uint channelId;
 
             Certificate? serverCertificate = null;
-
             uint requestId;
-
             uint sequenceNumber;
             try
             {
@@ -660,7 +658,7 @@ namespace Opc.Ua.Bindings
             }
             catch (Exception e)
             {
-                serverCertificate.Dispose();
+                serverCertificate?.Dispose();
 
                 m_logger.LogDebug(e,
                    "ChannelId {ChannelId}: Could not verify security on OpenSecureChannel response",

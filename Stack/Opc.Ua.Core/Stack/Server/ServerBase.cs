@@ -40,7 +40,6 @@ using Microsoft.Extensions.Logging;
 using Opc.Ua.Bindings;
 using Opc.Ua.Security.Certificates;
 
-
 namespace Opc.Ua
 {
     /// <summary>
@@ -1490,8 +1489,7 @@ namespace Opc.Ua
                 InstanceCertificateTypesProvider
                     .LoadCertificateChainAsync(instanceCertificate)
                     .GetAwaiter()
-                    .GetResult()
-                    ?.Dispose();
+                    .GetResult()?.Dispose();
             }
 
             // assign a unique identifier if none specified.

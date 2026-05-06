@@ -520,7 +520,6 @@ namespace Opc.Ua
                             logger);
                         break;
                     case AsymmetricEncryptionAlgorithm.RsaPkcs15Sha1:
-                    {
                         encryptedData.Algorithm = SecurityAlgorithms.Rsa15;
                         encryptedData.Data = RsaUtils.Encrypt(
                             plainText,
@@ -528,7 +527,6 @@ namespace Opc.Ua
                             RsaUtils.Padding.Pkcs1,
                             logger);
                         break;
-                    }
                     case AsymmetricEncryptionAlgorithm.RsaOaepSha256:
                     {
                         encryptedData.Algorithm = SecurityAlgorithms.RsaOaepSha256;

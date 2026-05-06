@@ -303,7 +303,7 @@ namespace Opc.Ua.Mcp.Tools
                 {
                     ObjectId = OpcUaJsonHelper.ParseNodeId(objectId),
                     MethodId = OpcUaJsonHelper.ParseNodeId(methodId),
-                    InputArguments = inputArgs.ToArray(),
+                    InputArguments = inputArgs.ToArray()
                 };
 
                 CallResponse response = await session.CallAsync(
@@ -321,7 +321,7 @@ namespace Opc.Ua.Mcp.Tools
                         ["statusCode"] = result.StatusCode.SymbolicId,
                         ["message"] = $"Method call failed: {result.StatusCode}",
                         ["inputArgumentResults"] = result.InputArgumentResults.ToArray()?
-                            .Select(s => s.SymbolicId).ToList(),
+                            .Select(s => s.SymbolicId).ToList()
                     });
                 }
 
@@ -330,7 +330,7 @@ namespace Opc.Ua.Mcp.Tools
                     ["objectId"] = objectId,
                     ["methodId"] = methodId,
                     ["outputArguments"] = result.OutputArguments.ToArray()?
-                        .Select(v => OpcUaJsonHelper.VariantToObject(v)).ToList() ?? [],
+                        .Select(v => OpcUaJsonHelper.VariantToObject(v)).ToList() ?? []
                 });
             }
             catch (ServiceResultException ex)

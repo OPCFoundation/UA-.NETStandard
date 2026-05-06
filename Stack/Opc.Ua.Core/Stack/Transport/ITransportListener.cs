@@ -31,7 +31,6 @@ using System;
 using System.Threading.Tasks;
 using Opc.Ua.Security.Certificates;
 
-
 namespace Opc.Ua
 {
     /// <summary>

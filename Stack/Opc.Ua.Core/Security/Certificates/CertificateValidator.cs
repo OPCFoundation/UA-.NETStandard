@@ -30,8 +30,8 @@
 #nullable enable
 
 using System;
-using System.Collections.Generic;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
@@ -43,7 +43,6 @@ using Microsoft.Extensions.Logging;
 using Opc.Ua.Redaction;
 using Opc.Ua.Security.Certificates;
 using X509AuthorityKeyIdentifierExtension = Opc.Ua.Security.Certificates.X509AuthorityKeyIdentifierExtension;
-
 
 namespace Opc.Ua
 {
@@ -124,6 +123,8 @@ namespace Opc.Ua
                 }
 
                 m_issuerCertificateList = default;
+
+                m_semaphore.Dispose();
             }
         }
 
@@ -672,14 +673,18 @@ namespace Opc.Ua
         /// in a transient <see cref="CertificateCollection"/> and
         /// delegates to the chain overload.
         /// </summary>
-        Task<CertificateValidationResult> ICertificateValidatorEx.ValidateAsync(
+        async Task<CertificateValidationResult> ICertificateValidatorEx.ValidateAsync(
             Certificate certificate,
             TrustListIdentifier? trustList,
             CancellationToken ct)
         {
             ICertificateValidatorEx self = this;
             using var chain = new CertificateCollection { certificate };
-            return self.ValidateAsync(chain, trustList, options: null, ct);
+            return await self.ValidateAsync(
+                chain,
+                trustList,
+                options: null,
+                ct).ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
@@ -745,7 +750,7 @@ namespace Opc.Ua
             {
                 untrustedList.Add(new CertificateIdentifier(certificates[ii]));
             }
-            ArrayOf<CertificateIdentifier> untrustedCollection = untrustedList.ToArrayOf();
+            var untrustedCollection = untrustedList.ToArrayOf();
 
             do
             {
@@ -1265,8 +1270,8 @@ namespace Opc.Ua
             // check for authority key id match.
             if (!string.IsNullOrEmpty(authorityKeyId))
             {
-            X509SubjectKeyIdentifierExtension? subjectKeyId =
-                    certificate.FindExtension<X509SubjectKeyIdentifierExtension>();
+                X509SubjectKeyIdentifierExtension? subjectKeyId =
+                        certificate.FindExtension<X509SubjectKeyIdentifierExtension>();
 
                 if (subjectKeyId != null)
                 {
@@ -1506,340 +1511,340 @@ namespace Opc.Ua
 
             try
             {
-            bool isIssuerTrusted = await GetIssuersNoExceptionsOnGetIssuerAsync(
-                certificates,
-                issuers,
-                validationErrors,
-                ct)
-                .ConfigureAwait(false);
+                bool isIssuerTrusted = await GetIssuersNoExceptionsOnGetIssuerAsync(
+                    certificates,
+                    issuers,
+                    validationErrors,
+                    ct)
+                    .ConfigureAwait(false);
 
-            ServiceResult? sresult = PopulateSresultWithValidationErrors(validationErrors);
+                ServiceResult? sresult = PopulateSresultWithValidationErrors(validationErrors);
 
-            // Note: validationErrors keys share references with issuer.Certificate —
-            // they are disposed in the finally block via issuer.Dispose().
+                // Note: validationErrors keys share references with issuer.Certificate —
+                // they are disposed in the finally block via issuer.Dispose().
 
-            // setup policy chain
-            var policy = new X509ChainPolicy
-            {
-                RevocationFlag = X509RevocationFlag.EntireChain,
-                RevocationMode = X509RevocationMode.NoCheck,
-                VerificationFlags = X509VerificationFlags.NoFlag,
+                // setup policy chain
+                var policy = new X509ChainPolicy
+                {
+                    RevocationFlag = X509RevocationFlag.EntireChain,
+                    RevocationMode = X509RevocationMode.NoCheck,
+                    VerificationFlags = X509VerificationFlags.NoFlag,
 #if NET5_0_OR_GREATER
-                DisableCertificateDownloads = true,
+                    DisableCertificateDownloads = true,
 #endif
-                UrlRetrievalTimeout = TimeSpan.FromMilliseconds(1)
-            };
+                    UrlRetrievalTimeout = TimeSpan.FromMilliseconds(1)
+                };
 
-            var extraStoreCerts = new List<X509Certificate2>();
-            foreach (CertificateIdentifier issuer in issuers)
-            {
-                if ((issuer.ValidationOptions &
-                    CertificateValidationOptions.SuppressRevocationStatusUnknown) != 0)
+                var extraStoreCerts = new List<X509Certificate2>();
+                foreach (CertificateIdentifier issuer in issuers)
                 {
-                    policy.VerificationFlags
-                        |= X509VerificationFlags.IgnoreCertificateAuthorityRevocationUnknown;
-                    policy.VerificationFlags
-                        |= X509VerificationFlags.IgnoreCtlSignerRevocationUnknown;
-                    policy.VerificationFlags |= X509VerificationFlags.IgnoreEndRevocationUnknown;
-                    policy.VerificationFlags |= X509VerificationFlags.IgnoreRootRevocationUnknown;
-                }
-
-                // we did the revocation check in the GetIssuers call. No need here.
-                policy.RevocationMode = X509RevocationMode.NoCheck;
-                extraStoreCerts.Add(issuer.Certificate!.AsX509Certificate2());
-                policy.ExtraStore.Add(extraStoreCerts[^1]);
-            }
-
-            // build chain.
-            bool chainIncomplete = false;
-            using (var chain = new X509Chain())
-            {
-                chain.ChainPolicy = policy;
-                using X509Certificate2 certX509 = certificate.AsX509Certificate2();
-                chain.Build(certX509);
-
-                // check the chain results.
-                using CertificateIdentifier? fallbackTarget = trustedCertificate == null
-                    ? new CertificateIdentifier(certificate) : null;
-                CertificateIdentifier target = trustedCertificate ?? fallbackTarget!;
-
-                foreach (X509ChainStatus chainStatus in chain.ChainStatus ?? [])
-                {
-                    switch (chainStatus.Status)
+                    if ((issuer.ValidationOptions &
+                        CertificateValidationOptions.SuppressRevocationStatusUnknown) != 0)
                     {
-                        // status codes that are handled in CheckChainStatus
-                        case X509ChainStatusFlags.RevocationStatusUnknown:
-                        case X509ChainStatusFlags.Revoked:
-                        case X509ChainStatusFlags.NotValidForUsage:
-                        case X509ChainStatusFlags.OfflineRevocation:
-                        case X509ChainStatusFlags.InvalidBasicConstraints:
-                        case X509ChainStatusFlags.NotTimeValid:
-                        case X509ChainStatusFlags.NotTimeNested:
-                        case X509ChainStatusFlags.NoError:
-                        // by design, the trust root is not in the default store
-                        case X509ChainStatusFlags.UntrustedRoot:
-                            break;
-                        // mark incomplete, invalidate the issuer trust
-                        case X509ChainStatusFlags.PartialChain:
-                            chainIncomplete = true;
-                            isIssuerTrusted = false;
-                            break;
-                        case X509ChainStatusFlags.NotSignatureValid:
-                            sresult = new ServiceResult(ServiceResult.Create(
-                                StatusCodes.BadCertificateInvalid,
-                                "Certificate validation failed. {0}: {1}",
-                                chainStatus.Status,
-                                chainStatus.StatusInformation
-                            ), sresult);
-                            break;
-                        // unexpected error status
-                        default:
-                            m_logger.LogError(
-                                "Unexpected status {ChainStatus} processing certificate chain.",
-                                chainStatus.Status);
-                            sresult = new ServiceResult(ServiceResult.Create(
-                                StatusCodes.BadCertificateInvalid,
-                                "Certificate validation failed. {0}: {1}",
-                                chainStatus.Status,
-                                chainStatus.StatusInformation
-                            ), sresult);
-                            break;
-                    }
-                }
-
-                if (issuers.Count + 1 != chain.ChainElements.Count)
-                {
-                    // invalidate, unexpected result from X509Chain elements
-                    chainIncomplete = true;
-                    isIssuerTrusted = false;
-                }
-
-                for (int ii = 0; ii < chain.ChainElements.Count; ii++)
-                {
-                    X509ChainElement element = chain.ChainElements[ii];
-
-                CertificateIdentifier? issuer = null;
-
-                    if (ii < issuers.Count)
-                    {
-                        issuer = issuers[ii];
+                        policy.VerificationFlags
+                            |= X509VerificationFlags.IgnoreCertificateAuthorityRevocationUnknown;
+                        policy.VerificationFlags
+                            |= X509VerificationFlags.IgnoreCtlSignerRevocationUnknown;
+                        policy.VerificationFlags |= X509VerificationFlags.IgnoreEndRevocationUnknown;
+                        policy.VerificationFlags |= X509VerificationFlags.IgnoreRootRevocationUnknown;
                     }
 
-                    // validate the issuer chain matches the chain elements
-                    if (ii + 1 < chain.ChainElements.Count)
+                    // we did the revocation check in the GetIssuers call. No need here.
+                    policy.RevocationMode = X509RevocationMode.NoCheck;
+                    extraStoreCerts.Add(issuer.Certificate!.AsX509Certificate2());
+                    policy.ExtraStore.Add(extraStoreCerts[^1]);
+                }
+
+                // build chain.
+                bool chainIncomplete = false;
+                using (var chain = new X509Chain())
+                {
+                    chain.ChainPolicy = policy;
+                    using X509Certificate2 certX509 = certificate.AsX509Certificate2();
+                    chain.Build(certX509);
+
+                    // check the chain results.
+                    using CertificateIdentifier? fallbackTarget = trustedCertificate == null
+                        ? new CertificateIdentifier(certificate) : null;
+                    CertificateIdentifier target = trustedCertificate ?? fallbackTarget!;
+
+                    foreach (X509ChainStatus chainStatus in chain.ChainStatus ?? [])
                     {
-                        X509Certificate2 issuerCert = chain.ChainElements[ii + 1].Certificate;
-                        if (issuer == null || !Utils.IsEqual(issuerCert.RawData, issuer.RawData))
+                        switch (chainStatus.Status)
                         {
-                            // the chain used for cert validation differs from the issuers provided
-                            m_logger.LogInformation(
-                                Utils.TraceMasks.Security,
-                                "An unexpected certificate {Certificate} was used in the certificate chain.",
-                                issuerCert.Subject);
-                            chainIncomplete = true;
-                            isIssuerTrusted = false;
-                            break;
+                            // status codes that are handled in CheckChainStatus
+                            case X509ChainStatusFlags.RevocationStatusUnknown:
+                            case X509ChainStatusFlags.Revoked:
+                            case X509ChainStatusFlags.NotValidForUsage:
+                            case X509ChainStatusFlags.OfflineRevocation:
+                            case X509ChainStatusFlags.InvalidBasicConstraints:
+                            case X509ChainStatusFlags.NotTimeValid:
+                            case X509ChainStatusFlags.NotTimeNested:
+                            case X509ChainStatusFlags.NoError:
+                            // by design, the trust root is not in the default store
+                            case X509ChainStatusFlags.UntrustedRoot:
+                                break;
+                            // mark incomplete, invalidate the issuer trust
+                            case X509ChainStatusFlags.PartialChain:
+                                chainIncomplete = true;
+                                isIssuerTrusted = false;
+                                break;
+                            case X509ChainStatusFlags.NotSignatureValid:
+                                sresult = new ServiceResult(ServiceResult.Create(
+                                    StatusCodes.BadCertificateInvalid,
+                                    "Certificate validation failed. {0}: {1}",
+                                    chainStatus.Status,
+                                    chainStatus.StatusInformation
+                                ), sresult);
+                                break;
+                            // unexpected error status
+                            default:
+                                m_logger.LogError(
+                                    "Unexpected status {ChainStatus} processing certificate chain.",
+                                    chainStatus.Status);
+                                sresult = new ServiceResult(ServiceResult.Create(
+                                    StatusCodes.BadCertificateInvalid,
+                                    "Certificate validation failed. {0}: {1}",
+                                    chainStatus.Status,
+                                    chainStatus.StatusInformation
+                                ), sresult);
+                                break;
                         }
                     }
 
-                    // check for chain status errors.
-                    if (element.ChainElementStatus.Length > 0)
+                    if (issuers.Count + 1 != chain.ChainElements.Count)
                     {
-                        foreach (X509ChainStatus status in element.ChainElementStatus)
+                        // invalidate, unexpected result from X509Chain elements
+                        chainIncomplete = true;
+                        isIssuerTrusted = false;
+                    }
+
+                    for (int ii = 0; ii < chain.ChainElements.Count; ii++)
+                    {
+                        X509ChainElement element = chain.ChainElements[ii];
+
+                        CertificateIdentifier? issuer = null;
+
+                        if (ii < issuers.Count)
                         {
-                            ServiceResult? result = CheckChainStatus(
-                                status,
-                                target,
-                                issuer,
-                                ii != 0);
-                            if (ServiceResult.IsBad(result))
-                            {
-                                sresult = new ServiceResult(result, sresult);
-                            }
+                            issuer = issuers[ii];
                         }
-                    }
 
-                    if (issuer != null)
-                    {
-                        target = issuer;
-                    }
-                }
-            }
-
-            foreach (X509Certificate2 extraCert in extraStoreCerts)
-            {
-                extraCert.Dispose();
-            }
-
-            // check whether the chain is complete (if there is a chain)
-            bool issuedByCA = !X509Utils.IsSelfSigned(certificate);
-            if (issuers.Count > 0)
-            {
-                Certificate? rootCertificate = issuers[^1].Certificate;
-                if (rootCertificate == null || !X509Utils.IsSelfSigned(rootCertificate))
-                {
-                    chainIncomplete = true;
-                }
-            }
-            else if (issuedByCA)
-            {
-                // no issuer found at all
-                chainIncomplete = true;
-            }
-
-            // check if certificate issuer is trusted.
-            if (issuedByCA && !isIssuerTrusted && trustedCertificate == null)
-            {
-                const string message = "Certificate Issuer is not trusted.";
-                sresult = new ServiceResult(
-                    null,
-                    StatusCodes.BadCertificateUntrusted,
-                    LocalizedText.From(message),
-                    null,
-                    sresult);
-            }
-
-            // check if certificate is trusted.
-            if (trustedCertificate == null && !isIssuerTrusted)
-            {
-                await m_semaphore.WaitAsync(ct).ConfigureAwait(false);
-                try
-                {
-                    // If the certificate is not trusted, check if the certificate is amongst the application certificates
-                    bool isApplicationCertificate = false;
-                    if (m_applicationCertificates != null)
-                    {
-                        foreach (Certificate appCert in m_applicationCertificates)
+                        // validate the issuer chain matches the chain elements
+                        if (ii + 1 < chain.ChainElements.Count)
                         {
-                            if (Utils.IsEqual(appCert.RawData, certificate.RawData))
+                            X509Certificate2 issuerCert = chain.ChainElements[ii + 1].Certificate;
+                            if (issuer == null || !Utils.IsEqual(issuerCert.RawData, issuer.RawData))
                             {
-                                // certificate is the application certificate
-                                isApplicationCertificate = true;
+                                // the chain used for cert validation differs from the issuers provided
+                                m_logger.LogInformation(
+                                    Utils.TraceMasks.Security,
+                                    "An unexpected certificate {Certificate} was used in the certificate chain.",
+                                    issuerCert.Subject);
+                                chainIncomplete = true;
+                                isIssuerTrusted = false;
                                 break;
                             }
                         }
-                    }
 
-                    if (m_applicationCertificates == null || !isApplicationCertificate)
+                        // check for chain status errors.
+                        if (element.ChainElementStatus.Length > 0)
+                        {
+                            foreach (X509ChainStatus status in element.ChainElementStatus)
+                            {
+                                ServiceResult? result = CheckChainStatus(
+                                    status,
+                                    target,
+                                    issuer,
+                                    ii != 0);
+                                if (ServiceResult.IsBad(result))
+                                {
+                                    sresult = new ServiceResult(result, sresult);
+                                }
+                            }
+                        }
+
+                        if (issuer != null)
+                        {
+                            target = issuer;
+                        }
+                    }
+                }
+
+                foreach (X509Certificate2 extraCert in extraStoreCerts)
+                {
+                    extraCert.Dispose();
+                }
+
+                // check whether the chain is complete (if there is a chain)
+                bool issuedByCA = !X509Utils.IsSelfSigned(certificate);
+                if (issuers.Count > 0)
+                {
+                    Certificate? rootCertificate = issuers[^1].Certificate;
+                    if (rootCertificate == null || !X509Utils.IsSelfSigned(rootCertificate))
                     {
-                        const string message = "Certificate is not trusted.";
+                        chainIncomplete = true;
+                    }
+                }
+                else if (issuedByCA)
+                {
+                    // no issuer found at all
+                    chainIncomplete = true;
+                }
+
+                // check if certificate issuer is trusted.
+                if (issuedByCA && !isIssuerTrusted && trustedCertificate == null)
+                {
+                    const string message = "Certificate Issuer is not trusted.";
+                    sresult = new ServiceResult(
+                        null,
+                        StatusCodes.BadCertificateUntrusted,
+                        LocalizedText.From(message),
+                        null,
+                        sresult);
+                }
+
+                // check if certificate is trusted.
+                if (trustedCertificate == null && !isIssuerTrusted)
+                {
+                    await m_semaphore.WaitAsync(ct).ConfigureAwait(false);
+                    try
+                    {
+                        // If the certificate is not trusted, check if the certificate is amongst the application certificates
+                        bool isApplicationCertificate = false;
+                        if (m_applicationCertificates != null)
+                        {
+                            foreach (Certificate appCert in m_applicationCertificates)
+                            {
+                                if (Utils.IsEqual(appCert.RawData, certificate.RawData))
+                                {
+                                    // certificate is the application certificate
+                                    isApplicationCertificate = true;
+                                    break;
+                                }
+                            }
+                        }
+
+                        if (m_applicationCertificates == null || !isApplicationCertificate)
+                        {
+                            const string message = "Certificate is not trusted.";
+                            sresult = new ServiceResult(
+                                null,
+                                StatusCodes.BadCertificateUntrusted,
+                                LocalizedText.From(message),
+                                null,
+                                sresult);
+                        }
+                    }
+                    finally
+                    {
+                        m_semaphore.Release();
+                    }
+                }
+
+                Uri? endpointUrl = endpoint?.EndpointUrl;
+                if (endpointUrl != null && !FindDomain(certificate, endpointUrl))
+                {
+                    string message = Utils.Format(
+                        "The domain '{0}' is not listed in the server certificate.",
+                        endpointUrl.IdnHost);
+                    sresult = new ServiceResult(
+                        null,
+                        StatusCodes.BadCertificateHostNameInvalid,
+                        LocalizedText.From(message),
+                        null,
+                        sresult);
+                }
+
+                bool isECDsaSignature = X509PfxUtils.IsECDsaSignature(certificate);
+
+                // check if certificate is valid for use as app/sw or user cert
+                X509KeyUsageFlags certificateKeyUsage = X509Utils.GetKeyUsage(certificate);
+                if (isECDsaSignature)
+                {
+                    if ((certificateKeyUsage & X509KeyUsageFlags.DigitalSignature) == 0)
+                    {
                         sresult = new ServiceResult(
                             null,
-                            StatusCodes.BadCertificateUntrusted,
-                            LocalizedText.From(message),
+                            StatusCodes.BadCertificateUseNotAllowed,
+                            LocalizedText.From("Usage of ECDSA certificate is not allowed."),
                             null,
                             sresult);
                     }
                 }
-                finally
-                {
-                    m_semaphore.Release();
-                }
-            }
-
-            Uri? endpointUrl = endpoint?.EndpointUrl;
-            if (endpointUrl != null && !FindDomain(certificate, endpointUrl))
-            {
-                string message = Utils.Format(
-                    "The domain '{0}' is not listed in the server certificate.",
-                    endpointUrl.IdnHost);
-                sresult = new ServiceResult(
-                    null,
-                    StatusCodes.BadCertificateHostNameInvalid,
-                    LocalizedText.From(message),
-                    null,
-                    sresult);
-            }
-
-            bool isECDsaSignature= X509PfxUtils.IsECDsaSignature(certificate);
-
-            // check if certificate is valid for use as app/sw or user cert
-            X509KeyUsageFlags certificateKeyUsage = X509Utils.GetKeyUsage(certificate);
-            if (isECDsaSignature)
-            {
-                if ((certificateKeyUsage & X509KeyUsageFlags.DigitalSignature) == 0)
+                else if ((certificateKeyUsage & X509KeyUsageFlags.DataEncipherment) == 0)
                 {
                     sresult = new ServiceResult(
                         null,
                         StatusCodes.BadCertificateUseNotAllowed,
-                        LocalizedText.From("Usage of ECDSA certificate is not allowed."),
+                        LocalizedText.From("Usage of RSA certificate is not allowed."),
                         null,
                         sresult);
                 }
-            }
-            else if ((certificateKeyUsage & X509KeyUsageFlags.DataEncipherment) == 0)
-            {
-                sresult = new ServiceResult(
-                    null,
-                    StatusCodes.BadCertificateUseNotAllowed,
-                    LocalizedText.From("Usage of RSA certificate is not allowed."),
-                    null,
-                    sresult);
-            }
 
-            // check if minimum requirements are met
-            if (RejectSHA1SignedCertificates &&
-                IsSHA1SignatureAlgorithm(certificate.SignatureAlgorithm))
-            {
-                sresult = new ServiceResult(
-                    null,
-                    StatusCodes.BadCertificatePolicyCheckFailed,
-                    LocalizedText.From("SHA1 signed certificates are not trusted."),
-                    null,
-                    sresult);
-            }
-
-            // check if certificate signature algorithm length is sufficient
-            if (isECDsaSignature)
-            {
-                int publicKeySize = X509Utils.GetPublicKeySize(certificate);
-                bool isInvalid =
-                    (certificate.SignatureAlgorithm.Value == Oids.ECDsaWithSha256 &&
-                        publicKeySize > 256) ||
-                    (
-                        certificate.SignatureAlgorithm.Value == Oids.ECDsaWithSha384 &&
-                        (publicKeySize <= 256 || publicKeySize > 384)
-                    ) ||
-                    (certificate.SignatureAlgorithm.Value == Oids.ECDsaWithSha512 &&
-                        publicKeySize <= 384);
-                if (isInvalid)
+                // check if minimum requirements are met
+                if (RejectSHA1SignedCertificates &&
+                    IsSHA1SignatureAlgorithm(certificate.SignatureAlgorithm))
                 {
                     sresult = new ServiceResult(
                         null,
                         StatusCodes.BadCertificatePolicyCheckFailed,
-                        LocalizedText.From("Certificate doesn't meet minimum signature algorithm length requirement."),
+                        LocalizedText.From("SHA1 signed certificates are not trusted."),
                         null,
                         sresult);
                 }
-            }
-            else // RSA
-            {
-                int keySize = X509Utils.GetRSAPublicKeySize(certificate);
-                if (keySize < MinimumCertificateKeySize)
+
+                // check if certificate signature algorithm length is sufficient
+                if (isECDsaSignature)
+                {
+                    int publicKeySize = X509Utils.GetPublicKeySize(certificate);
+                    bool isInvalid =
+                        (certificate.SignatureAlgorithm.Value == Oids.ECDsaWithSha256 &&
+                            publicKeySize > 256) ||
+                        (
+                            certificate.SignatureAlgorithm.Value == Oids.ECDsaWithSha384 &&
+                            (publicKeySize <= 256 || publicKeySize > 384)
+                        ) ||
+                        (certificate.SignatureAlgorithm.Value == Oids.ECDsaWithSha512 &&
+                            publicKeySize <= 384);
+                    if (isInvalid)
+                    {
+                        sresult = new ServiceResult(
+                            null,
+                            StatusCodes.BadCertificatePolicyCheckFailed,
+                            LocalizedText.From("Certificate doesn't meet minimum signature algorithm length requirement."),
+                            null,
+                            sresult);
+                    }
+                }
+                else // RSA
+                {
+                    int keySize = X509Utils.GetRSAPublicKeySize(certificate);
+                    if (keySize < MinimumCertificateKeySize)
+                    {
+                        sresult = new ServiceResult(
+                            null,
+                            StatusCodes.BadCertificatePolicyCheckFailed,
+                            LocalizedText.From("Certificate doesn't meet minimum key length requirement."),
+                            null,
+                            sresult);
+                    }
+                }
+
+                if (issuedByCA && chainIncomplete)
                 {
                     sresult = new ServiceResult(
                         null,
-                        StatusCodes.BadCertificatePolicyCheckFailed,
-                        LocalizedText.From("Certificate doesn't meet minimum key length requirement."),
+                        StatusCodes.BadCertificateChainIncomplete,
+                        LocalizedText.From("Certificate chain validation incomplete."),
                         null,
                         sresult);
                 }
-            }
 
-            if (issuedByCA && chainIncomplete)
-            {
-                sresult = new ServiceResult(
-                    null,
-                    StatusCodes.BadCertificateChainIncomplete,
-                    LocalizedText.From("Certificate chain validation incomplete."),
-                    null,
-                    sresult);
-            }
-
-            if (sresult != null)
-            {
-                throw new ServiceResultException(sresult);
-            }
+                if (sresult != null)
+                {
+                    throw new ServiceResultException(sresult);
+                }
             }
             finally
             {
@@ -2007,7 +2012,7 @@ namespace Opc.Ua
             {
                 bool accept = false;
                 const string message = "The domain '{0}' is not listed in the server certificate.";
-                ServiceResultException serviceResult = ServiceResultException.Create(
+                var serviceResult = ServiceResultException.Create(
                     StatusCodes.BadCertificateHostNameInvalid,
                     message,
                     endpointUrl.IdnHost);
@@ -2024,7 +2029,9 @@ namespace Opc.Ua
                 {
                     if (serverValidation)
                     {
-                        m_logger.LogError("The domain '{Url}' is not listed in the server certificate.", Redact.Create(endpointUrl));
+                        m_logger.LogError(
+                            "The domain '{Url}' is not listed in the server certificate.",
+                            Redact.Create(endpointUrl));
                     }
                     else
                     {
@@ -2081,7 +2088,9 @@ namespace Opc.Ua
             }
         }
 
-        internal static ServiceResult ValidateServerCertificateApplicationUri(Certificate serverCertificate, ConfiguredEndpoint endpoint)
+        internal static ServiceResult ValidateServerCertificateApplicationUri(
+            Certificate serverCertificate,
+            ConfiguredEndpoint endpoint)
         {
             string? applicationUri = endpoint?.Description?.Server?.ApplicationUri;
 
@@ -2111,7 +2120,8 @@ namespace Opc.Ua
                 return ServiceResult.Create(
                     StatusCodes.BadCertificateUriInvalid,
                     "The Application in the EndpointDescription ({0}) is not in the Server Certificate ({1}).",
-                    applicationUri, serverCertificate.Subject);
+                    applicationUri,
+                    serverCertificate.Subject);
             }
 
             return ServiceResult.Good;
@@ -2534,7 +2544,7 @@ namespace Opc.Ua
             /// Returns a Task that completes when the most recently
             /// enqueued write has been processed.
             /// </summary>
-            public Task WaitForDrainAsync()
+            public Task<bool> WaitForDrainAsync()
             {
                 return Volatile.Read(ref m_drainTcs).Task;
             }

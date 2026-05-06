@@ -30,7 +30,6 @@
 using System.Collections.Generic;
 using Opc.Ua.Security.Certificates;
 
-
 namespace Opc.Ua
 {
     /// <summary>

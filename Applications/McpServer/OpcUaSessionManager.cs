@@ -44,7 +44,6 @@ using Opc.Ua.Client;
 using Opc.Ua.Configuration;
 using Opc.Ua.Security.Certificates;
 
-
 namespace Opc.Ua.Mcp
 {
     /// <summary>

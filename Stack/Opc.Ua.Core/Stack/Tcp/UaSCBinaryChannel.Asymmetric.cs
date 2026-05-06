@@ -35,7 +35,6 @@ using System.Text;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Security.Certificates;
 
-
 namespace Opc.Ua.Bindings
 {
     /// <summary>
@@ -1065,7 +1064,8 @@ namespace Opc.Ua.Bindings
                     {
                         CertificateValidationResult validationResult = Quotas.CertificateValidator
                             .ValidateAsync(senderCertificateChain, ct: default)
-                            .GetAwaiter().GetResult();
+                            .GetAwaiter()
+                            .GetResult();
                         if (!validationResult.IsValid)
                         {
                             throw new ServiceResultException(validationResult.StatusCode);

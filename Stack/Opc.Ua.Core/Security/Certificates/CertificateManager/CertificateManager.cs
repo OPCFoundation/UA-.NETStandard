@@ -37,7 +37,6 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Security.Certificates;
 
-
 namespace Opc.Ua
 {
     /// <summary>
@@ -45,9 +44,7 @@ namespace Opc.Ua
     /// Currently implements trust-list management; other interfaces
     /// will be added in subsequent phases.
     /// </summary>
-    public sealed partial class CertificateManager :
-        ICertificateManager,
-        IDisposable
+    public sealed class CertificateManager : ICertificateManager, IDisposable
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="CertificateManager"/> class.
@@ -78,10 +75,10 @@ namespace Opc.Ua
             m_logger = telemetry.CreateLogger<CertificateManager>();
             m_maxRejectedCertificates = maxRejectedCertificates;
             m_storeProviders = storeProviders?.ToList() ??
-            [
-                new DirectoryStoreProvider(),
-                new X509StoreProvider()
-            ];
+                [
+                    new DirectoryStoreProvider(),
+                    new X509StoreProvider()
+                    ];
 
             TimeSpan threshold = expiryWarningThreshold ?? TimeSpan.FromDays(14);
             m_lifecycleMonitor = new CertificateLifecycleMonitor(
@@ -485,7 +482,9 @@ namespace Opc.Ua
         {
             CertificateEntry? oldEntry = null;
 #pragma warning disable CS0618
-            CertificateValidator? oldPeer, oldUser, oldHttps;
+            CertificateValidator? oldPeer;
+            CertificateValidator? oldUser;
+            CertificateValidator? oldHttps;
 #pragma warning restore CS0618
 
             lock (m_certificatesLock)
@@ -514,9 +513,12 @@ namespace Opc.Ua
                 }
 
                 // Invalidate cached validators.
-                oldPeer = m_peerValidator; m_peerValidator = null;
-                oldUser = m_userValidator; m_userValidator = null;
-                oldHttps = m_httpsValidator; m_httpsValidator = null;
+                oldPeer = m_peerValidator;
+                m_peerValidator = null;
+                oldUser = m_userValidator;
+                m_userValidator = null;
+                oldHttps = m_httpsValidator;
+                m_httpsValidator = null;
             }
 
             // Dispose orphaned validators OUTSIDE the lock.
@@ -560,7 +562,9 @@ namespace Opc.Ua
             // Snapshot the previous primary entry (if any) so we can fire a
             // CertificateChange notification once the reload completes.
 #pragma warning disable CS0618
-            CertificateValidator? oldPeer, oldUser, oldHttps;
+            CertificateValidator? oldPeer;
+            CertificateValidator? oldUser;
+            CertificateValidator? oldHttps;
 #pragma warning restore CS0618
             CertificateEntry? oldPrimary;
             lock (m_certificatesLock)
@@ -576,9 +580,12 @@ namespace Opc.Ua
             {
                 // Invalidate cached validators so subsequent validations pick up
                 // any trust-list/cert changes implicit in the reload.
-                oldPeer = m_peerValidator; m_peerValidator = null;
-                oldUser = m_userValidator; m_userValidator = null;
-                oldHttps = m_httpsValidator; m_httpsValidator = null;
+                oldPeer = m_peerValidator;
+                m_peerValidator = null;
+                oldUser = m_userValidator;
+                m_userValidator = null;
+                oldHttps = m_httpsValidator;
+                m_httpsValidator = null;
             }
 
             // Dispose orphaned validators OUTSIDE the lock.

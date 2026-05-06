@@ -37,7 +37,6 @@ using Opc.Ua.Security.Certificates;
 using Opc.Ua.Server;
 using Opc.Ua.Server.UserDatabase;
 
-
 namespace Quickstarts.ReferenceServer
 {
     /// <summary>

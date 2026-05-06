@@ -31,6 +31,7 @@ namespace Opc.Ua
     {
         private static readonly TimeSpan s_rsaEncryptedSecretMaxClockSkew = TimeSpan.FromMinutes(5);
         private static readonly TimeSpan s_rsaEncryptedSecretMaxTokenAge = TimeSpan.FromHours(1);
+
         /// <summary>
         /// ECC encrypted secrets use the same one-hour age window as RSA encrypted secrets
         /// to preserve consistent token replay tolerance across both encryption formats.
@@ -377,7 +378,8 @@ namespace Opc.Ua
             byte[] signature = CryptoUtils.Sign(
                 dataToSign,
                 SenderCertificate,
-                SecurityPolicy.AsymmetricSignatureAlgorithm) ?? throw new ServiceResultException(StatusCodes.BadSecurityChecksFailed, "Failed to sign data.");
+                SecurityPolicy.AsymmetricSignatureAlgorithm) ??
+                throw new ServiceResultException(StatusCodes.BadSecurityChecksFailed, "Failed to sign data.");
 
             Buffer.BlockCopy(
                 signature,
@@ -423,7 +425,8 @@ namespace Opc.Ua
                     ReceiverCertificate,
                     SecurityPolicy.Uri,
                     keyData,
-                    logger).Data ?? throw new ServiceResultException(StatusCodes.BadSecurityChecksFailed, "Failed to encrypt key data.");
+                    logger).Data ??
+                    throw new ServiceResultException(StatusCodes.BadSecurityChecksFailed, "Failed to encrypt key data.");
 
                 using var payloadEncoder = new BinaryEncoder(Context);
                 payloadEncoder.WriteByteString(null, nonce ?? []);
@@ -450,7 +453,7 @@ namespace Opc.Ua
                 }
 
 #pragma warning disable CA5401 // Symmetric encryption uses non-default initialization vector
-                using Aes aes = Aes.Create();
+                using var aes = Aes.Create();
                 aes.Mode = CipherMode.CBC;
                 aes.Padding = PaddingMode.None;
                 aes.Key = encryptingKey;
@@ -476,9 +479,7 @@ namespace Opc.Ua
                 int lengthPosition = encoder.Position;
                 encoder.WriteUInt32(null, 0);
                 encoder.WriteString(null, SecurityPolicy.Uri);
-#pragma warning disable CA5350 // SHA1 is required by OPC UA RsaEncryptedSecret certificate hash field.
                 encoder.WriteByteString(null, ComputeSha1Hash(ReceiverCertificate.RawData));
-#pragma warning restore CA5350
                 encoder.WriteDateTime(null, DateTime.UtcNow);
                 encoder.WriteUInt16(null, (ushort)encryptedKeyData.Length);
 
@@ -598,16 +599,14 @@ namespace Opc.Ua
             ByteString certificateHash = decoder.ReadByteString(null);
             if (certificateHash.Length > 0)
             {
-#pragma warning disable CA5350 // SHA1 is required by OPC UA RsaEncryptedSecret certificate hash field.
                 byte[] actualCertificateHash = ComputeSha1Hash(ReceiverCertificate.RawData);
-#pragma warning restore CA5350
                 if (!Utils.IsEqual(certificateHash.ToArray(), actualCertificateHash))
                 {
                     throw new ServiceResultException(StatusCodes.BadCertificateInvalid);
                 }
             }
 
-            DateTime signingTime = (DateTime)decoder.ReadDateTime(null);
+            var signingTime = (DateTime)decoder.ReadDateTime(null);
             DateTime now = DateTime.UtcNow;
             // Accept tokens from the recent past to account for transit/processing delays while
             // only allowing a small future clock skew to prevent replay with future-dated tokens.
@@ -773,12 +772,12 @@ namespace Opc.Ua
                     Context.Telemetry);
                 return true;
             }
-            catch (Exception ex) when (
-                ex is ServiceResultException ||
-                ex is CryptographicException ||
-                ex is IOException ||
-                ex is FormatException ||
-                ex is ArgumentException)
+            catch (Exception ex) when (ex is
+                ServiceResultException or
+                CryptographicException or
+                IOException or
+                FormatException or
+                ArgumentException)
             {
                 return false;
             }
@@ -1050,8 +1049,14 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(data));
             }
 
+#pragma warning disable CA5350 // Do Not Use Weak Cryptographic Algorithms
+#if NET8_0_OR_GREATER
+            return SHA1.HashData(data);
+#else
             using SHA1 sha1 = SHA1.Create();
             return sha1.ComputeHash(data);
+#endif
+#pragma warning restore CA5350 // Do Not Use Weak Cryptographic Algorithms
         }
 
         private static void ZeroMemory(byte[]? buffer)

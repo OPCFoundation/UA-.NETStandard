@@ -257,7 +257,7 @@ namespace Opc.Ua
             {
                 if (certificate.Thumbprint == thumbprint)
                 {
-                    Certificate cert = Certificate.From(certificate);
+                    var cert = Certificate.From(certificate);
                     collection.Add(cert);
                     cert.Dispose();
                 }

@@ -1154,8 +1154,8 @@ namespace Opc.Ua
                 // current value. Comparing the cached entry count to the
                 // current file count detects external changes without re-parsing
                 // every certificate file in the common (unchanged) case.
-                int onDiskCount = certSubdir.GetFiles(kCertSearchString).Length
-                    + certSubdir.GetFiles(kPemCertSearchString).Length;
+                int onDiskCount = certSubdir.GetFiles(kCertSearchString).Length +
+                    certSubdir.GetFiles(kPemCertSearchString).Length;
                 if (onDiskCount == m_certificates.Count)
                 {
                     return m_certificates;
@@ -1240,7 +1240,8 @@ namespace Opc.Ua
                         // Certificate reference.
                         if (m_certificates.TryGetValue(
                                 entry.Certificate.Thumbprint,
-                                out Entry? existing) && existing != null)
+                                out Entry? existing) &&
+                            existing != null)
                         {
                             existing.Certificate?.Dispose();
                             existing.CertificateWithPrivateKey?.Dispose();
