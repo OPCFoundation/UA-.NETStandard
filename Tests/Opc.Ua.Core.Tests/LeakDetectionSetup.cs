@@ -32,6 +32,7 @@ using NUnit.Framework;
 using NUnit.Framework.Interfaces;
 using System.Linq;
 using Opc.Ua.Security.Certificates;
+using System.Collections.Generic;
 
 // Apply leak tracking action to all test fixtures in the assembly.
 [assembly: Opc.Ua.Core.Tests.CoreLeakDetectionFixtureActionAttribute]
@@ -77,7 +78,7 @@ namespace Opc.Ua.Core.Tests
                 System.IO.File.AppendAllText(path, summary + "\n");
                 // Dump ALL fixtures sorted by net delta (positive first, negative last).
                 System.IO.File.AppendAllText(path, "\nALL FIXTURES (positive net first):\n");
-                foreach (var kv in s_fixtureLeaks
+                foreach (KeyValuePair<string, (long created, long disposed)> kv in s_fixtureLeaks
                     .OrderByDescending(kv => kv.Value.created - kv.Value.disposed))
                 {
                     long net = kv.Value.created - kv.Value.disposed;
@@ -89,20 +90,22 @@ namespace Opc.Ua.Core.Tests
                 // live (reachable) certificate that still has a positive
                 // refcount. These are the actual leaks.
                 System.IO.File.AppendAllText(path, "\nLIVE LEAKED CERTIFICATES (DEBUG):\n");
-                foreach (var live in Certificate.EnumerateLiveCertificates())
+                foreach ((string thumbprint, int refCount, DateTime createdAt, string stackTrace) in
+                    Certificate.EnumerateLiveCertificates())
                 {
                     System.IO.File.AppendAllText(path,
-                        $"\n  Thumbprint={live.Thumbprint}, RefCount={live.RefCount}, " +
-                        $"CreatedAt={live.CreatedAt:O}\n  StackTrace:\n{live.StackTrace}\n");
+                        $"\n  Thumbprint={thumbprint}, RefCount={refCount}, " +
+                        $"CreatedAt={createdAt:O}\n  StackTrace:\n{stackTrace}\n");
                 }
                 // Certificates whose finaliser ran while their refcount was
                 // still > 0 (AddRef without matching Dispose).
                 System.IO.File.AppendAllText(path, "\nFINALIZED-WITH-LEAKED-REF CERTIFICATES (DEBUG):\n");
-                foreach (var fin in Certificate.EnumerateFinalizedLeakedCertificates())
+                foreach ((string thumbprint, DateTime createdAt, string stackTrace) in
+                    Certificate.EnumerateFinalizedLeakedCertificates())
                 {
                     System.IO.File.AppendAllText(path,
-                        $"\n  Thumbprint={fin.Thumbprint}, " +
-                        $"CreatedAt={fin.CreatedAt:O}\n  StackTrace:\n{fin.StackTrace}\n");
+                        $"\n  Thumbprint={thumbprint}, " +
+                        $"CreatedAt={createdAt:O}\n  StackTrace:\n{stackTrace}\n");
                 }
 #endif
             }
