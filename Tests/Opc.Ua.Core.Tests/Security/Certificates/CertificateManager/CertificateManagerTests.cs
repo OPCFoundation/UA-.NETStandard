@@ -83,8 +83,6 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             m_tempDirs.Clear();
         }
 
-        #region Trust-List Registry
-
         [Test]
         public void RegisterTrustListAddsEntry()
         {
@@ -142,10 +140,6 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 () => manager.OpenTrustedStore(TrustListIdentifier.Peers));
         }
 
-        #endregion
-
-        #region Certificate Registry
-
         [Test]
         public async Task LoadApplicationCertificatesLoadsFromConfig()
         {
@@ -190,10 +184,6 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.That(entry, Is.Not.Null);
             Assert.That(entry.Certificate.Thumbprint, Is.EqualTo(cert.Thumbprint));
         }
-
-        #endregion
-
-        #region Validation
 
         [Test]
         public async Task ValidateUntrustedCertReturnsFailure()
@@ -240,10 +230,6 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.That(result.IsValid, Is.True);
         }
 
-        #endregion
-
-        #region Lifecycle
-
         [Test]
         public async Task CertificateChangesNotifiesOnUpdate()
         {
@@ -287,10 +273,6 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     rejectedCollection).ConfigureAwait(false));
         }
 
-        #endregion
-
-        #region Factory Creation
-
         [Test]
         public void FactoryCreateFromSecurityConfiguration()
         {
@@ -316,10 +298,6 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.That(manager.TrustLists, Does.Contain(TrustListIdentifier.Rejected));
         }
 
-        #endregion
-
-        #region Helpers
-
         private string CreateTempDir()
         {
             string dir = Path.Combine(
@@ -343,6 +321,5 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             }
         }
 
-        #endregion
     }
 }

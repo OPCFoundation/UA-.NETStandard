@@ -308,14 +308,5 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             // disposes it on Emit(); the stream's Position is at the end.
             return Encoding.UTF8.GetString(m_memoryStream.ToArray());
         }
-
-        private static string NormalizeWhitespace(string text)
-        {
-            // Collapse newlines and runs of whitespace to a single space so
-            // assertions can match against a logical line regardless of how
-            // the template wraps the emitted attribute.
-            return System.Text.RegularExpressions.Regex.Replace(
-                text, @"\s+", " ");
-        }
     }
 }

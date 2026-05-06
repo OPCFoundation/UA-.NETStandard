@@ -108,6 +108,7 @@ namespace Opc.Ua.Gds.Client
 
             return response.Servers;
         }
+
         public ValueTask<ArrayOf<EndpointDescription>> GetEndpointsAsync(string endpointUrl, CancellationToken ct = default)
         {
             return GetEndpointsAsync(endpointUrl, null, ct);
@@ -130,6 +131,7 @@ namespace Opc.Ua.Gds.Client
 
             return response.Endpoints;
         }
+
         public ValueTask<(ArrayOf<ServerOnNetwork>, DateTimeUtc lastCounterResetTime)> FindServersOnNetworkAsync(
             uint startingRecordId,
             uint maxRecordsToReturn,
@@ -163,6 +165,7 @@ namespace Opc.Ua.Gds.Client
 
             return (response.Servers, response.LastCounterResetTime);
         }
+
         protected virtual Task<DiscoveryClient> CreateClientAsync(
             string endpointUrl,
             string endpointTransportProfileUri,

@@ -173,8 +173,6 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     .ConfigureAwait(false));
         }
 
-        #region Helpers
-
         private string CreateTempDir()
         {
             string dir = Path.Combine(
@@ -185,6 +183,5 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             return dir;
         }
 
-        #endregion
     }
 }

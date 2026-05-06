@@ -1909,6 +1909,7 @@ namespace Opc.Ua.Server.Tests
                     $"Read of {name} should succeed");
             }
         }
+
         /// <summary>
         /// Test that Enumeration and Image type scalar nodes are accessible.
         /// </summary>

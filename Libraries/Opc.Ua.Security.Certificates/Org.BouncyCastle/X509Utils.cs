@@ -109,6 +109,7 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
         /// <summary>
         /// Get public key parameters from a Certificate
         /// </summary>
+        /// <exception cref="CryptographicException"></exception>
         internal static RsaKeyParameters GetRsaPublicKeyParameter(Certificate certificate)
         {
             using RSA? rsa = certificate.GetRSAPublicKey();

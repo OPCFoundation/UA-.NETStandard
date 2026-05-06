@@ -550,7 +550,8 @@ namespace Opc.Ua
         /// <exception cref="CryptographicException"></exception>
         private static ArraySegment<byte> RemovePadding(ArraySegment<byte> data, int blockSize)
         {
-            byte[] dataArray = data.Array ?? throw new ArgumentNullException(nameof(data), "Data array must not be null.");
+            byte[] dataArray = data.Array ??
+                throw new ArgumentNullException(nameof(data), "Data array must not be null.");
 
             int paddingSize = dataArray[data.Offset + data.Count - 1];
             int paddingByteSize = 1;

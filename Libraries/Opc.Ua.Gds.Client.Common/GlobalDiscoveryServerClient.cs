@@ -218,6 +218,7 @@ namespace Opc.Ua.Gds.Client
         {
             AdminCredentials = null;
         }
+
         /// <inheritdoc/>
         public async ValueTask<List<string>> GetDefaultServerUrlsAsync(
             LocalDiscoveryServerClient lds,
@@ -253,6 +254,7 @@ namespace Opc.Ua.Gds.Client
 
             return serverUrls;
         }
+
         /// <inheritdoc/>
         public async ValueTask<List<string>> GetDefaultGdsUrlsAsync(
             LocalDiscoveryServerClient lds,
@@ -284,11 +286,13 @@ namespace Opc.Ua.Gds.Client
 
             return gdsUrls;
         }
+
         /// <inheritdoc/>
         public ValueTask ConnectAsync(CancellationToken ct = default)
         {
             return ConnectAsync(m_endpoint, ct);
         }
+
         /// <inheritdoc/>
         public async ValueTask ConnectAsync(string endpointUrl, CancellationToken ct = default)
         {
@@ -346,6 +350,7 @@ namespace Opc.Ua.Gds.Client
                     "Failed to connect after {0} attempts.",
                     maxAttempts);
         }
+
         /// <inheritdoc/>
         public async ValueTask ConnectAsync(ConfiguredEndpoint endpoint, CancellationToken ct = default)
         {
@@ -383,6 +388,7 @@ namespace Opc.Ua.Gds.Client
                     "Failed to connect after {0} attempts.",
                     maxAttempts);
         }
+
         /// <inheritdoc/>
         public async ValueTask DisconnectAsync(CancellationToken ct = default)
         {

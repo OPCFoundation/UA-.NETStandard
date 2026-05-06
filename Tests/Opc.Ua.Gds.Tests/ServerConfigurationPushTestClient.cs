@@ -180,7 +180,7 @@ namespace Opc.Ua.Gds.Tests
                 }
                 finally
                 {
-                    pushClient.Dispose();
+                    await pushClient.DisposeAsync().ConfigureAwait(false);
                 }
             }
         }
