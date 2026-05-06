@@ -603,10 +603,9 @@ namespace Opc.Ua
             {
                 // The core does not own a rejected-store writer; the manager
                 // is responsible for enqueuing failed chains on the shared
-                // RejectedCertificateProcessor. We pass the chain references
-                // directly without AddRef — the processor reads RawData
-                // synchronously from each cert; the caller still owns the
-                // refcount and is responsible for disposal.
+                // RejectedCertificateProcessor. CertificateCollection.Add
+                // AddRef's each cert; the processor disposes the chain after
+                // processing, balancing the AddRef.
                 m_rejectedProcessor ??= new RejectedCertificateProcessor(
                     this, m_maxRejectedCertificates, m_telemetry);
 
@@ -633,6 +632,116 @@ namespace Opc.Ua
                 chain,
                 trustList,
                 ct: ct).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Validates that the application URI in <paramref name="serverCertificate"/>
+        /// matches the application URI in the endpoint description. Failed
+        /// certificates are enqueued on the rejected-certificate processor.
+        /// </summary>
+        /// <param name="serverCertificate">The server certificate.</param>
+        /// <param name="endpoint">The endpoint used to connect.</param>
+        /// <exception cref="ArgumentNullException">
+        /// When <paramref name="serverCertificate"/> or
+        /// <paramref name="endpoint"/> is <see langword="null"/>.
+        /// </exception>
+        /// <exception cref="ServiceResultException">
+        /// Thrown with <see cref="StatusCodes.BadCertificateUriInvalid"/>
+        /// when the application URI cannot be found in the certificate.
+        /// </exception>
+        public void ValidateApplicationUri(
+            Certificate serverCertificate,
+            ConfiguredEndpoint endpoint)
+        {
+            if (serverCertificate == null)
+            {
+                throw new ArgumentNullException(nameof(serverCertificate));
+            }
+            if (endpoint == null)
+            {
+                throw new ArgumentNullException(nameof(endpoint));
+            }
+
+            CertificateValidationCore core = GetOrCreateCore(TrustListIdentifier.Peers);
+            try
+            {
+                core.ValidateApplicationUri(serverCertificate, endpoint, m_acceptError);
+            }
+            catch (ServiceResultException)
+            {
+                EnqueueRejectedCertificate(serverCertificate);
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Validates that the endpoint URL host appears in
+        /// <paramref name="serverCertificate"/>'s domain list. Failed
+        /// certificates are enqueued on the rejected-certificate processor
+        /// (client-side checks only; server-side validations are not
+        /// recorded as rejected).
+        /// </summary>
+        /// <param name="serverCertificate">The server certificate.</param>
+        /// <param name="endpoint">The endpoint used to connect.</param>
+        /// <param name="serverValidation">
+        /// Whether this is a server-side validation (changes how the failure
+        /// is logged and skips rejected-store enqueue).
+        /// </param>
+        /// <exception cref="ArgumentNullException">
+        /// When <paramref name="serverCertificate"/> or
+        /// <paramref name="endpoint"/> is <see langword="null"/>.
+        /// </exception>
+        /// <exception cref="ServiceResultException">
+        /// Thrown with <see cref="StatusCodes.BadCertificateHostNameInvalid"/>
+        /// when the endpoint URL host is not listed in the certificate.
+        /// </exception>
+        public void ValidateDomains(
+            Certificate serverCertificate,
+            ConfiguredEndpoint endpoint,
+            bool serverValidation = false)
+        {
+            if (serverCertificate == null)
+            {
+                throw new ArgumentNullException(nameof(serverCertificate));
+            }
+            if (endpoint == null)
+            {
+                throw new ArgumentNullException(nameof(endpoint));
+            }
+
+            CertificateValidationCore core = GetOrCreateCore(TrustListIdentifier.Peers);
+            try
+            {
+                core.ValidateDomains(
+                    serverCertificate,
+                    endpoint,
+                    serverValidation,
+                    m_acceptError);
+            }
+            catch (ServiceResultException)
+            {
+                if (!serverValidation)
+                {
+                    EnqueueRejectedCertificate(serverCertificate);
+                }
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Enqueues a single certificate on the rejected-certificate
+        /// processor without taking ownership of the certificate's
+        /// reference count. The processor disposes the chain it consumes,
+        /// balancing the per-cert AddRef performed by
+        /// <see cref="CertificateCollection.Add"/>.
+        /// </summary>
+        private void EnqueueRejectedCertificate(Certificate certificate)
+        {
+            m_rejectedProcessor ??= new RejectedCertificateProcessor(
+                this, m_maxRejectedCertificates, m_telemetry);
+            var rejected = new CertificateCollection { certificate };
+            // Fire-and-forget: the processor handles failures internally.
+            _ = m_rejectedProcessor.EnqueueAsync(rejected).AsTask();
         }
 
         /// <inheritdoc/>
