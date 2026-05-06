@@ -395,7 +395,23 @@ namespace Opc.Ua
                 {
                     m_maxRejectedCertificates = value;
                 }
-                m_rejectedProcessor?.SetMaxRejectedCertificates(m_maxRejectedCertificates);
+                lock (m_certificatesLock)
+                {
+                    // Propagate to per-trust-list legacy validators so the
+                    // inner RejectedCertificateWriter caps its writes too.
+                    ApplyValidationFlags(m_peerValidator);
+                    ApplyValidationFlags(m_userValidator);
+                    ApplyValidationFlags(m_httpsValidator);
+                }
+                if (m_rejectedProcessor != null)
+                {
+                    m_rejectedProcessor.SetMaxRejectedCertificates(m_maxRejectedCertificates);
+                    // Actively re-apply the cap so existing entries are
+                    // trimmed when the cap is lowered. The trim runs on
+                    // the processor's background task and can be awaited
+                    // via FlushRejectedAsync.
+                    _ = m_rejectedProcessor.EnqueueTrimAsync().AsTask();
+                }
             }
         }
 
@@ -818,9 +834,42 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public Task FlushRejectedAsync(CancellationToken ct = default)
+        public async Task FlushRejectedAsync(CancellationToken ct = default)
         {
-            return m_rejectedProcessor?.WaitForDrainAsync() ?? Task.CompletedTask;
+            // Wait for the manager's own rejected processor (used when callers
+            // invoke RejectCertificateAsync directly).
+            Task processorDrain = m_rejectedProcessor?.WaitForDrainAsync()
+                ?? Task.CompletedTask;
+
+            // Snapshot the per-trust-list legacy validators so we can also
+            // wait on their internal RejectedCertificateWriter queues. The
+            // current ValidateAsync implementation delegates to a cached
+            // legacy validator per trust list and that validator owns its
+            // own writer — without flushing it the rejected store can lag
+            // behind the test assertions.
+#pragma warning disable CS0618 // Type or member is obsolete
+            CertificateValidator? peer, user, https;
+#pragma warning restore CS0618
+            lock (m_certificatesLock)
+            {
+                peer = m_peerValidator;
+                user = m_userValidator;
+                https = m_httpsValidator;
+            }
+
+            await processorDrain.ConfigureAwait(false);
+            if (peer != null)
+            {
+                await peer.WaitForRejectedCertificatesDrainAsync().ConfigureAwait(false);
+            }
+            if (user != null)
+            {
+                await user.WaitForRejectedCertificatesDrainAsync().ConfigureAwait(false);
+            }
+            if (https != null)
+            {
+                await https.WaitForRejectedCertificatesDrainAsync().ConfigureAwait(false);
+            }
         }
 
         /// <inheritdoc/>
@@ -1116,6 +1165,7 @@ namespace Opc.Ua
             validator.AutoAcceptUntrustedCertificates = m_autoAcceptUntrustedCertificates;
             validator.RejectSHA1SignedCertificates = m_rejectSHA1SignedCertificates;
             validator.RejectUnknownRevocationStatus = m_rejectUnknownRevocationStatus;
+            validator.MaxRejectedCertificates = m_maxRejectedCertificates;
             if (m_minimumCertificateKeySize > 0)
             {
                 validator.MinimumCertificateKeySize = m_minimumCertificateKeySize;

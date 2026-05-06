@@ -45,7 +45,7 @@ namespace Opc.Ua
     /// </summary>
     internal sealed class RejectedCertificateProcessor : IAsyncDisposable
     {
-        private readonly Channel<CertificateCollection> m_channel;
+        private readonly Channel<CertificateCollection?> m_channel;
         private readonly Task m_processingTask;
         private readonly ICertificateTrustListManager m_trustListManager;
         private int m_maxRejectedCertificates;
@@ -64,7 +64,7 @@ namespace Opc.Ua
             m_trustListManager = trustListManager;
             m_maxRejectedCertificates = maxRejectedCertificates;
             m_logger = telemetry.CreateLogger<RejectedCertificateProcessor>();
-            m_channel = Channel.CreateBounded<CertificateCollection>(
+            m_channel = Channel.CreateBounded<CertificateCollection?>(
                 new BoundedChannelOptions(100)
                 {
                     FullMode = BoundedChannelFullMode.DropOldest
@@ -95,6 +95,23 @@ namespace Opc.Ua
             return m_channel.Writer.TryWrite(chain)
                         ? default
                         : m_channel.Writer.WriteAsync(chain, ct);
+        }
+
+        /// <summary>
+        /// Enqueues a trim-only signal that re-applies the current
+        /// <c>MaxRejectedCertificates</c> cap to the existing rejected
+        /// store contents. Use this to actively shrink the store after
+        /// the cap has been lowered.
+        /// </summary>
+        public ValueTask EnqueueTrimAsync(CancellationToken ct = default)
+        {
+            var tcs = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            Interlocked.Exchange(ref m_drainTcs, tcs);
+
+            return m_channel.Writer.TryWrite(null)
+                        ? default
+                        : m_channel.Writer.WriteAsync(null, ct);
         }
 
         /// <summary>
@@ -132,8 +149,20 @@ namespace Opc.Ua
                     using ICertificateStore store = m_trustListManager
                         .OpenTrustedStore(TrustListIdentifier.Rejected);
                     int max = Volatile.Read(ref m_maxRejectedCertificates);
-                    await store.AddRejectedAsync(chain, max)
-                        .ConfigureAwait(false);
+                    if (chain == null)
+                    {
+                        // Trim-only: pass an empty collection so the store
+                        // re-applies the cap to existing entries without
+                        // adding any new ones.
+                        using var empty = new CertificateCollection();
+                        await store.AddRejectedAsync(empty, max)
+                            .ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        await store.AddRejectedAsync(chain, max)
+                            .ConfigureAwait(false);
+                    }
                 }
                 catch (Exception ex)
                 {

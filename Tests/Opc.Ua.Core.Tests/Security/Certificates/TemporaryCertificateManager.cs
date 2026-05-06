@@ -40,11 +40,8 @@ namespace Opc.Ua.Core.Tests
     /// and exposes an <see cref="ICertificateManager"/> built from it.
     /// </summary>
     /// <remarks>
-    /// This is the modern replacement for <c>TemporaryCertValidator</c> which
-    /// uses the legacy <see cref="CertificateValidator"/>. New tests should
-    /// prefer this helper. The two helpers share the same store layout
-    /// (issuer / trusted / rejected directories) so they can be used
-    /// interchangeably during the migration.
+    /// New tests should prefer this helper. The store layout is
+    /// (issuer / trusted / rejected directories).
     /// </remarks>
     public sealed class TemporaryCertificateManager : IDisposable
     {
