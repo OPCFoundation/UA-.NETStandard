@@ -48,6 +48,7 @@ namespace Opc.Ua.Client
         /// <see cref="ManagedSession.SubscriptionManager"/> and starts
         /// asynchronously.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="session"/> is <c>null</c>.</exception>
         public static Subscriptions.ISubscription AddSubscription(
             this ManagedSession session,
             Subscriptions.ISubscriptionNotificationHandler handler,
@@ -74,6 +75,7 @@ namespace Opc.Ua.Client
         /// a callback over a fresh <see cref="Subscriptions.SubscriptionOptions"/>
         /// record.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="session"/> is <c>null</c>.</exception>
         public static Subscriptions.ISubscription AddSubscription(
             this ManagedSession session,
             Subscriptions.ISubscriptionNotificationHandler handler,
@@ -98,6 +100,8 @@ namespace Opc.Ua.Client
         /// Add a monitored item to the subscription using the supplied
         /// options snapshot.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="subscription"/> is <c>null</c>.</exception>
+        /// <exception cref="ArgumentException"></exception>
         public static bool TryAddMonitoredItem(
             this Subscriptions.ISubscription subscription,
             string name,
@@ -126,6 +130,8 @@ namespace Opc.Ua.Client
         /// <see cref="Subscriptions.MonitoredItems.MonitoredItemOptions"/>
         /// record initialized with the supplied node id.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="subscription"/> is <c>null</c>.</exception>
+        /// <exception cref="ArgumentException"></exception>
         public static bool TryAddMonitoredItem(
             this Subscriptions.ISubscription subscription,
             string name,

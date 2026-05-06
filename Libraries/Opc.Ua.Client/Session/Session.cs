@@ -2339,6 +2339,7 @@ namespace Opc.Ua.Client
         /// neither is supplied a new outbound channel is built against
         /// <see cref="ConfiguredEndpoint"/>.</param>
         /// <param name="ct">Cancellation token.</param>
+        /// <exception cref="ServiceResultException"></exception>
         protected internal async Task RecreateInPlaceAsync(
             ConfiguredEndpoint? endpoint = null,
             ITransportWaitingConnection? connection = null,

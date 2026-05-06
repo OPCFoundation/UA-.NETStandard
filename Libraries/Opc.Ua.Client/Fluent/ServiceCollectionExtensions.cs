@@ -61,6 +61,7 @@ namespace Opc.Ua.Client
         /// <see cref="OpcUaClientOptions.Configuration"/> and
         /// <see cref="ManagedSessionOptions.Endpoint"/>.</param>
         /// <returns>An <see cref="IClientBuilder"/> for chaining.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="services"/> is <c>null</c>.</exception>
         public static IClientBuilder AddOpcUaClient(
             this IServiceCollection services,
             Action<OpcUaClientOptions> configure)

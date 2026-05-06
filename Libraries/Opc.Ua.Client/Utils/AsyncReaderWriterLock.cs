@@ -89,8 +89,18 @@ namespace Opc.Ua.Client
     /// nested acquisition.
     /// </para>
     /// </remarks>
-    public sealed class AsyncReaderWriterLock
+    internal sealed class AsyncReaderWriterLock : IDisposable
     {
+        /// <inheritdoc/>
+        public void Dispose()
+        {
+            if (!m_isDisposed)
+            {
+                m_writer.Dispose();
+                m_isDisposed = true;
+            }
+        }
+
         /// <summary>
         /// Asynchronously acquires a reader lock. Multiple readers
         /// may hold the lock concurrently; a reader cannot proceed
@@ -197,7 +207,9 @@ namespace Opc.Ua.Client
         /// <see cref="WriterLockAsync"/>. Releases the corresponding
         /// lock on dispose.
         /// </summary>
+#pragma warning disable CA1815 // Override equals and operator equals on value types
         public readonly struct Releaser : IDisposable
+#pragma warning restore CA1815 // Override equals and operator equals on value types
         {
             private readonly AsyncReaderWriterLock m_owner;
             private readonly bool m_isWriter;
@@ -227,8 +239,9 @@ namespace Opc.Ua.Client
             }
         }
 
+        private bool m_isDisposed;
         private readonly SemaphoreSlim m_writer = new(1, 1);
-        private readonly object m_state = new();
+        private readonly Lock m_state = new();
         private int m_activeReaders;
         private TaskCompletionSource<object?>? m_drained;
     }
