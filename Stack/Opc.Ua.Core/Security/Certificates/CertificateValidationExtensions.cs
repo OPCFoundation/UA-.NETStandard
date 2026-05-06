@@ -42,12 +42,10 @@ namespace Opc.Ua
     /// <remarks>
     /// These extensions provide the
     /// <c>ValidateApplicationUri</c> / <c>ValidateDomains</c> capabilities
-    /// previously available only on the legacy
-    /// <see cref="CertificateValidator"/> class. When the receiver is a
-    /// <see cref="CertificateValidator"/> instance, the extension delegates
-    /// to the legacy method so the
-    /// <see cref="CertificateValidator.CertificateValidation"/> event
-    /// (and the rejected-certificate writer) continue to fire. For other
+    /// originally available on the legacy <c>CertificateValidator</c>
+    /// class. When the receiver is a <see cref="CertificateManager"/>,
+    /// the extension delegates to the manager's instance methods so the
+    /// rejected-certificate processor is consulted. For other
     /// implementations of <see cref="ICertificateValidatorEx"/>, the
     /// extension performs a pure (cache-free, event-free) check that
     /// throws on validation failure.
@@ -79,20 +77,16 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(validator));
             }
 
-            // Prefer the legacy validator's instance method when available
-            // so its CertificateValidation event and rejected-store writer
-            // continue to fire (preserves existing behaviour).
-#pragma warning disable CS0618 // Type or member is obsolete
-            if (validator is CertificateValidator legacy)
+            // Prefer the CertificateManager's instance method when available
+            // so the rejected-certificate processor is consulted.
+            if (validator is CertificateManager manager)
             {
-                legacy.ValidateApplicationUri(serverCertificate, endpoint);
+                manager.ValidateApplicationUri(serverCertificate, endpoint);
                 return;
             }
 
-            ServiceResult serviceResult = CertificateValidator.ValidateServerCertificateApplicationUri(
-                serverCertificate,
-                endpoint);
-#pragma warning restore CS0618
+            ServiceResult serviceResult = CertificateValidationHelpers
+                .ValidateServerCertificateApplicationUri(serverCertificate, endpoint);
             if (ServiceResult.IsBad(serviceResult))
             {
                 throw new ServiceResultException(serviceResult);
@@ -108,7 +102,7 @@ namespace Opc.Ua
         /// <param name="endpoint">The endpoint used to connect.</param>
         /// <param name="serverValidation">
         /// Whether this is a server-side validation (changes how the
-        /// failure is logged on the legacy validator).
+        /// failure is logged).
         /// </param>
         /// <exception cref="ArgumentNullException">
         /// Thrown when <paramref name="validator"/> is <see langword="null"/>.
@@ -128,23 +122,21 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(validator));
             }
 
-#pragma warning disable CS0618 // Type or member is obsolete
-            if (validator is CertificateValidator legacy)
+            if (validator is CertificateManager manager)
             {
-                legacy.ValidateDomains(serverCertificate, endpoint, serverValidation);
+                manager.ValidateDomains(serverCertificate, endpoint, serverValidation);
                 return;
             }
 
             Uri? endpointUrl = endpoint?.EndpointUrl;
             if (endpointUrl != null &&
-                !CertificateValidator.FindDomain(serverCertificate, endpointUrl))
+                !CertificateValidationHelpers.FindDomain(serverCertificate, endpointUrl))
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadCertificateHostNameInvalid,
                     "The domain '{0}' is not listed in the server certificate.",
                     endpointUrl.IdnHost);
             }
-#pragma warning restore CS0618
         }
     }
 }
