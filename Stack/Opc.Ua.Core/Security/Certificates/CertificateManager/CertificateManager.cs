@@ -69,11 +69,9 @@ namespace Opc.Ua
         private bool m_useValidatedCertificates;
         private RejectedCertificateProcessor? m_rejectedProcessor;
         private CertificateLifecycleMonitor? m_lifecycleMonitor;
-#pragma warning disable CS0618 // Type or member is obsolete
-        private CertificateValidator? m_peerValidator;
-        private CertificateValidator? m_userValidator;
-        private CertificateValidator? m_httpsValidator;
-#pragma warning restore CS0618
+        private CertificateValidationCore? m_peerCore;
+        private CertificateValidationCore? m_userCore;
+        private CertificateValidationCore? m_httpsCore;
         private Func<Certificate, ServiceResult, bool>? m_acceptError;
         private bool m_disposed;
 
@@ -242,8 +240,8 @@ namespace Opc.Ua
             m_sendCertificateChain = config.SendCertificateChain;
 
             // Snapshot global validation flags from the SecurityConfiguration so
-            // that per-trust-list CertificateValidator instances created lazily
-            // by GetOrCreateValidator inherit them. Without this, the
+            // that per-trust-list CertificateValidationCore instances created lazily
+            // by GetOrCreateCore inherit them. Without this, the
             // ApplicationConfiguration-level flags (AutoAcceptUntrustedCertificates
             // etc.) are silently dropped and validation regresses to defaults.
             m_autoAcceptUntrustedCertificates = config.AutoAcceptUntrustedCertificates;
@@ -255,12 +253,12 @@ namespace Opc.Ua
             }
             m_useValidatedCertificates = config.UseValidatedCertificates;
 
-            // Propagate to any already-created cached validators so behavior
+            // Propagate to any already-created cached cores so behavior
             // changes when MapFromSecurityConfiguration is called more than
             // once on the same manager.
-            ApplyValidationFlags(m_peerValidator);
-            ApplyValidationFlags(m_userValidator);
-            ApplyValidationFlags(m_httpsValidator);
+            ApplyValidationFlags(m_peerCore);
+            ApplyValidationFlags(m_userCore);
+            ApplyValidationFlags(m_httpsCore);
 
             RegisterOrReplaceTrustList(
                 TrustListIdentifier.Peers,
@@ -327,9 +325,9 @@ namespace Opc.Ua
                 m_autoAcceptUntrustedCertificates = value;
                 lock (m_certificatesLock)
                 {
-                    ApplyValidationFlags(m_peerValidator);
-                    ApplyValidationFlags(m_userValidator);
-                    ApplyValidationFlags(m_httpsValidator);
+                    ApplyValidationFlags(m_peerCore);
+                    ApplyValidationFlags(m_userCore);
+                    ApplyValidationFlags(m_httpsCore);
                 }
             }
         }
@@ -347,9 +345,9 @@ namespace Opc.Ua
                 m_rejectSHA1SignedCertificates = value;
                 lock (m_certificatesLock)
                 {
-                    ApplyValidationFlags(m_peerValidator);
-                    ApplyValidationFlags(m_userValidator);
-                    ApplyValidationFlags(m_httpsValidator);
+                    ApplyValidationFlags(m_peerCore);
+                    ApplyValidationFlags(m_userCore);
+                    ApplyValidationFlags(m_httpsCore);
                 }
             }
         }
@@ -367,9 +365,9 @@ namespace Opc.Ua
                 m_rejectUnknownRevocationStatus = value;
                 lock (m_certificatesLock)
                 {
-                    ApplyValidationFlags(m_peerValidator);
-                    ApplyValidationFlags(m_userValidator);
-                    ApplyValidationFlags(m_httpsValidator);
+                    ApplyValidationFlags(m_peerCore);
+                    ApplyValidationFlags(m_userCore);
+                    ApplyValidationFlags(m_httpsCore);
                 }
             }
         }
@@ -394,14 +392,6 @@ namespace Opc.Ua
                 else
                 {
                     m_maxRejectedCertificates = value;
-                }
-                lock (m_certificatesLock)
-                {
-                    // Propagate to per-trust-list legacy validators so the
-                    // inner RejectedCertificateWriter caps its writes too.
-                    ApplyValidationFlags(m_peerValidator);
-                    ApplyValidationFlags(m_userValidator);
-                    ApplyValidationFlags(m_httpsValidator);
                 }
                 if (m_rejectedProcessor != null)
                 {
@@ -515,27 +505,8 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(issuers));
             }
 
-#pragma warning disable CS0618 // Type or member is obsolete
-            CertificateValidator validator = GetOrCreateValidator(TrustListIdentifier.Peers);
-#pragma warning restore CS0618
-
-            // The legacy validator's GetIssuersAsync exposes a List<CertificateIdentifier>;
-            // marshal between the two collection types so the registry can keep an IList
-            // signature without forcing callers to allocate a concrete List.
-            var temp = issuers as List<CertificateIdentifier> ?? [.. issuers];
-            int existingCount = temp.Count;
-            bool isTrusted = await validator.GetIssuersAsync(certificate, temp, ct)
-                .ConfigureAwait(false);
-
-            if (!ReferenceEquals(temp, issuers))
-            {
-                for (int i = existingCount; i < temp.Count; i++)
-                {
-                    issuers.Add(temp[i]);
-                }
-            }
-
-            return isTrusted;
+            CertificateValidationCore core = GetOrCreateCore(TrustListIdentifier.Peers);
+            return await core.GetIssuersAsync(certificate, issuers, ct).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -618,57 +589,37 @@ namespace Opc.Ua
             CancellationToken ct = default)
         {
             trustList ??= TrustListIdentifier.Peers;
-#pragma warning disable CS0618 // Type or member is obsolete
-            CertificateValidator validator = GetOrCreateValidator(trustList);
-#pragma warning restore CS0618
+            CertificateValidationCore core = GetOrCreateCore(trustList);
 
             // Per-call AcceptError takes precedence over the global hook.
             Func<Certificate, ServiceResult, bool>? acceptError =
                 options?.AcceptError ?? m_acceptError;
 
-            CertificateValidationEventHandler? handler = null;
-            if (acceptError != null)
+            CertificateValidationResult result = await core
+                .ValidateAsync(chain, acceptError, ct)
+                .ConfigureAwait(false);
+
+            if (!result.IsValid && chain != null && chain.Count > 0)
             {
-                Func<Certificate, ServiceResult, bool> callback = acceptError;
-                handler = (sender, e) =>
+                // The core does not own a rejected-store writer; the manager
+                // is responsible for enqueuing failed chains on the shared
+                // RejectedCertificateProcessor. We pass the chain references
+                // directly without AddRef — the processor reads RawData
+                // synchronously from each cert; the caller still owns the
+                // refcount and is responsible for disposal.
+                m_rejectedProcessor ??= new RejectedCertificateProcessor(
+                    this, m_maxRejectedCertificates, m_telemetry);
+
+                var rejectedChain = new CertificateCollection();
+                foreach (Certificate c in chain)
                 {
-                    try
-                    {
-                        if (callback(e.Certificate, e.Error))
-                        {
-                            e.Accept = true;
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        m_logger.LogError(
-                            ex,
-                            "CertificateValidationOptions.AcceptError callback threw; treating as reject.");
-                    }
-                };
-                validator.CertificateValidation += handler;
+                    rejectedChain.Add(c);
+                }
+                await m_rejectedProcessor.EnqueueAsync(rejectedChain, ct)
+                    .ConfigureAwait(false);
             }
 
-            try
-            {
-                await validator.ValidateAsync(chain, ct).ConfigureAwait(false);
-                return CertificateValidationResult.Success;
-            }
-            catch (ServiceResultException ex)
-            {
-                return new CertificateValidationResult(
-                    false,
-                    ex.StatusCode,
-                    [ex.Result],
-                    isSuppressible: false);
-            }
-            finally
-            {
-                if (handler != null)
-                {
-                    validator.CertificateValidation -= handler;
-                }
-            }
+            return result;
         }
 
         /// <inheritdoc/>
@@ -692,9 +643,7 @@ namespace Opc.Ua
             CancellationToken ct = default)
         {
             CertificateEntry? oldEntry = null;
-#pragma warning disable CS0618
-            CertificateValidator? oldPeer, oldUser, oldHttps;
-#pragma warning restore CS0618
+            CertificateValidationCore? oldPeer, oldUser, oldHttps;
 
             lock (m_certificatesLock)
             {
@@ -721,13 +670,13 @@ namespace Opc.Ua
                         certificateType));
                 }
 
-                // Invalidate cached validators.
-                oldPeer = m_peerValidator; m_peerValidator = null;
-                oldUser = m_userValidator; m_userValidator = null;
-                oldHttps = m_httpsValidator; m_httpsValidator = null;
+                // Invalidate cached validation cores.
+                oldPeer = m_peerCore; m_peerCore = null;
+                oldUser = m_userCore; m_userCore = null;
+                oldHttps = m_httpsCore; m_httpsCore = null;
             }
 
-            // Dispose orphaned validators OUTSIDE the lock.
+            // Dispose orphaned cores OUTSIDE the lock.
             oldPeer?.Dispose();
             oldUser?.Dispose();
             oldHttps?.Dispose();
@@ -767,9 +716,7 @@ namespace Opc.Ua
         {
             // Snapshot the previous primary entry (if any) so we can fire a
             // CertificateChange notification once the reload completes.
-#pragma warning disable CS0618
-            CertificateValidator? oldPeer, oldUser, oldHttps;
-#pragma warning restore CS0618
+            CertificateValidationCore? oldPeer, oldUser, oldHttps;
             CertificateEntry? oldPrimary;
             lock (m_certificatesLock)
             {
@@ -782,14 +729,14 @@ namespace Opc.Ua
 
             lock (m_certificatesLock)
             {
-                // Invalidate cached validators so subsequent validations pick up
+                // Invalidate cached cores so subsequent validations pick up
                 // any trust-list/cert changes implicit in the reload.
-                oldPeer = m_peerValidator; m_peerValidator = null;
-                oldUser = m_userValidator; m_userValidator = null;
-                oldHttps = m_httpsValidator; m_httpsValidator = null;
+                oldPeer = m_peerCore; m_peerCore = null;
+                oldUser = m_userCore; m_userCore = null;
+                oldHttps = m_httpsCore; m_httpsCore = null;
             }
 
-            // Dispose orphaned validators OUTSIDE the lock.
+            // Dispose orphaned cores OUTSIDE the lock.
             oldPeer?.Dispose();
             oldUser?.Dispose();
             oldHttps?.Dispose();
@@ -834,42 +781,12 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public async Task FlushRejectedAsync(CancellationToken ct = default)
+        public Task FlushRejectedAsync(CancellationToken ct = default)
         {
-            // Wait for the manager's own rejected processor (used when callers
-            // invoke RejectCertificateAsync directly).
-            Task processorDrain = m_rejectedProcessor?.WaitForDrainAsync()
+            // Only the manager-owned RejectedCertificateProcessor is used now;
+            // the per-trust-list validation cores no longer own writer queues.
+            return m_rejectedProcessor?.WaitForDrainAsync()
                 ?? Task.CompletedTask;
-
-            // Snapshot the per-trust-list legacy validators so we can also
-            // wait on their internal RejectedCertificateWriter queues. The
-            // current ValidateAsync implementation delegates to a cached
-            // legacy validator per trust list and that validator owns its
-            // own writer — without flushing it the rejected store can lag
-            // behind the test assertions.
-#pragma warning disable CS0618 // Type or member is obsolete
-            CertificateValidator? peer, user, https;
-#pragma warning restore CS0618
-            lock (m_certificatesLock)
-            {
-                peer = m_peerValidator;
-                user = m_userValidator;
-                https = m_httpsValidator;
-            }
-
-            await processorDrain.ConfigureAwait(false);
-            if (peer != null)
-            {
-                await peer.WaitForRejectedCertificatesDrainAsync().ConfigureAwait(false);
-            }
-            if (user != null)
-            {
-                await user.WaitForRejectedCertificatesDrainAsync().ConfigureAwait(false);
-            }
-            if (https != null)
-            {
-                await https.WaitForRejectedCertificatesDrainAsync().ConfigureAwait(false);
-            }
         }
 
         /// <inheritdoc/>
@@ -1056,12 +973,12 @@ namespace Opc.Ua
                         .AsTask().GetAwaiter().GetResult();
                 }
 
-                m_peerValidator?.Dispose();
-                m_peerValidator = null;
-                m_userValidator?.Dispose();
-                m_userValidator = null;
-                m_httpsValidator?.Dispose();
-                m_httpsValidator = null;
+                m_peerCore?.Dispose();
+                m_peerCore = null;
+                m_userCore?.Dispose();
+                m_userCore = null;
+                m_httpsCore?.Dispose();
+                m_httpsCore = null;
 
                 foreach (CertificateEntry entry in m_applicationCertificates)
                 {
@@ -1076,23 +993,22 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Gets or creates a <see cref="CertificateValidator"/> configured
+        /// Gets or creates a <see cref="CertificateValidationCore"/> configured
         /// for the specified trust list.
         /// </summary>
-#pragma warning disable CS0618 // Type or member is obsolete
-        private CertificateValidator GetOrCreateValidator(TrustListIdentifier trustList)
+        private CertificateValidationCore GetOrCreateCore(TrustListIdentifier trustList)
         {
-            // Fast path: return a cached validator without taking the lock.
-            CertificateValidator? cached = GetCachedValidator(trustList);
+            // Fast path: return a cached core without taking the lock.
+            CertificateValidationCore? cached = GetCachedCore(trustList);
             if (cached != null)
             {
                 return cached;
             }
 
-            // Slow path: build a candidate validator outside the lock,
+            // Slow path: build a candidate core outside the lock,
             // then atomically install it. If a peer thread won the race,
             // dispose the loser.
-            var candidate = new CertificateValidator(m_telemetry);
+            var candidate = new CertificateValidationCore(m_telemetry);
 
             if (m_trustLists.TryGetValue(trustList, out TrustListEntry? entry))
             {
@@ -1104,34 +1020,25 @@ namespace Opc.Ua
                     ? new CertificateTrustList { StorePath = entry.IssuerStorePath }
                     : null;
 
-                CertificateStoreIdentifier? rejectedStore = null;
-                if (m_trustLists.TryGetValue(
-                        TrustListIdentifier.Rejected,
-                        out TrustListEntry? rejectedEntry))
-                {
-                    rejectedStore = new CertificateStoreIdentifier(
-                        rejectedEntry.TrustedStorePath);
-                }
-
-                candidate.Update(issuerStore, trustedStore, rejectedStore);
+                candidate.Update(issuerStore, trustedStore, rejectedCertificateStore: null);
             }
 
             ApplyValidationFlags(candidate);
 
-            CertificateValidator winner;
+            CertificateValidationCore winner;
             lock (m_certificatesLock)
             {
                 if (trustList == TrustListIdentifier.Peers)
                 {
-                    winner = m_peerValidator ??= candidate;
+                    winner = m_peerCore ??= candidate;
                 }
                 else if (trustList == TrustListIdentifier.Users)
                 {
-                    winner = m_userValidator ??= candidate;
+                    winner = m_userCore ??= candidate;
                 }
                 else if (trustList == TrustListIdentifier.Https)
                 {
-                    winner = m_httpsValidator ??= candidate;
+                    winner = m_httpsCore ??= candidate;
                 }
                 else
                 {
@@ -1147,58 +1054,52 @@ namespace Opc.Ua
             }
             return winner;
         }
-#pragma warning restore CS0618
 
         /// <summary>
         /// Applies the global validation flags captured from the
-        /// SecurityConfiguration to a (possibly already-created) validator.
-        /// Safe to call with a null validator.
+        /// SecurityConfiguration to a (possibly already-created) core.
+        /// Safe to call with a null core.
         /// </summary>
-#pragma warning disable CS0618 // Type or member is obsolete
-        private void ApplyValidationFlags(CertificateValidator? validator)
+        private void ApplyValidationFlags(CertificateValidationCore? core)
         {
-            if (validator == null)
+            if (core == null)
             {
                 return;
             }
 
-            validator.AutoAcceptUntrustedCertificates = m_autoAcceptUntrustedCertificates;
-            validator.RejectSHA1SignedCertificates = m_rejectSHA1SignedCertificates;
-            validator.RejectUnknownRevocationStatus = m_rejectUnknownRevocationStatus;
-            validator.MaxRejectedCertificates = m_maxRejectedCertificates;
+            core.AutoAcceptUntrustedCertificates = m_autoAcceptUntrustedCertificates;
+            core.RejectSHA1SignedCertificates = m_rejectSHA1SignedCertificates;
+            core.RejectUnknownRevocationStatus = m_rejectUnknownRevocationStatus;
             if (m_minimumCertificateKeySize > 0)
             {
-                validator.MinimumCertificateKeySize = m_minimumCertificateKeySize;
+                core.MinimumCertificateKeySize = m_minimumCertificateKeySize;
             }
-            validator.UseValidatedCertificates = m_useValidatedCertificates;
+            core.UseValidatedCertificates = m_useValidatedCertificates;
         }
-#pragma warning restore CS0618
 
         /// <summary>
-        /// Returns the cached validator for a well-known trust list,
+        /// Returns the cached core for a well-known trust list,
         /// or <see langword="null"/> if none is cached yet.
         /// </summary>
-#pragma warning disable CS0618 // Type or member is obsolete
-        private CertificateValidator? GetCachedValidator(TrustListIdentifier trustList)
+        private CertificateValidationCore? GetCachedCore(TrustListIdentifier trustList)
         {
             if (trustList == TrustListIdentifier.Peers)
             {
-                return m_peerValidator;
+                return m_peerCore;
             }
 
             if (trustList == TrustListIdentifier.Users)
             {
-                return m_userValidator;
+                return m_userCore;
             }
 
             if (trustList == TrustListIdentifier.Https)
             {
-                return m_httpsValidator;
+                return m_httpsCore;
             }
 
             return null;
         }
-#pragma warning restore CS0618
 
         /// <summary>
         /// Opens a certificate store at the given path, resolving the

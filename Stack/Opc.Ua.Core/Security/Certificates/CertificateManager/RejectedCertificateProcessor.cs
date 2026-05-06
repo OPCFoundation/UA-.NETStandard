@@ -45,12 +45,16 @@ namespace Opc.Ua
     /// </summary>
     internal sealed class RejectedCertificateProcessor : IAsyncDisposable
     {
-        private readonly Channel<CertificateCollection?> m_channel;
+        private readonly Channel<WriteRequest> m_channel;
         private readonly Task m_processingTask;
         private readonly ICertificateTrustListManager m_trustListManager;
         private int m_maxRejectedCertificates;
         private TaskCompletionSource<bool> m_drainTcs = CreateCompletedTcs();
         private readonly ILogger m_logger;
+
+        private readonly record struct WriteRequest(
+            CertificateCollection? Chain,
+            TaskCompletionSource<bool> Completion);
 
         /// <summary>
         /// Initializes a new instance of the
@@ -64,10 +68,24 @@ namespace Opc.Ua
             m_trustListManager = trustListManager;
             m_maxRejectedCertificates = maxRejectedCertificates;
             m_logger = telemetry.CreateLogger<RejectedCertificateProcessor>();
-            m_channel = Channel.CreateBounded<CertificateCollection?>(
+            m_channel = Channel.CreateBounded<WriteRequest>(
                 new BoundedChannelOptions(100)
                 {
-                    FullMode = BoundedChannelFullMode.DropOldest
+                    FullMode = BoundedChannelFullMode.DropOldest,
+                    SingleReader = true
+                },
+                itemDropped: dropped =>
+                {
+                    // The dropped chain is owned by us — dispose it and
+                    // signal completion so any awaiter is unblocked.
+                    try
+                    {
+                        dropped.Chain?.Dispose();
+                    }
+                    finally
+                    {
+                        dropped.Completion.TrySetResult(false);
+                    }
                 });
             m_processingTask = ProcessAsync();
         }
@@ -90,11 +108,16 @@ namespace Opc.Ua
         {
             var tcs = new TaskCompletionSource<bool>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
+            // Track the most recently enqueued request so WaitForDrainAsync
+            // can return when *that* request has been processed. Because the
+            // channel is processed in order, this also implies all earlier
+            // requests have completed.
             Interlocked.Exchange(ref m_drainTcs, tcs);
 
-            return m_channel.Writer.TryWrite(chain)
+            var request = new WriteRequest(chain, tcs);
+            return m_channel.Writer.TryWrite(request)
                         ? default
-                        : m_channel.Writer.WriteAsync(chain, ct);
+                        : m_channel.Writer.WriteAsync(request, ct);
         }
 
         /// <summary>
@@ -109,9 +132,10 @@ namespace Opc.Ua
                 TaskCreationOptions.RunContinuationsAsynchronously);
             Interlocked.Exchange(ref m_drainTcs, tcs);
 
-            return m_channel.Writer.TryWrite(null)
+            var request = new WriteRequest(Chain: null, tcs);
+            return m_channel.Writer.TryWrite(request)
                         ? default
-                        : m_channel.Writer.WriteAsync(null, ct);
+                        : m_channel.Writer.WriteAsync(request, ct);
         }
 
         /// <summary>
@@ -135,9 +159,10 @@ namespace Opc.Ua
 
         private async Task ProcessAsync()
         {
-            await foreach (CertificateCollection? chain in m_channel.Reader.ReadAllAsync()
+            await foreach (WriteRequest request in m_channel.Reader.ReadAllAsync()
                 .ConfigureAwait(false))
             {
+                bool ok = false;
                 try
                 {
                     if (!m_trustListManager.TrustLists
@@ -149,7 +174,7 @@ namespace Opc.Ua
                     using ICertificateStore store = m_trustListManager
                         .OpenTrustedStore(TrustListIdentifier.Rejected);
                     int max = Volatile.Read(ref m_maxRejectedCertificates);
-                    if (chain == null)
+                    if (request.Chain == null)
                     {
                         // Trim-only: pass an empty collection so the store
                         // re-applies the cap to existing entries without
@@ -160,9 +185,11 @@ namespace Opc.Ua
                     }
                     else
                     {
-                        await store.AddRejectedAsync(chain, max)
+                        await store.AddRejectedAsync(request.Chain, max)
                             .ConfigureAwait(false);
                     }
+
+                    ok = true;
                 }
                 catch (Exception ex)
                 {
@@ -172,7 +199,11 @@ namespace Opc.Ua
                 }
                 finally
                 {
-                    Volatile.Read(ref m_drainTcs).TrySetResult(true);
+                    // Dispose the chain we own so the per-cert AddRef from
+                    // CertificateCollection.Add is balanced. Without this,
+                    // certs added to a chain enqueued here would leak.
+                    request.Chain?.Dispose();
+                    request.Completion.TrySetResult(ok);
                 }
             }
         }
@@ -182,6 +213,15 @@ namespace Opc.Ua
         {
             m_channel.Writer.TryComplete();
             await m_processingTask.ConfigureAwait(false);
+
+            // Defensive drain: if the processing task exited early (e.g. due
+            // to an unhandled exception), dispose any remaining chains that
+            // we own.
+            while (m_channel.Reader.TryRead(out WriteRequest leftover))
+            {
+                leftover.Chain?.Dispose();
+                leftover.Completion.TrySetResult(false);
+            }
         }
 
         private static TaskCompletionSource<bool> CreateCompletedTcs()

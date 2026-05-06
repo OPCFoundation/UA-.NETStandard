@@ -1096,10 +1096,13 @@ namespace Opc.Ua
 
                 LogInnerServiceResults(LogLevel.Information, se.Result.InnerResult);
 
+                ServiceResultException unsuppressible = new ServiceResultException(
+                    se,
+                    StatusCodes.BadCertificateInvalid);
                 return new CertificateValidationResult(
                     isValid: false,
-                    statusCode: StatusCodes.BadCertificateInvalid,
-                    errors: [se.Result],
+                    statusCode: unsuppressible.StatusCode,
+                    errors: [unsuppressible.Result],
                     isSuppressible: false);
             }
 
@@ -1134,6 +1137,11 @@ namespace Opc.Ua
                 {
                     serviceResult = serviceResult.InnerResult;
                 }
+                else
+                {
+                    // report the rejected service result
+                    se = new ServiceResultException(serviceResult);
+                }
             } while (accept && serviceResult != null);
 
             if (!accept)
@@ -1144,10 +1152,13 @@ namespace Opc.Ua
                     se.Result.ToLongString());
                 LogInnerServiceResults(LogLevel.Error, se.Result.InnerResult);
 
+                ServiceResultException suppressible = new ServiceResultException(
+                    se,
+                    StatusCodes.BadCertificateInvalid);
                 return new CertificateValidationResult(
                     isValid: false,
-                    statusCode: StatusCodes.BadCertificateInvalid,
-                    errors: [se.Result],
+                    statusCode: suppressible.StatusCode,
+                    errors: [suppressible.Result],
                     isSuppressible: true);
             }
 
