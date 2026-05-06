@@ -241,9 +241,7 @@ namespace Opc.Ua.Mcp
 
                 if (autoAcceptCerts)
                 {
-#pragma warning disable CS0618 // Type or member is obsolete
-                    m_configuration!.CertificateValidator.AcceptError = AutoAcceptError;
-#pragma warning restore CS0618
+                    m_configuration!.CertificateManager.AcceptError = AutoAcceptError;
                 }
 
                 m_logger.LogInformation("Connecting to {EndpointUrl} as '{Name}'...", endpointUrl, name);
@@ -452,9 +450,7 @@ namespace Opc.Ua.Mcp
 
             if (autoAcceptCerts)
             {
-#pragma warning disable CS0618 // Type or member is obsolete
-                config.CertificateValidator.AcceptError = AutoAcceptError;
-#pragma warning restore CS0618
+                config.CertificateManager.AcceptError = AutoAcceptError;
             }
 
             m_configuration = config;

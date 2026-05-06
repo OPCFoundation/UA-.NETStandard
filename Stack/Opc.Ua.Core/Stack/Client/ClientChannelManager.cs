@@ -173,9 +173,7 @@ namespace Opc.Ua
 
             if (configuration != null)
             {
-#pragma warning disable CS0618 // Type or member is obsolete
-                settings.CertificateValidator = configuration.CertificateValidator;
-#pragma warning restore CS0618
+                settings.CertificateValidator = configuration.CertificateManager;
             }
 
             settings.NamespaceUris = messageContext.NamespaceUris;
@@ -253,9 +251,7 @@ namespace Opc.Ua
 
             if (configuration != null)
             {
-#pragma warning disable CS0618 // Type or member is obsolete
-                settings.CertificateValidator = configuration.CertificateValidator;
-#pragma warning restore CS0618
+                settings.CertificateValidator = configuration.CertificateManager;
             }
 
             settings.NamespaceUris = messageContext.NamespaceUris;

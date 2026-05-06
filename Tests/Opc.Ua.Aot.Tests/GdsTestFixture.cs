@@ -168,12 +168,9 @@ namespace Opc.Ua.Aot.Tests
             await m_clientConfiguration.ValidateAsync(ApplicationType.Client)
                 .ConfigureAwait(false);
 
-#pragma warning disable CS0618 // Type or member is obsolete
-            if (m_clientConfiguration.CertificateValidator is CertificateValidator legacyValidator)
-            {
-                legacyValidator.CertificateValidation += (s, e) => e.Accept = true;
-            }
-#pragma warning restore CS0618
+            m_clientConfiguration.CertificateManager ??= CertificateManagerFactory.Create(
+                m_clientConfiguration.SecurityConfiguration, Telemetry);
+            m_clientConfiguration.CertificateManager.AcceptError = static (cert, err) => true;
 
             // Create the GDS client with admin credentials
             GdsClient = new GlobalDiscoveryServerClient(
@@ -239,6 +236,12 @@ namespace Opc.Ua.Aot.Tests
             {
                 await m_serverApplication.DisposeAsync().ConfigureAwait(false);
                 m_serverApplication = null;
+            }
+
+            if (m_clientConfiguration?.CertificateManager is IDisposable disposableManager)
+            {
+                disposableManager.Dispose();
+                m_clientConfiguration.CertificateManager = null;
             }
 
             CleanDirectory(m_pkiRoot);

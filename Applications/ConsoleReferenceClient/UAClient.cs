@@ -72,11 +72,9 @@ namespace Quickstarts
             m_logger = telemetry.CreateLogger<UAClient>();
             m_telemetry = telemetry;
             m_configuration = configuration;
-            // Modern global accept hook on ICertificateValidatorEx — fires for
-            // every certificate validation done via this validator.
-#pragma warning disable CS0618 // Type or member is obsolete
-            m_configuration.CertificateValidator.AcceptError = AcceptCertificate;
-#pragma warning restore CS0618
+            // Modern global accept hook on ICertificateManager — fires for
+            // every certificate validation done via this manager.
+            m_configuration.CertificateManager.AcceptError = AcceptCertificate;
             m_reverseConnectManager = reverseConnectManager;
         }
 
@@ -101,9 +99,7 @@ namespace Quickstarts
             {
                 m_reconnectHandler?.Dispose();
                 Session?.Dispose();
-#pragma warning disable CS0618 // Type or member is obsolete
-                m_configuration.CertificateValidator.AcceptError = null;
-#pragma warning restore CS0618
+                m_configuration.CertificateManager.AcceptError = null;
             }
             m_disposed = true;
         }

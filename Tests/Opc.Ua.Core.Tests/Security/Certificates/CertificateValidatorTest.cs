@@ -341,7 +341,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
-            using var validator = TemporaryCertValidator.Create(telemetry);
+            using var validator = TemporaryCertificateManager.Create(telemetry);
             // add random issuer certs
             for (int i = 0; i < kCaChainCount; i++)
             {
@@ -357,20 +357,17 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 }
             }
 
-#pragma warning disable CS0618 // Type or member is obsolete
-            CertificateValidator certValidator = validator.Update();
-#pragma warning restore CS0618
+            ICertificateValidatorEx certValidator = validator.Update();
             foreach (Certificate cert in m_appSelfSignedCerts)
             {
                 using Certificate publicKey = Certificate.FromRawData(cert.RawData);
-                ServiceResultException serviceResultException = Assert
-                    .ThrowsAsync<ServiceResultException>(
-                        async () =>
-                            await certValidator.ValidateAsync(publicKey, CancellationToken.None).ConfigureAwait(false));
+                Opc.Ua.CertificateValidationResult result = await certValidator
+                    .ValidateAsync(publicKey, ct: CancellationToken.None)
+                    .ConfigureAwait(false);
+                Assert.That(result.IsValid, Is.False);
                 Assert.That(
-                    serviceResultException.StatusCode,
-                    Is.EqualTo(StatusCodes.BadCertificateUntrusted),
-                    serviceResultException.Message);
+                    result.StatusCode,
+                    Is.EqualTo((StatusCode)StatusCodes.BadCertificateUntrusted));
             }
         }
 
@@ -591,7 +588,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
             // add all certs to trusted store
-            using var validator = TemporaryCertValidator.Create(telemetry);
+            using var validator = TemporaryCertificateManager.Create(telemetry);
             foreach (Certificate cert in m_appSelfSignedCerts)
             {
                 await validator.TrustedStore.AddAsync(cert).ConfigureAwait(false);
@@ -601,13 +598,14 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.That(
                 trustedCerts,
                 Has.Count.EqualTo(m_appSelfSignedCerts.Count));
-#pragma warning disable CS0618 // Type or member is obsolete
-            CertificateValidator certValidator = validator.Update();
-#pragma warning restore CS0618
+            ICertificateValidatorEx certValidator = validator.Update();
             foreach (Certificate cert in m_appSelfSignedCerts)
             {
                 using Certificate publicKey = Certificate.FromRawData(cert.RawData);
-                await certValidator.ValidateAsync(publicKey, default).ConfigureAwait(false);
+                Opc.Ua.CertificateValidationResult result = await certValidator
+                    .ValidateAsync(publicKey, ct: default)
+                    .ConfigureAwait(false);
+                Assert.That(result.IsValid, Is.True, result.StatusCode.ToString());
             }
         }
 
@@ -620,19 +618,20 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
             // add all certs to trusted and issuer store
-            using var validator = TemporaryCertValidator.Create(telemetry);
+            using var validator = TemporaryCertificateManager.Create(telemetry);
             foreach (Certificate cert in m_appSelfSignedCerts)
             {
                 await validator.TrustedStore.AddAsync(cert).ConfigureAwait(false);
                 await validator.IssuerStore.AddAsync(cert).ConfigureAwait(false);
             }
-#pragma warning disable CS0618 // Type or member is obsolete
-            CertificateValidator certValidator = validator.Update();
-#pragma warning restore CS0618
+            ICertificateValidatorEx certValidator = validator.Update();
             foreach (Certificate cert in m_appSelfSignedCerts)
             {
                 using Certificate publicKey = Certificate.FromRawData(cert.RawData);
-                await certValidator.ValidateAsync(publicKey, CancellationToken.None).ConfigureAwait(false);
+                Opc.Ua.CertificateValidationResult result = await certValidator
+                    .ValidateAsync(publicKey, ct: CancellationToken.None)
+                    .ConfigureAwait(false);
+                Assert.That(result.IsValid, Is.True, result.StatusCode.ToString());
             }
         }
 
@@ -651,7 +650,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             {
                 long start = stopWatch.ElapsedMilliseconds;
                 TestContext.Out.WriteLine($"Chain Number {v}, Total Elapsed: {start}");
-                using var validator = TemporaryCertValidator.Create(telemetry);
+                using var validator = TemporaryCertificateManager.Create(telemetry);
                 TestContext.Out.WriteLine($"Cleanup: {stopWatch.ElapsedMilliseconds - start}");
                 for (int i = 0; i < kCaChainCount; i++)
                 {
@@ -662,15 +661,16 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     await store.AddCRLAsync(m_crlChain[i]).ConfigureAwait(false);
                 }
                 TestContext.Out.WriteLine($"AddChains: {stopWatch.ElapsedMilliseconds - start}");
-    #pragma warning disable CS0618 // Type or member is obsolete
-            CertificateValidator certValidator = validator.Update();
-#pragma warning restore CS0618
+                ICertificateValidatorEx certValidator = validator.Update();
                 TestContext.Out
                     .WriteLine($"InitValidator: {stopWatch.ElapsedMilliseconds - start}");
                 foreach (ApplicationTestData app in m_goodApplicationTestSet)
                 {
                     using Certificate publicKey = Certificate.FromRawData(app.Certificate);
-                    await certValidator.ValidateAsync(publicKey, CancellationToken.None).ConfigureAwait(false);
+                    Opc.Ua.CertificateValidationResult result = await certValidator
+                        .ValidateAsync(publicKey, ct: CancellationToken.None)
+                        .ConfigureAwait(false);
+                    Assert.That(result.IsValid, Is.True, result.StatusCode.ToString());
                 }
                 TestContext.Out.WriteLine($"Validation: {stopWatch.ElapsedMilliseconds - start}");
             }
@@ -688,7 +688,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             // verify cert with issuer chain
             for (int v = 0; v < kCaChainCount; v++)
             {
-                using var validator = TemporaryCertValidator.Create(telemetry);
+                using var validator = TemporaryCertificateManager.Create(telemetry);
                 for (int i = 0; i < kCaChainCount; i++)
                 {
                     ICertificateStore store =
@@ -698,13 +698,14 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     await store.AddAsync(m_caChain[i]).ConfigureAwait(false);
                     await store.AddCRLAsync(m_crlChain[i]).ConfigureAwait(false);
                 }
-    #pragma warning disable CS0618 // Type or member is obsolete
-            CertificateValidator certValidator = validator.Update();
-#pragma warning restore CS0618
+                ICertificateValidatorEx certValidator = validator.Update();
                 foreach (ApplicationTestData app in m_goodApplicationTestSet)
                 {
                     using Certificate publicKey = Certificate.FromRawData(app.Certificate);
-                    await certValidator.ValidateAsync(publicKey, CancellationToken.None).ConfigureAwait(false);
+                    Opc.Ua.CertificateValidationResult result = await certValidator
+                        .ValidateAsync(publicKey, ct: CancellationToken.None)
+                        .ConfigureAwait(false);
+                    Assert.That(result.IsValid, Is.True, result.StatusCode.ToString());
                 }
             }
         }
@@ -720,7 +721,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             // verify cert with issuer chain
             for (int v = 0; v < kCaChainCount; v++)
             {
-                using var validator = TemporaryCertValidator.Create(telemetry);
+                using var validator = TemporaryCertificateManager.Create(telemetry);
                 for (int i = 0; i < kCaChainCount; i++)
                 {
                     if (i != v)
@@ -730,20 +731,17 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                             .ConfigureAwait(false);
                     }
                 }
-    #pragma warning disable CS0618 // Type or member is obsolete
-            CertificateValidator certValidator = validator.Update();
-#pragma warning restore CS0618
+                ICertificateValidatorEx certValidator = validator.Update();
                 foreach (ApplicationTestData app in m_goodApplicationTestSet)
                 {
                     using Certificate publicKey = Certificate.FromRawData(app.Certificate);
-                    ServiceResultException serviceResultException =
-                        Assert.ThrowsAsync<ServiceResultException>(async () =>
-                            await certValidator.ValidateAsync(
-                                publicKey, CancellationToken.None).ConfigureAwait(false));
+                    Opc.Ua.CertificateValidationResult result = await certValidator
+                        .ValidateAsync(publicKey, ct: CancellationToken.None)
+                        .ConfigureAwait(false);
+                    Assert.That(result.IsValid, Is.False);
                     Assert.That(
-                        serviceResultException.StatusCode,
-                        Is.EqualTo(StatusCodes.BadCertificateChainIncomplete),
-                        serviceResultException.Message);
+                        result.StatusCode,
+                        Is.EqualTo((StatusCode)StatusCodes.BadCertificateChainIncomplete));
                 }
             }
         }
@@ -759,7 +757,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             // verify cert with issuer chain
             for (int v = 0; v < kCaChainCount; v++)
             {
-                using var validator = TemporaryCertValidator.Create(telemetry);
+                using var validator = TemporaryCertificateManager.Create(telemetry);
                 for (int i = 0; i < kCaChainCount; i++)
                 {
                     if (i != v)
@@ -776,20 +774,17 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                             .ConfigureAwait(false);
                     }
                 }
-    #pragma warning disable CS0618 // Type or member is obsolete
-            CertificateValidator certValidator = validator.Update();
-#pragma warning restore CS0618
+                ICertificateValidatorEx certValidator = validator.Update();
                 foreach (ApplicationTestData app in m_goodApplicationTestSet)
                 {
                     using Certificate publicKey = Certificate.FromRawData(app.Certificate);
-                    ServiceResultException serviceResultException =
-                        Assert.ThrowsAsync<ServiceResultException>(async () =>
-                            await certValidator.ValidateAsync(
-                                publicKey, CancellationToken.None).ConfigureAwait(false));
+                    Opc.Ua.CertificateValidationResult result = await certValidator
+                        .ValidateAsync(publicKey, ct: CancellationToken.None)
+                        .ConfigureAwait(false);
+                    Assert.That(result.IsValid, Is.False);
                     Assert.That(
-                        serviceResultException.StatusCode,
-                        Is.EqualTo(StatusCodes.BadCertificateChainIncomplete),
-                        serviceResultException.Message);
+                        result.StatusCode,
+                        Is.EqualTo((StatusCode)StatusCodes.BadCertificateChainIncomplete));
                 }
             }
         }
@@ -805,7 +800,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             // verify cert with issuer chain
             for (int v = 0; v < kCaChainCount; v++)
             {
-                using var validator = TemporaryCertValidator.Create(telemetry);
+                using var validator = TemporaryCertificateManager.Create(telemetry);
                 for (int i = 0; i < kCaChainCount; i++)
                 {
                     ICertificateStore store = i == v
@@ -816,13 +811,14 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     await store.AddAsync(m_caDupeChain[i]).ConfigureAwait(false);
                     await store.AddCRLAsync(m_crlDupeChain[i]).ConfigureAwait(false);
                 }
-    #pragma warning disable CS0618 // Type or member is obsolete
-            CertificateValidator certValidator = validator.Update();
-#pragma warning restore CS0618
+                ICertificateValidatorEx certValidator = validator.Update();
                 foreach (ApplicationTestData app in m_goodApplicationTestSet)
                 {
                     using Certificate publicKey = Certificate.FromRawData(app.Certificate);
-                    await certValidator.ValidateAsync(publicKey, CancellationToken.None).ConfigureAwait(false);
+                    Opc.Ua.CertificateValidationResult result = await certValidator
+                        .ValidateAsync(publicKey, ct: CancellationToken.None)
+                        .ConfigureAwait(false);
+                    Assert.That(result.IsValid, Is.True, result.StatusCode.ToString());
                 }
             }
         }
@@ -838,7 +834,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             // verify cert is revoked with CRL in trusted store
             for (int v = 0; v < kCaChainCount; v++)
             {
-                using var validator = TemporaryCertValidator.Create(telemetry);
+                using var validator = TemporaryCertificateManager.Create(telemetry);
                 for (int i = 0; i < kCaChainCount; i++)
                 {
                     if (i == v)
@@ -854,22 +850,19 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                             .ConfigureAwait(false);
                     }
                 }
-    #pragma warning disable CS0618 // Type or member is obsolete
-            CertificateValidator certValidator = validator.Update();
-#pragma warning restore CS0618
+                ICertificateValidatorEx certValidator = validator.Update();
                 foreach (ApplicationTestData app in m_goodApplicationTestSet)
                 {
                     using Certificate publicKey = Certificate.FromRawData(app.Certificate);
-                    ServiceResultException serviceResultException =
-                        Assert.ThrowsAsync<ServiceResultException>(async () =>
-                            await certValidator.ValidateAsync(
-                                publicKey, CancellationToken.None).ConfigureAwait(false));
+                    Opc.Ua.CertificateValidationResult result = await certValidator
+                        .ValidateAsync(publicKey, ct: CancellationToken.None)
+                        .ConfigureAwait(false);
+                    Assert.That(result.IsValid, Is.False);
                     Assert.That(
-                        serviceResultException.StatusCode,
-                        Is.EqualTo(v == kCaChainCount - 1
+                        result.StatusCode,
+                        Is.EqualTo((StatusCode)(v == kCaChainCount - 1
                             ? StatusCodes.BadCertificateRevoked
-                            : StatusCodes.BadCertificateIssuerRevoked),
-                        serviceResultException.Message);
+                            : StatusCodes.BadCertificateIssuerRevoked)));
                 }
             }
         }
@@ -884,7 +877,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
             for (int v = 0; v < kCaChainCount; v++)
             {
-                using var validator = TemporaryCertValidator.Create(telemetry);
+                using var validator = TemporaryCertificateManager.Create(telemetry);
                 for (int i = 0; i < kCaChainCount; i++)
                 {
                     if (i == v)
@@ -900,22 +893,19 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                             .ConfigureAwait(false);
                     }
                 }
-    #pragma warning disable CS0618 // Type or member is obsolete
-            CertificateValidator certValidator = validator.Update();
-#pragma warning restore CS0618
+                ICertificateValidatorEx certValidator = validator.Update();
                 foreach (ApplicationTestData app in m_goodApplicationTestSet)
                 {
                     using Certificate publicKey = Certificate.FromRawData(app.Certificate);
-                    ServiceResultException serviceResultException =
-                        Assert.ThrowsAsync<ServiceResultException>(async () =>
-                            await certValidator.ValidateAsync(
-                                publicKey, CancellationToken.None).ConfigureAwait(false));
+                    Opc.Ua.CertificateValidationResult result = await certValidator
+                        .ValidateAsync(publicKey, ct: CancellationToken.None)
+                        .ConfigureAwait(false);
+                    Assert.That(result.IsValid, Is.False);
                     Assert.That(
-                        serviceResultException.StatusCode,
-                        Is.EqualTo(v == kCaChainCount - 1
+                        result.StatusCode,
+                        Is.EqualTo((StatusCode)(v == kCaChainCount - 1
                             ? StatusCodes.BadCertificateRevoked
-                            : StatusCodes.BadCertificateIssuerRevoked),
-                        serviceResultException.Message);
+                            : StatusCodes.BadCertificateIssuerRevoked)));
                 }
             }
         }
@@ -930,7 +920,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
             for (int v = 0; v < kCaChainCount; v++)
             {
-                using var validator = TemporaryCertValidator.Create(telemetry);
+                using var validator = TemporaryCertificateManager.Create(telemetry);
                 for (int i = 0; i < kCaChainCount; i++)
                 {
                     if (i == v)
@@ -953,22 +943,19 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                         .TrustedStore.AddAsync(publicKeyAdd)
                         .ConfigureAwait(false);
                 }
-    #pragma warning disable CS0618 // Type or member is obsolete
-            CertificateValidator certValidator = validator.Update();
-#pragma warning restore CS0618
+                ICertificateValidatorEx certValidator = validator.Update();
                 foreach (ApplicationTestData app in m_goodApplicationTestSet)
                 {
                     using Certificate publicKey = Certificate.FromRawData(app.Certificate);
-                    ServiceResultException serviceResultException =
-                        Assert.ThrowsAsync<ServiceResultException>(async () =>
-                            await certValidator.ValidateAsync(
-                                publicKey, CancellationToken.None).ConfigureAwait(false));
+                    Opc.Ua.CertificateValidationResult result = await certValidator
+                        .ValidateAsync(publicKey, ct: CancellationToken.None)
+                        .ConfigureAwait(false);
+                    Assert.That(result.IsValid, Is.False);
                     Assert.That(
-                        serviceResultException.StatusCode,
-                        Is.EqualTo(v == kCaChainCount - 1
+                        result.StatusCode,
+                        Is.EqualTo((StatusCode)(v == kCaChainCount - 1
                             ? StatusCodes.BadCertificateRevoked
-                            : StatusCodes.BadCertificateIssuerRevoked),
-                        serviceResultException.Message);
+                            : StatusCodes.BadCertificateIssuerRevoked)));
                 }
             }
         }
@@ -983,7 +970,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
             for (int v = 0; v < kCaChainCount; v++)
             {
-                using var validator = TemporaryCertValidator.Create(telemetry);
+                using var validator = TemporaryCertificateManager.Create(telemetry);
                 for (int i = 0; i < kCaChainCount; i++)
                 {
                     await validator.TrustedStore.AddAsync(m_caChain[i]).ConfigureAwait(false);
@@ -998,22 +985,19 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                             .ConfigureAwait(false);
                     }
                 }
-    #pragma warning disable CS0618 // Type or member is obsolete
-            CertificateValidator certValidator = validator.Update();
-#pragma warning restore CS0618
+                ICertificateValidatorEx certValidator = validator.Update();
                 foreach (ApplicationTestData app in m_goodApplicationTestSet)
                 {
                     using Certificate publicKey = Certificate.FromRawData(app.Certificate);
-                    ServiceResultException serviceResultException =
-                        Assert.ThrowsAsync<ServiceResultException>(async () =>
-                            await certValidator.ValidateAsync(
-                                publicKey, CancellationToken.None).ConfigureAwait(false));
+                    Opc.Ua.CertificateValidationResult result = await certValidator
+                        .ValidateAsync(publicKey, ct: CancellationToken.None)
+                        .ConfigureAwait(false);
+                    Assert.That(result.IsValid, Is.False);
                     Assert.That(
-                        serviceResultException.StatusCode,
-                        Is.EqualTo(v == kCaChainCount - 1
+                        result.StatusCode,
+                        Is.EqualTo((StatusCode)(v == kCaChainCount - 1
                             ? StatusCodes.BadCertificateRevoked
-                            : StatusCodes.BadCertificateIssuerRevoked),
-                        serviceResultException.Message);
+                            : StatusCodes.BadCertificateIssuerRevoked)));
                 }
             }
         }
@@ -1028,7 +1012,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
             for (int v = 0; v < kCaChainCount; v++)
             {
-                using var validator = TemporaryCertValidator.Create(telemetry);
+                using var validator = TemporaryCertificateManager.Create(telemetry);
                 for (int i = 0; i < kCaChainCount; i++)
                 {
                     await validator.TrustedStore.AddAsync(m_caChain[i]).ConfigureAwait(false);
@@ -1050,22 +1034,19 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                         .TrustedStore.AddAsync(publicKeyAdd)
                         .ConfigureAwait(false);
                 }
-    #pragma warning disable CS0618 // Type or member is obsolete
-            CertificateValidator certValidator = validator.Update();
-#pragma warning restore CS0618
+                ICertificateValidatorEx certValidator = validator.Update();
                 foreach (ApplicationTestData app in m_goodApplicationTestSet)
                 {
                     using Certificate publicKey = Certificate.FromRawData(app.Certificate);
-                    ServiceResultException serviceResultException =
-                        Assert.ThrowsAsync<ServiceResultException>(async () =>
-                            await certValidator.ValidateAsync(
-                                publicKey, CancellationToken.None).ConfigureAwait(false));
+                    Opc.Ua.CertificateValidationResult result = await certValidator
+                        .ValidateAsync(publicKey, ct: CancellationToken.None)
+                        .ConfigureAwait(false);
+                    Assert.That(result.IsValid, Is.False);
                     Assert.That(
-                        serviceResultException.StatusCode,
-                        Is.EqualTo(v == kCaChainCount - 1
+                        result.StatusCode,
+                        Is.EqualTo((StatusCode)(v == kCaChainCount - 1
                             ? StatusCodes.BadCertificateRevoked
-                            : StatusCodes.BadCertificateIssuerRevoked),
-                        serviceResultException.Message);
+                            : StatusCodes.BadCertificateIssuerRevoked)));
                 }
             }
         }
@@ -1078,7 +1059,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
-            using var validator = TemporaryCertValidator.Create(telemetry);
+            using var validator = TemporaryCertificateManager.Create(telemetry);
             // issuer chain
             for (int i = 0; i < kCaChainCount; i++)
             {
@@ -1095,13 +1076,14 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     .ConfigureAwait(false);
             }
 
-#pragma warning disable CS0618 // Type or member is obsolete
-            CertificateValidator certValidator = validator.Update();
-#pragma warning restore CS0618
+            ICertificateValidatorEx certValidator = validator.Update();
             foreach (ApplicationTestData app in m_goodApplicationTestSet)
             {
                 using Certificate publicKey = Certificate.FromRawData(app.Certificate);
-                await certValidator.ValidateAsync(publicKey, CancellationToken.None).ConfigureAwait(false);
+                Opc.Ua.CertificateValidationResult result = await certValidator
+                    .ValidateAsync(publicKey, ct: CancellationToken.None)
+                    .ConfigureAwait(false);
+                Assert.That(result.IsValid, Is.True, result.StatusCode.ToString());
             }
         }
 
@@ -1116,7 +1098,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             for (int v = 0; v < kCaChainCount; v++)
             {
                 TestContext.Out.WriteLine("Chain cert {0} not in issuer store.", v);
-                using var validator = TemporaryCertValidator.Create(telemetry);
+                using var validator = TemporaryCertificateManager.Create(telemetry);
                 // issuer chain
                 for (int i = 0; i < kCaChainCount; i++)
                 {
@@ -1137,20 +1119,17 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                         .ConfigureAwait(false);
                 }
 
-    #pragma warning disable CS0618 // Type or member is obsolete
-            CertificateValidator certValidator = validator.Update();
-#pragma warning restore CS0618
+                ICertificateValidatorEx certValidator = validator.Update();
                 foreach (ApplicationTestData app in m_goodApplicationTestSet)
                 {
                     using Certificate publicKey = Certificate.FromRawData(app.Certificate);
-                    ServiceResultException serviceResultException =
-                        Assert.ThrowsAsync<ServiceResultException>(async () =>
-                            await certValidator.ValidateAsync(
-                                publicKey, CancellationToken.None).ConfigureAwait(false));
+                    Opc.Ua.CertificateValidationResult result = await certValidator
+                        .ValidateAsync(publicKey, ct: CancellationToken.None)
+                        .ConfigureAwait(false);
+                    Assert.That(result.IsValid, Is.False);
                     Assert.That(
-                        serviceResultException.StatusCode,
-                        Is.EqualTo(StatusCodes.BadCertificateChainIncomplete),
-                        serviceResultException.Message);
+                        result.StatusCode,
+                        Is.EqualTo((StatusCode)StatusCodes.BadCertificateChainIncomplete));
                 }
             }
         }

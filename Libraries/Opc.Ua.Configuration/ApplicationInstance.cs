@@ -75,7 +75,14 @@ namespace Opc.Ua.Configuration
                 }
             }
 
-            CertificateManager?.Dispose();
+            CertificateManager localManager = CertificateManager;
+            CertificateManager configManager = ApplicationConfiguration?.CertificateManager
+                as CertificateManager;
+            localManager?.Dispose();
+            if (configManager != null && !ReferenceEquals(configManager, localManager))
+            {
+                configManager.Dispose();
+            }
 
             GC.SuppressFinalize(this);
         }

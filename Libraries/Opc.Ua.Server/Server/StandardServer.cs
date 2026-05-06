@@ -387,11 +387,13 @@ namespace Opc.Ua.Server
                                         clientDescription.ApplicationUri);
                                 }
 
-#pragma warning disable CS0618 // Type or member is obsolete
-                                CertificateValidationResult clientCertResult = await CertificateValidator
-                                    .ValidateAsync(clientCertificateChain, ct: requestLifetime.CancellationToken)
+                                CertificateValidationResult clientCertResult = await CertificateManager
+                                    .ValidateAsync(
+                                        clientCertificateChain,
+                                        TrustListIdentifier.Peers,
+                                        options: null,
+                                        ct: requestLifetime.CancellationToken)
                                     .ConfigureAwait(false);
-#pragma warning restore CS0618
                                 if (!clientCertResult.IsValid)
                                 {
                                     throw new ServiceResultException(clientCertResult.StatusCode);
@@ -461,12 +463,10 @@ namespace Opc.Ua.Server
                             EndpointUrl = new Uri(endpointUrl)
                         };
 
-#pragma warning disable CS0618 // Type or member is obsolete
-                        CertificateValidator.ValidateDomains(
+                        CertificateManager.ValidateDomains(
                             instanceCertificate,
                             configuredEndpoint,
                             serverValidation: true);
-#pragma warning restore CS0618
                     }
                     catch (ServiceResultException sre)
                         when (sre.StatusCode == StatusCodes.BadCertificateHostNameInvalid)
@@ -2205,10 +2205,8 @@ namespace Opc.Ua.Server
             {
                 // share the server's CertificateManager so the registration channel uses
                 // the same trust list, rejected store, and cached validation results.
-                CertificateManager = CertificateManager,
-#pragma warning disable CS0618 // Type or member is obsolete
-                CertificateValidator = CertificateValidator
-#pragma warning restore CS0618
+                // The base copy ctor already propagates the legacy CertificateValidator.
+                CertificateManager = CertificateManager
             };
 
             // try each endpoint.

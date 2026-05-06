@@ -122,9 +122,7 @@ namespace Quickstarts
 
                 if (!config.SecurityConfiguration.AutoAcceptUntrustedCertificates)
                 {
-#pragma warning disable CS0618 // Type or member is obsolete
-                    config.CertificateValidator.AcceptError = AcceptCertificate;
-#pragma warning restore CS0618
+                    config.CertificateManager.AcceptError = AcceptCertificate;
                 }
             }
             catch (Exception ex)

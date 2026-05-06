@@ -322,10 +322,9 @@ namespace Quickstarts.ReferenceServer
                         // The server's CertificateManager already maps
                         // TrustedUserCertificates / UserIssuerCertificates to the
                         // Users trust list during MapFromSecurityConfiguration().
-                        // Use a CertificateValidatorAdapter scoped to that trust list.
-                        m_userCertificateValidator = new CertificateValidatorAdapter(
-                            CertificateManager,
-                            TrustListIdentifier.Users);
+                        // Use the CertificateManager directly and validate against
+                        // the Users trust list per call.
+                        m_userCertificateValidator = CertificateManager;
                     }
                 }
             }
@@ -473,17 +472,31 @@ namespace Quickstarts.ReferenceServer
             {
                 if (m_userCertificateValidator != null)
                 {
-                    m_userCertificateValidator.ValidateAsync(
-                        x509TokenHandler.Certificate,
-                        default).GetAwaiter().GetResult();
+                    Opc.Ua.CertificateValidationResult userCertResult = m_userCertificateValidator
+                        .ValidateAsync(
+                            x509TokenHandler.Certificate,
+                            TrustListIdentifier.Users,
+                            default)
+                        .GetAwaiter()
+                        .GetResult();
+                    if (!userCertResult.IsValid)
+                    {
+                        throw new ServiceResultException(userCertResult.StatusCode);
+                    }
                 }
                 else
                 {
-#pragma warning disable CS0618 // Type or member is obsolete
-                    CertificateValidator.ValidateAsync(
-                        x509TokenHandler.Certificate,
-                        default).GetAwaiter().GetResult();
-#pragma warning restore CS0618
+                    Opc.Ua.CertificateValidationResult fallbackCertResult = CertificateManager
+                        .ValidateAsync(
+                            x509TokenHandler.Certificate,
+                            TrustListIdentifier.Users,
+                            default)
+                        .GetAwaiter()
+                        .GetResult();
+                    if (!fallbackCertResult.IsValid)
+                    {
+                        throw new ServiceResultException(fallbackCertResult.StatusCode);
+                    }
                 }
             }
             catch (Exception e)
@@ -571,9 +584,7 @@ namespace Quickstarts.ReferenceServer
             }
         }
 
-#pragma warning disable CS0618 // Type or member is obsolete
-        private ICertificateValidator m_userCertificateValidator;
-#pragma warning restore CS0618
+        private ICertificateValidatorEx m_userCertificateValidator;
         private readonly LinqUserDatabase m_userDatabase;
     }
 }

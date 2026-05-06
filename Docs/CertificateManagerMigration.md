@@ -7,20 +7,24 @@ bridge while the new `ICertificateManager` / `ICertificateValidatorEx` /
 [`Docs/CertificateManager.md`](CertificateManager.md), which documents the
 target API.
 
-## Current state (after the file-pragma → narrow-pragma cleanup)
+## Current state (after Phases 1, 2, 5, 6, 7 partial migration)
 
 * The `<TreatWarningsAsErrors>true</TreatWarningsAsErrors>` setting in
   `common.props` makes any unsuppressed CS0618 fail the build.
-* All remaining legacy call sites are wrapped in narrow
-  `#pragma warning disable CS0618 ... #pragma warning restore CS0618` blocks
-  (101 added blocks across 41 production / test files in this branch).
+* Phases 1, 2, 5, 6, and 7 have been **partially completed** in this branch.
+  Phase 3 (CertificateTypesProvider extraction), Phase 4 (binary-breaking
+  property removal), and Phase 8 (delete the bridge) are deferred.
+* The remaining CS0618 wrappers count is **85** scoped pragma blocks across
+  the same 41 files (down from **130** at the start of this pass — a **45-block
+  reduction**).
 * `dotnet build UA.slnx -c Debug` is clean of CS0618 errors.
 * `dotnet test Tests\Opc.Ua.Core.Tests\Opc.Ua.Core.Tests.csproj -f net10.0`
-  passes 6616/6616 (86 skipped).
+  passes 6616/6616 (86 skipped). Server and Client test suites also green.
 
-The wrappers exist *only* so the legacy API can keep working for downstream
-consumers that haven't moved off it yet. None of the wrapped sites is the
-"correct" long-term answer; this plan describes how to retire each one.
+The remaining wrappers exist *only* so the legacy API can keep working for
+downstream consumers that haven't moved off it yet, or so the legacy
+rejected-store / `OnCertificateUpdateAsync` propagation path keeps running
+until Phase 3/4/8 is done.
 
 ## Obsolete API surface (and the recommended replacement)
 
@@ -198,43 +202,72 @@ layer move.
 
 ### Phase 1 — retire the test bridge
 
+**Status:** partially complete. New helper added, ~18 of ~41 sites migrated.
+
 `TemporaryCertValidator` is the entry point used by
 `CertificateValidatorTest`, `CertificateValidatorAlternate`, and most other
 core tests.
 
-1. Add a parallel `TemporaryCertificateManager` helper in
+1. ~~Add a parallel `TemporaryCertificateManager` helper in
    `Tests/Opc.Ua.Core.Tests/Security/Certificates/` that exposes
    `ICertificateManager Manager => m_manager;` and an
    `ICertificateValidatorEx Validator => m_manager;` instead of a
-   `CertificateValidator`.
-2. Migrate `CertificateValidatorTest` and `CertificateValidatorAlternate` test
+   `CertificateValidator`.~~ Done — see `TemporaryCertificateManager.cs`.
+2. ~~Migrate `CertificateValidatorTest` and `CertificateValidatorAlternate` test
    methods one fixture at a time: replace
    `CertificateValidator certValidator = validator.Update();` with
-   `ICertificateValidatorEx certValidator = validator.Validator;`. The body of
-   each test then no longer touches an obsolete type, and the wrapper pragmas
-   inside the test methods can be deleted as the tests move.
-3. Once all tests use the new helper, delete `TemporaryCertValidator`.
-4. **Risk:** the legacy `CertificateValidator` raises the
+   `ICertificateValidatorEx certValidator = validator.Validator;`.~~ — partially
+   done. The simple "validate + assert pass / fail" tests have been migrated
+   (15 in `CertificateValidatorTest`, 3 in `CertificateValidatorAlternate`).
+   Tests that exercise legacy-only behaviour (`CertificateValidation` /
+   `CertificateUpdate` events, `MaxRejectedCertificates`,
+   `RejectSHA1SignedCertificates`, `RejectUnknownRevocationStatus`,
+   `AutoAcceptUntrustedCertificates` setters,
+   `WaitForRejectedCertificatesDrainAsync`,
+   `UpdateAsync(SecurityConfiguration)`) still use `TemporaryCertValidator`
+   with their existing pragmas. They cannot be migrated without exposing
+   equivalent settings/operations on `ICertificateManager` (Phase 3 / 4
+   territory).
+3. **Deferred:** delete `TemporaryCertValidator` once all tests use the new
+   helper.
+4. **Risk (still applicable for non-migrated tests):** the legacy
+   `CertificateValidator` raises the
    `CertificateValidation` event synchronously inside the validation pipeline
    for *every* error. The new `CertificateValidationOptions.AcceptError` hook
    fires once per validation call after collecting all errors. Tests that
    subscribe to the event for trace/logging will see fewer callbacks. Convert
    them to use `CertificateValidationOptions.AcceptError`.
 
+The new helper's `Update()` method also changes the contract: the new
+`ICertificateValidatorEx.ValidateAsync` returns a
+`CertificateValidationResult` (with `IsValid` / `StatusCode`) **instead of
+throwing** on validation failure. Migrated tests check
+`Assert.That(result.IsValid, Is.False)` and assert on `result.StatusCode`
+rather than catching `ServiceResultException`.
+
 ### Phase 2 — retire legacy event handlers in test fixtures
+
+**Status:** complete.
 
 Apply the same idea to the GDS / AOT test fixtures
 (`GlobalDiscoveryTestClient.cs`, `GlobalDiscoveryTestServer.cs`,
 `ServerConfigurationPushTestClient.cs`, `AotTestFixture.cs`,
 `BoilerNodeManagerAotTests.cs`, `GdsTestFixture.cs`).
 
-* Replace the `if (config.CertificateValidator is CertificateValidator legacy)
+* ~~Replace the `if (config.CertificateValidator is CertificateValidator legacy)
   { legacy.CertificateValidation += ... }` pattern with
-  `config.CertificateManager.AcceptError = (cert, err) => true;`
-  (or per-call `CertificateValidationOptions.AcceptError`).
-* Drop the per-fixture `CertificateValidator_CertificateValidation` callbacks
+  `config.CertificateManager.AcceptError = (cert, err) => true;`~~ — done in
+  all six fixtures. AOT fixtures lazily create the manager via
+  `CertificateManagerFactory.Create` because the AOT test client config does
+  not go through `CheckApplicationInstanceCertificatesAsync`.
+* ~~Drop the per-fixture `CertificateValidator_CertificateValidation` callbacks
   (`GlobalDiscoveryTestClient.cs:343`, `GlobalDiscoveryTestServer.cs:212`,
-  `ServerConfigurationPushTestClient.cs:198`).
+  `ServerConfigurationPushTestClient.cs:198`).~~ — replaced by
+  `private bool AcceptCertificate(Certificate, ServiceResult)` in each file.
+
+The per-error logic was preserved: handlers that previously accepted only
+`BadCertificateUntrusted` errors keep that behaviour by returning `true`
+only for that status code and `false` for all others.
 
 **Risk:** the per-event callback receives the legacy
 `CertificateValidationEventArgs` with `Accept`, `AcceptAll`, and per-error
@@ -308,58 +341,94 @@ change.
 
 ### Phase 5 — retire `ServerBase.CertificateValidator`
 
+**Status:** partially complete. Three of five sites migrated.
+
 Replace direct uses of `ServerBase.CertificateValidator` with
 `ServerBase.CertificateManager` (typed as `ICertificateValidatorEx` /
 `ICertificateManager`). Sites:
 
-* `StandardServer.cs:81` — wire the certificate-update notification through
-  `CertificateManager.CertificateChanges` (`ICertificateLifecycle`)
-  instead of subscribing to the legacy `CertificateValidation`/`CertificateUpdate`
-  events.
-* `StandardServer.cs:391` — replace
+* **Deferred (Phase 3 dependency):** `StandardServer.cs:81` — wire the
+  certificate-update notification through `CertificateManager.CertificateChanges`
+  (`ICertificateLifecycle`) instead of subscribing to the legacy
+  `CertificateValidation`/`CertificateUpdate` events. The legacy subscription
+  is still required because the `ServerBase.OnCertificateUpdateAsync` handler
+  (which it triggers) does the heavy lifting of updating the
+  `InstanceCertificateTypesProvider`, refreshing endpoint descriptions, and
+  fanning the new cert out to the transport listeners. The new
+  `CertificateChanges` observer does not yet do that work — moving the work
+  out of `OnCertificateUpdateAsync` is part of Phase 3 because it depends on
+  retiring `CertificateTypesProvider`.
+* ~~`StandardServer.cs:391` — replace
   `await CertificateValidator.ValidateAsync(...)` with
-  `await CertificateManager.ValidateAsync(clientCertificateChain, TrustListIdentifier.Peers, ct)`.
-* `StandardServer.cs:465` — replace `CertificateValidator.ValidateDomains(...)`
-  with the extension on `ICertificateValidatorEx` (already supported).
-* `StandardServer.cs:2209` — copy `CertificateManager` instead of
+  `await CertificateManager.ValidateAsync(clientCertificateChain, TrustListIdentifier.Peers, ct)`.~~ — done.
+* ~~`StandardServer.cs:465` — replace `CertificateValidator.ValidateDomains(...)`
+  with the extension on `ICertificateValidatorEx` (already supported).~~ — done
+  (extension dispatches on `CertificateManager`).
+* ~~`StandardServer.cs:2209` — copy `CertificateManager` instead of
   `CertificateValidator` when building the registration channel
-  configuration.
-* `StandardServer.cs:3110` — delete the
+  configuration.~~ — done. The base copy ctor for `ApplicationConfiguration`
+  already propagates the legacy validator instance, so removing the explicit
+  re-assignment was safe.
+* **Deferred (Phase 3 dependency):** `StandardServer.cs:3110` — delete the
   `CertificateValidator is CertificateValidator legacyCertValidator` event
-  wiring; the modern subscription is the
-  `m_certManagerSubscription = CertificateManager.CertificateChanges.Subscribe(...)`
-  line right beneath it.
-* `ReferenceServer.cs:489` — the `else` branch is the
+  wiring. Same blocker as `StandardServer.cs:81`.
+* ~~`ReferenceServer.cs:489` — the `else` branch is the
   "no user validator configured" fall-through; redirect it to
-  `CertificateManager.ValidateAsync(token.Certificate, TrustListIdentifier.Users, ct)`.
+  `CertificateManager.ValidateAsync(token.Certificate, TrustListIdentifier.Users, ct)`.~~ — done. The
+  `m_userCertificateValidator` field was retyped to `ICertificateValidatorEx`
+  (Phase 7) and the fallback now uses `CertificateManager`.
 
 ### Phase 6 — retire `Session`-side fallbacks and `ClientChannelManager` settings
 
-* `Session.cs:291` — the `null` check on
+**Status:** mostly complete. One site (outbound `GetIssuersAsync`) deferred.
+
+* ~~`Session.cs:291` — the `null` check on
   `ApplicationConfiguration.CertificateValidator` becomes redundant once
-  `CertificateManager` is mandatory.
-* `Session.cs:1161, 1545, 4192` — drop the
+  `CertificateManager` is mandatory.~~ — done. The check was simply
+  removed; `ApplicationConfiguration.SecurityConfiguration` already provides
+  enough validation. `ApplicationConfiguration.ValidateAsync` now eagerly
+  initialises a `CertificateManager` from the `SecurityConfiguration` for
+  every config that goes through it (including those built directly via
+  `ApplicationConfigurationBuilder.CreateAsync` in tests), so consumer code
+  can rely on `CertificateManager` being non-null.
+* ~~`Session.cs:1161, 1545, 4192` — drop the
   `(ICertificateValidatorEx?)m_configuration.CertificateManager ?? m_configuration.CertificateValidator`
-  fallback. `ICertificateManager` already implements `ICertificateValidatorEx`.
-* `Session.cs:4823` — replace `CertificateValidator.GetIssuersAsync` with
+  fallback. `ICertificateManager` already implements `ICertificateValidatorEx`.~~ — done.
+* **Deferred (needs `ICertificateRegistry.GetIssuersAsync`):**
+  `Session.cs:4823` — replace `CertificateValidator.GetIssuersAsync` with
   `CertificateManager.GetIssuersAsync` (or the registry's equivalent).
-* `ClientChannelManager.cs:177, 256` — `TransportChannelSettings.CertificateValidator`
+  `ICertificateRegistry` exposes `LoadCertificateChainRaw(Certificate)` and
+  `GetEncodedChainBlob(string)` but no `GetIssuersAsync` that populates a
+  `List<CertificateIdentifier>`. Adding that overload is scoped with
+  Phase 3.
+* ~~`ClientChannelManager.cs:177, 256` — `TransportChannelSettings.CertificateValidator`
   should be set from `configuration.CertificateManager` directly. Either keep
   the property typed as `ICertificateValidatorEx` (and delete the obsolete
-  fallback) or rename it to `CertificateManager`.
-* `DefaultSessionFactory.cs:252` — same fallback pattern; same fix.
+  fallback) or rename it to `CertificateManager`.~~ — done. The property
+  remains typed as `ICertificateValidatorEx`; both call sites now pass
+  `configuration.CertificateManager` directly.
+* ~~`DefaultSessionFactory.cs:252` — same fallback pattern; same fix.~~ — done.
 
 ### Phase 7 — sample applications
 
+**Status:** complete.
+
 Once the libraries are clean, fix the samples:
 
-* `UAClient.cs`, `ConnectTester.cs`, `UAServer.cs`, `OpcUaSessionManager.cs` —
+* ~~`UAClient.cs`, `ConnectTester.cs`, `UAServer.cs`, `OpcUaSessionManager.cs` —
   swap `m_configuration.CertificateValidator.AcceptError = ...` for
-  `m_configuration.CertificateManager.AcceptError = ...`.
-* `ReferenceServer.cs` — change
+  `m_configuration.CertificateManager.AcceptError = ...`.~~ — done in all four
+  apps; the corresponding pragmas were dropped.
+* ~~`ReferenceServer.cs` — change
   `private ICertificateValidator m_userCertificateValidator` to
   `private ICertificateValidatorEx m_userCertificateValidator` and update its
-  initialization (a `CertificateManager` for the Users trust-list works).
+  initialization (a `CertificateManager` for the Users trust-list works).~~ — done.
+  The field was retyped, the initialization assigns
+  `CertificateManager` directly (the `Users` trust list is selected per call),
+  and `VerifyX509IdentityToken` now reads
+  `CertificateValidationResult` and translates `IsValid == false` into a
+  `ServiceResultException`. The fallback else branch now also calls into
+  `CertificateManager` rather than the legacy validator.
 
 ### Phase 8 — delete the bridge
 
@@ -429,58 +498,62 @@ The CS0618 wrappers in this tree all disappear in the same change.
 Each phase ends with: build clean, full test suite green, no new
 `#pragma warning disable CS0618` introduced.
 
-## Reference: file inventory after the narrow-pragma cleanup
+## Reference: file inventory after Phases 1, 2, 5, 6, 7 partial migration
 
 The 41 production / test files that previously carried a file-level
 `#pragma warning disable CS0618` now use scoped `disable/restore` pairs only
-around legacy call sites. The complete list (with current site counts after
-this pass) is:
+around legacy call sites. Counts below are **after** the partial Phase 1/2/5/6/7
+migration in this branch.
 
 | File | Wrapped sites |
 | --- | --- |
-| `Applications/ConsoleReferenceClient/ConnectTester.cs` | 1 |
-| `Applications/ConsoleReferenceClient/UAClient.cs` | 2 |
-| `Applications/ConsoleReferenceServer/UAServer.cs` | 1 |
-| `Applications/McpServer/OpcUaSessionManager.cs` | 2 |
-| `Applications/Quickstarts.Servers/ReferenceServer/ReferenceServer.cs` | 2 |
-| `Libraries/Opc.Ua.Client/Session/DefaultSessionFactory.cs` | 1 |
-| `Libraries/Opc.Ua.Client/Session/Session.cs` | 5 |
-| `Libraries/Opc.Ua.Configuration/ApplicationConfigurationBuilder.cs` | 0 (file-level pragma simply removed; no obsolete references survive) |
-| `Libraries/Opc.Ua.Configuration/ApplicationInstance.cs` | 1 |
-| `Libraries/Opc.Ua.Server/Configuration/ConfigurationNodeManager.cs` | 1 |
-| `Libraries/Opc.Ua.Server/Server/StandardServer.cs` | 9 |
-| `Stack/Opc.Ua.Bindings.Https/Stack/Https/HttpsServiceHost.cs` | 2 |
-| `Stack/Opc.Ua.Bindings.Https/Stack/Https/HttpsTransportListener.cs` | 2 |
-| `Stack/Opc.Ua.Core/Schema/ApplicationConfiguration.cs` | 3 |
-| `Stack/Opc.Ua.Core/Security/Certificates/CertificateManager/CertificateManager.cs` | 5 |
-| `Stack/Opc.Ua.Core/Security/Certificates/CertificateManager/CertificateValidatorAdapter.cs` | 1 |
-| `Stack/Opc.Ua.Core/Security/Certificates/CertificateValidationExtensions.cs` | 2 |
-| `Stack/Opc.Ua.Core/Security/Certificates/CertificateValidator.cs` | 2 |
-| `Stack/Opc.Ua.Core/Stack/Bindings/ITransportBindings.cs` | 1 |
-| `Stack/Opc.Ua.Core/Stack/Client/ClientChannelManager.cs` | 2 |
-| `Stack/Opc.Ua.Core/Stack/Configuration/ApplicationConfiguration.cs` | 0 (file-level pragma removed; no obsolete references survive) |
-| `Stack/Opc.Ua.Core/Stack/Server/ServerBase.cs` | 6 |
-| `Stack/Opc.Ua.Core/Stack/Tcp/TcpListenerChannel.cs` | 1 |
-| `Stack/Opc.Ua.Core/Stack/Tcp/TcpServerChannel.cs` | 1 |
-| `Stack/Opc.Ua.Core/Stack/Tcp/TcpServiceHost.cs` | 2 |
-| `Stack/Opc.Ua.Core/Stack/Tcp/TcpTransportListener.cs` | 2 |
-| `Stack/Opc.Ua.Core/Stack/Tcp/UaSCBinaryChannel.Asymmetric.cs` | 1 |
-| `Stack/Opc.Ua.Core/Stack/Tcp/UaSCBinaryChannel.cs` | 2 |
-| `Stack/Opc.Ua.Core/Stack/Transport/ITransportListener.cs` | 1 |
-| `Stack/Opc.Ua.Core/Stack/Transport/TransportListenerSettings.cs` | 1 |
-| `Tests/Opc.Ua.Aot.Tests/AotTestFixture.cs` | 1 |
-| `Tests/Opc.Ua.Aot.Tests/BoilerNodeManagerAotTests.cs` | 1 |
-| `Tests/Opc.Ua.Aot.Tests/GdsTestFixture.cs` | 1 |
-| `Tests/Opc.Ua.Core.Tests/Security/Certificates/CertificateValidatorAlternate.cs` | 4 |
-| `Tests/Opc.Ua.Core.Tests/Security/Certificates/CertificateValidatorTest.cs` | 37 |
-| `Tests/Opc.Ua.Core.Tests/Security/Certificates/TemporaryCertValidator.cs` | 3 |
-| `Tests/Opc.Ua.Core.Tests/Stack/Configuration/ApplicationConfigurationEncodingTests.cs` | 1 |
-| `Tests/Opc.Ua.Core.Tests/Stack/Configuration/ApplicationConfigurationTests.cs` | 2 |
-| `Tests/Opc.Ua.Gds.Tests/GlobalDiscoveryTestClient.cs` | 2 |
-| `Tests/Opc.Ua.Gds.Tests/GlobalDiscoveryTestServer.cs` | 2 |
-| `Tests/Opc.Ua.Gds.Tests/ServerConfigurationPushTestClient.cs` | 2 |
-| `Tests/Opc.Ua.Gds.Tests/X509TestUtils.cs` | 1 |
+| `Applications/ConsoleReferenceClient/ConnectTester.cs` | 0 (was 1) |
+| `Applications/ConsoleReferenceClient/UAClient.cs` | 0 (was 2) |
+| `Applications/ConsoleReferenceServer/UAServer.cs` | 0 (was 1) |
+| `Applications/McpServer/OpcUaSessionManager.cs` | 0 (was 2) |
+| `Applications/Quickstarts.Servers/ReferenceServer/ReferenceServer.cs` | 0 (was 2) |
+| `Libraries/Opc.Ua.Client/Session/DefaultSessionFactory.cs` | 0 (was 1) |
+| `Libraries/Opc.Ua.Client/Session/Session.cs` | 1 (was 5; remaining is the outbound `GetIssuersAsync`, blocked on `ICertificateRegistry.GetIssuersAsync`) |
+| `Libraries/Opc.Ua.Configuration/ApplicationConfigurationBuilder.cs` | 0 |
+| `Libraries/Opc.Ua.Configuration/ApplicationInstance.cs` | 3 (Phase 4 / 8 — synchronous Dispose cast on the legacy validator + legacy-validator update wrapper) |
+| `Libraries/Opc.Ua.Server/Configuration/ConfigurationNodeManager.cs` | 1 (Phase 3 dependency — calls `legacyValidator.UpdateCertificateAsync`) |
+| `Libraries/Opc.Ua.Server/Server/StandardServer.cs` | 8 (was 9; remaining are the legacy `CertificateUpdate` event subscription / unsubscription, the `OnUpdateConfigurationAsync` legacy `UpdateAsync`, and a few `InstanceCertificateTypesProvider` reads pending Phase 3) |
+| `Stack/Opc.Ua.Bindings.Https/Stack/Https/HttpsServiceHost.cs` | 2 (Phase 3) |
+| `Stack/Opc.Ua.Bindings.Https/Stack/Https/HttpsTransportListener.cs` | 2 (Phase 3) |
+| `Stack/Opc.Ua.Core/Schema/ApplicationConfiguration.cs` | 3 (Phase 4 — three ctors still create a default `CertificateValidator`) |
+| `Stack/Opc.Ua.Core/Security/Certificates/CertificateManager/CertificateManager.cs` | 7 (Phase 8 — internal per-trust-list `CertificateValidator` cache) |
+| `Stack/Opc.Ua.Core/Security/Certificates/CertificateManager/CertificateValidatorAdapter.cs` | 1 (Phase 8 — the bridge class itself) |
+| `Stack/Opc.Ua.Core/Security/Certificates/CertificateValidationExtensions.cs` | 2 (Phase 8 — legacy fast-path for rejected-store writer) |
+| `Stack/Opc.Ua.Core/Security/Certificates/CertificateValidator.cs` | 2 (Phase 8 — the obsolete class itself) |
+| `Stack/Opc.Ua.Core/Stack/Bindings/ITransportBindings.cs` | 1 (Phase 3) |
+| `Stack/Opc.Ua.Core/Stack/Client/ClientChannelManager.cs` | 0 (was 2) |
+| `Stack/Opc.Ua.Core/Stack/Configuration/ApplicationConfiguration.cs` | 2 (one pre-existing, one for the legacy `UpdateAsync` invocation kept until Phase 8) |
+| `Stack/Opc.Ua.Core/Stack/Server/ServerBase.cs` | 6 (Phase 3) |
+| `Stack/Opc.Ua.Core/Stack/Tcp/TcpListenerChannel.cs` | 1 (Phase 3) |
+| `Stack/Opc.Ua.Core/Stack/Tcp/TcpServerChannel.cs` | 2 (Phase 3) |
+| `Stack/Opc.Ua.Core/Stack/Tcp/TcpServiceHost.cs` | 2 (Phase 3) |
+| `Stack/Opc.Ua.Core/Stack/Tcp/TcpTransportListener.cs` | 2 (Phase 3) |
+| `Stack/Opc.Ua.Core/Stack/Tcp/UaSCBinaryChannel.Asymmetric.cs` | 1 (Phase 3) |
+| `Stack/Opc.Ua.Core/Stack/Tcp/UaSCBinaryChannel.cs` | 2 (Phase 3) |
+| `Stack/Opc.Ua.Core/Stack/Transport/ITransportListener.cs` | 1 (Phase 3) |
+| `Stack/Opc.Ua.Core/Stack/Transport/TransportListenerSettings.cs` | 1 (Phase 3) |
+| `Tests/Opc.Ua.Aot.Tests/AotTestFixture.cs` | 0 (was 1) |
+| `Tests/Opc.Ua.Aot.Tests/BoilerNodeManagerAotTests.cs` | 0 (was 1) |
+| `Tests/Opc.Ua.Aot.Tests/GdsTestFixture.cs` | 0 (was 1) |
+| `Tests/Opc.Ua.Core.Tests/Security/Certificates/CertificateValidatorAlternate.cs` | 1 (was 4; remaining is the `m_certValidator` field that uses legacy `RejectUnknownRevocationStatus`) |
+| `Tests/Opc.Ua.Core.Tests/Security/Certificates/CertificateValidatorTest.cs` | 22 (was 37; tests using legacy-only properties remain) |
+| `Tests/Opc.Ua.Core.Tests/Security/Certificates/TemporaryCertValidator.cs` | 3 (Phase 1 deferred — bridge stays for tests using legacy-only properties) |
+| `Tests/Opc.Ua.Core.Tests/Stack/Configuration/ApplicationConfigurationEncodingTests.cs` | 2 |
+| `Tests/Opc.Ua.Core.Tests/Stack/Configuration/ApplicationConfigurationTests.cs` | 3 |
+| `Tests/Opc.Ua.Gds.Tests/GlobalDiscoveryTestClient.cs` | 0 (was 2) |
+| `Tests/Opc.Ua.Gds.Tests/GlobalDiscoveryTestServer.cs` | 0 (was 2) |
+| `Tests/Opc.Ua.Gds.Tests/ServerConfigurationPushTestClient.cs` | 0 (was 2) |
+| `Tests/Opc.Ua.Gds.Tests/X509TestUtils.cs` | 1 (instantiates a fresh `CertificateValidator`; will move to Phase 1 follow-up) |
 
-Total wrapped sites: **101**. (Some files contain more than one obsolete
+Total wrapped sites: **85** (down from 130 at the start of this pass — a
+**45-block reduction**). (Some files contain more than one obsolete
 reference per pragma block; a "site" here counts pragma blocks, not
 individual references.)
+
+The new `Tests/Opc.Ua.Core.Tests/Security/Certificates/TemporaryCertificateManager.cs`
+file added in this pass contains **0** pragmas.

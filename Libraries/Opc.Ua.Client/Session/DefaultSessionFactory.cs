@@ -259,11 +259,7 @@ namespace Opc.Ua.Client
             if (checkDomain && endpoint.Description.ServerCertificate.Length > 0)
             {
                 using Certificate certificate = Certificate.FromRawData(endpoint.Description.ServerCertificate);
-#pragma warning disable CS0618 // Type or member is obsolete
-                ICertificateValidatorEx? validator =
-                    (ICertificateValidatorEx?)configuration.CertificateManager
-                    ?? configuration.CertificateValidator;
-#pragma warning restore CS0618
+                ICertificateValidatorEx? validator = configuration.CertificateManager;
                 validator?.ValidateDomains(certificate, endpoint);
             }
 

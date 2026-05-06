@@ -292,12 +292,6 @@ namespace Opc.Ua.Client
             {
                 configurationField = "SecurityConfiguration";
             }
-#pragma warning disable CS0618 // Type or member is obsolete
-            else if (configuration.CertificateValidator == null)
-#pragma warning restore CS0618
-            {
-                configurationField = "CertificateValidator";
-            }
             else
             {
                 return;
@@ -1199,11 +1193,7 @@ namespace Opc.Ua.Client
 
                 if (requireEncryption)
                 {
-#pragma warning disable CS0618 // Type or member is obsolete
-                    ICertificateValidatorEx validator =
-                        (ICertificateValidatorEx?)m_configuration.CertificateManager
-                        ?? m_configuration.CertificateValidator;
-#pragma warning restore CS0618
+                    ICertificateValidatorEx validator = m_configuration.CertificateManager;
                     CertificateValidationResult result = await validator
                         .ValidateAsync(serverCertificateChain, ct: ct)
                         .ConfigureAwait(false);
@@ -1582,11 +1572,7 @@ namespace Opc.Ua.Client
                 requireEncryption &&
                 identity.TokenType != UserTokenType.Anonymous)
             {
-#pragma warning disable CS0618 // Type or member is obsolete
-                ICertificateValidatorEx validator =
-                    (ICertificateValidatorEx?)m_configuration.CertificateManager
-                    ?? m_configuration.CertificateValidator;
-#pragma warning restore CS0618
+                ICertificateValidatorEx validator = m_configuration.CertificateManager;
                 CertificateValidationResult result = await validator
                     .ValidateAsync(m_serverCertificate, ct: ct)
                     .ConfigureAwait(false);
@@ -4090,11 +4076,7 @@ namespace Opc.Ua.Client
         {
             if (serverCertificate != null)
             {
-#pragma warning disable CS0618 // Type or member is obsolete
-                ICertificateValidatorEx validator =
-                    (ICertificateValidatorEx?)m_configuration.CertificateManager
-                    ?? m_configuration.CertificateValidator;
-#pragma warning restore CS0618
+                ICertificateValidatorEx validator = m_configuration.CertificateManager;
                 validator.ValidateApplicationUri(serverCertificate, endpoint);
             }
         }

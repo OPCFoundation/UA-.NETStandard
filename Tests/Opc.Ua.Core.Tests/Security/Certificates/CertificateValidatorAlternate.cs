@@ -352,14 +352,15 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 .SetIssuer(subCACert)
                 .CreateForRSA();
             // validate cert chain
-            using (var validator = TemporaryCertValidator.Create(telemetry))
+            using (var validator = TemporaryCertificateManager.Create(telemetry))
             {
                 await validator.IssuerStore.AddAsync(rootCert).ConfigureAwait(false);
                 await validator.TrustedStore.AddAsync(subCACert).ConfigureAwait(false);
-#pragma warning disable CS0618 // Type or member is obsolete
-                CertificateValidator certValidator = validator.Update();
-#pragma warning restore CS0618
-                await certValidator.ValidateAsync(leafCert, CancellationToken.None).ConfigureAwait(false);
+                ICertificateValidatorEx certValidator = validator.Update();
+                Opc.Ua.CertificateValidationResult result = await certValidator
+                    .ValidateAsync(leafCert, ct: CancellationToken.None)
+                    .ConfigureAwait(false);
+                Assert.That(result.IsValid, Is.True, result.StatusCode.ToString());
             }
 
             // validate using server/client chain sent over the wire
@@ -367,31 +368,29 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 leafCert,
                 subCACert,
                 rootReverseCert };
-            using (var validator = TemporaryCertValidator.Create(telemetry))
+            using (var validator = TemporaryCertificateManager.Create(telemetry))
             {
-#pragma warning disable CS0618 // Type or member is obsolete
-                CertificateValidator certValidator = validator.Update();
-#pragma warning restore CS0618
-                ServiceResultException result = Assert
-                    .ThrowsAsync<ServiceResultException>(async () =>
-                        await certValidator.ValidateAsync(collection, CancellationToken.None).ConfigureAwait(false));
+                ICertificateValidatorEx certValidator = validator.Update();
+                Opc.Ua.CertificateValidationResult result = await certValidator
+                    .ValidateAsync(collection, ct: CancellationToken.None)
+                    .ConfigureAwait(false);
 
-                TestContext.Out.WriteLine($"{result.Result}: {result.Message}");
+                TestContext.Out.WriteLine($"{result.StatusCode}: validation result");
+                Assert.That(result.IsValid, Is.False);
             }
 
             // validate using cert chain in issuer and trusted store
-            using (var validator = TemporaryCertValidator.Create(telemetry))
+            using (var validator = TemporaryCertificateManager.Create(telemetry))
             {
                 await validator.IssuerStore.AddAsync(rootReverseCert).ConfigureAwait(false);
                 await validator.TrustedStore.AddAsync(subCACert).ConfigureAwait(false);
-#pragma warning disable CS0618 // Type or member is obsolete
-                CertificateValidator certValidator = validator.Update();
-#pragma warning restore CS0618
-                ServiceResultException result = Assert
-                    .ThrowsAsync<ServiceResultException>(async () =>
-                        await certValidator.ValidateAsync(collection, CancellationToken.None).ConfigureAwait(false));
+                ICertificateValidatorEx certValidator = validator.Update();
+                Opc.Ua.CertificateValidationResult result = await certValidator
+                    .ValidateAsync(collection, ct: CancellationToken.None)
+                    .ConfigureAwait(false);
 
-                TestContext.Out.WriteLine($"{result.Result}: {result.Message}");
+                TestContext.Out.WriteLine($"{result.StatusCode}: validation result");
+                Assert.That(result.IsValid, Is.False);
             }
         }
 

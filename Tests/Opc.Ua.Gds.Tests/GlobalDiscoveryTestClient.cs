@@ -177,14 +177,7 @@ namespace Opc.Ua.Gds.Tests
                 throw new InvalidOperationException("Application instance certificate invalid!");
             }
 
-#pragma warning disable CS0618 // Type or member is obsolete
-            if (Configuration.CertificateValidator is CertificateValidator legacyValidator)
-            {
-                legacyValidator.CertificateValidation
-                    += new CertificateValidationEventHandler(
-                    CertificateValidator_CertificateValidation);
-            }
-#pragma warning restore CS0618
+            Configuration.CertificateManager.AcceptError = AcceptCertificate;
 
             GlobalDiscoveryTestClientConfiguration gdsClientConfiguration =
                 Configuration.ParseExtension<GlobalDiscoveryTestClientConfiguration>();
@@ -340,24 +333,18 @@ namespace Opc.Ua.Gds.Tests
             return id;
         }
 
-#pragma warning disable CS0618 // Type or member is obsolete
-        private void CertificateValidator_CertificateValidation(
-            CertificateValidator validator,
-            CertificateValidationEventArgs e)
-#pragma warning restore CS0618
+        private bool AcceptCertificate(Certificate certificate, ServiceResult error)
         {
-            if (e.Error.StatusCode == StatusCodes.BadCertificateUntrusted)
+            if (error.StatusCode == StatusCodes.BadCertificateUntrusted)
             {
-                e.Accept = AutoAccept;
                 if (AutoAccept)
                 {
-                    m_logger.LogInformation("Accepted Certificate: {Subject}", e.Certificate.Subject);
+                    m_logger.LogInformation("Accepted Certificate: {Subject}", certificate.Subject);
+                    return true;
                 }
-                else
-                {
-                    m_logger.LogInformation("Rejected Certificate: {Subject}", e.Certificate.Subject);
-                }
+                m_logger.LogInformation("Rejected Certificate: {Subject}", certificate.Subject);
             }
+            return false;
         }
 
         private ApplicationTestData GetOwnApplicationData()

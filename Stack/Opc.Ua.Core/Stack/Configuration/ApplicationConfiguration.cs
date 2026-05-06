@@ -740,6 +740,17 @@ namespace Opc.Ua
                     .ConfigureAwait(false);
             }
 #pragma warning restore CS0618
+
+            // Eagerly create a CertificateManager from the security
+            // configuration so consumers (Session, ClientChannelManager,
+            // server bring-up) can rely on it being non-null even when
+            // the configuration was not built through ApplicationInstance.
+            // The lifetime of this instance is owned by the surrounding
+            // ApplicationInstance (or the test fixture), which disposes
+            // the configuration's CertificateManager on shutdown.
+            CertificateManager ??= CertificateManagerFactory.Create(
+                SecurityConfiguration,
+                m_telemetry);
         }
 
         /// <summary>

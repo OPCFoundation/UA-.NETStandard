@@ -101,9 +101,7 @@ namespace Quickstarts
                     .LoadApplicationConfigurationAsync(silent: false, ct: ct)
                     .ConfigureAwait(false);
 
-#pragma warning disable CS0618 // Type or member is obsolete
-                m_configuration.CertificateValidator.AcceptError = AcceptCertificate;
-#pragma warning restore CS0618
+                m_configuration.CertificateManager.AcceptError = AcceptCertificate;
 
                 // check the application certificate.
                 bool haveAppCertificate = await application
