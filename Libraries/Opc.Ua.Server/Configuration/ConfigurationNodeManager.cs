@@ -1156,15 +1156,13 @@ namespace Opc.Ua.Server
                             Utils.TraceMasks.Security,
                             "----- Apply Changes for application certificate update running...");
 
-#pragma warning disable CS0618 // Type or member is obsolete
-                        if (m_configuration.CertificateValidator is CertificateValidator cnmCertValidator)
+                        if (m_configuration.CertificateManager != null)
                         {
-                            await cnmCertValidator.UpdateCertificateAsync(
+                            await m_configuration.CertificateManager.UpdateAsync(
                                     m_configuration.SecurityConfiguration,
                                     m_configuration.ApplicationUri)
                                 .ConfigureAwait(false);
                         }
-#pragma warning restore CS0618
 
                         m_logger.LogInformation(
                             Utils.TraceMasks.Security,

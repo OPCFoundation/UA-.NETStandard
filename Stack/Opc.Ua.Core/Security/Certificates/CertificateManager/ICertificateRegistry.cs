@@ -30,6 +30,8 @@
 #nullable enable
 
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua
@@ -108,5 +110,31 @@ namespace Opc.Ua
         /// issuers), or <see langword="null"/> if no entry matches.
         /// </returns>
         byte[]? LoadCertificateChainRaw(Certificate certificate);
+
+        /// <summary>
+        /// Resolves the issuers for the supplied <paramref name="certificate"/>
+        /// using the registry's trust list state and appends them to
+        /// <paramref name="issuers"/>.
+        /// </summary>
+        /// <remarks>
+        /// This is the modern replacement for the legacy
+        /// <c>CertificateValidator.GetIssuersAsync(Certificate, IList&lt;CertificateIdentifier&gt;)</c>
+        /// signature; it walks the trusted, issuer, and any untrusted
+        /// stores in the same order as the legacy validator.
+        /// </remarks>
+        /// <param name="certificate">The certificate to resolve issuers for.</param>
+        /// <param name="issuers">
+        /// The output list which receives the resolved issuer
+        /// <see cref="CertificateIdentifier"/> entries.
+        /// </param>
+        /// <param name="ct">A cancellation token.</param>
+        /// <returns>
+        /// <see langword="true"/> when at least one issuer was resolved
+        /// from a trusted store.
+        /// </returns>
+        Task<bool> GetIssuersAsync(
+            Certificate certificate,
+            IList<CertificateIdentifier> issuers,
+            CancellationToken ct = default);
     }
 }

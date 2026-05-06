@@ -4379,15 +4379,13 @@ namespace Opc.Ua.Client
                 clientCertificateChain = new CertificateCollection { clientCertificate };
                 try
                 {
-                    List<CertificateIdentifier> issuers = [];
-#pragma warning disable CS0618 // Type or member is obsolete
-                    if (configuration.CertificateValidator is CertificateValidator getIssuersValidator)
+                    var issuers = new List<CertificateIdentifier>();
+                    if (configuration.CertificateManager != null)
                     {
-                        await getIssuersValidator
+                        await configuration.CertificateManager
                             .GetIssuersAsync(clientCertificate, issuers, ct)
                             .ConfigureAwait(false);
                     }
-#pragma warning restore CS0618
 
                     for (int i = 0; i < issuers.Count; i++)
                     {

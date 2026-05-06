@@ -891,11 +891,11 @@ namespace Opc.Ua.Bindings
             {
                 bool loadChain = false;
                 // TODO: client should use the proider too!
-                if (m_serverCertificateTypesProvider != null)
+                if (m_serverCertificates != null)
                 {
                     receiverCertificate =
-                        m_serverCertificateTypesProvider.GetInstanceCertificate(
-                            securityPolicyUri);
+                        m_serverCertificates.GetInstanceCertificate(
+                            securityPolicyUri)?.Certificate;
                     ServerCertificate = receiverCertificate;
                     loadChain = true;
                 }
@@ -920,7 +920,7 @@ namespace Opc.Ua.Bindings
                 {
                     ServerCertificateChain?.Dispose();
                     ServerCertificateChain =
-                        m_serverCertificateTypesProvider?.LoadCertificateChain(
+                        m_serverCertificates?.LoadCertificateChain(
                             receiverCertificate);
                 }
             }
@@ -953,12 +953,12 @@ namespace Opc.Ua.Bindings
                             SecurityMode = endpoint.SecurityMode;
                             m_selectedEndpoint = endpoint;
                             ServerCertificate =
-                                m_serverCertificateTypesProvider
+                                m_serverCertificates
                                     .GetInstanceCertificate(
-                                        SecurityPolicyUri);
+                                        SecurityPolicyUri)?.Certificate;
                             ServerCertificateChain?.Dispose();
                             ServerCertificateChain =
-                                m_serverCertificateTypesProvider
+                                m_serverCertificates
                                     .LoadCertificateChain(
                                         ServerCertificate);
                             supported = true;
@@ -1005,14 +1005,11 @@ namespace Opc.Ua.Bindings
                 SecurityMode = endpoint.SecurityMode;
                 SecurityPolicyUri = endpoint.SecurityPolicyUri;
                 ServerCertificate =
-                    m_serverCertificateTypesProvider.GetInstanceCertificate(
-                        SecurityPolicyUri);
+                    m_serverCertificates.GetInstanceCertificate(
+                        SecurityPolicyUri)?.Certificate;
                 ServerCertificateChain?.Dispose();
                 ServerCertificateChain =
-                    m_serverCertificateTypesProvider
-                        .LoadCertificateChainAsync(ServerCertificate)
-                        .GetAwaiter()
-                        .GetResult();
+                    m_serverCertificates.LoadCertificateChain(ServerCertificate);
                 m_selectedEndpoint = endpoint;
                 return true;
             }
@@ -1409,9 +1406,7 @@ namespace Opc.Ua.Bindings
 
         private readonly List<EndpointDescription> m_endpoints;
         private EndpointDescription m_selectedEndpoint;
-#pragma warning disable CS0618 // Type or member is obsolete
-        private readonly CertificateTypesProvider m_serverCertificateTypesProvider;
-#pragma warning restore CS0618
+        private readonly ICertificateRegistry m_serverCertificates;
         private bool m_uninitialized;
         private Nonce m_localNonce;
         private Nonce m_remoteNonce;

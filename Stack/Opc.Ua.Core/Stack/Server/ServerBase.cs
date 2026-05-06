@@ -102,10 +102,6 @@ namespace Opc.Ua
                 UserTokenPolicys?.Clear();
 
                 m_requestQueue?.Dispose();
-
-#pragma warning disable CS0618 // Type or member is obsolete
-                InstanceCertificateTypesProvider?.Dispose();
-#pragma warning restore CS0618
             }
         }
 
@@ -619,23 +615,22 @@ namespace Opc.Ua
         /// Sets the Server Certificate in an Endpoint description if the description requires encryption.
         /// </summary>
         /// <param name="description">the endpoint Description to set the server certificate</param>
-        /// <param name="certificateTypesProvider">The provider to get the server certificate per certificate type.</param>
+        /// <param name="serverCertificates">The registry that exposes the server's instance certificates per certificate type.</param>
         /// <param name="checkRequireEncryption">only set certificate if the endpoint does require Encryption</param>
-#pragma warning disable CS0618 // Type or member is obsolete
         public static void SetServerCertificateInEndpointDescription(
             EndpointDescription description,
-            CertificateTypesProvider certificateTypesProvider,
+            ICertificateRegistry serverCertificates,
             bool checkRequireEncryption = true)
         {
             if (!checkRequireEncryption || RequireEncryption(description))
             {
-                Certificate serverCertificate = certificateTypesProvider
+                Certificate serverCertificate = serverCertificates
                     .GetInstanceCertificate(
-                        description.SecurityPolicyUri);
+                        description.SecurityPolicyUri)?.Certificate;
                 // check if complete chain should be sent.
-                if (certificateTypesProvider.SendCertificateChain)
+                if (serverCertificates.SendCertificateChain)
                 {
-                    description.ServerCertificate = certificateTypesProvider
+                    description.ServerCertificate = serverCertificates
                         .LoadCertificateChainRaw(serverCertificate).ToByteString();
                 }
                 else
@@ -644,7 +639,6 @@ namespace Opc.Ua
                 }
             }
         }
-#pragma warning restore CS0618
 
         /// <summary>
         /// Stores information about a base address.
@@ -688,13 +682,6 @@ namespace Opc.Ua
         /// <value>The identifier for an X509 certificate.</value>
         [Obsolete("Use ServerBase.CertificateManager (ICertificateManager) instead. See Docs/CertificateManager.md.")]
         public ICertificateValidatorEx CertificateValidator { get; private set; }
-
-        /// <summary>
-        /// The server's application instance certificate types provider.
-        /// </summary>
-        /// <value>The provider for the X.509 certificates.</value>
-        [Obsolete("Use ServerBase.CertificateManager (ICertificateRegistry) instead. See Docs/CertificateManager.md.")]
-        public CertificateTypesProvider InstanceCertificateTypesProvider { get; private set; }
 
         /// <summary>
         /// Gets the certificate manager, if available.
@@ -777,23 +764,16 @@ namespace Opc.Ua
         /// <summary>
         /// Called after the application certificate update.
         /// </summary>
-        protected virtual async void OnCertificateUpdateAsync(object sender, CertificateUpdateEventArgs e)
+        protected virtual void OnCertificateUpdateAsync(object sender, CertificateUpdateEventArgs e)
         {
             try
             {
-#pragma warning disable CS0618 // Type or member is obsolete
-                InstanceCertificateTypesProvider.Update(e.SecurityConfiguration);
+                ICertificateRegistry serverCertificates = CertificateManager;
+                ICertificateValidatorEx certificateValidator = e.CertificateValidator;
 
-                ArrayOf<CertificateIdentifier> applicationCertificates = Configuration.SecurityConfiguration.ApplicationCertificates;
-                for (int i = 0; i < applicationCertificates.Count; i++)
+                if (serverCertificates == null)
                 {
-                    CertificateIdentifier certificateIdentifier = applicationCertificates[i];
-                    // preload chain
-                    using Certificate certificate = await certificateIdentifier.FindAsync(false)
-                        .ConfigureAwait(false);
-                    using CertificateCollection chain =
-                        await InstanceCertificateTypesProvider.LoadCertificateChainAsync(certificate)
-                        .ConfigureAwait(false);
+                    return;
                 }
 
                 //update certificate in the endpoint descriptions
@@ -801,16 +781,15 @@ namespace Opc.Ua
                 {
                     SetServerCertificateInEndpointDescription(
                         endpointDescription,
-                        InstanceCertificateTypesProvider);
+                        serverCertificates);
                 }
 
                 foreach (ITransportListener listener in TransportListeners)
                 {
                     listener.CertificateUpdate(
-                        e.CertificateValidator,
-                        InstanceCertificateTypesProvider);
+                        certificateValidator,
+                        serverCertificates);
                 }
-#pragma warning restore CS0618
             }
             catch (Exception ex)
             {
@@ -839,18 +818,16 @@ namespace Opc.Ua
             {
                 IServiceMessageContext messageContext = m_messageContext
                     ?? throw new ServiceResultException(StatusCodes.BadServerHalted);
-#pragma warning disable CS0618 // Type or member is obsolete
                 var settings = new TransportListenerSettings
                 {
                     Descriptions = endpoints,
                     Configuration = endpointConfiguration,
-                    ServerCertificateTypesProvider = InstanceCertificateTypesProvider,
+                    ServerCertificates = CertificateManager,
                     CertificateValidator = certificateValidator,
                     NamespaceUris = messageContext.NamespaceUris,
                     Factory = messageContext.Factory,
                     MaxChannelCount = 0
                 };
-#pragma warning restore CS0618
 
                 settings.MaxChannelCount = Configuration.ServerConfiguration.MaxChannelCount;
                 if (Utils.IsUriHttpsScheme(endpointUri.AbsoluteUri))
@@ -1457,12 +1434,6 @@ namespace Opc.Ua
 
             // load the instance certificate.
             Certificate defaultInstanceCertificate = null;
-#pragma warning disable CS0618 // Type or member is obsolete
-            InstanceCertificateTypesProvider = new CertificateTypesProvider(
-                configuration,
-                CertificateManager,
-                m_telemetry);
-            InstanceCertificateTypesProvider.InitializeAsync().GetAwaiter().GetResult();
 
             foreach (ServerSecurityPolicy securityPolicy in configuration.ServerConfiguration
                 .SecurityPolicies)
@@ -1473,8 +1444,8 @@ namespace Opc.Ua
                 }
 
                 Certificate instanceCertificate =
-                    InstanceCertificateTypesProvider.GetInstanceCertificate(
-                        securityPolicy.SecurityPolicyUri)
+                    CertificateManager.GetInstanceCertificate(
+                        securityPolicy.SecurityPolicyUri)?.Certificate
                     ?? throw ServiceResultException.ConfigurationError(
                         "Server does not have an instance certificate assigned.");
 
@@ -1485,21 +1456,14 @@ namespace Opc.Ua
                 }
 
                 defaultInstanceCertificate ??= instanceCertificate;
-
-                // preload chain
-                InstanceCertificateTypesProvider
-                    .LoadCertificateChainAsync(instanceCertificate)
-                    .GetAwaiter()
-                    .GetResult()
-                    ?.Dispose();
             }
 
             // assign a unique identifier if none specified.
             if (string.IsNullOrEmpty(configuration.ApplicationUri))
             {
-                Certificate instanceCertificate = InstanceCertificateTypesProvider
+                Certificate instanceCertificate = CertificateManager
                     .GetInstanceCertificate(
-                        configuration.ServerConfiguration.SecurityPolicies[0].SecurityPolicyUri);
+                        configuration.ServerConfiguration.SecurityPolicies[0].SecurityPolicyUri)?.Certificate;
 
                 IReadOnlyList<string> applicationUris = X509Utils.GetApplicationUrisFromCertificate(
                     instanceCertificate);
@@ -1529,6 +1493,7 @@ namespace Opc.Ua
             }
 
             // save the certificate validator.
+#pragma warning disable CS0618 // Type or member is obsolete
             CertificateValidator = configuration.CertificateValidator;
 #pragma warning restore CS0618
         }

@@ -45,20 +45,19 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Attaches the object to an existing socket.
         /// </summary>
-#pragma warning disable CS0618 // Type or member is obsolete
         public TcpListenerChannel(
             string contextId,
             ITcpChannelListener listener,
             BufferManager bufferManager,
             ChannelQuotas quotas,
-            CertificateTypesProvider serverCertificateTypeProvider,
+            ICertificateRegistry serverCertificates,
             List<EndpointDescription> endpoints,
             ITelemetryContext telemetry)
             : base(
                 contextId,
                 bufferManager,
                 quotas,
-                serverCertificateTypeProvider,
+                serverCertificates,
                 endpoints,
                 MessageSecurityMode.None,
                 SecurityPolicies.None,
@@ -67,7 +66,6 @@ namespace Opc.Ua.Bindings
             m_logger = telemetry.CreateLogger<TcpListenerChannel>();
             Listener = listener;
         }
-#pragma warning restore CS0618
 
         /// <summary>
         /// An overrideable version of the Dispose.

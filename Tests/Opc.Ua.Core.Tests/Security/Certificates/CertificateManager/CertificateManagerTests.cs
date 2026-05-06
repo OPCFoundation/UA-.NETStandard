@@ -318,6 +318,116 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
         #endregion
 
+        #region Issuer Resolution and Chain Blob
+
+        [Test]
+        public async Task GetIssuersAsyncReturnsEmptyForSelfSignedCertificate()
+        {
+            string trustedPath = CreateTempDir();
+            using var manager = new CertificateManager(m_telemetry);
+            manager.RegisterTrustList(TrustListIdentifier.Peers, trustedPath);
+
+            using Certificate cert = CertificateBuilder
+                .Create("CN=SelfSigned, O=OPC Foundation")
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+
+            ICertificateRegistry registry = manager;
+            var issuers = new List<CertificateIdentifier>();
+            bool isTrusted = await registry.GetIssuersAsync(cert, issuers).ConfigureAwait(false);
+
+            Assert.That(issuers, Is.Empty);
+            Assert.That(isTrusted, Is.False);
+        }
+
+        [Test]
+        public async Task SendCertificateChainBlobMatchesLeafOrFullChain()
+        {
+            // Build a 2-level chain: root CA + leaf signed by root.
+            using Certificate rootCa = CertificateBuilder
+                .Create("CN=ChainBlobRoot, O=OPC Foundation")
+                .SetCAConstraint(-1)
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+            using Certificate leaf = CertificateBuilder
+                .Create("CN=ChainBlobLeaf, O=OPC Foundation")
+                .SetIssuer(rootCa)
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+
+            using var leafCertId = new CertificateIdentifier(leaf) {
+                CertificateType = ObjectTypeIds.RsaSha256ApplicationCertificateType
+            };
+
+            // Configure SendCertificateChain = true and load the cert with its issuer chain.
+            var secConfig = new SecurityConfiguration {
+                ApplicationCertificates = [leafCertId],
+                SendCertificateChain = true
+            };
+
+            using var manager = new CertificateManager(m_telemetry);
+            manager.MapFromSecurityConfiguration(secConfig);
+            await manager.LoadApplicationCertificatesAsync(secConfig).ConfigureAwait(false);
+
+            // Inject the issuer into the entry's pre-loaded chain so the registry
+            // knows about it (mirrors what CheckApplicationInstanceCertificatesAsync
+            // does in production).
+            CertificateEntry entry = manager.GetInstanceCertificate(SecurityPolicies.Basic256Sha256);
+            Assert.That(entry, Is.Not.Null);
+            entry.IssuerChain.Add(rootCa);
+
+            // Full chain: blob == leaf raw bytes followed by root raw bytes.
+            byte[] fullChain = manager.LoadCertificateChainRaw(leaf);
+            Assert.That(fullChain, Is.Not.Null);
+            byte[] expectedFull = new byte[leaf.RawData.Length + rootCa.RawData.Length];
+            Buffer.BlockCopy(leaf.RawData, 0, expectedFull, 0, leaf.RawData.Length);
+            Buffer.BlockCopy(rootCa.RawData, 0, expectedFull, leaf.RawData.Length, rootCa.RawData.Length);
+            Assert.That(fullChain, Is.EqualTo(expectedFull),
+                "CertificateManager.LoadCertificateChainRaw must produce the legacy " +
+                "DER-encoded chain blob (leaf || issuers) byte-for-byte.");
+
+            // Leaf-only mode: blob is just the leaf's raw bytes.
+            var leafOnlyConfig = new SecurityConfiguration {
+                ApplicationCertificates = [leafCertId],
+                SendCertificateChain = false
+            };
+            using var leafOnlyManager = new CertificateManager(m_telemetry);
+            leafOnlyManager.MapFromSecurityConfiguration(leafOnlyConfig);
+            Assert.That(leafOnlyManager.SendCertificateChain, Is.False);
+        }
+
+        [Test]
+        public async Task UpdateAsyncReplacesTrustListPaths()
+        {
+            // Initial config with one trusted path.
+            string oldPath = CreateTempDir();
+            string newPath = CreateTempDir();
+
+            var initial = new SecurityConfiguration {
+                TrustedPeerCertificates = new CertificateTrustList { StorePath = oldPath }
+            };
+
+            using CertificateManager manager = CertificateManagerFactory.Create(initial, m_telemetry);
+
+            using (ICertificateStore store = manager.OpenTrustedStore(TrustListIdentifier.Peers))
+            {
+                Assert.That(store, Is.Not.Null);
+            }
+
+            // Switch to new path via UpdateAsync.
+            var updated = new SecurityConfiguration {
+                TrustedPeerCertificates = new CertificateTrustList { StorePath = newPath }
+            };
+
+            await manager.UpdateAsync(updated).ConfigureAwait(false);
+
+            // Manager must now serve from the new path.
+            using ICertificateStore newStore = manager.OpenTrustedStore(TrustListIdentifier.Peers);
+            Assert.That(newStore.StorePath, Is.EqualTo(newPath));
+        }
+
+        #endregion
+
         #region Helpers
 
         private string CreateTempDir()

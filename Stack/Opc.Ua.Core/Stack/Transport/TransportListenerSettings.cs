@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System.Collections.Generic;
-using Opc.Ua.Security.Certificates;
 
 
 namespace Opc.Ua
@@ -49,11 +48,10 @@ namespace Opc.Ua
         public EndpointConfiguration Configuration { get; set; }
 
         /// <summary>
-        /// Gets or sets the server certificate type provider.
+        /// Gets or sets the registry that exposes the server's instance
+        /// certificates and chain blobs.
         /// </summary>
-#pragma warning disable CS0618 // Type or member is obsolete
-        public CertificateTypesProvider ServerCertificateTypesProvider { get; set; }
-#pragma warning restore CS0618
+        public ICertificateRegistry ServerCertificates { get; set; }
 
         /// <summary>
         /// Gets or Sets the certificate validator.

@@ -370,7 +370,7 @@ namespace Opc.Ua.Bindings
             m_quotas.CertificateValidator = settings.CertificateValidator;
 
             // save the server certificate.
-            m_serverCertificateTypesProvider = settings.ServerCertificateTypesProvider;
+            m_serverCertificates = settings.ServerCertificates;
 
             m_bufferManager = new BufferManager("Server", m_quotas.MaxBufferSize, m_telemetry);
             m_channels = new ConcurrentDictionary<uint, TcpListenerChannel>();
@@ -496,7 +496,7 @@ namespace Opc.Ua.Bindings
                     this,
                     m_bufferManager,
                     m_quotas,
-                    m_serverCertificateTypesProvider,
+                    m_serverCertificates,
                     m_descriptions,
                     m_telemetry);
 
@@ -794,26 +794,24 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Called when a UpdateCertificate event occured.
         /// </summary>
-#pragma warning disable CS0618 // Type or member is obsolete
         public void CertificateUpdate(
             ICertificateValidatorEx validator,
-            CertificateTypesProvider serverCertificateTypes)
-#pragma warning restore CS0618
+            ICertificateRegistry serverCertificates)
         {
             m_quotas.CertificateValidator = validator;
-            m_serverCertificateTypesProvider = serverCertificateTypes;
+            m_serverCertificates = serverCertificates;
             foreach (EndpointDescription description in m_descriptions)
             {
                 // TODO: why only if SERVERCERT != null
                 if (!description.ServerCertificate.IsEmpty)
                 {
-                    Certificate serverCertificate = serverCertificateTypes
+                    Certificate serverCertificate = serverCertificates
                         .GetInstanceCertificate(
-                            description.SecurityPolicyUri);
-                    if (serverCertificateTypes.SendCertificateChain)
+                            description.SecurityPolicyUri)?.Certificate;
+                    if (serverCertificates.SendCertificateChain)
                     {
                         description.ServerCertificate =
-                            serverCertificateTypes.LoadCertificateChainRaw(
+                            serverCertificates.LoadCertificateChainRaw(
                                 serverCertificate).ToByteString();
                     }
                     else
@@ -949,7 +947,7 @@ namespace Opc.Ua.Bindings
                                         this,
                                         m_bufferManager,
                                         m_quotas,
-                                        m_serverCertificateTypesProvider,
+                                        m_serverCertificates,
                                         m_descriptions,
                                         m_telemetry);
                                 }
@@ -1213,9 +1211,7 @@ namespace Opc.Ua.Bindings
         private List<EndpointDescription> m_descriptions;
         private BufferManager m_bufferManager;
         private ChannelQuotas m_quotas;
-#pragma warning disable CS0618 // Type or member is obsolete
-        private CertificateTypesProvider m_serverCertificateTypesProvider;
-#pragma warning restore CS0618
+        private ICertificateRegistry m_serverCertificates;
         private int m_lastChannelId;
         private Socket m_listeningSocket;
         private Socket m_listeningSocketIPv6;

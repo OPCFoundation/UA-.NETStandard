@@ -29,7 +29,6 @@
 
 using System;
 using System.Threading.Tasks;
-using Opc.Ua.Security.Certificates;
 
 
 namespace Opc.Ua
@@ -78,11 +77,17 @@ namespace Opc.Ua
         /// <summary>
         /// Updates the application certificate for a listener.
         /// </summary>
-#pragma warning disable CS0618 // Type or member is obsolete
+        /// <param name="validator">
+        /// The peer-certificate validator used by the listener to validate
+        /// inbound client certificates.
+        /// </param>
+        /// <param name="serverCertificates">
+        /// The registry that exposes the server's instance certificates and
+        /// chain blobs.
+        /// </param>
         void CertificateUpdate(
             ICertificateValidatorEx validator,
-            CertificateTypesProvider serverCertificateTypes);
-#pragma warning restore CS0618
+            ICertificateRegistry serverCertificates);
 
         /// <summary>
         /// Raised when a new connection is waiting for a client.

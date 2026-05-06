@@ -114,8 +114,13 @@ namespace Opc.Ua.Bindings
         /// <param name="baseAddresses">The base addreses for the service host.</param>
         /// <param name="serverDescription">The server description.</param>
         /// <param name="securityPolicies">The list of supported security policies.</param>
-        /// <param name="instanceCertificateTypesProvider">The provider for application certificates.</param>
-#pragma warning disable CS0618 // Type or member is obsolete
+        /// <param name="serverCertificates">
+        /// The registry that exposes the server's instance certificates.
+        /// </param>
+        /// <param name="clientCertificateValidator">
+        /// The validator used by the listener to validate inbound client
+        /// certificates.
+        /// </param>
         List<EndpointDescription> CreateServiceHost(
             ServerBase serverBase,
             IDictionary<string, ServiceHost> hosts,
@@ -123,8 +128,8 @@ namespace Opc.Ua.Bindings
             ArrayOf<string> baseAddresses,
             ApplicationDescription serverDescription,
             ArrayOf<ServerSecurityPolicy> securityPolicies,
-            CertificateTypesProvider instanceCertificateTypesProvider);
-#pragma warning restore CS0618
+            ICertificateRegistry serverCertificates,
+            ICertificateValidatorEx clientCertificateValidator);
     }
 
     /// <summary>

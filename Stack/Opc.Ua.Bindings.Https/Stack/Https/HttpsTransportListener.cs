@@ -228,7 +228,7 @@ namespace Opc.Ua.Bindings
             // save the callback to the server.
             m_callback = callback;
 
-            m_serverCertProvider = settings.ServerCertificateTypesProvider;
+            m_serverCertProvider = settings.ServerCertificates;
 
             m_mutualTlsEnabled = settings.HttpsMutualTls;
             // start the listener
@@ -307,7 +307,7 @@ namespace Opc.Ua.Bindings
             // (the registry may dispose its snapshot during cert hot-update,
             // which would otherwise free the OS handle Kestrel still holds).
             Certificate serverCertificate = m_serverCertProvider.GetInstanceCertificate(
-                SecurityPolicies.Https).AddRef();
+                SecurityPolicies.Https)?.Certificate?.AddRef();
 #if NETSTANDARD2_1 || NET472_OR_GREATER || NET5_0_OR_GREATER
             try
             {
@@ -556,22 +556,20 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Called when a UpdateCertificate event occured.
         /// </summary>
-#pragma warning disable CS0618 // Type or member is obsolete
         public void CertificateUpdate(
             ICertificateValidatorEx validator,
-            CertificateTypesProvider serverCertificateTypes)
-#pragma warning restore CS0618
+            ICertificateRegistry serverCertificates)
         {
             Stop();
 
             m_quotas.CertificateValidator = validator;
-            m_serverCertProvider = serverCertificateTypes;
+            m_serverCertProvider = serverCertificates;
 
             foreach (EndpointDescription description in m_descriptions)
             {
                 ServerBase.SetServerCertificateInEndpointDescription(
                     description,
-                    serverCertificateTypes,
+                    serverCertificates,
                     false);
             }
 
@@ -663,9 +661,7 @@ namespace Opc.Ua.Bindings
 #else
         private IWebHost m_host;
 #endif
-#pragma warning disable CS0618 // Type or member is obsolete
-        private CertificateTypesProvider m_serverCertProvider;
-#pragma warning restore CS0618
+        private ICertificateRegistry m_serverCertProvider;
         private Certificate m_pinnedServerCert;
         private X509Certificate2 m_pinnedServerCertX509;
         private bool m_mutualTlsEnabled;

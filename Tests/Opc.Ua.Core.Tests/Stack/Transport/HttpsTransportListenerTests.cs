@@ -268,7 +268,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.DoesNotThrow(() => listener.Close());
         }
 
-        // Verify Open throws when ServerCertificateTypesProvider is null.
+        // Verify Open throws when ServerCertificates is null.
         [Test]
         public void OpenThrowsWhenCertProviderIsNull()
         {
@@ -279,7 +279,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             {
                 Descriptions = new List<EndpointDescription>(),
                 Configuration = EndpointConfiguration.Create(),
-                ServerCertificateTypesProvider = null,
+                ServerCertificates = null,
                 CertificateValidator = new Mock<ICertificateValidatorEx>().Object,
                 NamespaceUris = new NamespaceTable(),
                 Factory = null
@@ -301,7 +301,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             {
                 Descriptions = new List<EndpointDescription>(),
                 Configuration = EndpointConfiguration.Create(),
-                ServerCertificateTypesProvider = null,
+                ServerCertificates = null,
                 CertificateValidator = new Mock<ICertificateValidatorEx>().Object,
                 NamespaceUris = new NamespaceTable(),
                 Factory = null
@@ -414,7 +414,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             {
                 Descriptions = new List<EndpointDescription>(),
                 Configuration = EndpointConfiguration.Create(),
-                ServerCertificateTypesProvider = null,
+                ServerCertificates = null,
                 CertificateValidator = new Mock<ICertificateValidatorEx>().Object,
                 NamespaceUris = new NamespaceTable(),
                 Factory = null
@@ -426,7 +426,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             }
             catch (NullReferenceException)
             {
-                // Expected: ServerCertificateTypesProvider is null, Start() fails.
+                // Expected: ServerCertificates is null, Start() fails.
             }
 
             return listener;

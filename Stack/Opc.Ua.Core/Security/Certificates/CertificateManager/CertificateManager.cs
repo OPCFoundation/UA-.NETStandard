@@ -217,6 +217,23 @@ namespace Opc.Ua
         /// <param name="config">The security configuration to map from.</param>
         public void MapFromSecurityConfiguration(SecurityConfiguration config)
         {
+            MapFromSecurityConfiguration(config, replaceExisting: false);
+        }
+
+        /// <summary>
+        /// Maps the stores defined in a <see cref="SecurityConfiguration"/>
+        /// to named trust lists with optional replacement of existing
+        /// entries.
+        /// </summary>
+        /// <param name="config">The security configuration to map from.</param>
+        /// <param name="replaceExisting">
+        /// When <see langword="true"/>, existing trust list entries are
+        /// replaced with the paths from <paramref name="config"/> (used by
+        /// <see cref="UpdateAsync"/> to honour runtime trust-list path
+        /// changes).
+        /// </param>
+        private void MapFromSecurityConfiguration(SecurityConfiguration config, bool replaceExisting)
+        {
             if (config == null)
             {
                 throw new ArgumentNullException(nameof(config));
@@ -245,39 +262,50 @@ namespace Opc.Ua
             ApplyValidationFlags(m_userValidator);
             ApplyValidationFlags(m_httpsValidator);
 
-            if (config.TrustedPeerCertificates != null &&
-                !string.IsNullOrEmpty(config.TrustedPeerCertificates.StorePath))
+            RegisterOrReplaceTrustList(
+                TrustListIdentifier.Peers,
+                config.TrustedPeerCertificates?.StorePath,
+                config.TrustedIssuerCertificates?.StorePath,
+                replaceExisting);
+
+            RegisterOrReplaceTrustList(
+                TrustListIdentifier.Users,
+                config.TrustedUserCertificates?.StorePath,
+                config.UserIssuerCertificates?.StorePath,
+                replaceExisting);
+
+            RegisterOrReplaceTrustList(
+                TrustListIdentifier.Https,
+                config.TrustedHttpsCertificates?.StorePath,
+                config.HttpsIssuerCertificates?.StorePath,
+                replaceExisting);
+
+            RegisterOrReplaceTrustList(
+                TrustListIdentifier.Rejected,
+                config.RejectedCertificateStore?.StorePath,
+                issuerStorePath: null,
+                replaceExisting);
+        }
+
+        private void RegisterOrReplaceTrustList(
+            TrustListIdentifier trustList,
+            string? trustedStorePath,
+            string? issuerStorePath,
+            bool replaceExisting)
+        {
+            if (string.IsNullOrEmpty(trustedStorePath))
             {
-                RegisterTrustList(
-                    TrustListIdentifier.Peers,
-                    config.TrustedPeerCertificates.StorePath,
-                    config.TrustedIssuerCertificates?.StorePath);
+                return;
             }
 
-            if (config.TrustedUserCertificates != null &&
-                !string.IsNullOrEmpty(config.TrustedUserCertificates.StorePath))
+            if (replaceExisting)
             {
-                RegisterTrustList(
-                    TrustListIdentifier.Users,
-                    config.TrustedUserCertificates.StorePath,
-                    config.UserIssuerCertificates?.StorePath);
+                m_trustLists[trustList] = new TrustListEntry(
+                    trustedStorePath!, issuerStorePath, StoreType: null);
             }
-
-            if (config.TrustedHttpsCertificates != null &&
-                !string.IsNullOrEmpty(config.TrustedHttpsCertificates.StorePath))
+            else
             {
-                RegisterTrustList(
-                    TrustListIdentifier.Https,
-                    config.TrustedHttpsCertificates.StorePath,
-                    config.HttpsIssuerCertificates?.StorePath);
-            }
-
-            if (config.RejectedCertificateStore != null &&
-                !string.IsNullOrEmpty(config.RejectedCertificateStore.StorePath))
-            {
-                RegisterTrustList(
-                    TrustListIdentifier.Rejected,
-                    config.RejectedCertificateStore.StorePath);
+                RegisterTrustList(trustList, trustedStorePath!, issuerStorePath);
             }
         }
 
@@ -366,6 +394,45 @@ namespace Opc.Ua
 
             // Not a registered application certificate: return the raw cert bytes.
             return certificate.RawData;
+        }
+
+        /// <inheritdoc/>
+        public async Task<bool> GetIssuersAsync(
+            Certificate certificate,
+            IList<CertificateIdentifier> issuers,
+            CancellationToken ct = default)
+        {
+            if (certificate == null)
+            {
+                throw new ArgumentNullException(nameof(certificate));
+            }
+
+            if (issuers == null)
+            {
+                throw new ArgumentNullException(nameof(issuers));
+            }
+
+#pragma warning disable CS0618 // Type or member is obsolete
+            CertificateValidator validator = GetOrCreateValidator(TrustListIdentifier.Peers);
+#pragma warning restore CS0618
+
+            // The legacy validator's GetIssuersAsync exposes a List<CertificateIdentifier>;
+            // marshal between the two collection types so the registry can keep an IList
+            // signature without forcing callers to allocate a concrete List.
+            var temp = issuers as List<CertificateIdentifier> ?? [.. issuers];
+            int existingCount = temp.Count;
+            bool isTrusted = await validator.GetIssuersAsync(certificate, temp, ct)
+                .ConfigureAwait(false);
+
+            if (!ReferenceEquals(temp, issuers))
+            {
+                for (int i = existingCount; i < temp.Count; i++)
+                {
+                    issuers.Add(temp[i]);
+                }
+            }
+
+            return isTrusted;
         }
 
         /// <summary>
@@ -641,6 +708,26 @@ namespace Opc.Ua
                     newPrimary.Certificate,
                     newPrimary.IssuerChain));
             }
+        }
+
+        /// <inheritdoc/>
+        public async Task UpdateAsync(
+            SecurityConfiguration securityConfiguration,
+            string? applicationUri = null,
+            CancellationToken ct = default)
+        {
+            if (securityConfiguration == null)
+            {
+                throw new ArgumentNullException(nameof(securityConfiguration));
+            }
+
+            // Re-map trust-list paths and validation flags. Existing entries
+            // are replaced so trust-list path changes (rare but possible via
+            // GDS push) propagate.
+            MapFromSecurityConfiguration(securityConfiguration, replaceExisting: true);
+
+            await ReloadApplicationCertificatesAsync(securityConfiguration, applicationUri, ct)
+                .ConfigureAwait(false);
         }
 
         /// <inheritdoc/>

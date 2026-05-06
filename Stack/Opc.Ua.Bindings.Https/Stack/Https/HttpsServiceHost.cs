@@ -56,7 +56,6 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Create a new service host for UA HTTPS.
         /// </summary>
-#pragma warning disable CS0618 // Type or member is obsolete
         public List<EndpointDescription> CreateServiceHost(
             ServerBase serverBase,
             IDictionary<string, ServiceHost> hosts,
@@ -64,8 +63,8 @@ namespace Opc.Ua.Bindings
             ArrayOf<string> baseAddresses,
             ApplicationDescription serverDescription,
             ArrayOf<ServerSecurityPolicy> securityPolicies,
-            CertificateTypesProvider instanceCertificateTypesProvider)
-#pragma warning restore CS0618
+            ICertificateRegistry serverCertificates,
+            ICertificateValidatorEx clientCertificateValidator)
         {
             // generate a unique host name.
             string hostName = hostName = "/Https";
@@ -153,19 +152,19 @@ namespace Opc.Ua.Bindings
                     Server = serverDescription
                 };
 
-                if (instanceCertificateTypesProvider != null)
+                if (serverCertificates != null)
                 {
-                    Certificate instanceCertificate = instanceCertificateTypesProvider
+                    Certificate instanceCertificate = serverCertificates
                         .GetInstanceCertificate(
-                            bestPolicy.SecurityPolicyUri);
+                            bestPolicy.SecurityPolicyUri)?.Certificate;
                     description.ServerCertificate =
                         instanceCertificate.RawData.ToByteString();
 
                     // check if complete chain should be sent.
-                    if (instanceCertificateTypesProvider.SendCertificateChain)
+                    if (serverCertificates.SendCertificateChain)
                     {
                         description.ServerCertificate =
-                            instanceCertificateTypesProvider.LoadCertificateChainRaw(
+                            serverCertificates.LoadCertificateChainRaw(
                                 instanceCertificate).ToByteString();
                     }
                 }
@@ -197,9 +196,7 @@ namespace Opc.Ua.Bindings
                         endpoints,
                         endpointConfiguration,
                         listener,
-#pragma warning disable CS0618 // Type or member is obsolete
-                        configuration.CertificateValidator);
-#pragma warning restore CS0618
+                        clientCertificateValidator);
                 }
                 else
                 {

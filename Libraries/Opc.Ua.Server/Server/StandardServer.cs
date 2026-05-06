@@ -77,13 +77,6 @@ namespace Opc.Ua.Server
                     m_serverInternal = null;
                 }
 
-#pragma warning disable CS0618 // Type or member is obsolete
-                if (CertificateValidator is CertificateValidator legacyValidator)
-                {
-                    legacyValidator.CertificateUpdate -= OnCertificateUpdateAsync;
-                }
-#pragma warning restore CS0618
-
                 m_certManagerSubscription?.Dispose();
 
                 m_semaphoreSlim.Dispose();
@@ -426,11 +419,9 @@ namespace Opc.Ua.Server
                 }
 
                 // load the certificate for the security profile
-#pragma warning disable CS0618 // Type or member is obsolete
-                Certificate instanceCertificate = InstanceCertificateTypesProvider
+                Certificate instanceCertificate = CertificateManager
                     .GetInstanceCertificate(
-                        context.SecurityPolicyUri);
-#pragma warning restore CS0618
+                        context.SecurityPolicyUri)?.Certificate;
 
                 // create the session.
                 CreateSessionResult result = await ServerInternal.SessionManager.CreateSessionAsync(
@@ -494,13 +485,11 @@ namespace Opc.Ua.Server
                     if (requireEncryption)
                     {
                         // check if complete chain should be sent.
-#pragma warning disable CS0618 // Type or member is obsolete
-                        if (InstanceCertificateTypesProvider.SendCertificateChain)
+                        if (CertificateManager.SendCertificateChain)
                         {
-                            serverCertificate = InstanceCertificateTypesProvider
+                            serverCertificate = CertificateManager
                                 .LoadCertificateChainRaw(instanceCertificate).ToByteString();
                         }
-#pragma warning restore CS0618
                         else
                         {
                             serverCertificate = instanceCertificate.RawData.ToByteString();
@@ -2245,12 +2234,10 @@ namespace Opc.Ua.Server
                             };
 
                             // create the client.
-#pragma warning disable CS0618 // Type or member is obsolete
                             Certificate instanceCertificate =
-                                InstanceCertificateTypesProvider.GetInstanceCertificate(
+                                CertificateManager.GetInstanceCertificate(
                                     endpoint.Description?.SecurityPolicyUri ??
-                                    SecurityPolicies.None);
-#pragma warning restore CS0618
+                                    SecurityPolicies.None)?.Certificate;
                             client = await RegistrationClient.CreateAsync(
                                 configuration,
                                 endpoint.Description,
@@ -2746,15 +2733,14 @@ namespace Opc.Ua.Server
                     .SecurityConfiguration
                     .RejectedCertificateStore;
 
-#pragma warning disable CS0618 // Type or member is obsolete
-                if (Configuration.CertificateValidator is CertificateValidator cfgUpdateValidator)
+                if (CertificateManager != null)
                 {
-                    await cfgUpdateValidator.UpdateAsync(
+                    await CertificateManager.UpdateAsync(
                             Configuration.SecurityConfiguration,
-                            ct: cancellationToken)
+                            Configuration.ApplicationUri,
+                            cancellationToken)
                         .ConfigureAwait(false);
                 }
-#pragma warning restore CS0618
 
                 // update trace configuration.
                 Configuration.TraceConfiguration = configuration.TraceConfiguration ??
@@ -2857,8 +2843,9 @@ namespace Opc.Ua.Server
                         configuration.ServerConfiguration.BaseAddresses,
                         serverDescription,
                         configuration.ServerConfiguration.SecurityPolicies,
+                        CertificateManager,
 #pragma warning disable CS0618 // Type or member is obsolete
-                        InstanceCertificateTypesProvider);
+                        configuration.CertificateValidator);
 #pragma warning restore CS0618
                     endpointsList.AddRange(endpointsForHost);
                 }
@@ -3111,13 +3098,6 @@ namespace Opc.Ua.Server
                 m_configurationWatcher.Changed += OnConfigurationChangedAsync;
             }
 
-#pragma warning disable CS0618 // Type or member is obsolete
-            if (CertificateValidator is CertificateValidator legacyCertValidator)
-            {
-                legacyCertValidator.CertificateUpdate += OnCertificateUpdateAsync;
-            }
-#pragma warning restore CS0618
-
             // Log availability of the new CertificateManager
             if (CertificateManager != null)
             {
@@ -3125,9 +3105,11 @@ namespace Opc.Ua.Server
                     "CertificateManager initialized with {Count} trust lists.",
                     CertificateManager.TrustLists.Count);
 
-                // Subscribe to CertificateManager change notifications
+                // Subscribe to CertificateManager change notifications and
+                // fan-out to OnCertificateUpdateAsync so endpoint descriptions
+                // and transport listeners pick up cert hot-updates.
                 m_certManagerSubscription = CertificateManager.CertificateChanges
-                    .Subscribe(new CertificateManagerChangeObserver(m_logger));
+                    .Subscribe(new CertificateManagerChangeObserver(this, m_logger));
             }
         }
 
@@ -3750,10 +3732,12 @@ namespace Opc.Ua.Server
 
         private sealed class CertificateManagerChangeObserver : IObserver<Security.Certificates.CertificateChangeEvent>
         {
+            private readonly StandardServer _server;
             private readonly ILogger _logger;
 
-            public CertificateManagerChangeObserver(ILogger logger)
+            public CertificateManagerChangeObserver(StandardServer server, ILogger logger)
             {
+                _server = server;
                 _logger = logger;
             }
 
@@ -3764,6 +3748,25 @@ namespace Opc.Ua.Server
                     _logger.LogInformation(
                         "CertificateManager: Application certificate updated for type {CertType}.",
                         value.CertificateType);
+
+                    // Fan-out the cert update to endpoint descriptions and
+                    // transport listeners. The reload itself was performed by
+                    // CertificateManager.UpdateAsync /
+                    // ReloadApplicationCertificatesAsync before this notification
+                    // fired, so we only need to refresh downstream consumers.
+                    try
+                    {
+                        ICertificateValidatorEx validator = _server.CertificateManager;
+                        var args = new CertificateUpdateEventArgs(
+                            _server.Configuration?.SecurityConfiguration,
+                            validator);
+                        _server.OnCertificateUpdateAsync(_server, args);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex,
+                            "CertificateManager change observer failed to fan-out cert update.");
+                    }
                 }
             }
 

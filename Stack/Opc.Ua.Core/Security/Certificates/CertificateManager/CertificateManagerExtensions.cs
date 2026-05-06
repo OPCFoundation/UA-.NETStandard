@@ -124,4 +124,60 @@ namespace Opc.Ua
             return manager;
         }
     }
+
+    /// <summary>
+    /// Extension methods for <see cref="ICertificateRegistry"/>.
+    /// </summary>
+    public static class CertificateRegistryExtensions
+    {
+        /// <summary>
+        /// Returns a caller-owned <see cref="CertificateCollection"/> containing
+        /// the application certificate and its issuer chain. Each certificate in
+        /// the collection has been AddRef'd; callers must dispose the collection
+        /// when finished.
+        /// </summary>
+        /// <remarks>
+        /// When <paramref name="certificate"/> matches an entry in the
+        /// registry, the registry's pre-loaded issuer chain is appended.
+        /// When the certificate is not registered, the returned collection
+        /// contains only <paramref name="certificate"/>.
+        /// </remarks>
+        /// <param name="registry">The certificate registry.</param>
+        /// <param name="certificate">The application certificate.</param>
+        /// <returns>
+        /// A new <see cref="CertificateCollection"/> with the chain, or
+        /// <see langword="null"/> when <paramref name="certificate"/> is null.
+        /// </returns>
+        public static CertificateCollection? LoadCertificateChain(
+            this ICertificateRegistry registry,
+            Certificate? certificate)
+        {
+            if (registry == null)
+            {
+                throw new ArgumentNullException(nameof(registry));
+            }
+
+            if (certificate == null)
+            {
+                return null;
+            }
+
+            string thumbprint = certificate.Thumbprint;
+            foreach (CertificateEntry entry in registry.ApplicationCertificates)
+            {
+                if (string.Equals(
+                        entry.Certificate.Thumbprint, thumbprint, StringComparison.Ordinal))
+                {
+                    var chain = new CertificateCollection { entry.Certificate };
+                    foreach (Certificate issuer in entry.IssuerChain)
+                    {
+                        chain.Add(issuer);
+                    }
+                    return chain;
+                }
+            }
+
+            return new CertificateCollection { certificate };
+        }
+    }
 }

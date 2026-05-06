@@ -71,12 +71,11 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Attaches the object to an existing socket.
         /// </summary>
-#pragma warning disable CS0618 // Type or member is obsolete
         public UaSCUaBinaryChannel(
             string contextId,
             BufferManager bufferManager,
             ChannelQuotas quotas,
-            CertificateTypesProvider serverCertificateTypesProvider,
+            ICertificateRegistry serverCertificates,
             List<EndpointDescription> endpoints,
             MessageSecurityMode securityMode,
             string securityPolicyUri,
@@ -85,7 +84,7 @@ namespace Opc.Ua.Bindings
                 contextId,
                 bufferManager,
                 quotas,
-                serverCertificateTypesProvider,
+                serverCertificates,
                 null,
                 endpoints,
                 securityMode,
@@ -93,23 +92,20 @@ namespace Opc.Ua.Bindings
                 telemetry)
         {
         }
-#pragma warning restore CS0618
 
         /// <summary>
         /// Attaches the object to an existing socket.
         /// </summary>
-#pragma warning disable CS0618 // Type or member is obsolete
         private UaSCUaBinaryChannel(
             string contextId,
             BufferManager bufferManager,
             ChannelQuotas quotas,
-            CertificateTypesProvider serverCertificateTypesProvider,
+            ICertificateRegistry serverCertificates,
             Certificate serverCertificate,
             List<EndpointDescription> endpoints,
             MessageSecurityMode securityMode,
             string securityPolicyUri,
             ITelemetryContext telemetry)
-#pragma warning restore CS0618
         {
             // create a unique contex if none provided.
             m_contextId = contextId;
@@ -128,10 +124,10 @@ namespace Opc.Ua.Bindings
             }
 
             CertificateCollection serverCertificateChain = null;
-            if (serverCertificateTypesProvider != null && securityMode != MessageSecurityMode.None)
+            if (serverCertificates != null && securityMode != MessageSecurityMode.None)
             {
                 serverCertificate =
-                    serverCertificateTypesProvider.GetInstanceCertificate(securityPolicyUri)
+                    serverCertificates.GetInstanceCertificate(securityPolicyUri)?.Certificate
                     ?? throw new ArgumentNullException(nameof(serverCertificate));
 
                 if (serverCertificate.RawData.Length > TcpMessageLimits.MaxCertificateSize)
@@ -144,10 +140,7 @@ namespace Opc.Ua.Bindings
                         nameof(serverCertificate));
                 }
 
-                serverCertificateChain = serverCertificateTypesProvider
-                    .LoadCertificateChainAsync(serverCertificate)
-                    .GetAwaiter()
-                    .GetResult();
+                serverCertificateChain = serverCertificates.LoadCertificateChain(serverCertificate);
             }
 
             if (Encoding.UTF8.GetByteCount(securityPolicyUri) > TcpMessageLimits
@@ -163,7 +156,7 @@ namespace Opc.Ua.Bindings
 
             BufferManager = bufferManager ?? throw new ArgumentNullException(nameof(bufferManager));
             Quotas = quotas ?? throw new ArgumentNullException(nameof(quotas));
-            m_serverCertificateTypesProvider = serverCertificateTypesProvider;
+            m_serverCertificates = serverCertificates;
             ServerCertificate = serverCertificate;
             ServerCertificateChain = serverCertificateChain;
             m_endpoints = endpoints;

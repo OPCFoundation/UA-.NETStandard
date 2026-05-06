@@ -30,7 +30,6 @@
 using System;
 using System.Collections.Generic;
 using Microsoft.Extensions.Logging;
-using Opc.Ua.Security.Certificates;
 
 
 namespace Opc.Ua.Bindings
@@ -53,7 +52,6 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Create a new service host for UA TCP.
         /// </summary>
-#pragma warning disable CS0618 // Type or member is obsolete
         public List<EndpointDescription> CreateServiceHost(
             ServerBase serverBase,
             IDictionary<string, ServiceHost> hosts,
@@ -61,8 +59,8 @@ namespace Opc.Ua.Bindings
             ArrayOf<string> baseAddresses,
             ApplicationDescription serverDescription,
             ArrayOf<ServerSecurityPolicy> securityPolicies,
-            CertificateTypesProvider instanceCertificateTypesProvider)
-#pragma warning restore CS0618
+            ICertificateRegistry serverCertificates,
+            ICertificateValidatorEx clientCertificateValidator)
         {
             // generate a unique host name.
             string hostName = "/Tcp";
@@ -101,7 +99,7 @@ namespace Opc.Ua.Bindings
                     uri.Host = computerName;
                 }
 
-                _ = instanceCertificateTypesProvider.SendCertificateChain;
+                _ = serverCertificates.SendCertificateChain;
                 ITransportListener listener = Create(serverBase.MessageContext.Telemetry);
                 if (listener != null)
                 {
@@ -129,7 +127,7 @@ namespace Opc.Ua.Bindings
 
                         ServerBase.SetServerCertificateInEndpointDescription(
                             description,
-                            instanceCertificateTypesProvider);
+                            serverCertificates);
 
                         listenerEndpoints.Add(description);
                     }
@@ -139,9 +137,7 @@ namespace Opc.Ua.Bindings
                         listenerEndpoints,
                         endpointConfiguration,
                         listener,
-#pragma warning disable CS0618 // Type or member is obsolete
-                        configuration.CertificateValidator);
-#pragma warning restore CS0618
+                        clientCertificateValidator);
 
                     endpoints.AddRange(listenerEndpoints);
                 }

@@ -102,5 +102,29 @@ namespace Opc.Ua
             SecurityConfiguration securityConfiguration,
             string? applicationUri = null,
             CancellationToken ct = default);
+
+        /// <summary>
+        /// Re-applies a <see cref="SecurityConfiguration"/> at runtime: refreshes
+        /// trust-list paths, validation flags, and the application certificate
+        /// snapshot. Cached per-trust-list validators are invalidated so the
+        /// next validation picks up any changes.
+        /// </summary>
+        /// <remarks>
+        /// This is the modern replacement for the legacy
+        /// <c>CertificateValidator.UpdateAsync(SecurityConfiguration)</c>
+        /// hot-update path used by <c>ServerInternalData.OnUpdateConfigurationAsync</c>.
+        /// Unlike <see cref="ReloadApplicationCertificatesAsync"/>, this method
+        /// also re-maps trust-list paths and re-snapshots validation flags.
+        /// </remarks>
+        /// <param name="securityConfiguration">The new security configuration.</param>
+        /// <param name="applicationUri">
+        /// Optional application URI used for matching certificates.
+        /// </param>
+        /// <param name="ct">A cancellation token.</param>
+        /// <returns>A task that completes when the update is finished.</returns>
+        Task UpdateAsync(
+            SecurityConfiguration securityConfiguration,
+            string? applicationUri = null,
+            CancellationToken ct = default);
     }
 }
