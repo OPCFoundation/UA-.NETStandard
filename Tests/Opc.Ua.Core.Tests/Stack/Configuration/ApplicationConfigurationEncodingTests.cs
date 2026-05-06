@@ -78,9 +78,10 @@ namespace Opc.Ua.Core.Tests
             Assert.That(config.Properties, Is.Not.Null);
             Assert.That(config.ExtensionObjects, Is.Not.Null);
             Assert.That(config.PropertiesLock, Is.Not.Null);
-#pragma warning disable CS0618 // Type or member is obsolete
-            Assert.That(config.CertificateValidator, Is.Not.Null);
-#pragma warning restore CS0618
+            // CertificateManager is created lazily by ValidateAsync; the
+            // legacy CertificateValidator forwarder consequently returns
+            // null until the configuration is validated.
+            Assert.That(config.CertificateManager, Is.Null);
         }
 
         [Test]

@@ -1799,7 +1799,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         }
 
         /// <summary>
-        /// Verify the certificate validator can be assigned.
+        /// Verify the certificate validator property forwards to
+        /// CertificateManager.
         /// </summary>
         [Test]
         public void CertificateValidatorAssignableFromAppConfig()
@@ -1807,13 +1808,14 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.DoesNotThrow(() =>
             {
                 ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-#pragma warning disable CS0618 // Type or member is obsolete
+                using var manager = new CertificateManager(telemetry);
                 var appConfig = new ApplicationConfiguration(telemetry)
                 {
-                    CertificateValidator = new CertificateValidator(telemetry)
+                    CertificateManager = manager
                 };
                 Assert.That(appConfig, Is.Not.Null);
-                Assert.That(appConfig.CertificateValidator, Is.Not.Null);
+#pragma warning disable CS0618 // Type or member is obsolete
+                Assert.That(appConfig.CertificateValidator, Is.SameAs(manager));
 #pragma warning restore CS0618
             });
         }

@@ -104,8 +104,25 @@ namespace Opc.Ua
         /// <summary>
         /// Gets or sets the certificate validator which is configured to use.
         /// </summary>
+        /// <remarks>
+        /// This property forwards to <see cref="CertificateManager"/>.
+        /// Reads return the manager cast as <see cref="ICertificateValidatorEx"/>;
+        /// writes are no-ops unless the value is an <see cref="ICertificateManager"/>
+        /// (in which case the manager is replaced). New code should use
+        /// <see cref="CertificateManager"/> directly.
+        /// </remarks>
         [Obsolete("Use ApplicationConfiguration.CertificateManager (ICertificateManager) instead. See Docs/CertificateManager.md.")]
-        public ICertificateValidatorEx CertificateValidator { get; set; }
+        public ICertificateValidatorEx CertificateValidator
+        {
+            get => CertificateManager;
+            set
+            {
+                if (value is ICertificateManager manager)
+                {
+                    CertificateManager = manager;
+                }
+            }
+        }
 
         /// <summary>
         /// Gets or sets the certificate manager that owns this application's
@@ -725,21 +742,6 @@ namespace Opc.Ua
             {
                 ServerConfiguration.PublishingResolution = 50;
             }
-
-            // The legacy validator UpdateAsync is still the canonical way to
-            // load trust lists into a CertificateValidator instance. Once a
-            // CertificateManager-driven equivalent is exposed via
-            // ICertificateValidatorEx, this cast can be removed.
-#pragma warning disable CS0618 // legacy CertificateValidator reference for trust-list update
-            if (CertificateValidator is CertificateValidator legacyValidator)
-            {
-                await legacyValidator.UpdateAsync(
-                    SecurityConfiguration,
-                    applicationUri: null,
-                    ct)
-                    .ConfigureAwait(false);
-            }
-#pragma warning restore CS0618
 
             // Eagerly create a CertificateManager from the security
             // configuration so consumers (Session, ClientChannelManager,

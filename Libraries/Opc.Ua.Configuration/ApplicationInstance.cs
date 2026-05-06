@@ -62,10 +62,6 @@ namespace Opc.Ua.Configuration
                 Server = null;
             }
 
-#pragma warning disable CS0618 // Type or member is obsolete
-            (ApplicationConfiguration?.CertificateValidator as IDisposable)?.Dispose();
-#pragma warning restore CS0618
-
             if (ApplicationConfiguration?.SecurityConfiguration?.ApplicationCertificates != null)
             {
                 foreach (CertificateIdentifier certId in
@@ -308,7 +304,6 @@ namespace Opc.Ua.Configuration
 #pragma warning disable CS0618 // Type or member is obsolete
             ApplicationConfiguration.TraceConfiguration.ApplySettings();
 #pragma warning restore CS0618 // Type or member is obsolete
-#pragma warning disable CS0618 // re-enable file-level legacy CertificateValidator pragma
 
             return new ApplicationConfigurationBuilder(this);
         }
@@ -986,10 +981,16 @@ namespace Opc.Ua.Configuration
                 ct)
                 .ConfigureAwait(false);
 
-            if (configuration.CertificateValidator is CertificateValidator legacyValidator)
+            // Refresh CertificateManager so newly-created certificates are
+            // visible to subsequent ValidateAsync / GetInstanceCertificate
+            // callers (replaces the legacy validator.UpdateAsync hot-update
+            // path).
+            if (configuration.CertificateManager != null)
             {
-                await legacyValidator
-                    .UpdateAsync(configuration.SecurityConfiguration, applicationUri: null, ct)
+                await configuration.CertificateManager.UpdateAsync(
+                    configuration.SecurityConfiguration,
+                    configuration.ApplicationUri,
+                    ct)
                     .ConfigureAwait(false);
             }
 

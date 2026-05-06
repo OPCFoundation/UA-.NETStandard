@@ -263,24 +263,28 @@ namespace Opc.Ua.Core.Tests
         }
 
         [Test]
-        /// CertificateValidator is created by default constructor.
-        public void CertificateValidatorDefaultIsNotNull()
+        /// CertificateManager is null by default before validation; once
+        /// CertificateManager is assigned the legacy CertificateValidator
+        /// property forwards to it.
+        public void CertificateValidatorDefaultIsNull()
         {
             var config = new ApplicationConfiguration(m_telemetry);
 #pragma warning disable CS0618 // Type or member is obsolete
-            Assert.That(config.CertificateValidator, Is.Not.Null);
+            Assert.That(config.CertificateValidator, Is.Null);
 #pragma warning restore CS0618
+            Assert.That(config.CertificateManager, Is.Null);
         }
 
         [Test]
-        /// CertificateValidator get/set round-trips correctly.
-        public void CertificateValidatorGetSet()
+        /// CertificateManager get/set round-trips correctly.
+        public void CertificateManagerGetSet()
         {
             var config = new ApplicationConfiguration(m_telemetry);
+            using var manager = new CertificateManager(m_telemetry);
+            config.CertificateManager = manager;
+            Assert.That(config.CertificateManager, Is.SameAs(manager));
 #pragma warning disable CS0618 // Type or member is obsolete
-            var validator = new CertificateValidator(m_telemetry);
-            config.CertificateValidator = validator;
-            Assert.That(config.CertificateValidator, Is.SameAs(validator));
+            Assert.That(config.CertificateValidator, Is.SameAs(manager));
 #pragma warning restore CS0618
         }
 
@@ -610,20 +614,20 @@ namespace Opc.Ua.Core.Tests
         }
 
         [Test]
-        /// Copy constructor copies CertificateValidator reference.
-        public void CopyConstructorCopiesCertificateValidator()
+        /// Copy constructor copies CertificateManager by reference (matches
+        /// the legacy shared-instance semantics formerly provided by
+        /// CertificateValidator).
+        public void CopyConstructorCopiesCertificateManager()
         {
-#pragma warning disable CS0618 // Type or member is obsolete
-            var validator = new CertificateValidator(m_telemetry);
+            using var manager = new CertificateManager(m_telemetry);
             var original = new ApplicationConfiguration(m_telemetry)
             {
                 ApplicationName = "CopyTest",
-                CertificateValidator = validator
+                CertificateManager = manager
             };
 
             var copy = new ApplicationConfiguration(original);
-            Assert.That(copy.CertificateValidator, Is.SameAs(validator));
-#pragma warning restore CS0618
+            Assert.That(copy.CertificateManager, Is.SameAs(manager));
         }
 
         [Test]

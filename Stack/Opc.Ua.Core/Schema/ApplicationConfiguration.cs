@@ -54,9 +54,6 @@ namespace Opc.Ua
             m_properties = [];
             m_extensionObjects = [];
 
-#pragma warning disable CS0618 // Type or member is obsolete
-            CertificateValidator = new CertificateValidator(m_telemetry);
-#pragma warning restore CS0618
             m_logger = m_telemetry.CreateLogger<ApplicationConfiguration>();
         }
 
@@ -72,9 +69,6 @@ namespace Opc.Ua
 
             m_telemetry = telemetry;
             m_logger = telemetry.CreateLogger<ApplicationConfiguration>();
-#pragma warning disable CS0618 // Type or member is obsolete
-            CertificateValidator = new CertificateValidator(m_telemetry);
-#pragma warning restore CS0618
         }
 
         /// <summary>
@@ -91,9 +85,11 @@ namespace Opc.Ua
             ServerConfiguration = template.ServerConfiguration;
             ClientConfiguration = template.ClientConfiguration;
             DisableHiResClock = template.DisableHiResClock;
-#pragma warning disable CS0618 // Type or member is obsolete
-            CertificateValidator = template.CertificateValidator;
-#pragma warning restore CS0618
+            // Share the same CertificateManager instance with the template so that
+            // both configurations see the same trust list, rejected store, and
+            // cached validators (matches the legacy shared-instance semantics
+            // formerly provided by ApplicationConfiguration.CertificateValidator).
+            CertificateManager = template.CertificateManager;
             TransportQuotas = template.TransportQuotas;
             TraceConfiguration = template.TraceConfiguration;
             m_extensions = template.m_extensions;
