@@ -102,40 +102,15 @@ namespace Opc.Ua
         public string SourceFilePath { get; private set; }
 
         /// <summary>
-        /// Gets or sets the certificate validator which is configured to use.
-        /// </summary>
-        /// <remarks>
-        /// This property forwards to <see cref="CertificateManager"/>.
-        /// Reads return the manager cast as <see cref="ICertificateValidatorEx"/>;
-        /// writes are no-ops unless the value is an <see cref="ICertificateManager"/>
-        /// (in which case the manager is replaced). New code should use
-        /// <see cref="CertificateManager"/> directly.
-        /// </remarks>
-        [Obsolete("Use ApplicationConfiguration.CertificateManager (ICertificateManager) instead. See Docs/CertificateManager.md.")]
-        public ICertificateValidatorEx CertificateValidator
-        {
-            get => CertificateManager;
-            set
-            {
-                if (value is ICertificateManager manager)
-                {
-                    CertificateManager = manager;
-                }
-            }
-        }
-
-        /// <summary>
         /// Gets or sets the certificate manager that owns this application's
         /// certificates and trust lists.
         /// </summary>
         /// <remarks>
         /// Populated by <c>ApplicationInstance</c> during
-        /// <c>CheckApplicationInstanceCertificatesAsync</c>. New code should
-        /// prefer this property over <see cref="CertificateValidator"/> for
-        /// validation, lifecycle, and trust-list operations. The legacy
-        /// <see cref="CertificateValidator"/> property continues to work
-        /// (the same trust lists, populated via
-        /// <see cref="CertificateValidator.UpdateAsync(SecurityConfiguration, string?, System.Threading.CancellationToken)"/>).
+        /// <c>CheckApplicationInstanceCertificatesAsync</c>. The
+        /// <c>ICertificateManager</c> aggregates registry, trust-list,
+        /// validation, lifecycle, and trust-list-file capabilities; use it
+        /// directly for validation, lifecycle, and trust-list operations.
         /// </remarks>
         public ICertificateManager CertificateManager { get; set; }
 

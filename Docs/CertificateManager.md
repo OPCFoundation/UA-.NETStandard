@@ -365,23 +365,6 @@ and forward to `Certificate.FromRawData(...)`,
 they remain the canonical default values used across configuration
 sites.
 
-#### Suppressing CS0618 during migration
-
-Sites that intentionally bridge to the legacy types (sample apps,
-test fixtures, internal cast bridges) wrap each obsolete call in a
-narrow pragma so the rest of the file still benefits from the
-analyzer warnings:
-
-```csharp
-#pragma warning disable CS0618 // Type or member is obsolete
-var legacyValidator = new CertificateValidator(telemetry);
-#pragma warning restore CS0618
-```
-
-This makes it trivial to grep the codebase for every site that
-still depends on the obsolete API and to retire the bridge in a
-future major release.
-
 ### OPC UA Specification Alignment
 
 | Spec Area | Interface |

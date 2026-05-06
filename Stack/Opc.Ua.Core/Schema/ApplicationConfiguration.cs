@@ -87,8 +87,7 @@ namespace Opc.Ua
             DisableHiResClock = template.DisableHiResClock;
             // Share the same CertificateManager instance with the template so that
             // both configurations see the same trust list, rejected store, and
-            // cached validators (matches the legacy shared-instance semantics
-            // formerly provided by ApplicationConfiguration.CertificateValidator).
+            // cached validators.
             CertificateManager = template.CertificateManager;
             TransportQuotas = template.TransportQuotas;
             TraceConfiguration = template.TraceConfiguration;

@@ -2844,9 +2844,7 @@ namespace Opc.Ua.Server
                         serverDescription,
                         configuration.ServerConfiguration.SecurityPolicies,
                         CertificateManager,
-#pragma warning disable CS0618 // Type or member is obsolete
-                        configuration.CertificateValidator);
-#pragma warning restore CS0618
+                        configuration.CertificateManager);
                     endpointsList.AddRange(endpointsForHost);
                 }
             }

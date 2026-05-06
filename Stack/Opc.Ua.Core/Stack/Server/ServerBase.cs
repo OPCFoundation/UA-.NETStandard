@@ -677,13 +677,6 @@ namespace Opc.Ua
         protected ArrayOf<EndpointDescription> Endpoints { get; private set; }
 
         /// <summary>
-        /// The object used to verify client certificates
-        /// </summary>
-        /// <value>The identifier for an X509 certificate.</value>
-        [Obsolete("Use ServerBase.CertificateManager (ICertificateManager) instead. See Docs/CertificateManager.md.")]
-        public ICertificateValidatorEx CertificateValidator { get; private set; }
-
-        /// <summary>
         /// Gets the certificate manager, if available.
         /// </summary>
         public CertificateManager CertificateManager { get; protected set; }
@@ -1491,11 +1484,6 @@ namespace Opc.Ua
                     X509NameType.DnsName,
                     false);
             }
-
-            // save the certificate validator.
-#pragma warning disable CS0618 // Type or member is obsolete
-            CertificateValidator = configuration.CertificateValidator;
-#pragma warning restore CS0618
         }
 
         /// <summary>

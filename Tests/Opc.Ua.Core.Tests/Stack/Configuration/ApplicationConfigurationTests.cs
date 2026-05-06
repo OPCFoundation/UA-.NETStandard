@@ -263,15 +263,10 @@ namespace Opc.Ua.Core.Tests
         }
 
         [Test]
-        /// CertificateManager is null by default before validation; once
-        /// CertificateManager is assigned the legacy CertificateValidator
-        /// property forwards to it.
-        public void CertificateValidatorDefaultIsNull()
+        /// CertificateManager is null by default before validation.
+        public void CertificateManagerDefaultIsNull()
         {
             var config = new ApplicationConfiguration(m_telemetry);
-#pragma warning disable CS0618 // Type or member is obsolete
-            Assert.That(config.CertificateValidator, Is.Null);
-#pragma warning restore CS0618
             Assert.That(config.CertificateManager, Is.Null);
         }
 
@@ -283,9 +278,6 @@ namespace Opc.Ua.Core.Tests
             using var manager = new CertificateManager(m_telemetry);
             config.CertificateManager = manager;
             Assert.That(config.CertificateManager, Is.SameAs(manager));
-#pragma warning disable CS0618 // Type or member is obsolete
-            Assert.That(config.CertificateValidator, Is.SameAs(manager));
-#pragma warning restore CS0618
         }
 
         [Test]
@@ -614,9 +606,7 @@ namespace Opc.Ua.Core.Tests
         }
 
         [Test]
-        /// Copy constructor copies CertificateManager by reference (matches
-        /// the legacy shared-instance semantics formerly provided by
-        /// CertificateValidator).
+        /// Copy constructor copies CertificateManager by reference.
         public void CopyConstructorCopiesCertificateManager()
         {
             using var manager = new CertificateManager(m_telemetry);
