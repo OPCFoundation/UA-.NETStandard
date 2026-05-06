@@ -1202,24 +1202,24 @@ namespace Opc.Ua.Configuration
             if (!RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
             {
                 certificateIdentifiers.AddRange(
-                    [
-                        new CertificateIdentifier
-                        {
-                            StoreType = storeType,
-                            StorePath = storePath,
-                            SubjectName = subjectName,
-                            CertificateType = ObjectTypeIds
-                                .EccBrainpoolP256r1ApplicationCertificateType
-                        },
-                        new CertificateIdentifier
-                        {
-                            StoreType = storeType,
-                            StorePath = storePath,
-                            SubjectName = subjectName,
-                            CertificateType = ObjectTypeIds
-                                .EccBrainpoolP384r1ApplicationCertificateType
-                        }
-                    ]);
+                [
+                    new CertificateIdentifier
+                    {
+                        StoreType = storeType,
+                        StorePath = storePath,
+                        SubjectName = subjectName,
+                        CertificateType = ObjectTypeIds
+                            .EccBrainpoolP256r1ApplicationCertificateType
+                    },
+                    new CertificateIdentifier
+                    {
+                        StoreType = storeType,
+                        StorePath = storePath,
+                        SubjectName = subjectName,
+                        CertificateType = ObjectTypeIds
+                            .EccBrainpoolP384r1ApplicationCertificateType
+                    }
+                ]);
             }
             return certificateIdentifiers.ToArrayOf();
         }

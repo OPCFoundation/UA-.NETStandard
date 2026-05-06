@@ -780,7 +780,7 @@ namespace Opc.Ua.SourceGeneration
                 ["DataValue"] = ("WriteDataValue", "ReadDataValue"),
                 ["Variant"] = ("WriteVariant", "ReadVariant"),
                 ["DiagnosticInfo"] = ("WriteDiagnosticInfo", "ReadDiagnosticInfo"),
-                ["XmlElement"] = ("WriteXmlElement", "ReadXmlElement"),
+                ["XmlElement"] = ("WriteXmlElement", "ReadXmlElement")
             };
 
         internal static readonly Dictionary<string, string> NotDefaultCheckExpression =

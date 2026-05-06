@@ -47,7 +47,7 @@ namespace Opc.Ua
         /// <summary>
         /// The security profiles which are supported for this configuration.
         /// </summary>
-        public ArrayOf<string> SupportedSecurityPolicies { get; private set; } = new ArrayOf<string>();
+        public ArrayOf<string> SupportedSecurityPolicies { get; private set; }
 
         /// <summary>
         /// Get the provider which is invoked when a password

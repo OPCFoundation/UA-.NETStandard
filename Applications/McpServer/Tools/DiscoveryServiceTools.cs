@@ -293,6 +293,5 @@ namespace Opc.Ua.Mcp.Tools
                 });
             }
         }
-
     }
 }

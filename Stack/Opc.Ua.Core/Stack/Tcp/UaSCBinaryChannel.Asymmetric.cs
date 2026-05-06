@@ -1062,10 +1062,12 @@ namespace Opc.Ua.Bindings
                         Quotas.CertificateValidator != null &&
                         securityPolicyUri != SecurityPolicies.None)
                     {
+#pragma warning disable CA2025 // Do not pass 'IDisposable' instances into unawaited tasks
                         CertificateValidationResult validationResult = Quotas.CertificateValidator
                             .ValidateAsync(senderCertificateChain, ct: default)
                             .GetAwaiter()
                             .GetResult();
+#pragma warning restore CA2025 // Do not pass 'IDisposable' instances into unawaited tasks
                         if (!validationResult.IsValid)
                         {
                             throw new ServiceResultException(validationResult.StatusCode);

@@ -1511,7 +1511,7 @@ namespace Opc.Ua.SourceGeneration
 
             string forInstanceVariableValue =
                 node.RootIsTypeDefinition ? "forInstance" :
-                (node.Parent?.InstanceOf != null || node.Parent?.Parent == null) ? "true" : "forInstance";
+                node.Parent?.InstanceOf != null || node.Parent?.Parent == null ? "true" : "forInstance";
             if (node.Parent != null && IsInAddressSpace(node.Parent))
             {
                 switch (node.Parent.Design)

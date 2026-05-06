@@ -178,8 +178,8 @@ namespace Opc.Ua.Security.Certificates
             {
                 Ua.CertificateIdentifier? instanceCertificate =
                     (m_securityConfiguration.ApplicationCertificates
-                    .ToArray() ??
-                    []).FirstOrDefault(id => id.CertificateType == certType);
+                        .ToArray() ??
+                        []).FirstOrDefault(id => id.CertificateType == certType);
                 if (instanceCertificate == null &&
                     certType == ObjectTypeIds.RsaSha256ApplicationCertificateType)
                 {
@@ -281,7 +281,7 @@ namespace Opc.Ua.Security.Certificates
             }
 
             // load certificate chain.
-            var certificateChain = new CertificateCollection(new[] { certificate });
+            using var certificateChain = new CertificateCollection([certificate]);
             var issuers = new List<Ua.CertificateIdentifier>();
             if (await m_certificateValidator.GetIssuersAsync(certificate, issuers)
                 .ConfigureAwait(false))

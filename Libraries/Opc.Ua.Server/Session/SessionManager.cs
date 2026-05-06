@@ -342,7 +342,7 @@ namespace Opc.Ua.Server
                     // raise audit event for session closed because of timeout
                     m_server.ReportAuditCloseSessionEvent(null, session, m_logger, "Session/Timeout");
 
-                    m_server.CloseSession(null, session.Id, false);
+                    await m_server.CloseSessionAsync(null, session.Id, false, default).ConfigureAwait(false);
 
                     throw new ServiceResultException(StatusCodes.BadSessionClosed);
                 }

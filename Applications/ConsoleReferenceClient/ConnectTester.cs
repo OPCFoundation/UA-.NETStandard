@@ -87,6 +87,7 @@ namespace Quickstarts
                 // Define the UA Client application
                 var passwordProvider = new CertificatePasswordProvider([]);
 
+#pragma warning disable CA2007
                 await using var application = new ApplicationInstance(m_telemetry)
                 {
                     ApplicationName = applicationName,
@@ -94,6 +95,7 @@ namespace Quickstarts
                     ConfigSectionName = configSectionName,
                     CertificatePasswordProvider = passwordProvider
                 };
+#pragma warning restore CA2007
 
                 // load the application configuration.
                 ApplicationConfiguration configuration = m_configuration = await application

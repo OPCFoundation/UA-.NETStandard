@@ -58,7 +58,7 @@ namespace Opc.Ua.Mcp.Tools
             [Description("Session name to use (defaults to the only active session)")] string? sessionName = null,
             CancellationToken ct = default)
         {
-            Client.ISession session = sessionManager.GetSessionOrThrow(sessionName);
+            ISession session = sessionManager.GetSessionOrThrow(sessionName);
             try
             {
                 DataValue dataValue = await session.ReadValueAsync(
@@ -97,7 +97,7 @@ namespace Opc.Ua.Mcp.Tools
             [Description("Session name to use (defaults to the only active session)")] string? sessionName = null,
             CancellationToken ct = default)
         {
-            Client.ISession session = sessionManager.GetSessionOrThrow(sessionName);
+            ISession session = sessionManager.GetSessionOrThrow(sessionName);
             try
             {
                 var parsedNodeIds = nodeIds.Select(OpcUaJsonHelper.ParseNodeId).ToList();
@@ -144,7 +144,7 @@ namespace Opc.Ua.Mcp.Tools
             [Description("Session name to use (defaults to the only active session)")] string? sessionName = null,
             CancellationToken ct = default)
         {
-            Client.ISession session = sessionManager.GetSessionOrThrow(sessionName);
+            ISession session = sessionManager.GetSessionOrThrow(sessionName);
             try
             {
                 JsonElement jsonElement = JsonDocument.Parse(value).RootElement;
@@ -192,7 +192,7 @@ namespace Opc.Ua.Mcp.Tools
             [Description("Session name to use (defaults to the only active session)")] string? sessionName = null,
             CancellationToken ct = default)
         {
-            Client.ISession session = sessionManager.GetSessionOrThrow(sessionName);
+            ISession session = sessionManager.GetSessionOrThrow(sessionName);
             try
             {
                 NodeId startNode = nodeId != null
@@ -287,7 +287,7 @@ namespace Opc.Ua.Mcp.Tools
             [Description("Session name to use (defaults to the only active session)")] string? sessionName = null,
             CancellationToken ct = default)
         {
-            Client.ISession session = sessionManager.GetSessionOrThrow(sessionName);
+            ISession session = sessionManager.GetSessionOrThrow(sessionName);
             try
             {
                 var inputArgs = new List<Variant>();
@@ -355,7 +355,7 @@ namespace Opc.Ua.Mcp.Tools
             [Description("Session name to use (defaults to the only active session)")] string? sessionName = null,
             CancellationToken ct = default)
         {
-            Client.ISession session = sessionManager.GetSessionOrThrow(sessionName);
+            ISession session = sessionManager.GetSessionOrThrow(sessionName);
             try
             {
                 NodeId parsedNodeId = OpcUaJsonHelper.ParseNodeId(nodeId);
@@ -415,7 +415,7 @@ namespace Opc.Ua.Mcp.Tools
             [Description("Session name to use (defaults to the only active session)")] string? sessionName = null,
             CancellationToken ct = default)
         {
-            Client.ISession session = sessionManager.GetSessionOrThrow(sessionName);
+            ISession session = sessionManager.GetSessionOrThrow(sessionName);
             try
             {
                 CancelResponse response = await session.CancelAsync(

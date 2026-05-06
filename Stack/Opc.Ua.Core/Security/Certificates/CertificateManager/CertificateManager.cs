@@ -997,7 +997,7 @@ namespace Opc.Ua
         private ushort m_minimumCertificateKeySize = CertificateFactory.DefaultKeySize;
         private bool m_useValidatedCertificates;
         private RejectedCertificateProcessor? m_rejectedProcessor;
-        private CertificateLifecycleMonitor? m_lifecycleMonitor;
+        private readonly CertificateLifecycleMonitor? m_lifecycleMonitor;
 #pragma warning disable CS0618 // Type or member is obsolete
         private CertificateValidator? m_peerValidator;
         private CertificateValidator? m_userValidator;
