@@ -78,10 +78,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         private Certificate m_rootCert;
         private Certificate m_rootAltCert;
         private X509CRL m_rootCrl;
-        private TemporaryCertValidator m_validator;
-#pragma warning disable CS0618 // Type or member is obsolete
-        private CertificateValidator m_certValidator;
-#pragma warning restore CS0618
+        private TemporaryCertificateManager m_validator;
+        private CertificateManager m_certValidator;
 
         /// <summary>
         /// A web server to host root CA and CRL
@@ -117,7 +115,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             m_rootCrl = s_issuer.RevokeCertificates(m_rootCert, null, null);
 
             // create cert validator for test, add trusted root cert
-            m_validator = TemporaryCertValidator.Create(telemetry);
+            m_validator = TemporaryCertificateManager.Create(telemetry);
             await m_validator.TrustedStore.AddAsync(m_rootCert).ConfigureAwait(false);
             await m_validator.TrustedStore.AddCRLAsync(m_rootCrl).ConfigureAwait(false);
             m_certValidator = m_validator.Update();
@@ -201,7 +199,10 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.That(appCert, Is.Not.Null);
 
             m_certValidator.RejectUnknownRevocationStatus = true;
-            await m_certValidator.ValidateAsync(appCert, CancellationToken.None).ConfigureAwait(false);
+            CertificateValidationResult validResult = await m_certValidator
+                .ValidateAsync(appCert, ct: CancellationToken.None)
+                .ConfigureAwait(false);
+            Assert.That(validResult.IsValid, Is.True);
         }
 
         /// <summary>
@@ -233,16 +234,18 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             // a valid app cert
             using Certificate appCert = certBuilder.SetIssuer(m_rootCert).CreateForRSA();
             m_certValidator.RejectUnknownRevocationStatus = false;
+            CertificateValidationResult validationResult = await m_certValidator
+                .ValidateAsync(appCert, ct: CancellationToken.None)
+                .ConfigureAwait(false);
+
             if (!subjectKeyIdentifier && !serialNumber)
             {
-                ServiceResultException result = Assert
-                    .ThrowsAsync<ServiceResultException>(async () =>
-                        await m_certValidator.ValidateAsync(appCert, CancellationToken.None).ConfigureAwait(false));
-                TestContext.Out.WriteLine($"{result.Result}: {result.Message}");
+                Assert.That(validationResult.IsValid, Is.False);
+                TestContext.Out.WriteLine($"{validationResult.StatusCode}");
             }
             else
             {
-                await m_certValidator.ValidateAsync(appCert, CancellationToken.None).ConfigureAwait(false);
+                Assert.That(validationResult.IsValid, Is.True);
             }
         }
 
@@ -250,7 +253,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         /// App cert from alternate Root without KeyID.
         /// </summary>
         [Theory]
-        public void AlternateRootCertificateWithoutAuthorityKeyID(
+        public async Task AlternateRootCertificateWithoutAuthorityKeyIDAsync(
             bool rejectUnknownRevocationStatus)
         {
             ICertificateBuilder certBuilder = s_factory.CreateCertificate(
@@ -265,11 +268,12 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.That(altAppCert, Is.Not.Null);
 
             m_certValidator.RejectUnknownRevocationStatus = rejectUnknownRevocationStatus;
-            ServiceResultException result = Assert
-                .ThrowsAsync<ServiceResultException>(async () =>
-                    await m_certValidator.ValidateAsync(altAppCert, CancellationToken.None).ConfigureAwait(false));
+            CertificateValidationResult validationResult = await m_certValidator
+                .ValidateAsync(altAppCert, ct: CancellationToken.None)
+                .ConfigureAwait(false);
+            Assert.That(validationResult.IsValid, Is.False);
 
-            TestContext.Out.WriteLine($"{result.Result}: {result.Message}");
+            TestContext.Out.WriteLine($"{validationResult.StatusCode}");
         }
 
         /// <summary>
@@ -277,7 +281,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         /// validate that any combination of AKI is not validated.
         /// </summary>
         [Theory]
-        public void AlternateRootCertificateWithAuthorityKeyID(
+        public async Task AlternateRootCertificateWithAuthorityKeyIDAsync(
             bool subjectKeyIdentifier,
             bool issuerName,
             bool serialNumber)
@@ -308,10 +312,11 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
             // should not pass!
             m_certValidator.RejectUnknownRevocationStatus = false;
-            ServiceResultException result = Assert
-                .ThrowsAsync<ServiceResultException>(async () =>
-                    await m_certValidator.ValidateAsync(altAppCert, CancellationToken.None).ConfigureAwait(false));
-            TestContext.Out.WriteLine($"{result.Result}: {result.Message}");
+            CertificateValidationResult validationResult = await m_certValidator
+                .ValidateAsync(altAppCert, ct: CancellationToken.None)
+                .ConfigureAwait(false);
+            Assert.That(validationResult.IsValid, Is.False);
+            TestContext.Out.WriteLine($"{validationResult.StatusCode}");
         }
 
         /// <summary>

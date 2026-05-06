@@ -126,5 +126,18 @@ namespace Opc.Ua
             SecurityConfiguration securityConfiguration,
             string? applicationUri = null,
             CancellationToken ct = default);
+
+        /// <summary>
+        /// Returns a task that completes when the most recently enqueued
+        /// rejected-certificate write has been processed (or immediately when
+        /// the queue is idle).
+        /// </summary>
+        /// <remarks>
+        /// Modern replacement for the legacy
+        /// <c>CertificateValidator.WaitForRejectedCertificatesDrainAsync</c>
+        /// — primarily a test affordance that lets assertions observe the
+        /// rejected-store contents synchronously.
+        /// </remarks>
+        Task FlushRejectedAsync(CancellationToken ct = default);
     }
 }

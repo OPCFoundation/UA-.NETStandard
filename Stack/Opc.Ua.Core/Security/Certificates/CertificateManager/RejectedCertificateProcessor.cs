@@ -48,7 +48,8 @@ namespace Opc.Ua
         private readonly Channel<CertificateCollection> m_channel;
         private readonly Task m_processingTask;
         private readonly ICertificateTrustListManager m_trustListManager;
-        private readonly int m_maxRejectedCertificates;
+        private int m_maxRejectedCertificates;
+        private TaskCompletionSource<bool> m_drainTcs = CreateCompletedTcs();
         private readonly ILogger m_logger;
 
         /// <summary>
@@ -72,15 +73,37 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Updates the maximum rejected-certificate cap. Subsequent writes
+        /// honour the new value.
+        /// </summary>
+        public void SetMaxRejectedCertificates(int maxRejectedCertificates)
+        {
+            Volatile.Write(ref m_maxRejectedCertificates, maxRejectedCertificates);
+        }
+
+        /// <summary>
         /// Enqueues a rejected certificate chain for background processing.
         /// </summary>
         public ValueTask EnqueueAsync(
             CertificateCollection chain,
             CancellationToken ct = default)
         {
+            var tcs = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            Interlocked.Exchange(ref m_drainTcs, tcs);
+
             return m_channel.Writer.TryWrite(chain)
                         ? default
                         : m_channel.Writer.WriteAsync(chain, ct);
+        }
+
+        /// <summary>
+        /// Returns a task that completes when the most recently enqueued
+        /// chain has been processed (or immediately if the queue is idle).
+        /// </summary>
+        public Task WaitForDrainAsync()
+        {
+            return Volatile.Read(ref m_drainTcs).Task;
         }
 
         /// <summary>
@@ -108,8 +131,8 @@ namespace Opc.Ua
 
                     using ICertificateStore store = m_trustListManager
                         .OpenTrustedStore(TrustListIdentifier.Rejected);
-                    await store.AddRejectedAsync(
-                        chain, m_maxRejectedCertificates)
+                    int max = Volatile.Read(ref m_maxRejectedCertificates);
+                    await store.AddRejectedAsync(chain, max)
                         .ConfigureAwait(false);
                 }
                 catch (Exception ex)
@@ -117,6 +140,10 @@ namespace Opc.Ua
                     m_logger.LogDebug(
                         ex,
                         "Could not write rejected certificate to store.");
+                }
+                finally
+                {
+                    Volatile.Read(ref m_drainTcs).TrySetResult(true);
                 }
             }
         }
@@ -126,6 +153,14 @@ namespace Opc.Ua
         {
             m_channel.Writer.TryComplete();
             await m_processingTask.ConfigureAwait(false);
+        }
+
+        private static TaskCompletionSource<bool> CreateCompletedTcs()
+        {
+            var tcs = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            tcs.SetResult(true);
+            return tcs;
         }
     }
 }

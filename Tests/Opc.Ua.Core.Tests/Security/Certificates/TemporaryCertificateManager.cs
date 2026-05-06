@@ -146,12 +146,13 @@ namespace Opc.Ua.Core.Tests
         /// <summary>
         /// (Re)builds the certificate manager from the current state of
         /// the issuer / trusted / rejected directories. Returns the
-        /// <see cref="ICertificateManager"/> for direct use in tests.
+        /// concrete <see cref="CertificateManager"/> for direct use in
+        /// tests that need its full surface (e.g. the
+        /// <c>MaxRejectedCertificates</c> setter).
         /// </summary>
-        public ICertificateManager Update()
+        public CertificateManager Update()
         {
-            CertificateManager previous = m_manager as CertificateManager;
-            previous?.Dispose();
+            (m_manager as CertificateManager)?.Dispose();
 
             var securityConfiguration = new SecurityConfiguration
             {
@@ -186,7 +187,7 @@ namespace Opc.Ua.Core.Tests
         /// Async wrapper around <see cref="Update"/> for parity with
         /// callers that expect an awaitable factory.
         /// </summary>
-        public Task<ICertificateManager> UpdateAsync()
+        public Task<CertificateManager> UpdateAsync()
         {
             return Task.FromResult(Update());
         }

@@ -55,7 +55,7 @@ namespace Opc.Ua
         private readonly CertificateChangeSubject m_changeSubject = new();
         private readonly ITelemetryContext m_telemetry;
         private readonly ILogger m_logger;
-        private readonly int m_maxRejectedCertificates;
+        private int m_maxRejectedCertificates;
         // Guards mutations of m_applicationCertificates and the cached
         // per-trust-list validators. Reads of single fields (e.g.
         // GetInstanceCertificate enumeration) take this lock too to
@@ -311,6 +311,93 @@ namespace Opc.Ua
 
         /// <inheritdoc/>
         public bool SendCertificateChain => m_sendCertificateChain;
+
+        /// <summary>
+        /// Gets or sets a value indicating whether to auto-accept untrusted
+        /// peer certificates. When <see langword="true"/>, a fresh peer cert
+        /// (with no chain errors) is accepted even if it is not present in
+        /// the trusted-peer store. Modern replacement for the legacy
+        /// <c>CertificateValidator.AutoAcceptUntrustedCertificates</c>.
+        /// </summary>
+        public bool AutoAcceptUntrustedCertificates
+        {
+            get => m_autoAcceptUntrustedCertificates;
+            set
+            {
+                m_autoAcceptUntrustedCertificates = value;
+                lock (m_certificatesLock)
+                {
+                    ApplyValidationFlags(m_peerValidator);
+                    ApplyValidationFlags(m_userValidator);
+                    ApplyValidationFlags(m_httpsValidator);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Gets or sets a value indicating whether to reject certificates
+        /// signed with a SHA-1 hash. Modern replacement for the legacy
+        /// <c>CertificateValidator.RejectSHA1SignedCertificates</c>.
+        /// </summary>
+        public bool RejectSHA1SignedCertificates
+        {
+            get => m_rejectSHA1SignedCertificates;
+            set
+            {
+                m_rejectSHA1SignedCertificates = value;
+                lock (m_certificatesLock)
+                {
+                    ApplyValidationFlags(m_peerValidator);
+                    ApplyValidationFlags(m_userValidator);
+                    ApplyValidationFlags(m_httpsValidator);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Gets or sets a value indicating whether to reject certificates
+        /// whose revocation status cannot be determined. Modern replacement
+        /// for the legacy <c>CertificateValidator.RejectUnknownRevocationStatus</c>.
+        /// </summary>
+        public bool RejectUnknownRevocationStatus
+        {
+            get => m_rejectUnknownRevocationStatus;
+            set
+            {
+                m_rejectUnknownRevocationStatus = value;
+                lock (m_certificatesLock)
+                {
+                    ApplyValidationFlags(m_peerValidator);
+                    ApplyValidationFlags(m_userValidator);
+                    ApplyValidationFlags(m_httpsValidator);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Gets or sets the maximum number of rejected certificates kept in
+        /// the rejected-certificate store. Modern replacement for the legacy
+        /// <c>CertificateValidator.MaxRejectedCertificates</c>. Setting a
+        /// negative value clears the rejected store.
+        /// </summary>
+        public int MaxRejectedCertificates
+        {
+            get => m_maxRejectedCertificates;
+            set
+            {
+                if (value < 0)
+                {
+                    // Negative limit disables the rejected store entirely
+                    // and asks the processor to clear what's there.
+                    m_maxRejectedCertificates = 0;
+                }
+                else
+                {
+                    m_maxRejectedCertificates = value;
+                }
+                m_rejectedProcessor?.SetMaxRejectedCertificates(m_maxRejectedCertificates);
+            }
+        }
 
         /// <inheritdoc/>
         public Func<Certificate, ServiceResult, bool>? AcceptError
@@ -728,6 +815,12 @@ namespace Opc.Ua
 
             await ReloadApplicationCertificatesAsync(securityConfiguration, applicationUri, ct)
                 .ConfigureAwait(false);
+        }
+
+        /// <inheritdoc/>
+        public Task FlushRejectedAsync(CancellationToken ct = default)
+        {
+            return m_rejectedProcessor?.WaitForDrainAsync() ?? Task.CompletedTask;
         }
 
         /// <inheritdoc/>
