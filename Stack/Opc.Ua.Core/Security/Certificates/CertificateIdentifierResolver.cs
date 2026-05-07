@@ -209,6 +209,16 @@ namespace Opc.Ua
                 return null;
             }
 
+            // In-memory fast path — when the identifier was constructed
+            // directly from a Certificate (e.g. unit tests, ad-hoc loads
+            // from raw bytes) the cert is already attached and there is
+            // no store to open. Mirrors CertificateIdentifier.FindAsync.
+            Certificate? attached = identifier.Certificate;
+            if (attached != null && attached.HasPrivateKey)
+            {
+                return attached.AddRef();
+            }
+
             if (identifier.StoreType != CertificateStoreType.X509Store)
             {
                 using ICertificateStore? store = OpenStore(identifier, telemetry);
