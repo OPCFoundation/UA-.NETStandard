@@ -27,14 +27,14 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
+using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
+using System.IO;
+using System.Linq;
 using System.Text;
 using System.Xml;
 using System.Xml.Schema;
-using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
-using System;
-using System.Linq;
-using System.IO;
 
 namespace Opc.Ua.Schema.Xml
 {

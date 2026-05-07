@@ -29,11 +29,11 @@
 
 #nullable enable
 
-using NUnit.Framework;
 using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Globalization;
+using NUnit.Framework;
 
 #pragma warning disable CA1508 // Avoid dead conditional code
 #pragma warning disable IDE0028 // Simplify collection initialization

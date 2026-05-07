@@ -33,9 +33,9 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
+using NUnit.Framework;
 using Opc.Ua.Client.Subscriptions.Fakes;
 using Opc.Ua.Client.Subscriptions.MonitoredItems;
-using NUnit.Framework;
 using Opc.Ua.Tests;
 
 #pragma warning disable CA2007 // Consider calling ConfigureAwait on the awaited task

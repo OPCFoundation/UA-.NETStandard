@@ -29,8 +29,8 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Collections.Immutable;
+using System.Linq;
 using Opc.Ua.Schema.Model;
 
 namespace Opc.Ua.SourceGeneration

@@ -30,8 +30,8 @@
 #nullable enable
 
 using System;
-using System.Globalization;
 using System.Collections.Generic;
+using System.Globalization;
 using NUnit.Framework;
 
 #pragma warning disable IDE0301 // Simplify collection initialization

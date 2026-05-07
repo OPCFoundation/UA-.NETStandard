@@ -30,14 +30,14 @@
 
 #nullable enable
 
-using System.Net;
-using Moq;
-using NUnit.Framework;
-using Opc.Ua.Bindings;
 using System;
+using System.Net;
 using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
+using Moq;
+using NUnit.Framework;
+using Opc.Ua.Bindings;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Tests;
 

@@ -33,11 +33,11 @@ using System.Globalization;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Text;
+using System.Text.Encodings.Web;
+using System.Text.Json;
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Diagnosers;
 using Microsoft.IO;
-using System.Text.Encodings.Web;
-using System.Text.Json;
 using NUnit.Framework;
 
 namespace Opc.Ua.Core.Tests.Types.Encoders

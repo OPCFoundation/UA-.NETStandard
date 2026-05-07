@@ -28,8 +28,8 @@
  * ======================================================================*/
 
 using System;
-using System.Threading;
 using System.CommandLine;
+using System.Threading;
 using Opc.Ua;
 using Opc.Ua.PubSub;
 using Opc.Ua.PubSub.Configuration;

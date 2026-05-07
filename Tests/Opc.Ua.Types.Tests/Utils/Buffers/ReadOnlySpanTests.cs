@@ -27,8 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Linq;
 using System;
+using System.Linq;
 using NUnit.Framework;
 
 #pragma warning disable IDE0301 // Simplify collection initialization

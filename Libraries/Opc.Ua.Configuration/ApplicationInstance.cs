@@ -32,11 +32,11 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Net;
+using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using System.Security.Cryptography;
 using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Configuration

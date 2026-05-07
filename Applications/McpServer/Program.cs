@@ -28,9 +28,9 @@
  * ======================================================================*/
 
 using System;
+using System.CommandLine;
 using System.Threading;
 using System.Threading.Tasks;
-using System.CommandLine;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;

@@ -28,11 +28,11 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using NUnit.Framework;
 using NUnit.Framework.Interfaces;
-using System.Linq;
 using Opc.Ua.Security.Certificates;
-using System.Collections.Generic;
 
 // Apply leak tracking action to all test fixtures in the assembly.
 [assembly: Opc.Ua.Core.Tests.CoreLeakDetectionFixtureActionAttribute]
