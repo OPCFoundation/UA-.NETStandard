@@ -79,7 +79,8 @@ namespace Opc.Ua
         public UserIdentity(
             CertificateIdentifier certificateId,
             CertificatePasswordProvider certificatePasswordProvider)
-            : this(certificateId.LoadPrivateKeyExAsync(
+            : this(CertificateIdentifierResolver.LoadPrivateKeyAsync(
+                certificateId,
                 certificatePasswordProvider).GetAwaiter().GetResult())
         {
         }
@@ -143,11 +144,13 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(certificateId));
             }
 
-            Certificate certificate = await certificateId.LoadPrivateKeyExAsync(
-                certificatePasswordProvider,
-                applicationUri: null,
-                telemetry,
-                ct).ConfigureAwait(false);
+            Certificate certificate = await CertificateIdentifierResolver
+                .LoadPrivateKeyAsync(
+                    certificateId,
+                    certificatePasswordProvider,
+                    applicationUri: null,
+                    telemetry,
+                    ct).ConfigureAwait(false);
 
             if (certificate == null || !certificate.HasPrivateKey)
             {

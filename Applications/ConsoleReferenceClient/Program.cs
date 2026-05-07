@@ -363,7 +363,7 @@ namespace Quickstarts.ConsoleReferenceClient
                     // set user identity of type certificate
                     if (!string.IsNullOrEmpty(userCertificateThumbprint))
                     {
-                        using CertificateIdentifier userCertificateIdentifier =
+                        CertificateIdentifier userCertificateIdentifier =
                             await FindUserCertificateIdentifierAsync(
                                 userCertificateThumbprint,
                                 application.ApplicationConfiguration.SecurityConfiguration

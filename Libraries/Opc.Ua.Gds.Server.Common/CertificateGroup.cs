@@ -528,22 +528,33 @@ namespace Opc.Ua.Gds.Server
             ITelemetryContext telemetry = null,
             CancellationToken ct = default)
         {
-            using var certIdentifier = new CertificateIdentifier(signingCertificate)
+            // Build a metadata identifier that points the resolver at the
+            // authorities store and lets it look up the signing key by the
+            // signing certificate's thumbprint/subject. The identifier no
+            // longer needs to own the cert (we already have it via the
+            // signingCertificate parameter); the resolver takes ownership of
+            // the loaded private-key-bearing cert and the caller owns the
+            // returned reference.
+            var certIdentifier = new CertificateIdentifier
             {
                 StorePath = AuthoritiesStore.StorePath,
-                StoreType = AuthoritiesStore.StoreType
+                StoreType = AuthoritiesStore.StoreType,
+                Thumbprint = signingCertificate.Thumbprint,
+                SubjectName = signingCertificate.Subject,
+                CertificateType = CertificateIdentifier.GetCertificateType(signingCertificate)
             };
-            // The identifier owns the loaded certificate (m_certificate)
-            // and disposes it when the `using` block ends. Take an
-            // independent reference so the returned certificate stays
-            // valid for the caller.
-            Certificate loaded = await certIdentifier
-                .LoadPrivateKeyAsync(signingKeyPassword, null, telemetry, ct)
+            Certificate loaded = await CertificateIdentifierResolver
+                .LoadPrivateKeyAsync(
+                    certIdentifier,
+                    new CertificatePasswordProvider(signingKeyPassword),
+                    applicationUri: null,
+                    telemetry,
+                    ct)
                 .ConfigureAwait(false)
                 ?? throw new ServiceResultException(
                     StatusCodes.BadConfigurationError,
                     "Failed to load signing key for certificate.");
-            return loaded.AddRef();
+            return loaded;
         }
 
         /// <summary>
@@ -716,14 +727,18 @@ namespace Opc.Ua.Gds.Server
                         StatusCodes.BadCertificateInvalid,
                         "Cannot find issuer certificate in store.");
 
-                using var certCAIdentifier = new CertificateIdentifier(certCA)
+                var certCAIdentifier = new CertificateIdentifier
                 {
                     StorePath = store.StorePath,
-                    StoreType = store.StoreType
+                    StoreType = store.StoreType,
+                    Thumbprint = certCA.Thumbprint,
+                    SubjectName = certCA.Subject,
+                    CertificateType = CertificateIdentifier.GetCertificateType(certCA)
                 };
                 Certificate certCAWithPrivateKey =
-                    await certCAIdentifier.LoadPrivateKeyAsync(
-                        issuerKeyFilePassword,
+                    await CertificateIdentifierResolver.LoadPrivateKeyAsync(
+                        certCAIdentifier,
+                        new CertificatePasswordProvider(issuerKeyFilePassword),
                         applicationUri: null,
                         telemetry,
                         ct)
