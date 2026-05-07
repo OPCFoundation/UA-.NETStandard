@@ -37,7 +37,6 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Security.Certificates;
 
-
 namespace Opc.Ua
 {
     /// <summary>
@@ -112,10 +111,10 @@ namespace Opc.Ua
             m_logger = telemetry.CreateLogger<CertificateManager>();
             m_maxRejectedCertificates = maxRejectedCertificates;
             m_storeProviders = storeProviders?.ToList() ??
-            [
-                new DirectoryStoreProvider(),
-                new X509StoreProvider()
-            ];
+                [
+                    new DirectoryStoreProvider(),
+                    new X509StoreProvider()
+                ];
 
             TimeSpan threshold = expiryWarningThreshold ?? TimeSpan.FromDays(14);
             m_lifecycleMonitor = new CertificateLifecycleMonitor(

@@ -361,10 +361,7 @@ namespace Opc.Ua.Client.Tests
         private sealed class RecordingSubscriptionMessageSink
             : ISubscriptionMessageSink
         {
-            public List<(ArrayOf<uint> AvailableSequenceNumbers, NotificationMessage Message)> Calls
-            {
-                get;
-            } = [];
+            public List<(ArrayOf<uint> AvailableSequenceNumbers, NotificationMessage Message)> Calls { get; } = [];
 
             public void SaveMessageInCache(
                 ArrayOf<uint> availableSequenceNumbers,

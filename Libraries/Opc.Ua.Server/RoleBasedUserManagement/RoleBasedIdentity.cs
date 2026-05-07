@@ -190,7 +190,6 @@ namespace Opc.Ua.Server
     /// </summary>
     public class RoleBasedIdentity : IUserIdentity
     {
-
         /// <summary>
         /// Initialize the role based identity.
         /// </summary>
