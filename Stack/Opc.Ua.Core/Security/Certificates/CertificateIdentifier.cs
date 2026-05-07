@@ -221,7 +221,7 @@ namespace Opc.Ua
                             SubjectName!,
                             applicationUri: null!,
                             CertificateType,
-                            password!,
+                            password,
                             ct)
                         .ConfigureAwait(false);
 
@@ -234,7 +234,7 @@ namespace Opc.Ua
                                 subjectName: null!,
                                 applicationUri!,
                                 CertificateType,
-                                password!,
+                                password,
                                 ct)
                             .ConfigureAwait(false);
                     }

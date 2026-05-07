@@ -201,74 +201,68 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.That(X509Utils.VerifySelfSigned(otherIssuerCertificate), Is.True);
 
             using var revokedCerts = new CertificateCollection();
-            try
+            for (int i = 0; i < 10; i++)
             {
-                for (int i = 0; i < 10; i++)
-                {
-                    Certificate cert = s_factory
-                        .CreateCertificate($"CN=Test Cert {i}, O=Contoso")
-                        .SetIssuer(issuerCertificate)
-                        .SetRSAKeySize(
-                            (ushort)(keyHashPair.KeySize <= 2048 ? keyHashPair.KeySize : 2048))
-                        .CreateForRSA();
-                    revokedCerts.Add(cert);
-                    cert.Dispose();
-                    Assert.That(X509Utils.VerifySelfSigned(cert), Is.False);
-                }
-
-                Assert.That(issuerCertificate, Is.Not.Null);
-                Assert.That(issuerCertificate.RawData, Is.Not.Null);
-                Assert.That(issuerCertificate.HasPrivateKey, Is.True);
-                using (RSA rsa = issuerCertificate.GetRSAPrivateKey())
-                {
-                    Assert.That(rsa, Is.Not.Null);
-                }
-
-                using (Certificate plainCert = Certificate.FromRawData(
-                    issuerCertificate.RawData))
-                {
-                    Assert.That(plainCert, Is.Not.Null);
-                    VerifyCACert(plainCert, issuerCertificate.Subject, pathLengthConstraint);
-                }
-                Assert.That(X509Utils.VerifySelfSigned(issuerCertificate), Is.True);
-                X509Utils.VerifyRSAKeyPair(issuerCertificate, issuerCertificate, true);
-
-                X509CRL crl = s_issuer.RevokeCertificates(issuerCertificate, null, null);
-                Assert.That(crl, Is.Not.Null);
-                Assert.That(crl.VerifySignature(issuerCertificate, true), Is.True);
-                X509CrlNumberExtension extension = crl.CrlExtensions
-                    .FindExtension<X509CrlNumberExtension>();
-                var crlCounter = new BigInteger(1);
-                Assert.That(extension.CrlNumber, Is.EqualTo(crlCounter));
-                var revokedList = new X509CRLCollection { crl };
-
-                foreach (Certificate cert in revokedCerts)
-                {
-                    Assert.Throws<CryptographicException>(() =>
-                        crl.VerifySignature(otherIssuerCertificate, true));
-                    Assert.That(crl.IsRevoked(cert), Is.False);
-                    using var tempCerts = new CertificateCollection([cert]);
-                    X509CRL nextCrl = s_issuer.RevokeCertificates(
-                        issuerCertificate,
-                        revokedList,
-                        tempCerts);
-                    crlCounter++;
-                    Assert.That(nextCrl, Is.Not.Null);
-                    Assert.That(nextCrl.IsRevoked(cert), Is.True);
-                    extension = nextCrl.CrlExtensions.FindExtension<X509CrlNumberExtension>();
-                    Assert.That(extension.CrlNumber, Is.EqualTo(crlCounter));
-                    Assert.That(crl.VerifySignature(issuerCertificate, true), Is.True);
-                    revokedList.Add(nextCrl);
-                    crl = nextCrl;
-                }
-
-                foreach (Certificate cert in revokedCerts)
-                {
-                    Assert.That(crl.IsRevoked(cert), Is.True);
-                }
+                Certificate cert = s_factory
+                    .CreateCertificate($"CN=Test Cert {i}, O=Contoso")
+                    .SetIssuer(issuerCertificate)
+                    .SetRSAKeySize(
+                        (ushort)(keyHashPair.KeySize <= 2048 ? keyHashPair.KeySize : 2048))
+                    .CreateForRSA();
+                revokedCerts.Add(cert);
+                cert.Dispose();
+                Assert.That(X509Utils.VerifySelfSigned(cert), Is.False);
             }
-            finally
+
+            Assert.That(issuerCertificate, Is.Not.Null);
+            Assert.That(issuerCertificate.RawData, Is.Not.Null);
+            Assert.That(issuerCertificate.HasPrivateKey, Is.True);
+            using (RSA rsa = issuerCertificate.GetRSAPrivateKey())
             {
+                Assert.That(rsa, Is.Not.Null);
+            }
+
+            using (Certificate plainCert = Certificate.FromRawData(
+                issuerCertificate.RawData))
+            {
+                Assert.That(plainCert, Is.Not.Null);
+                VerifyCACert(plainCert, issuerCertificate.Subject, pathLengthConstraint);
+            }
+            Assert.That(X509Utils.VerifySelfSigned(issuerCertificate), Is.True);
+            X509Utils.VerifyRSAKeyPair(issuerCertificate, issuerCertificate, true);
+
+            X509CRL crl = s_issuer.RevokeCertificates(issuerCertificate, null, null);
+            Assert.That(crl, Is.Not.Null);
+            Assert.That(crl.VerifySignature(issuerCertificate, true), Is.True);
+            X509CrlNumberExtension extension = crl.CrlExtensions
+                .FindExtension<X509CrlNumberExtension>();
+            var crlCounter = new BigInteger(1);
+            Assert.That(extension.CrlNumber, Is.EqualTo(crlCounter));
+            var revokedList = new X509CRLCollection { crl };
+
+            foreach (Certificate cert in revokedCerts)
+            {
+                Assert.Throws<CryptographicException>(() =>
+                    crl.VerifySignature(otherIssuerCertificate, true));
+                Assert.That(crl.IsRevoked(cert), Is.False);
+                using var tempCerts = new CertificateCollection([cert]);
+                X509CRL nextCrl = s_issuer.RevokeCertificates(
+                    issuerCertificate,
+                    revokedList,
+                    tempCerts);
+                crlCounter++;
+                Assert.That(nextCrl, Is.Not.Null);
+                Assert.That(nextCrl.IsRevoked(cert), Is.True);
+                extension = nextCrl.CrlExtensions.FindExtension<X509CrlNumberExtension>();
+                Assert.That(extension.CrlNumber, Is.EqualTo(crlCounter));
+                Assert.That(crl.VerifySignature(issuerCertificate, true), Is.True);
+                revokedList.Add(nextCrl);
+                crl = nextCrl;
+            }
+
+            foreach (Certificate cert in revokedCerts)
+            {
+                Assert.That(crl.IsRevoked(cert), Is.True);
             }
         }
 
