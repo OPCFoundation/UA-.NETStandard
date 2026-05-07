@@ -490,7 +490,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public async Task<bool> GetIssuersAsync(
+        public Task<bool> GetIssuersAsync(
             Certificate certificate,
             IList<CertificateIdentifier> issuers,
             CancellationToken ct = default)
@@ -506,7 +506,7 @@ namespace Opc.Ua
             }
 
             CertificateValidationCore core = GetOrCreateCore(TrustListIdentifier.Peers);
-            return await core.GetIssuersAsync(certificate, issuers, ct).ConfigureAwait(false);
+            return core.GetIssuersAsync(certificate, issuers, ct);
         }
 
         /// <summary>

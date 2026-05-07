@@ -58,7 +58,6 @@ namespace Opc.Ua.Core.Tests.Stack.Types
                 SecurityPolicies.Basic256Sha256);
 
             Assert.That(signature, Is.Not.Null);
-            Assert.That(signature.Signature, Is.Not.Null);
             Assert.That(signature.Signature.Length, Is.GreaterThan(0));
         }
     }

@@ -757,7 +757,9 @@ namespace Opc.Ua
         /// <summary>
         /// Called after the application certificate update.
         /// </summary>
+#pragma warning disable RCS1047 // protected virtual member kept for binary compatibility with existing overrides
         protected virtual void OnCertificateUpdateAsync(object sender, CertificateUpdateEventArgs e)
+#pragma warning restore RCS1047
         {
             try
             {
