@@ -126,12 +126,12 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
 
             // Assert
             Assert.That(m_context.NotifyItemChangeResultCalls
-                .Count(c => c.MonitoredItem == sut
-                    && c.RetryCount == 1
-                    && c.Source == m_options.CurrentValue
-                    && c.ServiceResult.StatusCode == StatusCodes.Bad
-                    && !c.Final
-                    && c.FilterResult == null), Is.EqualTo(1));
+                .Count(c => c.MonitoredItem == sut &&
+                    c.RetryCount == 1 &&
+                    c.Source == m_options.CurrentValue &&
+                    c.ServiceResult.StatusCode == StatusCodes.Bad &&
+                    !c.Final &&
+                    c.FilterResult == null), Is.EqualTo(1));
         }
 
         [Test]
@@ -165,12 +165,12 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
 
             // Assert
             Assert.That(m_context.NotifyItemChangeResultCalls
-                .Count(c => c.MonitoredItem == sut
-                    && c.RetryCount == 1
-                    && c.Source == m_options.CurrentValue
-                    && c.ServiceResult.StatusCode == StatusCodes.Bad
-                    && !c.Final
-                    && c.FilterResult == null), Is.EqualTo(1));
+                .Count(c => c.MonitoredItem == sut &&
+                    c.RetryCount == 1 &&
+                    c.Source == m_options.CurrentValue &&
+                    c.ServiceResult.StatusCode == StatusCodes.Bad &&
+                    !c.Final &&
+                    c.FilterResult == null), Is.EqualTo(1));
         }
 
         [Test]
@@ -206,12 +206,12 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
 
             // Assert
             Assert.That(m_context.NotifyItemChangeResultCalls
-                .Count(c => c.MonitoredItem == sut
-                    && c.RetryCount == 0
-                    && c.Source == m_options.CurrentValue
-                    && c.ServiceResult == ServiceResult.Good
-                    && c.Final
-                    && Utils.IsEqual(c.FilterResult, filterResult)), Is.EqualTo(1));
+                .Count(c => c.MonitoredItem == sut &&
+                    c.RetryCount == 0 &&
+                    c.Source == m_options.CurrentValue &&
+                    c.ServiceResult == ServiceResult.Good &&
+                    c.Final &&
+                    Utils.IsEqual(c.FilterResult, filterResult)), Is.EqualTo(1));
         }
 
         [Test]

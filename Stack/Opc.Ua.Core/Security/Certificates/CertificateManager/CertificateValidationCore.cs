@@ -125,6 +125,7 @@ namespace Opc.Ua
                 }
             }
         }
+
         private bool m_autoAcceptUntrustedCertificates;
 
         /// <summary>
@@ -142,6 +143,7 @@ namespace Opc.Ua
                 }
             }
         }
+
         private bool m_rejectSHA1SignedCertificates;
 
         /// <summary>
@@ -159,6 +161,7 @@ namespace Opc.Ua
                 }
             }
         }
+
         private bool m_rejectUnknownRevocationStatus;
 
         /// <summary>
@@ -176,6 +179,7 @@ namespace Opc.Ua
                 }
             }
         }
+
         private ushort m_minimumCertificateKeySize;
 
         /// <summary>
@@ -193,6 +197,7 @@ namespace Opc.Ua
                 }
             }
         }
+
         private bool m_useValidatedCertificates;
 
         /// <summary>
