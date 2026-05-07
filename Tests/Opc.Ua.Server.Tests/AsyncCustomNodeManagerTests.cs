@@ -800,7 +800,7 @@ namespace Opc.Ua.Server.Tests
             m_mockServer.Verify(
                 s => s.ReportEvent(It.Is<IFilterTarget>(e => e is SemanticChangeEventState)),
                 Times.Once);
-                        
+
             Assert.That(monitoredItem.IsReadyToPublish, Is.False);
         }
 

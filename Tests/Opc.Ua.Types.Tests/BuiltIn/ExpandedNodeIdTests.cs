@@ -1625,7 +1625,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(id.NamespaceUri, Is.EqualTo("http://ns.org/"));
         }
 
-        private const string ParseLongFormKnownNamespace= "http://opcfoundation.org/UA/Test/";
+        private const string ParseLongFormKnownNamespace = "http://opcfoundation.org/UA/Test/";
         private const string ParseLongFormUnknownNamespace = "http://opcfoundation.org/UA/Unknown/";
         private const string ParseLongFormKnownServer = "urn:server:known";
 

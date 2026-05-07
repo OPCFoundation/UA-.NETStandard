@@ -75,7 +75,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                 .Returns(new ValueTask());
 
             var transportWaitingConnectionMock = new Mock<ITransportWaitingConnection>();
-            var serviceMessageContextMock= new Mock<IServiceMessageContext>();
+            var serviceMessageContextMock = new Mock<IServiceMessageContext>();
             serviceMessageContextMock.SetupGet(x => x.Telemetry).Returns(telemetry);
             var configuration = new ApplicationConfiguration(telemetry);
             var socket = new Mock<IMessageSocket>();

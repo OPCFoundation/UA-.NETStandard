@@ -55,7 +55,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             using var lifetime = new RequestLifetime(cts.Token);
 
             Assert.That(lifetime.CancellationToken.IsCancellationRequested, Is.False);
-            
+
             cts.Cancel();
 
             Assert.That(lifetime.CancellationToken.IsCancellationRequested, Is.True);

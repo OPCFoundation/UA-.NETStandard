@@ -1996,7 +1996,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(a.CompareTo(b), Is.Zero);
         }
 
-        private const string ParseLongFormKnownNamespace= "http://opcfoundation.org/UA/Test/";
+        private const string ParseLongFormKnownNamespace = "http://opcfoundation.org/UA/Test/";
         private const string ParseLongFormUnknownNamespace = "http://opcfoundation.org/UA/Unknown/";
 
         private static NamespaceTable BuildParseLongFormNamespaces()

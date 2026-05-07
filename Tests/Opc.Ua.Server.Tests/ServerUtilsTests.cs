@@ -52,7 +52,8 @@ namespace Opc.Ua.Server.Tests
 
         private static OperationContext CreateContext(DiagnosticsMasks mask)
         {
-            var header = new RequestHeader {
+            var header = new RequestHeader
+            {
                 ReturnDiagnostics = (uint)mask
             };
             return new OperationContext(header, null, RequestType.Read, RequestLifetime.None);

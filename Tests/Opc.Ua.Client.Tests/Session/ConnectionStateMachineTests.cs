@@ -61,11 +61,11 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             return new ConnectionStateMachine(
                 policy ??
                 new ReconnectPolicy
-                    {
-                        JitterFactor = 0.0,
-                        Strategy = BackoffStrategy.Constant,
-                        InitialDelay = TimeSpan.FromMilliseconds(10)
-                    },
+                {
+                    JitterFactor = 0.0,
+                    Strategy = BackoffStrategy.Constant,
+                    InitialDelay = TimeSpan.FromMilliseconds(10)
+                },
                 m_logger);
         }
 

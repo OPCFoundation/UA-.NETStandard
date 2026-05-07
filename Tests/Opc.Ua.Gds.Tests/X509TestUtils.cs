@@ -104,12 +104,15 @@ namespace Opc.Ua.Gds.Tests
                     }
                 }
 
-                var pkiConfig = new SecurityConfiguration {
-                    TrustedPeerCertificates = new CertificateTrustList {
+                var pkiConfig = new SecurityConfiguration
+                {
+                    TrustedPeerCertificates = new CertificateTrustList
+                    {
                         StoreType = CertificateStoreType.Directory,
                         StorePath = trustedPath
                     },
-                    TrustedIssuerCertificates = new CertificateTrustList {
+                    TrustedIssuerCertificates = new CertificateTrustList
+                    {
                         StoreType = CertificateStoreType.Directory,
                         StorePath = issuerPath
                     }

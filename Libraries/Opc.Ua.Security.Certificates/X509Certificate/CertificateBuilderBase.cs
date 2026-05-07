@@ -284,7 +284,7 @@ namespace Opc.Ua.Security.Certificates
                     .Equals(ECCurve.NamedCurves.nistP384.Oid.FriendlyName, StringComparison.Ordinal) ||
                     curve.Oid.FriendlyName
                         .Equals(ECCurve.NamedCurves.brainpoolP384r1.Oid.FriendlyName, StringComparison.Ordinal) ||
-                // special case for linux where friendly name could be ECDSA_P384 instead of nistP384
+                    // special case for linux where friendly name could be ECDSA_P384 instead of nistP384
                     (curve.Oid.Value != null &&
                         curve.Oid.Value.Equals(ECCurve.NamedCurves.nistP384.Oid.Value, StringComparison.Ordinal))))
             {

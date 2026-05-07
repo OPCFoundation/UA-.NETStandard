@@ -1147,51 +1147,51 @@ namespace Opc.Ua.Configuration
                 using CertificateCollection certificates = await store.EnumerateAsync(ct)
                     .ConfigureAwait(false);
 
-                    for (int ii = 0; ii < certificates.Count; ii++)
+                for (int ii = 0; ii < certificates.Count; ii++)
+                {
+                    if (X509Utils.CompareDistinguishedName(certificates[ii], subjectName))
                     {
-                        if (X509Utils.CompareDistinguishedName(certificates[ii], subjectName))
+                        if (certificates[ii].Thumbprint == certificate.Thumbprint)
                         {
-                            if (certificates[ii].Thumbprint == certificate.Thumbprint)
-                            {
-                                return;
-                            }
+                            return;
+                        }
 
-                            bool deleteCert = false;
-                            if (X509Utils.IsECDsaSignature(certificates[ii]) &&
-                                X509Utils.IsECDsaSignature(certificate))
-                            {
-                                if (X509Utils
-                                        .GetECDsaQualifier(certificates[ii])
-                                        .Equals(
-                                            X509Utils.GetECDsaQualifier(certificate),
-                                            StringComparison.Ordinal))
-                                {
-                                    deleteCert = true;
-                                }
-                            }
-                            else if (!X509Utils.IsECDsaSignature(certificates[ii]) &&
-                                !X509Utils.IsECDsaSignature(certificate))
+                        bool deleteCert = false;
+                        if (X509Utils.IsECDsaSignature(certificates[ii]) &&
+                            X509Utils.IsECDsaSignature(certificate))
+                        {
+                            if (X509Utils
+                                    .GetECDsaQualifier(certificates[ii])
+                                    .Equals(
+                                        X509Utils.GetECDsaQualifier(certificate),
+                                        StringComparison.Ordinal))
                             {
                                 deleteCert = true;
                             }
+                        }
+                        else if (!X509Utils.IsECDsaSignature(certificates[ii]) &&
+                            !X509Utils.IsECDsaSignature(certificate))
+                        {
+                            deleteCert = true;
+                        }
 
-                            if (deleteCert)
-                            {
-                                m_logger.LogInformation(
-                                    "Delete Certificate {Certificate} from trusted store.",
-                                    certificate);
-                                await store.DeleteAsync(certificates[ii].Thumbprint, ct)
-                                    .ConfigureAwait(false);
-                                break;
-                            }
+                        if (deleteCert)
+                        {
+                            m_logger.LogInformation(
+                                "Delete Certificate {Certificate} from trusted store.",
+                                certificate);
+                            await store.DeleteAsync(certificates[ii].Thumbprint, ct)
+                                .ConfigureAwait(false);
+                            break;
                         }
                     }
+                }
 
-                    // add new certificate.
-                    using Certificate publicKey = Certificate.FromRawData(certificate.RawData);
-                    await store.AddAsync(publicKey, ct: ct).ConfigureAwait(false);
+                // add new certificate.
+                using Certificate publicKey = Certificate.FromRawData(certificate.RawData);
+                await store.AddAsync(publicKey, ct: ct).ConfigureAwait(false);
 
-                    m_logger.LogInformation("Added application certificate to trusted peer store.");
+                m_logger.LogInformation("Added application certificate to trusted peer store.");
             }
             catch (Exception e)
             {

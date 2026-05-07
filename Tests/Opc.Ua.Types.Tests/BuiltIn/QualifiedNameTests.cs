@@ -603,7 +603,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 #pragma warning restore CS0618
         }
 
-        private const string ParseLongFormKnownNamespace= "http://opcfoundation.org/UA/Test/";
+        private const string ParseLongFormKnownNamespace = "http://opcfoundation.org/UA/Test/";
         private const string ParseLongFormUnknownNamespace = "http://opcfoundation.org/UA/Unknown/";
 
         private static NamespaceTable BuildParseLongFormNamespaces()

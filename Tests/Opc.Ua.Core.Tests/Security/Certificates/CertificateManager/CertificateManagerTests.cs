@@ -154,11 +154,13 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 .SetRSAKeySize(2048)
                 .CreateForRSA();
 
-            using var certId = new CertificateIdentifier(cert) {
+            using var certId = new CertificateIdentifier(cert)
+            {
                 CertificateType = ObjectTypeIds.RsaSha256ApplicationCertificateType
             };
 
-            var secConfig = new SecurityConfiguration {
+            var secConfig = new SecurityConfiguration
+            {
                 ApplicationCertificates = [certId]
             };
 
@@ -298,11 +300,14 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             string usersPath = CreateTempDir();
             string rejectedPath = CreateTempDir();
 
-            var secConfig = new SecurityConfiguration {
-                TrustedPeerCertificates = new CertificateTrustList {
+            var secConfig = new SecurityConfiguration
+            {
+                TrustedPeerCertificates = new CertificateTrustList
+                {
                     StorePath = peersPath
                 },
-                TrustedUserCertificates = new CertificateTrustList {
+                TrustedUserCertificates = new CertificateTrustList
+                {
                     StorePath = usersPath
                 },
                 RejectedCertificateStore = new CertificateStoreIdentifier(rejectedPath)
@@ -355,12 +360,14 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 .SetRSAKeySize(2048)
                 .CreateForRSA();
 
-            using var leafCertId = new CertificateIdentifier(leaf) {
+            using var leafCertId = new CertificateIdentifier(leaf)
+            {
                 CertificateType = ObjectTypeIds.RsaSha256ApplicationCertificateType
             };
 
             // Configure SendCertificateChain = true and load the cert with its issuer chain.
-            var secConfig = new SecurityConfiguration {
+            var secConfig = new SecurityConfiguration
+            {
                 ApplicationCertificates = [leafCertId],
                 SendCertificateChain = true
             };
@@ -387,7 +394,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 "DER-encoded chain blob (leaf || issuers) byte-for-byte.");
 
             // Leaf-only mode: blob is just the leaf's raw bytes.
-            var leafOnlyConfig = new SecurityConfiguration {
+            var leafOnlyConfig = new SecurityConfiguration
+            {
                 ApplicationCertificates = [leafCertId],
                 SendCertificateChain = false
             };
@@ -403,7 +411,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             string oldPath = CreateTempDir();
             string newPath = CreateTempDir();
 
-            var initial = new SecurityConfiguration {
+            var initial = new SecurityConfiguration
+            {
                 TrustedPeerCertificates = new CertificateTrustList { StorePath = oldPath }
             };
 
@@ -415,7 +424,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             }
 
             // Switch to new path via UpdateAsync.
-            var updated = new SecurityConfiguration {
+            var updated = new SecurityConfiguration
+            {
                 TrustedPeerCertificates = new CertificateTrustList { StorePath = newPath }
             };
 

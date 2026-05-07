@@ -780,9 +780,12 @@ namespace Opc.Ua
                 }
 
                 // Invalidate cached validation cores.
-                oldPeer = m_peerCore; m_peerCore = null;
-                oldUser = m_userCore; m_userCore = null;
-                oldHttps = m_httpsCore; m_httpsCore = null;
+                oldPeer = m_peerCore;
+                m_peerCore = null;
+                oldUser = m_userCore;
+                m_userCore = null;
+                oldHttps = m_httpsCore;
+                m_httpsCore = null;
             }
 
             // Dispose orphaned cores OUTSIDE the lock.
@@ -840,9 +843,12 @@ namespace Opc.Ua
             {
                 // Invalidate cached cores so subsequent validations pick up
                 // any trust-list/cert changes implicit in the reload.
-                oldPeer = m_peerCore; m_peerCore = null;
-                oldUser = m_userCore; m_userCore = null;
-                oldHttps = m_httpsCore; m_httpsCore = null;
+                oldPeer = m_peerCore;
+                m_peerCore = null;
+                oldUser = m_userCore;
+                m_userCore = null;
+                oldHttps = m_httpsCore;
+                m_httpsCore = null;
             }
 
             // Dispose orphaned cores OUTSIDE the lock.
@@ -1121,7 +1127,8 @@ namespace Opc.Ua
 
             if (m_trustLists.TryGetValue(trustList, out TrustListEntry? entry))
             {
-                var trustedStore = new CertificateTrustList {
+                var trustedStore = new CertificateTrustList
+                {
                     StorePath = entry.TrustedStorePath
                 };
 

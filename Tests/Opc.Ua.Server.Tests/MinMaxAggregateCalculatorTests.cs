@@ -47,7 +47,8 @@ namespace Opc.Ua.Server.Tests
         public void SetUp()
         {
             m_telemetry = NUnitTelemetryContext.Create();
-            m_configuration = new AggregateConfiguration {
+            m_configuration = new AggregateConfiguration
+            {
                 TreatUncertainAsBad = false,
                 PercentDataBad = 100,
                 PercentDataGood = 100,
@@ -61,7 +62,8 @@ namespace Opc.Ua.Server.Tests
             var dataValues = new List<DataValue>();
             for (int i = 0; i < values.Length; i++)
             {
-                dataValues.Add(new DataValue {
+                dataValues.Add(new DataValue
+                {
                     WrappedValue = values[i],
                     SourceTimestamp = startTime.AddMilliseconds(i * intervalMs),
                     ServerTimestamp = startTime.AddMilliseconds(i * intervalMs),
