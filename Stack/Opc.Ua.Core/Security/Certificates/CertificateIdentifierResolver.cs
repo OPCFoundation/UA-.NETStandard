@@ -241,6 +241,24 @@ namespace Opc.Ua
                         .ConfigureAwait(false);
                 }
 
+                // Last-chance: drop the (possibly stale) thumbprint and search
+                // by applicationUri only. Rotations that replaced the
+                // certificate under the configured identifier — where the
+                // configured thumbprint no longer matches anything in the
+                // store — would otherwise return null even though the new
+                // certificate is present and matches the application URI.
+                if (cert == null && !string.IsNullOrEmpty(applicationUri))
+                {
+                    cert = await store.LoadPrivateKeyAsync(
+                            thumbprint: null!,
+                            subjectName: null!,
+                            applicationUri!,
+                            identifier.CertificateType,
+                            password!,
+                            ct)
+                        .ConfigureAwait(false);
+                }
+
                 return cert;
             }
 

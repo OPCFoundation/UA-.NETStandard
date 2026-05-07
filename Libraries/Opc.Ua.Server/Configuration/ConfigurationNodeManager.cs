@@ -887,7 +887,28 @@ namespace Opc.Ua.Server
             {
                 try
                 {
-                    using (ICertificateStore appStore = existingCertIdentifier.OpenStore(Server.Telemetry))
+                    // Resolve the currently-loaded certificate so we can
+                    // delete the right blob from the store. The configured
+                    // CertificateIdentifier may not carry an explicit
+                    // thumbprint (typical config: only StorePath +
+                    // SubjectName), and the identifier no longer caches the
+                    // loaded certificate, so we ask the registry for the
+                    // currently-active cert of this type.
+                    string thumbprintToDelete = null;
+                    if (m_configuration.CertificateManager is ICertificateRegistry registry)
+                    {
+                        CertificateEntry currentEntry = registry
+                            .GetApplicationCertificate(existingCertIdentifier.CertificateType);
+                        thumbprintToDelete = currentEntry?.Certificate.Thumbprint
+                            ?? existingCertIdentifier.Thumbprint;
+                    }
+                    else
+                    {
+                        thumbprintToDelete = existingCertIdentifier.Thumbprint;
+                    }
+
+                    using (ICertificateStore appStore = CertificateIdentifierResolver
+                        .OpenStore(existingCertIdentifier, Server.Telemetry))
                     {
                         if (appStore == null)
                         {
@@ -897,12 +918,15 @@ namespace Opc.Ua.Server
 
                         m_logger.LogInformation(
                             Utils.TraceMasks.Security,
-                            "Delete application certificate {Certificate}",
-                            existingCertIdentifier.Certificate);
-                        await appStore.DeleteAsync(
-                            existingCertIdentifier.Thumbprint,
-                            ct)
-                            .ConfigureAwait(false);
+                            "Delete application certificate {Thumbprint}",
+                            thumbprintToDelete);
+                        if (!string.IsNullOrEmpty(thumbprintToDelete))
+                        {
+                            await appStore.DeleteAsync(
+                                thumbprintToDelete,
+                                ct)
+                                .ConfigureAwait(false);
+                        }
                         ICertificatePasswordProvider passwordProvider = m_configuration
                             .SecurityConfiguration
                             .CertificatePasswordProvider;
@@ -917,15 +941,19 @@ namespace Opc.Ua.Server
                             ct)
                             .ConfigureAwait(false);
 
-                        // Replace the cached cert on the existing identifier so
-                        // downstream consumers (CertificateManager registry,
-                        // endpoint descriptions, transport listeners) pick up
-                        // the new application certificate. The Certificate
-                        // setter disposes the previous cached instance and the
-                        // Thumbprint getter falls through to the new cert
-                        // automatically.
-                        existingCertIdentifier.Certificate = updateCertificate
-                            .CertificateWithPrivateKey.AddRef();
+                        // Replace the registered application certificate in
+                        // the CertificateManager's registry so endpoint
+                        // descriptions, transport listeners, and validation
+                        // cores pick up the new cert without waiting for the
+                        // ApplyChanges-driven UpdateAsync reload.
+                        if (m_configuration.CertificateManager is ICertificateLifecycle lifecycle)
+                        {
+                            await lifecycle.UpdateApplicationCertificateAsync(
+                                existingCertIdentifier.CertificateType,
+                                updateCertificate.CertificateWithPrivateKey,
+                                issuerChain: null,
+                                ct).ConfigureAwait(false);
+                        }
 
                         // keep only track of cert without private key
                         Certificate certOnly = Certificate.FromRawData(

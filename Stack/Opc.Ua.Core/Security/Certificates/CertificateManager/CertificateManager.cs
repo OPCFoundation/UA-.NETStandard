@@ -524,16 +524,29 @@ namespace Opc.Ua
             string? applicationUri = null,
             CancellationToken ct = default)
         {
-            // Build the new entries OUTSIDE the lock (FindAsync is async and
+            // Build the new entries OUTSIDE the lock (resolution is async and
             // may be slow on file I/O), then atomically swap inside the lock.
             ArrayOf<CertificateIdentifier> appCerts = securityConfiguration.ApplicationCertificates;
+            ICertificatePasswordProvider? passwordProvider = securityConfiguration
+                .CertificatePasswordProvider;
             var newEntries = new List<CertificateEntry>(appCerts.Count);
             try
             {
                 for (int i = 0; i < appCerts.Count; i++)
                 {
                     CertificateIdentifier certId = appCerts[i];
-                    using Certificate? certificate = await certId.FindAsync(true, applicationUri, m_telemetry, ct)
+                    // The resolver opens the identifier's store and applies
+                    // post-rotation fallbacks (subject-null, then
+                    // thumbprint-null, by applicationUri) so a freshly-pushed
+                    // certificate is picked up even when the configured
+                    // identifier's thumbprint still references the old cert.
+                    using Certificate? certificate = await CertificateIdentifierResolver
+                        .LoadPrivateKeyAsync(
+                            certId,
+                            passwordProvider,
+                            applicationUri,
+                            m_telemetry,
+                            ct)
                         .ConfigureAwait(false);
                     if (certificate != null)
                     {
@@ -885,25 +898,13 @@ namespace Opc.Ua
             // GDS push) propagate.
             MapFromSecurityConfiguration(securityConfiguration, replaceExisting: true);
 
-            // Force a re-read of every application certificate from its store
-            // before refreshing the registry. CertificateIdentifier caches the
-            // last loaded Certificate in m_certificate; FindAsync(true) will
-            // happily return that cached instance even after the underlying
-            // store has been mutated (e.g. by a GDS push that deleted the old
-            // cert and added a freshly-issued one in its place). Re-loading
-            // through LoadPrivateKeyExAsync replaces the cached entry with the
-            // current store contents, falling back to applicationUri if the
-            // thumbprint changed.
-            ArrayOf<CertificateIdentifier> appCerts = securityConfiguration.ApplicationCertificates;
-            for (int i = 0; i < appCerts.Count; i++)
-            {
-                await appCerts[i].LoadPrivateKeyExAsync(
-                    securityConfiguration.CertificatePasswordProvider,
-                    applicationUri,
-                    m_telemetry,
-                    ct).ConfigureAwait(false);
-            }
-
+            // Reload the registry from the underlying stores. The reload
+            // routes through CertificateIdentifierResolver.LoadPrivateKeyAsync,
+            // which carries the post-rotation fallbacks (subject-null then
+            // thumbprint-null by applicationUri). That makes a fresh GDS
+            // push picked up even when the configured identifier's
+            // thumbprint still references the old cert — no separate cache-
+            // invalidation step on the identifier is needed.
             await ReloadApplicationCertificatesAsync(securityConfiguration, applicationUri, ct)
                 .ConfigureAwait(false);
         }
