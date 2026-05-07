@@ -69,14 +69,16 @@ namespace Opc.Ua.Mcp.Tools
 
                 var response = (FindServersResponse)genericResponse;
 
-                List<Dictionary<string, object?>> results = response.Servers.ToArray()?.Select(s => new Dictionary<string, object?>
-                {
-                    ["applicationUri"] = s.ApplicationUri,
-                    ["productUri"] = s.ProductUri,
-                    ["applicationName"] = s.ApplicationName.Text,
-                    ["applicationType"] = s.ApplicationType.ToString(),
-                    ["discoveryUrls"] = s.DiscoveryUrls.ToArray()
-                }).ToList() ?? [];
+                List<Dictionary<string, object?>> results = response.Servers
+                    .ConvertAll(s => new Dictionary<string, object?>
+                    {
+                        ["applicationUri"] = s.ApplicationUri,
+                        ["productUri"] = s.ProductUri,
+                        ["applicationName"] = s.ApplicationName.Text,
+                        ["applicationType"] = s.ApplicationType.ToString(),
+                        ["discoveryUrls"] = s.DiscoveryUrls.ToArray()
+                    })
+                    .ToList();
 
                 return OpcUaJsonHelper.Serialize(new Dictionary<string, object?>
                 {
@@ -107,7 +109,8 @@ namespace Opc.Ua.Mcp.Tools
         /// Find servers on the network via a discovery server.
         /// </summary>
         [McpServerTool(Name = "FindServersOnNetwork")]
-        [Description("Find OPC UA servers registered on the local network via a Local Discovery Server (LDS). Does not require an active session.")]
+        [Description(
+            "Find OPC UA servers registered on the local network via a Local Discovery Server (LDS). Does not require an active session.")]
         public static async Task<string> FindServersOnNetworkAsync(
             OpcUaSessionManager sessionManager,
             [Description("Discovery endpoint URL of the LDS, e.g. 'opc.tcp://localhost:4840'")] string discoveryUrl,
@@ -129,13 +132,15 @@ namespace Opc.Ua.Mcp.Tools
 
                 var response = (FindServersOnNetworkResponse)genericResponse;
 
-                List<Dictionary<string, object?>> servers = response.Servers.ToArray()?.Select(s => new Dictionary<string, object?>
-                {
-                    ["recordId"] = s.RecordId,
-                    ["serverName"] = s.ServerName,
-                    ["discoveryUrl"] = s.DiscoveryUrl,
-                    ["serverCapabilities"] = s.ServerCapabilities.ToArray()
-                }).ToList() ?? [];
+                List<Dictionary<string, object?>> servers = response.Servers
+                    .ConvertAll(s => new Dictionary<string, object?>
+                    {
+                        ["recordId"] = s.RecordId,
+                        ["serverName"] = s.ServerName,
+                        ["discoveryUrl"] = s.DiscoveryUrl,
+                        ["serverCapabilities"] = s.ServerCapabilities.ToArray()
+                    })
+                    .ToList();
 
                 return OpcUaJsonHelper.Serialize(new Dictionary<string, object?>
                 {
@@ -266,7 +271,8 @@ namespace Opc.Ua.Mcp.Tools
 
                 List<string> configResults = response.ConfigurationResults.ToArray()?
                     .Select(OpcUaJsonHelper.StatusCodeToString)
-                    .ToList() ?? [];
+                    .ToList() ??
+                    [];
 
                 return OpcUaJsonHelper.Serialize(new Dictionary<string, object?>
                 {

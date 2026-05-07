@@ -31,7 +31,7 @@ using System;
 using NUnit.Framework;
 using Opc.Ua.Security.Certificates;
 
-namespace Opc.Ua.Security.Certificates.Tests;
+namespace Opc.Ua.Server.Tests;
 
 /// <summary>
 /// Assembly-level setup/teardown that verifies no Certificate

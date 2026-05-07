@@ -300,7 +300,7 @@ namespace Opc.Ua.Client.Tests
                 publishTime: DateTime.UtcNow,
                 notification: events.AsMemory(),
                 publishStateMask: PublishState.None,
-                stringTable: new List<string> { "ns-entry" })
+                stringTable: ["ns-entry"])
                 .ConfigureAwait(false);
 
             Assert.That(sink.Calls, Has.Count.EqualTo(1));
@@ -364,7 +364,7 @@ namespace Opc.Ua.Client.Tests
             public List<(ArrayOf<uint> AvailableSequenceNumbers, NotificationMessage Message)> Calls
             {
                 get;
-            } = new();
+            } = [];
 
             public void SaveMessageInCache(
                 ArrayOf<uint> availableSequenceNumbers,

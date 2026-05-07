@@ -625,14 +625,14 @@ namespace Opc.Ua
 
             var data = new TrustListData();
 
-            if ((masks & TrustListMasks.TrustedCertificates) != 0)
+            if (((int)masks & (int)TrustListMasks.TrustedCertificates) != 0)
             {
                 using ICertificateStore store = OpenTrustedStore(trustList);
                 data.TrustedCertificates = await store.EnumerateAsync(ct)
                     .ConfigureAwait(false);
             }
 
-            if ((masks & TrustListMasks.TrustedCrls) != 0)
+            if (((int)masks & (int)TrustListMasks.TrustedCrls) != 0)
             {
                 using ICertificateStore store = OpenTrustedStore(trustList);
                 if (store.SupportsCRLs)
@@ -647,13 +647,13 @@ namespace Opc.Ua
             {
                 using (issuerStore)
                 {
-                    if ((masks & TrustListMasks.IssuerCertificates) != 0)
+                    if (((int)masks & (int)TrustListMasks.IssuerCertificates) != 0)
                     {
                         data.IssuerCertificates = await issuerStore
                             .EnumerateAsync(ct).ConfigureAwait(false);
                     }
 
-                    if ((masks & TrustListMasks.IssuerCrls) != 0 &&
+                    if (((int)masks & (int)TrustListMasks.IssuerCrls) != 0 &&
                         issuerStore.SupportsCRLs)
                     {
                         data.IssuerCrls = await issuerStore
@@ -687,27 +687,25 @@ namespace Opc.Ua
             {
                 using ICertificateStore store = OpenTrustedStore(trustList);
 
-                if ((masks & TrustListMasks.TrustedCertificates) != 0)
+                if (((int)masks & (int)TrustListMasks.TrustedCertificates) != 0)
                 {
                     await ClearCertificatesAsync(store, ct)
                         .ConfigureAwait(false);
 
                     foreach (Certificate cert in data.TrustedCertificates)
                     {
-                        await store.AddAsync(cert, ct: ct)
-                            .ConfigureAwait(false);
+                        await store.AddAsync(cert, ct: ct).ConfigureAwait(false);
                     }
                 }
 
-                if ((masks & TrustListMasks.TrustedCrls) != 0 &&
+                if (((int)masks & (int)TrustListMasks.TrustedCrls) != 0 &&
                     store.SupportsCRLs)
                 {
                     await ClearCrlsAsync(store, ct).ConfigureAwait(false);
 
                     foreach (X509CRL crl in data.TrustedCrls)
                     {
-                        await store.AddCRLAsync(crl, ct)
-                            .ConfigureAwait(false);
+                        await store.AddCRLAsync(crl, ct).ConfigureAwait(false);
                     }
                 }
             }
@@ -720,7 +718,7 @@ namespace Opc.Ua
                 {
                     using (issuerStore)
                     {
-                        if ((masks & TrustListMasks.IssuerCertificates) != 0)
+                        if (((int)masks & (int)TrustListMasks.IssuerCertificates) != 0)
                         {
                             await ClearCertificatesAsync(issuerStore, ct)
                                 .ConfigureAwait(false);
@@ -732,7 +730,7 @@ namespace Opc.Ua
                             }
                         }
 
-                        if ((masks & TrustListMasks.IssuerCrls) != 0 &&
+                        if (((int)masks & (int)TrustListMasks.IssuerCrls) != 0 &&
                             issuerStore.SupportsCRLs)
                         {
                             await ClearCrlsAsync(issuerStore, ct)

@@ -182,6 +182,5 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             m_tempDirs.Add(dir);
             return dir;
         }
-
     }
 }

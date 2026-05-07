@@ -1044,8 +1044,8 @@ namespace Opc.Ua.PubSub.Transport
             bool ignoreChain = m_mqttClientTlsOptions?.IgnoreCertificateChainErrors ?? false;
             bool allowUntrusted = m_mqttClientTlsOptions?.AllowUntrustedCertificates ?? false;
 
-            if (ignoreRevocation && (
-                    code == StatusCodes.BadCertificateRevocationUnknown ||
+            if (ignoreRevocation &&
+                (code == StatusCodes.BadCertificateRevocationUnknown ||
                     code == StatusCodes.BadCertificateIssuerRevocationUnknown ||
                     code == StatusCodes.BadCertificateRevoked ||
                     code == StatusCodes.BadCertificateIssuerRevoked))

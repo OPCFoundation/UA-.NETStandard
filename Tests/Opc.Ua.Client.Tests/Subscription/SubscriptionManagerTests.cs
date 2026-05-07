@@ -286,7 +286,7 @@ namespace Opc.Ua.Client.Subscriptions
                     {
                         SequenceNumber = h!.RequestHandle
                     },
-                    Results = s.ToArray().Select(_ => (StatusCode)StatusCodes.Good).ToArrayOf(),
+                    Results = s.ConvertAll(_ => StatusCodes.Good),
                     SubscriptionId = 1,
                     MoreNotifications = false,
                     ResponseHeader = new ResponseHeader
@@ -480,7 +480,6 @@ namespace Opc.Ua.Client.Subscriptions
                 loggerFactory, DiagnosticsMasks.None);
             try
             {
-
                 session.CreateSubscriptionFactory = (handler, opts, queue) =>
                 {
                     Assert.That(ReferenceEquals(opts, options), Is.True);

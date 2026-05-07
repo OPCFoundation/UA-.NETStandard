@@ -118,8 +118,8 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             var config = new PubSubConfigurationDataType { Enabled = true };
             UaPubSubConfigurator configurator = CreateConfiguratorWithConfig(config);
 
-            var writerGroup = new WriterGroupDataType { Enabled = true, Name = "" };
-            var readerGroup = new ReaderGroupDataType { Enabled = true, Name = "" };
+            var writerGroup = new WriterGroupDataType { Enabled = true, Name = string.Empty };
+            var readerGroup = new ReaderGroupDataType { Enabled = true, Name = string.Empty };
             var connection = new PubSubConnectionDataType
             {
                 Enabled = true,

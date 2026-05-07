@@ -106,7 +106,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
                 Throws.ArgumentNullException);
             Assert.That(() => builder.UseEndpoint((string)null!),
                 Throws.ArgumentNullException);
-            Assert.That(() => builder.WithSessionName(""),
+            Assert.That(() => builder.WithSessionName(string.Empty),
                 Throws.ArgumentException);
             Assert.That(() => builder.WithSessionTimeout(TimeSpan.Zero),
                 Throws.InstanceOf<ArgumentOutOfRangeException>());

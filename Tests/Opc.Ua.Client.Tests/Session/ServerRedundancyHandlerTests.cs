@@ -77,10 +77,10 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             {
                 Mode = RedundancyMode.Transparent,
                 ServiceLevel = 200,
-                RedundantServers = new List<RedundantServer>
-                {
+                RedundantServers =
+                [
                     CreateServerInfo("urn:backup", 200, ServerState.Running)
-                }
+                ]
             };
 
             ConfiguredEndpoint? result = m_handler.SelectFailoverTarget(
@@ -96,12 +96,12 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             {
                 Mode = RedundancyMode.Hot,
                 ServiceLevel = 200,
-                RedundantServers = new List<RedundantServer>
-                {
+                RedundantServers =
+                [
                     CreateServerInfo("urn:server-low", 100, ServerState.Running),
                     CreateServerInfo("urn:server-high", 250, ServerState.Running),
                     CreateServerInfo("urn:server-mid", 180, ServerState.Running)
-                }
+                ]
             };
 
             ConfiguredEndpoint? result = m_handler.SelectFailoverTarget(
@@ -120,11 +120,11 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             {
                 Mode = RedundancyMode.Hot,
                 ServiceLevel = 200,
-                RedundantServers = new List<RedundantServer>
-                {
+                RedundantServers =
+                [
                     CreateServerInfo("urn:current", 255, ServerState.Running),
                     CreateServerInfo("urn:backup", 100, ServerState.Running)
-                }
+                ]
             };
 
             ConfiguredEndpoint? result = m_handler.SelectFailoverTarget(
@@ -143,12 +143,12 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             {
                 Mode = RedundancyMode.Hot,
                 ServiceLevel = 200,
-                RedundantServers = new List<RedundantServer>
-                {
+                RedundantServers =
+                [
                     CreateServerInfo("urn:suspended", 255, ServerState.Suspended),
                     CreateServerInfo("urn:shutdown", 240, ServerState.Shutdown),
                     CreateServerInfo("urn:running", 100, ServerState.Running)
-                }
+                ]
             };
 
             ConfiguredEndpoint? result = m_handler.SelectFailoverTarget(
@@ -167,12 +167,12 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             {
                 Mode = RedundancyMode.Hot,
                 ServiceLevel = 200,
-                RedundantServers = new List<RedundantServer>
-                {
+                RedundantServers =
+                [
                     CreateServerInfo("urn:current", 200, ServerState.Running),
                     CreateServerInfo("urn:down", 100, ServerState.Shutdown),
                     CreateServerInfo("urn:failed", 50, ServerState.Failed)
-                }
+                ]
             };
 
             ConfiguredEndpoint? result = m_handler.SelectFailoverTarget(
@@ -188,10 +188,10 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             {
                 Mode = RedundancyMode.Cold,
                 ServiceLevel = 200,
-                RedundantServers = new List<RedundantServer>
-                {
+                RedundantServers =
+                [
                     CreateServerInfo("urn:backup", 150, ServerState.Running)
-                }
+                ]
             };
 
             ConfiguredEndpoint? result = m_handler.SelectFailoverTarget(
@@ -210,10 +210,10 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             {
                 Mode = RedundancyMode.Warm,
                 ServiceLevel = 200,
-                RedundantServers = new List<RedundantServer>
-                {
+                RedundantServers =
+                [
                     CreateServerInfo("urn:backup", 150, ServerState.Running)
-                }
+                ]
             };
 
             ConfiguredEndpoint? result = m_handler.SelectFailoverTarget(
@@ -232,10 +232,10 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             {
                 Mode = RedundancyMode.Hot,
                 ServiceLevel = 200,
-                RedundantServers = new List<RedundantServer>
-                {
+                RedundantServers =
+                [
                     CreateServerInfo("urn:backup", 150, ServerState.Running)
-                }
+                ]
             };
 
             ConfiguredEndpoint? result = m_handler.SelectFailoverTarget(
@@ -254,10 +254,10 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             {
                 Mode = RedundancyMode.HotAndMirrored,
                 ServiceLevel = 200,
-                RedundantServers = new List<RedundantServer>
-                {
+                RedundantServers =
+                [
                     CreateServerInfo("urn:backup", 150, ServerState.Running)
-                }
+                ]
             };
 
             ConfiguredEndpoint? result = m_handler.SelectFailoverTarget(

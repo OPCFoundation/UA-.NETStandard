@@ -172,7 +172,7 @@ namespace Opc.Ua.Gds.Client
             }
 
             uint fileHandle = await trustListClient.OpenAsync(
-                (byte)((int)OpenFileMode.Write | (int)OpenFileMode.EraseExisting),
+                (int)OpenFileMode.Write | (int)OpenFileMode.EraseExisting,
                 ct).ConfigureAwait(false);
 
             byte[] rentedBuffer = ArrayPool<byte>.Shared.Rent(chunkSize);

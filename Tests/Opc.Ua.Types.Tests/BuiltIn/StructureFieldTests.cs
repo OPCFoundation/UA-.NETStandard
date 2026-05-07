@@ -87,7 +87,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 Is.EqualTo(ObjectIds.StructureField_Encoding_DefaultXml));
         }
 
-
         [Test]
         public void EncodeDecodeRoundTripWithAllFieldsSet()
         {

@@ -484,7 +484,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             return new TestCaseData(
                 invoke,
                 typeof(TRequest),
-                (Func<TResponse>)(() => new TResponse()))
+                (() => new TResponse()))
                 .SetName(name + "DelegatesToInnerSession");
         }
 

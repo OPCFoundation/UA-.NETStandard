@@ -41,7 +41,6 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 #endif
 
-
 namespace Opc.Ua.Server
 {
     /// <summary>
@@ -622,11 +621,11 @@ namespace Opc.Ua.Server
                         {
                             RevocationFlag = X509RevocationFlag.EntireChain,
                             RevocationMode = X509RevocationMode.NoCheck,
-                            VerificationFlags
-                                = X509VerificationFlags.AllowUnknownCertificateAuthority |
-                                  X509VerificationFlags.IgnoreCertificateAuthorityRevocationUnknown |
-                                  X509VerificationFlags.IgnoreEndRevocationUnknown |
-                                  X509VerificationFlags.IgnoreRootRevocationUnknown,
+                            VerificationFlags =
+                                X509VerificationFlags.AllowUnknownCertificateAuthority |
+                                X509VerificationFlags.IgnoreCertificateAuthorityRevocationUnknown |
+                                X509VerificationFlags.IgnoreEndRevocationUnknown |
+                                X509VerificationFlags.IgnoreRootRevocationUnknown,
 #if NET5_0_OR_GREATER
                             DisableCertificateDownloads = true,
 #endif

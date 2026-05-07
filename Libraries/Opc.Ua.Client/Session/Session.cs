@@ -4377,7 +4377,7 @@ namespace Opc.Ua.Client
             // load certificate chain.
             if (configuration.SecurityConfiguration.SendCertificateChain)
             {
-                clientCertificateChain = new CertificateCollection { clientCertificate };
+                clientCertificateChain = [clientCertificate];
                 try
                 {
                     List<CertificateIdentifier> issuers = [];

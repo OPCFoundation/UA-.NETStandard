@@ -438,7 +438,9 @@ namespace Opc.Ua.PubSub.Transport
                         {
                             try
                             {
+#pragma warning disable CA1849 // Call async methods when in an async method
                                 udpClient.Send(bytes, bytes.Length, NetworkAddressEndPoint);
+#pragma warning restore CA1849 // Call async methods when in an async method
 
                                 m_logger.LogInformation(
                                     "UdpPubSubConnection.PublishNetworkMessage bytes:{Length}, endpoint:{Endpoint}",

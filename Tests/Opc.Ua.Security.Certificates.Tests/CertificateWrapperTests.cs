@@ -363,7 +363,7 @@ namespace Opc.Ua.Security.Certificates.Tests
                 .SetRSAKeySize(2048)
                 .CreateForRSA();
 
-            Assert.DoesNotThrow(() => cert.Dispose());
+            Assert.DoesNotThrow(cert.Dispose);
         }
 
         [Test]
@@ -772,9 +772,11 @@ namespace Opc.Ua.Security.Certificates.Tests
             X509Certificate2 inner1 = cert1.X509;
             X509Certificate2 inner2 = cert2.X509;
 
-            var collection = new CertificateCollection();
-            collection.Add(cert1);
-            collection.Add(cert2);
+            var collection = new CertificateCollection
+            {
+                cert1,
+                cert2
+            };
 
             // Dispose the caller's refs (Add already AddRef'd for the collection)
             cert1.Dispose();

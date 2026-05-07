@@ -66,7 +66,7 @@ namespace Opc.Ua.Mcp.Tools
                 using ICertificateStore certStore = storeId.OpenStore(sessionManager.Telemetry);
                 using CertificateCollection certs = await certStore.EnumerateAsync(ct).ConfigureAwait(false);
 
-                var results = certs.Select(c => CertToDict(c)).ToList();
+                var results = certs.Select(CertToDict).ToList();
 
                 return OpcUaJsonHelper.Serialize(new Dictionary<string, object?>
                 {
@@ -300,6 +300,3 @@ namespace Opc.Ua.Mcp.Tools
         }
     }
 }
-
-
-

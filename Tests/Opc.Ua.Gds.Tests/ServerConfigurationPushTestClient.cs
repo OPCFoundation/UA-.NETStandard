@@ -36,7 +36,6 @@ using Opc.Ua.Configuration;
 using Opc.Ua.Gds.Client;
 using Opc.Ua.Security.Certificates;
 
-
 namespace Opc.Ua.Gds.Tests
 {
     public sealed class ServerConfigurationPushTestClient : IDisposable

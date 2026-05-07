@@ -301,8 +301,8 @@ namespace Opc.Ua.Server.Fluent
         /// <inheritdoc/>
         public void NotifyNodeAdded(ISystemContext context, NodeState node)
         {
-            if (node != null
-                && m_nodeAdded.TryGetValue(node.NodeId, out NodeLifecycleHandler handler))
+            if (node != null &&
+                m_nodeAdded.TryGetValue(node.NodeId, out NodeLifecycleHandler handler))
             {
                 handler(context, node);
             }

@@ -56,8 +56,7 @@ namespace Opc.Ua.Security.Certificates
             ICertificateBuilder builder,
             Certificate issuerCertificate)
         {
-            ICertificateBuilderIssuer issuerBuilder = ((ICertificateBuilderSetIssuer)builder)
-                .SetIssuer(issuerCertificate);
+            ICertificateBuilderIssuer issuerBuilder = builder.SetIssuer(issuerCertificate);
 
             if (X509PfxUtils.IsECDsaSignature(issuerCertificate))
             {
@@ -65,8 +64,7 @@ namespace Opc.Ua.Security.Certificates
                     .CreateForECDsa();
             }
 
-            return ((ICertificateBuilderCreateForRSA)issuerBuilder)
-                .CreateForRSA();
+            return issuerBuilder.CreateForRSA();
         }
 
         /// <inheritdoc/>

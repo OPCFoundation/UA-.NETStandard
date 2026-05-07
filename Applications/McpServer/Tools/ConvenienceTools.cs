@@ -329,8 +329,11 @@ namespace Opc.Ua.Mcp.Tools
                 {
                     ["objectId"] = objectId,
                     ["methodId"] = methodId,
-                    ["outputArguments"] = result.OutputArguments.ToArray()?
-                        .Select(v => OpcUaJsonHelper.VariantToObject(v)).ToList() ?? []
+                    ["outputArguments"] = result.OutputArguments
+                        .ToArray()?
+                        .Select(v => OpcUaJsonHelper.VariantToObject(v))
+                        .ToList() ??
+                        []
                 });
             }
             catch (ServiceResultException ex)

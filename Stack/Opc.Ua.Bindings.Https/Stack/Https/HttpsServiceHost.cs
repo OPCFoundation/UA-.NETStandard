@@ -32,7 +32,6 @@ using System.Collections.Generic;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Security.Certificates;
 
-
 namespace Opc.Ua.Bindings
 {
     /// <summary>

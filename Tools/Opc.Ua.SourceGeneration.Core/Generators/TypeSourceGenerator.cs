@@ -79,7 +79,7 @@ namespace Opc.Ua.SourceGeneration
                     IsError = isError,
                     Message = $"Property '{field.PropertyName}' has unsupported type " +
                         $"'{field.ShortTypeName}'. Only OPC UA built-in types, " +
-                        $"IEncodeable, enums, ArrayOf<T>, and MatrixOf<T> are supported."
+                        "IEncodeable, enums, ArrayOf<T>, and MatrixOf<T> are supported."
                 });
             }
 

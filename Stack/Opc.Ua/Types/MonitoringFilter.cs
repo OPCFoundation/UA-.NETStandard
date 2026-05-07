@@ -603,7 +603,7 @@ namespace Opc.Ua
             try
             {
                 if (!value1.TryGetDecimal(out decimal decimal1) ||
-                   !value2.TryGetDecimal(out decimal decimal2))
+                    !value2.TryGetDecimal(out decimal decimal2))
                 {
                     throw new InvalidOperationException("Failed to check for deadband");
                 }

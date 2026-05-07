@@ -896,7 +896,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             }
             """;
 
-            DataSetReaderDataType reader = CreateDataSetReaderNoHeader("", 0,
+            DataSetReaderDataType reader = CreateDataSetReaderNoHeader(string.Empty, 0,
                 new FieldMetaData
                 {
                     Name = "Temperature",

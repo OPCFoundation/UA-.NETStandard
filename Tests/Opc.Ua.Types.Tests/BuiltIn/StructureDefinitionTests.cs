@@ -87,7 +87,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 Is.EqualTo(ObjectIds.StructureDefinition_Encoding_DefaultXml));
         }
 
-
         [Test]
         public void EncodeDecodeRoundTripWithAllFieldsSet()
         {
@@ -426,7 +425,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.Throws<ArgumentNullException>(
                 () => definition.SetDefaultEncodingId(null, typeId, dataEncoding));
         }
-
 
         [Test]
         public void SetDefaultEncodingIdWithDefaultBinarySetsFromFactory()

@@ -49,6 +49,7 @@ namespace Opc.Ua.Server.Hosting
         /// <summary>
         /// Registers an asynchronous node-manager factory as a singleton.
         /// </summary>
+        /// <typeparam name="TFactory"></typeparam>
         IOpcUaServerBuilder AddNodeManager<
             [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TFactory>()
             where TFactory : class, IAsyncNodeManagerFactory;
@@ -56,6 +57,7 @@ namespace Opc.Ua.Server.Hosting
         /// <summary>
         /// Registers a synchronous (legacy) node-manager factory as a singleton.
         /// </summary>
+        /// <typeparam name="TFactory"></typeparam>
         IOpcUaServerBuilder AddSyncNodeManager<
             [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TFactory>()
             where TFactory : class, INodeManagerFactory;

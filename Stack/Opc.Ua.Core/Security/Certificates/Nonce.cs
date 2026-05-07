@@ -603,7 +603,7 @@ namespace Opc.Ua
         const int k_FFDHE4096_MinExponent = 325;
         const int k_FFDHE4096_MaxExponent = 511;
 
-        private static readonly Lazy<RandomNumberGenerator> s_rng = new(() => RandomNumberGenerator.Create());
+        private static readonly Lazy<RandomNumberGenerator> s_rng = new(RandomNumberGenerator.Create);
 
         /// <summary>
         /// Generator for FFDHE groups is 2

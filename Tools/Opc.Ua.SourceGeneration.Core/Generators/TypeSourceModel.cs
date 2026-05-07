@@ -78,7 +78,6 @@ namespace Opc.Ua.SourceGeneration
         /// </summary>
         public string XmlEncodingId { get; set; }
 
-
         /// <summary>
         /// True if the type is a C# record type.
         /// </summary>

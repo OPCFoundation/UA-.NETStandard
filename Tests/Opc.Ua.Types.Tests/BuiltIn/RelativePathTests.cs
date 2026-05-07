@@ -136,7 +136,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(path.XmlEncodingId, Is.EqualTo(ObjectIds.RelativePath_Encoding_DefaultXml));
         }
 
-
         [Test]
         public void EncodeWritesElementsArray()
         {
@@ -559,7 +558,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var element = new RelativePathElement();
             Assert.That(element.XmlEncodingId, Is.EqualTo(ObjectIds.RelativePathElement_Encoding_DefaultXml));
         }
-
 
         [Test]
         public void RelativePathElementEncodeWritesAllFields()

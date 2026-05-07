@@ -175,17 +175,17 @@ namespace Opc.Ua.PubSub.Tests.Transport
             kvps += new KeyValuePair
             {
                 Key = QualifiedName.From("UserName"),
-                Value = ""
+                Value = string.Empty
             };
             kvps += new KeyValuePair
             {
                 Key = QualifiedName.From("Password"),
-                Value = ""
+                Value = string.Empty
             };
             kvps += new KeyValuePair
             {
                 Key = QualifiedName.From("AzureClientId"),
-                Value = ""
+                Value = string.Empty
             };
             kvps += new KeyValuePair
             {

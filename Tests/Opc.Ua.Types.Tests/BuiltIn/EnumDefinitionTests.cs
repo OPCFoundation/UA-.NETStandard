@@ -81,7 +81,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 Is.EqualTo(ObjectIds.EnumDefinition_Encoding_DefaultXml));
         }
 
-
         [Test]
         public void EncodeDecodeRoundTripWithAllFieldsSet()
         {

@@ -161,7 +161,7 @@ namespace Opc.Ua.PubSub.Tests
             using var runner = new IntervalRunner(
                 "runner", 100, () => true, () => Task.CompletedTask, m_telemetry);
 
-            Assert.DoesNotThrow(() => runner.Stop());
+            Assert.DoesNotThrow(runner.Stop);
         }
 
         [Test]
@@ -170,7 +170,7 @@ namespace Opc.Ua.PubSub.Tests
             var runner = new IntervalRunner(
                 "runner", 100, () => true, () => Task.CompletedTask, m_telemetry);
 
-            Assert.DoesNotThrow(() => runner.Dispose());
+            Assert.DoesNotThrow(runner.Dispose);
         }
 
         [Test]
@@ -180,7 +180,7 @@ namespace Opc.Ua.PubSub.Tests
                 "runner", 100, () => true, () => Task.CompletedTask, m_telemetry);
 
             runner.Start();
-            Assert.DoesNotThrow(() => runner.Dispose());
+            Assert.DoesNotThrow(runner.Dispose);
         }
 
         [Test]
@@ -190,7 +190,7 @@ namespace Opc.Ua.PubSub.Tests
                 "runner", 100, () => true, () => Task.CompletedTask, m_telemetry);
 
             runner.Dispose();
-            Assert.DoesNotThrow(() => runner.Dispose());
+            Assert.DoesNotThrow(runner.Dispose);
         }
 
         [Test]

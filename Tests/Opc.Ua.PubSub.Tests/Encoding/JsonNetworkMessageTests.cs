@@ -675,7 +675,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         {
             var writerGroup = new WriterGroupDataType { Enabled = true, Name = "WG1" };
             var msg = new PubSubEncoding.JsonNetworkMessage(
-                writerGroup, new List<PubSubEncoding.JsonDataSetMessage>(), null);
+                writerGroup, [], null);
             msg.SetNetworkMessageContentMask(
                 JsonNetworkMessageContentMask.NetworkMessageHeader);
             msg.PublisherId = "Pub1";

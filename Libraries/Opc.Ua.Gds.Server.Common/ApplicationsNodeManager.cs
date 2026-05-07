@@ -228,7 +228,8 @@ namespace Opc.Ua.Gds.Server
 
                 if (certificateGroup != null)
                 {
-                    using Certificate x509 = Certificate.FromRawData(certificate);                    try
+                    using Certificate x509 = Certificate.FromRawData(certificate);
+                    try
                     {
                         Security.Certificates.X509CRL crl = await certificateGroup
                             .RevokeCertificateAsync(x509)

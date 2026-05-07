@@ -41,7 +41,6 @@ using Opc.Ua.Security.Certificates;
 using Opc.Ua.Security.Certificates.Tests;
 using Opc.Ua.Tests;
 
-
 namespace Opc.Ua.Core.Tests.Security.Certificates
 {
     /// <summary>
@@ -86,9 +85,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             m_crlChain = new X509CRL[kCaChainCount];
             m_crlDupeChain = new X509CRL[kCaChainCount];
             m_crlRevokedChain = new X509CRL[kCaChainCount];
-            m_appCerts = new CertificateCollection();
-            m_appSelfSignedCerts = new CertificateCollection();
-            m_notYetValidAppCerts = new CertificateCollection();
+            m_appCerts = [];
+            m_appSelfSignedCerts = [];
+            m_notYetValidAppCerts = [];
 
             DateTime rootCABaseTime = DateTime.UtcNow.AddDays(-1);
             rootCABaseTime = new DateTime(rootCABaseTime.Year - 1, 1, 1, 0, 0, 0, DateTimeKind.Utc);

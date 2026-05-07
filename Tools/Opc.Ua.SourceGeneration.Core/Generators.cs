@@ -91,7 +91,7 @@ namespace Opc.Ua.SourceGeneration
                 .WithFallback(fileSystem);
 
             HashSet<NodeManagerAttributeBinding> usedBindings = nodeManagerBindings is { Count: > 0 }
-                ? new HashSet<NodeManagerAttributeBinding>()
+                ? []
                 : null;
 
             int totalDesigns = designFiles.Targets.Count;
@@ -117,7 +117,6 @@ namespace Opc.Ua.SourceGeneration
                 {
                     continue;
                 }
-
 
                 DesignFileOptions effectiveOptions = ApplyNodeManagerBinding(
                     model,
@@ -298,7 +297,7 @@ namespace Opc.Ua.SourceGeneration
                 .WithFallback(fileSystem);
 
             HashSet<NodeManagerAttributeBinding> usedBindings = nodeManagerBindings is { Count: > 0 }
-                ? new HashSet<NodeManagerAttributeBinding>()
+                ? []
                 : null;
 
             int totalDesigns = nodesets.ModelUris.Count();

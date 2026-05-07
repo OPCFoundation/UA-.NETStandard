@@ -3729,7 +3729,7 @@ namespace Opc.Ua.Schema.Model
                         if (!reference.IsInverse &&
                             reference.ReferenceType != null &&
                             (reference.ReferenceType.Name == "HasEventSource" ||
-                             reference.ReferenceType.Name == "HasNotifier"))
+                                reference.ReferenceType.Name == "HasNotifier"))
                         {
                             objectNode.SupportsEvents = true;
                             objectNode.SupportsEventsSpecified = true;
@@ -3746,7 +3746,7 @@ namespace Opc.Ua.Schema.Model
                         if (!reference.IsInverse &&
                             reference.ReferenceType != null &&
                             (reference.ReferenceType.Name == "HasEventSource" ||
-                             reference.ReferenceType.Name == "HasNotifier"))
+                                reference.ReferenceType.Name == "HasNotifier"))
                         {
                             objectTypeNode.SupportsEvents = true;
                             objectTypeNode.SupportsEventsSpecified = true;

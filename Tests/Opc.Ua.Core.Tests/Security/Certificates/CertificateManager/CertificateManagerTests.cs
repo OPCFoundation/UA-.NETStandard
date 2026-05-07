@@ -326,6 +326,5 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 onNext(value);
             }
         }
-
     }
 }

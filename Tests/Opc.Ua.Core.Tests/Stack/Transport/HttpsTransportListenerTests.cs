@@ -243,7 +243,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             var callback = new Mock<ITransportListenerCallback>();
             var settings = new TransportListenerSettings
             {
-                Descriptions = new List<EndpointDescription>(),
+                Descriptions = [],
                 Configuration = EndpointConfiguration.Create(),
                 ServerCertificateTypesProvider = null,
                 CertificateValidator = new Mock<ICertificateValidatorEx>().Object,
@@ -264,7 +264,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             var callback = new Mock<ITransportListenerCallback>();
             var settings = new TransportListenerSettings
             {
-                Descriptions = new List<EndpointDescription>(),
+                Descriptions = [],
                 Configuration = EndpointConfiguration.Create(),
                 ServerCertificateTypesProvider = null,
                 CertificateValidator = new Mock<ICertificateValidatorEx>().Object,
@@ -371,7 +371,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             var callback = new Mock<ITransportListenerCallback>();
             var settings = new TransportListenerSettings
             {
-                Descriptions = new List<EndpointDescription>(),
+                Descriptions = [],
                 Configuration = EndpointConfiguration.Create(),
                 ServerCertificateTypesProvider = null,
                 CertificateValidator = new Mock<ICertificateValidatorEx>().Object,

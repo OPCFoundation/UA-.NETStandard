@@ -43,7 +43,6 @@ using Opc.Ua.Security.Certificates;
 using Opc.Ua.Tests;
 using X509AuthorityKeyIdentifierExtension = Opc.Ua.Security.Certificates.X509AuthorityKeyIdentifierExtension;
 
-
 namespace Opc.Ua.Core.Tests.Security.Certificates
 {
     /// <summary>

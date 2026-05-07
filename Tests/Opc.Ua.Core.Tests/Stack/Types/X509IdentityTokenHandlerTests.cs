@@ -51,15 +51,15 @@ namespace Opc.Ua.Core.Tests.Stack.Types
             using var tokenHandler = new X509IdentityTokenHandler(cert);
             using X509IdentityTokenHandler copy = tokenHandler.Copy();
 
-            Assert.IsTrue(copy.Certificate.HasPrivateKey);
+            Assert.That(copy.Certificate.HasPrivateKey, Is.True);
 
             SignatureData signature = copy.Sign(
                 [0x01, 0x02, 0x03, 0x04],
                 SecurityPolicies.Basic256Sha256);
 
-            Assert.NotNull(signature);
-            Assert.NotNull(signature.Signature);
-            Assert.Greater(signature.Signature.Length, 0);
+            Assert.That(signature, Is.Not.Null);
+            Assert.That(signature.Signature, Is.Not.Null);
+            Assert.That(signature.Signature.Length, Is.GreaterThan(0));
         }
     }
 }

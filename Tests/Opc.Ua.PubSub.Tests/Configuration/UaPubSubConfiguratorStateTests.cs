@@ -519,7 +519,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                 Connections = [],
                 PublishedDataSets = []
             };
-            var conn = new PubSubConnectionDataType { Name = "", Enabled = true };
+            var conn = new PubSubConnectionDataType { Name = string.Empty, Enabled = true };
             config.Connections += conn;
 
             m_configurator.LoadConfiguration(config);
@@ -533,7 +533,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void AddConnectionWithEmptyNamedWriterGroupAssignsDefault()
         {
-            var writerGroup = new WriterGroupDataType { Name = "", Enabled = true };
+            var writerGroup = new WriterGroupDataType { Name = string.Empty, Enabled = true };
             var conn = new PubSubConnectionDataType
             {
                 Name = "Conn1",
@@ -552,7 +552,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void AddConnectionWithEmptyNamedReaderGroupAssignsDefault()
         {
-            var readerGroup = new ReaderGroupDataType { Name = "", Enabled = true };
+            var readerGroup = new ReaderGroupDataType { Name = string.Empty, Enabled = true };
             var conn = new PubSubConnectionDataType
             {
                 Name = "Conn1",
@@ -813,7 +813,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             m_configurator.AddConnection(conn);
             uint connId = m_configurator.FindIdForObject(conn);
 
-            var dsw = new DataSetWriterDataType { Name = "", Enabled = true };
+            var dsw = new DataSetWriterDataType { Name = string.Empty, Enabled = true };
             var wg = new WriterGroupDataType
             {
                 Name = "WG1",
@@ -835,7 +835,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             m_configurator.AddConnection(conn);
             uint connId = m_configurator.FindIdForObject(conn);
 
-            var dsr = new DataSetReaderDataType { Name = "", Enabled = true };
+            var dsr = new DataSetReaderDataType { Name = string.Empty, Enabled = true };
             var rg = new ReaderGroupDataType
             {
                 Name = "RG1",

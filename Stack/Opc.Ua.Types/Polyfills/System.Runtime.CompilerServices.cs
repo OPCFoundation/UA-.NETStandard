@@ -50,7 +50,5 @@ namespace System.Runtime.CompilerServices
         AttributeTargets.Class | AttributeTargets.Struct,
         Inherited = false,
         AllowMultiple = false)]
-    public sealed class UnionAttribute : Attribute
-    {
-    }
+    public sealed class UnionAttribute : Attribute;
 }

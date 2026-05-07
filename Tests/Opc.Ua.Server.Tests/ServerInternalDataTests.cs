@@ -397,7 +397,7 @@ namespace Opc.Ua.Server.Tests
         public void DisposeDoesNotThrowWhenPropertiesAreNull()
         {
             using ServerInternalData data = CreateServerInternalData();
-            Assert.DoesNotThrow(() => data.Dispose());
+            Assert.DoesNotThrow(data.Dispose);
         }
 
         [Test]
@@ -405,7 +405,7 @@ namespace Opc.Ua.Server.Tests
         {
             ServerInternalData data = CreateServerInternalData();
             data.Dispose();
-            Assert.DoesNotThrow(() => data.Dispose());
+            Assert.DoesNotThrow(data.Dispose);
         }
 
         [Test]

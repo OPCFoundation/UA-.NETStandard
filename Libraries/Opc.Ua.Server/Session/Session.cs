@@ -1299,7 +1299,7 @@ namespace Opc.Ua.Server
         private readonly string m_sessionName;
         private Certificate m_serverCertificate;
         private Nonce m_serverNonce;
-        private byte[] m_channelThumbprint;
+        private readonly byte[] m_channelThumbprint;
         private string m_userTokenSecurityPolicyUri;
         private Nonce m_userTokenNonce;
         private readonly CertificateCollection m_clientIssuerCertificates;

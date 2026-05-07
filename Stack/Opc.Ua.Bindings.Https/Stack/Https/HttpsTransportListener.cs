@@ -49,7 +49,6 @@ using System.Collections.Generic;
 using System.Security.Cryptography;
 #endif
 
-
 namespace Opc.Ua.Bindings
 {
     /// <summary>

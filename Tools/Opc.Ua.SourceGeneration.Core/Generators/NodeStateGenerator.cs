@@ -2156,7 +2156,7 @@ namespace Opc.Ua.SourceGeneration
                 GetModellingRuleReplacement(node.ModellingRule));
             context.Template.AddReplacement(
                 Tokens.EventNotifier,
-                (node.SupportsEvents || HasForwardEventReferences(references))
+                node.SupportsEvents || HasForwardEventReferences(references)
                     ? "global::Opc.Ua.EventNotifiers.SubscribeToEvents"
                     : "global::Opc.Ua.EventNotifiers.None");
         }
@@ -2229,7 +2229,7 @@ namespace Opc.Ua.SourceGeneration
                 if (!reference.IsInverse &&
                     reference.ReferenceTypeId != null &&
                     (reference.ReferenceTypeId.Name == "HasEventSource" ||
-                     reference.ReferenceTypeId.Name == "HasNotifier"))
+                        reference.ReferenceTypeId.Name == "HasNotifier"))
                 {
                     return true;
                 }
