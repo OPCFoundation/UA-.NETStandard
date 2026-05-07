@@ -729,8 +729,9 @@ namespace Opc.Ua.Server
                                 }
                                 else
                                 {
-                                    certWithPrivateKey = await existingCertIdentifier
-                                        .LoadPrivateKeyExAsync(
+                                    certWithPrivateKey = await CertificateIdentifierResolver
+                                        .LoadPrivateKeyAsync(
+                                            existingCertIdentifier,
                                             passwordProvider,
                                             m_configuration.ApplicationUri,
                                             Server.Telemetry,
@@ -1066,11 +1067,13 @@ namespace Opc.Ua.Server
                 ICertificatePasswordProvider passwordProvider = m_configuration
                     .SecurityConfiguration
                     .CertificatePasswordProvider;
-                certWithPrivateKey = await existingCertIdentifier
-                    .LoadPrivateKeyExAsync(passwordProvider,
-                                           m_configuration.ApplicationUri,
-                                           Server.Telemetry,
-                                           cancellationToken)
+                certWithPrivateKey = await CertificateIdentifierResolver
+                    .LoadPrivateKeyAsync(
+                        existingCertIdentifier,
+                        passwordProvider,
+                        m_configuration.ApplicationUri,
+                        Server.Telemetry,
+                        cancellationToken)
                     .ConfigureAwait(false) ??
                     throw ServiceResultException.Create(StatusCodes.BadInternalError, "Failed to load private key");
             }

@@ -187,11 +187,15 @@ namespace Opc.Ua
 
                 if (id != null)
                 {
-                    return await id.FindAsync(
-                        privateKey,
-                        applicationUri: null,
-                        telemetry: telemetry,
-                        ct).ConfigureAwait(false);
+                    return await CertificateIdentifierResolver
+                        .ResolveAsync(
+                            id,
+                            registry: null,
+                            needPrivateKey: privateKey,
+                            applicationUri: null,
+                            telemetry,
+                            ct)
+                        .ConfigureAwait(false);
                 }
             }
 

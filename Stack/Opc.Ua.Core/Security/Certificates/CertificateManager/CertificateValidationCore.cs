@@ -249,8 +249,14 @@ namespace Opc.Ua
                     for (int i = 0; i < appCerts.Count; i++)
                     {
                         CertificateIdentifier applicationCertificate = appCerts[i];
-                        Certificate? certificate = await applicationCertificate
-                            .FindAsync(true, applicationUri, m_telemetry, ct)
+                        Certificate? certificate = await CertificateIdentifierResolver
+                            .ResolveAsync(
+                                applicationCertificate,
+                                registry: null,
+                                needPrivateKey: true,
+                                applicationUri,
+                                m_telemetry,
+                                ct)
                             .ConfigureAwait(false);
                         if (certificate == null)
                         {
@@ -260,8 +266,6 @@ namespace Opc.Ua
                                 applicationCertificate);
                             continue;
                         }
-                        // Add to list of application certificates only if not already in list
-                        // necessary since the application certificates may be updated multiple times
                         if (!m_applicationCertificates.Exists(
                             cert => Utils.IsEqual(cert.RawData, certificate.RawData)))
                         {
@@ -269,7 +273,6 @@ namespace Opc.Ua
                         }
                         else
                         {
-                            // Release the AddRef'd certificate returned by FindAsync
                             certificate.Dispose();
                         }
                     }
@@ -1219,8 +1222,14 @@ namespace Opc.Ua
                 {
                     for (int ii = 0; ii < m_trustedCertificateList.Count; ii++)
                     {
-                        Certificate? trusted = await m_trustedCertificateList[ii]
-                            .FindAsync(false, applicationUri: null, m_telemetry, ct)
+                        Certificate? trusted = await CertificateIdentifierResolver
+                            .ResolveAsync(
+                                m_trustedCertificateList[ii],
+                                registry: null,
+                                needPrivateKey: false,
+                                applicationUri: null,
+                                m_telemetry,
+                                ct)
                             .ConfigureAwait(false);
 
                         if (trusted != null &&
@@ -1362,11 +1371,14 @@ namespace Opc.Ua
             {
                 for (int ii = 0; ii < explicitList.Count; ii++)
                 {
-                    Certificate? issuer = await explicitList[ii].FindAsync(
-                        false,
-                        applicationUri: null,
-                        m_telemetry,
-                        ct)
+                    Certificate? issuer = await CertificateIdentifierResolver
+                        .ResolveAsync(
+                            explicitList[ii],
+                            registry: null,
+                            needPrivateKey: false,
+                            applicationUri: null,
+                            m_telemetry,
+                            ct)
                         .ConfigureAwait(false);
 
                     if (issuer != null)

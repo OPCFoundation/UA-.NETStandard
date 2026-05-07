@@ -109,7 +109,14 @@ namespace Opc.Ua
             for (int i = 0; i < TrustedCertificates.Count; i++)
             {
                 CertificateIdentifier trustedCertificate = TrustedCertificates[i];
-                Certificate? certificate = await trustedCertificate.FindAsync(null, telemetry, ct)
+                Certificate? certificate = await CertificateIdentifierResolver
+                    .ResolveAsync(
+                        trustedCertificate,
+                        registry: null,
+                        needPrivateKey: false,
+                        applicationUri: null,
+                        telemetry,
+                        ct)
                     .ConfigureAwait(false);
 
                 if (certificate != null)

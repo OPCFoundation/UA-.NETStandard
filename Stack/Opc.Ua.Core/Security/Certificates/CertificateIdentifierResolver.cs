@@ -123,6 +123,20 @@ namespace Opc.Ua
                 return null;
             }
 
+            // 0) Transitional fast path: the identifier still carries a
+            //    cached Certificate (populated by ApplicationConfiguration
+            //    .ValidateAsync, the (Certificate) ctors, or a previous
+            //    Resolve call mutating id.Certificate). Until Phase 3
+            //    strips m_certificate from CertificateIdentifier this is
+            //    the de-facto primary cache for client-side application
+            //    certs. Mirror the legacy CertificateIdentifier.FindAsync
+            //    behaviour so callers see no regression during migration.
+            if (identifier.Certificate != null &&
+                (!needPrivateKey || identifier.Certificate.HasPrivateKey))
+            {
+                return identifier.Certificate.AddRef();
+            }
+
             // 1) Registry lookup by thumbprint.
             if (registry != null && !string.IsNullOrEmpty(identifier.Thumbprint))
             {
