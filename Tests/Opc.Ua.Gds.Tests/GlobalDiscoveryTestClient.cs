@@ -142,10 +142,14 @@ namespace Opc.Ua.Gds.Tests
                 string thumbprint = Configuration.SecurityConfiguration.ApplicationCertificate.Thumbprint;
                 if (thumbprint != null)
                 {
-                    using ICertificateStore store = Configuration.SecurityConfiguration
-                        .ApplicationCertificate
-                        .OpenStore(m_telemetry);
-                    await store.DeleteAsync(thumbprint).ConfigureAwait(false);
+                    using ICertificateStore store = CertificateIdentifierResolver
+                        .OpenStore(
+                            Configuration.SecurityConfiguration.ApplicationCertificate,
+                            m_telemetry);
+                    if (store != null)
+                    {
+                        await store.DeleteAsync(thumbprint).ConfigureAwait(false);
+                    }
                 }
 
                 // always start with clean cert store
@@ -285,12 +289,17 @@ namespace Opc.Ua.Gds.Tests
             Certificate certWithPrivateKey = DefaultCertificateFactory.Instance.CreateWithPEMPrivateKey(
                     x509,
                     privateKey.ToArray());
-            GDSClient.Configuration.SecurityConfiguration.ApplicationCertificate
-                = new CertificateIdentifier(
-                certWithPrivateKey);
-            using ICertificateStore store = GDSClient.Configuration.SecurityConfiguration
-                .ApplicationCertificate
-                .OpenStore(m_telemetry);
+            CertificateIdentifier oldId = GDSClient.Configuration.SecurityConfiguration.ApplicationCertificate;
+            var newId = new CertificateIdentifier
+            {
+                Thumbprint = certWithPrivateKey.Thumbprint,
+                SubjectName = certWithPrivateKey.Subject,
+                StoreType = oldId?.StoreType,
+                StorePath = oldId?.StorePath,
+                CertificateType = oldId?.CertificateType ?? CertificateIdentifier.GetCertificateType(certWithPrivateKey)
+            };
+            GDSClient.Configuration.SecurityConfiguration.ApplicationCertificate = newId;
+            using ICertificateStore store = CertificateIdentifierResolver.OpenStore(newId, m_telemetry);
             await store.AddAsync(certWithPrivateKey).ConfigureAwait(false);
         }
 

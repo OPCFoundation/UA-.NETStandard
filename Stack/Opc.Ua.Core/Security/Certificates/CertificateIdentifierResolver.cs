@@ -123,20 +123,6 @@ namespace Opc.Ua
                 return null;
             }
 
-            // 0) Transitional fast path: the identifier still carries a
-            //    cached Certificate (populated by ApplicationConfiguration
-            //    .ValidateAsync, the (Certificate) ctors, or a previous
-            //    Resolve call mutating id.Certificate). Until Phase 3
-            //    strips m_certificate from CertificateIdentifier this is
-            //    the de-facto primary cache for client-side application
-            //    certs. Mirror the legacy CertificateIdentifier.FindAsync
-            //    behaviour so callers see no regression during migration.
-            if (identifier.Certificate != null &&
-                (!needPrivateKey || identifier.Certificate.HasPrivateKey))
-            {
-                return identifier.Certificate.AddRef();
-            }
-
             // 1) Registry lookup by thumbprint.
             if (registry != null && !string.IsNullOrEmpty(identifier.Thumbprint))
             {
@@ -190,12 +176,8 @@ namespace Opc.Ua
         /// identifier from its underlying store.
         /// </summary>
         /// <remarks>
-        /// Mirrors the legacy
-        /// <see cref="CertificateIdentifier.LoadPrivateKeyExAsync(ICertificatePasswordProvider?, string?, ITelemetryContext?, CancellationToken)"/>
-        /// semantics — including password-provider support, the X509Store
-        /// fallback to <c>FindAsync(true)</c>, and the applicationUri
-        /// fallback when the subject changed — but does not mutate the
-        /// identifier. The returned certificate is owned by the caller.
+        /// The returned certificate is owned by the caller. The identifier
+        /// is treated as pure metadata: this method does not mutate it.
         /// </remarks>
         /// <param name="identifier">The identifier to load the key for.</param>
         /// <param name="passwordProvider">
@@ -221,22 +203,6 @@ namespace Opc.Ua
             if (identifier == null)
             {
                 return null;
-            }
-
-            // In-memory identifier without a backing store
-            // (constructed via CertificateIdentifier(cert) without a
-            // StorePath) — the cert lives on the identifier itself, no
-            // store to open. Skip this branch when a StorePath is set:
-            // the store is the authoritative source and the cached
-            // certificate may be stale (e.g. after a GDS push that
-            // replaced the on-disk cert under the same identifier).
-            // (Transitional: this path goes away when CertificateIdentifier
-            // stops carrying a Certificate.)
-            if (string.IsNullOrEmpty(identifier.StorePath)
-                && identifier.Certificate != null
-                && identifier.Certificate.HasPrivateKey)
-            {
-                return identifier.Certificate.AddRef();
             }
 
             if (identifier.StoreType != CertificateStoreType.X509Store)

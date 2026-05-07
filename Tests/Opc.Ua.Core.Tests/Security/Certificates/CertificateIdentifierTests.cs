@@ -63,82 +63,50 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         [Test]
         public void DefaultConstructorCreatesEmptyIdentifier()
         {
-            using var id = new CertificateIdentifier();
-            Assert.That(id.Certificate, Is.Null);
+            var id = new CertificateIdentifier();
             Assert.That(id.StoreType, Is.Null);
             Assert.That(id.StorePath, Is.Null);
             Assert.That(id.SubjectName, Is.Null);
             Assert.That(id.Thumbprint, Is.Null);
+            Assert.That(id.RawData, Is.Null);
         }
 
         [Test]
-        public void ConstructorWithCertificateSetsCertificate()
-        {
-            using var id = new CertificateIdentifier(m_selfSignedCert);
-            Assert.That(id.Certificate, Is.Not.Null);
-            Assert.That(id.Certificate.Subject, Is.EqualTo("CN=CertIdTest"));
-        }
-
-        [Test]
-        public void ConstructorWithCertificateAndValidationOptions()
-        {
-            using var id = new CertificateIdentifier(
-                m_selfSignedCert.AddRef(),
-                CertificateValidationOptions.SuppressCertificateExpired);
-            Assert.That(id.Certificate, Is.Not.Null);
-            Assert.That(
-                id.ValidationOptions,
-                Is.EqualTo(CertificateValidationOptions.SuppressCertificateExpired));
-        }
-
-        [Test]
-        public void ConstructorWithRawDataSetsCertificate()
+        public void RawDataSetterDerivesSubjectAndThumbprint()
         {
             byte[] rawData = m_selfSignedCert.RawData;
-            using var id = new CertificateIdentifier(rawData);
-            Assert.That(id.Certificate, Is.Not.Null);
-            Assert.That(id.Certificate.Subject, Is.EqualTo("CN=CertIdTest"));
+            var id = new CertificateIdentifier { RawData = rawData };
+            Assert.That(id.SubjectName, Is.EqualTo("CN=CertIdTest"));
+            Assert.That(id.Thumbprint, Is.EqualTo(m_selfSignedCert.Thumbprint));
+            Assert.That(id.CertificateType, Is.EqualTo(ObjectTypeIds.RsaSha256ApplicationCertificateType));
+            Assert.That(id.RawData, Is.EqualTo(rawData));
+        }
+
+        [Test]
+        public void RawDataSetterToNullClearsRawData()
+        {
+            var id = new CertificateIdentifier { RawData = m_selfSignedCert.RawData };
+            id.RawData = null;
+            Assert.That(id.RawData, Is.Null);
         }
 
         [Test]
         public void ValidationOptionsDefaultsToZero()
         {
-            using var id = new CertificateIdentifier();
+            var id = new CertificateIdentifier();
             Assert.That(id.ValidationOptions, Is.EqualTo(CertificateValidationOptions.Default));
         }
 
         [Test]
         public void ValidationOptionsCanBeSet()
         {
-            using var id = new CertificateIdentifier
+            var id = new CertificateIdentifier
             {
                 ValidationOptions = CertificateValidationOptions.SuppressCertificateExpired
             };
             Assert.That(
                 id.ValidationOptions,
                 Is.EqualTo(CertificateValidationOptions.SuppressCertificateExpired));
-        }
-
-        [Test]
-        public void DisposeCertificateNullsCertificateProperty()
-        {
-            // Use a separate certificate to avoid disposing the shared one
-            using Certificate cert = CertificateBuilder.Create("CN=DisposeTest")
-                .SetNotBefore(DateTime.UtcNow.AddDays(-1))
-                .SetLifeTime(365)
-                .SetRSAKeySize(2048)
-                .CreateForRSA();
-            using var id = new CertificateIdentifier(cert);
-            Assert.That(id.Certificate, Is.Not.Null);
-            id.DisposeCertificate();
-            Assert.That(id.Certificate, Is.Null);
-        }
-
-        [Test]
-        public void DisposeCertificateOnEmptyIdentifierDoesNotThrow()
-        {
-            using var id = new CertificateIdentifier();
-            Assert.DoesNotThrow(id.DisposeCertificate);
         }
 
         [Test]
@@ -282,25 +250,13 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         }
 
         [Test]
-        public void OpenStoreWithDirectoryStoreType()
-        {
-            using var id = new CertificateIdentifier
-            {
-                StoreType = CertificateStoreType.Directory,
-                StorePath = "%LocalApplicationData%/OPC/CertIdTests/certs"
-            };
-            using ICertificateStore store = id.OpenStore(NUnitTelemetryContext.Create());
-            Assert.That(store, Is.Not.Null);
-        }
-
-        [Test]
         public void GetMinKeySizeForRsaMinReturnsConfiguredValue()
         {
             var secConfig = new SecurityConfiguration
             {
                 MinimumCertificateKeySize = 2048
             };
-            using var id = new CertificateIdentifier
+            var id = new CertificateIdentifier
             {
                 CertificateType = ObjectTypeIds.RsaMinApplicationCertificateType
             };
@@ -315,7 +271,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             {
                 MinimumCertificateKeySize = 4096
             };
-            using var id = new CertificateIdentifier
+            var id = new CertificateIdentifier
             {
                 CertificateType = ObjectTypeIds.RsaSha256ApplicationCertificateType
             };
@@ -330,7 +286,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             {
                 MinimumCertificateKeySize = 2048
             };
-            using var id = new CertificateIdentifier
+            var id = new CertificateIdentifier
             {
                 CertificateType = ObjectTypeIds.EccNistP256ApplicationCertificateType
             };

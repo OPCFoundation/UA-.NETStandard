@@ -90,10 +90,14 @@ namespace Opc.Ua.Gds.Tests
                 string thumbprint = Config.SecurityConfiguration.ApplicationCertificate.Thumbprint;
                 if (thumbprint != null)
                 {
-                    using ICertificateStore store = Config.SecurityConfiguration
-                        .ApplicationCertificate
-                        .OpenStore(m_telemetry);
-                    await store.DeleteAsync(thumbprint).ConfigureAwait(false);
+                    using ICertificateStore store = CertificateIdentifierResolver
+                        .OpenStore(
+                            Config.SecurityConfiguration.ApplicationCertificate,
+                            m_telemetry);
+                    if (store != null)
+                    {
+                        await store.DeleteAsync(thumbprint).ConfigureAwait(false);
+                    }
                 }
 
                 // always start with clean cert store

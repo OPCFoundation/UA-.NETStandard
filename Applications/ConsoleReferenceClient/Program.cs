@@ -786,9 +786,11 @@ namespace Quickstarts.ConsoleReferenceClient
             // create Certificate Identifier
             if (userCertificatesWithMatchingThumbprint.Count == 1)
             {
-                userCertificateIdentifier = new CertificateIdentifier(
-                    userCertificatesWithMatchingThumbprint[0])
+                Certificate userCert = userCertificatesWithMatchingThumbprint[0];
+                userCertificateIdentifier = new CertificateIdentifier
                 {
+                    Thumbprint = userCert.Thumbprint,
+                    SubjectName = userCert.Subject,
                     StorePath = trustedUserCertificates.StorePath,
                     StoreType = trustedUserCertificates.StoreType
                 };

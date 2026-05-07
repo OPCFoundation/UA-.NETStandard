@@ -569,19 +569,44 @@ namespace Opc.Ua.Server
 
                 // identify the existing certificate to be updated
                 // it should be of the same type and same subject name as the new certificate
-                CertificateIdentifier existingCertIdentifier =
-                    (
-                        certificateGroup.ApplicationCertificates.ToList().FirstOrDefault(cert =>
-                            X509Utils.CompareDistinguishedName(cert.SubjectName, newCert.Subject) &&
-                            cert.CertificateType == certificateTypeId)
-                        ?? certificateGroup.ApplicationCertificates.ToList().FirstOrDefault(cert =>
-                            cert.Certificate != null &&
-                            X509Utils.GetApplicationUrisFromCertificate(cert.Certificate)
-                                .Any(uri => uri.Equals(m_configuration.ApplicationUri, StringComparison.Ordinal)) &&
-                            cert.CertificateType == certificateTypeId))
-                    ?? throw new ServiceResultException(
+                CertificateIdentifier existingCertIdentifier;
+                CertificateIdentifier subjectMatch = certificateGroup.ApplicationCertificates
+                    .ToList()
+                    .FirstOrDefault(cert =>
+                        X509Utils.CompareDistinguishedName(cert.SubjectName, newCert.Subject) &&
+                        cert.CertificateType == certificateTypeId);
+
+                if (subjectMatch != null)
+                {
+                    existingCertIdentifier = subjectMatch;
+                }
+                else if (m_configuration.CertificateManager is ICertificateRegistry registryFallback)
+                {
+                    // Subject changed mid-rotation: use the manager registry's
+                    // currently-registered cert for this type to identify the
+                    // configured identifier (matches by certificate type).
+                    CertificateEntry currentEntry = registryFallback
+                        .GetApplicationCertificate(certificateTypeId);
+                    if (currentEntry == null)
+                    {
+                        throw new ServiceResultException(
+                            StatusCodes.BadInvalidArgument,
+                            "No existing certificate found for the specified certificate type and subject name.");
+                    }
+
+                    existingCertIdentifier = certificateGroup.ApplicationCertificates
+                        .ToList()
+                        .FirstOrDefault(cert => cert.CertificateType == certificateTypeId)
+                        ?? throw new ServiceResultException(
+                            StatusCodes.BadInvalidArgument,
+                            "No existing certificate found for the specified certificate type and subject name.");
+                }
+                else
+                {
+                    throw new ServiceResultException(
                         StatusCodes.BadInvalidArgument,
                         "No existing certificate found for the specified certificate type and subject name.");
+                }
 
                 var newIssuerCollection = new CertificateCollection();
 
@@ -1043,9 +1068,19 @@ namespace Opc.Ua.Server
                 .ToList().FirstOrDefault(
                     cert => cert.CertificateType == certificateTypeId);
 
+            // Look up the currently-active certificate via the manager
+            // registry — the configured identifier is metadata only.
+            Certificate currentCert = null;
+            if (m_configuration.CertificateManager is ICertificateRegistry currentRegistry)
+            {
+                CertificateEntry currentEntry = currentRegistry
+                    .GetApplicationCertificate(certificateTypeId);
+                currentCert = currentEntry?.Certificate;
+            }
+
             if (string.IsNullOrEmpty(subjectName))
             {
-                subjectName = existingCertIdentifier.Certificate.Subject;
+                subjectName = currentCert?.Subject ?? existingCertIdentifier?.SubjectName;
             }
 
             certificateGroup.TemporaryApplicationCertificate?.Dispose();
@@ -1054,7 +1089,9 @@ namespace Opc.Ua.Server
             Certificate certWithPrivateKey;
             if (regeneratePrivateKey)
             {
-                ArrayOf<string> domainNames = X509Utils.GetDomainsFromCertificate(existingCertIdentifier.Certificate);
+                ArrayOf<string> domainNames = currentCert != null
+                    ? X509Utils.GetDomainsFromCertificate(currentCert)
+                    : default;
 
                 certWithPrivateKey = GenerateTemporaryApplicationCertificate(
                     certificateTypeId,
@@ -1273,9 +1310,18 @@ namespace Opc.Ua.Server
                     "Certificate group invalid.");
 
             certificateTypeIds = certificateGroup.CertificateTypes;
-            certificates = certificateGroup.ApplicationCertificates
-                .ToList().Select(s => s.Certificate?.RawData.ToByteString() ?? default)
-                .ToArrayOf();
+
+            // Look up each certificate via the manager registry so the
+            // returned blobs reflect the currently-active cert (the
+            // configured identifier carries no Certificate cache).
+            var rawCerts = new List<ByteString>();
+            ICertificateRegistry registry = m_configuration.CertificateManager as ICertificateRegistry;
+            foreach (CertificateIdentifier appId in certificateGroup.ApplicationCertificates)
+            {
+                CertificateEntry entry = registry?.GetApplicationCertificate(appId.CertificateType);
+                rawCerts.Add(entry?.Certificate?.RawData.ToByteString() ?? default);
+            }
+            certificates = rawCerts.ToArrayOf();
 
             return ServiceResult.Good;
         }

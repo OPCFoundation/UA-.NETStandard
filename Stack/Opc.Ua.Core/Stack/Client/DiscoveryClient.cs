@@ -276,8 +276,11 @@ namespace Opc.Ua
                     .ApplicationCertificate;
                 if (applicationCertificate != null)
                 {
-                    clientCertificate = await applicationCertificate.FindAsync(
-                        true,
+                    clientCertificate = await CertificateIdentifierResolver.ResolveAsync(
+                        applicationCertificate,
+                        registry: null,
+                        needPrivateKey: true,
+                        applicationUri: null,
                         telemetry: messageContext.Telemetry,
                         ct: ct).ConfigureAwait(false);
                 }

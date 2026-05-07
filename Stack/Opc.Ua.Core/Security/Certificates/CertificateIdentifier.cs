@@ -44,7 +44,7 @@ namespace Opc.Ua
     /// <summary>
     /// The identifier for an X509 certificate.
     /// </summary>
-    public partial class CertificateIdentifier : IOpenStore, IFormattable, IDisposable
+    public partial class CertificateIdentifier : IFormattable
     {
         /// <summary>
         /// Formats the value of the current instance using the specified format.
@@ -77,11 +77,6 @@ namespace Opc.Ua
         /// </returns>
         public override string? ToString()
         {
-            if (m_certificate != null)
-            {
-                return GetDisplayName(m_certificate);
-            }
-
             return m_subjectName ?? m_thumbprint;
         }
 
@@ -100,14 +95,9 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (m_certificate != null && id.m_certificate != null)
+            if (!string.IsNullOrEmpty(Thumbprint) && !string.IsNullOrEmpty(id.Thumbprint))
             {
-                return m_certificate.Thumbprint == id.m_certificate.Thumbprint;
-            }
-
-            if (Thumbprint == id.Thumbprint)
-            {
-                return true;
+                return Thumbprint == id.Thumbprint;
             }
 
             if (SubjectName != id.SubjectName)
@@ -143,194 +133,6 @@ namespace Opc.Ua
         /// The validation options that can be used to suppress certificate validation errors.
         /// </value>
         public CertificateValidationOptions ValidationOptions { get; set; }
-
-        /// <summary>
-        /// Gets or sets the actual certificate.
-        /// </summary>
-        /// <value>The certificate used by this instance.</value>
-        public Certificate? Certificate
-        {
-            get => m_certificate;
-            set
-            {
-                if (!ReferenceEquals(m_certificate, value))
-                {
-                    m_certificate?.Dispose();
-                    m_certificate = value;
-                }
-
-                if (m_certificate != null)
-                {
-                    CertificateType = GetCertificateType(m_certificate);
-                }
-            }
-        }
-
-        /// <summary>
-        /// Finds a certificate in a store.
-        /// </summary>
-        public Task<Certificate?> FindAsync(
-            string? applicationUri = null,
-            ITelemetryContext? telemetry = null,
-            CancellationToken ct = default)
-        {
-            return FindAsync(false, applicationUri, telemetry, ct);
-        }
-
-        /// <summary>
-        /// Loads the private key for the certificate with an optional password.
-        /// </summary>
-        public Task<Certificate?> LoadPrivateKeyAsync(
-            char[]? password,
-            string? applicationUri = null,
-            ITelemetryContext? telemetry = null,
-            CancellationToken ct = default)
-        {
-            return LoadPrivateKeyExAsync(
-                password != null && password.Length != 0 ?
-                    new CertificatePasswordProvider(password) :
-                    null,
-                applicationUri,
-                telemetry,
-                ct);
-        }
-
-        /// <summary>
-        /// Loads the private key for the certificate with an optional password provider.
-        /// </summary>
-        public async Task<Certificate?> LoadPrivateKeyExAsync(
-            ICertificatePasswordProvider? passwordProvider,
-            string? applicationUri = null,
-            ITelemetryContext? telemetry = null,
-            CancellationToken ct = default)
-        {
-            if (StoreType != CertificateStoreType.X509Store)
-            {
-                var certificateStoreIdentifier = new CertificateStoreIdentifier(
-                    StorePath,
-                    StoreType,
-                    false);
-                using ICertificateStore store = certificateStoreIdentifier.OpenStore(telemetry);
-                if (store?.SupportsLoadPrivateKey == true)
-                {
-                    char[]? password = passwordProvider?.GetPassword(this);
-                    Certificate? oldCertificate = m_certificate;
-                    m_certificate = await store
-                        .LoadPrivateKeyAsync(
-                            Thumbprint!,
-                            SubjectName!,
-                            applicationUri: null!,
-                            CertificateType,
-                            password,
-                            ct)
-                        .ConfigureAwait(false);
-
-                    //find certificate by applicationUri instead of subjectName, as the subjectName could have changed after a certificate update
-                    if (m_certificate == null && !string.IsNullOrEmpty(applicationUri))
-                    {
-                        m_certificate = await store
-                            .LoadPrivateKeyAsync(
-                                Thumbprint!,
-                                subjectName: null!,
-                                applicationUri!,
-                                CertificateType,
-                                password,
-                                ct)
-                            .ConfigureAwait(false);
-                    }
-
-                    if (!ReferenceEquals(oldCertificate, m_certificate))
-                    {
-                        oldCertificate?.Dispose();
-                    }
-
-                    return m_certificate;
-                }
-                return null;
-            }
-            return await FindAsync(true, telemetry: telemetry, ct: ct).ConfigureAwait(false);
-        }
-
-        /// <summary>
-        /// Finds a certificate in a store.
-        /// </summary>
-        /// <remarks>The certificate type is used to match the signature and public key type.</remarks>
-        /// <param name="needPrivateKey">if set to <c>true</c> the returned certificate must contain the private key.</param>
-        /// <param name="applicationUri">the application uri in the extensions of the certificate.</param>
-        /// <returns>An instance of the <see cref="Certificate"/> that is embedded by this instance or find it in
-        /// the selected store pointed out by the <see cref="StorePath"/> using selected <see cref="SubjectName"/> or if specified applicationUri.</returns>
-        [Obsolete("Use FindAsync instead")]
-        public Task<Certificate?> Find(bool needPrivateKey, string? applicationUri = null)
-        {
-            return FindAsync(needPrivateKey, applicationUri);
-        }
-
-        /// <summary>
-        /// Finds a certificate in a store.
-        /// </summary>
-        /// <remarks>The certificate type is used to match the signature and public key type.</remarks>
-        /// <param name="needPrivateKey">if set to <c>true</c> the returned certificate must contain the private key.</param>
-        /// <param name="applicationUri">the application uri in the extensions of the certificate.</param>
-        /// <param name="telemetry">Telemetry context to use</param>
-        /// <param name="ct">Cancellation token to cancel action</param>
-        /// <returns>An instance of the <see cref="Certificate"/> that is embedded by this instance or find it in
-        /// the selected store pointed out by the <see cref="StorePath"/> using selected <see cref="SubjectName"/> or if specified applicationUri.</returns>
-        public async Task<Certificate?> FindAsync(
-            bool needPrivateKey,
-            string? applicationUri = null,
-            ITelemetryContext? telemetry = null,
-            CancellationToken ct = default)
-        {
-            Certificate? certificate = null;
-
-            // check if the entire certificate has been specified.
-            if (m_certificate != null && (!needPrivateKey || m_certificate.HasPrivateKey))
-            {
-                certificate = m_certificate.AddRef();
-            }
-            else
-            {
-                // open store.
-                var certificateStoreIdentifier = new CertificateStoreIdentifier(StorePath, false);
-                using ICertificateStore store = certificateStoreIdentifier.OpenStore(telemetry);
-                if (store == null)
-                {
-                    return null;
-                }
-
-                using CertificateCollection collection = await store.EnumerateAsync(ct)
-                    .ConfigureAwait(false);
-
-                certificate = Find(
-                    collection,
-                    m_thumbprint,
-                    m_subjectName,
-                    applicationUri,
-                    CertificateType,
-                    needPrivateKey);
-
-                if (certificate != null)
-                {
-                    if (needPrivateKey && store.SupportsLoadPrivateKey)
-                    {
-                        ILogger logger = telemetry.CreateLogger<CertificateIdentifier>();
-                        logger.LogWarning(
-                            "Loaded a certificate with private key from store {StoreType}. " +
-                            "Ensure to call LoadPrivateKeyEx with password provider before calling Find(true).",
-                            StoreType);
-                    }
-
-                    if (!ReferenceEquals(m_certificate, certificate))
-                    {
-                        m_certificate?.Dispose();
-                    }
-
-                    m_certificate = certificate;
-                }
-            }
-
-            return certificate;
-        }
 
         /// <summary>
         /// Returns a display name for a certificate.
@@ -683,29 +485,6 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Obsoleted open call
-        /// </summary>
-        [Obsolete("Use OpenStore(ITelemetryContext) instead")]
-        public ICertificateStore OpenStore()
-        {
-            return OpenStore(null);
-        }
-
-        /// <summary>
-        /// Returns an object to access the store containing the certificate.
-        /// </summary>
-        /// <remarks>
-        /// Opens a store which contains public and private keys.
-        /// </remarks>
-        /// <returns>A disposable instance of the <see cref="ICertificateStore"/>.</returns>
-        public ICertificateStore OpenStore(ITelemetryContext? telemetry)
-        {
-            ICertificateStore store = CertificateStoreIdentifier.CreateStore(StoreType, telemetry);
-            store.Open(StorePath!, false);
-            return store;
-        }
-
-        /// <summary>
         /// Retrieves the minimum accepted key size given the security configuration
         /// </summary>
         public ushort GetMinKeySize(SecurityConfiguration securityConfiguration)
@@ -859,36 +638,6 @@ namespace Opc.Ua
                     break;
             }
             return result;
-        }
-
-        /// <summary>
-        /// Disposes and deletes the reference to the certificate.
-        /// </summary>
-        public void DisposeCertificate()
-        {
-            Certificate? certificate = m_certificate;
-            m_certificate = null;
-            certificate?.Dispose();
-        }
-
-        /// <inheritdoc/>
-        public void Dispose()
-        {
-            Dispose(true);
-            GC.SuppressFinalize(this);
-        }
-
-        /// <summary>
-        /// Releases unmanaged and optionally managed resources.
-        /// </summary>
-        /// <param name="disposing">true to release both managed and unmanaged resources; false to release only unmanaged resources.</param>
-        protected virtual void Dispose(bool disposing)
-        {
-            if (disposing)
-            {
-                m_certificate?.Dispose();
-                m_certificate = null;
-            }
         }
 
         /// <summary>

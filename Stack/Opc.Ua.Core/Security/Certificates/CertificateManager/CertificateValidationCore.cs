@@ -94,18 +94,7 @@ namespace Opc.Ua
 
             m_applicationCertificates.Clear();
 
-            foreach (CertificateIdentifier certId in m_trustedCertificateList)
-            {
-                certId?.Dispose();
-            }
-
             m_trustedCertificateList = default;
-
-            foreach (CertificateIdentifier certId in m_issuerCertificateList)
-            {
-                certId?.Dispose();
-            }
-
             m_issuerCertificateList = default;
             m_semaphore.Dispose();
         }
@@ -444,7 +433,7 @@ namespace Opc.Ua
             var untrustedList = new List<CertificateIdentifier>();
             for (int ii = 1; ii < certificates.Count; ii++)
             {
-                untrustedList.Add(new CertificateIdentifier(certificates[ii]));
+                untrustedList.Add(new CertificateIdentifier { RawData = certificates[ii].RawData });
             }
             ArrayOf<CertificateIdentifier> untrustedCollection = untrustedList.ToArrayOf();
 
@@ -574,11 +563,6 @@ namespace Opc.Ua
                     m_semaphore.Release();
                 }
             } while (issuer != null);
-
-            foreach (CertificateIdentifier untrusted in untrustedList)
-            {
-                untrusted.Dispose();
-            }
 
             return isTrusted;
         }

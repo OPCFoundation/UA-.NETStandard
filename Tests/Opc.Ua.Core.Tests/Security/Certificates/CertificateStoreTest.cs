@@ -126,15 +126,17 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.That(publicKey, Is.Not.Null);
             Assert.That(publicKey.HasPrivateKey, Is.False);
 
-            using var id = new CertificateIdentifier
+            var id = new CertificateIdentifier
             {
                 Thumbprint = publicKey.Thumbprint,
                 StorePath = storePath,
                 StoreType = CertificateStoreType.X509Store
             };
-            using Certificate privateKey = await id.LoadPrivateKeyAsync(
-                password: null,
-                telemetry: telemetry).ConfigureAwait(false);
+            using Certificate privateKey = await CertificateIdentifierResolver.LoadPrivateKeyAsync(
+                id,
+                passwordProvider: null,
+                applicationUri: null,
+                telemetry).ConfigureAwait(false);
             Assert.That(privateKey, Is.Not.Null);
             Assert.That(privateKey.HasPrivateKey, Is.True);
 
@@ -175,7 +177,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.That(publicKey, Is.Not.Null);
             Assert.That(publicKey.HasPrivateKey, Is.False);
 
-            using var id = new CertificateIdentifier
+            var id = new CertificateIdentifier
             {
                 Thumbprint = publicKey.Thumbprint,
                 StorePath = storePath,
@@ -184,33 +186,41 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
             {
                 // check no password fails to load
-                Certificate nullKey = await id.LoadPrivateKeyAsync(
-                    password: null,
-                    telemetry: telemetry).ConfigureAwait(false);
+                Certificate nullKey = await CertificateIdentifierResolver.LoadPrivateKeyAsync(
+                    id,
+                    passwordProvider: null,
+                    applicationUri: null,
+                    telemetry).ConfigureAwait(false);
                 Assert.That(nullKey, Is.Null);
             }
 
             {
                 // check invalid password fails to load
-                Certificate nullKey = await id.LoadPrivateKeyAsync(
-                    "123".ToCharArray(),
-                    telemetry: telemetry)
-                    .ConfigureAwait(false);
-                Assert.That(nullKey, Is.Null);
-            }
-
-            {
-                // check invalid password fails to load
-                Certificate nullKey = await id.LoadPrivateKeyExAsync(
+                Certificate nullKey = await CertificateIdentifierResolver.LoadPrivateKeyAsync(
+                    id,
                     new CertificatePasswordProvider("123".ToCharArray()),
-                    telemetry: telemetry)
+                    applicationUri: null,
+                    telemetry)
                     .ConfigureAwait(false);
                 Assert.That(nullKey, Is.Null);
             }
 
-            using Certificate privateKey = await id.LoadPrivateKeyExAsync(
+            {
+                // check invalid password fails to load
+                Certificate nullKey = await CertificateIdentifierResolver.LoadPrivateKeyAsync(
+                    id,
+                    new CertificatePasswordProvider("123".ToCharArray()),
+                    applicationUri: null,
+                    telemetry)
+                    .ConfigureAwait(false);
+                Assert.That(nullKey, Is.Null);
+            }
+
+            using Certificate privateKey = await CertificateIdentifierResolver.LoadPrivateKeyAsync(
+                id,
                 new CertificatePasswordProvider(password),
-                telemetry: telemetry)
+                applicationUri: null,
+                telemetry)
                 .ConfigureAwait(false);
 
             Assert.That(privateKey, Is.Not.Null);

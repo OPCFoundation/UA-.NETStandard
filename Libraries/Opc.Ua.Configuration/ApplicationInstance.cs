@@ -61,15 +61,6 @@ namespace Opc.Ua.Configuration
                 Server = null;
             }
 
-            if (ApplicationConfiguration?.SecurityConfiguration?.ApplicationCertificates != null)
-            {
-                foreach (CertificateIdentifier certId in
-                    ApplicationConfiguration.SecurityConfiguration.ApplicationCertificates)
-                {
-                    certId?.Dispose();
-                }
-            }
-
             CertificateManager localManager = CertificateManager;
             CertificateManager configManager =
                 ApplicationConfiguration?.CertificateManager as CertificateManager;
@@ -409,19 +400,18 @@ namespace Opc.Ua.Configuration
                     "Configuration file does not specify a certificate.");
             }
 
-            // reload the certificate from disk in the cache.
+            // load the certificate (with private key if available).
             ICertificatePasswordProvider passwordProvider = configuration
                 .SecurityConfiguration
                 .CertificatePasswordProvider;
-            await id.LoadPrivateKeyExAsync(passwordProvider, configuration.ApplicationUri, m_telemetry, ct)
-                .ConfigureAwait(false);
 
-            // load the certificate
-            Certificate certificate = await id.FindAsync(
-                true,
-                configuration.ApplicationUri,
-                m_telemetry,
-                ct)
+            Certificate certificate = await CertificateIdentifierResolver
+                .LoadPrivateKeyAsync(
+                    id,
+                    passwordProvider,
+                    configuration.ApplicationUri,
+                    m_telemetry,
+                    ct)
                 .ConfigureAwait(false);
 
             // check that it is ok.
@@ -449,7 +439,14 @@ namespace Opc.Ua.Configuration
             else
             {
                 // check for missing private key.
-                certificate = await id.FindAsync(false, configuration.ApplicationUri, m_telemetry, ct)
+                certificate = await CertificateIdentifierResolver
+                    .ResolveAsync(
+                        id,
+                        registry: null,
+                        needPrivateKey: false,
+                        configuration.ApplicationUri,
+                        m_telemetry,
+                        ct)
                     .ConfigureAwait(false);
 
                 if (certificate != null)
@@ -470,7 +467,13 @@ namespace Opc.Ua.Configuration
                             StorePath = id.StorePath,
                             SubjectName = id.SubjectName
                         };
-                        certificate = await id2.FindAsync(true, configuration.ApplicationUri, m_telemetry, ct)
+                        certificate = await CertificateIdentifierResolver
+                            .LoadPrivateKeyAsync(
+                                id2,
+                                passwordProvider,
+                                configuration.ApplicationUri,
+                                m_telemetry,
+                                ct)
                             .ConfigureAwait(false);
                     }
 
@@ -782,8 +785,15 @@ namespace Opc.Ua.Configuration
                 certificate,
                 configuration.ApplicationUri);
 
-            // update configuration.
-            id.Certificate = certificate;
+            // Sync the identifier metadata so subsequent resolver lookups
+            // by Thumbprint find the validated cert (the configured XML
+            // identifier may carry no Thumbprint).
+            id.Thumbprint = certificate.Thumbprint;
+            id.SubjectName = certificate.Subject;
+            if (id.CertificateType.IsNull)
+            {
+                id.CertificateType = CertificateIdentifier.GetCertificateType(certificate);
+            }
 
             return true;
         }
@@ -923,6 +933,7 @@ namespace Opc.Ua.Configuration
                     serverDomainNames.ToList())
                 .SetLifeTime(lifeTimeInMonths);
 
+            Certificate newCertificate;
             if (id.CertificateType.IsNull ||
                 id.CertificateType == ObjectTypeIds.ApplicationCertificateType ||
                 id.CertificateType == ObjectTypeIds.RsaMinApplicationCertificateType ||
@@ -932,11 +943,11 @@ namespace Opc.Ua.Configuration
                     ? CertificateFactory.DefaultKeySize
                     : minimumKeySize;
 
-                id.Certificate = builder.SetRSAKeySize(keySize).CreateForRSA();
+                newCertificate = builder.SetRSAKeySize(keySize).CreateForRSA();
 
                 m_logger.LogInformation(
                     "Certificate {Certificate} created for RSA with key size {KeySize} bits.",
-                    id.Certificate,
+                    newCertificate,
                     keySize);
             }
             else
@@ -946,19 +957,28 @@ namespace Opc.Ua.Configuration
                     ?? throw ServiceResultException.ConfigurationError(
                         "The Ecc certificate type is not supported.");
 
-                id.Certificate = builder.SetECCurve(curve.Value).CreateForECDsa();
+                newCertificate = builder.SetECCurve(curve.Value).CreateForECDsa();
 
                 m_logger.LogInformation(
                     "Certificate {Certificate} created for {Curve}.",
-                    id.Certificate,
+                    newCertificate,
                     curve.Value.Oid.FriendlyName);
+            }
+
+            // Update the identifier metadata so subsequent resolver lookups
+            // (which key by Thumbprint / SubjectName) match the freshly
+            // generated cert. The identifier itself remains pure metadata.
+            id.SubjectName = newCertificate.Subject;
+            id.Thumbprint = newCertificate.Thumbprint;
+            if (id.CertificateType.IsNull)
+            {
+                id.CertificateType = CertificateIdentifier.GetCertificateType(newCertificate);
             }
 
             ICertificatePasswordProvider passwordProvider = configuration
                 .SecurityConfiguration
                 .CertificatePasswordProvider;
-            await id
-                .Certificate.AddToStoreAsync(
+            await newCertificate.AddToStoreAsync(
                     id.StoreType,
                     id.StorePath,
                     passwordProvider?.GetPassword(id),
@@ -969,17 +989,26 @@ namespace Opc.Ua.Configuration
             // ensure the certificate is trusted.
             if (configuration.SecurityConfiguration.AddAppCertToTrustedStore)
             {
-                await AddToTrustedStoreAsync(configuration, id.Certificate, ct).ConfigureAwait(
+                await AddToTrustedStoreAsync(configuration, newCertificate, ct).ConfigureAwait(
                     false);
             }
 
-            // reload the certificate from disk.
-            id.Certificate = await id.LoadPrivateKeyExAsync(
-                passwordProvider,
-                configuration.ApplicationUri,
-                m_telemetry,
-                ct)
+            // reload the certificate from disk to get the durable on-disk
+            // private-key handle (the in-memory cert from CreateForXxx is a
+            // builder-produced ephemeral instance).
+            Certificate reloaded = await CertificateIdentifierResolver
+                .LoadPrivateKeyAsync(
+                    id,
+                    passwordProvider,
+                    configuration.ApplicationUri,
+                    m_telemetry,
+                    ct)
                 .ConfigureAwait(false);
+            if (reloaded != null)
+            {
+                newCertificate.Dispose();
+                newCertificate = reloaded;
+            }
 
             // Refresh CertificateManager so newly-created certificates are
             // visible to subsequent ValidateAsync / GetInstanceCertificate
@@ -996,12 +1025,12 @@ namespace Opc.Ua.Configuration
 
             m_logger.LogInformation(
                 "Certificate {Certificate} created for {ApplicationUri}.",
-                id.Certificate,
+                newCertificate,
                 configuration.ApplicationUri);
 
             // do not dispose temp cert, or X509Store certs become unusable
 
-            return id.Certificate;
+            return newCertificate;
         }
 
         /// <summary>
@@ -1021,7 +1050,14 @@ namespace Opc.Ua.Configuration
             }
 
             // delete certificate and private key.
-            Certificate certificate = await id.FindAsync(configuration.ApplicationUri, m_telemetry, ct)
+            Certificate certificate = await CertificateIdentifierResolver
+                .ResolveAsync(
+                    id,
+                    registry: null,
+                    needPrivateKey: false,
+                    configuration.ApplicationUri,
+                    m_telemetry,
+                    ct)
                 .ConfigureAwait(false);
 
             if (certificate != null)
@@ -1066,20 +1102,22 @@ namespace Opc.Ua.Configuration
             // delete certificate and private key from owner store.
             if (certificate != null)
             {
-                using ICertificateStore store = id.OpenStore(m_telemetry);
-                bool deleted = await store.DeleteAsync(certificate.Thumbprint, ct)
-                    .ConfigureAwait(false);
-                if (deleted)
+                using ICertificateStore store = CertificateIdentifierResolver
+                    .OpenStore(id, m_telemetry);
+                if (store != null)
                 {
-                    m_logger.LogInformation(
-                        Utils.TraceMasks.Security,
-                        "Application certificate {Certificate} and private key deleted.",
-                        certificate);
+                    bool deleted = await store.DeleteAsync(certificate.Thumbprint, ct)
+                        .ConfigureAwait(false);
+                    if (deleted)
+                    {
+                        m_logger.LogInformation(
+                            Utils.TraceMasks.Security,
+                            "Application certificate {Certificate} and private key deleted.",
+                            certificate);
+                    }
                 }
+                certificate.Dispose();
             }
-
-            // erase the memory copy of the deleted certificate
-            id.Certificate = null;
         }
 
         /// <summary>

@@ -154,8 +154,22 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 .SetRSAKeySize(2048)
                 .CreateForRSA();
 
-            using var certId = new CertificateIdentifier(cert)
+            // Persist the cert into a temp directory store so the manager
+            // can load it via the resolver (no more in-memory cert cache
+            // on CertificateIdentifier).
+            string storePath = CreateTempDir();
+            await cert.AddToStoreAsync(
+                CertificateStoreType.Directory,
+                storePath,
+                password: null,
+                m_telemetry).ConfigureAwait(false);
+
+            var certId = new CertificateIdentifier
             {
+                Thumbprint = cert.Thumbprint,
+                SubjectName = cert.Subject,
+                StoreType = CertificateStoreType.Directory,
+                StorePath = storePath,
                 CertificateType = ObjectTypeIds.RsaSha256ApplicationCertificateType
             };
 
@@ -360,8 +374,21 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 .SetRSAKeySize(2048)
                 .CreateForRSA();
 
-            using var leafCertId = new CertificateIdentifier(leaf)
+            // Persist the leaf cert into a temp directory store so the
+            // resolver can find it during LoadApplicationCertificatesAsync.
+            string leafStorePath = CreateTempDir();
+            await leaf.AddToStoreAsync(
+                CertificateStoreType.Directory,
+                leafStorePath,
+                password: null,
+                m_telemetry).ConfigureAwait(false);
+
+            var leafCertId = new CertificateIdentifier
             {
+                Thumbprint = leaf.Thumbprint,
+                SubjectName = leaf.Subject,
+                StoreType = CertificateStoreType.Directory,
+                StorePath = leafStorePath,
                 CertificateType = ObjectTypeIds.RsaSha256ApplicationCertificateType
             };
 

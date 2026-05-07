@@ -123,7 +123,7 @@ namespace Opc.Ua.Gds.Tests
                 StorePath = authStore.StorePath,
                 StoreType = authStore.StoreType
             };
-            using Certificate authCert = id.LoadPrivateKeyAsync(null).GetAwaiter().GetResult();
+            using Certificate authCert = CertificateIdentifierResolver.LoadPrivateKeyAsync(id, passwordProvider: null, applicationUri: null, telemetry).GetAwaiter().GetResult();
             using ICertificateStore trustedStore = certificateStoreIdentifier.OpenStore(telemetry);
             using CertificateCollection storeCerts = trustedStore.EnumerateAsync().GetAwaiter().GetResult();
             using CertificateCollection certs = await trustedStore
@@ -186,7 +186,7 @@ namespace Opc.Ua.Gds.Tests
                     StorePath = authStore.StorePath,
                     StoreType = authStore.StoreType
                 };
-                using Certificate authCert = id.LoadPrivateKeyAsync(null).GetAwaiter().GetResult();
+                using Certificate authCert = CertificateIdentifierResolver.LoadPrivateKeyAsync(id, passwordProvider: null, applicationUri: null, telemetry).GetAwaiter().GetResult();
                 using Certificate signedCert = CertificateBuilder.Create("CN=signedCert")
                .SetIssuer(authCert)
                .CreateForRSA();
@@ -252,7 +252,7 @@ namespace Opc.Ua.Gds.Tests
                 StorePath = authStore.StorePath,
                 StoreType = authStore.StoreType
             };
-            using Certificate authCert = id.LoadPrivateKeyAsync(null).GetAwaiter().GetResult();
+            using Certificate authCert = CertificateIdentifierResolver.LoadPrivateKeyAsync(id, passwordProvider: null, applicationUri: null, telemetry).GetAwaiter().GetResult();
             using ICertificateStore trustedStore = certificateStoreIdentifier.OpenStore(telemetry);
             using CertificateCollection storeCerts = trustedStore.EnumerateAsync().GetAwaiter().GetResult();
             using CertificateCollection certs = await trustedStore
@@ -306,7 +306,7 @@ namespace Opc.Ua.Gds.Tests
                 StorePath = authStore.StorePath,
                 StoreType = authStore.StoreType
             };
-            using Certificate authCert = id.LoadPrivateKeyAsync(null).GetAwaiter().GetResult();
+            using Certificate authCert = CertificateIdentifierResolver.LoadPrivateKeyAsync(id, passwordProvider: null, applicationUri: null, telemetry).GetAwaiter().GetResult();
             using ICertificateStore trustedStore = certificateStoreIdentifier.OpenStore(telemetry);
             using CertificateCollection storeCerts = trustedStore.EnumerateAsync().GetAwaiter().GetResult();
             using CertificateCollection certs = await trustedStore

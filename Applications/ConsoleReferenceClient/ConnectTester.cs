@@ -307,8 +307,10 @@ namespace Quickstarts
                 .FirstOrDefault();
 
             // create Certificate Identifier
-            var cid = new CertificateIdentifier(hit)
+            var cid = new CertificateIdentifier
             {
+                Thumbprint = hit.Thumbprint,
+                SubjectName = hit.Subject,
                 StorePath = store.StorePath,
                 StoreType = store.StoreType
             };

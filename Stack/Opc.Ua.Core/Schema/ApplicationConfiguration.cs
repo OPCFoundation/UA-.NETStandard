@@ -565,23 +565,13 @@ namespace Opc.Ua
                 }
 
                 // Remove any duplicates based on thumbprint
-                // Only perform duplicate detection if we have actual loaded certificates
                 for (int i = 0; i < newCertificates.Count; i++)
                 {
                     for (int j = newCertificates.Count - 1; j > i; j--)
                     {
                         bool isDuplicate = false;
 
-                        // Only check for duplicates if both certificates are actually loaded
-                        if (newCertificates[i].Certificate != null && newCertificates[j].Certificate != null)
-                        {
-                            // Compare by actual certificate thumbprint
-                            isDuplicate = newCertificates[i].Certificate.Thumbprint.Equals(
-                                newCertificates[j].Certificate.Thumbprint,
-                                StringComparison.OrdinalIgnoreCase);
-                        }
-                        // If certificates aren't loaded yet, compare by explicit thumbprint configuration
-                        else if (!string.IsNullOrEmpty(newCertificates[i].Thumbprint) &&
+                        if (!string.IsNullOrEmpty(newCertificates[i].Thumbprint) &&
                             !string.IsNullOrEmpty(newCertificates[j].Thumbprint))
                         {
                             isDuplicate = newCertificates[i].Thumbprint.Equals(
@@ -1778,33 +1768,6 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Initializes the identifier with the raw data from a certificate.
-        /// </summary>
-        public CertificateIdentifier(Certificate certificate)
-        {
-            Certificate = certificate.AddRef(); // TODO: Needs to be disposable
-        }
-
-        /// <summary>
-        /// Initializes the identifier with the raw data from a certificate.
-        /// </summary>
-        public CertificateIdentifier(
-            Certificate certificate,
-            CertificateValidationOptions validationOptions)
-        {
-            Certificate = certificate;
-            ValidationOptions = validationOptions;
-        }
-
-        /// <summary>
-        /// Initializes the identifier with the raw data from a certificate.
-        /// </summary>
-        public CertificateIdentifier(byte[] rawData)
-        {
-            Certificate = Certificate.FromRawData(rawData);
-        }
-
-        /// <summary>
         /// The type of certificate store.
         /// </summary>
         /// <value>The type of the store - defined in the <see cref="CertificateStoreType"/>.</value>
@@ -1833,141 +1796,48 @@ namespace Opc.Ua
         /// <summary>
         /// The certificate's subject name - the distinguished name of an X509 certificate.
         /// </summary>
-        /// <value>
-        /// The distinguished name of an X509 certificate acording to the Abstract Syntax Notation One (ASN.1) syntax.
-        /// </value>
-        /// <remarks> The subject field identifies the entity associated with the public key stored in the subject public
-        /// key field.  The subject name MAY be carried in the subject field and/or the subjectAltName extension.
-        /// Where it is non-empty, the subject field MUST contain an X.500 distinguished name (DN).
-        /// Name is defined by the following ASN.1 structures:
-        /// Name ::= CHOICE {RDNSequence }
-        /// RDNSequence ::= SEQUENCE OF RelativeDistinguishedName
-        /// RelativeDistinguishedName ::= SET OF AttributeTypeAndValue
-        /// AttributeTypeAndValue ::= SEQUENCE {type     AttributeType, value    AttributeValue }
-        /// AttributeType ::= OBJECT IDENTIFIER
-        /// AttributeValue ::= ANY DEFINED BY AttributeType
-        /// DirectoryString ::= CHOICE {
-        ///   teletexString           TeletexString (SIZE (1..MAX)),
-        ///   printableString         PrintableString (SIZE (1..MAX)),
-        ///   universalString         UniversalString (SIZE (1..MAX)),
-        ///   utf8String              UTF8String (SIZE (1..MAX)),
-        ///   bmpString               BMPString (SIZE (1..MAX)) }
-        ///  The Name describes a hierarchical name composed of attributes, such as country name, and
-        ///  corresponding values, such as US.  The type of the component AttributeValue is determined by
-        ///  the AttributeType; in general it will be a DirectoryString.
-        /// String X.500 AttributeType:
-        /// <list type="bullet">
-        /// <item>CN commonName</item>
-        /// <item>L localityName</item>
-        /// <item>ST stateOrProvinceName</item>
-        /// <item>O organizationName</item>
-        /// <item>OU organizationalUnitName</item>
-        /// <item>C countryName</item>
-        /// <item>STREET streetAddress</item>
-        /// <item>DC domainComponent</item>
-        /// <item>UID userid</item>
-        /// </list>
-        /// <para>
-        /// This notation is designed to be convenient for common forms of name. This section gives a few
-        /// examples of distinguished names written using this notation. First is a name containing three relative
-        /// distinguished names (RDNs):
-        /// <c>CN=Steve Kille,O=Isode Limited,C=GB</c>
-        /// </para>
-        /// <para>
-        /// RFC 3280 Internet X.509 Public Key Infrastructure, April 2002
-        /// RFC 2253 LADPv3 Distinguished Names, December 1997
-        /// </para>
-        /// </remarks>
-        /// <seealso cref="X500DistinguishedName"/>
-        /// <seealso cref="System.Security.Cryptography.AsnEncodedData"/>
-        /// <exception cref="ArgumentException"></exception>
         [DataTypeField(Order = 2)]
         public string? SubjectName
         {
-            get
-            {
-                if (m_certificate == null)
-                {
-                    return m_subjectName;
-                }
-
-                return m_certificate.Subject;
-            }
-            set
-            {
-                if (m_certificate != null &&
-                    !string.IsNullOrEmpty(value) &&
-                    m_certificate.Subject != value)
-                {
-                    throw new ArgumentException(
-                        "SubjectName does not match the SubjectName of the current certificate.");
-                }
-
-                m_subjectName = value;
-            }
+            get => m_subjectName;
+            set => m_subjectName = value;
         }
 
         /// <summary>
         /// The certificate's thumbprint.
         /// </summary>
-        /// <value>The thumbprint of a certificate..</value>
-        /// <seealso cref="X509Certificate2"/>
-        /// <exception cref="ArgumentException"></exception>
         [DataTypeField(Order = 3)]
         public string? Thumbprint
         {
-            get
-            {
-                if (m_certificate == null)
-                {
-                    return m_thumbprint;
-                }
-
-                return m_certificate.Thumbprint;
-            }
-            set
-            {
-                if (m_certificate != null &&
-                    !string.IsNullOrEmpty(value) &&
-                    m_certificate.Thumbprint != value)
-                {
-                    throw new ArgumentException(
-                        "Thumbprint does not match the thumbprint of the current certificate.");
-                }
-
-                m_thumbprint = value;
-            }
+            get => m_thumbprint;
+            set => m_thumbprint = value;
         }
 
         /// <summary>
-        /// Gets the DER encoded certificate data or create embedded in this instance certificate using the DER encoded certificate data.
+        /// Gets the DER encoded certificate data, or sets it from raw bytes.
         /// </summary>
-        /// <value>A byte array containing the X.509 certificate data.</value>
+        /// <remarks>
+        /// When set, derives <see cref="SubjectName"/>, <see cref="Thumbprint"/>,
+        /// and <see cref="CertificateType"/> by parsing the certificate. The
+        /// resolver consumes <see cref="RawData"/> via its inline branch
+        /// (Certificate.FromRawData) to materialize a Certificate on demand.
+        /// </remarks>
         public byte[]? RawData
         {
-            get
-            {
-                if (m_certificate == null)
-                {
-                    return null;
-                }
-
-                return m_certificate.RawData;
-            }
+            get => m_rawData;
             set
             {
                 if (value == null || value.Length == 0)
                 {
-                    m_certificate?.Dispose();
-                    m_certificate = null;
+                    m_rawData = null;
                     return;
                 }
 
-                m_certificate?.Dispose();
-                m_certificate = Certificate.FromRawData(value);
-                m_subjectName = m_certificate.Subject;
-                m_thumbprint = m_certificate.Thumbprint;
-                CertificateType = GetCertificateType(m_certificate);
+                m_rawData = value;
+                using Certificate parsed = Certificate.FromRawData(value);
+                m_subjectName = parsed.Subject;
+                m_thumbprint = parsed.Thumbprint;
+                CertificateType = GetCertificateType(parsed);
             }
         }
 
@@ -2003,7 +1873,7 @@ namespace Opc.Ua
         private string? m_storePath;
         private string? m_subjectName;
         private string? m_thumbprint;
-        private Certificate? m_certificate;
+        private byte[]? m_rawData;
     }
 #nullable restore
 

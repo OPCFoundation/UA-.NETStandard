@@ -341,6 +341,23 @@ namespace Opc.Ua.Gds.Tests
         public static async Task CleanupTrustListAsync(IOpenStore id, ITelemetryContext telemetry)
         {
             using ICertificateStore store = id.OpenStore(telemetry);
+            await CleanupStoreAsync(store).ConfigureAwait(false);
+        }
+
+        public static async Task CleanupTrustListAsync(
+            CertificateIdentifier id,
+            ITelemetryContext telemetry)
+        {
+            using ICertificateStore store = CertificateIdentifierResolver.OpenStore(id, telemetry);
+            if (store == null)
+            {
+                return;
+            }
+            await CleanupStoreAsync(store).ConfigureAwait(false);
+        }
+
+        private static async Task CleanupStoreAsync(ICertificateStore store)
+        {
             CertificateCollection certs
                 = await store
                 .EnumerateAsync()

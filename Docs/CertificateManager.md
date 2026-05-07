@@ -2,6 +2,8 @@
 
 The `CertificateManager` provides centralized certificate lifecycle management for OPC UA applications. It replaces the scattered certificate handling across `CertificateValidator`, `CertificateIdentifier`, `CertificateTypesProvider`, and `CertificateFactory` with a cohesive set of interfaces following the Interface Segregation Principle.
 
+> **Note:** Since the `x509` refactor, `CertificateIdentifier` is **metadata-only** (`StoreType` / `StorePath` / `SubjectName` / `Thumbprint` / `CertificateType` / `RawData` / `ValidationOptions`). It no longer caches a `Certificate`, no longer implements `IDisposable`, and the `Certificate` property, `(Certificate)` / `(Certificate, options)` / `(byte[])` constructors, `FindAsync`, `LoadPrivateKey*Async` and `OpenStore` instance methods have been removed. The `CertificateManager` (via `ICertificateRegistry`) is now the single source of truth for materialized application certificates; `CertificateIdentifierResolver` is the stateless helper used to materialize a `Certificate` from an identifier on demand. See *Migration: CertificateIdentifier is metadata-only* below.
+
 ### Architecture
 
 The `CertificateManager` is composed of focused interfaces. Consumers depend only on the slice they need:
@@ -347,3 +349,98 @@ sites.
 | Expiry monitoring (Part 9 §5.8.17) | `CertificateLifecycleMonitor` → `CertificateExpiring` events |
 | Rejected certificates | `ICertificateLifecycle.RejectCertificateAsync` (awaitable) |
 | User X.509 tokens (Part 4 §5.6.3) | `ValidateAsync(..., TrustListIdentifier.Users)` |
+
+
+### Migration: `CertificateIdentifier` is metadata-only
+
+#### What changed
+
+`CertificateIdentifier` used to play two roles:
+
+1. **Pure metadata** describing *where* to find a certificate (`StoreType` / `StorePath` / `SubjectName` / `Thumbprint` / `CertificateType` / `ValidationOptions`).
+2. **A cert wrapper** that owned a loaded `Certificate` and implemented `IDisposable`.
+
+The dual role caused recurring lifecycle bugs (stale caches surviving rotations, identifier disposal racing the registry, `Thumbprint` setter throwing on cache replacement, etc.). The `x509` branch removes the second role:
+
+* `Certificate` property and the cached `m_certificate` field — **removed**.
+* `IDisposable` declaration, `Dispose()`, `DisposeCertificate()` — **removed**. `CertificateIdentifier` is no longer disposable.
+* Constructors taking `Certificate` / `Certificate, options` / `byte[]` — **removed**.
+* Instance methods `FindAsync`, `LoadPrivateKeyAsync` (instance), `LoadPrivateKeyExAsync`, `OpenStore` — **removed**.
+* `RawData` is now backed by an explicit `byte[]` field (the setter still derives `SubjectName` / `Thumbprint` / `CertificateType` from the parsed raw bytes).
+* `Equals` compares metadata only.
+* `ICertificateRegistry.GetIssuersAsync` returns `IList<CertificateIssuerReference>` (a public sealed record carrying `Certificate` + `CertificateValidationOptions`) instead of `IList<CertificateIdentifier>`.
+
+#### How to materialize a `Certificate` from a `CertificateIdentifier`
+
+Use the new `CertificateIdentifierResolver` static helper:
+
+```csharp
+using Opc.Ua;
+using Opc.Ua.Security.Certificates;
+
+var id = new CertificateIdentifier
+{
+    StoreType = CertificateStoreType.Directory,
+    StorePath = "%LocalApplicationData%/OPC/pki/own",
+    SubjectName = "CN=My Application",
+    Thumbprint = "9B7B...",
+    CertificateType = ObjectTypeIds.RsaSha256ApplicationCertificateType
+};
+
+// Resolve a public-key-only certificate from the registry / inline RawData / the store.
+using Certificate publicKey = await CertificateIdentifierResolver.ResolveAsync(
+    id,
+    registry: certificateManager,
+    needPrivateKey: false,
+    applicationUri: configuration.ApplicationUri,
+    telemetry,
+    ct);
+
+// Resolve a certificate with private key (PFX, prompts the password provider).
+using Certificate privateKey = await CertificateIdentifierResolver.LoadPrivateKeyAsync(
+    id,
+    passwordProvider: configuration.SecurityConfiguration.CertificatePasswordProvider,
+    applicationUri: configuration.ApplicationUri,
+    telemetry,
+    ct);
+
+// Open the underlying store directly (rare — prefer the manager / resolver helpers).
+using ICertificateStore store = CertificateIdentifierResolver.OpenStore(id, telemetry);
+```
+
+The resolver always returns a caller-owned, `AddRef`'d `Certificate` (or `null`). The caller is responsible for disposing it.
+
+#### Common before / after migration patterns
+
+| Before (legacy) | After (resolver / manager) |
+|---|---|
+| `var id = new CertificateIdentifier(cert);` | `var id = new CertificateIdentifier { Thumbprint = cert.Thumbprint, SubjectName = cert.Subject, CertificateType = CertificateIdentifier.GetCertificateType(cert) };` (caller owns `cert`) |
+| `var id = new CertificateIdentifier(rawDataBytes);` | `var id = new CertificateIdentifier { RawData = rawDataBytes };` (RawData setter derives the other fields) |
+| `id.Certificate` read | `CertificateIdentifierResolver.ResolveAsync(id, ...)` or `registry.GetApplicationCertificate(id.CertificateType)?.Certificate` |
+| `id.Certificate = cert;` write | Drop the assignment. The cert is owned by the manager registry (use `ICertificateLifecycle.UpdateApplicationCertificateAsync`) or by a local variable in the calling method. |
+| `await id.FindAsync(true, applicationUri, ...)` | `await CertificateIdentifierResolver.LoadPrivateKeyAsync(id, passwordProvider, applicationUri, telemetry, ct)` |
+| `await id.LoadPrivateKeyExAsync(passwordProvider, ...)` | `await CertificateIdentifierResolver.LoadPrivateKeyAsync(id, passwordProvider, applicationUri, telemetry, ct)` |
+| `id.OpenStore(telemetry)` | `CertificateIdentifierResolver.OpenStore(id, telemetry)` |
+| `id.DisposeCertificate(); id.Dispose();` | Drop. The identifier owns nothing disposable. Dispose certificates returned by the resolver instead. |
+| `IList<CertificateIdentifier>` from `GetIssuersAsync`; `issuers[i].Certificate` | `IList<CertificateIssuerReference>`; `issuers[i].Certificate` (record's `Certificate` field, caller-owned) |
+
+#### When to register an in-memory certificate with the manager
+
+If you have a `Certificate` instance that wasn't loaded from a configured store (for example, a freshly generated cert or one returned by a GDS push), persist it to a store and let the manager pick it up:
+
+```csharp
+await newCertificate.AddToStoreAsync(
+    id.StoreType,
+    id.StorePath,
+    passwordProvider?.GetPassword(id),
+    telemetry,
+    ct);
+
+// Reload + register with the manager so endpoint descriptions etc.
+// observe the rotation via CertificateChanges.
+await ((ICertificateLifecycle)certificateManager).UpdateApplicationCertificateAsync(
+    id.CertificateType,
+    newCertificate,
+    issuerChain: null,
+    ct);
+```

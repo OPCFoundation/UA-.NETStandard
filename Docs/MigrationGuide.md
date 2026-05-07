@@ -784,6 +784,38 @@ manager.CertificateChanges.Subscribe(observer);
 
 See [CertificateManager.md](CertificateManager.md) for the full API reference and usage guide.
 
+#### CertificateIdentifier is metadata-only
+
+`CertificateIdentifier` no longer caches a `Certificate`, no longer implements `IDisposable`, and the cert-bearing constructors / instance methods have been removed. Use `CertificateIdentifierResolver` to materialize a `Certificate` from an identifier.
+
+**Removed members:**
+
+* `Certificate` get/set property and the cached `m_certificate` field.
+* `IDisposable` declaration, `Dispose()`, `DisposeCertificate()`.
+* Constructors `CertificateIdentifier(Certificate)`, `CertificateIdentifier(Certificate, CertificateValidationOptions)`, `CertificateIdentifier(byte[])`.
+* Instance methods `FindAsync(...)`, `LoadPrivateKeyAsync(char[], ...)`, `LoadPrivateKeyExAsync(...)`, `OpenStore(...)`.
+* `IOpenStore` interface declaration on `CertificateIdentifier`.
+
+**`RawData`** is now backed by an explicit `byte[]` field. The setter still derives `SubjectName` / `Thumbprint` / `CertificateType` from the parsed raw bytes.
+
+**`ICertificateRegistry.GetIssuersAsync`** now returns `IList<CertificateIssuerReference>` (a public sealed record with `Certificate Certificate, CertificateValidationOptions Options`) instead of `IList<CertificateIdentifier>`. Existing callers must update the list type and switch from `CertificateIdentifier.Certificate` to `CertificateIssuerReference.Certificate`.
+
+**Migration patterns:**
+
+| Before (legacy) | After |
+|---|---|
+| `var id = new CertificateIdentifier(cert);` | `var id = new CertificateIdentifier { Thumbprint = cert.Thumbprint, SubjectName = cert.Subject, CertificateType = CertificateIdentifier.GetCertificateType(cert) };` |
+| `var id = new CertificateIdentifier(rawData);` | `var id = new CertificateIdentifier { RawData = rawData };` |
+| `id.Certificate` (read) | `await CertificateIdentifierResolver.ResolveAsync(id, registry, needPrivateKey: false, applicationUri, telemetry, ct)` |
+| `id.Certificate = cert;` | Drop the assignment. Cert lifecycle is owned by `CertificateManager` (use `ICertificateLifecycle.UpdateApplicationCertificateAsync`) or by a local variable. |
+| `await id.FindAsync(true, applicationUri, telemetry, ct)` | `await CertificateIdentifierResolver.LoadPrivateKeyAsync(id, passwordProvider, applicationUri, telemetry, ct)` |
+| `await id.LoadPrivateKeyExAsync(passwordProvider, applicationUri, telemetry, ct)` | `await CertificateIdentifierResolver.LoadPrivateKeyAsync(id, passwordProvider, applicationUri, telemetry, ct)` |
+| `id.OpenStore(telemetry)` | `CertificateIdentifierResolver.OpenStore(id, telemetry)` |
+| `using var id = new CertificateIdentifier(...);` | `var id = new CertificateIdentifier(...);` (no `using`) |
+| `IList<CertificateIdentifier> issuers = ...; var cert = issuers[i].Certificate;` | `IList<CertificateIssuerReference> issuers = ...; var cert = issuers[i].Certificate;` |
+
+See [CertificateManager.md](CertificateManager.md#migration-certificateidentifier-is-metadata-only) for the full migration walkthrough.
+
 #### Obsoleted certificate APIs
 
 The following APIs are marked `[Obsolete]` and will be removed in the next minor version. They remain

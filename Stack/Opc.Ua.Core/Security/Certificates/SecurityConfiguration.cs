@@ -179,19 +179,37 @@ namespace Opc.Ua
                     }
                     else if (certType == ObjectTypeIds.EccApplicationCertificateType)
                     {
-                        // first Ecc certificate
+                        // first Ecc certificate (matches by configured CertificateType
+                        // since identifier no longer caches a Certificate to inspect).
                         id = (ApplicationCertificates.ToArray() ?? []).FirstOrDefault(certId =>
-                            certId.Certificate != null && X509Utils.IsECDsaSignature(certId.Certificate));
+                            certId.CertificateType == ObjectTypeIds.EccNistP256ApplicationCertificateType ||
+                            certId.CertificateType == ObjectTypeIds.EccNistP384ApplicationCertificateType ||
+                            certId.CertificateType == ObjectTypeIds.EccBrainpoolP256r1ApplicationCertificateType ||
+                            certId.CertificateType == ObjectTypeIds.EccBrainpoolP384r1ApplicationCertificateType ||
+                            certId.CertificateType == ObjectTypeIds.EccCurve25519ApplicationCertificateType ||
+                            certId.CertificateType == ObjectTypeIds.EccCurve448ApplicationCertificateType);
                     }
                 }
 
                 if (id != null)
                 {
+                    if (privateKey)
+                    {
+                        return await CertificateIdentifierResolver
+                            .LoadPrivateKeyAsync(
+                                id,
+                                CertificatePasswordProvider,
+                                applicationUri: null,
+                                telemetry,
+                                ct)
+                            .ConfigureAwait(false);
+                    }
+
                     return await CertificateIdentifierResolver
                         .ResolveAsync(
                             id,
                             registry: null,
-                            needPrivateKey: privateKey,
+                            needPrivateKey: false,
                             applicationUri: null,
                             telemetry,
                             ct)

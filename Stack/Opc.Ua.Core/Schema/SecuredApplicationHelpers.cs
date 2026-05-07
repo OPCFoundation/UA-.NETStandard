@@ -487,7 +487,13 @@ namespace Opc.Ua.Security
             CancellationToken ct = default)
         {
             Ua.CertificateIdentifier output = SecuredApplication.FromCertificateIdentifier(this);
-            return output.FindAsync(false, telemetry: telemetry, ct: ct);
+            return CertificateIdentifierResolver.ResolveAsync(
+                output,
+                registry: null,
+                needPrivateKey: false,
+                applicationUri: null,
+                telemetry,
+                ct)!;
         }
 
         /// <summary>
@@ -508,7 +514,13 @@ namespace Opc.Ua.Security
             CancellationToken ct = default)
         {
             Ua.CertificateIdentifier output = SecuredApplication.FromCertificateIdentifier(this);
-            return output.FindAsync(needPrivateKey, telemetry: telemetry, ct: ct);
+            return CertificateIdentifierResolver.ResolveAsync(
+                output,
+                registry: null,
+                needPrivateKey,
+                applicationUri: null,
+                telemetry,
+                ct)!;
         }
 
         /// <summary>
@@ -517,7 +529,7 @@ namespace Opc.Ua.Security
         public ICertificateStore OpenStore(ITelemetryContext telemetry)
         {
             Ua.CertificateIdentifier output = SecuredApplication.FromCertificateIdentifier(this);
-            return output.OpenStore(telemetry);
+            return CertificateIdentifierResolver.OpenStore(output, telemetry)!;
         }
     }
 

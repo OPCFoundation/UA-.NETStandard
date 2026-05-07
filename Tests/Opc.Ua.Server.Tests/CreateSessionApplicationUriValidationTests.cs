@@ -278,15 +278,16 @@ namespace Opc.Ua.Server.Tests
                     await store.AddAsync(clientCertificate).ConfigureAwait(false);
                 }
 
-                // Create certificate identifier pointing to the stored certificate
-                // Setting the Certificate property will automatically set the CertificateType
+                // Create certificate identifier pointing to the stored
+                // certificate. The identifier is metadata-only — the
+                // resolver loads the cert from the store on demand.
                 var certIdentifier = new CertificateIdentifier
                 {
                     StoreType = CertificateStoreType.Directory,
                     StorePath = certStorePath,
                     SubjectName = clientCertificate.SubjectName.Name,
                     Thumbprint = clientCertificate.Thumbprint,
-                    Certificate = clientCertificate
+                    CertificateType = CertificateIdentifier.GetCertificateType(clientCertificate)
                 };
 
                 // Create client application configuration

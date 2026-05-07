@@ -645,20 +645,6 @@ namespace Opc.Ua
 
             SecurityConfiguration.Validate(m_telemetry);
 
-            // load private keys
-            ArrayOf<CertificateIdentifier> appCerts = SecurityConfiguration.ApplicationCertificates;
-            for (int i = 0; i < appCerts.Count; i++)
-            {
-                CertificateIdentifier applicationCertificate = appCerts[i];
-                await applicationCertificate
-                    .LoadPrivateKeyExAsync(
-                        SecurityConfiguration.CertificatePasswordProvider,
-                        ApplicationUri,
-                        m_telemetry,
-                        ct)
-                    .ConfigureAwait(false);
-            }
-
             string GenerateDefaultUri()
             {
                 var sb = new StringBuilder();
@@ -727,6 +713,17 @@ namespace Opc.Ua
             CertificateManager ??= CertificateManagerFactory.Create(
                 SecurityConfiguration,
                 m_telemetry);
+
+            // Eagerly load configured application certificates into the
+            // manager registry so consumers (Session, validator, etc) can
+            // resolve them via ICertificateRegistry without depending on
+            // the legacy CertificateIdentifier cache.
+            if (CertificateManager is CertificateManager certManager)
+            {
+                await certManager
+                    .LoadApplicationCertificatesAsync(SecurityConfiguration, ApplicationUri, ct)
+                    .ConfigureAwait(false);
+            }
         }
 
         /// <summary>

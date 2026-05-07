@@ -171,9 +171,10 @@ namespace Opc.Ua.Configuration.Tests
             Assert.That(certOK, Is.True);
 
             CertificateIdentifier certId = config.SecurityConfiguration.ApplicationCertificates[0];
-            using Certificate certificate = await certId
-                .FindAsync(
-                    true,
+            using Certificate certificate = await CertificateIdentifierResolver
+                .LoadPrivateKeyAsync(
+                    certId,
+                    passwordProvider: config.SecurityConfiguration.CertificatePasswordProvider,
                     config.ApplicationUri,
                     telemetry)
                 .ConfigureAwait(false);
@@ -467,7 +468,17 @@ namespace Opc.Ua.Configuration.Tests
                 .CheckApplicationInstanceCertificatesAsync(true)
                 .ConfigureAwait(false);
 
-            bool deleteAfterUse = applicationCertificate.Certificate != null;
+            // Resolve the cert via the resolver since the identifier no
+            // longer caches it.
+            using Certificate appCert = await CertificateIdentifierResolver
+                .ResolveAsync(
+                    applicationCertificate,
+                    registry: null,
+                    needPrivateKey: false,
+                    applicationInstance.ApplicationConfiguration.ApplicationUri,
+                    telemetry)
+                .ConfigureAwait(false);
+            bool deleteAfterUse = appCert != null;
 
             Assert.That(certOK, Is.True);
             using (
@@ -477,7 +488,7 @@ namespace Opc.Ua.Configuration.Tests
                         .OpenStore(telemetry))
             {
                 // store public key in trusted store
-                byte[] rawData = applicationCertificate.Certificate.RawData;
+                byte[] rawData = appCert.RawData;
                 using Certificate publicKey = Certificate.FromRawData(rawData);
                 await store.AddAsync(publicKey)
                     .ConfigureAwait(false);
@@ -485,8 +496,9 @@ namespace Opc.Ua.Configuration.Tests
 
             if (deleteAfterUse)
             {
-                string thumbprint = applicationCertificate.Certificate.Thumbprint;
-                using (ICertificateStore store = applicationCertificate.OpenStore(telemetry))
+                string thumbprint = appCert.Thumbprint;
+                using (ICertificateStore store = CertificateIdentifierResolver
+                    .OpenStore(applicationCertificate, telemetry))
                 {
                     bool success = await store.DeleteAsync(thumbprint).ConfigureAwait(false);
                     Assert.That(success, Is.True);
@@ -601,7 +613,7 @@ namespace Opc.Ua.Configuration.Tests
                 .ApplicationConfiguration
                 .SecurityConfiguration
                 .ApplicationCertificate;
-            Assert.That(applicationCertificate.Certificate, Is.Null);
+            Assert.That(applicationCertificate.Thumbprint, Is.Null.Or.Empty);
 
             Certificate publicKey = null;
             using (Certificate testCert = CreateInvalidCert(certType))
@@ -625,7 +637,7 @@ namespace Opc.Ua.Configuration.Tests
                         .ConfigureAwait(false);
 
                     Assert.That(certOK, Is.True);
-                    Assert.That(applicationCertificate.Certificate, Is.EqualTo(publicKey));
+                    Assert.That(applicationCertificate.Thumbprint, Is.EqualTo(publicKey.Thumbprint));
                 }
                 else
                 {
@@ -699,7 +711,7 @@ namespace Opc.Ua.Configuration.Tests
                 .ApplicationConfiguration
                 .SecurityConfiguration
                 .ApplicationCertificate;
-            Assert.That(applicationCertificate.Certificate, Is.Null);
+            Assert.That(applicationCertificate.Thumbprint, Is.Null.Or.Empty);
 
             using CertificateCollection testCerts = CreateInvalidCertChain(certType);
             if (certType != InvalidCertType.NoIssuer)
@@ -744,7 +756,7 @@ namespace Opc.Ua.Configuration.Tests
                         .ConfigureAwait(false);
 
                     Assert.That(certOK, Is.True);
-                    Assert.That(applicationCertificate.Certificate, Is.EqualTo(publicKey));
+                    Assert.That(applicationCertificate.Thumbprint, Is.EqualTo(publicKey.Thumbprint));
                 }
                 else
                 {
@@ -928,7 +940,7 @@ namespace Opc.Ua.Configuration.Tests
                 .ApplicationConfiguration
                 .SecurityConfiguration
                 .ApplicationCertificate;
-            Assert.That(applicationCertificate.Certificate, Is.Null);
+            Assert.That(applicationCertificate.Thumbprint, Is.Null.Or.Empty);
 
             if (disableCertificateAutoCreation)
             {
@@ -1165,7 +1177,9 @@ namespace Opc.Ua.Configuration.Tests
 
             // Verify the certificate has multiple URIs
             // Load the certificate to check its URIs
-            using Certificate loadedCert = await certId.FindAsync(false, null, telemetry).ConfigureAwait(false);
+            using Certificate loadedCert = await CertificateIdentifierResolver
+                .ResolveAsync(certId, registry: null, needPrivateKey: false, applicationUri: null, telemetry)
+                .ConfigureAwait(false);
             IReadOnlyList<string> uris = X509Utils.GetApplicationUrisFromCertificate(loadedCert);
             Assert.That(uris.Count, Is.EqualTo(3));
             Assert.Contains(uri1, uris.ToList());
