@@ -260,7 +260,7 @@ namespace Opc.Ua.PubSub.Tests
         public void CreateWithNullConfigurationSucceeds()
         {
             using UaPubSubApplication app = UaPubSubApplication.Create(
-                (PubSubConfigurationDataType)null,
+                null,
                 null,
                 m_telemetry);
             Assert.That(app, Is.Not.Null);

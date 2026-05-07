@@ -267,7 +267,9 @@ namespace Opc.Ua
         private static void SanityCheckArrayElements(Array elements, BuiltInType builtInType)
         {
 #if DEBUG
+#pragma warning disable IDE0004 // Remove Unnecessary Cast
             var sanityCheck = TypeInfo.Construct((object)elements);
+#pragma warning restore IDE0004 // Remove Unnecessary Cast
             Debug.Assert(
                 sanityCheck.BuiltInType == builtInType ||
                 builtInType == BuiltInType.Enumeration ||

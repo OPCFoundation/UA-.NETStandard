@@ -474,12 +474,14 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public override bool Equals(object obj)
         {
+#pragma warning disable IDE0004 // Remove Unnecessary Cast
             return obj switch
             {
                 SerializableVariant s => Equals(s),
                 Variant n => Equals(n),
                 _ => ((object)Value).Equals(obj)
             };
+#pragma warning restore IDE0004 // Remove Unnecessary Cast
         }
 
         /// <inheritdoc/>

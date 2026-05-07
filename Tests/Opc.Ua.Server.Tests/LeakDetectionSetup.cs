@@ -31,36 +31,37 @@ using System;
 using NUnit.Framework;
 using Opc.Ua.Security.Certificates;
 
-namespace Opc.Ua.Server.Tests;
-
-/// <summary>
-/// Assembly-level setup/teardown that verifies no Certificate
-/// instances are leaked during the test run.
-/// </summary>
-[SetUpFixture]
-public class LeakDetectionSetup
+namespace Opc.Ua.Server.Tests
 {
-    [OneTimeSetUp]
-    public void GlobalSetup()
+    /// <summary>
+    /// Assembly-level setup/teardown that verifies no Certificate
+    /// instances are leaked during the test run.
+    /// </summary>
+    [SetUpFixture]
+    public class LeakDetectionSetup
     {
-        Certificate.ResetLeakCounters();
-    }
-
-    [OneTimeTearDown]
-    public void GlobalTeardown()
-    {
-        // Force GC to finalize any abandoned certificates
-        GC.Collect();
-        GC.WaitForPendingFinalizers();
-        GC.Collect();
-
-        long leaked = Certificate.InstancesLeaked;
-        if (leaked > 0)
+        [OneTimeSetUp]
+        public void GlobalSetup()
         {
-            Assert.Warn(
-                $"Certificate leak detected: {leaked} instance(s) created " +
-                $"but not disposed (created={Certificate.InstancesCreated}, " +
-                $"disposed={Certificate.InstancesDisposed}).");
+            Certificate.ResetLeakCounters();
+        }
+
+        [OneTimeTearDown]
+        public void GlobalTeardown()
+        {
+            // Force GC to finalize any abandoned certificates
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+            GC.Collect();
+
+            long leaked = Certificate.InstancesLeaked;
+            if (leaked > 0)
+            {
+                Assert.Warn(
+                    $"Certificate leak detected: {leaked} instance(s) created " +
+                    $"but not disposed (created={Certificate.InstancesCreated}, " +
+                    $"disposed={Certificate.InstancesDisposed}).");
+            }
         }
     }
 }

@@ -48,7 +48,8 @@ namespace Opc.Ua.Mcp.Tools
         /// Find servers registered on the network.
         /// </summary>
         [McpServerTool(Name = "FindServers")]
-        [Description("Find OPC UA servers available at a given discovery endpoint URL. Does not require an active session.")]
+        [Description(
+            "Find OPC UA servers available at a given discovery endpoint URL. Does not require an active session.")]
         public static async Task<string> FindServersAsync(
             OpcUaSessionManager sessionManager,
             [Description("Discovery endpoint URL, e.g. 'opc.tcp://localhost:4840'")] string discoveryUrl,
