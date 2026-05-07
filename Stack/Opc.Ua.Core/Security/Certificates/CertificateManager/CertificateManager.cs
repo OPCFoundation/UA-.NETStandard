@@ -45,7 +45,7 @@ namespace Opc.Ua
     /// Currently implements trust-list management; other interfaces
     /// will be added in subsequent phases.
     /// </summary>
-    public sealed partial class CertificateManager :
+    public sealed class CertificateManager :
         ICertificateManager,
         IDisposable
     {

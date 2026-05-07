@@ -130,7 +130,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                     && c.RetryCount == 1
                     && c.Source == m_options.CurrentValue
                     && c.ServiceResult.StatusCode == StatusCodes.Bad
-                    && c.Final == false
+                    && !c.Final
                     && c.FilterResult == null), Is.EqualTo(1));
         }
 
@@ -169,7 +169,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                     && c.RetryCount == 1
                     && c.Source == m_options.CurrentValue
                     && c.ServiceResult.StatusCode == StatusCodes.Bad
-                    && c.Final == false
+                    && !c.Final
                     && c.FilterResult == null), Is.EqualTo(1));
         }
 

@@ -528,7 +528,6 @@ namespace Opc.Ua
                             logger);
                         break;
                     case AsymmetricEncryptionAlgorithm.RsaOaepSha256:
-                    {
                         encryptedData.Algorithm = SecurityAlgorithms.RsaOaepSha256;
                         encryptedData.Data = RsaUtils.Encrypt(
                             plainText,
@@ -536,7 +535,6 @@ namespace Opc.Ua
                             RsaUtils.Padding.OaepSHA256,
                             logger);
                         break;
-                    }
                 }
             }
             else
