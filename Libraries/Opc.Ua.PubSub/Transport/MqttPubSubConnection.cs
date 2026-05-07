@@ -204,7 +204,8 @@ namespace Opc.Ua.PubSub.Transport
                 m_certificateManager?.Dispose();
                 m_certificateManager = null;
 
-                m_stopCts.Dispose();
+                m_stopCts?.Dispose();
+                m_stopCts = null;
             }
             base.Dispose(disposing);
         }
