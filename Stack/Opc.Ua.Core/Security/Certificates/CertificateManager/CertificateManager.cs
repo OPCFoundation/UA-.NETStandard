@@ -230,6 +230,7 @@ namespace Opc.Ua
         /// <see cref="UpdateAsync"/> to honour runtime trust-list path
         /// changes).
         /// </param>
+        /// <exception cref="ArgumentNullException"><paramref name="config"/> is <c>null</c>.</exception>
         private void MapFromSecurityConfiguration(SecurityConfiguration config, bool replaceExisting)
         {
             if (config == null)

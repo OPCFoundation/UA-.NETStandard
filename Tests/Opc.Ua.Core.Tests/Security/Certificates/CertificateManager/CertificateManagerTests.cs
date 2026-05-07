@@ -453,6 +453,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         /// <summary>
         /// Simple observer for testing <see cref="IObservable{T}"/> subscriptions.
         /// </summary>
+        /// <typeparam name="T"></typeparam>
         private sealed class TestObserver<T>(Action<T> onNext) : IObserver<T>
         {
             public void OnCompleted() { }

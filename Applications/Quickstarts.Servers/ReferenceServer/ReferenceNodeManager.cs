@@ -4569,6 +4569,7 @@ namespace Quickstarts.ReferenceServer
         /// <summary>
         /// Applies common read/write access settings to a mandatory child property of an array item variable.
         /// </summary>
+        /// <typeparam name="T"></typeparam>
         private static void SetArrayItemChildAccess<T>(PropertyState<T> property)
         {
             if (property != null)

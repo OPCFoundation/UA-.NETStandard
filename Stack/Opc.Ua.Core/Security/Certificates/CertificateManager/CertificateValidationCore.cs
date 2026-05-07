@@ -369,6 +369,7 @@ namespace Opc.Ua
         /// A <see cref="CertificateValidationResult"/> describing the
         /// outcome. Throws no exceptions for ordinary validation failures.
         /// </returns>
+        /// <exception cref="ArgumentNullException"><paramref name="chain"/> is <c>null</c>.</exception>
         public async Task<CertificateValidationResult> ValidateAsync(
             CertificateCollection chain,
             Func<Certificate, ServiceResult, bool>? acceptError,

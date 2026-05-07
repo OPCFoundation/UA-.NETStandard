@@ -149,6 +149,7 @@ namespace Opc.Ua
         /// A new <see cref="CertificateCollection"/> with the chain, or
         /// <see langword="null"/> when <paramref name="certificate"/> is null.
         /// </returns>
+        /// <exception cref="ArgumentNullException"><paramref name="registry"/> is <c>null</c>.</exception>
         public static CertificateCollection? LoadCertificateChain(
             this ICertificateRegistry registry,
             Certificate? certificate)
