@@ -209,14 +209,20 @@ namespace Opc.Ua
                 return null;
             }
 
-            // In-memory fast path — when the identifier was constructed
-            // directly from a Certificate (e.g. unit tests, ad-hoc loads
-            // from raw bytes) the cert is already attached and there is
-            // no store to open. Mirrors CertificateIdentifier.FindAsync.
-            Certificate? attached = identifier.Certificate;
-            if (attached != null && attached.HasPrivateKey)
+            // In-memory identifier without a backing store
+            // (constructed via CertificateIdentifier(cert) without a
+            // StorePath) — the cert lives on the identifier itself, no
+            // store to open. Skip this branch when a StorePath is set:
+            // the store is the authoritative source and the cached
+            // certificate may be stale (e.g. after a GDS push that
+            // replaced the on-disk cert under the same identifier).
+            // (Transitional: this path goes away when CertificateIdentifier
+            // stops carrying a Certificate.)
+            if (string.IsNullOrEmpty(identifier.StorePath)
+                && identifier.Certificate != null
+                && identifier.Certificate.HasPrivateKey)
             {
-                return attached.AddRef();
+                return identifier.Certificate.AddRef();
             }
 
             if (identifier.StoreType != CertificateStoreType.X509Store)
