@@ -240,8 +240,6 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             }
         }
 
-        #region Helpers
-
         private string CreateTempDir()
         {
             string dir = Path.Combine(
@@ -251,7 +249,5 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             m_tempDirs.Add(dir);
             return dir;
         }
-
-        #endregion
     }
 }

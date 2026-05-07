@@ -1765,7 +1765,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             context.NamespaceUris = table;
             context.ServerUris = servers;
 
-            var original = new ExpandedNodeId((uint)42, ParseLongFormKnownNamespace, 0);
+            var original = new ExpandedNodeId(42u, ParseLongFormKnownNamespace, 0);
             string formatted = original.Format(context, useUris: true);
             ExpandedNodeId parsed = ExpandedNodeId.ParseLongForm(formatted, table, servers);
 

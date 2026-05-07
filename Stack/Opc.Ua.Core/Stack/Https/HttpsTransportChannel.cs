@@ -485,12 +485,13 @@ namespace Opc.Ua.Bindings
                                     validationChain.Add(cert);
                                 }
 
-                                using CertificateCollection validationCollection = CertificateCollection.From(validationChain);
+                                using var validationCollection = CertificateCollection.From(validationChain);
                                 if (m_quotas.CertificateValidator != null)
                                 {
                                     CertificateValidationResult validationResult = m_quotas.CertificateValidator
                                         .ValidateAsync(validationCollection, ct: default)
-                                        .GetAwaiter().GetResult();
+                                        .GetAwaiter()
+                                        .GetResult();
                                     if (!validationResult.IsValid)
                                     {
                                         throw new ServiceResultException(validationResult.StatusCode);

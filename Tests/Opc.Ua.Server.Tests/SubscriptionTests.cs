@@ -273,9 +273,9 @@ namespace Opc.Ua.Server.Tests
 
             var values = new List<MonitoredItemNotification>
             {
-                new MonitoredItemNotification { Value = new DataValue(1) },
-                new MonitoredItemNotification { Value = new DataValue(2) },
-                new MonitoredItemNotification { Value = new DataValue(3) }
+                new() { Value = new DataValue(1) },
+                new() { Value = new DataValue(2) },
+                new() { Value = new DataValue(3) }
             };
 
             int counter = 0;
@@ -323,7 +323,7 @@ namespace Opc.Ua.Server.Tests
 
             // third publish
             var message3 = subscription.Publish(ctx1, out availableSequenceNumbers, out bool moreNotifications3);
-            
+
             Assert.That(message2, Is.Not.Null);
             Assert.That(message3, Is.Not.Null);
             Assert.That(moreNotifications2, Is.True);

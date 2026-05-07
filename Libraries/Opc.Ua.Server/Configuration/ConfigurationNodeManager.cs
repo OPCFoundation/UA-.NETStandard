@@ -41,7 +41,6 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 #endif
 
-
 namespace Opc.Ua.Server
 {
     /// <summary>
@@ -622,11 +621,11 @@ namespace Opc.Ua.Server
                         {
                             RevocationFlag = X509RevocationFlag.EntireChain,
                             RevocationMode = X509RevocationMode.NoCheck,
-                            VerificationFlags
-                                = X509VerificationFlags.AllowUnknownCertificateAuthority |
-                                  X509VerificationFlags.IgnoreCertificateAuthorityRevocationUnknown |
-                                  X509VerificationFlags.IgnoreEndRevocationUnknown |
-                                  X509VerificationFlags.IgnoreRootRevocationUnknown,
+                            VerificationFlags =
+                                X509VerificationFlags.AllowUnknownCertificateAuthority |
+                                X509VerificationFlags.IgnoreCertificateAuthorityRevocationUnknown |
+                                X509VerificationFlags.IgnoreEndRevocationUnknown |
+                                X509VerificationFlags.IgnoreRootRevocationUnknown,
 #if NET5_0_OR_GREATER
                             DisableCertificateDownloads = true,
 #endif
@@ -923,12 +922,11 @@ namespace Opc.Ua.Server
                         updateCertificate.CertificateWithPrivateKey.Dispose();
                         updateCertificate.CertificateWithPrivateKey = certOnly;
                         // update certificate identifier with new certificate
-                        using (Certificate _ = await existingCertIdentifier.FindAsync(
+                        using Certificate _ = await existingCertIdentifier.FindAsync(
                             m_configuration.ApplicationUri,
                             Server.Telemetry,
                             ct)
-                            .ConfigureAwait(false))
-                        { }
+                            .ConfigureAwait(false);
                     }
 
                     ICertificateStore issuerStore = certificateGroup.IssuerStore.OpenStore(Server.Telemetry);

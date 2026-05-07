@@ -216,7 +216,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         [Test]
         public void ToInt32MaxInt()
         {
-            Assert.That(Utils.ToInt32((uint)int.MaxValue), Is.EqualTo(int.MaxValue));
+            Assert.That(Utils.ToInt32(int.MaxValue), Is.EqualTo(int.MaxValue));
         }
 
         [Test]

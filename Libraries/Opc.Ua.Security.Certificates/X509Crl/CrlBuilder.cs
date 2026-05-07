@@ -272,6 +272,7 @@ namespace Opc.Ua.Security.Certificates
         /// Create the CRL with signature for RSA.
         /// </summary>
         /// <returns>The signed CRL.</returns>
+        /// <exception cref="CryptographicException"></exception>
         public IX509CRL CreateForRSA(Certificate issuerCertificate)
         {
             using RSA rsa = issuerCertificate.GetRSAPrivateKey()
@@ -284,6 +285,7 @@ namespace Opc.Ua.Security.Certificates
         /// Create the CRL with signature for ECDsa.
         /// </summary>
         /// <returns>The signed CRL.</returns>
+        /// <exception cref="CryptographicException"></exception>
         public IX509CRL CreateForECDsa(Certificate issuerCertificate)
         {
             using ECDsa ecdsa = issuerCertificate.GetECDsaPrivateKey()

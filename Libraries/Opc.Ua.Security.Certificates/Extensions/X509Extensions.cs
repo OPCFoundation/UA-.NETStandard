@@ -233,6 +233,7 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// Write an extension object as ASN.1.
         /// </summary>
+        /// <exception cref="CryptographicException"></exception>
         public static void WriteExtension(this AsnWriter writer, X509Extension extension)
         {
             Asn1Tag etag = Asn1Tag.Sequence;

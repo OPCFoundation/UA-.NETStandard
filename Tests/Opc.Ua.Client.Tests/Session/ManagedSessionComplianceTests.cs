@@ -203,10 +203,12 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             Assert.That(otherInvocations is 0 or 1);
             // If the second handler did run, sender should be the
             // managed session (event forwarding preserves identity).
+#pragma warning disable CA1508 // Avoid dead conditional code
             if (otherInvocations == 1)
             {
                 Assert.That(otherSender, Is.SameAs(m_managedSession));
             }
+#pragma warning restore CA1508 // Avoid dead conditional code
         }
 
         [Test]
@@ -482,7 +484,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             return new TestCaseData(
                 invoke,
                 typeof(TRequest),
-                (Func<TResponse>)(() => new TResponse()))
+                (() => new TResponse()))
                 .SetName(name + "DelegatesToInnerSession");
         }
 
@@ -514,7 +516,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         public async Task ReadAsyncPassesCancellationTokenThrough()
         {
             using var cts = new CancellationTokenSource();
-            cts.Cancel();
+            await cts.CancelAsync().ConfigureAwait(false);
 
             m_innerSession.Channel
                 .Setup(c => c.SendRequestAsync(

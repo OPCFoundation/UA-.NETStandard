@@ -142,7 +142,6 @@ namespace Opc.Ua.Gds.Server
 
                 m_logger.LogInformation("Database Initialized!");
             }
-
         }
 
         /// <summary>
@@ -229,7 +228,8 @@ namespace Opc.Ua.Gds.Server
 
                 if (certificateGroup != null)
                 {
-                    using Certificate x509 = Certificate.FromRawData(certificate);                    try
+                    using Certificate x509 = Certificate.FromRawData(certificate);
+                    try
                     {
                         Security.Certificates.X509CRL crl = await certificateGroup
                             .RevokeCertificateAsync(x509)
@@ -1511,14 +1511,12 @@ namespace Opc.Ua.Gds.Server
                     try
                     {
                         string[] defaultDomainNames = GetDefaultDomainNames(application);
-                        certificate = certificateGroup
-                            .SigningRequestAsync(
-                                application,
-                                certificateTypeNodeId,
-                                defaultDomainNames,
-                                certificateRequest,
-                                cancellationToken)
-                            .Result;
+                        certificate = await certificateGroup.SigningRequestAsync(
+                            application,
+                            certificateTypeNodeId,
+                            defaultDomainNames,
+                            certificateRequest,
+                            cancellationToken).ConfigureAwait(false);
                     }
                     catch (Exception e)
                     {
@@ -1537,16 +1535,14 @@ namespace Opc.Ua.Gds.Server
                     X509Certificate2KeyPair newKeyPair = null;
                     try
                     {
-                        newKeyPair = certificateGroup
-                            .NewKeyPairRequestAsync(
-                                application,
-                                certificateTypeNodeId,
-                                subjectName,
-                                domainNames,
-                                privateKeyFormat,
-                                privateKeyPassword.ToArray(),
-                                cancellationToken)
-                            .Result;
+                        newKeyPair = await certificateGroup.NewKeyPairRequestAsync(
+                            application,
+                            certificateTypeNodeId,
+                            subjectName,
+                            domainNames,
+                            privateKeyFormat,
+                            privateKeyPassword.ToArray(),
+                            cancellationToken).ConfigureAwait(false);
                     }
                     catch (Exception e)
                     {

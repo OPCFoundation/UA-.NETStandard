@@ -33,7 +33,6 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Tests;
 
-
 namespace Opc.Ua.Core.Tests
 {
     [TestFixture]

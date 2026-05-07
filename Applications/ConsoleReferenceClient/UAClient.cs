@@ -36,7 +36,6 @@ using Opc.Ua;
 using Opc.Ua.Client;
 using Opc.Ua.Security.Certificates;
 
-
 namespace Quickstarts
 {
     /// <summary>

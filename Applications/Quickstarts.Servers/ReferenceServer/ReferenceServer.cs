@@ -37,7 +37,6 @@ using Opc.Ua.Security.Certificates;
 using Opc.Ua.Server;
 using Opc.Ua.Server.UserDatabase;
 
-
 namespace Quickstarts.ReferenceServer
 {
     /// <summary>
@@ -409,7 +408,7 @@ namespace Quickstarts.ReferenceServer
         /// Validates the password for a username token.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        private IUserIdentity VerifyPassword(UserNameIdentityTokenHandler userTokenHandler)
+        private RoleBasedIdentity VerifyPassword(UserNameIdentityTokenHandler userTokenHandler)
         {
             string userName = userTokenHandler.UserName;
             byte[] password = userTokenHandler.DecryptedPassword;
@@ -584,7 +583,7 @@ namespace Quickstarts.ReferenceServer
             }
         }
 
-        private ICertificateValidatorEx m_userCertificateValidator;
+        private CertificateManager m_userCertificateValidator;
         private readonly LinqUserDatabase m_userDatabase;
     }
 }

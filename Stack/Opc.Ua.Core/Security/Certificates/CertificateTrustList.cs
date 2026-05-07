@@ -80,7 +80,7 @@ namespace Opc.Ua
             ITelemetryContext telemetry,
             CancellationToken ct = default)
         {
-            var collection = new CertificateCollection();
+            CertificateCollection? collection = null;
 
             if (!string.IsNullOrEmpty(StorePath))
             {
@@ -103,6 +103,8 @@ namespace Opc.Ua
                     store?.Close();
                 }
             }
+
+            collection ??= [];
 
             for (int i = 0; i < TrustedCertificates.Count; i++)
             {

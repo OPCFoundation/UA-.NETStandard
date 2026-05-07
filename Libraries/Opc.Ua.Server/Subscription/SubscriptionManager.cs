@@ -538,14 +538,11 @@ namespace Opc.Ua.Server
                         }
                     }
                     // mark the subscriptions as abandoned.
-                    else
+                    else if (m_abandonedSubscriptions.TryAdd(subscription.Id, subscription))
                     {
-                        if (m_abandonedSubscriptions.TryAdd(subscription.Id, subscription))
-                        {
-                            m_logger.LogWarning(
-                                "Subscription ABANDONED, Id={SubscriptionId}.",
-                                subscription.Id);
-                        }
+                        m_logger.LogWarning(
+                            "Subscription ABANDONED, Id={SubscriptionId}.",
+                            subscription.Id);
                     }
                 }
             }

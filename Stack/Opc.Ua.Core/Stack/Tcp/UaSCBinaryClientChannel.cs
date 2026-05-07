@@ -637,9 +637,7 @@ namespace Opc.Ua.Bindings
             uint channelId;
 
             Certificate? serverCertificate = null;
-
             uint requestId;
-
             uint sequenceNumber;
             try
             {

@@ -61,13 +61,13 @@ namespace Opc.Ua.Mcp.Tools
                 ["securityMode"] = s.Endpoint.SecurityMode.ToString(),
                 ["authType"] = s.AuthType,
                 ["isConnected"] = s.IsConnected,
-                ["connectedAt"] = s.ConnectedAt.ToString("o", CultureInfo.InvariantCulture),
+                ["connectedAt"] = s.ConnectedAt.ToString("o", CultureInfo.InvariantCulture)
             }).ToList();
 
             return OpcUaJsonHelper.Serialize(new Dictionary<string, object?>
             {
                 ["sessionCount"] = result.Count,
-                ["sessions"] = result,
+                ["sessions"] = result
             });
         }
 
@@ -88,7 +88,7 @@ namespace Opc.Ua.Mcp.Tools
                 return OpcUaJsonHelper.Serialize(new Dictionary<string, object?>
                 {
                     ["error"] = true,
-                    ["message"] = $"Session '{name}' not found.",
+                    ["message"] = $"Session '{name}' not found."
                 });
             }
 
@@ -110,7 +110,7 @@ namespace Opc.Ua.Mcp.Tools
                         ["uri"] = uri
                     })
                     .ToList(),
-                ["serverUris"] = info.Session.ServerUris?.ToArray(),
+                ["serverUris"] = info.Session.ServerUris?.ToArray()
             });
         }
 
@@ -130,7 +130,7 @@ namespace Opc.Ua.Mcp.Tools
                 return OpcUaJsonHelper.Serialize(new Dictionary<string, object?>
                 {
                     ["error"] = true,
-                    ["message"] = $"Session '{name}' not found.",
+                    ["message"] = $"Session '{name}' not found."
                 });
             }
 

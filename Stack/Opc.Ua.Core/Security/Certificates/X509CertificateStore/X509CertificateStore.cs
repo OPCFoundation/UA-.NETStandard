@@ -145,7 +145,7 @@ namespace Opc.Ua
         {
             using var store = new X509Store(m_storeName, m_storeLocation);
             store.Open(OpenFlags.ReadOnly);
-            return Task.FromResult(CertificateCollection.From(new X509Certificate2Collection(store.Certificates)));
+            return Task.FromResult(CertificateCollection.From([.. store.Certificates]));
         }
 
         /// <inheritdoc/>
@@ -190,7 +190,7 @@ namespace Opc.Ua
                             byte[] pfx = certificate.Export(X509ContentType.Pfx);
                             using X509Certificate2 persistedX509 = X509CertificateLoader.LoadPkcs12(
                                 pfx,
-                                (string?)null,
+                                null,
                                 X509KeyStorageFlags.PersistKeySet);
                             store.Add(persistedX509);
                         }
@@ -251,19 +251,19 @@ namespace Opc.Ua
             using var store = new X509Store(m_storeName, m_storeLocation);
             store.Open(OpenFlags.ReadOnly);
 
-            var collection = new CertificateCollection();
+            using var collection = new CertificateCollection();
 
             foreach (X509Certificate2 certificate in store.Certificates)
             {
                 if (certificate.Thumbprint == thumbprint)
                 {
-                    Certificate cert = Certificate.From(certificate);
+                    var cert = Certificate.From(certificate);
                     collection.Add(cert);
                     cert.Dispose();
                 }
             }
 
-            return Task.FromResult(collection);
+            return Task.FromResult(collection.AddRef());
         }
 
         /// <inheritdoc/>

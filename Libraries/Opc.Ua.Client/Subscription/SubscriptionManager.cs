@@ -166,7 +166,7 @@ namespace Opc.Ua.Client.Subscriptions
         {
             try
             {
-                m_cts.Cancel();
+                await m_cts.CancelAsync().ConfigureAwait(false);
                 m_publishControl.Set();
                 await m_publishController.ConfigureAwait(false);
 

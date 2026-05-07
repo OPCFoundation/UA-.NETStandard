@@ -49,7 +49,7 @@ namespace Opc.Ua.SourceGeneration
         /// Sentinel representing "no version declared". Compares as less than
         /// every parseable version; two missing versions compare equal.
         /// </summary>
-        public static readonly SemVer Unspecified = default;
+        public static readonly SemVer Unspecified;
 
         private static readonly char[] s_prereleaseSeparators = ['-', '+'];
 
@@ -142,6 +142,7 @@ namespace Opc.Ua.SourceGeneration
         }
 
         /// <summary>Parses or throws.</summary>
+        /// <exception cref="FormatException"></exception>
         public static SemVer Parse(string text)
         {
             if (!TryParse(text, out SemVer v))

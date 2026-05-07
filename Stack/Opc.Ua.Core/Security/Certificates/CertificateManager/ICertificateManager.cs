@@ -40,7 +40,5 @@ namespace Opc.Ua
         ICertificateTrustListManager,
         ICertificateValidatorEx,
         ICertificateLifecycle,
-        ITrustListFileAccess
-    {
-    }
+        ITrustListFileAccess;
 }

@@ -102,11 +102,13 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
 
             var builder = new ManagedSessionBuilder(CreateConfig(telemetry), telemetry);
 
+#pragma warning disable IDE0004 // Remove Unnecessary Cast
             Assert.That(() => builder.UseEndpoint((ConfiguredEndpoint)null!),
                 Throws.ArgumentNullException);
+#pragma warning restore IDE0004 // Remove Unnecessary Cast
             Assert.That(() => builder.UseEndpoint((string)null!),
                 Throws.ArgumentNullException);
-            Assert.That(() => builder.WithSessionName(""),
+            Assert.That(() => builder.WithSessionName(string.Empty),
                 Throws.ArgumentException);
             Assert.That(() => builder.WithSessionTimeout(TimeSpan.Zero),
                 Throws.InstanceOf<ArgumentOutOfRangeException>());

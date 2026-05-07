@@ -434,6 +434,7 @@ namespace Opc.Ua
         /// Verifies a signature.
         /// </summary>
         /// <exception cref="NotSupportedException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
         public static bool Verify(
             ArraySegment<byte> dataToVerify,
             byte[] signature,
@@ -512,6 +513,7 @@ namespace Opc.Ua
         /// padding (e.g., HMAC) and must be considered for block alignment.</param>
         /// <returns>Output: buffer with unencrypted data starting at 0; plaintext data
         /// starting at offset; padding added.</returns>
+        /// <exception cref="ArgumentNullException"></exception>
         private static ArraySegment<byte> AddPadding(ArraySegment<byte> data, int blockSize, int trailingBytes = 0)
         {
             byte[] dataArray = data.Array ?? throw new ArgumentNullException(nameof(data), "Data array must not be null.");
@@ -548,9 +550,11 @@ namespace Opc.Ua
         /// <returns>Output: buffer with unencrypted data starting at 0; plaintext starting
         /// at offset; padding excluded.</returns>
         /// <exception cref="CryptographicException"></exception>
+        /// <exception cref="ArgumentNullException"></exception>
         private static ArraySegment<byte> RemovePadding(ArraySegment<byte> data, int blockSize)
         {
-            byte[] dataArray = data.Array ?? throw new ArgumentNullException(nameof(data), "Data array must not be null.");
+            byte[] dataArray = data.Array ??
+                throw new ArgumentNullException(nameof(data), "Data array must not be null.");
 
             int paddingSize = dataArray[data.Offset + data.Count - 1];
             int paddingByteSize = 1;
@@ -589,6 +593,7 @@ namespace Opc.Ua
         /// </summary>
         /// <exception cref="NotSupportedException"></exception>
         /// <exception cref="CryptographicException"></exception>
+        /// <exception cref="ArgumentNullException"></exception>
         public static ArraySegment<byte> SymmetricEncryptAndSign(
             ArraySegment<byte> data,
             SecurityPolicyInfo securityPolicy,
@@ -961,6 +966,7 @@ namespace Opc.Ua
         /// </summary>
         /// <exception cref="CryptographicException"></exception>
         /// <exception cref="NotSupportedException"></exception>
+        /// <exception cref="ArgumentNullException"></exception>
         public static ArraySegment<byte> SymmetricDecryptAndVerify(
            ArraySegment<byte> data,
            SecurityPolicyInfo securityPolicy,

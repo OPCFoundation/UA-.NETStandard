@@ -49,7 +49,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
     [Parallelizable]
     public class ComplexTypesEncoderTests : ComplexTypesCommon
     {
-        private static readonly JsonSerializerOptions s_ignoreCyclesOptions = new JsonSerializerOptions
+        private static readonly JsonSerializerOptions s_ignoreCyclesOptions = new()
         {
             ReferenceHandler = ReferenceHandler.IgnoreCycles
         };

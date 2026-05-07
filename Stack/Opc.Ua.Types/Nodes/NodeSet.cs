@@ -933,7 +933,7 @@ namespace Opc.Ua
         /// <returns>A NodeId that references those tables.</returns>
         /// <exception cref="ArgumentNullException">
         /// <paramref name="targetNamespaceUris"/> is <c>null</c>.</exception>
-        private ExtensionObject Translate(
+        private static ExtensionObject Translate(
             ExtensionObject extensionObject,
             NamespaceTable targetNamespaceUris,
             NamespaceTable sourceNamespaceUris)

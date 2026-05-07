@@ -49,7 +49,6 @@ using System.Collections.Generic;
 using System.Security.Cryptography;
 #endif
 
-
 namespace Opc.Ua.Bindings
 {
     /// <summary>
@@ -294,11 +293,12 @@ namespace Opc.Ua.Bindings
 #endif
         }
 
-        // CA1859: The IWebHostBuilder interface cannot be narrowed to WebHostBuilder here because
-        // on NET8_0_OR_GREATER this method is called from HostBuilder.ConfigureWebHostDefaults()
-        // which passes an IWebHostBuilder, not WebHostBuilder.
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1859:Use concrete types when possible for improved performance",
-            Justification = "IWebHostBuilder is required for cross-framework compatibility; on NET8_0_OR_GREATER ConfigureWebHostDefaults passes IWebHostBuilder.")]
+        /// <summary>
+        /// CA1859: The IWebHostBuilder interface cannot be narrowed to WebHostBuilder here because
+        /// on NET8_0_OR_GREATER this method is called from HostBuilder.ConfigureWebHostDefaults()
+        /// which passes an IWebHostBuilder, not WebHostBuilder.
+        /// </summary>
+        /// <param name="webHostBuilder"></param>
         private void ConfigureWebHost(IWebHostBuilder webHostBuilder)
         {
             // prepare the server TLS certificate. The provider returns a

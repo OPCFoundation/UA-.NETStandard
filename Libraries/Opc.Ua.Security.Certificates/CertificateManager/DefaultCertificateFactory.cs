@@ -137,7 +137,7 @@ namespace Opc.Ua.Security.Certificates
                     rsaPublicKey,
                     Oids.GetHashAlgorithmName(
                         certificate.SignatureAlgorithm.Value
-                            ?? throw new CryptographicException("Signature algorithm OID value is null.")),
+                        ?? throw new CryptographicException("Signature algorithm OID value is null.")),
                     RSASignaturePadding.Pkcs1);
             }
             else
@@ -150,13 +150,13 @@ namespace Opc.Ua.Security.Certificates
                     ecDsaPublicKey,
                     Oids.GetHashAlgorithmName(
                         certificate.SignatureAlgorithm.Value
-                            ?? throw new CryptographicException("Signature algorithm OID value is null.")));
+                        ?? throw new CryptographicException("Signature algorithm OID value is null.")));
             }
 
             // Collect domain names from the existing certificate.
             List<string> domainNameList = domainNames != null
-                ? new List<string>(domainNames)
-                : new List<string>();
+                ? [.. domainNames]
+                : [];
 
             X509SubjectAltNameExtension? alternateName =
                 certificate.FindExtension<X509SubjectAltNameExtension>();
@@ -185,7 +185,7 @@ namespace Opc.Ua.Security.Certificates
 
             // Collect application URIs from the existing certificate.
             IReadOnlyList<string> applicationUris = alternateName?.Uris
-                ?? (IReadOnlyList<string>)Array.Empty<string>();
+                ?? Array.Empty<string>();
 
             // Subject Alternative Name
             var subjectAltName = new X509SubjectAltNameExtension(

@@ -90,16 +90,16 @@ namespace Opc.Ua
     public sealed class TrustListData : IDisposable
     {
         /// <summary>Trusted certificates.</summary>
-        public CertificateCollection TrustedCertificates { get; set; } = new();
+        public CertificateCollection TrustedCertificates { get; set; } = [];
 
         /// <summary>Trusted CRLs.</summary>
-        public X509CRLCollection TrustedCrls { get; set; } = new();
+        public X509CRLCollection TrustedCrls { get; set; } = [];
 
         /// <summary>Issuer certificates.</summary>
-        public CertificateCollection IssuerCertificates { get; set; } = new();
+        public CertificateCollection IssuerCertificates { get; set; } = [];
 
         /// <summary>Issuer CRLs.</summary>
-        public X509CRLCollection IssuerCrls { get; set; } = new();
+        public X509CRLCollection IssuerCrls { get; set; } = [];
 
         /// <inheritdoc/>
         public void Dispose()

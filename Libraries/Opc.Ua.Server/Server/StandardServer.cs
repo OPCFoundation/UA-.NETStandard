@@ -39,7 +39,6 @@ using Microsoft.Extensions.Logging;
 using Opc.Ua.Bindings;
 using Opc.Ua.Security.Certificates;
 
-
 namespace Opc.Ua.Server
 {
     /// <inheritdoc/>
@@ -3768,9 +3767,13 @@ namespace Opc.Ua.Server
                 }
             }
 
-            public void OnError(Exception error) { }
+            public void OnError(Exception error)
+            {
+            }
 
-            public void OnCompleted() { }
+            public void OnCompleted()
+            {
+            }
         }
     }
 }

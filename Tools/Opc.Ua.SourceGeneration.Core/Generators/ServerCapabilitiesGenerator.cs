@@ -163,7 +163,7 @@ namespace Opc.Ua.SourceGeneration
                     continue;
                 }
 
-                int index = line.IndexOf(',');
+                int index = line.IndexOf(',', StringComparison.Ordinal);
                 if (index < 0)
                 {
                     continue;
@@ -212,7 +212,7 @@ namespace Opc.Ua.SourceGeneration
             string text = description.Trim();
 
             // first sentence wins, otherwise the first 80 chars.
-            int dot = text.IndexOf('.');
+            int dot = text.IndexOf('.', StringComparison.Ordinal);
             if (dot > 0)
             {
                 text = text.Substring(0, dot + 1);
@@ -231,7 +231,9 @@ namespace Opc.Ua.SourceGeneration
             {
                 return value ?? string.Empty;
             }
-            return value.Replace("\\", "\\\\").Replace("\"", "\\\"");
+            return value
+                .Replace("\\", "\\\\", StringComparison.Ordinal)
+                .Replace("\"", "\\\"", StringComparison.Ordinal);
         }
 
         private static string EscapeXml(string value)
@@ -241,9 +243,9 @@ namespace Opc.Ua.SourceGeneration
                 return value ?? string.Empty;
             }
             return value
-                .Replace("&", "&amp;")
-                .Replace("<", "&lt;")
-                .Replace(">", "&gt;");
+                .Replace("&", "&amp;", StringComparison.Ordinal)
+                .Replace("<", "&lt;", StringComparison.Ordinal)
+                .Replace(">", "&gt;", StringComparison.Ordinal);
         }
 
         /// <summary>

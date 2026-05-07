@@ -48,7 +48,10 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public IDisposable Subscribe(IObserver<CertificateChangeEvent> observer)
         {
-            lock (m_lock) { m_observers.Add(observer); }
+            lock (m_lock)
+            {
+                m_observers.Add(observer);
+            }
             return new Unsubscriber(this, observer);
         }
 
@@ -58,7 +61,10 @@ namespace Opc.Ua
         public void Notify(CertificateChangeEvent evt)
         {
             IObserver<CertificateChangeEvent>[] snapshot;
-            lock (m_lock) { snapshot = [.. m_observers]; }
+            lock (m_lock)
+            {
+                snapshot = [.. m_observers];
+            }
             foreach (IObserver<CertificateChangeEvent> observer in snapshot)
             {
                 observer.OnNext(evt);
@@ -71,7 +77,11 @@ namespace Opc.Ua
         public void Complete()
         {
             IObserver<CertificateChangeEvent>[] snapshot;
-            lock (m_lock) { snapshot = [.. m_observers]; m_observers.Clear(); }
+            lock (m_lock)
+            {
+                snapshot = [.. m_observers];
+                m_observers.Clear();
+            }
             foreach (IObserver<CertificateChangeEvent> observer in snapshot)
             {
                 observer.OnCompleted();
@@ -84,7 +94,10 @@ namespace Opc.Ua
         {
             public void Dispose()
             {
-                lock (subject.m_lock) { subject.m_observers.Remove(observer); }
+                lock (subject.m_lock)
+                {
+                    subject.m_observers.Remove(observer);
+                }
             }
         }
     }

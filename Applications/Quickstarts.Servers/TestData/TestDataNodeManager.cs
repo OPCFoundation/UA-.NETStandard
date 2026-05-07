@@ -522,14 +522,14 @@ namespace TestData
                 // node id must match previous node id.
                 if (reader.VariableId != nodeToRead.NodeId)
                 {
-                    reader?.Dispose();
+                    reader.Dispose();
                     return StatusCodes.BadContinuationPointInvalid;
                 }
 
                 // check if releasing continuation points.
                 if (releaseContinuationPoints)
                 {
-                    reader?.Dispose();
+                    reader.Dispose();
                     return ServiceResult.Good;
                 }
             }

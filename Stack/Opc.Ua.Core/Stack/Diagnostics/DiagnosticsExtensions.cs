@@ -27,13 +27,13 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using Microsoft.Extensions.Diagnostics.Metrics;
+using Microsoft.Extensions.Logging;
+using Opc.Ua;
+using System;
+
 namespace Microsoft.Extensions.DependencyInjection
 {
-    using Microsoft.Extensions.Diagnostics.Metrics;
-    using Microsoft.Extensions.Logging;
-    using Opc.Ua;
-    using System;
-
     /// <summary>
     /// Service collection extensions
     /// </summary>

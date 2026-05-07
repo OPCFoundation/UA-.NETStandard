@@ -38,7 +38,6 @@ using Opc.Ua.Configuration;
 using Opc.Ua.Gds.Client;
 using Opc.Ua.Security.Certificates;
 
-
 namespace Opc.Ua.Gds.Tests
 {
     public sealed class GlobalDiscoveryTestClient : IDisposable
@@ -267,7 +266,7 @@ namespace Opc.Ua.Gds.Tests
                 }
                 finally
                 {
-                    gdsClient.Dispose();
+                    await gdsClient.DisposeAsync().ConfigureAwait(false);
                 }
             }
         }
@@ -298,7 +297,7 @@ namespace Opc.Ua.Gds.Tests
         private async Task<(ByteString certificate, ByteString privateKey)> FinishKeyPairAsync(
             ApplicationTestData ownApplicationTestData)
         {
-            GDSClient.ConnectAsync().GetAwaiter().GetResult();
+            await GDSClient.ConnectAsync().ConfigureAwait(false);
             //get cert
             (ByteString certificate, ByteString privateKey, _) = await GDSClient.FinishRequestAsync(
                 ownApplicationTestData.ApplicationRecord.ApplicationId,

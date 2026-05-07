@@ -39,7 +39,6 @@ using Microsoft.Extensions.Logging;
 using System.Security.Cryptography;
 using Opc.Ua.Security.Certificates;
 
-
 namespace Opc.Ua.Configuration
 {
     /// <inheritdoc/>
@@ -72,8 +71,8 @@ namespace Opc.Ua.Configuration
             }
 
             CertificateManager localManager = CertificateManager;
-            CertificateManager configManager = ApplicationConfiguration?.CertificateManager
-                as CertificateManager;
+            CertificateManager configManager =
+                ApplicationConfiguration?.CertificateManager as CertificateManager;
             localManager?.Dispose();
             if (configManager != null && !ReferenceEquals(configManager, localManager))
             {
@@ -646,6 +645,7 @@ namespace Opc.Ua.Configuration
         /// <summary>
         /// Creates an application instance certificate if one does not already exist.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private async Task<bool> CheckApplicationInstanceCertificateAsync(
             ApplicationConfiguration configuration,
             CertificateIdentifier id,

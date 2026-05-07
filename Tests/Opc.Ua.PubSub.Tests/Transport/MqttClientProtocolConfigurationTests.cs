@@ -46,7 +46,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
         {
             var config = new MqttClientProtocolConfiguration();
 
-            Assert.That(config.ConnectionProperties, Is.EqualTo(default(ArrayOf<KeyValuePair>)));
+            Assert.That(config.ConnectionProperties, Is.Default);
         }
 
         [Test]
@@ -68,7 +68,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 userName: userName,
                 password: password);
 
-            Assert.That(config.ConnectionProperties, Is.Not.EqualTo(default(ArrayOf<KeyValuePair>)));
+            Assert.That(config.ConnectionProperties, Is.Not.Default);
         }
 
         [Test]
@@ -89,7 +89,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             var config = new MqttClientProtocolConfiguration(
                 azureClientId: "my-azure-client");
 
-            Assert.That(config.ConnectionProperties, Is.Not.EqualTo(default(ArrayOf<KeyValuePair>)));
+            Assert.That(config.ConnectionProperties, Is.Not.Default);
         }
 
         [Test]
@@ -97,7 +97,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
         {
             var config = new MqttClientProtocolConfiguration(cleanSession: false);
 
-            Assert.That(config.ConnectionProperties, Is.Not.EqualTo(default(ArrayOf<KeyValuePair>)));
+            Assert.That(config.ConnectionProperties, Is.Not.Default);
         }
 
         [Test]
@@ -106,7 +106,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             var config = new MqttClientProtocolConfiguration(
                 version: EnumMqttProtocolVersion.V500);
 
-            Assert.That(config.ConnectionProperties, Is.Not.EqualTo(default(ArrayOf<KeyValuePair>)));
+            Assert.That(config.ConnectionProperties, Is.Not.Default);
         }
 
         [Test]
@@ -117,7 +117,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
 
             var config = new MqttClientProtocolConfiguration(mqttTlsOptions: tlsOptions);
 
-            Assert.That(config.ConnectionProperties, Is.Not.EqualTo(default(ArrayOf<KeyValuePair>)));
+            Assert.That(config.ConnectionProperties, Is.Not.Default);
         }
 
         [Test]
@@ -147,7 +147,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             var roundTripped = new MqttClientProtocolConfiguration(
                 original.ConnectionProperties, logger);
 
-            Assert.That(roundTripped.ConnectionProperties, Is.Not.EqualTo(default(ArrayOf<KeyValuePair>)));
+            Assert.That(roundTripped.ConnectionProperties, Is.Not.Default);
         }
 
         [Test]
@@ -162,7 +162,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             var roundTripped = new MqttClientProtocolConfiguration(
                 original.ConnectionProperties, logger);
 
-            Assert.That(roundTripped.ConnectionProperties, Is.Not.EqualTo(default(ArrayOf<KeyValuePair>)));
+            Assert.That(roundTripped.ConnectionProperties, Is.Not.Default);
         }
 
         [Test]
@@ -175,17 +175,17 @@ namespace Opc.Ua.PubSub.Tests.Transport
             kvps += new KeyValuePair
             {
                 Key = QualifiedName.From("UserName"),
-                Value = ""
+                Value = string.Empty
             };
             kvps += new KeyValuePair
             {
                 Key = QualifiedName.From("Password"),
-                Value = ""
+                Value = string.Empty
             };
             kvps += new KeyValuePair
             {
                 Key = QualifiedName.From("AzureClientId"),
-                Value = ""
+                Value = string.Empty
             };
             kvps += new KeyValuePair
             {
@@ -200,7 +200,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
 
             var config = new MqttClientProtocolConfiguration(kvps, logger);
 
-            Assert.That(config.ConnectionProperties, Is.Not.EqualTo(default(ArrayOf<KeyValuePair>)));
+            Assert.That(config.ConnectionProperties, Is.Not.Default);
         }
 
         [Test]
@@ -215,7 +215,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             };
             config.ConnectionProperties = kvps;
 
-            Assert.That(config.ConnectionProperties, Is.Not.EqualTo(default(ArrayOf<KeyValuePair>)));
+            Assert.That(config.ConnectionProperties, Is.Not.Default);
         }
 
         [Test]
@@ -324,7 +324,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 password: null,
                 mqttTlsOptions: null);
 
-            Assert.That(config.ConnectionProperties, Is.Not.EqualTo(default(ArrayOf<KeyValuePair>)));
+            Assert.That(config.ConnectionProperties, Is.Not.Default);
         }
 
         [Test]
@@ -359,7 +359,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             var roundTripped = new MqttClientProtocolConfiguration(
                 original.ConnectionProperties, logger);
 
-            Assert.That(roundTripped.ConnectionProperties, Is.Not.EqualTo(default(ArrayOf<KeyValuePair>)));
+            Assert.That(roundTripped.ConnectionProperties, Is.Not.Default);
         }
     }
 }

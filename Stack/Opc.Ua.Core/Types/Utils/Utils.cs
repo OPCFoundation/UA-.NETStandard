@@ -1552,7 +1552,7 @@ namespace Opc.Ua
 
             var document = new XmlDocument();
 
-            if (!EqualityComparer<T>.Default.Equals(value, default(T)))
+            if (!EqualityComparer<T>.Default.Equals(value, default))
             {
                 using IDisposable scope = AmbientMessageContext.SetScopedContext(telemetry);
                 using var encoder = new XmlEncoder(AmbientMessageContext.CurrentContext);
@@ -1578,7 +1578,7 @@ namespace Opc.Ua
                         element.LocalName == elementName.Name &&
                         element.NamespaceURI == elementName.Namespace)
                     {
-                        if (EqualityComparer<T>.Default.Equals(value, default(T)))
+                        if (EqualityComparer<T>.Default.Equals(value, default))
                         {
                             xmlElements.RemoveAt(ii);
                             extensions = xmlElements.ToArrayOf();
@@ -1592,7 +1592,7 @@ namespace Opc.Ua
                 }
             }
 
-            if (!EqualityComparer<T>.Default.Equals(value, default(T)))
+            if (!EqualityComparer<T>.Default.Equals(value, default))
             {
                 xmlElements.Add(XmlElement.From(document.DocumentElement));
                 extensions = xmlElements.ToArrayOf();

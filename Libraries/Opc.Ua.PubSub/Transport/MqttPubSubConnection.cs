@@ -67,7 +67,10 @@ namespace Opc.Ua.PubSub.Transport
         private MqttClientOptions m_subscriberMqttClientOptions;
         private readonly List<MqttMetadataPublisher> m_metaDataPublishers = [];
 
-        // Cancellation token source used to cancel the reconnect handler when the connection is stopped.
+        /// <summary>
+        /// Cancellation token source used to cancel the reconnect handler
+        /// when the connection is stopped.
+        /// </summary>
         private CancellationTokenSource m_stopCts;
 
         /// <summary>
@@ -200,6 +203,9 @@ namespace Opc.Ua.PubSub.Transport
             {
                 m_certificateManager?.Dispose();
                 m_certificateManager = null;
+
+                m_stopCts?.Dispose();
+                m_stopCts = null;
             }
             base.Dispose(disposing);
         }
@@ -546,7 +552,10 @@ namespace Opc.Ua.PubSub.Transport
         {
             // Cancel the reconnect handler before disconnecting so the disconnect event
             // does not attempt to reconnect after an intentional stop.
-            m_stopCts?.Cancel();
+            if (m_stopCts != null)
+            {
+                await m_stopCts.CancelAsync().ConfigureAwait(false);
+            }
 
             IMqttClient publisherMqttClient = m_publisherMqttClient;
             IMqttClient subscriberMqttClient = m_subscriberMqttClient;
@@ -954,6 +963,7 @@ namespace Opc.Ua.PubSub.Transport
         /// Validates the broker certificate.
         /// </summary>
         /// <param name="context">The context of the validation</param>
+        /// <exception cref="ServiceResultException"></exception>
         private bool ValidateBrokerCertificate(MqttClientCertificateValidationEventArgs context)
         {
             using Certificate brokerCertificate = Certificate.FromRawData(
@@ -969,10 +979,12 @@ namespace Opc.Ua.PubSub.Transport
 
                 if (m_certificateManager != null)
                 {
+#pragma warning disable CA2025 // Do not pass 'IDisposable' instances into unawaited tasks
                     CertificateValidationResult result = m_certificateManager
                         .ValidateAsync(brokerCertificate)
                         .GetAwaiter()
                         .GetResult();
+#pragma warning restore CA2025 // Do not pass 'IDisposable' instances into unawaited tasks
                     if (!result.IsValid && !IsAcceptableValidationFailure(result))
                     {
                         throw new ServiceResultException(result.StatusCode);
@@ -1032,8 +1044,8 @@ namespace Opc.Ua.PubSub.Transport
             bool ignoreChain = m_mqttClientTlsOptions?.IgnoreCertificateChainErrors ?? false;
             bool allowUntrusted = m_mqttClientTlsOptions?.AllowUntrustedCertificates ?? false;
 
-            if (ignoreRevocation && (
-                    code == StatusCodes.BadCertificateRevocationUnknown ||
+            if (ignoreRevocation &&
+                (code == StatusCodes.BadCertificateRevocationUnknown ||
                     code == StatusCodes.BadCertificateIssuerRevocationUnknown ||
                     code == StatusCodes.BadCertificateRevoked ||
                     code == StatusCodes.BadCertificateIssuerRevoked))

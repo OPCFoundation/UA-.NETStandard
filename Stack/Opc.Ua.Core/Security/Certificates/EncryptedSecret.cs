@@ -31,8 +31,11 @@ namespace Opc.Ua
     {
         private static readonly TimeSpan s_rsaEncryptedSecretMaxClockSkew = TimeSpan.FromMinutes(5);
         private static readonly TimeSpan s_rsaEncryptedSecretMaxTokenAge = TimeSpan.FromHours(1);
-        // ECC encrypted secrets use the same one-hour age window as RSA encrypted secrets
-        // to preserve consistent token replay tolerance across both encryption formats.
+
+        /// <summary>
+        /// ECC encrypted secrets use the same one-hour age window as RSA encrypted secrets
+        /// to preserve consistent token replay tolerance across both encryption formats.
+        /// </summary>
         private static readonly TimeSpan s_eccEncryptedSecretMaxTokenAge = TimeSpan.FromHours(1);
 
         /// <summary>
@@ -160,6 +163,7 @@ namespace Opc.Ua
         /// <summary>
         /// Creates the encrypting key and initialization vector (IV) for Elliptic Curve Cryptography (ECC) encryption or decryption.
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
         private static void CreateKeysForEcc(
             SecurityPolicyInfo securityPolicy,
             Nonce localNonce,
@@ -374,7 +378,8 @@ namespace Opc.Ua
             byte[] signature = CryptoUtils.Sign(
                 dataToSign,
                 SenderCertificate,
-                SecurityPolicy.AsymmetricSignatureAlgorithm) ?? throw new ServiceResultException(StatusCodes.BadSecurityChecksFailed, "Failed to sign data.");
+                SecurityPolicy.AsymmetricSignatureAlgorithm) ??
+                throw new ServiceResultException(StatusCodes.BadSecurityChecksFailed, "Failed to sign data.");
 
             Buffer.BlockCopy(
                 signature,
@@ -389,6 +394,7 @@ namespace Opc.Ua
         /// <summary>
         /// Encrypts a secret using RSAEncryptedSecret format.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public byte[] EncryptRsa(byte[] secret, byte[] nonce)
         {
             if (SecurityPolicy.EphemeralKeyAlgorithm != CertificateKeyAlgorithm.None)
@@ -419,7 +425,8 @@ namespace Opc.Ua
                     ReceiverCertificate,
                     SecurityPolicy.Uri,
                     keyData,
-                    logger).Data ?? throw new ServiceResultException(StatusCodes.BadSecurityChecksFailed, "Failed to encrypt key data.");
+                    logger).Data ??
+                    throw new ServiceResultException(StatusCodes.BadSecurityChecksFailed, "Failed to encrypt key data.");
 
                 using var payloadEncoder = new BinaryEncoder(Context);
                 payloadEncoder.WriteByteString(null, nonce ?? []);
@@ -446,7 +453,7 @@ namespace Opc.Ua
                 }
 
 #pragma warning disable CA5401 // Symmetric encryption uses non-default initialization vector
-                using Aes aes = Aes.Create();
+                using var aes = Aes.Create();
                 aes.Mode = CipherMode.CBC;
                 aes.Padding = PaddingMode.None;
                 aes.Key = encryptingKey;
@@ -472,9 +479,7 @@ namespace Opc.Ua
                 int lengthPosition = encoder.Position;
                 encoder.WriteUInt32(null, 0);
                 encoder.WriteString(null, SecurityPolicy.Uri);
-#pragma warning disable CA5350 // SHA1 is required by OPC UA RsaEncryptedSecret certificate hash field.
                 encoder.WriteByteString(null, ComputeSha1Hash(ReceiverCertificate.RawData));
-#pragma warning restore CA5350
                 encoder.WriteDateTime(null, DateTime.UtcNow);
                 encoder.WriteUInt16(null, (ushort)encryptedKeyData.Length);
 
@@ -547,6 +552,7 @@ namespace Opc.Ua
         /// <summary>
         /// Tries to decrypt an RSAEncryptedSecret payload.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public bool TryDecryptRsa(byte[] encodedSecret, byte[] expectedNonce, out byte[]? secret)
         {
             secret = null;
@@ -593,20 +599,19 @@ namespace Opc.Ua
             ByteString certificateHash = decoder.ReadByteString(null);
             if (certificateHash.Length > 0)
             {
-#pragma warning disable CA5350 // SHA1 is required by OPC UA RsaEncryptedSecret certificate hash field.
                 byte[] actualCertificateHash = ComputeSha1Hash(ReceiverCertificate.RawData);
-#pragma warning restore CA5350
                 if (!Utils.IsEqual(certificateHash.ToArray(), actualCertificateHash))
                 {
                     throw new ServiceResultException(StatusCodes.BadCertificateInvalid);
                 }
             }
 
-            DateTime signingTime = (DateTime)decoder.ReadDateTime(null);
+            var signingTime = (DateTime)decoder.ReadDateTime(null);
             DateTime now = DateTime.UtcNow;
             // Accept tokens from the recent past to account for transit/processing delays while
             // only allowing a small future clock skew to prevent replay with future-dated tokens.
-            if (signingTime < now - s_rsaEncryptedSecretMaxTokenAge || signingTime > now + s_rsaEncryptedSecretMaxClockSkew)
+            if (signingTime < now - s_rsaEncryptedSecretMaxTokenAge ||
+                signingTime > now + s_rsaEncryptedSecretMaxClockSkew)
             {
                 throw new ServiceResultException(StatusCodes.BadInvalidTimestamp);
             }
@@ -767,12 +772,12 @@ namespace Opc.Ua
                     Context.Telemetry);
                 return true;
             }
-            catch (Exception ex) when (
-                ex is ServiceResultException ||
-                ex is CryptographicException ||
-                ex is IOException ||
-                ex is FormatException ||
-                ex is ArgumentException)
+            catch (Exception ex) when (ex is
+                ServiceResultException or
+                CryptographicException or
+                IOException or
+                FormatException or
+                ArgumentException)
             {
                 return false;
             }
@@ -803,6 +808,7 @@ namespace Opc.Ua
         /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         /// <returns>The encrypted data.</returns>
         /// <exception cref="ServiceResultException"></exception>
+        /// <exception cref="ArgumentNullException"></exception>
         private ArraySegment<byte> VerifyHeaderForEcc(
             ArraySegment<byte> dataToDecrypt,
             DateTime earliestTime,
@@ -1035,6 +1041,7 @@ namespace Opc.Ua
         /// <summary>
         /// Computes the SHA-1 hash required by the OPC UA RSAEncryptedSecret certificate hash field.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="data"/> is <c>null</c>.</exception>
         private static byte[] ComputeSha1Hash(byte[] data)
         {
             if (data == null)
@@ -1042,8 +1049,14 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(data));
             }
 
+#pragma warning disable CA5350 // Do Not Use Weak Cryptographic Algorithms
+#if NET8_0_OR_GREATER
+            return SHA1.HashData(data);
+#else
             using SHA1 sha1 = SHA1.Create();
             return sha1.ComputeHash(data);
+#endif
+#pragma warning restore CA5350 // Do Not Use Weak Cryptographic Algorithms
         }
 
         private static void ZeroMemory(byte[]? buffer)

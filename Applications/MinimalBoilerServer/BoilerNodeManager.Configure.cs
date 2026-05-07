@@ -102,7 +102,7 @@ namespace Boiler
             // to plot without needing a background timer in this single
             // file. Each Read advances the wave; suitable for a quickstart.
             long t = Interlocked.Increment(ref m_drumLevelTicks);
-            value = new Variant(50.0 + 10.0 * Math.Sin(t * 0.05));
+            value = new Variant(50.0 + (10.0 * Math.Sin(t * 0.05)));
             statusCode = StatusCodes.Good;
             timestamp = DateTimeUtc.Now;
             return ServiceResult.Good;
@@ -118,7 +118,7 @@ namespace Boiler
             ref DateTimeUtc timestamp)
         {
             long t = Interlocked.Increment(ref m_pipeFlowTicks);
-            value = new Variant(100.0 + 25.0 * Math.Cos(t * 0.07));
+            value = new Variant(100.0 + (25.0 * Math.Cos(t * 0.07)));
             statusCode = StatusCodes.Good;
             timestamp = DateTimeUtc.Now;
             return ServiceResult.Good;

@@ -41,7 +41,6 @@ using Opc.Ua.Client;
 using Opc.Ua.Configuration;
 using Opc.Ua.Security.Certificates;
 
-
 namespace Quickstarts
 {
     /// <summary>
@@ -88,6 +87,7 @@ namespace Quickstarts
                 // Define the UA Client application
                 var passwordProvider = new CertificatePasswordProvider([]);
 
+#pragma warning disable CA2007
                 await using var application = new ApplicationInstance(m_telemetry)
                 {
                     ApplicationName = applicationName,
@@ -95,6 +95,7 @@ namespace Quickstarts
                     ConfigSectionName = configSectionName,
                     CertificatePasswordProvider = passwordProvider
                 };
+#pragma warning restore CA2007
 
                 // load the application configuration.
                 ApplicationConfiguration configuration = m_configuration = await application
@@ -488,8 +489,8 @@ namespace Quickstarts
         private SessionReconnectHandler m_reconnectHandler;
         private ApplicationConfiguration m_configuration;
         private SessionWrapper m_wrapper;
-        private ILogger m_logger;
-        private ITelemetryContext m_telemetry;
+        private readonly ILogger m_logger;
+        private readonly ITelemetryContext m_telemetry;
         private readonly ManualResetEvent m_quitEvent;
 
         private const string kServerUrl = "opc.tcp://localhost:62541";

@@ -140,7 +140,7 @@ namespace Opc.Ua.Mcp.Tools
                 {
                     ["error"] = true,
                     ["statusCode"] = ex.StatusCode.ToString(),
-                    ["message"] = ex.Message,
+                    ["message"] = ex.Message
                 });
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
@@ -151,7 +151,7 @@ namespace Opc.Ua.Mcp.Tools
                     ["statusCode"] = "BadUnexpectedError",
                     ["message"] = ex.Message,
                     ["exceptionType"] = ex.GetType().Name,
-                    ["innerMessage"] = ex.InnerException?.Message,
+                    ["innerMessage"] = ex.InnerException?.Message
                 });
             }
         }

@@ -51,13 +51,15 @@ namespace Opc.Ua.Security.Certificates.Tests
     {
         public const string Subject = "CN=Test Cert Subject, O=OPC Foundation";
 
-        // Note: these are intentionally backed by lazy fields so that
-        // referencing the type from another assembly (e.g.
-        // Opc.Ua.Core.Tests.Security.Certificates.CertificateValidatorTest
-        // accesses GetECCurveHashPairs) does not trigger Certificate
-        // allocations whose disposal depends on this fixture's
-        // OneTimeTearDown — that teardown only fires when this fixture
-        // is the one being executed.
+        /// <summary>
+        /// Note: these are intentionally backed by lazy fields so that
+        /// referencing the type from another assembly (e.g.
+        /// Opc.Ua.Core.Tests.Security.Certificates.CertificateValidatorTest
+        /// accesses GetECCurveHashPairs) does not trigger Certificate
+        /// allocations whose disposal depends on this fixture's
+        /// OneTimeTearDown — that teardown only fires when this fixture
+        /// is the one being executed.
+        /// </summary>
         private static readonly Lazy<CertificateAsset[]> s_certificateTestCases
             = new(() => [
                 .. AssetCollection<CertificateAsset>.CreateFromFiles(

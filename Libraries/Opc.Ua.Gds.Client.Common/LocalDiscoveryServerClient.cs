@@ -34,8 +34,7 @@ using System.Threading.Tasks;
 
 namespace Opc.Ua.Gds.Client
 {
-    public class LocalDiscoveryServerClient
-        : ILocalDiscoveryServerClient, IAsyncDisposable
+    public class LocalDiscoveryServerClient : ILocalDiscoveryServerClient
     {
         /// <summary>
         /// Create local discovery client
@@ -108,6 +107,7 @@ namespace Opc.Ua.Gds.Client
 
             return response.Servers;
         }
+
         public ValueTask<ArrayOf<EndpointDescription>> GetEndpointsAsync(string endpointUrl, CancellationToken ct = default)
         {
             return GetEndpointsAsync(endpointUrl, null, ct);
@@ -130,6 +130,7 @@ namespace Opc.Ua.Gds.Client
 
             return response.Endpoints;
         }
+
         public ValueTask<(ArrayOf<ServerOnNetwork>, DateTimeUtc lastCounterResetTime)> FindServersOnNetworkAsync(
             uint startingRecordId,
             uint maxRecordsToReturn,
@@ -163,6 +164,7 @@ namespace Opc.Ua.Gds.Client
 
             return (response.Servers, response.LastCounterResetTime);
         }
+
         protected virtual Task<DiscoveryClient> CreateClientAsync(
             string endpointUrl,
             string endpointTransportProfileUri,
@@ -194,23 +196,22 @@ namespace Opc.Ua.Gds.Client
         }
 
         /// <inheritdoc/>
-        public ValueTask DisposeAsync()
+        public async ValueTask DisposeAsync()
         {
             if (m_disposed)
             {
-                return default;
+                return;
             }
             m_disposed = true;
             try
             {
-                m_disposeCts.Cancel();
+                await m_disposeCts.CancelAsync().ConfigureAwait(false);
             }
             catch (ObjectDisposedException)
             {
             }
             m_disposeCts.Dispose();
             GC.SuppressFinalize(this);
-            return default;
         }
 
         private readonly CancellationTokenSource m_disposeCts = new();

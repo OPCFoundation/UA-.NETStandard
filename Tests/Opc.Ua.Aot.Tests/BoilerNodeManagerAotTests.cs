@@ -34,7 +34,6 @@ using Opc.Ua.Client;
 using Opc.Ua.Server;
 using TUnit.Core.Interfaces;
 
-
 namespace Opc.Ua.Aot.Tests
 {
     /// <summary>

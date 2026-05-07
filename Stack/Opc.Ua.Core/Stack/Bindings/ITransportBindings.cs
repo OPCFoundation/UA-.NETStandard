@@ -33,7 +33,6 @@ using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using Opc.Ua.Security.Certificates;
 
-
 namespace Opc.Ua.Bindings
 {
     /// <summary>

@@ -89,6 +89,5 @@ namespace Opc.Ua.SourceGeneration
             }
 
             """);
-
     }
 }

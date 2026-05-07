@@ -29,7 +29,6 @@
 
 using System.Collections.Generic;
 
-
 namespace Opc.Ua
 {
     /// <summary>

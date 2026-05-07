@@ -366,7 +366,7 @@ namespace Opc.Ua.Client.Tests
                 },
                 Throws.TypeOf<ServiceResultException>()
                     .With.Property("StatusCode")
-                    .EqualTo((StatusCode)StatusCodes.BadServerNotConnected));
+                    .EqualTo(StatusCodes.BadServerNotConnected));
         }
 
         private static ReferenceDescription CreateReferenceDescription(string name)

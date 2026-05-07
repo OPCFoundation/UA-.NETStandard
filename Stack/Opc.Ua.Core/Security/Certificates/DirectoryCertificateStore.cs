@@ -644,200 +644,202 @@ namespace Opc.Ua
                         else
                         {
                             certificatesInFile = CertificateCollection.From(
-                                new X509Certificate2Collection {
+                                [
                                     X509CertificateLoader.LoadCertificateFromFile(file.FullName)
-                                });
+                                ]);
                         }
 
                         using (certificatesInFile)
-                        foreach (Certificate cert in certificatesInFile)
                         {
-                            Certificate certificate = cert;
-
-                            if (!string.IsNullOrEmpty(thumbprint) &&
-                                !string.Equals(
-                                    certificate.Thumbprint,
-                                    thumbprint,
-                                    StringComparison.OrdinalIgnoreCase))
+                            foreach (Certificate cert in certificatesInFile)
                             {
-                                continue;
-                            }
+                                Certificate certificate = cert;
 
-                            if (!string.IsNullOrEmpty(subjectName) &&
-                                !X509Utils.CompareDistinguishedName(
-                                    subjectName,
-                                    certificate.Subject))
-                            {
-                                if (subjectName.Contains('=', StringComparison.Ordinal))
+                                if (!string.IsNullOrEmpty(thumbprint) &&
+                                    !string.Equals(
+                                        certificate.Thumbprint,
+                                        thumbprint,
+                                        StringComparison.OrdinalIgnoreCase))
                                 {
                                     continue;
                                 }
 
-                                if (!X509Utils
-                                        .ParseDistinguishedName(certificate.Subject)
-                                        .Any(s => s.Equals(
-                                            "CN=" + subjectName,
-                                            StringComparison.Ordinal)))
+                                if (!string.IsNullOrEmpty(subjectName) &&
+                                    !X509Utils.CompareDistinguishedName(
+                                        subjectName,
+                                        certificate.Subject))
+                                {
+                                    if (subjectName.Contains('=', StringComparison.Ordinal))
+                                    {
+                                        continue;
+                                    }
+
+                                    if (!X509Utils
+                                            .ParseDistinguishedName(certificate.Subject)
+                                            .Any(s => s.Equals(
+                                                "CN=" + subjectName,
+                                                StringComparison.Ordinal)))
+                                    {
+                                        continue;
+                                    }
+                                }
+
+                                if (!string.IsNullOrEmpty(applicationUri) &&
+                                    !X509Utils.CompareApplicationUriWithCertificate(
+                                        certificate, applicationUri))
                                 {
                                     continue;
                                 }
-                            }
 
-                            if (!string.IsNullOrEmpty(applicationUri) &&
-                                !X509Utils.CompareApplicationUriWithCertificate(
-                                    certificate, applicationUri))
-                            {
-                                continue;
-                            }
+                                if (!CertificateIdentifier.ValidateCertificateType(
+                                    certificate,
+                                    certificateType))
+                                {
+                                    continue;
+                                }
 
-                            if (!CertificateIdentifier.ValidateCertificateType(
-                                certificate,
-                                certificateType))
-                            {
-                                continue;
-                            }
+                                string fileRoot = file.Name[..^file.Extension.Length];
 
-                            string fileRoot = file.Name[..^file.Extension.Length];
+                                StringBuilder filePath = new StringBuilder()
+                                    .Append(privateKeySubdir.FullName)
+                                    .Append(Path.DirectorySeparatorChar)
+                                    .Append(fileRoot);
 
-                            StringBuilder filePath = new StringBuilder()
-                                .Append(privateKeySubdir.FullName)
-                                .Append(Path.DirectorySeparatorChar)
-                                .Append(fileRoot);
-
-                            X509KeyStorageFlags defaultStorageSet
-                                = X509KeyStorageFlags.DefaultKeySet;
+                                X509KeyStorageFlags defaultStorageSet
+                                    = X509KeyStorageFlags.DefaultKeySet;
 #if NETSTANDARD2_1_OR_GREATER || NET472_OR_GREATER || NET5_0_OR_GREATER
-                            if (!RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-                            {
-                                defaultStorageSet |= X509KeyStorageFlags.EphemeralKeySet;
-                            }
-#endif
-                            // By default keys are not persisted
-                            defaultStorageSet |= X509KeyStorageFlags.Exportable;
-
-                            X509KeyStorageFlags[] storageFlags =
-                            [
-                                defaultStorageSet | X509KeyStorageFlags.MachineKeySet,
-                                defaultStorageSet | X509KeyStorageFlags.UserKeySet
-                            ];
-
-                            var privateKeyFilePfx = new FileInfo(filePath + kPfxExtension);
-                            var privateKeyFilePem = new FileInfo(filePath + kPemExtension);
-                            if (privateKeyFilePfx.Exists)
-                            {
-                                certificateFound = true;
-                                foreach (X509KeyStorageFlags flag in storageFlags)
+                                if (!RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
                                 {
+                                    defaultStorageSet |= X509KeyStorageFlags.EphemeralKeySet;
+                                }
+#endif
+                                // By default keys are not persisted
+                                defaultStorageSet |= X509KeyStorageFlags.Exportable;
+
+                                X509KeyStorageFlags[] storageFlags =
+                                [
+                                    defaultStorageSet | X509KeyStorageFlags.MachineKeySet,
+                                defaultStorageSet | X509KeyStorageFlags.UserKeySet
+                                ];
+
+                                var privateKeyFilePfx = new FileInfo(filePath + kPfxExtension);
+                                var privateKeyFilePem = new FileInfo(filePath + kPemExtension);
+                                if (privateKeyFilePfx.Exists)
+                                {
+                                    certificateFound = true;
+                                    foreach (X509KeyStorageFlags flag in storageFlags)
+                                    {
+                                        try
+                                        {
+                                            certificate = Certificate.From(
+                                                X509CertificateLoader.LoadPkcs12FromFile(
+                                                    privateKeyFilePfx.FullName,
+                                                    password,
+                                                    flag));
+                                            if (X509PfxUtils.VerifyKeyPair(
+                                                certificate, certificate, true))
+                                            {
+                                                m_logger.LogInformation(
+                                                    Utils.TraceMasks.Security,
+                                                    "Imported the PFX private key for {Certificate}.",
+                                                    certificate);
+                                                return certificate;
+                                            }
+                                            m_logger.LogDebug(
+                                                "PFX Private key could not be verified for {Certificate}.",
+                                                certificate);
+                                            certificate.Dispose();
+                                        }
+                                        catch (Exception ex)
+                                        {
+                                            m_logger.LogDebug(
+                                                ex,
+                                                "Failed to import the PFX private for {Certificate}.",
+                                                certificate);
+                                            importException = ex;
+                                            certificate?.Dispose();
+                                        }
+                                    }
+                                }
+                                // if PFX file doesn't exist, check for PEM file.
+                                else if (privateKeyFilePem.Exists)
+                                {
+                                    certificateFound = true;
                                     try
                                     {
-                                        certificate = Certificate.From(
-                                            X509CertificateLoader.LoadPkcs12FromFile(
-                                                privateKeyFilePfx.FullName,
-                                                password,
-                                                flag));
+                                        byte[] pemDataBlob = File.ReadAllBytes(
+                                            privateKeyFilePem.FullName);
+                                        certificate = DefaultCertificateFactory.Instance
+                                            .CreateWithPEMPrivateKey(
+                                                certificate,
+                                                pemDataBlob,
+                                                password);
                                         if (X509PfxUtils.VerifyKeyPair(
                                             certificate, certificate, true))
                                         {
                                             m_logger.LogInformation(
                                                 Utils.TraceMasks.Security,
-                                                "Imported the PFX private key for {Certificate}.",
+                                                "Imported the PEM private key for {Certificate}.",
                                                 certificate);
                                             return certificate;
                                         }
                                         m_logger.LogDebug(
-                                            "PFX Private key could not be verified for {Certificate}.",
+                                            "PEM Private key could not be verified for {Certificate}.",
                                             certificate);
-                                        certificate.Dispose();
                                     }
-                                    catch (Exception ex)
+                                    catch (Exception exception)
                                     {
                                         m_logger.LogDebug(
-                                            ex,
-                                            "Failed to import the PFX private for {Certificate}.",
+                                            exception,
+                                            "Failed to import the PEM private for {Certificate}.",
                                             certificate);
-                                        importException = ex;
                                         certificate?.Dispose();
+                                        importException = exception;
                                     }
                                 }
-                            }
-                            // if PFX file doesn't exist, check for PEM file.
-                            else if (privateKeyFilePem.Exists)
-                            {
-                                certificateFound = true;
-                                try
+                                else if (file.Extension
+                                        .Equals(kPemExtension, StringComparison.OrdinalIgnoreCase) &&
+                                    PEMReader.ContainsPrivateKey(File.ReadAllBytes(file.FullName)))
                                 {
-                                    byte[] pemDataBlob = File.ReadAllBytes(
-                                        privateKeyFilePem.FullName);
-                                    certificate = DefaultCertificateFactory.Instance
-                                        .CreateWithPEMPrivateKey(
-                                            certificate,
-                                            pemDataBlob,
-                                            password);
-                                    if (X509PfxUtils.VerifyKeyPair(
-                                        certificate, certificate, true))
+                                    certificateFound = true;
+                                    try
                                     {
-                                        m_logger.LogInformation(
-                                            Utils.TraceMasks.Security,
-                                            "Imported the PEM private key for {Certificate}.",
+                                        byte[] pemDataBlob = File.ReadAllBytes(file.FullName);
+                                        certificate = DefaultCertificateFactory.Instance
+                                            .CreateWithPEMPrivateKey(
+                                                certificate,
+                                                pemDataBlob,
+                                                password);
+                                        if (X509PfxUtils.VerifyKeyPair(
+                                            certificate, certificate, true))
+                                        {
+                                            m_logger.LogInformation(
+                                                Utils.TraceMasks.Security,
+                                                "Imported the PEM private key for {Certificate}.",
+                                                certificate);
+                                            return certificate;
+                                        }
+                                        m_logger.LogDebug(
+                                            "PEM Private key could not be verified for {Certificate}.",
                                             certificate);
-                                        return certificate;
                                     }
-                                    m_logger.LogDebug(
-                                        "PEM Private key could not be verified for {Certificate}.",
-                                        certificate);
-                                }
-                                catch (Exception exception)
-                                {
-                                    m_logger.LogDebug(
-                                        exception,
-                                        "Failed to import the PEM private for {Certificate}.",
-                                        certificate);
-                                    certificate?.Dispose();
-                                    importException = exception;
-                                }
-                            }
-                            else if (file.Extension
-                                    .Equals(kPemExtension, StringComparison.OrdinalIgnoreCase) &&
-                                PEMReader.ContainsPrivateKey(File.ReadAllBytes(file.FullName)))
-                            {
-                                certificateFound = true;
-                                try
-                                {
-                                    byte[] pemDataBlob = File.ReadAllBytes(file.FullName);
-                                    certificate = DefaultCertificateFactory.Instance
-                                        .CreateWithPEMPrivateKey(
-                                            certificate,
-                                            pemDataBlob,
-                                            password);
-                                    if (X509PfxUtils.VerifyKeyPair(
-                                        certificate, certificate, true))
+                                    catch (Exception exception)
                                     {
-                                        m_logger.LogInformation(
-                                            Utils.TraceMasks.Security,
-                                            "Imported the PEM private key for {Certificate}.",
+                                        m_logger.LogDebug(
+                                            exception,
+                                            "Failed to import the PEM private for {Certificate}.",
                                             certificate);
-                                        return certificate;
+                                        certificate?.Dispose();
+                                        importException = exception;
                                     }
-                                    m_logger.LogDebug(
-                                        "PEM Private key could not be verified for {Certificate}.",
-                                        certificate);
                                 }
-                                catch (Exception exception)
+                                else
                                 {
-                                    m_logger.LogDebug(
-                                        exception,
-                                        "Failed to import the PEM private for {Certificate}.",
-                                        certificate);
-                                    certificate?.Dispose();
-                                    importException = exception;
+                                    m_logger.LogError(
+                                        Utils.TraceMasks.Security,
+                                        "A private key for the certificate {Certificate} does not exist.",
+                                         certificate);
                                 }
-                            }
-                            else
-                            {
-                                m_logger.LogError(
-                                    Utils.TraceMasks.Security,
-                                    "A private key for the certificate {Certificate} does not exist.",
-                                     certificate);
                             }
                         }
                     }
@@ -1152,8 +1154,8 @@ namespace Opc.Ua
                 // current value. Comparing the cached entry count to the
                 // current file count detects external changes without re-parsing
                 // every certificate file in the common (unchanged) case.
-                int onDiskCount = certSubdir.GetFiles(kCertSearchString).Length
-                    + certSubdir.GetFiles(kPemCertSearchString).Length;
+                int onDiskCount = certSubdir.GetFiles(kCertSearchString).Length +
+                    certSubdir.GetFiles(kPemCertSearchString).Length;
                 if (onDiskCount == m_certificates.Count)
                 {
                     return m_certificates;
@@ -1238,7 +1240,8 @@ namespace Opc.Ua
                         // Certificate reference.
                         if (m_certificates.TryGetValue(
                                 entry.Certificate.Thumbprint,
-                                out Entry? existing) && existing != null)
+                                out Entry? existing) &&
+                            existing != null)
                         {
                             existing.Certificate?.Dispose();
                             existing.CertificateWithPrivateKey?.Dispose();
@@ -1363,6 +1366,7 @@ namespace Opc.Ua
         /// <summary>
         /// Writes the data to a file.
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
         private FileInfo? WriteFile(
             byte[] data,
             string fileName,

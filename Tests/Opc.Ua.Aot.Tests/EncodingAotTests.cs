@@ -150,7 +150,7 @@ namespace Opc.Ua.Aot.Tests
             [
                 Variant.From(123),
                 Variant.From("Hello AOT"),
-                Variant.From((ArrayOf<int>)[1, 2, 3]),
+                Variant.From([1, 2, 3]),
                 Variant.From(DateTimeUtc.Now)
             ];
 

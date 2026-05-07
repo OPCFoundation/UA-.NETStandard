@@ -262,7 +262,7 @@ namespace Opc.Ua.Encoders
         /// <summary>
         /// Encode a property based on the property type and value rank.
         /// </summary>
-        internal void EncodeProperty(IEncoder encoder, Field property)
+        internal static void EncodeProperty(IEncoder encoder, Field property)
         {
             EncodeProperty(encoder, property.Name, property);
         }
@@ -270,7 +270,7 @@ namespace Opc.Ua.Encoders
         /// <summary>
         /// Decode a property based on the property type and value rank.
         /// </summary>
-        internal void DecodeProperty(IDecoder decoder, Field property)
+        internal static void DecodeProperty(IDecoder decoder, Field property)
         {
             DecodeProperty(decoder, property.Name, property);
         }
@@ -279,7 +279,7 @@ namespace Opc.Ua.Encoders
         /// Encode a property based on the property type and value rank.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        internal void EncodeProperty(
+        internal static void EncodeProperty(
             IEncoder encoder,
             string name,
             Field property)
@@ -331,7 +331,7 @@ namespace Opc.Ua.Encoders
         /// Decode a property based on the property type and value rank.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        internal void DecodeProperty(
+        internal static void DecodeProperty(
             IDecoder decoder,
             string name,
             Field property)

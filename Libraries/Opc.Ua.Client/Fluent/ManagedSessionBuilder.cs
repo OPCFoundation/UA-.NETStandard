@@ -75,6 +75,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Use the supplied configured endpoint.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="endpoint"/> is <c>null</c>.</exception>
         public ManagedSessionBuilder UseEndpoint(ConfiguredEndpoint endpoint)
         {
             if (endpoint == null)
@@ -88,6 +89,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Use a discovery endpoint URL with optional security mode/policy.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="url"/> is <c>null</c>.</exception>
         public ManagedSessionBuilder UseEndpoint(
             string url,
             MessageSecurityMode securityMode = MessageSecurityMode.SignAndEncrypt,
@@ -109,6 +111,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Set the user identity used when activating the session.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="identity"/> is <c>null</c>.</exception>
         public ManagedSessionBuilder WithUserIdentity(IUserIdentity identity)
         {
             if (identity == null)
@@ -122,6 +125,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Set the session display name.
         /// </summary>
+        /// <exception cref="ArgumentException"></exception>
         public ManagedSessionBuilder WithSessionName(string name)
         {
             if (string.IsNullOrEmpty(name))
@@ -135,6 +139,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Set the requested session timeout.
         /// </summary>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
         public ManagedSessionBuilder WithSessionTimeout(TimeSpan timeout)
         {
             if (timeout <= TimeSpan.Zero)
@@ -148,6 +153,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Set the preferred locales for the session.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="locales"/> is <c>null</c>.</exception>
         public ManagedSessionBuilder WithPreferredLocales(params string[] locales)
         {
             if (locales == null)
@@ -171,6 +177,7 @@ namespace Opc.Ua.Client
         /// Configure the reconnect policy via a transformation of the
         /// underlying <see cref="ReconnectPolicyOptions"/> record.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="configure"/> is <c>null</c>.</exception>
         public ManagedSessionBuilder WithReconnectPolicy(
             Func<ReconnectPolicyOptions, ReconnectPolicyOptions> configure)
         {
@@ -190,6 +197,7 @@ namespace Opc.Ua.Client
         /// Use the supplied <see cref="IReconnectPolicy"/> directly. Overrides
         /// any options-based reconnect configuration.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public ManagedSessionBuilder WithReconnectPolicy(IReconnectPolicy policy)
         {
             m_reconnectPolicy = policy
@@ -210,6 +218,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Enable server redundancy with the supplied handler.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public ManagedSessionBuilder WithServerRedundancy(IServerRedundancyHandler handler)
         {
             m_redundancyHandler = handler
@@ -222,6 +231,7 @@ namespace Opc.Ua.Client
         /// Use a specific subscription engine factory. Defaults to the V2
         /// engine when not specified.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="factory"/> is <c>null</c>.</exception>
         public ManagedSessionBuilder UseSubscriptionEngine(ISubscriptionEngineFactory factory)
         {
             if (factory == null)
@@ -264,6 +274,7 @@ namespace Opc.Ua.Client
         /// creates a new <see cref="DefaultSessionFactory"/> configured with
         /// the V2 subscription engine.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         public ManagedSessionBuilder UseSessionFactory(ISessionFactory factory)
         {
             m_sessionFactory = factory
@@ -283,6 +294,7 @@ namespace Opc.Ua.Client
         /// Construct and connect a <see cref="ManagedSession"/> using the
         /// accumulated options.
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
         public Task<ManagedSession> ConnectAsync(CancellationToken ct = default)
         {
             ManagedSessionOptions opts = m_options;
@@ -312,7 +324,7 @@ namespace Opc.Ua.Client
             ArrayOf<string> preferredLocales = default;
             if (opts.PreferredLocales is { Count: > 0 } locales)
             {
-                var arr = new string[locales.Count];
+                string[] arr = new string[locales.Count];
                 for (int i = 0; i < locales.Count; i++)
                 {
                     arr[i] = locales[i];
@@ -338,4 +350,3 @@ namespace Opc.Ua.Client
         }
     }
 }
-

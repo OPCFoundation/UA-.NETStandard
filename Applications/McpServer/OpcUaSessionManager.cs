@@ -44,7 +44,6 @@ using Opc.Ua.Client;
 using Opc.Ua.Configuration;
 using Opc.Ua.Security.Certificates;
 
-
 namespace Opc.Ua.Mcp
 {
     /// <summary>
@@ -58,7 +57,6 @@ namespace Opc.Ua.Mcp
 
         private readonly ILogger<OpcUaSessionManager> m_logger;
         private readonly SemaphoreSlim m_lock = new(1, 1);
-        private readonly ITelemetryContext m_telemetry = new NullTelemetry();
         private readonly ConcurrentDictionary<string, SessionInfo> m_sessions = new(StringComparer.OrdinalIgnoreCase);
         private ApplicationConfiguration? m_configuration;
         private bool m_disposed;
@@ -74,7 +72,7 @@ namespace Opc.Ua.Mcp
         public sealed class SessionInfo
         {
             public required string Name { get; init; }
-            public required Client.ISession Session { get; init; }
+            public required ISession Session { get; init; }
             public required EndpointDescription Endpoint { get; init; }
             public required string AuthType { get; init; }
             public SessionReconnectHandler? ReconnectHandler { get; set; }
@@ -85,12 +83,12 @@ namespace Opc.Ua.Mcp
         /// <summary>
         /// Gets the first session, or null if none connected. For backward compatibility.
         /// </summary>
-        public Client.ISession? Session => m_sessions.Values.FirstOrDefault()?.Session;
+        public ISession? Session => m_sessions.Values.FirstOrDefault()?.Session;
 
         /// <summary>
         /// Gets the telemetry context used by this session manager.
         /// </summary>
-        public ITelemetryContext Telemetry => m_telemetry;
+        public ITelemetryContext Telemetry { get; } = new NullTelemetry();
 
         /// <summary>
         /// Gets the loaded application configuration, or null if not yet loaded.
@@ -128,7 +126,7 @@ namespace Opc.Ua.Mcp
         /// Gets a session by name, or the only active session if name is null.
         /// </summary>
         /// <exception cref="InvalidOperationException">Not connected or ambiguous session.</exception>
-        public Client.ISession GetSessionOrThrow(string? name = null)
+        public ISession GetSessionOrThrow(string? name = null)
         {
             if (name != null)
             {
@@ -168,14 +166,18 @@ namespace Opc.Ua.Mcp
         /// <summary>
         /// Gets all active sessions.
         /// </summary>
-        public IReadOnlyCollection<SessionInfo> GetAllSessions() =>
-            m_sessions.Values.ToList().AsReadOnly();
+        public IReadOnlyCollection<SessionInfo> GetAllSessions()
+        {
+            return m_sessions.Values.ToList().AsReadOnly();
+        }
 
         /// <summary>
         /// Gets information about a specific named session.
         /// </summary>
-        public SessionInfo? GetSessionInfo(string name) =>
-            m_sessions.GetValueOrDefault(name);
+        public SessionInfo? GetSessionInfo(string name)
+        {
+            return m_sessions.GetValueOrDefault(name);
+        }
 
         /// <summary>
         /// Discovers all endpoints available at the given discovery URL.
@@ -203,6 +205,7 @@ namespace Opc.Ua.Mcp
         /// <summary>
         /// Connects to an OPC UA server with endpoint selection and authentication options.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public async Task<string> ConnectAsync(
             string? name,
             string endpointUrl,
@@ -256,8 +259,8 @@ namespace Opc.Ua.Mcp
                 var endpointConfiguration = EndpointConfiguration.Create(m_configuration!);
                 var endpoint = new ConfiguredEndpoint(null, selectedEndpoint, endpointConfiguration);
 
-                var sessionFactory = new DefaultSessionFactory(m_telemetry);
-                Client.ISession session = await sessionFactory.CreateAsync(
+                var sessionFactory = new DefaultSessionFactory(Telemetry);
+                ISession session = await sessionFactory.CreateAsync(
                     m_configuration!,
                     endpoint,
                     true,
@@ -270,7 +273,7 @@ namespace Opc.Ua.Mcp
 
                 if (session?.Connected == true)
                 {
-                    var reconnectHandler = new SessionReconnectHandler(m_telemetry, true, 15_000);
+                    var reconnectHandler = new SessionReconnectHandler(Telemetry, true, 15_000);
                     var sessionInfo = new SessionInfo
                     {
                         Name = name,
@@ -420,7 +423,7 @@ namespace Opc.Ua.Mcp
             }
 
 #pragma warning disable CA2000 // Dispose objects before losing scope
-            var application = new ApplicationInstance(m_telemetry)
+            var application = new ApplicationInstance(Telemetry)
             {
                 ApplicationName = kApplicationName,
                 ApplicationType = ApplicationType.Client,
@@ -472,7 +475,7 @@ namespace Opc.Ua.Mcp
                     m_configuration!,
                     endpointUrl,
                     true,
-                    m_telemetry,
+                    Telemetry,
                     ct: ct).ConfigureAwait(false);
 
                 if (best == null)
@@ -481,7 +484,7 @@ namespace Opc.Ua.Mcp
                         m_configuration!,
                         endpointUrl,
                         false,
-                        m_telemetry,
+                        Telemetry,
                         ct: ct).ConfigureAwait(false);
                 }
 
@@ -585,7 +588,6 @@ namespace Opc.Ua.Mcp
             {
                 case "ANONYMOUS":
                     return new UserIdentity();
-
                 case "USERNAME":
                     if (string.IsNullOrEmpty(username))
                     {
@@ -593,18 +595,15 @@ namespace Opc.Ua.Mcp
                             "Username is required for 'Username' authentication.",
                             nameof(username));
                     }
-
                     return new UserIdentity(
                         username,
                         System.Text.Encoding.UTF8.GetBytes(password ?? string.Empty));
-
                 case "CERTIFICATE":
                     throw new NotSupportedException(
                         "Certificate authentication is not yet supported through the MCP " +
                         "Connect tool. Certificate auth requires certificate store " +
                         "configuration which is beyond the scope of MCP tool parameters. " +
                         "Use 'Anonymous' or 'Username' authentication instead.");
-
                 default:
                     throw new ArgumentException(
                         $"Invalid authType '{authType}'. " +
@@ -613,7 +612,7 @@ namespace Opc.Ua.Mcp
             }
         }
 
-        private void SessionKeepAlive(SessionInfo info, Client.ISession session, KeepAliveEventArgs e)
+        private void SessionKeepAlive(SessionInfo info, ISession session, KeepAliveEventArgs e)
         {
             if (e.Status != null && ServiceResult.IsNotGood(e.Status))
             {
@@ -624,10 +623,10 @@ namespace Opc.Ua.Mcp
 
                 if (info.ReconnectHandler != null && session is Session s)
                 {
-                    info.ReconnectHandler.BeginReconnect(s, 1000, (sender, _) =>
-                    {
-                        SessionReconnectComplete(info, sender);
-                    });
+                    info.ReconnectHandler.BeginReconnect(
+                        s,
+                        1000,
+                        (sender, _) => SessionReconnectComplete(info, sender));
                 }
             }
         }
@@ -639,7 +638,7 @@ namespace Opc.Ua.Mcp
                 return;
             }
 
-            Client.ISession? session = handler.Session;
+            ISession? session = handler.Session;
             if (session != null)
             {
                 // Update the session in the dictionary with a new SessionInfo

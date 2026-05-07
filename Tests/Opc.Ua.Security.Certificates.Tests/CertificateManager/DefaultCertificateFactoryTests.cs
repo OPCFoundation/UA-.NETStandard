@@ -87,7 +87,7 @@ namespace Opc.Ua.Security.Certificates.Tests
 
             Assert.That(builder, Is.Not.Null);
 
-            using Certificate cert = ((ICertificateBuilderCreateForRSA)builder).CreateForRSA();
+            using Certificate cert = builder.CreateForRSA();
 
             Assert.That(cert, Is.Not.Null);
             Assert.That(cert.Subject, Does.Contain("CN=Test"));
@@ -102,9 +102,9 @@ namespace Opc.Ua.Security.Certificates.Tests
                 "urn:test:app",
                 "TestApp",
                 "CN=TestApp,O=Test",
-                new List<string> { "localhost", "testhost" });
+                ["localhost", "testhost"]);
 
-            using Certificate cert = ((ICertificateBuilderCreateForRSA)builder).CreateForRSA();
+            using Certificate cert = builder.CreateForRSA();
 
             Assert.That(cert, Is.Not.Null);
 

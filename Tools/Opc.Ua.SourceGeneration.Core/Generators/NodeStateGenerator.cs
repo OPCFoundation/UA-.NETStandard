@@ -1511,7 +1511,7 @@ namespace Opc.Ua.SourceGeneration
 
             string forInstanceVariableValue =
                 node.RootIsTypeDefinition ? "forInstance" :
-                (node.Parent?.InstanceOf != null || node.Parent?.Parent == null) ? "true" : "forInstance";
+                node.Parent?.InstanceOf != null || node.Parent?.Parent == null ? "true" : "forInstance";
             if (node.Parent != null && IsInAddressSpace(node.Parent))
             {
                 switch (node.Parent.Design)
@@ -2156,7 +2156,7 @@ namespace Opc.Ua.SourceGeneration
                 GetModellingRuleReplacement(node.ModellingRule));
             context.Template.AddReplacement(
                 Tokens.EventNotifier,
-                (node.SupportsEvents || HasForwardEventReferences(references))
+                node.SupportsEvents || HasForwardEventReferences(references)
                     ? "global::Opc.Ua.EventNotifiers.SubscribeToEvents"
                     : "global::Opc.Ua.EventNotifiers.None");
         }
@@ -2229,7 +2229,7 @@ namespace Opc.Ua.SourceGeneration
                 if (!reference.IsInverse &&
                     reference.ReferenceTypeId != null &&
                     (reference.ReferenceTypeId.Name == "HasEventSource" ||
-                     reference.ReferenceTypeId.Name == "HasNotifier"))
+                        reference.ReferenceTypeId.Name == "HasNotifier"))
                 {
                     return true;
                 }

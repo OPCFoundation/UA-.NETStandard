@@ -1039,16 +1039,10 @@ namespace Opc.Ua.Server
                         .ConfigureAwait(false);
                     foreach (Certificate cert in storeCerts)
                     {
-                        if (!updatedCerts.Contains(cert))
+                        if (!updatedCerts.Remove(cert) &&
+                            !await store.DeleteAsync(cert.Thumbprint, cancellationToken).ConfigureAwait(false))
                         {
-                            if (!await store.DeleteAsync(cert.Thumbprint, cancellationToken).ConfigureAwait(false))
-                            {
-                                result = false;
-                            }
-                        }
-                        else
-                        {
-                            updatedCerts.Remove(cert);
+                            result = false;
                         }
                     }
                     foreach (Certificate cert in updatedCerts)

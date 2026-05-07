@@ -40,7 +40,6 @@ using Opc.Ua.Configuration;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Server;
 
-
 namespace Quickstarts
 {
     public class UAServer<T> where T : StandardServer

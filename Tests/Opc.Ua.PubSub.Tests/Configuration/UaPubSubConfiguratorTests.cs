@@ -187,7 +187,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             m_configurator.AddReaderGroup(connId, readerGroup);
 
             List<uint> children = m_configurator.FindChildrenIdsForObject(connection);
-            Assert.That(children.Count, Is.GreaterThanOrEqualTo(2));
+            Assert.That(children, Has.Count.GreaterThanOrEqualTo(2));
         }
 
         [Test]

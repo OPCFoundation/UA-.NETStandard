@@ -66,7 +66,7 @@ namespace Opc.Ua.Client.Tests
             m_mockContext.Setup(c => c.Telemetry)
                 .Returns(m_telemetry);
             m_mockContext.Setup(c => c.Subscriptions)
-                .Returns(new List<Subscription>());
+                .Returns([]);
             m_mockContext.Setup(c => c.OperationTimeout)
                 .Returns(60000);
             m_mockContext.Setup(c => c.ReturnDiagnostics)
@@ -102,7 +102,7 @@ namespace Opc.Ua.Client.Tests
         public void StartPublishingWithNoSubscriptionsDoesNothing()
         {
             m_mockContext.Setup(c => c.Subscriptions)
-                .Returns(new List<Subscription>());
+                .Returns([]);
 
             using var engine =
                 new ClassicSubscriptionEngine(m_mockContext.Object);
@@ -121,7 +121,7 @@ namespace Opc.Ua.Client.Tests
         public void NotifySubscriptionsChangedTriggersPublishReEvaluation()
         {
             m_mockContext.Setup(c => c.Subscriptions)
-                .Returns(new List<Subscription>());
+                .Returns([]);
             m_mockContext.Setup(c => c.Disposed)
                 .Returns(false);
 

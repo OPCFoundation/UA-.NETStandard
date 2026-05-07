@@ -122,7 +122,6 @@ namespace Opc.Ua.Server.Tests
             sentMessages.AddRange(messages);
         }
 
-
         [Test]
         public void ConstructorThrowsArgumentNullExceptionForNullServer()
         {
@@ -204,8 +203,6 @@ namespace Opc.Ua.Server.Tests
             Assert.That(subscription.MonitoredItemCount, Is.EqualTo(0));
         }
 
-
-
         [Test]
         public void GetMonitoredItemsReturnsEmptyForNewSubscription()
         {
@@ -216,8 +213,6 @@ namespace Opc.Ua.Server.Tests
             Assert.That(serverHandles, Is.Empty);
             Assert.That(clientHandles, Is.Empty);
         }
-
-
 
         [Test]
         public void QueueOverflowHandlerIncrementsOverflowCount()
@@ -242,8 +237,6 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(subscription.Diagnostics.MonitoringQueueOverflowCount, Is.EqualTo(3u));
         }
-
-
 
         [Test]
         public void SessionClosedClearsSessionReference()
@@ -276,8 +269,6 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(subscription.Diagnostics.SessionId, Is.EqualTo(default(NodeId)));
         }
-
-
 
         [Test]
         public void PublishTimeoutReturnsBadTimeoutMessage()
@@ -322,8 +313,6 @@ namespace Opc.Ua.Server.Tests
             Assert.That(message, Is.Null);
         }
 
-
-
         [Test]
         public void SubscriptionTransferredReturnsTransferStatusMessage()
         {
@@ -349,8 +338,6 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(message.SequenceNumber, Is.GreaterThan(0u));
         }
-
-
 
         [Test]
         public void SetSubscriptionDurableReturnsBadNotSupportedWhenNotSupported()
@@ -389,8 +376,6 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(subscription.Diagnostics.MaxLifetimeCount, Is.EqualTo(newLifetimeCount));
         }
-
-
 
         [Test]
         public void ModifyUpdatesPublishingIntervalInDiagnostics()
@@ -472,8 +457,6 @@ namespace Opc.Ua.Server.Tests
             Assert.That(subscription.Diagnostics.ModifyCount, Is.EqualTo(2u));
         }
 
-
-
         [Test]
         public void SetPublishingModeDisableIncrementsDisableCount()
         {
@@ -513,8 +496,6 @@ namespace Opc.Ua.Server.Tests
             Assert.That(subscription.Diagnostics.EnableCount, Is.EqualTo(0u));
             Assert.That(subscription.Diagnostics.DisableCount, Is.EqualTo(0u));
         }
-
-
 
         [Test]
         public void AcknowledgeReturnsBadSequenceNumberInvalidForSequenceNumberZero()
@@ -570,8 +551,6 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(result, Is.Null);
         }
-
-
 
         [Test]
         public void RepublishThrowsBadMessageNotAvailableWhenNoMessages()
@@ -633,8 +612,6 @@ namespace Opc.Ua.Server.Tests
                     .EqualTo(StatusCodes.BadMessageNotAvailable));
         }
 
-
-
         [Test]
         public void AvailableSequenceNumbersForRetransmissionReturnsEmptyForNewSubscription()
         {
@@ -662,8 +639,6 @@ namespace Opc.Ua.Server.Tests
             Assert.That(result.ToArray(), Does.Contain(2u));
             Assert.That(result.ToArray(), Does.Contain(3u));
         }
-
-
 
         [Test]
         public void PublishReturnsKeepaliveMessageWhenNoItems()
@@ -718,8 +693,6 @@ namespace Opc.Ua.Server.Tests
             Assert.That(result, Is.Null);
         }
 
-
-
         [Test]
         public void SetTriggeringThrowsBadMonitoredItemIdInvalidWhenTriggeringItemNotFound()
         {
@@ -759,8 +732,6 @@ namespace Opc.Ua.Server.Tests
                 Throws.TypeOf<ArgumentNullException>());
         }
 
-
-
         [Test]
         public void RepublishThrowsArgumentNullExceptionForNullContext()
         {
@@ -770,6 +741,5 @@ namespace Opc.Ua.Server.Tests
                 () => subscription.Republish(context: null, retransmitSequenceNumber: 1),
                 Throws.TypeOf<ArgumentNullException>());
         }
-
     }
 }

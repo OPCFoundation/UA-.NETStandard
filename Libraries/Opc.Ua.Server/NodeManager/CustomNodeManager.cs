@@ -3173,7 +3173,9 @@ namespace Opc.Ua.Server
 
                 if (sync)
                 {
+#pragma warning disable CA1849 // Call async methods when in an async method
                     errors[ii] = Call(systemContext, methodToCall, method, result);
+#pragma warning restore CA1849 // Call async methods when in an async method
                 }
                 else
                 {

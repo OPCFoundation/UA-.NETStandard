@@ -139,6 +139,7 @@ namespace Opc.Ua.Encoders
         /// Gets or sets the bit corresponding to the given field name
         /// (as declared in <see cref="Definition"/>).
         /// </summary>
+        /// <exception cref="ArgumentException"></exception>
         public bool this[string fieldName]
         {
             get
@@ -258,8 +259,8 @@ namespace Opc.Ua.Encoders
                 throw new ArgumentOutOfRangeException(
                     nameof(bit),
                     CoreUtils.Format(
-                        "Bit index {0} is outside the fixed {1}-byte OptionSet length. "
-                        + "OPC UA Part 3 §8.40 requires that sub-types do not change the overall length.",
+                        "Bit index {0} is outside the fixed {1}-byte OptionSet length. " +
+                        "OPC UA Part 3 §8.40 requires that sub-types do not change the overall length.",
                         bit,
                         m_byteLength));
             }

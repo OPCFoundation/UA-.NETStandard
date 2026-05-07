@@ -2339,6 +2339,7 @@ namespace Opc.Ua.Client
         /// neither is supplied a new outbound channel is built against
         /// <see cref="ConfiguredEndpoint"/>.</param>
         /// <param name="ct">Cancellation token.</param>
+        /// <exception cref="ServiceResultException"></exception>
         protected internal async Task RecreateInPlaceAsync(
             ConfiguredEndpoint? endpoint = null,
             ITransportWaitingConnection? connection = null,
@@ -3252,7 +3253,7 @@ namespace Opc.Ua.Client
             Debug.Assert(keepAliveCancellation != null);
             try
             {
-                keepAliveCancellation!.Cancel();
+                await keepAliveCancellation!.CancelAsync().ConfigureAwait(false);
                 if (!m_inKeepAliveCallback)
                 {
                     // Make sure no circular loops
@@ -4376,7 +4377,7 @@ namespace Opc.Ua.Client
             // load certificate chain.
             if (configuration.SecurityConfiguration.SendCertificateChain)
             {
-                clientCertificateChain = new CertificateCollection { clientCertificate };
+                clientCertificateChain = [clientCertificate];
                 try
                 {
                     var issuers = new List<CertificateIdentifier>();

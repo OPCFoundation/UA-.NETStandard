@@ -521,6 +521,7 @@ namespace Opc.Ua.Gds.Server
         /// <summary>
         /// load the authority signing key.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public virtual async Task<Certificate> LoadSigningKeyAsync(
             Certificate signingCertificate,
             char[] signingKeyPassword,
@@ -637,17 +638,17 @@ namespace Opc.Ua.Gds.Server
         /// </summary>
         /// <exception cref="ArgumentException"></exception>
         /// <exception cref="ServiceResultException"></exception>
-        public static async Task<X509CRL> RevokeCertificateAsync(
+        public static Task<X509CRL> RevokeCertificateAsync(
             CertificateStoreIdentifier storeIdentifier,
             Certificate certificate,
             char[] issuerKeyFilePassword = null,
             ITelemetryContext telemetry = null,
             CancellationToken ct = default)
         {
-            return await RevokeCertificateAsync(
+            return RevokeCertificateAsync(
                 storeIdentifier, certificate,
                 issuerKeyFilePassword, telemetry,
-                certificateIssuer: null, ct).ConfigureAwait(false);
+                certificateIssuer: null, ct);
         }
 
         /// <summary>

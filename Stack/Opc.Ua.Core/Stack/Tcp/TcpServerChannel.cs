@@ -37,7 +37,6 @@ using Microsoft.Extensions.Logging;
 using Opc.Ua.Security;
 using Opc.Ua.Security.Certificates;
 
-
 namespace Opc.Ua.Bindings
 {
     /// <summary>

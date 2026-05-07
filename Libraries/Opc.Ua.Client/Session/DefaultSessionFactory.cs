@@ -32,7 +32,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Security.Certificates;
 
-
 namespace Opc.Ua.Client
 {
     /// <summary>
@@ -258,7 +257,7 @@ namespace Opc.Ua.Client
             // checks the domains in the certificate.
             if (checkDomain && endpoint.Description.ServerCertificate.Length > 0)
             {
-                using Certificate certificate = Certificate.FromRawData(endpoint.Description.ServerCertificate);
+                using var certificate = Certificate.FromRawData(endpoint.Description.ServerCertificate);
                 ICertificateValidatorEx? validator = configuration.CertificateManager;
                 validator?.ValidateDomains(certificate, endpoint);
             }

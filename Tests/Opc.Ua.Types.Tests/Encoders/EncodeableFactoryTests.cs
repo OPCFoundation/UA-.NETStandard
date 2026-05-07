@@ -315,7 +315,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(factory.TryGetEncodeableType(new ExpandedNodeId(110002), out _), Is.False);
         }
 
-
         [Test]
         public void Builder_MultipleTypes_AllTypesAdded()
         {
@@ -603,7 +602,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(factory.KnownTypeIds.Count(), Is.GreaterThan(0)); // Should have pre-loaded types
         }
 
-
         [Test]
         public void Builder_ReuseAfterCommit_CanAddMoreTypes()
         {
@@ -691,7 +689,6 @@ namespace Opc.Ua.Types.Tests.Encoders
                 return new TestEncodeable(Value);
             }
         }
-
 
         public class TestNoDefaultConstructorEncodeable : IEncodeable
         {
@@ -969,7 +966,6 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(resultType.Type, Is.EqualTo(typeof(TestEncodeableWithoutXml)));
         }
 
-
         [Test]
         public void Builder_AddEncodeableType_WithDefaultNamespaceNormalization_HandlesCorrectly()
         {
@@ -1086,7 +1082,6 @@ namespace Opc.Ua.Types.Tests.Encoders
                 return new TestEncodeableWithDefaultNamespace();
             }
         }
-
 
         [Test]
         public void Integration_FactorySupportsComplexTypeRegistration()

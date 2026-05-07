@@ -165,9 +165,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 MakeField("Int16Field", BuiltInType.Int16, (short)1000),
                 MakeField("UInt16Field", BuiltInType.UInt16, (ushort)60000),
                 MakeField("Int32Field", BuiltInType.Int32, 123456),
-                MakeField("UInt32Field", BuiltInType.UInt32, (uint)4000000),
-                MakeField("Int64Field", BuiltInType.Int64, (long)9999999999L),
-                MakeField("UInt64Field", BuiltInType.UInt64, (ulong)18000000000UL),
+                MakeField("UInt32Field", BuiltInType.UInt32, 4000000u),
+                MakeField("Int64Field", BuiltInType.Int64, 9999999999L),
+                MakeField("UInt64Field", BuiltInType.UInt64, 18000000000UL),
                 MakeField("FloatField", BuiltInType.Float, 1.5f),
                 MakeField("DoubleField", BuiltInType.Double, 2.718281828),
                 MakeField("StringField", BuiltInType.String, "test string")
@@ -1710,7 +1710,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             var decoded = new PubSubEncoding.JsonNetworkMessage();
             decoded.Decode(m_context, encoded, [reader]);
 
-            Assert.That(decoded.DataSetMessages.Count, Is.GreaterThanOrEqualTo(0));
+            Assert.That(decoded.DataSetMessages, Has.Count.GreaterThanOrEqualTo(0));
         }
 
         private static Field MakeField(string name, BuiltInType builtInType, object value, int valueRank = ValueRanks.Scalar)

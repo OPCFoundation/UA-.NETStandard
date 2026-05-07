@@ -40,8 +40,7 @@ namespace Opc.Ua.Gds.Client
     /// <summary>
     /// A class used to access the Push Configuration information model.
     /// </summary>
-    public class ServerPushConfigurationClient
-        : IServerPushConfigurationClient, IAsyncDisposable, IDisposable
+    public sealed class ServerPushConfigurationClient : IServerPushConfigurationClient, IDisposable
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="ServerPushConfigurationClient"/> class.
@@ -199,7 +198,7 @@ namespace Opc.Ua.Gds.Client
             m_disposed = true;
             try
             {
-                m_disposeCts.Cancel();
+                await m_disposeCts.CancelAsync().ConfigureAwait(false);
             }
             catch (ObjectDisposedException)
             {

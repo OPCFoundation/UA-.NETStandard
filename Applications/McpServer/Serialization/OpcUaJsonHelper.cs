@@ -49,6 +49,7 @@ namespace Opc.Ua.Mcp.Serialization
         /// <summary>
         /// Serializes an object to a JSON string using the OPC UA JSON options.
         /// </summary>
+        /// <typeparam name="T"></typeparam>
         public static string Serialize<T>(T value)
         {
             return JsonSerializer.Serialize(value, JsonOptions);

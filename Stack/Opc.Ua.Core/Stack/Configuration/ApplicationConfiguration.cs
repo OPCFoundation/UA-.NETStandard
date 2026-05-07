@@ -38,7 +38,6 @@ using System.Threading.Tasks;
 using System.Xml;
 using Microsoft.Extensions.Logging;
 
-
 namespace Opc.Ua
 {
     /// <summary>

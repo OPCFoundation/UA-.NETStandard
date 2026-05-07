@@ -91,6 +91,7 @@ namespace Opc.Ua
         /// Optional callback to further configure the certificate manager options.
         /// </param>
         /// <returns>A fully configured <see cref="CertificateManager"/> instance.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="securityConfiguration"/> is <c>null</c>.</exception>
         public static CertificateManager Create(
             SecurityConfiguration securityConfiguration,
             ITelemetryContext telemetry,

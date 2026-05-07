@@ -38,6 +38,8 @@ using Opc.Ua.Client.Subscriptions.MonitoredItems;
 using NUnit.Framework;
 using Opc.Ua.Tests;
 
+#pragma warning disable CA2007 // Consider calling ConfigureAwait on the awaited task
+
 namespace Opc.Ua.Client.Subscriptions
 {
     [TestFixture]
@@ -67,12 +69,12 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         [Test]
-        public void AddMonitoredItemShouldAddItemToMonitoredItems()
+        public async Task AddMonitoredItemShouldAddItemToMonitoredItemsAsync()
         {
             // Arrange
             OptionsMonitor<MonitoredItems.MonitoredItemOptions> options = OptionsFactory.Create<MonitoredItems.MonitoredItemOptions>();
 
-            var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
+            await using var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
                 m_completion, m_options, m_telemetry);
 
             // Act
@@ -104,7 +106,7 @@ namespace Opc.Ua.Client.Subscriptions
                 .Verifiable(Times.Once);
 
             m_options.Configure(o => o with { Disabled = true });
-            var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
+            await using var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
                 m_completion, m_options, m_telemetry);
             Assert.That(sut.Created, Is.False);
             Assert.That(sut.CurrentPublishingInterval, Is.EqualTo(TimeSpan.Zero));
@@ -165,7 +167,7 @@ namespace Opc.Ua.Client.Subscriptions
                 })
                 .Verifiable(Times.Once);
 
-            var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
+            await using var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
                 m_completion, m_options, m_telemetry, 22);
 
             Assert.That(sut.Created, Is.True);
@@ -214,7 +216,7 @@ namespace Opc.Ua.Client.Subscriptions
                 })
                 .Verifiable(Times.Once);
 
-            var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
+            await using var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
                 m_completion, m_options, m_telemetry, 22);
 
             Assert.That(sut.Created, Is.True);
@@ -262,8 +264,8 @@ namespace Opc.Ua.Client.Subscriptions
                 })
                 .Verifiable(Times.Once);
 
-            var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
-              m_completion, m_options, m_telemetry, 2);
+            await using var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
+                m_completion, m_options, m_telemetry, 2);
 
             sut.SubscriptionStateChanged.Reset();
             bool success = sut.MonitoredItems.TryAdd("Test", OptionsFactory.Create(new MonitoredItems.MonitoredItemOptions
@@ -287,8 +289,8 @@ namespace Opc.Ua.Client.Subscriptions
         public async Task ChangeMonitoredItemOptionsShouldChangeSubscriptionAsync()
         {
             // Arrange
-            var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
-              m_completion, m_options, m_telemetry, 2);
+            await using var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
+                m_completion, m_options, m_telemetry, 2);
 
             OptionsMonitor<MonitoredItems.MonitoredItemOptions> options = OptionsFactory.Create<MonitoredItems.MonitoredItemOptions>();
             bool success = sut.MonitoredItems.TryAdd("Test", options, out IMonitoredItem monitoredItem);
@@ -339,7 +341,7 @@ namespace Opc.Ua.Client.Subscriptions
         public async Task ChangeMonitoredItemOptionsNameShouldDeleteAndRecreateMonitoredItemAsync()
         {
             // Arrange
-            var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
+            await using var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
               m_completion, m_options, m_telemetry, 2);
 
             OptionsMonitor<MonitoredItems.MonitoredItemOptions> options = OptionsFactory.Create<MonitoredItems.MonitoredItemOptions>();
@@ -361,9 +363,10 @@ namespace Opc.Ua.Client.Subscriptions
             m_mockMonitoredItemServices
                 .Setup(s => s.CreateMonitoredItemsAsync(It.IsAny<RequestHeader>(), 2,
                     TimestampsToReturn.Both,
-                    It.Is<ArrayOf<MonitoredItemCreateRequest>>(r => r.Count == 1
-                        && r[0].ItemToMonitor.NodeId.ToString().Contains("NewDemo")),
-                        It.IsAny<CancellationToken>()))
+                    It.Is<ArrayOf<MonitoredItemCreateRequest>>(r =>
+                        r.Count == 1 &&
+                        r[0].ItemToMonitor.NodeId.ToString().Contains("NewDemo")),
+                    It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new CreateMonitoredItemsResponse
                 {
                     Results =
@@ -401,7 +404,7 @@ namespace Opc.Ua.Client.Subscriptions
         public async Task UpdatingMonitoringModeOnlyShouldCallSetMonitoringModeAsync()
         {
             // Arrange
-            var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
+            await using var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
                 m_completion, m_options, m_telemetry, 2);
 
             OptionsMonitor<MonitoredItems.MonitoredItemOptions> options = OptionsFactory.Create<MonitoredItems.MonitoredItemOptions>();
@@ -442,7 +445,7 @@ namespace Opc.Ua.Client.Subscriptions
         public async Task RemovingMonitoredItemShouldRemoveRemovedItemAsync()
         {
             // Arrange
-            var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
+            await using var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
               m_completion, m_options, m_telemetry, 2);
             OptionsMonitor<MonitoredItems.MonitoredItemOptions> options = OptionsFactory.Create<MonitoredItems.MonitoredItemOptions>();
             bool success = sut.MonitoredItems.TryAdd("Test", options, out IMonitoredItem monitoredItem);
@@ -478,7 +481,7 @@ namespace Opc.Ua.Client.Subscriptions
         public async Task RemovingMonitoredItemShouldTryAgainIfDeleteFailsAsync()
         {
             // Arrange
-            var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
+            await using var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
               m_completion, m_options, m_telemetry, 2);
             OptionsMonitor<MonitoredItems.MonitoredItemOptions> options = OptionsFactory.Create<MonitoredItems.MonitoredItemOptions>();
             bool success = sut.MonitoredItems.TryAdd("Test", options, out IMonitoredItem monitoredItem);
@@ -525,7 +528,7 @@ namespace Opc.Ua.Client.Subscriptions
         public async Task ConditionRefreshAsyncShouldCallSessionCallAsync()
         {
             // Arrange
-            var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
+            await using var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
                 m_completion, m_options, m_telemetry, 2);
 
             // Assert
@@ -556,7 +559,7 @@ namespace Opc.Ua.Client.Subscriptions
         public async Task ConditionRefreshAsyncThrowsIfNotYetCreatedAsync()
         {
             // Arrange
-            var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
+            await using var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
                 m_completion, m_options, m_telemetry);
 
             // Act
@@ -573,7 +576,7 @@ namespace Opc.Ua.Client.Subscriptions
         {
             // Arrange
 
-            var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
+            await using var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
                 m_completion, m_options, m_telemetry, 22);
 
             m_mockSubscriptionServices
@@ -621,7 +624,7 @@ namespace Opc.Ua.Client.Subscriptions
         public async Task DisableShouldCallSessionDeleteSubscriptionsButNotMonitoredItemsAsync()
         {
             // Arrange
-            var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
+            await using var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
                 m_completion, m_options, m_telemetry, 22);
             OptionsMonitor<MonitoredItems.MonitoredItemOptions> options = OptionsFactory.Create<MonitoredItems.MonitoredItemOptions>();
             bool success = sut.MonitoredItems.TryAdd("Test", options, out IMonitoredItem monitoredItem);
@@ -651,7 +654,7 @@ namespace Opc.Ua.Client.Subscriptions
         public async Task DeleteAsyncShouldCatchAllExceptionsAsync()
         {
             // Arrange
-            var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
+            await using var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
                 m_completion, m_options, m_telemetry, 22);
 
             m_mockSubscriptionServices
@@ -681,11 +684,11 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         [Test]
-        public void FindItemByClientHandleShouldReturnMonitoredItem()
+        public async Task FindItemByClientHandleShouldReturnMonitoredItemAsync()
         {
             // Arrange
             OptionsMonitor<MonitoredItems.MonitoredItemOptions> options = OptionsFactory.Create<MonitoredItems.MonitoredItemOptions>();
-            var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
+            await using var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
                 m_completion, m_options, m_telemetry);
             bool success = sut.MonitoredItems.TryAdd("Test", options, out IMonitoredItem monitoredItem);
             Assert.That(monitoredItem, Is.Not.Null);
@@ -701,11 +704,11 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         [Test]
-        public void FindItemByClientHandleShouldReturnNullIfNotFound()
+        public async Task FindItemByClientHandleShouldReturnNullIfNotFoundAsync()
         {
             // Arrange
             OptionsMonitor<MonitoredItems.MonitoredItemOptions> options = OptionsFactory.Create<MonitoredItems.MonitoredItemOptions>();
-            var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
+            await using var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
                 m_completion, m_options, m_telemetry);
             bool success = sut.MonitoredItems.TryAdd("Test", options, out _);
             Assert.That(success, Is.True);
@@ -725,7 +728,7 @@ namespace Opc.Ua.Client.Subscriptions
             // Arrange
             var message = new NotificationMessage();
 
-            var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
+            await using var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
                 m_completion, m_options, m_telemetry);
 
             // Act & Assert - should not throw
@@ -736,7 +739,7 @@ namespace Opc.Ua.Client.Subscriptions
         public async Task RecreateAsyncShouldReCreateSubscriptionAndMonitoredItemsAsync()
         {
             // Arrange
-            var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
+            await using var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
                 m_completion, m_options, m_telemetry, 10);
             OptionsMonitor<MonitoredItems.MonitoredItemOptions> options = OptionsFactory.Create<MonitoredItems.MonitoredItemOptions>();
             bool success = sut.MonitoredItems.TryAdd("Test", options, out IMonitoredItem monitoredItem);
@@ -798,7 +801,7 @@ namespace Opc.Ua.Client.Subscriptions
         {
             // Arrange
 
-            var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
+            await using var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
                 m_completion, m_options, m_telemetry, 10);
 
             OptionsMonitor<MonitoredItems.MonitoredItemOptions> options = OptionsFactory.Create<MonitoredItems.MonitoredItemOptions>();
@@ -856,11 +859,11 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         [Test]
-        public void RemoveItemShouldRemoveItemFromMonitoredItems()
+        public async Task RemoveItemShouldRemoveItemFromMonitoredItemsAsync()
         {
             // Arrange
             OptionsMonitor<MonitoredItems.MonitoredItemOptions> options = OptionsFactory.Create<MonitoredItems.MonitoredItemOptions>();
-            var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
+            await using var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
                 m_completion, m_options, m_telemetry);
             bool success = sut.MonitoredItems.TryAdd("Test", options, out IMonitoredItem monitoredItem);
             Assert.That(monitoredItem, Is.Not.Null);
@@ -878,7 +881,7 @@ namespace Opc.Ua.Client.Subscriptions
         public async Task TryCompleteTransferAsyncShouldReturnFalseWhenResponseWrong1Async()
         {
             // Arrange
-            var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
+            await using var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
                 m_completion, m_options, m_telemetry, 2);
 
             OptionsMonitor<MonitoredItems.MonitoredItemOptions> options = OptionsFactory.Create<MonitoredItems.MonitoredItemOptions>();
@@ -889,11 +892,11 @@ namespace Opc.Ua.Client.Subscriptions
                 .Setup(s => s.CallAsync(
                     It.IsAny<RequestHeader>(),
                     It.Is<ArrayOf<CallMethodRequest>>(r =>
-                           r.Count == 1
-                        && r[0].InputArguments.Count == 1
-                        && r[0].InputArguments[0].AsBoxedObject().Equals(2u)
-                        && r[0].ObjectId == ObjectIds.Server
-                        && r[0].MethodId == MethodIds.Server_GetMonitoredItems), It.IsAny<CancellationToken>()))
+                        r.Count == 1 &&
+                        r[0].InputArguments.Count == 1 &&
+                        r[0].InputArguments[0].AsBoxedObject().Equals(2u) &&
+                        r[0].ObjectId == ObjectIds.Server &&
+                        r[0].MethodId == MethodIds.Server_GetMonitoredItems), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new CallResponse
                 {
                     Results =
@@ -923,7 +926,7 @@ namespace Opc.Ua.Client.Subscriptions
         public async Task TryCompleteTransferAsyncShouldReturnFalseWhenResponseWrong2Async()
         {
             // Arrange
-            var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
+            await using var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
                 m_completion, m_options, m_telemetry, 2);
 
             OptionsMonitor<MonitoredItems.MonitoredItemOptions> options = OptionsFactory.Create<MonitoredItems.MonitoredItemOptions>();
@@ -934,11 +937,11 @@ namespace Opc.Ua.Client.Subscriptions
                 .Setup(s => s.CallAsync(
                     It.IsAny<RequestHeader>(),
                     It.Is<ArrayOf<CallMethodRequest>>(r =>
-                           r.Count == 1
-                        && r[0].InputArguments.Count == 1
-                        && r[0].InputArguments[0].AsBoxedObject().Equals(2u)
-                        && r[0].ObjectId == ObjectIds.Server
-                        && r[0].MethodId == MethodIds.Server_GetMonitoredItems), It.IsAny<CancellationToken>()))
+                        r.Count == 1 &&
+                        r[0].InputArguments.Count == 1 &&
+                        r[0].InputArguments[0].AsBoxedObject().Equals(2u) &&
+                        r[0].ObjectId == ObjectIds.Server &&
+                        r[0].MethodId == MethodIds.Server_GetMonitoredItems), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new CallResponse
                 {
                     Results =
@@ -968,7 +971,7 @@ namespace Opc.Ua.Client.Subscriptions
         public async Task TryCompleteTransferAsyncShouldCallGetMonitoredItemsAsyncAndCreateServerItemAsync()
         {
             // Arrange
-            var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
+            await using var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
                 m_completion, m_options, m_telemetry, 2);
 
             OptionsMonitor<MonitoredItems.MonitoredItemOptions> options = OptionsFactory.Create<MonitoredItems.MonitoredItemOptions>();
@@ -980,11 +983,11 @@ namespace Opc.Ua.Client.Subscriptions
                 .Setup(s => s.CallAsync(
                     It.IsAny<RequestHeader>(),
                     It.Is<ArrayOf<CallMethodRequest>>(r =>
-                           r.Count == 1
-                        && r[0].InputArguments.Count == 1
-                        && r[0].InputArguments[0].AsBoxedObject().Equals(2u)
-                        && r[0].ObjectId == ObjectIds.Server
-                        && r[0].MethodId == MethodIds.Server_GetMonitoredItems), It.IsAny<CancellationToken>()))
+                        r.Count == 1 &&
+                        r[0].InputArguments.Count == 1 &&
+                        r[0].InputArguments[0].AsBoxedObject().Equals(2u) &&
+                        r[0].ObjectId == ObjectIds.Server &&
+                        r[0].MethodId == MethodIds.Server_GetMonitoredItems), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new CallResponse
                 {
                     Results =
@@ -1016,7 +1019,7 @@ namespace Opc.Ua.Client.Subscriptions
         {
             // Arrange
 
-            var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
+            await using var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
                 m_completion, m_options, m_telemetry, 2);
 
             OptionsMonitor<MonitoredItems.MonitoredItemOptions> options = OptionsFactory.Create<MonitoredItems.MonitoredItemOptions>();
@@ -1029,11 +1032,11 @@ namespace Opc.Ua.Client.Subscriptions
                 .Setup(s => s.CallAsync(
                     It.IsAny<RequestHeader>(),
                     It.Is<ArrayOf<CallMethodRequest>>(r =>
-                           r.Count == 1
-                        && r[0].InputArguments.Count == 1
-                        && r[0].InputArguments[0].AsBoxedObject().Equals(2u)
-                        && r[0].ObjectId == ObjectIds.Server
-                        && r[0].MethodId == MethodIds.Server_GetMonitoredItems), It.IsAny<CancellationToken>()))
+                        r.Count == 1 &&
+                        r[0].InputArguments.Count == 1 &&
+                        r[0].InputArguments[0].AsBoxedObject().Equals(2u) &&
+                        r[0].ObjectId == ObjectIds.Server &&
+                        r[0].MethodId == MethodIds.Server_GetMonitoredItems), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new CallResponse
                 {
                     Results =
@@ -1065,18 +1068,18 @@ namespace Opc.Ua.Client.Subscriptions
         {
             // Arrange
 
-            var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
+            await using var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
                 m_completion, m_options, m_telemetry, 2);
 
             m_mockMethodServices
                 .Setup(s => s.CallAsync(
                     It.IsAny<RequestHeader>(),
                     It.Is<ArrayOf<CallMethodRequest>>(r =>
-                           r.Count == 1
-                        && r[0].InputArguments.Count == 1
-                        && r[0].InputArguments[0].AsBoxedObject().Equals(2u)
-                        && r[0].ObjectId == ObjectIds.Server
-                        && r[0].MethodId == MethodIds.Server_GetMonitoredItems), It.IsAny<CancellationToken>()))
+                        r.Count == 1 &&
+                        r[0].InputArguments.Count == 1 &&
+                        r[0].InputArguments[0].AsBoxedObject().Equals(2u) &&
+                        r[0].ObjectId == ObjectIds.Server &&
+                        r[0].MethodId == MethodIds.Server_GetMonitoredItems), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new CallResponse
                 {
                     Results =
@@ -1115,7 +1118,7 @@ namespace Opc.Ua.Client.Subscriptions
         public async Task TryCompleteTransferAsyncShouldCallGetMonitoredItemsAsyncAndReturnFalseIfFailingAsync()
         {
             // Arrange
-            var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
+            await using var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
                 m_completion, m_options, m_telemetry, 2);
             OptionsMonitor<MonitoredItems.MonitoredItemOptions> options = OptionsFactory.Create<MonitoredItems.MonitoredItemOptions>();
             bool success = sut.MonitoredItems.TryAdd("Test", options, out IMonitoredItem monitoredItem);
@@ -1127,11 +1130,11 @@ namespace Opc.Ua.Client.Subscriptions
                 .Setup(s => s.CallAsync(
                     It.IsAny<RequestHeader>(),
                     It.Is<ArrayOf<CallMethodRequest>>(r =>
-                           r.Count == 1
-                        && r[0].InputArguments.Count == 1
-                        && r[0].InputArguments[0].AsBoxedObject().Equals(2u)
-                        && r[0].ObjectId == ObjectIds.Server
-                        && r[0].MethodId == MethodIds.Server_GetMonitoredItems), It.IsAny<CancellationToken>()))
+                        r.Count == 1 &&
+                        r[0].InputArguments.Count == 1 &&
+                        r[0].InputArguments[0].AsBoxedObject().Equals(2u) &&
+                        r[0].ObjectId == ObjectIds.Server &&
+                        r[0].MethodId == MethodIds.Server_GetMonitoredItems), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new CallResponse
                 {
                     Results =
@@ -1158,7 +1161,7 @@ namespace Opc.Ua.Client.Subscriptions
         public async Task TryCompleteTransferAsyncShouldAssignServerIdToMonitoredItemWithClientIdAsync()
         {
             // Arrange
-            var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
+            await using var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
                 m_completion, m_options, m_telemetry, 2);
             OptionsMonitor<MonitoredItems.MonitoredItemOptions> options = OptionsFactory.Create<MonitoredItems.MonitoredItemOptions>();
             bool success = sut.MonitoredItems.TryAdd("Test", options, out IMonitoredItem monitoredItem);
@@ -1172,11 +1175,11 @@ namespace Opc.Ua.Client.Subscriptions
                 .Setup(s => s.CallAsync(
                     It.IsAny<RequestHeader>(),
                     It.Is<ArrayOf<CallMethodRequest>>(r =>
-                           r.Count == 1
-                        && r[0].InputArguments.Count == 1
-                        && r[0].InputArguments[0].AsBoxedObject().Equals(2u)
-                        && r[0].ObjectId == ObjectIds.Server
-                        && r[0].MethodId == MethodIds.Server_GetMonitoredItems), It.IsAny<CancellationToken>()))
+                        r.Count == 1 &&
+                        r[0].InputArguments.Count == 1 &&
+                        r[0].InputArguments[0].AsBoxedObject().Equals(2u) &&
+                        r[0].ObjectId == ObjectIds.Server &&
+                        r[0].MethodId == MethodIds.Server_GetMonitoredItems), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new CallResponse
                 {
                     Results =
@@ -1208,7 +1211,7 @@ namespace Opc.Ua.Client.Subscriptions
         public async Task TryCompleteTransferAsyncShouldCreateWhatIsMissingOnServerAsync()
         {
             // Arrange
-            var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
+            await using var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
                 m_completion, m_options, m_telemetry, 2);
             OptionsMonitor<MonitoredItems.MonitoredItemOptions> options = OptionsFactory.Create<MonitoredItems.MonitoredItemOptions>();
             bool success = sut.MonitoredItems.TryAdd("Test", options, out IMonitoredItem monitoredItem);
@@ -1222,11 +1225,11 @@ namespace Opc.Ua.Client.Subscriptions
                 .Setup(s => s.CallAsync(
                     It.IsAny<RequestHeader>(),
                     It.Is<ArrayOf<CallMethodRequest>>(r =>
-                           r.Count == 1
-                        && r[0].InputArguments.Count == 1
-                        && r[0].InputArguments[0].AsBoxedObject().Equals(2u)
-                        && r[0].ObjectId == ObjectIds.Server
-                        && r[0].MethodId == MethodIds.Server_GetMonitoredItems), It.IsAny<CancellationToken>()))
+                        r.Count == 1 &&
+                        r[0].InputArguments.Count == 1 &&
+                        r[0].InputArguments[0].AsBoxedObject().Equals(2u) &&
+                        r[0].ObjectId == ObjectIds.Server &&
+                        r[0].MethodId == MethodIds.Server_GetMonitoredItems), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new CallResponse
                 {
                     Results =
@@ -1394,7 +1397,7 @@ namespace Opc.Ua.Client.Subscriptions
             protected override ValueTask OnKeepAliveNotificationAsync(uint sequenceNumber,
                 DateTime publishTime, PublishState publishStateMask)
             {
-                return WaitAsync();
+                return default;
             }
         }
 

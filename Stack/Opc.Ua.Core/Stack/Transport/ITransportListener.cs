@@ -30,7 +30,6 @@
 using System;
 using System.Threading.Tasks;
 
-
 namespace Opc.Ua
 {
     /// <summary>

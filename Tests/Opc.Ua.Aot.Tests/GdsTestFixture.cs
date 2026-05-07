@@ -38,7 +38,6 @@ using Opc.Ua.Server;
 using Opc.Ua.Server.UserDatabase;
 using TUnit.Core.Interfaces;
 
-
 namespace Opc.Ua.Aot.Tests
 {
     /// <summary>
