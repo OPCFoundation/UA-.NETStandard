@@ -190,14 +190,13 @@ namespace Opc.Ua.Server
     /// </summary>
     public class RoleBasedIdentity : IUserIdentity
     {
-        private readonly IUserIdentity m_identity;
 
         /// <summary>
         /// Initialize the role based identity.
         /// </summary>
         public RoleBasedIdentity(IUserIdentity identity, IEnumerable<Role> roles, NamespaceTable namespaces)
         {
-            m_identity = identity;
+            InnerIdentity = identity;
             Roles = roles;
 
             if (identity is RoleBasedIdentity roleBasedIdentity)
@@ -234,30 +233,30 @@ namespace Opc.Ua.Server
             IEnumerable<Role> additionalRoles,
             NamespaceTable namespaces)
         {
-            return new RoleBasedIdentity(m_identity, Roles.Concat(additionalRoles), namespaces);
+            return new RoleBasedIdentity(InnerIdentity, Roles.Concat(additionalRoles), namespaces);
         }
 
         /// <summary>
         /// The inner identity that this role-based identity wraps.
         /// </summary>
-        protected IUserIdentity InnerIdentity => m_identity;
+        protected IUserIdentity InnerIdentity { get; }
 
         /// <inheritdoc/>
-        public string DisplayName => m_identity.DisplayName;
+        public string DisplayName => InnerIdentity.DisplayName;
 
         /// <inheritdoc/>
-        public string PolicyId => m_identity.PolicyId;
+        public string PolicyId => InnerIdentity.PolicyId;
 
         /// <inheritdoc/>
-        public UserTokenType TokenType => m_identity.TokenType;
+        public UserTokenType TokenType => InnerIdentity.TokenType;
 
         /// <inheritdoc/>
-        public XmlQualifiedName IssuedTokenType => m_identity.IssuedTokenType;
+        public XmlQualifiedName IssuedTokenType => InnerIdentity.IssuedTokenType;
 
         /// <inheritdoc/>
-        public bool SupportsSignatures => m_identity.SupportsSignatures;
+        public bool SupportsSignatures => InnerIdentity.SupportsSignatures;
 
         /// <inheritdoc/>
-        public IUserIdentityTokenHandler TokenHandler => m_identity.TokenHandler;
+        public IUserIdentityTokenHandler TokenHandler => InnerIdentity.TokenHandler;
     }
 }

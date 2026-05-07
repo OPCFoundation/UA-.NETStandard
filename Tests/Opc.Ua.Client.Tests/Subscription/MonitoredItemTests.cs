@@ -210,7 +210,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                     && c.RetryCount == 0
                     && c.Source == m_options.CurrentValue
                     && c.ServiceResult == ServiceResult.Good
-                    && c.Final == true
+                    && c.Final
                     && Utils.IsEqual(c.FilterResult, filterResult)), Is.EqualTo(1));
         }
 
@@ -374,7 +374,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
 
             // Assert
             Assert.That(m_context.NotifyItemChangeCalls
-                .Count(c => c.MonitoredItem == sut && c.ItemDisposed == true), Is.EqualTo(1));
+                .Count(c => c.MonitoredItem == sut && c.ItemDisposed), Is.EqualTo(1));
         }
 
         [Test]
@@ -392,7 +392,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
 
             // Assert
             Assert.That(m_context.NotifyItemChangeCalls
-                .Count(c => c.MonitoredItem == sut && c.ItemDisposed == true), Is.EqualTo(1));
+                .Count(c => c.MonitoredItem == sut && c.ItemDisposed), Is.EqualTo(1));
         }
 
         [Test]
