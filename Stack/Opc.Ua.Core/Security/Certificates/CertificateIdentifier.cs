@@ -1021,7 +1021,7 @@ namespace Opc.Ua
     }
 
     /// <summary>
-    /// Wraps a collection of certificate identifiers and exposes it as a certificate store.
+    /// Wraps a collection of certificates and exposes it as a certificate store.
     /// </summary>
     public class CertificateIdentifierCollectionStore : ICertificateStore
     {
@@ -1032,19 +1032,6 @@ namespace Opc.Ua
         public CertificateIdentifierCollectionStore(ITelemetryContext telemetry)
         {
             m_certificates = [];
-            m_telemetry = telemetry;
-        }
-
-        /// <summary>
-        /// Create a collection store from an existing collection.
-        /// </summary>
-        /// <param name="certificates"></param>
-        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
-        public CertificateIdentifierCollectionStore(
-            ArrayOf<CertificateIdentifier> certificates,
-            ITelemetryContext telemetry)
-        {
-            m_certificates = certificates.ToList();
             m_telemetry = telemetry;
         }
 
@@ -1064,7 +1051,7 @@ namespace Opc.Ua
         {
             if (disposing)
             {
-                // nothing to do.
+                m_certificates.Dispose();
             }
         }
 
@@ -1093,30 +1080,20 @@ namespace Opc.Ua
         public bool NoPrivateKeys => true;
 
         /// <inheritdoc/>
-        public async Task<CertificateCollection> EnumerateAsync(CancellationToken ct = default)
+        public Task<CertificateCollection> EnumerateAsync(CancellationToken ct = default)
         {
             var collection = new CertificateCollection();
 
             for (int ii = 0; ii < m_certificates.Count; ii++)
             {
-                Certificate? certificate = await m_certificates[ii].FindAsync(
-                    false,
-                    applicationUri: null,
-                    m_telemetry,
-                    ct: ct)
-                    .ConfigureAwait(false);
-
-                if (certificate != null)
-                {
-                    collection.Add(certificate);
-                }
+                collection.Add(m_certificates[ii].AddRef());
             }
 
-            return collection;
+            return Task.FromResult(collection);
         }
 
         /// <inheritdoc/>
-        public async Task AddAsync(
+        public Task AddAsync(
             Certificate certificate,
             char[]? password = null,
             CancellationToken ct = default)
@@ -1128,14 +1105,7 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < m_certificates.Count; ii++)
             {
-                Certificate? current = await m_certificates[ii].FindAsync(
-                    false,
-                    applicationUri: null,
-                    m_telemetry,
-                    ct: ct)
-                    .ConfigureAwait(false);
-
-                if (current != null && current.Thumbprint == certificate.Thumbprint)
+                if (m_certificates[ii].Thumbprint == certificate.Thumbprint)
                 {
                     throw ServiceResultException.Create(
                         StatusCodes.BadEntryExists,
@@ -1144,62 +1114,51 @@ namespace Opc.Ua
                 }
             }
 
-            m_certificates.Add(new CertificateIdentifier(certificate));
+            m_certificates.Add(certificate.AddRef());
+            return Task.CompletedTask;
         }
 
         /// <inheritdoc/>
-        public async Task<bool> DeleteAsync(string thumbprint, CancellationToken ct = default)
+        public Task<bool> DeleteAsync(string thumbprint, CancellationToken ct = default)
         {
             if (string.IsNullOrEmpty(thumbprint))
             {
-                return false;
+                return Task.FromResult(false);
             }
 
             for (int ii = 0; ii < m_certificates.Count; ii++)
             {
-                Certificate? certificate = await m_certificates[ii].FindAsync(
-                    false,
-                    applicationUri: null,
-                    m_telemetry,
-                    ct)
-                    .ConfigureAwait(false);
-
-                if (certificate != null && certificate.Thumbprint == thumbprint)
+                if (m_certificates[ii].Thumbprint == thumbprint)
                 {
+                    Certificate removed = m_certificates[ii];
                     m_certificates.RemoveAt(ii);
-                    return true;
+                    removed.Dispose();
+                    return Task.FromResult(true);
                 }
             }
 
-            return false;
+            return Task.FromResult(false);
         }
 
         /// <inheritdoc/>
-        public async Task<CertificateCollection> FindByThumbprintAsync(
+        public Task<CertificateCollection> FindByThumbprintAsync(
             string thumbprint,
             CancellationToken ct = default)
         {
             if (string.IsNullOrEmpty(thumbprint))
             {
-                return [];
+                return Task.FromResult<CertificateCollection>([]);
             }
 
             for (int ii = 0; ii < m_certificates.Count; ii++)
             {
-                Certificate? certificate = await m_certificates[ii].FindAsync(
-                    false,
-                    applicationUri: null,
-                    m_telemetry,
-                    ct)
-                    .ConfigureAwait(false);
-
-                if (certificate != null && certificate.Thumbprint == thumbprint)
+                if (m_certificates[ii].Thumbprint == thumbprint)
                 {
-                    return [certificate];
+                    return Task.FromResult<CertificateCollection>([m_certificates[ii].AddRef()]);
                 }
             }
 
-            return [];
+            return Task.FromResult<CertificateCollection>([]);
         }
 
         /// <inheritdoc/>
@@ -1265,7 +1224,7 @@ namespace Opc.Ua
             return Task.CompletedTask;
         }
 
-        private readonly List<CertificateIdentifier> m_certificates;
+        private readonly CertificateCollection m_certificates;
         private readonly ITelemetryContext m_telemetry;
     }
 

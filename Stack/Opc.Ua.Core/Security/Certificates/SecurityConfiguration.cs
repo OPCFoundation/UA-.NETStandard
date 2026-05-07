@@ -62,7 +62,7 @@ namespace Opc.Ua
         {
             TrustedPeerCertificates.TrustedCertificates =
                 TrustedPeerCertificates.TrustedCertificates.AddItem(
-                    new CertificateIdentifier(certificate));
+                    new CertificateIdentifier { RawData = certificate });
         }
 
         /// <summary>
