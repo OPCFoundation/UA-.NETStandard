@@ -885,6 +885,25 @@ namespace Opc.Ua
             // GDS push) propagate.
             MapFromSecurityConfiguration(securityConfiguration, replaceExisting: true);
 
+            // Force a re-read of every application certificate from its store
+            // before refreshing the registry. CertificateIdentifier caches the
+            // last loaded Certificate in m_certificate; FindAsync(true) will
+            // happily return that cached instance even after the underlying
+            // store has been mutated (e.g. by a GDS push that deleted the old
+            // cert and added a freshly-issued one in its place). Re-loading
+            // through LoadPrivateKeyExAsync replaces the cached entry with the
+            // current store contents, falling back to applicationUri if the
+            // thumbprint changed.
+            ArrayOf<CertificateIdentifier> appCerts = securityConfiguration.ApplicationCertificates;
+            for (int i = 0; i < appCerts.Count; i++)
+            {
+                await appCerts[i].LoadPrivateKeyExAsync(
+                    securityConfiguration.CertificatePasswordProvider,
+                    applicationUri,
+                    m_telemetry,
+                    ct).ConfigureAwait(false);
+            }
+
             await ReloadApplicationCertificatesAsync(securityConfiguration, applicationUri, ct)
                 .ConfigureAwait(false);
         }

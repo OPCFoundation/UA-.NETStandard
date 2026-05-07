@@ -1414,12 +1414,25 @@ namespace Opc.Ua
             }
 
             // Initialize the new CertificateManager first so the provider can
-            // be backed by it (registry-mode).
+            // be backed by it (registry-mode). Reuse the manager already
+            // configured on the ApplicationConfiguration when available so that
+            // a single CertificateManager instance is shared by the
+            // ApplicationInstance and the ServerBase. Without this, GDS
+            // ApplyChanges would update the ApplicationInstance's manager but
+            // the server-side change observer would never fire because it is
+            // subscribed to a different (server-owned) instance.
             if (CertificateManager == null)
             {
-                CertificateManager = CertificateManagerFactory.Create(
-                    configuration.SecurityConfiguration,
-                    m_telemetry);
+                if (configuration.CertificateManager is CertificateManager configManager)
+                {
+                    CertificateManager = configManager;
+                }
+                else
+                {
+                    CertificateManager = CertificateManagerFactory.Create(
+                        configuration.SecurityConfiguration,
+                        m_telemetry);
+                }
                 CertificateManager.LoadApplicationCertificatesAsync(
                     configuration.SecurityConfiguration,
                     configuration.ApplicationUri).GetAwaiter().GetResult();

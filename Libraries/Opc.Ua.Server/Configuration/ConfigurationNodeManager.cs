@@ -916,17 +916,22 @@ namespace Opc.Ua.Server
                             passwordProvider?.GetPassword(existingCertIdentifier),
                             ct)
                             .ConfigureAwait(false);
+
+                        // Replace the cached cert on the existing identifier so
+                        // downstream consumers (CertificateManager registry,
+                        // endpoint descriptions, transport listeners) pick up
+                        // the new application certificate. The Certificate
+                        // setter disposes the previous cached instance and the
+                        // Thumbprint getter falls through to the new cert
+                        // automatically.
+                        existingCertIdentifier.Certificate = updateCertificate
+                            .CertificateWithPrivateKey.AddRef();
+
                         // keep only track of cert without private key
                         Certificate certOnly = Certificate.FromRawData(
                             updateCertificate.CertificateWithPrivateKey.RawData);
                         updateCertificate.CertificateWithPrivateKey.Dispose();
                         updateCertificate.CertificateWithPrivateKey = certOnly;
-                        // update certificate identifier with new certificate
-                        using Certificate _ = await existingCertIdentifier.FindAsync(
-                            m_configuration.ApplicationUri,
-                            Server.Telemetry,
-                            ct)
-                            .ConfigureAwait(false);
                     }
 
                     ICertificateStore issuerStore = certificateGroup.IssuerStore.OpenStore(Server.Telemetry);
