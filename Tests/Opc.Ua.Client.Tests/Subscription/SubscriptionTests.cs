@@ -1397,7 +1397,7 @@ namespace Opc.Ua.Client.Subscriptions
             protected override ValueTask OnKeepAliveNotificationAsync(uint sequenceNumber,
                 DateTime publishTime, PublishState publishStateMask)
             {
-                return WaitAsync();
+                return default;
             }
         }
 
