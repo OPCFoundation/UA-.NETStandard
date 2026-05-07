@@ -338,7 +338,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 .CreateForRSA();
 
             ICertificateRegistry registry = manager;
-            var issuers = new List<CertificateIdentifier>();
+            var issuers = new List<CertificateIssuerReference>();
             bool isTrusted = await registry.GetIssuersAsync(cert, issuers).ConfigureAwait(false);
 
             Assert.That(issuers, Is.Empty);

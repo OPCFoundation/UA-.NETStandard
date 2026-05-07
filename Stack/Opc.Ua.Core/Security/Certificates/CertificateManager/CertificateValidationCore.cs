@@ -418,7 +418,7 @@ namespace Opc.Ua
         /// </summary>
         public async Task<bool> GetIssuersAsync(
             Certificate certificate,
-            IList<CertificateIdentifier> issuers,
+            IList<CertificateIssuerReference> issuers,
             CancellationToken ct = default)
         {
             using var chain = new CertificateCollection { certificate };
@@ -432,15 +432,14 @@ namespace Opc.Ua
         /// </summary>
         public async Task<bool> GetIssuersAsync(
             CertificateCollection certificates,
-            IList<CertificateIdentifier> issuers,
+            IList<CertificateIssuerReference> issuers,
             Dictionary<Certificate, ServiceResultException>? validationErrors,
             CancellationToken ct = default)
         {
             bool isTrusted = false;
-            CertificateIdentifier? issuer = null;
+            CertificateIssuerReference? issuer = null;
             ServiceResultException? revocationStatus = null;
             Certificate? certificate = certificates[0];
-            var ownedCertificates = new List<Certificate>();
 
             var untrustedList = new List<CertificateIdentifier>();
             for (int ii = 1; ii < certificates.Count; ii++)
@@ -541,11 +540,11 @@ namespace Opc.Ua
                         }
 
                         bool alreadyPresent = false;
-                        foreach (CertificateIdentifier existing in issuers)
+                        foreach (CertificateIssuerReference existing in issuers)
                         {
                             if (string.Equals(
-                                existing.Thumbprint,
-                                issuer.Thumbprint,
+                                existing.Certificate.Thumbprint,
+                                issuer.Certificate.Thumbprint,
                                 StringComparison.OrdinalIgnoreCase))
                             {
                                 alreadyPresent = true;
@@ -555,21 +554,19 @@ namespace Opc.Ua
 
                         if (alreadyPresent)
                         {
-                            issuer.Dispose();
+                            issuer.Certificate.Dispose();
                             break;
                         }
 
-                        issuers.Add(issuer!);
+                        issuers.Add(issuer);
 
-                        certificate = await issuer.FindAsync(
-                            false,
-                            applicationUri: null,
-                            m_telemetry,
-                            ct).ConfigureAwait(false);
-                        if (certificate != null)
-                        {
-                            ownedCertificates.Add(certificate);
-                        }
+                        // Advance the chain walk: the next iteration looks
+                        // up the issuer of the current issuer cert, so the
+                        // current `certificate` becomes the issuer cert
+                        // we just resolved. The reference is owned by the
+                        // `issuers` list (caller-owned via the returned
+                        // collection), so we just borrow the cert here.
+                        certificate = issuer.Certificate;
                     }
                 }
                 finally
@@ -577,12 +574,6 @@ namespace Opc.Ua
                     m_semaphore.Release();
                 }
             } while (issuer != null);
-
-            // dispose all intermediate certificates from the issuer chain walk
-            foreach (Certificate owned in ownedCertificates)
-            {
-                owned.Dispose();
-            }
 
             foreach (CertificateIdentifier untrusted in untrustedList)
             {
@@ -732,11 +723,11 @@ namespace Opc.Ua
                 return;
             }
 
-            CertificateIdentifier? trustedCertificate =
+            CertificateIssuerReference? trustedCertificate =
                 await GetTrustedCertificateAsync(certificate, ct).ConfigureAwait(false);
 
             // get the issuers (checks the revocation lists if using directory stores).
-            var issuers = new List<CertificateIdentifier>();
+            var issuers = new List<CertificateIssuerReference>();
             var validationErrors = new Dictionary<Certificate, ServiceResultException>();
 
             try
@@ -763,9 +754,9 @@ namespace Opc.Ua
                 };
 
                 var extraStoreCerts = new List<X509Certificate2>();
-                foreach (CertificateIdentifier issuer in issuers)
+                foreach (CertificateIssuerReference issuer in issuers)
                 {
-                    if ((issuer.ValidationOptions &
+                    if ((issuer.Options &
                         CertificateValidationOptions.SuppressRevocationStatusUnknown) != 0)
                     {
                         policy.VerificationFlags
@@ -778,7 +769,7 @@ namespace Opc.Ua
 
                     // we did the revocation check in the GetIssuers call. No need here.
                     policy.RevocationMode = X509RevocationMode.NoCheck;
-                    extraStoreCerts.Add(issuer.Certificate!.AsX509Certificate2());
+                    extraStoreCerts.Add(issuer.Certificate.AsX509Certificate2());
                     policy.ExtraStore.Add(extraStoreCerts[^1]);
                 }
 
@@ -791,9 +782,15 @@ namespace Opc.Ua
                     chain.Build(certX509);
 
                     // check the chain results.
-                    using CertificateIdentifier? fallbackTarget = trustedCertificate == null
-                        ? new CertificateIdentifier(certificate) : null;
-                    CertificateIdentifier target = trustedCertificate ?? fallbackTarget!;
+                    // The fallback target wraps the leaf cert with default
+                    // validation options when there's no trusted-list match.
+                    // Records do not own the cert: the leaf cert is owned by
+                    // the input `certificates` collection, so no extra
+                    // disposal is needed for the fallback path.
+                    CertificateIssuerReference target = trustedCertificate ??
+                        new CertificateIssuerReference(
+                            certificate,
+                            CertificateValidationOptions.Default);
 
                     foreach (X509ChainStatus chainStatus in chain.ChainStatus ?? [])
                     {
@@ -850,7 +847,7 @@ namespace Opc.Ua
                     {
                         X509ChainElement element = chain.ChainElements[ii];
 
-                        CertificateIdentifier? issuer = null;
+                        CertificateIssuerReference? issuer = null;
 
                         if (ii < issuers.Count)
                         {
@@ -861,7 +858,7 @@ namespace Opc.Ua
                         if (ii + 1 < chain.ChainElements.Count)
                         {
                             X509Certificate2 issuerCert = chain.ChainElements[ii + 1].Certificate;
-                            if (issuer == null || !Utils.IsEqual(issuerCert.RawData, issuer.RawData))
+                            if (issuer == null || !Utils.IsEqual(issuerCert.RawData, issuer.Certificate.RawData))
                             {
                                 // the chain used for cert validation differs from the issuers provided
                                 m_logger.LogInformation(
@@ -907,8 +904,8 @@ namespace Opc.Ua
                 bool issuedByCA = !X509Utils.IsSelfSigned(certificate);
                 if (issuers.Count > 0)
                 {
-                    Certificate? rootCertificate = issuers[^1].Certificate;
-                    if (rootCertificate == null || !X509Utils.IsSelfSigned(rootCertificate))
+                    Certificate rootCertificate = issuers[^1].Certificate;
+                    if (!X509Utils.IsSelfSigned(rootCertificate))
                     {
                         chainIncomplete = true;
                     }
@@ -1075,10 +1072,10 @@ namespace Opc.Ua
             }
             finally
             {
-                trustedCertificate?.Dispose();
-                foreach (CertificateIdentifier issuer in issuers)
+                trustedCertificate?.Certificate.Dispose();
+                foreach (CertificateIssuerReference issuer in issuers)
                 {
-                    issuer.Dispose();
+                    issuer.Certificate.Dispose();
                 }
             }
         }
@@ -1210,14 +1207,13 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the certificate information for a trusted peer certificate.
         /// </summary>
-        private async Task<CertificateIdentifier?> GetTrustedCertificateAsync(
+        private async Task<CertificateIssuerReference?> GetTrustedCertificateAsync(
             Certificate certificate,
             CancellationToken ct = default)
         {
             await m_semaphore.WaitAsync(ct).ConfigureAwait(false);
             try
             {
-                // check if explicitly trusted.
                 if (!m_trustedCertificateList.IsEmpty)
                 {
                     for (int ii = 0; ii < m_trustedCertificateList.Count; ii++)
@@ -1236,8 +1232,7 @@ namespace Opc.Ua
                             trusted.Thumbprint == certificate.Thumbprint &&
                             Utils.IsEqual(trusted.RawData, certificate.RawData))
                         {
-                            // return an owned copy so the caller can safely dispose it
-                            return new CertificateIdentifier(
+                            return new CertificateIssuerReference(
                                 trusted,
                                 m_trustedCertificateList[ii].ValidationOptions);
                         }
@@ -1262,7 +1257,7 @@ namespace Opc.Ua
                             {
                                 if (Utils.IsEqual(trusted[ii].RawData, certificate.RawData))
                                 {
-                                    return new CertificateIdentifier(
+                                    return new CertificateIssuerReference(
                                         trusted[ii].AddRef(),
                                         m_trustedCertificateStore.ValidationOptions);
                                 }
@@ -1340,7 +1335,7 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the certificate information for a trusted issuer certificate.
         /// </summary>
-        private async Task<(CertificateIdentifier?, ServiceResultException?)> GetIssuerNoExceptionAsync(
+        private async Task<(CertificateIssuerReference?, ServiceResultException?)> GetIssuerNoExceptionAsync(
             Certificate certificate,
             ArrayOf<CertificateIdentifier> explicitList,
             CertificateStoreIdentifier? certificateStore,
@@ -1393,10 +1388,9 @@ namespace Opc.Ua
                         {
                             // can't check revocation.
                             return (
-                                new CertificateIdentifier(
+                                new CertificateIssuerReference(
                                     issuer,
-                                    CertificateValidationOptions.SuppressRevocationStatusUnknown
-                                ),
+                                    CertificateValidationOptions.SuppressRevocationStatusUnknown),
                                 null);
                         }
 
@@ -1478,7 +1472,7 @@ namespace Opc.Ua
                                 options
                                     |= CertificateValidationOptions.SuppressRevocationStatusUnknown;
 
-                                return (new CertificateIdentifier(issuer.AddRef(), options), serviceResult);
+                                return (new CertificateIssuerReference(issuer.AddRef(), options), serviceResult);
                             }
                         }
                     }
@@ -1497,7 +1491,7 @@ namespace Opc.Ua
         /// Returns the certificate information for a trusted issuer certificate.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        private async Task<CertificateIdentifier?> GetIssuerAsync(
+        private async Task<CertificateIssuerReference?> GetIssuerAsync(
             Certificate certificate,
             ArrayOf<CertificateIdentifier> explicitList,
             CertificateStoreIdentifier? certificateStore,
@@ -1510,7 +1504,7 @@ namespace Opc.Ua
                 return null;
             }
 
-            (CertificateIdentifier? result, ServiceResultException? srex)
+            (CertificateIssuerReference? result, ServiceResultException? srex)
                 = await GetIssuerNoExceptionAsync(
                     certificate,
                     explicitList,
@@ -1530,8 +1524,8 @@ namespace Opc.Ua
         /// </summary>
         private ServiceResult? CheckChainStatus(
             X509ChainStatus status,
-            CertificateIdentifier id,
-            CertificateIdentifier? issuer,
+            CertificateIssuerReference target,
+            CertificateIssuerReference? issuer,
             bool isIssuer)
         {
             switch (status.Status)
@@ -1552,8 +1546,7 @@ namespace Opc.Ua
                     goto case X509ChainStatusFlags.UntrustedRoot;
                 case X509ChainStatusFlags.UntrustedRoot:
                     if (issuer != null ||
-                        id.Certificate == null ||
-                        !X509Utils.IsSelfSigned(id.Certificate))
+                        !X509Utils.IsSelfSigned(target.Certificate))
                     {
                         return ServiceResult.Create(
                             StatusCodes.BadCertificateChainIncomplete,
@@ -1564,7 +1557,7 @@ namespace Opc.Ua
                     // self signed cert signature validation
                     // .NET Core ChainStatus returns NotSignatureValid only on Windows,
                     // so we have to do the extra cert signature check on all platforms
-                    if (!CertificateValidationHelpers.IsSignatureValid(id.Certificate))
+                    if (!CertificateValidationHelpers.IsSignatureValid(target.Certificate))
                     {
                         return ServiceResult.Create(
                             StatusCodes.BadCertificateInvalid,
@@ -1575,7 +1568,7 @@ namespace Opc.Ua
                     break;
                 case X509ChainStatusFlags.RevocationStatusUnknown:
                     if (issuer != null &&
-                        (issuer.ValidationOptions &
+                        (issuer.Options &
                             CertificateValidationOptions.SuppressRevocationStatusUnknown) != 0)
                     {
                         m_logger.LogWarning(
@@ -1587,7 +1580,7 @@ namespace Opc.Ua
                     }
 
                     // check for meaning less errors for self-signed certificates.
-                    if (id.Certificate != null && X509Utils.IsSelfSigned(id.Certificate))
+                    if (X509Utils.IsSelfSigned(target.Certificate))
                     {
                         break;
                     }
@@ -1608,9 +1601,8 @@ namespace Opc.Ua
                         status.Status,
                         status.StatusInformation);
                 case X509ChainStatusFlags.NotTimeNested:
-                    if (id != null &&
-                        ((id.ValidationOptions &
-                            CertificateValidationOptions.SuppressCertificateExpired) != 0))
+                    if ((target.Options &
+                            CertificateValidationOptions.SuppressCertificateExpired) != 0)
                     {
                         m_logger.LogWarning(
                             Utils.TraceMasks.Security,
@@ -1625,9 +1617,8 @@ namespace Opc.Ua
                         status.Status,
                         status.StatusInformation);
                 case X509ChainStatusFlags.NotTimeValid:
-                    if (id != null &&
-                        ((id.ValidationOptions &
-                            CertificateValidationOptions.SuppressCertificateExpired) != 0))
+                    if ((target.Options &
+                            CertificateValidationOptions.SuppressCertificateExpired) != 0)
                     {
                         m_logger.LogWarning(
                             Utils.TraceMasks.Security,

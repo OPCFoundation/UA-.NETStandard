@@ -492,7 +492,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public Task<bool> GetIssuersAsync(
             Certificate certificate,
-            IList<CertificateIdentifier> issuers,
+            IList<CertificateIssuerReference> issuers,
             CancellationToken ct = default)
         {
             if (certificate == null)

@@ -4380,7 +4380,7 @@ namespace Opc.Ua.Client
                 clientCertificateChain = [clientCertificate];
                 try
                 {
-                    var issuers = new List<CertificateIdentifier>();
+                    var issuers = new List<CertificateIssuerReference>();
                     if (configuration.CertificateManager != null)
                     {
                         await configuration.CertificateManager
@@ -4390,11 +4390,7 @@ namespace Opc.Ua.Client
 
                     for (int i = 0; i < issuers.Count; i++)
                     {
-                        Certificate? issuerCert = issuers[i].Certificate;
-                        if (issuerCert != null)
-                        {
-                            clientCertificateChain.Add(issuerCert);
-                        }
+                        clientCertificateChain.Add(issuers[i].Certificate);
                     }
                 }
                 catch

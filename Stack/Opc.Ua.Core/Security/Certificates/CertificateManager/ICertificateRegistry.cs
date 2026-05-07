@@ -120,12 +120,15 @@ namespace Opc.Ua
         /// This is the modern replacement for the legacy
         /// <c>CertificateValidator.GetIssuersAsync(Certificate, IList&lt;CertificateIdentifier&gt;)</c>
         /// signature; it walks the trusted, issuer, and any untrusted
-        /// stores in the same order as the legacy validator.
+        /// stores in the same order as the legacy validator. Each
+        /// returned <see cref="CertificateIssuerReference"/> carries an
+        /// <see cref="Certificate.AddRef"/>'d certificate that the
+        /// caller is responsible for disposing.
         /// </remarks>
         /// <param name="certificate">The certificate to resolve issuers for.</param>
         /// <param name="issuers">
         /// The output list which receives the resolved issuer
-        /// <see cref="CertificateIdentifier"/> entries.
+        /// <see cref="CertificateIssuerReference"/> entries.
         /// </param>
         /// <param name="ct">A cancellation token.</param>
         /// <returns>
@@ -134,7 +137,7 @@ namespace Opc.Ua
         /// </returns>
         Task<bool> GetIssuersAsync(
             Certificate certificate,
-            IList<CertificateIdentifier> issuers,
+            IList<CertificateIssuerReference> issuers,
             CancellationToken ct = default);
     }
 }
