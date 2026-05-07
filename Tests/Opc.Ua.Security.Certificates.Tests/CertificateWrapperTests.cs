@@ -286,7 +286,7 @@ namespace Opc.Ua.Security.Certificates.Tests
 
             using var cert2 = Certificate.FromRawData(cert1.RawData);
 
-            Assert.That(cert1.Equals(cert2), Is.True);
+            Assert.That(cert1, Is.EqualTo(cert2));
             Assert.That(cert1.GetHashCode(), Is.EqualTo(cert2.GetHashCode()));
         }
 
@@ -326,7 +326,9 @@ namespace Opc.Ua.Security.Certificates.Tests
                 .SetRSAKeySize(2048)
                 .CreateForRSA();
 
+#pragma warning disable NUnit2010 // Use EqualConstraint for better assertion messages
             Assert.That(cert.Equals(cert), Is.True);
+#pragma warning restore NUnit2010
         }
 
         [Test]
@@ -339,7 +341,7 @@ namespace Opc.Ua.Security.Certificates.Tests
 
             using var cert2 = Certificate.FromRawData(cert1.RawData);
 
-            Assert.That(cert1.Equals((object)cert2), Is.True);
+            Assert.That(cert1, Is.EqualTo((object)cert2));
         }
 
         [Test]

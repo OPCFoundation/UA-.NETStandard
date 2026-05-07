@@ -200,7 +200,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 // may or may not have run depending on multicast order.
             }
 
-            Assert.That(otherInvocations is 0 or 1);
+            Assert.That(otherInvocations, Is.EqualTo(0).Or.EqualTo(1));
             // If the second handler did run, sender should be the
             // managed session (event forwarding preserves identity).
 #pragma warning disable CA1508 // Avoid dead conditional code
