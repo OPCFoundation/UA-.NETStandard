@@ -142,7 +142,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 () => manager.OpenTrustedStore(TrustListIdentifier.Peers));
         }
 
-        #endregion
+        #endregion Trust-List Registry
 
         #region Certificate Registry
 
@@ -207,7 +207,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.That(entry.Certificate.Thumbprint, Is.EqualTo(cert.Thumbprint));
         }
 
-        #endregion
+        #endregion Certificate Registry
 
         #region Validation
 
@@ -256,7 +256,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.That(result.IsValid, Is.True);
         }
 
-        #endregion
+        #endregion Validation
 
         #region Lifecycle
 
@@ -303,7 +303,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     rejectedCollection).ConfigureAwait(false));
         }
 
-        #endregion
+        #endregion Lifecycle
 
         #region Factory Creation
 
@@ -335,7 +335,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.That(manager.TrustLists, Does.Contain(TrustListIdentifier.Rejected));
         }
 
-        #endregion
+        #endregion Factory Creation
 
         #region Issuer Resolution and Chain Blob
 
@@ -644,7 +644,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.That(newStore.StorePath, Is.EqualTo(newPath));
         }
 
-        #endregion
+        #endregion Issuer Resolution and Chain Blob
 
         #region Helpers
 
@@ -678,6 +678,6 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             }
         }
 
-        #endregion
+        #endregion Helpers
     }
 }

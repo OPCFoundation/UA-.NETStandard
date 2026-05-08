@@ -1257,10 +1257,12 @@ namespace Opc.Ua
         private readonly ITelemetryContext m_telemetry;
         private readonly ILogger m_logger;
         private int m_maxRejectedCertificates;
-        // Guards mutations of m_applicationCertificates and the cached
-        // per-trust-list validators. Reads of single fields (e.g.
-        // GetInstanceCertificate enumeration) take this lock too to
-        // prevent the C5 / C1 races from the code review.
+        /// <summary>
+        /// Guards mutations of m_applicationCertificates and the cached
+        /// per-trust-list validators. Reads of single fields (e.g.
+        /// GetInstanceCertificate enumeration) take this lock too to
+        /// prevent the C5 / C1 races from the code review.
+        /// </summary>
         private readonly object m_certificatesLock = new();
         private bool m_sendCertificateChain;
         private bool m_autoAcceptUntrustedCertificates;
