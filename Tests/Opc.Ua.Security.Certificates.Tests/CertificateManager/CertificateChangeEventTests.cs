@@ -76,29 +76,27 @@ namespace Opc.Ua.Security.Certificates.Tests
         [Test]
         public void KindValuesExist()
         {
+#if NET5_0_OR_GREATER
+            CertificateChangeKind[] values = Enum.GetValues<CertificateChangeKind>();
+#else
             Array values = Enum.GetValues(typeof(CertificateChangeKind));
+#endif
             Assert.That(values, Has.Length.GreaterThanOrEqualTo(5));
 
-            Assert.That(
-                Enum.IsDefined(typeof(CertificateChangeKind),
-                    CertificateChangeKind.ApplicationCertificateUpdated),
-                Is.True);
-            Assert.That(
-                Enum.IsDefined(typeof(CertificateChangeKind),
-                    CertificateChangeKind.TrustListUpdated),
-                Is.True);
-            Assert.That(
-                Enum.IsDefined(typeof(CertificateChangeKind),
-                    CertificateChangeKind.CrlUpdated),
-                Is.True);
-            Assert.That(
-                Enum.IsDefined(typeof(CertificateChangeKind),
-                    CertificateChangeKind.CertificateRejected),
-                Is.True);
-            Assert.That(
-                Enum.IsDefined(typeof(CertificateChangeKind),
-                    CertificateChangeKind.CertificateExpiring),
-                Is.True);
+            Assert.That(IsDefined(CertificateChangeKind.ApplicationCertificateUpdated), Is.True);
+            Assert.That(IsDefined(CertificateChangeKind.TrustListUpdated), Is.True);
+            Assert.That(IsDefined(CertificateChangeKind.CrlUpdated), Is.True);
+            Assert.That(IsDefined(CertificateChangeKind.CertificateRejected), Is.True);
+            Assert.That(IsDefined(CertificateChangeKind.CertificateExpiring), Is.True);
+
+            static bool IsDefined(CertificateChangeKind value)
+            {
+#if NET5_0_OR_GREATER
+                return Enum.IsDefined(value);
+#else
+                return Enum.IsDefined(typeof(CertificateChangeKind), value);
+#endif
+            }
         }
 
         [Test]
