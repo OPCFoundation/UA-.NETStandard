@@ -717,7 +717,7 @@ namespace Opc.Ua.Server.Tests
                 ObjectIds.AggregateFunction_PercentGood,
                 ObjectIds.AggregateFunction_PercentBad,
                 ObjectIds.AggregateFunction_WorstQuality,
-                ObjectIds.AggregateFunction_WorstQuality2,
+                ObjectIds.AggregateFunction_WorstQuality2
             ];
 
             foreach (NodeId aggregateId in aggregateIds)

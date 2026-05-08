@@ -560,7 +560,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeInvalidMessageTypeDoesNotThrow()
         {
-            string invalidJson = @"{""MessageId"":""test"",""MessageType"":""ua-invalid""}";
+            const string invalidJson = @"{""MessageId"":""test"",""MessageType"":""ua-invalid""}";
             byte[] encoded = System.Text.Encoding.UTF8.GetBytes(invalidJson);
 
             var decoded = new PubSubEncoding.JsonNetworkMessage();
@@ -781,7 +781,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeMetaDataWithMissingDataSetWriterIdDoesNotThrow()
         {
-            string json =
+            const string json =
                 @"{""MessageId"":""id1"",""MessageType"":""ua-metadata""," +
                 @"""PublisherId"":""Pub1"",""MetaData"":{""Name"":""M1""," +
                 @"""Fields"":[],""ConfigurationVersion"":" +

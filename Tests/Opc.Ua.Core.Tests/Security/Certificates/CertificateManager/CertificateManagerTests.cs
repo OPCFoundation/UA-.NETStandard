@@ -667,6 +667,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             public void OnCompleted()
             {
             }
+
             public void OnError(Exception error)
             {
             }

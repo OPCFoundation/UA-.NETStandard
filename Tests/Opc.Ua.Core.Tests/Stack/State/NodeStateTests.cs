@@ -709,10 +709,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
         {
             using var method = new MethodState(null)
             {
-                OnCallMethod = (context, methodState, inputArgs, outputArgs) =>
-                {
-                    return ServiceResult.Good;
-                }
+                OnCallMethod = (context, methodState, inputArgs, outputArgs) => ServiceResult.Good
             };
             Assert.That(method.OnCallMethod, Is.Not.Null);
         }
@@ -722,10 +719,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
         {
             using var method = new MethodState(null)
             {
-                OnCallMethod2 = (context, methodToCall, objectId, inputArgs, outputArgs) =>
-                {
-                    return ServiceResult.Good;
-                }
+                OnCallMethod2 = (context, methodToCall, objectId, inputArgs, outputArgs) => ServiceResult.Good
             };
             Assert.That(method.OnCallMethod2, Is.Not.Null);
         }

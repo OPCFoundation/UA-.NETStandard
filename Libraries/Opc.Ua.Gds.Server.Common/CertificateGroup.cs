@@ -543,7 +543,7 @@ namespace Opc.Ua.Gds.Server
                 SubjectName = signingCertificate.Subject,
                 CertificateType = CertificateIdentifier.GetCertificateType(signingCertificate)
             };
-            Certificate loaded = await CertificateIdentifierResolver
+            return await CertificateIdentifierResolver
                 .LoadPrivateKeyAsync(
                     certIdentifier,
                     new CertificatePasswordProvider(signingKeyPassword),
@@ -554,7 +554,6 @@ namespace Opc.Ua.Gds.Server
                 ?? throw new ServiceResultException(
                     StatusCodes.BadConfigurationError,
                     "Failed to load signing key for certificate.");
-            return loaded;
         }
 
         /// <summary>

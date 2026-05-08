@@ -332,7 +332,7 @@ namespace Opc.Ua.Core.Tests.Stack.Types
             encoder.WriteByteString(null, secret);
 
             int dataLength = encoder.Position - startOfPayload + 2;
-            int paddingCount = dataLength % blockSize == 0 ? 0 : blockSize - dataLength % blockSize;
+            int paddingCount = dataLength % blockSize == 0 ? 0 : blockSize - (dataLength % blockSize);
             if (paddingCount + secret.Length < blockSize)
             {
                 paddingCount += blockSize;

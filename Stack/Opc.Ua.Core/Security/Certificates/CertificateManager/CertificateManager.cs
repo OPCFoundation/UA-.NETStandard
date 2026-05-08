@@ -535,10 +535,7 @@ namespace Opc.Ua
                 {
                     oldEntries = [.. m_applicationCertificates];
                     m_applicationCertificates.Clear();
-                    foreach (CertificateEntry e in newEntries)
-                    {
-                        m_applicationCertificates.Add(e);
-                    }
+                    m_applicationCertificates.AddRange(newEntries);
                 }
 
                 // Dispose old entries OUTSIDE the lock so that any concurrent
@@ -738,7 +735,9 @@ namespace Opc.Ua
             CancellationToken ct = default)
         {
             CertificateEntry? oldEntry = null;
-            CertificateValidationCore? oldPeer, oldUser, oldHttps;
+            CertificateValidationCore? oldPeer;
+            CertificateValidationCore? oldUser;
+            CertificateValidationCore? oldHttps;
 
             lock (m_certificatesLock)
             {
@@ -814,7 +813,9 @@ namespace Opc.Ua
         {
             // Snapshot the previous primary entry (if any) so we can fire a
             // CertificateChange notification once the reload completes.
-            CertificateValidationCore? oldPeer, oldUser, oldHttps;
+            CertificateValidationCore? oldPeer;
+            CertificateValidationCore? oldUser;
+            CertificateValidationCore? oldHttps;
             CertificateEntry? oldPrimary;
             lock (m_certificatesLock)
             {
@@ -1268,7 +1269,7 @@ namespace Opc.Ua
         private ushort m_minimumCertificateKeySize = CertificateFactory.DefaultKeySize;
         private bool m_useValidatedCertificates;
         private RejectedCertificateProcessor? m_rejectedProcessor;
-        private CertificateLifecycleMonitor? m_lifecycleMonitor;
+        private readonly CertificateLifecycleMonitor? m_lifecycleMonitor;
         private CertificateValidationCore? m_peerCore;
         private CertificateValidationCore? m_userCore;
         private CertificateValidationCore? m_httpsCore;

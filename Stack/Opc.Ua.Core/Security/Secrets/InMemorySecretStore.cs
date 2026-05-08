@@ -60,7 +60,6 @@ namespace Opc.Ua
         public const string DefaultStoreType = "InMemory";
 
         private readonly ConcurrentDictionary<string, byte[]> m_entries = new();
-        private readonly string m_storeType;
 
         /// <summary>
         /// Creates a new in-memory store with the default store type.
@@ -77,11 +76,11 @@ namespace Opc.Ua
         /// </summary>
         public InMemorySecretStore(string storeType)
         {
-            m_storeType = storeType ?? throw new ArgumentNullException(nameof(storeType));
+            StoreType = storeType ?? throw new ArgumentNullException(nameof(storeType));
         }
 
         /// <inheritdoc/>
-        public string StoreType => m_storeType;
+        public string StoreType { get; }
 
         /// <inheritdoc/>
         public ISecret? TryGet(SecretIdentifier id)
@@ -115,8 +114,7 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(id));
             }
 
-            byte[] copy = bytes.ToArray();
-            m_entries[id.Name] = copy;
+            m_entries[id.Name] = bytes.ToArray();
             return default;
         }
 

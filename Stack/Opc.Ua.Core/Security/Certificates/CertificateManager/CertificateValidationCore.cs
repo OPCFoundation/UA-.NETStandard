@@ -1586,7 +1586,7 @@ namespace Opc.Ua
                         status.StatusInformation);
                 case X509ChainStatusFlags.NotTimeNested:
                     if ((target.Options &
-                            CertificateValidationOptions.SuppressCertificateExpired) != 0)
+                        CertificateValidationOptions.SuppressCertificateExpired) != 0)
                     {
                         m_logger.LogWarning(
                             Utils.TraceMasks.Security,
@@ -1602,7 +1602,7 @@ namespace Opc.Ua
                         status.StatusInformation);
                 case X509ChainStatusFlags.NotTimeValid:
                     if ((target.Options &
-                            CertificateValidationOptions.SuppressCertificateExpired) != 0)
+                        CertificateValidationOptions.SuppressCertificateExpired) != 0)
                     {
                         m_logger.LogWarning(
                             Utils.TraceMasks.Security,

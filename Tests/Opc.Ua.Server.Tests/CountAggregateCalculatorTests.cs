@@ -155,7 +155,7 @@ namespace Opc.Ua.Server.Tests
                 StatusCodes.Good,
                 StatusCodes.Bad,
                 StatusCodes.Good,
-                StatusCodes.Good,
+                StatusCodes.Good
             ];
             List<DataValue> dataValues = CreateMixedStatusDataValues(
                 firstValueTime, values, statuses, 2000);
@@ -220,7 +220,7 @@ namespace Opc.Ua.Server.Tests
                 StatusCodes.Good,
                 StatusCodes.Bad,
                 StatusCodes.Good,
-                StatusCodes.Good,
+                StatusCodes.Good
             ];
             List<DataValue> dataValues = CreateMixedStatusDataValues(
                 firstValueTime, values, statuses, 2000);

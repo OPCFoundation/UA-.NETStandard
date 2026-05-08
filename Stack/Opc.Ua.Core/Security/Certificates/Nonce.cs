@@ -642,9 +642,9 @@ namespace Opc.Ua
 
             byte[] seed = new byte[1];
             s_rng.Value.GetBytes(seed);
-            int keyLength = seed[0] % (max - min + 1) + min;
+            int keyLength = (seed[0] % (max - min + 1)) + min;
 
-            byte[] key = new byte[1 + (keyLength + 7) / 8];
+            byte[] key = new byte[1 + ((keyLength + 7) / 8)];
             s_rng.Value.GetBytes(key);
             key[key.Length - 1] = 0;
 

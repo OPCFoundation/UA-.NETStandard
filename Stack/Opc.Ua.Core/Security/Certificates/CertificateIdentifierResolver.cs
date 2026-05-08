@@ -220,7 +220,7 @@ namespace Opc.Ua
                         identifier.SubjectName!,
                         applicationUri: null!,
                         identifier.CertificateType,
-                        password!,
+                        password,
                         ct)
                     .ConfigureAwait(false);
 
@@ -232,7 +232,7 @@ namespace Opc.Ua
                             subjectName: null!,
                             applicationUri!,
                             identifier.CertificateType,
-                            password!,
+                            password,
                             ct)
                         .ConfigureAwait(false);
                 }
@@ -250,7 +250,7 @@ namespace Opc.Ua
                             subjectName: null!,
                             applicationUri!,
                             identifier.CertificateType,
-                            password!,
+                            password,
                             ct)
                         .ConfigureAwait(false);
                 }
