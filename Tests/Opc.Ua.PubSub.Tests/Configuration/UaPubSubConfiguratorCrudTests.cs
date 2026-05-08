@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.IO;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Configuration;
 using Opc.Ua.Tests;
@@ -41,10 +40,6 @@ namespace Opc.Ua.PubSub.Tests.Configuration
     [Parallelizable]
     public class UaPubSubConfiguratorCrudTests
     {
-        private static readonly string s_publisherConfigurationFileName = Path.Combine(
-            "Configuration",
-            "PublisherConfiguration.xml");
-
         private static UaPubSubConfigurator CreateConfiguratorWithConfig(PubSubConfigurationDataType config)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();

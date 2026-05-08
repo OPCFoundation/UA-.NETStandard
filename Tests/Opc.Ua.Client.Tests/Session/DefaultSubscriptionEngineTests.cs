@@ -38,6 +38,11 @@ using Opc.Ua.Client.Subscriptions;
 using Opc.Ua.Client.Subscriptions.Engine;
 using Opc.Ua.Tests;
 
+// CA2000: test code; many disposables are ownership-transferred to test fixtures or short-lived,
+// making CA2000 noisy without a real leak risk. Disabled file-level for the suite (the existing
+// narrow-scope pragma below at line ~163 predates the file-level decision).
+#pragma warning disable CA2000
+
 namespace Opc.Ua.Client.Tests
 {
     [TestFixture]

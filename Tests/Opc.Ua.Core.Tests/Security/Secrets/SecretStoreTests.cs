@@ -77,11 +77,15 @@ namespace Opc.Ua.Core.Tests.Security.Secrets
             var id = new SecretIdentifier("password", InMemorySecretStore.DefaultStoreType);
             await store.SetAsync(id, new byte[] { 0xAB }).ConfigureAwait(false);
 
+            // CA2012: deliberately storing then accessing .Result on a ValueTask after asserting
+            // IsCompletedSuccessfully — that is the exact behaviour this test verifies.
+#pragma warning disable CA2012
             ValueTask<ISecret> task = store.GetAsync(id);
 
             Assert.That(task.IsCompletedSuccessfully, Is.True,
                 "InMemorySecretStore.GetAsync must complete sync on cache hit.");
             using ISecret secret = task.Result;
+#pragma warning restore CA2012
             Assert.That(secret.Bytes[0], Is.EqualTo((byte)0xAB));
         }
 

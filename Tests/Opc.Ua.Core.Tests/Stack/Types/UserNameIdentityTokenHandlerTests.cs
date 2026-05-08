@@ -378,10 +378,12 @@ namespace Opc.Ua.Core.Tests.Stack.Types
 
         private static byte[] ComputeSha1Hash(byte[] data)
         {
-#pragma warning disable CA5350 // Do Not Use Weak Cryptographic Algorithms
+            // CA5350: SHA1 required for legacy compatibility test vector.
+            // CA1850: SHA1.HashData() is .NET 5+ only and the suite still targets net472/net48.
+#pragma warning disable CA5350, CA1850
             using SHA1 sha1 = SHA1.Create();
             return sha1.ComputeHash(data);
-#pragma warning restore CA5350 // Do Not Use Weak Cryptographic Algorithms
+#pragma warning restore CA5350, CA1850
         }
     }
 }

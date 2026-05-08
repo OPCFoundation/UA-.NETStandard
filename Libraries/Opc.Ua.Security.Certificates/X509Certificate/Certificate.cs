@@ -319,9 +319,12 @@ namespace Opc.Ua.Security.Certificates
         public Oid SignatureAlgorithm => X509.SignatureAlgorithm;
 
         /// <inheritdoc/>
-#pragma warning disable CA1063 // Implement IDisposable Correctly
+        // CA1063: this Dispose() delegates to Dispose(bool); CA1816: SuppressFinalize is
+        // intentionally deferred until the refcount reaches zero (see Dispose(bool) below)
+        // so finalizer-based leak reporting still triggers on AddRef-without-Dispose bugs.
+#pragma warning disable CA1063, CA1816
         public void Dispose()
-#pragma warning restore CA1063 // Implement IDisposable Correctly
+#pragma warning restore CA1063, CA1816
         {
             Dispose(disposing: true);
         }

@@ -1353,6 +1353,9 @@ namespace Opc.Ua.Gds.Tests
                     .ConfigureAwait(false);
                 foreach (Certificate cert in storeCerts)
                 {
+                    // CA1868: Contains() then Remove() is intentional — different branches
+                    // perform different actions (delete from store vs. remove from working list).
+#pragma warning disable CA1868
                     if (!updatedCerts.Contains(cert))
                     {
                         if (!store.DeleteAsync(cert.Thumbprint).Result)
@@ -1364,6 +1367,7 @@ namespace Opc.Ua.Gds.Tests
                     {
                         updatedCerts.Remove(cert);
                     }
+#pragma warning restore CA1868
                 }
                 foreach (Certificate cert in updatedCerts)
                 {

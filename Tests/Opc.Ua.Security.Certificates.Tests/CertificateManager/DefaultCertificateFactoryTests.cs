@@ -126,7 +126,10 @@ namespace Opc.Ua.Security.Certificates.Tests
                 .AddExtension(
                     new X509SubjectAltNameExtension(
                         "urn:test:csr",
+                        // CA1861: literal array on a test setup call — readability beats hoisting.
+#pragma warning disable CA1861
                         new[] { "localhost" }))
+#pragma warning restore CA1861
                 .CreateForRSA();
 
             byte[] csr = factory.CreateSigningRequest(cert);
