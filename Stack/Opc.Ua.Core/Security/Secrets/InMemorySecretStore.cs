@@ -30,6 +30,11 @@
 
 #nullable enable
 
+// CA2000: ownership of disposables created in this file is transferred to long-lived
+// caches, returned objects, or fields whose lifetime is managed by the containing type's
+// Dispose. Per Phase 8 review the residual sites are accepted as ownership-transfer patterns
+// rather than missed using statements.
+#pragma warning disable CA2000
 using System;
 using System.Collections.Concurrent;
 using System.Threading;

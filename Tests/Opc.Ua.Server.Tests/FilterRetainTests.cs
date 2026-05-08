@@ -2,6 +2,9 @@
 // Requires discussion with Part 9 Editor
 #define AddActiveState
 
+// CA2000: test code; many disposables are ownership-transferred to test fixtures or short-lived,
+// making CA2000 noisy without a real leak risk. Disabled file-level for the suite.
+#pragma warning disable CA2000
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Reflection;
