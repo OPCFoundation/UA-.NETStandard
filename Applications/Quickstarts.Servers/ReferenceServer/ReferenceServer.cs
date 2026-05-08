@@ -459,6 +459,7 @@ namespace Quickstarts.ReferenceServer
             {
                 if (m_userCertificateValidator != null)
                 {
+#pragma warning disable CA2025 // Task awaited via GetAwaiter().GetResult(); disposable's using scope extends past the await.
                     Opc.Ua.CertificateValidationResult userCertResult = m_userCertificateValidator
                         .ValidateAsync(
                             userCertificate,
@@ -466,6 +467,7 @@ namespace Quickstarts.ReferenceServer
                             default)
                         .GetAwaiter()
                         .GetResult();
+#pragma warning restore CA2025
                     if (!userCertResult.IsValid)
                     {
                         throw new ServiceResultException(userCertResult.StatusCode);
@@ -473,6 +475,7 @@ namespace Quickstarts.ReferenceServer
                 }
                 else
                 {
+#pragma warning disable CA2025 // Task awaited via GetAwaiter().GetResult(); disposable's using scope extends past the await.
                     Opc.Ua.CertificateValidationResult fallbackCertResult = CertificateManager
                         .ValidateAsync(
                             userCertificate,
@@ -480,6 +483,7 @@ namespace Quickstarts.ReferenceServer
                             default)
                         .GetAwaiter()
                         .GetResult();
+#pragma warning restore CA2025
                     if (!fallbackCertResult.IsValid)
                     {
                         throw new ServiceResultException(fallbackCertResult.StatusCode);

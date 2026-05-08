@@ -376,9 +376,11 @@ namespace Opc.Ua.Client.Tests
                 if (endpoint.EndpointUrl.ToString()
                     .StartsWith(Utils.UriSchemeOpcTcp, StringComparison.Ordinal))
                 {
+#pragma warning disable CA2025 // Assert.ThrowsAsync awaits the lambda synchronously; session1's lifetime spans through the assertion.
                     sre = Assert.ThrowsAsync<ServiceResultException>(() =>
                         session1.ReadValueAsync<ServerStatusDataType>(
                             VariableIds.Server_ServerStatus));
+#pragma warning restore CA2025
                     Assert.That(
                         sre.StatusCode,
                         Is.EqualTo(StatusCodes.BadSecureChannelIdInvalid),
