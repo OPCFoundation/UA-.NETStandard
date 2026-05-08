@@ -658,7 +658,11 @@ namespace Opc.Ua.Bindings
             }
             catch (Exception e)
             {
+                // CA1508: serverCertificate is assigned via out param before this catch — the analyzer's
+                // null-flow does not track that path. Defensive null check kept on purpose.
+#pragma warning disable CA1508
                 serverCertificate?.Dispose();
+#pragma warning restore CA1508
 
                 m_logger.LogDebug(e,
                    "ChannelId {ChannelId}: Could not verify security on OpenSecureChannel response",
@@ -771,7 +775,11 @@ namespace Opc.Ua.Bindings
             }
             finally
             {
+                // CA1508: serverCertificate is assigned via out param earlier — the analyzer's
+                // null-flow does not track that path. Defensive null check kept on purpose.
+#pragma warning disable CA1508
                 serverCertificate?.Dispose();
+#pragma warning restore CA1508
                 chunksToProcess?.Release(BufferManager, "ProcessOpenSecureChannelResponse");
             }
 

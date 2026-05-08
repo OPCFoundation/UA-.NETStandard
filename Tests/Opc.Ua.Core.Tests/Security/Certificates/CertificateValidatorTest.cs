@@ -2026,7 +2026,12 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 using var validator = TemporaryCertificateManager.Create(telemetry);
                 for (int i = 0; i < kCaChainCount; i++)
                 {
+                    // CA1508: kCaChainCount == 1 is currently dead (constant is 3) but kept as a
+                    // safety net so the test still exercises the trusted branch if the constant is
+                    // ever reduced to 1.
+#pragma warning disable CA1508
                     if (i != v || kCaChainCount == 1)
+#pragma warning restore CA1508
                     {
                         using Certificate publicKeyAdd = Certificate.FromRawData(m_caChain[i].RawData);
                         await validator
@@ -2082,7 +2087,12 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 using var validator = TemporaryCertificateManager.Create(telemetry);
                 for (int i = 0; i < kCaChainCount; i++)
                 {
+                    // CA1508: kCaChainCount == 1 is currently dead (constant is 3) but kept as a
+                    // safety net so the test still exercises the trusted branch if the constant is
+                    // ever reduced to 1.
+#pragma warning disable CA1508
                     if (i != v || kCaChainCount == 1)
+#pragma warning restore CA1508
                     {
                         await validator.TrustedStore.AddAsync(m_caChain[i]).ConfigureAwait(false);
                     }

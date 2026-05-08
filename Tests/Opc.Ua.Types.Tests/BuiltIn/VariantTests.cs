@@ -846,7 +846,11 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(variant, Is.Not.EqualTo((object)"other"));
 #pragma warning disable NUnit2010 // Use EqualConstraint for better assertion messages in case of failure
             object boxedNull = Variant.Null;
+            // CA1508: Variant.Null boxes to a non-null reference; the test verifies that its
+            // Equals(null) returns true (the contract). Analyzer's flow-state cannot prove this.
+#pragma warning disable CA1508
             Assert.That(boxedNull.Equals(null));
+#pragma warning restore CA1508
 #pragma warning restore NUnit2010 // Use EqualConstraint for better assertion messages in case of failure
         }
 

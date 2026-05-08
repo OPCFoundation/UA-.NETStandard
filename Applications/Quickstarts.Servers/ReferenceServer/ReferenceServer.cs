@@ -146,7 +146,11 @@ namespace Quickstarts.ReferenceServer
                 }
                 finally
                 {
+                    // CA1508: ownership-transfer pattern — null-out after passing the reference,
+                    // dispose only on exception. The analyzer doesn't track exception flow here.
+#pragma warning disable CA1508
                     referenceNodeManager?.Dispose();
+#pragma warning restore CA1508
                 }
 
                 foreach (INodeManagerFactory nodeManagerFactory in NodeManagerFactories)
