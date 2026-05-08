@@ -181,10 +181,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             {
                 Thumbprint = publicKey.Thumbprint,
                 StorePath = storePath,
-                StoreType = storeType,
-                // Start with the abstract type to verify loading the real certificate
-                // normalizes the identifier to its concrete OPC UA certificate type.
-                CertificateType = ObjectTypeIds.ApplicationCertificateType
+                StoreType = storeType
             };
 
             {
@@ -224,6 +221,59 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 new CertificatePasswordProvider(password),
                 applicationUri: null,
                 telemetry)
+                .ConfigureAwait(false);
+
+            Assert.That(privateKey, Is.Not.Null);
+            Assert.That(privateKey.HasPrivateKey, Is.True);
+
+            X509Utils.VerifyRSAKeyPair(publicKey, privateKey, true);
+
+            using ICertificateStore store = CertificateStoreIdentifier.CreateStore(storeType, telemetry);
+            store.Open(storePath, false);
+            await store.DeleteAsync(publicKey.Thumbprint).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Verify loading a private key normalizes an abstract application certificate type.
+        /// </summary>
+        [Test]
+        [Order(21)]
+        public async Task LoadPrivateKeyNormalizesAbstractApplicationCertificateTypeAsync()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            X509Certificate2 appCertificate = GetTestCert();
+            Assert.That(appCertificate, Is.Not.Null);
+            Assert.That(appCertificate.HasPrivateKey, Is.True);
+
+            char[] password = Uuid.NewUuid().ToString().ToCharArray();
+
+            string pkiRoot = Path.GetTempPath() +
+                Path.GetRandomFileName() +
+                Path.DirectorySeparatorChar;
+            string storePath = pkiRoot + "own";
+            var certificateStoreIdentifier = new CertificateStoreIdentifier(storePath, false);
+            const string storeType = CertificateStoreType.Directory;
+            await appCertificate.AddToStoreAsync(certificateStoreIdentifier, password, telemetry: telemetry)
+                .ConfigureAwait(false);
+
+            using X509Certificate2 publicKey = CertificateFactory.Create(
+                appCertificate.RawData);
+            Assert.That(publicKey, Is.Not.Null);
+            Assert.That(publicKey.HasPrivateKey, Is.False);
+
+            var id = new CertificateIdentifier
+            {
+                Thumbprint = publicKey.Thumbprint,
+                StorePath = storePath,
+                StoreType = storeType,
+                // Start with the abstract type to verify loading the real certificate
+                // normalizes the identifier to its concrete OPC UA certificate type.
+                CertificateType = ObjectTypeIds.ApplicationCertificateType
+            };
+
+            X509Certificate2 privateKey = await id.LoadPrivateKeyExAsync(
+                new CertificatePasswordProvider(password),
+                telemetry: telemetry)
                 .ConfigureAwait(false);
 
             Assert.That(privateKey, Is.Not.Null);
