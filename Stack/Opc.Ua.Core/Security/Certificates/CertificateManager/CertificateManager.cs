@@ -72,6 +72,7 @@ namespace Opc.Ua
         private CertificateValidationCore? m_userCore;
         private CertificateValidationCore? m_httpsCore;
         private Func<Certificate, ServiceResult, bool>? m_acceptError;
+        private readonly CertificateProvider m_certificateProvider;
         private bool m_disposed;
 
         /// <summary>
@@ -123,7 +124,20 @@ namespace Opc.Ua
                 threshold,
                 TimeSpan.FromHours(1),
                 m_telemetry);
+
+            m_certificateProvider = new CertificateProvider(m_telemetry);
         }
+
+        /// <summary>
+        /// Returns the centralised <see cref="ICertificateProvider"/>
+        /// used to resolve private-key certificates by
+        /// <see cref="CertificateIdentifier"/>. Backed by the manager's
+        /// internal cache + the standard store pipeline; consumers that
+        /// hold a <see cref="CertificateIdentifier"/> rather than a live
+        /// <see cref="Certificate"/> reference should use this provider
+        /// to materialise the certificate on demand.
+        /// </summary>
+        public ICertificateProvider CertificateProvider => m_certificateProvider;
 
         /// <inheritdoc/>
         public IReadOnlyCollection<TrustListIdentifier> TrustLists => m_trustLists.Keys;
@@ -1110,6 +1124,8 @@ namespace Opc.Ua
                 m_userCore = null;
                 m_httpsCore?.Dispose();
                 m_httpsCore = null;
+
+                m_certificateProvider.Dispose();
 
                 foreach (CertificateEntry entry in m_applicationCertificates)
                 {
