@@ -37,6 +37,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua.Redaction;
 using Opc.Ua.Security.Certificates;
 using Microsoft.Extensions.Logging;
 
@@ -276,7 +277,7 @@ namespace Opc.Ua
                     ex,
                     "Failed to add certificate with thumbprint {Thumbprint} to store {StorePath}.",
                     certificate.Thumbprint,
-                    StorePath);
+                    Redact.Create(StorePath));
                 throw;
             }
             finally
@@ -1278,7 +1279,7 @@ namespace Opc.Ua
                 m_lastDirectoryCheck = DateTime.MinValue;
             }
 
-            m_logger.LogInformation(Utils.TraceMasks.Security, "Certificate store reloaded from {Path}, {Count} entries.", StorePath, m_certificates.Count);
+            m_logger.LogInformation(Utils.TraceMasks.Security, "Certificate store reloaded from {Path}, {Count} entries.", Redact.Create(StorePath), m_certificates.Count);
 
             return m_certificates;
         }
