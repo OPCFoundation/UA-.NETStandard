@@ -45,14 +45,6 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             "Configuration",
             "PublisherConfiguration.xml");
 
-        private UaPubSubConfigurator CreateConfiguratorFromFile()
-        {
-            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            PubSubConfigurationDataType config = UaPubSubConfigurationHelper.LoadConfiguration(
-                s_publisherConfigurationFileName, telemetry);
-            return new UaPubSubConfigurator(telemetry);
-        }
-
         private static UaPubSubConfigurator CreateConfiguratorWithConfig(PubSubConfigurationDataType config)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();

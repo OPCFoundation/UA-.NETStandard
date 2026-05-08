@@ -330,11 +330,6 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         // channel, (b) it is of the expected request type, and (c) the
         // response from InnerSession bubbles back unchanged.
 
-        private static readonly Func<
-            Session,
-            Mock<ITransportChannel>,
-            ApplicationConfiguration>[] s_unused = [];
-
         public static IEnumerable<TestCaseData> ServicePassthroughCases()
         {
             yield return Case<ReadRequest, ReadResponse>(

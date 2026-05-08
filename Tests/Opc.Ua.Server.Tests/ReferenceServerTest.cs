@@ -1749,28 +1749,6 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
-        /// Reads the TypeDefinitionId of a node and checks it matches the expected value.
-        /// </summary>
-        private async Task ReadAndVerifyTypeDefinitionAsync(NodeId nodeId, NodeId expectedTypeDefinitionId)
-        {
-            ArrayOf<ReadValueId> nodesToRead =
-            [
-                new ReadValueId { NodeId = nodeId, AttributeId = Attributes.Value }
-            ];
-            m_requestHeader.Timestamp = DateTimeUtc.Now;
-            ReadResponse readResponse = await m_server.ReadAsync(
-                m_secureChannelContext,
-                m_requestHeader,
-                kMaxAge,
-                TimestampsToReturn.Neither,
-                nodesToRead,
-                RequestLifetime.None).ConfigureAwait(false);
-            ServerFixtureUtils.ValidateResponse(readResponse.ResponseHeader, readResponse.Results, nodesToRead);
-            Assert.That(readResponse.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good),
-                $"Expected Good status reading {nodeId}");
-        }
-
-        /// <summary>
         /// Test that ArrayItemType sub-type nodes are accessible and readable.
         /// </summary>
         [Test]
