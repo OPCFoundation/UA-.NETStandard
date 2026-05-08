@@ -50,8 +50,11 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="chain">The certificate chain to validate.</param>
         /// <param name="trustList">
-        /// An optional trust list to validate against. When <see langword="null"/>,
-        /// the default trust list is used.
+        /// The trust list to validate against. When <see langword="null"/>
+        /// (the default), <see cref="TrustListIdentifier.Peers"/> is used.
+        /// Pass <see cref="TrustListIdentifier.Users"/> for X.509 user
+        /// identity tokens or <see cref="TrustListIdentifier.Https"/>
+        /// for HTTPS server certificates.
         /// </param>
         /// <param name="options">
         /// Optional validation options that control which checks are performed.
@@ -71,8 +74,11 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="certificate">The certificate to validate.</param>
         /// <param name="trustList">
-        /// An optional trust list to validate against. When <see langword="null"/>,
-        /// the default trust list is used.
+        /// The trust list to validate against. When <see langword="null"/>
+        /// (the default), <see cref="TrustListIdentifier.Peers"/> is used.
+        /// Pass <see cref="TrustListIdentifier.Users"/> for X.509 user
+        /// identity tokens or <see cref="TrustListIdentifier.Https"/>
+        /// for HTTPS server certificates.
         /// </param>
         /// <param name="ct">A cancellation token.</param>
         /// <returns>
