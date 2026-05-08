@@ -100,7 +100,18 @@ namespace Opc.Ua.Gds.Tests
         }
 
         [Test]
-        public void FindApplicationsWhitespaceThrowsBadInvalidArgument()
+        public void RegisterApplicationValidServerWithDiscoveryUrlsDoesNotThrow()
+        {
+            var database = new TestApplicationsDatabase();
+            ApplicationRecordDataType application = CreateValidServerApplication();
+
+            Assert.That(
+                () => database.RegisterApplication(application),
+                Throws.Nothing);
+        }
+
+        [Test]
+        public void FindApplicationsWhitespaceThrows()
         {
             var database = new TestApplicationsDatabase();
 
@@ -111,7 +122,7 @@ namespace Opc.Ua.Gds.Tests
         }
 
         [Test]
-        public void QueryApplicationsInvalidTypeThrowsBadInvalidArgument()
+        public void QueryApplicationsInvalidTypeThrows()
         {
             var database = new TestApplicationsDatabase();
 

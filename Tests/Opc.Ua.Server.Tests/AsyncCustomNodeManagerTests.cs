@@ -1296,7 +1296,7 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public async Task FindMethodStateAsync_ResolvesMethodFromSuperTypeOfObjectTypeAsync()
+        public async Task FindMethodStateAsyncResolvesMethodFromSuperTypeOfObjectType()
         {
             using TestableAsyncCustomNodeManager manager = CreateManager();
             ServerSystemContext context = manager.SystemContext;

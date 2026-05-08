@@ -3289,7 +3289,7 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Asycnhronously calls a method defined on an object.
+        /// Asynchronously calls a method defined on an object.
         /// </summary>
         public virtual async ValueTask CallAsync(
             OperationContext context,

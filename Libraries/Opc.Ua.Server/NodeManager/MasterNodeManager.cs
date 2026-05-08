@@ -2356,6 +2356,8 @@ namespace Opc.Ua.Server
                     context,
                     methodsToCall[ii],
                     uniqueNodesReadAttributes,
+                    // With resolver-based method lookup and an attribute cache, GetPermissionMetadataAsync
+                    // reads and caches the required permission attributes without the permissionsOnly shortcut.
                     false,
                     cancellationToken).ConfigureAwait(false);
 
