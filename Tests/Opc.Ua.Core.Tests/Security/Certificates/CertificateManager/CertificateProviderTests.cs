@@ -144,13 +144,18 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 Assert.That(firstHit, Is.Not.Null);
                 Assert.That(firstHit.HasPrivateKey, Is.True);
 
+#if NET6_0_OR_GREATER
                 // Warm path: TryGet must now succeed synchronously.
+                // Pre-.NET 6 the underlying CertificateCache is a
+                // no-op passthrough, so this assertion is only valid
+                // on net6.0+.
                 using Certificate cached = manager.CertificateProvider
                     .TryGetPrivateKeyCertificate(created.Thumbprint);
                 Assert.That(cached, Is.Not.Null,
                     "After GetAsync, TryGet must return the cached private-key cert.");
                 Assert.That(cached.HasPrivateKey, Is.True);
                 Assert.That(cached.Thumbprint, Is.EqualTo(created.Thumbprint));
+#endif
             }
             finally
             {
