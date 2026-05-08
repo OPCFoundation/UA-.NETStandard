@@ -1279,7 +1279,11 @@ namespace Opc.Ua
                 m_lastDirectoryCheck = DateTime.MinValue;
             }
 
-            m_logger.LogInformation(Utils.TraceMasks.Security, "Certificate store reloaded from {Path}, {Count} entries.", Redact.Create(StorePath), m_certificates.Count);
+            m_logger.LogInformation(
+                Utils.TraceMasks.Security,
+                "Certificate store reloaded from {Path}, {Count} entries.",
+                Redact.Create(StorePath),
+                m_certificates.Count);
 
             return m_certificates;
         }
