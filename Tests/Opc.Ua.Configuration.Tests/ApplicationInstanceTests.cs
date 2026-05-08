@@ -808,7 +808,7 @@ namespace Opc.Ua.Configuration.Tests
                 .ConfigureAwait(false);
 
             //Assert
-            Assert.That(storedCertificates.Contains(cert), Is.True);
+            Assert.That(storedCertificates, Does.Contain(cert));
         }
 
         /// <summary>
@@ -1181,7 +1181,7 @@ namespace Opc.Ua.Configuration.Tests
                 .ResolveAsync(certId, registry: null, needPrivateKey: false, applicationUri: null, telemetry)
                 .ConfigureAwait(false);
             IReadOnlyList<string> uris = X509Utils.GetApplicationUrisFromCertificate(loadedCert);
-            Assert.That(uris.Count, Is.EqualTo(3));
+            Assert.That(uris, Has.Count.EqualTo(3));
             Assert.Contains(uri1, uris.ToList());
             Assert.Contains(uri2, uris.ToList());
             Assert.Contains(uri3, uris.ToList());

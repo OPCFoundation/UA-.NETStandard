@@ -154,7 +154,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             Assert.That(cert.Issuer, Is.EqualTo(x509.Issuer));
             Assert.That(cert.SignatureAlgorithm.Value, Is.EqualTo(x509.SignatureAlgorithm.Value));
             Assert.That(cert.SerialNumber, Is.EqualTo(x509.SerialNumber));
-            Assert.That(cert.Extensions.Count, Is.EqualTo(x509.Extensions.Count));
+            Assert.That(cert.Extensions, Has.Count.EqualTo(x509.Extensions.Count));
         }
 
         [Test]
@@ -303,7 +303,7 @@ namespace Opc.Ua.Security.Certificates.Tests
                 .SetRSAKeySize(2048)
                 .CreateForRSA();
 
-            Assert.That(certA.Equals(certB), Is.False);
+            Assert.That(certA, Is.Not.EqualTo(certB));
         }
 
         [Test]
@@ -314,8 +314,8 @@ namespace Opc.Ua.Security.Certificates.Tests
                 .SetRSAKeySize(2048)
                 .CreateForRSA();
 
-            Assert.That(cert.Equals((Certificate)null), Is.False);
-            Assert.That(cert.Equals((object)null), Is.False);
+            Assert.That(cert, Is.Not.EqualTo((Certificate)null));
+            Assert.That(cert, Is.Not.EqualTo((object)null));
         }
 
         [Test]
@@ -414,7 +414,7 @@ namespace Opc.Ua.Security.Certificates.Tests
         {
             using var collection = new CertificateCollection();
 
-            Assert.That(collection.Count, Is.EqualTo(0));
+            Assert.That(collection.Count, Is.Zero);
         }
 
         [Test]
@@ -422,7 +422,7 @@ namespace Opc.Ua.Security.Certificates.Tests
         {
             using var collection = new CertificateCollection(10);
 
-            Assert.That(collection.Count, Is.EqualTo(0));
+            Assert.That(collection.Count, Is.Zero);
         }
 
         [Test]
@@ -434,7 +434,7 @@ namespace Opc.Ua.Security.Certificates.Tests
 
             using var collection = new CertificateCollection(list);
 
-            Assert.That(collection.Count, Is.EqualTo(2));
+            Assert.That(collection, Has.Count.EqualTo(2));
         }
 
         [Test]
@@ -446,11 +446,11 @@ namespace Opc.Ua.Security.Certificates.Tests
 
             collection.Add(cert1);
 
-            Assert.That(collection.Count, Is.EqualTo(1));
+            Assert.That(collection, Has.Count.EqualTo(1));
 
             collection.Add(cert2);
 
-            Assert.That(collection.Count, Is.EqualTo(2));
+            Assert.That(collection, Has.Count.EqualTo(2));
         }
 
         [Test]
@@ -473,7 +473,7 @@ namespace Opc.Ua.Security.Certificates.Tests
 
             using var collection = CertificateCollection.From(x509Collection);
 
-            Assert.That(collection.Count, Is.EqualTo(2));
+            Assert.That(collection, Has.Count.EqualTo(2));
             Assert.That(collection[0].Thumbprint, Is.EqualTo(builtA.Thumbprint));
             Assert.That(collection[1].Thumbprint, Is.EqualTo(builtB.Thumbprint));
         }
@@ -495,7 +495,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             X509Certificate2Collection x509Col =
                 collection.AsX509Certificate2Collection();
 
-            Assert.That(x509Col.Count, Is.EqualTo(1));
+            Assert.That(x509Col, Has.Count.EqualTo(1));
             Assert.That(x509Col[0].Thumbprint, Is.EqualTo(cert.Thumbprint));
 
             Assert.That(x509Col[0], Is.Not.SameAs(cert.X509));
@@ -515,7 +515,7 @@ namespace Opc.Ua.Security.Certificates.Tests
                 cert1.Thumbprint,
                 false);
 
-            Assert.That(found.Count, Is.EqualTo(1));
+            Assert.That(found, Has.Count.EqualTo(1));
             Assert.That(found[0].Thumbprint, Is.EqualTo(cert1.Thumbprint));
         }
 
@@ -531,7 +531,7 @@ namespace Opc.Ua.Security.Certificates.Tests
                 "0000000000000000000000000000000000000000",
                 false);
 
-            Assert.That(found.Count, Is.EqualTo(0));
+            Assert.That(found.Count, Is.Zero);
         }
 
         [Test]
@@ -548,7 +548,7 @@ namespace Opc.Ua.Security.Certificates.Tests
                 cert2.Subject,
                 false);
 
-            Assert.That(found.Count, Is.EqualTo(1));
+            Assert.That(found, Has.Count.EqualTo(1));
             Assert.That(found[0].Subject, Is.EqualTo(cert2.Subject));
         }
 
@@ -566,7 +566,7 @@ namespace Opc.Ua.Security.Certificates.Tests
                 cert1.SerialNumber,
                 false);
 
-            Assert.That(found.Count, Is.EqualTo(1));
+            Assert.That(found, Has.Count.EqualTo(1));
             Assert.That(found[0].SerialNumber, Is.EqualTo(cert1.SerialNumber));
         }
 
@@ -577,7 +577,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             using var collection = new CertificateCollection();
             collection.Add(cert);
 
-            Assert.That(collection.Contains(cert), Is.True);
+            Assert.That(collection, Does.Contain(cert));
         }
 
         [Test]
@@ -604,7 +604,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             collection.Add(cert1);
             collection.Add(cert2);
 
-            Assert.That(collection.IndexOf(cert1), Is.EqualTo(0));
+            Assert.That(collection.IndexOf(cert1), Is.Zero);
             Assert.That(collection.IndexOf(cert2), Is.EqualTo(1));
         }
 
@@ -620,7 +620,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             bool removed = collection.Remove(cert1);
 
             Assert.That(removed, Is.True);
-            Assert.That(collection.Count, Is.EqualTo(1));
+            Assert.That(collection, Has.Count.EqualTo(1));
             Assert.That(collection[0].Subject, Is.EqualTo(cert2.Subject));
 
             cert1.Dispose();
@@ -637,7 +637,7 @@ namespace Opc.Ua.Security.Certificates.Tests
 
             collection.RemoveAt(0);
 
-            Assert.That(collection.Count, Is.EqualTo(1));
+            Assert.That(collection, Has.Count.EqualTo(1));
             Assert.That(collection[0].Thumbprint, Is.EqualTo(cert2.Thumbprint));
 
             cert1.Dispose();
@@ -654,7 +654,7 @@ namespace Opc.Ua.Security.Certificates.Tests
 
             collection.Clear();
 
-            Assert.That(collection.Count, Is.EqualTo(0));
+            Assert.That(collection.Count, Is.Zero);
 
             cert1.Dispose();
             cert2.Dispose();
@@ -684,7 +684,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             collection[0] = replacement;
 
             Assert.That(collection[0], Is.SameAs(replacement));
-            Assert.That(collection.Count, Is.EqualTo(1));
+            Assert.That(collection, Has.Count.EqualTo(1));
 
             cert1.Dispose();
         }
@@ -701,7 +701,7 @@ namespace Opc.Ua.Security.Certificates.Tests
 
             collection.Insert(1, inserted);
 
-            Assert.That(collection.Count, Is.EqualTo(3));
+            Assert.That(collection, Has.Count.EqualTo(3));
             Assert.That(collection[1], Is.SameAs(inserted));
         }
 
@@ -736,7 +736,7 @@ namespace Opc.Ua.Security.Certificates.Tests
 
             enumerated.AddRange(collection);
 
-            Assert.That(enumerated.Count, Is.EqualTo(3));
+            Assert.That(enumerated, Has.Count.EqualTo(3));
             Assert.That(enumerated[0], Is.SameAs(cert1));
             Assert.That(enumerated[1], Is.SameAs(cert2));
             Assert.That(enumerated[2], Is.SameAs(cert3));
@@ -753,7 +753,7 @@ namespace Opc.Ua.Security.Certificates.Tests
 
             List<string> subjects = collection.Select(c => c.Subject).ToList();
 
-            Assert.That(subjects.Count, Is.EqualTo(2));
+            Assert.That(subjects, Has.Count.EqualTo(2));
             Assert.That(subjects, Does.Contain(cert1.Subject));
             Assert.That(subjects, Does.Contain(cert2.Subject));
         }

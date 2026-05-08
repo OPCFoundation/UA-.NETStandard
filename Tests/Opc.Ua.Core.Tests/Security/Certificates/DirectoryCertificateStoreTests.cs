@@ -213,7 +213,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             await store.AddAsync(publicKey).ConfigureAwait(false);
 
             using CertificateCollection certs = await store.EnumerateAsync().ConfigureAwait(false);
-            Assert.That(certs.Count, Is.EqualTo(1));
+            Assert.That(certs, Has.Count.EqualTo(1));
             Assert.That(certs[0].Thumbprint, Is.EqualTo(publicKey.Thumbprint));
         }
 
@@ -233,7 +233,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
             using CertificateCollection found = await store.FindByThumbprintAsync(publicKey.Thumbprint)
                 .ConfigureAwait(false);
-            Assert.That(found.Count, Is.EqualTo(1));
+            Assert.That(found, Has.Count.EqualTo(1));
             Assert.That(found[0].Thumbprint, Is.EqualTo(publicKey.Thumbprint));
         }
 
@@ -344,7 +344,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             using var verifyStore = new DirectoryCertificateStore(m_telemetry);
             verifyStore.Open(m_tempDir);
             using CertificateCollection found = await verifyStore.EnumerateAsync().ConfigureAwait(false);
-            Assert.That(found.Count, Is.EqualTo(3));
+            Assert.That(found, Has.Count.EqualTo(3));
         }
 
         [Test]

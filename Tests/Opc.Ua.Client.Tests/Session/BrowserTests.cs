@@ -257,7 +257,7 @@ namespace Opc.Ua.Client.Tests
             }
 
             // Assert
-            Assert.That(results.Count, Is.EqualTo(2));
+            Assert.That(results, Has.Count.EqualTo(2));
             Assert.That(results[0].References[0].BrowseName, Is.EqualTo(firstRef.BrowseName));
             Assert.That(results[1].References[0].BrowseName, Is.EqualTo(secondRef.BrowseName));
 
@@ -331,7 +331,7 @@ namespace Opc.Ua.Client.Tests
             }
 
             // Assert — first the initial page, then the follow-up.
-            Assert.That(results.Count, Is.EqualTo(2));
+            Assert.That(results, Has.Count.EqualTo(2));
             Assert.That(results[0].References[0].BrowseName, Is.EqualTo(firstRef.BrowseName));
             Assert.That(results[1].References[0].BrowseName, Is.EqualTo(secondRef.BrowseName));
 

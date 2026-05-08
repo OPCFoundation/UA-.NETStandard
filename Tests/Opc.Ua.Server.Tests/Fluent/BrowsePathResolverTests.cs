@@ -42,7 +42,7 @@ namespace Opc.Ua.Server.Tests.Fluent
         {
             List<QualifiedName> segments = BrowsePathResolver.ParseSegments("Boilers", 2);
 
-            Assert.That(segments.Count, Is.EqualTo(1));
+            Assert.That(segments, Has.Count.EqualTo(1));
             Assert.That(segments[0].Name, Is.EqualTo("Boilers"));
             Assert.That(segments[0].NamespaceIndex, Is.EqualTo((ushort)2));
         }
@@ -54,7 +54,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                 "Boilers/Boiler1/Pipe/Valve",
                 3);
 
-            Assert.That(segments.Count, Is.EqualTo(4));
+            Assert.That(segments, Has.Count.EqualTo(4));
             foreach (QualifiedName name in segments)
             {
                 Assert.That(name.NamespaceIndex, Is.EqualTo((ushort)3));
@@ -70,7 +70,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                 "ns=5;Methods/Increment",
                 2);
 
-            Assert.That(segments.Count, Is.EqualTo(2));
+            Assert.That(segments, Has.Count.EqualTo(2));
             Assert.That(segments[0].Name, Is.EqualTo("Methods"));
             Assert.That(segments[0].NamespaceIndex, Is.EqualTo((ushort)5));
             Assert.That(segments[1].Name, Is.EqualTo("Increment"));
@@ -82,7 +82,7 @@ namespace Opc.Ua.Server.Tests.Fluent
         {
             List<QualifiedName> segments = BrowsePathResolver.ParseSegments("/A/B/", 1);
 
-            Assert.That(segments.Count, Is.EqualTo(2));
+            Assert.That(segments, Has.Count.EqualTo(2));
             Assert.That(segments[0].Name, Is.EqualTo("A"));
             Assert.That(segments[1].Name, Is.EqualTo("B"));
         }

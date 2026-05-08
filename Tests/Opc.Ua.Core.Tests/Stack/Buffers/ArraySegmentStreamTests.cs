@@ -73,7 +73,7 @@ namespace Opc.Ua.Types.Buffers.Tests
             Assert.That(stream.ReadByte(), Is.EqualTo(-1));
             Assert.That(stream.Read(buffer, 0, 1), Is.Zero);
 #if NET5_0_OR_GREATER && !NET_STANDARD_TESTS
-            Assert.That(stream.Read(buffer.AsSpan(0, 1)), Is.EqualTo(0));
+            Assert.That(stream.Read(buffer.AsSpan(0, 1)), Is.Zero);
 #endif
             stream.Position = 0;
             Assert.That(stream.Position, Is.Zero);
@@ -112,7 +112,7 @@ namespace Opc.Ua.Types.Buffers.Tests
             Assert.That(stream.ReadByte(), Is.EqualTo(-1));
             Assert.That(stream.Read(buffer, 0, 1), Is.Zero);
 #if NET5_0_OR_GREATER && !NET_STANDARD_TESTS
-            Assert.That(stream.Read(buffer.AsSpan(0, 1)), Is.EqualTo(0));
+            Assert.That(stream.Read(buffer.AsSpan(0, 1)), Is.Zero);
 #endif
 
             byte[] array = stream.ToArray();

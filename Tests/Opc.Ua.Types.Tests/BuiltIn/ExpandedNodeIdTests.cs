@@ -1662,7 +1662,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             NamespaceTable table = BuildParseLongFormNamespaces();
             ExpandedNodeId result = ExpandedNodeId.ParseLongForm("i=10", table);
-            Assert.That(result.NamespaceIndex, Is.EqualTo(0));
+            Assert.That(result.NamespaceIndex, Is.Zero);
             Assert.That(GetParseLongFormUInt(result), Is.EqualTo((uint)10));
             Assert.That(result.IsAbsolute, Is.False);
         }
@@ -1713,7 +1713,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 servers);
             Assert.That(result.NamespaceIndex, Is.EqualTo(1));
             Assert.That(GetParseLongFormUInt(result), Is.EqualTo((uint)5));
-            Assert.That(result.ServerIndex, Is.EqualTo((uint)0));
+            Assert.That(result.ServerIndex, Is.Zero);
         }
 
         [Test]
@@ -1771,7 +1771,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 
             Assert.That(GetParseLongFormUInt(parsed), Is.EqualTo((uint)42));
             Assert.That(parsed.NamespaceIndex, Is.EqualTo(1));
-            Assert.That(parsed.ServerIndex, Is.EqualTo((uint)0));
+            Assert.That(parsed.ServerIndex, Is.Zero);
         }
     }
 }

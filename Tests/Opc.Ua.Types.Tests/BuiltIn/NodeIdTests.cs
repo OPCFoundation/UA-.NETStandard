@@ -2059,7 +2059,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             NamespaceTable table = BuildParseLongFormNamespaces();
             NodeId result = NodeId.ParseLongForm("i=42", table);
-            Assert.That(result.NamespaceIndex, Is.EqualTo(0));
+            Assert.That(result.NamespaceIndex, Is.Zero);
             Assert.That(GetParseLongFormUInt(result), Is.EqualTo((uint)42));
         }
 

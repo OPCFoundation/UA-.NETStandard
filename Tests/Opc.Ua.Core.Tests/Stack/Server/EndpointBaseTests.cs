@@ -280,7 +280,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             ServiceFault fault = EndpointBase.CreateFault(m_logger, request, exception);
 
             DateTime after = DateTime.UtcNow;
-            Assert.That((DateTime)fault.ResponseHeader.Timestamp >= before, Is.True);
+            Assert.That((DateTime)fault.ResponseHeader.Timestamp, Is.GreaterThanOrEqualTo(before));
             Assert.That((DateTime)fault.ResponseHeader.Timestamp <= after, Is.True);
         }
     }

@@ -176,9 +176,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(subscription.Diagnostics.MaxKeepAliveCount, Is.EqualTo(maxKeepAlive));
             Assert.That(subscription.Diagnostics.MaxLifetimeCount, Is.EqualTo(maxLifetime));
             Assert.That(subscription.Diagnostics.PublishingEnabled, Is.True);
-            Assert.That(subscription.Diagnostics.ModifyCount, Is.EqualTo(0u));
-            Assert.That(subscription.Diagnostics.EnableCount, Is.EqualTo(0u));
-            Assert.That(subscription.Diagnostics.DisableCount, Is.EqualTo(0u));
+            Assert.That(subscription.Diagnostics.ModifyCount, Is.Zero);
+            Assert.That(subscription.Diagnostics.EnableCount, Is.Zero);
+            Assert.That(subscription.Diagnostics.DisableCount, Is.Zero);
         }
 
         [Test]
@@ -200,7 +200,7 @@ namespace Opc.Ua.Server.Tests
         public void MonitoredItemCountIsZeroForNewSubscription()
         {
             using Subscription subscription = CreateSubscription();
-            Assert.That(subscription.MonitoredItemCount, Is.EqualTo(0));
+            Assert.That(subscription.MonitoredItemCount, Is.Zero);
         }
 
         [Test]
@@ -219,7 +219,7 @@ namespace Opc.Ua.Server.Tests
         {
             using Subscription subscription = CreateSubscription();
 
-            Assert.That(subscription.Diagnostics.MonitoringQueueOverflowCount, Is.EqualTo(0u));
+            Assert.That(subscription.Diagnostics.MonitoringQueueOverflowCount, Is.Zero);
 
             subscription.QueueOverflowHandler();
 
@@ -257,7 +257,7 @@ namespace Opc.Ua.Server.Tests
 
             subscription.SessionClosed();
 
-            Assert.That(subscription.SessionId, Is.EqualTo(default(NodeId)));
+            Assert.That(subscription.SessionId, Is.Default);
         }
 
         [Test]
@@ -267,7 +267,7 @@ namespace Opc.Ua.Server.Tests
 
             subscription.SessionClosed();
 
-            Assert.That(subscription.Diagnostics.SessionId, Is.EqualTo(default(NodeId)));
+            Assert.That(subscription.Diagnostics.SessionId, Is.Default);
         }
 
         [Test]
@@ -401,7 +401,7 @@ namespace Opc.Ua.Server.Tests
             using Subscription subscription = CreateSubscription();
             OperationContext context = CreateOperationContext();
 
-            Assert.That(subscription.Diagnostics.ModifyCount, Is.EqualTo(0u));
+            Assert.That(subscription.Diagnostics.ModifyCount, Is.Zero);
 
             subscription.Modify(context, 1000, 10, 5, 0, 0);
 
@@ -463,7 +463,7 @@ namespace Opc.Ua.Server.Tests
             using Subscription subscription = CreateSubscription(publishingEnabled: true);
             OperationContext context = CreateOperationContext();
 
-            Assert.That(subscription.Diagnostics.DisableCount, Is.EqualTo(0u));
+            Assert.That(subscription.Diagnostics.DisableCount, Is.Zero);
 
             subscription.SetPublishingMode(context, publishingEnabled: false);
 
@@ -477,7 +477,7 @@ namespace Opc.Ua.Server.Tests
             using Subscription subscription = CreateSubscription(publishingEnabled: false);
             OperationContext context = CreateOperationContext();
 
-            Assert.That(subscription.Diagnostics.EnableCount, Is.EqualTo(0u));
+            Assert.That(subscription.Diagnostics.EnableCount, Is.Zero);
 
             subscription.SetPublishingMode(context, publishingEnabled: true);
 
@@ -493,8 +493,8 @@ namespace Opc.Ua.Server.Tests
 
             subscription.SetPublishingMode(context, publishingEnabled: true);
 
-            Assert.That(subscription.Diagnostics.EnableCount, Is.EqualTo(0u));
-            Assert.That(subscription.Diagnostics.DisableCount, Is.EqualTo(0u));
+            Assert.That(subscription.Diagnostics.EnableCount, Is.Zero);
+            Assert.That(subscription.Diagnostics.DisableCount, Is.Zero);
         }
 
         [Test]
@@ -589,7 +589,7 @@ namespace Opc.Ua.Server.Tests
             var message = new NotificationMessage { SequenceNumber = 3 };
             InjectSentMessages(subscription, message);
 
-            Assert.That(subscription.Diagnostics.RepublishMessageCount, Is.EqualTo(0u));
+            Assert.That(subscription.Diagnostics.RepublishMessageCount, Is.Zero);
 
             subscription.Republish(context, retransmitSequenceNumber: 3);
 
@@ -663,7 +663,7 @@ namespace Opc.Ua.Server.Tests
             using Subscription subscription = CreateSubscription();
             OperationContext context = CreateOperationContext();
 
-            Assert.That(subscription.Diagnostics.PublishRequestCount, Is.EqualTo(0u));
+            Assert.That(subscription.Diagnostics.PublishRequestCount, Is.Zero);
 
             subscription.Publish(context, out _, out _);
 

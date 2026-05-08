@@ -1006,7 +1006,7 @@ namespace Opc.Ua.Server.Tests
                     publishResponse.ResponseHeader.StringTable,
                     serverTestServices.Logger);
                 Assert.That(publishResponse.SubscriptionId, Is.EqualTo(subscriptionIds[0]));
-                Assert.That(publishResponse.NotificationMessage.NotificationData.Count, Is.EqualTo(0));
+                Assert.That(publishResponse.NotificationMessage.NotificationData.Count, Is.Zero);
             }
 
             // Validate ResendData method call returns error from different session contexts
@@ -1042,7 +1042,7 @@ namespace Opc.Ua.Server.Tests
                 publishResponse.ResponseHeader.StringTable,
                 serverTestServices.Logger);
             Assert.That(publishResponse.SubscriptionId, Is.EqualTo(subscriptionIds[0]));
-            Assert.That(publishResponse.NotificationMessage.NotificationData.Count, Is.EqualTo(0));
+            Assert.That(publishResponse.NotificationMessage.NotificationData.Count, Is.Zero);
 
             if (updateValues)
             {
@@ -1112,7 +1112,7 @@ namespace Opc.Ua.Server.Tests
                 publishResponse.ResponseHeader.StringTable,
                 serverTestServices.Logger);
             Assert.That(publishResponse.SubscriptionId, Is.EqualTo(subscriptionIds[0]));
-            Assert.That(publishResponse.NotificationMessage.NotificationData.Count, Is.EqualTo(0));
+            Assert.That(publishResponse.NotificationMessage.NotificationData.Count, Is.Zero);
 
             resendDataRequestHeader.Timestamp = DateTimeUtc.Now;
             await m_server.CloseSessionAsync(resendDataSecurityContext, resendDataRequestHeader, true, RequestLifetime.None).ConfigureAwait(false);
@@ -1529,13 +1529,13 @@ namespace Opc.Ua.Server.Tests
             if (accessHistoryEventsCapability || accessHistoryDataCapability)
             {
                 Assert.That(eventNotifier & EventNotifiers.HistoryRead,
-                    Is.Not.EqualTo(0),
+                    Is.Not.Zero,
                     "Server EventNotifier should have HistoryRead bit set when history capabilities are enabled");
             }
 
             // Verify SubscribeToEvents bit is set (Server object should always support events)
             Assert.That(eventNotifier & EventNotifiers.SubscribeToEvents,
-                Is.Not.EqualTo(0),
+                Is.Not.Zero,
                 "Server EventNotifier should have SubscribeToEvents bit set");
         }
 
@@ -1634,7 +1634,7 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(historizing, Is.True, "Int32Value node should have Historizing=true");
             Assert.That(accessLevel & AccessLevels.HistoryRead,
-                Is.Not.EqualTo(0),
+                Is.Not.Zero,
                 "Int32Value node should have HistoryRead access level");
 
             // Perform a history read operation

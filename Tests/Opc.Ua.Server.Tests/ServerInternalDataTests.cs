@@ -176,7 +176,7 @@ namespace Opc.Ua.Server.Tests
         {
             m_configuration.ServerConfiguration.BaseAddresses = [];
             using ServerInternalData data = CreateServerInternalData();
-            Assert.That(data.EndpointAddresses.Count(), Is.EqualTo(0));
+            Assert.That(data.EndpointAddresses.Count(), Is.Zero);
         }
 
         [Test]

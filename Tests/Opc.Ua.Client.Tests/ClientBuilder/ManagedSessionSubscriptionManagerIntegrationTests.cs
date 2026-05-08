@@ -109,7 +109,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
 
                 ISubscriptionManager manager = session.SubscriptionManager;
                 Assert.That(manager, Is.Not.Null);
-                Assert.That(manager.Count, Is.EqualTo(0));
+                Assert.That(manager.Count, Is.Zero);
 
                 TestContext.Out.WriteLine(
                     "ManagedSession connected, SessionId: {0}",

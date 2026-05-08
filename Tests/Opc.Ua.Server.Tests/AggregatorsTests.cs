@@ -116,7 +116,7 @@ namespace Opc.Ua.Server.Tests
         public void GetNameForStandardAggregateReturnsDefaultForUnknownId()
         {
             QualifiedName name = Aggregators.GetNameForStandardAggregate(new NodeId(999999));
-            Assert.That(name, Is.EqualTo(default(QualifiedName)));
+            Assert.That(name, Is.Default);
         }
 
         [Test]
@@ -163,7 +163,7 @@ namespace Opc.Ua.Server.Tests
         public void GetIdForStandardAggregateReturnsDefaultForUnknownName()
         {
             NodeId id = Aggregators.GetIdForStandardAggregate(new QualifiedName("NonExistentAggregate"));
-            Assert.That(id, Is.EqualTo(default(NodeId)));
+            Assert.That(id, Is.Default);
         }
 
         [Test]
@@ -723,7 +723,7 @@ namespace Opc.Ua.Server.Tests
             foreach (NodeId aggregateId in aggregateIds)
             {
                 QualifiedName name = Aggregators.GetNameForStandardAggregate(aggregateId);
-                Assert.That(name, Is.Not.EqualTo(default(QualifiedName)),
+                Assert.That(name, Is.Not.Default,
                     $"Name should be found for aggregate {aggregateId}");
 
                 NodeId roundTrippedId = Aggregators.GetIdForStandardAggregate(name);

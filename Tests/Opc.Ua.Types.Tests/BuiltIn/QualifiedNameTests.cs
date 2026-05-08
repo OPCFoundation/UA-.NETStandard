@@ -643,7 +643,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             NamespaceTable table = BuildParseLongFormNamespaces();
             QualifiedName result = QualifiedName.ParseLongForm("Foo", table);
             Assert.That(result.Name, Is.EqualTo("Foo"));
-            Assert.That(result.NamespaceIndex, Is.EqualTo(0));
+            Assert.That(result.NamespaceIndex, Is.Zero);
         }
 
         [Test]

@@ -127,7 +127,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
 
             Assert.That(policy.Strategy, Is.EqualTo(BackoffStrategy.Linear));
             Assert.That(policy.MaxRetries, Is.EqualTo(3));
-            Assert.That(policy.JitterFactor, Is.EqualTo(0));
+            Assert.That(policy.JitterFactor, Is.Zero);
         }
     }
 }
