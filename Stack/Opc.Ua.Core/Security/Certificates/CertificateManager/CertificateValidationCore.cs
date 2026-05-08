@@ -1081,7 +1081,7 @@ namespace Opc.Ua
             {
                 m_logger.LogError(
                     "Certificate {Certificate} rejected. Reason={ServiceResult}.",
-                    certificate,
+                    Redact.Create(certificate),
                     se.Result);
 
                 LogInnerServiceResults(LogLevel.Information, se.Result.InnerResult);
@@ -1120,7 +1120,7 @@ namespace Opc.Ua
                     serviceResult.StatusCode == StatusCodes.BadCertificateUntrusted)
                 {
                     accept = true;
-                    m_logger.LogInformation("Auto accepted certificate {Certificate}", certificate);
+                    m_logger.LogInformation("Auto accepted certificate {Certificate}", Redact.Create(certificate));
                 }
 
                 if (accept)
@@ -1138,7 +1138,7 @@ namespace Opc.Ua
             {
                 m_logger.LogError(
                     "Certificate {Certificate} validation failed with suppressible errors but was rejected. Reason={ServiceResult}.",
-                    certificate,
+                    Redact.Create(certificate),
                     se.Result.ToLongString());
                 LogInnerServiceResults(LogLevel.Error, se.Result.InnerResult);
 
@@ -1392,7 +1392,7 @@ namespace Opc.Ua
                 {
                     if (store == null)
                     {
-                        m_logger.LogWarning("Failed to open issuer store: {CertificateStore}", certificateStore);
+                        m_logger.LogWarning("Failed to open issuer store: {CertificateStore}", Redact.Create(certificateStore));
                         // not a trusted issuer.
                         return (null, null);
                     }
