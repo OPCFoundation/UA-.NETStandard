@@ -740,7 +740,9 @@ namespace Opc.Ua
             CancellationToken ct = default)
         {
             CertificateEntry? oldEntry = null;
-            CertificateValidationCore? orphanedCore;
+            CertificateValidationCore? oldPeer;
+            CertificateValidationCore? oldUser;
+            CertificateValidationCore? oldHttps;
 
             lock (m_certificatesLock)
             {
@@ -767,13 +769,25 @@ namespace Opc.Ua
                         certificateType));
                 }
 
-                // Only invalidate the validation core whose trust list this
-                // certificate type feeds; other cores remain valid.
-                orphanedCore = InvalidateCoreForCertificateType(certificateType);
+                // Conservative invalidation: drop all cached validation cores so
+                // subsequent validations pick up trust-list / issuer-chain changes
+                // that GDS push flows typically apply alongside the app-cert
+                // replacement (e.g. adding the new issuer to the trusted store).
+                // See InvalidateCoreForCertificateType for the per-type variant
+                // intended for callers that can guarantee no concurrent trust
+                // list changes.
+                oldPeer = m_peerCore;
+                m_peerCore = null;
+                oldUser = m_userCore;
+                m_userCore = null;
+                oldHttps = m_httpsCore;
+                m_httpsCore = null;
             }
 
-            // Dispose orphaned core OUTSIDE the lock.
-            orphanedCore?.Dispose();
+            // Dispose orphaned cores OUTSIDE the lock.
+            oldPeer?.Dispose();
+            oldUser?.Dispose();
+            oldHttps?.Dispose();
 
             m_lifecycleMonitor?.Reset();
 
@@ -810,14 +824,13 @@ namespace Opc.Ua
         {
             // Snapshot the previous primary entry (if any) so we can fire a
             // CertificateChange notification once the reload completes.
-            List<CertificateValidationCore?> orphanedCores = [];
+            CertificateValidationCore? oldPeer;
+            CertificateValidationCore? oldUser;
+            CertificateValidationCore? oldHttps;
             CertificateEntry? oldPrimary;
-            HashSet<NodeId> reloadedTypes;
             lock (m_certificatesLock)
             {
                 oldPrimary = m_applicationCertificates.FirstOrDefault();
-                reloadedTypes = new HashSet<NodeId>(
-                    m_applicationCertificates.Select(e => e.CertificateType));
             }
             using Certificate? oldCertSnapshot = oldPrimary?.Certificate.AddRef();
 
@@ -826,31 +839,23 @@ namespace Opc.Ua
 
             lock (m_certificatesLock)
             {
-                // Union of pre-reload and post-reload types — invalidate cores
-                // for any type that was added, removed or replaced.
-                foreach (CertificateEntry e in m_applicationCertificates)
-                {
-                    reloadedTypes.Add(e.CertificateType);
-                }
-
-                // Only invalidate the validation cores whose trust lists are
-                // fed by the reloaded certificate types; other cores remain valid.
-                var visited = new HashSet<CertificateValidationCore>();
-                foreach (NodeId certType in reloadedTypes)
-                {
-                    CertificateValidationCore? orphan = InvalidateCoreForCertificateType(certType);
-                    if (orphan != null && visited.Add(orphan))
-                    {
-                        orphanedCores.Add(orphan);
-                    }
-                }
+                // Conservative invalidation: drop all cached cores so subsequent
+                // validations pick up any trust-list / cert / issuer-chain changes
+                // implicit in the reload. See InvalidateCoreForCertificateType for
+                // the per-type variant intended for callers that can guarantee no
+                // concurrent trust list changes.
+                oldPeer = m_peerCore;
+                m_peerCore = null;
+                oldUser = m_userCore;
+                m_userCore = null;
+                oldHttps = m_httpsCore;
+                m_httpsCore = null;
             }
 
             // Dispose orphaned cores OUTSIDE the lock.
-            foreach (CertificateValidationCore? core in orphanedCores)
-            {
-                core?.Dispose();
-            }
+            oldPeer?.Dispose();
+            oldUser?.Dispose();
+            oldHttps?.Dispose();
 
             m_lifecycleMonitor?.Reset();
 
@@ -1220,35 +1225,6 @@ namespace Opc.Ua
             }
 
             return null;
-        }
-
-        /// <summary>
-        /// Maps a certificate type to the corresponding validation core slot
-        /// and clears it. Returns the previously-cached core (if any) so the
-        /// caller can dispose it OUTSIDE the certificates lock.
-        /// </summary>
-        /// <remarks>
-        /// Callers must already hold <see cref="m_certificatesLock"/>.
-        /// HttpsCertificateType maps to <see cref="m_httpsCore"/>; all other
-        /// application certificate types map to <see cref="m_peerCore"/>.
-        /// User-credential certificates are validated against the user trust
-        /// list independently of application certs and are NOT invalidated
-        /// when an application certificate changes.
-        /// </remarks>
-        private CertificateValidationCore? InvalidateCoreForCertificateType(NodeId certificateType)
-        {
-            CertificateValidationCore? orphan;
-            if (certificateType == ObjectTypeIds.HttpsCertificateType)
-            {
-                orphan = m_httpsCore;
-                m_httpsCore = null;
-            }
-            else
-            {
-                orphan = m_peerCore;
-                m_peerCore = null;
-            }
-            return orphan;
         }
 
         /// <summary>
