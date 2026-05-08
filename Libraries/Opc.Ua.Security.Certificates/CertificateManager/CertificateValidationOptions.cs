@@ -76,11 +76,11 @@ namespace Opc.Ua.Security.Certificates
         /// accepts the specific error and allows validation to continue.
         /// </summary>
         /// <remarks>
-        /// This is the structured replacement for the legacy
-        /// <c>CertificateValidator.CertificateValidation</c> event with
-        /// mutable <c>e.Accept</c>. The callback is invoked only for
-        /// suppressible errors; non-suppressible errors always cause
-        /// validation to fail.
+        /// The callback is invoked only for suppressible errors;
+        /// non-suppressible errors always cause validation to fail.
+        /// (Replaces the per-error <c>e.Accept</c> mutation pattern from
+        /// the legacy validator's <c>CertificateValidation</c> event,
+        /// which has been removed.)
         /// </remarks>
         public Func<Certificate, ServiceResult, bool>? AcceptError { get; set; }
     }

@@ -117,11 +117,9 @@ namespace Opc.Ua
         /// <paramref name="issuers"/>.
         /// </summary>
         /// <remarks>
-        /// This is the modern replacement for the legacy
-        /// <c>CertificateValidator.GetIssuersAsync(Certificate, IList&lt;CertificateIdentifier&gt;)</c>
-        /// signature; it walks the trusted, issuer, and any untrusted
-        /// stores in the same order as the legacy validator. Each
-        /// returned <see cref="CertificateIssuerReference"/> carries an
+        /// Walks the trusted, issuer, and any untrusted stores looking for
+        /// the issuers of <paramref name="certificate"/>. Each returned
+        /// <see cref="CertificateIssuerReference"/> carries an
         /// <see cref="Certificate.AddRef"/>'d certificate that the
         /// caller is responsible for disposing.
         /// </remarks>

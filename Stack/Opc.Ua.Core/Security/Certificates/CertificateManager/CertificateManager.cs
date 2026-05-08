@@ -314,8 +314,7 @@ namespace Opc.Ua
         /// Gets or sets a value indicating whether to auto-accept untrusted
         /// peer certificates. When <see langword="true"/>, a fresh peer cert
         /// (with no chain errors) is accepted even if it is not present in
-        /// the trusted-peer store. Modern replacement for the legacy
-        /// <c>CertificateValidator.AutoAcceptUntrustedCertificates</c>.
+        /// the trusted-peer store.
         /// </summary>
         public bool AutoAcceptUntrustedCertificates
         {
@@ -334,8 +333,7 @@ namespace Opc.Ua
 
         /// <summary>
         /// Gets or sets a value indicating whether to reject certificates
-        /// signed with a SHA-1 hash. Modern replacement for the legacy
-        /// <c>CertificateValidator.RejectSHA1SignedCertificates</c>.
+        /// signed with a SHA-1 hash.
         /// </summary>
         public bool RejectSHA1SignedCertificates
         {
@@ -354,8 +352,7 @@ namespace Opc.Ua
 
         /// <summary>
         /// Gets or sets a value indicating whether to reject certificates
-        /// whose revocation status cannot be determined. Modern replacement
-        /// for the legacy <c>CertificateValidator.RejectUnknownRevocationStatus</c>.
+        /// whose revocation status cannot be determined.
         /// </summary>
         public bool RejectUnknownRevocationStatus
         {
@@ -374,9 +371,8 @@ namespace Opc.Ua
 
         /// <summary>
         /// Gets or sets the maximum number of rejected certificates kept in
-        /// the rejected-certificate store. Modern replacement for the legacy
-        /// <c>CertificateValidator.MaxRejectedCertificates</c>. Setting a
-        /// negative value clears the rejected store.
+        /// the rejected-certificate store. Setting a negative value clears
+        /// the rejected store.
         /// </summary>
         public int MaxRejectedCertificates
         {

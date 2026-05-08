@@ -83,12 +83,13 @@ namespace Opc.Ua
         /// disposing the previous entries.
         /// </summary>
         /// <remarks>
-        /// This is the integration point for the legacy
-        /// <c>CertificateValidator.UpdateCertificateAsync</c> hot-update path:
-        /// after the legacy validator mutates the
-        /// <see cref="SecurityConfiguration.ApplicationCertificates"/> in
-        /// place, callers (e.g. <c>CertificateTypesProvider.Update</c>) can
-        /// invoke this method to bring the registry's snapshot in sync.
+        /// This is the integration point for hot certificate-update flows:
+        /// after a push or rotation mutates the
+        /// <see cref="SecurityConfiguration.ApplicationCertificates"/>,
+        /// callers can invoke this method to bring the registry's snapshot
+        /// in sync. (Historically known as the
+        /// <c>CertificateValidator.UpdateCertificateAsync</c> path; that
+        /// API has been removed.)
         /// </remarks>
         /// <param name="securityConfiguration">
         /// The (post-update) security configuration to load from.
@@ -110,10 +111,11 @@ namespace Opc.Ua
         /// next validation picks up any changes.
         /// </summary>
         /// <remarks>
-        /// This is the modern replacement for the legacy
-        /// <c>CertificateValidator.UpdateAsync(SecurityConfiguration)</c>
-        /// hot-update path used by <c>ServerInternalData.OnUpdateConfigurationAsync</c>.
-        /// Unlike <see cref="ReloadApplicationCertificatesAsync"/>, this method
+        /// Re-applies a <see cref="SecurityConfiguration"/> at runtime so
+        /// running components pick up trust-list / certificate / flag
+        /// changes without a full restart. Used by
+        /// <c>ServerInternalData.OnUpdateConfigurationAsync</c>. Unlike
+        /// <see cref="ReloadApplicationCertificatesAsync"/>, this method
         /// also re-maps trust-list paths and re-snapshots validation flags.
         /// </remarks>
         /// <param name="securityConfiguration">The new security configuration.</param>
@@ -133,10 +135,9 @@ namespace Opc.Ua
         /// the queue is idle).
         /// </summary>
         /// <remarks>
-        /// Modern replacement for the legacy
-        /// <c>CertificateValidator.WaitForRejectedCertificatesDrainAsync</c>
-        /// — primarily a test affordance that lets assertions observe the
-        /// rejected-store contents synchronously.
+        /// Primarily a test affordance that lets assertions observe the
+        /// rejected-store contents synchronously after enqueueing a
+        /// rejection.
         /// </remarks>
         Task FlushRejectedAsync(CancellationToken ct = default);
     }

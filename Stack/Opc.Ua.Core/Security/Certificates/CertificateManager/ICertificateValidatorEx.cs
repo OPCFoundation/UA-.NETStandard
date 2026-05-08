@@ -98,8 +98,7 @@ namespace Opc.Ua
         /// rejects it.
         /// </summary>
         /// <remarks>
-        /// This is the modern replacement for the legacy
-        /// <c>CertificateValidator.CertificateValidation</c> event. Per-call
+        /// Per-call
         /// <see cref="Opc.Ua.Security.Certificates.CertificateValidationOptions.AcceptError"/>
         /// callbacks (when set on a particular <c>ValidateAsync</c> call) take
         /// precedence over this global hook.
