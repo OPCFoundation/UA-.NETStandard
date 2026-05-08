@@ -177,6 +177,50 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Initializes the object with an X509 certificate identifier
+        /// resolved on demand through a centralised
+        /// <see cref="ICertificateProvider"/>. The handler does NOT
+        /// hold a live <see cref="Certificate"/> reference; the
+        /// provider materialises the cert (with private key) on each
+        /// signing operation.
+        /// </summary>
+        /// <remarks>
+        /// Prefer this overload over the legacy
+        /// <see cref="CreateAsync(CertificateIdentifier, CertificatePasswordProvider, ITelemetryContext, CancellationToken)"/>
+        /// when the <see cref="UserIdentity"/> is long-lived (e.g. held
+        /// by an OPC UA <c>ISession</c>) — the on-demand model avoids
+        /// pinning the cert and its private-key handle for the session
+        /// lifetime.
+        /// </remarks>
+        /// <exception cref="ArgumentNullException"/>
+        /// <exception cref="ServiceResultException"/>
+        public static Task<UserIdentity> CreateAsync(
+            CertificateIdentifier certificateId,
+            ICertificatePasswordProvider passwordProvider,
+            ICertificateProvider certificateProvider,
+            CancellationToken ct = default)
+        {
+            if (certificateId == null)
+            {
+                throw new ArgumentNullException(nameof(certificateId));
+            }
+            if (passwordProvider == null)
+            {
+                throw new ArgumentNullException(nameof(passwordProvider));
+            }
+            if (certificateProvider == null)
+            {
+                throw new ArgumentNullException(nameof(certificateProvider));
+            }
+
+            var handler = new X509IdentityTokenHandler(
+                certificateId,
+                passwordProvider,
+                certificateProvider);
+            return Task.FromResult(new UserIdentity(handler));
+        }
+
+        /// <summary>
         /// Initializes the object during deserialization.
         /// </summary>
         /// <remarks>

@@ -83,6 +83,65 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Create an identity token handler from a
+        /// <see cref="CertificateIdentifier"/> + cache-aware
+        /// <see cref="ICertificateProvider"/> pair. The handler holds
+        /// no live certificate reference; the certificate is resolved
+        /// on demand inside <see cref="SignAsync"/> and disposed at the
+        /// end of the call.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// Use this overload when the user identity outlives a single
+        /// signing operation (typical OPC UA client session) — the
+        /// handler stays a POCO and lifetime questions move to the
+        /// provider's cache. The provider's
+        /// <see cref="ICertificateProvider.TryGetPrivateKeyCertificate"/>
+        /// fast-path is consulted on every signing call so a warm cache
+        /// completes synchronously.
+        /// </para>
+        /// <para>
+        /// The wire-format <see cref="X509IdentityToken.CertificateData"/>
+        /// payload (public-key DER) is loaded eagerly during
+        /// construction so it is ready for the
+        /// <c>ActivateSession</c> request without a registry round-trip.
+        /// </para>
+        /// </remarks>
+        /// <exception cref="ArgumentNullException"/>
+        /// <exception cref="ServiceResultException"/>
+        public X509IdentityTokenHandler(
+            CertificateIdentifier identifier,
+            ICertificatePasswordProvider passwordProvider,
+            ICertificateProvider certificateProvider)
+        {
+            m_identifier = identifier ?? throw new ArgumentNullException(nameof(identifier));
+            m_passwordProvider = passwordProvider ?? throw new ArgumentNullException(nameof(passwordProvider));
+            m_provider = certificateProvider ?? throw new ArgumentNullException(nameof(certificateProvider));
+            m_ownsCertificate = false;
+
+            // Pre-load the public-key bytes for the wire payload. This
+            // is the only blocking step at construction; signing itself
+            // is async.
+            using Certificate resolved = certificateProvider
+                .GetPrivateKeyCertificateAsync(identifier, passwordProvider)
+                .AsTask()
+                .GetAwaiter()
+                .GetResult();
+
+            if (resolved == null || !resolved.HasPrivateKey)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadIdentityTokenInvalid,
+                    "Cannot resolve a private-key certificate from the supplied CertificateIdentifier.");
+            }
+
+            m_token = new X509IdentityToken
+            {
+                CertificateData = resolved.RawData.ToByteString()
+            };
+        }
+
+        /// <summary>
         /// Private constructor for <see cref="Clone"/>. The cloned handler
         /// shares the certificate reference but does not own it, so it will
         /// not dispose the certificate. This is necessary because the
@@ -91,11 +150,17 @@ namespace Opc.Ua
         /// </summary>
         private X509IdentityTokenHandler(
             X509IdentityToken token,
-            Certificate certificate)
+            Certificate certificate,
+            CertificateIdentifier identifier,
+            ICertificatePasswordProvider passwordProvider,
+            ICertificateProvider provider)
         {
             m_token = token;
             m_certificate = certificate;
             m_ownsCertificate = false;
+            m_identifier = identifier;
+            m_passwordProvider = passwordProvider;
+            m_provider = provider;
         }
 
         /// <summary>
@@ -165,9 +230,39 @@ namespace Opc.Ua
             string securityPolicyUri,
             CancellationToken ct = default)
         {
+            SecurityPolicyInfo info = SecurityPolicies.GetInfo(securityPolicyUri);
+
+            // Fast path: if the handler was constructed with a
+            // CertificateIdentifier + provider, resolve via the cache.
+            // The provider AddRef's; we own the returned reference.
+            if (m_provider != null && m_identifier != null)
+            {
+                Certificate cached = m_provider.TryGetPrivateKeyCertificate(m_identifier.Thumbprint);
+                if (cached != null)
+                {
+                    using (cached)
+                    {
+                        return SecurityPolicies.CreateSignatureData(info, cached, dataToSign);
+                    }
+                }
+
+                using Certificate loaded = await m_provider
+                    .GetPrivateKeyCertificateAsync(m_identifier, m_passwordProvider, applicationUri: null, ct)
+                    .ConfigureAwait(false);
+                if (loaded == null)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadIdentityTokenInvalid,
+                        "Cannot resolve private-key certificate for X509 identity token.");
+                }
+
+                return SecurityPolicies.CreateSignatureData(info, loaded, dataToSign);
+            }
+
+            // Legacy path: handler holds (or can reconstruct) the
+            // certificate directly.
             await Task.CompletedTask.ConfigureAwait(false);
 
-            SecurityPolicyInfo info = SecurityPolicies.GetInfo(securityPolicyUri);
             Certificate ownedCert = null;
             Certificate certificate = Certificate ??
                 (ownedCert = Certificate.FromRawData(m_token.CertificateData));
@@ -238,7 +333,10 @@ namespace Opc.Ua
         {
             return new X509IdentityTokenHandler(
                 CoreUtils.Clone(m_token),
-                m_certificate);
+                m_certificate,
+                m_identifier,
+                m_passwordProvider,
+                m_provider);
         }
 
         /// <inheritdoc/>
@@ -253,6 +351,9 @@ namespace Opc.Ua
 
         private readonly X509IdentityToken m_token;
         private readonly bool m_ownsCertificate;
+        private readonly CertificateIdentifier m_identifier;
+        private readonly ICertificatePasswordProvider m_passwordProvider;
+        private readonly ICertificateProvider m_provider;
         private Certificate m_certificate;
     }
 }
