@@ -81,7 +81,9 @@ namespace Quickstarts.ReferenceServer
                 Directory.CreateDirectory(databaseDir);
             }
 
-            var database = JsonApplicationsDatabase.Load(databaseStorePath);
+            LinqApplicationsDatabase database = string.IsNullOrEmpty(databaseDir)
+                ? new LinqApplicationsDatabase()
+                : new JsonApplicationsDatabase(databaseStorePath);
 
             return new ApplicationsNodeManager(
                 server,

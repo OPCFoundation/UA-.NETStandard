@@ -119,6 +119,19 @@ namespace Opc.Ua.Gds.Server.Database.Linq
 
             lock (Lock)
             {
+                bool existingApplication = (
+                    from ii in Applications
+                    where ii.ApplicationUri == application.ApplicationUri
+                    select ii
+                ).Any();
+
+                if (existingApplication)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadEntryExists,
+                        "An application with the same application URI is already registered.");
+                }
+
                 Application record = null;
 
                 if (applicationId != Guid.Empty)
@@ -323,6 +336,8 @@ namespace Opc.Ua.Gds.Server.Database.Linq
 
         public override ApplicationRecordDataType[] FindApplications(string applicationUri)
         {
+            base.FindApplications(applicationUri);
+
             lock (Lock)
             {
                 IEnumerable<Application> results =
@@ -495,6 +510,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
                     {
                         if (maxRecordsToReturn != 0 && records.Count >= maxRecordsToReturn)
                         {
+                            nextRecordId = result.ID + 1;
                             break;
                         }
 
@@ -524,7 +540,6 @@ namespace Opc.Ua.Gds.Server.Database.Linq
                             DiscoveryProfileUri = null,
                             DiscoveryUrls = discoveryUrls
                         });
-                    nextRecordId = lastID + 1;
                 }
                 return [.. records];
             }

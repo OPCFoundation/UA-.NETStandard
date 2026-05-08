@@ -59,7 +59,7 @@ namespace Opc.Ua.Gds.Server
             ApplicationConfiguration configuration,
             IApplicationsDatabase database,
             ICertificateRequest request,
-            ICertificateGroup certificateGroup,
+            ICertificateGroup certificateGroupFactory,
             bool autoApprove = false)
             : base(
                   server,
@@ -99,7 +99,7 @@ namespace Opc.Ua.Gds.Server
             m_autoApprove = autoApprove;
             m_database = database;
             m_request = request;
-            m_certificateGroupFactory = certificateGroup;
+            m_certificateGroupFactory = certificateGroupFactory;
             m_certificateGroups = [];
 
             try
@@ -647,7 +647,14 @@ namespace Opc.Ua.Gds.Server
 
             m_logger.LogInformation("OnRegisterApplication: {ApplicationUri}", application.ApplicationUri);
 
-            applicationId = m_database.RegisterApplication(application);
+            try
+            {
+                applicationId = m_database.RegisterApplication(application);
+            }
+            catch (ArgumentException ex)
+            {
+                throw new ServiceResultException(StatusCodes.BadInvalidArgument, ex);
+            }
 
             if (!applicationId.IsNull)
             {
@@ -801,6 +808,7 @@ namespace Opc.Ua.Gds.Server
         {
             AuthorizationHelper.HasAuthorization(context, AuthorizationHelper.AuthenticatedUser);
             m_logger.LogInformation("OnFindApplications: {ApplicationUri}", applicationUri);
+
             applications = m_database.FindApplications(applicationUri);
             return ServiceResult.Good;
         }
@@ -818,6 +826,11 @@ namespace Opc.Ua.Gds.Server
                 applicationId);
             m_logger.LogInformation("OnGetApplication: {ApplicationId}", applicationId);
             application = m_database.GetApplication(applicationId);
+
+            if (application == null)
+            {
+                throw new ServiceResultException(StatusCodes.BadNotFound);
+            }
             return ServiceResult.Good;
         }
 

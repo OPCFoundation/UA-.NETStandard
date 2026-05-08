@@ -30,6 +30,8 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
+using Opc.Ua.Security;
+using Opc.Ua.Types;
 
 namespace Opc.Ua.Gds.Server.Database
 {
@@ -115,7 +117,9 @@ namespace Opc.Ua.Gds.Server.Database
 
                 if (application.ServerCapabilities.IsEmpty)
                 {
-                    application.ServerCapabilities = ["NA"];
+                    throw new ArgumentException(
+                        "At least one ServerCapability must be provided.",
+                       nameof(application));
                 }
             }
             else if (!application.DiscoveryUrls.IsEmpty)
@@ -161,6 +165,11 @@ namespace Opc.Ua.Gds.Server.Database
 
         public virtual ApplicationRecordDataType[] FindApplications(string applicationUri)
         {
+            if (string.IsNullOrWhiteSpace(applicationUri))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadInvalidArgument);
+            }
             return null;
         }
 
@@ -190,6 +199,20 @@ namespace Opc.Ua.Gds.Server.Database
         {
             lastCounterResetTime = DateTimeUtc.MinValue;
             nextRecordId = 0;
+
+            if (applicationType > 2)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadInvalidArgument);
+            }
+
+            if (serverCapabilities.Contains("NA", StringComparer.OrdinalIgnoreCase) &&
+                serverCapabilities.Count > 1)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadInvalidArgument);
+            }
+
             return null;
         }
 

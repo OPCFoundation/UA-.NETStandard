@@ -267,7 +267,7 @@
           </CertificateGroupConfiguration>
         </CertificateGroups>
         <KnownHostNames />
-        <DatabaseStorePath>%LocalApplicationData%/OPC Foundation/GDS/gdsdb.json</DatabaseStorePath>
+        <DatabaseStorePath></DatabaseStorePath>
       </GlobalDiscoveryServerConfiguration>
     </ua:XmlElement>
     <ua:XmlElement>
