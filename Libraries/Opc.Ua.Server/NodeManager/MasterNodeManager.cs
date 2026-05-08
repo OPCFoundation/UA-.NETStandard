@@ -2356,7 +2356,7 @@ namespace Opc.Ua.Server
                     context,
                     methodsToCall[ii],
                     uniqueNodesReadAttributes,
-                    true,
+                    false,
                     cancellationToken).ConfigureAwait(false);
 
                 if (ServiceResult.IsBad(errors[ii]))
@@ -3569,10 +3569,22 @@ namespace Opc.Ua.Server
             (object nodeHandle, IAsyncNodeManager nodeManager) = await GetManagerHandleAsync(callMethodRequest.ObjectId, cancellationToken)
                     .ConfigureAwait(false);
 
-            if (nodeHandle is NodeHandle parsedNode)
-            {
-                MethodState method = parsedNode.Node.FindMethod(Server.DefaultSystemContext, callMethodRequest.MethodId);
+            MethodState method = null;
 
+            if (nodeManager is IMethodStateResolverAsyncNodeManager resolver)
+            {
+                method = await resolver.FindMethodStateAsync(
+                    operationContext,
+                    callMethodRequest,
+                    cancellationToken).ConfigureAwait(false);
+            }
+            else if (nodeHandle is NodeHandle parsedNode)
+            {
+                method = parsedNode.Node.FindMethod(Server.DefaultSystemContext, callMethodRequest.MethodId);
+            }
+
+            if (method != null)
+            {
                 // check access rights and role permissions
                 return await ValidatePermissionsAsync(
                         operationContext,

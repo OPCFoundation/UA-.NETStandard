@@ -396,6 +396,33 @@ namespace Opc.Ua.Server
     }
 
     /// <summary>
+    /// Resolves the effective MethodState for a method call request.
+    /// </summary>
+    public interface IMethodStateResolverNodeManager
+    {
+        /// <summary>
+        /// Resolves the effective <see cref="MethodState"/> for a call request.
+        /// </summary>
+        MethodState FindMethodState(
+            OperationContext context,
+            CallMethodRequest methodToCall);
+    }
+
+    /// <summary>
+    /// Resolves the effective MethodState for a method call request.
+    /// </summary>
+    public interface IMethodStateResolverAsyncNodeManager
+    {
+        /// <summary>
+        /// Resolves the effective <see cref="MethodState"/> for a call request.
+        /// </summary>
+        ValueTask<MethodState> FindMethodStateAsync(
+            OperationContext context,
+            CallMethodRequest methodToCall,
+            CancellationToken cancellationToken = default);
+    }
+
+    /// <summary>
     /// An asynchronous version of the "Call" method defined on the <see cref="INodeManager3"/> interface.
     /// </summary>
     public interface ICallAsyncNodeManager

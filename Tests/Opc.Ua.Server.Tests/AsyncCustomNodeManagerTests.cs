@@ -1296,6 +1296,70 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        public async Task FindMethodStateAsync_ResolvesMethodFromSuperTypeOfObjectTypeAsync()
+        {
+            using TestableAsyncCustomNodeManager manager = CreateManager();
+            ServerSystemContext context = manager.SystemContext;
+            ushort nsIdx = manager.NamespaceIndexes[0];
+
+            using var baseType = new BaseObjectTypeState
+            {
+                NodeId = new NodeId("ResolverBaseType", nsIdx),
+                BrowseName = new QualifiedName("ResolverBaseType", nsIdx),
+                SuperTypeId = NodeId.Null
+            };
+            baseType.CreateAsPredefinedNode(context);
+
+            var baseMethod = new MethodState(baseType)
+            {
+                NodeId = new NodeId("ResolverBaseMethod", nsIdx),
+                BrowseName = new QualifiedName("ResolverBaseMethod", nsIdx)
+            };
+            baseType.AddChild(baseMethod);
+
+            using var derivedType = new BaseObjectTypeState
+            {
+                NodeId = new NodeId("ResolverDerivedType", nsIdx),
+                BrowseName = new QualifiedName("ResolverDerivedType", nsIdx),
+                SuperTypeId = baseType.NodeId
+            };
+            derivedType.CreateAsPredefinedNode(context);
+
+            using var instance = new BaseObjectState(null)
+            {
+                NodeId = new NodeId("ResolverDerivedInstance", nsIdx),
+                BrowseName = new QualifiedName("ResolverDerivedInstance", nsIdx),
+                TypeDefinitionId = derivedType.NodeId
+            };
+            instance.CreateAsPredefinedNode(context);
+
+            await manager.AddPredefinedNodePublicAsync(context, baseType).ConfigureAwait(false);
+            await manager.AddPredefinedNodePublicAsync(context, derivedType).ConfigureAwait(false);
+            await manager.AddNodeAsync(context, default, instance).ConfigureAwait(false);
+
+            m_mockServer.Object.TypeTree.AddSubtype(baseType.NodeId, NodeId.Null);
+            m_mockServer.Object.TypeTree.AddSubtype(derivedType.NodeId, baseType.NodeId);
+
+            var request = new CallMethodRequest
+            {
+                ObjectId = instance.NodeId,
+                MethodId = baseMethod.NodeId,
+                InputArguments = []
+            };
+            var operationContext = new OperationContext(new RequestHeader(), null, RequestType.Call, RequestLifetime.None);
+
+            MethodState method = await manager.FindMethodStateAsync(operationContext, request).ConfigureAwait(false);
+            Assert.That(method, Is.Not.Null);
+            Assert.That(method.NodeId, Is.EqualTo(baseMethod.NodeId));
+
+            var syncResolver = manager.SyncNodeManager as IMethodStateResolverNodeManager;
+            Assert.That(syncResolver, Is.Not.Null);
+            MethodState syncMethod = syncResolver.FindMethodState(operationContext, request);
+            Assert.That(syncMethod, Is.Not.Null);
+            Assert.That(syncMethod.NodeId, Is.EqualTo(baseMethod.NodeId));
+        }
+
+        [Test]
         public async Task CallAsync_InvokesMethodFromSuperTypeOfObjectTypeAsync()
         {
             // Arrange: set up a type hierarchy: BaseType -> DerivedType, method on BaseType

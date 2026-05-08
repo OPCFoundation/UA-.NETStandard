@@ -47,7 +47,7 @@ namespace Opc.Ua.Server
     /// is not part of the SDK because most real implementations of a INodeManager will need to
     /// modify the behavior of the base class.
     /// </remarks>
-    public class AsyncCustomNodeManager : IAsyncNodeManager, INodeIdFactory, IDisposable
+    public class AsyncCustomNodeManager : IAsyncNodeManager, IMethodStateResolverAsyncNodeManager, INodeIdFactory, IDisposable
     {
         /// <summary>
         /// Initializes the node manager.
@@ -3219,6 +3219,73 @@ namespace Opc.Ua.Server
 
                 errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
             }
+        }
+
+        /// <summary>
+        /// Resolves the effective method for a call request.
+        /// </summary>
+        public virtual async ValueTask<MethodState> FindMethodStateAsync(
+            OperationContext context,
+            CallMethodRequest methodToCall,
+            CancellationToken cancellationToken = default)
+        {
+            if (methodToCall == null || methodToCall.ObjectId.IsNull || methodToCall.MethodId.IsNull)
+            {
+                return null;
+            }
+
+            ServerSystemContext systemContext = SystemContext.Copy(context);
+            IDictionary<NodeId, NodeState> operationCache = new NodeIdDictionary<NodeState>();
+
+            NodeHandle handle = await GetManagerHandleAsync(
+                systemContext,
+                methodToCall.ObjectId,
+                operationCache,
+                cancellationToken).ConfigureAwait(false);
+
+            if (handle == null)
+            {
+                return null;
+            }
+
+            NodeState source = await ValidateNodeAsync(systemContext, handle, operationCache, cancellationToken).ConfigureAwait(false);
+
+            if (source == null)
+            {
+                return null;
+            }
+
+            MethodState method;
+            lock (source)
+            {
+                method = source.FindMethod(systemContext, methodToCall.MethodId);
+            }
+
+            if (method != null)
+            {
+                return method;
+            }
+
+            bool referenceExists;
+            lock (source)
+            {
+                referenceExists = source.ReferenceExists(
+                    ReferenceTypeIds.HasComponent,
+                    false,
+                    methodToCall.MethodId);
+            }
+
+            if (referenceExists)
+            {
+                method = FindPredefinedNode<MethodState>(methodToCall.MethodId);
+            }
+
+            if (method == null && source is BaseInstanceState instanceState)
+            {
+                method = FindMethodInTypeHierarchy(systemContext, instanceState.TypeDefinitionId, methodToCall.MethodId);
+            }
+
+            return method;
         }
 
         /// <summary>

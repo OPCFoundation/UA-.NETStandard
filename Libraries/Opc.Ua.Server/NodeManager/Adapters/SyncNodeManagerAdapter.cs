@@ -59,7 +59,7 @@ namespace Opc.Ua.Server
     /// This allows asynchronous nodeManagers to be treated as synchronous, which can help
     /// compatibility with existing code.
     /// </remarks>
-    public class SyncNodeManagerAdapter : INodeManager3
+    public class SyncNodeManagerAdapter : INodeManager3, IMethodStateResolverNodeManager
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="SyncNodeManagerAdapter"/> class.
@@ -287,6 +287,24 @@ namespace Opc.Ua.Server
             return m_nodeManager.GetPermissionMetadataAsync(
                 context, targetHandle, resultMask, uniqueNodesServiceAttributesCache, permissionsOnly)
                 .AsTask().GetAwaiter().GetResult();
+        }
+
+        /// <inheritdoc/>
+        public MethodState FindMethodState(
+            OperationContext context,
+            CallMethodRequest methodToCall)
+        {
+            if (m_nodeManager is IMethodStateResolverNodeManager nodeManager)
+            {
+                return nodeManager.FindMethodState(context, methodToCall);
+            }
+
+            if (m_nodeManager is IMethodStateResolverAsyncNodeManager asyncNodeManager)
+            {
+                return asyncNodeManager.FindMethodStateAsync(context, methodToCall).AsTask().GetAwaiter().GetResult();
+            }
+
+            return null;
         }
 
         /// <inheritdoc/>

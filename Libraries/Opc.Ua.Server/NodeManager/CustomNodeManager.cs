@@ -47,7 +47,7 @@ namespace Opc.Ua.Server
     /// is not part of the SDK because most real implementations of a INodeManager will need to
     /// modify the behavior of the base class.
     /// </remarks>
-    public partial class CustomNodeManager2 : INodeManager3, INodeIdFactory, IDisposable
+    public partial class CustomNodeManager2 : INodeManager3, IMethodStateResolverNodeManager, INodeIdFactory, IDisposable
     {
         /// <summary>
         /// Initializes the node manager.
@@ -3072,6 +3072,64 @@ namespace Opc.Ua.Server
                 errors,
                 sync: true);
 #pragma warning restore CA2012 // Use ValueTasks correctly
+        }
+
+        /// <summary>
+        /// Resolves the effective method for a call request.
+        /// </summary>
+        public virtual MethodState FindMethodState(
+            OperationContext context,
+            CallMethodRequest methodToCall)
+        {
+            if (methodToCall == null || methodToCall.ObjectId.IsNull || methodToCall.MethodId.IsNull)
+            {
+                return null;
+            }
+
+            ServerSystemContext systemContext = SystemContext.Copy(context);
+            IDictionary<NodeId, NodeState> operationCache = new NodeIdDictionary<NodeState>();
+
+            NodeHandle handle = GetManagerHandle(
+                systemContext,
+                methodToCall.ObjectId,
+                operationCache);
+
+            if (handle == null)
+            {
+                return null;
+            }
+
+            lock (Lock)
+            {
+                NodeState source = ValidateNode(systemContext, handle, operationCache);
+
+                if (source == null)
+                {
+                    return null;
+                }
+
+                MethodState method = source.FindMethod(systemContext, methodToCall.MethodId);
+
+                if (method != null)
+                {
+                    return method;
+                }
+
+                if (source.ReferenceExists(
+                    ReferenceTypeIds.HasComponent,
+                    false,
+                    methodToCall.MethodId))
+                {
+                    method = FindPredefinedNode<MethodState>(methodToCall.MethodId);
+                }
+
+                if (method == null && source is BaseInstanceState instanceState)
+                {
+                    method = FindMethodInTypeHierarchy(systemContext, instanceState.TypeDefinitionId, methodToCall.MethodId);
+                }
+
+                return method;
+            }
         }
 
         /// <summary>
