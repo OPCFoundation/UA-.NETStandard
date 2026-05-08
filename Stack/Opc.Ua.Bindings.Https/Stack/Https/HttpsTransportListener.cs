@@ -299,7 +299,9 @@ namespace Opc.Ua.Bindings
         /// which passes an IWebHostBuilder, not WebHostBuilder.
         /// </summary>
         /// <param name="webHostBuilder"></param>
+#pragma warning disable CA1859
         private void ConfigureWebHost(IWebHostBuilder webHostBuilder)
+#pragma warning restore CA1859
         {
             // prepare the server TLS certificate. The provider returns a
             // borrowed reference owned by the registry; AddRef so this

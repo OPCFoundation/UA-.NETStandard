@@ -364,7 +364,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             {
                 await validator.IssuerStore.AddAsync(rootCert).ConfigureAwait(false);
                 await validator.TrustedStore.AddAsync(subCACert).ConfigureAwait(false);
-                ICertificateValidatorEx certValidator = await validator.UpdateAsync().ConfigureAwait(false);
+                CertificateManager certValidator = await validator.UpdateAsync().ConfigureAwait(false);
                 Opc.Ua.CertificateValidationResult result = await certValidator
                     .ValidateAsync(leafCert, ct: CancellationToken.None)
                     .ConfigureAwait(false);
@@ -380,7 +380,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             };
             using (var validator = TemporaryCertificateManager.Create(telemetry))
             {
-                ICertificateValidatorEx certValidator = await validator.UpdateAsync().ConfigureAwait(false);
+                CertificateManager certValidator = await validator.UpdateAsync().ConfigureAwait(false);
                 Opc.Ua.CertificateValidationResult result = await certValidator
                     .ValidateAsync(collection, ct: CancellationToken.None)
                     .ConfigureAwait(false);
@@ -394,7 +394,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             {
                 await validator.IssuerStore.AddAsync(rootReverseCert).ConfigureAwait(false);
                 await validator.TrustedStore.AddAsync(subCACert).ConfigureAwait(false);
-                ICertificateValidatorEx certValidator = await validator.UpdateAsync().ConfigureAwait(false);
+                CertificateManager certValidator = await validator.UpdateAsync().ConfigureAwait(false);
                 Opc.Ua.CertificateValidationResult result = await certValidator
                     .ValidateAsync(collection, ct: CancellationToken.None)
                     .ConfigureAwait(false);

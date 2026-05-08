@@ -447,7 +447,7 @@ namespace Opc.Ua.Server.Tests.Fluent
         }
 
         private static NodeManagerBuilder CreateBuilderWithTypeIndex(
-            IReadOnlyDictionary<NodeId, IReadOnlyList<NodeState>> byType)
+            Dictionary<NodeId, IReadOnlyList<NodeState>> byType)
         {
             return new NodeManagerBuilder(
                 CreateContext(),

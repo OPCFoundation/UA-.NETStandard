@@ -54,7 +54,7 @@ namespace Opc.Ua.Core.Tests.Stack.Types
         public async Task DecryptSupportsRsaEncryptedSecretFormatAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            IServiceMessageContext context = ServiceMessageContext.CreateEmpty(telemetry);
+            ServiceMessageContext context = ServiceMessageContext.CreateEmpty(telemetry);
             SecurityPolicyInfo securityPolicy = SecurityPolicies.GetInfo(kSecurityPolicyUri);
             byte[] receiverNonce = Nonce.CreateNonce(securityPolicy.SecureChannelNonceLength).Data;
             byte[] expectedPassword = Nonce.CreateNonce(96).Data;
@@ -92,7 +92,7 @@ namespace Opc.Ua.Core.Tests.Stack.Types
         public async Task DecryptKeepsLegacyRsaEncryptedTokenPathAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            IServiceMessageContext context = ServiceMessageContext.CreateEmpty(telemetry);
+            ServiceMessageContext context = ServiceMessageContext.CreateEmpty(telemetry);
             SecurityPolicyInfo securityPolicy = SecurityPolicies.GetInfo(kSecurityPolicyUri);
             byte[] receiverNonce = Nonce.CreateNonce(securityPolicy.SecureChannelNonceLength).Data;
             byte[] expectedPassword = GetRandomBytes(TestLegacyPasswordLength);
@@ -130,7 +130,7 @@ namespace Opc.Ua.Core.Tests.Stack.Types
         public void DecryptThrowsBadIdentityTokenInvalidWhenECCTryDecryptFails()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            IServiceMessageContext context = ServiceMessageContext.CreateEmpty(telemetry);
+            ServiceMessageContext context = ServiceMessageContext.CreateEmpty(telemetry);
 
             var token = new UserNameIdentityToken
             {
@@ -158,7 +158,7 @@ namespace Opc.Ua.Core.Tests.Stack.Types
         public async Task EncryptUsesLegacyRsaFormatForShortPasswordAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            IServiceMessageContext context = ServiceMessageContext.CreateEmpty(telemetry);
+            ServiceMessageContext context = ServiceMessageContext.CreateEmpty(telemetry);
             SecurityPolicyInfo securityPolicy = SecurityPolicies.GetInfo(kSecurityPolicyUri);
             byte[] receiverNonce = Nonce.CreateNonce(securityPolicy.SecureChannelNonceLength).Data;
             byte[] password = GetRandomBytes(RsaEncryptedSecretPasswordThreshold - 1);
@@ -189,7 +189,7 @@ namespace Opc.Ua.Core.Tests.Stack.Types
         public async Task EncryptUsesLegacyRsaFormatAtThresholdPasswordLengthAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            IServiceMessageContext context = ServiceMessageContext.CreateEmpty(telemetry);
+            ServiceMessageContext context = ServiceMessageContext.CreateEmpty(telemetry);
             SecurityPolicyInfo securityPolicy = SecurityPolicies.GetInfo(kSecurityPolicyUri);
             byte[] receiverNonce = Nonce.CreateNonce(securityPolicy.SecureChannelNonceLength).Data;
             byte[] password = GetRandomBytes(RsaEncryptedSecretPasswordThreshold);
@@ -220,7 +220,7 @@ namespace Opc.Ua.Core.Tests.Stack.Types
         public async Task EncryptUsesRsaEncryptedSecretForLongPasswordAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            IServiceMessageContext context = ServiceMessageContext.CreateEmpty(telemetry);
+            ServiceMessageContext context = ServiceMessageContext.CreateEmpty(telemetry);
             SecurityPolicyInfo securityPolicy = SecurityPolicies.GetInfo(kSecurityPolicyUri);
             byte[] receiverNonce = Nonce.CreateNonce(securityPolicy.SecureChannelNonceLength).Data;
             byte[] password = GetRandomBytes(RsaEncryptedSecretPasswordThreshold + 1);
@@ -248,7 +248,7 @@ namespace Opc.Ua.Core.Tests.Stack.Types
         }
 
         private static byte[] CreateRsaEncryptedSecret(
-            IServiceMessageContext context,
+            ServiceMessageContext context,
             Certificate receiverCertificate,
             string securityPolicyUri,
             byte[] secret,

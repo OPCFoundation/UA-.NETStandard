@@ -351,7 +351,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 .SetRSAKeySize(2048)
                 .CreateForRSA();
 
-            ICertificateRegistry registry = manager;
+            CertificateManager registry = manager;
             var issuers = new List<CertificateIssuerReference>();
             bool isTrusted = await registry.GetIssuersAsync(cert, issuers).ConfigureAwait(false);
 
@@ -383,7 +383,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 .SetRSAKeySize(2048)
                 .CreateForRSA();
 
-            ICertificateRegistry registry = manager;
+            CertificateManager registry = manager;
 
             // Pre-populate the list with a sentinel reference.
             var issuers = new List<CertificateIssuerReference>
@@ -444,7 +444,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 .CreateForRSA();
             using Certificate sentinelClone = Certificate.FromRawData(sentinel.RawData);
 
-            ICertificateRegistry registry = manager;
+            CertificateManager registry = manager;
 
             var issuers = new List<CertificateIssuerReference>
             {
@@ -513,7 +513,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             using var manager = new CertificateManager(m_telemetry);
             manager.RegisterTrustList(TrustListIdentifier.Peers, trustedPath);
 
-            ICertificateRegistry registry = manager;
+            CertificateManager registry = manager;
 
             long createdBefore = Certificate.InstancesCreated;
             long disposedBefore = Certificate.InstancesDisposed;
