@@ -181,7 +181,10 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             {
                 Thumbprint = publicKey.Thumbprint,
                 StorePath = storePath,
-                StoreType = storeType
+                StoreType = storeType,
+                // Start with the abstract type to verify loading the real certificate
+                // normalizes the identifier to its concrete OPC UA certificate type.
+                CertificateType = ObjectTypeIds.ApplicationCertificateType
             };
 
             {
@@ -225,6 +228,10 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
             Assert.That(privateKey, Is.Not.Null);
             Assert.That(privateKey.HasPrivateKey, Is.True);
+            Assert.That(
+                id.CertificateType,
+                Is.EqualTo(ObjectTypeIds.RsaSha256ApplicationCertificateType),
+                "Loading the real certificate should normalize the abstract type.");
 
             X509Utils.VerifyRSAKeyPair(publicKey, privateKey, true);
 

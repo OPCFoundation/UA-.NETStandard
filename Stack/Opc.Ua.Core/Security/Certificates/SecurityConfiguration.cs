@@ -215,6 +215,72 @@ namespace Opc.Ua
                             ct)
                         .ConfigureAwait(false);
                 }
+
+                Certificate? certificate = await FindAbstractApplicationCertificateAsync(
+                    certType,
+                    privateKey,
+                    telemetry,
+                    ct).ConfigureAwait(false);
+                if (certificate != null)
+                {
+                    return certificate;
+                }
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Finds a concrete certificate from entries configured with the abstract ApplicationCertificateType.
+        /// </summary>
+        private async Task<Certificate?> FindAbstractApplicationCertificateAsync(
+            NodeId requiredConcreteCertificateType,
+            bool privateKey,
+            ITelemetryContext telemetry,
+            CancellationToken ct)
+        {
+            foreach (CertificateIdentifier id in ApplicationCertificates.ToArray().Where(certId =>
+                certId.CertificateType == ObjectTypeIds.ApplicationCertificateType))
+            {
+                var candidateId = new CertificateIdentifier
+                {
+                    StoreType = id.StoreType,
+                    StorePath = id.StorePath,
+                    SubjectName = id.SubjectName,
+                    Thumbprint = id.Thumbprint,
+                    RawData = id.RawData,
+                    ValidationOptions = id.ValidationOptions,
+                    CertificateType = NodeId.Null
+                };
+
+                Certificate? certificate = privateKey
+                    ? await CertificateIdentifierResolver
+                        .LoadPrivateKeyAsync(
+                            candidateId,
+                            CertificatePasswordProvider,
+                            applicationUri: null,
+                            telemetry,
+                            ct)
+                        .ConfigureAwait(false)
+                    : await CertificateIdentifierResolver
+                        .ResolveAsync(
+                            candidateId,
+                            registry: null,
+                            needPrivateKey: false,
+                            applicationUri: null,
+                            telemetry,
+                            ct)
+                        .ConfigureAwait(false);
+
+                if (certificate != null &&
+                    CertificateIdentifier.ValidateCertificateType(
+                        certificate,
+                        requiredConcreteCertificateType))
+                {
+                    return certificate;
+                }
+
+                certificate?.Dispose();
             }
 
             return null;
