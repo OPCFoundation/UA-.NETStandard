@@ -553,19 +553,15 @@ protected override void OnAfterCreate(ISystemContext context, NodeState node, Ca
 
 ### User Identity Token Handlers
 
-**Breaking Change**: Identity tokens no longer perform cryptographic operations directly. New handler pattern introduced for better security and lifetime management.
+**Breaking Change**: Identity tokens no longer perform cryptographic
+operations directly. The handler pattern introduced earlier is now
+**fully asynchronous** and **non-disposable**, and the
+`Certificate`-taking ctors of `UserIdentity` and
+`X509IdentityTokenHandler` have been removed in favour of a
+`CertificateIdentifier` + `ICertificateProvider` model that resolves
+the private-key cert on demand.
 
 **Before**:
-
-```csharp
-    var token = new X509IdentityToken();
-    token.Encrypt(certificate, nonce, securityPolicy, context);
-    token.Decrypt(certificate, nonce, securityPolicy, context);
-    var signature = token.Sign(data, securityPolicy);
-    bool isValid = token.Verify(data, signature, securityPolicy);
-```
-
-**After**:
 
 ```csharp
     var token = new X509IdentityToken();
@@ -574,58 +570,163 @@ protected override void OnAfterCreate(ISystemContext context, NodeState node, Ca
     handler.Decrypt(certificate, nonce, securityPolicy, context);
     var signature = handler.Sign(data, securityPolicy);
     bool isValid = handler.Verify(data, signature, securityPolicy);
+
+    using var userIdentity = new UserIdentity(certificate);   // legacy ctor
 ```
 
-**New Interface**:
+**After**:
+
+```csharp
+    var token = new X509IdentityToken();
+    var handler = token.AsTokenHandler();                      // not IDisposable
+    await handler.EncryptAsync(certificate, nonce, securityPolicy, context, ct: ct);
+    await handler.DecryptAsync(certificate, nonce, securityPolicy, context, ct: ct);
+    SignatureData signature = await handler.SignAsync(data, securityPolicy, ct);
+    bool isValid = await handler.VerifyAsync(data, signature, securityPolicy, ct);
+
+    // New cert-based UserIdentity: identifier + cache-aware provider.
+    UserIdentity userIdentity = await UserIdentity.CreateAsync(
+        certificateIdentifier,
+        passwordProvider,
+        configuration.CertificateManager.CertificateProvider,
+        ct);
+```
+
+**New interface shape**:
 
 ```csharp
     public interface IUserIdentityTokenHandler :
-        IDisposable, ICloneable, IEquatable<IUserIdentityTokenHandler>
+        ICloneable, IEquatable<IUserIdentityTokenHandler>
     {
         UserIdentityToken Token { get; }
         string DisplayName { get; }
         UserTokenType TokenType { get; }
 
         void UpdatePolicy(UserTokenPolicy userTokenPolicy);
-        void Encrypt(X509Certificate2 receiverCertificate, byte[] receiverNonce,
-                    string securityPolicyUri, IServiceMessageContext context, ...);
-        void Decrypt(X509Certificate2 certificate, Nonce receiverNonce,
-                    string securityPolicyUri, IServiceMessageContext context, ...);
-        SignatureData Sign(byte[] dataToSign, string securityPolicyUri);
-        bool Verify(byte[] dataToVerify, SignatureData signatureData, string securityPolicyUri);
+
+        ValueTask EncryptAsync(
+            Certificate receiverCertificate, byte[] receiverNonce,
+            string securityPolicyUri, IServiceMessageContext context,
+            ..., CancellationToken ct = default);
+        ValueTask DecryptAsync(
+            Certificate certificate, Nonce receiverNonce,
+            string securityPolicyUri, IServiceMessageContext context,
+            ..., CancellationToken ct = default);
+        ValueTask<SignatureData> SignAsync(
+            byte[] dataToSign, string securityPolicyUri,
+            CancellationToken ct = default);
+        ValueTask<bool> VerifyAsync(
+            byte[] dataToVerify, SignatureData signatureData,
+            string securityPolicyUri, CancellationToken ct = default);
     }
 ```
 
-**Migration Required**:
+**Migration required**:
 
-1. **Replace direct token crypto operations**:
+| Removed | Replacement |
+| ------- | ----------- |
+| `IUserIdentityTokenHandler : IDisposable` | `IUserIdentityTokenHandler` (no `IDisposable`). Drop `using` on handler instances. Sensitive byte buffers (`UserNameIdentityTokenHandler.DecryptedPassword`, `IssuedIdentityTokenHandler.DecryptedTokenData`) are no longer cleared on disposal — secure-memory management is the secret store's responsibility (deferred to a future revision). |
+| `UserIdentity : IDisposable`, `UserIdentity.Dispose()` | `UserIdentity` (no `IDisposable`). Drop `using` on `new UserIdentity(...)`. |
+| `handler.Encrypt(...)` (sync) | `await handler.EncryptAsync(..., ct)` |
+| `handler.Decrypt(...)` (sync) | `await handler.DecryptAsync(..., ct)` |
+| `SignatureData handler.Sign(...)` (sync) | `await handler.SignAsync(..., ct)` |
+| `bool handler.Verify(...)` (sync) | `await handler.VerifyAsync(..., ct)` |
+| `new UserIdentity(Certificate)` (legacy ctor) | `await UserIdentity.CreateAsync(certificateIdentifier, passwordProvider, certificateProvider, ct)` — the new ctor stores the identifier; the cert is materialised on demand by the provider. |
+| `new X509IdentityTokenHandler(Certificate)` | `new X509IdentityTokenHandler(CertificateIdentifier, ICertificatePasswordProvider, ICertificateProvider)` — handler holds no live Certificate; on `SignAsync` the provider's cache is consulted (`TryGetPrivateKeyCertificate`) then the store (`GetPrivateKeyCertificateAsync`). |
+| `[Obsolete] new UserIdentity(CertificateIdentifier, CertificatePasswordProvider)` | `await UserIdentity.CreateAsync(certificateIdentifier, passwordProvider, certificateProvider, ct)` — the obsolete ctor blocked on async; the new factory does not pre-resolve. |
+| `await UserIdentity.CreateAsync(certId, passwordProvider, telemetry, ct)` | `await UserIdentity.CreateAsync(certId, passwordProvider, certificateProvider, ct)` — `ICertificateProvider` (typically `configuration.CertificateManager.CertificateProvider`) replaces the telemetry-only argument list. |
 
-    ```csharp
-    // OLD - Direct operations on token
-    userIdentityToken.Encrypt(...);
-
-    // NEW - Use handler pattern
-    using var handler = userIdentityToken.AsTokenHandler();
-    handler.Encrypt(...);
-    ```
-
-2. **Proper lifetime management**:
-
-    ```csharp
-    // For temporary use - dispose immediately
-    using var handler = token.AsTokenHandler();
-    handler.Encrypt(...);
-
-    // For storage - clone and dispose original
-    var storedHandler = token.AsTokenHandler().Copy();
-    // Use storedHandler later, remember to dispose when done
-    ```
-
-3. **Available token handlers**:
+**Available token handlers** (all non-disposable):
    - `AnonymousIdentityTokenHandler`
    - `UserNameIdentityTokenHandler`
    - `X509IdentityTokenHandler`
    - `IssuedIdentityTokenHandler`
+
+**Note on secure-memory management**: with `IDisposable` gone, the
+sync `Array.Clear` of decrypted password / issued-token bytes that
+used to happen in `Dispose()` no longer fires. Bytes live in plain
+fields until GC. A follow-up revision will route inbound decrypted
+secrets through the new `ISecretStore` abstraction (see *Secrets*
+below) so secure clearing becomes the store's responsibility, with no
+public surface change.
+
+### Secrets — caller-supplied passwords go through a secret registry
+
+A new low-level abstraction layer carries caller-supplied secrets
+(currently the password held by `CertificatePasswordProvider`) without
+forcing a `byte[] DecryptedPassword`-style field to live on the
+identity object.
+
+```csharp
+public sealed record SecretIdentifier(string Name, string StoreType, string? StorePath = null);
+public interface ISecret : IDisposable { ReadOnlySpan<byte> Bytes { get; } }
+public interface ISecretStore { ISecret? TryGet(SecretIdentifier id); /* + async Get/Set/Remove */ }
+public interface ISecretRegistry { void RegisterStore(ISecretStore store); /* + Get/TryGet */ }
+```
+
+The default `InMemorySecretStore` keeps bytes in a `ConcurrentDictionary`
+keyed by `SecretIdentifier.Name`. Every `TryGet`/`GetAsync` returns a
+fresh `ISecret` view; the receiver disposes it when done. The
+implementation chooses what disposal does — no-op for `InMemorySecret`
+in this revision, future stores (DPAPI, Kubernetes secret, Azure Key
+Vault) can implement clear-on-dispose, lease-return, or watch-handle
+release.
+
+`CertificatePasswordProvider` is reimplemented over this registry.
+**The existing public ctors stay BC** — they internally create a
+per-instance `InMemorySecretStore` and register the password under an
+opaque identifier:
+
+```csharp
+new CertificatePasswordProvider();                                  // empty
+new CertificatePasswordProvider("password");                        // string
+new CertificatePasswordProvider(passwordBytes, isUtf8String: true); // bytes
+new CertificatePasswordProvider(passwordSpan);                      // ReadOnlySpan<char>
+
+// New advanced ctor for callers who want to plug in a custom store:
+new CertificatePasswordProvider(secretRegistry, secretIdentifier);
+```
+
+`ICertificatePasswordProvider.GetPassword(CertificateIdentifier)` still
+returns `char[]` for backward compatibility — internally it resolves
+the secret bytes from the registry and decodes UTF-8 on every call.
+
+### Centralised certificate cache via `ICertificateProvider`
+
+A new public `ICertificateProvider` interface exposes the existing
+`CertificateCache` for resolving private-key certs on demand:
+
+```csharp
+public interface ICertificateProvider
+{
+    Certificate? TryGetPrivateKeyCertificate(string thumbprint);          // sync
+    ValueTask<Certificate?> GetPrivateKeyCertificateAsync(
+        CertificateIdentifier identifier,
+        ICertificatePasswordProvider? passwordProvider = null,
+        string? applicationUri = null,
+        CancellationToken ct = default);
+}
+```
+
+`CertificateManager` exposes one via the new `CertificateProvider`
+property; `ICertificateManager` likewise. The provider follows the
+**TryGet → async ValueTask** pattern: cache hits complete
+synchronously without allocations; misses fall through to
+`CertificateIdentifierResolver.LoadPrivateKeyAsync` and write the
+loaded cert back into the cache.
+
+Wire it through to the new `X509IdentityTokenHandler` /
+`UserIdentity.CreateAsync` overloads:
+
+```csharp
+UserIdentity userIdentity = await UserIdentity.CreateAsync(
+    certificateIdentifier,
+    passwordProvider,
+    configuration.CertificateManager.CertificateProvider,
+    ct);
+```
+
+
 
 ### Configuration
 
