@@ -123,7 +123,7 @@ namespace Quickstarts
 
                 var endpointConfiguration = EndpointConfiguration.Create(m_configuration);
                 var sessionFactory = new DefaultSessionFactory(m_telemetry);
-                using var userNameidentity = new UserIdentity(kUserName, new UTF8Encoding(false).GetBytes(kPassword));
+                var userNameidentity = new UserIdentity(kUserName, new UTF8Encoding(false).GetBytes(kPassword));
 
                 foreach (EndpointDescription ii in endpoints.ToArray())
                 {
@@ -318,7 +318,7 @@ namespace Quickstarts
             return await UserIdentity.CreateAsync(
                 cid,
                 new CertificatePasswordProvider(new UTF8Encoding(false).GetBytes(password)),
-                m_telemetry,
+                m_configuration.CertificateManager.CertificateProvider,
                 ct).ConfigureAwait(false);
         }
 #else

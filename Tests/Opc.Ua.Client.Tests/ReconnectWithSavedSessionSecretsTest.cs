@@ -173,7 +173,7 @@ namespace Opc.Ua.Client.Tests
             const int kQueueSize = 10;
 
             ServiceResultException sre;
-            using UserIdentity userIdentity = anonymous
+            UserIdentity userIdentity = anonymous
                 ? new UserIdentity()
                 : new UserIdentity("user1", "password"u8);
 

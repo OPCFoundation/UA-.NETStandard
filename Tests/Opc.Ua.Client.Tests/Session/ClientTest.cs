@@ -643,8 +643,8 @@ namespace Opc.Ua.Client.Tests
         public async Task ConnectJWTAsync(string securityPolicy)
         {
             byte[] identityToken = "fakeTokenString"u8.ToArray();
-            using var issuedToken = new IssuedIdentityTokenHandler(Profiles.JwtUserToken, identityToken);
-            using var userIdentity = new UserIdentity(issuedToken);
+            var issuedToken = new IssuedIdentityTokenHandler(Profiles.JwtUserToken, identityToken);
+            var userIdentity = new UserIdentity(issuedToken);
 
             ISession session = await ClientFixture
                 .ConnectAsync(ServerUrl, securityPolicy, Endpoints, userIdentity)
@@ -670,7 +670,7 @@ namespace Opc.Ua.Client.Tests
             }
 
             byte[] identityToken = "fakeTokenString"u8.ToArray();
-            using UserIdentity userIdentity = CreateUserIdentity(identityToken);
+            UserIdentity userIdentity = CreateUserIdentity(identityToken);
 
             ISession session = await ClientFixture
                 .ConnectAsync(ServerUrl, securityPolicy, Endpoints, userIdentity)
@@ -869,7 +869,7 @@ namespace Opc.Ua.Client.Tests
 
             ServiceResultException sre;
 
-            using UserIdentity userIdentity = anonymous
+            UserIdentity userIdentity = anonymous
                 ? new UserIdentity()
                 : new UserIdentity("user1", "password"u8);
 
@@ -982,7 +982,7 @@ namespace Opc.Ua.Client.Tests
             await IgnoreIfPolicyNotAdvertisedAsync(securityPolicy).ConfigureAwait(false);
             await IgnoreIfPolicyNotAdvertisedAsync(userTokenPolicy).ConfigureAwait(false);
 
-            using var userIdentity = new UserIdentity("user1", "password"u8);
+            var userIdentity = new UserIdentity("user1", "password"u8);
 
             // the first channel determines the endpoint
             ConfiguredEndpoint endpoint = await ClientFixture
@@ -1043,8 +1043,8 @@ namespace Opc.Ua.Client.Tests
         [Order(270)]
         public async Task RecreateSessionWithRenewUserIdentityAsync()
         {
-            using var userIdentityAnonymous = new UserIdentity();
-            using var userIdentityPW = new UserIdentity("user1", "password"u8);
+            var userIdentityAnonymous = new UserIdentity();
+            var userIdentityPW = new UserIdentity("user1", "password"u8);
 
             // the first channel determines the endpoint
             ConfiguredEndpoint endpoint = await ClientFixture
@@ -1901,7 +1901,7 @@ namespace Opc.Ua.Client.Tests
             IgnoreUnsupportedBrainpoolOnMacOs(securityPolicy);
             await IgnoreIfPolicyNotAdvertisedAsync(securityPolicy).ConfigureAwait(false);
 
-            using var userIdentity = new UserIdentity("user1", "password"u8);
+            var userIdentity = new UserIdentity("user1", "password"u8);
 
             // the first channel determines the endpoint
             ConfiguredEndpoint endpoint = await ClientFixture
@@ -1945,10 +1945,10 @@ namespace Opc.Ua.Client.Tests
 
             const string identityToken = "fakeTokenString";
 
-            using var issuedToken = new IssuedIdentityTokenHandler(
+            var issuedToken = new IssuedIdentityTokenHandler(
                 Profiles.JwtUserToken,
                 Encoding.UTF8.GetBytes(identityToken));
-            using var userIdentity = new UserIdentity(issuedToken);
+            var userIdentity = new UserIdentity(issuedToken);
 
             // the first channel determines the endpoint
             ConfiguredEndpoint endpoint = await ClientFixture
@@ -2021,7 +2021,17 @@ namespace Opc.Ua.Client.Tests
                         .SetECCurve(eccurveHashPair.Curve)
                         .CreateForECDsa();
 
-                    var userIdentity = new UserIdentity(cert);
+                    using var inProcProvider = new InProcessCertificateProvider(cert);
+                    var certIdentifier = new CertificateIdentifier
+                    {
+                        Thumbprint = cert.Thumbprint,
+                        SubjectName = cert.Subject
+                    };
+                    var userIdentity = new UserIdentity(
+                        new X509IdentityTokenHandler(
+                            certIdentifier,
+                            new CertificatePasswordProvider(),
+                            inProcProvider));
 
                     // the first channel determines the endpoint
                     ConfiguredEndpoint endpoint = await ClientFixture

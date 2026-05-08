@@ -207,7 +207,6 @@ namespace Opc.Ua.Server
                 m_userTokenNonce?.Dispose();
                 m_userTokenNonce = null;
 
-                IdentityToken?.Dispose();
                 IdentityToken = null;
 
                 ClientCertificate?.Dispose();

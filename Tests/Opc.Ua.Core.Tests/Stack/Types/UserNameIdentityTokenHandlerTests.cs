@@ -75,7 +75,7 @@ namespace Opc.Ua.Core.Tests.Stack.Types
                 EncryptionAlgorithm = null
             };
 
-            using var tokenHandler = new UserNameIdentityTokenHandler(token);
+            var tokenHandler = new UserNameIdentityTokenHandler(token);
             await tokenHandler.DecryptAsync(
                 certificate,
                 Nonce.CreateNonce(securityPolicy, receiverNonce),
@@ -113,7 +113,7 @@ namespace Opc.Ua.Core.Tests.Stack.Types
                 EncryptionAlgorithm = encryptedData.Algorithm
             };
 
-            using var tokenHandler = new UserNameIdentityTokenHandler(token);
+            var tokenHandler = new UserNameIdentityTokenHandler(token);
             await tokenHandler.DecryptAsync(
                 certificate,
                 Nonce.CreateNonce(securityPolicy, receiverNonce),
@@ -136,7 +136,7 @@ namespace Opc.Ua.Core.Tests.Stack.Types
                 EncryptionAlgorithm = null
             };
 
-            using var tokenHandler = new UserNameIdentityTokenHandler(token);
+            var tokenHandler = new UserNameIdentityTokenHandler(token);
             Assert.That(
                 async () => await tokenHandler.DecryptAsync(
                     certificate: null,
@@ -165,14 +165,14 @@ namespace Opc.Ua.Core.Tests.Stack.Types
                 .SetRSAKeySize(2048)
                 .CreateForRSA();
 
-            using var tokenHandler = new UserNameIdentityTokenHandler("legacyUser", password);
+            var tokenHandler = new UserNameIdentityTokenHandler("legacyUser", password);
             await tokenHandler.EncryptAsync(certificate, receiverNonce, kSecurityPolicyUri, context).ConfigureAwait(false);
 
             Assert.That(tokenHandler.Token, Is.TypeOf<UserNameIdentityToken>());
             var token = (UserNameIdentityToken)tokenHandler.Token;
             Assert.That(token.EncryptionAlgorithm, Is.Not.Null.And.Not.Empty);
 
-            using var decryptHandler = new UserNameIdentityTokenHandler(token);
+            var decryptHandler = new UserNameIdentityTokenHandler(token);
             await decryptHandler.DecryptAsync(
                 certificate,
                 Nonce.CreateNonce(securityPolicy, receiverNonce),
@@ -196,14 +196,14 @@ namespace Opc.Ua.Core.Tests.Stack.Types
                 .SetRSAKeySize(2048)
                 .CreateForRSA();
 
-            using var tokenHandler = new UserNameIdentityTokenHandler("thresholdUser", password);
+            var tokenHandler = new UserNameIdentityTokenHandler("thresholdUser", password);
             await tokenHandler.EncryptAsync(certificate, receiverNonce, kSecurityPolicyUri, context).ConfigureAwait(false);
 
             Assert.That(tokenHandler.Token, Is.TypeOf<UserNameIdentityToken>());
             var token = (UserNameIdentityToken)tokenHandler.Token;
             Assert.That(token.EncryptionAlgorithm, Is.Not.Null.And.Not.Empty);
 
-            using var decryptHandler = new UserNameIdentityTokenHandler(token);
+            var decryptHandler = new UserNameIdentityTokenHandler(token);
             await decryptHandler.DecryptAsync(
                 certificate,
                 Nonce.CreateNonce(securityPolicy, receiverNonce),
@@ -227,14 +227,14 @@ namespace Opc.Ua.Core.Tests.Stack.Types
                 .SetRSAKeySize(2048)
                 .CreateForRSA();
 
-            using var tokenHandler = new UserNameIdentityTokenHandler("secretUser", password);
+            var tokenHandler = new UserNameIdentityTokenHandler("secretUser", password);
             await tokenHandler.EncryptAsync(certificate, receiverNonce, kSecurityPolicyUri, context).ConfigureAwait(false);
 
             Assert.That(tokenHandler.Token, Is.TypeOf<UserNameIdentityToken>());
             var token = (UserNameIdentityToken)tokenHandler.Token;
             Assert.That(token.EncryptionAlgorithm, Is.Null);
 
-            using var decryptHandler = new UserNameIdentityTokenHandler(token);
+            var decryptHandler = new UserNameIdentityTokenHandler(token);
             await decryptHandler.DecryptAsync(
                 certificate,
                 Nonce.CreateNonce(securityPolicy, receiverNonce),

@@ -43,29 +43,8 @@ namespace Opc.Ua.Core.Tests.Stack.Types
     [Parallelizable]
     public class X509IdentityTokenHandlerTests
     {
-        [Test]
-        public async Task CopyPreservesPrivateKeyForSigningAsync()
-        {
-            using Certificate cert = CertificateBuilder
-                .Create("CN=User Identity Test Subject, O=OPC Foundation")
-                .SetRSAKeySize(2048)
-                .CreateForRSA();
-
-            using var tokenHandler = new X509IdentityTokenHandler(cert);
-            using X509IdentityTokenHandler copy = tokenHandler.Copy();
-
-            Assert.That(copy.Certificate.HasPrivateKey, Is.True);
-
-            SignatureData signature = await copy.SignAsync(
-                [0x01, 0x02, 0x03, 0x04],
-                SecurityPolicies.Basic256Sha256).ConfigureAwait(false);
-
-            Assert.That(signature, Is.Not.Null);
-            Assert.That(signature.Signature.Length, Is.GreaterThan(0));
-        }
-
         /// <summary>
-        /// Verifies the new <see cref="X509IdentityTokenHandler(CertificateIdentifier,
+        /// Verifies the <see cref="X509IdentityTokenHandler(CertificateIdentifier,
         /// ICertificatePasswordProvider, ICertificateProvider)"/> ctor:
         /// the handler is a POCO (no live cert reference) and
         /// <see cref="X509IdentityTokenHandler.SignAsync"/> resolves
@@ -102,7 +81,7 @@ namespace Opc.Ua.Core.Tests.Stack.Types
 
                 using var manager = new CertificateManager(telemetry);
                 var passwordProvider = new CertificatePasswordProvider();
-                using var handler = new X509IdentityTokenHandler(
+                var handler = new X509IdentityTokenHandler(
                     id,
                     passwordProvider,
                     manager.CertificateProvider);

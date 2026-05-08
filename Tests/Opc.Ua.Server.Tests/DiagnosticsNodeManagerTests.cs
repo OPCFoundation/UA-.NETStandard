@@ -297,7 +297,7 @@ ObjectIds.Server,
             var reqHeader = new RequestHeader();
             var sessionMock = new Mock<ISession>();
             sessionMock.Setup(s => s.Id).Returns(new NodeId(1, 1));
-            using var userIdentity = new UserIdentity();
+            var userIdentity = new UserIdentity();
             sessionMock.Setup(s => s.EffectiveIdentity).Returns(userIdentity);
 
             var opContext = new OperationContext(reqHeader, null, RequestType.Read, RequestLifetime.None, sessionMock.Object);
@@ -344,7 +344,7 @@ ObjectIds.Server,
             var reqHeader = new RequestHeader();
             var sessionMock = new Mock<ISession>();
             sessionMock.Setup(s => s.Id).Returns(new NodeId(1, 1));
-            using var userIdentity = new UserIdentity();
+            var userIdentity = new UserIdentity();
             sessionMock.Setup(s => s.EffectiveIdentity).Returns(userIdentity);
 
             var opContext = new OperationContext(reqHeader, null, RequestType.Read, RequestLifetime.None, sessionMock.Object);
@@ -635,7 +635,7 @@ VariableIds.Server_ServerDiagnostics_SubscriptionDiagnosticsArray);
             Assert.That(sessionObjectNode.OnReadUserRolePermissions, Is.Not.Null);
 
             // 2. Test Context: Admin
-            using var identity = new UserIdentity("admin", []);
+            var identity = new UserIdentity("admin", []);
             Role[] roles = [Role.SecurityAdmin];
             var namespaces = new NamespaceTable();
             namespaces.Append(Ua.Namespaces.OpcUa);
@@ -672,7 +672,7 @@ VariableIds.Server_ServerDiagnostics_SubscriptionDiagnosticsArray);
                 "Admin should have permissions on any session");
 
             // 3. Test Context: Session Owner (Non-Admin)
-            using var normalIdentity = new UserIdentity("owner", []);
+            var normalIdentity = new UserIdentity("owner", []);
             var normalRoleIdentity = new RoleBasedIdentity(normalIdentity, [Role.AuthenticatedUser], namespaces);
 
             var sessionOwnerMock = new Mock<ISession>();
@@ -788,7 +788,7 @@ VariableIds.Server_ServerDiagnostics_SubscriptionDiagnosticsArray);
 
             manager.ForceDiagnosticsScan();
 
-            using var adminIdentity = new UserIdentity("admin", []);
+            var adminIdentity = new UserIdentity("admin", []);
             var namespaces = new NamespaceTable();
             namespaces.Append(Ua.Namespaces.OpcUa);
             var roleIdentity = new RoleBasedIdentity(adminIdentity, [Role.SecurityAdmin], namespaces);
@@ -846,7 +846,7 @@ VariableIds.Server_ServerDiagnostics_SubscriptionDiagnosticsArray);
             Assert.That(subDiagObj.SubscriptionId, Is.EqualTo(100));
 
             // Test unauthorized non-admin user accessing their own session
-            using var normalIdentity = new UserIdentity("user", []);
+            var normalIdentity = new UserIdentity("user", []);
             var normalRoleIdentity = new RoleBasedIdentity(normalIdentity, [Role.AuthenticatedUser], namespaces);
             var normalSessionMock = new Mock<ISession>();
             normalSessionMock.Setup(s => s.Id).Returns(sessionId); // set to first session
@@ -926,7 +926,7 @@ VariableIds.Server_ServerDiagnostics_SubscriptionDiagnosticsArray);
                 serverChannelCertificate: null,
                 channelThumbprint: null);
 
-            using var mockIdentity = new UserIdentity("admin", []);
+            var mockIdentity = new UserIdentity("admin", []);
             var mockRoleIdentity = new RoleBasedIdentity(mockIdentity, [Role.SecurityAdmin], m_serverMock.Object.NamespaceUris);
 
             var sessionMock = new Mock<ISession>();

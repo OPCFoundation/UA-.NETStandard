@@ -58,7 +58,7 @@ namespace Opc.Ua.Client.Tests
         [Test]
         public async Task OpenAsyncWithNameAndIdentityForwardsToFullOverloadAsync()
         {
-            using var identity = new UserIdentity();
+            var identity = new UserIdentity();
             // ultimately calling the 7-param ISession.OpenAsync
             m_session
                 .Setup(s => s.OpenAsync(
@@ -87,7 +87,7 @@ namespace Opc.Ua.Client.Tests
         [Test]
         public async Task OpenAsyncWithTimeoutForwardsToFullOverloadAsync()
         {
-            using var identity = new UserIdentity();
+            var identity = new UserIdentity();
             ArrayOf<string> locales = ["en", "de"];
 
             m_session
@@ -117,7 +117,7 @@ namespace Opc.Ua.Client.Tests
         [Test]
         public async Task OpenAsyncWithCheckDomainForwardsToFullOverloadAsync()
         {
-            using var identity = new UserIdentity();
+            var identity = new UserIdentity();
             ArrayOf<string> locales = ["en"];
 
             m_session

@@ -316,19 +316,6 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public void Dispose()
-        {
-            if (DecryptedPassword != null)
-            {
-                Array.Clear(DecryptedPassword, 0, DecryptedPassword.Length);
-                DecryptedPassword = null;
-            }
-
-            // Array.Clear(m_token.Password, 0, m_token.Password.Length);
-            m_token.Password = default;
-        }
-
-        /// <inheritdoc/>
         public object Clone()
         {
             return new UserNameIdentityTokenHandler(CoreUtils.Clone(m_token))

@@ -122,11 +122,6 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public void Dispose()
-        {
-        }
-
-        /// <inheritdoc/>
         public object Clone()
         {
             return new AnonymousIdentityTokenHandler(m_token);

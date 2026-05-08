@@ -233,20 +233,11 @@ namespace Opc.Ua.Gds.Server
             {
                 IEnumerable<Role> roles = m_userDatabase.GetUserRoles(userNameToken.UserName);
 
-                UserIdentity tempIdentity = null;
-                try
-                {
-                    tempIdentity = new UserIdentity(userNameToken);
-                    args.Identity = new GdsRoleBasedIdentity(
-                        tempIdentity,
-                        roles,
-                        ServerInternal.MessageContext.NamespaceUris);
-                    tempIdentity = null; // ownership transferred to GdsRoleBasedIdentity
-                }
-                finally
-                {
-                    tempIdentity?.Dispose();
-                }
+                var tempIdentity = new UserIdentity(userNameToken);
+                args.Identity = new GdsRoleBasedIdentity(
+                    tempIdentity,
+                    roles,
+                    ServerInternal.MessageContext.NamespaceUris);
                 return;
             }
 
@@ -335,14 +326,16 @@ namespace Opc.Ua.Gds.Server
         /// <exception cref="ServiceResultException"></exception>
         private void VerifyX509IdentityToken(X509IdentityToken token)
         {
-            using var x509TokenHandler = new X509IdentityTokenHandler(token);
+            using Certificate userCertificate = token.CertificateData.IsEmpty
+                ? null
+                : Certificate.FromRawData(token.CertificateData);
             try
             {
                 // Validate against the Users trust list using the new
                 // CertificateManager pipeline. Throws on validation failure.
                 CertificateValidationResult result = CertificateManager
                     .ValidateAsync(
-                        x509TokenHandler.Certificate,
+                        userCertificate,
                         TrustListIdentifier.Users)
                     .GetAwaiter().GetResult();
                 if (!result.IsValid)
@@ -361,7 +354,7 @@ namespace Opc.Ua.Gds.Server
                         "InvalidCertificate",
                         "en-US",
                         "'{0}' is an invalid user certificate.",
-                        x509TokenHandler.Certificate.Subject);
+                        userCertificate?.Subject ?? string.Empty);
 
                     result = StatusCodes.BadIdentityTokenInvalid;
                 }
@@ -372,7 +365,7 @@ namespace Opc.Ua.Gds.Server
                         "UntrustedCertificate",
                         "en-US",
                         "'{0}' is not a trusted user certificate.",
-                        x509TokenHandler.Certificate.Subject);
+                        userCertificate?.Subject ?? string.Empty);
                 }
 
                 // create an exception with a vendor defined sub-code.
@@ -411,21 +404,12 @@ namespace Opc.Ua.Gds.Server
             m_logger.LogInformation(
                 "Application {ApplicationUri} accepted based on ApplicationInstanceCertificate as ApplicationSelfAdmin",
                 applicationUri);
-            UserIdentity tempIdentity = null;
-            try
-            {
-                tempIdentity = new UserIdentity();
-                args.Identity = new GdsRoleBasedIdentity(
-                    tempIdentity,
-                    [GdsRole.ApplicationSelfAdmin],
-                    applicationId,
-                    ServerInternal.MessageContext.NamespaceUris);
-                tempIdentity = null; // ownership transferred to GdsRoleBasedIdentity
-            }
-            finally
-            {
-                tempIdentity?.Dispose();
-            }
+            var tempIdentity = new UserIdentity();
+            args.Identity = new GdsRoleBasedIdentity(
+                tempIdentity,
+                [GdsRole.ApplicationSelfAdmin],
+                applicationId,
+                ServerInternal.MessageContext.NamespaceUris);
         }
 
         private readonly Dictionary<uint, ImpersonationContext> m_contexts = [];

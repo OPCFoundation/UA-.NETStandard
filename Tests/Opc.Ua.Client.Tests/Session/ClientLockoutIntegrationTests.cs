@@ -132,7 +132,7 @@ namespace Opc.Ua.Client.Tests
             {
                 try
                 {
-                    using var identity = new UserIdentity("invaliduser", System.Text.Encoding.UTF8.GetBytes("wrongpassword"));
+                    var identity = new UserIdentity("invaliduser", System.Text.Encoding.UTF8.GetBytes("wrongpassword"));
                     using ISession session = await m_clientFixture.SessionFactory.CreateAsync(
                         m_clientFixture.Config,
                         configuredEndpoint,
@@ -186,7 +186,7 @@ namespace Opc.Ua.Client.Tests
             {
                 try
                 {
-                    using var identity = new UserIdentity("resetuser", System.Text.Encoding.UTF8.GetBytes("wrongpassword"));
+                    var identity = new UserIdentity("resetuser", System.Text.Encoding.UTF8.GetBytes("wrongpassword"));
                     using ISession session = await m_clientFixture.SessionFactory.CreateAsync(
                         m_clientFixture.Config,
                         configuredEndpoint,
@@ -204,17 +204,17 @@ namespace Opc.Ua.Client.Tests
 
             // A successful non-anonymous login resets the lockout counter.
             // Anonymous logins do not reset the counter to prevent lockout bypass.
-            using (var successIdentity = new UserIdentity("user1", System.Text.Encoding.UTF8.GetBytes("password")))
-            using (ISession successSession = await m_clientFixture.SessionFactory.CreateAsync(
-                m_clientFixture.Config,
-                configuredEndpoint,
-                false,
-                false,
-                "ResetTestSession_Success",
-                60000,
-                successIdentity,
-                default).ConfigureAwait(false))
             {
+                var successIdentity = new UserIdentity("user1", System.Text.Encoding.UTF8.GetBytes("password"));
+                using ISession successSession = await m_clientFixture.SessionFactory.CreateAsync(
+                    m_clientFixture.Config,
+                    configuredEndpoint,
+                    false,
+                    false,
+                    "ResetTestSession_Success",
+                    60000,
+                    successIdentity,
+                    default).ConfigureAwait(false);
                 Assert.That(successSession, Is.Not.Null);
                 Assert.That(successSession.Connected, Is.True);
             }
@@ -223,7 +223,7 @@ namespace Opc.Ua.Client.Tests
             {
                 try
                 {
-                    using var identity = new UserIdentity("resetuser", System.Text.Encoding.UTF8.GetBytes("wrongpassword"));
+                    var identity = new UserIdentity("resetuser", System.Text.Encoding.UTF8.GetBytes("wrongpassword"));
                     using ISession session = await m_clientFixture.SessionFactory.CreateAsync(
                         m_clientFixture.Config,
                         configuredEndpoint,
@@ -240,17 +240,17 @@ namespace Opc.Ua.Client.Tests
             }
 
             // A successful non-anonymous login after failures proves the counter was reset.
-            using (var successIdentity = new UserIdentity("user1", System.Text.Encoding.UTF8.GetBytes("password")))
-            using (ISession successSession = await m_clientFixture.SessionFactory.CreateAsync(
-                m_clientFixture.Config,
-                configuredEndpoint,
-                false,
-                false,
-                "ResetTestSession_Success2",
-                60000,
-                successIdentity,
-                default).ConfigureAwait(false))
             {
+                var successIdentity = new UserIdentity("user1", System.Text.Encoding.UTF8.GetBytes("password"));
+                using ISession successSession = await m_clientFixture.SessionFactory.CreateAsync(
+                    m_clientFixture.Config,
+                    configuredEndpoint,
+                    false,
+                    false,
+                    "ResetTestSession_Success2",
+                    60000,
+                    successIdentity,
+                    default).ConfigureAwait(false);
                 Assert.That(successSession, Is.Not.Null);
                 Assert.That(successSession.Connected, Is.True);
             }
@@ -269,7 +269,7 @@ namespace Opc.Ua.Client.Tests
             {
                 try
                 {
-                    using var identity = new UserIdentity("anonlockoutuser", System.Text.Encoding.UTF8.GetBytes("wrongpassword"));
+                    var identity = new UserIdentity("anonlockoutuser", System.Text.Encoding.UTF8.GetBytes("wrongpassword"));
                     using ISession session = await m_clientFixture.SessionFactory.CreateAsync(
                         m_clientFixture.Config,
                         configuredEndpoint,

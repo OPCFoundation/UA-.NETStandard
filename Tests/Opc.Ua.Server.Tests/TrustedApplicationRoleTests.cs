@@ -114,7 +114,7 @@ namespace Opc.Ua.Server.Tests
             using TestableSessionManager manager = CreateManager();
             Mock<ISession> sessionMock = CreateSessionMock(m_testCertificate);
             OperationContext context = CreateOperationContext(MessageSecurityMode.Sign);
-            using var identity = new UserIdentity();
+            var identity = new UserIdentity();
 
             IUserIdentity result = manager.PublicAddMandatoryRoles(sessionMock.Object, context, identity);
 
@@ -128,7 +128,7 @@ namespace Opc.Ua.Server.Tests
             using TestableSessionManager manager = CreateManager();
             Mock<ISession> sessionMock = CreateSessionMock(m_testCertificate);
             OperationContext context = CreateOperationContext(MessageSecurityMode.SignAndEncrypt);
-            using var identity = new UserIdentity();
+            var identity = new UserIdentity();
 
             IUserIdentity result = manager.PublicAddMandatoryRoles(sessionMock.Object, context, identity);
 
@@ -142,7 +142,7 @@ namespace Opc.Ua.Server.Tests
             using TestableSessionManager manager = CreateManager();
             Mock<ISession> sessionMock = CreateSessionMock(m_testCertificate);
             OperationContext context = CreateOperationContext(MessageSecurityMode.None);
-            using var identity = new UserIdentity();
+            var identity = new UserIdentity();
 
             IUserIdentity result = manager.PublicAddMandatoryRoles(sessionMock.Object, context, identity);
 
@@ -156,7 +156,7 @@ namespace Opc.Ua.Server.Tests
             using TestableSessionManager manager = CreateManager();
             Mock<ISession> sessionMock = CreateSessionMock(certificate: null);
             OperationContext context = CreateOperationContext(MessageSecurityMode.Sign);
-            using var identity = new UserIdentity();
+            var identity = new UserIdentity();
 
             IUserIdentity result = manager.PublicAddMandatoryRoles(sessionMock.Object, context, identity);
 
@@ -170,7 +170,7 @@ namespace Opc.Ua.Server.Tests
             using TestableSessionManager manager = CreateManager();
             Mock<ISession> sessionMock = CreateSessionMock(certificate: null);
             OperationContext context = CreateOperationContext(MessageSecurityMode.None);
-            using var identity = new UserIdentity();
+            var identity = new UserIdentity();
 
             IUserIdentity result = manager.PublicAddMandatoryRoles(sessionMock.Object, context, identity);
 
@@ -205,7 +205,7 @@ namespace Opc.Ua.Server.Tests
             using TestableSessionManager manager = CreateManager();
             Mock<ISession> sessionMock = CreateSessionMock(certificate: null);
             OperationContext context = CreateOperationContext(MessageSecurityMode.Sign);
-            using var identity = new UserIdentity();
+            var identity = new UserIdentity();
 
             IUserIdentity result = manager.PublicAddMandatoryRoles(sessionMock.Object, context, identity);
 

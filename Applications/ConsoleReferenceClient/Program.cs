@@ -373,16 +373,14 @@ namespace Quickstarts.ConsoleReferenceClient
 
                         if (userCertificateIdentifier != null)
                         {
-#pragma warning disable CA2025 // Do not pass 'IDisposable' instances into unawaited tasks
                             userIdentity = UserIdentity
                                 .CreateAsync(
                                     userCertificateIdentifier,
                                     new CertificatePasswordProvider(userCertificatePassword),
-                                    telemetry,
+                                    application.ApplicationConfiguration.CertificateManager.CertificateProvider,
                                     ct)
                                 .GetAwaiter()
                                 .GetResult();
-#pragma warning restore CA2025 // Do not pass 'IDisposable' instances into unawaited tasks
 
                             Console.WriteLine($"Connect with user certificate with Thumbprint {userCertificateThumbprint}");
                         }

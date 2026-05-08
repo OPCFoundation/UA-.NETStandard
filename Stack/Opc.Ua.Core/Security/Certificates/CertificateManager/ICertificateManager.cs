@@ -40,5 +40,15 @@ namespace Opc.Ua
         ICertificateTrustListManager,
         ICertificateValidatorEx,
         ICertificateLifecycle,
-        ITrustListFileAccess;
+        ITrustListFileAccess
+    {
+        /// <summary>
+        /// Centralised <see cref="ICertificateProvider"/> exposed by the
+        /// manager. Consumers that hold a
+        /// <see cref="CertificateIdentifier"/> rather than a live
+        /// <see cref="Opc.Ua.Security.Certificates.Certificate"/>
+        /// reference resolve the cert through this provider.
+        /// </summary>
+        ICertificateProvider CertificateProvider { get; }
+    }
 }

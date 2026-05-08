@@ -1274,7 +1274,7 @@ namespace Opc.Ua.Client.Tests
                 }))
                 .Verifiable(Times.Once);
 
-            using var identity = new UserIdentity();
+            var identity = new UserIdentity();
             await sut.OpenAsync("test", identity, ct).ConfigureAwait(false);
 
             Assert.That(sut.ServerNonce, Is.EqualTo(ByteString.From([1, 2, 3, 4])));
@@ -1341,7 +1341,7 @@ namespace Opc.Ua.Client.Tests
                 .Returns(new ValueTask())
                 .Verifiable(Times.Once);
 
-            using var identity = new UserIdentity();
+            var identity = new UserIdentity();
             ServiceResultException sre = Assert.ThrowsAsync<ServiceResultException>(
                 async () => await sut.OpenAsync("test", identity, default).ConfigureAwait(false));
             Assert.That(sre.StatusCode, Is.EqualTo(StatusCodes.BadSessionNotActivated));
@@ -1408,7 +1408,7 @@ namespace Opc.Ua.Client.Tests
                 .Throws(new ServiceResultException(StatusCodes.BadNotConnected))
                 .Verifiable(Times.Once);
 
-            using var identity = new UserIdentity();
+            var identity = new UserIdentity();
             ServiceResultException sre = Assert.ThrowsAsync<ServiceResultException>(
                 async () => await sut.OpenAsync(
                     "test",
@@ -1445,7 +1445,7 @@ namespace Opc.Ua.Client.Tests
                 .ThrowsAsync(new ServiceResultException(StatusCodes.BadUnexpectedError))
                 .Verifiable(Times.Exactly(2));
 
-            using var identity = new UserIdentity();
+            var identity = new UserIdentity();
             ServiceResultException sre = Assert.ThrowsAsync<ServiceResultException>(
                   async () => await sut.OpenAsync("test", identity, default).ConfigureAwait(false));
             Assert.That(sre.StatusCode, Is.EqualTo(StatusCodes.BadUnexpectedError));
@@ -1469,7 +1469,7 @@ namespace Opc.Ua.Client.Tests
             };
             using var sut = SessionMock.Create(ep);
 
-            using var identity = new UserIdentity();
+            var identity = new UserIdentity();
             ServiceResultException sre = Assert.ThrowsAsync<ServiceResultException>(
                   async () => await sut.OpenAsync("test", identity, default).ConfigureAwait(false));
             Assert.That(sre.StatusCode, Is.EqualTo(StatusCodes.BadSecurityPolicyRejected));
@@ -1497,7 +1497,7 @@ namespace Opc.Ua.Client.Tests
             };
             using var sut = SessionMock.Create(ep);
 
-            using var identity = new UserIdentity();
+            var identity = new UserIdentity();
             ServiceResultException sre = Assert.ThrowsAsync<ServiceResultException>(
                   async () => await sut.OpenAsync("test", identity, default).ConfigureAwait(false));
             Assert.That(sre.StatusCode, Is.EqualTo(StatusCodes.BadIdentityTokenInvalid));
@@ -1516,7 +1516,7 @@ namespace Opc.Ua.Client.Tests
                 .ThrowsAsync(new TaskCanceledException())
                 .Verifiable(Times.Once);
 
-            using var identity = new UserIdentity();
+            var identity = new UserIdentity();
             Assert.ThrowsAsync<TaskCanceledException>(
                 async () => await sut.OpenAsync("test", identity, default).ConfigureAwait(false));
 
@@ -1540,7 +1540,7 @@ namespace Opc.Ua.Client.Tests
                 }))
                 .Verifiable(Times.Once);
 
-            using var identity = new UserIdentity();
+            var identity = new UserIdentity();
             Assert.ThrowsAsync<ServiceResultException>(
                 async () => await sut.OpenAsync("test", identity, ct).ConfigureAwait(false));
 

@@ -382,18 +382,10 @@ namespace Quickstarts.ReferenceServer
             {
                 // allow anonymous authentication and set Anonymous role for this authentication
                 var identity = new UserIdentity();
-                try
-                {
-                    args.Identity = new RoleBasedIdentity(
-                        identity,
-                        [Role.Anonymous],
-                        ServerInternal.MessageContext.NamespaceUris);
-                    identity = null;
-                }
-                finally
-                {
-                    identity?.Dispose();
-                }
+                args.Identity = new RoleBasedIdentity(
+                    identity,
+                    [Role.Anonymous],
+                    ServerInternal.MessageContext.NamespaceUris);
                 return;
             }
 
@@ -431,19 +423,11 @@ namespace Quickstarts.ReferenceServer
             if (m_userDatabase.CheckCredentials(userName, password))
             {
                 var userIdentity = new UserIdentity(userTokenHandler);
-                try
-                {
-                    ICollection<Role> roles = m_userDatabase.GetUserRoles(userName);
-                    return new RoleBasedIdentity(
-                        userIdentity,
-                        roles,
-                        ServerInternal.MessageContext.NamespaceUris);
-                }
-                catch
-                {
-                    userIdentity.Dispose();
-                    throw;
-                }
+                ICollection<Role> roles = m_userDatabase.GetUserRoles(userName);
+                return new RoleBasedIdentity(
+                    userIdentity,
+                    roles,
+                    ServerInternal.MessageContext.NamespaceUris);
             }
 
             // construct translation object with default text.
@@ -467,13 +451,17 @@ namespace Quickstarts.ReferenceServer
         /// <exception cref="ServiceResultException"></exception>
         private void VerifyX509IdentityToken(X509IdentityTokenHandler x509TokenHandler)
         {
+            X509IdentityToken wireToken = (X509IdentityToken)x509TokenHandler.Token;
+            using Certificate userCertificate = wireToken.CertificateData.IsEmpty
+                ? null
+                : Certificate.FromRawData(wireToken.CertificateData);
             try
             {
                 if (m_userCertificateValidator != null)
                 {
                     Opc.Ua.CertificateValidationResult userCertResult = m_userCertificateValidator
                         .ValidateAsync(
-                            x509TokenHandler.Certificate,
+                            userCertificate,
                             TrustListIdentifier.Users,
                             default)
                         .GetAwaiter()
@@ -487,7 +475,7 @@ namespace Quickstarts.ReferenceServer
                 {
                     Opc.Ua.CertificateValidationResult fallbackCertResult = CertificateManager
                         .ValidateAsync(
-                            x509TokenHandler.Certificate,
+                            userCertificate,
                             TrustListIdentifier.Users,
                             default)
                         .GetAwaiter()
@@ -509,7 +497,7 @@ namespace Quickstarts.ReferenceServer
                         "InvalidCertificate",
                         "en-US",
                         "'{0}' is an invalid user certificate.",
-                        x509TokenHandler.Certificate.Subject);
+                        userCertificate?.Subject ?? string.Empty);
 
                     result = StatusCodes.BadIdentityTokenInvalid;
                 }
@@ -520,7 +508,7 @@ namespace Quickstarts.ReferenceServer
                         "UntrustedCertificate",
                         "en-US",
                         "'{0}' is not a trusted user certificate.",
-                        x509TokenHandler.Certificate.Subject);
+                        userCertificate?.Subject ?? string.Empty);
                 }
 
                 // create an exception with a vendor defined sub-code.

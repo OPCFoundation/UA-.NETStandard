@@ -283,16 +283,6 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public void Dispose()
-        {
-            if (m_decryptedTokenData != null)
-            {
-                Array.Clear(m_decryptedTokenData, 0, m_decryptedTokenData.Length);
-                m_decryptedTokenData = null;
-            }
-        }
-
-        /// <inheritdoc/>
         public object Clone()
         {
             return new IssuedIdentityTokenHandler(m_token)

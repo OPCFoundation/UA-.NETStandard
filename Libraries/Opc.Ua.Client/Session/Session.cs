@@ -1176,7 +1176,7 @@ namespace Opc.Ua.Client
                 out bool requireEncryption);
 
             // validate the server certificate /certificate chain.
-            using IUserIdentityTokenHandler identityToken = identity.TokenHandler.Copy();
+            IUserIdentityTokenHandler identityToken = identity.TokenHandler.Copy();
             Certificate? serverCertificate = null;
             ByteString certificateData = m_endpoint.Description.ServerCertificate;
 
@@ -1593,7 +1593,7 @@ namespace Opc.Ua.Client
                 m_endpoint.Description.SecurityMode);
 
             // sign/encrypt with a disposable token handler copy to avoid mutating stored credentials.
-            using IUserIdentityTokenHandler identityToken = identity.TokenHandler.Copy();
+            IUserIdentityTokenHandler identityToken = identity.TokenHandler.Copy();
             identityToken.UpdatePolicy(identityPolicy);
 
             SignatureData? userTokenSignature = null;
@@ -2158,24 +2158,16 @@ namespace Opc.Ua.Client
             {
                 session.RecreateRenewUserIdentity();
                 UserIdentity? tempIdentity = session.Identity == null ? new UserIdentity() : null;
-                try
-                {
-                    // open the session.
-                    await session
-                        .OpenAsync(
-                            SessionName,
-                            (uint)SessionTimeout,
-                            session.Identity ?? tempIdentity!,
-                            PreferredLocales,
-                            m_checkDomain,
-                            ct)
-                        .ConfigureAwait(false);
-                    tempIdentity = null; // ownership transferred to session
-                }
-                finally
-                {
-                    tempIdentity?.Dispose();
-                }
+                // open the session.
+                await session
+                    .OpenAsync(
+                        SessionName,
+                        (uint)SessionTimeout,
+                        session.Identity ?? tempIdentity!,
+                        PreferredLocales,
+                        m_checkDomain,
+                        ct)
+                    .ConfigureAwait(false);
 
                 await session.RecreateSubscriptionsAsync(
                     TransferSubscriptionsOnReconnect,
@@ -2223,24 +2215,16 @@ namespace Opc.Ua.Client
             {
                 session.RecreateRenewUserIdentity();
                 UserIdentity? tempIdentity = session.Identity == null ? new UserIdentity() : null;
-                try
-                {
-                    // open the session.
-                    await session
-                        .OpenAsync(
-                            SessionName,
-                            (uint)SessionTimeout,
-                            session.Identity ?? tempIdentity!,
-                            PreferredLocales,
-                            CheckDomain,
-                            ct)
-                        .ConfigureAwait(false);
-                    tempIdentity = null; // ownership transferred to session
-                }
-                finally
-                {
-                    tempIdentity?.Dispose();
-                }
+                // open the session.
+                await session
+                    .OpenAsync(
+                        SessionName,
+                        (uint)SessionTimeout,
+                        session.Identity ?? tempIdentity!,
+                        PreferredLocales,
+                        CheckDomain,
+                        ct)
+                    .ConfigureAwait(false);
 
                 await session.RecreateSubscriptionsAsync(
                     TransferSubscriptionsOnReconnect,
@@ -2471,23 +2455,15 @@ namespace Opc.Ua.Client
                 UserIdentity? tempIdentity = m_identity == null
                     ? new UserIdentity()
                     : null;
-                try
-                {
-                    await OpenAsync(
-                            m_sessionName,
-                            (uint)m_sessionTimeout,
-                            m_identity ?? tempIdentity!,
-                            m_preferredLocales,
-                            m_checkDomain,
-                            true,
-                            ct)
-                        .ConfigureAwait(false);
-                    tempIdentity = null;
-                }
-                finally
-                {
-                    tempIdentity?.Dispose();
-                }
+                await OpenAsync(
+                        m_sessionName,
+                        (uint)m_sessionTimeout,
+                        m_identity ?? tempIdentity!,
+                        m_preferredLocales,
+                        m_checkDomain,
+                        true,
+                        ct)
+                    .ConfigureAwait(false);
 
 #if OPCUA_V1_CLIENT
                 // V1: drive the classic template-based recreate using
@@ -2756,7 +2732,7 @@ namespace Opc.Ua.Client
                     m_endpoint.Description.SecurityMode);
 
                 // sign/encrypt with a disposable token handler copy to avoid mutating stored credentials.
-                using IUserIdentityTokenHandler identityToken = m_identity.TokenHandler.Copy();
+                IUserIdentityTokenHandler identityToken = m_identity.TokenHandler.Copy();
                 identityToken.UpdatePolicy(identityPolicy);
 
                 m_logger.LogInformation("Session REPLACING channel for {SessionId}.", SessionId);

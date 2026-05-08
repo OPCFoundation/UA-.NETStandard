@@ -41,13 +41,19 @@ namespace Opc.Ua
     /// the Token property and passed as extension object in service calls.
     /// </summary>
     /// <remarks>
-    /// Previously the tokens themselves implemented crypto operations, but
-    /// for security and better separation of concerns, the handlers now
-    /// perform these operations and are disposable/copyable to ensure better
-    /// lifetime management of sensitive data.
+    /// <para>
+    /// Handlers are intentionally non-disposable: the previously cached
+    /// <see cref="Opc.Ua.Security.Certificates.Certificate"/> reference and
+    /// sensitive byte buffers are now owned elsewhere
+    /// (<see cref="ICertificateProvider"/> for certificates,
+    /// <see cref="ISecretRegistry"/> for caller-supplied secrets), so the
+    /// handler is a POCO that can be safely passed around without
+    /// <c>using</c>. Secure-memory clearing of decrypted server-side
+    /// inbound bytes is the responsibility of a future revision.
+    /// </para>
     /// </remarks>
     public interface IUserIdentityTokenHandler :
-        IDisposable, ICloneable, IEquatable<IUserIdentityTokenHandler>
+        ICloneable, IEquatable<IUserIdentityTokenHandler>
     {
         /// <summary>
         /// The token the handler operates on.

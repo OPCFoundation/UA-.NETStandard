@@ -476,7 +476,6 @@ namespace Opc.Ua.Server
             finally
             {
                 serverNonceObject?.Dispose();
-                tempIdentity?.Dispose();
             }
         }
 

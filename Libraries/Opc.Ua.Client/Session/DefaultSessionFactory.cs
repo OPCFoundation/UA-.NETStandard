@@ -460,10 +460,6 @@ namespace Opc.Ua.Client
                 session.Dispose();
                 throw;
             }
-            finally
-            {
-                tempIdentity?.Dispose();
-            }
 
             return session;
         }

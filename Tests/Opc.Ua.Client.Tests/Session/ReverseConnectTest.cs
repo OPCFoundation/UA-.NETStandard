@@ -231,7 +231,7 @@ namespace Opc.Ua.Client.Tests
             Assert.That(endpoint, Is.Not.Null);
 
             // connect
-            using var userIdentity = new UserIdentity();
+            var userIdentity = new UserIdentity();
             ISession session = await sessionFactory.Create(telemetry)
                 .CreateAsync(
                     config,
@@ -296,7 +296,7 @@ namespace Opc.Ua.Client.Tests
             Assert.That(endpoint, Is.Not.Null);
 
             // connect
-            using var userIdentity = new UserIdentity();
+            var userIdentity = new UserIdentity();
             ISession session = await sessionFactory.Create(telemetry)
                 .CreateAsync(
                     config,

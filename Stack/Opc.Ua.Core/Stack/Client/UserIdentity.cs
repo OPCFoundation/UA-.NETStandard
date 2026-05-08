@@ -41,7 +41,7 @@ namespace Opc.Ua
     /// A generic user identity class.
     /// </summary>
     [DataContract(Namespace = Namespaces.OpcUaXsd)]
-    public class UserIdentity : IUserIdentity, IDisposable
+    public class UserIdentity : IUserIdentity
     {
         /// <summary>
         /// Initializes the object as an anonymous user.
@@ -69,28 +69,6 @@ namespace Opc.Ua
         public UserIdentity(string username, ReadOnlySpan<byte> password)
         {
             m_token = new UserNameIdentityTokenHandler(username, password);
-        }
-
-        /// <summary>
-        /// Initializes the object with an X509 certificate identifier
-        /// and a CertificatePasswordProvider
-        /// </summary>
-        [Obsolete("Use CreateAsync method instead.")]
-        public UserIdentity(
-            CertificateIdentifier certificateId,
-            CertificatePasswordProvider certificatePasswordProvider)
-            : this(CertificateIdentifierResolver.LoadPrivateKeyAsync(
-                certificateId,
-                certificatePasswordProvider).GetAwaiter().GetResult())
-        {
-        }
-
-        /// <summary>
-        /// Initializes the object with an X509 certificate
-        /// </summary>
-        public UserIdentity(Certificate certificate)
-        {
-            m_token = new X509IdentityTokenHandler(certificate);
         }
 
         /// <summary>
@@ -127,57 +105,6 @@ namespace Opc.Ua
 
         /// <summary>
         /// Initializes the object with an X509 certificate identifier
-        /// and a CertificatePasswordProvider
-        /// </summary>
-        /// <exception cref="ArgumentNullException">
-        /// <paramref name="certificateId"/> is <c>null</c>.
-        /// </exception>
-        /// <exception cref="ServiceResultException"></exception>
-        public static async Task<UserIdentity> CreateAsync(
-            CertificateIdentifier certificateId,
-            CertificatePasswordProvider certificatePasswordProvider,
-            ITelemetryContext telemetry,
-            CancellationToken ct = default)
-        {
-            if (certificateId == null)
-            {
-                throw new ArgumentNullException(nameof(certificateId));
-            }
-
-            Certificate certificate = await CertificateIdentifierResolver
-                .LoadPrivateKeyAsync(
-                    certificateId,
-                    certificatePasswordProvider,
-                    applicationUri: null,
-                    telemetry,
-                    ct).ConfigureAwait(false);
-
-            if (certificate == null || !certificate.HasPrivateKey)
-            {
-                throw new ServiceResultException(
-                    "Cannot create User Identity with CertificateIdentifier that does not contain a private key");
-            }
-
-            return new UserIdentity(certificate);
-        }
-
-        /// <summary>
-        /// Initializes the object with an X509 certificate identifier
-        /// </summary>
-        public static Task<UserIdentity> CreateAsync(
-            CertificateIdentifier certificateId,
-            ITelemetryContext telemetry,
-            CancellationToken ct = default)
-        {
-            return CreateAsync(
-                certificateId,
-                new CertificatePasswordProvider(),
-                telemetry,
-                ct);
-        }
-
-        /// <summary>
-        /// Initializes the object with an X509 certificate identifier
         /// resolved on demand through a centralised
         /// <see cref="ICertificateProvider"/>. The handler does NOT
         /// hold a live <see cref="Certificate"/> reference; the
@@ -185,12 +112,12 @@ namespace Opc.Ua
         /// signing operation.
         /// </summary>
         /// <remarks>
-        /// Prefer this overload over the legacy
-        /// <see cref="CreateAsync(CertificateIdentifier, CertificatePasswordProvider, ITelemetryContext, CancellationToken)"/>
-        /// when the <see cref="UserIdentity"/> is long-lived (e.g. held
-        /// by an OPC UA <c>ISession</c>) — the on-demand model avoids
-        /// pinning the cert and its private-key handle for the session
-        /// lifetime.
+        /// This is the only cert-based factory; the historical
+        /// <c>UserIdentity(Certificate)</c> ctor and the legacy
+        /// <c>CreateAsync</c> overloads that pre-resolved a
+        /// <see cref="Certificate"/> have been removed. Long-lived
+        /// identities held by an OPC UA <c>ISession</c> resolve the
+        /// cert per signing operation through the provider's cache.
         /// </remarks>
         /// <exception cref="ArgumentNullException"/>
         /// <exception cref="ServiceResultException"/>
@@ -320,25 +247,6 @@ namespace Opc.Ua
                 IssuedTokenType,
                 DisplayName,
                 GrantedRoleIds);
-        }
-
-        /// <inheritdoc/>
-        public void Dispose()
-        {
-            Dispose(true);
-            GC.SuppressFinalize(this);
-        }
-
-        /// <summary>
-        /// Dispose the identity token.
-        /// </summary>
-        /// <param name="disposing"></param>
-        protected virtual void Dispose(bool disposing)
-        {
-            if (disposing)
-            {
-                m_token?.Dispose();
-            }
         }
 
         private IUserIdentityTokenHandler m_token;
