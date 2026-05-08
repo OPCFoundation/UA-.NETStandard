@@ -2180,6 +2180,54 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         }
 
         /// <summary>
+        /// Verifies the <see cref="ICertificateValidatorEx.AcceptError"/>
+        /// callback is invoked in a fault-tolerant manner: an exception
+        /// thrown from the user-supplied callback is caught, logged, and
+        /// treated as a rejection. The exception MUST NOT propagate out
+        /// of <see cref="ICertificateValidatorEx.ValidateAsync"/> — the
+        /// caller sees a normal validation failure with the underlying
+        /// suppressible status code, not the user's exception.
+        /// </summary>
+        [Test]
+        public async Task AcceptErrorCallbackThrowingDoesNotPropagateAsync()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            using var validator = TemporaryCertificateManager.Create(telemetry, true);
+            CertificateManager certValidator = validator.Update();
+
+            // Wire a callback that always throws a sentinel exception
+            // before returning a verdict.
+            var sentinel = new InvalidOperationException("AcceptError sentinel");
+            certValidator.AcceptError = (cert, err) => throw sentinel;
+
+            // Self-signed application certificate produces a suppressible
+            // BadCertificateUntrusted error; this is the path that runs
+            // through the AcceptError callback.
+            using Certificate selfSigned = s_factory
+                .CreateCertificate("CN=AcceptErrorThrow, O=OPC Foundation")
+                .CreateForRSA();
+            using Certificate publicKey = Certificate.FromRawData(selfSigned.RawData);
+
+            Opc.Ua.CertificateValidationResult result = null;
+            Assert.DoesNotThrowAsync(async () =>
+            {
+                result = await certValidator
+                    .ValidateAsync(publicKey, ct: CancellationToken.None)
+                    .ConfigureAwait(false);
+            }, "AcceptError callback exception must not propagate out of ValidateAsync.");
+
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.IsValid, Is.False,
+                "Throwing AcceptError must be treated as a rejection.");
+            Assert.That(result.StatusCode,
+                Is.EqualTo((StatusCode)StatusCodes.BadCertificateUntrusted),
+                "Caller sees the underlying validation error, not the callback exception.");
+
+            certValidator.AcceptError = null;
+        }
+
+        /// <summary>
         /// Polls the rejected storeuntil the certificate count satisfies <paramref name="predicate"/>
         /// or the <paramref name="timeout"/> elapses, then returns the most recently read collection.
         /// Used to reliably wait for the fire-and-forget background task fired by

@@ -359,6 +359,187 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.That(isTrusted, Is.False);
         }
 
+        /// <summary>
+        /// <see cref="ICertificateRegistry.GetIssuersAsync"/> appends to —
+        /// rather than replaces — the caller's <c>issuers</c> list. When
+        /// no new issuers are discovered (self-signed leaf), pre-populated
+        /// entries must remain untouched.
+        /// </summary>
+        [Test]
+        public async Task GetIssuersAsyncPreservesPrePopulatedListWhenNoIssuersFound()
+        {
+            string trustedPath = CreateTempDir();
+            using var manager = new CertificateManager(m_telemetry);
+            manager.RegisterTrustList(TrustListIdentifier.Peers, trustedPath);
+
+            using Certificate sentinel = CertificateBuilder
+                .Create("CN=Sentinel, O=OPC Foundation")
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+            using Certificate sentinelClone = Certificate.FromRawData(sentinel.RawData);
+
+            using Certificate selfSigned = CertificateBuilder
+                .Create("CN=SelfSignedAppendCheck, O=OPC Foundation")
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+
+            ICertificateRegistry registry = manager;
+
+            // Pre-populate the list with a sentinel reference.
+            var issuers = new List<CertificateIssuerReference>
+            {
+                new(sentinelClone, new CertificateValidationOptions())
+            };
+
+            bool isTrusted = await registry
+                .GetIssuersAsync(selfSigned, issuers)
+                .ConfigureAwait(false);
+
+            Assert.That(isTrusted, Is.False);
+            Assert.That(issuers, Has.Count.EqualTo(1),
+                "Self-signed leaf has no issuers; the sentinel must remain.");
+            Assert.That(
+                issuers[0].Certificate.Thumbprint,
+                Is.EqualTo(sentinel.Thumbprint),
+                "Pre-populated entries must be preserved verbatim.");
+        }
+
+        /// <summary>
+        /// <see cref="ICertificateRegistry.GetIssuersAsync"/> appends newly
+        /// resolved issuers to the supplied list and reports the chain as
+        /// trusted when an issuer is found in a registered trust list.
+        /// </summary>
+        [Test]
+        public async Task GetIssuersAsyncAppendsResolvedIssuersToPrePopulatedList()
+        {
+            // Build a 2-level chain: trusted root CA + leaf signed by root.
+            using Certificate rootCa = CertificateBuilder
+                .Create("CN=AppendChainRoot, O=OPC Foundation")
+                .SetCAConstraint(-1)
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+            using Certificate leaf = CertificateBuilder
+                .Create("CN=AppendChainLeaf, O=OPC Foundation")
+                .SetIssuer(rootCa)
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+
+            // Persist the root CA into the Peers trusted store so the
+            // chain walk in CertificateValidationCore.GetIssuersAsync can
+            // resolve and trust it.
+            string trustedPath = CreateTempDir();
+            using Certificate rootForStore = Certificate.FromRawData(rootCa.RawData);
+            await rootForStore.AddToStoreAsync(
+                CertificateStoreType.Directory,
+                trustedPath,
+                password: null,
+                m_telemetry).ConfigureAwait(false);
+
+            using var manager = new CertificateManager(m_telemetry);
+            manager.RegisterTrustList(TrustListIdentifier.Peers, trustedPath);
+
+            using Certificate sentinel = CertificateBuilder
+                .Create("CN=AppendChainSentinel, O=OPC Foundation")
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+            using Certificate sentinelClone = Certificate.FromRawData(sentinel.RawData);
+
+            ICertificateRegistry registry = manager;
+
+            var issuers = new List<CertificateIssuerReference>
+            {
+                new(sentinelClone, new CertificateValidationOptions())
+            };
+
+            bool isTrusted = await registry
+                .GetIssuersAsync(leaf, issuers)
+                .ConfigureAwait(false);
+
+            try
+            {
+                Assert.That(isTrusted, Is.True,
+                    "Issuer is in the Peers trust list; result must be trusted.");
+                Assert.That(issuers, Has.Count.EqualTo(2),
+                    "Sentinel preserved + root CA appended.");
+                Assert.That(issuers[0].Certificate.Thumbprint,
+                    Is.EqualTo(sentinel.Thumbprint),
+                    "Pre-populated sentinel must remain at index 0.");
+                Assert.That(issuers[1].Certificate.Thumbprint,
+                    Is.EqualTo(rootCa.Thumbprint),
+                    "Newly resolved issuer must be appended at the tail.");
+            }
+            finally
+            {
+                // The new issuer reference at index 1 is caller-owned per
+                // the CertificateIssuerReference contract; dispose it (the
+                // sentinel at index 0 is owned by the test via the using).
+                if (issuers.Count > 1)
+                {
+                    issuers[1].Certificate.Dispose();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Verifies that <see cref="CertificateIssuerReference.Certificate"/>
+        /// instances returned by <see cref="ICertificateRegistry.GetIssuersAsync"/>
+        /// follow the documented caller-owned lifetime: the test snapshots
+        /// the global Certificate refcount before and after, then asserts
+        /// that every certificate created during the call is disposed once
+        /// the issuer references are released.
+        /// </summary>
+        [Test]
+        public async Task GetIssuersAsyncReturnedReferencesAreCallerOwnedAndDisposable()
+        {
+            using Certificate rootCa = CertificateBuilder
+                .Create("CN=RefcountRoot, O=OPC Foundation")
+                .SetCAConstraint(-1)
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+            using Certificate leaf = CertificateBuilder
+                .Create("CN=RefcountLeaf, O=OPC Foundation")
+                .SetIssuer(rootCa)
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+
+            string trustedPath = CreateTempDir();
+            using Certificate rootForStore = Certificate.FromRawData(rootCa.RawData);
+            await rootForStore.AddToStoreAsync(
+                CertificateStoreType.Directory,
+                trustedPath,
+                password: null,
+                m_telemetry).ConfigureAwait(false);
+
+            using var manager = new CertificateManager(m_telemetry);
+            manager.RegisterTrustList(TrustListIdentifier.Peers, trustedPath);
+
+            ICertificateRegistry registry = manager;
+
+            long createdBefore = Certificate.InstancesCreated;
+            long disposedBefore = Certificate.InstancesDisposed;
+
+            var issuers = new List<CertificateIssuerReference>();
+            bool isTrusted = await registry
+                .GetIssuersAsync(leaf, issuers)
+                .ConfigureAwait(false);
+
+            Assert.That(isTrusted, Is.True);
+            Assert.That(issuers, Has.Count.EqualTo(1));
+
+            // Dispose every reference returned by the call. The contract
+            // is that the caller owns these and is responsible for disposal.
+            foreach (CertificateIssuerReference reference in issuers)
+            {
+                reference.Certificate.Dispose();
+            }
+
+            long createdDelta = Certificate.InstancesCreated - createdBefore;
+            long disposedDelta = Certificate.InstancesDisposed - disposedBefore;
+            Assert.That(disposedDelta, Is.EqualTo(createdDelta),
+                "Every Certificate instance materialised during GetIssuersAsync " +
+                "must be disposable by the caller (no orphaned refcount).");
+        }
+
         [Test]
         public async Task SendCertificateChainBlobMatchesLeafOrFullChain()
         {
