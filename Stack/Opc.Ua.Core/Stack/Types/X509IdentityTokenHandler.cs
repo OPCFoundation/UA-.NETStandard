@@ -28,6 +28,8 @@
  * ======================================================================*/
 
 using System;
+using System.Threading;
+using System.Threading.Tasks;
 using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua
@@ -128,7 +130,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public void Encrypt(
+        public ValueTask EncryptAsync(
             Certificate receiverCertificate,
             byte[] receiverNonce,
             string securityPolicyUri,
@@ -136,12 +138,14 @@ namespace Opc.Ua
             Nonce receiverEphemeralKey = null,
             Certificate senderCertificate = null,
             CertificateCollection senderIssuerCertificates = null,
-            bool doNotEncodeSenderCertificate = false)
+            bool doNotEncodeSenderCertificate = false,
+            CancellationToken ct = default)
         {
+            return default;
         }
 
         /// <inheritdoc/>
-        public void Decrypt(
+        public ValueTask DecryptAsync(
             Certificate certificate,
             Nonce receiverNonce,
             string securityPolicyUri,
@@ -149,15 +153,20 @@ namespace Opc.Ua
             Nonce ephemeralKey = null,
             Certificate senderCertificate = null,
             CertificateCollection senderIssuerCertificates = null,
-            ICertificateValidatorEx validator = null)
+            ICertificateValidatorEx validator = null,
+            CancellationToken ct = default)
         {
+            return default;
         }
 
         /// <inheritdoc/>
-        public SignatureData Sign(
+        public async ValueTask<SignatureData> SignAsync(
             byte[] dataToSign,
-            string securityPolicyUri)
+            string securityPolicyUri,
+            CancellationToken ct = default)
         {
+            await Task.CompletedTask.ConfigureAwait(false);
+
             SecurityPolicyInfo info = SecurityPolicies.GetInfo(securityPolicyUri);
             Certificate ownedCert = null;
             Certificate certificate = Certificate ??
@@ -177,11 +186,14 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public bool Verify(
+        public async ValueTask<bool> VerifyAsync(
             byte[] dataToVerify,
             SignatureData signatureData,
-            string securityPolicyUri)
+            string securityPolicyUri,
+            CancellationToken ct = default)
         {
+            await Task.CompletedTask.ConfigureAwait(false);
+
             try
             {
                 SecurityPolicyInfo info = SecurityPolicies.GetInfo(securityPolicyUri);

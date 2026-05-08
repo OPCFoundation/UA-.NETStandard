@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Security.Certificates;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
@@ -41,7 +42,7 @@ namespace Opc.Ua.Core.Tests.Stack.Types
     public class X509IdentityTokenHandlerTests
     {
         [Test]
-        public void CopyPreservesPrivateKeyForSigning()
+        public async Task CopyPreservesPrivateKeyForSigningAsync()
         {
             using Certificate cert = CertificateBuilder
                 .Create("CN=User Identity Test Subject, O=OPC Foundation")
@@ -53,9 +54,9 @@ namespace Opc.Ua.Core.Tests.Stack.Types
 
             Assert.That(copy.Certificate.HasPrivateKey, Is.True);
 
-            SignatureData signature = copy.Sign(
+            SignatureData signature = await copy.SignAsync(
                 [0x01, 0x02, 0x03, 0x04],
-                SecurityPolicies.Basic256Sha256);
+                SecurityPolicies.Basic256Sha256).ConfigureAwait(false);
 
             Assert.That(signature, Is.Not.Null);
             Assert.That(signature.Signature.Length, Is.GreaterThan(0));

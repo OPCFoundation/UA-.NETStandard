@@ -29,6 +29,7 @@
 
 using System;
 using System.Security.Cryptography;
+using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Tests;
@@ -47,7 +48,7 @@ namespace Opc.Ua.Core.Tests.Stack.Types
         private const int TestLegacyPasswordLength = 12;
 
         [Test]
-        public void DecryptSupportsRsaEncryptedSecretFormat()
+        public async Task DecryptSupportsRsaEncryptedSecretFormatAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             IServiceMessageContext context = ServiceMessageContext.CreateEmpty(telemetry);
@@ -75,17 +76,17 @@ namespace Opc.Ua.Core.Tests.Stack.Types
             };
 
             using var tokenHandler = new UserNameIdentityTokenHandler(token);
-            tokenHandler.Decrypt(
+            await tokenHandler.DecryptAsync(
                 certificate,
                 Nonce.CreateNonce(securityPolicy, receiverNonce),
                 kSecurityPolicyUri,
-                context);
+                context).ConfigureAwait(false);
 
             Assert.That(tokenHandler.DecryptedPassword, Is.EqualTo(expectedPassword));
         }
 
         [Test]
-        public void DecryptKeepsLegacyRsaEncryptedTokenPath()
+        public async Task DecryptKeepsLegacyRsaEncryptedTokenPathAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             IServiceMessageContext context = ServiceMessageContext.CreateEmpty(telemetry);
@@ -113,11 +114,11 @@ namespace Opc.Ua.Core.Tests.Stack.Types
             };
 
             using var tokenHandler = new UserNameIdentityTokenHandler(token);
-            tokenHandler.Decrypt(
+            await tokenHandler.DecryptAsync(
                 certificate,
                 Nonce.CreateNonce(securityPolicy, receiverNonce),
                 kSecurityPolicyUri,
-                context);
+                context).ConfigureAwait(false);
 
             Assert.That(tokenHandler.DecryptedPassword, Is.EqualTo(expectedPassword));
         }
@@ -137,7 +138,7 @@ namespace Opc.Ua.Core.Tests.Stack.Types
 
             using var tokenHandler = new UserNameIdentityTokenHandler(token);
             Assert.That(
-                () => tokenHandler.Decrypt(
+                async () => await tokenHandler.DecryptAsync(
                     certificate: null,
                     receiverNonce: null,
                     securityPolicyUri: SecurityPolicies.ECC_nistP256,
@@ -145,13 +146,13 @@ namespace Opc.Ua.Core.Tests.Stack.Types
                     ephemeralKey: null,
                     senderCertificate: null,
                     senderIssuerCertificates: null,
-                    validator: null),
+                    validator: null).ConfigureAwait(false),
                 Throws.TypeOf<ServiceResultException>()
                     .With.Property(nameof(ServiceResultException.StatusCode)).EqualTo(StatusCodes.BadIdentityTokenInvalid));
         }
 
         [Test]
-        public void EncryptUsesLegacyRsaFormatForShortPassword()
+        public async Task EncryptUsesLegacyRsaFormatForShortPasswordAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             IServiceMessageContext context = ServiceMessageContext.CreateEmpty(telemetry);
@@ -165,24 +166,24 @@ namespace Opc.Ua.Core.Tests.Stack.Types
                 .CreateForRSA();
 
             using var tokenHandler = new UserNameIdentityTokenHandler("legacyUser", password);
-            tokenHandler.Encrypt(certificate, receiverNonce, kSecurityPolicyUri, context);
+            await tokenHandler.EncryptAsync(certificate, receiverNonce, kSecurityPolicyUri, context).ConfigureAwait(false);
 
             Assert.That(tokenHandler.Token, Is.TypeOf<UserNameIdentityToken>());
             var token = (UserNameIdentityToken)tokenHandler.Token;
             Assert.That(token.EncryptionAlgorithm, Is.Not.Null.And.Not.Empty);
 
             using var decryptHandler = new UserNameIdentityTokenHandler(token);
-            decryptHandler.Decrypt(
+            await decryptHandler.DecryptAsync(
                 certificate,
                 Nonce.CreateNonce(securityPolicy, receiverNonce),
                 kSecurityPolicyUri,
-                context);
+                context).ConfigureAwait(false);
 
             Assert.That(decryptHandler.DecryptedPassword, Is.EqualTo(password));
         }
 
         [Test]
-        public void EncryptUsesLegacyRsaFormatAtThresholdPasswordLength()
+        public async Task EncryptUsesLegacyRsaFormatAtThresholdPasswordLengthAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             IServiceMessageContext context = ServiceMessageContext.CreateEmpty(telemetry);
@@ -196,24 +197,24 @@ namespace Opc.Ua.Core.Tests.Stack.Types
                 .CreateForRSA();
 
             using var tokenHandler = new UserNameIdentityTokenHandler("thresholdUser", password);
-            tokenHandler.Encrypt(certificate, receiverNonce, kSecurityPolicyUri, context);
+            await tokenHandler.EncryptAsync(certificate, receiverNonce, kSecurityPolicyUri, context).ConfigureAwait(false);
 
             Assert.That(tokenHandler.Token, Is.TypeOf<UserNameIdentityToken>());
             var token = (UserNameIdentityToken)tokenHandler.Token;
             Assert.That(token.EncryptionAlgorithm, Is.Not.Null.And.Not.Empty);
 
             using var decryptHandler = new UserNameIdentityTokenHandler(token);
-            decryptHandler.Decrypt(
+            await decryptHandler.DecryptAsync(
                 certificate,
                 Nonce.CreateNonce(securityPolicy, receiverNonce),
                 kSecurityPolicyUri,
-                context);
+                context).ConfigureAwait(false);
 
             Assert.That(decryptHandler.DecryptedPassword, Is.EqualTo(password));
         }
 
         [Test]
-        public void EncryptUsesRsaEncryptedSecretForLongPassword()
+        public async Task EncryptUsesRsaEncryptedSecretForLongPasswordAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             IServiceMessageContext context = ServiceMessageContext.CreateEmpty(telemetry);
@@ -227,18 +228,18 @@ namespace Opc.Ua.Core.Tests.Stack.Types
                 .CreateForRSA();
 
             using var tokenHandler = new UserNameIdentityTokenHandler("secretUser", password);
-            tokenHandler.Encrypt(certificate, receiverNonce, kSecurityPolicyUri, context);
+            await tokenHandler.EncryptAsync(certificate, receiverNonce, kSecurityPolicyUri, context).ConfigureAwait(false);
 
             Assert.That(tokenHandler.Token, Is.TypeOf<UserNameIdentityToken>());
             var token = (UserNameIdentityToken)tokenHandler.Token;
             Assert.That(token.EncryptionAlgorithm, Is.Null);
 
             using var decryptHandler = new UserNameIdentityTokenHandler(token);
-            decryptHandler.Decrypt(
+            await decryptHandler.DecryptAsync(
                 certificate,
                 Nonce.CreateNonce(securityPolicy, receiverNonce),
                 kSecurityPolicyUri,
-                context);
+                context).ConfigureAwait(false);
 
             Assert.That(decryptHandler.DecryptedPassword, Is.EqualTo(password));
         }

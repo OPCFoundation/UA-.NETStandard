@@ -1023,7 +1023,10 @@ namespace Opc.Ua.Server
 
                 try
                 {
-                    token.Decrypt(
+                    // Sync-completing ValueTask in current implementations;
+                    // safe to block. Future async stores will require
+                    // hoisting decryption out of the lock.
+                    ValueTask decryptTask = token.DecryptAsync(
                         m_serverCertificate,
                         m_serverNonce,
                         securityPolicyUri,
@@ -1031,6 +1034,10 @@ namespace Opc.Ua.Server
                         m_userTokenNonce,
                         ClientCertificate,
                         m_clientIssuerCertificates);
+                    if (!decryptTask.IsCompletedSuccessfully)
+                    {
+                        decryptTask.AsTask().GetAwaiter().GetResult();
+                    }
                 }
                 catch (Exception e) when (e is not ServiceResultException)
                 {
@@ -1054,7 +1061,7 @@ namespace Opc.Ua.Server
                         context.ChannelContext.ClientChannelCertificate,
                         ClientNonce.ToArray());
 
-                    if (!token.Verify(dataToSign, userTokenSignature, securityPolicyUri))
+                    if (!VerifySync(token, dataToSign, userTokenSignature, securityPolicyUri))
                     {
                         // verify for certificate chain in endpoint.
                         // validate the signature with complete chain if the check with leaf certificate failed.
@@ -1082,7 +1089,7 @@ namespace Opc.Ua.Server
                                     context.ChannelContext.ClientChannelCertificate,
                                     ClientNonce.ToArray());
 
-                                if (!token.Verify(dataToSign, userTokenSignature, securityPolicyUri))
+                                if (!VerifySync(token, dataToSign, userTokenSignature, securityPolicyUri))
                                 {
                                     throw new ServiceResultException(
                                         StatusCodes.BadIdentityTokenRejected,
@@ -1102,6 +1109,29 @@ namespace Opc.Ua.Server
 
             // validate user identity token.
             return token;
+        }
+
+        /// <summary>
+        /// Synchronously invokes <see cref="IUserIdentityTokenHandler.VerifyAsync"/>
+        /// on the assumption that the underlying implementation completes
+        /// synchronously (no real I/O). Used inside locked regions of
+        /// <see cref="ValidateBeforeActivate"/> where awaiting is not
+        /// possible. Future async-store implementations will require
+        /// hoisting verification out of the lock.
+        /// </summary>
+        private static bool VerifySync(
+            IUserIdentityTokenHandler token,
+            byte[] dataToSign,
+            SignatureData userTokenSignature,
+            string securityPolicyUri)
+        {
+            ValueTask<bool> task = token.VerifyAsync(
+                dataToSign,
+                userTokenSignature,
+                securityPolicyUri);
+            return task.IsCompletedSuccessfully
+                ? task.Result
+                : task.AsTask().GetAwaiter().GetResult();
         }
 
         /// <summary>

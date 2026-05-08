@@ -28,6 +28,8 @@
  * ======================================================================*/
 
 using System;
+using System.Threading;
+using System.Threading.Tasks;
 using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua
@@ -70,9 +72,15 @@ namespace Opc.Ua
         void UpdatePolicy(UserTokenPolicy userTokenPolicy);
 
         /// <summary>
-        /// Encrypts the token
+        /// Encrypts the token.
         /// </summary>
-        void Encrypt(
+        /// <remarks>
+        /// Implementations may need to resolve secrets or certificates from
+        /// stores asynchronously. The returned <see cref="ValueTask"/>
+        /// completes synchronously when the underlying material is already
+        /// cached/resident.
+        /// </remarks>
+        ValueTask EncryptAsync(
             Certificate receiverCertificate,
             byte[] receiverNonce,
             string securityPolicyUri,
@@ -80,12 +88,17 @@ namespace Opc.Ua
             Nonce receiverEphemeralKey = null,
             Certificate senderCertificate = null,
             CertificateCollection senderIssuerCertificates = null,
-            bool doNotEncodeSenderCertificate = false);
+            bool doNotEncodeSenderCertificate = false,
+            CancellationToken ct = default);
 
         /// <summary>
-        /// Decrypts the token
+        /// Decrypts the token.
         /// </summary>
-        void Decrypt(
+        /// <remarks>
+        /// May resolve material from external stores; see
+        /// <see cref="EncryptAsync"/>.
+        /// </remarks>
+        ValueTask DecryptAsync(
             Certificate certificate,
             Nonce receiverNonce,
             string securityPolicyUri,
@@ -93,22 +106,27 @@ namespace Opc.Ua
             Nonce ephemeralKey = null,
             Certificate senderCertificate = null,
             CertificateCollection senderIssuerCertificates = null,
-            ICertificateValidatorEx validator = null);
+            ICertificateValidatorEx validator = null,
+            CancellationToken ct = default);
 
         /// <summary>
-        /// Creates a signature with the token
+        /// Creates a signature with the token. May resolve a private-key
+        /// certificate from the configured certificate provider, which is
+        /// why the operation is asynchronous.
         /// </summary>
-        SignatureData Sign(
+        ValueTask<SignatureData> SignAsync(
             byte[] dataToSign,
-            string securityPolicyUri);
+            string securityPolicyUri,
+            CancellationToken ct = default);
 
         /// <summary>
-        /// Verifies a signature created with the token
+        /// Verifies a signature created with the token.
         /// </summary>
-        bool Verify(
+        ValueTask<bool> VerifyAsync(
             byte[] dataToVerify,
             SignatureData signatureData,
-            string securityPolicyUri);
+            string securityPolicyUri,
+            CancellationToken ct = default);
     }
 
     /// <summary>

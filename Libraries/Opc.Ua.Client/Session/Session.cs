@@ -1380,14 +1380,15 @@ namespace Opc.Ua.Client
                         TransportChannel.ClientChannelCertificate,
                         m_clientNonce ?? []);
 
-                    userTokenSignature = identityToken.Sign(
+                    userTokenSignature = await identityToken.SignAsync(
                         dataToSign,
-                        tokenSecurityPolicyUri);
+                        tokenSecurityPolicyUri,
+                        ct).ConfigureAwait(false);
                 }
                 else
                 {
                     // encrypt token.
-                    identityToken.Encrypt(
+                    await identityToken.EncryptAsync(
                         serverCertificate,
                         serverNonce.ToArray(),
                         tokenSecurityPolicyUri,
@@ -1395,7 +1396,8 @@ namespace Opc.Ua.Client
                         m_eccServerEphemeralKey,
                         m_instanceCertificate,
                         m_instanceCertificateChain,
-                        m_endpoint.Description.SecurityMode != MessageSecurityMode.None);
+                        m_endpoint.Description.SecurityMode != MessageSecurityMode.None,
+                        ct).ConfigureAwait(false);
                 }
 
                 // copy the preferred locales if provided.
@@ -1607,14 +1609,15 @@ namespace Opc.Ua.Client
                     TransportChannel.ClientChannelCertificate,
                     m_clientNonce ?? []);
 
-                userTokenSignature = identityToken.Sign(
+                userTokenSignature = await identityToken.SignAsync(
                     dataToSign,
-                    tokenSecurityPolicyUri);
+                    tokenSecurityPolicyUri,
+                    ct).ConfigureAwait(false);
             }
             else
             {
                 // encrypt token.
-                identityToken.Encrypt(
+                await identityToken.EncryptAsync(
                     m_serverCertificate,
                     serverNonce.ToArray(),
                     tokenSecurityPolicyUri,
@@ -1622,7 +1625,8 @@ namespace Opc.Ua.Client
                     m_eccServerEphemeralKey,
                     m_instanceCertificate,
                     m_instanceCertificateChain,
-                    m_endpoint.Description.SecurityMode != MessageSecurityMode.None);
+                    m_endpoint.Description.SecurityMode != MessageSecurityMode.None,
+                    ct).ConfigureAwait(false);
             }
 
             m_userTokenSecurityPolicyUri = tokenSecurityPolicyUri;
@@ -2866,14 +2870,15 @@ namespace Opc.Ua.Client
 
                 if (identityToken.Token is X509IdentityToken)
                 {
-                    userTokenSignature = identityToken.Sign(
+                    userTokenSignature = await identityToken.SignAsync(
                         dataToSign,
-                        tokenSecurityPolicyUri);
+                        tokenSecurityPolicyUri,
+                        ct).ConfigureAwait(false);
                 }
                 else
                 {
                     // encrypt token.
-                    identityToken.Encrypt(
+                    await identityToken.EncryptAsync(
                         m_serverCertificate,
                         m_serverNonce.ToArray(),
                         tokenSecurityPolicyUri,
@@ -2881,7 +2886,8 @@ namespace Opc.Ua.Client
                         m_eccServerEphemeralKey,
                         m_instanceCertificate,
                         m_instanceCertificateChain,
-                        m_endpoint.Description.SecurityMode != MessageSecurityMode.None);
+                        m_endpoint.Description.SecurityMode != MessageSecurityMode.None,
+                        ct).ConfigureAwait(false);
                 }
 
                 m_logger.LogInformation("Session RE-ACTIVATING {SessionId}.", SessionId);

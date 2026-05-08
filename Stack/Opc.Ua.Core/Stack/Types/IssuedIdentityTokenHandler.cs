@@ -28,6 +28,8 @@
  * ======================================================================*/
 
 using System;
+using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Security.Certificates;
 
@@ -169,7 +171,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public void Encrypt(
+        public ValueTask EncryptAsync(
             Certificate receiverCertificate,
             byte[] receiverNonce,
             string securityPolicyUri,
@@ -177,7 +179,8 @@ namespace Opc.Ua
             Nonce receiverEphemeralKey = null,
             Certificate senderCertificate = null,
             CertificateCollection senderIssuerCertificates = null,
-            bool doNotEncodeSenderCertificate = false)
+            bool doNotEncodeSenderCertificate = false,
+            CancellationToken ct = default)
         {
             // handle no encryption.
             if (string.IsNullOrEmpty(securityPolicyUri) ||
@@ -185,7 +188,7 @@ namespace Opc.Ua
             {
                 m_token.TokenData = m_decryptedTokenData.ToByteString();
                 m_token.EncryptionAlgorithm = string.Empty;
-                return;
+                return default;
             }
 
             byte[] dataToEncrypt = Utils.Append(m_decryptedTokenData, receiverNonce);
@@ -201,10 +204,11 @@ namespace Opc.Ua
 
             m_token.TokenData = encryptedData.Data.ToByteString();
             m_token.EncryptionAlgorithm = encryptedData.Algorithm;
+            return default;
         }
 
         /// <inheritdoc/>
-        public void Decrypt(
+        public ValueTask DecryptAsync(
             Certificate certificate,
             Nonce receiverNonce,
             string securityPolicyUri,
@@ -212,14 +216,15 @@ namespace Opc.Ua
             Nonce ephemeralKey = null,
             Certificate senderCertificate = null,
             CertificateCollection senderIssuerCertificates = null,
-            ICertificateValidatorEx validator = null)
+            ICertificateValidatorEx validator = null,
+            CancellationToken ct = default)
         {
             // handle no encryption.
             if (string.IsNullOrEmpty(securityPolicyUri) ||
                 securityPolicyUri == SecurityPolicies.None)
             {
                 DecryptedTokenData = m_token.TokenData.ToArray();
-                return;
+                return default;
             }
 
             var encryptedData = new EncryptedData
@@ -255,23 +260,26 @@ namespace Opc.Ua
             m_decryptedTokenData = new byte[startOfNonce];
             Array.Copy(decryptedTokenData, m_decryptedTokenData, startOfNonce);
             Array.Clear(decryptedTokenData, 0, decryptedTokenData.Length);
+            return default;
         }
 
         /// <inheritdoc/>
-        public SignatureData Sign(
+        public ValueTask<SignatureData> SignAsync(
             byte[] dataToSign,
-            string securityPolicyUri)
+            string securityPolicyUri,
+            CancellationToken ct = default)
         {
-            return null;
+            return new ValueTask<SignatureData>((SignatureData)null);
         }
 
         /// <inheritdoc/>
-        public bool Verify(
+        public ValueTask<bool> VerifyAsync(
             byte[] dataToVerify,
             SignatureData signatureData,
-            string securityPolicyUri)
+            string securityPolicyUri,
+            CancellationToken ct = default)
         {
-            return true;
+            return new ValueTask<bool>(true);
         }
 
         /// <inheritdoc/>
