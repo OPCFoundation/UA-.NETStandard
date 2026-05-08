@@ -87,5 +87,35 @@ namespace Opc.Ua
         /// suppressed by an application-level callback.
         /// </summary>
         public bool IsSuppressible { get; }
+
+        /// <summary>
+        /// Throws a <see cref="ServiceResultException"/> when the result is
+        /// not valid. Use this to flow validation failures through callers
+        /// that expect the legacy throwing contract without writing the
+        /// <c>if (!result.IsValid) throw …</c> boilerplate.
+        /// </summary>
+        /// <remarks>
+        /// When <see cref="Errors"/> contains at least one entry, the first
+        /// entry is used as the inner <see cref="ServiceResult"/> so the
+        /// caller sees the detailed error context. Otherwise the exception
+        /// carries only <see cref="StatusCode"/>.
+        /// </remarks>
+        /// <exception cref="ServiceResultException">
+        /// Thrown when <see cref="IsValid"/> is <see langword="false"/>.
+        /// </exception>
+        public void ThrowIfInvalid()
+        {
+            if (IsValid)
+            {
+                return;
+            }
+
+            if (Errors.Count > 0)
+            {
+                throw new ServiceResultException(Errors[0]);
+            }
+
+            throw new ServiceResultException(StatusCode);
+        }
     }
 }

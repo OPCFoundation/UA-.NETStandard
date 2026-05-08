@@ -83,5 +83,46 @@ namespace Opc.Ua.Security.Certificates.Tests
             Assert.That(suppressible.IsSuppressible, Is.True);
             Assert.That(notSuppressible.IsSuppressible, Is.False);
         }
+
+        [Test]
+        public void ThrowIfInvalidReturnsSilentlyOnSuccess()
+        {
+            Assert.DoesNotThrow(() => CertificateValidationResult.Success.ThrowIfInvalid());
+        }
+
+        [Test]
+        public void ThrowIfInvalidThrowsWithFirstErrorWhenErrorsPresent()
+        {
+            var firstError = new ServiceResult(StatusCodes.BadCertificateUntrusted);
+            var secondError = new ServiceResult(StatusCodes.BadCertificateInvalid);
+            var result = new CertificateValidationResult(
+                isValid: false,
+                statusCode: StatusCodes.BadCertificateChainIncomplete,
+                errors: [firstError, secondError],
+                isSuppressible: false);
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                result.ThrowIfInvalid);
+            Assert.That(
+                ex.StatusCode,
+                Is.EqualTo((StatusCode)StatusCodes.BadCertificateUntrusted),
+                "ThrowIfInvalid should surface the first inner error, not the aggregate StatusCode.");
+        }
+
+        [Test]
+        public void ThrowIfInvalidThrowsWithStatusCodeWhenErrorsEmpty()
+        {
+            var result = new CertificateValidationResult(
+                isValid: false,
+                statusCode: StatusCodes.BadCertificateUntrusted,
+                errors: [],
+                isSuppressible: false);
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                result.ThrowIfInvalid);
+            Assert.That(
+                ex.StatusCode,
+                Is.EqualTo((StatusCode)StatusCodes.BadCertificateUntrusted));
+        }
     }
 }
