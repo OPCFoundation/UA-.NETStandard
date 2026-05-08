@@ -339,9 +339,11 @@ namespace Quickstarts.ConsoleReferenceClient
                     // handle connect all endpoints test.
                     if (testallEndpoints)
                     {
-                        var tester = new ConnectTester(
+#pragma warning disable CA2007 // sample code; await using on tester is sufficient
+                        await using var tester = new ConnectTester(
                             telemetry,
                             quitEvent);
+#pragma warning restore CA2007
                         await tester.RunAsync(ct).ConfigureAwait(false);
                         return;
                     }

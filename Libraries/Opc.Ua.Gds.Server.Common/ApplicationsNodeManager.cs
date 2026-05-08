@@ -855,7 +855,7 @@ namespace Opc.Ua.Gds.Server
                 chain.ChainPolicy.RevocationFlag = X509RevocationFlag.EntireChain;
 
                 //add GDS Issuer Cert Store Certificates to the Chain validation for consistent behaviour on all Platforms
-                ICertificateStore store = m_configuration.SecurityConfiguration
+                using ICertificateStore store = m_configuration.SecurityConfiguration
                     .TrustedIssuerCertificates
                     .OpenStore(Server.Telemetry);
                 if (store != null)

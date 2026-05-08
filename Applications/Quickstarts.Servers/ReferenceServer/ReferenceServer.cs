@@ -27,11 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-// CA2000: ownership of disposables created in this file is transferred to long-lived
-// caches, returned objects, or fields whose lifetime is managed by the containing type's
-// Dispose. Per Phase 8 review the residual sites are accepted as ownership-transfer patterns
-// rather than missed using statements.
-#pragma warning disable CA2000
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -135,19 +130,22 @@ namespace Quickstarts.ReferenceServer
             }
             else
             {
-                var referenceNodeManager = new ReferenceNodeManager(
-                    server,
-                    configuration,
-                    UseSamplingGroupsInReferenceNodeManager);
+                ReferenceNodeManager referenceNodeManager = null;
                 try
                 {
+                    // CA2000: ownership-transfer pattern — nulled after handoff to asyncNodeManagers.
+#pragma warning disable CA2000
+                    referenceNodeManager = new ReferenceNodeManager(
+                        server,
+                        configuration,
+                        UseSamplingGroupsInReferenceNodeManager);
+#pragma warning restore CA2000
                     asyncNodeManagers = [referenceNodeManager];
                     referenceNodeManager = null;
                 }
                 finally
                 {
-                    // CA1508: ownership-transfer pattern — null-out after passing the reference,
-                    // dispose only on exception. The analyzer doesn't track exception flow here.
+                    // CA1508: only non-null on the exceptional path (try block clears it on success).
 #pragma warning disable CA1508
                     referenceNodeManager?.Dispose();
 #pragma warning restore CA1508

@@ -46,7 +46,7 @@ namespace Quickstarts
     /// <summary>
     /// Wraps connect testing functionality
     /// </summary>
-    public sealed class ConnectTester : IDisposable
+    public sealed class ConnectTester : IAsyncDisposable
     {
         public ConnectTester(
             ITelemetryContext telemetry,
@@ -58,9 +58,14 @@ namespace Quickstarts
         }
 
         /// <inheritdoc/>
-        public void Dispose()
+        public async ValueTask DisposeAsync()
         {
             m_reconnectHandler?.Dispose();
+            ISession session = m_wrapper?.Session;
+            if (session != null)
+            {
+                await session.DisposeAsync().ConfigureAwait(false);
+            }
         }
 
         /// <summary>
@@ -254,7 +259,6 @@ namespace Quickstarts
                 endpointConfiguration);
 
             // Create the session
-#pragma warning disable CA2000 // Dispose objects before losing scope
             ISession isession = await sessionFactory
                 .CreateAsync(
                     m_configuration,
@@ -269,27 +273,37 @@ namespace Quickstarts
                     ct
                 )
                 .ConfigureAwait(false);
-#pragma warning restore CA2000 // Dispose objects before losing scope
-
-            SessionWrapper wrapper = m_wrapper = new SessionWrapper { Session = isession };
-
-            // Assign the created session
-            if (!wrapper.Session.Connected)
+            bool ownsSession = true;
+            try
             {
-                throw new InvalidOperationException("Could not connect to server at " + kServerUrl);
+                SessionWrapper wrapper = m_wrapper = new SessionWrapper { Session = isession };
+                ownsSession = false;
+
+                // Assign the created session
+                if (!wrapper.Session.Connected)
+                {
+                    throw new InvalidOperationException("Could not connect to server at " + kServerUrl);
+                }
+
+                wrapper.Session.KeepAliveInterval = 10000;
+                wrapper.Session.KeepAlive += Session_KeepAlive;
+
+                var samples = new ClientSamples(m_telemetry, null, m_quitEvent);
+                ArrayOf<ReferenceDescription> nodes = await samples.BrowseFullAddressSpaceAsync(
+                    wrapper,
+                    ObjectIds.ObjectsFolder,
+                    null,
+                    ct).ConfigureAwait(false);
+
+                return wrapper;
             }
-
-            wrapper.Session.KeepAliveInterval = 10000;
-            wrapper.Session.KeepAlive += Session_KeepAlive;
-
-            var samples = new ClientSamples(m_telemetry, null, m_quitEvent);
-            ArrayOf<ReferenceDescription> nodes = await samples.BrowseFullAddressSpaceAsync(
-                wrapper,
-                ObjectIds.ObjectsFolder,
-                null,
-                ct).ConfigureAwait(false);
-
-            return wrapper;
+            finally
+            {
+                if (ownsSession)
+                {
+                    await isession.DisposeAsync().ConfigureAwait(false);
+                }
+            }
         }
 
 #if NET8_0_OR_GREATER
