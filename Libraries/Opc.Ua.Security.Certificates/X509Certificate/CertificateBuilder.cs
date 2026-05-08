@@ -117,8 +117,8 @@ namespace Opc.Ua.Security.Certificates
                 byte[] serialNumber = [.. ((IEnumerable<byte>)m_serialNumber!).Reverse()];
                 if (IssuerCAKeyCert != null)
                 {
-                    using RSA rsaIssuerKey = IssuerCAKeyCert.GetRSAPrivateKey()
-                        ?? throw new CryptographicException("RSA private key not found in issuer certificate.");
+                    using RSA rsaIssuerKey = IssuerCAKeyCert.GetRSAPrivateKey() ??
+                        throw new CryptographicException("RSA private key not found in issuer certificate.");
                     signedCert = request.Create(
                         IssuerCAKeyCert.SubjectName,
                         X509SignatureGenerator.CreateForRSA(rsaIssuerKey, padding),
@@ -130,7 +130,8 @@ namespace Opc.Ua.Security.Certificates
                 {
                     signedCert = request.Create(
                         SubjectName,
-                        X509SignatureGenerator.CreateForRSA(rsaKeyPair ?? throw new CryptographicException("RSA key pair is required."), padding),
+                        X509SignatureGenerator.CreateForRSA(rsaKeyPair ??
+                            throw new CryptographicException("RSA key pair is required."), padding),
                         NotBefore,
                         NotAfter,
                         serialNumber);
@@ -236,8 +237,8 @@ namespace Opc.Ua.Security.Certificates
                 X509Certificate2 cert;
                 if (IssuerCAKeyCert != null)
                 {
-                    using ECDsa issuerKey = IssuerCAKeyCert.GetECDsaPrivateKey()
-                        ?? throw new CryptographicException("ECDsa private key not found in issuer certificate.");
+                    using ECDsa issuerKey = IssuerCAKeyCert.GetECDsaPrivateKey() ??
+                        throw new CryptographicException("ECDsa private key not found in issuer certificate.");
                     cert = request.Create(
                         IssuerCAKeyCert.SubjectName,
                         X509SignatureGenerator.CreateForECDsa(issuerKey),
@@ -249,7 +250,8 @@ namespace Opc.Ua.Security.Certificates
                 {
                     cert = request.Create(
                         SubjectName,
-                        X509SignatureGenerator.CreateForECDsa(key ?? throw new CryptographicException("ECDsa key pair is required.")),
+                        X509SignatureGenerator.CreateForECDsa(key ??
+                            throw new CryptographicException("ECDsa key pair is required.")),
                         NotBefore,
                         NotAfter,
                         serialNumber);

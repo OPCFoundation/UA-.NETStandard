@@ -44,45 +44,8 @@ namespace Opc.Ua
     /// Currently implements trust-list management; other interfaces
     /// will be added in subsequent phases.
     /// </summary>
-    public sealed class CertificateManager :
-        ICertificateManager,
-        IDisposable
+    public sealed class CertificateManager : ICertificateManager, IDisposable
     {
-        private readonly Dictionary<TrustListIdentifier, TrustListEntry> m_trustLists = new();
-        private readonly List<CertificateEntry> m_applicationCertificates = [];
-        private readonly List<ICertificateStoreProvider> m_storeProviders;
-        private readonly CertificateChangeSubject m_changeSubject = new();
-        private readonly ITelemetryContext m_telemetry;
-        private readonly ILogger m_logger;
-        private int m_maxRejectedCertificates;
-        // Guards mutations of m_applicationCertificates and the cached
-        // per-trust-list validators. Reads of single fields (e.g.
-        // GetInstanceCertificate enumeration) take this lock too to
-        // prevent the C5 / C1 races from the code review.
-        private readonly object m_certificatesLock = new();
-        private bool m_sendCertificateChain;
-        private bool m_autoAcceptUntrustedCertificates;
-        private bool m_rejectSHA1SignedCertificates = true;
-        private bool m_rejectUnknownRevocationStatus;
-        private ushort m_minimumCertificateKeySize = CertificateFactory.DefaultKeySize;
-        private bool m_useValidatedCertificates;
-        private RejectedCertificateProcessor? m_rejectedProcessor;
-        private CertificateLifecycleMonitor? m_lifecycleMonitor;
-        private CertificateValidationCore? m_peerCore;
-        private CertificateValidationCore? m_userCore;
-        private CertificateValidationCore? m_httpsCore;
-        private Func<Certificate, ServiceResult, bool>? m_acceptError;
-        private readonly CertificateProvider m_certificateProvider;
-        private bool m_disposed;
-
-        /// <summary>
-        /// Internal record for a registered trust list.
-        /// </summary>
-        private sealed record TrustListEntry(
-            string TrustedStorePath,
-            string? IssuerStorePath,
-            string? StoreType);
-
         /// <summary>
         /// Initializes a new instance of the <see cref="CertificateManager"/> class.
         /// </summary>
@@ -947,14 +910,14 @@ namespace Opc.Ua
 
             var data = new TrustListData();
 
-            if ((masks & TrustListMasks.TrustedCertificates) != 0)
+            if (((int)masks & (int)TrustListMasks.TrustedCertificates) != 0)
             {
                 using ICertificateStore store = OpenTrustedStore(trustList);
                 data.TrustedCertificates = await store.EnumerateAsync(ct)
                     .ConfigureAwait(false);
             }
 
-            if ((masks & TrustListMasks.TrustedCrls) != 0)
+            if (((int)masks & (int)TrustListMasks.TrustedCrls) != 0)
             {
                 using ICertificateStore store = OpenTrustedStore(trustList);
                 if (store.SupportsCRLs)
@@ -969,13 +932,13 @@ namespace Opc.Ua
             {
                 using (issuerStore)
                 {
-                    if ((masks & TrustListMasks.IssuerCertificates) != 0)
+                    if (((int)masks & (int)TrustListMasks.IssuerCertificates) != 0)
                     {
                         data.IssuerCertificates = await issuerStore
                             .EnumerateAsync(ct).ConfigureAwait(false);
                     }
 
-                    if ((masks & TrustListMasks.IssuerCrls) != 0 &&
+                    if (((int)masks & (int)TrustListMasks.IssuerCrls) != 0 &&
                         issuerStore.SupportsCRLs)
                     {
                         data.IssuerCrls = await issuerStore
@@ -1009,7 +972,7 @@ namespace Opc.Ua
             {
                 using ICertificateStore store = OpenTrustedStore(trustList);
 
-                if ((masks & TrustListMasks.TrustedCertificates) != 0)
+                if (((int)masks & (int)TrustListMasks.TrustedCertificates) != 0)
                 {
                     await ClearCertificatesAsync(store, ct)
                         .ConfigureAwait(false);
@@ -1021,7 +984,7 @@ namespace Opc.Ua
                     }
                 }
 
-                if ((masks & TrustListMasks.TrustedCrls) != 0 &&
+                if (((int)masks & (int)TrustListMasks.TrustedCrls) != 0 &&
                     store.SupportsCRLs)
                 {
                     await ClearCrlsAsync(store, ct).ConfigureAwait(false);
@@ -1042,7 +1005,7 @@ namespace Opc.Ua
                 {
                     using (issuerStore)
                     {
-                        if ((masks & TrustListMasks.IssuerCertificates) != 0)
+                        if (((int)masks & (int)TrustListMasks.IssuerCertificates) != 0)
                         {
                             await ClearCertificatesAsync(issuerStore, ct)
                                 .ConfigureAwait(false);
@@ -1054,7 +1017,7 @@ namespace Opc.Ua
                             }
                         }
 
-                        if ((masks & TrustListMasks.IssuerCrls) != 0 &&
+                        if (((int)masks & (int)TrustListMasks.IssuerCrls) != 0 &&
                             issuerStore.SupportsCRLs)
                         {
                             await ClearCrlsAsync(issuerStore, ct)
@@ -1277,5 +1240,40 @@ namespace Opc.Ua
             fallbackStore.Open(storePath);
             return fallbackStore;
         }
+
+        /// <summary>
+        /// Internal record for a registered trust list.
+        /// </summary>
+        private sealed record TrustListEntry(
+            string TrustedStorePath,
+            string? IssuerStorePath,
+            string? StoreType);
+
+        private readonly Dictionary<TrustListIdentifier, TrustListEntry> m_trustLists = new();
+        private readonly List<CertificateEntry> m_applicationCertificates = [];
+        private readonly List<ICertificateStoreProvider> m_storeProviders;
+        private readonly CertificateChangeSubject m_changeSubject = new();
+        private readonly ITelemetryContext m_telemetry;
+        private readonly ILogger m_logger;
+        private int m_maxRejectedCertificates;
+        // Guards mutations of m_applicationCertificates and the cached
+        // per-trust-list validators. Reads of single fields (e.g.
+        // GetInstanceCertificate enumeration) take this lock too to
+        // prevent the C5 / C1 races from the code review.
+        private readonly object m_certificatesLock = new();
+        private bool m_sendCertificateChain;
+        private bool m_autoAcceptUntrustedCertificates;
+        private bool m_rejectSHA1SignedCertificates = true;
+        private bool m_rejectUnknownRevocationStatus;
+        private ushort m_minimumCertificateKeySize = CertificateFactory.DefaultKeySize;
+        private bool m_useValidatedCertificates;
+        private RejectedCertificateProcessor? m_rejectedProcessor;
+        private CertificateLifecycleMonitor? m_lifecycleMonitor;
+        private CertificateValidationCore? m_peerCore;
+        private CertificateValidationCore? m_userCore;
+        private CertificateValidationCore? m_httpsCore;
+        private Func<Certificate, ServiceResult, bool>? m_acceptError;
+        private readonly CertificateProvider m_certificateProvider;
+        private bool m_disposed;
     }
 }

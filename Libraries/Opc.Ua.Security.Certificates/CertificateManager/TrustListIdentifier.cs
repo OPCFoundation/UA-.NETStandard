@@ -38,16 +38,24 @@ namespace Opc.Ua.Security.Certificates
     /// </summary>
     public sealed record TrustListIdentifier(string Name)
     {
-        /// <summary>Peer application certificates (UA-TCP / UA binary).</summary>
+        /// <summary>
+        /// Peer application certificates (UA-TCP / UA binary).
+        /// </summary>
         public static readonly TrustListIdentifier Peers = new("Peers");
 
-        /// <summary>User X.509 certificates (identity tokens).</summary>
+        /// <summary>
+        /// User X.509 certificates (identity tokens).
+        /// </summary>
         public static readonly TrustListIdentifier Users = new("Users");
 
-        /// <summary>HTTPS transport certificates.</summary>
+        /// <summary>
+        /// HTTPS transport certificates.
+        /// </summary>
         public static readonly TrustListIdentifier Https = new("Https");
 
-        /// <summary>Rejected certificates (no issuer pair).</summary>
+        /// <summary>
+        /// Rejected certificates (no issuer pair).
+        /// </summary>
         public static readonly TrustListIdentifier Rejected = new("Rejected");
 
         /// <inheritdoc/>

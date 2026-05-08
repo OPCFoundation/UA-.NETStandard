@@ -31,6 +31,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua
@@ -42,9 +43,6 @@ namespace Opc.Ua
     /// </summary>
     internal sealed class CertificateChangeSubject : IObservable<CertificateChangeEvent>
     {
-        private readonly List<IObserver<CertificateChangeEvent>> m_observers = [];
-        private readonly object m_lock = new();
-
         /// <inheritdoc/>
         public IDisposable Subscribe(IObserver<CertificateChangeEvent> observer)
         {
@@ -100,5 +98,8 @@ namespace Opc.Ua
                 }
             }
         }
+
+        private readonly List<IObserver<CertificateChangeEvent>> m_observers = [];
+        private readonly Lock m_lock = new();
     }
 }

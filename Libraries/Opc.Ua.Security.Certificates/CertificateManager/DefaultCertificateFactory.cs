@@ -47,9 +47,9 @@ namespace Opc.Ua.Security.Certificates
         /// Gets the shared singleton instance of <see cref="DefaultCertificateFactory"/>.
         /// </summary>
         /// <remarks>
-        /// Use this singleton when no dependency-injected
-        /// <see cref="ICertificateFactory"/> is available. The default factory
-        /// is stateless and safe to share across threads.
+        /// Use this singleton when no dependency-injected <see cref="ICertificateFactory"/>
+        /// is available. The default factory is stateless and safe to share
+        /// across threads.
         /// </remarks>
         public static ICertificateFactory Instance { get; } = new DefaultCertificateFactory();
 
@@ -135,9 +135,8 @@ namespace Opc.Ua.Security.Certificates
                 request = new CertificateRequest(
                     certificate.SubjectName,
                     rsaPublicKey,
-                    Oids.GetHashAlgorithmName(
-                        certificate.SignatureAlgorithm.Value
-                        ?? throw new CryptographicException("Signature algorithm OID value is null.")),
+                    Oids.GetHashAlgorithmName(certificate.SignatureAlgorithm.Value ??
+                        throw new CryptographicException("Signature algorithm OID value is null.")),
                     RSASignaturePadding.Pkcs1);
             }
             else
@@ -148,9 +147,8 @@ namespace Opc.Ua.Security.Certificates
                 request = new CertificateRequest(
                     certificate.SubjectName,
                     ecDsaPublicKey,
-                    Oids.GetHashAlgorithmName(
-                        certificate.SignatureAlgorithm.Value
-                        ?? throw new CryptographicException("Signature algorithm OID value is null.")));
+                    Oids.GetHashAlgorithmName(certificate.SignatureAlgorithm.Value ??
+                        throw new CryptographicException("Signature algorithm OID value is null.")));
             }
 
             // Collect domain names from the existing certificate.

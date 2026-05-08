@@ -47,7 +47,8 @@ namespace Opc.Ua.Security.Certificates
         /// A configured certificate builder whose output will be signed.
         /// </param>
         /// <param name="issuerCertificate">
-        /// The CA certificate (with private key) used to sign the new certificate.
+        /// The CA certificate (with private key) used to sign the new
+        /// certificate.
         /// </param>
         /// <returns>The newly issued and signed certificate.</returns>
         Certificate IssueCertificate(
@@ -68,12 +69,14 @@ namespace Opc.Ua.Security.Certificates
         /// The certificates to revoke.
         /// </param>
         /// <param name="thisUpdate">
-        /// Optional effective date for the CRL. Defaults to <see cref="DateTime.UtcNow"/>.
+        /// Optional effective date for the CRL.
+        /// Defaults to <see cref="DateTime.UtcNow"/>.
         /// </param>
         /// <param name="nextUpdate">
         /// Optional next-update date for the CRL.
         /// </param>
-        /// <returns>The updated CRL containing the revoked certificates.</returns>
+        /// <returns>The updated CRL containing the revoked certificates.
+        /// </returns>
         X509CRL RevokeCertificates(
             Certificate issuerCertificate,
             X509CRLCollection existingCrls,

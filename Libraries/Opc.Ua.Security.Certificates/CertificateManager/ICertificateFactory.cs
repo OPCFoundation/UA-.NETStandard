@@ -58,7 +58,8 @@ namespace Opc.Ua.Security.Certificates
         /// Creates a new certificate builder for the specified subject name.
         /// </summary>
         /// <param name="subjectName">The X.500 distinguished name.</param>
-        /// <returns>A builder that can be used to configure and create the certificate.</returns>
+        /// <returns>A builder that can be used to configure and create the
+        /// certificate.</returns>
         ICertificateBuilder CreateCertificate(string subjectName);
 
         /// <summary>
@@ -72,7 +73,8 @@ namespace Opc.Ua.Security.Certificates
         /// Optional list of DNS names and/or IP addresses to include
         /// in the Subject Alternative Name extension.
         /// </param>
-        /// <returns>A builder that can be used to configure and create the certificate.</returns>
+        /// <returns>A builder that can be used to configure and create the
+        /// certificate.</returns>
         ICertificateBuilder CreateApplicationCertificate(
             string applicationUri,
             string applicationName,
@@ -80,7 +82,8 @@ namespace Opc.Ua.Security.Certificates
             IReadOnlyList<string>? domainNames = null);
 
         /// <summary>
-        /// Creates a PKCS #10 certificate signing request for the given certificate.
+        /// Creates a PKCS #10 certificate signing request for the given
+        /// certificate.
         /// </summary>
         /// <param name="certificate">
         /// The certificate whose key pair is used to generate the signing request.

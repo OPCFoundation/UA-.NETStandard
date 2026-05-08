@@ -43,15 +43,9 @@ namespace Opc.Ua
     /// </summary>
     internal sealed class CertificateLifecycleMonitor : IDisposable
     {
-        private readonly CertificateChangeSubject m_subject;
-        private readonly Func<IReadOnlyList<CertificateEntry>> m_getCertificates;
-        private readonly TimeSpan m_expiryThreshold;
-        private readonly Timer m_timer;
-        private readonly ILogger m_logger;
-        private readonly HashSet<string> m_alreadyNotified = new(StringComparer.OrdinalIgnoreCase);
-
         /// <summary>
-        /// Initializes a new instance of the <see cref="CertificateLifecycleMonitor"/> class.
+        /// Initializes a new instance of the
+        /// <see cref="CertificateLifecycleMonitor"/> class.
         /// </summary>
         /// <param name="subject">
         /// The change subject used to emit certificate change events.
@@ -127,5 +121,12 @@ namespace Opc.Ua
         {
             m_timer.Dispose();
         }
+
+        private readonly CertificateChangeSubject m_subject;
+        private readonly Func<IReadOnlyList<CertificateEntry>> m_getCertificates;
+        private readonly TimeSpan m_expiryThreshold;
+        private readonly Timer m_timer;
+        private readonly ILogger m_logger;
+        private readonly HashSet<string> m_alreadyNotified = new(StringComparer.OrdinalIgnoreCase);
     }
 }

@@ -36,19 +36,29 @@ namespace Opc.Ua.Security.Certificates
     /// </summary>
     public enum CertificateChangeKind
     {
-        /// <summary>An application certificate was updated.</summary>
+        /// <summary>
+        /// An application certificate was updated.
+        /// </summary>
         ApplicationCertificateUpdated,
 
-        /// <summary>A trust list was updated.</summary>
+        /// <summary>
+        /// A trust list was updated.
+        /// </summary>
         TrustListUpdated,
 
-        /// <summary>A certificate revocation list was updated.</summary>
+        /// <summary>
+        /// A certificate revocation list was updated.
+        /// </summary>
         CrlUpdated,
 
-        /// <summary>A certificate was rejected during validation.</summary>
+        /// <summary>
+        /// A certificate was rejected during validation.
+        /// </summary>
         CertificateRejected,
 
-        /// <summary>A certificate is approaching its expiry date.</summary>
+        /// <summary>
+        /// A certificate is approaching its expiry date.
+        /// </summary>
         CertificateExpiring
     }
 
