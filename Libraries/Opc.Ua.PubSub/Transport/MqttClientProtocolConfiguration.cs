@@ -39,7 +39,12 @@ namespace Opc.Ua.PubSub.Transport
     /// <summary>
     /// The certificates used by the tls/ssl layer
     /// </summary>
+    // CA1001: public class — adding IDisposable would be a binary breaking change.
+    // The owned Certificate fields are released via finalisation by the underlying
+    // X509Certificate2.
+#pragma warning disable CA1001
     public class MqttTlsCertificates
+#pragma warning restore CA1001
     {
         private readonly Certificate m_caCertificate;
         private readonly Certificate m_clientCertificate;

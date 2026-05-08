@@ -43,7 +43,11 @@ namespace Opc.Ua.Server.Tests
     /// Server fixture for testing.
     /// </summary>
     /// <typeparam name="T">A server class T used for testing.</typeparam>
+    // CA1001: test fixture; lifecycle is handled via async StopAsync
+    // (Application.DisposeAsync at line 445), not the IDisposable pattern.
+#pragma warning disable CA1001
     public class ServerFixture<T>
+#pragma warning restore CA1001
         where T : ServerBase
     {
         public IApplicationInstance Application { get; private set; }

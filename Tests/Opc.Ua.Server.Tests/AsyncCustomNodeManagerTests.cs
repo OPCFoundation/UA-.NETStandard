@@ -46,7 +46,11 @@ namespace Opc.Ua.Server.Tests
     [SetUICulture("en-us")]
     [Parallelizable(ParallelScope.All)]
     [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
+    // CA1001: NUnit test fixture: per-test instance lifecycle is managed by NUnit;
+    // ApplicationConfiguration disposal is handled by the configuration manager pipeline.
+#pragma warning disable CA1001
     public class AsyncCustomNodeManagerTests
+#pragma warning restore CA1001
     {
         private Mock<IServerInternal> m_mockServer;
         private ApplicationConfiguration m_configuration;

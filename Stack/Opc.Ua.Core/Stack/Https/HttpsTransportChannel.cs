@@ -488,7 +488,9 @@ namespace Opc.Ua.Bindings
                                 using var validationCollection = CertificateCollection.From(validationChain);
                                 if (m_quotas.CertificateValidator != null)
                                 {
-#pragma warning disable CA2025 // Task awaited via GetAwaiter().GetResult(); disposable's using scope extends past the await.
+// CA2025: task awaited via GetAwaiter().GetResult(); the disposable's
+                                    // using scope extends past the await.
+#pragma warning disable CA2025
                                     CertificateValidationResult validationResult = m_quotas.CertificateValidator
                                         .ValidateAsync(validationCollection, ct: default)
                                         .GetAwaiter()

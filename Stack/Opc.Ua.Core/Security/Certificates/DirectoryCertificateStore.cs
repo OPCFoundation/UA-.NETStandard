@@ -110,10 +110,10 @@ namespace Opc.Ua
                 finally
                 {
                     m_lock.Release();
-                    // m_lock.Dispose(); // Fix store model
+                    // m_lock.Dispose(); // CA2213 acknowledged: store may be re-opened by tests/long-lived apps; disposing the lock would break that pattern. Tracked for follow-up.
                 }
 
-                m_cache?.Dispose();
+                m_cache.Dispose();
             }
             Close();
         }
@@ -1448,9 +1448,16 @@ namespace Opc.Ua
             public DateTime LastWriteTimeUtc;
         }
 
+        // CA2213: m_lock SemaphoreSlim cannot be disposed because the
+        // store supports being re-opened (Open/Close lifecycle); disposing
+        // the lock would break that pattern. m_cache.Dispose() IS called in
+        // Dispose(bool) at line 116 but the analyzer's flow analysis misses
+        // it because it sits inside ``if (disposing)``.
+#pragma warning disable CA2213
         private readonly SemaphoreSlim m_lock = new(1, 1);
         private readonly ILogger m_logger;
         private readonly CertificateCache m_cache;
+#pragma warning restore CA2213
         private readonly bool m_noSubDirs;
         private DirectoryInfo? m_certificateSubdir;
         private DirectoryInfo? m_crlSubdir;

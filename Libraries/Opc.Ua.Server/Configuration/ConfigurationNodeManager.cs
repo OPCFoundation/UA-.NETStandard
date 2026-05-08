@@ -278,9 +278,7 @@ namespace Opc.Ua.Server
                 }
 
                 // m_serverConfigurationNode is owned by the address space, not by this manager
-#pragma warning disable CA2213
                 m_serverConfigurationNode = null;
-#pragma warning restore CA2213
             }
 
             base.Dispose(disposing);
@@ -1551,7 +1549,9 @@ namespace Opc.Ua.Server
             public Certificate TemporaryApplicationCertificate { get; set; }
         }
 
+#pragma warning disable CA2213 // m_serverConfigurationNode is owned by the address space, not by this manager.
         private ServerConfigurationState m_serverConfigurationNode;
+#pragma warning restore CA2213
         private readonly ApplicationConfiguration m_configuration;
         private readonly List<ServerCertificateGroup> m_certificateGroups;
         private readonly CertificateStoreIdentifier m_rejectedStore;
