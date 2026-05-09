@@ -478,7 +478,7 @@ namespace Opc.Ua.Server.Tests
         public void EndpointAddressesParsesValidUrls()
         {
             using ServerInternalData data = CreateServerInternalData();
-            Uri[] addresses = data.EndpointAddresses.ToArray();
+            Uri[] addresses = [.. data.EndpointAddresses];
             Assert.That(addresses[0].ToString(), Does.Contain("localhost:4840"));
             Assert.That(addresses[1].ToString(), Does.Contain("localhost:4841"));
         }

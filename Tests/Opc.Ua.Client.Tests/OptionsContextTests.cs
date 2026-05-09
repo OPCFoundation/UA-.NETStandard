@@ -472,7 +472,7 @@ namespace Opc.Ua.Client.Tests
 
             var item = new MonitoredItemState { DisplayName = "X" };
             var fromEnumerable = new MonitoredItemStateCollection(
-                new[] { item });
+                [item]);
             Assert.That(fromEnumerable, Has.Count.EqualTo(1));
         }
 
@@ -507,7 +507,7 @@ namespace Opc.Ua.Client.Tests
                 MonitoredItems = []
             };
             var fromEnumerable = new SubscriptionStateCollection(
-                new[] { sub });
+                [sub]);
             Assert.That(fromEnumerable, Has.Count.EqualTo(1));
         }
 

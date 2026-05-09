@@ -228,7 +228,7 @@ namespace Opc.Ua.Security.Certificates
                     byte[] pfxData = Export(X509ContentType.Pfx);
                     return X509CertificateLoader.LoadPkcs12(
                         pfxData,
-                        ReadOnlySpan<char>.Empty,
+                        [],
                         X509KeyStorageFlags.Exportable);
                 }
                 catch (CryptographicException)

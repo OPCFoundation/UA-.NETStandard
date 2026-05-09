@@ -66,11 +66,8 @@ namespace Opc.Ua.Gds.Tests
         public void Dispose()
         {
             GDSClient?.Dispose();
-            if (m_application != null)
-            {
-                m_application.DisposeAsync().AsTask().GetAwaiter().GetResult();
-                m_application = null;
-            }
+            m_application?.DisposeAsync().AsTask().GetAwaiter().GetResult();
+            m_application = null;
         }
 
         public async Task LoadClientConfigurationAsync(int port = -1, bool clean = true)

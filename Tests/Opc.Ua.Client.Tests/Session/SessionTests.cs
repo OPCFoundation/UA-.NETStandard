@@ -1628,7 +1628,7 @@ namespace Opc.Ua.Client.Tests
             return typeof(Session)
                 .GetField("m_clientNonce", PrivateInstance)
                 .GetValue(session) is byte[] bytes
-                ? bytes.ToArray()
+                ? [.. bytes]
                 : [];
         }
 

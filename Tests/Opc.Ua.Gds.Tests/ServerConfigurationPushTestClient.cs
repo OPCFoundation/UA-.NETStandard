@@ -59,11 +59,8 @@ namespace Opc.Ua.Gds.Tests
         public void Dispose()
         {
             PushClient?.Dispose();
-            if (m_application != null)
-            {
-                m_application.DisposeAsync().AsTask().GetAwaiter().GetResult();
-                m_application = null;
-            }
+            m_application?.DisposeAsync().AsTask().GetAwaiter().GetResult();
+            m_application = null;
         }
 
         public async Task LoadClientConfigurationAsync(int port = -1)
@@ -137,10 +134,7 @@ namespace Opc.Ua.Gds.Tests
                 throw new InvalidOperationException("Application instance certificate invalid!");
             }
 
-            if (Config.CertificateManager != null)
-            {
-                Config.CertificateManager.AcceptError = AcceptCertificate;
-            }
+            Config.CertificateManager?.AcceptError = AcceptCertificate;
 
             ServerConfigurationPushTestClientConfiguration clientConfiguration =
                 m_application.ApplicationConfiguration

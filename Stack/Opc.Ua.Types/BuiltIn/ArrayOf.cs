@@ -928,7 +928,7 @@ namespace Opc.Ua
             {
                 if (count == 0)
                 {
-                    return ArrayOf<T>.Empty;
+                    return [];
                 }
                 var copy = new T[count];
                 int index = 0;

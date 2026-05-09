@@ -33,6 +33,12 @@ using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server.Fluent;
 
+// CA2000: BaseObjectState instances created in MakeObject() are passed to the builder under
+// test which owns them for the test fixture lifetime. The collection-expression rewrite from
+// IDE0300 makes the analyzer's flow analysis lose the ownership-transfer inference; the
+// disposables are still cleaned up correctly when the fixture tears down.
+#pragma warning disable CA2000
+
 namespace Opc.Ua.Server.Tests.Fluent
 {
     [TestFixture]
@@ -476,7 +482,7 @@ namespace Opc.Ua.Server.Tests.Fluent
             NodeId typeId = ObjectTypeIds.ServerCapabilitiesType;
             BaseObjectState only = MakeObject("Caps", typeId);
             NodeManagerBuilder b = CreateBuilderWithTypeIndex(
-                new Dictionary<NodeId, IReadOnlyList<NodeState>> { [typeId] = new[] { only } });
+                new Dictionary<NodeId, IReadOnlyList<NodeState>> { [typeId] = [only] });
 
             INodeBuilder nb = b.NodeFromTypeId(typeId);
 
@@ -487,7 +493,7 @@ namespace Opc.Ua.Server.Tests.Fluent
         public void NodeFromTypeIdNullThrowsBadNodeIdInvalid()
         {
             NodeManagerBuilder b = CreateBuilderWithTypeIndex(
-                new Dictionary<NodeId, IReadOnlyList<NodeState>>());
+                []);
 
             ServiceResultException ex = Assert.Throws<ServiceResultException>(
                 () => b.NodeFromTypeId(NodeId.Null));
@@ -498,7 +504,7 @@ namespace Opc.Ua.Server.Tests.Fluent
         public void NodeFromTypeIdUnknownThrowsBadNodeIdUnknown()
         {
             NodeManagerBuilder b = CreateBuilderWithTypeIndex(
-                new Dictionary<NodeId, IReadOnlyList<NodeState>>());
+                []);
 
             ServiceResultException ex = Assert.Throws<ServiceResultException>(
                 () => b.NodeFromTypeId(ObjectTypeIds.BaseObjectType));
@@ -512,7 +518,7 @@ namespace Opc.Ua.Server.Tests.Fluent
             BaseObjectState a = MakeObject("Boiler1", typeId);
             BaseObjectState bn = MakeObject("Boiler2", typeId);
             NodeManagerBuilder b = CreateBuilderWithTypeIndex(
-                new Dictionary<NodeId, IReadOnlyList<NodeState>> { [typeId] = new NodeState[] { a, bn } });
+                new Dictionary<NodeId, IReadOnlyList<NodeState>> { [typeId] = [a, bn] });
 
             ServiceResultException ex = Assert.Throws<ServiceResultException>(
                 () => b.NodeFromTypeId(typeId));
@@ -526,7 +532,7 @@ namespace Opc.Ua.Server.Tests.Fluent
             BaseObjectState a = MakeObject("Boiler1", typeId);
             BaseObjectState bn = MakeObject("Boiler2", typeId);
             NodeManagerBuilder b = CreateBuilderWithTypeIndex(
-                new Dictionary<NodeId, IReadOnlyList<NodeState>> { [typeId] = new NodeState[] { a, bn } });
+                new Dictionary<NodeId, IReadOnlyList<NodeState>> { [typeId] = [a, bn] });
 
             INodeBuilder nb = b.NodeFromTypeId(typeId, new QualifiedName("Boiler2", kNs));
 
@@ -539,7 +545,7 @@ namespace Opc.Ua.Server.Tests.Fluent
             NodeId typeId = ObjectTypeIds.BaseObjectType;
             BaseObjectState a = MakeObject("Boiler1", typeId);
             NodeManagerBuilder b = CreateBuilderWithTypeIndex(
-                new Dictionary<NodeId, IReadOnlyList<NodeState>> { [typeId] = new NodeState[] { a } });
+                new Dictionary<NodeId, IReadOnlyList<NodeState>> { [typeId] = [a] });
 
             ServiceResultException ex = Assert.Throws<ServiceResultException>(
                 () => b.NodeFromTypeId(typeId, new QualifiedName("Nope", kNs)));
@@ -552,7 +558,7 @@ namespace Opc.Ua.Server.Tests.Fluent
             NodeId typeId = ObjectTypeIds.ServerCapabilitiesType;
             BaseObjectState only = MakeObject("Caps", typeId);
             NodeManagerBuilder b = CreateBuilderWithTypeIndex(
-                new Dictionary<NodeId, IReadOnlyList<NodeState>> { [typeId] = new[] { only } });
+                new Dictionary<NodeId, IReadOnlyList<NodeState>> { [typeId] = [only] });
 
             INodeBuilder<BaseObjectState> nb = b.NodeFromTypeId<BaseObjectState>(typeId);
 
@@ -565,7 +571,7 @@ namespace Opc.Ua.Server.Tests.Fluent
             NodeId typeId = ObjectTypeIds.ServerCapabilitiesType;
             BaseObjectState only = MakeObject("Caps", typeId);
             NodeManagerBuilder b = CreateBuilderWithTypeIndex(
-                new Dictionary<NodeId, IReadOnlyList<NodeState>> { [typeId] = new[] { only } });
+                new Dictionary<NodeId, IReadOnlyList<NodeState>> { [typeId] = [only] });
 
             ServiceResultException ex = Assert.Throws<ServiceResultException>(
                 () => b.NodeFromTypeId<MethodState>(typeId));

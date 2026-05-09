@@ -530,7 +530,7 @@ namespace Opc.Ua
                     {
                         newEntries.Add(new CertificateEntry(
                             certificate,
-                            new CertificateCollection(),
+                            [],
                             certId.CertificateType));
                     }
                 }
@@ -754,7 +754,7 @@ namespace Opc.Ua
                         oldEntry = m_applicationCertificates[i];
                         m_applicationCertificates[i] = new CertificateEntry(
                             newCertificate,
-                            issuerChain ?? new CertificateCollection(),
+                            issuerChain ?? [],
                             certificateType);
                         break;
                     }
@@ -765,7 +765,7 @@ namespace Opc.Ua
                 {
                     m_applicationCertificates.Add(new CertificateEntry(
                         newCertificate,
-                        issuerChain ?? new CertificateCollection(),
+                        issuerChain ?? [],
                         certificateType));
                 }
 
@@ -1090,11 +1090,8 @@ namespace Opc.Ua
                 m_lifecycleMonitor?.Dispose();
                 m_changeSubject.Complete();
 
-                if (m_rejectedProcessor != null)
-                {
-                    m_rejectedProcessor.DisposeAsync()
+                m_rejectedProcessor?.DisposeAsync()
                         .AsTask().GetAwaiter().GetResult();
-                }
 
                 m_peerCore?.Dispose();
                 m_peerCore = null;
@@ -1264,7 +1261,7 @@ namespace Opc.Ua
             string? IssuerStorePath,
             string? StoreType);
 
-        private readonly Dictionary<TrustListIdentifier, TrustListEntry> m_trustLists = new();
+        private readonly Dictionary<TrustListIdentifier, TrustListEntry> m_trustLists = [];
         private readonly List<CertificateEntry> m_applicationCertificates = [];
         private readonly List<ICertificateStoreProvider> m_storeProviders;
         private readonly CertificateChangeSubject m_changeSubject = new();

@@ -127,7 +127,7 @@ namespace Opc.Ua.Security.Certificates.Tests
                         "urn:test:csr",
                         // CA1861: literal array on a test setup call — readability beats hoisting.
 #pragma warning disable CA1861
-                        new[] { "localhost" }))
+                        ["localhost"]))
 #pragma warning restore CA1861
                 .CreateForRSA();
 

@@ -522,10 +522,7 @@ namespace Opc.Ua
 
                     if (issuer != null)
                     {
-                        if (validationErrors != null)
-                        {
-                            validationErrors[certificate!] = revocationStatus!;
-                        }
+                        validationErrors?[certificate!] = revocationStatus!;
 
                         bool alreadyPresent = false;
                         foreach (CertificateIssuerReference existing in issuers)

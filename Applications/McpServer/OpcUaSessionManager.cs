@@ -502,7 +502,7 @@ namespace Opc.Ua.Mcp
                 await DiscoverEndpointsAsync(endpointUrl, ct).ConfigureAwait(false);
 
             IEnumerable<EndpointDescription> candidates = allEndpoints.ToArray() ??
-                Array.Empty<EndpointDescription>();
+                [];
 
             // Filter to match the same transport scheme as the requested URL
             var requestUri = new Uri(endpointUrl);
@@ -527,7 +527,7 @@ namespace Opc.Ua.Mcp
             // Filter by auth compatibility
             UserTokenType requiredTokenType = ParseAuthTokenType(authType);
             candidates = candidates.Where(ep =>
-                (ep.UserIdentityTokens.ToArray() ?? Array.Empty<UserTokenPolicy>())
+                (ep.UserIdentityTokens.ToArray() ?? [])
                     .Any(t => t.TokenType == requiredTokenType));
 
             EndpointDescription? selected = candidates

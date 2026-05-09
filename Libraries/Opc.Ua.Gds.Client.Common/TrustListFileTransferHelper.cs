@@ -87,7 +87,7 @@ namespace Opc.Ua.Gds.Client
                 {
                     ByteString chunk = await file.ReadAsync(fileHandle, chunkSize, ct)
                         .ConfigureAwait(false);
-                    byte[] bytes = chunk.ToArray() ?? Array.Empty<byte>();
+                    byte[] bytes = chunk.ToArray() ?? [];
 
                     totalBytesRead += bytes.Length;
                     if (totalBytesRead > maxTrustListSize)

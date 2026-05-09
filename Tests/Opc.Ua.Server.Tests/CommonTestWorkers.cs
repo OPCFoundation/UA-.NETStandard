@@ -249,7 +249,7 @@ namespace Opc.Ua.Server.Tests
                         requestHeader,
                         null,
                         0,
-                        ArrayOf<BrowseDescription>.Empty).ConfigureAwait(false));
+                        []).ConfigureAwait(false));
                 Assert.That(sre.StatusCode, Is.EqualTo(StatusCodes.BadNothingToDo));
             }
 

@@ -194,7 +194,7 @@ namespace Opc.Ua.Mcp.Tools
                         }
                         return !string.Equals(nsUri, Namespaces.OpcUa, StringComparison.OrdinalIgnoreCase);
                     })
-                    .ToDictionary(g => g.Key, g => (IList<INode>)g.ToList());
+                    .ToDictionary(g => g.Key, g => (IList<INode>)[.. g]);
 
                 var exportedFiles = new List<Dictionary<string, object?>>();
 
@@ -308,7 +308,7 @@ namespace Opc.Ua.Mcp.Tools
                 nodesToBrowse = nextNodesToBrowse.ToArray();
             }
 
-            return nodeDictionary.Values.ToList();
+            return [.. nodeDictionary.Values];
         }
 
         /// <summary>

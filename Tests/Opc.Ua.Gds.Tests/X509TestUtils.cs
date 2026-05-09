@@ -144,17 +144,15 @@ namespace Opc.Ua.Gds.Tests
                     }
                 }
 
-                using (CertificateManager secondManager = CertificateManagerFactory.Create(
-                    pkiConfig, telemetry))
-                {
-                    CertificateValidationResult secondResult = await secondManager
-                        .ValidateAsync(newCert, ct: CancellationToken.None)
-                        .ConfigureAwait(false);
-                    Assert.That(
-                        secondResult.IsValid,
-                        Is.True,
-                        secondResult.StatusCode.ToString());
-                }
+                using CertificateManager secondManager = CertificateManagerFactory.Create(
+                    pkiConfig, telemetry);
+                CertificateValidationResult secondResult = await secondManager
+                    .ValidateAsync(newCert, ct: CancellationToken.None)
+                    .ConfigureAwait(false);
+                Assert.That(
+                    secondResult.IsValid,
+                    Is.True,
+                    secondResult.StatusCode.ToString());
             }
             finally
             {

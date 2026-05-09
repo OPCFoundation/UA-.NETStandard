@@ -56,25 +56,16 @@ namespace Opc.Ua.Server
             if (disposing)
             {
                 // halt any outstanding timer.
-                if (m_registrationTimer != null)
-                {
-                    m_registrationTimer.Dispose();
-                    m_registrationTimer = null;
-                }
+                m_registrationTimer?.Dispose();
+                m_registrationTimer = null;
 
                 // close the watcher.
-                if (m_configurationWatcher != null)
-                {
-                    m_configurationWatcher.Dispose();
-                    m_configurationWatcher = null;
-                }
+                m_configurationWatcher?.Dispose();
+                m_configurationWatcher = null;
 
                 // close the server.
-                if (m_serverInternal != null)
-                {
-                    m_serverInternal.Dispose();
-                    m_serverInternal = null;
-                }
+                m_serverInternal?.Dispose();
+                m_serverInternal = null;
 
                 m_certManagerSubscription?.Dispose();
 

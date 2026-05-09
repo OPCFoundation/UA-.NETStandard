@@ -540,7 +540,7 @@ namespace Opc.Ua.Client.Subscriptions
                     {
                         SequenceNumber = 1u
                     },
-                    Results = ArrayOf<StatusCode>.Empty,
+                    Results = [],
                     SubscriptionId = 1,
                     MoreNotifications = false,
                     ResponseHeader = new ResponseHeader

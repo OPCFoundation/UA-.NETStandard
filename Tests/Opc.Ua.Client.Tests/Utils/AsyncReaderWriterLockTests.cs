@@ -226,11 +226,10 @@ namespace Opc.Ua.Client.Tests.AsyncPrimitives
                 // hold and release
             }
 
-            using (AsyncReaderWriterLock.Releaser w2 =
-                await rwLock.WriterLockAsync(ct).ConfigureAwait(false))
-            {
-                // would deadlock if the previous writer leaked.
-            }
+            using AsyncReaderWriterLock.Releaser w2 =
+                await rwLock.WriterLockAsync(ct).ConfigureAwait(false);
+
+            // would deadlock if the previous writer leaked.
         }
 
         [Test]

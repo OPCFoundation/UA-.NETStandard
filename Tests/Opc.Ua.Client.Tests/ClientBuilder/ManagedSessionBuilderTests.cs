@@ -75,7 +75,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             Assert.That(opts.SessionTimeout, Is.EqualTo(TimeSpan.FromSeconds(30)));
             // CA1861: literal array in a test assertion — readability beats hoisting to a field.
 #pragma warning disable CA1861
-            Assert.That(opts.PreferredLocales, Is.EquivalentTo(new[] { "en-US", "de-DE" }));
+            Assert.That(opts.PreferredLocales, Is.EquivalentTo(["en-US", "de-DE"]));
 #pragma warning restore CA1861
             Assert.That(opts.CheckDomain, Is.True);
             Assert.That(opts.ReconnectPolicy.Strategy, Is.EqualTo(BackoffStrategy.Linear));

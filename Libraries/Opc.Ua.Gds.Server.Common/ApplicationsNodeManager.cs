@@ -1877,10 +1877,7 @@ namespace Opc.Ua.Gds.Server
                 // Read back the NodeId assigned by Create (assignNodeIds: true reassigns the root id).
                 certificateGroup.Id = customGroupNode.NodeId;
 
-                if (customGroupNode.CertificateTypes != null)
-                {
-                    customGroupNode.CertificateTypes.Value = [.. certificateGroup.CertificateTypes];
-                }
+                customGroupNode.CertificateTypes?.Value = [.. certificateGroup.CertificateTypes];
 
                 certGroupsFolder.AddChild(customGroupNode);
                 AddPredefinedNode(SystemContext, customGroupNode);

@@ -62,7 +62,7 @@ namespace Opc.Ua.Mcp.Tools
                     await sessionManager.DiscoverEndpointsAsync(endpointUrl, ct).ConfigureAwait(false);
 
                 List<Dictionary<string, object?>> results =
-                    [.. (endpoints.ToArray() ?? Array.Empty<EndpointDescription>()).Select(ep =>
+                    [.. (endpoints.ToArray() ?? []).Select(ep =>
                     new Dictionary<string, object?>
                     {
                         ["endpointUrl"] = ep.EndpointUrl,
@@ -71,7 +71,7 @@ namespace Opc.Ua.Mcp.Tools
                         ["transportProfileUri"] = ep.TransportProfileUri,
                         ["securityLevel"] = ep.SecurityLevel,
                         ["userIdentityTokens"] =
-                            (ep.UserIdentityTokens.ToArray() ?? Array.Empty<UserTokenPolicy>())
+                            (ep.UserIdentityTokens.ToArray() ?? [])
                             .Select(t => new Dictionary<string, object?>
                             {
                                 ["tokenType"] = t.TokenType.ToString(),

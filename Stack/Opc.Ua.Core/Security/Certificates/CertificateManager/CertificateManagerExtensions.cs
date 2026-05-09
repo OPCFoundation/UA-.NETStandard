@@ -179,7 +179,7 @@ namespace Opc.Ua
                 }
             }
 
-            return new CertificateCollection { certificate };
+            return [certificate];
         }
     }
 }

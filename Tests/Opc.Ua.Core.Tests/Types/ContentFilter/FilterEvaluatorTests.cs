@@ -193,7 +193,7 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
             {
                 FilterOperator = FilterOperator.Not
             };
-            notElement.SetOperands(new FilterOperand[] { new ElementOperand(1) });
+            notElement.SetOperands([new ElementOperand(1)]);
 
             var filter = new Ua.ContentFilter
             {
@@ -211,7 +211,7 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
             {
                 FilterOperator = FilterOperator.Not
             };
-            notElement.SetOperands(new FilterOperand[] { new ElementOperand(1) });
+            notElement.SetOperands([new ElementOperand(1)]);
 
             var filter = new Ua.ContentFilter
             {
@@ -230,7 +230,7 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
             {
                 FilterOperator = FilterOperator.And
             };
-            andElement.SetOperands(new FilterOperand[] { new ElementOperand(1), new ElementOperand(2) });
+            andElement.SetOperands([new ElementOperand(1), new ElementOperand(2)]);
 
             var filter = new Ua.ContentFilter
             {
@@ -249,7 +249,7 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
             {
                 FilterOperator = FilterOperator.And
             };
-            andElement.SetOperands(new FilterOperand[] { new ElementOperand(1), new ElementOperand(2) });
+            andElement.SetOperands([new ElementOperand(1), new ElementOperand(2)]);
 
             var filter = new Ua.ContentFilter
             {
@@ -268,7 +268,7 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
             {
                 FilterOperator = FilterOperator.Or
             };
-            orElement.SetOperands(new FilterOperand[] { new ElementOperand(1), new ElementOperand(2) });
+            orElement.SetOperands([new ElementOperand(1), new ElementOperand(2)]);
 
             var filter = new Ua.ContentFilter
             {
@@ -287,7 +287,7 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
             {
                 FilterOperator = FilterOperator.Or
             };
-            orElement.SetOperands(new FilterOperand[] { new ElementOperand(1), new ElementOperand(2) });
+            orElement.SetOperands([new ElementOperand(1), new ElementOperand(2)]);
 
             var filter = new Ua.ContentFilter
             {
@@ -504,7 +504,7 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
             var operand = new SimpleAttributeOperand(ObjectTypeIds.BaseEventType, new QualifiedName("Severity"));
 
             var element = new ContentFilterElement { FilterOperator = FilterOperator.Equals };
-            element.SetOperands(new FilterOperand[] { operand, new LiteralOperand(Variant.From(42)) });
+            element.SetOperands([operand, new LiteralOperand(Variant.From(42))]);
 
             var filter = new Ua.ContentFilter
             {
@@ -600,21 +600,21 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
         private static ContentFilterElement BuildBinaryElement(FilterOperator op, Variant left, Variant right)
         {
             var element = new ContentFilterElement { FilterOperator = op };
-            element.SetOperands(new FilterOperand[]
-            {
+            element.SetOperands(
+            [
                 new LiteralOperand(left),
                 new LiteralOperand(right)
-            });
+            ]);
             return element;
         }
 
         private static Ua.ContentFilter BuildUnaryFilter(FilterOperator op, Variant operand)
         {
             var element = new ContentFilterElement { FilterOperator = op };
-            element.SetOperands(new FilterOperand[]
-            {
+            element.SetOperands(
+            [
                 new LiteralOperand(operand)
-            });
+            ]);
             return new Ua.ContentFilter
             {
                 Elements = [element]

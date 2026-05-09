@@ -768,7 +768,7 @@ namespace Opc.Ua
             }
 
             bytes.Reverse();
-            return new BigInteger(bytes.ToArray());
+            return new BigInteger([.. bytes]);
         }
     }
 }

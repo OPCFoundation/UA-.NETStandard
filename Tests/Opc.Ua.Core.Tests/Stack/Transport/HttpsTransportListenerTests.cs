@@ -325,7 +325,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             var callback = new Mock<ITransportListenerCallback>();
             var settings = new TransportListenerSettings
             {
-                Descriptions = new List<EndpointDescription>(),
+                Descriptions = [],
                 Configuration = EndpointConfiguration.Create(),
                 ServerCertificates = null,
                 CertificateValidator = new Mock<ICertificateValidatorEx>().Object,
@@ -349,7 +349,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             var callback = new Mock<ITransportListenerCallback>();
             var settings = new TransportListenerSettings
             {
-                Descriptions = new List<EndpointDescription>(),
+                Descriptions = [],
                 Configuration = EndpointConfiguration.Create(),
                 ServerCertificates = null,
                 CertificateValidator = new Mock<ICertificateValidatorEx>().Object,
@@ -422,7 +422,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             context.Request.Method = "POST";
             context.Request.ContentType = "application/octet-stream";
             context.Request.ContentLength = 100;
-            context.Request.Body = new MemoryStream(new byte[] { 0x01, 0x02 });
+            context.Request.Body = new MemoryStream([0x01, 0x02]);
             context.Response.Body = new MemoryStream();
 
             await listener.SendAsync(context).ConfigureAwait(false);
@@ -442,7 +442,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             context.Request.Method = "POST";
             context.Request.ContentType = "application/octet-stream";
             context.Request.ContentLength = 4;
-            context.Request.Body = new MemoryStream(new byte[] { 0x01, 0x02, 0x03, 0x04 });
+            context.Request.Body = new MemoryStream([0x01, 0x02, 0x03, 0x04]);
             context.Response.Body = new MemoryStream();
 
             await listener.SendAsync(context).ConfigureAwait(false);
@@ -479,7 +479,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             var callback = new Mock<ITransportListenerCallback>();
             var settings = new TransportListenerSettings
             {
-                Descriptions = new List<EndpointDescription>(),
+                Descriptions = [],
                 Configuration = EndpointConfiguration.Create(),
                 ServerCertificates = null,
                 CertificateValidator = new Mock<ICertificateValidatorEx>().Object,

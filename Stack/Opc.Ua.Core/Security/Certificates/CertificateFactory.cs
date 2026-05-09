@@ -134,7 +134,7 @@ namespace Opc.Ua
 
             return CertificateBuilder
                 .Create(subjectName)
-                .AddExtension(new X509SubjectAltNameExtension(applicationUri, domainNames.ToArray() ?? Array.Empty<string>()));
+                .AddExtension(new X509SubjectAltNameExtension(applicationUri, domainNames.ToArray() ?? []));
         }
 
         /// <summary>
