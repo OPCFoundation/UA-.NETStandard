@@ -211,8 +211,7 @@ namespace System.Threading.Channels
             {
                 lock (m_channel.m_lock)
                 {
-                    if (m_channel.m_heap.Count > 0 &&
-                        m_channel.m_semaphore.Wait(0))
+                    if (m_channel.m_heap.Count > 0)
                     {
                         item = m_channel.HeapPop();
                         return true;
