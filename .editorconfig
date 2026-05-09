@@ -422,6 +422,8 @@ dotnet_diagnostic.IDE0046.severity                                            = 
 dotnet_diagnostic.IDE0130.severity                                            = none
 # IDE0032: Use auto property
 dotnet_diagnostic.IDE0032.severity                                            = suggestion
+# IDE0360: Use primary constructor — explicitly disabled (project policy: no primary constructors)
+dotnet_diagnostic.IDE0360.severity                                            = none
 
 #
 # Introduced in .net 10 as part of all analysis configuration
