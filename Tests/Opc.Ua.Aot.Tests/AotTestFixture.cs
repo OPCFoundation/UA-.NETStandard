@@ -172,7 +172,7 @@ namespace Opc.Ua.Aot.Tests
                 Session.DeleteSubscriptionsOnClose = true;
                 await Session.CloseAsync(CancellationToken.None)
                     .ConfigureAwait(false);
-                Session.Dispose();
+                await Session.DisposeAsync().ConfigureAwait(false);
                 Session = null;
             }
 
@@ -204,6 +204,7 @@ namespace Opc.Ua.Aot.Tests
                     }
                 }
             }
+            GC.SuppressFinalize(this);
         }
     }
 }

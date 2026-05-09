@@ -245,6 +245,7 @@ namespace Opc.Ua.Aot.Tests
 
             CleanDirectory(m_pkiRoot);
             CleanDirectory(m_gdsRoot);
+            GC.SuppressFinalize(this);
         }
 
         [UnconditionalSuppressMessage("AOT",

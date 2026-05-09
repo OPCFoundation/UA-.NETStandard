@@ -262,6 +262,7 @@ namespace Opc.Ua.Client.Subscriptions
             {
                 m_cts.Dispose();
                 (m_acks as IDisposable)?.Dispose();
+                GC.SuppressFinalize(this);
             }
         }
 
@@ -672,6 +673,7 @@ namespace Opc.Ua.Client.Subscriptions
                 finally
                 {
                     m_cts.Dispose();
+                    GC.SuppressFinalize(this);
                 }
             }
 

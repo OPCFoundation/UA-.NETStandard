@@ -66,6 +66,7 @@ namespace Quickstarts
             {
                 await session.DisposeAsync().ConfigureAwait(false);
             }
+            GC.SuppressFinalize(this);
         }
 
         /// <summary>

@@ -222,6 +222,7 @@ namespace Opc.Ua
                 leftover.Chain?.Dispose();
                 leftover.Completion.TrySetResult(false);
             }
+            GC.SuppressFinalize(this);
         }
 
         private static TaskCompletionSource<bool> CreateCompletedTcs()

@@ -272,7 +272,7 @@ namespace Opc.Ua.Aot.Tests
             {
                 await Session.CloseAsync(CancellationToken.None)
                     .ConfigureAwait(false);
-                Session.Dispose();
+                await Session.DisposeAsync().ConfigureAwait(false);
                 Session = null;
             }
             if (m_clientConfiguration?.CertificateManager is IDisposable disposableManager)
@@ -285,6 +285,7 @@ namespace Opc.Ua.Aot.Tests
                 await ServerFixture.StopAsync().ConfigureAwait(false);
                 ServerFixture = null;
             }
+            GC.SuppressFinalize(this);
         }
     }
 
