@@ -103,7 +103,7 @@ namespace Opc.Ua.Security.Certificates
             {
                 string[] applicationUris = applicationUri != null
                     ? [applicationUri]
-                    : Array.Empty<string>();
+                    : [];
                 builder.AddExtension(
                     new X509SubjectAltNameExtension(
                         applicationUris,

@@ -33,7 +33,6 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Xml;
-using Microsoft.Extensions.Logging;
 using Opc.Ua.Schema.Model;
 using Opc.Ua.Types;
 

@@ -613,10 +613,10 @@ namespace Opc.Ua
         /// <exception cref="NotSupportedException"></exception>
         public static RSADiffieHellman Create(RSADiffieHellmanGroup group)
         {
-            int min = 0;
-            int max = 0;
             BigInteger p;
 
+            int min;
+            int max;
             switch (group)
             {
                 case RSADiffieHellmanGroup.FFDHE2048:

@@ -2053,9 +2053,9 @@ namespace Opc.Ua.Schema.Model
             EncodingType encodingType,
             List<NodeDesign> nodesToAdd)
         {
-            DictionaryDesign dictionary = null;
             var descriptions = new List<InstanceDesign>();
 
+            DictionaryDesign dictionary;
             {
                 dictionary = new DictionaryDesign();
 

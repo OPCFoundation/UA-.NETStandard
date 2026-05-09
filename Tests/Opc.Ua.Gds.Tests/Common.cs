@@ -424,8 +424,8 @@ namespace Opc.Ua.Gds.Tests
         {
             GlobalDiscoveryTestServer server = null;
             int testPort = ServerFixtureUtils.GetNextFreeIPPort();
-            bool retryStartServer = false;
             int serverStartRetries = 25;
+            bool retryStartServer;
             do
             {
                 retryStartServer = false;

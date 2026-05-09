@@ -4825,7 +4825,11 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
+            // CS0121 / IDE0301: '[]' would be ambiguous between BinaryDecoder(byte[],..) and
+            // BinaryDecoder(ArraySegment<byte>,..). Use Array.Empty<byte>() to disambiguate.
+#pragma warning disable IDE0301
             using var decoder = new BinaryDecoder(Array.Empty<byte>(), messageContext);
+#pragma warning restore IDE0301
 
             // Act and Assert
             ServiceResultException ex = Assert.Throws<ServiceResultException>(

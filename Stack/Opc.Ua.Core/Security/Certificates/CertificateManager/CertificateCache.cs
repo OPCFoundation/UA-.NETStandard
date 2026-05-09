@@ -31,7 +31,6 @@
 
 using System;
 using System.Diagnostics.Metrics;
-using Microsoft.Extensions.Logging;
 using Opc.Ua.Security.Certificates;
 
 #if NET6_0_OR_GREATER

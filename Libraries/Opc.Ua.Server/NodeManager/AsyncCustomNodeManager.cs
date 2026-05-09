@@ -1430,7 +1430,6 @@ namespace Opc.Ua.Server
 
             // release the continuation point if all done.
             continuationPoint.Dispose();
-            continuationPoint = null;
 
             return null;
         }

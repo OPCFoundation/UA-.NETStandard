@@ -262,7 +262,6 @@ namespace Opc.Ua.Client.Tests
                 .ConfigureAwait(false);
             Assert.That(referenceDescriptions.IsNull, Is.False);
 
-
             // close session
             _ = await session.CloseAsync().ConfigureAwait(false);
             session.Dispose();
@@ -328,7 +327,6 @@ namespace Opc.Ua.Client.Tests
                     requestHeader)
                 .ConfigureAwait(false);
             Assert.That(referenceDescriptions.IsNull, Is.False);
-
 
             // close session
             _ = await session.CloseAsync().ConfigureAwait(false);

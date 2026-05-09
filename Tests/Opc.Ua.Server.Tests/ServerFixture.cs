@@ -306,7 +306,6 @@ namespace Opc.Ua.Server.Tests
         /// </summary>
         public async Task<T> StartAsync(string pkiRoot, int port = 0)
         {
-            bool retryStartServer = false;
             int testPort = port;
             int serverStartRetries = 1;
 
@@ -321,6 +320,7 @@ namespace Opc.Ua.Server.Tests
                 serverStartRetries = 25;
             }
 
+            bool retryStartServer;
             do
             {
                 retryStartServer = false;

@@ -225,7 +225,6 @@ namespace Opc.Ua.Server.Tests
                 ServiceResult.Good
             };
 
-
             List<StatusCode> result =
                 ServerUtils.CreateStatusCodeCollection(context, errors, out _, m_logger);
 
@@ -243,7 +242,6 @@ namespace Opc.Ua.Server.Tests
                 ServiceResult.Good,
                 new(StatusCodes.BadNodeIdInvalid)
             };
-
 
             List<StatusCode> result =
                 ServerUtils.CreateStatusCodeCollection(context, errors, out _, m_logger);

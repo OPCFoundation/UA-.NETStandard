@@ -173,8 +173,8 @@ namespace Opc.Ua.Client.Tests
         public async Task StartReverseConnectHostAsync()
         {
             int testPort = ServerFixtureUtils.GetNextFreeIPPort();
-            bool retryStartServer = false;
             int serverStartRetries = 25;
+            bool retryStartServer;
             do
             {
                 retryStartServer = false;

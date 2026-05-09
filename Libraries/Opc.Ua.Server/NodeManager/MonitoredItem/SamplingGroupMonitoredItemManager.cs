@@ -283,7 +283,7 @@ namespace Opc.Ua.Server
             IEventMonitoredItem monitoredItem,
             bool unsubscribe)
         {
-            MonitoredNode2 monitoredNode = null;
+            MonitoredNode2 monitoredNode;
             // handle unsubscribe.
             if (unsubscribe)
             {

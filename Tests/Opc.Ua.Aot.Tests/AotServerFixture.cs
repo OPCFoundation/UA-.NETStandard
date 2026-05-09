@@ -119,7 +119,6 @@ namespace Opc.Ua.Aot.Tests
 
         public async Task<T> StartAsync(int port = 0)
         {
-            bool retryStartServer = false;
             int testPort = port;
             int serverStartRetries = 1;
 
@@ -134,6 +133,7 @@ namespace Opc.Ua.Aot.Tests
                 serverStartRetries = 25;
             }
 
+            bool retryStartServer;
             do
             {
                 try
