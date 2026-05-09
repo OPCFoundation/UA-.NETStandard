@@ -227,6 +227,35 @@ namespace Opc.Ua.Types.Polyfills.Tests
 
             Assert.That(results, Is.EqualTo([1, 2, 3]));
         }
+
+        /// <summary>
+        /// Regression test: when the reader awaits WaitToReadAsync before any
+        /// item is written, the await consumes a semaphore permit. A
+        /// subsequent TryRead must still return the item — it must not gate
+        /// itself on a second permit.
+        /// </summary>
+        [Test]
+        public async Task ReaderAwaitsBeforeWriteThenReadsItem()
+        {
+            Channel<int> channel = CreateChannel();
+
+            // Start the reader before any item is written so WaitToReadAsync
+            // is forced to await on the internal signaling semaphore.
+            ValueTask<bool> waitTask = channel.Reader.WaitToReadAsync();
+
+            // Now write — this should signal the awaiting reader.
+            Assert.That(channel.Writer.TryWrite(7), Is.True);
+
+            bool canRead = await waitTask.AsTask()
+                .WaitAsync(TimeSpan.FromSeconds(5))
+                .ConfigureAwait(false);
+            Assert.That(canRead, Is.True);
+
+            // The TryRead must succeed even though WaitToReadAsync already
+            // consumed the underlying signal.
+            Assert.That(channel.Reader.TryRead(out int item), Is.True);
+            Assert.That(item, Is.EqualTo(7));
+        }
     }
 }
 #endif
