@@ -54,7 +54,6 @@ namespace Opc.Ua
             m_filter = filter;
             m_context = context;
             m_target = target;
-            m_logger = context.Telemetry.CreateLogger<FilterEvaluator>();
         }
 
         /// <summary>
@@ -836,7 +835,6 @@ namespace Opc.Ua
         private readonly ContentFilter m_filter;
         private readonly IFilterContext m_context;
         private readonly IFilterTarget m_target;
-        private readonly ILogger m_logger;
     }
 
     /// <summary>

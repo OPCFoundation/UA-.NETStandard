@@ -48,7 +48,6 @@ namespace Opc.Ua.SourceGeneration
         {
             m_context = context ?? throw new ArgumentNullException(nameof(context));
             m_messageContext = ServiceMessageContext.CreateEmpty(context.Telemetry);
-            m_logger = context.Telemetry.CreateLogger<DataTypeGenerator>();
         }
 
         /// <inheritdoc/>
@@ -1410,6 +1409,5 @@ namespace Opc.Ua.SourceGeneration
         private readonly Dictionary<string, Resource> m_initializers = [];
         private readonly IServiceMessageContext m_messageContext;
         private readonly IGeneratorContext m_context;
-        private readonly ILogger m_logger;
     }
 }

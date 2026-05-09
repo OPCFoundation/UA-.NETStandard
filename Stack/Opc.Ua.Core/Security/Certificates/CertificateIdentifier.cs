@@ -134,67 +134,6 @@ namespace Opc.Ua
         public CertificateValidationOptions ValidationOptions { get; set; }
 
         /// <summary>
-        /// Returns a display name for a certificate.
-        /// </summary>
-        /// <param name="certificate">The certificate.</param>
-        /// <returns>
-        /// A string containg FriendlyName of the <see cref="Certificate"/> or created using Subject of
-        /// the <see cref="Certificate"/>.
-        /// </returns>
-        private static string GetDisplayName(Certificate certificate)
-        {
-            if (!string.IsNullOrEmpty(certificate.FriendlyName))
-            {
-                return certificate.FriendlyName;
-            }
-
-            string name = certificate.Subject;
-
-            // find the common name delimiter.
-            int index = name.IndexOf("CN", StringComparison.Ordinal);
-
-            if (index == -1)
-            {
-                return name;
-            }
-
-            var buffer = new StringBuilder(name.Length);
-
-            // skip characters until finding the '=' character
-            for (int ii = index + 2; ii < name.Length; ii++)
-            {
-                if (name[ii] == '=')
-                {
-                    index = ii + 1;
-                    break;
-                }
-            }
-
-            // skip whitespace.
-            for (int ii = index; ii < name.Length; ii++)
-            {
-                if (!char.IsWhiteSpace(name[ii]))
-                {
-                    index = ii;
-                    break;
-                }
-            }
-
-            // read the common until finding a ','.
-            for (int ii = index; ii < name.Length; ii++)
-            {
-                if (name[ii] == ',')
-                {
-                    break;
-                }
-
-                buffer.Append(name[ii]);
-            }
-
-            return buffer.ToString();
-        }
-
-        /// <summary>
         /// Picks the best certificate from the collection.
         /// Does not ignore expired certificates nor not-yet-valid certificates.
         /// Selection criteria in order of priority:
@@ -779,8 +718,8 @@ namespace Opc.Ua
         /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         public CertificateIdentifierCollectionStore(ITelemetryContext telemetry)
         {
+            _ = telemetry;
             m_certificates = [];
-            m_telemetry = telemetry;
         }
 
         /// <summary>
@@ -973,7 +912,6 @@ namespace Opc.Ua
         }
 
         private readonly CertificateCollection m_certificates;
-        private readonly ITelemetryContext m_telemetry;
     }
 
     /// <summary>

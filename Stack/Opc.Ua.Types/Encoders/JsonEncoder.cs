@@ -2317,7 +2317,14 @@ namespace Opc.Ua
         private readonly ILogger m_logger;
         private readonly JsonEncoderOptions m_options;
         private readonly Utf8JsonWriter m_writer;
+        // IDE0052: namespace/server mappings are captured by SetMappingTables (IEncoder
+        // contract) but the JSON encoder does not yet apply them when writing index values.
+        // Kept for future use; suppressed via [SuppressMessage] in case the analyzer escalates.
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Style", "IDE0052",
+            Justification = "Future use - tracked by SetMappingTables; encoder does not yet remap on write.")]
         private ushort[]? m_namespaceMappings;
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Style", "IDE0052",
+            Justification = "Future use - tracked by SetMappingTables; encoder does not yet remap on write.")]
         private ushort[]? m_serverMappings;
         private bool m_disposed;
     }

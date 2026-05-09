@@ -52,7 +52,6 @@ namespace Opc.Ua
         private const int kDefaultPublicKeyCacheCapacity = 256;
         private const int kDefaultPrivateKeyCacheCapacity = 64;
 
-        private readonly ILogger<CertificateCache>? m_logger;
         private readonly Meter? m_meter;
 
 #if NET6_0_OR_GREATER
@@ -73,7 +72,6 @@ namespace Opc.Ua
             int privateKeyCacheCapacity = kDefaultPrivateKeyCacheCapacity,
             TimeSpan? privateKeyTtl = null)
         {
-            m_logger = telemetry?.CreateLogger<CertificateCache>();
             m_meter = telemetry?.CreateMeter();
 
             privateKeyTtl ??= s_defaultPrivateKeyTtl;
@@ -215,7 +213,9 @@ namespace Opc.Ua
             int privateKeyCacheCapacity = kDefaultPrivateKeyCacheCapacity,
             TimeSpan? privateKeyTtl = null)
         {
-            m_logger = telemetry?.CreateLogger<CertificateCache>();
+            _ = publicKeyCacheCapacity;
+            _ = privateKeyCacheCapacity;
+            _ = privateKeyTtl;
             m_meter = telemetry?.CreateMeter();
         }
 
