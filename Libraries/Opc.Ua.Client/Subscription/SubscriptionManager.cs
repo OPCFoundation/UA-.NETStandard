@@ -92,10 +92,47 @@ namespace Opc.Ua.Client.Subscriptions
         public DiagnosticsMasks ReturnDiagnostics { get; set; }
 
         /// <inheritdoc/>
-        public int MinPublishWorkerCount { get; set; } = 2;
+        /// <remarks>
+        /// Setting this property signals the publish controller so the worker
+        /// pool resizes promptly — without the signal, the controller stays
+        /// parked on <see cref="m_publishControl"/> and the change does not
+        /// take effect until some other event (subscription add/remove,
+        /// pause/resume, worker exit) wakes it.
+        /// </remarks>
+        public int MinPublishWorkerCount
+        {
+            get => m_minPublishWorkerCount;
+            set
+            {
+                if (m_minPublishWorkerCount == value)
+                {
+                    return;
+                }
+                m_minPublishWorkerCount = value;
+                m_publishControl.Set();
+            }
+        }
+        private int m_minPublishWorkerCount = 2;
 
         /// <inheritdoc/>
-        public int MaxPublishWorkerCount { get; set; } = 15;
+        /// <remarks>
+        /// Setting this property signals the publish controller so the worker
+        /// pool resizes promptly. See <see cref="MinPublishWorkerCount"/>.
+        /// </remarks>
+        public int MaxPublishWorkerCount
+        {
+            get => m_maxPublishWorkerCount;
+            set
+            {
+                if (m_maxPublishWorkerCount == value)
+                {
+                    return;
+                }
+                m_maxPublishWorkerCount = value;
+                m_publishControl.Set();
+            }
+        }
+        private int m_maxPublishWorkerCount = 15;
 
         /// <inheritdoc/>
         public IEnumerable<ISubscription> Items
@@ -126,6 +163,40 @@ namespace Opc.Ua.Client.Subscriptions
 
         /// <inheritdoc/>
         public int BadPublishRequestCount => m_badPublishRequestCount;
+
+        /// <inheritdoc/>
+        public long MissingMessageCount
+        {
+            get
+            {
+                long total = 0;
+                lock (m_subscriptionLock)
+                {
+                    foreach (IManagedSubscription s in m_subscriptions)
+                    {
+                        total += s.MissingMessageCount;
+                    }
+                }
+                return total;
+            }
+        }
+
+        /// <inheritdoc/>
+        public long RepublishMessageCount
+        {
+            get
+            {
+                long total = 0;
+                lock (m_subscriptionLock)
+                {
+                    foreach (IManagedSubscription s in m_subscriptions)
+                    {
+                        total += s.RepublishMessageCount;
+                    }
+                }
+                return total;
+            }
+        }
 
         /// <inheritdoc/>
         public int PublishWorkerCount { get; private set; }
