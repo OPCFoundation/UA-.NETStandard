@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 using NUnit.Framework;
 
 namespace Opc.Ua.Security.Certificates.Tests
@@ -152,7 +151,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             byte[] pemBlob = PEMWriter.ExportPrivateKeyAsPEM(certWithKey);
 
             // Create a public-only cert from raw data
-            using Certificate publicOnly = Certificate.FromRawData(certWithKey.RawData);
+            using var publicOnly = Certificate.FromRawData(certWithKey.RawData);
             Assert.That(publicOnly.HasPrivateKey, Is.False);
 
             using Certificate result = factory.CreateWithPEMPrivateKey(publicOnly, pemBlob);
@@ -171,7 +170,7 @@ namespace Opc.Ua.Security.Certificates.Tests
                 .CreateForRSA();
 
             // Create a public-only cert from raw data
-            using Certificate publicOnly = Certificate.FromRawData(certWithKey.RawData);
+            using var publicOnly = Certificate.FromRawData(certWithKey.RawData);
             Assert.That(publicOnly.HasPrivateKey, Is.False);
 
             using Certificate result = factory.CreateWithPrivateKey(publicOnly, certWithKey);

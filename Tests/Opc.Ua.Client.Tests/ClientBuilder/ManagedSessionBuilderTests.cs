@@ -55,7 +55,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             {
                 EndpointUrl = "opc.tcp://localhost:4840"
             });
-            var builder = new ManagedSessionBuilder(CreateConfig(telemetry), telemetry)
+            ManagedSessionBuilder builder = new ManagedSessionBuilder(CreateConfig(telemetry), telemetry)
                 .UseEndpoint(endpoint)
                 .WithSessionName("Custom")
                 .WithSessionTimeout(TimeSpan.FromSeconds(30))

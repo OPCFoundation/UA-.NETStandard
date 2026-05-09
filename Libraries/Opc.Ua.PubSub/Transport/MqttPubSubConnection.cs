@@ -966,7 +966,7 @@ namespace Opc.Ua.PubSub.Transport
         /// <exception cref="ServiceResultException"></exception>
         private bool ValidateBrokerCertificate(MqttClientCertificateValidationEventArgs context)
         {
-            using Certificate brokerCertificate = Certificate.FromRawData(
+            using var brokerCertificate = Certificate.FromRawData(
                 context.Certificate.GetRawCertData());
 
             try

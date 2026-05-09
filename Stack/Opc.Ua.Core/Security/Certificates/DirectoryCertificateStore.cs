@@ -605,8 +605,8 @@ namespace Opc.Ua
             char[]? password,
             CancellationToken ct = default)
         {
-            var privateKeySubdir = m_privateKeySubdir;
-            var certificateSubdir = m_certificateSubdir;
+            DirectoryInfo? privateKeySubdir = m_privateKeySubdir;
+            DirectoryInfo? certificateSubdir = m_certificateSubdir;
             if (NoPrivateKeys ||
                 privateKeySubdir == null ||
                 certificateSubdir == null ||
@@ -917,7 +917,7 @@ namespace Opc.Ua
             }
 
             // check for CRL.
-            var crlSubdir = m_crlSubdir;
+            DirectoryInfo? crlSubdir = m_crlSubdir;
             if (crlSubdir is { Exists: true })
             {
                 bool crlExpired = true;
@@ -982,7 +982,7 @@ namespace Opc.Ua
             var crls = new X509CRLCollection();
 
             // check for CRL.
-            var crlSubdir = m_crlSubdir;
+            DirectoryInfo? crlSubdir = m_crlSubdir;
             crlSubdir?.Refresh();
             if (crlSubdir is { Exists: true })
             {
@@ -1071,7 +1071,7 @@ namespace Opc.Ua
                     "Could not find issuer of the CRL.");
             }
 
-            var crlSubdir = m_crlSubdir ?? throw new InvalidOperationException("Store is not open.");
+            DirectoryInfo crlSubdir = m_crlSubdir ?? throw new InvalidOperationException("Store is not open.");
             var builder = new StringBuilder();
             builder.Append(crlSubdir.FullName).Append(Path.DirectorySeparatorChar)
                 .Append(GetFileName(issuer))
@@ -1095,7 +1095,7 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(crl));
             }
 
-            var crlSubdir = m_crlSubdir;
+            DirectoryInfo? crlSubdir = m_crlSubdir;
             crlSubdir?.Refresh();
             if (crlSubdir is { Exists: true })
             {
@@ -1125,7 +1125,7 @@ namespace Opc.Ua
             DateTime now = DateTime.UtcNow;
 
             // refresh the directories.
-            var certSubdir = m_certificateSubdir;
+            DirectoryInfo? certSubdir = m_certificateSubdir;
             certSubdir?.Refresh();
 
             if (!NoPrivateKeys)
@@ -1396,7 +1396,7 @@ namespace Opc.Ua
             }
             else
             {
-                var certSubdir = m_certificateSubdir
+                DirectoryInfo certSubdir = m_certificateSubdir
                     ?? throw new InvalidOperationException("Store is not open.");
                 filePath.Append(certSubdir.FullName);
             }

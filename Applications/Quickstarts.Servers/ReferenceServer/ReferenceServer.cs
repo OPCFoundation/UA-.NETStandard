@@ -458,7 +458,7 @@ namespace Quickstarts.ReferenceServer
         /// <exception cref="ServiceResultException"></exception>
         private void VerifyX509IdentityToken(X509IdentityTokenHandler x509TokenHandler)
         {
-            X509IdentityToken wireToken = (X509IdentityToken)x509TokenHandler.Token;
+            var wireToken = (X509IdentityToken)x509TokenHandler.Token;
             using Certificate userCertificate = wireToken.CertificateData.IsEmpty
                 ? null
                 : Certificate.FromRawData(wireToken.CertificateData);

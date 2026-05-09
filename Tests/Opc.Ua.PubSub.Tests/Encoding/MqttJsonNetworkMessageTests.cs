@@ -254,7 +254,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.That(publisherConfiguration, Is.Not.Null, "publisherConfiguration should not be null");
 
             // Create publisher application for multiple datasets
-            using UaPubSubApplication publisherApplication = UaPubSubApplication.Create(
+            using var publisherApplication = UaPubSubApplication.Create(
                 publisherConfiguration,
                 m_messageContext.Telemetry);
             MessagesHelper.LoadData(publisherApplication, kNamespaceIndexAllTypes);
@@ -332,7 +332,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.That(subscriberConfiguration, Is.Not.Null, "subscriberConfiguration should not be null");
 
             // Create subscriber application for multiple datasets
-            using UaPubSubApplication subscriberApplication = UaPubSubApplication.Create(subscriberConfiguration, m_messageContext.Telemetry);
+            using var subscriberApplication = UaPubSubApplication.Create(subscriberConfiguration, m_messageContext.Telemetry);
             Assert.That(subscriberApplication, Is.Not.Null, "subscriberApplication should not be null");
             Assert.That(
                 subscriberApplication.PubSubConnections[0],
@@ -485,7 +485,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.That(publisherConfiguration, Is.Not.Null, "publisherConfiguration should not be null");
 
             // Create publisher application for multiple datasets
-            using UaPubSubApplication publisherApplication = UaPubSubApplication.Create(publisherConfiguration, m_messageContext.Telemetry);
+            using var publisherApplication = UaPubSubApplication.Create(publisherConfiguration, m_messageContext.Telemetry);
             MessagesHelper.LoadData(publisherApplication, kNamespaceIndexAllTypes);
 
             IUaPubSubConnection connection = publisherApplication.PubSubConnections[0];
@@ -542,7 +542,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.That(subscriberConfiguration, Is.Not.Null, "subscriberConfiguration should not be null");
 
             // Create subscriber application for multiple datasets
-            using UaPubSubApplication subscriberApplication = UaPubSubApplication.Create(subscriberConfiguration, m_messageContext.Telemetry);
+            using var subscriberApplication = UaPubSubApplication.Create(subscriberConfiguration, m_messageContext.Telemetry);
             Assert.That(subscriberApplication, Is.Not.Null, "subscriberApplication should not be null");
             Assert.That(
                 subscriberApplication.PubSubConnections[0],
@@ -693,7 +693,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.That(publisherConfiguration, Is.Not.Null, "publisherConfiguration should not be null");
 
             // Create publisher application for multiple datasets
-            using UaPubSubApplication publisherApplication = UaPubSubApplication.Create(publisherConfiguration, m_messageContext.Telemetry);
+            using var publisherApplication = UaPubSubApplication.Create(publisherConfiguration, m_messageContext.Telemetry);
             MessagesHelper.LoadData(publisherApplication, kNamespaceIndexAllTypes);
 
             IUaPubSubConnection connection = publisherApplication.PubSubConnections[0];
@@ -757,7 +757,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.That(subscriberConfiguration, Is.Not.Null, "subscriberConfiguration should not be null");
 
             // Create subscriber application for multiple datasets
-            using UaPubSubApplication subscriberApplication = UaPubSubApplication.Create(subscriberConfiguration, m_messageContext.Telemetry);
+            using var subscriberApplication = UaPubSubApplication.Create(subscriberConfiguration, m_messageContext.Telemetry);
             Assert.That(subscriberApplication, Is.Not.Null, "subscriberApplication should not be null");
             Assert.That(
                 subscriberApplication.PubSubConnections[0],
@@ -904,7 +904,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.That(publisherConfiguration, Is.Not.Null, "publisherConfiguration should not be null");
 
             // Create publisher application for multiple datasets
-            using UaPubSubApplication publisherApplication = UaPubSubApplication.Create(publisherConfiguration, m_messageContext.Telemetry);
+            using var publisherApplication = UaPubSubApplication.Create(publisherConfiguration, m_messageContext.Telemetry);
             MessagesHelper.LoadData(publisherApplication, kNamespaceIndexAllTypes);
 
             IUaPubSubConnection connection = publisherApplication.PubSubConnections[0];
@@ -968,7 +968,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.That(subscriberConfiguration, Is.Not.Null, "subscriberConfiguration should not be null");
 
             // Create subscriber application for multiple datasets
-            using UaPubSubApplication subscriberApplication = UaPubSubApplication.Create(subscriberConfiguration, m_messageContext.Telemetry);
+            using var subscriberApplication = UaPubSubApplication.Create(subscriberConfiguration, m_messageContext.Telemetry);
             Assert.That(subscriberApplication, Is.Not.Null, "subscriberApplication should not be null");
             Assert.That(
                 subscriberApplication.PubSubConnections[0],
@@ -1111,7 +1111,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.That(publisherConfiguration, Is.Not.Null, "publisherConfiguration should not be null");
 
             // Create publisher application for multiple datasets
-            using UaPubSubApplication publisherApplication = UaPubSubApplication.Create(publisherConfiguration, m_messageContext.Telemetry);
+            using var publisherApplication = UaPubSubApplication.Create(publisherConfiguration, m_messageContext.Telemetry);
             MessagesHelper.LoadData(publisherApplication, kNamespaceIndexAllTypes);
 
             IUaPubSubConnection connection = publisherApplication.PubSubConnections[0];
@@ -1175,7 +1175,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.That(subscriberConfiguration, Is.Not.Null, "subscriberConfiguration should not be null");
 
             // Create subscriber application for multiple datasets
-            using UaPubSubApplication subscriberApplication = UaPubSubApplication.Create(subscriberConfiguration, m_messageContext.Telemetry);
+            using var subscriberApplication = UaPubSubApplication.Create(subscriberConfiguration, m_messageContext.Telemetry);
             Assert.That(subscriberApplication, Is.Not.Null, "subscriberApplication should not be null");
             Assert.That(
                 subscriberApplication.PubSubConnections[0],
@@ -1337,7 +1337,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.That(publisherConfiguration, Is.Not.Null, "publisherConfiguration should not be null");
 
             // Create publisher application for multiple datasets
-            using UaPubSubApplication publisherApplication = UaPubSubApplication.Create(publisherConfiguration, m_messageContext.Telemetry);
+            using var publisherApplication = UaPubSubApplication.Create(publisherConfiguration, m_messageContext.Telemetry);
             MessagesHelper.LoadData(publisherApplication, kNamespaceIndexAllTypes);
 
             IUaPubSubConnection connection = publisherApplication.PubSubConnections[0];
@@ -1385,7 +1385,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.That(subscriberConfiguration, Is.Not.Null, "subscriberConfiguration should not be null");
 
             // Create subscriber application for multiple datasets
-            using UaPubSubApplication subscriberApplication = UaPubSubApplication.Create(subscriberConfiguration, m_messageContext.Telemetry);
+            using var subscriberApplication = UaPubSubApplication.Create(subscriberConfiguration, m_messageContext.Telemetry);
             Assert.That(subscriberApplication, Is.Not.Null, "subscriberApplication should not be null");
             Assert.That(
                 subscriberApplication.PubSubConnections[0],
@@ -1460,7 +1460,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.That(publisherConfiguration, Is.Not.Null, "publisherConfiguration should not be null");
 
             // Create publisher application for multiple datasets
-            using UaPubSubApplication publisherApplication = UaPubSubApplication.Create(publisherConfiguration, m_messageContext.Telemetry);
+            using var publisherApplication = UaPubSubApplication.Create(publisherConfiguration, m_messageContext.Telemetry);
             MessagesHelper.LoadData(publisherApplication, kNamespaceIndexAllTypes);
 
             IUaPubSubConnection connection = publisherApplication.PubSubConnections[0];
@@ -1539,7 +1539,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.That(publisherConfiguration, Is.Not.Null, "publisherConfiguration should not be null");
 
             // Create publisher application for multiple datasets
-            using UaPubSubApplication publisherApplication = UaPubSubApplication.Create(publisherConfiguration, m_messageContext.Telemetry);
+            using var publisherApplication = UaPubSubApplication.Create(publisherConfiguration, m_messageContext.Telemetry);
             MessagesHelper.LoadData(publisherApplication, kNamespaceIndexAllTypes);
 
             IUaPubSubConnection connection = publisherApplication.PubSubConnections[0];
@@ -1660,7 +1660,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.That(publisherConfiguration, Is.Not.Null, "publisherConfiguration should not be null");
 
             // Create publisher application for multiple datasets
-            using UaPubSubApplication publisherApplication = UaPubSubApplication.Create(publisherConfiguration, m_messageContext.Telemetry);
+            using var publisherApplication = UaPubSubApplication.Create(publisherConfiguration, m_messageContext.Telemetry);
             MessagesHelper.LoadData(publisherApplication, kNamespaceIndexAllTypes);
 
             IUaPubSubConnection connection = publisherApplication.PubSubConnections[0];
@@ -2019,7 +2019,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     kNamespaceIndexAllTypes);
             Assert.That(pubSubConfiguration, Is.Not.Null, "pubSubConfiguration should not be null");
 
-            using UaPubSubApplication publisherApplication = UaPubSubApplication.Create(pubSubConfiguration, m_messageContext.Telemetry);
+            using var publisherApplication = UaPubSubApplication.Create(pubSubConfiguration, m_messageContext.Telemetry);
             Assert.That(publisherApplication, Is.Not.Null, "publisherApplication should not be null");
             MessagesHelper.LoadData(publisherApplication, kNamespaceIndexAllTypes);
 
@@ -2135,7 +2135,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     kNamespaceIndexAllTypes);
             Assert.That(pubSubConfiguration, Is.Not.Null, "pubSubConfiguration should not be null");
 
-            using UaPubSubApplication publisherApplication = UaPubSubApplication.Create(pubSubConfiguration, m_messageContext.Telemetry);
+            using var publisherApplication = UaPubSubApplication.Create(pubSubConfiguration, m_messageContext.Telemetry);
             Assert.That(publisherApplication, Is.Not.Null, "publisherApplication should not be null");
             MessagesHelper.LoadData(publisherApplication, kNamespaceIndexAllTypes);
 

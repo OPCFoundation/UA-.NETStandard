@@ -121,7 +121,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 storePath,
                 telemetry: telemetry)
                 .ConfigureAwait(false);
-            using Certificate publicKey = Certificate.FromRawData(
+            using var publicKey = Certificate.FromRawData(
                 appCertificate.RawData);
             Assert.That(publicKey, Is.Not.Null);
             Assert.That(publicKey.HasPrivateKey, Is.False);
@@ -172,7 +172,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             await appCertificate.AddToStoreAsync(certificateStoreIdentifier, password, telemetry: telemetry)
                 .ConfigureAwait(false);
 
-            using Certificate publicKey = Certificate.FromRawData(
+            using var publicKey = Certificate.FromRawData(
                 appCertificate.RawData);
             Assert.That(publicKey, Is.Not.Null);
             Assert.That(publicKey.HasPrivateKey, Is.False);

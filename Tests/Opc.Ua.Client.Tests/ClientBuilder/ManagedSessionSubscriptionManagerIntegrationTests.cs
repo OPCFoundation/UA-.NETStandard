@@ -40,7 +40,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client.Subscriptions;
-using Opc.Ua.Client.Subscriptions.MonitoredItems;
 using ManagedSessionType = Opc.Ua.Client.ManagedSession;
 using V2 = Opc.Ua.Client.Subscriptions;
 

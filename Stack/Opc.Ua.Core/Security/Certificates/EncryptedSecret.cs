@@ -1053,7 +1053,7 @@ namespace Opc.Ua
 #if NET8_0_OR_GREATER
             return SHA1.HashData(data);
 #else
-            using SHA1 sha1 = SHA1.Create();
+            using var sha1 = SHA1.Create();
             return sha1.ComputeHash(data);
 #endif
 #pragma warning restore CA5350 // Do Not Use Weak Cryptographic Algorithms

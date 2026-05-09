@@ -1371,7 +1371,7 @@ namespace Opc.Ua.Server.Tests
                 UnitId = 4274026 // "V"
             };
 
-            var writeValues = new WriteValue[]
+            ArrayOf<WriteValue> writeValues = new WriteValue[]
             {
                 new WriteValue
                 {
@@ -1763,7 +1763,7 @@ namespace Opc.Ua.Server.Tests
                 { "NDimension", new NodeId("DataAccess_ArrayItemType_NDimension", 2) }
             };
 
-            foreach (var kvp in nodeIds)
+            foreach (KeyValuePair<string, NodeId> kvp in nodeIds)
             {
                 string name = kvp.Key;
                 NodeId nodeId = kvp.Value;
@@ -1865,7 +1865,7 @@ namespace Opc.Ua.Server.Tests
                 { "Scalar_Static_Arrays2D_Variant", new NodeId("Scalar_Static_Arrays2D_Variant", 2) }
             };
 
-            foreach (var kvp in nodeIds)
+            foreach (KeyValuePair<string, NodeId> kvp in nodeIds)
             {
                 string name = kvp.Key;
                 NodeId nodeId = kvp.Value;
@@ -1904,7 +1904,7 @@ namespace Opc.Ua.Server.Tests
                 { "ImagePNG", new NodeId("Scalar_Static_ImagePNG", 2) }
             };
 
-            foreach (var kvp in nodeIds)
+            foreach (KeyValuePair<string, NodeId> kvp in nodeIds)
             {
                 string name = kvp.Key;
                 NodeId nodeId = kvp.Value;

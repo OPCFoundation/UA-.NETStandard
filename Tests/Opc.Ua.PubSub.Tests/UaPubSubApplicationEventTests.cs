@@ -54,7 +54,7 @@ namespace Opc.Ua.PubSub.Tests
         [Test]
         public void RawDataReceivedSwallowsSubscriberException()
         {
-            using UaPubSubApplication app = UaPubSubApplication.Create(m_telemetry);
+            using var app = UaPubSubApplication.Create(m_telemetry);
             app.RawDataReceived += (_, _) => throw new InvalidOperationException("test");
 
             Assert.DoesNotThrow(() =>
@@ -67,7 +67,7 @@ namespace Opc.Ua.PubSub.Tests
         [Test]
         public void DataReceivedSwallowsSubscriberException()
         {
-            using UaPubSubApplication app = UaPubSubApplication.Create(m_telemetry);
+            using var app = UaPubSubApplication.Create(m_telemetry);
             app.DataReceived += (_, _) => throw new InvalidOperationException("test");
 
             Assert.DoesNotThrow(() =>
@@ -80,7 +80,7 @@ namespace Opc.Ua.PubSub.Tests
         [Test]
         public void MetaDataReceivedSwallowsSubscriberException()
         {
-            using UaPubSubApplication app = UaPubSubApplication.Create(m_telemetry);
+            using var app = UaPubSubApplication.Create(m_telemetry);
             app.MetaDataReceived += (_, _) => throw new InvalidOperationException("test");
 
             Assert.DoesNotThrow(() =>
@@ -93,7 +93,7 @@ namespace Opc.Ua.PubSub.Tests
         [Test]
         public void DataSetWriterConfigurationReceivedSwallowsSubscriberException()
         {
-            using UaPubSubApplication app = UaPubSubApplication.Create(m_telemetry);
+            using var app = UaPubSubApplication.Create(m_telemetry);
             app.DataSetWriterConfigurationReceived += (_, _) => throw new InvalidOperationException("test");
 
             Assert.DoesNotThrow(() =>
@@ -107,7 +107,7 @@ namespace Opc.Ua.PubSub.Tests
         [Test]
         public void PublisherEndpointsReceivedSwallowsSubscriberException()
         {
-            using UaPubSubApplication app = UaPubSubApplication.Create(m_telemetry);
+            using var app = UaPubSubApplication.Create(m_telemetry);
             app.PublisherEndpointsReceived += (_, _) => throw new InvalidOperationException("test");
 
             Assert.DoesNotThrow(() =>
@@ -120,7 +120,7 @@ namespace Opc.Ua.PubSub.Tests
         [Test]
         public void ConfigurationUpdatingSwallowsSubscriberException()
         {
-            using UaPubSubApplication app = UaPubSubApplication.Create(m_telemetry);
+            using var app = UaPubSubApplication.Create(m_telemetry);
             app.ConfigurationUpdating += (_, _) => throw new InvalidOperationException("test");
 
             Assert.DoesNotThrow(() =>
@@ -133,7 +133,7 @@ namespace Opc.Ua.PubSub.Tests
         [Test]
         public void RawDataReceivedEventFiresSuccessfully()
         {
-            using UaPubSubApplication app = UaPubSubApplication.Create(m_telemetry);
+            using var app = UaPubSubApplication.Create(m_telemetry);
             bool fired = false;
             app.RawDataReceived += (_, _) => fired = true;
 
@@ -147,7 +147,7 @@ namespace Opc.Ua.PubSub.Tests
         [Test]
         public void DataReceivedEventFiresSuccessfully()
         {
-            using UaPubSubApplication app = UaPubSubApplication.Create(m_telemetry);
+            using var app = UaPubSubApplication.Create(m_telemetry);
             bool fired = false;
             app.DataReceived += (_, _) => fired = true;
 
@@ -161,7 +161,7 @@ namespace Opc.Ua.PubSub.Tests
         [Test]
         public void MetaDataReceivedEventFiresSuccessfully()
         {
-            using UaPubSubApplication app = UaPubSubApplication.Create(m_telemetry);
+            using var app = UaPubSubApplication.Create(m_telemetry);
             bool fired = false;
             app.MetaDataReceived += (_, _) => fired = true;
 
@@ -175,7 +175,7 @@ namespace Opc.Ua.PubSub.Tests
         [Test]
         public void ConfigurationUpdatingEventFiresSuccessfully()
         {
-            using UaPubSubApplication app = UaPubSubApplication.Create(m_telemetry);
+            using var app = UaPubSubApplication.Create(m_telemetry);
             bool fired = false;
             app.ConfigurationUpdating += (_, _) => fired = true;
 
@@ -189,7 +189,7 @@ namespace Opc.Ua.PubSub.Tests
         [Test]
         public void AddPublishedDataSetRegistersWithDataCollector()
         {
-            using UaPubSubApplication app = UaPubSubApplication.Create(m_telemetry);
+            using var app = UaPubSubApplication.Create(m_telemetry);
 
             var pds = new PublishedDataSetDataType
             {
@@ -224,7 +224,7 @@ namespace Opc.Ua.PubSub.Tests
         [Test]
         public void RemovePublishedDataSetUnregistersFromDataCollector()
         {
-            using UaPubSubApplication app = UaPubSubApplication.Create(m_telemetry);
+            using var app = UaPubSubApplication.Create(m_telemetry);
 
             var pds = new PublishedDataSetDataType
             {
@@ -259,7 +259,7 @@ namespace Opc.Ua.PubSub.Tests
         [Test]
         public void CreateWithNullConfigurationSucceeds()
         {
-            using UaPubSubApplication app = UaPubSubApplication.Create(
+            using var app = UaPubSubApplication.Create(
                 null,
                 null,
                 m_telemetry);
@@ -274,7 +274,7 @@ namespace Opc.Ua.PubSub.Tests
         public void CreateWithCustomDataStore()
         {
             var dataStore = new UaPubSubDataStore();
-            using UaPubSubApplication app = UaPubSubApplication.Create(dataStore, m_telemetry);
+            using var app = UaPubSubApplication.Create(dataStore, m_telemetry);
             Assert.That(app.DataStore, Is.SameAs(dataStore));
         }
 
@@ -284,7 +284,7 @@ namespace Opc.Ua.PubSub.Tests
         [Test]
         public void DisposeCanBeCalledMultipleTimes()
         {
-            using UaPubSubApplication app = UaPubSubApplication.Create(m_telemetry);
+            using var app = UaPubSubApplication.Create(m_telemetry);
             app.Dispose();
             Assert.DoesNotThrow(app.Dispose);
         }

@@ -3071,7 +3071,7 @@ namespace Opc.Ua.Server
                 m_logger.LogCritical(Utils.TraceMasks.StartStop, e, message);
                 m_serverInternal?.Dispose();
                 m_serverInternal = null;
-                ServiceResult error = ServiceResult.Create(e, StatusCodes.BadInternalError, message);
+                var error = ServiceResult.Create(e, StatusCodes.BadInternalError, message);
                 ServerError = error;
                 throw new ServiceResultException(error);
             }

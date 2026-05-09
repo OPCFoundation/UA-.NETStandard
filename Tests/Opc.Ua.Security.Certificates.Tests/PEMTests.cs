@@ -116,7 +116,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             Certificate newCert = null;
             try
             {
-                using Certificate leafCert = Certificate.FromRawData(leaf.RawData);
+                using var leafCert = Certificate.FromRawData(leaf.RawData);
                 newCert = DefaultCertificateFactory.Instance.CreateWithPEMPrivateKey(
                     leafCert, file);
 

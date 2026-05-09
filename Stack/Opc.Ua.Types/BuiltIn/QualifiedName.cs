@@ -404,7 +404,7 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(namespaceTable));
             }
 
-            ServiceMessageContext context = ServiceMessageContext.CreateEmpty(null);
+            var context = ServiceMessageContext.CreateEmpty(null);
             context.NamespaceUris = namespaceTable;
 
             // Parse(IServiceMessageContext, string, bool) is already strict on

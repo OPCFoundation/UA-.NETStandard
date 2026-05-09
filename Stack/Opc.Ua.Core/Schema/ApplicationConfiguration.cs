@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Security.Cryptography.X509Certificates;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Bindings;
 using Opc.Ua.Security;
@@ -1834,7 +1833,7 @@ namespace Opc.Ua
                 }
 
                 m_rawData = value;
-                using Certificate parsed = Certificate.FromRawData(value);
+                using var parsed = Certificate.FromRawData(value);
                 m_subjectName = parsed.Subject;
                 m_thumbprint = parsed.Thumbprint;
                 CertificateType = GetCertificateType(parsed);

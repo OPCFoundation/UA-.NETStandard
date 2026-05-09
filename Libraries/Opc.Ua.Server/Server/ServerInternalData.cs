@@ -32,7 +32,6 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
-using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Server
 {

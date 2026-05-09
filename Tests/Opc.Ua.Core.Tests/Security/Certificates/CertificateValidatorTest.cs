@@ -298,7 +298,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             CertificateManager certValidator = validator.Update();
             foreach (Certificate cert in m_appSelfSignedCerts)
             {
-                using Certificate publicKey = Certificate.FromRawData(cert.RawData);
+                using var publicKey = Certificate.FromRawData(cert.RawData);
                 Opc.Ua.CertificateValidationResult result = await certValidator
                     .ValidateAsync(publicKey, ct: CancellationToken.None)
                     .ConfigureAwait(false);
@@ -321,7 +321,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             certValidator.AcceptError = approver.AcceptError;
             foreach (Certificate cert in m_appSelfSignedCerts)
             {
-                using Certificate publicKey = Certificate.FromRawData(cert.RawData);
+                using var publicKey = Certificate.FromRawData(cert.RawData);
                 Opc.Ua.CertificateValidationResult result = await certValidator
                     .ValidateAsync(publicKey, ct: CancellationToken.None)
                     .ConfigureAwait(false);
@@ -359,7 +359,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             CertificateManager certValidator = await validator.UpdateAsync().ConfigureAwait(false);
             foreach (Certificate cert in m_appSelfSignedCerts)
             {
-                using Certificate publicKey = Certificate.FromRawData(cert.RawData);
+                using var publicKey = Certificate.FromRawData(cert.RawData);
                 Opc.Ua.CertificateValidationResult result = await certValidator
                     .ValidateAsync(publicKey, ct: CancellationToken.None)
                     .ConfigureAwait(false);
@@ -394,7 +394,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 CertificateManager certValidator = validator.Update();
                 foreach (Certificate cert in m_appSelfSignedCerts)
                 {
-                    using Certificate publicKey = Certificate.FromRawData(cert.RawData);
+                    using var publicKey = Certificate.FromRawData(cert.RawData);
                     Opc.Ua.CertificateValidationResult result = await certValidator
                         .ValidateAsync(publicKey, ct: CancellationToken.None)
                         .ConfigureAwait(false);
@@ -588,7 +588,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             CertificateManager certValidator = await validator.UpdateAsync().ConfigureAwait(false);
             foreach (Certificate cert in m_appSelfSignedCerts)
             {
-                using Certificate publicKey = Certificate.FromRawData(cert.RawData);
+                using var publicKey = Certificate.FromRawData(cert.RawData);
                 Opc.Ua.CertificateValidationResult result = await certValidator
                     .ValidateAsync(publicKey, ct: default)
                     .ConfigureAwait(false);
@@ -614,7 +614,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             CertificateManager certValidator = await validator.UpdateAsync().ConfigureAwait(false);
             foreach (Certificate cert in m_appSelfSignedCerts)
             {
-                using Certificate publicKey = Certificate.FromRawData(cert.RawData);
+                using var publicKey = Certificate.FromRawData(cert.RawData);
                 Opc.Ua.CertificateValidationResult result = await certValidator
                     .ValidateAsync(publicKey, ct: CancellationToken.None)
                     .ConfigureAwait(false);
@@ -653,7 +653,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     .WriteLine($"InitValidator: {stopWatch.ElapsedMilliseconds - start}");
                 foreach (ApplicationTestData app in m_goodApplicationTestSet)
                 {
-                    using Certificate publicKey = Certificate.FromRawData(app.Certificate);
+                    using var publicKey = Certificate.FromRawData(app.Certificate);
                     Opc.Ua.CertificateValidationResult result = await certValidator
                         .ValidateAsync(publicKey, ct: CancellationToken.None)
                         .ConfigureAwait(false);
@@ -688,7 +688,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 CertificateManager certValidator = await validator.UpdateAsync().ConfigureAwait(false);
                 foreach (ApplicationTestData app in m_goodApplicationTestSet)
                 {
-                    using Certificate publicKey = Certificate.FromRawData(app.Certificate);
+                    using var publicKey = Certificate.FromRawData(app.Certificate);
                     Opc.Ua.CertificateValidationResult result = await certValidator
                         .ValidateAsync(publicKey, ct: CancellationToken.None)
                         .ConfigureAwait(false);
@@ -721,7 +721,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 CertificateManager certValidator = await validator.UpdateAsync().ConfigureAwait(false);
                 foreach (ApplicationTestData app in m_goodApplicationTestSet)
                 {
-                    using Certificate publicKey = Certificate.FromRawData(app.Certificate);
+                    using var publicKey = Certificate.FromRawData(app.Certificate);
                     Opc.Ua.CertificateValidationResult result = await certValidator
                         .ValidateAsync(publicKey, ct: CancellationToken.None)
                         .ConfigureAwait(false);
@@ -764,7 +764,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 CertificateManager certValidator = await validator.UpdateAsync().ConfigureAwait(false);
                 foreach (ApplicationTestData app in m_goodApplicationTestSet)
                 {
-                    using Certificate publicKey = Certificate.FromRawData(app.Certificate);
+                    using var publicKey = Certificate.FromRawData(app.Certificate);
                     Opc.Ua.CertificateValidationResult result = await certValidator
                         .ValidateAsync(publicKey, ct: CancellationToken.None)
                         .ConfigureAwait(false);
@@ -801,7 +801,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 CertificateManager certValidator = await validator.UpdateAsync().ConfigureAwait(false);
                 foreach (ApplicationTestData app in m_goodApplicationTestSet)
                 {
-                    using Certificate publicKey = Certificate.FromRawData(app.Certificate);
+                    using var publicKey = Certificate.FromRawData(app.Certificate);
                     Opc.Ua.CertificateValidationResult result = await certValidator
                         .ValidateAsync(publicKey, ct: CancellationToken.None)
                         .ConfigureAwait(false);
@@ -840,7 +840,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 CertificateManager certValidator = await validator.UpdateAsync().ConfigureAwait(false);
                 foreach (ApplicationTestData app in m_goodApplicationTestSet)
                 {
-                    using Certificate publicKey = Certificate.FromRawData(app.Certificate);
+                    using var publicKey = Certificate.FromRawData(app.Certificate);
                     Opc.Ua.CertificateValidationResult result = await certValidator
                         .ValidateAsync(publicKey, ct: CancellationToken.None)
                         .ConfigureAwait(false);
@@ -883,7 +883,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 CertificateManager certValidator = await validator.UpdateAsync().ConfigureAwait(false);
                 foreach (ApplicationTestData app in m_goodApplicationTestSet)
                 {
-                    using Certificate publicKey = Certificate.FromRawData(app.Certificate);
+                    using var publicKey = Certificate.FromRawData(app.Certificate);
                     Opc.Ua.CertificateValidationResult result = await certValidator
                         .ValidateAsync(publicKey, ct: CancellationToken.None)
                         .ConfigureAwait(false);
@@ -925,7 +925,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 }
                 foreach (ApplicationTestData app in m_goodApplicationTestSet)
                 {
-                    using Certificate publicKeyAdd = Certificate.FromRawData(app.Certificate);
+                    using var publicKeyAdd = Certificate.FromRawData(app.Certificate);
                     await validator
                         .TrustedStore.AddAsync(publicKeyAdd)
                         .ConfigureAwait(false);
@@ -933,7 +933,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 CertificateManager certValidator = await validator.UpdateAsync().ConfigureAwait(false);
                 foreach (ApplicationTestData app in m_goodApplicationTestSet)
                 {
-                    using Certificate publicKey = Certificate.FromRawData(app.Certificate);
+                    using var publicKey = Certificate.FromRawData(app.Certificate);
                     Opc.Ua.CertificateValidationResult result = await certValidator
                         .ValidateAsync(publicKey, ct: CancellationToken.None)
                         .ConfigureAwait(false);
@@ -975,7 +975,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 CertificateManager certValidator = await validator.UpdateAsync().ConfigureAwait(false);
                 foreach (ApplicationTestData app in m_goodApplicationTestSet)
                 {
-                    using Certificate publicKey = Certificate.FromRawData(app.Certificate);
+                    using var publicKey = Certificate.FromRawData(app.Certificate);
                     Opc.Ua.CertificateValidationResult result = await certValidator
                         .ValidateAsync(publicKey, ct: CancellationToken.None)
                         .ConfigureAwait(false);
@@ -1016,7 +1016,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 }
                 foreach (ApplicationTestData app in m_goodApplicationTestSet)
                 {
-                    using Certificate publicKeyAdd = Certificate.FromRawData(app.Certificate);
+                    using var publicKeyAdd = Certificate.FromRawData(app.Certificate);
                     await validator
                         .TrustedStore.AddAsync(publicKeyAdd)
                         .ConfigureAwait(false);
@@ -1024,7 +1024,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 CertificateManager certValidator = await validator.UpdateAsync().ConfigureAwait(false);
                 foreach (ApplicationTestData app in m_goodApplicationTestSet)
                 {
-                    using Certificate publicKey = Certificate.FromRawData(app.Certificate);
+                    using var publicKey = Certificate.FromRawData(app.Certificate);
                     Opc.Ua.CertificateValidationResult result = await certValidator
                         .ValidateAsync(publicKey, ct: CancellationToken.None)
                         .ConfigureAwait(false);
@@ -1057,7 +1057,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             // all app certs are trusted
             foreach (ApplicationTestData app in m_goodApplicationTestSet)
             {
-                using Certificate publicKeyAdd = Certificate.FromRawData(app.Certificate);
+                using var publicKeyAdd = Certificate.FromRawData(app.Certificate);
                 await validator
                     .TrustedStore.AddAsync(publicKeyAdd)
                     .ConfigureAwait(false);
@@ -1066,7 +1066,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             CertificateManager certValidator = await validator.UpdateAsync().ConfigureAwait(false);
             foreach (ApplicationTestData app in m_goodApplicationTestSet)
             {
-                using Certificate publicKey = Certificate.FromRawData(app.Certificate);
+                using var publicKey = Certificate.FromRawData(app.Certificate);
                 Opc.Ua.CertificateValidationResult result = await certValidator
                     .ValidateAsync(publicKey, ct: CancellationToken.None)
                     .ConfigureAwait(false);
@@ -1100,7 +1100,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 // all app certs are trusted
                 foreach (ApplicationTestData app in m_goodApplicationTestSet)
                 {
-                    using Certificate publicKeyAdd = Certificate.FromRawData(app.Certificate);
+                    using var publicKeyAdd = Certificate.FromRawData(app.Certificate);
                     await validator
                         .TrustedStore.AddAsync(publicKeyAdd)
                         .ConfigureAwait(false);
@@ -1109,7 +1109,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 CertificateManager certValidator = await validator.UpdateAsync().ConfigureAwait(false);
                 foreach (ApplicationTestData app in m_goodApplicationTestSet)
                 {
-                    using Certificate publicKey = Certificate.FromRawData(app.Certificate);
+                    using var publicKey = Certificate.FromRawData(app.Certificate);
                     Opc.Ua.CertificateValidationResult result = await certValidator
                         .ValidateAsync(publicKey, ct: CancellationToken.None)
                         .ConfigureAwait(false);
@@ -1133,10 +1133,10 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 byte[] pemDataBlob = PEMWriter.ExportPrivateKeyAsPEM(appCert);
                 string pemString = Encoding.UTF8.GetString(pemDataBlob);
                 TestContext.Out.WriteLine(pemString);
-                using Certificate pemCert1 = Certificate.FromRawData(appCert.RawData);
+                using var pemCert1 = Certificate.FromRawData(appCert.RawData);
                 using Certificate result1 = DefaultCertificateFactory.Instance.CreateWithPEMPrivateKey(pemCert1, pemDataBlob);
                 // note: password is ignored
-                using Certificate pemCert2 = Certificate.FromRawData(appCert.RawData);
+                using var pemCert2 = Certificate.FromRawData(appCert.RawData);
                 using Certificate newCert = DefaultCertificateFactory.Instance.CreateWithPEMPrivateKey(
                         pemCert2,
                         pemDataBlob,
@@ -1158,7 +1158,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 string pemString = Encoding.UTF8.GetString(pemDataBlob);
                 TestContext.Out.WriteLine(pemString);
 #if NET5_0_OR_GREATER
-                using Certificate pemCert = Certificate.FromRawData(appCert.RawData);
+                using var pemCert = Certificate.FromRawData(appCert.RawData);
                 ArgumentException exception = Assert.Throws<ArgumentException>(() =>
                     DefaultCertificateFactory.Instance.CreateWithPEMPrivateKey(
                         pemCert,
@@ -1181,11 +1181,11 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 byte[] pemDataBlob = PEMWriter.ExportRSAPrivateKeyAsPEM(appCert);
                 string pemString = Encoding.UTF8.GetString(pemDataBlob);
                 TestContext.Out.WriteLine(pemString);
-                using Certificate pemCert1 = Certificate.FromRawData(appCert.RawData);
+                using var pemCert1 = Certificate.FromRawData(appCert.RawData);
                 using Certificate cert = DefaultCertificateFactory.Instance.CreateWithPEMPrivateKey(pemCert1, pemDataBlob);
                 Assert.That(cert, Is.Not.Null);
                 // note: password is ignored
-                using Certificate pemCert2 = Certificate.FromRawData(appCert.RawData);
+                using var pemCert2 = Certificate.FromRawData(appCert.RawData);
                 using Certificate newCert = DefaultCertificateFactory.Instance.CreateWithPEMPrivateKey(
                         pemCert2,
                         pemDataBlob,
@@ -1208,12 +1208,12 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 byte[] pemDataBlob = PEMWriter.ExportPrivateKeyAsPEM(appCert, password);
                 string pemString = Encoding.UTF8.GetString(pemDataBlob);
                 TestContext.Out.WriteLine(pemString);
-                using Certificate pemCert1 = Certificate.FromRawData(appCert.RawData);
+                using var pemCert1 = Certificate.FromRawData(appCert.RawData);
                 using Certificate newCert = DefaultCertificateFactory.Instance.CreateWithPEMPrivateKey(
                         pemCert1,
                         pemDataBlob,
                         password);
-                using Certificate pemCert2 = Certificate.FromRawData(appCert.RawData);
+                using var pemCert2 = Certificate.FromRawData(appCert.RawData);
                 CryptographicException exception = Assert
                     .Throws<CryptographicException>(() =>
                         _ = DefaultCertificateFactory.Instance.CreateWithPEMPrivateKey(
@@ -1238,7 +1238,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 .SetNotBefore(DateTime.Today.AddDays(14))
                 .CreateForRSA();
             Assert.That(tempCert, Is.Not.Null);
-            using Certificate cert = Certificate.FromRawData(tempCert.RawData);
+            using var cert = Certificate.FromRawData(tempCert.RawData);
             tempCert.Dispose();
             Assert.That(cert, Is.Not.Null);
             Assert.That(X509Utils.CompareDistinguishedName("CN=" + applicationName + " ,O=OPC Foundation", cert.Subject), Is.True);
@@ -1293,7 +1293,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 .CreateForRSA();
             TestContext.Out.WriteLine($"{tempCert}:");
             Assert.That(tempCert, Is.Not.Null);
-            using Certificate cert = Certificate.FromRawData(tempCert.RawData);
+            using var cert = Certificate.FromRawData(tempCert.RawData);
             tempCert.Dispose();
             Assert.That(cert, Is.Not.Null);
             Assert.That(X509Utils.CompareDistinguishedName("CN=" + applicationName + " ,O=OPC Foundation", cert.Subject), Is.True);
@@ -1342,7 +1342,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 .CreateForRSA();
             TestContext.Out.WriteLine($"{tempCert}:");
             Assert.That(tempCert, Is.Not.Null);
-            using Certificate cert = Certificate.FromRawData(tempCert.RawData);
+            using var cert = Certificate.FromRawData(tempCert.RawData);
             tempCert.Dispose();
             Assert.That(cert, Is.Not.Null);
             Assert.That(X509Utils.CompareDistinguishedName(subject, cert.Subject), Is.True);
@@ -1833,7 +1833,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
                 foreach (ApplicationTestData app in m_goodApplicationTestSet)
                 {
-                    using Certificate publicKey = Certificate.FromRawData(app.Certificate);
+                    using var publicKey = Certificate.FromRawData(app.Certificate);
                     Opc.Ua.CertificateValidationResult result = await certValidator
                         .ValidateAsync(publicKey, ct: CancellationToken.None)
                         .ConfigureAwait(false);
@@ -1882,7 +1882,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
                 foreach (ApplicationTestData app in m_goodApplicationTestSet)
                 {
-                    using Certificate publicKey = Certificate.FromRawData(app.Certificate);
+                    using var publicKey = Certificate.FromRawData(app.Certificate);
                     Opc.Ua.CertificateValidationResult result = await certValidator
                         .ValidateAsync(publicKey, ct: CancellationToken.None)
                         .ConfigureAwait(false);
@@ -1949,7 +1949,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
                 foreach (ApplicationTestData app in m_goodApplicationTestSet)
                 {
-                    using Certificate publicKey = Certificate.FromRawData(app.Certificate);
+                    using var publicKey = Certificate.FromRawData(app.Certificate);
                     Opc.Ua.CertificateValidationResult result = await certValidator
                         .ValidateAsync(publicKey, ct: CancellationToken.None)
                         .ConfigureAwait(false);
@@ -1997,7 +1997,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
                 foreach (ApplicationTestData app in m_goodApplicationTestSet)
                 {
-                    using Certificate publicKey = Certificate.FromRawData(app.Certificate);
+                    using var publicKey = Certificate.FromRawData(app.Certificate);
                     Opc.Ua.CertificateValidationResult result = await certValidator
                         .ValidateAsync(publicKey, ct: CancellationToken.None)
                         .ConfigureAwait(false);
@@ -2033,7 +2033,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     if (i != v || kCaChainCount == 1)
 #pragma warning restore CA1508
                     {
-                        using Certificate publicKeyAdd = Certificate.FromRawData(m_caChain[i].RawData);
+                        using var publicKeyAdd = Certificate.FromRawData(m_caChain[i].RawData);
                         await validator
                             .TrustedStore.AddAsync(publicKeyAdd)
                             .ConfigureAwait(false);
@@ -2042,7 +2042,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     }
                     else
                     {
-                        using Certificate publicKeyAdd = Certificate.FromRawData(m_caChain[i].RawData);
+                        using var publicKeyAdd = Certificate.FromRawData(m_caChain[i].RawData);
                         await validator
                             .IssuerStore.AddAsync(publicKeyAdd)
                             .ConfigureAwait(false);
@@ -2057,7 +2057,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
                 foreach (ApplicationTestData app in m_notYetValidCertsApplicationTestSet)
                 {
-                    using Certificate publicKey = Certificate.FromRawData(app.Certificate);
+                    using var publicKey = Certificate.FromRawData(app.Certificate);
                     Opc.Ua.CertificateValidationResult result = await certValidator
                         .ValidateAsync(publicKey, ct: CancellationToken.None)
                         .ConfigureAwait(false);
@@ -2108,7 +2108,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
                 foreach (ApplicationTestData app in m_notYetValidCertsApplicationTestSet)
                 {
-                    using Certificate publicKey = Certificate.FromRawData(app.Certificate);
+                    using var publicKey = Certificate.FromRawData(app.Certificate);
                     Opc.Ua.CertificateValidationResult result = await certValidator
                         .ValidateAsync(publicKey, ct: CancellationToken.None)
                         .ConfigureAwait(false);
@@ -2177,7 +2177,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
                 foreach (ApplicationTestData app in m_goodApplicationTestSet)
                 {
-                    using Certificate publicKey = Certificate.FromRawData(app.Certificate);
+                    using var publicKey = Certificate.FromRawData(app.Certificate);
                     Opc.Ua.CertificateValidationResult result = await certValidator
                         .ValidateAsync(publicKey, ct: CancellationToken.None)
                         .ConfigureAwait(false);
@@ -2217,7 +2217,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             using Certificate selfSigned = s_factory
                 .CreateCertificate("CN=AcceptErrorThrow, O=OPC Foundation")
                 .CreateForRSA();
-            using Certificate publicKey = Certificate.FromRawData(selfSigned.RawData);
+            using var publicKey = Certificate.FromRawData(selfSigned.RawData);
 
             Opc.Ua.CertificateValidationResult result = null;
             Assert.DoesNotThrowAsync(async () =>

@@ -246,7 +246,7 @@ namespace Opc.Ua.Server.Tests
             (_, _, ISession session) =
                 await CreateAndActivateAsync("SaveRestoreHistory").ConfigureAwait(false);
 
-            Guid id = Guid.NewGuid();
+            var id = Guid.NewGuid();
             object value = new object();
             session.SaveHistoryContinuationPoint(id, value);
 
@@ -287,7 +287,7 @@ namespace Opc.Ua.Server.Tests
             (_, _, ISession session) =
                 await CreateAndActivateAsync("RestoreRemovesHistory").ConfigureAwait(false);
 
-            Guid id = Guid.NewGuid();
+            var id = Guid.NewGuid();
             session.SaveHistoryContinuationPoint(id, new object());
             byte[] idBytes = id.ToByteArray();
 

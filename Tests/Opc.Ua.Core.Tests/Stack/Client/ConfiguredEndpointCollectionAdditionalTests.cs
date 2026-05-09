@@ -467,7 +467,7 @@ namespace Opc.Ua.Core.Tests
             col.Save(stream);
             stream.Position = 0;
 
-            ConfiguredEndpointCollection loaded =
+            var loaded =
                 ConfiguredEndpointCollection.Load(stream, m_telemetry);
             Assert.That(loaded.Count, Is.EqualTo(1));
         }
@@ -483,7 +483,7 @@ namespace Opc.Ua.Core.Tests
 
             Assert.That(File.Exists(filePath), Is.True);
 
-            ConfiguredEndpointCollection loaded =
+            var loaded =
                 ConfiguredEndpointCollection.Load(filePath, m_telemetry);
             Assert.That(loaded.Count, Is.EqualTo(1));
         }
@@ -503,7 +503,7 @@ namespace Opc.Ua.Core.Tests
             string filePath = Path.Combine(m_tempDir, "endpoints_appconfig.xml");
             col.Save(filePath);
 
-            ConfiguredEndpointCollection loaded =
+            var loaded =
                 ConfiguredEndpointCollection.Load(appConfig, filePath, m_telemetry);
             Assert.That(loaded.Count, Is.EqualTo(1));
             Assert.That(loaded.DefaultConfiguration, Is.Not.Null);
@@ -525,7 +525,7 @@ namespace Opc.Ua.Core.Tests
                 ApplicationType = ApplicationType.Client
             };
 
-            ConfiguredEndpointCollection loaded =
+            var loaded =
                 ConfiguredEndpointCollection.Load(appConfig, filePath, true, m_telemetry);
             Assert.That(loaded.Count, Is.EqualTo(1));
         }

@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -133,7 +132,7 @@ namespace Opc.Ua.Client.Tests.AsyncPrimitives
             // Start a churn of readers in tight loops.
             using var churnCts = CancellationTokenSource
                 .CreateLinkedTokenSource(ct);
-            Task[] churn = new Task[8];
+            var churn = new Task[8];
             for (int i = 0; i < churn.Length; i++)
             {
                 churn[i] = Task.Run(async () =>
@@ -273,7 +272,7 @@ namespace Opc.Ua.Client.Tests.AsyncPrimitives
             var releaseGate = new TaskCompletionSource<bool>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
 
-            Task[] readers = new Task[kReaders];
+            var readers = new Task[kReaders];
             for (int i = 0; i < kReaders; i++)
             {
                 readers[i] = Task.Run(async () =>

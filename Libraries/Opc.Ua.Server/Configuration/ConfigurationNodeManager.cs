@@ -985,7 +985,7 @@ namespace Opc.Ua.Server
                         }
 
                         // keep only track of cert without private key
-                        Certificate certOnly = Certificate.FromRawData(
+                        var certOnly = Certificate.FromRawData(
                             updateCertificate.CertificateWithPrivateKey.RawData);
                         updateCertificate.CertificateWithPrivateKey.Dispose();
                         updateCertificate.CertificateWithPrivateKey = certOnly;
@@ -1122,7 +1122,7 @@ namespace Opc.Ua.Server
                 Utils.TraceMasks.Security,
                 "Create signing request {Certificate}",
                 certWithPrivateKey);
-            ByteString certificateRequest = ByteString.From(s_certificateFactory.CreateSigningRequest(
+            var certificateRequest = ByteString.From(s_certificateFactory.CreateSigningRequest(
                 certWithPrivateKey,
                 X509Utils.GetDomainsFromCertificate(certWithPrivateKey).ToArray()));
 
@@ -1318,7 +1318,7 @@ namespace Opc.Ua.Server
             // returned blobs reflect the currently-active cert (the
             // configured identifier carries no Certificate cache).
             var rawCerts = new List<ByteString>();
-            ICertificateRegistry registry = m_configuration.CertificateManager as ICertificateRegistry;
+            var registry = m_configuration.CertificateManager as ICertificateRegistry;
             foreach (CertificateIdentifier appId in certificateGroup.ApplicationCertificates)
             {
                 CertificateEntry entry = registry?.GetApplicationCertificate(appId.CertificateType);

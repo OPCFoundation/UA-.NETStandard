@@ -249,7 +249,7 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(stream.Length, Is.GreaterThan(0));
 
             stream.Position = 0;
-            Export.UANodeSet nodeSet = Export.UANodeSet.Read(stream);
+            var nodeSet = Export.UANodeSet.Read(stream);
 
             Assert.That(nodeSet.Models, Is.Not.Null, "<Models> element must be present");
             Assert.That(nodeSet.Models, Is.Not.Empty, "<Models> must contain at least one <Model>");

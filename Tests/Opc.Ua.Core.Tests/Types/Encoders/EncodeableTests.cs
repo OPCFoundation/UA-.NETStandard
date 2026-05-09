@@ -204,7 +204,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 }
             }
 
-            Variant expected = Variant.From(array);
+            var expected = Variant.From(array);
             const string objectName = "Matrix";
 
             byte[] buffer;

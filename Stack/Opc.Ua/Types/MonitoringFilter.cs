@@ -135,7 +135,7 @@ namespace Opc.Ua
                 return true;
             }
 
-            Ua.DeadbandType actualDeadbandType = (Ua.DeadbandType)(int)DeadbandType;
+            var actualDeadbandType = (Ua.DeadbandType)(int)DeadbandType;
             BuiltInType builtInType = value1.TypeInfo.BuiltInType;
             int valueRank = value1.TypeInfo.ValueRank;
 

@@ -62,7 +62,7 @@ namespace Opc.Ua.Configuration
             }
 
             CertificateManager localManager = CertificateManager;
-            CertificateManager configManager =
+            var configManager =
                 ApplicationConfiguration?.CertificateManager as CertificateManager;
             localManager?.Dispose();
             if (configManager != null && !ReferenceEquals(configManager, localManager))
@@ -1226,7 +1226,7 @@ namespace Opc.Ua.Configuration
                 }
 
                 // add new certificate.
-                using Certificate publicKey = Certificate.FromRawData(certificate.RawData);
+                using var publicKey = Certificate.FromRawData(certificate.RawData);
                 await store.AddAsync(publicKey, ct: ct).ConfigureAwait(false);
 
                 m_logger.LogInformation("Added application certificate to trusted peer store.");

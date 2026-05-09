@@ -68,7 +68,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 .CreateForRSA();
 
             // Create a public-key-only certificate from the raw data
-            using Certificate pubOnly = Certificate.FromRawData(original.RawData);
+            using var pubOnly = Certificate.FromRawData(original.RawData);
             Assert.That(pubOnly.HasPrivateKey, Is.False);
 
             cache.Set(pubOnly.Thumbprint, pubOnly);
@@ -117,7 +117,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 .SetRSAKeySize(2048)
                 .CreateForRSA();
 
-            Certificate pubOnly = Certificate.FromRawData(cert.RawData);
+            var pubOnly = Certificate.FromRawData(cert.RawData);
             string thumbprint = pubOnly.Thumbprint;
 
             // Set bumps ref to 2; Remove evicts (ref→1); using exit (ref→0)
@@ -141,13 +141,13 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 .Create("CN=ClearTest1")
                 .SetRSAKeySize(2048)
                 .CreateForRSA();
-            Certificate pub1 = Certificate.FromRawData(cert1.RawData);
+            var pub1 = Certificate.FromRawData(cert1.RawData);
 
             Certificate cert2 = CertificateBuilder
                 .Create("CN=ClearTest2")
                 .SetRSAKeySize(2048)
                 .CreateForRSA();
-            Certificate pub2 = Certificate.FromRawData(cert2.RawData);
+            var pub2 = Certificate.FromRawData(cert2.RawData);
 
             string thumb1 = pub1.Thumbprint;
             string thumb2 = pub2.Thumbprint;
@@ -180,7 +180,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 .SetRSAKeySize(2048)
                 .CreateForRSA();
 
-            using Certificate pubCert = Certificate.FromRawData(privCert.RawData);
+            using var pubCert = Certificate.FromRawData(privCert.RawData);
 
             // Set public-key cert first, then private-key cert with the same thumbprint
             cache.Set(pubCert.Thumbprint, pubCert);

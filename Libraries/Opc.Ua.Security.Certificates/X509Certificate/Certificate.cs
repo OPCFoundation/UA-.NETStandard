@@ -35,9 +35,10 @@ using System.Security.Cryptography.X509Certificates;
 using System.Globalization;
 using System.Threading;
 using System.Collections.Concurrent;
+using System.Text;
+
 #if DEBUG
 using System.Collections.Generic;
-using System.Runtime.CompilerServices;
 #endif
 
 namespace Opc.Ua.Security.Certificates
@@ -518,7 +519,7 @@ namespace Opc.Ua.Security.Certificates
         {
             try
             {
-                var sb = new System.Text.StringBuilder(128)
+                StringBuilder sb = new System.Text.StringBuilder(128)
                     .Append("[Subject=").Append(Subject)
                     .Append(", Thumbprint=").Append(Thumbprint)
                     .Append(", NotBefore=").Append(

@@ -192,7 +192,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
             variableState.ValueRank = ValueRanks.Scalar;
 
             // Set a byte array value (which represents a ByteString)
-            ByteString testValue = ByteString.From([1, 2, 3, 4, 5]);
+            var testValue = ByteString.From([1, 2, 3, 4, 5]);
             variableState.Value = testValue;
 
             // Get the WrappedValue and verify it's a ByteString

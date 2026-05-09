@@ -51,7 +51,7 @@ namespace Opc.Ua.SourceGeneration
         [Test]
         public void ScanReturnsEmptyWhenAttributeTypeNotFound()
         {
-            CSharpCompilation compilation = CSharpCompilation.Create("Empty",
+            var compilation = CSharpCompilation.Create("Empty",
                 options: new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
 
             ImmutableArray<ModelDependencyReference> result =

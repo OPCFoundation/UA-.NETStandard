@@ -96,7 +96,7 @@ namespace Opc.Ua.SourceGeneration
             GeneratorAttributeSyntaxContext context,
             CancellationToken cancellationToken)
         {
-            INamedTypeSymbol symbol = (INamedTypeSymbol)context.TargetSymbol;
+            var symbol = (INamedTypeSymbol)context.TargetSymbol;
             Location = symbol.Locations.FirstOrDefault();
 
             AttributeData dataTypeAttr = context.Attributes.FirstOrDefault();

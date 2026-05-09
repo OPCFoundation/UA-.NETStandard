@@ -54,7 +54,7 @@ namespace Opc.Ua.Core.Tests.Stack.Types
         public async Task DecryptSupportsRsaEncryptedSecretFormatAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            ServiceMessageContext context = ServiceMessageContext.CreateEmpty(telemetry);
+            var context = ServiceMessageContext.CreateEmpty(telemetry);
             SecurityPolicyInfo securityPolicy = SecurityPolicies.GetInfo(kSecurityPolicyUri);
             byte[] receiverNonce = Nonce.CreateNonce(securityPolicy.SecureChannelNonceLength).Data;
             byte[] expectedPassword = Nonce.CreateNonce(96).Data;
@@ -92,7 +92,7 @@ namespace Opc.Ua.Core.Tests.Stack.Types
         public async Task DecryptKeepsLegacyRsaEncryptedTokenPathAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            ServiceMessageContext context = ServiceMessageContext.CreateEmpty(telemetry);
+            var context = ServiceMessageContext.CreateEmpty(telemetry);
             SecurityPolicyInfo securityPolicy = SecurityPolicies.GetInfo(kSecurityPolicyUri);
             byte[] receiverNonce = Nonce.CreateNonce(securityPolicy.SecureChannelNonceLength).Data;
             byte[] expectedPassword = GetRandomBytes(TestLegacyPasswordLength);
@@ -130,7 +130,7 @@ namespace Opc.Ua.Core.Tests.Stack.Types
         public void DecryptThrowsBadIdentityTokenInvalidWhenECCTryDecryptFails()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            ServiceMessageContext context = ServiceMessageContext.CreateEmpty(telemetry);
+            var context = ServiceMessageContext.CreateEmpty(telemetry);
 
             var token = new UserNameIdentityToken
             {
@@ -158,7 +158,7 @@ namespace Opc.Ua.Core.Tests.Stack.Types
         public async Task EncryptUsesLegacyRsaFormatForShortPasswordAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            ServiceMessageContext context = ServiceMessageContext.CreateEmpty(telemetry);
+            var context = ServiceMessageContext.CreateEmpty(telemetry);
             SecurityPolicyInfo securityPolicy = SecurityPolicies.GetInfo(kSecurityPolicyUri);
             byte[] receiverNonce = Nonce.CreateNonce(securityPolicy.SecureChannelNonceLength).Data;
             byte[] password = GetRandomBytes(RsaEncryptedSecretPasswordThreshold - 1);
@@ -189,7 +189,7 @@ namespace Opc.Ua.Core.Tests.Stack.Types
         public async Task EncryptUsesLegacyRsaFormatAtThresholdPasswordLengthAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            ServiceMessageContext context = ServiceMessageContext.CreateEmpty(telemetry);
+            var context = ServiceMessageContext.CreateEmpty(telemetry);
             SecurityPolicyInfo securityPolicy = SecurityPolicies.GetInfo(kSecurityPolicyUri);
             byte[] receiverNonce = Nonce.CreateNonce(securityPolicy.SecureChannelNonceLength).Data;
             byte[] password = GetRandomBytes(RsaEncryptedSecretPasswordThreshold);
@@ -220,7 +220,7 @@ namespace Opc.Ua.Core.Tests.Stack.Types
         public async Task EncryptUsesRsaEncryptedSecretForLongPasswordAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            ServiceMessageContext context = ServiceMessageContext.CreateEmpty(telemetry);
+            var context = ServiceMessageContext.CreateEmpty(telemetry);
             SecurityPolicyInfo securityPolicy = SecurityPolicies.GetInfo(kSecurityPolicyUri);
             byte[] receiverNonce = Nonce.CreateNonce(securityPolicy.SecureChannelNonceLength).Data;
             byte[] password = GetRandomBytes(RsaEncryptedSecretPasswordThreshold + 1);
@@ -357,7 +357,7 @@ namespace Opc.Ua.Core.Tests.Stack.Types
             Buffer.BlockCopy(plainPayload, 0, encryptedPayload, 0, plainPayload.Length);
 
 #pragma warning disable CA5401 // Symmetric encryption uses non-default initialization vector
-            using Aes aes = Aes.Create();
+            using var aes = Aes.Create();
             aes.Mode = CipherMode.CBC;
             aes.Padding = PaddingMode.None;
             aes.Key = encryptingKey;
@@ -371,7 +371,7 @@ namespace Opc.Ua.Core.Tests.Stack.Types
         private static byte[] GetRandomBytes(int count)
         {
             byte[] bytes = new byte[count];
-            using RandomNumberGenerator randomNumberGenerator = RandomNumberGenerator.Create();
+            using var randomNumberGenerator = RandomNumberGenerator.Create();
             randomNumberGenerator.GetBytes(bytes);
             return bytes;
         }
@@ -381,7 +381,7 @@ namespace Opc.Ua.Core.Tests.Stack.Types
             // CA5350: SHA1 required for legacy compatibility test vector.
             // CA1850: SHA1.HashData() is .NET 5+ only and the suite still targets net472/net48.
 #pragma warning disable CA5350, CA1850
-            using SHA1 sha1 = SHA1.Create();
+            using var sha1 = SHA1.Create();
             return sha1.ComputeHash(data);
 #pragma warning restore CA5350, CA1850
         }

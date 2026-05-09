@@ -578,7 +578,7 @@ namespace Opc.Ua.Gds.Tests
             using Certificate invalidCert = s_factory
                 .CreateApplicationCertificate("uri:x:y:z", "TestApp", "CN=Push Server Test")
                 .CreateForRSA();
-            using Certificate serverCert = Certificate.FromRawData(
+            using var serverCert = Certificate.FromRawData(
                 m_pushClient.PushClient.Session.ConfiguredEndpoint.Description.ServerCertificate);
             if (!X509Utils.CompareDistinguishedName(serverCert.Subject, serverCert.Issuer))
             {
@@ -706,7 +706,7 @@ namespace Opc.Ua.Gds.Tests
                 Assert.Ignore("Test only supported for RSA");
             }
             await ConnectPushClientAsync(true).ConfigureAwait(false);
-            using Certificate serverCert = Certificate.FromRawData(
+            using var serverCert = Certificate.FromRawData(
                 m_pushClient.PushClient.Session.ConfiguredEndpoint.Description.ServerCertificate);
             if (!X509Utils.CompareDistinguishedName(serverCert.Subject, serverCert.Issuer))
             {
@@ -999,7 +999,7 @@ namespace Opc.Ua.Gds.Tests
 
             Assert.That(certificateTypeIds.Count, Is.EqualTo(certificates.Count));
             Assert.That(certificates[0].IsEmpty, Is.False);
-            using Certificate x509 = Certificate.FromRawData(certificates[0]);
+            using var x509 = Certificate.FromRawData(certificates[0]);
             Assert.That(x509, Is.Not.Null);
         }
 

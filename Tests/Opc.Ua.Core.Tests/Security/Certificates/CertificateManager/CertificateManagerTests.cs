@@ -376,7 +376,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 .Create("CN=Sentinel, O=OPC Foundation")
                 .SetRSAKeySize(2048)
                 .CreateForRSA();
-            using Certificate sentinelClone = Certificate.FromRawData(sentinel.RawData);
+            using var sentinelClone = Certificate.FromRawData(sentinel.RawData);
 
             using Certificate selfSigned = CertificateBuilder
                 .Create("CN=SelfSignedAppendCheck, O=OPC Foundation")
@@ -428,7 +428,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             // chain walk in CertificateValidationCore.GetIssuersAsync can
             // resolve and trust it.
             string trustedPath = CreateTempDir();
-            using Certificate rootForStore = Certificate.FromRawData(rootCa.RawData);
+            using var rootForStore = Certificate.FromRawData(rootCa.RawData);
             await rootForStore.AddToStoreAsync(
                 CertificateStoreType.Directory,
                 trustedPath,
@@ -442,7 +442,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 .Create("CN=AppendChainSentinel, O=OPC Foundation")
                 .SetRSAKeySize(2048)
                 .CreateForRSA();
-            using Certificate sentinelClone = Certificate.FromRawData(sentinel.RawData);
+            using var sentinelClone = Certificate.FromRawData(sentinel.RawData);
 
             CertificateManager registry = manager;
 
@@ -503,7 +503,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 .CreateForRSA();
 
             string trustedPath = CreateTempDir();
-            using Certificate rootForStore = Certificate.FromRawData(rootCa.RawData);
+            using var rootForStore = Certificate.FromRawData(rootCa.RawData);
             await rootForStore.AddToStoreAsync(
                 CertificateStoreType.Directory,
                 trustedPath,

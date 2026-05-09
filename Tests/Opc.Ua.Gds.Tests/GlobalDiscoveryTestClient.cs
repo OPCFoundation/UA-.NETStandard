@@ -285,7 +285,7 @@ namespace Opc.Ua.Gds.Tests
             ByteString certificate,
             ByteString privateKey)
         {
-            using Certificate x509 = Certificate.FromRawData(certificate.ToArray());
+            using var x509 = Certificate.FromRawData(certificate.ToArray());
             Certificate certWithPrivateKey = DefaultCertificateFactory.Instance.CreateWithPEMPrivateKey(
                     x509,
                     privateKey.ToArray());

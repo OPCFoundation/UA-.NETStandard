@@ -53,7 +53,7 @@ namespace Opc.Ua.Mcp.Tools
             "endpoint URLs, and security configuration.")]
         public static string ListSessions(OpcUaSessionManager sessionManager)
         {
-            var sessions = sessionManager.GetAllSessions();
+            IReadOnlyCollection<OpcUaSessionManager.SessionInfo> sessions = sessionManager.GetAllSessions();
             var result = sessions.Select(s => new Dictionary<string, object?>
             {
                 ["name"] = s.Name,
@@ -82,7 +82,7 @@ namespace Opc.Ua.Mcp.Tools
             "security, session ID, and namespace table.")]
         public static string GetSession(OpcUaSessionManager sessionManager, string name)
         {
-            var info = sessionManager.GetSessionInfo(name);
+            OpcUaSessionManager.SessionInfo? info = sessionManager.GetSessionInfo(name);
             if (info == null)
             {
                 return OpcUaJsonHelper.Serialize(new Dictionary<string, object?>
@@ -124,7 +124,7 @@ namespace Opc.Ua.Mcp.Tools
         [Description("Get the server namespace table for a named session.")]
         public static string GetNamespaces(OpcUaSessionManager sessionManager, string name)
         {
-            var info = sessionManager.GetSessionInfo(name);
+            OpcUaSessionManager.SessionInfo? info = sessionManager.GetSessionInfo(name);
             if (info == null)
             {
                 return OpcUaJsonHelper.Serialize(new Dictionary<string, object?>

@@ -798,7 +798,7 @@ namespace Opc.Ua.Gds.Client
                     Session.Factory.Builder.AddOpcUaGds().Commit();
                 }
 
-                NodeId directoryNodeId = ExpandedNodeId.ToNodeId(
+                var directoryNodeId = ExpandedNodeId.ToNodeId(
                     ObjectIds.Directory,
                     Session.NamespaceUris);
                 m_directory = new DirectoryTypeClient(

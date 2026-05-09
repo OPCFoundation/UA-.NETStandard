@@ -164,7 +164,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             // Assert
             Assert.That(result.ToArray(), Has.Exactly(1).Items);
             Assert.That(result.ToArray().Single(), Is.TypeOf<DataValueChange>());
-            var single = result.ToArray().Single();
+            DataValueChange single = result.ToArray().Single();
         }
 
         [Test]
@@ -306,7 +306,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             // Assert
             Assert.That(result.ToArray(), Has.Exactly(1).Items);
             Assert.That(result.ToArray().Single(), Is.TypeOf<EventNotification>());
-            var single = result.ToArray().Single();
+            EventNotification single = result.ToArray().Single();
         }
 
         [Test]

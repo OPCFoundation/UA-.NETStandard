@@ -86,7 +86,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         public void EncodeGoodStatusCodeAsNullInRawDataMode()
         {
 #pragma warning disable CS0618 // Type or member is obsolete
-            Field field = new Field
+            var field = new Field
             {
                 FieldMetaData = new FieldMetaData
                 {

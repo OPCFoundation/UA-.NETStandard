@@ -759,7 +759,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             collection.Add(cert1);
             collection.Add(cert2);
 
-            List<string> subjects = collection.Select(c => c.Subject).ToList();
+            var subjects = collection.Select(c => c.Subject).ToList();
 
             Assert.That(subjects, Has.Count.EqualTo(2));
             Assert.That(subjects, Does.Contain(cert1.Subject));

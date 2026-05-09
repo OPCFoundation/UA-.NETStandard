@@ -144,7 +144,7 @@ namespace Opc.Ua
             // 2) Inline raw data.
             if (identifier.RawData != null && identifier.RawData.Length > 0)
             {
-                Certificate inline = Certificate.FromRawData(identifier.RawData);
+                var inline = Certificate.FromRawData(identifier.RawData);
                 if (!needPrivateKey || inline.HasPrivateKey)
                 {
                     return inline;
@@ -290,7 +290,7 @@ namespace Opc.Ua
                 return null;
             }
 
-            var storeIdentifier = string.IsNullOrEmpty(identifier.StoreType)
+            CertificateStoreIdentifier storeIdentifier = string.IsNullOrEmpty(identifier.StoreType)
                 ? new CertificateStoreIdentifier(identifier.StorePath, false)
                 : new CertificateStoreIdentifier(
                     identifier.StorePath,

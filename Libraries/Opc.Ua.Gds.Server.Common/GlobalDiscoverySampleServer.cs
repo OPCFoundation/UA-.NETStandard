@@ -273,7 +273,7 @@ namespace Opc.Ua.Gds.Server
         /// <param name="session">the session</param>
         private bool VerifiyApplicationRegistered(ISession session)
         {
-            using Certificate applicationInstanceCertificate =
+            using var applicationInstanceCertificate =
                 Certificate.FromRawData(session.ClientCertificate.RawData);
             bool applicationRegistered = false;
 

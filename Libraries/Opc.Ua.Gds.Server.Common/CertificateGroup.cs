@@ -298,7 +298,7 @@ namespace Opc.Ua.Gds.Server
                     "Invalid private key format");
             }
 
-            Certificate publicKey = Certificate.FromRawData(certificate.RawData);
+            var publicKey = Certificate.FromRawData(certificate.RawData);
 
             return new X509Certificate2KeyPair(publicKey, privateKeyFormat, privateKey);
         }
@@ -844,7 +844,7 @@ namespace Opc.Ua.Gds.Server
                             .ConfigureAwait(false);
                         if (certs.Count == 0)
                         {
-                            using Certificate x509 = Certificate.FromRawData(
+                            using var x509 = Certificate.FromRawData(
                                 certificate.RawData);
                             await trustedOrIssuerStore.AddAsync(x509, ct: ct).ConfigureAwait(false);
                         }

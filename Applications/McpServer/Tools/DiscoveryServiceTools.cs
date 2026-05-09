@@ -70,7 +70,7 @@ namespace Opc.Ua.Mcp.Tools
 
                 var response = (FindServersResponse)genericResponse;
 
-                List<Dictionary<string, object?>> results = response.Servers
+                var results = response.Servers
                     .ConvertAll(s => new Dictionary<string, object?>
                     {
                         ["applicationUri"] = s.ApplicationUri,
@@ -133,7 +133,7 @@ namespace Opc.Ua.Mcp.Tools
 
                 var response = (FindServersOnNetworkResponse)genericResponse;
 
-                List<Dictionary<string, object?>> servers = response.Servers
+                var servers = response.Servers
                     .ConvertAll(s => new Dictionary<string, object?>
                     {
                         ["recordId"] = s.RecordId,

@@ -342,7 +342,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             using (ECDsa ecdsaPrivateKey = signingCert.GetECDsaPrivateKey())
             {
                 var generator = X509SignatureGenerator.CreateForECDsa(ecdsaPrivateKey);
-                using Certificate issuer = Certificate.FromRawData(signingCert.RawData);
+                using var issuer = Certificate.FromRawData(signingCert.RawData);
                 using Certificate cert = CertificateBuilder
                     .Create("CN=App Cert")
                     .SetIssuer(issuer)
@@ -355,7 +355,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             using (ECDsa ecdsaPublicKey = signingCert.GetECDsaPublicKey())
             {
                 var generator = X509SignatureGenerator.CreateForECDsa(ecdsaPrivateKey);
-                using Certificate issuer = Certificate.FromRawData(signingCert.RawData);
+                using var issuer = Certificate.FromRawData(signingCert.RawData);
                 using Certificate cert = CertificateBuilder
                     .Create("CN=App Cert")
                     .SetHashAlgorithm(ecCurveHashPair.HashAlgorithmName)
@@ -369,7 +369,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             using (ECDsa ecdsaPrivateKey = signingCert.GetECDsaPrivateKey())
             {
                 var generator = X509SignatureGenerator.CreateForECDsa(ecdsaPrivateKey);
-                using Certificate issuer = Certificate.FromRawData(signingCert.RawData);
+                using var issuer = Certificate.FromRawData(signingCert.RawData);
                 using Certificate cert = CertificateBuilder
                     .Create("CN=App Cert")
                     .SetHashAlgorithm(ecCurveHashPair.HashAlgorithmName)
@@ -414,7 +414,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             byte[] pubKeyBytes = GetPublicKey(ecdsaPublicKey);
 
             var generator = X509SignatureGenerator.CreateForECDsa(ecdsaPrivateKey);
-            using Certificate issuer = Certificate.FromRawData(signingCert.RawData);
+            using var issuer = Certificate.FromRawData(signingCert.RawData);
             using Certificate cert = CertificateBuilder
                 .Create("CN=App Cert")
                 .SetHashAlgorithm(ecCurveHashPair.HashAlgorithmName)

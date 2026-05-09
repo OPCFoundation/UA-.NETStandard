@@ -69,7 +69,7 @@ namespace Opc.Ua.Security.Certificates
             {
                 ReadOnlyMemory<byte> remaining = chainBlob[offset..];
                 ReadOnlyMemory<byte> certBlob = AsnUtils.ParseX509Blob(remaining);
-                Certificate cert = Certificate.FromRawData(certBlob.ToArray());
+                var cert = Certificate.FromRawData(certBlob.ToArray());
                 try
                 {
                     collection.Add(cert);
@@ -196,7 +196,7 @@ namespace Opc.Ua.Security.Certificates
                 using RSA rsa = certificate.GetRSAPrivateKey()
                     ?? throw new NotSupportedException(
                         "The certificate does not contain an RSA private key.");
-                X509SignatureGenerator generator =
+                var generator =
                     X509SignatureGenerator.CreateForRSA(
                         rsa, RSASignaturePadding.Pkcs1);
                 return request.CreateSigningRequest(generator);
@@ -206,7 +206,7 @@ namespace Opc.Ua.Security.Certificates
                 using ECDsa key = certificate.GetECDsaPrivateKey()
                     ?? throw new NotSupportedException(
                         "The certificate does not contain an ECDsa private key.");
-                X509SignatureGenerator generator =
+                var generator =
                     X509SignatureGenerator.CreateForECDsa(key);
                 return request.CreateSigningRequest(generator);
             }
@@ -223,13 +223,13 @@ namespace Opc.Ua.Security.Certificates
                 using ECDsa ecdsaPrivateKey =
                     PEMReader.ImportECDsaPrivateKeyFromPEM(
                         pemDataBlob, password);
-                using Certificate cert = Certificate.FromRawData(certificate.RawData);
+                using var cert = Certificate.FromRawData(certificate.RawData);
                 return cert.CopyWithPrivateKey(ecdsaPrivateKey);
             }
 
             using RSA rsaPrivateKey =
                 PEMReader.ImportRsaPrivateKeyFromPEM(pemDataBlob, password);
-            using Certificate rsaCert = Certificate.FromRawData(certificate.RawData);
+            using var rsaCert = Certificate.FromRawData(certificate.RawData);
             return rsaCert.CopyWithPrivateKey(rsaPrivateKey);
         }
 

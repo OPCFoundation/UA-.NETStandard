@@ -69,7 +69,7 @@ namespace Opc.Ua.Core.Tests.Schema
 #endif
             {
                 ApplicationType uaType = SecuredApplication.FromApplicationType(appType);
-                SecurityNs.ApplicationType roundTripped = SecuredApplication.ToApplicationType(uaType);
+                var roundTripped = SecuredApplication.ToApplicationType(uaType);
                 Assert.That(roundTripped, Is.EqualTo(appType));
             }
         }

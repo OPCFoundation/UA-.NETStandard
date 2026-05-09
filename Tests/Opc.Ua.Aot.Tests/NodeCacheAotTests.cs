@@ -75,7 +75,7 @@ namespace Opc.Ua.Aot.Tests
         {
             // Ensure reference types are loaded in the NodeCache
             NamespaceTable namespaceUris = fixture.Session!.NamespaceUris;
-            ArrayOf<ExpandedNodeId> referenceTypes = ReferenceTypeIds.Identifiers
+            var referenceTypes = ReferenceTypeIds.Identifiers
                 .Select(nodeId => NodeId.ToExpandedNodeId(nodeId, namespaceUris))
                 .ToArrayOf();
             await fixture.Session.FetchTypeTreeAsync(
@@ -96,7 +96,7 @@ namespace Opc.Ua.Aot.Tests
         [Test]
         public async Task FetchTypeTreeAsync()
         {
-            ExpandedNodeId baseDataTypeId = NodeId.ToExpandedNodeId(
+            var baseDataTypeId = NodeId.ToExpandedNodeId(
                 DataTypeIds.BaseDataType,
                 fixture.Session!.NamespaceUris);
 

@@ -62,7 +62,7 @@ namespace Opc.Ua.Security.Certificates.Tests
         [Theory]
         public void DecodeExtensions(CertificateAsset certAsset)
         {
-            using Certificate x509Cert = Certificate.FromRawData(certAsset.Cert);
+            using var x509Cert = Certificate.FromRawData(certAsset.Cert);
             Assert.That(x509Cert, Is.Not.Null);
             TestContext.Out.WriteLine("CertificateAsset:");
             TestContext.Out.WriteLine(x509Cert);

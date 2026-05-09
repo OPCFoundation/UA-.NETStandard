@@ -161,7 +161,7 @@ namespace Opc.Ua.Client.Tests.ComplexTypes
         {
             EnumDefinition definition = CreateAccessRightsDefinition();
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            ServiceMessageContext context = ServiceMessageContext.Create(telemetry);
+            var context = ServiceMessageContext.Create(telemetry);
             context.NamespaceUris.GetIndexOrAppend(kTypeNamespace);
 
             // Register the type for decode via the factory.
@@ -213,7 +213,7 @@ namespace Opc.Ua.Client.Tests.ComplexTypes
         {
             EnumDefinition definition = CreateAccessRightsDefinition();
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            ServiceMessageContext context = ServiceMessageContext.Create(telemetry);
+            var context = ServiceMessageContext.Create(telemetry);
             context.NamespaceUris.GetIndexOrAppend(kTypeNamespace);
 
             IEncodeableType type = m_builder.AddOptionSetType(

@@ -52,7 +52,7 @@ namespace Opc.Ua.Gds.Tests
             byte[][] issuerCertificates,
             ITelemetryContext telemetry)
         {
-            using Certificate newCert = Certificate.FromRawData(certificate);
+            using var newCert = Certificate.FromRawData(certificate);
             Assert.That(newCert, Is.Not.Null);
             Certificate newPrivateKeyCert = null;
             if (privateKeyFormat == "PFX")
@@ -101,7 +101,7 @@ namespace Opc.Ua.Gds.Tests
                     issuerStoreOnly.Open(issuerPath, true);
                     foreach (byte[] issuer in issuerCertificates)
                     {
-                        using Certificate issuerCert = Certificate.FromRawData(issuer);
+                        using var issuerCert = Certificate.FromRawData(issuer);
                         await issuerStoreOnly.AddAsync(issuerCert).ConfigureAwait(false);
                     }
                 }
@@ -139,7 +139,7 @@ namespace Opc.Ua.Gds.Tests
                     trustedStore.Open(trustedPath, true);
                     foreach (byte[] issuer in issuerCertificates)
                     {
-                        using Certificate issuerCert = Certificate.FromRawData(issuer);
+                        using var issuerCert = Certificate.FromRawData(issuer);
                         await trustedStore.AddAsync(issuerCert).ConfigureAwait(false);
                     }
                 }
@@ -177,8 +177,8 @@ namespace Opc.Ua.Gds.Tests
             byte[] rawSignedCert,
             byte[][] rawIssuerCerts)
         {
-            Certificate signedCert = Certificate.FromRawData(rawSignedCert);
-            Certificate issuerCert = Certificate.FromRawData(rawIssuerCerts[0]);
+            var signedCert = Certificate.FromRawData(rawSignedCert);
+            var issuerCert = Certificate.FromRawData(rawIssuerCerts[0]);
 
             TestContext.Out.WriteLine($"Signed cert: {signedCert}");
             TestContext.Out.WriteLine($"Issuer cert: {issuerCert}");

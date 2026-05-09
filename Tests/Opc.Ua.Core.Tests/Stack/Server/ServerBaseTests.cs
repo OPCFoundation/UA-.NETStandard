@@ -569,7 +569,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
 
             // Verify that opc.tcp has exactly 2 base addresses (localhost and 192.168.1.100)
             // both on the same port - this is the core scenario under test.
-            List<BaseAddress> tcpAddresses = BaseAddresses
+            var tcpAddresses = BaseAddresses
                 .Where(a => a.Url.Scheme == Utils.UriSchemeOpcTcp)
                 .ToList();
             Assert.That(tcpAddresses, Has.Count.EqualTo(2),

@@ -492,7 +492,7 @@ namespace Opc.Ua.Configuration.Tests
             {
                 // store public key in trusted store
                 byte[] rawData = appCert.RawData;
-                using Certificate publicKey = Certificate.FromRawData(rawData);
+                using var publicKey = Certificate.FromRawData(rawData);
                 await store.AddAsync(publicKey)
                     .ConfigureAwait(false);
             }

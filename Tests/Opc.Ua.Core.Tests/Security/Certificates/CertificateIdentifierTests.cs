@@ -418,7 +418,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         public void ToStringFormattableReturnsValue()
         {
             const string path = "%LocalApplicationData%/OPC/test";
-            CertificateStoreIdentifier formattable = new CertificateStoreIdentifier(path);
+            var formattable = new CertificateStoreIdentifier(path);
             string result = formattable.ToString(null, null);
             Assert.That(result, Is.Not.Null.And.Not.Empty);
         }

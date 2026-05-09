@@ -246,7 +246,7 @@ namespace Quickstarts.ReferenceServer
                             "Duration",
                             DataTypeIds.Duration,
                             ValueRanks.Scalar));
-                    var floatVal = CreateVariable(
+                    BaseDataVariableState floatVal = CreateVariable(
                                 staticFolder,
                                 scalarStatic + "Float",
                                 "Float",
@@ -3886,7 +3886,7 @@ namespace Quickstarts.ReferenceServer
         /// </summary>
         private FolderState CreateFolder(NodeState parent, string path, string name)
         {
-            FolderState folder = new FolderState(parent)
+            var folder = new FolderState(parent)
             {
                 SymbolicName = name,
                 ReferenceTypeId = ReferenceTypeIds.Organizes,
@@ -3960,7 +3960,7 @@ namespace Quickstarts.ReferenceServer
             BuiltInType dataType,
             int valueRank)
         {
-            DataItemState variable = new DataItemState(parent);
+            var variable = new DataItemState(parent);
             try
             {
                 variable.ValuePrecision = PropertyState<double>.With<VariantBuilder>(variable);
@@ -4069,7 +4069,7 @@ namespace Quickstarts.ReferenceServer
             Variant initialValues,
             Range customRange)
         {
-            AnalogItemState variable = new AnalogItemState(parent)
+            var variable = new AnalogItemState(parent)
             {
                 BrowseName = new QualifiedName(path, NamespaceIndex)
             };
@@ -4171,7 +4171,7 @@ namespace Quickstarts.ReferenceServer
             string trueState,
             string falseState)
         {
-            TwoStateDiscreteState variable = new TwoStateDiscreteState(parent)
+            var variable = new TwoStateDiscreteState(parent)
             {
                 NodeId = new NodeId(path, NamespaceIndex),
                 BrowseName = new QualifiedName(path, NamespaceIndex),
@@ -4222,7 +4222,7 @@ namespace Quickstarts.ReferenceServer
             string name,
             params string[] values)
         {
-            MultiStateDiscreteState variable = new MultiStateDiscreteState(parent)
+            var variable = new MultiStateDiscreteState(parent)
             {
                 NodeId = new NodeId(path, NamespaceIndex),
                 BrowseName = new QualifiedName(path, NamespaceIndex),
@@ -4290,7 +4290,7 @@ namespace Quickstarts.ReferenceServer
             NodeId nodeId,
             ArrayOf<string> enumNames)
         {
-            MultiStateValueDiscreteState variable = new MultiStateValueDiscreteState(parent)
+            var variable = new MultiStateValueDiscreteState(parent)
             {
                 NodeId = new NodeId(path, NamespaceIndex),
                 BrowseName = new QualifiedName(path, NamespaceIndex),
@@ -4364,7 +4364,7 @@ namespace Quickstarts.ReferenceServer
             var variable = node as MultiStateDiscreteState;
 
             // verify data type.
-            TypeInfo typeInfo = TypeInfo.IsInstanceOfDataType(
+            var typeInfo = TypeInfo.IsInstanceOfDataType(
                 value,
                 variable.DataType,
                 variable.ValueRank,
@@ -4447,7 +4447,7 @@ namespace Quickstarts.ReferenceServer
             var variable = node as AnalogItemState;
 
             // verify data type.
-            TypeInfo typeInfo = TypeInfo.IsInstanceOfDataType(
+            var typeInfo = TypeInfo.IsInstanceOfDataType(
                 value,
                 variable.DataType,
                 variable.ValueRank,
@@ -4937,7 +4937,7 @@ namespace Quickstarts.ReferenceServer
             NodeId dataType,
             int valueRank)
         {
-            BaseDataVariableState variable = new BaseDataVariableState(parent)
+            var variable = new BaseDataVariableState(parent)
             {
                 SymbolicName = name,
                 ReferenceTypeId = ReferenceTypeIds.Organizes,
@@ -5153,7 +5153,7 @@ namespace Quickstarts.ReferenceServer
         /// </summary>
         private MethodState CreateMethod(FolderState parent, string path, string name)
         {
-            MethodState method = new MethodState(parent)
+            var method = new MethodState(parent)
             {
                 SymbolicName = name,
                 ReferenceTypeId = ReferenceTypeIds.HasComponent,

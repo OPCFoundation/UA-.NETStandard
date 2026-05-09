@@ -365,7 +365,7 @@ namespace Opc.Ua.Security.Certificates.Tests
                 .SetRSAPublicKey(rsaKeyPair)
                 .CreateForRSA(generator);
             Assert.That(rootCert, Is.Not.Null);
-            using Certificate issuer = Certificate.FromRawData(rootCert.RawData);
+            using var issuer = Certificate.FromRawData(rootCert.RawData);
             WriteCertificate(rootCert, "Default root cert with supplied RSA cert");
             CheckPEMWriter(rootCert);
 
@@ -411,7 +411,7 @@ namespace Opc.Ua.Security.Certificates.Tests
                 .SetRSAPublicKey(rsaKeyPair)
                 .CreateForRSA(generator);
             Assert.That(rootCert, Is.Not.Null);
-            using Certificate issuer = Certificate.FromRawData(rootCert.RawData);
+            using var issuer = Certificate.FromRawData(rootCert.RawData);
             WriteCertificate(rootCert, "Default root cert with supplied RSA cert");
             CheckPEMWriter(rootCert);
 
@@ -447,7 +447,7 @@ namespace Opc.Ua.Security.Certificates.Tests
                 var generator = X509SignatureGenerator.CreateForRSA(
                     rsaPrivateKey,
                     RSASignaturePadding.Pkcs1);
-                using Certificate issuer = Certificate.FromRawData(
+                using var issuer = Certificate.FromRawData(
                     signingCert.RawData);
                 using Certificate cert = CertificateBuilder
                     .Create("CN=App Cert")
@@ -466,7 +466,7 @@ namespace Opc.Ua.Security.Certificates.Tests
                 var generator = X509SignatureGenerator.CreateForRSA(
                     rsaPrivateKey,
                     RSASignaturePadding.Pkcs1);
-                using Certificate issuer = Certificate.FromRawData(
+                using var issuer = Certificate.FromRawData(
                     signingCert.RawData);
                 using Certificate cert = CertificateBuilder
                     .Create("CN=App Cert")
@@ -486,7 +486,7 @@ namespace Opc.Ua.Security.Certificates.Tests
                 var generator = X509SignatureGenerator.CreateForRSA(
                     rsaPrivateKey,
                     RSASignaturePadding.Pkcs1);
-                using Certificate issuer = Certificate.FromRawData(
+                using var issuer = Certificate.FromRawData(
                     signingCert.RawData);
                 using Certificate cert = CertificateBuilder
                     .Create("CN=App Cert")

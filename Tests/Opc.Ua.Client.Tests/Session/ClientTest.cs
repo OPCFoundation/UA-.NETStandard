@@ -195,7 +195,7 @@ namespace Opc.Ua.Client.Tests
 
                 if (!endpoint.ServerCertificate.IsEmpty)
                 {
-                    using Certificate cert = Certificate.FromRawData(
+                    using var cert = Certificate.FromRawData(
                         endpoint.ServerCertificate);
                     TestContext.Out.WriteLine("  [{0}]", cert.Thumbprint);
                 }

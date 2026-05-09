@@ -1049,7 +1049,7 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(namespaceTable));
             }
 
-            ServiceMessageContext context = ServiceMessageContext.CreateEmpty(null);
+            var context = ServiceMessageContext.CreateEmpty(null);
             context.NamespaceUris = namespaceTable;
             // Substitute an empty server table when none is supplied so that any
             // svu= prefix in the input is naturally rejected (no URI in the

@@ -89,13 +89,13 @@ namespace Opc.Ua.Core.Tests.Stack.Configuration
                 }
             };
 
-            ConfiguredEndpointCollection reloaded = ConfiguredEndpointCollection.Load(path, m_telemetry);
+            var reloaded = ConfiguredEndpointCollection.Load(path, m_telemetry);
             reloaded.Add(description);
             reloaded.Save();
 
             Assert.That(File.Exists(path), Is.True);
 
-            ConfiguredEndpointCollection final = ConfiguredEndpointCollection.Load(path, m_telemetry);
+            var final = ConfiguredEndpointCollection.Load(path, m_telemetry);
             Assert.That(final.Count, Is.EqualTo(1));
         }
 
@@ -111,7 +111,7 @@ namespace Opc.Ua.Core.Tests.Stack.Configuration
             collection.Add(endpoint2);
             collection.Save(path);
 
-            ConfiguredEndpointCollection reloaded = ConfiguredEndpointCollection.Load(path, m_telemetry);
+            var reloaded = ConfiguredEndpointCollection.Load(path, m_telemetry);
             Assert.That(reloaded.Count, Is.EqualTo(2));
         }
 
@@ -128,7 +128,7 @@ namespace Opc.Ua.Core.Tests.Stack.Configuration
                 TransportQuotas = new TransportQuotas()
             };
 
-            ConfiguredEndpointCollection loaded = ConfiguredEndpointCollection.Load(
+            var loaded = ConfiguredEndpointCollection.Load(
                 appConfig, path, m_telemetry);
             Assert.That(loaded, Is.Not.Null);
             Assert.That(loaded.Count, Is.EqualTo(1));
@@ -147,7 +147,7 @@ namespace Opc.Ua.Core.Tests.Stack.Configuration
                 TransportQuotas = new TransportQuotas()
             };
 
-            ConfiguredEndpointCollection loaded = ConfiguredEndpointCollection.Load(
+            var loaded = ConfiguredEndpointCollection.Load(
                 appConfig, path, true, m_telemetry);
             Assert.That(loaded, Is.Not.Null);
             Assert.That(loaded.Count, Is.EqualTo(1));

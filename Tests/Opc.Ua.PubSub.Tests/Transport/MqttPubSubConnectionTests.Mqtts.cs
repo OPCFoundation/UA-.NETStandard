@@ -159,7 +159,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 "The MQTT publisher connection properties are not valid.");
 
             // Create publisher application for multiple datasets
-            using UaPubSubApplication publisherApplication = UaPubSubApplication.Create(publisherConfiguration, telemetry);
+            using var publisherApplication = UaPubSubApplication.Create(publisherConfiguration, telemetry);
             publisherApplication.OnValidateBrokerCertificate = certificateDirectory.ValidateBrokerCertificate;
             MessagesHelper.LoadData(publisherApplication, kNamespaceIndexAllTypes);
 
@@ -238,7 +238,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 "The MQTT subscriber connection properties are not valid.");
 
             // Create subscriber application for multiple datasets
-            using UaPubSubApplication subscriberApplication = UaPubSubApplication.Create(subscriberConfiguration, telemetry);
+            using var subscriberApplication = UaPubSubApplication.Create(subscriberConfiguration, telemetry);
             subscriberApplication.OnValidateBrokerCertificate = certificateDirectory.ValidateBrokerCertificate;
             Assert.That(subscriberApplication, Is.Not.Null, "subscriberApplication should not be null");
             Assert.That(

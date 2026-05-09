@@ -33,7 +33,6 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
-using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
@@ -435,7 +434,7 @@ namespace Opc.Ua
             {
                 untrustedList.Add(new CertificateIdentifier { RawData = certificates[ii].RawData });
             }
-            ArrayOf<CertificateIdentifier> untrustedCollection = untrustedList.ToArrayOf();
+            var untrustedCollection = untrustedList.ToArrayOf();
 
             do
             {
@@ -598,7 +597,7 @@ namespace Opc.Ua
             if (endpointUrl != null && !CertificateValidationHelpers.FindDomain(serverCertificate, endpointUrl))
             {
                 const string message = "The domain '{0}' is not listed in the server certificate.";
-                ServiceResultException serviceResult = ServiceResultException.Create(
+                var serviceResult = ServiceResultException.Create(
                     StatusCodes.BadCertificateHostNameInvalid,
                     message,
                     endpointUrl.IdnHost);
@@ -1086,7 +1085,7 @@ namespace Opc.Ua
 
                 LogInnerServiceResults(LogLevel.Information, se.Result.InnerResult);
 
-                ServiceResultException unsuppressible = new ServiceResultException(
+                var unsuppressible = new ServiceResultException(
                     se,
                     StatusCodes.BadCertificateInvalid);
                 return new CertificateValidationResult(
@@ -1142,7 +1141,7 @@ namespace Opc.Ua
                     se.Result.ToLongString());
                 LogInnerServiceResults(LogLevel.Error, se.Result.InnerResult);
 
-                ServiceResultException suppressible = new ServiceResultException(
+                var suppressible = new ServiceResultException(
                     se,
                     StatusCodes.BadCertificateInvalid);
                 return new CertificateValidationResult(

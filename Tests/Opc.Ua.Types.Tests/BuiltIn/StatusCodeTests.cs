@@ -765,7 +765,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void GoodIsNotEqualToGoodWithSemanticsChangedFlag()
         {
             // StatusCode.Good (0x00000000) must NOT equal Good with SemanticsChanged bit (0x00004000)
-            var good = StatusCodes.Good;
+            StatusCode good = StatusCodes.Good;
             StatusCode goodWithSemanticsChanged = good.SetSemanticsChanged(true);
             Assert.That(good, Is.Not.EqualTo(goodWithSemanticsChanged));
         }
@@ -774,7 +774,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void GoodIsNotEqualToGoodWithStructureChangedFlag()
         {
             // StatusCode.Good (0x00000000) must NOT equal Good with StructureChanged bit (0x00008000)
-            var good = StatusCodes.Good;
+            StatusCode good = StatusCodes.Good;
             StatusCode goodWithStructureChanged = good.SetStructureChanged(true);
             Assert.That(good, Is.Not.EqualTo(goodWithStructureChanged));
         }
@@ -782,7 +782,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void GoodIsEqualToGoodWithNoFlags()
         {
-            var good1 = StatusCodes.Good;
+            StatusCode good1 = StatusCodes.Good;
             var good2 = new StatusCode(0x00000000);
             Assert.That(good1, Is.EqualTo(good2));
         }
