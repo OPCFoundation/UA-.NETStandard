@@ -76,58 +76,61 @@ namespace Opc.Ua.Configuration.Tests
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
-            await using var application = new ApplicationInstance(telemetry) { ApplicationName = "Application" };
+            var application = new ApplicationInstance(telemetry) { ApplicationName = "Application" };
+            await using (application.ConfigureAwait(false))
+            {
 
-            string appStorePath = m_tempPath + Path.DirectorySeparatorChar + "own";
-            string trustedStorePath = m_tempPath + Path.DirectorySeparatorChar + "trusted";
-            string issuerStorePath = m_tempPath + Path.DirectorySeparatorChar + "issuer";
-            string trustedUserStorePath = m_tempPath + Path.DirectorySeparatorChar + "trustedUser";
-            string issuerUserStorePath = m_tempPath + Path.DirectorySeparatorChar + "userIssuer";
+                string appStorePath = m_tempPath + Path.DirectorySeparatorChar + "own";
+                string trustedStorePath = m_tempPath + Path.DirectorySeparatorChar + "trusted";
+                string issuerStorePath = m_tempPath + Path.DirectorySeparatorChar + "issuer";
+                string trustedUserStorePath = m_tempPath + Path.DirectorySeparatorChar + "trustedUser";
+                string issuerUserStorePath = m_tempPath + Path.DirectorySeparatorChar + "userIssuer";
 
-            IApplicationConfigurationBuilderSecurityOptionStores appConfigBuilder = application
-                .Build(
-                    applicationUri: "urn:localhost:CertStoreTypeTest",
-                    productUri: "uri:opcfoundation.org:Tests:CertStoreTypeTest")
-                .AsClient()
-                .AddSecurityConfigurationStores(
-                    subjectName: "CN=CertStoreTypeTest, O=OPC Foundation",
-                    appRoot: TestCertStore.StoreTypePrefix + appStorePath,
-                    trustedRoot: TestCertStore.StoreTypePrefix + trustedStorePath,
-                    issuerRoot: TestCertStore.StoreTypePrefix + issuerStorePath)
-                .AddSecurityConfigurationUserStore(
-                    trustedRoot: TestCertStore.StoreTypePrefix + trustedUserStorePath,
-                    issuerRoot: TestCertStore.StoreTypePrefix + issuerUserStorePath);
+                IApplicationConfigurationBuilderSecurityOptionStores appConfigBuilder = application
+                    .Build(
+                        applicationUri: "urn:localhost:CertStoreTypeTest",
+                        productUri: "uri:opcfoundation.org:Tests:CertStoreTypeTest")
+                    .AsClient()
+                    .AddSecurityConfigurationStores(
+                        subjectName: "CN=CertStoreTypeTest, O=OPC Foundation",
+                        appRoot: TestCertStore.StoreTypePrefix + appStorePath,
+                        trustedRoot: TestCertStore.StoreTypePrefix + trustedStorePath,
+                        issuerRoot: TestCertStore.StoreTypePrefix + issuerStorePath)
+                    .AddSecurityConfigurationUserStore(
+                        trustedRoot: TestCertStore.StoreTypePrefix + trustedUserStorePath,
+                        issuerRoot: TestCertStore.StoreTypePrefix + issuerUserStorePath);
 
-            // patch custom stores before creating the config
-            ApplicationConfiguration appConfig = await appConfigBuilder.CreateAsync()
-                .ConfigureAwait(false);
+                // patch custom stores before creating the config
+                ApplicationConfiguration appConfig = await appConfigBuilder.CreateAsync()
+                    .ConfigureAwait(false);
 
-            bool certOK = await application.CheckApplicationInstanceCertificatesAsync(true)
-                .ConfigureAwait(false);
-            Assert.That(certOK, Is.True);
+                bool certOK = await application.CheckApplicationInstanceCertificatesAsync(true)
+                    .ConfigureAwait(false);
+                Assert.That(certOK, Is.True);
 
-            int instancesCreatedWhileLoadingConfig = TestCertStore.InstancesCreated;
-            Assert.That(instancesCreatedWhileLoadingConfig, Is.GreaterThan(0));
+                int instancesCreatedWhileLoadingConfig = TestCertStore.InstancesCreated;
+                Assert.That(instancesCreatedWhileLoadingConfig, Is.GreaterThan(0));
 
-            await OpenCertStoreAsync(appConfig.SecurityConfiguration.TrustedIssuerCertificates, telemetry)
-                .ConfigureAwait(false);
-            await OpenCertStoreAsync(appConfig.SecurityConfiguration.TrustedPeerCertificates, telemetry)
-                .ConfigureAwait(false);
-            await OpenCertStoreAsync(appConfig.SecurityConfiguration.UserIssuerCertificates, telemetry)
-                .ConfigureAwait(false);
-            await OpenCertStoreAsync(appConfig.SecurityConfiguration.TrustedUserCertificates, telemetry)
-                .ConfigureAwait(false);
+                await OpenCertStoreAsync(appConfig.SecurityConfiguration.TrustedIssuerCertificates, telemetry)
+                    .ConfigureAwait(false);
+                await OpenCertStoreAsync(appConfig.SecurityConfiguration.TrustedPeerCertificates, telemetry)
+                    .ConfigureAwait(false);
+                await OpenCertStoreAsync(appConfig.SecurityConfiguration.UserIssuerCertificates, telemetry)
+                    .ConfigureAwait(false);
+                await OpenCertStoreAsync(appConfig.SecurityConfiguration.TrustedUserCertificates, telemetry)
+                    .ConfigureAwait(false);
 
-            int instancesCreatedWhileOpeningAuthRootStore = TestCertStore.InstancesCreated;
-            Assert.That(
-                instancesCreatedWhileLoadingConfig,
-                Is.LessThan(instancesCreatedWhileOpeningAuthRootStore));
-            var certificateStoreIdentifier = new CertificateStoreIdentifier(
-                TestCertStore.StoreTypePrefix + trustedUserStorePath);
-            using ICertificateStore store = certificateStoreIdentifier.OpenStore(telemetry);
-            Assert.That(
-                instancesCreatedWhileOpeningAuthRootStore,
-                Is.LessThan(TestCertStore.InstancesCreated));
+                int instancesCreatedWhileOpeningAuthRootStore = TestCertStore.InstancesCreated;
+                Assert.That(
+                    instancesCreatedWhileLoadingConfig,
+                    Is.LessThan(instancesCreatedWhileOpeningAuthRootStore));
+                var certificateStoreIdentifier = new CertificateStoreIdentifier(
+                    TestCertStore.StoreTypePrefix + trustedUserStorePath);
+                using ICertificateStore store = certificateStoreIdentifier.OpenStore(telemetry);
+                Assert.That(
+                    instancesCreatedWhileOpeningAuthRootStore,
+                    Is.LessThan(TestCertStore.InstancesCreated));
+            }
         }
 
         private static async Task OpenCertStoreAsync(CertificateTrustList trustList, ITelemetryContext telemetry)

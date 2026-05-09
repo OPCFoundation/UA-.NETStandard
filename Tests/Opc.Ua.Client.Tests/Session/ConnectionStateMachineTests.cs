@@ -570,37 +570,40 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 It.IsAny<CancellationToken>()))
                 .Returns(TimeSpan.FromMilliseconds(5));
 
-            await using var sm = new ConnectionStateMachine(
+            var sm = new ConnectionStateMachine(
                 mockPolicy.Object, m_logger);
-
-            int connectCallCount = 0;
-            sm.ConnectAsync = _ =>
+            await using (sm.ConfigureAwait(false))
             {
-                int call = Interlocked.Increment(
-                    ref connectCallCount);
-                if (call == 1)
+
+                int connectCallCount = 0;
+                sm.ConnectAsync = _ =>
                 {
-                    return Task.FromResult(
-                        new ServiceResult(
-                            StatusCodes.BadConnectionClosed));
-                }
-                return Task.FromResult(ServiceResult.Good);
-            };
+                    int call = Interlocked.Increment(
+                        ref connectCallCount);
+                    if (call == 1)
+                    {
+                        return Task.FromResult(
+                            new ServiceResult(
+                                StatusCodes.BadConnectionClosed));
+                    }
+                    return Task.FromResult(ServiceResult.Good);
+                };
 
-            sm.ReconnectAsync = _ =>
-                Task.FromResult(ServiceResult.Good);
+                sm.ReconnectAsync = _ =>
+                    Task.FromResult(ServiceResult.Good);
 
-            sm.Start();
-            sm.RequestConnect();
+                sm.Start();
+                sm.RequestConnect();
 
-            await WaitForStateAsync(sm, ConnectionState.Connected)
-                .ConfigureAwait(false);
+                await WaitForStateAsync(sm, ConnectionState.Connected)
+                    .ConfigureAwait(false);
 
-            mockPolicy.Verify(
-                p => p.Reset(),
-                Times.AtLeastOnce,
-                "Policy should be reset after successful " +
-                "reconnect");
+                mockPolicy.Verify(
+                    p => p.Reset(),
+                    Times.AtLeastOnce,
+                    "Policy should be reset after successful " +
+                    "reconnect");
+            }
         }
 
         [Test]

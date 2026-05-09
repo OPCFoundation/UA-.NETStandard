@@ -294,69 +294,72 @@ namespace Opc.Ua.Server.Tests
                 };
 
                 // Create client application configuration
-                await using var clientApp = new ApplicationInstance(telemetry)
+                var clientApp = new ApplicationInstance(telemetry)
                 {
                     ApplicationName = "TestClient",
                     ApplicationType = ApplicationType.Client
                 };
-
-                ApplicationConfiguration clientConfig = await clientApp
-                    .Build(clientApplicationUri, "uri:opcfoundation.org:TestClient")
-                    .AsClient()
-                    .AddSecurityConfiguration([certIdentifier], clientPkiRoot)
-                    .SetMinimumCertificateKeySize(256)
-                    .SetAutoAcceptUntrustedCertificates(true)
-                    .CreateAsync()
-                    .ConfigureAwait(false);
-
-                // Get server endpoint with RSA-compatible security policy
-                EndpointDescription endpoint = m_serverFixture.Server.GetEndpoints()
-                    .Find(e => e.SecurityMode == MessageSecurityMode.SignAndEncrypt &&
-                        e.SecurityPolicyUri == SecurityPolicies.Basic256Sha256);
-
-                Assert.That(endpoint, Is.Not.Null, "No suitable endpoint found");
-
-                var endpointConfiguration = EndpointConfiguration.Create(clientConfig);
-                endpointConfiguration.OperationTimeout = 10000;
-                var configuredEndpoint = new ConfiguredEndpoint(null, endpoint, endpointConfiguration);
-
-                // Create and open session with retry logic for transient errors
-                var sessionFactory = new DefaultSessionFactory(telemetry);
-                const int maxAttempts = 40;
-                const int delayMs = 5000;
-                for (int attempt = 0; ; attempt++)
+                await using (clientApp.ConfigureAwait(false))
                 {
-                    try
+
+                    ApplicationConfiguration clientConfig = await clientApp
+                        .Build(clientApplicationUri, "uri:opcfoundation.org:TestClient")
+                        .AsClient()
+                        .AddSecurityConfiguration([certIdentifier], clientPkiRoot)
+                        .SetMinimumCertificateKeySize(256)
+                        .SetAutoAcceptUntrustedCertificates(true)
+                        .CreateAsync()
+                        .ConfigureAwait(false);
+
+                    // Get server endpoint with RSA-compatible security policy
+                    EndpointDescription endpoint = m_serverFixture.Server.GetEndpoints()
+                        .Find(e => e.SecurityMode == MessageSecurityMode.SignAndEncrypt &&
+                            e.SecurityPolicyUri == SecurityPolicies.Basic256Sha256);
+
+                    Assert.That(endpoint, Is.Not.Null, "No suitable endpoint found");
+
+                    var endpointConfiguration = EndpointConfiguration.Create(clientConfig);
+                    endpointConfiguration.OperationTimeout = 10000;
+                    var configuredEndpoint = new ConfiguredEndpoint(null, endpoint, endpointConfiguration);
+
+                    // Create and open session with retry logic for transient errors
+                    var sessionFactory = new DefaultSessionFactory(telemetry);
+                    const int maxAttempts = 40;
+                    const int delayMs = 5000;
+                    for (int attempt = 0; ; attempt++)
                     {
-                        return await sessionFactory.CreateAsync(
-                            clientConfig,
-                            configuredEndpoint,
-                            false, // updateBeforeConnect
-                            false, // checkDomain
-                            "TestSession",
-                            60000, // sessionTimeout
-                            null, // userIdentity
-                            default) // preferredLocales
-                            .ConfigureAwait(false);
-                    }
-                    catch (ServiceResultException e) when (
-                    (
-                        e.StatusCode == StatusCodes.BadServerHalted ||
-                        e.StatusCode == StatusCodes.BadSecureChannelClosed ||
-                        e.StatusCode == StatusCodes.BadNoCommunication ||
-                        e.StatusCode == StatusCodes.BadNotConnected
-                    ) &&
-                    attempt < maxAttempts)
-                    {
-                        // Retry for transient connection errors (can happen on busy CI environments)
-                        logger.LogWarning(
-                            e,
-                            "Failed to create session (attempt {Attempt}/{MaxAttempts}). Retrying in {DelayMs}ms... Error: {StatusCode}",
-                            attempt + 1,
-                            maxAttempts,
-                            delayMs,
-                            e.Code);
-                        await Task.Delay(delayMs).ConfigureAwait(false);
+                        try
+                        {
+                            return await sessionFactory.CreateAsync(
+                                clientConfig,
+                                configuredEndpoint,
+                                false, // updateBeforeConnect
+                                false, // checkDomain
+                                "TestSession",
+                                60000, // sessionTimeout
+                                null, // userIdentity
+                                default) // preferredLocales
+                                .ConfigureAwait(false);
+                        }
+                        catch (ServiceResultException e) when (
+                        (
+                            e.StatusCode == StatusCodes.BadServerHalted ||
+                            e.StatusCode == StatusCodes.BadSecureChannelClosed ||
+                            e.StatusCode == StatusCodes.BadNoCommunication ||
+                            e.StatusCode == StatusCodes.BadNotConnected
+                        ) &&
+                        attempt < maxAttempts)
+                        {
+                            // Retry for transient connection errors (can happen on busy CI environments)
+                            logger.LogWarning(
+                                e,
+                                "Failed to create session (attempt {Attempt}/{MaxAttempts}). Retrying in {DelayMs}ms... Error: {StatusCode}",
+                                attempt + 1,
+                                maxAttempts,
+                                delayMs,
+                                e.Code);
+                            await Task.Delay(delayMs).ConfigureAwait(false);
+                        }
                     }
                 }
             }
