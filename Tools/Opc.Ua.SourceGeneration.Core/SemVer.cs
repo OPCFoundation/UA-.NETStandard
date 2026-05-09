@@ -93,7 +93,7 @@ namespace Opc.Ua.SourceGeneration
             string s = text.Trim();
             if (s.Length > 0 && (s[0] == 'v' || s[0] == 'V'))
             {
-                s = s.Substring(1);
+                s = s[1..];
             }
 
             // Detach any pre-release tag after '-' or '+'.
@@ -102,7 +102,7 @@ namespace Opc.Ua.SourceGeneration
             if (tagAt >= 0)
             {
                 isPrerelease = true;
-                s = s.Substring(0, tagAt);
+                s = s[..tagAt];
             }
 
             if (s.Length == 0)

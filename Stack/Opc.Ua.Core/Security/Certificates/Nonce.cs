@@ -646,7 +646,7 @@ namespace Opc.Ua
 
             byte[] key = new byte[1 + ((keyLength + 7) / 8)];
             s_rng.Value.GetBytes(key);
-            key[key.Length - 1] = 0;
+            key[^1] = 0;
 
             dh.m_privateKey = new BigInteger(key);
             dh.m_publicKey = BigInteger.ModPow(s_G, dh.m_privateKey, p);

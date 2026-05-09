@@ -79,14 +79,11 @@ namespace Boiler
             // singletons, independent of browse-path layout.
             builder
                 .NodeFromTypeId(ExpandedNodeId.ToNodeId(ObjectTypeIds.BoilerType, Server.NamespaceUris))
-                .OnNodeAdded((context, node) =>
-                {
-                    Server.Telemetry.CreateLogger<BoilerNodeManager>()
+                .OnNodeAdded((context, node) => Server.Telemetry.CreateLogger<BoilerNodeManager>()
                         .LogInformation(
                             "Boiler instance materialized: {NodeId} ({BrowseName})",
                             node.NodeId,
-                            node.BrowseName);
-                });
+                            node.BrowseName));
         }
 
         private ServiceResult GenerateDrumLevel(

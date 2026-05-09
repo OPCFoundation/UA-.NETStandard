@@ -56,8 +56,8 @@ namespace Opc.Ua.PubSub.Tests
         public void ConstructorSetsProperties()
         {
             object id = "runner1";
-            Func<bool> canExecute = () => true;
-            Func<Task> action = () => Task.CompletedTask;
+            static bool canExecute() => true;
+            static Task action() => Task.CompletedTask;
 
             using var runner = new IntervalRunner(id, 100, canExecute, action, m_telemetry);
 

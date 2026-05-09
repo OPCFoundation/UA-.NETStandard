@@ -74,13 +74,10 @@ namespace Opc.Ua.PubSub.Tests.Transport
         [Test]
         public void ParameterizedConstructorWithNullUserNameDoesNotThrow()
         {
-            Assert.DoesNotThrow(() =>
-            {
-                _ = new MqttClientProtocolConfiguration(
+            Assert.DoesNotThrow(() => _ = new MqttClientProtocolConfiguration(
                     userName: null,
                     password: null,
-                    azureClientId: null);
-            });
+                    azureClientId: null));
         }
 
         [Test]

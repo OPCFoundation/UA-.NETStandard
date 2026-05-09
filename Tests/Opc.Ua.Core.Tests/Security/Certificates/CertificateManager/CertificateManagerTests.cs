@@ -286,7 +286,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         }
 
         [Test]
-        public async Task RejectCertificateAsyncEnqueuesSuccessfully()
+        public Task RejectCertificateAsyncEnqueuesSuccessfully()
         {
             string rejectedPath = CreateTempDir();
             using var manager = new CertificateManager(m_telemetry);
@@ -301,6 +301,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.DoesNotThrowAsync(async () =>
                 await manager.RejectCertificateAsync(
                     rejectedCollection).ConfigureAwait(false));
+            return Task.CompletedTask;
         }
 
         #endregion Lifecycle

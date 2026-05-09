@@ -278,7 +278,7 @@ namespace Opc.Ua.Encoders
             if (!source.IsEmpty)
             {
                 int copyLength = Math.Min(source.Length, fixedLength);
-                source.Span.Slice(0, copyLength).CopyTo(buffer);
+                source.Span[..copyLength].CopyTo(buffer);
             }
             if (on)
             {

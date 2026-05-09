@@ -1009,14 +1009,11 @@ namespace Opc.Ua.Server
             if (ServerBase.RequireEncryption(EndpointDescription))
             {
                 // decrypt the token.
-                if (m_serverCertificate == null)
-                {
-                    // check for valid certificate.
-                    m_serverCertificate = Certificate.FromRawData(
-                        EndpointDescription.ServerCertificate) ??
-                        throw ServiceResultException.ConfigurationError(
-                            "ApplicationCertificate cannot be found.");
-                }
+                // check for valid certificate.
+                m_serverCertificate ??= Certificate.FromRawData(
+                    EndpointDescription.ServerCertificate) ??
+                    throw ServiceResultException.ConfigurationError(
+                        "ApplicationCertificate cannot be found.");
 
                 try
                 {

@@ -563,7 +563,7 @@ namespace Opc.Ua.Client.Subscriptions
                 m_completion, m_options, m_telemetry);
 
             // Act
-            Func<Task> act = async () => await sut.ConditionRefreshAsync(CancellationToken.None).ConfigureAwait(false);
+            async Task act() => await sut.ConditionRefreshAsync(CancellationToken.None).ConfigureAwait(false);
 
             // Assert
             ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(async () => await act().ConfigureAwait(false));

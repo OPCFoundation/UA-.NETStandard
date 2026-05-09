@@ -353,10 +353,7 @@ namespace Opc.Ua.Gds.Client
         /// <inheritdoc/>
         public async ValueTask ConnectAsync(ConfiguredEndpoint endpoint, CancellationToken ct = default)
         {
-            if (endpoint == null)
-            {
-                endpoint = m_endpoint ?? throw new ArgumentNullException(nameof(endpoint));
-            }
+            endpoint ??= m_endpoint ?? throw new ArgumentNullException(nameof(endpoint));
 
             int maxAttempts = m_options.MaxConnectAttempts;
             int backoffMs = (int)m_options.ConnectBackoff.TotalMilliseconds;

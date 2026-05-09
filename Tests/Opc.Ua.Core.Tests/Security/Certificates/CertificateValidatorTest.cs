@@ -2199,7 +2199,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         /// suppressible status code, not the user's exception.
         /// </summary>
         [Test]
-        public async Task AcceptErrorCallbackThrowingDoesNotPropagateAsync()
+        public Task AcceptErrorCallbackThrowingDoesNotPropagateAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
@@ -2220,12 +2220,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             using var publicKey = Certificate.FromRawData(selfSigned.RawData);
 
             CertificateValidationResult result = null;
-            Assert.DoesNotThrowAsync(async () =>
-            {
-                result = await certValidator
+            Assert.DoesNotThrowAsync(async () => result = await certValidator
                     .ValidateAsync(publicKey, ct: CancellationToken.None)
-                    .ConfigureAwait(false);
-            }, "AcceptError callback exception must not propagate out of ValidateAsync.");
+                    .ConfigureAwait(false), "AcceptError callback exception must not propagate out of ValidateAsync.");
 
             Assert.That(result, Is.Not.Null);
             Assert.That(result.IsValid, Is.False,
@@ -2235,6 +2232,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 "Caller sees the underlying validation error, not the callback exception.");
 
             certValidator.AcceptError = null;
+            return Task.CompletedTask;
         }
 
         /// <summary>

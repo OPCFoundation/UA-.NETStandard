@@ -155,7 +155,7 @@ namespace Opc.Ua.SourceGeneration
                 // strip a UTF-8 BOM if present on the first row.
                 if (line.Length > 0 && line[0] == '\uFEFF')
                 {
-                    line = line.Substring(1);
+                    line = line[1..];
                 }
 
                 if (string.IsNullOrWhiteSpace(line))
@@ -169,8 +169,8 @@ namespace Opc.Ua.SourceGeneration
                     continue;
                 }
 
-                string id = line.Substring(0, index).Trim();
-                string description = line.Substring(index + 1).Trim();
+                string id = line[..index].Trim();
+                string description = line[(index + 1)..].Trim();
                 if (id.Length == 0)
                 {
                     continue;
@@ -215,11 +215,11 @@ namespace Opc.Ua.SourceGeneration
             int dot = text.IndexOf('.', StringComparison.Ordinal);
             if (dot > 0)
             {
-                text = text.Substring(0, dot + 1);
+                text = text[..(dot + 1)];
             }
             else if (text.Length > 80)
             {
-                text = text.Substring(0, 80);
+                text = text[..80];
             }
 
             return EscapeXml(text);

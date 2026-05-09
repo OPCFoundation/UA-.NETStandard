@@ -199,11 +199,11 @@ namespace Opc.Ua.Server.Tests.Fluent
         {
             (NodeManagerBuilder b, _, BaseDataVariableState v, _) = CreateBuilderWithGraph();
 
-            NodeValueSimpleEventHandler handler = (ISystemContext c, NodeState n, ref Variant val) =>
+            static ServiceResult handler(ISystemContext c, NodeState n, ref Variant val) =>
                 ServiceResult.Good;
             b.Node("Root/Var1").OnRead(handler);
 
-            Assert.That(v.OnSimpleReadValue, Is.SameAs(handler));
+            Assert.That(v.OnSimpleReadValue, Is.SameAs((NodeValueSimpleEventHandler)handler));
         }
 
         [Test]
@@ -211,7 +211,7 @@ namespace Opc.Ua.Server.Tests.Fluent
         {
             (NodeManagerBuilder b, _, _, MethodState m) = CreateBuilderWithGraph();
 
-            NodeValueSimpleEventHandler noop = (ISystemContext c, NodeState n, ref Variant v) =>
+            ServiceResult noop(ISystemContext c, NodeState n, ref Variant v) =>
                 ServiceResult.Good;
 
             ServiceResultException ex = Assert.Throws<ServiceResultException>(
@@ -223,7 +223,7 @@ namespace Opc.Ua.Server.Tests.Fluent
         public void OnSimpleReadCalledTwiceThrowsBadConfigurationError()
         {
             (NodeManagerBuilder b, _, _, _) = CreateBuilderWithGraph();
-            NodeValueSimpleEventHandler noop = (ISystemContext c, NodeState n, ref Variant v) =>
+            ServiceResult noop(ISystemContext c, NodeState n, ref Variant v) =>
                 ServiceResult.Good;
 
             INodeBuilder nb = b.Node("Root/Var1").OnRead(noop);
@@ -238,10 +238,10 @@ namespace Opc.Ua.Server.Tests.Fluent
         {
             (NodeManagerBuilder b, _, _, MethodState m) = CreateBuilderWithGraph();
 
-            GenericMethodCalledEventHandler2 handler = (c, mn, oid, args, outs) => ServiceResult.Good;
+            static ServiceResult handler(ISystemContext c, MethodState mn, NodeId oid, ArrayOf<Variant> args, List<Variant> outs) => ServiceResult.Good;
             b.Node(m.NodeId).OnCall(handler);
 
-            Assert.That(m.OnCallMethod2, Is.SameAs(handler));
+            Assert.That(m.OnCallMethod2, Is.SameAs((GenericMethodCalledEventHandler2)handler));
         }
 
         [Test]

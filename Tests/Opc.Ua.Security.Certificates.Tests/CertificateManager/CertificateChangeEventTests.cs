@@ -89,6 +89,9 @@ namespace Opc.Ua.Security.Certificates.Tests
             Assert.That(IsDefined(CertificateChangeKind.CertificateRejected), Is.True);
             Assert.That(IsDefined(CertificateChangeKind.CertificateExpiring), Is.True);
 
+            // IDE0061: kept block-bodied because the #if directive forks the return path,
+            // which the expression-body fixer cannot handle without leaving merge markers.
+#pragma warning disable IDE0061
             static bool IsDefined(CertificateChangeKind value)
             {
 #if NET5_0_OR_GREATER
@@ -97,6 +100,7 @@ namespace Opc.Ua.Security.Certificates.Tests
                 return Enum.IsDefined(typeof(CertificateChangeKind), value);
 #endif
             }
+#pragma warning restore IDE0061
         }
 
         [Test]

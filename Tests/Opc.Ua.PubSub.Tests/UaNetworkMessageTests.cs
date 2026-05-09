@@ -154,13 +154,10 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         public void DataSetDecodeErrorOccurredEventWithNoSubscriberDoesNotThrow()
         {
             var msg = new PubSubEncoding.JsonNetworkMessage();
-            Assert.DoesNotThrow(() =>
-            {
-                msg.Decode(
+            Assert.DoesNotThrow(() => msg.Decode(
                     m_messageContext,
                     System.Text.Encoding.UTF8.GetBytes("{}"),
-                    []);
-            });
+                    []));
         }
 
         [Test]
