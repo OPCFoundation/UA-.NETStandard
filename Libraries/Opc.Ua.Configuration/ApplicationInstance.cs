@@ -62,10 +62,8 @@ namespace Opc.Ua.Configuration
             }
 
             CertificateManager localManager = CertificateManager;
-            var configManager =
-                ApplicationConfiguration?.CertificateManager as CertificateManager;
             localManager?.Dispose();
-            if (configManager != null && !ReferenceEquals(configManager, localManager))
+            if (ApplicationConfiguration?.CertificateManager is CertificateManager configManager && !ReferenceEquals(configManager, localManager))
             {
                 configManager.Dispose();
             }

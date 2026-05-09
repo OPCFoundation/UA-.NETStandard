@@ -273,11 +273,8 @@ namespace Opc.Ua.Mcp.Tools
 
         private static CertificateStoreIdentifier GetOwnCertStore(SecurityConfiguration security)
         {
-            CertificateIdentifier? certId = security.ApplicationCertificates.ToArray()?.FirstOrDefault();
-            if (certId == null)
-            {
-                throw new InvalidOperationException("No application certificate is configured.");
-            }
+            CertificateIdentifier? certId = security.ApplicationCertificates.ToArray()?.FirstOrDefault()
+                ?? throw new InvalidOperationException("No application certificate is configured.");
             return new CertificateStoreIdentifier
             {
                 StoreType = certId.StoreType,

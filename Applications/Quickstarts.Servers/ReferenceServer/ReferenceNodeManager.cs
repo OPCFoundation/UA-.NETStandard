@@ -4557,14 +4557,16 @@ namespace Quickstarts.ReferenceServer
         /// <summary>
         /// Creates a default <see cref="AxisInformation"/> instance with the given title.
         /// </summary>
-        private static AxisInformation CreateDefaultAxisInformation(string title) =>
-            new()
+        private static AxisInformation CreateDefaultAxisInformation(string title)
+        {
+            return new()
             {
                 EngineeringUnits = new EUInformation("s", "seconds", "http://www.opcfoundation.org/UA/units/un/cefact"),
                 EURange = new Range(100, 0),
                 Title = new LocalizedText("en", title),
                 AxisScaleType = AxisScaleEnumeration.Linear
             };
+        }
 
         /// <summary>
         /// Applies common read/write access settings to a mandatory child property of an array item variable.

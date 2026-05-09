@@ -277,8 +277,8 @@ namespace Opc.Ua.SourceGeneration
                 IsSealed = symbol.IsSealed,
                 IsDerived = baseTypeIsEncodeable,
                 IsInternal =
-                    symbol.DeclaredAccessibility == Accessibility.Internal ||
-                    symbol.DeclaredAccessibility == Accessibility.NotApplicable,
+                    symbol.DeclaredAccessibility is Accessibility.Internal or
+                    Accessibility.NotApplicable,
                 BaseTypeIsEncodeable = baseTypeIsEncodeable,
                 HasManualClone = symbol.GetMembers()
                     .OfType<IMethodSymbol>()

@@ -476,17 +476,12 @@ namespace Opc.Ua.Mcp
                     endpointUrl,
                     true,
                     Telemetry,
-                    ct: ct).ConfigureAwait(false);
-
-                if (best == null)
-                {
-                    best = await CoreClientUtils.SelectEndpointAsync(
+                    ct: ct).ConfigureAwait(false) ?? await CoreClientUtils.SelectEndpointAsync(
                         m_configuration!,
                         endpointUrl,
                         false,
                         Telemetry,
                         ct: ct).ConfigureAwait(false);
-                }
 
                 if (best == null)
                 {
@@ -532,11 +527,7 @@ namespace Opc.Ua.Mcp
 
             EndpointDescription? selected = candidates
                 .OrderByDescending(ep => ep.SecurityLevel)
-                .FirstOrDefault();
-
-            if (selected == null)
-            {
-                throw new ServiceResultException(
+                .FirstOrDefault() ?? throw new ServiceResultException(
                     StatusCodes.BadNotFound,
                     string.Format(
                         CultureInfo.InvariantCulture,
@@ -546,7 +537,6 @@ namespace Opc.Ua.Mcp
                         securityMode ?? "(any)",
                         securityPolicy ?? "(any)",
                         authType));
-            }
 
             return selected;
         }

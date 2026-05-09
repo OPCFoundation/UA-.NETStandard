@@ -45,11 +45,7 @@ namespace Opc.Ua.Gds.Client
             ApplicationConfiguration configuration,
             DiagnosticsMasks diagnosticsMasks = DiagnosticsMasks.None)
         {
-            if (configuration == null)
-            {
-                throw new ArgumentNullException(nameof(configuration));
-            }
-            ApplicationConfiguration = configuration;
+            ApplicationConfiguration = configuration ?? throw new ArgumentNullException(nameof(configuration));
             DiagnosticsMasks = diagnosticsMasks;
             MessageContext = configuration.CreateMessageContext();
 

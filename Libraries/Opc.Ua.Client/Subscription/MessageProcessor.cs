@@ -313,7 +313,7 @@ namespace Opc.Ua.Client.Subscriptions
             if (prevDataSeq != 0)
             {
                 uint delta = unchecked(curSeqNum - prevDataSeq);
-                if (delta == 0 || delta >= kBackwardThreshold)
+                if (delta is 0 or >= kBackwardThreshold)
                 {
                     if (!Logger.IsEnabled(LogLevel.Debug))
                     {

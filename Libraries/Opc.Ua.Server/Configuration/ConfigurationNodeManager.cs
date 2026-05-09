@@ -589,13 +589,9 @@ namespace Opc.Ua.Server
                     // currently-registered cert for this type to identify the
                     // configured identifier (matches by certificate type).
                     CertificateEntry currentEntry = registryFallback
-                        .GetApplicationCertificate(certificateTypeId);
-                    if (currentEntry == null)
-                    {
-                        throw new ServiceResultException(
+                        .GetApplicationCertificate(certificateTypeId) ?? throw new ServiceResultException(
                             StatusCodes.BadInvalidArgument,
                             "No existing certificate found for the specified certificate type and subject name.");
-                    }
 
                     existingCertIdentifier = certificateGroup.ApplicationCertificates
                         .ToList()
@@ -676,15 +672,15 @@ namespace Opc.Ua.Server
 
                             foreach (X509ChainStatus chainStatus in chain.ChainStatus ?? [])
                             {
-                                if (chainStatus.Status == X509ChainStatusFlags.NoError ||
-                                    chainStatus.Status == X509ChainStatusFlags.UntrustedRoot)
+                                if (chainStatus.Status is X509ChainStatusFlags.NoError or
+                                    X509ChainStatusFlags.UntrustedRoot)
                                 {
                                     continue;
                                 }
-                                if (chainStatus.Status == X509ChainStatusFlags.NotSignatureValid ||
-                                    chainStatus.Status == X509ChainStatusFlags.PartialChain ||
-                                    chainStatus.Status == X509ChainStatusFlags.NotValidForUsage ||
-                                    chainStatus.Status == X509ChainStatusFlags.InvalidBasicConstraints)
+                                if (chainStatus.Status is X509ChainStatusFlags.NotSignatureValid or
+                                    X509ChainStatusFlags.PartialChain or
+                                    X509ChainStatusFlags.NotValidForUsage or
+                                    X509ChainStatusFlags.InvalidBasicConstraints)
                                 {
                                     throw new ServiceResultException(
                                         StatusCodes.BadSecurityChecksFailed,

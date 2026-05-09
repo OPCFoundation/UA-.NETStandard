@@ -504,12 +504,7 @@ namespace Opc.Ua.Configuration
         public IApplicationConfigurationBuilderServerSelected AddUserTokenPolicy(
             UserTokenPolicy userTokenPolicy)
         {
-            if (userTokenPolicy == null)
-            {
-                throw new ArgumentNullException(nameof(userTokenPolicy));
-            }
-
-            ApplicationConfiguration.ServerConfiguration.UserTokenPolicies += userTokenPolicy;
+            ApplicationConfiguration.ServerConfiguration.UserTokenPolicies += userTokenPolicy ?? throw new ArgumentNullException(nameof(userTokenPolicy));
             return this;
         }
 

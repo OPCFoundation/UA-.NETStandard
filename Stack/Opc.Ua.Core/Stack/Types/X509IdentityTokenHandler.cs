@@ -212,13 +212,9 @@ namespace Opc.Ua
             // Cold path: async load through the registry/store.
             using Certificate loaded = await m_provider
                 .GetPrivateKeyCertificateAsync(m_identifier, m_passwordProvider, applicationUri: null, ct)
-                .ConfigureAwait(false);
-            if (loaded == null)
-            {
-                throw new ServiceResultException(
+                .ConfigureAwait(false) ?? throw new ServiceResultException(
                     StatusCodes.BadIdentityTokenInvalid,
                     "Cannot resolve private-key certificate for X509 identity token.");
-            }
 
             return SecurityPolicies.CreateSignatureData(info, loaded, dataToSign);
         }
@@ -235,13 +231,9 @@ namespace Opc.Ua
             try
             {
                 SecurityPolicyInfo info = SecurityPolicies.GetInfo(securityPolicyUri);
-                using Certificate cert = MaterialiseTokenCertificate();
-                if (cert == null)
-                {
-                    throw new ServiceResultException(
+                using Certificate cert = MaterialiseTokenCertificate() ?? throw new ServiceResultException(
                         StatusCodes.BadIdentityTokenInvalid,
                         "X509IdentityToken has no certificate data to verify against.");
-                }
                 return SecurityPolicies.VerifySignatureData(
                     signatureData,
                     info,
