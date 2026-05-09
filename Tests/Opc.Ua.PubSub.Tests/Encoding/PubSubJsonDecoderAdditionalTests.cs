@@ -218,7 +218,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             using var decoder = new PubSubJsonDecoder(json, m_context);
 
             ByteString result = decoder.ReadByteString("Data");
-            Assert.That(result.Length, Is.EqualTo(3));
+            Assert.That(result, Has.Length.EqualTo(3));
         }
 
         [Test]
@@ -643,7 +643,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             byte[] messageBytes = System.Text.Encoding.UTF8.GetBytes(json);
             networkMessage.Decode(m_context, messageBytes, [reader]);
 
-            Assert.That(networkMessage.DataSetMessages.Count, Is.Zero);
+            Assert.That(networkMessage.DataSetMessages, Has.Count.Zero);
         }
 
         [Test]
@@ -727,7 +727,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             using var decoder = new PubSubJsonDecoder(json, m_context);
 
             ArrayOf<int> items = decoder.ReadInt32Array("Items");
-            Assert.That(items.Count, Is.EqualTo(5));
+            Assert.That(items, Has.Count.EqualTo(5));
         }
 
         [Test]

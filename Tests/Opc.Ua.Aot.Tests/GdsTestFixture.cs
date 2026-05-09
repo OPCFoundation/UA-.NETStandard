@@ -90,7 +90,7 @@ namespace Opc.Ua.Aot.Tests
             CleanDirectory(m_gdsRoot);
 
             // Start GDS server with retry logic
-            int testPort = AotServerFixture<ServerBase>.GetNextFreeIPPort();
+            int testPort = AotServerFixtureSupport.GetNextFreeIPPort();
             bool retryStartServer;
             int serverStartRetries = 25;
             do
@@ -110,8 +110,8 @@ namespace Opc.Ua.Aot.Tests
                         Server = null;
                     }
                     testPort = UnsecureRandom.Shared.Next(
-                        AotServerFixture<ServerBase>.MinTestPort,
-                        AotServerFixture<ServerBase>.MaxTestPort);
+                        AotServerFixtureSupport.MinTestPort,
+                        AotServerFixtureSupport.MaxTestPort);
                     if (serverStartRetries == 0 ||
                         sre.StatusCode != StatusCodes.BadNoCommunication)
                     {

@@ -395,7 +395,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 m_messageContext,
                 encoded,
                 [reader]);
-            Assert.That(decoded.DataSetMessages.Count, Is.Zero);
+            Assert.That(decoded.DataSetMessages, Has.Count.Zero);
         }
     }
 }

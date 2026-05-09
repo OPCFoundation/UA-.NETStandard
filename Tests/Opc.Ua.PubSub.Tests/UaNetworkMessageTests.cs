@@ -60,7 +60,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             var msg = new PubSubEncoding.JsonNetworkMessage(writerGroup, messages);
 
             Assert.That(msg.DataSetMessages, Is.Not.Null);
-            Assert.That(msg.DataSetMessages.Count, Is.Zero);
+            Assert.That(msg.DataSetMessages, Has.Count.Zero);
             Assert.That(msg.IsMetaDataMessage, Is.False);
             Assert.That(msg.DataSetMetaData, Is.Null);
         }
@@ -77,7 +77,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.That(msg.DataSetMetaData, Is.Not.Null);
             Assert.That(msg.DataSetMetaData.Name, Is.EqualTo("Meta1"));
             Assert.That(msg.DataSetMessages, Is.Not.Null);
-            Assert.That(msg.DataSetMessages.Count, Is.Zero);
+            Assert.That(msg.DataSetMessages, Has.Count.Zero);
         }
 
         [Test]
@@ -193,7 +193,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             var msg = new PubSubEncoding.JsonNetworkMessage(
                 writerGroup, (List<PubSubEncoding.JsonDataSetMessage>)null);
             Assert.That(msg.DataSetMessages, Is.Not.Null);
-            Assert.That(msg.DataSetMessages.Count, Is.Zero);
+            Assert.That(msg.DataSetMessages, Has.Count.Zero);
         }
 
         [Test]

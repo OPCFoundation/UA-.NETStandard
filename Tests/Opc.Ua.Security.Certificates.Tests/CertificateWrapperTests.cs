@@ -256,7 +256,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             byte[] serialNumber = cert.GetSerialNumber();
 
             Assert.That(serialNumber, Is.Not.Null);
-            Assert.That(serialNumber.Length, Is.GreaterThan(0));
+            Assert.That(serialNumber, Has.Length.GreaterThan(0));
             Assert.That(serialNumber, Is.EqualTo(cert.X509.GetSerialNumber()));
         }
 
@@ -317,8 +317,13 @@ namespace Opc.Ua.Security.Certificates.Tests
                 .SetRSAKeySize(2048)
                 .CreateForRSA();
 
+            // NUnit4002: deliberately using Is.Not.EqualTo((Certificate)null) / ((object)null)
+            // to exercise BOTH Equals(Certificate) and Equals(object) overloads. Is.Not.Null
+            // would only test reference-nullness and lose the overload coverage.
+#pragma warning disable NUnit4002
             Assert.That(cert, Is.Not.EqualTo((Certificate)null));
             Assert.That(cert, Is.Not.EqualTo((object)null));
+#pragma warning restore NUnit4002
         }
 
         [Test]
@@ -417,7 +422,7 @@ namespace Opc.Ua.Security.Certificates.Tests
         {
             using var collection = new CertificateCollection();
 
-            Assert.That(collection.Count, Is.Zero);
+            Assert.That(collection, Has.Count.Zero);
         }
 
         [Test]
@@ -425,7 +430,7 @@ namespace Opc.Ua.Security.Certificates.Tests
         {
             using var collection = new CertificateCollection(10);
 
-            Assert.That(collection.Count, Is.Zero);
+            Assert.That(collection, Has.Count.Zero);
         }
 
         [Test]
@@ -534,7 +539,7 @@ namespace Opc.Ua.Security.Certificates.Tests
                 "0000000000000000000000000000000000000000",
                 false);
 
-            Assert.That(found.Count, Is.Zero);
+            Assert.That(found, Has.Count.Zero);
         }
 
         [Test]
@@ -657,7 +662,7 @@ namespace Opc.Ua.Security.Certificates.Tests
 
             collection.Clear();
 
-            Assert.That(collection.Count, Is.Zero);
+            Assert.That(collection, Has.Count.Zero);
 
             cert1.Dispose();
             cert2.Dispose();

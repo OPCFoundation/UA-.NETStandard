@@ -1271,6 +1271,7 @@ namespace Opc.Ua
         private readonly ITelemetryContext m_telemetry;
         private readonly ILogger m_logger;
         private int m_maxRejectedCertificates;
+
         /// <summary>
         /// Guards mutations of m_applicationCertificates and the cached
         /// per-trust-list validators. Reads of single fields (e.g.

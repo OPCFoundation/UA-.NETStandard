@@ -465,7 +465,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             var decoded = new PubSubEncoding.JsonNetworkMessage();
             decoded.Decode(m_messageContext, encoded, [reader]);
 
-            Assert.That(decoded.DataSetMessages.Count, Is.Zero);
+            Assert.That(decoded.DataSetMessages, Has.Count.Zero);
         }
 
         [Test]
@@ -532,7 +532,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             var decoded = new PubSubEncoding.JsonNetworkMessage();
             decoded.Decode(m_messageContext, encoded, [reader]);
 
-            Assert.That(decoded.DataSetMessages.Count, Is.Zero);
+            Assert.That(decoded.DataSetMessages, Has.Count.Zero);
         }
 
         [Test]
@@ -554,7 +554,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             var decoded = new PubSubEncoding.JsonNetworkMessage();
             decoded.Decode(m_messageContext, encoded, [reader]);
 
-            Assert.That(decoded.DataSetMessages.Count, Is.Zero);
+            Assert.That(decoded.DataSetMessages, Has.Count.Zero);
         }
 
         [Test]

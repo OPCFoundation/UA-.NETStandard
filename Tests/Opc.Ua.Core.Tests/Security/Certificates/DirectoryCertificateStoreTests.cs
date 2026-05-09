@@ -155,7 +155,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
             using CertificateCollection certs = await store.EnumerateAsync().ConfigureAwait(false);
             Assert.That(certs, Is.Not.Null);
-            Assert.That(certs.Count, Is.Zero);
+            Assert.That(certs, Has.Count.Zero);
         }
 
         [Test]
@@ -167,7 +167,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             using CertificateCollection certs = await store.FindByThumbprintAsync("0000000000000000000000000000000000000000")
                 .ConfigureAwait(false);
             Assert.That(certs, Is.Not.Null);
-            Assert.That(certs.Count, Is.Zero);
+            Assert.That(certs, Has.Count.Zero);
         }
 
         [Test]
@@ -277,7 +277,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.That(deleted, Is.True);
 
             using CertificateCollection remaining = await store.EnumerateAsync().ConfigureAwait(false);
-            Assert.That(remaining.Count, Is.Zero);
+            Assert.That(remaining, Has.Count.Zero);
         }
 
         [Test]
@@ -309,7 +309,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
             X509CRLCollection crls = await store.EnumerateCRLsAsync().ConfigureAwait(false);
             Assert.That(crls, Is.Not.Null);
-            Assert.That(crls.Count, Is.Zero);
+            Assert.That(crls, Has.Count.Zero);
         }
 
         [Test]
@@ -320,7 +320,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
             using CertificateCollection certs = await store.EnumerateAsync().ConfigureAwait(false);
             Assert.That(certs, Is.Not.Null);
-            Assert.That(certs.Count, Is.Zero);
+            Assert.That(certs, Has.Count.Zero);
         }
 
         [Test]
@@ -385,7 +385,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
                 store.Open(tempDir2);
                 using CertificateCollection certs = await store.EnumerateAsync().ConfigureAwait(false);
-                Assert.That(certs.Count, Is.Zero);
+                Assert.That(certs, Has.Count.Zero);
             }
             finally
             {

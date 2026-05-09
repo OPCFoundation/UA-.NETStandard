@@ -698,7 +698,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 });
 
             PubSubEncoding.JsonNetworkMessage networkMessage = DecodeNetworkMessage(json, reader);
-            Assert.That(networkMessage.DataSetMessages.Count, Is.Zero);
+            Assert.That(networkMessage.DataSetMessages, Has.Count.Zero);
         }
 
         [Test]
@@ -787,7 +787,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 });
 
             PubSubEncoding.JsonNetworkMessage networkMessage = DecodeNetworkMessage(json, reader);
-            Assert.That(networkMessage.DataSetMessages.Count, Is.Zero);
+            Assert.That(networkMessage.DataSetMessages, Has.Count.Zero);
         }
 
         [Test]
@@ -1235,7 +1235,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             using var decoder = new PubSubJsonDecoder(json, m_context);
 
             ArrayOf<int> result = decoder.ReadInt32Array("Arr");
-            Assert.That(result.Count, Is.EqualTo(3));
+            Assert.That(result, Has.Count.EqualTo(3));
             Assert.That(result[0], Is.EqualTo(10));
         }
 
@@ -1246,7 +1246,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             using var decoder = new PubSubJsonDecoder(json, m_context);
 
             ArrayOf<string> result = decoder.ReadStringArray("Arr");
-            Assert.That(result.Count, Is.EqualTo(3));
+            Assert.That(result, Has.Count.EqualTo(3));
         }
 
         [Test]
@@ -1256,7 +1256,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             using var decoder = new PubSubJsonDecoder(json, m_context);
 
             ArrayOf<double> result = decoder.ReadDoubleArray("Arr");
-            Assert.That(result.Count, Is.EqualTo(3));
+            Assert.That(result, Has.Count.EqualTo(3));
         }
 
         [Test]
@@ -1266,7 +1266,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             using var decoder = new PubSubJsonDecoder(json, m_context);
 
             ArrayOf<bool> result = decoder.ReadBooleanArray("Arr");
-            Assert.That(result.Count, Is.EqualTo(3));
+            Assert.That(result, Has.Count.EqualTo(3));
         }
 
         [Test]
@@ -1276,7 +1276,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             using var decoder = new PubSubJsonDecoder(json, m_context);
 
             ArrayOf<float> result = decoder.ReadFloatArray("Arr");
-            Assert.That(result.Count, Is.EqualTo(2));
+            Assert.That(result, Has.Count.EqualTo(2));
         }
 
         [Test]
@@ -1286,7 +1286,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             using var decoder = new PubSubJsonDecoder(json, m_context);
 
             ArrayOf<ushort> result = decoder.ReadUInt16Array("Arr");
-            Assert.That(result.Count, Is.EqualTo(3));
+            Assert.That(result, Has.Count.EqualTo(3));
         }
 
         [Test]
@@ -1296,7 +1296,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             using var decoder = new PubSubJsonDecoder(json, m_context);
 
             ArrayOf<long> result = decoder.ReadInt64Array("Arr");
-            Assert.That(result.Count, Is.EqualTo(3));
+            Assert.That(result, Has.Count.EqualTo(3));
         }
 
         [Test]
@@ -1306,7 +1306,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             using var decoder = new PubSubJsonDecoder(json, m_context);
 
             ArrayOf<ulong> result = decoder.ReadUInt64Array("Arr");
-            Assert.That(result.Count, Is.EqualTo(2));
+            Assert.That(result, Has.Count.EqualTo(2));
         }
 
         [Test]
@@ -1316,7 +1316,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             using var decoder = new PubSubJsonDecoder(json, m_context);
 
             ArrayOf<byte> result = decoder.ReadByteArray("Arr");
-            Assert.That(result.Count, Is.EqualTo(3));
+            Assert.That(result, Has.Count.EqualTo(3));
         }
 
         [Test]
@@ -1326,7 +1326,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             using var decoder = new PubSubJsonDecoder(json, m_context);
 
             ArrayOf<sbyte> result = decoder.ReadSByteArray("Arr");
-            Assert.That(result.Count, Is.EqualTo(3));
+            Assert.That(result, Has.Count.EqualTo(3));
         }
 
         [Test]
@@ -1336,7 +1336,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             using var decoder = new PubSubJsonDecoder(json, m_context);
 
             ArrayOf<short> result = decoder.ReadInt16Array("Arr");
-            Assert.That(result.Count, Is.EqualTo(3));
+            Assert.That(result, Has.Count.EqualTo(3));
         }
 
         [Test]
@@ -1346,7 +1346,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             using var decoder = new PubSubJsonDecoder(json, m_context);
 
             ArrayOf<uint> result = decoder.ReadUInt32Array("Arr");
-            Assert.That(result.Count, Is.EqualTo(3));
+            Assert.That(result, Has.Count.EqualTo(3));
         }
 
         [Test]

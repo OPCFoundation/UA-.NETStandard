@@ -77,7 +77,7 @@ namespace Opc.Ua.Security.Certificates.Tests
 
             int expectedLength = cert.RawData.Length + issuer.RawData.Length;
             Assert.That(blob, Is.Not.Null);
-            Assert.That(blob.Length, Is.EqualTo(expectedLength));
+            Assert.That(blob, Has.Length.EqualTo(expectedLength));
 
             // Verify first bytes match the certificate raw data
             byte[] certPortion = new byte[cert.RawData.Length];

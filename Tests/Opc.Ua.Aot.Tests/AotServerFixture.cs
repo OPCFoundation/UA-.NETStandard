@@ -130,7 +130,7 @@ namespace Opc.Ua.Aot.Tests
 
             if (port <= 0)
             {
-                testPort = GetNextFreeIPPort();
+                testPort = AotServerFixtureSupport.GetNextFreeIPPort();
                 serverStartRetries = 25;
             }
 
@@ -147,7 +147,8 @@ namespace Opc.Ua.Aot.Tests
                 {
                     serverStartRetries--;
                     testPort = UnsecureRandom.Shared.Next(
-                        MinTestPort, MaxTestPort);
+                        AotServerFixtureSupport.MinTestPort,
+                        AotServerFixtureSupport.MaxTestPort);
                     retryStartServer = true;
                 }
                 await Task.Delay(UnsecureRandom.Shared.Next(100, 1000))
@@ -193,6 +194,17 @@ namespace Opc.Ua.Aot.Tests
             Port = port;
         }
 
+        private readonly Func<ITelemetryContext, T> m_factory;
+        private readonly ITelemetryContext m_telemetry;
+    }
+
+    /// <summary>
+    /// Non-generic helper holding members shared by all instantiations of
+    /// <see cref="AotServerFixture{T}"/>. Hoisted out of the generic type
+    /// to avoid one-static-per-T duplication (RCS1158).
+    /// </summary>
+    internal static class AotServerFixtureSupport
+    {
         internal const int MinTestPort = 50000;
         internal const int MaxTestPort = 65000;
 
@@ -210,8 +222,5 @@ namespace Opc.Ua.Aot.Tests
             }
             return 0;
         }
-
-        private readonly Func<ITelemetryContext, T> m_factory;
-        private readonly ITelemetryContext m_telemetry;
     }
 }

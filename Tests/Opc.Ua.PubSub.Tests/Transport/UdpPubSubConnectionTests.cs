@@ -564,8 +564,8 @@ namespace Opc.Ua.PubSub.Tests.Transport
             // Assert - Should return empty lists before connection is started
             Assert.That(publisherClients, Is.Not.Null, "PublisherUdpClients should not be null");
             Assert.That(subscriberClients, Is.Not.Null, "SubscriberUdpClients should not be null");
-            Assert.That(publisherClients.Count, Is.Zero, "PublisherUdpClients should be empty before start");
-            Assert.That(subscriberClients.Count, Is.Zero, "SubscriberUdpClients should be empty before start");
+            Assert.That(publisherClients, Has.Count.Zero, "PublisherUdpClients should be empty before start");
+            Assert.That(subscriberClients, Has.Count.Zero, "SubscriberUdpClients should be empty before start");
         }
 
         [Test(Description = "Validate UDP client socket access after connection is started")]

@@ -124,7 +124,7 @@ namespace Opc.Ua.Aot.Tests
                 .ConfigureAwait(false);
             appRecord.ApplicationId = id;
 
-            string updatedUri = appUri + "/v2";
+            const string updatedUri = appUri + "/v2";
             appRecord.ApplicationUri = updatedUri;
             await fixture.GdsClient
                 .UpdateApplicationAsync(appRecord)

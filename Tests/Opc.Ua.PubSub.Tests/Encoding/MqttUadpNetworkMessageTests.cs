@@ -1753,9 +1753,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 "Uadp ua-metadata entries are missing from configuration!");
 
             // check if there are any metadata messages. second time around there shall be no metadata messages
-            Assert.That(
-                uaMetaDataNetworkMessages.Count,
-                Is.Zero,
+            Assert.That(uaMetaDataNetworkMessages, Has.Count.Zero,
                 "The ua-metadata messages count shall be zero for the second time when create messages is called!");
 
             // change the metadata version

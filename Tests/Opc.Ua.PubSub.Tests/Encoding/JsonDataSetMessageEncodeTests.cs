@@ -355,7 +355,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             string json = EncodeMessage(message, PubSubJsonEncoding.Reversible);
             var root = JObject.Parse(json);
 
-            Assert.That(root.Count, Is.Zero, "Null DataSet should produce empty JSON object.");
+            Assert.That(root, Has.Count.Zero, "Null DataSet should produce empty JSON object.");
         }
 
         [Test]

@@ -284,7 +284,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
 
             DateTime after = DateTime.UtcNow;
             Assert.That((DateTime)fault.ResponseHeader.Timestamp, Is.GreaterThanOrEqualTo(before));
-            Assert.That((DateTime)fault.ResponseHeader.Timestamp <= after, Is.True);
+            Assert.That((DateTime)fault.ResponseHeader.Timestamp, Is.LessThanOrEqualTo(after));
         }
     }
 }
