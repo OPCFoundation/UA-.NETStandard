@@ -93,31 +93,31 @@ namespace Quickstarts
                 // Define the UA Client application
                 var passwordProvider = new CertificatePasswordProvider([]);
 
-#pragma warning disable CA2007
-                await using var application = new ApplicationInstance(m_telemetry)
+                var application = new ApplicationInstance(m_telemetry)
                 {
                     ApplicationName = applicationName,
                     ApplicationType = ApplicationType.Client,
                     ConfigSectionName = configSectionName,
                     CertificatePasswordProvider = passwordProvider
                 };
-#pragma warning restore CA2007
-
-                // load the application configuration.
-                ApplicationConfiguration configuration = m_configuration = await application
-                    .LoadApplicationConfigurationAsync(silent: false, ct: ct)
-                    .ConfigureAwait(false);
-
-                m_configuration.CertificateManager.AcceptError = AcceptCertificate;
-
-                // check the application certificate.
-                bool haveAppCertificate = await application
-                    .CheckApplicationInstanceCertificatesAsync(false, ct: ct)
-                    .ConfigureAwait(false);
-
-                if (!haveAppCertificate)
+                await using (application.ConfigureAwait(false))
                 {
-                    throw new InvalidOperationException("Application instance certificate invalid!");
+                    // load the application configuration.
+                    m_configuration = await application
+                        .LoadApplicationConfigurationAsync(silent: false, ct: ct)
+                        .ConfigureAwait(false);
+
+                    m_configuration.CertificateManager.AcceptError = AcceptCertificate;
+
+                    // check the application certificate.
+                    bool haveAppCertificate = await application
+                        .CheckApplicationInstanceCertificatesAsync(false, ct: ct)
+                        .ConfigureAwait(false);
+
+                    if (!haveAppCertificate)
+                    {
+                        throw new InvalidOperationException("Application instance certificate invalid!");
+                    }
                 }
 
                 m_logger.LogInformation("Connecting to... {ServerUrl}", kServerUrl);
