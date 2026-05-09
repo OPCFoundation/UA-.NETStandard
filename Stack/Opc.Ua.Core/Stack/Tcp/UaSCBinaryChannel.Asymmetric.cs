@@ -556,7 +556,7 @@ namespace Opc.Ua.Bindings
                 receiverCertificate,
                 messageBody,
                 null,
-                out byte[] unused);
+                out _);
         }
 
         /// <summary>

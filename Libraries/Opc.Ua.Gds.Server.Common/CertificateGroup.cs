@@ -678,7 +678,7 @@ namespace Opc.Ua.Gds.Server
         {
             X509CRL updatedCRL = null;
 
-            bool isCACert = X509Utils.IsCertificateAuthority(certificate);
+            _ = X509Utils.IsCertificateAuthority(certificate);
 
             // find the authority key identifier.
             X509AuthorityKeyIdentifierExtension authority =

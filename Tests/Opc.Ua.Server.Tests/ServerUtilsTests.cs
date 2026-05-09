@@ -225,8 +225,9 @@ namespace Opc.Ua.Server.Tests
                 ServiceResult.Good
             };
 
+
             List<StatusCode> result =
-                ServerUtils.CreateStatusCodeCollection(context, errors, out List<DiagnosticInfo> diagnosticInfos, m_logger);
+                ServerUtils.CreateStatusCodeCollection(context, errors, out _, m_logger);
 
             Assert.That(result, Has.Count.EqualTo(2));
             Assert.That(result[0], Is.EqualTo(StatusCodes.Good));
@@ -243,8 +244,9 @@ namespace Opc.Ua.Server.Tests
                 new(StatusCodes.BadNodeIdInvalid)
             };
 
+
             List<StatusCode> result =
-                ServerUtils.CreateStatusCodeCollection(context, errors, out List<DiagnosticInfo> diagnosticInfos, m_logger);
+                ServerUtils.CreateStatusCodeCollection(context, errors, out _, m_logger);
 
             Assert.That(result, Has.Count.EqualTo(2));
             Assert.That(result[0], Is.EqualTo(StatusCodes.Good));

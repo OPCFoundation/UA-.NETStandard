@@ -309,7 +309,7 @@ namespace Opc.Ua.Aot.Tests
                 ConfigSectionName = "Opc.Ua.GdsAotTestServer"
             };
 
-            ApplicationConfiguration config = await m_serverApplication
+            _ = await m_serverApplication
                 .Build(
                     "urn:localhost:opcfoundation.org:GdsAotTestServer",
                     "http://opcfoundation.org/UA/GdsAotTestServer")

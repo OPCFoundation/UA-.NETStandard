@@ -262,8 +262,9 @@ namespace Opc.Ua.Client.Tests
                 .ConfigureAwait(false);
             Assert.That(referenceDescriptions.IsNull, Is.False);
 
+
             // close session
-            StatusCode result = await session.CloseAsync().ConfigureAwait(false);
+            _ = await session.CloseAsync().ConfigureAwait(false);
             session.Dispose();
         }
 
@@ -328,8 +329,9 @@ namespace Opc.Ua.Client.Tests
                 .ConfigureAwait(false);
             Assert.That(referenceDescriptions.IsNull, Is.False);
 
+
             // close session
-            StatusCode result = await session.CloseAsync().ConfigureAwait(false);
+            _ = await session.CloseAsync().ConfigureAwait(false);
             session.Dispose();
         }
 

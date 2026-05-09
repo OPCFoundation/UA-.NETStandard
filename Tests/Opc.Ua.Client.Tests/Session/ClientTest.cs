@@ -658,7 +658,7 @@ namespace Opc.Ua.Client.Tests
             byte[] receivedToken = TokenValidator.LastIssuedToken.DecryptedTokenData;
             Assert.That(receivedToken, Is.EqualTo(identityToken));
 
-            StatusCode result = await session.CloseAsync().ConfigureAwait(false);
+            _ = await session.CloseAsync().ConfigureAwait(false);
             session.Dispose();
         }
 

@@ -750,7 +750,7 @@ namespace Opc.Ua
             byte[] localNonce,
             byte[] remoteNonce)
         {
-            var signatureData = new SignatureData();
+            _ = new SignatureData();
 
             // nothing more to do if no encryption.
             if (string.IsNullOrEmpty(securityPolicyUri))

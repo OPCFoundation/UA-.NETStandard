@@ -194,7 +194,8 @@ namespace Opc.Ua.Core.Tests
         public void RemoveAtIndex()
         {
             ConfiguredEndpointCollection col = CreateCollection();
-            ConfiguredEndpoint ep = col.Add(CreateEndpoint("opc.tcp://server1:4840"));
+
+            _ = col.Add(CreateEndpoint("opc.tcp://server1:4840"));
             Assert.That(col.Count, Is.EqualTo(1));
             col.RemoveAt(0);
             Assert.That(col.Count, Is.Zero);

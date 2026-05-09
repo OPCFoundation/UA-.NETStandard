@@ -1637,7 +1637,7 @@ namespace Opc.Ua.Server
             {
                 trigger = filter.Trigger;
                 deadbandType = (DeadbandType)(int)filter.DeadbandType;
-                deadband = filter.DeadbandValue;
+                _ = filter.DeadbandValue;
 
                 // when deadband is used and the trigger is StatusValueTimestamp, then it should behave as if trigger is StatusValue.
                 if ((deadbandType != DeadbandType.None) &&
