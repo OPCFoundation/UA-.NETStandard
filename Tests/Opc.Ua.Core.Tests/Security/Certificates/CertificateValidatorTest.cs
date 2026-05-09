@@ -305,7 +305,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 Assert.That(result.IsValid, Is.False);
                 Assert.That(
                     result.StatusCode,
-                    Is.EqualTo((StatusCode)StatusCodes.BadCertificateUntrusted));
+                    Is.EqualTo(StatusCodes.BadCertificateUntrusted));
             }
 
             await certValidator.FlushRejectedAsync().ConfigureAwait(false);
@@ -366,7 +366,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 Assert.That(result.IsValid, Is.False);
                 Assert.That(
                     result.StatusCode,
-                    Is.EqualTo((StatusCode)StatusCodes.BadCertificateUntrusted));
+                    Is.EqualTo(StatusCodes.BadCertificateUntrusted));
             }
         }
 
@@ -401,7 +401,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     Assert.That(result.IsValid, Is.False);
                     Assert.That(
                         result.StatusCode,
-                        Is.EqualTo((StatusCode)StatusCodes.BadCertificateUntrusted));
+                        Is.EqualTo(StatusCodes.BadCertificateUntrusted));
                 }
 
                 await certValidator.FlushRejectedAsync().ConfigureAwait(false);
@@ -456,7 +456,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     Assert.That(result.IsValid, Is.False);
                     Assert.That(
                         result.StatusCode,
-                        Is.EqualTo((StatusCode)StatusCodes.BadCertificateUntrusted));
+                        Is.EqualTo(StatusCodes.BadCertificateUntrusted));
                 }
 
                 foreach (Certificate cert in m_notYetValidAppCerts)
@@ -473,7 +473,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     Assert.That(result.IsValid, Is.False);
                     Assert.That(
                         result.StatusCode,
-                        Is.EqualTo((StatusCode)StatusCodes.BadCertificateUntrusted));
+                        Is.EqualTo(StatusCodes.BadCertificateUntrusted));
                 }
 
                 await certValidator.FlushRejectedAsync().ConfigureAwait(false);
@@ -492,7 +492,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     Assert.That(result.IsValid, Is.False);
                     Assert.That(
                         result.StatusCode,
-                        Is.EqualTo((StatusCode)StatusCodes.BadCertificateUntrusted));
+                        Is.EqualTo(StatusCodes.BadCertificateUntrusted));
                 }
 
                 await certValidator.FlushRejectedAsync().ConfigureAwait(false);
@@ -510,7 +510,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     Assert.That(result.IsValid, Is.False);
                     Assert.That(
                         result.StatusCode,
-                        Is.EqualTo((StatusCode)StatusCodes.BadCertificateUntrusted));
+                        Is.EqualTo(StatusCodes.BadCertificateUntrusted));
                 }
 
                 await certValidator.FlushRejectedAsync().ConfigureAwait(false);
@@ -551,7 +551,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     Assert.That(result.IsValid, Is.False);
                     Assert.That(
                         result.StatusCode,
-                        Is.EqualTo((StatusCode)StatusCodes.BadCertificateUntrusted));
+                        Is.EqualTo(StatusCodes.BadCertificateUntrusted));
                 }
                 await certValidator.FlushRejectedAsync().ConfigureAwait(false);
                 certificates?.Dispose();
@@ -728,7 +728,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     Assert.That(result.IsValid, Is.False);
                     Assert.That(
                         result.StatusCode,
-                        Is.EqualTo((StatusCode)StatusCodes.BadCertificateChainIncomplete));
+                        Is.EqualTo(StatusCodes.BadCertificateChainIncomplete));
                 }
             }
         }
@@ -771,7 +771,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     Assert.That(result.IsValid, Is.False);
                     Assert.That(
                         result.StatusCode,
-                        Is.EqualTo((StatusCode)StatusCodes.BadCertificateChainIncomplete));
+                        Is.EqualTo(StatusCodes.BadCertificateChainIncomplete));
                 }
             }
         }
@@ -847,9 +847,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     Assert.That(result.IsValid, Is.False);
                     Assert.That(
                         result.StatusCode,
-                        Is.EqualTo((StatusCode)(v == kCaChainCount - 1
+                        Is.EqualTo(v == kCaChainCount - 1
                             ? StatusCodes.BadCertificateRevoked
-                            : StatusCodes.BadCertificateIssuerRevoked)));
+                            : StatusCodes.BadCertificateIssuerRevoked));
                 }
             }
         }
@@ -890,9 +890,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     Assert.That(result.IsValid, Is.False);
                     Assert.That(
                         result.StatusCode,
-                        Is.EqualTo((StatusCode)(v == kCaChainCount - 1
+                        Is.EqualTo(v == kCaChainCount - 1
                             ? StatusCodes.BadCertificateRevoked
-                            : StatusCodes.BadCertificateIssuerRevoked)));
+                            : StatusCodes.BadCertificateIssuerRevoked));
                 }
             }
         }
@@ -940,9 +940,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     Assert.That(result.IsValid, Is.False);
                     Assert.That(
                         result.StatusCode,
-                        Is.EqualTo((StatusCode)(v == kCaChainCount - 1
+                        Is.EqualTo(v == kCaChainCount - 1
                             ? StatusCodes.BadCertificateRevoked
-                            : StatusCodes.BadCertificateIssuerRevoked)));
+                            : StatusCodes.BadCertificateIssuerRevoked));
                 }
             }
         }
@@ -982,9 +982,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     Assert.That(result.IsValid, Is.False);
                     Assert.That(
                         result.StatusCode,
-                        Is.EqualTo((StatusCode)(v == kCaChainCount - 1
+                        Is.EqualTo(v == kCaChainCount - 1
                             ? StatusCodes.BadCertificateRevoked
-                            : StatusCodes.BadCertificateIssuerRevoked)));
+                            : StatusCodes.BadCertificateIssuerRevoked));
                 }
             }
         }
@@ -1031,9 +1031,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     Assert.That(result.IsValid, Is.False);
                     Assert.That(
                         result.StatusCode,
-                        Is.EqualTo((StatusCode)(v == kCaChainCount - 1
+                        Is.EqualTo(v == kCaChainCount - 1
                             ? StatusCodes.BadCertificateRevoked
-                            : StatusCodes.BadCertificateIssuerRevoked)));
+                            : StatusCodes.BadCertificateIssuerRevoked));
                 }
             }
         }
@@ -1116,7 +1116,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     Assert.That(result.IsValid, Is.False);
                     Assert.That(
                         result.StatusCode,
-                        Is.EqualTo((StatusCode)StatusCodes.BadCertificateChainIncomplete));
+                        Is.EqualTo(StatusCodes.BadCertificateChainIncomplete));
                 }
             }
         }
@@ -1260,7 +1260,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             {
                 Assert.That(
                     result.StatusCode,
-                    Is.EqualTo((StatusCode)StatusCodes.BadCertificateUntrusted));
+                    Is.EqualTo(StatusCodes.BadCertificateUntrusted));
                 // check the chained service result
                 ServiceResult innerResult = result.Errors[0].InnerResult.InnerResult;
                 Assert.That(innerResult, Is.Not.Null);
@@ -1273,7 +1273,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             {
                 Assert.That(
                     result.StatusCode,
-                    Is.EqualTo((StatusCode)StatusCodes.BadCertificateTimeInvalid));
+                    Is.EqualTo(StatusCodes.BadCertificateTimeInvalid));
             }
         }
 
@@ -1315,13 +1315,13 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             {
                 Assert.That(
                     result.StatusCode,
-                    Is.EqualTo((StatusCode)StatusCodes.BadCertificateUntrusted));
+                    Is.EqualTo(StatusCodes.BadCertificateUntrusted));
             }
             else
             {
                 Assert.That(
                     result.StatusCode,
-                    Is.EqualTo((StatusCode)StatusCodes.BadCertificateTimeInvalid));
+                    Is.EqualTo(StatusCodes.BadCertificateTimeInvalid));
             }
         }
 
@@ -1362,7 +1362,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.That(result.IsValid, Is.False);
             Assert.That(
                 result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadCertificateChainIncomplete));
+                Is.EqualTo(StatusCodes.BadCertificateChainIncomplete));
             // approver tries to suppress error which is not suppressable; the
             // attach/detach should have no effect on the captured result.
             var approver = new CertValidationApprover(
@@ -1370,7 +1370,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             certValidator.AcceptError = approver.AcceptError;
             Assert.That(
                 result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadCertificateChainIncomplete));
+                Is.EqualTo(StatusCodes.BadCertificateChainIncomplete));
             certValidator.AcceptError = null;
         }
 
@@ -1437,7 +1437,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 Assert.That(result.IsValid, Is.False);
                 Assert.That(
                     result.StatusCode,
-                    Is.EqualTo((StatusCode)StatusCodes.BadCertificatePolicyCheckFailed));
+                    Is.EqualTo(StatusCodes.BadCertificatePolicyCheckFailed));
                 Assert.That(result.Errors[0].InnerResult, Is.Not.Null);
                 ServiceResult innerResult = result.Errors[0].InnerResult.InnerResult;
                 if (!trusted)
@@ -1468,7 +1468,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 Assert.That(result.IsValid, Is.False);
                 Assert.That(
                     result.StatusCode,
-                    Is.EqualTo((StatusCode)StatusCodes.BadCertificateUntrusted));
+                    Is.EqualTo(StatusCodes.BadCertificateUntrusted));
                 Assert.That(result.Errors[0].InnerResult, Is.Not.Null);
             }
         }
@@ -1501,7 +1501,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.That(result.IsValid, Is.False);
             Assert.That(
                 result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadCertificateUseNotAllowed));
+                Is.EqualTo(StatusCodes.BadCertificateUseNotAllowed));
             Assert.That(result.Errors[0].InnerResult, Is.Not.Null);
             ServiceResult innerResult = result.Errors[0].InnerResult.InnerResult;
             if (trusted)
@@ -1569,7 +1569,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 // The CA version fails for the key usage flags
                 Assert.That(
                     result.StatusCode,
-                    Is.EqualTo((StatusCode)StatusCodes.BadCertificateUseNotAllowed));
+                    Is.EqualTo(StatusCodes.BadCertificateUseNotAllowed));
                 Assert.That(result.Errors[0].InnerResult, Is.Not.Null);
                 innerResult = result.Errors[0].InnerResult.InnerResult;
             }
@@ -1621,7 +1621,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.That(result.IsValid, Is.False);
             Assert.That(
                 result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadCertificatePolicyCheckFailed));
+                Is.EqualTo(StatusCodes.BadCertificatePolicyCheckFailed));
             Assert.That(result.Errors[0].InnerResult, Is.Not.Null);
             ServiceResult innerResult = result.Errors[0].InnerResult.InnerResult;
             if (!trusted)
@@ -1656,7 +1656,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 Assert.That(retryResult.IsValid, Is.False);
                 Assert.That(
                     retryResult.StatusCode,
-                    Is.EqualTo((StatusCode)StatusCodes.BadCertificateUntrusted));
+                    Is.EqualTo(StatusCodes.BadCertificateUntrusted));
             }
             certValidator.AcceptError = null;
         }
@@ -1688,7 +1688,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 Assert.That(result.IsValid, Is.False);
                 Assert.That(
                     result.StatusCode,
-                    Is.EqualTo((StatusCode)StatusCodes.BadCertificatePolicyCheckFailed));
+                    Is.EqualTo(StatusCodes.BadCertificatePolicyCheckFailed));
                 Assert.That(result.Errors[0].InnerResult, Is.Not.Null);
                 ServiceResult innerResult = result.Errors[0].InnerResult.InnerResult;
                 Assert.That(innerResult, Is.Null);
@@ -1730,7 +1730,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 Assert.That(result.IsValid, Is.False);
                 Assert.That(
                     result.StatusCode,
-                    Is.EqualTo((StatusCode)StatusCodes.BadCertificateUntrusted));
+                    Is.EqualTo(StatusCodes.BadCertificateUntrusted));
                 Assert.That(result.Errors[0].InnerResult, Is.Not.Null);
                 ServiceResult innerResult = result.Errors[0].InnerResult.InnerResult;
                 Assert.That(innerResult, Is.Null);
@@ -1769,7 +1769,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 Assert.That(result.IsValid, Is.False);
                 Assert.That(
                     result.StatusCode,
-                    Is.EqualTo((StatusCode)StatusCodes.BadCertificateUntrusted));
+                    Is.EqualTo(StatusCodes.BadCertificateUntrusted));
             }
             certValidator.AcceptError = null;
         }
@@ -1840,9 +1840,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     Assert.That(result.IsValid, Is.False);
                     Assert.That(
                         result.StatusCode,
-                        Is.EqualTo((StatusCode)(v == kCaChainCount - 1
+                        Is.EqualTo(v == kCaChainCount - 1
                             ? StatusCodes.BadCertificateRevoked
-                            : StatusCodes.BadCertificateIssuerRevoked)));
+                            : StatusCodes.BadCertificateIssuerRevoked));
                 }
             }
         }
@@ -1889,7 +1889,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
                     Assert.That(result.IsValid, Is.False);
                     Assert.That(
-                        (StatusCode)StatusCodes.BadCertificateRevocationUnknown,
+                        StatusCodes.BadCertificateRevocationUnknown,
                         Is.EqualTo(result.StatusCode));
 
                     // ensure the missing issuer certificate is detected, also.
@@ -1958,9 +1958,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                         Assert.That(result.IsValid, Is.False);
                         Assert.That(
                             result.StatusCode,
-                            Is.EqualTo((StatusCode)(v == kCaChainCount - 1
+                            Is.EqualTo(v == kCaChainCount - 1
                                 ? StatusCodes.BadCertificateRevocationUnknown
-                                : StatusCodes.BadCertificateIssuerRevocationUnknown)));
+                                : StatusCodes.BadCertificateIssuerRevocationUnknown));
                     }
                     else
                     {
@@ -2004,7 +2004,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     Assert.That(result.IsValid, Is.False);
                     Assert.That(
                         result.StatusCode,
-                        Is.EqualTo((StatusCode)StatusCodes.BadCertificateChainIncomplete));
+                        Is.EqualTo(StatusCodes.BadCertificateChainIncomplete));
                     // no need to check for inner exceptions, since an incomplete chain error cannot be suppressed.
                 }
             }
@@ -2064,7 +2064,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     Assert.That(result.IsValid, Is.False);
                     Assert.That(
                         result.StatusCode,
-                        Is.EqualTo((StatusCode)StatusCodes.BadCertificateTimeInvalid));
+                        Is.EqualTo(StatusCodes.BadCertificateTimeInvalid));
                 }
             }
         }
@@ -2115,7 +2115,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     Assert.That(result.IsValid, Is.False);
                     Assert.That(
                         result.StatusCode,
-                        Is.EqualTo((StatusCode)StatusCodes.BadCertificateTimeInvalid));
+                        Is.EqualTo(StatusCodes.BadCertificateTimeInvalid));
 
                     // BadCertificateTimeInvalid can be suppressed. Ensure the other issues are caught, as well:
                     int isPresentCertificateIssuerRevocationUnknown = 0;
@@ -2184,7 +2184,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     Assert.That(result.IsValid, Is.False);
                     Assert.That(
                         result.StatusCode,
-                        Is.EqualTo((StatusCode)StatusCodes.BadCertificateUntrusted));
+                        Is.EqualTo(StatusCodes.BadCertificateUntrusted));
                 }
             }
         }
@@ -2231,7 +2231,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.That(result.IsValid, Is.False,
                 "Throwing AcceptError must be treated as a rejection.");
             Assert.That(result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadCertificateUntrusted),
+                Is.EqualTo(StatusCodes.BadCertificateUntrusted),
                 "Caller sees the underlying validation error, not the callback exception.");
 
             certValidator.AcceptError = null;

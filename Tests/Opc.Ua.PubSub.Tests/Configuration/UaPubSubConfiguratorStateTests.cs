@@ -92,7 +92,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void EnableNullThrowsArgumentException()
         {
-            Assert.That(() => m_configurator.Enable((object)null), Throws.TypeOf<ArgumentException>());
+            Assert.That(() => m_configurator.Enable(null), Throws.TypeOf<ArgumentException>());
         }
 
         /// <summary>
@@ -101,7 +101,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void DisableNullThrowsArgumentException()
         {
-            Assert.That(() => m_configurator.Disable((object)null), Throws.TypeOf<ArgumentException>());
+            Assert.That(() => m_configurator.Disable(null), Throws.TypeOf<ArgumentException>());
         }
 
         /// <summary>

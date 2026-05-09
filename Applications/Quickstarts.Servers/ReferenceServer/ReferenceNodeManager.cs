@@ -4558,7 +4558,7 @@ namespace Quickstarts.ReferenceServer
         /// Creates a default <see cref="AxisInformation"/> instance with the given title.
         /// </summary>
         private static AxisInformation CreateDefaultAxisInformation(string title) =>
-            new AxisInformation
+            new()
             {
                 EngineeringUnits = new EUInformation("s", "seconds", "http://www.opcfoundation.org/UA/units/un/cefact"),
                 EURange = new Range(100, 0),

@@ -376,7 +376,7 @@ namespace Opc.Ua.Client.Tests
                 if (endpoint.EndpointUrl.ToString()
                     .StartsWith(Utils.UriSchemeOpcTcp, StringComparison.Ordinal))
                 {
-// CA2025: Assert.ThrowsAsync awaits the lambda synchronously;
+                    // CA2025: Assert.ThrowsAsync awaits the lambda synchronously;
                     // session1's lifetime spans through the assertion.
 #pragma warning disable CA2025
                     sre = Assert.ThrowsAsync<ServiceResultException>(() =>

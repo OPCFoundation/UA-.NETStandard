@@ -333,7 +333,7 @@ namespace Opc.Ua.Gds.Server
             {
                 // Validate against the Users trust list using the new
                 // CertificateManager pipeline. Throws on validation failure.
-// CA2025: task awaited via GetAwaiter().GetResult(); the disposable's
+                // CA2025: task awaited via GetAwaiter().GetResult(); the disposable's
                 // using scope extends past the await.
 #pragma warning disable CA2025
                 CertificateValidationResult result = CertificateManager

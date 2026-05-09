@@ -186,7 +186,7 @@ namespace Opc.Ua.Server.Tests
             var errors = new List<ServiceResult>
             {
                 ServiceResult.Good,
-                new ServiceResult(StatusCodes.BadNodeIdInvalid),
+                new(StatusCodes.BadNodeIdInvalid),
                 ServiceResult.Good
             };
 
@@ -206,7 +206,7 @@ namespace Opc.Ua.Server.Tests
             OperationContext context = CreateContext(DiagnosticsMasks.None);
             var errors = new List<ServiceResult>
             {
-                new ServiceResult(StatusCodes.BadNodeIdInvalid)
+                new(StatusCodes.BadNodeIdInvalid)
             };
 
             List<DiagnosticInfo> result =
@@ -240,7 +240,7 @@ namespace Opc.Ua.Server.Tests
             var errors = new List<ServiceResult>
             {
                 ServiceResult.Good,
-                new ServiceResult(StatusCodes.BadNodeIdInvalid)
+                new(StatusCodes.BadNodeIdInvalid)
             };
 
             List<StatusCode> result =

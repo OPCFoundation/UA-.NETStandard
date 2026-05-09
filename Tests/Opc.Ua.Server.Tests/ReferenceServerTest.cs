@@ -1373,8 +1373,7 @@ namespace Opc.Ua.Server.Tests
 
             ArrayOf<WriteValue> writeValues = new WriteValue[]
             {
-                new WriteValue
-                {
+                new() {
                     NodeId = euNodeId,
                     AttributeId = Attributes.Value,
                     Value = new DataValue(new ExtensionObject(engUnits))

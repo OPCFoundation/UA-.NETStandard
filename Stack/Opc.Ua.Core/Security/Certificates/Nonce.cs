@@ -530,7 +530,7 @@ namespace Opc.Ua
         /// ffdhe2048 prime from RFC 7919 (hex, without whitespace).
         /// (RFC 7919 Appendix A.3 — use this canonical modulus in production.)
         /// </summary>
-        const string FFDHE2048_HEX = @"
+        private const string FFDHE2048_HEX = @"
             FFFFFFFF FFFFFFFF ADF85458 A2BB4A9A AFDC5620 273D3CF1
             D8B9C583 CE2D3695 A9E13641 146433FB CC939DCE 249B3EF9
             7D2FE363 630C75D8 F681B202 AEC4617A D3DF1ED5 D5FD6561
@@ -543,12 +543,12 @@ namespace Opc.Ua
             3BB5FCBC 2EC22005 C58EF183 7D1683B2 C6F34A26 C1B2EFFA
             886B4238 61285C97 FFFFFFFF FFFFFFFF";
 
-        static readonly Lazy<BigInteger> s_P2048 = new(() => RfcTextToBytes(FFDHE2048_HEX));
+        private static readonly Lazy<BigInteger> s_P2048 = new(() => RfcTextToBytes(FFDHE2048_HEX));
 
-        const int k_FFDHE2048_MinExponent = 224;
-        const int k_FFDHE2048_MaxExponent = 255;
+        private const int k_FFDHE2048_MinExponent = 224;
+        private const int k_FFDHE2048_MaxExponent = 255;
 
-        const string FFDHE3072_HEX = @"
+        private const string FFDHE3072_HEX = @"
             FFFFFFFF FFFFFFFF ADF85458 A2BB4A9A AFDC5620 273D3CF1
             D8B9C583 CE2D3695 A9E13641 146433FB CC939DCE 249B3EF9
             7D2FE363 630C75D8 F681B202 AEC4617A D3DF1ED5 D5FD6561
@@ -566,12 +566,12 @@ namespace Opc.Ua
             ABC52197 9B0DEADA 1DBF9A42 D5C4484E 0ABCD06B FA53DDEF
             3C1B20EE 3FD59D7C 25E41D2B 66C62E37 FFFFFFFF FFFFFFFF";
 
-        static readonly Lazy<BigInteger> s_P3072 = new(() => RfcTextToBytes(FFDHE3072_HEX));
+        private static readonly Lazy<BigInteger> s_P3072 = new(() => RfcTextToBytes(FFDHE3072_HEX));
 
-        const int k_FFDHE3072_MinExponent = 275;
-        const int k_FFDHE3072_MaxExponent = 383;
+        private const int k_FFDHE3072_MinExponent = 275;
+        private const int k_FFDHE3072_MaxExponent = 383;
 
-        const string FFDHE4096_HEX = @"
+        private const string FFDHE4096_HEX = @"
             FFFFFFFF FFFFFFFF ADF85458 A2BB4A9A AFDC5620 273D3CF1
             D8B9C583 CE2D3695 A9E13641 146433FB CC939DCE 249B3EF9
             7D2FE363 630C75D8 F681B202 AEC4617A D3DF1ED5 D5FD6561
@@ -595,17 +595,17 @@ namespace Opc.Ua
             8EC9B55A 7F88A46B 4DB5A851 F44182E1 C68A007E 5E655F6A
             FFFFFFFF FFFFFFFF";
 
-        static readonly Lazy<BigInteger> s_P4096 = new(() => RfcTextToBytes(FFDHE4096_HEX));
+        private static readonly Lazy<BigInteger> s_P4096 = new(() => RfcTextToBytes(FFDHE4096_HEX));
 
-        const int k_FFDHE4096_MinExponent = 325;
-        const int k_FFDHE4096_MaxExponent = 511;
+        private const int k_FFDHE4096_MinExponent = 325;
+        private const int k_FFDHE4096_MaxExponent = 511;
 
         private static readonly Lazy<RandomNumberGenerator> s_rng = new(RandomNumberGenerator.Create);
 
         /// <summary>
         /// Generator for FFDHE groups is 2
         /// </summary>
-        static readonly BigInteger s_G = new BigInteger(2);
+        private static readonly BigInteger s_G = new(2);
 
         /// <summary>
         /// Creates a new RSADiffieHellman instance for the specified group.

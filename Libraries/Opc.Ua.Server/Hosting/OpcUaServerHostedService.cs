@@ -55,7 +55,7 @@ namespace Opc.Ua.Server.Hosting
         private readonly IEnumerable<IAsyncNodeManagerFactory> m_asyncFactories;
         private readonly IEnumerable<INodeManagerFactory> m_syncFactories;
         private readonly ILogger<OpcUaServerHostedService> m_logger;
-// CA2213: ApplicationInstance is IAsyncDisposable; the lifecycle here is
+        // CA2213: ApplicationInstance is IAsyncDisposable; the lifecycle here is
         // managed via the async StopAsync override which calls m_application.StopAsync.
 #pragma warning disable CA2213
         private ApplicationInstance? m_application;

@@ -142,7 +142,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         public void CloseOnUnopenedListenerDoesNotThrow()
         {
             using var listener = new HttpsTransportListener(Utils.UriSchemeHttps, m_telemetry);
-            Assert.DoesNotThrow(() => listener.Close());
+            Assert.DoesNotThrow(listener.Close);
         }
 
         /// <summary>
@@ -152,7 +152,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         public void DisposeOnUnopenedListenerDoesNotThrow()
         {
             using var listener = new HttpsTransportListener(Utils.UriSchemeHttps, m_telemetry);
-            Assert.DoesNotThrow(() => listener.Dispose());
+            Assert.DoesNotThrow(listener.Dispose);
         }
 
         /// <summary>
@@ -163,7 +163,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         {
             using var listener = new HttpsTransportListener(Utils.UriSchemeHttps, m_telemetry);
             listener.Dispose();
-            Assert.DoesNotThrow(() => listener.Dispose());
+            Assert.DoesNotThrow(listener.Dispose);
         }
 
         /// <summary>
@@ -174,7 +174,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         {
             using var listener = new HttpsTransportListener(Utils.UriSchemeHttps, m_telemetry);
             listener.Close();
-            Assert.DoesNotThrow(() => listener.Dispose());
+            Assert.DoesNotThrow(listener.Dispose);
         }
 
         /// <summary>
@@ -311,7 +311,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         {
             using var listener = new HttpsTransportListener(Utils.UriSchemeHttps, m_telemetry);
             listener.Close();
-            Assert.DoesNotThrow(() => listener.Close());
+            Assert.DoesNotThrow(listener.Close);
         }
 
         /// <summary>
@@ -371,7 +371,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         {
             using var listener = new HttpsTransportListener(Utils.UriSchemeHttps, m_telemetry);
             listener.Stop();
-            Assert.DoesNotThrow(() => listener.Dispose());
+            Assert.DoesNotThrow(listener.Dispose);
         }
 
 #if NET8_0_OR_GREATER

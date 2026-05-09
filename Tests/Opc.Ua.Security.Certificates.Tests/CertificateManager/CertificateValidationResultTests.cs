@@ -87,7 +87,7 @@ namespace Opc.Ua.Security.Certificates.Tests
         [Test]
         public void ThrowIfInvalidReturnsSilentlyOnSuccess()
         {
-            Assert.DoesNotThrow(() => CertificateValidationResult.Success.ThrowIfInvalid());
+            Assert.DoesNotThrow(CertificateValidationResult.Success.ThrowIfInvalid);
         }
 
         [Test]
@@ -105,7 +105,7 @@ namespace Opc.Ua.Security.Certificates.Tests
                 result.ThrowIfInvalid);
             Assert.That(
                 ex.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadCertificateUntrusted),
+                Is.EqualTo(StatusCodes.BadCertificateUntrusted),
                 "ThrowIfInvalid should surface the first inner error, not the aggregate StatusCode.");
         }
 
@@ -122,7 +122,7 @@ namespace Opc.Ua.Security.Certificates.Tests
                 result.ThrowIfInvalid);
             Assert.That(
                 ex.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.BadCertificateUntrusted));
+                Is.EqualTo(StatusCodes.BadCertificateUntrusted));
         }
     }
 }

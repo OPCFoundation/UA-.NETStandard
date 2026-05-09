@@ -551,7 +551,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                     .ConfigureAwait(false),
                 Throws.TypeOf<ServiceResultException>()
                     .With.Property("StatusCode")
-                    .EqualTo((StatusCode)StatusCodes.BadInternalError));
+                    .EqualTo(StatusCodes.BadInternalError));
 
             // The reader-lock is non-recursive; if the previous call had
             // failed to release, the next service call would deadlock.

@@ -910,7 +910,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             // Act & Assert
             Assert.Throws<ArgumentNullException>(
-                () => builder.AddEncodeableType(typeId, (IEncodeableType)null));
+                () => builder.AddEncodeableType(typeId, null));
         }
 
         [Test]
