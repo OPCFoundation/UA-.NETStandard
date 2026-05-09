@@ -70,6 +70,20 @@ namespace Opc.Ua.Client.Subscriptions
         int BadPublishRequestCount { get; }
 
         /// <summary>
+        /// Total number of missing notification messages detected across
+        /// all subscriptions managed by this manager (sum of
+        /// <see cref="ISubscription.MissingMessageCount"/>).
+        /// </summary>
+        long MissingMessageCount { get; }
+
+        /// <summary>
+        /// Total number of republish requests issued across all
+        /// subscriptions managed by this manager (sum of
+        /// <see cref="ISubscription.RepublishMessageCount"/>).
+        /// </summary>
+        long RepublishMessageCount { get; }
+
+        /// <summary>
         /// Number of subscriptions
         /// </summary>
         int Count { get; }

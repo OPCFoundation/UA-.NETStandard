@@ -570,12 +570,12 @@ namespace Opc.Ua.Client.Subscriptions
                 DateTime publishTime, DataChangeNotification notification,
                 PublishState publishStateMask, IReadOnlyList<string> stringTable)
             {
-                DataChangeNotificationReceived.Set();
                 ReceivedSequenceNumbers.Add(sequenceNumber);
                 if (publishStateMask != PublishState.None)
                 {
                     PublishState = publishStateMask;
                 }
+                DataChangeNotificationReceived.Set();
                 return WaitAsync();
             }
 
@@ -583,24 +583,24 @@ namespace Opc.Ua.Client.Subscriptions
                 DateTime publishTime, EventNotificationList notification,
                 PublishState publishStateMask, IReadOnlyList<string> stringTable)
             {
-                EventNotificationReceived.Set();
                 ReceivedSequenceNumbers.Add(sequenceNumber);
                 if (publishStateMask != PublishState.None)
                 {
                     PublishState = publishStateMask;
                 }
+                EventNotificationReceived.Set();
                 return WaitAsync();
             }
 
             protected override ValueTask OnKeepAliveNotificationAsync(uint sequenceNumber,
                                         DateTime publishTime, PublishState publishStateMask)
             {
-                KeepAliveNotificationReceived.Set();
                 ReceivedSequenceNumbers.Add(sequenceNumber);
                 if (publishStateMask != PublishState.None)
                 {
                     PublishState = publishStateMask;
                 }
+                KeepAliveNotificationReceived.Set();
                 return WaitAsync();
             }
 
@@ -614,12 +614,12 @@ namespace Opc.Ua.Client.Subscriptions
                 DateTime publishTime, StatusChangeNotification notification,
                 PublishState publishStateMask, IReadOnlyList<string> stringTable)
             {
-                StatusChangeNotificationReceived.Set();
                 ReceivedSequenceNumbers.Add(sequenceNumber);
                 if (publishStateMask != PublishState.None)
                 {
                     PublishState = publishStateMask;
                 }
+                StatusChangeNotificationReceived.Set();
                 await WaitAsync().ConfigureAwait(false);
             }
         }

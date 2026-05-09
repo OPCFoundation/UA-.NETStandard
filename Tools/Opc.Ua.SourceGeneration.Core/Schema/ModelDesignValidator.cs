@@ -4472,6 +4472,9 @@ namespace Opc.Ua.Schema.Model
             mergedType.RolePermissions = type.RolePermissions;
             mergedType.AccessRestrictions = type.AccessRestrictions;
             mergedType.AccessRestrictionsSpecified = type.AccessRestrictionsSpecified;
+            mergedType.DefaultRolePermissions = type.DefaultRolePermissions;
+            mergedType.DefaultAccessRestrictions = type.DefaultAccessRestrictions;
+            mergedType.DefaultAccessRestrictionsSpecified = type.DefaultAccessRestrictionsSpecified;
             mergedType.WriteAccess = type.WriteAccess;
 
             if (type is VariableTypeDesign variableType)
@@ -4637,6 +4640,9 @@ namespace Opc.Ua.Schema.Model
                 Category = type.Category,
                 Purpose = type.Purpose,
                 ReleaseStatus = type.ReleaseStatus,
+                RolePermissions = type.RolePermissions,
+                AccessRestrictions = type.AccessRestrictions,
+                AccessRestrictionsSpecified = type.AccessRestrictionsSpecified,
                 DefaultRolePermissions = type.DefaultRolePermissions,
                 DefaultAccessRestrictions = type.DefaultAccessRestrictions,
                 DefaultAccessRestrictionsSpecified = type.DefaultAccessRestrictionsSpecified
@@ -4673,6 +4679,9 @@ namespace Opc.Ua.Schema.Model
                 Category = type.Category,
                 Purpose = type.Purpose,
                 ReleaseStatus = type.ReleaseStatus,
+                RolePermissions = type.RolePermissions,
+                AccessRestrictions = type.AccessRestrictions,
+                AccessRestrictionsSpecified = type.AccessRestrictionsSpecified,
                 DefaultRolePermissions = type.DefaultRolePermissions,
                 DefaultAccessRestrictions = type.DefaultAccessRestrictions,
                 DefaultAccessRestrictionsSpecified = type.DefaultAccessRestrictionsSpecified

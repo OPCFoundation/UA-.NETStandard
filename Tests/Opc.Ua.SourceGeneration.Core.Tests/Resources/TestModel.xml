@@ -286,6 +286,17 @@
     <opc:DefaultAccessRestrictions>EncryptionRequired</opc:DefaultAccessRestrictions>
   </opc:VariableType>
 
+  <opc:Method SymbolicName="RestrictedMethodType">
+    <opc:InputArguments>
+      <opc:Argument Name="In1" DataType="ua:Int32" />
+    </opc:InputArguments>
+    <opc:OutputArguments>
+      <opc:Argument Name="Out1" DataType="ua:Int32" />
+    </opc:OutputArguments>
+    <opc:DefaultRolePermissions Name="SecurityAdminOnly" />
+    <opc:DefaultAccessRestrictions>SigningRequired</opc:DefaultAccessRestrictions>
+  </opc:Method>
+
   <opc:ObjectType SymbolicName="RestrictedObjectType" BaseType="ua:BaseObjectType">
     <opc:Children>
       <opc:Variable SymbolicName="Red" TypeDefinition="RestrictedVariableType" ModellingRule="Mandatory"/>
@@ -305,6 +316,8 @@
         <some:World xmlns:some="http://tempuri.com/something">comes</some:World>
       </opc:Extension>
     </opc:Extensions>
+    <opc:DefaultRolePermissions Name="SecurityAdminOnly" />
+    <opc:DefaultAccessRestrictions>EncryptionRequired</opc:DefaultAccessRestrictions>
   </opc:ObjectType>
 
   <opc:Object SymbolicName="TestObject" TypeDefinition="RestrictedObjectType">

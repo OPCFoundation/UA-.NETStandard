@@ -149,6 +149,86 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             }
         }
 
+        /// <summary>
+        /// CreateInstanceOf&lt;X&gt; factories must emit AccessRestrictions and
+        /// RolePermissions inherited from the type's DefaultAccessRestrictions /
+        /// DefaultRolePermissions for ObjectType, VariableType and MethodType.
+        /// Regression test for the source-generated factory missing these
+        /// attributes when the type declares Default* permissions.
+        /// </summary>
+        [Test]
+        public void CreateInstanceOf_EmitsAccessRestrictionsAndRolePermissionsFromType()
+        {
+            Dictionary<string, string> files = GenerateForTestModel(generateNodeManager: false);
+
+            string ex = files
+                .Single(kv => kv.Key.EndsWith(".NodeStates.ex.g.cs", StringComparison.Ordinal))
+                .Value;
+
+            string variableFactory = ExtractFactoryBody(ex, "CreateInstanceOfRestrictedVariableType");
+            Assert.That(variableFactory, Does.Contain(
+                "state.AccessRestrictions = global::Opc.Ua.AccessRestrictionType.EncryptionRequired"));
+            Assert.That(variableFactory, Does.Contain(
+                "state.RolePermissions = new global::Opc.Ua.RolePermissionType[]"));
+
+            string objectFactory = ExtractFactoryBody(ex, "CreateInstanceOfRestrictedObjectType");
+            Assert.That(objectFactory, Does.Contain(
+                "state.AccessRestrictions = global::Opc.Ua.AccessRestrictionType.EncryptionRequired"));
+            Assert.That(objectFactory, Does.Contain(
+                "state.RolePermissions = new global::Opc.Ua.RolePermissionType[]"));
+
+            string methodFactory = ExtractFactoryBody(ex, "CreateInstanceOfRestrictedMethodType");
+            Assert.That(methodFactory, Does.Contain(
+                "state.AccessRestrictions = global::Opc.Ua.AccessRestrictionType.SigningRequired"));
+            Assert.That(methodFactory, Does.Contain(
+                "state.RolePermissions = new global::Opc.Ua.RolePermissionType[]"));
+        }
+
+        /// <summary>
+        /// Extracts the body of a generated factory method (from the line that
+        /// declares it through the matching closing brace) so individual
+        /// factories can be asserted on without false matches from other
+        /// factories sharing token names.
+        /// </summary>
+        private static string ExtractFactoryBody(string source, string methodName)
+        {
+            string[] lines = source.Split('\n');
+            for (int i = 0; i < lines.Length; i++)
+            {
+                if (!lines[i].Contains("public static ", StringComparison.Ordinal) ||
+                    !lines[i].Contains(methodName + "(", StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                int braces = 0;
+                bool started = false;
+                var sb = new StringBuilder();
+                for (int j = i; j < lines.Length; j++)
+                {
+                    sb.AppendLine(lines[j]);
+                    foreach (char c in lines[j])
+                    {
+                        if (c == '{')
+                        {
+                            braces++;
+                            started = true;
+                        }
+                        else if (c == '}')
+                        {
+                            braces--;
+                        }
+                    }
+                    if (started && braces == 0)
+                    {
+                        return sb.ToString();
+                    }
+                }
+            }
+            Assert.Fail("Method definition not found: " + methodName);
+            return string.Empty;
+        }
+
         private static Dictionary<string, string> GenerateForTestModel(bool generateNodeManager)
         {
             const string designFile = "TestModel.xml";
