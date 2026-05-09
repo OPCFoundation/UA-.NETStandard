@@ -79,1733 +79,2057 @@ namespace Opc.Ua.Configuration.Tests
         public async Task BuildReturnsBuilderWithCorrectApplicationConfigurationAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using (appInstance.ConfigureAwait(false))
+            {
 
-            IApplicationConfigurationBuilderTypes builder = appInstance.Build(ApplicationUri, ProductUri);
+                IApplicationConfigurationBuilderTypes builder = appInstance.Build(ApplicationUri, ProductUri);
 
-            Assert.That(builder, Is.Not.Null);
-            Assert.That(appInstance.ApplicationConfiguration, Is.Not.Null);
-            Assert.That(appInstance.ApplicationConfiguration.ApplicationName, Is.EqualTo(ApplicationName));
-            Assert.That(appInstance.ApplicationConfiguration.ApplicationUri, Is.EqualTo(ApplicationUri));
-            Assert.That(appInstance.ApplicationConfiguration.ProductUri, Is.EqualTo(ProductUri));
+                Assert.That(builder, Is.Not.Null);
+                Assert.That(appInstance.ApplicationConfiguration, Is.Not.Null);
+                Assert.That(appInstance.ApplicationConfiguration.ApplicationName, Is.EqualTo(ApplicationName));
+                Assert.That(appInstance.ApplicationConfiguration.ApplicationUri, Is.EqualTo(ApplicationUri));
+                Assert.That(appInstance.ApplicationConfiguration.ProductUri, Is.EqualTo(ProductUri));
+            }
         }
 
         [Test]
         public async Task BuildSetsDefaultTransportQuotasAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using (appInstance.ConfigureAwait(false))
+            {
 
-            appInstance.Build(ApplicationUri, ProductUri);
+                appInstance.Build(ApplicationUri, ProductUri);
 
-            Assert.That(appInstance.ApplicationConfiguration.TransportQuotas, Is.Not.Null);
+                Assert.That(appInstance.ApplicationConfiguration.TransportQuotas, Is.Not.Null);
+            }
         }
 
         [Test]
         public async Task BuildSetsDefaultTraceConfigurationAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using (appInstance.ConfigureAwait(false))
+            {
 
-            appInstance.Build(ApplicationUri, ProductUri);
+                appInstance.Build(ApplicationUri, ProductUri);
 
-            Assert.That(appInstance.ApplicationConfiguration.TraceConfiguration, Is.Not.Null);
-            Assert.That(
-                appInstance.ApplicationConfiguration.TraceConfiguration.TraceMasks,
-                Is.EqualTo(Utils.TraceMasks.None));
+                Assert.That(appInstance.ApplicationConfiguration.TraceConfiguration, Is.Not.Null);
+                Assert.That(
+                    appInstance.ApplicationConfiguration.TraceConfiguration.TraceMasks,
+                    Is.EqualTo(Utils.TraceMasks.None));
+            }
         }
 
         [Test]
         public async Task AsClientSetsClientConfigurationAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using (appInstance.ConfigureAwait(false))
+            {
 
-            appInstance.Build(ApplicationUri, ProductUri)
-                .AsClient();
+                appInstance.Build(ApplicationUri, ProductUri)
+                    .AsClient();
 
-            Assert.That(appInstance.ApplicationConfiguration.ClientConfiguration, Is.Not.Null);
-            Assert.That(appInstance.ApplicationType, Is.EqualTo(ApplicationType.Client));
+                Assert.That(appInstance.ApplicationConfiguration.ClientConfiguration, Is.Not.Null);
+                Assert.That(appInstance.ApplicationType, Is.EqualTo(ApplicationType.Client));
+            }
         }
 
         [Test]
         public async Task AsClientFromServerTypeSetsClientAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry)
+            var appInstance = new ApplicationInstance(telemetry)
             {
                 ApplicationName = ApplicationName,
                 ApplicationType = ApplicationType.Server
             };
+            await using (appInstance.ConfigureAwait(false))
+            {
 
-            appInstance.Build(ApplicationUri, ProductUri)
-                .AsClient();
+                appInstance.Build(ApplicationUri, ProductUri)
+                    .AsClient();
 
-            Assert.That(appInstance.ApplicationType, Is.EqualTo(ApplicationType.Client));
+                Assert.That(appInstance.ApplicationType, Is.EqualTo(ApplicationType.Client));
+            }
         }
 
         [Test]
         public async Task AsServerFromClientTypeSetsServerAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry)
+            var appInstance = new ApplicationInstance(telemetry)
             {
                 ApplicationName = ApplicationName,
                 ApplicationType = ApplicationType.Client
             };
+            await using (appInstance.ConfigureAwait(false))
+            {
 
-            appInstance.Build(ApplicationUri, ProductUri)
-                .AsServer([EndpointUrl]);
+                appInstance.Build(ApplicationUri, ProductUri)
+                    .AsServer([EndpointUrl]);
 
-            Assert.That(appInstance.ApplicationType, Is.EqualTo(ApplicationType.Server));
+                Assert.That(appInstance.ApplicationType, Is.EqualTo(ApplicationType.Server));
+            }
         }
 
         [Test]
         public async Task AsServerThenClientSetsClientAndServerWithBothConfigsAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using (appInstance.ConfigureAwait(false))
+            {
 
-            appInstance.Build(ApplicationUri, ProductUri)
-                .AsServer([EndpointUrl])
-                .AsClient();
+                appInstance.Build(ApplicationUri, ProductUri)
+                    .AsServer([EndpointUrl])
+                    .AsClient();
 
-            Assert.That(appInstance.ApplicationType, Is.EqualTo(ApplicationType.ClientAndServer));
-            Assert.That(appInstance.ApplicationConfiguration.ClientConfiguration, Is.Not.Null);
-            Assert.That(appInstance.ApplicationConfiguration.ServerConfiguration, Is.Not.Null);
+                Assert.That(appInstance.ApplicationType, Is.EqualTo(ApplicationType.ClientAndServer));
+                Assert.That(appInstance.ApplicationConfiguration.ClientConfiguration, Is.Not.Null);
+                Assert.That(appInstance.ApplicationConfiguration.ServerConfiguration, Is.Not.Null);
+            }
         }
 
         [Test]
         public async Task AsServerThenClientSetsClientAndServerAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using (appInstance.ConfigureAwait(false))
+            {
 
-            appInstance.Build(ApplicationUri, ProductUri)
-                .AsServer([EndpointUrl])
-                .AsClient();
+                appInstance.Build(ApplicationUri, ProductUri)
+                    .AsServer([EndpointUrl])
+                    .AsClient();
 
-            Assert.That(appInstance.ApplicationType, Is.EqualTo(ApplicationType.ClientAndServer));
+                Assert.That(appInstance.ApplicationType, Is.EqualTo(ApplicationType.ClientAndServer));
+            }
         }
 
         [Test]
         public async Task AsClientFromDiscoveryServerThrowsAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry)
+            var appInstance = new ApplicationInstance(telemetry)
             {
                 ApplicationName = ApplicationName,
                 ApplicationType = ApplicationType.DiscoveryServer
             };
+            await using (appInstance.ConfigureAwait(false))
+            {
 
-            Assert.Throws<ArgumentException>(() =>
-                appInstance.Build(ApplicationUri, ProductUri)
-                    .AsClient());
+                Assert.Throws<ArgumentException>(() =>
+                    appInstance.Build(ApplicationUri, ProductUri)
+                        .AsClient());
+            }
         }
 
         [Test]
         public async Task AsServerFromDiscoveryServerThrowsAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry)
+            var appInstance = new ApplicationInstance(telemetry)
             {
                 ApplicationName = ApplicationName,
                 ApplicationType = ApplicationType.DiscoveryServer
             };
+            await using (appInstance.ConfigureAwait(false))
+            {
 
-            Assert.Throws<ArgumentException>(() =>
-                appInstance.Build(ApplicationUri, ProductUri)
-                    .AsServer([EndpointUrl]));
+                Assert.Throws<ArgumentException>(() =>
+                    appInstance.Build(ApplicationUri, ProductUri)
+                        .AsServer([EndpointUrl]));
+            }
         }
 
         [Test]
         public async Task AsServerSetsBaseAddressesAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
-            const string endpoint1 = "opc.tcp://localhost:51000";
-            const string endpoint2 = "opc.tcp://localhost:51001";
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using (appInstance.ConfigureAwait(false))
+            {
+                const string endpoint1 = "opc.tcp://localhost:51000";
+                const string endpoint2 = "opc.tcp://localhost:51001";
 
-            appInstance.Build(ApplicationUri, ProductUri)
-                .AsServer([endpoint1, endpoint2]);
+                appInstance.Build(ApplicationUri, ProductUri)
+                    .AsServer([endpoint1, endpoint2]);
 
-            Assert.That(
-                appInstance.ApplicationConfiguration.ServerConfiguration.BaseAddresses.Count,
-                Is.EqualTo(2));
+                Assert.That(
+                    appInstance.ApplicationConfiguration.ServerConfiguration.BaseAddresses.Count,
+                    Is.EqualTo(2));
+            }
         }
 
         [Test]
         public async Task AsServerSetsAlternateBaseAddressesAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
-            string[] alternates = ["opc.tcp://myhost:51000"];
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using (appInstance.ConfigureAwait(false))
+            {
+                string[] alternates = ["opc.tcp://myhost:51000"];
 
-            appInstance.Build(ApplicationUri, ProductUri)
-                .AsServer([EndpointUrl], alternates);
+                appInstance.Build(ApplicationUri, ProductUri)
+                    .AsServer([EndpointUrl], alternates);
 
-            Assert.That(
-                appInstance.ApplicationConfiguration.ServerConfiguration.AlternateBaseAddresses.Count,
-                Is.EqualTo(1));
+                Assert.That(
+                    appInstance.ApplicationConfiguration.ServerConfiguration.AlternateBaseAddresses.Count,
+                    Is.EqualTo(1));
+            }
         }
 
         [Test]
         public async Task AsServerDisablesLdsRegistrationByDefaultAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using (appInstance.ConfigureAwait(false))
+            {
 
-            appInstance.Build(ApplicationUri, ProductUri)
-                .AsServer([EndpointUrl]);
+                appInstance.Build(ApplicationUri, ProductUri)
+                    .AsServer([EndpointUrl]);
 
-            Assert.That(
-                appInstance.ApplicationConfiguration.ServerConfiguration.MaxRegistrationInterval,
-                Is.Zero);
+                Assert.That(
+                    appInstance.ApplicationConfiguration.ServerConfiguration.MaxRegistrationInterval,
+                    Is.Zero);
+            }
         }
 
         [Test]
         public async Task AsServerInitializesEmptyPoliciesAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using (appInstance.ConfigureAwait(false))
+            {
 
-            appInstance.Build(ApplicationUri, ProductUri)
-                .AsServer([EndpointUrl]);
+                appInstance.Build(ApplicationUri, ProductUri)
+                    .AsServer([EndpointUrl]);
 
-            Assert.That(
-                appInstance.ApplicationConfiguration.ServerConfiguration.SecurityPolicies.Count,
-                Is.Zero);
-            Assert.That(
-                appInstance.ApplicationConfiguration.ServerConfiguration.UserTokenPolicies.Count,
-                Is.Zero);
+                Assert.That(
+                    appInstance.ApplicationConfiguration.ServerConfiguration.SecurityPolicies.Count,
+                    Is.Zero);
+                Assert.That(
+                    appInstance.ApplicationConfiguration.ServerConfiguration.UserTokenPolicies.Count,
+                    Is.Zero);
+            }
         }
 
         [Test]
         public async Task AddSecurityConfigurationWithSubjectNameSetsDefaultsAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using (appInstance.ConfigureAwait(false))
+            {
 
-            appInstance.Build(ApplicationUri, ProductUri)
-                .AsClient()
-                .AddSecurityConfiguration(SubjectName, m_pkiRoot);
+                appInstance.Build(ApplicationUri, ProductUri)
+                    .AsClient()
+                    .AddSecurityConfiguration(SubjectName, m_pkiRoot);
 
-            SecurityConfiguration secConfig = appInstance.ApplicationConfiguration.SecurityConfiguration;
-            Assert.That(secConfig, Is.Not.Null);
-            Assert.That(secConfig.ApplicationCertificate, Is.Not.Null);
-            Assert.That(secConfig.ApplicationCertificate.SubjectName, Is.Not.Null.And.Not.Empty);
-            Assert.That(secConfig.TrustedPeerCertificates, Is.Not.Null);
-            Assert.That(secConfig.TrustedIssuerCertificates, Is.Not.Null);
-            Assert.That(secConfig.TrustedHttpsCertificates, Is.Not.Null);
-            Assert.That(secConfig.HttpsIssuerCertificates, Is.Not.Null);
-            Assert.That(secConfig.TrustedUserCertificates, Is.Not.Null);
-            Assert.That(secConfig.UserIssuerCertificates, Is.Not.Null);
-            Assert.That(secConfig.RejectedCertificateStore, Is.Not.Null);
+                SecurityConfiguration secConfig = appInstance.ApplicationConfiguration.SecurityConfiguration;
+                Assert.That(secConfig, Is.Not.Null);
+                Assert.That(secConfig.ApplicationCertificate, Is.Not.Null);
+                Assert.That(secConfig.ApplicationCertificate.SubjectName, Is.Not.Null.And.Not.Empty);
+                Assert.That(secConfig.TrustedPeerCertificates, Is.Not.Null);
+                Assert.That(secConfig.TrustedIssuerCertificates, Is.Not.Null);
+                Assert.That(secConfig.TrustedHttpsCertificates, Is.Not.Null);
+                Assert.That(secConfig.HttpsIssuerCertificates, Is.Not.Null);
+                Assert.That(secConfig.TrustedUserCertificates, Is.Not.Null);
+                Assert.That(secConfig.UserIssuerCertificates, Is.Not.Null);
+                Assert.That(secConfig.RejectedCertificateStore, Is.Not.Null);
+            }
         }
 
         [Test]
         public async Task AddSecurityConfigurationSetsSecureDefaultsAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using (appInstance.ConfigureAwait(false))
+            {
 
-            appInstance.Build(ApplicationUri, ProductUri)
-                .AsClient()
-                .AddSecurityConfiguration(SubjectName, m_pkiRoot);
+                appInstance.Build(ApplicationUri, ProductUri)
+                    .AsClient()
+                    .AddSecurityConfiguration(SubjectName, m_pkiRoot);
 
-            SecurityConfiguration secConfig = appInstance.ApplicationConfiguration.SecurityConfiguration;
-            Assert.That(secConfig.AutoAcceptUntrustedCertificates, Is.False);
-            Assert.That(secConfig.AddAppCertToTrustedStore, Is.False);
-            Assert.That(secConfig.RejectSHA1SignedCertificates, Is.True);
-            Assert.That(secConfig.RejectUnknownRevocationStatus, Is.True);
-            Assert.That(secConfig.SuppressNonceValidationErrors, Is.False);
-            Assert.That(secConfig.SendCertificateChain, Is.True);
-            Assert.That(secConfig.MinimumCertificateKeySize, Is.EqualTo(CertificateFactory.DefaultKeySize));
-            Assert.That(secConfig.MaxRejectedCertificates, Is.EqualTo(5));
+                SecurityConfiguration secConfig = appInstance.ApplicationConfiguration.SecurityConfiguration;
+                Assert.That(secConfig.AutoAcceptUntrustedCertificates, Is.False);
+                Assert.That(secConfig.AddAppCertToTrustedStore, Is.False);
+                Assert.That(secConfig.RejectSHA1SignedCertificates, Is.True);
+                Assert.That(secConfig.RejectUnknownRevocationStatus, Is.True);
+                Assert.That(secConfig.SuppressNonceValidationErrors, Is.False);
+                Assert.That(secConfig.SendCertificateChain, Is.True);
+                Assert.That(secConfig.MinimumCertificateKeySize, Is.EqualTo(CertificateFactory.DefaultKeySize));
+                Assert.That(secConfig.MaxRejectedCertificates, Is.EqualTo(5));
+            }
         }
 
         [Test]
         public async Task AddSecurityConfigurationWithCertIdListSetsSecureDefaultsAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using (appInstance.ConfigureAwait(false))
+            {
 
-            ArrayOf<CertificateIdentifier> certs =
-                ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
-                    SubjectName,
-                    CertificateStoreType.Directory,
-                    m_pkiRoot);
+                ArrayOf<CertificateIdentifier> certs =
+                    ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
+                        SubjectName,
+                        CertificateStoreType.Directory,
+                        m_pkiRoot);
 
-            appInstance.Build(ApplicationUri, ProductUri)
-                .AsClient()
-                .AddSecurityConfiguration(certs, m_pkiRoot);
+                appInstance.Build(ApplicationUri, ProductUri)
+                    .AsClient()
+                    .AddSecurityConfiguration(certs, m_pkiRoot);
 
-            SecurityConfiguration secConfig = appInstance.ApplicationConfiguration.SecurityConfiguration;
-            Assert.That(secConfig.ApplicationCertificates.Count, Is.GreaterThan(0));
-            Assert.That(secConfig.AutoAcceptUntrustedCertificates, Is.False);
-            Assert.That(secConfig.SendCertificateChain, Is.True);
-            Assert.That(secConfig.MaxRejectedCertificates, Is.EqualTo(5));
+                SecurityConfiguration secConfig = appInstance.ApplicationConfiguration.SecurityConfiguration;
+                Assert.That(secConfig.ApplicationCertificates.Count, Is.GreaterThan(0));
+                Assert.That(secConfig.AutoAcceptUntrustedCertificates, Is.False);
+                Assert.That(secConfig.SendCertificateChain, Is.True);
+                Assert.That(secConfig.MaxRejectedCertificates, Is.EqualTo(5));
+            }
         }
 
         [Test]
         public async Task AddSecurityConfigurationStoresSetsAllStoresAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
-            string appRoot = Path.Combine(m_pkiRoot, "own");
-            string trustedRoot = Path.Combine(m_pkiRoot, "trusted");
-            string issuerRoot = Path.Combine(m_pkiRoot, "issuer");
-            string rejectedRoot = Path.Combine(m_pkiRoot, "rejected");
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using (appInstance.ConfigureAwait(false))
+            {
+                string appRoot = Path.Combine(m_pkiRoot, "own");
+                string trustedRoot = Path.Combine(m_pkiRoot, "trusted");
+                string issuerRoot = Path.Combine(m_pkiRoot, "issuer");
+                string rejectedRoot = Path.Combine(m_pkiRoot, "rejected");
 
-            appInstance.Build(ApplicationUri, ProductUri)
-                .AsClient()
-                .AddSecurityConfigurationStores(
-                    SubjectName,
-                    appRoot,
-                    trustedRoot,
-                    issuerRoot,
-                    rejectedRoot);
+                appInstance.Build(ApplicationUri, ProductUri)
+                    .AsClient()
+                    .AddSecurityConfigurationStores(
+                        SubjectName,
+                        appRoot,
+                        trustedRoot,
+                        issuerRoot,
+                        rejectedRoot);
 
-            SecurityConfiguration secConfig = appInstance.ApplicationConfiguration.SecurityConfiguration;
-            Assert.That(secConfig.ApplicationCertificate, Is.Not.Null);
-            Assert.That(secConfig.TrustedPeerCertificates, Is.Not.Null);
-            Assert.That(secConfig.TrustedIssuerCertificates, Is.Not.Null);
-            Assert.That(secConfig.RejectedCertificateStore, Is.Not.Null);
+                SecurityConfiguration secConfig = appInstance.ApplicationConfiguration.SecurityConfiguration;
+                Assert.That(secConfig.ApplicationCertificate, Is.Not.Null);
+                Assert.That(secConfig.TrustedPeerCertificates, Is.Not.Null);
+                Assert.That(secConfig.TrustedIssuerCertificates, Is.Not.Null);
+                Assert.That(secConfig.RejectedCertificateStore, Is.Not.Null);
+            }
         }
 
         [Test]
         public async Task AddSecurityConfigurationStoresWithoutRejectedRootUsesDefaultAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
-            string appRoot = Path.Combine(m_pkiRoot, "own");
-            string trustedRoot = Path.Combine(m_pkiRoot, "trusted");
-            string issuerRoot = Path.Combine(m_pkiRoot, "issuer");
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using (appInstance.ConfigureAwait(false))
+            {
+                string appRoot = Path.Combine(m_pkiRoot, "own");
+                string trustedRoot = Path.Combine(m_pkiRoot, "trusted");
+                string issuerRoot = Path.Combine(m_pkiRoot, "issuer");
 
-            appInstance.Build(ApplicationUri, ProductUri)
-                .AsClient()
-                .AddSecurityConfigurationStores(
-                    SubjectName,
-                    appRoot,
-                    trustedRoot,
-                    issuerRoot);
+                appInstance.Build(ApplicationUri, ProductUri)
+                    .AsClient()
+                    .AddSecurityConfigurationStores(
+                        SubjectName,
+                        appRoot,
+                        trustedRoot,
+                        issuerRoot);
 
-            SecurityConfiguration secConfig = appInstance.ApplicationConfiguration.SecurityConfiguration;
-            Assert.That(secConfig.RejectedCertificateStore, Is.Not.Null);
-            Assert.That(secConfig.RejectedCertificateStore.StorePath, Is.Not.Null.And.Not.Empty);
+                SecurityConfiguration secConfig = appInstance.ApplicationConfiguration.SecurityConfiguration;
+                Assert.That(secConfig.RejectedCertificateStore, Is.Not.Null);
+                Assert.That(secConfig.RejectedCertificateStore.StorePath, Is.Not.Null.And.Not.Empty);
+            }
         }
 
         [Test]
         public async Task AddSecurityConfigurationUserStoreConfiguresUserStoresAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
-            string appRoot = Path.Combine(m_pkiRoot, "own");
-            string trustedRoot = Path.Combine(m_pkiRoot, "trusted");
-            string issuerRoot = Path.Combine(m_pkiRoot, "issuer");
-            string userTrusted = Path.Combine(m_pkiRoot, "trustedUser");
-            string userIssuer = Path.Combine(m_pkiRoot, "issuerUser");
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using (appInstance.ConfigureAwait(false))
+            {
+                string appRoot = Path.Combine(m_pkiRoot, "own");
+                string trustedRoot = Path.Combine(m_pkiRoot, "trusted");
+                string issuerRoot = Path.Combine(m_pkiRoot, "issuer");
+                string userTrusted = Path.Combine(m_pkiRoot, "trustedUser");
+                string userIssuer = Path.Combine(m_pkiRoot, "issuerUser");
 
-            appInstance.Build(ApplicationUri, ProductUri)
-                .AsClient()
-                .AddSecurityConfigurationStores(SubjectName, appRoot, trustedRoot, issuerRoot)
-                .AddSecurityConfigurationUserStore(userTrusted, userIssuer);
+                appInstance.Build(ApplicationUri, ProductUri)
+                    .AsClient()
+                    .AddSecurityConfigurationStores(SubjectName, appRoot, trustedRoot, issuerRoot)
+                    .AddSecurityConfigurationUserStore(userTrusted, userIssuer);
 
-            SecurityConfiguration secConfig = appInstance.ApplicationConfiguration.SecurityConfiguration;
-            Assert.That(secConfig.TrustedUserCertificates, Is.Not.Null);
-            Assert.That(secConfig.UserIssuerCertificates, Is.Not.Null);
+                SecurityConfiguration secConfig = appInstance.ApplicationConfiguration.SecurityConfiguration;
+                Assert.That(secConfig.TrustedUserCertificates, Is.Not.Null);
+                Assert.That(secConfig.UserIssuerCertificates, Is.Not.Null);
+            }
         }
 
         [Test]
         public async Task AddSecurityConfigurationHttpsStoreConfiguresHttpsStoresAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
-            string appRoot = Path.Combine(m_pkiRoot, "own");
-            string trustedRoot = Path.Combine(m_pkiRoot, "trusted");
-            string issuerRoot = Path.Combine(m_pkiRoot, "issuer");
-            string httpsTrusted = Path.Combine(m_pkiRoot, "trustedHttps");
-            string httpsIssuer = Path.Combine(m_pkiRoot, "issuerHttps");
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using (appInstance.ConfigureAwait(false))
+            {
+                string appRoot = Path.Combine(m_pkiRoot, "own");
+                string trustedRoot = Path.Combine(m_pkiRoot, "trusted");
+                string issuerRoot = Path.Combine(m_pkiRoot, "issuer");
+                string httpsTrusted = Path.Combine(m_pkiRoot, "trustedHttps");
+                string httpsIssuer = Path.Combine(m_pkiRoot, "issuerHttps");
 
-            appInstance.Build(ApplicationUri, ProductUri)
-                .AsClient()
-                .AddSecurityConfigurationStores(SubjectName, appRoot, trustedRoot, issuerRoot)
-                .AddSecurityConfigurationHttpsStore(httpsTrusted, httpsIssuer);
+                appInstance.Build(ApplicationUri, ProductUri)
+                    .AsClient()
+                    .AddSecurityConfigurationStores(SubjectName, appRoot, trustedRoot, issuerRoot)
+                    .AddSecurityConfigurationHttpsStore(httpsTrusted, httpsIssuer);
 
-            SecurityConfiguration secConfig = appInstance.ApplicationConfiguration.SecurityConfiguration;
-            Assert.That(secConfig.TrustedHttpsCertificates, Is.Not.Null);
-            Assert.That(secConfig.HttpsIssuerCertificates, Is.Not.Null);
+                SecurityConfiguration secConfig = appInstance.ApplicationConfiguration.SecurityConfiguration;
+                Assert.That(secConfig.TrustedHttpsCertificates, Is.Not.Null);
+                Assert.That(secConfig.HttpsIssuerCertificates, Is.Not.Null);
+            }
         }
 
         [Test]
         public async Task SetHiResClockDisabledSetsPropertyAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using (appInstance.ConfigureAwait(false))
+            {
 
-            appInstance.Build(ApplicationUri, ProductUri)
-                .AsClient()
-                .AddSecurityConfiguration(SubjectName, m_pkiRoot)
-                .SetHiResClockDisabled(true);
+                appInstance.Build(ApplicationUri, ProductUri)
+                    .AsClient()
+                    .AddSecurityConfiguration(SubjectName, m_pkiRoot)
+                    .SetHiResClockDisabled(true);
 
-            Assert.That(appInstance.ApplicationConfiguration.DisableHiResClock, Is.True);
+                Assert.That(appInstance.ApplicationConfiguration.DisableHiResClock, Is.True);
+            }
         }
 
         [Test]
         public async Task SetTransportQuotasReplacesQuotasAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
-            var quotas = new TransportQuotas { OperationTimeout = 42000 };
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using (appInstance.ConfigureAwait(false))
+            {
+                var quotas = new TransportQuotas { OperationTimeout = 42000 };
 
-            appInstance.Build(ApplicationUri, ProductUri)
-                .SetTransportQuotas(quotas);
+                appInstance.Build(ApplicationUri, ProductUri)
+                    .SetTransportQuotas(quotas);
 
-            Assert.That(
-                appInstance.ApplicationConfiguration.TransportQuotas.OperationTimeout,
-                Is.EqualTo(42000));
+                Assert.That(
+                    appInstance.ApplicationConfiguration.TransportQuotas.OperationTimeout,
+                    Is.EqualTo(42000));
+            }
         }
 
         [Test]
         public async Task SetOperationTimeoutSetsValueAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using (appInstance.ConfigureAwait(false))
+            {
 
-            appInstance.Build(ApplicationUri, ProductUri)
-                .SetOperationTimeout(15000);
+                appInstance.Build(ApplicationUri, ProductUri)
+                    .SetOperationTimeout(15000);
 
-            Assert.That(
-                appInstance.ApplicationConfiguration.TransportQuotas.OperationTimeout,
-                Is.EqualTo(15000));
+                Assert.That(
+                    appInstance.ApplicationConfiguration.TransportQuotas.OperationTimeout,
+                    Is.EqualTo(15000));
+            }
         }
 
         [Test]
         public async Task SetMaxStringLengthSetsValueAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using (appInstance.ConfigureAwait(false))
+            {
 
-            appInstance.Build(ApplicationUri, ProductUri)
-                .SetMaxStringLength(1_000_000);
+                appInstance.Build(ApplicationUri, ProductUri)
+                    .SetMaxStringLength(1_000_000);
 
-            Assert.That(
-                appInstance.ApplicationConfiguration.TransportQuotas.MaxStringLength,
-                Is.EqualTo(1_000_000));
+                Assert.That(
+                    appInstance.ApplicationConfiguration.TransportQuotas.MaxStringLength,
+                    Is.EqualTo(1_000_000));
+            }
         }
 
         [Test]
         public async Task SetMaxByteStringLengthSetsValueAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using (appInstance.ConfigureAwait(false))
+            {
 
-            appInstance.Build(ApplicationUri, ProductUri)
-                .SetMaxByteStringLength(2_000_000);
+                appInstance.Build(ApplicationUri, ProductUri)
+                    .SetMaxByteStringLength(2_000_000);
 
-            Assert.That(
-                appInstance.ApplicationConfiguration.TransportQuotas.MaxByteStringLength,
-                Is.EqualTo(2_000_000));
+                Assert.That(
+                    appInstance.ApplicationConfiguration.TransportQuotas.MaxByteStringLength,
+                    Is.EqualTo(2_000_000));
+            }
         }
 
         [Test]
         public async Task SetMaxArrayLengthSetsValueAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using (appInstance.ConfigureAwait(false))
+            {
 
-            appInstance.Build(ApplicationUri, ProductUri)
-                .SetMaxArrayLength(5000);
+                appInstance.Build(ApplicationUri, ProductUri)
+                    .SetMaxArrayLength(5000);
 
-            Assert.That(
-                appInstance.ApplicationConfiguration.TransportQuotas.MaxArrayLength,
-                Is.EqualTo(5000));
+                Assert.That(
+                    appInstance.ApplicationConfiguration.TransportQuotas.MaxArrayLength,
+                    Is.EqualTo(5000));
+            }
         }
 
         [Test]
         public async Task SetMaxMessageSizeSetsValueAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using (appInstance.ConfigureAwait(false))
+            {
 
-            appInstance.Build(ApplicationUri, ProductUri)
-                .SetMaxMessageSize(8_000_000);
+                appInstance.Build(ApplicationUri, ProductUri)
+                    .SetMaxMessageSize(8_000_000);
 
-            Assert.That(
-                appInstance.ApplicationConfiguration.TransportQuotas.MaxMessageSize,
-                Is.EqualTo(8_000_000));
+                Assert.That(
+                    appInstance.ApplicationConfiguration.TransportQuotas.MaxMessageSize,
+                    Is.EqualTo(8_000_000));
+            }
         }
 
         [Test]
         public async Task SetMaxBufferSizeSetsValueAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using (appInstance.ConfigureAwait(false))
+            {
 
-            appInstance.Build(ApplicationUri, ProductUri)
-                .SetMaxBufferSize(65536);
+                appInstance.Build(ApplicationUri, ProductUri)
+                    .SetMaxBufferSize(65536);
 
-            Assert.That(
-                appInstance.ApplicationConfiguration.TransportQuotas.MaxBufferSize,
-                Is.EqualTo(65536));
+                Assert.That(
+                    appInstance.ApplicationConfiguration.TransportQuotas.MaxBufferSize,
+                    Is.EqualTo(65536));
+            }
         }
 
         [Test]
         public async Task SetChannelLifetimeSetsValueAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using (appInstance.ConfigureAwait(false))
+            {
 
-            appInstance.Build(ApplicationUri, ProductUri)
-                .SetChannelLifetime(600_000);
+                appInstance.Build(ApplicationUri, ProductUri)
+                    .SetChannelLifetime(600_000);
 
-            Assert.That(
-                appInstance.ApplicationConfiguration.TransportQuotas.ChannelLifetime,
-                Is.EqualTo(600_000));
+                Assert.That(
+                    appInstance.ApplicationConfiguration.TransportQuotas.ChannelLifetime,
+                    Is.EqualTo(600_000));
+            }
         }
 
         [Test]
         public async Task SetSecurityTokenLifetimeSetsValueAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using (appInstance.ConfigureAwait(false))
+            {
 
-            appInstance.Build(ApplicationUri, ProductUri)
-                .SetSecurityTokenLifetime(3_600_000);
+                appInstance.Build(ApplicationUri, ProductUri)
+                    .SetSecurityTokenLifetime(3_600_000);
 
-            Assert.That(
-                appInstance.ApplicationConfiguration.TransportQuotas.SecurityTokenLifetime,
-                Is.EqualTo(3_600_000));
+                Assert.That(
+                    appInstance.ApplicationConfiguration.TransportQuotas.SecurityTokenLifetime,
+                    Is.EqualTo(3_600_000));
+            }
         }
 
         [Test]
         public async Task SetMaxEncodingNestingLevelsSetsValueAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using (appInstance.ConfigureAwait(false))
+            {
 
-            appInstance.Build(ApplicationUri, ProductUri)
-                .SetMaxEncodingNestingLevels(128);
+                appInstance.Build(ApplicationUri, ProductUri)
+                    .SetMaxEncodingNestingLevels(128);
 
-            Assert.That(
-                appInstance.ApplicationConfiguration.TransportQuotas.MaxEncodingNestingLevels,
-                Is.EqualTo(128));
+                Assert.That(
+                    appInstance.ApplicationConfiguration.TransportQuotas.MaxEncodingNestingLevels,
+                    Is.EqualTo(128));
+            }
         }
 
         [Test]
         public async Task SetMaxDecoderRecoveriesSetsValueAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using (appInstance.ConfigureAwait(false))
+            {
 
-            appInstance.Build(ApplicationUri, ProductUri)
-                .SetMaxDecoderRecoveries(10);
+                appInstance.Build(ApplicationUri, ProductUri)
+                    .SetMaxDecoderRecoveries(10);
 
-            Assert.That(
-                appInstance.ApplicationConfiguration.TransportQuotas.MaxDecoderRecoveries,
-                Is.EqualTo(10));
+                Assert.That(
+                    appInstance.ApplicationConfiguration.TransportQuotas.MaxDecoderRecoveries,
+                    Is.EqualTo(10));
+            }
         }
 
         [Test]
         public async Task SecurityOptionsSetAutoAcceptUntrustedCertificatesAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using (appInstance.ConfigureAwait(false))
+            {
 
-            appInstance.Build(ApplicationUri, ProductUri)
-                .AsClient()
-                .AddSecurityConfiguration(SubjectName, m_pkiRoot)
-                .SetAutoAcceptUntrustedCertificates(true);
+                appInstance.Build(ApplicationUri, ProductUri)
+                    .AsClient()
+                    .AddSecurityConfiguration(SubjectName, m_pkiRoot)
+                    .SetAutoAcceptUntrustedCertificates(true);
 
-            Assert.That(
-                appInstance.ApplicationConfiguration.SecurityConfiguration.AutoAcceptUntrustedCertificates,
-                Is.True);
+                Assert.That(
+                    appInstance.ApplicationConfiguration.SecurityConfiguration.AutoAcceptUntrustedCertificates,
+                    Is.True);
+            }
         }
 
         [Test]
         public async Task SecurityOptionsSetAddAppCertToTrustedStoreAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using (appInstance.ConfigureAwait(false))
+            {
 
-            appInstance.Build(ApplicationUri, ProductUri)
-                .AsClient()
-                .AddSecurityConfiguration(SubjectName, m_pkiRoot)
-                .SetAddAppCertToTrustedStore(true);
+                appInstance.Build(ApplicationUri, ProductUri)
+                    .AsClient()
+                    .AddSecurityConfiguration(SubjectName, m_pkiRoot)
+                    .SetAddAppCertToTrustedStore(true);
 
-            Assert.That(
-                appInstance.ApplicationConfiguration.SecurityConfiguration.AddAppCertToTrustedStore,
-                Is.True);
+                Assert.That(
+                    appInstance.ApplicationConfiguration.SecurityConfiguration.AddAppCertToTrustedStore,
+                    Is.True);
+            }
         }
 
         [Test]
         public async Task SecurityOptionsSetRejectSHA1SignedCertificatesAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using (appInstance.ConfigureAwait(false))
+            {
 
-            appInstance.Build(ApplicationUri, ProductUri)
-                .AsClient()
-                .AddSecurityConfiguration(SubjectName, m_pkiRoot)
-                .SetRejectSHA1SignedCertificates(false);
+                appInstance.Build(ApplicationUri, ProductUri)
+                    .AsClient()
+                    .AddSecurityConfiguration(SubjectName, m_pkiRoot)
+                    .SetRejectSHA1SignedCertificates(false);
 
-            Assert.That(
-                appInstance.ApplicationConfiguration.SecurityConfiguration.RejectSHA1SignedCertificates,
-                Is.False);
+                Assert.That(
+                    appInstance.ApplicationConfiguration.SecurityConfiguration.RejectSHA1SignedCertificates,
+                    Is.False);
+            }
         }
 
         [Test]
         public async Task SecurityOptionsSetRejectUnknownRevocationStatusAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using (appInstance.ConfigureAwait(false))
+            {
 
-            appInstance.Build(ApplicationUri, ProductUri)
-                .AsClient()
-                .AddSecurityConfiguration(SubjectName, m_pkiRoot)
-                .SetRejectUnknownRevocationStatus(false);
+                appInstance.Build(ApplicationUri, ProductUri)
+                    .AsClient()
+                    .AddSecurityConfiguration(SubjectName, m_pkiRoot)
+                    .SetRejectUnknownRevocationStatus(false);
 
-            Assert.That(
-                appInstance.ApplicationConfiguration.SecurityConfiguration.RejectUnknownRevocationStatus,
-                Is.False);
+                Assert.That(
+                    appInstance.ApplicationConfiguration.SecurityConfiguration.RejectUnknownRevocationStatus,
+                    Is.False);
+            }
         }
 
         [Test]
         public async Task SecurityOptionsSetUseValidatedCertificatesAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using (appInstance.ConfigureAwait(false))
+            {
 
-            appInstance.Build(ApplicationUri, ProductUri)
-                .AsClient()
-                .AddSecurityConfiguration(SubjectName, m_pkiRoot)
-                .SetUseValidatedCertificates(true);
+                appInstance.Build(ApplicationUri, ProductUri)
+                    .AsClient()
+                    .AddSecurityConfiguration(SubjectName, m_pkiRoot)
+                    .SetUseValidatedCertificates(true);
 
-            Assert.That(
-                appInstance.ApplicationConfiguration.SecurityConfiguration.UseValidatedCertificates,
-                Is.True);
+                Assert.That(
+                    appInstance.ApplicationConfiguration.SecurityConfiguration.UseValidatedCertificates,
+                    Is.True);
+            }
         }
 
         [Test]
         public async Task SecurityOptionsSetSuppressNonceValidationErrorsAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using (appInstance.ConfigureAwait(false))
+            {
 
-            appInstance.Build(ApplicationUri, ProductUri)
-                .AsClient()
-                .AddSecurityConfiguration(SubjectName, m_pkiRoot)
-                .SetSuppressNonceValidationErrors(true);
+                appInstance.Build(ApplicationUri, ProductUri)
+                    .AsClient()
+                    .AddSecurityConfiguration(SubjectName, m_pkiRoot)
+                    .SetSuppressNonceValidationErrors(true);
 
-            Assert.That(
-                appInstance.ApplicationConfiguration.SecurityConfiguration.SuppressNonceValidationErrors,
-                Is.True);
+                Assert.That(
+                    appInstance.ApplicationConfiguration.SecurityConfiguration.SuppressNonceValidationErrors,
+                    Is.True);
+            }
         }
 
         [Test]
         public async Task SecurityOptionsSetSendCertificateChainAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using (appInstance.ConfigureAwait(false))
+            {
 
-            appInstance.Build(ApplicationUri, ProductUri)
-                .AsClient()
-                .AddSecurityConfiguration(SubjectName, m_pkiRoot)
-                .SetSendCertificateChain(false);
+                appInstance.Build(ApplicationUri, ProductUri)
+                    .AsClient()
+                    .AddSecurityConfiguration(SubjectName, m_pkiRoot)
+                    .SetSendCertificateChain(false);
 
-            Assert.That(
-                appInstance.ApplicationConfiguration.SecurityConfiguration.SendCertificateChain,
-                Is.False);
+                Assert.That(
+                    appInstance.ApplicationConfiguration.SecurityConfiguration.SendCertificateChain,
+                    Is.False);
+            }
         }
 
         [Test]
         public async Task SecurityOptionsSetMinimumCertificateKeySizeAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using (appInstance.ConfigureAwait(false))
+            {
 
-            appInstance.Build(ApplicationUri, ProductUri)
-                .AsClient()
-                .AddSecurityConfiguration(SubjectName, m_pkiRoot)
-                .SetMinimumCertificateKeySize(4096);
+                appInstance.Build(ApplicationUri, ProductUri)
+                    .AsClient()
+                    .AddSecurityConfiguration(SubjectName, m_pkiRoot)
+                    .SetMinimumCertificateKeySize(4096);
 
-            Assert.That(
-                appInstance.ApplicationConfiguration.SecurityConfiguration.MinimumCertificateKeySize,
-                Is.EqualTo(4096));
+                Assert.That(
+                    appInstance.ApplicationConfiguration.SecurityConfiguration.MinimumCertificateKeySize,
+                    Is.EqualTo(4096));
+            }
         }
 
         [Test]
         public async Task SecurityOptionsSetMaxRejectedCertificatesAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using (appInstance.ConfigureAwait(false))
+            {
 
-            appInstance.Build(ApplicationUri, ProductUri)
-                .AsClient()
-                .AddSecurityConfiguration(SubjectName, m_pkiRoot)
-                .SetMaxRejectedCertificates(100);
+                appInstance.Build(ApplicationUri, ProductUri)
+                    .AsClient()
+                    .AddSecurityConfiguration(SubjectName, m_pkiRoot)
+                    .SetMaxRejectedCertificates(100);
 
-            Assert.That(
-                appInstance.ApplicationConfiguration.SecurityConfiguration.MaxRejectedCertificates,
-                Is.EqualTo(100));
+                Assert.That(
+                    appInstance.ApplicationConfiguration.SecurityConfiguration.MaxRejectedCertificates,
+                    Is.EqualTo(100));
+            }
         }
 
         [Test]
         public async Task SecurityOptionsSetApplicationCertificatesAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using (appInstance.ConfigureAwait(false))
+            {
 
-            ArrayOf<CertificateIdentifier> certs =
-                ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
-                    SubjectName,
-                    CertificateStoreType.Directory,
-                    m_pkiRoot);
+                ArrayOf<CertificateIdentifier> certs =
+                    ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
+                        SubjectName,
+                        CertificateStoreType.Directory,
+                        m_pkiRoot);
 
-            appInstance.Build(ApplicationUri, ProductUri)
-                .AsClient()
-                .AddSecurityConfiguration(SubjectName, m_pkiRoot)
-                .SetApplicationCertificates(certs);
+                appInstance.Build(ApplicationUri, ProductUri)
+                    .AsClient()
+                    .AddSecurityConfiguration(SubjectName, m_pkiRoot)
+                    .SetApplicationCertificates(certs);
 
-            Assert.That(
-                appInstance.ApplicationConfiguration.SecurityConfiguration.ApplicationCertificates.Count,
-                Is.GreaterThan(0));
+                Assert.That(
+                    appInstance.ApplicationConfiguration.SecurityConfiguration.ApplicationCertificates.Count,
+                    Is.GreaterThan(0));
+            }
         }
 
         [Test]
         public async Task AddUnsecurePolicyNoneAddsPolicyWhenTrueAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using (appInstance.ConfigureAwait(false))
+            {
 
-            appInstance.Build(ApplicationUri, ProductUri)
-                .AsServer([EndpointUrl])
-                .AddUnsecurePolicyNone();
+                appInstance.Build(ApplicationUri, ProductUri)
+                    .AsServer([EndpointUrl])
+                    .AddUnsecurePolicyNone();
 
-            ArrayOf<ServerSecurityPolicy> policies = appInstance.ApplicationConfiguration.ServerConfiguration.SecurityPolicies;
-            Assert.That(policies.Count, Is.EqualTo(1));
-            Assert.That(policies[0].SecurityMode, Is.EqualTo(MessageSecurityMode.None));
+                ArrayOf<ServerSecurityPolicy> policies = appInstance.ApplicationConfiguration.ServerConfiguration.SecurityPolicies;
+                Assert.That(policies.Count, Is.EqualTo(1));
+                Assert.That(policies[0].SecurityMode, Is.EqualTo(MessageSecurityMode.None));
+            }
         }
 
         [Test]
         public async Task AddUnsecurePolicyNoneSkipsWhenFalseAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using (appInstance.ConfigureAwait(false))
+            {
 
-            appInstance.Build(ApplicationUri, ProductUri)
-                .AsServer([EndpointUrl])
-                .AddUnsecurePolicyNone(false);
+                appInstance.Build(ApplicationUri, ProductUri)
+                    .AsServer([EndpointUrl])
+                    .AddUnsecurePolicyNone(false);
 
-            ArrayOf<ServerSecurityPolicy> policies = appInstance.ApplicationConfiguration.ServerConfiguration.SecurityPolicies;
-            Assert.That(policies.Count, Is.Zero);
+                ArrayOf<ServerSecurityPolicy> policies = appInstance.ApplicationConfiguration.ServerConfiguration.SecurityPolicies;
+                Assert.That(policies.Count, Is.Zero);
+            }
         }
 
         [Test]
         public async Task AddSignPoliciesAddsPoliciesWhenTrueAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using (appInstance.ConfigureAwait(false))
+            {
 
-            appInstance.Build(ApplicationUri, ProductUri)
-                .AsServer([EndpointUrl])
-                .AddSignPolicies();
+                appInstance.Build(ApplicationUri, ProductUri)
+                    .AsServer([EndpointUrl])
+                    .AddSignPolicies();
 
-            ArrayOf<ServerSecurityPolicy> policies = appInstance.ApplicationConfiguration.ServerConfiguration.SecurityPolicies;
-            Assert.That(policies.Count, Is.GreaterThan(0));
-            Assert.That(
-                policies.ToList().All(p => p.SecurityMode >= MessageSecurityMode.Sign),
-                Is.True);
+                ArrayOf<ServerSecurityPolicy> policies = appInstance.ApplicationConfiguration.ServerConfiguration.SecurityPolicies;
+                Assert.That(policies.Count, Is.GreaterThan(0));
+                Assert.That(
+                    policies.ToList().All(p => p.SecurityMode >= MessageSecurityMode.Sign),
+                    Is.True);
+            }
         }
 
         [Test]
         public async Task AddSignPoliciesSkipsWhenFalseAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using (appInstance.ConfigureAwait(false))
+            {
 
-            appInstance.Build(ApplicationUri, ProductUri)
-                .AsServer([EndpointUrl])
-                .AddSignPolicies(false);
+                appInstance.Build(ApplicationUri, ProductUri)
+                    .AsServer([EndpointUrl])
+                    .AddSignPolicies(false);
 
-            ArrayOf<ServerSecurityPolicy> policies = appInstance.ApplicationConfiguration.ServerConfiguration.SecurityPolicies;
-            Assert.That(policies.Count, Is.Zero);
+                ArrayOf<ServerSecurityPolicy> policies = appInstance.ApplicationConfiguration.ServerConfiguration.SecurityPolicies;
+                Assert.That(policies.Count, Is.Zero);
+            }
         }
 
         [Test]
         public async Task AddSignAndEncryptPoliciesAddsPoliciesAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using (appInstance.ConfigureAwait(false))
+            {
 
-            appInstance.Build(ApplicationUri, ProductUri)
-                .AsServer([EndpointUrl])
-                .AddSignAndEncryptPolicies();
+                appInstance.Build(ApplicationUri, ProductUri)
+                    .AsServer([EndpointUrl])
+                    .AddSignAndEncryptPolicies();
 
-            ArrayOf<ServerSecurityPolicy> policies = appInstance.ApplicationConfiguration.ServerConfiguration.SecurityPolicies;
-            Assert.That(policies.Count, Is.GreaterThan(0));
-            Assert.That(
-                policies.ToList().All(p => p.SecurityMode == MessageSecurityMode.SignAndEncrypt),
-                Is.True);
+                ArrayOf<ServerSecurityPolicy> policies = appInstance.ApplicationConfiguration.ServerConfiguration.SecurityPolicies;
+                Assert.That(policies.Count, Is.GreaterThan(0));
+                Assert.That(
+                    policies.ToList().All(p => p.SecurityMode == MessageSecurityMode.SignAndEncrypt),
+                    Is.True);
+            }
         }
 
         [Test]
         public async Task AddSignAndEncryptPoliciesSkipsWhenFalseAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using (appInstance.ConfigureAwait(false))
+            {
 
-            appInstance.Build(ApplicationUri, ProductUri)
-                .AsServer([EndpointUrl])
-                .AddSignAndEncryptPolicies(false);
+                appInstance.Build(ApplicationUri, ProductUri)
+                    .AsServer([EndpointUrl])
+                    .AddSignAndEncryptPolicies(false);
 
-            ArrayOf<ServerSecurityPolicy> policies = appInstance.ApplicationConfiguration.ServerConfiguration.SecurityPolicies;
-            Assert.That(policies.Count, Is.Zero);
+                ArrayOf<ServerSecurityPolicy> policies = appInstance.ApplicationConfiguration.ServerConfiguration.SecurityPolicies;
+                Assert.That(policies.Count, Is.Zero);
+            }
         }
 
         [Test]
         public async Task AddEccSignPoliciesAddsPoliciesAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using (appInstance.ConfigureAwait(false))
+            {
 
-            appInstance.Build(ApplicationUri, ProductUri)
-                .AsServer([EndpointUrl])
-                .AddEccSignPolicies();
+                appInstance.Build(ApplicationUri, ProductUri)
+                    .AsServer([EndpointUrl])
+                    .AddEccSignPolicies();
 
-            ArrayOf<ServerSecurityPolicy> policies = appInstance.ApplicationConfiguration.ServerConfiguration.SecurityPolicies;
-            Assert.That(policies.Count, Is.GreaterThan(0));
-            Assert.That(
-                policies.ToList().All(p => p.SecurityMode == MessageSecurityMode.Sign),
-                Is.True);
+                ArrayOf<ServerSecurityPolicy> policies = appInstance.ApplicationConfiguration.ServerConfiguration.SecurityPolicies;
+                Assert.That(policies.Count, Is.GreaterThan(0));
+                Assert.That(
+                    policies.ToList().All(p => p.SecurityMode == MessageSecurityMode.Sign),
+                    Is.True);
+            }
         }
 
         [Test]
         public async Task AddEccSignAndEncryptPoliciesAddsPoliciesAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using (appInstance.ConfigureAwait(false))
+            {
 
-            appInstance.Build(ApplicationUri, ProductUri)
-                .AsServer([EndpointUrl])
-                .AddEccSignAndEncryptPolicies();
+                appInstance.Build(ApplicationUri, ProductUri)
+                    .AsServer([EndpointUrl])
+                    .AddEccSignAndEncryptPolicies();
 
-            ArrayOf<ServerSecurityPolicy> policies = appInstance.ApplicationConfiguration.ServerConfiguration.SecurityPolicies;
-            Assert.That(policies.Count, Is.GreaterThan(0));
-            Assert.That(
-                policies.ToList().All(p => p.SecurityMode == MessageSecurityMode.SignAndEncrypt),
-                Is.True);
+                ArrayOf<ServerSecurityPolicy> policies = appInstance.ApplicationConfiguration.ServerConfiguration.SecurityPolicies;
+                Assert.That(policies.Count, Is.GreaterThan(0));
+                Assert.That(
+                    policies.ToList().All(p => p.SecurityMode == MessageSecurityMode.SignAndEncrypt),
+                    Is.True);
+            }
         }
 
         [Test]
         public async Task AddPolicyWithValidParametersAddsPolicyAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using (appInstance.ConfigureAwait(false))
+            {
 
-            appInstance.Build(ApplicationUri, ProductUri)
-                .AsServer([EndpointUrl])
-                .AddPolicy(MessageSecurityMode.SignAndEncrypt, SecurityPolicies.Basic256Sha256);
+                appInstance.Build(ApplicationUri, ProductUri)
+                    .AsServer([EndpointUrl])
+                    .AddPolicy(MessageSecurityMode.SignAndEncrypt, SecurityPolicies.Basic256Sha256);
 
-            ArrayOf<ServerSecurityPolicy> policies = appInstance.ApplicationConfiguration.ServerConfiguration.SecurityPolicies;
-            Assert.That(policies.Count, Is.EqualTo(1));
-            Assert.That(policies[0].SecurityMode, Is.EqualTo(MessageSecurityMode.SignAndEncrypt));
-            Assert.That(policies[0].SecurityPolicyUri, Is.EqualTo(SecurityPolicies.Basic256Sha256));
+                ArrayOf<ServerSecurityPolicy> policies = appInstance.ApplicationConfiguration.ServerConfiguration.SecurityPolicies;
+                Assert.That(policies.Count, Is.EqualTo(1));
+                Assert.That(policies[0].SecurityMode, Is.EqualTo(MessageSecurityMode.SignAndEncrypt));
+                Assert.That(policies[0].SecurityPolicyUri, Is.EqualTo(SecurityPolicies.Basic256Sha256));
+            }
         }
 
         [Test]
         public async Task AddPolicyWithNoneModeThrowsAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using (appInstance.ConfigureAwait(false))
+            {
 
-            Assert.Throws<ArgumentException>(() =>
-                appInstance.Build(ApplicationUri, ProductUri)
-                    .AsServer([EndpointUrl])
-                    .AddPolicy(MessageSecurityMode.None, SecurityPolicies.None));
+                Assert.Throws<ArgumentException>(() =>
+                    appInstance.Build(ApplicationUri, ProductUri)
+                        .AsServer([EndpointUrl])
+                        .AddPolicy(MessageSecurityMode.None, SecurityPolicies.None));
+            }
         }
 
         [Test]
         public async Task AddPolicyWithNoneUriThrowsAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using (appInstance.ConfigureAwait(false))
+            {
 
-            Assert.Throws<ArgumentException>(() =>
-                appInstance.Build(ApplicationUri, ProductUri)
-                    .AsServer([EndpointUrl])
-                    .AddPolicy(MessageSecurityMode.Sign, SecurityPolicies.None));
+                Assert.Throws<ArgumentException>(() =>
+                    appInstance.Build(ApplicationUri, ProductUri)
+                        .AsServer([EndpointUrl])
+                        .AddPolicy(MessageSecurityMode.Sign, SecurityPolicies.None));
+            }
         }
 
         [Test]
         public async Task AddPolicyWithInvalidUriThrowsAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using (appInstance.ConfigureAwait(false))
+            {
 
-            Assert.Throws<ArgumentException>(() =>
-                appInstance.Build(ApplicationUri, ProductUri)
-                    .AsServer([EndpointUrl])
-                    .AddPolicy(MessageSecurityMode.Sign, "not-a-valid-policy-uri"));
+                Assert.Throws<ArgumentException>(() =>
+                    appInstance.Build(ApplicationUri, ProductUri)
+                        .AsServer([EndpointUrl])
+                        .AddPolicy(MessageSecurityMode.Sign, "not-a-valid-policy-uri"));
+            }
         }
 
         [Test]
         public async Task AddDuplicatePolicyDoesNotDuplicateAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using (appInstance.ConfigureAwait(false))
+            {
 
-            appInstance.Build(ApplicationUri, ProductUri)
-                .AsServer([EndpointUrl])
-                .AddPolicy(MessageSecurityMode.SignAndEncrypt, SecurityPolicies.Basic256Sha256)
-                .AddPolicy(MessageSecurityMode.SignAndEncrypt, SecurityPolicies.Basic256Sha256);
+                appInstance.Build(ApplicationUri, ProductUri)
+                    .AsServer([EndpointUrl])
+                    .AddPolicy(MessageSecurityMode.SignAndEncrypt, SecurityPolicies.Basic256Sha256)
+                    .AddPolicy(MessageSecurityMode.SignAndEncrypt, SecurityPolicies.Basic256Sha256);
 
-            ArrayOf<ServerSecurityPolicy> policies = appInstance.ApplicationConfiguration.ServerConfiguration.SecurityPolicies;
-            Assert.That(policies.Count, Is.EqualTo(1));
+                ArrayOf<ServerSecurityPolicy> policies = appInstance.ApplicationConfiguration.ServerConfiguration.SecurityPolicies;
+                Assert.That(policies.Count, Is.EqualTo(1));
+            }
         }
 
         [Test]
         public async Task AddUserTokenPolicyByTypeAddsPoliciesAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using (appInstance.ConfigureAwait(false))
+            {
 
-            appInstance.Build(ApplicationUri, ProductUri)
-                .AsServer([EndpointUrl])
-                .AddUserTokenPolicy(UserTokenType.Anonymous)
-                .AddUserTokenPolicy(UserTokenType.UserName);
+                appInstance.Build(ApplicationUri, ProductUri)
+                    .AsServer([EndpointUrl])
+                    .AddUserTokenPolicy(UserTokenType.Anonymous)
+                    .AddUserTokenPolicy(UserTokenType.UserName);
 
-            ArrayOf<UserTokenPolicy> tokenPolicies = appInstance.ApplicationConfiguration.ServerConfiguration.UserTokenPolicies;
-            Assert.That(tokenPolicies.Count, Is.EqualTo(2));
+                ArrayOf<UserTokenPolicy> tokenPolicies = appInstance.ApplicationConfiguration.ServerConfiguration.UserTokenPolicies;
+                Assert.That(tokenPolicies.Count, Is.EqualTo(2));
+            }
         }
 
         [Test]
         public async Task AddUserTokenPolicyWithObjectAddsPolicyAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
-            var policy = new UserTokenPolicy(UserTokenType.Certificate)
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using (appInstance.ConfigureAwait(false))
             {
-                SecurityPolicyUri = SecurityPolicies.Basic256Sha256
-            };
+                var policy = new UserTokenPolicy(UserTokenType.Certificate)
+                {
+                    SecurityPolicyUri = SecurityPolicies.Basic256Sha256
+                };
 
-            appInstance.Build(ApplicationUri, ProductUri)
-                .AsServer([EndpointUrl])
-                .AddUserTokenPolicy(policy);
+                appInstance.Build(ApplicationUri, ProductUri)
+                    .AsServer([EndpointUrl])
+                    .AddUserTokenPolicy(policy);
 
-            ArrayOf<UserTokenPolicy> tokenPolicies = appInstance.ApplicationConfiguration.ServerConfiguration.UserTokenPolicies;
-            Assert.That(tokenPolicies.Count, Is.EqualTo(1));
+                ArrayOf<UserTokenPolicy> tokenPolicies = appInstance.ApplicationConfiguration.ServerConfiguration.UserTokenPolicies;
+                Assert.That(tokenPolicies.Count, Is.EqualTo(1));
+            }
         }
 
         [Test]
         public async Task AddUserTokenPolicyWithNullThrowsAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using (appInstance.ConfigureAwait(false))
+            {
 
-            Assert.Throws<ArgumentNullException>(() =>
-                appInstance.Build(ApplicationUri, ProductUri)
-                    .AsServer([EndpointUrl])
-                    .AddUserTokenPolicy(null));
+                Assert.Throws<ArgumentNullException>(() =>
+                    appInstance.Build(ApplicationUri, ProductUri)
+                        .AsServer([EndpointUrl])
+                        .AddUserTokenPolicy(null));
+            }
         }
 
         [Test]
         public async Task ServerOptionsSetMinRequestThreadCountAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using (appInstance.ConfigureAwait(false))
+            {
 
-            appInstance.Build(ApplicationUri, ProductUri)
-                .AsServer([EndpointUrl])
-                .SetMinRequestThreadCount(5);
+                appInstance.Build(ApplicationUri, ProductUri)
+                    .AsServer([EndpointUrl])
+                    .SetMinRequestThreadCount(5);
 
-            Assert.That(
-                appInstance.ApplicationConfiguration.ServerConfiguration.MinRequestThreadCount,
-                Is.EqualTo(5));
+                Assert.That(
+                    appInstance.ApplicationConfiguration.ServerConfiguration.MinRequestThreadCount,
+                    Is.EqualTo(5));
+            }
         }
 
         [Test]
         public async Task ServerOptionsSetMaxRequestThreadCountAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using (appInstance.ConfigureAwait(false))
+            {
 
-            appInstance.Build(ApplicationUri, ProductUri)
-                .AsServer([EndpointUrl])
-                .SetMaxRequestThreadCount(100);
+                appInstance.Build(ApplicationUri, ProductUri)
+                    .AsServer([EndpointUrl])
+                    .SetMaxRequestThreadCount(100);
 
-            Assert.That(
-                appInstance.ApplicationConfiguration.ServerConfiguration.MaxRequestThreadCount,
-                Is.EqualTo(100));
+                Assert.That(
+                    appInstance.ApplicationConfiguration.ServerConfiguration.MaxRequestThreadCount,
+                    Is.EqualTo(100));
+            }
         }
 
         [Test]
         public async Task ServerOptionsSetMaxQueuedRequestCountAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using (appInstance.ConfigureAwait(false))
+            {
 
-            appInstance.Build(ApplicationUri, ProductUri)
-                .AsServer([EndpointUrl])
-                .SetMaxQueuedRequestCount(200);
+                appInstance.Build(ApplicationUri, ProductUri)
+                    .AsServer([EndpointUrl])
+                    .SetMaxQueuedRequestCount(200);
 
-            Assert.That(
-                appInstance.ApplicationConfiguration.ServerConfiguration.MaxQueuedRequestCount,
-                Is.EqualTo(200));
+                Assert.That(
+                    appInstance.ApplicationConfiguration.ServerConfiguration.MaxQueuedRequestCount,
+                    Is.EqualTo(200));
+            }
         }
 
         [Test]
         public async Task ServerOptionsSetDiagnosticsEnabledAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using (appInstance.ConfigureAwait(false))
+            {
 
-            appInstance.Build(ApplicationUri, ProductUri)
-                .AsServer([EndpointUrl])
-                .SetDiagnosticsEnabled(true);
+                appInstance.Build(ApplicationUri, ProductUri)
+                    .AsServer([EndpointUrl])
+                    .SetDiagnosticsEnabled(true);
 
-            Assert.That(
-                appInstance.ApplicationConfiguration.ServerConfiguration.DiagnosticsEnabled,
-                Is.True);
+                Assert.That(
+                    appInstance.ApplicationConfiguration.ServerConfiguration.DiagnosticsEnabled,
+                    Is.True);
+            }
         }
 
         [Test]
         public async Task ServerOptionsSetMaxSessionCountAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using (appInstance.ConfigureAwait(false))
+            {
 
-            appInstance.Build(ApplicationUri, ProductUri)
-                .AsServer([EndpointUrl])
-                .SetMaxSessionCount(500);
+                appInstance.Build(ApplicationUri, ProductUri)
+                    .AsServer([EndpointUrl])
+                    .SetMaxSessionCount(500);
 
-            Assert.That(
-                appInstance.ApplicationConfiguration.ServerConfiguration.MaxSessionCount,
-                Is.EqualTo(500));
+                Assert.That(
+                    appInstance.ApplicationConfiguration.ServerConfiguration.MaxSessionCount,
+                    Is.EqualTo(500));
+            }
         }
 
         [Test]
         public async Task ServerOptionsSetMaxChannelCountAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using (appInstance.ConfigureAwait(false))
+            {
 
-            appInstance.Build(ApplicationUri, ProductUri)
-                .AsServer([EndpointUrl])
-                .SetMaxChannelCount(300);
+                appInstance.Build(ApplicationUri, ProductUri)
+                    .AsServer([EndpointUrl])
+                    .SetMaxChannelCount(300);
 
-            Assert.That(
-                appInstance.ApplicationConfiguration.ServerConfiguration.MaxChannelCount,
-                Is.EqualTo(300));
+                Assert.That(
+                    appInstance.ApplicationConfiguration.ServerConfiguration.MaxChannelCount,
+                    Is.EqualTo(300));
+            }
         }
 
         [Test]
         public async Task ServerOptionsSetMinSessionTimeoutAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using (appInstance.ConfigureAwait(false))
+            {
 
-            appInstance.Build(ApplicationUri, ProductUri)
-                .AsServer([EndpointUrl])
-                .SetMinSessionTimeout(1000);
+                appInstance.Build(ApplicationUri, ProductUri)
+                    .AsServer([EndpointUrl])
+                    .SetMinSessionTimeout(1000);
 
-            Assert.That(
-                appInstance.ApplicationConfiguration.ServerConfiguration.MinSessionTimeout,
-                Is.EqualTo(1000));
+                Assert.That(
+                    appInstance.ApplicationConfiguration.ServerConfiguration.MinSessionTimeout,
+                    Is.EqualTo(1000));
+            }
         }
 
         [Test]
         public async Task ServerOptionsSetMaxSessionTimeoutAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using (appInstance.ConfigureAwait(false))
+            {
 
-            appInstance.Build(ApplicationUri, ProductUri)
-                .AsServer([EndpointUrl])
-                .SetMaxSessionTimeout(60000);
+                appInstance.Build(ApplicationUri, ProductUri)
+                    .AsServer([EndpointUrl])
+                    .SetMaxSessionTimeout(60000);
 
-            Assert.That(
-                appInstance.ApplicationConfiguration.ServerConfiguration.MaxSessionTimeout,
-                Is.EqualTo(60000));
+                Assert.That(
+                    appInstance.ApplicationConfiguration.ServerConfiguration.MaxSessionTimeout,
+                    Is.EqualTo(60000));
+            }
         }
 
         [Test]
         public async Task ServerOptionsSetContinuationPointsAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using (appInstance.ConfigureAwait(false))
+            {
 
-            appInstance.Build(ApplicationUri, ProductUri)
-                .AsServer([EndpointUrl])
-                .SetMaxBrowseContinuationPoints(10)
-                .SetMaxQueryContinuationPoints(20)
-                .SetMaxHistoryContinuationPoints(30);
+                appInstance.Build(ApplicationUri, ProductUri)
+                    .AsServer([EndpointUrl])
+                    .SetMaxBrowseContinuationPoints(10)
+                    .SetMaxQueryContinuationPoints(20)
+                    .SetMaxHistoryContinuationPoints(30);
 
-            ServerConfiguration srv = appInstance.ApplicationConfiguration.ServerConfiguration;
-            Assert.That(srv.MaxBrowseContinuationPoints, Is.EqualTo(10));
-            Assert.That(srv.MaxQueryContinuationPoints, Is.EqualTo(20));
-            Assert.That(srv.MaxHistoryContinuationPoints, Is.EqualTo(30));
+                ServerConfiguration srv = appInstance.ApplicationConfiguration.ServerConfiguration;
+                Assert.That(srv.MaxBrowseContinuationPoints, Is.EqualTo(10));
+                Assert.That(srv.MaxQueryContinuationPoints, Is.EqualTo(20));
+                Assert.That(srv.MaxHistoryContinuationPoints, Is.EqualTo(30));
+            }
         }
 
         [Test]
         public async Task ServerOptionsSetMaxRequestAgeAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using (appInstance.ConfigureAwait(false))
+            {
 
-            appInstance.Build(ApplicationUri, ProductUri)
-                .AsServer([EndpointUrl])
-                .SetMaxRequestAge(600_000);
+                appInstance.Build(ApplicationUri, ProductUri)
+                    .AsServer([EndpointUrl])
+                    .SetMaxRequestAge(600_000);
 
-            Assert.That(
-                appInstance.ApplicationConfiguration.ServerConfiguration.MaxRequestAge,
-                Is.EqualTo(600_000));
+                Assert.That(
+                    appInstance.ApplicationConfiguration.ServerConfiguration.MaxRequestAge,
+                    Is.EqualTo(600_000));
+            }
         }
 
         [Test]
         public async Task ServerOptionsSetPublishingIntervalsAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using (appInstance.ConfigureAwait(false))
+            {
 
-            appInstance.Build(ApplicationUri, ProductUri)
-                .AsServer([EndpointUrl])
-                .SetMinPublishingInterval(50)
-                .SetMaxPublishingInterval(60000)
-                .SetPublishingResolution(100);
+                appInstance.Build(ApplicationUri, ProductUri)
+                    .AsServer([EndpointUrl])
+                    .SetMinPublishingInterval(50)
+                    .SetMaxPublishingInterval(60000)
+                    .SetPublishingResolution(100);
 
-            ServerConfiguration srv = appInstance.ApplicationConfiguration.ServerConfiguration;
-            Assert.That(srv.MinPublishingInterval, Is.EqualTo(50));
-            Assert.That(srv.MaxPublishingInterval, Is.EqualTo(60000));
-            Assert.That(srv.PublishingResolution, Is.EqualTo(100));
+                ServerConfiguration srv = appInstance.ApplicationConfiguration.ServerConfiguration;
+                Assert.That(srv.MinPublishingInterval, Is.EqualTo(50));
+                Assert.That(srv.MaxPublishingInterval, Is.EqualTo(60000));
+                Assert.That(srv.PublishingResolution, Is.EqualTo(100));
+            }
         }
 
         [Test]
         public async Task ServerOptionsSetSubscriptionLifetimes()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using (appInstance.ConfigureAwait(false))
+            {
 
-            appInstance.Build(ApplicationUri, ProductUri)
-                .AsServer([EndpointUrl])
-                .SetMinSubscriptionLifetime(1000)
-                .SetMaxSubscriptionLifetime(3_600_000);
+                appInstance.Build(ApplicationUri, ProductUri)
+                    .AsServer([EndpointUrl])
+                    .SetMinSubscriptionLifetime(1000)
+                    .SetMaxSubscriptionLifetime(3_600_000);
 
-            ServerConfiguration srv = appInstance.ApplicationConfiguration.ServerConfiguration;
-            Assert.That(srv.MinSubscriptionLifetime, Is.EqualTo(1000));
-            Assert.That(srv.MaxSubscriptionLifetime, Is.EqualTo(3_600_000));
+                ServerConfiguration srv = appInstance.ApplicationConfiguration.ServerConfiguration;
+                Assert.That(srv.MinSubscriptionLifetime, Is.EqualTo(1000));
+                Assert.That(srv.MaxSubscriptionLifetime, Is.EqualTo(3_600_000));
+            }
         }
 
         [Test]
         public async Task ServerOptionsSetQueueSizesAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using (appInstance.ConfigureAwait(false))
+            {
 
-            appInstance.Build(ApplicationUri, ProductUri)
-                .AsServer([EndpointUrl])
-                .SetMaxMessageQueueSize(500)
-                .SetMaxNotificationQueueSize(1000)
-                .SetMaxNotificationsPerPublish(2000)
-                .SetMaxEventQueueSize(3000);
+                appInstance.Build(ApplicationUri, ProductUri)
+                    .AsServer([EndpointUrl])
+                    .SetMaxMessageQueueSize(500)
+                    .SetMaxNotificationQueueSize(1000)
+                    .SetMaxNotificationsPerPublish(2000)
+                    .SetMaxEventQueueSize(3000);
 
-            ServerConfiguration srv = appInstance.ApplicationConfiguration.ServerConfiguration;
-            Assert.That(srv.MaxMessageQueueSize, Is.EqualTo(500));
-            Assert.That(srv.MaxNotificationQueueSize, Is.EqualTo(1000));
-            Assert.That(srv.MaxNotificationsPerPublish, Is.EqualTo(2000));
-            Assert.That(srv.MaxEventQueueSize, Is.EqualTo(3000));
+                ServerConfiguration srv = appInstance.ApplicationConfiguration.ServerConfiguration;
+                Assert.That(srv.MaxMessageQueueSize, Is.EqualTo(500));
+                Assert.That(srv.MaxNotificationQueueSize, Is.EqualTo(1000));
+                Assert.That(srv.MaxNotificationsPerPublish, Is.EqualTo(2000));
+                Assert.That(srv.MaxEventQueueSize, Is.EqualTo(3000));
+            }
         }
 
         [Test]
         public async Task ServerOptionsSetMinMetadataSamplingIntervalAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using (appInstance.ConfigureAwait(false))
+            {
 
-            appInstance.Build(ApplicationUri, ProductUri)
-                .AsServer([EndpointUrl])
-                .SetMinMetadataSamplingInterval(100);
+                appInstance.Build(ApplicationUri, ProductUri)
+                    .AsServer([EndpointUrl])
+                    .SetMinMetadataSamplingInterval(100);
 
-            Assert.That(
-                appInstance.ApplicationConfiguration.ServerConfiguration.MinMetadataSamplingInterval,
-                Is.EqualTo(100));
+                Assert.That(
+                    appInstance.ApplicationConfiguration.ServerConfiguration.MinMetadataSamplingInterval,
+                    Is.EqualTo(100));
+            }
         }
 
         [Test]
         public async Task ServerOptionsSetAvailableSamplingRatesAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
-            ArrayOf<SamplingRateGroup> rates =
-            [
-                new SamplingRateGroup(100, 100, 10)
-            ];
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using (appInstance.ConfigureAwait(false))
+            {
+                ArrayOf<SamplingRateGroup> rates =
+                [
+                    new SamplingRateGroup(100, 100, 10)
+                ];
 
-            appInstance.Build(ApplicationUri, ProductUri)
-                .AsServer([EndpointUrl])
-                .SetAvailableSamplingRates(rates);
+                appInstance.Build(ApplicationUri, ProductUri)
+                    .AsServer([EndpointUrl])
+                    .SetAvailableSamplingRates(rates);
 
-            Assert.That(
-                appInstance.ApplicationConfiguration.ServerConfiguration.AvailableSamplingRates.Count,
-                Is.EqualTo(1));
+                Assert.That(
+                    appInstance.ApplicationConfiguration.ServerConfiguration.AvailableSamplingRates.Count,
+                    Is.EqualTo(1));
+            }
         }
 
         [Test]
         public async Task ServerOptionsSetRegistrationEndpointAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
-            var endpoint = new EndpointDescription("opc.tcp://localhost:4840");
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using (appInstance.ConfigureAwait(false))
+            {
+                var endpoint = new EndpointDescription("opc.tcp://localhost:4840");
 
-            appInstance.Build(ApplicationUri, ProductUri)
-                .AsServer([EndpointUrl])
-                .SetRegistrationEndpoint(endpoint);
+                appInstance.Build(ApplicationUri, ProductUri)
+                    .AsServer([EndpointUrl])
+                    .SetRegistrationEndpoint(endpoint);
 
-            Assert.That(
-                appInstance.ApplicationConfiguration.ServerConfiguration.RegistrationEndpoint,
-                Is.Not.Null);
+                Assert.That(
+                    appInstance.ApplicationConfiguration.ServerConfiguration.RegistrationEndpoint,
+                    Is.Not.Null);
+            }
         }
 
         [Test]
         public async Task ServerOptionsSetMaxRegistrationIntervalAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using (appInstance.ConfigureAwait(false))
+            {
 
-            appInstance.Build(ApplicationUri, ProductUri)
-                .AsServer([EndpointUrl])
-                .SetMaxRegistrationInterval(30000);
+                appInstance.Build(ApplicationUri, ProductUri)
+                    .AsServer([EndpointUrl])
+                    .SetMaxRegistrationInterval(30000);
 
-            Assert.That(
-                appInstance.ApplicationConfiguration.ServerConfiguration.MaxRegistrationInterval,
-                Is.EqualTo(30000));
+                Assert.That(
+                    appInstance.ApplicationConfiguration.ServerConfiguration.MaxRegistrationInterval,
+                    Is.EqualTo(30000));
+            }
         }
 
         [Test]
         public async Task ServerOptionsSetNodeManagerSaveFileAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using (appInstance.ConfigureAwait(false))
+            {
 
-            appInstance.Build(ApplicationUri, ProductUri)
-                .AsServer([EndpointUrl])
-                .SetNodeManagerSaveFile("nodemanager.xml");
+                appInstance.Build(ApplicationUri, ProductUri)
+                    .AsServer([EndpointUrl])
+                    .SetNodeManagerSaveFile("nodemanager.xml");
 
-            Assert.That(
-                appInstance.ApplicationConfiguration.ServerConfiguration.NodeManagerSaveFile,
-                Is.EqualTo("nodemanager.xml"));
+                Assert.That(
+                    appInstance.ApplicationConfiguration.ServerConfiguration.NodeManagerSaveFile,
+                    Is.EqualTo("nodemanager.xml"));
+            }
         }
 
         [Test]
         public async Task ServerOptionsSetMaxPublishRequestCountAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using (appInstance.ConfigureAwait(false))
+            {
 
-            appInstance.Build(ApplicationUri, ProductUri)
-                .AsServer([EndpointUrl])
-                .SetMaxPublishRequestCount(50);
+                appInstance.Build(ApplicationUri, ProductUri)
+                    .AsServer([EndpointUrl])
+                    .SetMaxPublishRequestCount(50);
 
-            Assert.That(
-                appInstance.ApplicationConfiguration.ServerConfiguration.MaxPublishRequestCount,
-                Is.EqualTo(50));
+                Assert.That(
+                    appInstance.ApplicationConfiguration.ServerConfiguration.MaxPublishRequestCount,
+                    Is.EqualTo(50));
+            }
         }
 
         [Test]
         public async Task ServerOptionsSetMaxSubscriptionCountAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using (appInstance.ConfigureAwait(false))
+            {
 
-            appInstance.Build(ApplicationUri, ProductUri)
-                .AsServer([EndpointUrl])
-                .SetMaxSubscriptionCount(200);
+                appInstance.Build(ApplicationUri, ProductUri)
+                    .AsServer([EndpointUrl])
+                    .SetMaxSubscriptionCount(200);
 
-            Assert.That(
-                appInstance.ApplicationConfiguration.ServerConfiguration.MaxSubscriptionCount,
-                Is.EqualTo(200));
+                Assert.That(
+                    appInstance.ApplicationConfiguration.ServerConfiguration.MaxSubscriptionCount,
+                    Is.EqualTo(200));
+            }
         }
 
         [Test]
         public async Task ServerOptionsAddServerProfileAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
-            const string profile = "http://opcfoundation.org/UA-Profile/Server/StandardUA";
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using (appInstance.ConfigureAwait(false))
+            {
+                const string profile = "http://opcfoundation.org/UA-Profile/Server/StandardUA";
 
-            appInstance.Build(ApplicationUri, ProductUri)
-                .AsServer([EndpointUrl])
-                .AddServerProfile(profile);
+                appInstance.Build(ApplicationUri, ProductUri)
+                    .AsServer([EndpointUrl])
+                    .AddServerProfile(profile);
 
-            Assert.That(
-                appInstance.ApplicationConfiguration.ServerConfiguration.ServerProfileArray.ToList(),
-                Does.Contain(profile));
+                Assert.That(
+                    appInstance.ApplicationConfiguration.ServerConfiguration.ServerProfileArray.ToList(),
+                    Does.Contain(profile));
+            }
         }
 
         [Test]
         public async Task ServerOptionsSetShutdownDelayAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using (appInstance.ConfigureAwait(false))
+            {
 
-            appInstance.Build(ApplicationUri, ProductUri)
-                .AsServer([EndpointUrl])
-                .SetShutdownDelay(5);
+                appInstance.Build(ApplicationUri, ProductUri)
+                    .AsServer([EndpointUrl])
+                    .SetShutdownDelay(5);
 
-            Assert.That(
-                appInstance.ApplicationConfiguration.ServerConfiguration.ShutdownDelay,
-                Is.EqualTo(5));
+                Assert.That(
+                    appInstance.ApplicationConfiguration.ServerConfiguration.ShutdownDelay,
+                    Is.EqualTo(5));
+            }
         }
 
         [Test]
         public async Task ServerOptionsAddServerCapabilitiesAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using (appInstance.ConfigureAwait(false))
+            {
 
-            appInstance.Build(ApplicationUri, ProductUri)
-                .AsServer([EndpointUrl])
-                .AddServerCapabilities("DA")
-                .AddServerCapabilities("HA");
+                appInstance.Build(ApplicationUri, ProductUri)
+                    .AsServer([EndpointUrl])
+                    .AddServerCapabilities("DA")
+                    .AddServerCapabilities("HA");
 
-            var capabilities = appInstance.ApplicationConfiguration.ServerConfiguration.ServerCapabilities.ToList();
-            Assert.That(capabilities, Does.Contain("DA"));
-            Assert.That(capabilities, Does.Contain("HA"));
+                var capabilities = appInstance.ApplicationConfiguration.ServerConfiguration.ServerCapabilities.ToList();
+                Assert.That(capabilities, Does.Contain("DA"));
+                Assert.That(capabilities, Does.Contain("HA"));
+            }
         }
 
         [Test]
         public async Task ServerOptionsSetSupportedPrivateKeyFormatsAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
-            var formats = new List<string> { "PEM", "PFX" }.ToArrayOf();
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using (appInstance.ConfigureAwait(false))
+            {
+                var formats = new List<string> { "PEM", "PFX" }.ToArrayOf();
 
-            appInstance.Build(ApplicationUri, ProductUri)
-                .AsServer([EndpointUrl])
-                .SetSupportedPrivateKeyFormats(formats);
+                appInstance.Build(ApplicationUri, ProductUri)
+                    .AsServer([EndpointUrl])
+                    .SetSupportedPrivateKeyFormats(formats);
 
-            Assert.That(
-                appInstance.ApplicationConfiguration.ServerConfiguration.SupportedPrivateKeyFormats.Count,
-                Is.EqualTo(2));
+                Assert.That(
+                    appInstance.ApplicationConfiguration.ServerConfiguration.SupportedPrivateKeyFormats.Count,
+                    Is.EqualTo(2));
+            }
         }
 
         [Test]
         public async Task ServerOptionsSetMaxTrustListSizeAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using (appInstance.ConfigureAwait(false))
+            {
 
-            appInstance.Build(ApplicationUri, ProductUri)
-                .AsServer([EndpointUrl])
-                .SetMaxTrustListSize(65536);
+                appInstance.Build(ApplicationUri, ProductUri)
+                    .AsServer([EndpointUrl])
+                    .SetMaxTrustListSize(65536);
 
-            Assert.That(
-                appInstance.ApplicationConfiguration.ServerConfiguration.MaxTrustListSize,
-                Is.EqualTo(65536));
+                Assert.That(
+                    appInstance.ApplicationConfiguration.ServerConfiguration.MaxTrustListSize,
+                    Is.EqualTo(65536));
+            }
         }
 
         [Test]
         public async Task ServerOptionsSetMultiCastDnsEnabledAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using (appInstance.ConfigureAwait(false))
+            {
 
-            appInstance.Build(ApplicationUri, ProductUri)
-                .AsServer([EndpointUrl])
-                .SetMultiCastDnsEnabled(true);
+                appInstance.Build(ApplicationUri, ProductUri)
+                    .AsServer([EndpointUrl])
+                    .SetMultiCastDnsEnabled(true);
 
-            Assert.That(
-                appInstance.ApplicationConfiguration.ServerConfiguration.MultiCastDnsEnabled,
-                Is.True);
+                Assert.That(
+                    appInstance.ApplicationConfiguration.ServerConfiguration.MultiCastDnsEnabled,
+                    Is.True);
+            }
         }
 
         [Test]
         public async Task ServerOptionsSetReverseConnectAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
-            var reverseConnect = new ReverseConnectServerConfiguration();
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using (appInstance.ConfigureAwait(false))
+            {
+                var reverseConnect = new ReverseConnectServerConfiguration();
 
-            appInstance.Build(ApplicationUri, ProductUri)
-                .AsServer([EndpointUrl])
-                .SetReverseConnect(reverseConnect);
+                appInstance.Build(ApplicationUri, ProductUri)
+                    .AsServer([EndpointUrl])
+                    .SetReverseConnect(reverseConnect);
 
-            Assert.That(
-                appInstance.ApplicationConfiguration.ServerConfiguration.ReverseConnect,
-                Is.Not.Null);
+                Assert.That(
+                    appInstance.ApplicationConfiguration.ServerConfiguration.ReverseConnect,
+                    Is.Not.Null);
+            }
         }
 
         [Test]
         public async Task ServerOptionsSetOperationLimitsAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
-            var limits = new OperationLimits { MaxNodesPerRead = 100 };
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using (appInstance.ConfigureAwait(false))
+            {
+                var limits = new OperationLimits { MaxNodesPerRead = 100 };
 
-            appInstance.Build(ApplicationUri, ProductUri)
-                .AsServer([EndpointUrl])
-                .SetOperationLimits(limits);
+                appInstance.Build(ApplicationUri, ProductUri)
+                    .AsServer([EndpointUrl])
+                    .SetOperationLimits(limits);
 
-            Assert.That(
-                appInstance.ApplicationConfiguration.ServerConfiguration.OperationLimits,
-                Is.Not.Null);
-            Assert.That(
-                appInstance.ApplicationConfiguration.ServerConfiguration.OperationLimits.MaxNodesPerRead,
-                Is.EqualTo(100));
+                Assert.That(
+                    appInstance.ApplicationConfiguration.ServerConfiguration.OperationLimits,
+                    Is.Not.Null);
+                Assert.That(
+                    appInstance.ApplicationConfiguration.ServerConfiguration.OperationLimits.MaxNodesPerRead,
+                    Is.EqualTo(100));
+            }
         }
 
         [Test]
         public async Task ServerOptionsSetAuditingEnabledAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using (appInstance.ConfigureAwait(false))
+            {
 
-            appInstance.Build(ApplicationUri, ProductUri)
-                .AsServer([EndpointUrl])
-                .SetAuditingEnabled(true);
+                appInstance.Build(ApplicationUri, ProductUri)
+                    .AsServer([EndpointUrl])
+                    .SetAuditingEnabled(true);
 
-            Assert.That(
-                appInstance.ApplicationConfiguration.ServerConfiguration.AuditingEnabled,
-                Is.True);
+                Assert.That(
+                    appInstance.ApplicationConfiguration.ServerConfiguration.AuditingEnabled,
+                    Is.True);
+            }
         }
 
         [Test]
         public async Task ServerOptionsSetHttpsMutualTlsAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using (appInstance.ConfigureAwait(false))
+            {
 
-            appInstance.Build(ApplicationUri, ProductUri)
-                .AsServer([EndpointUrl])
-                .SetHttpsMutualTls(true);
+                appInstance.Build(ApplicationUri, ProductUri)
+                    .AsServer([EndpointUrl])
+                    .SetHttpsMutualTls(true);
 
-            Assert.That(
-                appInstance.ApplicationConfiguration.ServerConfiguration.HttpsMutualTls,
-                Is.True);
+                Assert.That(
+                    appInstance.ApplicationConfiguration.ServerConfiguration.HttpsMutualTls,
+                    Is.True);
+            }
         }
 
         [Test]
         public async Task ServerOptionsSetDurableSubscriptionsEnabledAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using (appInstance.ConfigureAwait(false))
+            {
 
-            appInstance.Build(ApplicationUri, ProductUri)
-                .AsServer([EndpointUrl])
-                .SetDurableSubscriptionsEnabled(true);
+                appInstance.Build(ApplicationUri, ProductUri)
+                    .AsServer([EndpointUrl])
+                    .SetDurableSubscriptionsEnabled(true);
 
-            Assert.That(
-                appInstance.ApplicationConfiguration.ServerConfiguration.DurableSubscriptionsEnabled,
-                Is.True);
+                Assert.That(
+                    appInstance.ApplicationConfiguration.ServerConfiguration.DurableSubscriptionsEnabled,
+                    Is.True);
+            }
         }
 
         [Test]
         public async Task ServerOptionsSetMaxDurableNotificationQueueSizeAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using (appInstance.ConfigureAwait(false))
+            {
 
-            appInstance.Build(ApplicationUri, ProductUri)
-                .AsServer([EndpointUrl])
-                .SetMaxDurableNotificationQueueSize(5000);
+                appInstance.Build(ApplicationUri, ProductUri)
+                    .AsServer([EndpointUrl])
+                    .SetMaxDurableNotificationQueueSize(5000);
 
-            Assert.That(
-                appInstance.ApplicationConfiguration.ServerConfiguration.MaxDurableNotificationQueueSize,
-                Is.EqualTo(5000));
+                Assert.That(
+                    appInstance.ApplicationConfiguration.ServerConfiguration.MaxDurableNotificationQueueSize,
+                    Is.EqualTo(5000));
+            }
         }
 
         [Test]
         public async Task ServerOptionsSetMaxDurableEventQueueSizeAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using (appInstance.ConfigureAwait(false))
+            {
 
-            appInstance.Build(ApplicationUri, ProductUri)
-                .AsServer([EndpointUrl])
-                .SetMaxDurableEventQueueSize(3000);
+                appInstance.Build(ApplicationUri, ProductUri)
+                    .AsServer([EndpointUrl])
+                    .SetMaxDurableEventQueueSize(3000);
 
-            Assert.That(
-                appInstance.ApplicationConfiguration.ServerConfiguration.MaxDurableEventQueueSize,
-                Is.EqualTo(3000));
+                Assert.That(
+                    appInstance.ApplicationConfiguration.ServerConfiguration.MaxDurableEventQueueSize,
+                    Is.EqualTo(3000));
+            }
         }
 
         [Test]
         public async Task ServerOptionsSetMaxDurableSubscriptionLifetimeAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using (appInstance.ConfigureAwait(false))
+            {
 
-            appInstance.Build(ApplicationUri, ProductUri)
-                .AsServer([EndpointUrl])
-                .SetMaxDurableSubscriptionLifetime(720);
+                appInstance.Build(ApplicationUri, ProductUri)
+                    .AsServer([EndpointUrl])
+                    .SetMaxDurableSubscriptionLifetime(720);
 
-            Assert.That(
-                appInstance.ApplicationConfiguration.ServerConfiguration.MaxDurableSubscriptionLifetimeInHours,
-                Is.EqualTo(720));
+                Assert.That(
+                    appInstance.ApplicationConfiguration.ServerConfiguration.MaxDurableSubscriptionLifetimeInHours,
+                    Is.EqualTo(720));
+            }
         }
 
         [Test]
         public async Task ClientOptionsSetDefaultSessionTimeoutAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using (appInstance.ConfigureAwait(false))
+            {
 
-            appInstance.Build(ApplicationUri, ProductUri)
-                .AsClient()
-                .SetDefaultSessionTimeout(30000);
+                appInstance.Build(ApplicationUri, ProductUri)
+                    .AsClient()
+                    .SetDefaultSessionTimeout(30000);
 
-            Assert.That(
-                appInstance.ApplicationConfiguration.ClientConfiguration.DefaultSessionTimeout,
-                Is.EqualTo(30000));
+                Assert.That(
+                    appInstance.ApplicationConfiguration.ClientConfiguration.DefaultSessionTimeout,
+                    Is.EqualTo(30000));
+            }
         }
 
         [Test]
         public async Task ClientOptionsAddWellKnownDiscoveryUrlsAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using (appInstance.ConfigureAwait(false))
+            {
 
-            appInstance.Build(ApplicationUri, ProductUri)
-                .AsClient()
-                .AddWellKnownDiscoveryUrls("opc.tcp://localhost:4840");
+                appInstance.Build(ApplicationUri, ProductUri)
+                    .AsClient()
+                    .AddWellKnownDiscoveryUrls("opc.tcp://localhost:4840");
 
-            Assert.That(
-                appInstance.ApplicationConfiguration.ClientConfiguration.WellKnownDiscoveryUrls.Count,
-                Is.EqualTo(1));
+                Assert.That(
+                    appInstance.ApplicationConfiguration.ClientConfiguration.WellKnownDiscoveryUrls.Count,
+                    Is.EqualTo(1));
+            }
         }
 
         [Test]
         public async Task ClientOptionsAddDiscoveryServerAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
-            var discovery = new EndpointDescription("opc.tcp://localhost:4840");
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using (appInstance.ConfigureAwait(false))
+            {
+                var discovery = new EndpointDescription("opc.tcp://localhost:4840");
 
-            appInstance.Build(ApplicationUri, ProductUri)
-                .AsClient()
-                .AddDiscoveryServer(discovery);
+                appInstance.Build(ApplicationUri, ProductUri)
+                    .AsClient()
+                    .AddDiscoveryServer(discovery);
 
-            Assert.That(
-                appInstance.ApplicationConfiguration.ClientConfiguration.DiscoveryServers.Count,
-                Is.EqualTo(1));
+                Assert.That(
+                    appInstance.ApplicationConfiguration.ClientConfiguration.DiscoveryServers.Count,
+                    Is.EqualTo(1));
+            }
         }
 
         [Test]
         public async Task ClientOptionsSetEndpointCacheFilePathAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using (appInstance.ConfigureAwait(false))
+            {
 
-            appInstance.Build(ApplicationUri, ProductUri)
-                .AsClient()
-                .SetEndpointCacheFilePath("endpoints.xml");
+                appInstance.Build(ApplicationUri, ProductUri)
+                    .AsClient()
+                    .SetEndpointCacheFilePath("endpoints.xml");
 
-            Assert.That(
-                appInstance.ApplicationConfiguration.ClientConfiguration.EndpointCacheFilePath,
-                Is.EqualTo("endpoints.xml"));
+                Assert.That(
+                    appInstance.ApplicationConfiguration.ClientConfiguration.EndpointCacheFilePath,
+                    Is.EqualTo("endpoints.xml"));
+            }
         }
 
         [Test]
         public async Task ClientOptionsSetMinSubscriptionLifetimeAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using (appInstance.ConfigureAwait(false))
+            {
 
-            IApplicationConfigurationBuilderClientOptions clientBuilder =
-                appInstance.Build(ApplicationUri, ProductUri)
-                    .AsClient();
-            clientBuilder.SetMinSubscriptionLifetime(5000);
+                IApplicationConfigurationBuilderClientOptions clientBuilder =
+                    appInstance.Build(ApplicationUri, ProductUri)
+                        .AsClient();
+                clientBuilder.SetMinSubscriptionLifetime(5000);
 
-            Assert.That(
-                appInstance.ApplicationConfiguration.ClientConfiguration.MinSubscriptionLifetime,
-                Is.EqualTo(5000));
+                Assert.That(
+                    appInstance.ApplicationConfiguration.ClientConfiguration.MinSubscriptionLifetime,
+                    Is.EqualTo(5000));
+            }
         }
 
         [Test]
         public async Task ClientOptionsSetReverseConnectAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
-            var reverseConnect = new ReverseConnectClientConfiguration();
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using (appInstance.ConfigureAwait(false))
+            {
+                var reverseConnect = new ReverseConnectClientConfiguration();
 
-            appInstance.Build(ApplicationUri, ProductUri)
-                .AsClient()
-                .SetReverseConnect(reverseConnect);
+                appInstance.Build(ApplicationUri, ProductUri)
+                    .AsClient()
+                    .SetReverseConnect(reverseConnect);
 
-            Assert.That(
-                appInstance.ApplicationConfiguration.ClientConfiguration.ReverseConnect,
-                Is.Not.Null);
+                Assert.That(
+                    appInstance.ApplicationConfiguration.ClientConfiguration.ReverseConnect,
+                    Is.Not.Null);
+            }
         }
 
         [Test]
         public async Task ClientOptionsSetClientOperationLimitsAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
-            var limits = new OperationLimits { MaxNodesPerRead = 50 };
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using (appInstance.ConfigureAwait(false))
+            {
+                var limits = new OperationLimits { MaxNodesPerRead = 50 };
 
-            appInstance.Build(ApplicationUri, ProductUri)
-                .AsClient()
-                .SetClientOperationLimits(limits);
+                appInstance.Build(ApplicationUri, ProductUri)
+                    .AsClient()
+                    .SetClientOperationLimits(limits);
 
-            Assert.That(
-                appInstance.ApplicationConfiguration.ClientConfiguration.OperationLimits,
-                Is.Not.Null);
-            Assert.That(
-                appInstance.ApplicationConfiguration.ClientConfiguration.OperationLimits.MaxNodesPerRead,
-                Is.EqualTo(50));
+                Assert.That(
+                    appInstance.ApplicationConfiguration.ClientConfiguration.OperationLimits,
+                    Is.Not.Null);
+                Assert.That(
+                    appInstance.ApplicationConfiguration.ClientConfiguration.OperationLimits.MaxNodesPerRead,
+                    Is.EqualTo(50));
+            }
         }
 
         [Test]
         public async Task TraceConfigurationSetOutputFilePathAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using (appInstance.ConfigureAwait(false))
+            {
 
-            appInstance.Build(ApplicationUri, ProductUri)
-                .AsClient()
-                .AddSecurityConfiguration(SubjectName, m_pkiRoot)
-                .SetOutputFilePath("trace.log");
+                appInstance.Build(ApplicationUri, ProductUri)
+                    .AsClient()
+                    .AddSecurityConfiguration(SubjectName, m_pkiRoot)
+                    .SetOutputFilePath("trace.log");
 
-            Assert.That(
-                appInstance.ApplicationConfiguration.TraceConfiguration.OutputFilePath,
-                Is.EqualTo("trace.log"));
+                Assert.That(
+                    appInstance.ApplicationConfiguration.TraceConfiguration.OutputFilePath,
+                    Is.EqualTo("trace.log"));
+            }
         }
 
         [Test]
         public async Task TraceConfigurationSetDeleteOnLoadAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using (appInstance.ConfigureAwait(false))
+            {
 
-            appInstance.Build(ApplicationUri, ProductUri)
-                .AsClient()
-                .AddSecurityConfiguration(SubjectName, m_pkiRoot)
-                .SetDeleteOnLoad(true);
+                appInstance.Build(ApplicationUri, ProductUri)
+                    .AsClient()
+                    .AddSecurityConfiguration(SubjectName, m_pkiRoot)
+                    .SetDeleteOnLoad(true);
 
-            Assert.That(
-                appInstance.ApplicationConfiguration.TraceConfiguration.DeleteOnLoad,
-                Is.True);
+                Assert.That(
+                    appInstance.ApplicationConfiguration.TraceConfiguration.DeleteOnLoad,
+                    Is.True);
+            }
         }
 
         [Test]
         public async Task TraceConfigurationSetTraceMasksAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using (appInstance.ConfigureAwait(false))
+            {
 
-            appInstance.Build(ApplicationUri, ProductUri)
-                .AsClient()
-                .AddSecurityConfiguration(SubjectName, m_pkiRoot)
-                .SetTraceMasks(Utils.TraceMasks.Error | Utils.TraceMasks.Information);
+                appInstance.Build(ApplicationUri, ProductUri)
+                    .AsClient()
+                    .AddSecurityConfiguration(SubjectName, m_pkiRoot)
+                    .SetTraceMasks(Utils.TraceMasks.Error | Utils.TraceMasks.Information);
 
-            Assert.That(
-                appInstance.ApplicationConfiguration.TraceConfiguration.TraceMasks,
-                Is.EqualTo(Utils.TraceMasks.Error | Utils.TraceMasks.Information));
+                Assert.That(
+                    appInstance.ApplicationConfiguration.TraceConfiguration.TraceMasks,
+                    Is.EqualTo(Utils.TraceMasks.Error | Utils.TraceMasks.Information));
+            }
         }
 
         [Test]
         public async Task CreateAsyncWithServerTypeAndNoServerConfigThrowsAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry)
+            var appInstance = new ApplicationInstance(telemetry)
             {
                 ApplicationName = ApplicationName,
                 ApplicationType = ApplicationType.Server
             };
+            await using (appInstance.ConfigureAwait(false))
+            {
 
-            appInstance.Build(ApplicationUri, ProductUri);
+                appInstance.Build(ApplicationUri, ProductUri);
 
-            // Directly access builder to bypass fluent chain - ServerConfig is null
-            var builder = new ApplicationConfigurationBuilder(appInstance);
-            Assert.ThrowsAsync<ArgumentException>(async () =>
-                await builder.CreateAsync().ConfigureAwait(false));
+                // Directly access builder to bypass fluent chain - ServerConfig is null
+                var builder = new ApplicationConfigurationBuilder(appInstance);
+                Assert.ThrowsAsync<ArgumentException>(async () =>
+                    await builder.CreateAsync().ConfigureAwait(false));
+            }
         }
 
         [Test]
         public async Task CreateAsyncWithClientTypeAndNoClientConfigThrowsAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry)
+            var appInstance = new ApplicationInstance(telemetry)
             {
                 ApplicationName = ApplicationName,
                 ApplicationType = ApplicationType.Client
             };
+            await using (appInstance.ConfigureAwait(false))
+            {
 
-            appInstance.Build(ApplicationUri, ProductUri);
+                appInstance.Build(ApplicationUri, ProductUri);
 
-            // Directly access builder to bypass fluent chain - ClientConfig is null
-            var builder = new ApplicationConfigurationBuilder(appInstance);
-            Assert.ThrowsAsync<ArgumentException>(async () =>
-                await builder.CreateAsync().ConfigureAwait(false));
+                // Directly access builder to bypass fluent chain - ClientConfig is null
+                var builder = new ApplicationConfigurationBuilder(appInstance);
+                Assert.ThrowsAsync<ArgumentException>(async () =>
+                    await builder.CreateAsync().ConfigureAwait(false));
+            }
         }
 
         [Test]
         public async Task CreateAsyncForClientCreatesValidConfigAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using (appInstance.ConfigureAwait(false))
+            {
 
-            ArrayOf<CertificateIdentifier> certs =
-                ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
-                    SubjectName,
-                    CertificateStoreType.Directory,
-                    m_pkiRoot);
+                ArrayOf<CertificateIdentifier> certs =
+                    ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
+                        SubjectName,
+                        CertificateStoreType.Directory,
+                        m_pkiRoot);
 
-            ApplicationConfiguration config = await appInstance
-                .Build(ApplicationUri, ProductUri)
-                .AsClient()
-                .AddSecurityConfiguration(certs, m_pkiRoot)
-                .CreateAsync()
-                .ConfigureAwait(false);
+                ApplicationConfiguration config = await appInstance
+                    .Build(ApplicationUri, ProductUri)
+                    .AsClient()
+                    .AddSecurityConfiguration(certs, m_pkiRoot)
+                    .CreateAsync()
+                    .ConfigureAwait(false);
 
-            Assert.That(config, Is.Not.Null);
-            Assert.That(config.ClientConfiguration, Is.Not.Null);
-            Assert.That(config.SecurityConfiguration, Is.Not.Null);
+                Assert.That(config, Is.Not.Null);
+                Assert.That(config.ClientConfiguration, Is.Not.Null);
+                Assert.That(config.SecurityConfiguration, Is.Not.Null);
+            }
         }
 
         [Test]
         public async Task CreateAsyncForServerAddsDefaultUserTokenPolicyAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using (appInstance.ConfigureAwait(false))
+            {
 
-            ArrayOf<CertificateIdentifier> certs =
-                ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
-                    SubjectName,
-                    CertificateStoreType.Directory,
-                    m_pkiRoot);
+                ArrayOf<CertificateIdentifier> certs =
+                    ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
+                        SubjectName,
+                        CertificateStoreType.Directory,
+                        m_pkiRoot);
 
-            ApplicationConfiguration config = await appInstance
-                .Build(ApplicationUri, ProductUri)
-                .AsServer([EndpointUrl])
-                .AddSecurityConfiguration(certs, m_pkiRoot)
-                .CreateAsync()
-                .ConfigureAwait(false);
+                ApplicationConfiguration config = await appInstance
+                    .Build(ApplicationUri, ProductUri)
+                    .AsServer([EndpointUrl])
+                    .AddSecurityConfiguration(certs, m_pkiRoot)
+                    .CreateAsync()
+                    .ConfigureAwait(false);
 
-            Assert.That(config.ServerConfiguration.UserTokenPolicies.Count, Is.GreaterThan(0));
+                Assert.That(config.ServerConfiguration.UserTokenPolicies.Count, Is.GreaterThan(0));
+            }
         }
 
         [Test]
         public async Task CreateAsyncForServerAddsDefaultSecurityPoliciesAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using (appInstance.ConfigureAwait(false))
+            {
 
-            ArrayOf<CertificateIdentifier> certs =
-                ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
-                    SubjectName,
-                    CertificateStoreType.Directory,
-                    m_pkiRoot);
+                ArrayOf<CertificateIdentifier> certs =
+                    ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
+                        SubjectName,
+                        CertificateStoreType.Directory,
+                        m_pkiRoot);
 
-            ApplicationConfiguration config = await appInstance
-                .Build(ApplicationUri, ProductUri)
-                .AsServer([EndpointUrl])
-                .AddSecurityConfiguration(certs, m_pkiRoot)
-                .CreateAsync()
-                .ConfigureAwait(false);
+                ApplicationConfiguration config = await appInstance
+                    .Build(ApplicationUri, ProductUri)
+                    .AsServer([EndpointUrl])
+                    .AddSecurityConfiguration(certs, m_pkiRoot)
+                    .CreateAsync()
+                    .ConfigureAwait(false);
 
-            Assert.That(config.ServerConfiguration.SecurityPolicies.Count, Is.GreaterThan(0));
+                Assert.That(config.ServerConfiguration.SecurityPolicies.Count, Is.GreaterThan(0));
+            }
         }
 
         [Test]
@@ -1877,303 +2201,342 @@ namespace Opc.Ua.Configuration.Tests
         public async Task AddSecurityConfigurationWithDefaultPkiRootAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using (appInstance.ConfigureAwait(false))
+            {
 
-            appInstance.Build(ApplicationUri, ProductUri)
-                .AsClient()
-                .AddSecurityConfiguration(SubjectName);
+                appInstance.Build(ApplicationUri, ProductUri)
+                    .AsClient()
+                    .AddSecurityConfiguration(SubjectName);
 
-            SecurityConfiguration secConfig = appInstance.ApplicationConfiguration.SecurityConfiguration;
-            Assert.That(secConfig, Is.Not.Null);
-            Assert.That(secConfig.ApplicationCertificate, Is.Not.Null);
-            Assert.That(secConfig.ApplicationCertificate.StorePath, Is.Not.Null.And.Not.Empty);
+                SecurityConfiguration secConfig = appInstance.ApplicationConfiguration.SecurityConfiguration;
+                Assert.That(secConfig, Is.Not.Null);
+                Assert.That(secConfig.ApplicationCertificate, Is.Not.Null);
+                Assert.That(secConfig.ApplicationCertificate.StorePath, Is.Not.Null.And.Not.Empty);
+            }
         }
 
         [Test]
         public async Task AddSecurityConfigurationWithCertIdListAndDefaultPkiRootAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using (appInstance.ConfigureAwait(false))
+            {
 
-            ArrayOf<CertificateIdentifier> certs =
-                ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
-                    SubjectName,
-                    CertificateStoreType.Directory,
-                    m_pkiRoot);
+                ArrayOf<CertificateIdentifier> certs =
+                    ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
+                        SubjectName,
+                        CertificateStoreType.Directory,
+                        m_pkiRoot);
 
-            appInstance.Build(ApplicationUri, ProductUri)
-                .AsClient()
-                .AddSecurityConfiguration(certs);
+                appInstance.Build(ApplicationUri, ProductUri)
+                    .AsClient()
+                    .AddSecurityConfiguration(certs);
 
-            SecurityConfiguration secConfig = appInstance.ApplicationConfiguration.SecurityConfiguration;
-            Assert.That(secConfig, Is.Not.Null);
-            Assert.That(secConfig.TrustedPeerCertificates.StorePath, Is.Not.Null.And.Not.Empty);
+                SecurityConfiguration secConfig = appInstance.ApplicationConfiguration.SecurityConfiguration;
+                Assert.That(secConfig, Is.Not.Null);
+                Assert.That(secConfig.TrustedPeerCertificates.StorePath, Is.Not.Null.And.Not.Empty);
+            }
         }
 
         [Test]
         public async Task FullClientAndServerBuilderFlowAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using (appInstance.ConfigureAwait(false))
+            {
 
-            ArrayOf<CertificateIdentifier> certs =
-                ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
-                    SubjectName,
-                    CertificateStoreType.Directory,
-                    m_pkiRoot);
+                ArrayOf<CertificateIdentifier> certs =
+                    ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
+                        SubjectName,
+                        CertificateStoreType.Directory,
+                        m_pkiRoot);
 
-            ApplicationConfiguration config = await appInstance
-                .Build(ApplicationUri, ProductUri)
-                .SetOperationTimeout(10000)
-                .SetMaxStringLength(500_000)
-                .SetMaxByteStringLength(1_000_000)
-                .SetMaxArrayLength(10_000)
-                .SetMaxMessageSize(4_000_000)
-                .SetMaxBufferSize(65536)
-                .SetChannelLifetime(300_000)
-                .SetSecurityTokenLifetime(3_600_000)
-                .SetMaxEncodingNestingLevels(64)
-                .SetMaxDecoderRecoveries(5)
-                .AsServer([EndpointUrl], ["opc.tcp://althost:51000"])
-                .AddUnsecurePolicyNone()
-                .AddSignPolicies()
-                .AddSignAndEncryptPolicies()
-                .AddEccSignPolicies()
-                .AddEccSignAndEncryptPolicies()
-                .AddUserTokenPolicy(UserTokenType.Anonymous)
-                .AddUserTokenPolicy(UserTokenType.UserName)
-                .SetDiagnosticsEnabled(true)
-                .SetMaxSessionCount(100)
-                .SetMaxChannelCount(50)
-                .SetMinSessionTimeout(1000)
-                .SetMaxSessionTimeout(60000)
-                .SetMaxBrowseContinuationPoints(10)
-                .SetMaxQueryContinuationPoints(10)
-                .SetMaxHistoryContinuationPoints(10)
-                .SetMaxRequestAge(600_000)
-                .SetMinPublishingInterval(50)
-                .SetMaxPublishingInterval(30000)
-                .SetPublishingResolution(50)
-                .SetMinSubscriptionLifetime(1000)
-                .SetMaxSubscriptionLifetime(3_600_000)
-                .SetMaxMessageQueueSize(100)
-                .SetMaxNotificationQueueSize(1000)
-                .SetMaxNotificationsPerPublish(5000)
-                .SetMaxEventQueueSize(10000)
-                .SetMinMetadataSamplingInterval(100)
-                .SetMaxRegistrationInterval(30000)
-                .SetNodeManagerSaveFile("nodes.xml")
-                .SetMaxPublishRequestCount(20)
-                .SetMaxSubscriptionCount(100)
-                .AddServerProfile("http://opcfoundation.org/UA-Profile/Server/StandardUA")
-                .SetShutdownDelay(5)
-                .AddServerCapabilities("DA")
-                .SetMaxTrustListSize(65536)
-                .SetMultiCastDnsEnabled(false)
-                .SetAuditingEnabled(true)
-                .SetHttpsMutualTls(false)
-                .SetDurableSubscriptionsEnabled(true)
-                .SetMaxDurableNotificationQueueSize(5000)
-                .SetMaxDurableEventQueueSize(3000)
-                .SetMaxDurableSubscriptionLifetime(720)
-                .AsClient()
-                .SetDefaultSessionTimeout(30000)
-                .AddWellKnownDiscoveryUrls("opc.tcp://localhost:4840")
-                .SetEndpointCacheFilePath("endpoints.xml")
-                .AddSecurityConfiguration(certs, m_pkiRoot)
-                .SetAutoAcceptUntrustedCertificates(true)
-                .SetAddAppCertToTrustedStore(true)
-                .SetMinimumCertificateKeySize(1024)
-                .SetRejectSHA1SignedCertificates(false)
-                .SetRejectUnknownRevocationStatus(false)
-                .SetSendCertificateChain(true)
-                .SetSuppressNonceValidationErrors(true)
-                .SetMaxRejectedCertificates(10)
-                .SetUseValidatedCertificates(true)
-                .SetHiResClockDisabled(false)
-                .SetOutputFilePath("trace.log")
-                .SetDeleteOnLoad(true)
-                .SetTraceMasks(Utils.TraceMasks.Error)
-                .CreateAsync()
-                .ConfigureAwait(false);
+                ApplicationConfiguration config = await appInstance
+                    .Build(ApplicationUri, ProductUri)
+                    .SetOperationTimeout(10000)
+                    .SetMaxStringLength(500_000)
+                    .SetMaxByteStringLength(1_000_000)
+                    .SetMaxArrayLength(10_000)
+                    .SetMaxMessageSize(4_000_000)
+                    .SetMaxBufferSize(65536)
+                    .SetChannelLifetime(300_000)
+                    .SetSecurityTokenLifetime(3_600_000)
+                    .SetMaxEncodingNestingLevels(64)
+                    .SetMaxDecoderRecoveries(5)
+                    .AsServer([EndpointUrl], ["opc.tcp://althost:51000"])
+                    .AddUnsecurePolicyNone()
+                    .AddSignPolicies()
+                    .AddSignAndEncryptPolicies()
+                    .AddEccSignPolicies()
+                    .AddEccSignAndEncryptPolicies()
+                    .AddUserTokenPolicy(UserTokenType.Anonymous)
+                    .AddUserTokenPolicy(UserTokenType.UserName)
+                    .SetDiagnosticsEnabled(true)
+                    .SetMaxSessionCount(100)
+                    .SetMaxChannelCount(50)
+                    .SetMinSessionTimeout(1000)
+                    .SetMaxSessionTimeout(60000)
+                    .SetMaxBrowseContinuationPoints(10)
+                    .SetMaxQueryContinuationPoints(10)
+                    .SetMaxHistoryContinuationPoints(10)
+                    .SetMaxRequestAge(600_000)
+                    .SetMinPublishingInterval(50)
+                    .SetMaxPublishingInterval(30000)
+                    .SetPublishingResolution(50)
+                    .SetMinSubscriptionLifetime(1000)
+                    .SetMaxSubscriptionLifetime(3_600_000)
+                    .SetMaxMessageQueueSize(100)
+                    .SetMaxNotificationQueueSize(1000)
+                    .SetMaxNotificationsPerPublish(5000)
+                    .SetMaxEventQueueSize(10000)
+                    .SetMinMetadataSamplingInterval(100)
+                    .SetMaxRegistrationInterval(30000)
+                    .SetNodeManagerSaveFile("nodes.xml")
+                    .SetMaxPublishRequestCount(20)
+                    .SetMaxSubscriptionCount(100)
+                    .AddServerProfile("http://opcfoundation.org/UA-Profile/Server/StandardUA")
+                    .SetShutdownDelay(5)
+                    .AddServerCapabilities("DA")
+                    .SetMaxTrustListSize(65536)
+                    .SetMultiCastDnsEnabled(false)
+                    .SetAuditingEnabled(true)
+                    .SetHttpsMutualTls(false)
+                    .SetDurableSubscriptionsEnabled(true)
+                    .SetMaxDurableNotificationQueueSize(5000)
+                    .SetMaxDurableEventQueueSize(3000)
+                    .SetMaxDurableSubscriptionLifetime(720)
+                    .AsClient()
+                    .SetDefaultSessionTimeout(30000)
+                    .AddWellKnownDiscoveryUrls("opc.tcp://localhost:4840")
+                    .SetEndpointCacheFilePath("endpoints.xml")
+                    .AddSecurityConfiguration(certs, m_pkiRoot)
+                    .SetAutoAcceptUntrustedCertificates(true)
+                    .SetAddAppCertToTrustedStore(true)
+                    .SetMinimumCertificateKeySize(1024)
+                    .SetRejectSHA1SignedCertificates(false)
+                    .SetRejectUnknownRevocationStatus(false)
+                    .SetSendCertificateChain(true)
+                    .SetSuppressNonceValidationErrors(true)
+                    .SetMaxRejectedCertificates(10)
+                    .SetUseValidatedCertificates(true)
+                    .SetHiResClockDisabled(false)
+                    .SetOutputFilePath("trace.log")
+                    .SetDeleteOnLoad(true)
+                    .SetTraceMasks(Utils.TraceMasks.Error)
+                    .CreateAsync()
+                    .ConfigureAwait(false);
 
-            Assert.That(config, Is.Not.Null);
-            Assert.That(appInstance.ApplicationType, Is.EqualTo(ApplicationType.ClientAndServer));
-            Assert.That(config.ClientConfiguration, Is.Not.Null);
-            Assert.That(config.ServerConfiguration, Is.Not.Null);
-            Assert.That(config.SecurityConfiguration, Is.Not.Null);
-            Assert.That(config.TransportQuotas.OperationTimeout, Is.EqualTo(10000));
-            Assert.That(config.ServerConfiguration.DiagnosticsEnabled, Is.True);
-            Assert.That(config.ServerConfiguration.DurableSubscriptionsEnabled, Is.True);
+                Assert.That(config, Is.Not.Null);
+                Assert.That(appInstance.ApplicationType, Is.EqualTo(ApplicationType.ClientAndServer));
+                Assert.That(config.ClientConfiguration, Is.Not.Null);
+                Assert.That(config.ServerConfiguration, Is.Not.Null);
+                Assert.That(config.SecurityConfiguration, Is.Not.Null);
+                Assert.That(config.TransportQuotas.OperationTimeout, Is.EqualTo(10000));
+                Assert.That(config.ServerConfiguration.DiagnosticsEnabled, Is.True);
+                Assert.That(config.ServerConfiguration.DurableSubscriptionsEnabled, Is.True);
+            }
         }
 
         [Test]
         public async Task AsClientIdempotentWhenAlreadyClientAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry)
+            var appInstance = new ApplicationInstance(telemetry)
             {
                 ApplicationName = ApplicationName,
                 ApplicationType = ApplicationType.Client
             };
+            await using (appInstance.ConfigureAwait(false))
+            {
 
-            appInstance.Build(ApplicationUri, ProductUri)
-                .AsClient();
+                appInstance.Build(ApplicationUri, ProductUri)
+                    .AsClient();
 
-            Assert.That(appInstance.ApplicationType, Is.EqualTo(ApplicationType.Client));
+                Assert.That(appInstance.ApplicationType, Is.EqualTo(ApplicationType.Client));
+            }
         }
 
         [Test]
         public async Task AsClientIdempotentWhenAlreadyClientAndServerAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry)
+            var appInstance = new ApplicationInstance(telemetry)
             {
                 ApplicationName = ApplicationName,
                 ApplicationType = ApplicationType.ClientAndServer
             };
+            await using (appInstance.ConfigureAwait(false))
+            {
 
-            appInstance.Build(ApplicationUri, ProductUri)
-                .AsClient();
+                appInstance.Build(ApplicationUri, ProductUri)
+                    .AsClient();
 
-            Assert.That(appInstance.ApplicationType, Is.EqualTo(ApplicationType.ClientAndServer));
+                Assert.That(appInstance.ApplicationType, Is.EqualTo(ApplicationType.ClientAndServer));
+            }
         }
 
         [Test]
         public async Task AsServerIdempotentWhenAlreadyServerAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry)
+            var appInstance = new ApplicationInstance(telemetry)
             {
                 ApplicationName = ApplicationName,
                 ApplicationType = ApplicationType.Server
             };
+            await using (appInstance.ConfigureAwait(false))
+            {
 
-            appInstance.Build(ApplicationUri, ProductUri)
-                .AsServer([EndpointUrl]);
+                appInstance.Build(ApplicationUri, ProductUri)
+                    .AsServer([EndpointUrl]);
 
-            Assert.That(appInstance.ApplicationType, Is.EqualTo(ApplicationType.Server));
+                Assert.That(appInstance.ApplicationType, Is.EqualTo(ApplicationType.Server));
+            }
         }
 
         [Test]
         public async Task AsServerIdempotentWhenAlreadyClientAndServerAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry)
+            var appInstance = new ApplicationInstance(telemetry)
             {
                 ApplicationName = ApplicationName,
                 ApplicationType = ApplicationType.ClientAndServer
             };
+            await using (appInstance.ConfigureAwait(false))
+            {
 
-            appInstance.Build(ApplicationUri, ProductUri)
-                .AsServer([EndpointUrl]);
+                appInstance.Build(ApplicationUri, ProductUri)
+                    .AsServer([EndpointUrl]);
 
-            Assert.That(appInstance.ApplicationType, Is.EqualTo(ApplicationType.ClientAndServer));
+                Assert.That(appInstance.ApplicationType, Is.EqualTo(ApplicationType.ClientAndServer));
+            }
         }
 
         [Test]
         public async Task AsServerFromClientTypeAfterClientSelectedSetsClientAndServerAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry)
+            var appInstance = new ApplicationInstance(telemetry)
             {
                 ApplicationName = ApplicationName,
                 ApplicationType = ApplicationType.Client
             };
+            await using (appInstance.ConfigureAwait(false))
+            {
 
-            appInstance.Build(ApplicationUri, ProductUri)
-                .AsServer([EndpointUrl])
-                .AsClient();
+                appInstance.Build(ApplicationUri, ProductUri)
+                    .AsServer([EndpointUrl])
+                    .AsClient();
 
-            Assert.That(appInstance.ApplicationType, Is.EqualTo(ApplicationType.ClientAndServer));
+                Assert.That(appInstance.ApplicationType, Is.EqualTo(ApplicationType.ClientAndServer));
+            }
         }
 
         [Test]
         public async Task AsClientAfterServerSelectedSetsClientAndServerAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry)
+            var appInstance = new ApplicationInstance(telemetry)
             {
                 ApplicationName = ApplicationName,
                 ApplicationType = ApplicationType.Server
             };
+            await using (appInstance.ConfigureAwait(false))
+            {
 
-            appInstance.Build(ApplicationUri, ProductUri)
-                .AsServer([EndpointUrl])
-                .AsClient();
+                appInstance.Build(ApplicationUri, ProductUri)
+                    .AsServer([EndpointUrl])
+                    .AsClient();
 
-            Assert.That(appInstance.ApplicationType, Is.EqualTo(ApplicationType.ClientAndServer));
+                Assert.That(appInstance.ApplicationType, Is.EqualTo(ApplicationType.ClientAndServer));
+            }
         }
 
         [Test]
         public async Task AddSecurityConfigurationWithSeparateRejectedRootAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
-            string rejectedRoot = Path.Combine(m_pkiRoot, "rejected");
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using (appInstance.ConfigureAwait(false))
+            {
+                string rejectedRoot = Path.Combine(m_pkiRoot, "rejected");
 
-            appInstance.Build(ApplicationUri, ProductUri)
-                .AsClient()
-                .AddSecurityConfiguration(SubjectName, m_pkiRoot, null, rejectedRoot);
+                appInstance.Build(ApplicationUri, ProductUri)
+                    .AsClient()
+                    .AddSecurityConfiguration(SubjectName, m_pkiRoot, null, rejectedRoot);
 
-            SecurityConfiguration secConfig = appInstance.ApplicationConfiguration.SecurityConfiguration;
-            Assert.That(secConfig.RejectedCertificateStore, Is.Not.Null);
-            Assert.That(secConfig.RejectedCertificateStore.StorePath, Does.Contain("rejected"));
+                SecurityConfiguration secConfig = appInstance.ApplicationConfiguration.SecurityConfiguration;
+                Assert.That(secConfig.RejectedCertificateStore, Is.Not.Null);
+                Assert.That(secConfig.RejectedCertificateStore.StorePath, Does.Contain("rejected"));
+            }
         }
 
         [Test]
         public async Task AddSecurityConfigurationWithSeparateAppRootAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
-            string appRoot = Path.Combine(m_pkiRoot, "app");
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using (appInstance.ConfigureAwait(false))
+            {
+                string appRoot = Path.Combine(m_pkiRoot, "app");
 
-            appInstance.Build(ApplicationUri, ProductUri)
-                .AsClient()
-                .AddSecurityConfiguration(SubjectName, m_pkiRoot, appRoot);
+                appInstance.Build(ApplicationUri, ProductUri)
+                    .AsClient()
+                    .AddSecurityConfiguration(SubjectName, m_pkiRoot, appRoot);
 
-            SecurityConfiguration secConfig = appInstance.ApplicationConfiguration.SecurityConfiguration;
-            Assert.That(secConfig.ApplicationCertificate, Is.Not.Null);
-            Assert.That(secConfig.ApplicationCertificate.StorePath, Does.Contain("app"));
+                SecurityConfiguration secConfig = appInstance.ApplicationConfiguration.SecurityConfiguration;
+                Assert.That(secConfig.ApplicationCertificate, Is.Not.Null);
+                Assert.That(secConfig.ApplicationCertificate.StorePath, Does.Contain("app"));
+            }
         }
 
         [Test]
         public async Task AddSecurityConfigurationWithCertIdListAndSeparateRejectedRootAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
-            string rejectedRoot = Path.Combine(m_pkiRoot, "rejected");
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using (appInstance.ConfigureAwait(false))
+            {
+                string rejectedRoot = Path.Combine(m_pkiRoot, "rejected");
 
-            ArrayOf<CertificateIdentifier> certs =
-                ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
-                    SubjectName,
-                    CertificateStoreType.Directory,
-                    m_pkiRoot);
+                ArrayOf<CertificateIdentifier> certs =
+                    ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
+                        SubjectName,
+                        CertificateStoreType.Directory,
+                        m_pkiRoot);
 
-            appInstance.Build(ApplicationUri, ProductUri)
-                .AsClient()
-                .AddSecurityConfiguration(certs, m_pkiRoot, rejectedRoot);
+                appInstance.Build(ApplicationUri, ProductUri)
+                    .AsClient()
+                    .AddSecurityConfiguration(certs, m_pkiRoot, rejectedRoot);
 
-            SecurityConfiguration secConfig = appInstance.ApplicationConfiguration.SecurityConfiguration;
-            Assert.That(secConfig.RejectedCertificateStore.StorePath, Does.Contain("rejected"));
+                SecurityConfiguration secConfig = appInstance.ApplicationConfiguration.SecurityConfiguration;
+                Assert.That(secConfig.RejectedCertificateStore.StorePath, Does.Contain("rejected"));
+            }
         }
 
         [Test]
         public async Task AddExtensionWithEncodeableAddsExtensionAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            await using var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
-            var qualifiedName = new System.Xml.XmlQualifiedName("OperationLimits", Namespaces.OpcUa);
-            var limits = new OperationLimits { MaxNodesPerRead = 42 };
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using (appInstance.ConfigureAwait(false))
+            {
+                var qualifiedName = new System.Xml.XmlQualifiedName("OperationLimits", Namespaces.OpcUa);
+                var limits = new OperationLimits { MaxNodesPerRead = 42 };
 
-            appInstance.Build(ApplicationUri, ProductUri)
-                .AsClient()
-                .AddSecurityConfiguration(SubjectName, m_pkiRoot)
-                .AddExtension(qualifiedName, limits);
+                appInstance.Build(ApplicationUri, ProductUri)
+                    .AsClient()
+                    .AddSecurityConfiguration(SubjectName, m_pkiRoot)
+                    .AddExtension(qualifiedName, limits);
 
-            OperationLimits extension = appInstance.ApplicationConfiguration.ParseExtension<OperationLimits>(qualifiedName);
-            Assert.That(extension, Is.Not.Null);
-            Assert.That(extension.MaxNodesPerRead, Is.EqualTo(42));
+                OperationLimits extension = appInstance.ApplicationConfiguration.ParseExtension<OperationLimits>(qualifiedName);
+                Assert.That(extension, Is.Not.Null);
+                Assert.That(extension.MaxNodesPerRead, Is.EqualTo(42));
+            }
         }
 
         private string m_pkiRoot;
