@@ -880,7 +880,7 @@ namespace Opc.Ua
 #endif
 
         private static StatusCode[] s_internedValues = [];
-        private static readonly object s_internLock = new();
+        private static readonly Lock s_internLock = new();
 
         private const uint kAggregateBits = 0x001F;
         private const uint kOverflowBit = 0x0080;
