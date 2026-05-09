@@ -48,6 +48,18 @@ namespace Opc.Ua.Client.Subscriptions
         public uint Id { get; internal set; }
 
         /// <summary>
+        /// Number of notification messages detected as missing during
+        /// gap-walking of the SequenceNumber on this subscription.
+        /// </summary>
+        public long MissingMessageCount => System.Threading.Volatile.Read(ref m_missingCount);
+
+        /// <summary>
+        /// Number of republish requests issued for this subscription
+        /// (counts every attempt regardless of outcome).
+        /// </summary>
+        public long RepublishMessageCount => System.Threading.Volatile.Read(ref m_republishCount);
+
+        /// <summary>
         /// Observability context
         /// </summary>
         protected ITelemetryContext Observability { get; }
@@ -273,26 +285,42 @@ namespace Opc.Ua.Client.Subscriptions
         /// <returns></returns>
         private async Task ProcessMessageAsync(IncomingMessage incoming, CancellationToken ct)
         {
-            uint prevSeqNum = LastSequenceNumberProcessed;
             uint curSeqNum = incoming.Message.SequenceNumber;
+            bool isKeepAlive = incoming.Message.NotificationData.Count == 0;
             const uint kBackwardThreshold = 1u << 31;
-            if (prevSeqNum != 0)
-            {
-                // Forward distance prevSeqNum -> curSeqNum modulo 2^32. A
-                // delta of zero means duplicate; a delta in the upper half
-                // of the unsigned range means the new sequence is "older"
-                // than what we have already processed (e.g. an out-of-order
-                // republish or a server reset).
-                uint delta = unchecked(curSeqNum - prevSeqNum);
 
+            if (isKeepAlive)
+            {
+                // Per OPC UA Part 4 §7.30, a keep-alive NotificationMessage
+                // carries the SequenceNumber of the next NotificationMessage
+                // to be sent.  Multiple consecutive keep-alives therefore
+                // reuse the same SequenceNumber, and the next real data
+                // message reuses it too (the slot is consumed only when data
+                // is emitted).  Bypass the duplicate-message filter, surface
+                // the keep-alive, and DO NOT advance the data-dedup gate
+                // (LastDataSequenceNumberProcessed) — otherwise the next real
+                // data message would be silently dropped as a duplicate.
+                LastSequenceNumberProcessed = curSeqNum;
+                await OnNotificationReceivedAsync(
+                    incoming.Message,
+                    PublishState.KeepAlive,
+                    ct).ConfigureAwait(false);
+                return;
+            }
+
+            // Data / event message — apply the dedup / gap-walk logic
+            // against the highest-consumed data SequenceNumber.
+            uint prevDataSeq = LastDataSequenceNumberProcessed;
+            if (prevDataSeq != 0)
+            {
+                uint delta = unchecked(curSeqNum - prevDataSeq);
                 if (delta == 0 || delta >= kBackwardThreshold)
                 {
-                    // Can occur if we republished a message
                     if (!Logger.IsEnabled(LogLevel.Debug))
                     {
                         return;
                     }
-                    if (curSeqNum == prevSeqNum)
+                    if (curSeqNum == prevDataSeq)
                     {
                         Logger.LogDebug(
                             "{Subscription}: Received duplicate message " +
@@ -308,14 +336,14 @@ namespace Opc.Ua.Client.Subscriptions
                             "sequence number #{Old}.",
                             this,
                             curSeqNum,
-                            prevSeqNum);
+                            prevDataSeq);
                     }
                     return;
                 }
 
-                // Walk the gap (prevSeqNum, curSeqNum) wrapping past
+                // Walk the gap (prevDataSeq, curSeqNum) wrapping past
                 // uint.MaxValue to 1.
-                uint missing = prevSeqNum;
+                uint missing = prevDataSeq;
                 while (true)
                 {
                     missing = missing == uint.MaxValue ? 1u : missing + 1u;
@@ -323,12 +351,13 @@ namespace Opc.Ua.Client.Subscriptions
                     {
                         break;
                     }
+                    System.Threading.Interlocked.Increment(ref m_missingCount);
                     await TryRepublishAsync(missing, curSeqNum, ct).ConfigureAwait(false);
                 }
             }
             else
             {
-                // First message after subscription create / recreate /
+                // First data message after subscription create / recreate /
                 // transfer. We don't know what came before, but the
                 // server may still hold older retransmissible messages
                 // (e.g. on a transferred subscription where the first
@@ -347,6 +376,7 @@ namespace Opc.Ua.Client.Subscriptions
                     }
                 }
             }
+            LastDataSequenceNumberProcessed = curSeqNum;
             LastSequenceNumberProcessed = curSeqNum;
             await OnNotificationReceivedAsync(
                 incoming.Message,
@@ -364,6 +394,7 @@ namespace Opc.Ua.Client.Subscriptions
         private async ValueTask TryRepublishAsync(uint missing, uint curSeqNum,
             CancellationToken ct)
         {
+            System.Threading.Interlocked.Increment(ref m_republishCount);
             if (!AvailableInRetransmissionQueue.Contains(missing))
             {
                 Logger.LogWarning(
@@ -544,6 +575,13 @@ namespace Opc.Ua.Client.Subscriptions
         internal bool Disposed;
         internal long LastNotificationTimestamp;
         internal uint LastSequenceNumberProcessed;
+        internal uint LastDataSequenceNumberProcessed;
+        // Counters surfaced via ISubscription / ISubscriptionManager so clients
+        // can monitor stack health.  m_missingCount counts notification messages
+        // detected as missing during gap-walk; m_republishCount counts republish
+        // attempts (any outcome) issued to recover them.
+        internal long m_missingCount;
+        internal long m_republishCount;
         internal IReadOnlyList<uint> AvailableInRetransmissionQueue;
         internal readonly ILogger Logger;
         private readonly ISubscriptionServiceSetClientMethods m_services;

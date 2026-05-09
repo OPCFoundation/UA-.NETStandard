@@ -80,6 +80,21 @@ namespace Opc.Ua.Client.Subscriptions
         IMonitoredItemCollection MonitoredItems { get; }
 
         /// <summary>
+        /// Number of missing notification messages detected by the
+        /// gap-walking sequence-number tracker for this subscription.
+        /// Each missing slot triggers a republish attempt — see
+        /// <see cref="RepublishMessageCount"/>.
+        /// </summary>
+        long MissingMessageCount { get; }
+
+        /// <summary>
+        /// Number of republish requests issued for this subscription
+        /// (counts every attempt, regardless of whether the server still
+        /// holds the message in its retransmission queue).
+        /// </summary>
+        long RepublishMessageCount { get; }
+
+        /// <summary>
         /// Tells the server to refresh all conditions being
         /// monitored by the subscription.
         /// </summary>

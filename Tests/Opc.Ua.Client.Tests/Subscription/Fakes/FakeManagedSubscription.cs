@@ -55,6 +55,8 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
         public bool CurrentPublishingEnabled { get; set; }
         public uint CurrentMaxNotificationsPerPublish { get; set; }
         public IMonitoredItemCollection MonitoredItems { get; set; } = null!;
+        public long MissingMessageCount { get; set; }
+        public long RepublishMessageCount { get; set; }
 
         // Recorded calls
         public int DisposeAsyncCalls { get; private set; }
