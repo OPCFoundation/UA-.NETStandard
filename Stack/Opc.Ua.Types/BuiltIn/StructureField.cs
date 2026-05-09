@@ -37,7 +37,7 @@ namespace Opc.Ua
     /// <summary>
     /// Structure field
     /// </summary>
-    [DataContract(Namespace = Types.Namespaces.OpcUaXsd)]
+    [DataContract(Namespace = Namespaces.OpcUaXsd)]
     public class StructureField :
         IEncodeable,
         IEquatable<StructureField>

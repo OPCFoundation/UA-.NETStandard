@@ -3727,7 +3727,7 @@ namespace Opc.Ua.Server
         private readonly List<IAsyncNodeManagerFactory> m_asyncNodeManagerFactories = [];
         private IDisposable m_certManagerSubscription;
 
-        private sealed class CertificateManagerChangeObserver : IObserver<Security.Certificates.CertificateChangeEvent>
+        private sealed class CertificateManagerChangeObserver : IObserver<CertificateChangeEvent>
         {
             private readonly StandardServer _server;
             private readonly ILogger _logger;
@@ -3738,9 +3738,9 @@ namespace Opc.Ua.Server
                 _logger = logger;
             }
 
-            public void OnNext(Security.Certificates.CertificateChangeEvent value)
+            public void OnNext(CertificateChangeEvent value)
             {
-                if (value.Kind == Security.Certificates.CertificateChangeKind.ApplicationCertificateUpdated)
+                if (value.Kind == CertificateChangeKind.ApplicationCertificateUpdated)
                 {
                     _logger.LogInformation(
                         "CertificateManager: Application certificate updated for type {CertType}.",

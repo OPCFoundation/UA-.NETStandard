@@ -294,7 +294,7 @@ namespace Opc.Ua
                 ? new CertificateStoreIdentifier(identifier.StorePath, false)
                 : new CertificateStoreIdentifier(
                     identifier.StorePath,
-                    identifier.StoreType!,
+                    identifier.StoreType,
                     false);
 
             return storeIdentifier.OpenStore(telemetry);

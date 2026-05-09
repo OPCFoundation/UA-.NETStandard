@@ -135,7 +135,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public void Dispose()
         {
-            if (System.Threading.Interlocked.Exchange(ref m_disposed, 1) != 0)
+            if (Interlocked.Exchange(ref m_disposed, 1) != 0)
             {
                 return;
             }
@@ -144,7 +144,7 @@ namespace Opc.Ua
 
         private void ThrowIfDisposed()
         {
-            if (System.Threading.Volatile.Read(ref m_disposed) != 0)
+            if (Volatile.Read(ref m_disposed) != 0)
             {
                 throw new ObjectDisposedException(nameof(CertificateProvider));
             }

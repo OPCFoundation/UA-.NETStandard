@@ -127,7 +127,7 @@ namespace Opc.Ua.Gds.Tests
                 GlobalDiscoveryServerConfiguration gdsConfig =
                     Config.ParseExtension<GlobalDiscoveryServerConfiguration>();
                 gdsConfig.CertificateGroups = gdsConfig.CertificateGroups.AddItems(additionalCertGroups);
-                Config.UpdateExtension<GlobalDiscoveryServerConfiguration>(null, gdsConfig);
+                Config.UpdateExtension(null, gdsConfig);
             }
 
             // check the application certificate.
@@ -320,7 +320,7 @@ namespace Opc.Ua.Gds.Tests
                 .SetRejectSHA1SignedCertificates(false)
                 .SetRejectUnknownRevocationStatus(true)
                 .SetMinimumCertificateKeySize(1024)
-                .AddExtension<GlobalDiscoveryServerConfiguration>(null, gdsConfig)
+                .AddExtension(null, gdsConfig)
                 .SetDeleteOnLoad(true)
                 .SetOutputFilePath(Path.Combine(root, "Logs", "Opc.Ua.Gds.Tests.log.txt"))
                 .SetTraceMasks(519)

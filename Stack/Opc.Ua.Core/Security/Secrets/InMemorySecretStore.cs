@@ -140,7 +140,7 @@ namespace Opc.Ua
         /// View onto a byte[] in <see cref="InMemorySecretStore"/>. The
         /// store owns the underlying buffer; disposing this view is a
         /// no-op. A future revision will wire secure-memory clearing
-        /// (for example via <see cref="Array.Clear(System.Array,int,int)"/>
+        /// (for example via <see cref="Array.Clear(Array,int,int)"/>
         /// on store removal) without changing the public surface.
         /// </summary>
         private sealed class InMemorySecret : ISecret

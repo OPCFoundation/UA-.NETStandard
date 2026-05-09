@@ -66,7 +66,7 @@ namespace Opc.Ua
         Task<CertificateValidationResult> ValidateAsync(
             CertificateCollection chain,
             TrustListIdentifier? trustList = null,
-            Opc.Ua.Security.Certificates.CertificateValidationOptions? options = null,
+            Security.Certificates.CertificateValidationOptions? options = null,
             CancellationToken ct = default);
 
         /// <summary>
@@ -99,7 +99,7 @@ namespace Opc.Ua
         /// </summary>
         /// <remarks>
         /// Per-call
-        /// <see cref="Opc.Ua.Security.Certificates.CertificateValidationOptions.AcceptError"/>
+        /// <see cref="Security.Certificates.CertificateValidationOptions.AcceptError"/>
         /// callbacks (when set on a particular <c>ValidateAsync</c> call) take
         /// precedence over this global hook.
         /// </remarks>

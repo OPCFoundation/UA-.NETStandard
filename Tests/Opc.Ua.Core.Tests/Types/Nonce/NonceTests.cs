@@ -67,7 +67,7 @@ namespace Opc.Ua.Core.Tests.Types.Nonce
         {
             if (IsSupportedByPlatform(securityPolicyUri))
             {
-                SecurityPolicyInfo info = Ua.SecurityPolicies.GetInfo(securityPolicyUri);
+                SecurityPolicyInfo info = SecurityPolicies.GetInfo(securityPolicyUri);
                 int nonceLength = info.SecureChannelNonceLength;
 
                 var nonce = Ua.Nonce.CreateNonce(securityPolicyUri);
@@ -87,7 +87,7 @@ namespace Opc.Ua.Core.Tests.Types.Nonce
         {
             if (IsSupportedByPlatform(securityPolicyUri))
             {
-                SecurityPolicyInfo info = Ua.SecurityPolicies.GetInfo(securityPolicyUri);
+                SecurityPolicyInfo info = SecurityPolicies.GetInfo(securityPolicyUri);
                 int nonceLength = info.SecureChannelNonceLength;
                 var nonceByLen = Ua.Nonce.CreateNonce(securityPolicyUri);
 
@@ -110,7 +110,7 @@ namespace Opc.Ua.Core.Tests.Types.Nonce
         {
             if (IsSupportedByPlatform(securityPolicyUri))
             {
-                SecurityPolicyInfo info = Ua.SecurityPolicies.GetInfo(securityPolicyUri);
+                SecurityPolicyInfo info = SecurityPolicies.GetInfo(securityPolicyUri);
                 int nonceLength = info.SecureChannelNonceLength;
 
                 byte[] randomValue = Ua.Nonce.CreateRandomNonceData(nonceLength);

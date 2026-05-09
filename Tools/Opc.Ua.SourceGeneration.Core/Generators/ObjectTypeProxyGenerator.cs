@@ -626,7 +626,7 @@ namespace Opc.Ua.SourceGeneration
 
         /// <summary>
         /// Returns the C# expression used to box an input argument into a
-        /// <see cref="global::Opc.Ua.Variant"/>.
+        /// <see cref="Variant"/>.
         /// </summary>
         private static string BoxInputArgument(Parameter parameter)
         {

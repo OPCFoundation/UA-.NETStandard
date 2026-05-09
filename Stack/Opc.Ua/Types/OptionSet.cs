@@ -38,21 +38,21 @@ namespace Opc.Ua.Encoders
 {
     /// <summary>
     /// Runtime representation of a concrete Structure-backed
-    /// sub-type of the abstract <see cref="Opc.Ua.OptionSet"/>
+    /// sub-type of the abstract <see cref="Ua.OptionSet"/>
     /// DataType whose field semantics are described by an
     /// <see cref="EnumDefinition"/>.
     /// </summary>
     /// <remarks>
     /// The wire format (<c>Value</c> / <c>ValidBits</c>
     /// <see cref="ByteString"/>s) is inherited from the generated
-    /// <see cref="Opc.Ua.OptionSet"/> base class. This class carries
+    /// <see cref="Ua.OptionSet"/> base class. This class carries
     /// the concrete sub-type's TypeId / encoding ids and the
     /// bit-field metadata, and self-registers with
     /// <see cref="IEncodeableFactory"/> via
     /// <see cref="IEncodeableType"/>.
     /// </remarks>
     public sealed class OptionSet :
-        global::Opc.Ua.OptionSet,
+        Ua.OptionSet,
         IEncodeableType
     {
         /// <summary>
@@ -101,8 +101,8 @@ namespace Opc.Ua.Encoders
         public EnumDefinition Definition { get; }
 
         /// <summary>
-        /// The fixed byte length of the <see cref="Opc.Ua.OptionSet.Value"/>
-        /// and <see cref="Opc.Ua.OptionSet.ValidBits"/> ByteStrings for this
+        /// The fixed byte length of the <see cref="Ua.OptionSet.Value"/>
+        /// and <see cref="Ua.OptionSet.ValidBits"/> ByteStrings for this
         /// OptionSet sub-type, derived from the highest bit index declared
         /// in <see cref="Definition"/>.
         /// </summary>
@@ -175,8 +175,8 @@ namespace Opc.Ua.Encoders
 
         /// <summary>
         /// Returns the names of all bits that are set and marked
-        /// valid according to <see cref="Opc.Ua.OptionSet.ValidBits"/>.
-        /// If <see cref="Opc.Ua.OptionSet.ValidBits"/> is empty the
+        /// valid according to <see cref="Ua.OptionSet.ValidBits"/>.
+        /// If <see cref="Ua.OptionSet.ValidBits"/> is empty the
         /// OptionSet is treated as fully valid.
         /// </summary>
         public IReadOnlyList<string> GetSetFieldNames()

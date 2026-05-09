@@ -43,7 +43,7 @@ namespace Opc.Ua
     /// <remarks>
     /// <para>
     /// Handlers are intentionally non-disposable: the previously cached
-    /// <see cref="Opc.Ua.Security.Certificates.Certificate"/> reference and
+    /// <see cref="Certificate"/> reference and
     /// sensitive byte buffers are now owned elsewhere
     /// (<see cref="ICertificateProvider"/> for certificates,
     /// <see cref="ISecretRegistry"/> for caller-supplied secrets), so the

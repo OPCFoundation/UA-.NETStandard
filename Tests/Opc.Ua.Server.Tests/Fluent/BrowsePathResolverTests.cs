@@ -111,7 +111,7 @@ namespace Opc.Ua.Server.Tests.Fluent
             ServiceResultException ex = Assert.Throws<ServiceResultException>(
                 () => BrowsePathResolver.ParseSegments(input, 0));
 
-            Assert.That(ex!.StatusCode, Is.EqualTo((uint)StatusCodes.BadBrowseNameInvalid));
+            Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadBrowseNameInvalid));
         }
 
         [TestCase("ns=;Foo")]
@@ -124,7 +124,7 @@ namespace Opc.Ua.Server.Tests.Fluent
             ServiceResultException ex = Assert.Throws<ServiceResultException>(
                 () => BrowsePathResolver.ParseSegments(input, 0));
 
-            Assert.That(ex!.StatusCode, Is.EqualTo((uint)StatusCodes.BadBrowseNameInvalid));
+            Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadBrowseNameInvalid));
         }
 
         private static SystemContext CreateContext()
@@ -172,7 +172,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                     0,
                     rootResolver: _ => null));
 
-            Assert.That(ex!.StatusCode, Is.EqualTo((uint)StatusCodes.BadNodeIdUnknown));
+            Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadNodeIdUnknown));
         }
 
         [Test]
@@ -193,7 +193,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                     2,
                     rootResolver: _ => root));
 
-            Assert.That(ex!.StatusCode, Is.EqualTo((uint)StatusCodes.BadNodeIdUnknown));
+            Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadNodeIdUnknown));
         }
     }
 }

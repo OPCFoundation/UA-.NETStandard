@@ -286,7 +286,7 @@ namespace Opc.Ua.Client.Subscriptions
                     AvailableSequenceNumbers = [],
                     NotificationMessage = new NotificationMessage
                     {
-                        SequenceNumber = h!.RequestHandle
+                        SequenceNumber = h.RequestHandle
                     },
                     Results = s.ConvertAll(_ => StatusCodes.Good),
                     SubscriptionId = 1,

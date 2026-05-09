@@ -236,7 +236,7 @@ namespace Opc.Ua.Gds.Server
                     using var x509 = Certificate.FromRawData(certificate);
                     try
                     {
-                        Security.Certificates.X509CRL crl = await certificateGroup
+                        X509CRL crl = await certificateGroup
                             .RevokeCertificateAsync(x509)
                             .ConfigureAwait(false);
                         if (crl != null)

@@ -71,14 +71,14 @@ namespace Boiler
             // strongly-typed identifier table instead of a magic string.
             builder
                 .Node(ExpandedNodeId.ToNodeId(
-                    Boiler.VariableIds.Boilers_Boiler__1_PipeX001_FTX001_Output,
+                    VariableIds.Boilers_Boiler__1_PipeX001_FTX001_Output,
                     Server.NamespaceUris))
                 .OnRead(GeneratePipeFlow);
 
             // Addressing by TypeDefinitionId — robust for well-known
             // singletons, independent of browse-path layout.
             builder
-                .NodeFromTypeId(ExpandedNodeId.ToNodeId(Boiler.ObjectTypeIds.BoilerType, Server.NamespaceUris))
+                .NodeFromTypeId(ExpandedNodeId.ToNodeId(ObjectTypeIds.BoilerType, Server.NamespaceUris))
                 .OnNodeAdded((context, node) =>
                 {
                     Server.Telemetry.CreateLogger<BoilerNodeManager>()

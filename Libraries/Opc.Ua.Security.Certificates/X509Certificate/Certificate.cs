@@ -342,7 +342,7 @@ namespace Opc.Ua.Security.Certificates
         {
             if (disposing)
             {
-                int remaining = System.Threading.Interlocked
+                int remaining = Interlocked
                     .Decrement(ref m_refCount);
                 if (remaining == 0)
                 {
@@ -519,7 +519,7 @@ namespace Opc.Ua.Security.Certificates
         {
             try
             {
-                StringBuilder sb = new System.Text.StringBuilder(128)
+                StringBuilder sb = new StringBuilder(128)
                     .Append("[Subject=").Append(Subject)
                     .Append(", Thumbprint=").Append(Thumbprint)
                     .Append(", NotBefore=").Append(
@@ -550,11 +550,11 @@ namespace Opc.Ua.Security.Certificates
         /// <exception cref="ObjectDisposedException"></exception>
         public Certificate AddRef()
         {
-            int current = System.Threading.Interlocked.Increment(ref m_refCount);
+            int current = Interlocked.Increment(ref m_refCount);
             if (current <= 1)
             {
                 // Was already at 0 (disposed) — undo and throw.
-                System.Threading.Interlocked.Decrement(ref m_refCount);
+                Interlocked.Decrement(ref m_refCount);
                 throw new ObjectDisposedException(nameof(Certificate));
             }
             return this;

@@ -1612,21 +1612,21 @@ namespace Opc.Ua.Client.Tests
         private static void SetClientNonce(Session session, byte[] value)
         {
             typeof(Session)
-                .GetField("m_clientNonce", PrivateInstance)!
+                .GetField("m_clientNonce", PrivateInstance)
                 .SetValue(session, value.ToArray());
         }
 
         private static void SetServerNonce(Session session, byte[] value)
         {
             typeof(Session)
-                .GetField("m_serverNonce", PrivateInstance)!
+                .GetField("m_serverNonce", PrivateInstance)
                 .SetValue(session, ByteString.From(value));
         }
 
         private static byte[] GetClientNonce(Session session)
         {
             return typeof(Session)
-                .GetField("m_clientNonce", PrivateInstance)!
+                .GetField("m_clientNonce", PrivateInstance)
                 .GetValue(session) is byte[] bytes
                 ? bytes.ToArray()
                 : [];
@@ -1635,8 +1635,8 @@ namespace Opc.Ua.Client.Tests
         private static byte[] GetServerNonce(Session session)
         {
             return ((ByteString)typeof(Session)
-                .GetField("m_serverNonce", PrivateInstance)!
-                .GetValue(session)!).ToArray();
+                .GetField("m_serverNonce", PrivateInstance)
+                .GetValue(session)).ToArray();
         }
     }
 }

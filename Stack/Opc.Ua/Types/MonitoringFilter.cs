@@ -135,7 +135,7 @@ namespace Opc.Ua
                 return true;
             }
 
-            var actualDeadbandType = (Ua.DeadbandType)(int)DeadbandType;
+            var actualDeadbandType = (DeadbandType)(int)DeadbandType;
             BuiltInType builtInType = value1.TypeInfo.BuiltInType;
             int valueRank = value1.TypeInfo.ValueRank;
 
@@ -590,7 +590,7 @@ namespace Opc.Ua
         private static bool ExceedsDeadband(
             Variant value1,
             Variant value2,
-            Ua.DeadbandType deadbandType,
+            DeadbandType deadbandType,
             double deadband,
             double range)
         {
@@ -633,7 +633,7 @@ namespace Opc.Ua
         private static bool ExceedsDeadband(
             double value1,
             double value2,
-            Ua.DeadbandType deadbandType,
+            DeadbandType deadbandType,
             double deadband,
             double range)
         {

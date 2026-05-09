@@ -408,7 +408,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         public void EncodeDataSetFieldWithXmlElementType()
         {
             var doc = new XmlDocument();
-            using (var reader = new System.IO.StringReader("<root>test</root>"))
+            using (var reader = new StringReader("<root>test</root>"))
             using (var xmlReader = XmlReader.Create(reader))
             {
                 doc.Load(xmlReader);

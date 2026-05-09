@@ -213,7 +213,7 @@ namespace Opc.Ua.PubSub.Tests
 
             app.UaPubSubConfigurator.AddPublishedDataSet(pds);
 
-            Opc.Ua.PubSub.PublishedData.DataCollector collector = app.DataCollector;
+            PubSub.PublishedData.DataCollector collector = app.DataCollector;
             PublishedDataSetDataType found = collector.GetPublishedDataSet("TestPDS");
             Assert.That(found, Is.Not.Null);
         }

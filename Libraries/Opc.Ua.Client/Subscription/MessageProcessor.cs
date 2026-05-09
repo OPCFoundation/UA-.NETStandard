@@ -51,13 +51,13 @@ namespace Opc.Ua.Client.Subscriptions
         /// Number of notification messages detected as missing during
         /// gap-walking of the SequenceNumber on this subscription.
         /// </summary>
-        public long MissingMessageCount => System.Threading.Volatile.Read(ref m_missingCount);
+        public long MissingMessageCount => Volatile.Read(ref m_missingCount);
 
         /// <summary>
         /// Number of republish requests issued for this subscription
         /// (counts every attempt regardless of outcome).
         /// </summary>
-        public long RepublishMessageCount => System.Threading.Volatile.Read(ref m_republishCount);
+        public long RepublishMessageCount => Volatile.Read(ref m_republishCount);
 
         /// <summary>
         /// Observability context
@@ -350,7 +350,7 @@ namespace Opc.Ua.Client.Subscriptions
                     {
                         break;
                     }
-                    System.Threading.Interlocked.Increment(ref m_missingCount);
+                    Interlocked.Increment(ref m_missingCount);
                     await TryRepublishAsync(missing, curSeqNum, ct).ConfigureAwait(false);
                 }
             }
@@ -393,7 +393,7 @@ namespace Opc.Ua.Client.Subscriptions
         private async ValueTask TryRepublishAsync(uint missing, uint curSeqNum,
             CancellationToken ct)
         {
-            System.Threading.Interlocked.Increment(ref m_republishCount);
+            Interlocked.Increment(ref m_republishCount);
             if (!AvailableInRetransmissionQueue.Contains(missing))
             {
                 Logger.LogWarning(

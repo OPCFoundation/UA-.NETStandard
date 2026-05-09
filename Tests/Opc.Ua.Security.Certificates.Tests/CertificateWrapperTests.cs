@@ -799,11 +799,11 @@ namespace Opc.Ua.Security.Certificates.Tests
             // (CryptographicException on .NET 10+, ObjectDisposedException on older runtimes)
             Exception caughtException1 = Assert.Catch(() => _ = inner1.RawData);
             Assert.That(caughtException1, Is.InstanceOf<ObjectDisposedException>()
-                .Or.InstanceOf<System.Security.Cryptography.CryptographicException>());
+                .Or.InstanceOf<CryptographicException>());
 
             Exception caughtException2 = Assert.Catch(() => _ = inner2.RawData);
             Assert.That(caughtException2, Is.InstanceOf<ObjectDisposedException>()
-                .Or.InstanceOf<System.Security.Cryptography.CryptographicException>());
+                .Or.InstanceOf<CryptographicException>());
         }
 
         [Test]

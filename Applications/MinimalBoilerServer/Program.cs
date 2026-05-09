@@ -47,6 +47,6 @@ builder.Services
         o.AutoAcceptUntrustedCertificates = true;
         o.EndpointUrls.Add($"opc.tcp://localhost:{port}/MinimalBoilerServer");
     })
-    .AddNodeManager<global::Boiler.BoilerNodeManagerFactory>();
+    .AddNodeManager<Boiler.BoilerNodeManagerFactory>();
 
 await builder.Build().RunAsync().ConfigureAwait(false);

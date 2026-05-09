@@ -146,7 +146,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             var handler = new RecordingHandler();
             try
             {
-                V2.ISubscription subscription = session.AddSubscription(
+                ISubscription subscription = session.AddSubscription(
                     handler,
                     new V2.SubscriptionOptions
                     {
@@ -247,7 +247,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             public int EventCount;
 
             public ValueTask OnDataChangeNotificationAsync(
-                V2.ISubscription subscription,
+                ISubscription subscription,
                 uint sequenceNumber,
                 DateTime publishTime,
                 ReadOnlyMemory<DataValueChange> notification,
@@ -260,7 +260,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             }
 
             public ValueTask OnEventDataNotificationAsync(
-                V2.ISubscription subscription,
+                ISubscription subscription,
                 uint sequenceNumber,
                 DateTime publishTime,
                 ReadOnlyMemory<EventNotification> notification,
@@ -272,7 +272,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             }
 
             public ValueTask OnKeepAliveNotificationAsync(
-                V2.ISubscription subscription,
+                ISubscription subscription,
                 uint sequenceNumber,
                 DateTime publishTime,
                 PublishState publishStateMask)

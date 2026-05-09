@@ -682,7 +682,7 @@ namespace Opc.Ua.Configuration
                 // validate certificate via the new CertificateManager pipeline,
                 // suppressing the same set of errors that the legacy
                 // CertificateValidation event handler used to accept.
-                var options = new Opc.Ua.Security.Certificates.CertificateValidationOptions
+                var options = new Security.Certificates.CertificateValidationOptions
                 {
                     AcceptError = (cert, error) =>
                     {
@@ -925,7 +925,7 @@ namespace Opc.Ua.Configuration
                 Utils.GetAbsoluteDirectoryPath(id.StorePath, true, true, true);
             }
 
-            Security.Certificates.ICertificateBuilder builder = DefaultCertificateFactory.Instance
+            ICertificateBuilder builder = DefaultCertificateFactory.Instance
                 .CreateApplicationCertificate(
                     configuration.ApplicationUri,
                     configuration.ApplicationName,

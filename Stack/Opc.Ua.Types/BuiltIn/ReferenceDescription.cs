@@ -38,7 +38,7 @@ namespace Opc.Ua
     /// <summary>
     /// Reference description
     /// </summary>
-    [DataContract(Namespace = Types.Namespaces.OpcUaXsd)]
+    [DataContract(Namespace = Namespaces.OpcUaXsd)]
     public class ReferenceDescription :
         IEncodeable,
         IEquatable<ReferenceDescription>,

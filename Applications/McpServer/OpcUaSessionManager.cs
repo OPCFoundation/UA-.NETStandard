@@ -191,10 +191,10 @@ namespace Opc.Ua.Mcp
             await EnsureConfigurationInternalAsync(false, ct).ConfigureAwait(false);
 
             var uri = new Uri(discoveryUrl);
-            var endpointConfiguration = EndpointConfiguration.Create(m_configuration!);
+            var endpointConfiguration = EndpointConfiguration.Create(m_configuration);
 
             using DiscoveryClient client = await DiscoveryClient.CreateAsync(
-                m_configuration!,
+                m_configuration,
                 uri,
                 endpointConfiguration,
                 ct: ct).ConfigureAwait(false);

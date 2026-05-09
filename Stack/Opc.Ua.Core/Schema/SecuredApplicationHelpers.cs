@@ -493,7 +493,7 @@ namespace Opc.Ua.Security
                 needPrivateKey: false,
                 applicationUri: null,
                 telemetry,
-                ct)!;
+                ct);
         }
 
         /// <summary>
@@ -520,7 +520,7 @@ namespace Opc.Ua.Security
                 needPrivateKey,
                 applicationUri: null,
                 telemetry,
-                ct)!;
+                ct);
         }
 
         /// <summary>
@@ -529,7 +529,7 @@ namespace Opc.Ua.Security
         public ICertificateStore OpenStore(ITelemetryContext telemetry)
         {
             Ua.CertificateIdentifier output = SecuredApplication.FromCertificateIdentifier(this);
-            return CertificateIdentifierResolver.OpenStore(output, telemetry)!;
+            return CertificateIdentifierResolver.OpenStore(output, telemetry);
         }
     }
 

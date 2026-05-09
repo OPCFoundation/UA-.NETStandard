@@ -90,7 +90,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                 defaultNamespaceIndex: kNs,
                 rootResolver: q => roots.TryGetValue(q, out NodeState n) ? n : null,
                 nodeIdResolver: id => byId.TryGetValue(id, out NodeState n) ? n : null,
-                typeIdResolver: _ => System.Array.Empty<NodeState>());
+                typeIdResolver: _ => Array.Empty<NodeState>());
 
             return (builder, root, var1, method);
         }
@@ -457,7 +457,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                 _ => null,
                 id => byType.TryGetValue(id, out IReadOnlyList<NodeState> list)
                     ? list
-                    : System.Array.Empty<NodeState>());
+                    : Array.Empty<NodeState>());
         }
 
         private static BaseObjectState MakeObject(string name, NodeId typeDefId)

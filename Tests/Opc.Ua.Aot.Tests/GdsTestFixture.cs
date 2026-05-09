@@ -329,7 +329,7 @@ namespace Opc.Ua.Aot.Tests
                 .SetRejectSHA1SignedCertificates(false)
                 .SetRejectUnknownRevocationStatus(true)
                 .SetMinimumCertificateKeySize(1024)
-                .AddExtension<GlobalDiscoveryServerConfiguration>(
+                .AddExtension(
                     null, gdsConfig)
                 .SetDeleteOnLoad(true)
                 .CreateAsync()

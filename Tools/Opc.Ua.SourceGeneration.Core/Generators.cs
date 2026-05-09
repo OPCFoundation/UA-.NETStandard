@@ -113,7 +113,7 @@ namespace Opc.Ua.SourceGeneration
                     referencedModels.TryGetValue(target.Value,
                         out ModelDependencyReference referenced) &&
                     string.Equals(referenced.Prefix, target.Prefix,
-                        System.StringComparison.Ordinal))
+                        StringComparison.Ordinal))
                 {
                     continue;
                 }
@@ -320,7 +320,7 @@ namespace Opc.Ua.SourceGeneration
                 if (referencedModels.TryGetValue(modelUri,
                         out ModelDependencyReference referenced) &&
                     string.Equals(referenced.Prefix, nodeset.Info.Prefix,
-                        System.StringComparison.Ordinal))
+                        StringComparison.Ordinal))
                 {
                     continue;
                 }

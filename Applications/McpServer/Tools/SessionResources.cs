@@ -103,7 +103,7 @@ namespace Opc.Ua.Mcp.Tools
                 ["sessionId"] = info.Session.SessionId.ToString(),
                 ["sessionName"] = info.Session.SessionName,
                 ["connectedAt"] = info.ConnectedAt.ToString("o", CultureInfo.InvariantCulture),
-                ["namespaces"] = info.Session.NamespaceUris.ToArray()!
+                ["namespaces"] = info.Session.NamespaceUris.ToArray()
                     .Select((uri, idx) => new Dictionary<string, object?>
                     {
                         ["index"] = idx,
@@ -134,7 +134,7 @@ namespace Opc.Ua.Mcp.Tools
                 });
             }
 
-            return OpcUaJsonHelper.Serialize(info.Session.NamespaceUris.ToArray()!
+            return OpcUaJsonHelper.Serialize(info.Session.NamespaceUris.ToArray()
                 .Select((uri, idx) => new Dictionary<string, object?>
                 {
                     ["index"] = idx,

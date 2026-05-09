@@ -109,7 +109,7 @@ namespace Opc.Ua.SourceGeneration
                 {
                     continue;
                 }
-                if (ns.Value == Ua.Types.Namespaces.OpcUa)
+                if (ns.Value == Types.Namespaces.OpcUa)
                 {
                     continue;
                 }
@@ -130,7 +130,7 @@ namespace Opc.Ua.SourceGeneration
                 {
                     continue;
                 }
-                if (r.ModelUri == Ua.Types.Namespaces.OpcUa)
+                if (r.ModelUri == Types.Namespaces.OpcUa)
                 {
                     continue;
                 }

@@ -49,9 +49,9 @@ namespace Opc.Ua.Schema.Xml
         public static readonly IReadOnlyDictionary<string, string> WellKnown =
             new Dictionary<string, string>
             {
-                [Opc.Ua.Types.Namespaces.OpcUaBuiltInTypes] = "BuiltInTypes.xsd",
-                [Opc.Ua.Types.Namespaces.OpcUaXsd] = "Opc.Ua.Types.xsd",
-                [Opc.Ua.Types.Namespaces.OpcUa] = "Opc.Ua.Types.xsd"
+                [Ua.Types.Namespaces.OpcUaBuiltInTypes] = "BuiltInTypes.xsd",
+                [Ua.Types.Namespaces.OpcUaXsd] = "Opc.Ua.Types.xsd",
+                [Ua.Types.Namespaces.OpcUa] = "Opc.Ua.Types.xsd"
             };
 
         /// <summary>

@@ -78,7 +78,7 @@ namespace Opc.Ua.Aot.Tests
                 }
             ];
 
-            BrowseResponse response = await fixture.Session!.BrowseAsync(
+            BrowseResponse response = await fixture.Session.BrowseAsync(
                 null, null, 100, browseDescriptions,
                 CancellationToken.None).ConfigureAwait(false);
 
@@ -117,7 +117,7 @@ namespace Opc.Ua.Aot.Tests
             };
 
             TranslateBrowsePathsToNodeIdsResponse response =
-                await fixture.Session!.TranslateBrowsePathsToNodeIdsAsync(
+                await fixture.Session.TranslateBrowsePathsToNodeIdsAsync(
                     null, browsePaths.ToArrayOf(),
                     CancellationToken.None).ConfigureAwait(false);
 
@@ -160,7 +160,7 @@ namespace Opc.Ua.Aot.Tests
                 }
             ];
 
-            ReadResponse response = await fixture.Session!.ReadAsync(
+            ReadResponse response = await fixture.Session.ReadAsync(
                 null, 0, TimestampsToReturn.Both,
                 nodesToRead, CancellationToken.None).ConfigureAwait(false);
 

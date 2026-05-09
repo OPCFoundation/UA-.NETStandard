@@ -86,17 +86,17 @@ namespace Opc.Ua.Core.Tests.Stack.Types
                     passwordProvider,
                     manager.CertificateProvider);
 
-                Assert.That(handler.Token, Is.Not.Null,
+                NUnit.Framework.Assert.That(handler.Token, Is.Not.Null,
                     "Wire-format X509IdentityToken must be populated.");
-                Assert.That(((X509IdentityToken)handler.Token).CertificateData.Length,
+                NUnit.Framework.Assert.That(((X509IdentityToken)handler.Token).CertificateData.Length,
                     Is.GreaterThan(0));
 
                 SignatureData signature = await handler.SignAsync(
                     [0x01, 0x02, 0x03, 0x04],
                     SecurityPolicies.Basic256Sha256).ConfigureAwait(false);
 
-                Assert.That(signature, Is.Not.Null);
-                Assert.That(signature.Signature.Length, Is.GreaterThan(0));
+                NUnit.Framework.Assert.That(signature, Is.Not.Null);
+                NUnit.Framework.Assert.That(signature.Signature.Length, Is.GreaterThan(0));
             }
             finally
             {

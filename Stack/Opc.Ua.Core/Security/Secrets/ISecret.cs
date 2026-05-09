@@ -54,7 +54,7 @@ namespace Opc.Ua
     ///         (best-effort; secure clearing can be added later).</item>
     ///   <item>A leased / LRU-cached implementation may return the lease
     ///         to the cache on disposal, with the cache calling
-    ///         <see cref="Array.Clear(System.Array,int,int)"/> on
+    ///         <see cref="Array.Clear(Array,int,int)"/> on
     ///         eviction.</item>
     ///   <item>A Key Vault / Kubernetes / DPAPI implementation may
     ///         discard the locally materialised bytes, release the

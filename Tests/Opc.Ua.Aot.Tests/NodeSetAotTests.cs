@@ -228,7 +228,7 @@ namespace Opc.Ua.Aot.Tests
             }
 
             await Assert.That(roundTrippedDataType).IsNotNull();
-            await Assert.That(roundTrippedDataType!.Definition).IsNotNull();
+            await Assert.That(roundTrippedDataType.Definition).IsNotNull();
             await Assert.That(roundTrippedDataType.Definition.Field.Length)
                 .IsEqualTo(3);
         }

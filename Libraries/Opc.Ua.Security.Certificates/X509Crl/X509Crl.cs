@@ -330,7 +330,7 @@ namespace Opc.Ua.Security.Certificates
         {
             if (!m_decoded)
             {
-                Decode(RawData!);
+                Decode(RawData);
             }
         }
 

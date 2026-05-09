@@ -167,7 +167,7 @@ namespace Opc.Ua.Gds.Tests
         {
             if (!s_supportedPolicyUris.Contains(securityPolicyUri))
             {
-                NUnit.Framework.Assert.Ignore(
+                Assert.Ignore(
                     $"Security policy {securityPolicyUri} is not supported on this runtime.");
             }
 
@@ -257,7 +257,7 @@ namespace Opc.Ua.Gds.Tests
             catch (ArgumentException ex) when (
                 ex.Message.Contains("No endpoint found for SecurityPolicyUri", StringComparison.Ordinal))
             {
-                NUnit.Framework.Assert.Ignore(
+                Assert.Ignore(
                     $"Security policy {m_securityPolicyUri} is not advertised by the GDS test server.");
             }
 

@@ -124,7 +124,7 @@ namespace Opc.Ua.Core.Tests.Stack.Configuration
             {
                 ApplicationName = "SecuredApp",
                 ApplicationUri = "urn:secured:app",
-                ApplicationType = Opc.Ua.Security.ApplicationType.Server_0,
+                ApplicationType = Ua.Security.ApplicationType.Server_0,
                 ProductName = "TestProduct",
                 LastExportTime = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc)
             };

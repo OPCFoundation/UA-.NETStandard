@@ -462,7 +462,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var arrayOf = new ArrayOf<int>([1, 2, 3]);
             int[]? array = (int[]?)arrayOf;
-            Assert.That(array!, Is.Not.Null);
+            Assert.That(array, Is.Not.Null);
             int[] expected = [1, 2, 3];
             Assert.That(array, Is.EquivalentTo(expected));
         }

@@ -117,9 +117,9 @@ namespace Opc.Ua.SourceGeneration
                     Model = BuildEnumModel(
                         symbol, dataTypeNamespace, dataTypeId,
                         binaryEncodingId, xmlEncodingId);
-                    ValidFields = System.Array.Empty<TypeFieldModel>();
+                    ValidFields = Array.Empty<TypeFieldModel>();
                     Diagnostics =
-                        System.Array.Empty<TypeSourceGeneratorDiagnostic>();
+                        Array.Empty<TypeSourceGeneratorDiagnostic>();
                     return;
                 }
 
@@ -132,9 +132,9 @@ namespace Opc.Ua.SourceGeneration
                     HasErrors = true;
                     ErrorMessage =
                         "[DataType] class must be declared as partial.";
-                    ValidFields = System.Array.Empty<TypeFieldModel>();
+                    ValidFields = Array.Empty<TypeFieldModel>();
                     Diagnostics =
-                        System.Array.Empty<TypeSourceGeneratorDiagnostic>();
+                        Array.Empty<TypeSourceGeneratorDiagnostic>();
                     return;
                 }
 
@@ -145,9 +145,9 @@ namespace Opc.Ua.SourceGeneration
                     HasErrors = true;
                     ErrorMessage =
                         "[DataType] class must have a parameterless ctor.";
-                    ValidFields = System.Array.Empty<TypeFieldModel>();
+                    ValidFields = Array.Empty<TypeFieldModel>();
                     Diagnostics =
-                        System.Array.Empty<TypeSourceGeneratorDiagnostic>();
+                        Array.Empty<TypeSourceGeneratorDiagnostic>();
                     return;
                 }
 
@@ -164,15 +164,15 @@ namespace Opc.Ua.SourceGeneration
                 Diagnostics = diags;
                 HasErrors = diags.Any(d => d.IsError);
             }
-            catch (System.Exception ex)
+            catch (Exception ex)
             {
                 HasErrors = true;
                 ErrorMessage =
                     $"[DataType] generator error for '{symbol.Name}': " +
                     $"{ex.GetType().Name}: {ex.Message}";
-                ValidFields ??= System.Array.Empty<TypeFieldModel>();
+                ValidFields ??= Array.Empty<TypeFieldModel>();
                 Diagnostics ??=
-                    System.Array.Empty<TypeSourceGeneratorDiagnostic>();
+                    Array.Empty<TypeSourceGeneratorDiagnostic>();
             }
         }
 

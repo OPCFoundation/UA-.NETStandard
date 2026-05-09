@@ -732,7 +732,7 @@ namespace Opc.Ua.Client.Subscriptions
                 m_completion, m_options, m_telemetry);
 
             // Act & Assert - should not throw
-            await sut.OnPublishReceivedAsync(message, null, null!).ConfigureAwait(false);
+            await sut.OnPublishReceivedAsync(message, null, null).ConfigureAwait(false);
         }
 
         [Test]
@@ -1302,7 +1302,7 @@ namespace Opc.Ua.Client.Subscriptions
             };
 
             public TestMonitoredItem(IMonitoredItemContext subscription, string name,
-                Opc.Ua.OptionsMonitor<MonitoredItems.MonitoredItemOptions> options, ILogger logger)
+                OptionsMonitor<MonitoredItems.MonitoredItemOptions> options, ILogger logger)
                 : base(subscription, name, options, logger)
             {
                 if (options.CurrentValue.StartNodeId.IsNull)
@@ -1352,7 +1352,7 @@ namespace Opc.Ua.Client.Subscriptions
             };
 
             public TestSubscription(ISubscriptionContext session, ISubscriptionNotificationHandler handler,
-                IMessageAckQueue completion, Opc.Ua.OptionsMonitor<SubscriptionOptions> options,
+                IMessageAckQueue completion, OptionsMonitor<SubscriptionOptions> options,
                 ITelemetryContext telemetry, uint? subscriptionIdForAlreadyCreatedState = null)
                 : base(session, handler, completion, !subscriptionIdForAlreadyCreatedState.HasValue ?
                       options : options.Configure(o => o with { Disabled = true }), telemetry)
@@ -1386,11 +1386,11 @@ namespace Opc.Ua.Client.Subscriptions
             }
 
             protected override MonitoredItems.MonitoredItem CreateMonitoredItem(string name,
-                IOptionsMonitor<MonitoredItems.MonitoredItemOptions> options, MonitoredItems.IMonitoredItemContext context,
+                IOptionsMonitor<MonitoredItems.MonitoredItemOptions> options, IMonitoredItemContext context,
                 ITelemetryContext telemetry)
             {
                 return new TestMonitoredItem(context, name,
-                    (Opc.Ua.OptionsMonitor<MonitoredItems.MonitoredItemOptions>)options,
+                    (OptionsMonitor<MonitoredItems.MonitoredItemOptions>)options,
                     telemetry.CreateLogger("TestMonitoredItem"));
             }
 
@@ -1402,7 +1402,7 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         private FakeMessageAckQueue m_completion;
-        private Opc.Ua.OptionsMonitor<SubscriptionOptions> m_options;
+        private OptionsMonitor<SubscriptionOptions> m_options;
         private ITelemetryContext m_telemetry;
         private Mock<ISubscriptionServiceSetClientMethods> m_mockSubscriptionServices;
         private Mock<IMonitoredItemServiceSetClientMethods> m_mockMonitoredItemServices;

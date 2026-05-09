@@ -97,7 +97,7 @@ namespace Opc.Ua.Client
                 };
             });
 
-            services.TryAddSingleton<ManagedSessionFactory>(sp =>
+            services.TryAddSingleton(sp =>
             {
                 ITelemetryContext telemetry = sp.GetRequiredService<ITelemetryContext>();
                 return new ManagedSessionFactory(telemetry);

@@ -83,7 +83,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             Assert.That(channelTlsOptions.UseTls, Is.True);
             X509CertificateCollection clientCertificates = channelTlsOptions.ClientCertificatesProvider.GetCertificates();
             Assert.That(clientCertificates, Has.Count.EqualTo(1));
-            Assert.That((clientCertificates[0] as X509Certificate2)!.HasPrivateKey, Is.True, "Client certificate needs private key");
+            Assert.That(((X509Certificate2)clientCertificates[0]).HasPrivateKey, Is.True, "Client certificate needs private key");
         }
 
 #if NET7_0_OR_GREATER

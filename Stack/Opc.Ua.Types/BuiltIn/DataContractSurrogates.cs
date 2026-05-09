@@ -1230,7 +1230,7 @@ namespace Opc.Ua
 
         /// <inheritdoc/>
         public ArrayOf<XmlElement> Value =>
-            this.ConvertAll(x => XmlElement.From(x)).ToArrayOf();
+            ConvertAll(x => XmlElement.From(x)).ToArrayOf();
 
         /// <inheritdoc/>
         public object GetValue()

@@ -54,11 +54,11 @@ namespace Opc.Ua.Core.Tests
         {
             if (store != null)
             {
-                using Opc.Ua.Security.Certificates.CertificateCollection certs
+                using Ua.Security.Certificates.CertificateCollection certs
                     = await store
                     .EnumerateAsync()
                     .ConfigureAwait(false);
-                foreach (Opc.Ua.Security.Certificates.Certificate cert in certs)
+                foreach (Ua.Security.Certificates.Certificate cert in certs)
                 {
                     await store.DeleteAsync(cert.Thumbprint).ConfigureAwait(false);
                 }

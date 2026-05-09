@@ -561,7 +561,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.That(encoder.EncodingToUse, Is.EqualTo(PubSubJsonEncoding.NonReversible));
 
             encoder.PushStructure(null);
-            encoder.UsingReversibleEncoding<int>(
+            encoder.UsingReversibleEncoding(
                 (name, value) =>
                 {
                     Assert.That(encoder.EncodingToUse, Is.EqualTo(PubSubJsonEncoding.Reversible));
@@ -583,7 +583,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.That(encoder.EncodingToUse, Is.EqualTo(PubSubJsonEncoding.Reversible));
 
             encoder.PushStructure(null);
-            encoder.UsingAlternateEncoding<int>(
+            encoder.UsingAlternateEncoding(
                 (name, value) =>
                 {
                     Assert.That(encoder.EncodingToUse, Is.EqualTo(PubSubJsonEncoding.Compact));

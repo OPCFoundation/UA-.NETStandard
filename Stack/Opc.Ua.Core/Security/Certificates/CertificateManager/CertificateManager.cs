@@ -573,7 +573,7 @@ namespace Opc.Ua
         public async Task<CertificateValidationResult> ValidateAsync(
             CertificateCollection chain,
             TrustListIdentifier? trustList = null,
-            Opc.Ua.Security.Certificates.CertificateValidationOptions? options = null,
+            Security.Certificates.CertificateValidationOptions? options = null,
             CancellationToken ct = default)
         {
             trustList ??= TrustListIdentifier.Peers;

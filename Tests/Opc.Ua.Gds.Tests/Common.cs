@@ -368,9 +368,9 @@ namespace Opc.Ua.Gds.Tests
             }
             if (store.SupportsCRLs)
             {
-                Security.Certificates.X509CRLCollection crls = await store.EnumerateCRLsAsync()
+                X509CRLCollection crls = await store.EnumerateCRLsAsync()
                     .ConfigureAwait(false);
-                foreach (Security.Certificates.X509CRL crl in crls)
+                foreach (X509CRL crl in crls)
                 {
                     await store.DeleteCRLAsync(crl).ConfigureAwait(false);
                 }

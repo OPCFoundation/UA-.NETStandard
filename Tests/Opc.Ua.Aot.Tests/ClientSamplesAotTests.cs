@@ -42,7 +42,7 @@ namespace Opc.Ua.Aot.Tests
         public async Task ReadNodesAsync()
         {
             await AotClientSamples
-                .ReadNodesAsync(fixture.Session!)
+                .ReadNodesAsync(fixture.Session)
                 .ConfigureAwait(false);
         }
 
@@ -50,7 +50,7 @@ namespace Opc.Ua.Aot.Tests
         public async Task WriteNodesAsync()
         {
             await AotClientSamples
-                .WriteNodesAsync(fixture.Session!)
+                .WriteNodesAsync(fixture.Session)
                 .ConfigureAwait(false);
         }
 
@@ -58,7 +58,7 @@ namespace Opc.Ua.Aot.Tests
         public async Task BrowseAsync()
         {
             await AotClientSamples
-                .BrowseAsync(fixture.Session!)
+                .BrowseAsync(fixture.Session)
                 .ConfigureAwait(false);
         }
 
@@ -66,7 +66,7 @@ namespace Opc.Ua.Aot.Tests
         public async Task CallMethodAsync()
         {
             await AotClientSamples
-                .CallMethodAsync(fixture.Session!)
+                .CallMethodAsync(fixture.Session)
                 .ConfigureAwait(false);
         }
 
@@ -74,7 +74,7 @@ namespace Opc.Ua.Aot.Tests
         public async Task SubscribeToDataChangesAsync()
         {
             await AotClientSamples
-                .SubscribeToDataChangesAsync(fixture.Session!)
+                .SubscribeToDataChangesAsync(fixture.Session)
                 .ConfigureAwait(false);
         }
 
@@ -83,7 +83,7 @@ namespace Opc.Ua.Aot.Tests
         {
             ArrayOf<ReferenceDescription> refs = await AotClientSamples
                 .BrowseFullAddressSpaceAsync(
-                    fixture.Session!, ObjectIds.RootFolder)
+                    fixture.Session, ObjectIds.RootFolder)
                 .ConfigureAwait(false);
             await Assert.That(refs.Count).IsGreaterThan(0);
         }
@@ -93,7 +93,7 @@ namespace Opc.Ua.Aot.Tests
         {
             IList<INode> nodes = await AotClientSamples
                 .FetchAllNodesNodeCacheAsync(
-                    fixture.Session!, ObjectIds.ObjectsFolder)
+                    fixture.Session, ObjectIds.ObjectsFolder)
                 .ConfigureAwait(false);
             await Assert.That(nodes.Count).IsGreaterThan(0);
         }
@@ -103,7 +103,7 @@ namespace Opc.Ua.Aot.Tests
         {
             var dataValue = new DataValue(new Variant(42));
             string json = AotClientSamples.FormatValueAsJson(
-                fixture.Session!.MessageContext,
+                fixture.Session.MessageContext,
                 "TestValue",
                 dataValue);
             await Assert.That(json).IsNotNull();

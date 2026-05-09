@@ -35,7 +35,7 @@ using NUnit.Framework.Interfaces;
 using Opc.Ua.Security.Certificates;
 
 // Apply leak tracking action to all test fixtures in the assembly.
-[assembly: Opc.Ua.Core.Tests.CoreLeakDetectionFixtureActionAttribute]
+[assembly: Opc.Ua.Core.Tests.CoreLeakDetectionFixtureAction]
 
 namespace Opc.Ua.Core.Tests
 {
