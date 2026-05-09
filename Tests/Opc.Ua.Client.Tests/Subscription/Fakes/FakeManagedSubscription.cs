@@ -57,6 +57,8 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
         public bool CurrentPublishingEnabled { get; set; }
         public uint CurrentMaxNotificationsPerPublish { get; set; }
         public IMonitoredItemCollection MonitoredItems { get; set; } = null!;
+        public long MissingMessageCount { get; set; }
+        public long RepublishMessageCount { get; set; }
 
         /// <summary>
         /// Recorded calls
@@ -72,13 +74,9 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
         /// Optional overrides for behaviour
         /// </summary>
         public Func<NotificationMessage, IReadOnlyList<uint>?,
-            IReadOnlyList<string>, ValueTask>? OnPublishReceivedAsyncFunc
-        { get; set; }
-
+            IReadOnlyList<string>, ValueTask>? OnPublishReceivedAsyncFunc { get; set; }
         public Func<IReadOnlyList<uint>, CancellationToken, ValueTask<bool>>?
-            OnTryCompleteTransferAsync
-        { get; set; }
-
+            OnTryCompleteTransferAsync { get; set; }
         public Func<CancellationToken, ValueTask>? OnRecreateAsync { get; set; }
         public Func<CancellationToken, ValueTask>? OnConditionRefreshAsync { get; set; }
         public Func<ValueTask>? OnDisposeAsync { get; set; }
