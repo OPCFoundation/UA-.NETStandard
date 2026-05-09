@@ -471,7 +471,7 @@ namespace Opc.Ua.Mcp
             if (!hasFilter)
             {
                 // Auto-select most secure, fall back to no-security
-                EndpointDescription? best = await CoreClientUtils.SelectEndpointAsync(
+                EndpointDescription? best = (await CoreClientUtils.SelectEndpointAsync(
                     m_configuration!,
                     endpointUrl,
                     true,
@@ -481,14 +481,9 @@ namespace Opc.Ua.Mcp
                         endpointUrl,
                         false,
                         Telemetry,
-                        ct: ct).ConfigureAwait(false);
-
-                if (best == null)
-                {
-                    throw new ServiceResultException(
+                        ct: ct).ConfigureAwait(false)) ?? throw new ServiceResultException(
                         StatusCodes.BadNotFound,
                         "No endpoints found at the specified URL.");
-                }
 
                 return best;
             }

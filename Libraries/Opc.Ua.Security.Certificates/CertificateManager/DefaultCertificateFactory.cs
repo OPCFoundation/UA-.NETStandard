@@ -101,13 +101,13 @@ namespace Opc.Ua.Security.Certificates
 
             if (applicationUri != null || (domainNames != null && domainNames.Count > 0))
             {
-                var applicationUris = applicationUri != null
+                string[] applicationUris = applicationUri != null
                     ? [applicationUri]
                     : Array.Empty<string>();
                 builder.AddExtension(
                     new X509SubjectAltNameExtension(
                         applicationUris,
-                        domainNames ?? Array.Empty<string>()));
+                        domainNames ?? []));
             }
 
             return builder;
@@ -183,7 +183,7 @@ namespace Opc.Ua.Security.Certificates
 
             // Collect application URIs from the existing certificate.
             IReadOnlyList<string> applicationUris = alternateName?.Uris
-                ?? Array.Empty<string>();
+                ?? [];
 
             // Subject Alternative Name
             var subjectAltName = new X509SubjectAltNameExtension(

@@ -276,7 +276,7 @@ namespace Opc.Ua.Client.Tests
                 publishTime: DateTime.UtcNow,
                 notification: changes.AsMemory(),
                 publishStateMask: PublishState.None,
-                stringTable: Array.Empty<string>())
+                stringTable: [])
                 .ConfigureAwait(false);
 
             Assert.That(sink.Calls, Has.Count.EqualTo(1));
@@ -336,7 +336,7 @@ namespace Opc.Ua.Client.Tests
                 publishTime: DateTime.UtcNow,
                 notification: changes.AsMemory(),
                 publishStateMask: PublishState.None,
-                stringTable: Array.Empty<string>())
+                stringTable: [])
                 .ConfigureAwait(false);
 
             Assert.That(sink.Calls, Has.Count.EqualTo(1));

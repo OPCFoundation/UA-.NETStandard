@@ -117,9 +117,9 @@ namespace Opc.Ua.SourceGeneration
                     Model = BuildEnumModel(
                         symbol, dataTypeNamespace, dataTypeId,
                         binaryEncodingId, xmlEncodingId);
-                    ValidFields = Array.Empty<TypeFieldModel>();
+                    ValidFields = [];
                     Diagnostics =
-                        Array.Empty<TypeSourceGeneratorDiagnostic>();
+                        [];
                     return;
                 }
 
@@ -132,9 +132,9 @@ namespace Opc.Ua.SourceGeneration
                     HasErrors = true;
                     ErrorMessage =
                         "[DataType] class must be declared as partial.";
-                    ValidFields = Array.Empty<TypeFieldModel>();
+                    ValidFields = [];
                     Diagnostics =
-                        Array.Empty<TypeSourceGeneratorDiagnostic>();
+                        [];
                     return;
                 }
 
@@ -145,9 +145,9 @@ namespace Opc.Ua.SourceGeneration
                     HasErrors = true;
                     ErrorMessage =
                         "[DataType] class must have a parameterless ctor.";
-                    ValidFields = Array.Empty<TypeFieldModel>();
+                    ValidFields = [];
                     Diagnostics =
-                        Array.Empty<TypeSourceGeneratorDiagnostic>();
+                        [];
                     return;
                 }
 
@@ -170,9 +170,9 @@ namespace Opc.Ua.SourceGeneration
                 ErrorMessage =
                     $"[DataType] generator error for '{symbol.Name}': " +
                     $"{ex.GetType().Name}: {ex.Message}";
-                ValidFields ??= Array.Empty<TypeFieldModel>();
+                ValidFields ??= [];
                 Diagnostics ??=
-                    Array.Empty<TypeSourceGeneratorDiagnostic>();
+                    [];
             }
         }
 

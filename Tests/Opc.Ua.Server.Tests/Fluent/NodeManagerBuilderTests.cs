@@ -96,7 +96,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                 defaultNamespaceIndex: kNs,
                 rootResolver: q => roots.TryGetValue(q, out NodeState n) ? n : null,
                 nodeIdResolver: id => byId.TryGetValue(id, out NodeState n) ? n : null,
-                typeIdResolver: _ => Array.Empty<NodeState>());
+                typeIdResolver: _ => []);
 
             return (builder, root, var1, method);
         }
@@ -211,7 +211,7 @@ namespace Opc.Ua.Server.Tests.Fluent
         {
             (NodeManagerBuilder b, _, _, MethodState m) = CreateBuilderWithGraph();
 
-            ServiceResult noop(ISystemContext c, NodeState n, ref Variant v) =>
+            static ServiceResult noop(ISystemContext c, NodeState n, ref Variant v) =>
                 ServiceResult.Good;
 
             ServiceResultException ex = Assert.Throws<ServiceResultException>(
@@ -223,7 +223,7 @@ namespace Opc.Ua.Server.Tests.Fluent
         public void OnSimpleReadCalledTwiceThrowsBadConfigurationError()
         {
             (NodeManagerBuilder b, _, _, _) = CreateBuilderWithGraph();
-            ServiceResult noop(ISystemContext c, NodeState n, ref Variant v) =>
+            static ServiceResult noop(ISystemContext c, NodeState n, ref Variant v) =>
                 ServiceResult.Good;
 
             INodeBuilder nb = b.Node("Root/Var1").OnRead(noop);
@@ -463,7 +463,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                 _ => null,
                 id => byType.TryGetValue(id, out IReadOnlyList<NodeState> list)
                     ? list
-                    : Array.Empty<NodeState>());
+                    : []);
         }
 
         private static BaseObjectState MakeObject(string name, NodeId typeDefId)

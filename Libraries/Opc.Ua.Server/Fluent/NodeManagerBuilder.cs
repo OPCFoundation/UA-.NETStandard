@@ -374,7 +374,7 @@ namespace Opc.Ua.Server.Fluent
             }
 
             IReadOnlyList<NodeState> candidates = m_typeIdResolver(typeDefinitionId)
-                ?? Array.Empty<NodeState>();
+                ?? [];
 
             if (candidates.Count == 0)
             {

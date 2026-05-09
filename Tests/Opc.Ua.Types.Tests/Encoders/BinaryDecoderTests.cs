@@ -4825,7 +4825,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
-            using var decoder = new BinaryDecoder((byte[])[], messageContext);
+            using var decoder = new BinaryDecoder(Array.Empty<byte>(), messageContext);
 
             // Act and Assert
             ServiceResultException ex = Assert.Throws<ServiceResultException>(
