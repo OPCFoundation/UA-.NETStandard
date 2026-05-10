@@ -206,6 +206,11 @@ namespace Opc.Ua.Gds.Tests
                 // Stop server and dispose
                 await server.StopAsync().ConfigureAwait(false);
             }
+            if (Application != null)
+            {
+                await Application.DisposeAsync().ConfigureAwait(false);
+                Application = null;
+            }
         }
 
         private bool AcceptCertificate(Certificate certificate, ServiceResult error)

@@ -1564,14 +1564,17 @@ namespace Opc.Ua.Configuration.Tests
                 .SetNotAfter(issuerNotAfter)
                 .SetCAConstraint(-1)
                 .CreateForRSA();
-            Certificate appCert = DefaultCertificateFactory.Instance.CreateApplicationCertificate(ApplicationUri, ApplicationName, SubjectName, domainNames)
+            using Certificate appCert = DefaultCertificateFactory.Instance.CreateApplicationCertificate(ApplicationUri, ApplicationName, SubjectName, domainNames)
                 .SetNotBefore(notBefore)
                 .SetNotAfter(notAfter)
                 .SetIssuer(rootCA)
                 .SetRSAKeySize(keySize)
                 .CreateForRSA();
+            using Certificate rootCAPublic = Certificate.FromRawData(rootCA.RawData);
 
-            return [appCert, Certificate.FromRawData(rootCA.RawData)];
+            // Collection AddRefs each cert; the using directives dispose our
+            // local references so the caller's collection holds the only refs.
+            return [appCert, rootCAPublic];
         }
 
         /// <summary>

@@ -66,6 +66,11 @@ namespace Opc.Ua.Gds.Tests
         public async Task LoadClientConfigurationAsync(int port = -1)
         {
             ApplicationInstance.MessageDlg = new ApplicationMessageDlg(m_logger);
+            if (m_application != null)
+            {
+                await m_application.DisposeAsync().ConfigureAwait(false);
+                m_application = null;
+            }
             m_application = new ApplicationInstance(m_telemetry)
             {
                 ApplicationName = "Server Configuration Push Test Client",

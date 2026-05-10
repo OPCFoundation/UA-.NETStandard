@@ -452,6 +452,8 @@ namespace Opc.Ua.Client
                 m_eccServerEphemeralKey = null;
                 m_instanceCertificate?.Dispose();
                 m_instanceCertificate = null;
+                m_instanceCertificateChain?.Dispose();
+                m_instanceCertificateChain = null;
                 m_serverCertificate?.Dispose();
                 m_serverCertificate = null;
                 m_keepAliveCancellation?.Dispose();
@@ -4325,6 +4327,7 @@ namespace Opc.Ua.Client
                     throw ServiceResultException.ConfigurationError(
                         "The client configuration does not specify an application instance certificate.");
                 m_effectiveEndpoint = m_endpoint;
+                m_instanceCertificateChain?.Dispose();
                 m_instanceCertificateChain = null; // Reload the chain too
             }
 
@@ -4376,9 +4379,9 @@ namespace Opc.Ua.Client
             if (configuration.SecurityConfiguration.SendCertificateChain)
             {
                 clientCertificateChain = [clientCertificate];
+                var issuers = new List<CertificateIssuerReference>();
                 try
                 {
-                    var issuers = new List<CertificateIssuerReference>();
                     if (configuration.CertificateManager != null)
                     {
                         await configuration.CertificateManager
@@ -4395,6 +4398,15 @@ namespace Opc.Ua.Client
                 {
                     clientCertificateChain.Dispose();
                     throw;
+                }
+                finally
+                {
+                    // GetIssuersAsync returns caller-owned references; the
+                    // chain AddRefs each one above, so we must dispose ours.
+                    for (int i = 0; i < issuers.Count; i++)
+                    {
+                        issuers[i].Certificate?.Dispose();
+                    }
                 }
             }
             return clientCertificateChain;

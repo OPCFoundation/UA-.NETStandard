@@ -85,6 +85,11 @@ namespace Opc.Ua.Gds.Tests
                 configSectionName = "Opc.Ua.GlobalDiscoveryTestClientX509Stores";
             }
 
+            if (m_application != null)
+            {
+                await m_application.DisposeAsync().ConfigureAwait(false);
+                m_application = null;
+            }
             m_application = new ApplicationInstance(m_telemetry)
             {
                 ApplicationName = "Global Discovery Client",
