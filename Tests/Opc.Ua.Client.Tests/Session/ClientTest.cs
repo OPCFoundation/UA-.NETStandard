@@ -1924,7 +1924,7 @@ namespace Opc.Ua.Client.Tests
             }
 
             // the active channel
-            ISession session1 = await ClientFixture.ConnectAsync(endpoint, userIdentity)
+            using ISession session1 = await ClientFixture.ConnectAsync(endpoint, userIdentity)
                 .ConfigureAwait(false);
             Assert.NotNull(session1);
 
@@ -1972,7 +1972,7 @@ namespace Opc.Ua.Client.Tests
             }
 
             // the active channel
-            ISession session1 = await ClientFixture.ConnectAsync(endpoint, userIdentity)
+            using ISession session1 = await ClientFixture.ConnectAsync(endpoint, userIdentity)
                 .ConfigureAwait(false);
             Assert.NotNull(session1);
 
@@ -2054,7 +2054,7 @@ namespace Opc.Ua.Client.Tests
                     }
 
                     // the active channel
-                    ISession session1 = await ClientFixture.ConnectAsync(endpoint, userIdentity)
+                    using ISession session1 = await ClientFixture.ConnectAsync(endpoint, userIdentity)
                         .ConfigureAwait(false);
                     Assert.That(session1, Is.Not.Null);
 
