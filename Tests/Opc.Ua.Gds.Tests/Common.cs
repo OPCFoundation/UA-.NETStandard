@@ -442,6 +442,20 @@ namespace Opc.Ua.Gds.Tests
                         throw;
                     }
 
+                    // Dispose the half-initialised server so its
+                    // ApplicationInstance/CertificateManager don't leak.
+                    if (server != null)
+                    {
+                        try
+                        {
+                            await server.StopServerAsync().ConfigureAwait(false);
+                        }
+                        catch
+                        {
+                        }
+                        server = null;
+                    }
+
                     testPort = UnsecureRandom.Shared.Next(
                         ServerFixtureUtils.MinTestPort,
                         ServerFixtureUtils.MaxTestPort);

@@ -209,6 +209,7 @@ namespace Opc.Ua.Server
                 IdentityToken = null;
 
                 ClientCertificate?.Dispose();
+                m_clientIssuerCertificates?.Dispose();
             }
         }
 
