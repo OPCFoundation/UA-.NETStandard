@@ -411,131 +411,142 @@ namespace Opc.Ua.Configuration
                     m_telemetry,
                     ct)
                 .ConfigureAwait(false);
-
-            // check that it is ok.
-            if (certificate != null)
+            try
             {
-                m_logger.LogInformation("Check certificate: {Certificate}", certificate);
-                bool certificateValid = await CheckApplicationInstanceCertificateAsync(
-                        configuration,
-                        id,
-                        certificate,
-                        silent,
-                        minimumKeySize,
-                        ct)
-                    .ConfigureAwait(false);
-
-                if (!certificateValid)
-                {
-                    throw ServiceResultException.ConfigurationError(
-                        "The certificate with subject {0} in the configuration is invalid.\n" +
-                        " Please update or delete the certificate from this location: {1}",
-                        id.SubjectName,
-                        Utils.ReplaceSpecialFolderNames(id.StorePath));
-                }
-            }
-            else
-            {
-                // check for missing private key.
-                certificate = await CertificateIdentifierResolver
-                    .ResolveAsync(
-                        id,
-                        registry: null,
-                        needPrivateKey: false,
-                        configuration.ApplicationUri,
-                        m_telemetry,
-                        ct)
-                    .ConfigureAwait(false);
-
+                // check that it is ok.
                 if (certificate != null)
                 {
-                    throw ServiceResultException.ConfigurationError(
-                        "Cannot access private key for certificate with thumbprint={0}",
-                        certificate.Thumbprint);
-                }
+                    m_logger.LogInformation("Check certificate: {Certificate}", certificate);
+                    bool certificateValid = await CheckApplicationInstanceCertificateAsync(
+                            configuration,
+                            id,
+                            certificate,
+                            silent,
+                            minimumKeySize,
+                            ct)
+                        .ConfigureAwait(false);
 
-                // check for missing thumbprint.
-                if (!string.IsNullOrEmpty(id.Thumbprint))
-                {
-                    if (!string.IsNullOrEmpty(id.SubjectName))
-                    {
-                        var id2 = new CertificateIdentifier
-                        {
-                            StoreType = id.StoreType,
-                            StorePath = id.StorePath,
-                            SubjectName = id.SubjectName
-                        };
-                        certificate = await CertificateIdentifierResolver
-                            .LoadPrivateKeyAsync(
-                                id2,
-                                passwordProvider,
-                                configuration.ApplicationUri,
-                                m_telemetry,
-                                ct)
-                            .ConfigureAwait(false);
-                    }
-
-                    if (certificate != null)
-                    {
-                        var message = new StringBuilder();
-                        message.AppendLine(
-                            "Thumbprint was explicitly specified in the configuration.")
-                            .AppendLine("Another certificate with the same subject name was found.")
-                            .AppendLine("Use it instead?")
-                            .AppendLine("Requested: {0}")
-                            .AppendLine("Found: {1}");
-                        if (!await ApproveMessageAsync(
-                            Utils.Format(message.ToString(), id.SubjectName, certificate.Subject), silent)
-                                .ConfigureAwait(false))
-                        {
-                            throw ServiceResultException.ConfigurationError(
-                                "Thumbprint for {0} was explicitly specified in the configuration but\n" +
-                                "another certificate with the same subject name {1} was found.",
-                                id.SubjectName,
-                                certificate.Subject);
-                        }
-                    }
-                    else
+                    if (!certificateValid)
                     {
                         throw ServiceResultException.ConfigurationError(
-                            "Thumbprint was explicitly specified in the configuration. Cannot generate a new certificate.");
+                            "The certificate with subject {0} in the configuration is invalid.\n" +
+                            " Please update or delete the certificate from this location: {1}",
+                            id.SubjectName,
+                            Utils.ReplaceSpecialFolderNames(id.StorePath));
                     }
-                }
-            }
-
-            if (certificate == null)
-            {
-                if (!DisableCertificateAutoCreation)
-                {
-                    certificate = await CreateApplicationInstanceCertificateAsync(
-                        configuration,
-                        id,
-                        minimumKeySize,
-                        lifeTimeInMonths,
-                        ct)
-                    .ConfigureAwait(false);
                 }
                 else
                 {
-                    m_logger.LogWarning("Application Instance certificate auto creation is disabled.");
+                    // check for missing private key.
+                    certificate = await CertificateIdentifierResolver
+                        .ResolveAsync(
+                            id,
+                            registry: null,
+                            needPrivateKey: false,
+                            configuration.ApplicationUri,
+                            m_telemetry,
+                            ct)
+                        .ConfigureAwait(false);
+
+                    if (certificate != null)
+                    {
+                        throw ServiceResultException.ConfigurationError(
+                            "Cannot access private key for certificate with thumbprint={0}",
+                            certificate.Thumbprint);
+                    }
+
+                    // check for missing thumbprint.
+                    if (!string.IsNullOrEmpty(id.Thumbprint))
+                    {
+                        if (!string.IsNullOrEmpty(id.SubjectName))
+                        {
+                            var id2 = new CertificateIdentifier
+                            {
+                                StoreType = id.StoreType,
+                                StorePath = id.StorePath,
+                                SubjectName = id.SubjectName
+                            };
+                            certificate = await CertificateIdentifierResolver
+                                .LoadPrivateKeyAsync(
+                                    id2,
+                                    passwordProvider,
+                                    configuration.ApplicationUri,
+                                    m_telemetry,
+                                    ct)
+                                .ConfigureAwait(false);
+                        }
+
+                        if (certificate != null)
+                        {
+                            var message = new StringBuilder();
+                            message.AppendLine(
+                                "Thumbprint was explicitly specified in the configuration.")
+                                .AppendLine("Another certificate with the same subject name was found.")
+                                .AppendLine("Use it instead?")
+                                .AppendLine("Requested: {0}")
+                                .AppendLine("Found: {1}");
+                            if (!await ApproveMessageAsync(
+                                Utils.Format(message.ToString(), id.SubjectName, certificate.Subject), silent)
+                                    .ConfigureAwait(false))
+                            {
+                                throw ServiceResultException.ConfigurationError(
+                                    "Thumbprint for {0} was explicitly specified in the configuration but\n" +
+                                    "another certificate with the same subject name {1} was found.",
+                                    id.SubjectName,
+                                    certificate.Subject);
+                            }
+                        }
+                        else
+                        {
+                            throw ServiceResultException.ConfigurationError(
+                                "Thumbprint was explicitly specified in the configuration. Cannot generate a new certificate.");
+                        }
+                    }
                 }
 
                 if (certificate == null)
                 {
-                    throw ServiceResultException.ConfigurationError(
-                        "There is no cert with subject {0} in the configuration.\n" +
-                        "Please generate a cert for your application, then copy the new cert to this location: {1}",
-                        id.SubjectName,
-                        id.StorePath);
-                }
-            }
-            else if (configuration.SecurityConfiguration.AddAppCertToTrustedStore)
-            {
-                // ensure it is trusted.
-                await AddToTrustedStoreAsync(configuration, certificate, ct).ConfigureAwait(false);
-            }
+                    if (!DisableCertificateAutoCreation)
+                    {
+                        certificate = await CreateApplicationInstanceCertificateAsync(
+                            configuration,
+                            id,
+                            minimumKeySize,
+                            lifeTimeInMonths,
+                            ct)
+                        .ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        m_logger.LogWarning("Application Instance certificate auto creation is disabled.");
+                    }
 
-            return true;
+                    if (certificate == null)
+                    {
+                        throw ServiceResultException.ConfigurationError(
+                            "There is no cert with subject {0} in the configuration.\n" +
+                            "Please generate a cert for your application, then copy the new cert to this location: {1}",
+                            id.SubjectName,
+                            id.StorePath);
+                    }
+                }
+                else if (configuration.SecurityConfiguration.AddAppCertToTrustedStore)
+                {
+                    // ensure it is trusted.
+                    await AddToTrustedStoreAsync(configuration, certificate, ct).ConfigureAwait(false);
+                }
+
+                return true;
+            }
+            finally
+            {
+                // The local 'certificate' variable is only used for validation /
+                // approval / trust-store warmup inside this method. Any cert that
+                // needs to outlive this call is reloaded via the CertificateManager
+                // registry by the caller. Dispose it here to balance the AddRef in
+                // Certificate.From / DirectoryCertificateStore.LoadPrivateKeyAsync.
+                certificate?.Dispose();
+            }
         }
 
         /// <inheritdoc/>

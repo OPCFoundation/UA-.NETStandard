@@ -639,8 +639,9 @@ namespace Opc.Ua.Bindings
 
             try
             {
+                using Certificate cert = Certificate.FromRawData(clientCertificate.RawData);
                 CertificateValidationResult result = m_quotas.CertificateValidator
-                    .ValidateAsync(Certificate.FromRawData(clientCertificate.RawData), ct: default)
+                    .ValidateAsync(cert, ct: default)
                     .GetAwaiter().GetResult();
                 if (!result.IsValid)
                 {

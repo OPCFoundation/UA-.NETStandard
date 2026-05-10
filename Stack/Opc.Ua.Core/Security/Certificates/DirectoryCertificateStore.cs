@@ -787,6 +787,7 @@ namespace Opc.Ua
                                         m_logger.LogDebug(
                                             "PEM Private key could not be verified for {Certificate}.",
                                             certificate);
+                                        certificate.Dispose();
                                     }
                                     catch (Exception exception)
                                     {
@@ -823,6 +824,7 @@ namespace Opc.Ua
                                         m_logger.LogDebug(
                                             "PEM Private key could not be verified for {Certificate}.",
                                             certificate);
+                                        certificate.Dispose();
                                     }
                                     catch (Exception exception)
                                     {

@@ -332,6 +332,9 @@ namespace Opc.Ua.Bindings
                 m_pinnedClientCertX509 = null;
                 m_pinnedClientCert?.Dispose();
                 m_pinnedClientCert = null;
+                m_settings?.ServerCertificate?.Dispose();
+                m_settings?.ClientCertificate?.Dispose();
+                m_settings?.ClientCertificateChain?.Dispose();
             }
         }
 

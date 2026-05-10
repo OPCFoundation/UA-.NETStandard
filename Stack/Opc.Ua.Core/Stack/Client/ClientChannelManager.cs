@@ -163,22 +163,33 @@ namespace Opc.Ua
                 ClientCertificateChain = clientCertificateChain
             };
 
-            if (description.ServerCertificate.Length > 0)
+            try
             {
-                settings.ServerCertificate = Utils.ParseCertificateBlob(
-                    description.ServerCertificate,
-                    messageContext.Telemetry);
-            }
+                if (description.ServerCertificate.Length > 0)
+                {
+                    settings.ServerCertificate = Utils.ParseCertificateBlob(
+                        description.ServerCertificate,
+                        messageContext.Telemetry);
+                }
 
-            if (configuration != null)
+                if (configuration != null)
+                {
+                    settings.CertificateValidator = configuration.CertificateManager;
+                }
+
+                settings.NamespaceUris = messageContext.NamespaceUris;
+                settings.Factory = messageContext.Factory;
+
+                await secureChannel.OpenAsync(connection, settings, ct).ConfigureAwait(false);
+            }
+            catch
             {
-                settings.CertificateValidator = configuration.CertificateManager;
+                // settings.ServerCertificate is allocated above; dispose on
+                // failure since the channel never assumed ownership.
+                settings.ServerCertificate?.Dispose();
+                channel.Dispose();
+                throw;
             }
-
-            settings.NamespaceUris = messageContext.NamespaceUris;
-            settings.Factory = messageContext.Factory;
-
-            await secureChannel.OpenAsync(connection, settings, ct).ConfigureAwait(false);
 
             return channel;
         }
@@ -241,22 +252,33 @@ namespace Opc.Ua
                 ClientCertificateChain = clientCertificateChain
             };
 
-            if (description.ServerCertificate.Length > 0)
+            try
             {
-                settings.ServerCertificate = Utils.ParseCertificateBlob(
-                    description.ServerCertificate,
-                    messageContext.Telemetry);
-            }
+                if (description.ServerCertificate.Length > 0)
+                {
+                    settings.ServerCertificate = Utils.ParseCertificateBlob(
+                        description.ServerCertificate,
+                        messageContext.Telemetry);
+                }
 
-            if (configuration != null)
+                if (configuration != null)
+                {
+                    settings.CertificateValidator = configuration.CertificateManager;
+                }
+
+                settings.NamespaceUris = messageContext.NamespaceUris;
+                settings.Factory = messageContext.Factory;
+
+                await secureChannel.OpenAsync(endpointUrl, settings, ct).ConfigureAwait(false);
+            }
+            catch
             {
-                settings.CertificateValidator = configuration.CertificateManager;
+                // settings.ServerCertificate is allocated above; dispose on
+                // failure since the channel never assumed ownership.
+                settings.ServerCertificate?.Dispose();
+                channel.Dispose();
+                throw;
             }
-
-            settings.NamespaceUris = messageContext.NamespaceUris;
-            settings.Factory = messageContext.Factory;
-
-            await secureChannel.OpenAsync(endpointUrl, settings, ct).ConfigureAwait(false);
             return channel;
         }
 

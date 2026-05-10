@@ -130,8 +130,11 @@ namespace Opc.Ua.Client
                   channel.MessageContext ?? template.m_configuration.CreateMessageContext(),
                   template.SubscriptionEngineFactory)
         {
-            m_instanceCertificate = template.m_instanceCertificate;
-            m_instanceCertificateChain = template.m_instanceCertificateChain;
+            // AddRef so the clone has its own reference; the template
+            // retains its existing one. Both Sessions independently
+            // dispose their respective references in Dispose.
+            m_instanceCertificate = template.m_instanceCertificate?.AddRef();
+            m_instanceCertificateChain = template.m_instanceCertificateChain?.AddRef();
             m_effectiveEndpoint = template.m_effectiveEndpoint;
             SessionFactory = template.SessionFactory;
             m_defaultSubscription = template.m_defaultSubscription;
@@ -959,6 +962,7 @@ namespace Opc.Ua.Client
             ThrowIfDisposed();
             ByteString serverCertificate = m_endpoint.Description?.ServerCertificate ?? default;
             m_sessionName = sessionConfiguration.SessionName ?? "SessionName";
+            m_serverCertificate?.Dispose();
             m_serverCertificate =
                 !serverCertificate.IsEmpty
                     ? Certificate.FromRawData(serverCertificate)
@@ -1444,6 +1448,7 @@ namespace Opc.Ua.Client
                     m_identity = identity;
                     m_previousServerNonce = m_serverNonce;
                     m_serverNonce = serverNonce;
+                    m_serverCertificate?.Dispose();
                     m_serverCertificate = serverCertificate;
 
                     // update system context.
@@ -2139,15 +2144,18 @@ namespace Opc.Ua.Client
             ServiceMessageContext messageContext = m_configuration
                 .CreateMessageContext(Factory);
 
+            // The channel takes ownership of the cert and chain. AddRef so the
+            // original Session retains its references for its own lifetime.
+            CertificateCollection? channelChain = m_configuration.SecurityConfiguration.SendCertificateChain
+                ? m_instanceCertificateChain?.AddRef()
+                : null;
             // create the channel object used to connect to the server.
             ITransportChannel channel = await UaChannelBase.CreateUaBinaryChannelAsync(
                 m_configuration,
                 ConfiguredEndpoint.Description,
                 ConfiguredEndpoint.Configuration,
-                m_instanceCertificate,
-                m_configuration.SecurityConfiguration.SendCertificateChain
-                    ? m_instanceCertificateChain
-                    : null,
+                m_instanceCertificate?.AddRef(),
+                channelChain,
                 messageContext,
                 ct).ConfigureAwait(false);
 
@@ -2195,16 +2203,19 @@ namespace Opc.Ua.Client
             ServiceMessageContext messageContext = m_configuration
                 .CreateMessageContext(Factory);
 
+            // The channel takes ownership of the cert and chain. AddRef so the
+            // original Session retains its references for its own lifetime.
+            CertificateCollection? channelChain = m_configuration.SecurityConfiguration.SendCertificateChain
+                ? m_instanceCertificateChain?.AddRef()
+                : null;
             // create the channel object used to connect to the server.
             ITransportChannel channel = await UaChannelBase.CreateUaBinaryChannelAsync(
                 m_configuration,
                 connection,
                 ConfiguredEndpoint.Description,
                 ConfiguredEndpoint.Configuration,
-                m_instanceCertificate,
-                m_configuration.SecurityConfiguration.SendCertificateChain
-                    ? m_instanceCertificateChain
-                    : null,
+                m_instanceCertificate?.AddRef(),
+                channelChain,
                 messageContext,
                 ct).ConfigureAwait(false);
 
@@ -2408,10 +2419,10 @@ namespace Opc.Ua.Client
                                 connection,
                                 m_endpoint.Description,
                                 m_endpoint.Configuration,
-                                m_instanceCertificate,
+                                m_instanceCertificate?.AddRef(),
                                 m_configuration.SecurityConfiguration
                                         .SendCertificateChain
-                                    ? m_instanceCertificateChain
+                                    ? m_instanceCertificateChain?.AddRef()
                                     : null,
                                 messageContext,
                                 ct)
@@ -2424,10 +2435,10 @@ namespace Opc.Ua.Client
                                 m_configuration,
                                 m_endpoint.Description,
                                 m_endpoint.Configuration,
-                                m_instanceCertificate,
+                                m_instanceCertificate?.AddRef(),
                                 m_configuration.SecurityConfiguration
                                         .SendCertificateChain
-                                    ? m_instanceCertificateChain
+                                    ? m_instanceCertificateChain?.AddRef()
                                     : null,
                                 messageContext,
                                 ct)
@@ -2638,6 +2649,7 @@ namespace Opc.Ua.Client
             try
             {
                 // Force reload
+                m_instanceCertificate?.Dispose();
                 m_instanceCertificate = null;
                 await LoadInstanceCertificateAsync(false, ct).ConfigureAwait(false);
             }
@@ -2755,9 +2767,9 @@ namespace Opc.Ua.Client
                             connection,
                             m_endpoint.Description,
                             m_endpoint.Configuration,
-                            m_instanceCertificate,
+                            m_instanceCertificate?.AddRef(),
                             m_configuration.SecurityConfiguration.SendCertificateChain
-                                ? m_instanceCertificateChain
+                                ? m_instanceCertificateChain?.AddRef()
                                 : null,
                             MessageContext,
                             ct).ConfigureAwait(false);
@@ -2787,9 +2799,9 @@ namespace Opc.Ua.Client
                             m_configuration,
                             m_endpoint.Description,
                             m_endpoint.Configuration,
-                            m_instanceCertificate,
+                            m_instanceCertificate?.AddRef(),
                             m_configuration.SecurityConfiguration.SendCertificateChain
-                                ? m_instanceCertificateChain
+                                ? m_instanceCertificateChain?.AddRef()
                                 : null,
                             MessageContext,
                             ct).ConfigureAwait(false);
@@ -4295,11 +4307,15 @@ namespace Opc.Ua.Client
                         "Configuration was changed for an active session.");
                 }
                 // If the configured endpoint was updated while we are closed we reload.
+                m_instanceCertificate.Dispose();
                 m_instanceCertificate = null;
             }
 
             if (m_instanceCertificate == null || !m_instanceCertificate.HasPrivateKey)
             {
+                // Dispose any previously loaded certificate that lacked a
+                // private key before overwriting it with the newly loaded one.
+                m_instanceCertificate?.Dispose();
                 m_instanceCertificate = await LoadInstanceCertificateAsync(
                     m_configuration,
                     m_endpoint.Description.SecurityPolicyUri,

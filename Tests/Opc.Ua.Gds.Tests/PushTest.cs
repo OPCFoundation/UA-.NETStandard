@@ -1198,7 +1198,7 @@ namespace Opc.Ua.Gds.Tests
                     await m_gdsClient.GDSClient.ConnectAsync(m_gdsClient.GDSClient.EndpointUrl).ConfigureAwait(false);
                     await m_pushClient.ConnectAsync(m_securityPolicyUri).ConfigureAwait(false);
 
-                    Certificate serverCertificate = Utils.ParseCertificateBlob(
+                    using Certificate serverCertificate = Utils.ParseCertificateBlob(
                         m_pushClient.PushClient.Session.ConfiguredEndpoint.Description.ServerCertificate,
                         telemetry);
 

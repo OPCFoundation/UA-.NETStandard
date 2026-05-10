@@ -27,27 +27,25 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
-using NUnit.Framework;
 using Opc.Ua.Security.Certificates;
 
-namespace Opc.Ua.Client.Tests
+namespace Opc.Ua.Aot.Tests
 {
     /// <summary>
     /// Assembly-level setup/teardown that verifies no Certificate
-    /// instances are leaked during the test run.
+    /// instances are leaked during the test run. Uses TUnit's assembly
+    /// hooks (the AOT test project does not use NUnit).
     /// </summary>
-    [SetUpFixture]
-    public class LeakDetectionSetup
+    public static class LeakDetectionSetup
     {
-        [OneTimeSetUp]
-        public void GlobalSetup()
+        [Before(Assembly)]
+        public static void GlobalSetup()
         {
             Certificate.ResetLeakCounters();
         }
 
-        [OneTimeTearDown]
-        public void GlobalTeardown()
+        [After(Assembly)]
+        public static void GlobalTeardown()
         {
             // Force GC to finalize any abandoned certificates. Multiple
             // cycles ensure that finalizable objects whose finalizer
