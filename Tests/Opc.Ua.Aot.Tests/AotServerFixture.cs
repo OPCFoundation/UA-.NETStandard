@@ -166,6 +166,11 @@ namespace Opc.Ua.Aot.Tests
                 Server.Dispose();
                 Server = null;
             }
+            if (Application != null)
+            {
+                await Application.DisposeAsync().ConfigureAwait(false);
+                Application = null;
+            }
             await Task.Delay(100).ConfigureAwait(false);
         }
 
