@@ -232,7 +232,7 @@ namespace Opc.Ua.Gds.Tests
             // to ensure the application cert is not 'fresh'
             m_telemetry = NUnitTelemetryContext.Create();
             m_server = await TestUtils.StartGDSAsync(true, CertificateStoreType.Directory).ConfigureAwait(false);
-            await m_server.StopServerAsync().ConfigureAwait(false);
+            await m_server.DisposeAsync().ConfigureAwait(false);
             await Task.Delay(1000).ConfigureAwait(false);
             m_server = await TestUtils.StartGDSAsync(false, CertificateStoreType.Directory).ConfigureAwait(false);
 
@@ -286,7 +286,7 @@ namespace Opc.Ua.Gds.Tests
                 await UnRegisterPushServerApplicationAsync().ConfigureAwait(false);
                 await m_gdsClient.DisconnectClientAsync().ConfigureAwait(false);
                 await m_pushClient.DisconnectClientAsync().ConfigureAwait(false);
-                await m_server.StopServerAsync().ConfigureAwait(false);
+                await m_server.DisposeAsync().ConfigureAwait(false);
             }
             catch
             {

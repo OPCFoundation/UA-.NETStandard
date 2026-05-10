@@ -91,7 +91,7 @@ namespace Opc.Ua.Gds.Tests
             }
             if (m_server != null)
             {
-                await m_server.StopServerAsync().ConfigureAwait(false);
+                await m_server.DisposeAsync().ConfigureAwait(false);
                 m_server = null;
             }
         }

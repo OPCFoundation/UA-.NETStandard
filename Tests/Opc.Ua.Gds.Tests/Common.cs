@@ -448,7 +448,7 @@ namespace Opc.Ua.Gds.Tests
                     {
                         try
                         {
-                            await server.StopServerAsync().ConfigureAwait(false);
+                            await server.DisposeAsync().ConfigureAwait(false);
                         }
                         catch
                         {

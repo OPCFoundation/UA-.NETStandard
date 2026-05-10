@@ -42,7 +42,7 @@ using Opc.Ua.Server.UserDatabase;
 
 namespace Opc.Ua.Gds.Tests
 {
-    public class GlobalDiscoveryTestServer
+    public class GlobalDiscoveryTestServer : IAsyncDisposable
     {
         public GlobalDiscoverySampleServer Server { get; private set; }
         public IApplicationInstance Application { get; private set; }
@@ -55,6 +55,20 @@ namespace Opc.Ua.Gds.Tests
             m_telemetry = telemetry;
             m_logger = telemetry.CreateLogger<GlobalDiscoveryTestServer>();
             m_maxTrustListSize = maxTrustListSize;
+        }
+
+        /// <summary>
+        /// Stop and dispose the server and its ApplicationInstance.
+        /// </summary>
+        public async ValueTask DisposeAsync()
+        {
+            await StopServerAsync().ConfigureAwait(false);
+            if (Application != null)
+            {
+                await Application.DisposeAsync().ConfigureAwait(false);
+                Application = null;
+            }
+            GC.SuppressFinalize(this);
         }
 
         public async Task StartServerAsync(
@@ -205,11 +219,6 @@ namespace Opc.Ua.Gds.Tests
                 Server = null;
                 // Stop server and dispose
                 await server.StopAsync().ConfigureAwait(false);
-            }
-            if (Application != null)
-            {
-                await Application.DisposeAsync().ConfigureAwait(false);
-                Application = null;
             }
         }
 

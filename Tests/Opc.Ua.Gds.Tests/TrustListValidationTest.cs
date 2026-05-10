@@ -70,7 +70,7 @@ namespace Opc.Ua.Gds.Tests
             try
             {
                 await m_pushClient.DisconnectClientAsync().ConfigureAwait(false);
-                await m_server.StopServerAsync().ConfigureAwait(false);
+                await m_server.DisposeAsync().ConfigureAwait(false);
             }
             catch
             {
@@ -222,7 +222,7 @@ namespace Opc.Ua.Gds.Tests
             const int customMaxTrustListSize = 8192; // 8 KB
 
             // Update server configuration
-            await m_server.StopServerAsync().ConfigureAwait(false);
+            await m_server.DisposeAsync().ConfigureAwait(false);
             m_server = await TestUtils.StartGDSAsync(false, CertificateStoreType.Directory, customMaxTrustListSize).ConfigureAwait(false);
             await m_pushClient.LoadClientConfigurationAsync(m_server.BasePort).ConfigureAwait(false);
             await m_pushClient.ConnectAsync(SecurityPolicies.Aes256_Sha256_RsaPss).ConfigureAwait(false);
@@ -295,7 +295,7 @@ namespace Opc.Ua.Gds.Tests
             finally
             {
                 // Restore original server configuration
-                await m_server.StopServerAsync().ConfigureAwait(false);
+                await m_server.DisposeAsync().ConfigureAwait(false);
                 m_server = await TestUtils.StartGDSAsync(false, CertificateStoreType.Directory, 0).ConfigureAwait(false);
                 await m_pushClient.LoadClientConfigurationAsync(m_server.BasePort).ConfigureAwait(false);
                 await m_pushClient.ConnectAsync(SecurityPolicies.Aes256_Sha256_RsaPss).ConfigureAwait(false);
