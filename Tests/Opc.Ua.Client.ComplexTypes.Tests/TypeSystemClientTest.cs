@@ -119,7 +119,12 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             m_clientFixture = new ClientFixture(telemetry);
 
             await m_clientFixture.LoadClientConfigurationAsync(m_pkiRoot).ConfigureAwait(false);
-            m_clientFixture.Config.TransportQuotas.MaxMessageSize = 4 * 1024 * 1024;
+            // The cttunit branch's added node managers (FileSystem, AliasName,
+            // Role) plus the extended A&C alarm instances grow the
+            // ReferenceServer's address space beyond the previous 4 MB
+            // budget. Bump the client's MaxMessageSize so BrowseComplexTypes /
+            // FetchComplexTypes responses are accepted.
+            m_clientFixture.Config.TransportQuotas.MaxMessageSize = 16 * 1024 * 1024;
             m_url = new Uri(
                 m_uriScheme +
                 "://localhost:" +
