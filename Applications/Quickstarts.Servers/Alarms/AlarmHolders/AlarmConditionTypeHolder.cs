@@ -92,9 +92,12 @@ namespace Alarms
                         QualifiedName.From(BrowseNames.ShelvingState),
                         LocalizedText.From(BrowseNames.ShelvingState),
                         false);
+                    alarm.ShelvingState.LastTransition ??=
+                        alarm.ShelvingState.AddLastTransition(SystemContext);
                 }
                 // Off normal does not create MaxTimeShelved.
                 alarm.MaxTimeShelved ??= PropertyState<double>.With<VariantBuilder>(alarm);
+                alarm.LatchedState ??= alarm.AddLatchedState(SystemContext);
             }
 
             // Call the base class to set parameters

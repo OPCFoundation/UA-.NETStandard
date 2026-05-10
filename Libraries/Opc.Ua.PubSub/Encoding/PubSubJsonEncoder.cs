@@ -3093,21 +3093,10 @@ namespace Opc.Ua.PubSub.Encoding
 
                 foreach (Variant ii in list)
                 {
-                    if (ii is Variant vt)
-                    {
-                        PushStructure(null);
-                        WriteVariantContents(vt.Value, vt.TypeInfo);
-                        PopStructure();
-                    }
-                    else
-                    {
-                        if (m_commaRequired)
-                        {
-                            m_writer.Write(kComma);
-                        }
-
-                        m_writer.Write(kNull);
-                    }
+                    Variant vt = ii;
+                    PushStructure(null);
+                    WriteVariantContents(vt.Value, vt.TypeInfo);
+                    PopStructure();
                 }
 
                 PopArray();

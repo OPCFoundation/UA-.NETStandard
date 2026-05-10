@@ -121,6 +121,16 @@ namespace Opc.Ua
         public ServiceResult ServerError { get; protected set; }
 
         /// <summary>
+        /// An optional hook that can mutate the service response before
+        /// it is returned to the client. Production servers leave this
+        /// null. Test code can install an
+        /// <see cref="IServiceResponseMutator"/> to inject service-level
+        /// error codes or alter response fields for client conformance
+        /// testing.
+        /// </summary>
+        public IServiceResponseMutator ResponseMutator { get; set; }
+
+        /// <summary>
         /// Returns the endpoints supported by the server.
         /// </summary>
         /// <returns>Returns a collection of EndpointDescription.</returns>

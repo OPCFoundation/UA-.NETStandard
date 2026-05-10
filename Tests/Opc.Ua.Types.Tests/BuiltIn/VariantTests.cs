@@ -845,7 +845,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(variant, Is.EqualTo((object)"value"));
             Assert.That(variant, Is.Not.EqualTo((object)"other"));
 #pragma warning disable NUnit2010 // Use EqualConstraint for better assertion messages in case of failure
-            Assert.That(Variant.Null.Equals((object)null));
+            object nullObject = null;
+            Assert.That(((object)Variant.Null).Equals(nullObject));
 #pragma warning restore NUnit2010 // Use EqualConstraint for better assertion messages in case of failure
         }
 

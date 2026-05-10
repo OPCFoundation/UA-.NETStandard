@@ -629,13 +629,55 @@ namespace Opc.Ua.Server
                 // (e.g. ApplicationId) are preserved rather than losing the type by wrapping.
                 if (effectiveIdentity is RoleBasedIdentity rbi)
                 {
-                    return rbi.WithAdditionalRoles([Role.TrustedApplication], m_server.NamespaceUris);
+                    effectiveIdentity = rbi.WithAdditionalRoles([Role.TrustedApplication], m_server.NamespaceUris);
                 }
+                else
+                {
+                    effectiveIdentity = new RoleBasedIdentity(
+                        effectiveIdentity,
+                        [Role.TrustedApplication],
+                        m_server.NamespaceUris);
+                }
+            }
 
-                return new RoleBasedIdentity(
+            // Layer in roles from the live RoleManager identity-mapping rules
+            // (Part 18 §4.4.4). Roles already granted by the user or
+            // ImpersonateUser callbacks are preserved.
+            IRoleManager roleManager = m_server.RoleManager;
+            if (roleManager != null)
+            {
+                IList<NodeId> dynamicRoleIds = roleManager.ResolveGrantedRoles(
                     effectiveIdentity,
-                    [Role.TrustedApplication],
-                    m_server.NamespaceUris);
+                    session.ClientCertificate,
+                    context.ChannelContext?.EndpointDescription);
+
+                if (dynamicRoleIds.Count > 0)
+                {
+                    var dynamicRoles = new List<Role>(dynamicRoleIds.Count);
+                    foreach (NodeId roleId in dynamicRoleIds)
+                    {
+                        if (effectiveIdentity.GrantedRoleIds.Contains(roleId))
+                        {
+                            continue;
+                        }
+                        dynamicRoles.Add(new Role(roleId, roleId.ToString()));
+                    }
+
+                    if (dynamicRoles.Count > 0)
+                    {
+                        if (effectiveIdentity is RoleBasedIdentity rbi2)
+                        {
+                            effectiveIdentity = rbi2.WithAdditionalRoles(dynamicRoles, m_server.NamespaceUris);
+                        }
+                        else
+                        {
+                            effectiveIdentity = new RoleBasedIdentity(
+                                effectiveIdentity,
+                                dynamicRoles,
+                                m_server.NamespaceUris);
+                        }
+                    }
+                }
             }
 
             return effectiveIdentity;
@@ -1054,6 +1096,12 @@ namespace Opc.Ua.Server
             {
                 m_clientLockouts.TryRemove(clientKey, out _);
             }
+        }
+
+        /// <inheritdoc/>
+        public void ClearAuthenticationLockouts()
+        {
+            m_clientLockouts.Clear();
         }
 
         /// <summary>
