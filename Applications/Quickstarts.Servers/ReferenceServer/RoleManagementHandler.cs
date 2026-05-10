@@ -611,26 +611,15 @@ namespace Quickstarts.ReferenceServer
             criteriaType = 0;
             criteria = null;
 
-            try
+            // Cast to the canonical generated type. AOT/trim-safe — no
+            // reflection, the type is statically referenced via the
+            // sourcegen output. The previous reflection-based fallback
+            // tripped IL2075 on the publish-AOT job.
+            if (encodeable is IdentityMappingRuleType rule)
             {
-                var type = encodeable.GetType();
-                var ctProp = type.GetProperty("CriteriaType");
-                var cProp = type.GetProperty("Criteria");
-
-                if (ctProp != null && cProp != null)
-                {
-                    criteriaType = Convert.ToInt32(ctProp.GetValue(encodeable));
-                    criteria = cProp.GetValue(encodeable) as string;
-                    return criteria != null;
-                }
-            }
-            catch (Exception ex) when (
-                ex is FormatException or
-                OverflowException or
-                InvalidCastException or
-                System.Reflection.TargetInvocationException)
-            {
-                // Fall through to return false.
+                criteriaType = (int)rule.CriteriaType;
+                criteria = rule.Criteria;
+                return criteria != null;
             }
 
             return false;
@@ -668,21 +657,15 @@ namespace Quickstarts.ReferenceServer
                 return url;
             }
 
+            // Cast to the canonical generated EndpointType. AOT/trim-safe —
+            // no reflection, the type is statically referenced via the
+            // sourcegen output. The previous Object.GetType().GetProperty
+            // path tripped IL2075 on the publish-AOT job.
             if (variant.TryGetValue(out ExtensionObject ext) &&
-                ext.TryGetValue(out IEncodeable encodeable))
+                ext.TryGetValue(out IEncodeable encodeable) &&
+                encodeable is EndpointType endpoint)
             {
-                try
-                {
-                    var urlProp = encodeable.GetType()
-                        .GetProperty("EndpointUrl");
-                    return urlProp?.GetValue(encodeable) as string;
-                }
-                catch (Exception ex) when (
-                    ex is InvalidCastException or
-                    System.Reflection.TargetInvocationException)
-                {
-                    return null;
-                }
+                return endpoint.EndpointUrl;
             }
 
             return null;
