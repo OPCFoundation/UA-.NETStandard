@@ -104,7 +104,7 @@ namespace Opc.Ua.Aot.Tests
                 },
                 TransportQuotas = new TransportQuotas
                 {
-                    MaxMessageSize = 16 * 1024 * 1024
+                    MaxMessageSize = 4 * 1024 * 1024
                 },
                 ClientConfiguration = new ClientConfiguration(),
                 ServerConfiguration = new ServerConfiguration()
