@@ -76,11 +76,9 @@ namespace Opc.Ua.Aot.Tests
                 .Build(
                     "urn:localhost:UA:" + typeof(T).Name,
                     "uri:opcfoundation.org:" + typeof(T).Name)
-                .SetMaxByteStringLength(16 * 1024 * 1024)
+                .SetMaxByteStringLength(4 * 1024 * 1024)
                 .SetMaxArrayLength(1024 * 1024)
-                .SetMaxStringLength(16 * 1024 * 1024)
-                .SetMaxMessageSize(64 * 1024 * 1024)
-                .SetMaxBufferSize(64 * 1024 * 1024)
+                .SetMaxMessageSize(16 * 1024 * 1024)
                 .SetChannelLifetime(30000)
                 .AsServer([endpointUrl]);
 
