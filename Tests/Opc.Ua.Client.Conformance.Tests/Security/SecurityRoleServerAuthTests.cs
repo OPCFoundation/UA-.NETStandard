@@ -100,8 +100,8 @@ namespace Opc.Ua.Client.Conformance.Tests
                     async () =>
                     {
                         using ISession session =
-                            await ClientFixture.ConnectAsync(
-                                ServerUrl, policy,
+                            await OpenAuxSessionAsync(
+                                securityProfile: policy,
                                 userIdentity: new UserIdentity(
                                     "unmapped_user_xyz",
                                     "badpassword"u8))

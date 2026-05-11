@@ -307,9 +307,8 @@ namespace Opc.Ua.Client.Conformance.Tests
 
             try
             {
-                ISession session = await ClientFixture
-                    .ConnectAsync(ServerUrl, SecurityPolicies.None,
-                        userIdentity: new UserIdentity(string.Empty, ""u8))
+                ISession session = await OpenAuxSessionAsync(
+                    userIdentity: new UserIdentity(string.Empty, ""u8))
                     .ConfigureAwait(false);
                 await session.CloseAsync(5000, true).ConfigureAwait(false);
                 session.Dispose();
@@ -361,9 +360,8 @@ namespace Opc.Ua.Client.Conformance.Tests
 
             try
             {
-                ISession session = await ClientFixture
-                    .ConnectAsync(ServerUrl, SecurityPolicies.None,
-                        userIdentity: new UserIdentity("sysadmin", "WRONG_PASSWORD_12345"u8))
+                ISession session = await OpenAuxSessionAsync(
+                    userIdentity: new UserIdentity("sysadmin", "WRONG_PASSWORD_12345"u8))
                     .ConfigureAwait(false);
                 await session.CloseAsync(5000, true).ConfigureAwait(false);
                 session.Dispose();
@@ -464,9 +462,8 @@ namespace Opc.Ua.Client.Conformance.Tests
 
             try
             {
-                ISession session = await ClientFixture
-                    .ConnectAsync(ServerUrl, SecurityPolicies.None,
-                        userIdentity: new UserIdentity("appuser", "demo"u8))
+                ISession session = await OpenAuxSessionAsync(
+                    userIdentity: new UserIdentity("appuser", "demo"u8))
                     .ConfigureAwait(false);
                 Assert.That(session.Connected, Is.True);
                 await session.CloseAsync(5000, true).ConfigureAwait(false);
@@ -515,9 +512,8 @@ namespace Opc.Ua.Client.Conformance.Tests
             // Expect rejection — the point is the server handles it
             try
             {
-                ISession session = await ClientFixture
-                    .ConnectAsync(ServerUrl, SecurityPolicies.None,
-                        userIdentity: new UserIdentity("user@#$%^&*()", "demo"u8))
+                ISession session = await OpenAuxSessionAsync(
+                    userIdentity: new UserIdentity("user@#$%^&*()", "demo"u8))
                     .ConfigureAwait(false);
                 await session.CloseAsync(5000, true).ConfigureAwait(false);
                 session.Dispose();
