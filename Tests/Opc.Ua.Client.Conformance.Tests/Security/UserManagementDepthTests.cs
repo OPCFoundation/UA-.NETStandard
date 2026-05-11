@@ -685,10 +685,20 @@ namespace Opc.Ua.Client.Conformance.Tests
 
         private async Task<ISession> TryConnectAsUserAsync(string userName, string password)
         {
+            // Bypass the ClientFixture retry loop: this helper is invoked from tests
+            // that intentionally use bad credentials and expect failure. Retrying 25 times
+            // floods the server with bad auth attempts and triggers user-lockout (which
+            // then cascades to BadUserAccessDenied in every subsequent test). Resolve the
+            // endpoint once and call the non-retrying ConnectAsync overload.
             try
             {
-                return await ClientFixture.ConnectAsync(ServerUrl, SecurityPolicies.None,
-                    userIdentity: new UserIdentity(userName, Encoding.UTF8.GetBytes(password))).ConfigureAwait(false);
+                ConfiguredEndpoint endpoint = await ClientFixture
+                    .GetEndpointAsync(ServerUrl, SecurityPolicies.None)
+                    .ConfigureAwait(false);
+                return await ClientFixture
+                    .ConnectAsync(endpoint,
+                        new UserIdentity(userName, Encoding.UTF8.GetBytes(password)))
+                    .ConfigureAwait(false);
             }
             catch (ServiceResultException)
             {
