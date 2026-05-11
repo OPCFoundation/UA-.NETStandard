@@ -73,12 +73,6 @@ namespace Opc.Ua.Client.Conformance.Tests
             ServerFixture.Config.TransportQuotas.MaxByteStringLength =
                 ServerFixture.Config.TransportQuotas.MaxStringLength = TransportQuotaMaxStringLength;
 
-            // CI runners (especially Ubuntu/macOS hosted runners) are often
-            // slow under load. Bump OperationTimeout from the default 120 s
-            // to 5 min so CreateSubscription / Browse calls don't surface
-            // spurious BadRequestTimeout cascades.
-            ServerFixture.Config.TransportQuotas.OperationTimeout = 300_000;
-
             // Enable all user token types so security tests can authenticate
             ServerFixture.Config.ServerConfiguration.UserTokenPolicies =
                 new UserTokenPolicy[] {
@@ -152,7 +146,6 @@ namespace Opc.Ua.Client.Conformance.Tests
             ClientFixture.Config.TransportQuotas.MaxMessageSize = TransportQuotaMaxMessageSize;
             ClientFixture.Config.TransportQuotas.MaxByteStringLength =
                 ClientFixture.Config.TransportQuotas.MaxStringLength = TransportQuotaMaxStringLength;
-            ClientFixture.Config.TransportQuotas.OperationTimeout = 300_000;
 
             Session = await ClientFixture
                 .ConnectAsync(ServerUrl, SecurityPolicies.None)

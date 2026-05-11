@@ -17,6 +17,12 @@ jobs:
   build-and-test:
     name: test-${{matrix.os}}-${{matrix.csproj}}
     runs-on: ${{ matrix.os }}
+    # The conformance test suite has ~3,257 NUnit fixtures, many of which
+    # are [NonParallelizable] and exercise live keep-alive / publishing
+    # timers. On hosted Ubuntu runners the suite can run >2 h under load;
+    # cap individual jobs at 2.5 h so they fail fast rather than hitting
+    # GitHub Actions' 6 h hard limit and reporting as "cancelled".
+    timeout-minutes: 150
     strategy:
       fail-fast: false
       matrix:
