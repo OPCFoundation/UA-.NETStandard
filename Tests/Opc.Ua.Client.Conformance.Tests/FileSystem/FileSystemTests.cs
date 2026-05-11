@@ -382,7 +382,11 @@ namespace Opc.Ua.Client.Conformance.Tests
 
             if (children.Count == 0)
             {
-                Assert.Fail($"Volume '{m_volumeName}' is empty.");
+                // Some CI hosts expose empty volumes such as
+                // /sys/fs/fuse/connections on Linux. The FileSystem manager
+                // correctly surfaces them; an empty volume is a valid
+                // server response, not a test failure.
+                Assert.Ignore($"Volume '{m_volumeName}' is empty.");
             }
 
             Assert.That(children.Count, Is.GreaterThan(0));
