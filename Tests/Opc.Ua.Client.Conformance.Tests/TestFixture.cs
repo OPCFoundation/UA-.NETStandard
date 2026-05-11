@@ -55,9 +55,12 @@ namespace Opc.Ua.Client.Conformance.Tests
             m_pkiRoot = Path.GetTempPath() + Path.GetRandomFileName();
             m_logger.LogInformation("Test PkiRoot: {PkiRoot}", m_pkiRoot);
 
-            // Start in-process ReferenceServer
+            // Start in-process ReferenceServer with the optional conformance
+            // node managers enabled (Part 17 AliasName + FileSystem). These
+            // are off by default so the standard test fixtures keep a small
+            // address space; conformance tests need them.
             ServerFixture = new ServerFixture<ReferenceServer>(
-                t => new ReferenceServer(t))
+                t => new ReferenceServer(t) { EnableConformanceNodeManagers = true })
             {
                 AutoAccept = true,
                 SecurityNone = true,

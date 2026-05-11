@@ -105,6 +105,16 @@ namespace Quickstarts.ReferenceServer
         public bool ProvisioningMode { get; set; }
 
         /// <summary>
+        /// If true, the server creates the optional node managers used by the
+        /// conformance test suite (Role/RoleSet, Part 17 AliasName, FileSystem
+        /// node manager). These materially grow the address space — only
+        /// enable them in tests / hosts that exercise those features. Default
+        /// is <c>false</c> so the standard test fixtures keep a small,
+        /// browse-friendly address space.
+        /// </summary>
+        public bool EnableConformanceNodeManagers { get; set; }
+
+        /// <summary>
         /// The user database used for credential verification and user management.
         /// </summary>
         public IUserDatabase UserDatabase => m_userDatabase;
@@ -171,14 +181,17 @@ namespace Quickstarts.ReferenceServer
                 server, configuration, m_roleManagement);
             nodeManagers.Add(roleNodeManager);
 
-            // OPC UA Part 17 — AliasName provider for the reference server.
-            var aliasNameNodeManager = new AliasNameNodeManager(server, configuration);
-            nodeManagers.Add(aliasNameNodeManager);
+            if (EnableConformanceNodeManagers)
+            {
+                // OPC UA Part 17 — AliasName provider for the reference server.
+                var aliasNameNodeManager = new AliasNameNodeManager(server, configuration);
+                nodeManagers.Add(aliasNameNodeManager);
 
-            // FileSystem node manager — exposes host drives/directories/files
-            // under the Server object using FileDirectoryType / FileType.
-            var fileSystemNodeManager = new Quickstarts.FileSystem.FileSystemNodeManager(server, configuration);
-            nodeManagers.Add(fileSystemNodeManager);
+                // FileSystem node manager — exposes host drives/directories/files
+                // under the Server object using FileDirectoryType / FileType.
+                var fileSystemNodeManager = new Quickstarts.FileSystem.FileSystemNodeManager(server, configuration);
+                nodeManagers.Add(fileSystemNodeManager);
+            }
 
             return new MasterNodeManager(server, configuration, null, asyncNodeManagers, nodeManagers);
         }
