@@ -146,6 +146,12 @@ namespace Opc.Ua.Client.Conformance.Tests
             ClientFixture.Config.TransportQuotas.MaxMessageSize = TransportQuotaMaxMessageSize;
             ClientFixture.Config.TransportQuotas.MaxByteStringLength =
                 ClientFixture.Config.TransportQuotas.MaxStringLength = TransportQuotaMaxStringLength;
+            // Slow CI runners need more headroom than the ClientFixture's
+            // defaults (10 s SessionTimeout / 10 s OperationTimeout) to avoid
+            // spurious BadRequestTimeout on Publish / CreateSubscription and
+            // session death between tests. Bump both to 5 minutes.
+            ClientFixture.SessionTimeout = 300_000;
+            ClientFixture.OperationTimeout = 300_000;
 
             Session = await ClientFixture
                 .ConnectAsync(ServerUrl, SecurityPolicies.None)
