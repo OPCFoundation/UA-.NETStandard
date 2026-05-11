@@ -81,7 +81,9 @@ namespace Opc.Ua.SourceGeneration.Tester
         private sealed class Telemetry : TelemetryContextBase
         {
             public Telemetry()
+#pragma warning disable CA2000 // Dispose objects before losing scope
                 : base(Microsoft.Extensions.Logging.LoggerFactory.Create(p => p.AddConsole()))
+#pragma warning restore CA2000 // Dispose objects before losing scope
             {
             }
         }
