@@ -289,6 +289,13 @@ namespace Opc.Ua.Client.Tests
                     ).ConfigureAwait(false);
                     return await ConnectAsync(endpoint, userIdentity).ConfigureAwait(false);
                 }
+                catch (ServiceResultException e) when (IsPermanentConnectFailure(e.StatusCode.Code))
+                {
+                    // Permanent failure (bad credentials, bad cert, rejected
+                    // security policy etc.). Retrying just floods the server
+                    // and can lock out the account.
+                    throw;
+                }
                 catch (ServiceResultException e) when (
                 (
                     e.StatusCode == StatusCodes.BadServerHalted ||
@@ -311,6 +318,37 @@ namespace Opc.Ua.Client.Tests
             }
 
             throw new ServiceResultException(StatusCodes.BadNoCommunication);
+        }
+
+        /// <summary>
+        /// True for service-result status codes that indicate a permanent
+        /// connect failure that won't be resolved by retrying — namely
+        /// authentication and certificate-validation errors. Retrying these
+        /// would cause the test to spend 25 s flooding the server with bad
+        /// auth attempts, which can trip the failed-auth lockout and
+        /// poison later tests.
+        /// </summary>
+        private static bool IsPermanentConnectFailure(uint statusCode)
+        {
+            return statusCode == StatusCodes.BadIdentityTokenInvalid
+                || statusCode == StatusCodes.BadIdentityTokenRejected
+                || statusCode == StatusCodes.BadUserAccessDenied
+                || statusCode == StatusCodes.BadCertificateInvalid
+                || statusCode == StatusCodes.BadCertificateUntrusted
+                || statusCode == StatusCodes.BadCertificateTimeInvalid
+                || statusCode == StatusCodes.BadCertificateIssuerTimeInvalid
+                || statusCode == StatusCodes.BadCertificateHostNameInvalid
+                || statusCode == StatusCodes.BadCertificateUriInvalid
+                || statusCode == StatusCodes.BadCertificateUseNotAllowed
+                || statusCode == StatusCodes.BadCertificateIssuerUseNotAllowed
+                || statusCode == StatusCodes.BadCertificateRevoked
+                || statusCode == StatusCodes.BadCertificateIssuerRevoked
+                || statusCode == StatusCodes.BadCertificateRevocationUnknown
+                || statusCode == StatusCodes.BadCertificateIssuerRevocationUnknown
+                || statusCode == StatusCodes.BadCertificatePolicyCheckFailed
+                || statusCode == StatusCodes.BadSecurityChecksFailed
+                || statusCode == StatusCodes.BadSecurityPolicyRejected
+                || statusCode == StatusCodes.BadSecurityModeRejected;
         }
 
         /// <summary>

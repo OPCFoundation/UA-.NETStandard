@@ -147,8 +147,10 @@ namespace Opc.Ua.Client.Conformance.Tests
             ISession session;
             try
             {
-                session = await ClientFixture.ConnectAsync(
-                    ServerUrl, SecurityPolicies.None,
+                // Use the no-retry helper: 'appuser' may not exist on the
+                // configured server, and the 25-retry wrapper would lock out
+                // the account for 5 minutes (see SetUp ClearAuthenticationLockouts).
+                session = await OpenAuxSessionAsync(
                     userIdentity: new UserIdentity("appuser", "demo"u8))
                     .ConfigureAwait(false);
             }
