@@ -155,7 +155,7 @@ namespace Opc.Ua.Client.Conformance.Tests
         }
 
         [SetUp]
-        public void ResetServerLockoutState()
+        public async Task ResetServerLockoutState()
         {
             // Prior tests (especially negative auth tests) can trigger the
             // SessionManager's failed-authentication lockout (5 attempts /
@@ -173,6 +173,27 @@ namespace Opc.Ua.Client.Conformance.Tests
             // Clear any registered mock-response expectations so each test
             // starts from a clean state.
             MockController?.Reset();
+
+            // If a prior test poisoned the shared session (typical cascade
+            // pattern: one CreateSubscription / Publish timed out on a slow
+            // CI runner -> BadSessionIdInvalid on subsequent calls), re-open
+            // the session so the next test runs against a healthy fixture.
+            if (Session != null && !Session.Connected)
+            {
+                try
+                {
+                    m_logger.LogWarning(
+                        "Session disconnected between tests; re-opening.");
+                    Session.Dispose();
+                    Session = await ClientFixture
+                        .ConnectAsync(ServerUrl, SecurityPolicies.None)
+                        .ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    m_logger.LogError(ex, "Failed to recover session in [SetUp].");
+                }
+            }
         }
 
         [OneTimeTearDown]

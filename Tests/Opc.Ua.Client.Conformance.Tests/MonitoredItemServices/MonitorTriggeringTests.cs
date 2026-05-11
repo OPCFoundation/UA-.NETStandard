@@ -516,8 +516,8 @@ namespace Opc.Ua.Client.Conformance.Tests
             await WriteValueAsync(nodeD,
                 new Random().Next(1, 10000)).ConfigureAwait(false);
 
-            PublishResponse pubResp = await PublishAndWaitAsync().ConfigureAwait(false);
-            HashSet<uint> handles = CollectNotifiedHandles(pubResp);
+            HashSet<uint> handles = await PublishUntilHandlesObservedAsync(
+                [1u, 2u, 3u, 4u]).ConfigureAwait(false);
 
             Assert.That(handles, Does.Contain(1u));
             Assert.That(handles, Does.Contain(2u));
@@ -2629,6 +2629,46 @@ namespace Opc.Ua.Client.Conformance.Tests
                 null,
                 default,
                 CancellationToken.None).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Publishes repeatedly until every <paramref name="expectedHandles"/>
+        /// has been observed at least once, or <paramref name="timeoutMs"/>
+        /// expires. Aggregates handles across publishes to absorb the natural
+        /// race between writes and the server's sampling-timer cycle on slow
+        /// CI runners.
+        /// </summary>
+        private async Task<HashSet<uint>> PublishUntilHandlesObservedAsync(
+            uint[] expectedHandles,
+            int timeoutMs = 5000,
+            int initialDelayMs = 300)
+        {
+            await Task.Delay(initialDelayMs).ConfigureAwait(false);
+            var collected = new HashSet<uint>();
+            var deadline = Environment.TickCount + timeoutMs;
+            while (Environment.TickCount < deadline)
+            {
+                PublishResponse pub;
+                try
+                {
+                    pub = await Session.PublishAsync(
+                        null, default, CancellationToken.None).ConfigureAwait(false);
+                }
+                catch (ServiceResultException)
+                {
+                    break;
+                }
+                foreach (uint h in CollectNotifiedHandles(pub))
+                {
+                    collected.Add(h);
+                }
+                if (expectedHandles.All(h => collected.Contains(h)))
+                {
+                    return collected;
+                }
+                await Task.Delay(200).ConfigureAwait(false);
+            }
+            return collected;
         }
 
         private static HashSet<uint> CollectNotifiedHandles(PublishResponse pubResp)
