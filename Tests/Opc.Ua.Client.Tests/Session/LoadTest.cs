@@ -640,7 +640,7 @@ namespace Opc.Ua.Client.Tests
                 var sw = System.Diagnostics.Stopwatch.StartNew();
                 while (!testCts.IsCancellationRequested)
                 {
-                    using var e = new BaseEventState(null);
+                    var e = new BaseEventState(null);
                     e.Initialize(
                         serverContext,
                         serverInternal.ServerObject,

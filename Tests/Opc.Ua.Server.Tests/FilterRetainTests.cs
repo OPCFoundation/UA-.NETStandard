@@ -43,7 +43,7 @@ namespace Opc.Ua.Server.Tests
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
             SystemContext systemContext = GetSystemContext(telemetry);
-            using ExclusiveLevelAlarmState alarm = GetExclusiveLevelAlarm(
+            ExclusiveLevelAlarmState alarm = GetExclusiveLevelAlarm(
                 addFilterRetain: false,
                 filterRetainValue: false,
                 telemetry: telemetry);
@@ -67,7 +67,7 @@ namespace Opc.Ua.Server.Tests
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
             SystemContext systemContext = GetSystemContext(telemetry);
-            using var alarm = new DeviceFailureEventState(null);
+            var alarm = new DeviceFailureEventState(null);
             alarm.Create(
                 systemContext,
                 new NodeId(12345, 1),
@@ -108,7 +108,7 @@ namespace Opc.Ua.Server.Tests
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
-            using ExclusiveLevelAlarmState alarm = GetExclusiveLevelAlarm(
+            ExclusiveLevelAlarmState alarm = GetExclusiveLevelAlarm(
                 addFilterRetain: true,
                 filterRetainValue: supportsFilteredRetain,
                 telemetry: telemetry);
@@ -128,7 +128,7 @@ namespace Opc.Ua.Server.Tests
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
-            using ExclusiveLevelAlarmState alarm = GetExclusiveLevelAlarm(
+            ExclusiveLevelAlarmState alarm = GetExclusiveLevelAlarm(
                 addFilterRetain: true,
                 filterRetainValue: supportsFilteredRetain,
                 telemetry: telemetry);
@@ -169,7 +169,7 @@ namespace Opc.Ua.Server.Tests
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
-            using ExclusiveLevelAlarmState alarm = GetExclusiveLevelAlarm(
+            ExclusiveLevelAlarmState alarm = GetExclusiveLevelAlarm(
                 addFilterRetain: true,
                 filterRetainValue: supportsFilteredRetain,
                 telemetry: telemetry);
@@ -205,7 +205,7 @@ namespace Opc.Ua.Server.Tests
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
-            using ExclusiveLevelAlarmState alarm = GetExclusiveLevelAlarm(
+            ExclusiveLevelAlarmState alarm = GetExclusiveLevelAlarm(
                 addFilterRetain: true,
                 filterRetainValue: supportsFilteredRetain,
                 telemetry: telemetry);
@@ -261,7 +261,7 @@ namespace Opc.Ua.Server.Tests
 
             // https://reference.opcfoundation.org/Core/Part9/v105/docs/B.1.4
 
-            using ExclusiveLevelAlarmState alarm = GetExclusiveLevelAlarm(
+            ExclusiveLevelAlarmState alarm = GetExclusiveLevelAlarm(
                 addFilterRetain: true,
                 filterRetainValue: supportsFilteredRetain,
                 telemetry: telemetry);

@@ -172,12 +172,10 @@ namespace Opc.Ua.Aot.Tests
     /// </summary>
     public sealed class BoilerAotFixture : IAsyncInitializer, IAsyncDisposable
     {
-        public AotServerFixture<BoilerTestServer> ServerFixture { get; private set; } = null;
-        public Client.ISession Session { get; private set; } = null;
-        public string ServerUrl { get; private set; } = null;
-        public ITelemetryContext Telemetry { get; private set; } = null;
-        private ApplicationConfiguration m_clientConfiguration = null;
-        private string m_pkiRoot;
+        public AotServerFixture<BoilerTestServer> ServerFixture { get; private set; }
+        public Client.ISession Session { get; private set; }
+        public string ServerUrl { get; private set; }
+        public ITelemetryContext Telemetry { get; private set; }
 
         public async Task InitializeAsync()
         {
@@ -287,6 +285,9 @@ namespace Opc.Ua.Aot.Tests
             }
             GC.SuppressFinalize(this);
         }
+
+        private ApplicationConfiguration m_clientConfiguration;
+        private string m_pkiRoot;
     }
 
     /// <summary>

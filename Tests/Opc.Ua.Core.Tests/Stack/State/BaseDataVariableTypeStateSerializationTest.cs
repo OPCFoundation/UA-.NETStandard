@@ -58,7 +58,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
-            using var typeNode = new BaseDataVariableTypeState();
+            var typeNode = new BaseDataVariableTypeState();
             var serviceMessageContext = ServiceMessageContext.Create(telemetry);
             var systemContext = new SystemContext(telemetry)
             {
@@ -72,7 +72,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
                 true);
 
             typeNode.ValueRank = valueRank;
-            using var loadedVariable = new BaseDataVariableTypeState();
+            var loadedVariable = new BaseDataVariableTypeState();
             using (var stream = new MemoryStream())
             {
                 typeNode.SaveAsBinary(systemContext, stream);
@@ -98,7 +98,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
             // Here this type node is used just as support for the instanceNode to refer to
-            using var typeNode = new BaseDataVariableTypeState();
+            var typeNode = new BaseDataVariableTypeState();
             var serviceMessageContext = ServiceMessageContext.Create(telemetry);
             var systemContext = new SystemContext(telemetry)
             {
@@ -113,8 +113,8 @@ namespace Opc.Ua.Core.Tests.Stack.State
 
             // The instance BaseAnalogState node is a subtype of BaseVariableState for
             // which valueRank attribute is tested
-            using var instanceNode = new BaseAnalogState(typeNode) { ValueRank = valueRank };
-            using var loadedVariable = new BaseAnalogState(typeNode);
+            var instanceNode = new BaseAnalogState(typeNode) { ValueRank = valueRank };
+            var loadedVariable = new BaseAnalogState(typeNode);
             using (var stream = new MemoryStream())
             {
                 instanceNode.SaveAsBinary(systemContext, stream);
@@ -134,7 +134,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
             // Create a BaseDataVariableState with byte[] value
-            using var variableState = BaseDataVariableState<ArrayOf<byte>>.With<VariantBuilder>(null);
+            var variableState = BaseDataVariableState<ArrayOf<byte>>.With<VariantBuilder>(null);
             var serviceMessageContext = ServiceMessageContext.Create(telemetry);
             var systemContext = new SystemContext(telemetry)
             {
@@ -173,7 +173,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
             // Create a BaseDataVariableState for ByteString testing
-            using var variableState = BaseDataVariableState<ByteString>.With<VariantBuilder>(null);
+            var variableState = BaseDataVariableState<ByteString>.With<VariantBuilder>(null);
             var serviceMessageContext = ServiceMessageContext.Create(telemetry);
             var systemContext = new SystemContext(telemetry)
             {

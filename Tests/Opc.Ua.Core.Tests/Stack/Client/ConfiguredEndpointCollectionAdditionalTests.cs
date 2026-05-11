@@ -67,7 +67,7 @@ namespace Opc.Ua.Core.Tests
             }
         }
 
-        private ConfiguredEndpointCollection CreateCollection()
+        private static ConfiguredEndpointCollection CreateCollection()
         {
             return new ConfiguredEndpointCollection(EndpointConfiguration.Create());
         }

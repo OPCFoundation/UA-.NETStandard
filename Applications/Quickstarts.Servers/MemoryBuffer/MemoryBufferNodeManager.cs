@@ -27,11 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-// CA2000: ownership of disposables created in this file is transferred to long-lived
-// caches, returned objects, or fields whose lifetime is managed by the containing type's
-// Dispose. Per review the residual sites are accepted as ownership-transfer patterns
-// rather than missed using statements.
-#pragma warning disable CA2000
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -116,33 +111,24 @@ namespace MemoryBuffer
                         MemoryBufferInstance instance = m_configuration.Buffers[ii];
 
                         // create a new buffer.
-                        MemoryBufferState bufferNode = null;
-                        try
-                        {
-                            bufferNode = new MemoryBufferState(SystemContext, instance);
+                        var bufferNode = new MemoryBufferState(SystemContext, instance);
 
-                            // assign node ids.
-                            bufferNode.Create(
-                                SystemContext,
-                                new NodeId(bufferNode.SymbolicName, namespaceIndex),
-                                new QualifiedName(bufferNode.SymbolicName, namespaceIndex),
-                                default,
-                                true);
+                        // assign node ids.
+                        bufferNode.Create(
+                            SystemContext,
+                            new NodeId(bufferNode.SymbolicName, namespaceIndex),
+                            new QualifiedName(bufferNode.SymbolicName, namespaceIndex),
+                            default,
+                            true);
 
-                            bufferNode.CreateBuffer(instance.DataType, instance.TagCount);
-                            bufferNode.InitializeMonitoring(Server, this);
+                        bufferNode.CreateBuffer(instance.DataType, instance.TagCount);
+                        bufferNode.InitializeMonitoring(Server, this);
 
-                            // link to root.
-                            root.AddChild(bufferNode);
+                        // link to root.
+                        root.AddChild(bufferNode);
 
-                            // save the buffers for easy look up later.
-                            m_buffers[bufferNode.SymbolicName] = bufferNode;
-                            bufferNode = null;
-                        }
-                        finally
-                        {
-                            bufferNode?.Dispose();
-                        }
+                        // save the buffers for easy look up later.
+                        m_buffers[bufferNode.SymbolicName] = bufferNode;
                     }
                 }
             }
@@ -532,7 +518,7 @@ namespace MemoryBuffer
                     StatusCode = StatusCodes.Good
                 };
 
-                using var tag = new MemoryTagState(buffer, datachangeItem.Offset);
+                var tag = new MemoryTagState(buffer, datachangeItem.Offset);
 
                 ServiceResult error = tag.ReadAttribute(
                     context,

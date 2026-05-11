@@ -1246,7 +1246,7 @@ namespace Opc.Ua.Server
                     if (m_eventQueueHandler.Overflow)
                     {
                         // construct event.
-                        using var e = new EventQueueOverflowEventState(null);
+                        var e = new EventQueueOverflowEventState(null);
 
                         var message = new TranslationInfo(
                             "EventQueueOverflowEventState",

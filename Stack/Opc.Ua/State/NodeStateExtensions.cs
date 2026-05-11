@@ -130,16 +130,8 @@ namespace Opc.Ua
                             ? new BaseDataVariableState(parent)
                             : new BaseObjectState(parent);
 
-                        try
-                        {
-                            parent.AddChild(newChild);
-                            child = newChild;
-                            newChild = null;
-                        }
-                        finally
-                        {
-                            newChild?.Dispose();
-                        }
+                        parent.AddChild(newChild);
+                        child = newChild;
                     }
 
                     // ensure the browse name is set.

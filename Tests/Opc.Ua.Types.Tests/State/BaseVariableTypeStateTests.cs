@@ -70,7 +70,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void BaseDataVariableTypeStateConstructorSetsDefaults()
         {
-            using var variableType = new BaseDataVariableTypeState();
+            var variableType = new BaseDataVariableTypeState();
 
             Assert.That(variableType.ValueRank, Is.EqualTo(ValueRanks.Any));
             Assert.That(variableType.Value.IsNull, Is.True);
@@ -80,7 +80,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void PropertyTypeStateConstructorSetsDefaults()
         {
-            using var propertyType = new PropertyTypeState();
+            var propertyType = new PropertyTypeState();
 
             Assert.That(propertyType.ValueRank, Is.EqualTo(ValueRanks.Any));
             Assert.That(propertyType.Value.IsNull, Is.True);
@@ -107,7 +107,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void ValueSetSetsValueChangeMask()
         {
-            using var variableType = new BaseDataVariableTypeState();
+            var variableType = new BaseDataVariableTypeState();
             ISystemContext context = CreateSystemContext();
             variableType.ClearChangeMasks(context, false);
 
@@ -122,7 +122,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void ValueSetSameValueDoesNotSetChangeMask()
         {
-            using var variableType = new BaseDataVariableTypeState
+            var variableType = new BaseDataVariableTypeState
             {
                 Value = new Variant(42)
             };
@@ -139,7 +139,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void WrappedValueDelegatesToValue()
         {
-            using var variableType = new BaseDataVariableTypeState
+            var variableType = new BaseDataVariableTypeState
             {
                 WrappedValue = new Variant("test")
             };
@@ -152,7 +152,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void DataTypeSetSetsNonValueChangeMask()
         {
-            using var variableType = new BaseDataVariableTypeState();
+            var variableType = new BaseDataVariableTypeState();
             ISystemContext context = CreateSystemContext();
             variableType.ClearChangeMasks(context, false);
 
@@ -167,7 +167,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void DataTypeSetSameValueDoesNotSetChangeMask()
         {
-            using var variableType = new BaseDataVariableTypeState
+            var variableType = new BaseDataVariableTypeState
             {
                 DataType = DataTypeIds.Double
             };
@@ -184,7 +184,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void ValueRankSetSetsNonValueChangeMask()
         {
-            using var variableType = new BaseDataVariableTypeState();
+            var variableType = new BaseDataVariableTypeState();
             ISystemContext context = CreateSystemContext();
             variableType.ClearChangeMasks(context, false);
 
@@ -200,7 +200,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void ValueRankSetSameValueDoesNotSetChangeMask()
         {
-            using var variableType = new BaseDataVariableTypeState
+            var variableType = new BaseDataVariableTypeState
             {
                 ValueRank = ValueRanks.Scalar
             };
@@ -217,7 +217,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void ArrayDimensionsSetSetsNonValueChangeMask()
         {
-            using var variableType = new BaseDataVariableTypeState();
+            var variableType = new BaseDataVariableTypeState();
             ISystemContext context = CreateSystemContext();
             variableType.ClearChangeMasks(context, false);
 
@@ -233,7 +233,7 @@ namespace Opc.Ua.Types.Tests.State
         public void ArrayDimensionsSetSameValueDoesNotSetChangeMask()
         {
             ArrayOf<uint> dims = new uint[] { 5 }.ToArrayOf();
-            using var variableType = new BaseDataVariableTypeState
+            var variableType = new BaseDataVariableTypeState
             {
                 ArrayDimensions = dims
             };
@@ -250,7 +250,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void CloneCreatesDeepCopy()
         {
-            using var variableType = new BaseDataVariableTypeState
+            var variableType = new BaseDataVariableTypeState
             {
                 Value = new Variant(42),
                 DataType = DataTypeIds.Int32,
@@ -271,7 +271,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void ClonePropertyTypeStateCreatesDeepCopy()
         {
-            using var propertyType = new PropertyTypeState
+            var propertyType = new PropertyTypeState
             {
                 Value = new Variant("hello"),
                 DataType = DataTypeIds.String
@@ -287,7 +287,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void InitializeFromSourceViaCloneCopiesAllProperties()
         {
-            using var source = new BaseDataVariableTypeState
+            var source = new BaseDataVariableTypeState
             {
                 Value = new Variant(99.5),
                 DataType = DataTypeIds.Double,
@@ -307,7 +307,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void DeepEqualsReturnsTrueForEqualTypes()
         {
-            using var type1 = new BaseDataVariableTypeState
+            var type1 = new BaseDataVariableTypeState
             {
                 NodeId = new NodeId(1),
                 BrowseName = new QualifiedName("Test"),
@@ -322,7 +322,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void DeepEqualsReturnsFalseForDifferentValues()
         {
-            using var type1 = new BaseDataVariableTypeState
+            var type1 = new BaseDataVariableTypeState
             {
                 NodeId = new NodeId(1),
                 BrowseName = new QualifiedName("Test"),
@@ -338,7 +338,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void DeepEqualsReturnsFalseForNullNode()
         {
-            using var variableType = new BaseDataVariableTypeState();
+            var variableType = new BaseDataVariableTypeState();
 
             Assert.That(variableType.DeepEquals(null), Is.False);
         }
@@ -346,7 +346,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void DeepEqualsReturnsFalseForDifferentDataType()
         {
-            using var type1 = new BaseDataVariableTypeState
+            var type1 = new BaseDataVariableTypeState
             {
                 NodeId = new NodeId(1),
                 BrowseName = new QualifiedName("Test"),
@@ -362,7 +362,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void DeepEqualsReturnsFalseForDifferentValueRank()
         {
-            using var type1 = new BaseDataVariableTypeState
+            var type1 = new BaseDataVariableTypeState
             {
                 NodeId = new NodeId(1),
                 BrowseName = new QualifiedName("Test"),
@@ -378,7 +378,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void DeepEqualsReturnsFalseForDifferentArrayDimensions()
         {
-            using var type1 = new BaseDataVariableTypeState
+            var type1 = new BaseDataVariableTypeState
             {
                 NodeId = new NodeId(1),
                 BrowseName = new QualifiedName("Test"),
@@ -394,7 +394,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void DeepGetHashCodeReturnsSameForEqual()
         {
-            using var type1 = new BaseDataVariableTypeState
+            var type1 = new BaseDataVariableTypeState
             {
                 NodeId = new NodeId(1),
                 BrowseName = new QualifiedName("Test"),
@@ -408,14 +408,14 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void DeepGetHashCodeReturnsDifferentForDifferent()
         {
-            using var type1 = new BaseDataVariableTypeState
+            var type1 = new BaseDataVariableTypeState
             {
                 NodeId = new NodeId(1),
                 BrowseName = new QualifiedName("Test1"),
                 Value = new Variant(42)
             };
 
-            using var type2 = new BaseDataVariableTypeState
+            var type2 = new BaseDataVariableTypeState
             {
                 NodeId = new NodeId(2),
                 BrowseName = new QualifiedName("Test2"),
@@ -429,7 +429,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void ExportToNodeTableCreatesVariableTypeNode()
         {
-            using var variableType = new BaseDataVariableTypeState
+            var variableType = new BaseDataVariableTypeState
             {
                 NodeId = new NodeId(300),
                 BrowseName = new QualifiedName("TestVarType"),
@@ -461,7 +461,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void GetAttributesToSaveIncludesValueWhenSet()
         {
-            using var variableType = new BaseDataVariableTypeState
+            var variableType = new BaseDataVariableTypeState
             {
                 Value = new Variant(42)
             };
@@ -475,7 +475,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void GetAttributesToSaveExcludesValueWhenNull()
         {
-            using var variableType = new BaseDataVariableTypeState();
+            var variableType = new BaseDataVariableTypeState();
             ISystemContext context = CreateSystemContext();
 
             NodeState.AttributesToSave attrs = variableType.GetAttributesToSave(context);
@@ -486,7 +486,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void GetAttributesToSaveIncludesDataTypeWhenNonNull()
         {
-            using var variableType = new BaseDataVariableTypeState
+            var variableType = new BaseDataVariableTypeState
             {
                 DataType = DataTypeIds.Int32
             };
@@ -500,7 +500,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void GetAttributesToSaveIncludesValueRankWhenNotDefault()
         {
-            using var variableType = new BaseDataVariableTypeState
+            var variableType = new BaseDataVariableTypeState
             {
                 ValueRank = ValueRanks.OneDimension
             };
@@ -514,7 +514,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void GetAttributesToSaveExcludesValueRankWhenDefault()
         {
-            using var variableType = new BaseDataVariableTypeState();
+            var variableType = new BaseDataVariableTypeState();
             ISystemContext context = CreateSystemContext();
 
             NodeState.AttributesToSave attrs = variableType.GetAttributesToSave(context);
@@ -525,7 +525,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void GetAttributesToSaveIncludesArrayDimensionsWhenSet()
         {
-            using var variableType = new BaseDataVariableTypeState
+            var variableType = new BaseDataVariableTypeState
             {
                 ArrayDimensions = new uint[] { 5 }.ToArrayOf()
             };
@@ -540,7 +540,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void GetAttributesToSaveExcludesArrayDimensionsWhenEmpty()
         {
-            using var variableType = new BaseDataVariableTypeState();
+            var variableType = new BaseDataVariableTypeState();
             ISystemContext context = CreateSystemContext();
 
             NodeState.AttributesToSave attrs = variableType.GetAttributesToSave(context);
@@ -553,7 +553,7 @@ namespace Opc.Ua.Types.Tests.State
         public void BinarySaveAndUpdateRoundTrip()
         {
             ISystemContext context = CreateSystemContext();
-            using var original = new BaseDataVariableTypeState
+            var original = new BaseDataVariableTypeState
             {
                 Value = new Variant(3.14),
                 DataType = DataTypeIds.Double,
@@ -562,14 +562,14 @@ namespace Opc.Ua.Types.Tests.State
             };
 
             NodeState.AttributesToSave attributesToSave = original.GetAttributesToSave(context);
-            using var ms = new MemoryStream();
+            var ms = new MemoryStream();
             using (var encoder = new BinaryEncoder(ms, m_messageContext, true))
             {
                 original.Save(context, encoder, attributesToSave);
             }
 
             ms.Position = 0;
-            using var restored = new BaseDataVariableTypeState();
+            var restored = new BaseDataVariableTypeState();
             using (var decoder = new BinaryDecoder(ms, m_messageContext, true))
             {
                 restored.Update(context, decoder, attributesToSave);
@@ -585,17 +585,17 @@ namespace Opc.Ua.Types.Tests.State
         public void BinarySaveAndUpdateWithDefaultValues()
         {
             ISystemContext context = CreateSystemContext();
-            using var original = new BaseDataVariableTypeState();
+            var original = new BaseDataVariableTypeState();
 
             NodeState.AttributesToSave attributesToSave = original.GetAttributesToSave(context);
-            using var ms = new MemoryStream();
+            var ms = new MemoryStream();
             using (var encoder = new BinaryEncoder(ms, m_messageContext, true))
             {
                 original.Save(context, encoder, attributesToSave);
             }
 
             ms.Position = 0;
-            using var restored = new BaseDataVariableTypeState();
+            var restored = new BaseDataVariableTypeState();
             using (var decoder = new BinaryDecoder(ms, m_messageContext, true))
             {
                 restored.Update(context, decoder, attributesToSave);
@@ -609,7 +609,7 @@ namespace Opc.Ua.Types.Tests.State
         public void SaveAsBinaryAndLoadRoundTrip()
         {
             ISystemContext context = CreateSystemContext();
-            using var original = new BaseDataVariableTypeState
+            var original = new BaseDataVariableTypeState
             {
                 NodeId = new NodeId(301),
                 BrowseName = new QualifiedName("BinVarType"),
@@ -620,11 +620,11 @@ namespace Opc.Ua.Types.Tests.State
                 ArrayDimensions = new uint[] { 1 }.ToArrayOf()
             };
 
-            using var stream = new MemoryStream();
+            var stream = new MemoryStream();
             original.SaveAsBinary(context, stream);
             stream.Position = 0;
 
-            using var restored = new BaseDataVariableTypeState();
+            var restored = new BaseDataVariableTypeState();
             restored.LoadAsBinary(context, stream);
 
             Assert.That((int)restored.Value, Is.EqualTo(123));
@@ -637,7 +637,7 @@ namespace Opc.Ua.Types.Tests.State
         public void PropertyTypeStateBinarySaveAndUpdateRoundTrip()
         {
             ISystemContext context = CreateSystemContext();
-            using var original = new PropertyTypeState
+            var original = new PropertyTypeState
             {
                 Value = new Variant("hello"),
                 DataType = DataTypeIds.String,
@@ -645,14 +645,14 @@ namespace Opc.Ua.Types.Tests.State
             };
 
             NodeState.AttributesToSave attributesToSave = original.GetAttributesToSave(context);
-            using var ms = new MemoryStream();
+            var ms = new MemoryStream();
             using (var encoder = new BinaryEncoder(ms, m_messageContext, true))
             {
                 original.Save(context, encoder, attributesToSave);
             }
 
             ms.Position = 0;
-            using var restored = new PropertyTypeState();
+            var restored = new PropertyTypeState();
             using (var decoder = new BinaryDecoder(ms, m_messageContext, true))
             {
                 restored.Update(context, decoder, attributesToSave);

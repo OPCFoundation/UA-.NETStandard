@@ -2384,7 +2384,7 @@ namespace Opc.Ua.Server
             lock (m_lock)
             {
                 // generate start event.
-                using var e = new RefreshStartEventState(null);
+                var e = new RefreshStartEventState(null);
 
                 var message = new TranslationInfo(
                     "RefreshStartEvent",
@@ -2437,7 +2437,7 @@ namespace Opc.Ua.Server
             lock (m_lock)
             {
                 // generate start event.
-                using var e = new RefreshEndEventState(null);
+                var e = new RefreshEndEventState(null);
 
                 var message = new TranslationInfo(
                     "RefreshEndEvent",

@@ -67,7 +67,6 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(view.NodeClass, Is.EqualTo(NodeClass.View));
             Assert.That(view.EventNotifier, Is.Zero);
             Assert.That(view.ContainsNoLoops, Is.False);
-            view.Dispose();
         }
 
         [Test]
@@ -75,7 +74,6 @@ namespace Opc.Ua.Types.Tests.State
         {
             NodeState node = ViewState.Construct(null);
             Assert.That(node, Is.InstanceOf<ViewState>());
-            node.Dispose();
         }
 
         [Test]
@@ -92,7 +90,6 @@ namespace Opc.Ua.Types.Tests.State
             view.ClearChangeMasks(null, false);
             view.EventNotifier = EventNotifiers.SubscribeToEvents;
             Assert.That(view.ChangeMasks, Is.EqualTo(NodeStateChangeMasks.None));
-            view.Dispose();
         }
 
         [Test]
@@ -109,7 +106,6 @@ namespace Opc.Ua.Types.Tests.State
             view.ClearChangeMasks(null, false);
             view.ContainsNoLoops = true;
             Assert.That(view.ChangeMasks, Is.EqualTo(NodeStateChangeMasks.None));
-            view.Dispose();
         }
 
         [Test]
@@ -128,8 +124,6 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(clone, Is.Not.SameAs(view));
             Assert.That(clone.EventNotifier, Is.EqualTo(view.EventNotifier));
             Assert.That(clone.ContainsNoLoops, Is.EqualTo(view.ContainsNoLoops));
-            clone.Dispose();
-            view.Dispose();
         }
 
         [Test]
@@ -141,8 +135,7 @@ namespace Opc.Ua.Types.Tests.State
             // Test exercises the method and verifies it runs without error
             var view2 = (ViewState)view1.Clone();
             Assert.That(view1.DeepEquals(view1), Is.True);
-            view1.Dispose();
-            view2.Dispose();
+            Assert.That(view1.DeepEquals(view2), Is.True);
         }
 
         [Test]
@@ -151,8 +144,6 @@ namespace Opc.Ua.Types.Tests.State
             var view = new ViewState();
             var refType = new ReferenceTypeState();
             Assert.That(view.DeepEquals(refType), Is.False);
-            view.Dispose();
-            refType.Dispose();
         }
 
         [Test]
@@ -161,7 +152,6 @@ namespace Opc.Ua.Types.Tests.State
             var view = new ViewState { EventNotifier = 0x05, ContainsNoLoops = true };
             int hash = view.DeepGetHashCode();
             Assert.That(hash, Is.TypeOf<int>());
-            view.Dispose();
         }
 
         [Test]
@@ -171,7 +161,6 @@ namespace Opc.Ua.Types.Tests.State
             AttributesToSave attrs = view.GetAttributesToSave(m_context);
             Assert.That(attrs & AttributesToSave.EventNotifier, Is.Not.EqualTo(AttributesToSave.None));
             Assert.That(attrs & AttributesToSave.ContainsNoLoops, Is.Not.EqualTo(AttributesToSave.None));
-            view.Dispose();
         }
 
         [Test]
@@ -181,7 +170,6 @@ namespace Opc.Ua.Types.Tests.State
             AttributesToSave attrs = view.GetAttributesToSave(m_context);
             Assert.That(attrs & AttributesToSave.EventNotifier, Is.EqualTo(AttributesToSave.None));
             Assert.That(attrs & AttributesToSave.ContainsNoLoops, Is.EqualTo(AttributesToSave.None));
-            view.Dispose();
         }
 
         [Test]
@@ -199,7 +187,6 @@ namespace Opc.Ua.Types.Tests.State
             var table = new NodeTable(m_context.NamespaceUris, m_context.ServerUris, null);
             view.Export(m_context, table);
             Assert.That(table, Is.Not.Empty);
-            view.Dispose();
         }
 
         [Test]
@@ -223,8 +210,6 @@ namespace Opc.Ua.Types.Tests.State
 
             Assert.That(restored.EventNotifier, Is.EqualTo(view.EventNotifier));
             Assert.That(restored.ContainsNoLoops, Is.EqualTo(view.ContainsNoLoops));
-            restored.Dispose();
-            view.Dispose();
         }
 
         [Test]
@@ -255,8 +240,6 @@ namespace Opc.Ua.Types.Tests.State
 
             Assert.That(restored.EventNotifier, Is.EqualTo(original.EventNotifier));
             Assert.That(restored.ContainsNoLoops, Is.EqualTo(original.ContainsNoLoops));
-            restored.Dispose();
-            original.Dispose();
         }
 
         [Test]
@@ -273,8 +256,6 @@ namespace Opc.Ua.Types.Tests.State
             view2.EventNotifier = EventNotifiers.None;
 
             Assert.That(view1.DeepEquals(view2), Is.False);
-            view1.Dispose();
-            view2.Dispose();
         }
 
         [Test]
@@ -291,8 +272,6 @@ namespace Opc.Ua.Types.Tests.State
             view2.ContainsNoLoops = false;
 
             Assert.That(view1.DeepEquals(view2), Is.False);
-            view1.Dispose();
-            view2.Dispose();
         }
 
         [Test]
@@ -315,8 +294,6 @@ namespace Opc.Ua.Types.Tests.State
             };
 
             Assert.That(view1.DeepGetHashCode(), Is.Not.EqualTo(view2.DeepGetHashCode()));
-            view1.Dispose();
-            view2.Dispose();
         }
     }
 }

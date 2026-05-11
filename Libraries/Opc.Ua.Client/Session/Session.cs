@@ -969,9 +969,7 @@ namespace Opc.Ua.Client
                 !serverCertificate.IsEmpty
                     ? Certificate.FromRawData(serverCertificate)
                     : null;
-#pragma warning disable CA2000 // Ownership transfers to m_identity field, disposed when Session is disposed
             m_identity = sessionConfiguration.Identity ?? new UserIdentity();
-#pragma warning restore CA2000
             m_checkDomain = sessionConfiguration.CheckDomain;
             m_serverNonce = sessionConfiguration.ServerNonce;
             m_clientNonce = !sessionConfiguration.ClientNonce.IsNull

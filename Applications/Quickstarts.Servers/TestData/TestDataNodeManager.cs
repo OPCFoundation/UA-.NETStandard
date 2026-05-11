@@ -27,11 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-// CA2000: ownership of disposables created in this file is transferred to long-lived
-// caches, returned objects, or fields whose lifetime is managed by the containing type's
-// Dispose. Per review the residual sites are accepted as ownership-transfer patterns
-// rather than missed using statements.
-#pragma warning disable CA2000
 using System;
 using System.Collections.Generic;
 using Opc.Ua;
@@ -513,85 +508,87 @@ namespace TestData
             var serverContext = context as ServerSystemContext;
             List<DataValue> dataValues = [];
 
-            HistoryDataReader reader;
-            if (!nodeToRead.ContinuationPoint.IsEmpty)
+            HistoryDataReader reader = null;
+            try
             {
-                // restore the continuation point.
-                reader = RestoreDataReader(serverContext, nodeToRead.ContinuationPoint);
-
-                if (reader == null)
+                if (!nodeToRead.ContinuationPoint.IsEmpty)
                 {
-                    return StatusCodes.BadContinuationPointInvalid;
+                    // restore the continuation point.
+                    reader = RestoreDataReader(serverContext, nodeToRead.ContinuationPoint);
+
+                    if (reader == null)
+                    {
+                        return StatusCodes.BadContinuationPointInvalid;
+                    }
+
+                    // node id must match previous node id.
+                    if (reader.VariableId != nodeToRead.NodeId)
+                    {
+                        return StatusCodes.BadContinuationPointInvalid;
+                    }
+
+                    // check if releasing continuation points.
+                    if (releaseContinuationPoints)
+                    {
+                        return ServiceResult.Good;
+                    }
+                }
+                else
+                {
+                    // get the source for the variable.
+                    ServiceResult error = GetHistoryDataSource(
+                        serverContext,
+                        source,
+                        out IHistoryDataSource datasource);
+
+                    if (ServiceResult.IsBad(error))
+                    {
+                        return error;
+                    }
+
+                    // create a reader.
+                    reader = new HistoryDataReader(nodeToRead.NodeId, datasource);
+
+                    // start reading.
+                    reader.BeginReadRaw(
+                        serverContext,
+                        details,
+                        timestampsToReturn,
+                        nodeToRead.ParsedIndexRange,
+                        nodeToRead.DataEncoding,
+                        dataValues);
                 }
 
-                // node id must match previous node id.
-                if (reader.VariableId != nodeToRead.NodeId)
-                {
-                    reader.Dispose();
-                    return StatusCodes.BadContinuationPointInvalid;
-                }
-
-                // check if releasing continuation points.
-                if (releaseContinuationPoints)
-                {
-                    reader.Dispose();
-                    return ServiceResult.Good;
-                }
-            }
-            else
-            {
-                // get the source for the variable.
-                ServiceResult error = GetHistoryDataSource(
+                // continue reading data until done or max values reached.
+                bool complete = reader.NextReadRaw(
                     serverContext,
-                    source,
-                    out IHistoryDataSource datasource);
-
-                if (ServiceResult.IsBad(error))
-                {
-                    return error;
-                }
-
-                // create a reader.
-                reader = new HistoryDataReader(nodeToRead.NodeId, datasource);
-
-                // start reading.
-                reader.BeginReadRaw(
-                    serverContext,
-                    details,
                     timestampsToReturn,
                     nodeToRead.ParsedIndexRange,
                     nodeToRead.DataEncoding,
                     dataValues);
+
+                // save continuation point.
+                if (!complete)
+                {
+                    SaveDataReader(serverContext, reader);
+                    reader = null;
+                    result.StatusCode = StatusCodes.GoodMoreData;
+                }
+
+                var data = new HistoryData
+                {
+                    DataValues = dataValues
+                };
+
+                // return the dat.
+                result.HistoryData = new ExtensionObject(data);
+
+                return result.StatusCode;
             }
-
-            // continue reading data until done or max values reached.
-            bool complete = reader.NextReadRaw(
-                serverContext,
-                timestampsToReturn,
-                nodeToRead.ParsedIndexRange,
-                nodeToRead.DataEncoding,
-                dataValues);
-
-            // save continuation point.
-            if (!complete)
+            finally
             {
-                SaveDataReader(serverContext, reader);
-                result.StatusCode = StatusCodes.GoodMoreData;
+                reader?.Dispose();
             }
-            else
-            {
-                reader.Dispose();
-            }
-
-            var data = new HistoryData
-            {
-                DataValues = dataValues
-            };
-
-            // return the dat.
-            result.HistoryData = new ExtensionObject(data);
-
-            return result.StatusCode;
         }
 
         /// <summary>

@@ -193,11 +193,6 @@ namespace Opc.Ua.Server
                 lock (Lock)
                 {
                     m_monitoredItemManager?.Dispose();
-                    foreach (NodeState node in PredefinedNodes.Values)
-                    {
-                        node?.Dispose();
-                    }
-
                     PredefinedNodes.Clear();
                 }
             }
@@ -936,13 +931,12 @@ namespace Opc.Ua.Server
         /// </summary>
         public virtual void DeleteAddressSpace()
         {
-            NodeState[] nodes = [.. PredefinedNodes.Values];
+            // NodeState[] nodes = [.. PredefinedNodes.Values];
             PredefinedNodes.Clear();
-
-            foreach (NodeState node in nodes)
-            {
-                node?.Dispose();
-            }
+            // foreach (var node in nodes)
+            // {
+            //     node.Delete(null);
+            // }
         }
 
         /// <summary>
@@ -2215,7 +2209,7 @@ namespace Opc.Ua.Server
         /// </summary>
         protected void RaiseSemanticChangeEvent(ISystemContext systemContext, NodeState node, PropertyState property)
         {
-            using var e = new SemanticChangeEventState(null);
+            var e = new SemanticChangeEventState(null);
 
             var message = new TranslationInfo(
                 "SemanticChangeEvent",

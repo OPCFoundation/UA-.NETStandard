@@ -85,10 +85,6 @@ namespace Opc.Ua.Types.Tests.State
             };
             var collection = new NodeStateCollection(items);
             Assert.That(collection, Has.Count.EqualTo(2));
-            foreach (NodeState item in items)
-            {
-                item.Dispose();
-            }
         }
 
         [Test]
@@ -99,7 +95,6 @@ namespace Opc.Ua.Types.Tests.State
             collection.Add(view);
             Assert.That(collection, Has.Count.EqualTo(1));
             Assert.That(collection[0], Is.SameAs(view));
-            view.Dispose();
         }
 
         [Test]
@@ -111,7 +106,6 @@ namespace Opc.Ua.Types.Tests.State
             bool removed = collection.Remove(view);
             Assert.That(removed, Is.True);
             Assert.That(collection, Is.Empty);
-            view.Dispose();
         }
 
         [Test]
@@ -123,8 +117,6 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(collection, Does.Contain(view));
             var other = new ViewState { NodeId = new NodeId(31) };
             Assert.That(collection, Does.Not.Contain(other));
-            view.Dispose();
-            other.Dispose();
         }
 
         [Test]
@@ -142,8 +134,6 @@ namespace Opc.Ua.Types.Tests.State
                 count++;
             }
             Assert.That(count, Is.EqualTo(2));
-            v1.Dispose();
-            v2.Dispose();
         }
 
         [Test]
@@ -180,7 +170,6 @@ namespace Opc.Ua.Types.Tests.State
             var restored = new NodeStateCollection();
             restored.LoadFromBinary(m_context, stream, false);
             Assert.That(restored, Has.Count.EqualTo(1));
-            view.Dispose();
         }
 
         [Test]
@@ -199,7 +188,6 @@ namespace Opc.Ua.Types.Tests.State
             using var stream = new MemoryStream();
             collection.SaveAsXml(m_context, stream, keepStreamOpen: true);
             Assert.That(stream.Length, Is.GreaterThan(0));
-            view.Dispose();
         }
 
         [Test]
@@ -217,7 +205,6 @@ namespace Opc.Ua.Types.Tests.State
             using var stream = new MemoryStream();
             collection.SaveAsNodeSet2(m_context, stream);
             Assert.That(stream.Length, Is.GreaterThan(0));
-            view.Dispose();
         }
 
         [Test]
@@ -264,9 +251,6 @@ namespace Opc.Ua.Types.Tests.State
                 Array.Exists(customModel.RequiredModel, r => r.ModelUri == Namespaces.OpcUa),
                 Is.True,
                 "Custom <Model> must declare the OPC UA base namespace as a <RequiredModel>");
-
-            folder.Dispose();
-            variable.Dispose();
         }
 
         [Test]
@@ -292,7 +276,6 @@ namespace Opc.Ua.Types.Tests.State
             using var stream = new MemoryStream();
             collection.SaveAsNodeSet2(m_context, stream, model, DateTime.UtcNow, false);
             Assert.That(stream.Length, Is.GreaterThan(0));
-            refType.Dispose();
         }
 
         [Test]
@@ -314,7 +297,6 @@ namespace Opc.Ua.Types.Tests.State
             var restored = new NodeStateCollection();
             restored.LoadFromBinary(m_context, stream, true);
             Assert.That(restored, Has.Count.EqualTo(1));
-            dt.Dispose();
         }
 
         [Test]
@@ -343,8 +325,6 @@ namespace Opc.Ua.Types.Tests.State
             var restored = new NodeStateCollection();
             restored.LoadFromBinary(m_context, stream, false);
             Assert.That(restored, Has.Count.EqualTo(2));
-            view.Dispose();
-            refType.Dispose();
         }
 
         [Test]
@@ -370,7 +350,6 @@ namespace Opc.Ua.Types.Tests.State
             restored.LoadFromXml(m_context, stream, false);
             Assert.That(restored, Has.Count.EqualTo(1));
             Assert.That(restored[0], Is.InstanceOf<ViewState>());
-            view.Dispose();
         }
 
         [Test]
@@ -390,7 +369,6 @@ namespace Opc.Ua.Types.Tests.State
             var stream = new MemoryStream();
             collection.SaveAsXml(m_context, stream);
             Assert.That(stream.ToArray(), Is.Not.Empty);
-            view.Dispose();
         }
 
         [Test]
@@ -416,7 +394,6 @@ namespace Opc.Ua.Types.Tests.State
             restored.LoadFromXml(m_context, stream, true);
             Assert.That(restored, Has.Count.EqualTo(1));
             Assert.That(restored[0], Is.InstanceOf<MethodState>());
-            method.Dispose();
         }
 
         [Test]
@@ -449,8 +426,6 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(restored, Has.Count.EqualTo(2));
             Assert.That(restored[0], Is.InstanceOf<MethodState>());
             Assert.That(restored[1], Is.InstanceOf<BaseObjectState>());
-            method.Dispose();
-            obj.Dispose();
         }
 
         [Test]
@@ -497,7 +472,6 @@ namespace Opc.Ua.Types.Tests.State
             using var saveStream = new MemoryStream();
             collection.SaveAsNodeSet2(m_context, saveStream);
             Assert.That(saveStream.ToArray(), Is.Not.Empty);
-            view.Dispose();
         }
 
         [Test]
@@ -524,10 +498,6 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(collection[0], Is.InstanceOf<BaseObjectState>());
             Assert.That(collection[1], Is.InstanceOf<MethodState>());
             Assert.That(collection[2], Is.InstanceOf<ViewState>());
-            foreach (NodeState item in items)
-            {
-                item.Dispose();
-            }
         }
 
         [Test]
@@ -567,9 +537,6 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(restored[0], Is.InstanceOf<ViewState>());
             Assert.That(restored[1], Is.InstanceOf<DataTypeState>());
             Assert.That(restored[2], Is.InstanceOf<ReferenceTypeState>());
-            view.Dispose();
-            dt.Dispose();
-            refType.Dispose();
         }
     }
 }

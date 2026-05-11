@@ -512,6 +512,13 @@ See [NodeStates](./../Stack/Opc.Ua.Types/State/readme.md) document for more info
 
 #### NodeState Cloning and Lifecycle
 
+##### Node state does not implement IDisposable anymore.
+
+Node states do not manage resources, they access resources. Therefore the management of resources must be done in a node manager.
+If you are overriding Dispose() on a NodeState to manage the node state, make the method public instead of protected, and maintain
+a list of node states on which you must call the Dispose() method when the Node Manager is disposed.  Better, associated node states 
+only via an identifier with a backend "system" that manages all state centrally and in your control.
+
 ##### Clone() replaced with CreateCopy()
 
 `NodeState.Clone()` is now a concrete method that calls `CreateCopy()` + `CopyTo()`. The new `protected abstract NodeState CreateCopy()` must be overridden by all direct NodeState subclasses.

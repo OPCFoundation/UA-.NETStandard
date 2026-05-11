@@ -472,7 +472,7 @@ namespace Opc.Ua
                 }
 
                 // raise the audit event.
-                using var e = new AuditConditionCommentEventState(null);
+                var e = new AuditConditionCommentEventState(null);
 
                 var info = new TranslationInfo(
                     "AuditConditionComment",
@@ -588,7 +588,7 @@ namespace Opc.Ua
                 }
 
                 // raise the audit event.
-                using var e = new AuditConditionEnableEventState(null);
+                var e = new AuditConditionEnableEventState(null);
 
                 var info = new TranslationInfo(
                     "AuditConditionEnable",
@@ -647,7 +647,7 @@ namespace Opc.Ua
                 }
 
                 // raise the audit event.
-                using var e = new AuditConditionEnableEventState(null);
+                var e = new AuditConditionEnableEventState(null);
 
                 var info = new TranslationInfo(
                     "AuditConditionEnable",

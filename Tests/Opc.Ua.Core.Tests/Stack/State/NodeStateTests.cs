@@ -85,7 +85,6 @@ namespace Opc.Ua.Core.Tests.Stack.State
             var context = new SystemContext(telemetry) { NamespaceUris = Context.NamespaceUris };
             Assert.That(context.NamespaceUris.GetIndexOrAppend(OpcUa), Is.Zero);
             testObject.Create(context, new NodeId(1000), QualifiedName.From("Name"), LocalizedText.From("DisplayName"), true);
-            testObject.Dispose();
         }
 
         /// <summary>
@@ -105,20 +104,13 @@ namespace Opc.Ua.Core.Tests.Stack.State
                     continue;
                 }
 
-                try
-                {
-                    testObject.Create(context, new NodeId(nodeId++), QualifiedName.From("Name"), LocalizedText.From("DisplayName"), true);
-                    CollectInstantiatedPlaceholders(
-                        context,
-                        testObject,
-                        systemType.Assembly.GetName().Name,
-                        systemType.FullName,
-                        placeholders);
-                }
-                finally
-                {
-                    testObject.Dispose();
-                }
+                testObject.Create(context, new NodeId(nodeId++), QualifiedName.From("Name"), LocalizedText.From("DisplayName"), true);
+                CollectInstantiatedPlaceholders(
+                    context,
+                    testObject,
+                    systemType.Assembly.GetName().Name,
+                    systemType.FullName,
+                    placeholders);
             }
 
             Assert.That(
@@ -332,8 +324,8 @@ namespace Opc.Ua.Core.Tests.Stack.State
         [Test]
         public void CloneBaseEventStateSucceeds()
         {
-            using var parent = new BaseObjectState(null);
-            using var eventState = new BaseEventState(parent);
+            var parent = new BaseObjectState(null);
+            var eventState = new BaseEventState(parent);
 
             var clone = (BaseEventState)eventState.Clone();
 
@@ -347,7 +339,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
         [Test]
         public void CloneBaseEventStateWithNullParentSucceeds()
         {
-            using var eventState = new BaseEventState(null);
+            var eventState = new BaseEventState(null);
 
             var clone = (BaseEventState)eventState.Clone();
 
@@ -361,8 +353,8 @@ namespace Opc.Ua.Core.Tests.Stack.State
         [Test]
         public void CloneNonExclusiveLimitAlarmStateSucceeds()
         {
-            using var parent = new BaseObjectState(null);
-            using var alarmState = new NonExclusiveLimitAlarmState(parent);
+            var parent = new BaseObjectState(null);
+            var alarmState = new NonExclusiveLimitAlarmState(parent);
 
             var clone = (NonExclusiveLimitAlarmState)alarmState.Clone();
 
@@ -373,35 +365,35 @@ namespace Opc.Ua.Core.Tests.Stack.State
         [Test]
         public void BaseObjectStateConstructorSetsNodeClass()
         {
-            using var node = new BaseObjectState(null);
+            var node = new BaseObjectState(null);
             Assert.That(node.NodeClass, Is.EqualTo(NodeClass.Object));
         }
 
         [Test]
         public void FolderStateConstructorSetsNodeClass()
         {
-            using var node = new FolderState(null);
+            var node = new FolderState(null);
             Assert.That(node.NodeClass, Is.EqualTo(NodeClass.Object));
         }
 
         [Test]
         public void BaseVariableStateConstructorSetsNodeClass()
         {
-            using var node = new BaseDataVariableState(null);
+            var node = new BaseDataVariableState(null);
             Assert.That(node.NodeClass, Is.EqualTo(NodeClass.Variable));
         }
 
         [Test]
         public void MethodStateConstructorSetsNodeClass()
         {
-            using var node = new MethodState(null);
+            var node = new MethodState(null);
             Assert.That(node.NodeClass, Is.EqualTo(NodeClass.Method));
         }
 
         [Test]
         public void NodeIdCanBeSetAndRetrieved()
         {
-            using var node = new BaseObjectState(null)
+            var node = new BaseObjectState(null)
             {
                 NodeId = new NodeId(1234, 2)
             };
@@ -411,7 +403,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
         [Test]
         public void BrowseNameCanBeSetAndRetrieved()
         {
-            using var node = new BaseObjectState(null)
+            var node = new BaseObjectState(null)
             {
                 BrowseName = new QualifiedName("TestObject", 2)
             };
@@ -422,7 +414,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
         [Test]
         public void DisplayNameCanBeSetAndRetrieved()
         {
-            using var node = new BaseObjectState(null)
+            var node = new BaseObjectState(null)
             {
                 DisplayName = new LocalizedText("en", "Test Display")
             };
@@ -432,7 +424,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
         [Test]
         public void DescriptionCanBeSetAndRetrieved()
         {
-            using var node = new BaseObjectState(null)
+            var node = new BaseObjectState(null)
             {
                 Description = new LocalizedText("en", "A test node")
             };
@@ -442,12 +434,12 @@ namespace Opc.Ua.Core.Tests.Stack.State
         [Test]
         public void AddChildAddsToChildren()
         {
-            using var parent = new BaseObjectState(null)
+            var parent = new BaseObjectState(null)
             {
                 NodeId = new NodeId(1, 0),
                 BrowseName = new QualifiedName("Parent")
             };
-            using var child = new BaseObjectState(parent)
+            var child = new BaseObjectState(parent)
             {
                 NodeId = new NodeId(2, 0),
                 BrowseName = new QualifiedName("Child")
@@ -462,7 +454,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
         [Test]
         public void AddReferenceCreatesReference()
         {
-            using var node = new BaseObjectState(null)
+            var node = new BaseObjectState(null)
             {
                 NodeId = new NodeId(100, 0),
                 BrowseName = new QualifiedName("Source")
@@ -481,7 +473,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
         [Test]
         public void AddMultipleReferences()
         {
-            using var node = new BaseObjectState(null)
+            var node = new BaseObjectState(null)
             {
                 NodeId = new NodeId(100, 0),
                 BrowseName = new QualifiedName("Source")
@@ -497,21 +489,21 @@ namespace Opc.Ua.Core.Tests.Stack.State
         [Test]
         public void MethodStateExecutableDefault()
         {
-            using var method = new MethodState(null);
+            var method = new MethodState(null);
             Assert.That(method.Executable, Is.True);
         }
 
         [Test]
         public void MethodStateUserExecutableDefault()
         {
-            using var method = new MethodState(null);
+            var method = new MethodState(null);
             Assert.That(method.UserExecutable, Is.True);
         }
 
         [Test]
         public void MethodStateExecutableCanBeSet()
         {
-            using var method = new MethodState(null)
+            var method = new MethodState(null)
             {
                 Executable = false
             };
@@ -521,7 +513,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
         [Test]
         public void MethodStateUserExecutableCanBeSet()
         {
-            using var method = new MethodState(null)
+            var method = new MethodState(null)
             {
                 UserExecutable = false
             };
@@ -531,8 +523,8 @@ namespace Opc.Ua.Core.Tests.Stack.State
         [Test]
         public void MethodStateConstructCreatesNewInstance()
         {
-            using var parent = new BaseObjectState(null);
-            using NodeState method = MethodState.Construct(parent);
+            var parent = new BaseObjectState(null);
+            NodeState method = MethodState.Construct(parent);
             Assert.That(method, Is.Not.Null);
             Assert.That(method.NodeClass, Is.EqualTo(NodeClass.Method));
         }
@@ -540,14 +532,14 @@ namespace Opc.Ua.Core.Tests.Stack.State
         [Test]
         public void MethodStateDeepEqualsIdentical()
         {
-            using var m1 = new MethodState(null)
+            var m1 = new MethodState(null)
             {
                 NodeId = new NodeId(1),
                 BrowseName = new QualifiedName("Method1"),
                 Executable = true,
                 UserExecutable = true
             };
-            using var m2 = new MethodState(null)
+            var m2 = new MethodState(null)
             {
                 NodeId = new NodeId(1),
                 BrowseName = new QualifiedName("Method1"),
@@ -560,13 +552,13 @@ namespace Opc.Ua.Core.Tests.Stack.State
         [Test]
         public void MethodStateDeepEqualsDifferent()
         {
-            using var m1 = new MethodState(null)
+            var m1 = new MethodState(null)
             {
                 NodeId = new NodeId(1),
                 BrowseName = new QualifiedName("Method1"),
                 Executable = true
             };
-            using var m2 = new MethodState(null)
+            var m2 = new MethodState(null)
             {
                 NodeId = new NodeId(2),
                 BrowseName = new QualifiedName("Method2"),
@@ -578,14 +570,14 @@ namespace Opc.Ua.Core.Tests.Stack.State
         [Test]
         public void MethodStateInputArgumentsDefault()
         {
-            using var method = new MethodState(null);
+            var method = new MethodState(null);
             Assert.That(method.InputArguments, Is.Null);
         }
 
         [Test]
         public void MethodStateDeepGetHashCodeReturnsValue()
         {
-            using var method = new MethodState(null)
+            var method = new MethodState(null)
             {
                 NodeId = new NodeId(1),
                 BrowseName = new QualifiedName("Test")
@@ -597,7 +589,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
         [Test]
         public void BaseDataVariableStateValueCanBeSet()
         {
-            using var variable = new BaseDataVariableState(null)
+            var variable = new BaseDataVariableState(null)
             {
                 Value = 42
             };
@@ -607,7 +599,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
         [Test]
         public void BaseDataVariableStateDataTypeCanBeSet()
         {
-            using var variable = new BaseDataVariableState(null)
+            var variable = new BaseDataVariableState(null)
             {
                 DataType = DataTypeIds.Int32
             };
@@ -617,7 +609,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
         [Test]
         public void BaseDataVariableStateValueRankCanBeSet()
         {
-            using var variable = new BaseDataVariableState(null)
+            var variable = new BaseDataVariableState(null)
             {
                 ValueRank = ValueRanks.OneDimension
             };
@@ -627,7 +619,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
         [Test]
         public void BaseDataVariableStateAccessLevelCanBeSet()
         {
-            using var variable = new BaseDataVariableState(null)
+            var variable = new BaseDataVariableState(null)
             {
                 AccessLevel = AccessLevels.CurrentRead
             };
@@ -637,7 +629,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
         [Test]
         public void BaseDataVariableStateUserAccessLevelCanBeSet()
         {
-            using var variable = new BaseDataVariableState(null)
+            var variable = new BaseDataVariableState(null)
             {
                 UserAccessLevel = AccessLevels.CurrentReadOrWrite
             };
@@ -649,7 +641,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
         [Test]
         public void BaseDataVariableStateHistorizingCanBeSet()
         {
-            using var variable = new BaseDataVariableState(null)
+            var variable = new BaseDataVariableState(null)
             {
                 Historizing = true
             };
@@ -659,7 +651,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
         [Test]
         public void BaseDataVariableStateMinimumSamplingInterval()
         {
-            using var variable = new BaseDataVariableState(null)
+            var variable = new BaseDataVariableState(null)
             {
                 MinimumSamplingInterval = 500.0
             };
@@ -669,12 +661,12 @@ namespace Opc.Ua.Core.Tests.Stack.State
         [Test]
         public void FolderStateAddChildVariable()
         {
-            using var folder = new FolderState(null)
+            var folder = new FolderState(null)
             {
                 NodeId = new NodeId(1, 0),
                 BrowseName = new QualifiedName("MyFolder")
             };
-            using var variable = new BaseDataVariableState(folder)
+            var variable = new BaseDataVariableState(folder)
             {
                 NodeId = new NodeId(2, 0),
                 BrowseName = new QualifiedName("MyVar"),
@@ -690,14 +682,14 @@ namespace Opc.Ua.Core.Tests.Stack.State
         [Test]
         public void NodeStateInitializedDefault()
         {
-            using var node = new BaseObjectState(null);
+            var node = new BaseObjectState(null);
             Assert.That(node.Initialized, Is.False);
         }
 
         [Test]
         public void MethodStateMethodDeclarationIdCanBeSet()
         {
-            using var method = new MethodState(null)
+            var method = new MethodState(null)
             {
                 MethodDeclarationId = new NodeId(999)
             };
@@ -707,7 +699,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
         [Test]
         public void MethodStateOnCallMethodHandlerCanBeAssigned()
         {
-            using var method = new MethodState(null)
+            var method = new MethodState(null)
             {
                 OnCallMethod = (context, methodState, inputArgs, outputArgs) => ServiceResult.Good
             };
@@ -717,7 +709,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
         [Test]
         public void MethodStateOnCallMethod2HandlerCanBeAssigned()
         {
-            using var method = new MethodState(null)
+            var method = new MethodState(null)
             {
                 OnCallMethod2 = (context, methodToCall, objectId, inputArgs, outputArgs) => ServiceResult.Good
             };
@@ -727,7 +719,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
         [Test]
         public void BaseDataVariableStateCopyPolicyDefault()
         {
-            using var variable = new BaseDataVariableState(null);
+            var variable = new BaseDataVariableState(null);
             Assert.That(
                 variable.CopyPolicy,
                 Is.EqualTo(VariableCopyPolicy.CopyOnRead));
@@ -736,7 +728,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
         [Test]
         public void BaseDataVariableStateCopyPolicyCanBeSet()
         {
-            using var variable = new BaseDataVariableState(null)
+            var variable = new BaseDataVariableState(null)
             {
                 CopyPolicy = VariableCopyPolicy.Never
             };

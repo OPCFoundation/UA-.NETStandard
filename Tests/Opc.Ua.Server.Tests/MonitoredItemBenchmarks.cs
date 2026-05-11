@@ -165,8 +165,6 @@ namespace Opc.Ua.Server.Tests
         public void Cleanup()
         {
             m_monitoredItem?.Dispose();
-            m_event1?.Dispose();
-            m_event2?.Dispose();
             m_queueFactory?.Dispose();
         }
 

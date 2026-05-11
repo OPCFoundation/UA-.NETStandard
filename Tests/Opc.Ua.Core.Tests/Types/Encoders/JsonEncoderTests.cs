@@ -1789,7 +1789,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// <summary>
         /// Validate that the DateTime format strings return an equal result.
         /// </summary>
-        private void DateTimeEncodeStringTest(DateTimeUtc testDateTime)
+        private static void DateTimeEncodeStringTest(DateTimeUtc testDateTime)
         {
             string resultString = testDateTime.ToString(
                 "yyyy-MM-dd'T'HH:mm:ss.FFFFFFFK",
