@@ -41,10 +41,10 @@ namespace Opc.Ua.Aot.Tests
     /// </summary>
     public sealed class AotTestFixture : IAsyncInitializer, IAsyncDisposable
     {
-        public AotServerFixture<ReferenceServer> ServerFixture { get; private set; } = null;
+        public AotServerFixture<ReferenceServer> ServerFixture { get; private set; }
         public ISession Session { get; private set; }
-        public string ServerUrl { get; private set; } = null;
-        public ITelemetryContext Telemetry { get; private set; } = null;
+        public string ServerUrl { get; private set; }
+        public ITelemetryContext Telemetry { get; private set; }
         private ApplicationConfiguration m_clientConfiguration;
         private string m_pkiRoot;
 

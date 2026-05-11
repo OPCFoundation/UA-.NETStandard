@@ -312,7 +312,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             sm.ConnectAsync = _ =>
                 Task.FromResult(ServiceResult.Good);
 
-            sm.CloseSessionAsync = async _ => await closeTcs.Task.ConfigureAwait(false);
+            sm.CloseSessionAsync = _ => closeTcs.Task;
 
             sm.Start();
             sm.RequestConnect();
@@ -574,7 +574,6 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 mockPolicy.Object, m_logger);
             await using (sm.ConfigureAwait(false))
             {
-
                 int connectCallCount = 0;
                 sm.ConnectAsync = _ =>
                 {

@@ -301,7 +301,6 @@ namespace Opc.Ua.Server.Tests
                 };
                 await using (clientApp.ConfigureAwait(false))
                 {
-
                     ApplicationConfiguration clientConfig = await clientApp
                         .Build(clientApplicationUri, "uri:opcfoundation.org:TestClient")
                         .AsClient()

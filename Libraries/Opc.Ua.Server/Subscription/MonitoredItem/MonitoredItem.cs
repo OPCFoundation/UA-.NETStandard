@@ -1628,7 +1628,7 @@ namespace Opc.Ua.Server
             }
 
             // select default data change filters.
-            double deadband = 0.0;
+            const double deadband = 0.0;
             DeadbandType deadbandType = DeadbandType.None;
             DataChangeTrigger trigger = DataChangeTrigger.StatusValue;
 

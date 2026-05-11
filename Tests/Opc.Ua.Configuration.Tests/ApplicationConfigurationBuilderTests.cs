@@ -82,7 +82,6 @@ namespace Opc.Ua.Configuration.Tests
             var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             await using (appInstance.ConfigureAwait(false))
             {
-
                 IApplicationConfigurationBuilderTypes builder = appInstance.Build(ApplicationUri, ProductUri);
 
                 Assert.That(builder, Is.Not.Null);
@@ -100,7 +99,6 @@ namespace Opc.Ua.Configuration.Tests
             var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             await using (appInstance.ConfigureAwait(false))
             {
-
                 appInstance.Build(ApplicationUri, ProductUri);
 
                 Assert.That(appInstance.ApplicationConfiguration.TransportQuotas, Is.Not.Null);
@@ -114,7 +112,6 @@ namespace Opc.Ua.Configuration.Tests
             var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             await using (appInstance.ConfigureAwait(false))
             {
-
                 appInstance.Build(ApplicationUri, ProductUri);
 
                 Assert.That(appInstance.ApplicationConfiguration.TraceConfiguration, Is.Not.Null);
@@ -131,7 +128,6 @@ namespace Opc.Ua.Configuration.Tests
             var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             await using (appInstance.ConfigureAwait(false))
             {
-
                 appInstance.Build(ApplicationUri, ProductUri)
                     .AsClient();
 
@@ -151,7 +147,6 @@ namespace Opc.Ua.Configuration.Tests
             };
             await using (appInstance.ConfigureAwait(false))
             {
-
                 appInstance.Build(ApplicationUri, ProductUri)
                     .AsClient();
 
@@ -170,7 +165,6 @@ namespace Opc.Ua.Configuration.Tests
             };
             await using (appInstance.ConfigureAwait(false))
             {
-
                 appInstance.Build(ApplicationUri, ProductUri)
                     .AsServer([EndpointUrl]);
 
@@ -185,7 +179,6 @@ namespace Opc.Ua.Configuration.Tests
             var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             await using (appInstance.ConfigureAwait(false))
             {
-
                 appInstance.Build(ApplicationUri, ProductUri)
                     .AsServer([EndpointUrl])
                     .AsClient();
@@ -203,7 +196,6 @@ namespace Opc.Ua.Configuration.Tests
             var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             await using (appInstance.ConfigureAwait(false))
             {
-
                 appInstance.Build(ApplicationUri, ProductUri)
                     .AsServer([EndpointUrl])
                     .AsClient();
@@ -223,7 +215,6 @@ namespace Opc.Ua.Configuration.Tests
             };
             await using (appInstance.ConfigureAwait(false))
             {
-
                 Assert.Throws<ArgumentException>(() =>
                     appInstance.Build(ApplicationUri, ProductUri)
                         .AsClient());
@@ -241,7 +232,6 @@ namespace Opc.Ua.Configuration.Tests
             };
             await using (appInstance.ConfigureAwait(false))
             {
-
                 Assert.Throws<ArgumentException>(() =>
                     appInstance.Build(ApplicationUri, ProductUri)
                         .AsServer([EndpointUrl]));
@@ -292,7 +282,6 @@ namespace Opc.Ua.Configuration.Tests
             var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             await using (appInstance.ConfigureAwait(false))
             {
-
                 appInstance.Build(ApplicationUri, ProductUri)
                     .AsServer([EndpointUrl]);
 
@@ -309,7 +298,6 @@ namespace Opc.Ua.Configuration.Tests
             var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             await using (appInstance.ConfigureAwait(false))
             {
-
                 appInstance.Build(ApplicationUri, ProductUri)
                     .AsServer([EndpointUrl]);
 
@@ -329,7 +317,6 @@ namespace Opc.Ua.Configuration.Tests
             var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             await using (appInstance.ConfigureAwait(false))
             {
-
                 appInstance.Build(ApplicationUri, ProductUri)
                     .AsClient()
                     .AddSecurityConfiguration(SubjectName, m_pkiRoot);
@@ -355,7 +342,6 @@ namespace Opc.Ua.Configuration.Tests
             var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             await using (appInstance.ConfigureAwait(false))
             {
-
                 appInstance.Build(ApplicationUri, ProductUri)
                     .AsClient()
                     .AddSecurityConfiguration(SubjectName, m_pkiRoot);
@@ -379,7 +365,6 @@ namespace Opc.Ua.Configuration.Tests
             var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             await using (appInstance.ConfigureAwait(false))
             {
-
                 ArrayOf<CertificateIdentifier> certs =
                     ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
                         SubjectName,
@@ -507,7 +492,6 @@ namespace Opc.Ua.Configuration.Tests
             var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             await using (appInstance.ConfigureAwait(false))
             {
-
                 appInstance.Build(ApplicationUri, ProductUri)
                     .AsClient()
                     .AddSecurityConfiguration(SubjectName, m_pkiRoot)
@@ -542,7 +526,6 @@ namespace Opc.Ua.Configuration.Tests
             var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             await using (appInstance.ConfigureAwait(false))
             {
-
                 appInstance.Build(ApplicationUri, ProductUri)
                     .SetOperationTimeout(15000);
 
@@ -559,7 +542,6 @@ namespace Opc.Ua.Configuration.Tests
             var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             await using (appInstance.ConfigureAwait(false))
             {
-
                 appInstance.Build(ApplicationUri, ProductUri)
                     .SetMaxStringLength(1_000_000);
 
@@ -576,7 +558,6 @@ namespace Opc.Ua.Configuration.Tests
             var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             await using (appInstance.ConfigureAwait(false))
             {
-
                 appInstance.Build(ApplicationUri, ProductUri)
                     .SetMaxByteStringLength(2_000_000);
 
@@ -593,7 +574,6 @@ namespace Opc.Ua.Configuration.Tests
             var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             await using (appInstance.ConfigureAwait(false))
             {
-
                 appInstance.Build(ApplicationUri, ProductUri)
                     .SetMaxArrayLength(5000);
 
@@ -610,7 +590,6 @@ namespace Opc.Ua.Configuration.Tests
             var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             await using (appInstance.ConfigureAwait(false))
             {
-
                 appInstance.Build(ApplicationUri, ProductUri)
                     .SetMaxMessageSize(8_000_000);
 
@@ -627,7 +606,6 @@ namespace Opc.Ua.Configuration.Tests
             var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             await using (appInstance.ConfigureAwait(false))
             {
-
                 appInstance.Build(ApplicationUri, ProductUri)
                     .SetMaxBufferSize(65536);
 
@@ -644,7 +622,6 @@ namespace Opc.Ua.Configuration.Tests
             var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             await using (appInstance.ConfigureAwait(false))
             {
-
                 appInstance.Build(ApplicationUri, ProductUri)
                     .SetChannelLifetime(600_000);
 
@@ -661,7 +638,6 @@ namespace Opc.Ua.Configuration.Tests
             var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             await using (appInstance.ConfigureAwait(false))
             {
-
                 appInstance.Build(ApplicationUri, ProductUri)
                     .SetSecurityTokenLifetime(3_600_000);
 
@@ -678,7 +654,6 @@ namespace Opc.Ua.Configuration.Tests
             var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             await using (appInstance.ConfigureAwait(false))
             {
-
                 appInstance.Build(ApplicationUri, ProductUri)
                     .SetMaxEncodingNestingLevels(128);
 
@@ -695,7 +670,6 @@ namespace Opc.Ua.Configuration.Tests
             var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             await using (appInstance.ConfigureAwait(false))
             {
-
                 appInstance.Build(ApplicationUri, ProductUri)
                     .SetMaxDecoderRecoveries(10);
 
@@ -712,7 +686,6 @@ namespace Opc.Ua.Configuration.Tests
             var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             await using (appInstance.ConfigureAwait(false))
             {
-
                 appInstance.Build(ApplicationUri, ProductUri)
                     .AsClient()
                     .AddSecurityConfiguration(SubjectName, m_pkiRoot)
@@ -731,7 +704,6 @@ namespace Opc.Ua.Configuration.Tests
             var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             await using (appInstance.ConfigureAwait(false))
             {
-
                 appInstance.Build(ApplicationUri, ProductUri)
                     .AsClient()
                     .AddSecurityConfiguration(SubjectName, m_pkiRoot)
@@ -750,7 +722,6 @@ namespace Opc.Ua.Configuration.Tests
             var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             await using (appInstance.ConfigureAwait(false))
             {
-
                 appInstance.Build(ApplicationUri, ProductUri)
                     .AsClient()
                     .AddSecurityConfiguration(SubjectName, m_pkiRoot)
@@ -769,7 +740,6 @@ namespace Opc.Ua.Configuration.Tests
             var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             await using (appInstance.ConfigureAwait(false))
             {
-
                 appInstance.Build(ApplicationUri, ProductUri)
                     .AsClient()
                     .AddSecurityConfiguration(SubjectName, m_pkiRoot)
@@ -788,7 +758,6 @@ namespace Opc.Ua.Configuration.Tests
             var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             await using (appInstance.ConfigureAwait(false))
             {
-
                 appInstance.Build(ApplicationUri, ProductUri)
                     .AsClient()
                     .AddSecurityConfiguration(SubjectName, m_pkiRoot)
@@ -807,7 +776,6 @@ namespace Opc.Ua.Configuration.Tests
             var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             await using (appInstance.ConfigureAwait(false))
             {
-
                 appInstance.Build(ApplicationUri, ProductUri)
                     .AsClient()
                     .AddSecurityConfiguration(SubjectName, m_pkiRoot)
@@ -826,7 +794,6 @@ namespace Opc.Ua.Configuration.Tests
             var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             await using (appInstance.ConfigureAwait(false))
             {
-
                 appInstance.Build(ApplicationUri, ProductUri)
                     .AsClient()
                     .AddSecurityConfiguration(SubjectName, m_pkiRoot)
@@ -845,7 +812,6 @@ namespace Opc.Ua.Configuration.Tests
             var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             await using (appInstance.ConfigureAwait(false))
             {
-
                 appInstance.Build(ApplicationUri, ProductUri)
                     .AsClient()
                     .AddSecurityConfiguration(SubjectName, m_pkiRoot)
@@ -864,7 +830,6 @@ namespace Opc.Ua.Configuration.Tests
             var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             await using (appInstance.ConfigureAwait(false))
             {
-
                 appInstance.Build(ApplicationUri, ProductUri)
                     .AsClient()
                     .AddSecurityConfiguration(SubjectName, m_pkiRoot)
@@ -883,7 +848,6 @@ namespace Opc.Ua.Configuration.Tests
             var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             await using (appInstance.ConfigureAwait(false))
             {
-
                 ArrayOf<CertificateIdentifier> certs =
                     ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
                         SubjectName,
@@ -908,7 +872,6 @@ namespace Opc.Ua.Configuration.Tests
             var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             await using (appInstance.ConfigureAwait(false))
             {
-
                 appInstance.Build(ApplicationUri, ProductUri)
                     .AsServer([EndpointUrl])
                     .AddUnsecurePolicyNone();
@@ -926,7 +889,6 @@ namespace Opc.Ua.Configuration.Tests
             var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             await using (appInstance.ConfigureAwait(false))
             {
-
                 appInstance.Build(ApplicationUri, ProductUri)
                     .AsServer([EndpointUrl])
                     .AddUnsecurePolicyNone(false);
@@ -943,7 +905,6 @@ namespace Opc.Ua.Configuration.Tests
             var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             await using (appInstance.ConfigureAwait(false))
             {
-
                 appInstance.Build(ApplicationUri, ProductUri)
                     .AsServer([EndpointUrl])
                     .AddSignPolicies();
@@ -963,7 +924,6 @@ namespace Opc.Ua.Configuration.Tests
             var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             await using (appInstance.ConfigureAwait(false))
             {
-
                 appInstance.Build(ApplicationUri, ProductUri)
                     .AsServer([EndpointUrl])
                     .AddSignPolicies(false);
@@ -980,7 +940,6 @@ namespace Opc.Ua.Configuration.Tests
             var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             await using (appInstance.ConfigureAwait(false))
             {
-
                 appInstance.Build(ApplicationUri, ProductUri)
                     .AsServer([EndpointUrl])
                     .AddSignAndEncryptPolicies();
@@ -1000,7 +959,6 @@ namespace Opc.Ua.Configuration.Tests
             var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             await using (appInstance.ConfigureAwait(false))
             {
-
                 appInstance.Build(ApplicationUri, ProductUri)
                     .AsServer([EndpointUrl])
                     .AddSignAndEncryptPolicies(false);
@@ -1017,7 +975,6 @@ namespace Opc.Ua.Configuration.Tests
             var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             await using (appInstance.ConfigureAwait(false))
             {
-
                 appInstance.Build(ApplicationUri, ProductUri)
                     .AsServer([EndpointUrl])
                     .AddEccSignPolicies();
@@ -1037,7 +994,6 @@ namespace Opc.Ua.Configuration.Tests
             var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             await using (appInstance.ConfigureAwait(false))
             {
-
                 appInstance.Build(ApplicationUri, ProductUri)
                     .AsServer([EndpointUrl])
                     .AddEccSignAndEncryptPolicies();
@@ -1057,7 +1013,6 @@ namespace Opc.Ua.Configuration.Tests
             var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             await using (appInstance.ConfigureAwait(false))
             {
-
                 appInstance.Build(ApplicationUri, ProductUri)
                     .AsServer([EndpointUrl])
                     .AddPolicy(MessageSecurityMode.SignAndEncrypt, SecurityPolicies.Basic256Sha256);
@@ -1076,7 +1031,6 @@ namespace Opc.Ua.Configuration.Tests
             var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             await using (appInstance.ConfigureAwait(false))
             {
-
                 Assert.Throws<ArgumentException>(() =>
                     appInstance.Build(ApplicationUri, ProductUri)
                         .AsServer([EndpointUrl])
@@ -1091,7 +1045,6 @@ namespace Opc.Ua.Configuration.Tests
             var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             await using (appInstance.ConfigureAwait(false))
             {
-
                 Assert.Throws<ArgumentException>(() =>
                     appInstance.Build(ApplicationUri, ProductUri)
                         .AsServer([EndpointUrl])
@@ -1106,7 +1059,6 @@ namespace Opc.Ua.Configuration.Tests
             var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             await using (appInstance.ConfigureAwait(false))
             {
-
                 Assert.Throws<ArgumentException>(() =>
                     appInstance.Build(ApplicationUri, ProductUri)
                         .AsServer([EndpointUrl])
@@ -1121,7 +1073,6 @@ namespace Opc.Ua.Configuration.Tests
             var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             await using (appInstance.ConfigureAwait(false))
             {
-
                 appInstance.Build(ApplicationUri, ProductUri)
                     .AsServer([EndpointUrl])
                     .AddPolicy(MessageSecurityMode.SignAndEncrypt, SecurityPolicies.Basic256Sha256)
@@ -1139,7 +1090,6 @@ namespace Opc.Ua.Configuration.Tests
             var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             await using (appInstance.ConfigureAwait(false))
             {
-
                 appInstance.Build(ApplicationUri, ProductUri)
                     .AsServer([EndpointUrl])
                     .AddUserTokenPolicy(UserTokenType.Anonymous)
@@ -1178,7 +1128,6 @@ namespace Opc.Ua.Configuration.Tests
             var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             await using (appInstance.ConfigureAwait(false))
             {
-
                 Assert.Throws<ArgumentNullException>(() =>
                     appInstance.Build(ApplicationUri, ProductUri)
                         .AsServer([EndpointUrl])
@@ -1193,7 +1142,6 @@ namespace Opc.Ua.Configuration.Tests
             var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             await using (appInstance.ConfigureAwait(false))
             {
-
                 appInstance.Build(ApplicationUri, ProductUri)
                     .AsServer([EndpointUrl])
                     .SetMinRequestThreadCount(5);
@@ -1211,7 +1159,6 @@ namespace Opc.Ua.Configuration.Tests
             var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             await using (appInstance.ConfigureAwait(false))
             {
-
                 appInstance.Build(ApplicationUri, ProductUri)
                     .AsServer([EndpointUrl])
                     .SetMaxRequestThreadCount(100);
@@ -1229,7 +1176,6 @@ namespace Opc.Ua.Configuration.Tests
             var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             await using (appInstance.ConfigureAwait(false))
             {
-
                 appInstance.Build(ApplicationUri, ProductUri)
                     .AsServer([EndpointUrl])
                     .SetMaxQueuedRequestCount(200);
@@ -1247,7 +1193,6 @@ namespace Opc.Ua.Configuration.Tests
             var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             await using (appInstance.ConfigureAwait(false))
             {
-
                 appInstance.Build(ApplicationUri, ProductUri)
                     .AsServer([EndpointUrl])
                     .SetDiagnosticsEnabled(true);
@@ -1265,7 +1210,6 @@ namespace Opc.Ua.Configuration.Tests
             var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             await using (appInstance.ConfigureAwait(false))
             {
-
                 appInstance.Build(ApplicationUri, ProductUri)
                     .AsServer([EndpointUrl])
                     .SetMaxSessionCount(500);
@@ -1283,7 +1227,6 @@ namespace Opc.Ua.Configuration.Tests
             var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             await using (appInstance.ConfigureAwait(false))
             {
-
                 appInstance.Build(ApplicationUri, ProductUri)
                     .AsServer([EndpointUrl])
                     .SetMaxChannelCount(300);
@@ -1301,7 +1244,6 @@ namespace Opc.Ua.Configuration.Tests
             var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             await using (appInstance.ConfigureAwait(false))
             {
-
                 appInstance.Build(ApplicationUri, ProductUri)
                     .AsServer([EndpointUrl])
                     .SetMinSessionTimeout(1000);
@@ -1319,7 +1261,6 @@ namespace Opc.Ua.Configuration.Tests
             var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             await using (appInstance.ConfigureAwait(false))
             {
-
                 appInstance.Build(ApplicationUri, ProductUri)
                     .AsServer([EndpointUrl])
                     .SetMaxSessionTimeout(60000);
@@ -1337,7 +1278,6 @@ namespace Opc.Ua.Configuration.Tests
             var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             await using (appInstance.ConfigureAwait(false))
             {
-
                 appInstance.Build(ApplicationUri, ProductUri)
                     .AsServer([EndpointUrl])
                     .SetMaxBrowseContinuationPoints(10)
@@ -1358,7 +1298,6 @@ namespace Opc.Ua.Configuration.Tests
             var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             await using (appInstance.ConfigureAwait(false))
             {
-
                 appInstance.Build(ApplicationUri, ProductUri)
                     .AsServer([EndpointUrl])
                     .SetMaxRequestAge(600_000);
@@ -1376,7 +1315,6 @@ namespace Opc.Ua.Configuration.Tests
             var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             await using (appInstance.ConfigureAwait(false))
             {
-
                 appInstance.Build(ApplicationUri, ProductUri)
                     .AsServer([EndpointUrl])
                     .SetMinPublishingInterval(50)
@@ -1397,7 +1335,6 @@ namespace Opc.Ua.Configuration.Tests
             var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             await using (appInstance.ConfigureAwait(false))
             {
-
                 appInstance.Build(ApplicationUri, ProductUri)
                     .AsServer([EndpointUrl])
                     .SetMinSubscriptionLifetime(1000)
@@ -1416,7 +1353,6 @@ namespace Opc.Ua.Configuration.Tests
             var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             await using (appInstance.ConfigureAwait(false))
             {
-
                 appInstance.Build(ApplicationUri, ProductUri)
                     .AsServer([EndpointUrl])
                     .SetMaxMessageQueueSize(500)
@@ -1439,7 +1375,6 @@ namespace Opc.Ua.Configuration.Tests
             var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             await using (appInstance.ConfigureAwait(false))
             {
-
                 appInstance.Build(ApplicationUri, ProductUri)
                     .AsServer([EndpointUrl])
                     .SetMinMetadataSamplingInterval(100);
@@ -1498,7 +1433,6 @@ namespace Opc.Ua.Configuration.Tests
             var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             await using (appInstance.ConfigureAwait(false))
             {
-
                 appInstance.Build(ApplicationUri, ProductUri)
                     .AsServer([EndpointUrl])
                     .SetMaxRegistrationInterval(30000);
@@ -1516,7 +1450,6 @@ namespace Opc.Ua.Configuration.Tests
             var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             await using (appInstance.ConfigureAwait(false))
             {
-
                 appInstance.Build(ApplicationUri, ProductUri)
                     .AsServer([EndpointUrl])
                     .SetNodeManagerSaveFile("nodemanager.xml");
@@ -1534,7 +1467,6 @@ namespace Opc.Ua.Configuration.Tests
             var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             await using (appInstance.ConfigureAwait(false))
             {
-
                 appInstance.Build(ApplicationUri, ProductUri)
                     .AsServer([EndpointUrl])
                     .SetMaxPublishRequestCount(50);
@@ -1552,7 +1484,6 @@ namespace Opc.Ua.Configuration.Tests
             var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             await using (appInstance.ConfigureAwait(false))
             {
-
                 appInstance.Build(ApplicationUri, ProductUri)
                     .AsServer([EndpointUrl])
                     .SetMaxSubscriptionCount(200);
@@ -1589,7 +1520,6 @@ namespace Opc.Ua.Configuration.Tests
             var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             await using (appInstance.ConfigureAwait(false))
             {
-
                 appInstance.Build(ApplicationUri, ProductUri)
                     .AsServer([EndpointUrl])
                     .SetShutdownDelay(5);
@@ -1607,7 +1537,6 @@ namespace Opc.Ua.Configuration.Tests
             var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             await using (appInstance.ConfigureAwait(false))
             {
-
                 appInstance.Build(ApplicationUri, ProductUri)
                     .AsServer([EndpointUrl])
                     .AddServerCapabilities("DA")
@@ -1645,7 +1574,6 @@ namespace Opc.Ua.Configuration.Tests
             var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             await using (appInstance.ConfigureAwait(false))
             {
-
                 appInstance.Build(ApplicationUri, ProductUri)
                     .AsServer([EndpointUrl])
                     .SetMaxTrustListSize(65536);
@@ -1663,7 +1591,6 @@ namespace Opc.Ua.Configuration.Tests
             var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             await using (appInstance.ConfigureAwait(false))
             {
-
                 appInstance.Build(ApplicationUri, ProductUri)
                     .AsServer([EndpointUrl])
                     .SetMultiCastDnsEnabled(true);
@@ -1722,7 +1649,6 @@ namespace Opc.Ua.Configuration.Tests
             var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             await using (appInstance.ConfigureAwait(false))
             {
-
                 appInstance.Build(ApplicationUri, ProductUri)
                     .AsServer([EndpointUrl])
                     .SetAuditingEnabled(true);
@@ -1740,7 +1666,6 @@ namespace Opc.Ua.Configuration.Tests
             var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             await using (appInstance.ConfigureAwait(false))
             {
-
                 appInstance.Build(ApplicationUri, ProductUri)
                     .AsServer([EndpointUrl])
                     .SetHttpsMutualTls(true);
@@ -1758,7 +1683,6 @@ namespace Opc.Ua.Configuration.Tests
             var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             await using (appInstance.ConfigureAwait(false))
             {
-
                 appInstance.Build(ApplicationUri, ProductUri)
                     .AsServer([EndpointUrl])
                     .SetDurableSubscriptionsEnabled(true);
@@ -1776,7 +1700,6 @@ namespace Opc.Ua.Configuration.Tests
             var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             await using (appInstance.ConfigureAwait(false))
             {
-
                 appInstance.Build(ApplicationUri, ProductUri)
                     .AsServer([EndpointUrl])
                     .SetMaxDurableNotificationQueueSize(5000);
@@ -1794,7 +1717,6 @@ namespace Opc.Ua.Configuration.Tests
             var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             await using (appInstance.ConfigureAwait(false))
             {
-
                 appInstance.Build(ApplicationUri, ProductUri)
                     .AsServer([EndpointUrl])
                     .SetMaxDurableEventQueueSize(3000);
@@ -1812,7 +1734,6 @@ namespace Opc.Ua.Configuration.Tests
             var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             await using (appInstance.ConfigureAwait(false))
             {
-
                 appInstance.Build(ApplicationUri, ProductUri)
                     .AsServer([EndpointUrl])
                     .SetMaxDurableSubscriptionLifetime(720);
@@ -1830,7 +1751,6 @@ namespace Opc.Ua.Configuration.Tests
             var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             await using (appInstance.ConfigureAwait(false))
             {
-
                 appInstance.Build(ApplicationUri, ProductUri)
                     .AsClient()
                     .SetDefaultSessionTimeout(30000);
@@ -1848,7 +1768,6 @@ namespace Opc.Ua.Configuration.Tests
             var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             await using (appInstance.ConfigureAwait(false))
             {
-
                 appInstance.Build(ApplicationUri, ProductUri)
                     .AsClient()
                     .AddWellKnownDiscoveryUrls("opc.tcp://localhost:4840");
@@ -1885,7 +1804,6 @@ namespace Opc.Ua.Configuration.Tests
             var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             await using (appInstance.ConfigureAwait(false))
             {
-
                 appInstance.Build(ApplicationUri, ProductUri)
                     .AsClient()
                     .SetEndpointCacheFilePath("endpoints.xml");
@@ -1903,7 +1821,6 @@ namespace Opc.Ua.Configuration.Tests
             var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             await using (appInstance.ConfigureAwait(false))
             {
-
                 IApplicationConfigurationBuilderClientOptions clientBuilder =
                     appInstance.Build(ApplicationUri, ProductUri)
                         .AsClient();
@@ -1963,7 +1880,6 @@ namespace Opc.Ua.Configuration.Tests
             var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             await using (appInstance.ConfigureAwait(false))
             {
-
                 appInstance.Build(ApplicationUri, ProductUri)
                     .AsClient()
                     .AddSecurityConfiguration(SubjectName, m_pkiRoot)
@@ -1982,7 +1898,6 @@ namespace Opc.Ua.Configuration.Tests
             var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             await using (appInstance.ConfigureAwait(false))
             {
-
                 appInstance.Build(ApplicationUri, ProductUri)
                     .AsClient()
                     .AddSecurityConfiguration(SubjectName, m_pkiRoot)
@@ -2001,7 +1916,6 @@ namespace Opc.Ua.Configuration.Tests
             var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             await using (appInstance.ConfigureAwait(false))
             {
-
                 appInstance.Build(ApplicationUri, ProductUri)
                     .AsClient()
                     .AddSecurityConfiguration(SubjectName, m_pkiRoot)
@@ -2024,7 +1938,6 @@ namespace Opc.Ua.Configuration.Tests
             };
             await using (appInstance.ConfigureAwait(false))
             {
-
                 appInstance.Build(ApplicationUri, ProductUri);
 
                 // Directly access builder to bypass fluent chain - ServerConfig is null
@@ -2045,7 +1958,6 @@ namespace Opc.Ua.Configuration.Tests
             };
             await using (appInstance.ConfigureAwait(false))
             {
-
                 appInstance.Build(ApplicationUri, ProductUri);
 
                 // Directly access builder to bypass fluent chain - ClientConfig is null
@@ -2062,7 +1974,6 @@ namespace Opc.Ua.Configuration.Tests
             var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             await using (appInstance.ConfigureAwait(false))
             {
-
                 ArrayOf<CertificateIdentifier> certs =
                     ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
                         SubjectName,
@@ -2089,7 +2000,6 @@ namespace Opc.Ua.Configuration.Tests
             var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             await using (appInstance.ConfigureAwait(false))
             {
-
                 ArrayOf<CertificateIdentifier> certs =
                     ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
                         SubjectName,
@@ -2114,7 +2024,6 @@ namespace Opc.Ua.Configuration.Tests
             var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             await using (appInstance.ConfigureAwait(false))
             {
-
                 ArrayOf<CertificateIdentifier> certs =
                     ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
                         SubjectName,
@@ -2204,7 +2113,6 @@ namespace Opc.Ua.Configuration.Tests
             var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             await using (appInstance.ConfigureAwait(false))
             {
-
                 appInstance.Build(ApplicationUri, ProductUri)
                     .AsClient()
                     .AddSecurityConfiguration(SubjectName);
@@ -2223,7 +2131,6 @@ namespace Opc.Ua.Configuration.Tests
             var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             await using (appInstance.ConfigureAwait(false))
             {
-
                 ArrayOf<CertificateIdentifier> certs =
                     ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
                         SubjectName,
@@ -2247,7 +2154,6 @@ namespace Opc.Ua.Configuration.Tests
             var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
             await using (appInstance.ConfigureAwait(false))
             {
-
                 ArrayOf<CertificateIdentifier> certs =
                     ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
                         SubjectName,
@@ -2351,7 +2257,6 @@ namespace Opc.Ua.Configuration.Tests
             };
             await using (appInstance.ConfigureAwait(false))
             {
-
                 appInstance.Build(ApplicationUri, ProductUri)
                     .AsClient();
 
@@ -2370,7 +2275,6 @@ namespace Opc.Ua.Configuration.Tests
             };
             await using (appInstance.ConfigureAwait(false))
             {
-
                 appInstance.Build(ApplicationUri, ProductUri)
                     .AsClient();
 
@@ -2389,7 +2293,6 @@ namespace Opc.Ua.Configuration.Tests
             };
             await using (appInstance.ConfigureAwait(false))
             {
-
                 appInstance.Build(ApplicationUri, ProductUri)
                     .AsServer([EndpointUrl]);
 
@@ -2408,7 +2311,6 @@ namespace Opc.Ua.Configuration.Tests
             };
             await using (appInstance.ConfigureAwait(false))
             {
-
                 appInstance.Build(ApplicationUri, ProductUri)
                     .AsServer([EndpointUrl]);
 
@@ -2427,7 +2329,6 @@ namespace Opc.Ua.Configuration.Tests
             };
             await using (appInstance.ConfigureAwait(false))
             {
-
                 appInstance.Build(ApplicationUri, ProductUri)
                     .AsServer([EndpointUrl])
                     .AsClient();
@@ -2447,7 +2348,6 @@ namespace Opc.Ua.Configuration.Tests
             };
             await using (appInstance.ConfigureAwait(false))
             {
-
                 appInstance.Build(ApplicationUri, ProductUri)
                     .AsServer([EndpointUrl])
                     .AsClient();

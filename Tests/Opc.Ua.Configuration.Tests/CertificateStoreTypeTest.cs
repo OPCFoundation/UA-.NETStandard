@@ -79,7 +79,6 @@ namespace Opc.Ua.Configuration.Tests
             var application = new ApplicationInstance(telemetry) { ApplicationName = "Application" };
             await using (application.ConfigureAwait(false))
             {
-
                 string appStorePath = m_tempPath + Path.DirectorySeparatorChar + "own";
                 string trustedStorePath = m_tempPath + Path.DirectorySeparatorChar + "trusted";
                 string issuerStorePath = m_tempPath + Path.DirectorySeparatorChar + "issuer";
@@ -311,7 +310,6 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         public static int InstancesCreated { get; set; }
-
         private readonly DirectoryCertificateStore m_innerStore;
     }
 }

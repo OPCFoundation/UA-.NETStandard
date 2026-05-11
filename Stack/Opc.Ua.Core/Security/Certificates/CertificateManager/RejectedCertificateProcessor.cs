@@ -45,17 +45,6 @@ namespace Opc.Ua
     /// </summary>
     internal sealed class RejectedCertificateProcessor : IAsyncDisposable
     {
-        private readonly Channel<WriteRequest> m_channel;
-        private readonly Task m_processingTask;
-        private readonly ICertificateTrustListManager m_trustListManager;
-        private int m_maxRejectedCertificates;
-        private TaskCompletionSource<bool> m_drainTcs = CreateCompletedTcs();
-        private readonly ILogger m_logger;
-
-        private readonly record struct WriteRequest(
-            CertificateCollection? Chain,
-            TaskCompletionSource<bool> Completion);
-
         /// <summary>
         /// Initializes a new instance of the
         /// <see cref="RejectedCertificateProcessor"/> class.
@@ -113,11 +102,11 @@ namespace Opc.Ua
             // channel is processed in order, this also implies all earlier
             // requests have completed.
             Interlocked.Exchange(ref m_drainTcs, tcs);
+            var request = new WriteRequest(chain.AddRef(), tcs);
 
-            var request = new WriteRequest(chain, tcs);
             return m_channel.Writer.TryWrite(request)
-                        ? default
-                        : m_channel.Writer.WriteAsync(request, ct);
+                ? default
+                : m_channel.Writer.WriteAsync(request, ct);
         }
 
         /// <summary>
@@ -134,8 +123,8 @@ namespace Opc.Ua
 
             var request = new WriteRequest(Chain: null, tcs);
             return m_channel.Writer.TryWrite(request)
-                        ? default
-                        : m_channel.Writer.WriteAsync(request, ct);
+                ? default
+                : m_channel.Writer.WriteAsync(request, ct);
         }
 
         /// <summary>
@@ -232,5 +221,16 @@ namespace Opc.Ua
             tcs.SetResult(true);
             return tcs;
         }
+
+        private readonly record struct WriteRequest(
+            CertificateCollection? Chain,
+            TaskCompletionSource<bool> Completion);
+
+        private readonly Channel<WriteRequest> m_channel;
+        private readonly Task m_processingTask;
+        private readonly ICertificateTrustListManager m_trustListManager;
+        private int m_maxRejectedCertificates;
+        private TaskCompletionSource<bool> m_drainTcs = CreateCompletedTcs();
+        private readonly ILogger m_logger;
     }
 }

@@ -142,7 +142,10 @@ namespace Quickstarts
 
                     string thumbprint = x509.Thumbprint;
 
-                    UserIdentity certificateIdentity = await LoadUserCertificateAsync(thumbprint, "password", ct).ConfigureAwait(false);
+                    UserIdentity certificateIdentity = await LoadUserCertificateAsync(
+                        thumbprint,
+                        "password",
+                        ct).ConfigureAwait(false);
 
                     var identities = new List<UserIdentity>
                     {
@@ -307,7 +310,6 @@ namespace Quickstarts
             }
         }
 
-#if NET8_0_OR_GREATER
         private async Task<UserIdentity> LoadUserCertificateAsync(
             string thumbprint,
             string password,
@@ -336,17 +338,6 @@ namespace Quickstarts
                 m_configuration.CertificateManager.CertificateProvider,
                 ct).ConfigureAwait(false);
         }
-#else
-        private Task<UserIdentity> LoadUserCertificateAsync(
-            string thumbprint,
-            string password,
-            CancellationToken ct)
-        {
-            return Task.FromException<UserIdentity>(
-                new NotSupportedException(
-                    "User certificate identity is only supported on .NET 8 or greater."));
-        }
-#endif
 
         private static async ValueTask<ArrayOf<EndpointDescription>> GetEndpointsAsync(
             ApplicationConfiguration application,

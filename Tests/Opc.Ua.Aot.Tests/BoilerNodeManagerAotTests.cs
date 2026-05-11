@@ -177,7 +177,7 @@ namespace Opc.Ua.Aot.Tests
         public string ServerUrl { get; private set; } = null;
         public ITelemetryContext Telemetry { get; private set; } = null;
         private ApplicationConfiguration m_clientConfiguration = null;
-        private string m_pkiRoot = null;
+        private string m_pkiRoot;
 
         public async Task InitializeAsync()
         {

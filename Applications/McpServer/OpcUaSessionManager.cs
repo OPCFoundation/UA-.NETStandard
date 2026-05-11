@@ -252,9 +252,7 @@ namespace Opc.Ua.Mcp
                 EndpointDescription selectedEndpoint = await SelectEndpointAsync(
                     endpointUrl, securityMode, securityPolicy, authType, ct).ConfigureAwait(false);
 
-#pragma warning disable CA2000 // Dispose objects before losing scope
                 UserIdentity identity = BuildUserIdentity(authType, username, password);
-#pragma warning restore CA2000 // Dispose objects before losing scope
 
                 var endpointConfiguration = EndpointConfiguration.Create(m_configuration!);
                 var endpoint = new ConfiguredEndpoint(null, selectedEndpoint, endpointConfiguration);
@@ -471,21 +469,21 @@ namespace Opc.Ua.Mcp
             if (!hasFilter)
             {
                 // Auto-select most secure, fall back to no-security
-                EndpointDescription? best = (await CoreClientUtils.SelectEndpointAsync(
+                return (await CoreClientUtils.SelectEndpointAsync(
                     m_configuration!,
                     endpointUrl,
                     true,
                     Telemetry,
-                    ct: ct).ConfigureAwait(false) ?? await CoreClientUtils.SelectEndpointAsync(
+                    ct: ct).ConfigureAwait(false) ??
+                    await CoreClientUtils.SelectEndpointAsync(
                         m_configuration!,
                         endpointUrl,
                         false,
                         Telemetry,
-                        ct: ct).ConfigureAwait(false)) ?? throw new ServiceResultException(
+                        ct: ct).ConfigureAwait(false)) ??
+                    throw new ServiceResultException(
                         StatusCodes.BadNotFound,
                         "No endpoints found at the specified URL.");
-
-                return best;
             }
 
             ArrayOf<EndpointDescription> allEndpoints =
@@ -520,9 +518,10 @@ namespace Opc.Ua.Mcp
                 (ep.UserIdentityTokens.ToArray() ?? [])
                     .Any(t => t.TokenType == requiredTokenType));
 
-            EndpointDescription? selected = candidates
+            return candidates
                 .OrderByDescending(ep => ep.SecurityLevel)
-                .FirstOrDefault() ?? throw new ServiceResultException(
+                .FirstOrDefault() ??
+                throw new ServiceResultException(
                     StatusCodes.BadNotFound,
                     string.Format(
                         CultureInfo.InvariantCulture,
@@ -532,8 +531,6 @@ namespace Opc.Ua.Mcp
                         securityMode ?? "(any)",
                         securityPolicy ?? "(any)",
                         authType));
-
-            return selected;
         }
 
         private static MessageSecurityMode ParseSecurityMode(string securityMode)

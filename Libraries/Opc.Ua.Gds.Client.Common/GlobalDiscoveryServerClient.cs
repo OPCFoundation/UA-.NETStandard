@@ -27,11 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-// CA2000: ownership of disposables created in this file is transferred to long-lived
-// caches, returned objects, or fields whose lifetime is managed by the containing type's
-// Dispose. Per Phase 8 review the residual sites are accepted as ownership-transfer patterns
-// rather than missed using statements.
-#pragma warning disable CA2000
 using System;
 using System.Collections.Generic;
 using System.Threading;
@@ -182,10 +177,6 @@ namespace Opc.Ua.Gds.Client
         /// </summary>
         public CertificateDirectoryTypeClient CertificateDirectory => m_certificateDirectory;
 
-        private DirectoryTypeClient m_directory;
-
-        private CertificateDirectoryTypeClient m_certificateDirectory;
-
         /// <summary>
         /// Gets the endpoint. The setter is write-once: an endpoint may be
         /// assigned only before the first connect and only when not already
@@ -224,11 +215,12 @@ namespace Opc.Ua.Gds.Client
             CancellationToken ct = default)
         {
             var serverUrls = new List<string>();
-
+            LocalDiscoveryServerClient localLds = lds != null ?
+                null :
+                new LocalDiscoveryServerClient(Configuration);
             try
             {
-                lds ??= new LocalDiscoveryServerClient(Configuration);
-
+                lds ??= localLds;
                 (ArrayOf<ServerOnNetwork> servers, DateTimeUtc _) = await lds.FindServersOnNetworkAsync(
                     0,
                     1000,
@@ -250,7 +242,13 @@ namespace Opc.Ua.Gds.Client
             {
                 m_logger.LogError(exception, "Unexpected error connecting to LDS");
             }
-
+            finally
+            {
+                if (localLds != null)
+                {
+                    await localLds.DisposeAsync().ConfigureAwait(false);
+                }
+            }
             return serverUrls;
         }
 
@@ -260,11 +258,12 @@ namespace Opc.Ua.Gds.Client
             CancellationToken ct = default)
         {
             var gdsUrls = new List<string>();
-
+            LocalDiscoveryServerClient localLds = lds != null ?
+                null :
+                new LocalDiscoveryServerClient(Configuration);
             try
             {
-                lds ??= new LocalDiscoveryServerClient(Configuration);
-
+                lds ??= localLds;
                 (ArrayOf<ServerOnNetwork> servers, DateTimeUtc _) = await lds.FindServersOnNetworkAsync(
                     0,
                     1000,
@@ -281,6 +280,13 @@ namespace Opc.Ua.Gds.Client
             catch (Exception exception)
             {
                 m_logger.LogError(exception, "Unexpected error connecting to LDS");
+            }
+            finally
+            {
+                if (localLds != null)
+                {
+                    await localLds.DisposeAsync().ConfigureAwait(false);
+                }
             }
 
             return gdsUrls;
@@ -843,6 +849,8 @@ namespace Opc.Ua.Gds.Client
         private readonly ILogger m_logger;
         private readonly GdsClientOptions m_options;
         private readonly CancellationTokenSource m_disposeCts = new();
+        private DirectoryTypeClient m_directory;
+        private CertificateDirectoryTypeClient m_certificateDirectory;
         private ConfiguredEndpoint m_endpoint;
         private bool m_disposed;
     }

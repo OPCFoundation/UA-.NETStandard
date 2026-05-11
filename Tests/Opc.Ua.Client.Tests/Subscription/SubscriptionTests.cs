@@ -78,7 +78,6 @@ namespace Opc.Ua.Client.Subscriptions
                 m_completion, m_options, m_telemetry);
             await using (sut.ConfigureAwait(false))
             {
-
                 // Act
                 bool success = sut.MonitoredItems.TryAdd("Test", options, out IMonitoredItem monitoredItem);
 
@@ -177,7 +176,6 @@ namespace Opc.Ua.Client.Subscriptions
                 m_completion, m_options, m_telemetry, 22);
             await using (sut.ConfigureAwait(false))
             {
-
                 Assert.That(sut.Created, Is.True);
                 Assert.That(sut.CurrentPublishingEnabled, Is.False);
                 Assert.That(sut.CurrentPublishingInterval, Is.EqualTo(publishingInterval));
@@ -229,7 +227,6 @@ namespace Opc.Ua.Client.Subscriptions
                 m_completion, m_options, m_telemetry, 22);
             await using (sut.ConfigureAwait(false))
             {
-
                 Assert.That(sut.Created, Is.True);
                 Assert.That(sut.CurrentPublishingEnabled, Is.False);
 
@@ -280,7 +277,6 @@ namespace Opc.Ua.Client.Subscriptions
                 m_completion, m_options, m_telemetry, 2);
             await using (sut.ConfigureAwait(false))
             {
-
                 sut.SubscriptionStateChanged.Reset();
                 bool success = sut.MonitoredItems.TryAdd("Test", OptionsFactory.Create(new MonitoredItems.MonitoredItemOptions
                 {
@@ -308,7 +304,6 @@ namespace Opc.Ua.Client.Subscriptions
                 m_completion, m_options, m_telemetry, 2);
             await using (sut.ConfigureAwait(false))
             {
-
                 OptionsMonitor<MonitoredItems.MonitoredItemOptions> options = OptionsFactory.Create<MonitoredItems.MonitoredItemOptions>();
                 bool success = sut.MonitoredItems.TryAdd("Test", options, out IMonitoredItem monitoredItem);
                 Assert.That(success, Is.True);
@@ -363,7 +358,6 @@ namespace Opc.Ua.Client.Subscriptions
               m_completion, m_options, m_telemetry, 2);
             await using (sut.ConfigureAwait(false))
             {
-
                 OptionsMonitor<MonitoredItems.MonitoredItemOptions> options = OptionsFactory.Create<MonitoredItems.MonitoredItemOptions>();
                 bool success = sut.MonitoredItems.TryAdd("Test", options, out IMonitoredItem monitoredItem);
                 Assert.That(success, Is.True);
@@ -429,7 +423,6 @@ namespace Opc.Ua.Client.Subscriptions
                 m_completion, m_options, m_telemetry, 2);
             await using (sut.ConfigureAwait(false))
             {
-
                 OptionsMonitor<MonitoredItems.MonitoredItemOptions> options = OptionsFactory.Create<MonitoredItems.MonitoredItemOptions>();
                 bool success = sut.MonitoredItems.TryAdd("Test", options, out IMonitoredItem monitoredItem);
                 Assert.That(success, Is.True);
@@ -562,7 +555,6 @@ namespace Opc.Ua.Client.Subscriptions
                 m_completion, m_options, m_telemetry, 2);
             await using (sut.ConfigureAwait(false))
             {
-
                 // Assert
                 m_mockMethodServices
                     .Setup(s => s.CallAsync(
@@ -596,7 +588,6 @@ namespace Opc.Ua.Client.Subscriptions
                 m_completion, m_options, m_telemetry);
             await using (sut.ConfigureAwait(false))
             {
-
                 // Act
                 async Task act() => await sut.ConditionRefreshAsync(CancellationToken.None).ConfigureAwait(false);
 
@@ -616,7 +607,6 @@ namespace Opc.Ua.Client.Subscriptions
                 m_completion, m_options, m_telemetry, 22);
             await using (sut.ConfigureAwait(false))
             {
-
                 m_mockSubscriptionServices
                     .Setup(s => s.DeleteSubscriptionsAsync(
                         It.IsAny<RequestHeader>(), It.Is<ArrayOf<uint>>(a => a.Count == 1 && a[0] == 22u), It.IsAny<CancellationToken>()))
@@ -700,7 +690,6 @@ namespace Opc.Ua.Client.Subscriptions
                 m_completion, m_options, m_telemetry, 22);
             await using (sut.ConfigureAwait(false))
             {
-
                 m_mockSubscriptionServices
                     .Setup(s => s.DeleteSubscriptionsAsync(
                         It.IsAny<RequestHeader>(), It.Is<ArrayOf<uint>>(a => a.Count == 1 && a[0] == 22u),
@@ -783,7 +772,6 @@ namespace Opc.Ua.Client.Subscriptions
                 m_completion, m_options, m_telemetry);
             await using (sut.ConfigureAwait(false))
             {
-
                 // Act & Assert - should not throw
                 await sut.OnPublishReceivedAsync(message, null, null).ConfigureAwait(false);
             }
@@ -862,7 +850,6 @@ namespace Opc.Ua.Client.Subscriptions
                 m_completion, m_options, m_telemetry, 10);
             await using (sut.ConfigureAwait(false))
             {
-
                 OptionsMonitor<MonitoredItems.MonitoredItemOptions> options = OptionsFactory.Create<MonitoredItems.MonitoredItemOptions>();
                 bool success = sut.MonitoredItems.TryAdd("Test", options, out IMonitoredItem monitoredItem);
                 Assert.That(monitoredItem, Is.Not.Null);
@@ -948,7 +935,6 @@ namespace Opc.Ua.Client.Subscriptions
                 m_completion, m_options, m_telemetry, 2);
             await using (sut.ConfigureAwait(false))
             {
-
                 OptionsMonitor<MonitoredItems.MonitoredItemOptions> options = OptionsFactory.Create<MonitoredItems.MonitoredItemOptions>();
                 bool success = sut.MonitoredItems.TryAdd("Test", options, out IMonitoredItem monitoredItem);
                 Assert.That(success, Is.True);
@@ -996,7 +982,6 @@ namespace Opc.Ua.Client.Subscriptions
                 m_completion, m_options, m_telemetry, 2);
             await using (sut.ConfigureAwait(false))
             {
-
                 OptionsMonitor<MonitoredItems.MonitoredItemOptions> options = OptionsFactory.Create<MonitoredItems.MonitoredItemOptions>();
                 bool success = sut.MonitoredItems.TryAdd("Test", options, out IMonitoredItem monitoredItem);
                 Assert.That(success, Is.True);
@@ -1044,7 +1029,6 @@ namespace Opc.Ua.Client.Subscriptions
                 m_completion, m_options, m_telemetry, 2);
             await using (sut.ConfigureAwait(false))
             {
-
                 OptionsMonitor<MonitoredItems.MonitoredItemOptions> options = OptionsFactory.Create<MonitoredItems.MonitoredItemOptions>();
                 bool success = sut.MonitoredItems.TryAdd("Test", options, out IMonitoredItem monitoredItem);
                 Assert.That(monitoredItem, Is.Not.Null);
@@ -1095,7 +1079,6 @@ namespace Opc.Ua.Client.Subscriptions
                 m_completion, m_options, m_telemetry, 2);
             await using (sut.ConfigureAwait(false))
             {
-
                 OptionsMonitor<MonitoredItems.MonitoredItemOptions> options = OptionsFactory.Create<MonitoredItems.MonitoredItemOptions>();
                 bool success = sut.MonitoredItems.TryAdd("Test", options, out IMonitoredItem monitoredItem);
                 Assert.That(monitoredItem, Is.Not.Null);
@@ -1147,7 +1130,6 @@ namespace Opc.Ua.Client.Subscriptions
                 m_completion, m_options, m_telemetry, 2);
             await using (sut.ConfigureAwait(false))
             {
-
                 m_mockMethodServices
                     .Setup(s => s.CallAsync(
                         It.IsAny<RequestHeader>(),

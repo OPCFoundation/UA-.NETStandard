@@ -29,11 +29,6 @@
 
 #nullable enable
 
-// CA2000: ownership of disposables created in this file is transferred to long-lived
-// caches, returned objects, or fields whose lifetime is managed by the containing type's
-// Dispose. Per Phase 8 review the residual sites are accepted as ownership-transfer patterns
-// rather than missed using statements.
-#pragma warning disable CA2000
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -483,7 +478,9 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(issuers));
             }
 
+#pragma warning disable CA2000 // Dispose objects before losing scope
             CertificateValidationCore core = GetOrCreateCore(TrustListIdentifier.Peers);
+#pragma warning restore CA2000 // Dispose objects before losing scope
             return core.GetIssuersAsync(certificate, issuers, ct);
         }
 
@@ -577,7 +574,9 @@ namespace Opc.Ua
             CancellationToken ct = default)
         {
             trustList ??= TrustListIdentifier.Peers;
+#pragma warning disable CA2000 // Dispose objects before losing scope
             CertificateValidationCore core = GetOrCreateCore(trustList);
+#pragma warning restore CA2000 // Dispose objects before losing scope
 
             // Per-call AcceptError takes precedence over the global hook.
             Func<Certificate, ServiceResult, bool>? acceptError =
@@ -597,7 +596,7 @@ namespace Opc.Ua
                 m_rejectedProcessor ??= new RejectedCertificateProcessor(
                     this, m_maxRejectedCertificates, m_telemetry);
 
-                var rejectedChain = new CertificateCollection();
+                using var rejectedChain = new CertificateCollection();
                 foreach (Certificate c in chain)
                 {
                     rejectedChain.Add(c);
@@ -650,7 +649,9 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(endpoint));
             }
 
+#pragma warning disable CA2000 // Dispose objects before losing scope
             CertificateValidationCore core = GetOrCreateCore(TrustListIdentifier.Peers);
+#pragma warning restore CA2000 // Dispose objects before losing scope
             try
             {
                 core.ValidateApplicationUri(serverCertificate, endpoint, m_acceptError);
@@ -697,7 +698,9 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(endpoint));
             }
 
+#pragma warning disable CA2000 // Dispose objects before losing scope
             CertificateValidationCore core = GetOrCreateCore(TrustListIdentifier.Peers);
+#pragma warning restore CA2000 // Dispose objects before losing scope
             try
             {
                 core.ValidateDomains(
@@ -727,7 +730,7 @@ namespace Opc.Ua
         {
             m_rejectedProcessor ??= new RejectedCertificateProcessor(
                 this, m_maxRejectedCertificates, m_telemetry);
-            var rejected = new CertificateCollection { certificate };
+            using var rejected = new CertificateCollection { certificate };
             // Fire-and-forget: the processor handles failures internally.
             _ = m_rejectedProcessor.EnqueueAsync(rejected).AsTask();
         }

@@ -575,10 +575,6 @@ namespace Opc.Ua.Client.Subscriptions
         internal long LastNotificationTimestamp;
         internal uint LastSequenceNumberProcessed;
         internal uint LastDataSequenceNumberProcessed;
-        // Counters surfaced via ISubscription / ISubscriptionManager so clients
-        // can monitor stack health.  m_missingCount counts notification messages
-        // detected as missing during gap-walk; m_republishCount counts republish
-        // attempts (any outcome) issued to recover them.
         internal long m_missingCount;
         internal long m_republishCount;
         internal IReadOnlyList<uint> AvailableInRetransmissionQueue;

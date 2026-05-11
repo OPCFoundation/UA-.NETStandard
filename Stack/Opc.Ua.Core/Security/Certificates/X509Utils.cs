@@ -734,7 +734,7 @@ namespace Opc.Ua
                     Array.Clear(passcode, 0, passcode.Length);
                 }
             }
-            return certificate;
+            return certificate.AddRef();
         }
 
         /// <summary>

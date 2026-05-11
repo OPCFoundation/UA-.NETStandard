@@ -30,11 +30,6 @@
 #nullable enable
 
 #if NETFRAMEWORK
-// CA2000: ownership of disposables created in this file is transferred to long-lived
-// caches, returned objects, or fields whose lifetime is managed by the containing type's
-// Dispose. Per Phase 8 review the residual sites are accepted as ownership-transfer patterns
-// rather than missed using statements.
-#pragma warning disable CA2000
 using System;
 using System.IO;
 using System.Security.Cryptography;
@@ -61,7 +56,7 @@ namespace Opc.Ua.Security.Certificates
         {
             using var ms = new MemoryStream(pemDataBlob);
             using var reader = new StreamReader(ms, Encoding.UTF8, true);
-            var pemReader = new PemReader(reader);
+            using var pemReader = new PemReader(reader);
             try
             {
                 object pemObject = pemReader.ReadObject();
@@ -104,7 +99,7 @@ namespace Opc.Ua.Security.Certificates
             using (var ms = new MemoryStream(pemDataBlob))
             using (var reader = new StreamReader(ms, Encoding.UTF8, true))
             {
-                var pemReader = new PemReader(reader);
+                using var pemReader = new PemReader(reader);
                 int certCount = 0;
                 try
                 {
@@ -173,16 +168,9 @@ namespace Opc.Ua.Security.Certificates
                 true);
 
             using var pwFinder = new Password(password); // Clears its copy on return
-
-            PemReader pemReader;
-            if (password.IsEmpty)
-            {
-                pemReader = new PemReader(pemStreamReader);
-            }
-            else
-            {
-                pemReader = new PemReader(pemStreamReader, pwFinder);
-            }
+            using PemReader pemReader = password.IsEmpty ?
+                new PemReader(pemStreamReader) :
+                new PemReader(pemStreamReader, pwFinder);
 
             AsymmetricAlgorithm? key = null;
             try

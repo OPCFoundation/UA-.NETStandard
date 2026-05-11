@@ -72,7 +72,7 @@ namespace Opc.Ua.Core.Tests
             return new ConfiguredEndpointCollection(EndpointConfiguration.Create());
         }
 
-        private EndpointDescription CreateEndpoint(string url)
+        private static EndpointDescription CreateEndpoint(string url)
         {
             return new EndpointDescription
             {

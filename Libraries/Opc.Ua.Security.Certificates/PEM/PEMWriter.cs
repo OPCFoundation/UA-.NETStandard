@@ -29,16 +29,11 @@
 
 #nullable enable
 
-// CA2000: ownership of disposables created in this file is transferred to long-lived
-// caches, returned objects, or fields whose lifetime is managed by the containing type's
-// Dispose. Per Phase 8 review the residual sites are accepted as ownership-transfer patterns
-// rather than missed using statements.
-#pragma warning disable CA2000
 using System;
 using System.IO;
-using System.Security.Cryptography.X509Certificates;
 using System.Text;
 #if NETSTANDARD2_1 || NET5_0_OR_GREATER
+using System.Security.Cryptography.X509Certificates;
 using System.Security.Cryptography;
 #endif
 
@@ -47,7 +42,11 @@ namespace Opc.Ua.Security.Certificates
     /// <summary>
     /// Write certificate/crl data in PEM format.
     /// </summary>
-    public static partial class PEMWriter
+    public static
+#if NETFRAMEWORK
+        partial
+#endif
+        class PEMWriter
     {
         /// <summary>
         /// Returns a byte array containing the CRL in PEM format.
@@ -202,15 +201,13 @@ namespace Opc.Ua.Security.Certificates
                         out int bytesWritten))
                     {
 #if NET6_0_OR_GREATER
-                        X509Certificate2 certificate = X509CertificateLoader.LoadCertificate(
+                        using X509Certificate2 certificate = X509CertificateLoader.LoadCertificate(
                             pemCertificateDecoded);
 #else
-                        X509Certificate2 certificate = X509CertificateLoader.LoadCertificate(
+                        using X509Certificate2 certificate = X509CertificateLoader.LoadCertificate(
                             pemCertificateDecoded.ToArray());
 #endif
-                        if (thumbprint.Equals(
-                            certificate.Thumbprint,
-                            StringComparison.OrdinalIgnoreCase))
+                        if (thumbprint.Equals(certificate.Thumbprint, StringComparison.OrdinalIgnoreCase))
                         {
                             int blockStart = beginIndex - beginlabel.Length;
                             int blockEnd = endIndex + endlabel.Length;

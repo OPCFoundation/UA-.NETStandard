@@ -27,11 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-// CA2000: ownership of disposables created in this file is transferred to long-lived
-// caches, returned objects, or fields whose lifetime is managed by the containing type's
-// Dispose. Per Phase 8 review the residual sites are accepted as ownership-transfer patterns
-// rather than missed using statements.
-#pragma warning disable CA2000
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -522,8 +517,6 @@ namespace Opc.Ua.Server
                 privateKeyFormat,
                 privateKey
             ];
-            Certificate newCert = null;
-            Certificate certWithPrivateKey = null;
 
             Server.ReportCertificateUpdateRequestedAuditEvent(
                 context,
@@ -531,6 +524,7 @@ namespace Opc.Ua.Server
                 method,
                 inputArguments,
                 m_logger);
+            Certificate newCert = null;
             try
             {
                 if (certificate.IsEmpty)
@@ -589,14 +583,15 @@ namespace Opc.Ua.Server
                     // currently-registered cert for this type to identify the
                     // configured identifier (matches by certificate type).
                     CertificateEntry currentEntry = registryFallback
-                        .GetApplicationCertificate(certificateTypeId) ?? throw new ServiceResultException(
+                        .GetApplicationCertificate(certificateTypeId) ??
+                        throw new ServiceResultException(
                             StatusCodes.BadInvalidArgument,
                             "No existing certificate found for the specified certificate type and subject name.");
 
                     existingCertIdentifier = certificateGroup.ApplicationCertificates
                         .ToList()
-                        .FirstOrDefault(cert => cert.CertificateType == certificateTypeId)
-                        ?? throw new ServiceResultException(
+                        .FirstOrDefault(cert => cert.CertificateType == certificateTypeId) ??
+                        throw new ServiceResultException(
                             StatusCodes.BadInvalidArgument,
                             "No existing certificate found for the specified certificate type and subject name.");
                 }
@@ -740,76 +735,87 @@ namespace Opc.Ua.Server
                         case "":
                             for (int attempt = 0; ; attempt++)
                             {
-                                Certificate exportableKey;
-                                // use the new generated private key if one exists and matches the provided public key
-                                if (certificateGroup.TemporaryApplicationCertificate != null &&
-                                    X509Utils.VerifyKeyPair(
-                                        newCert,
-                                        certificateGroup.TemporaryApplicationCertificate))
-                                {
-                                    exportableKey = X509Utils.CreateCopyWithPrivateKey(
-                                        certificateGroup.TemporaryApplicationCertificate,
-                                        false);
-                                }
-                                else
-                                {
-                                    certWithPrivateKey = await CertificateIdentifierResolver
-                                        .LoadPrivateKeyAsync(
-                                            existingCertIdentifier,
-                                            passwordProvider,
-                                            m_configuration.ApplicationUri,
-                                            Server.Telemetry,
-                                            ct)
-                                        .ConfigureAwait(false) ??
-                                        throw new ServiceResultException(
-                                            StatusCodes.BadSecurityChecksFailed,
-                                            "A private key was not found");
-                                    exportableKey = X509Utils.CreateCopyWithPrivateKey(
-                                        certWithPrivateKey,
-                                        false);
-                                }
-
-                                updateCertificate.CertificateWithPrivateKey =
-                                    DefaultCertificateFactory.Instance.CreateWithPrivateKey(
-                                        newCert,
-                                        exportableKey);
+                                Certificate exportableKey = null;
                                 try
                                 {
-                                    await UpdateCertificateInternalAsync(
-                                        certificateGroup,
-                                        existingCertIdentifier,
-                                        updateCertificate, ct).ConfigureAwait(false);
-                                    break;
+                                    // use the new generated private key if one exists and matches the provided public key
+                                    if (certificateGroup.TemporaryApplicationCertificate != null &&
+                                        X509Utils.VerifyKeyPair(
+                                            newCert,
+                                            certificateGroup.TemporaryApplicationCertificate))
+                                    {
+                                        exportableKey = X509Utils.CreateCopyWithPrivateKey(
+                                            certificateGroup.TemporaryApplicationCertificate,
+                                            false);
+                                    }
+                                    else
+                                    {
+                                        using Certificate certWithPrivateKey = await CertificateIdentifierResolver
+                                            .LoadPrivateKeyAsync(
+                                                existingCertIdentifier,
+                                                passwordProvider,
+                                                m_configuration.ApplicationUri,
+                                                Server.Telemetry,
+                                                ct)
+                                            .ConfigureAwait(false) ??
+                                            throw new ServiceResultException(
+                                                StatusCodes.BadSecurityChecksFailed,
+                                                "A private key was not found");
+                                        exportableKey = X509Utils.CreateCopyWithPrivateKey(
+                                            certWithPrivateKey,
+                                            false);
+                                    }
+
+                                    updateCertificate.CertificateWithPrivateKey =
+                                        DefaultCertificateFactory.Instance.CreateWithPrivateKey(
+                                            newCert,
+                                            exportableKey);
+                                    try
+                                    {
+                                        await UpdateCertificateInternalAsync(
+                                            certificateGroup,
+                                            existingCertIdentifier,
+                                            updateCertificate, ct).ConfigureAwait(false);
+                                        break;
+                                    }
+                                    catch (Exception ex) when (ShouldRetry(attempt, ex))
+                                    {
+                                        m_logger.LogDebug(
+                                            Utils.TraceMasks.Security,
+                                            ex,
+                                            "Failed to update certificate {Certificate}. Retrying...",
+                                            newCert);
+                                    }
                                 }
-                                catch (Exception ex) when (ShouldRetry(attempt, ex))
+                                finally
                                 {
-                                    m_logger.LogDebug(
-                                        Utils.TraceMasks.Security,
-                                        ex,
-                                        "Failed to update certificate {Certificate}. Retrying...",
-                                        newCert);
+                                    exportableKey.Dispose();
                                 }
                             }
                             break;
                         case "PFX":
                             for (int attempt = 0; ; attempt++)
                             {
-                                certWithPrivateKey = X509Utils.CreateCertificateFromPKCS12(
+#if !NET9_0_OR_GREATER
+                                // https://github.com/OPCFoundation/UA-.NETStandard/commit/0b24d62b7c2bab2e5ed08e694103d49278e457af
+                                // CopyWithPrivateKey apparently does not support ephimeralkeysets on windows
+                                bool noEphemeralKeySet = RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
+#else
+                                // But it seems to work on .net 9 - and we prefer that over files
+                                const bool noEphemeralKeySet = false;
+#endif
+#pragma warning disable CA2000 // Dispose objects before losing scope
+                                using Certificate certWithPrivateKey = X509Utils.CreateCertificateFromPKCS12(
                                     privateKey.ToArray(),
                                     passwordProvider?.GetPassword(existingCertIdentifier),
-#if !NET9_0_OR_GREATER
-                                    // https://github.com/OPCFoundation/UA-.NETStandard/commit/0b24d62b7c2bab2e5ed08e694103d49278e457af
-                                    // CopyWithPrivateKey apparently does not support ephimeralkeysets on windows
-                                    RuntimeInformation.IsOSPlatform(OSPlatform.Windows));
-#else // But it seems to work on .net 9 - and we prefer that over files
-                                    false);
-#endif
-                                updateCertificate.CertificateWithPrivateKey =
-                                    DefaultCertificateFactory.Instance.CreateWithPrivateKey(
-                                        newCert,
-                                        certWithPrivateKey);
+                                    noEphemeralKeySet);
+#pragma warning restore CA2000 // Dispose objects before losing scope
                                 try
                                 {
+                                    updateCertificate.CertificateWithPrivateKey =
+                                        DefaultCertificateFactory.Instance.CreateWithPrivateKey(
+                                            newCert,
+                                            certWithPrivateKey);
                                     await UpdateCertificateInternalAsync(
                                         certificateGroup,
                                         existingCertIdentifier,
@@ -885,6 +891,10 @@ namespace Opc.Ua.Server
                 // Raise audit certificate event
                 Server.ReportAuditCertificateEvent(newCert, e, m_logger);
                 throw;
+            }
+            finally
+            {
+                // certWithPrivateKey?.Dispose();
             }
 
             return new UpdateCertificateMethodStateResult

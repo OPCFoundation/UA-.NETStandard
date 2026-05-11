@@ -1062,7 +1062,7 @@ namespace Opc.Ua
         /// <returns>A NodeId that references those tables.</returns>
         /// <exception cref="ArgumentNullException">
         /// <paramref name="targetNamespaceUris"/> is <c>null</c>.</exception>
-        private ArrayOf<ExtensionObject> Translate(
+        private static ArrayOf<ExtensionObject> Translate(
             ArrayOf<ExtensionObject> extensionObjects,
             NamespaceTable targetNamespaceUris,
             NamespaceTable sourceNamespaceUris)
@@ -1185,7 +1185,7 @@ namespace Opc.Ua
         /// <returns>A NodeId that references those tables.</returns>
         /// <exception cref="ArgumentNullException">
         /// <paramref name="targetNamespaceUris"/> is <c>null</c>.</exception>
-        private MatrixOf<ExtensionObject> Translate(
+        private static MatrixOf<ExtensionObject> Translate(
             MatrixOf<ExtensionObject> extensionObjects,
             NamespaceTable targetNamespaceUris,
             NamespaceTable sourceNamespaceUris)

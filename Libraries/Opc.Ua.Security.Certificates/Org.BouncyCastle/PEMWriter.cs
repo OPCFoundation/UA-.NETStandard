@@ -30,11 +30,6 @@
 #nullable enable
 
 #if NETFRAMEWORK
-// CA2000: ownership of disposables created in this file is transferred to long-lived
-// caches, returned objects, or fields whose lifetime is managed by the containing type's
-// Dispose. Per Phase 8 review the residual sites are accepted as ownership-transfer patterns
-// rather than missed using statements.
-#pragma warning disable CA2000
 using System;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
@@ -42,7 +37,6 @@ using Opc.Ua.Security.Certificates.BouncyCastle;
 using Org.BouncyCastle.Asn1.Pkcs;
 using Org.BouncyCastle.Crypto.Parameters;
 using Org.BouncyCastle.Pkcs;
-#endif
 
 namespace Opc.Ua.Security.Certificates
 {
@@ -51,8 +45,6 @@ namespace Opc.Ua.Security.Certificates
     /// </summary>
     public static partial class PEMWriter
     {
-#if NETFRAMEWORK
-
         /// <summary>
         /// Returns a byte array containing the private key in PEM format.
         /// </summary>
@@ -140,11 +132,9 @@ namespace Opc.Ua.Security.Certificates
                         0,
                         pemCertificateContent.Length);
 
-                    X509Certificate2 certificate = X509CertificateLoader.LoadCertificate(
+                    using X509Certificate2 certificate = X509CertificateLoader.LoadCertificate(
                         pemCertificateDecoded);
-                    if (thumbprint.Equals(
-                        certificate.Thumbprint,
-                        StringComparison.OrdinalIgnoreCase))
+                    if (thumbprint.Equals(certificate.Thumbprint, StringComparison.OrdinalIgnoreCase))
                     {
                         modifiedPemDataBlob = Encoding.ASCII.GetBytes(
                             pemText.Replace(
@@ -164,7 +154,6 @@ namespace Opc.Ua.Security.Certificates
             }
             return false;
         }
-
-#endif
     }
 }
+#endif

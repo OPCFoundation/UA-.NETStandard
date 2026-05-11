@@ -101,7 +101,7 @@ namespace Opc.Ua.Server.Tests
             return new TestableSessionManager(m_serverMock.Object, m_config);
         }
 
-        private Mock<ISession> CreateSessionMock(Certificate certificate)
+        private static Mock<ISession> CreateSessionMock(Certificate certificate)
         {
             var sessionMock = new Mock<ISession>();
             sessionMock.Setup(s => s.ClientCertificate).Returns(certificate);

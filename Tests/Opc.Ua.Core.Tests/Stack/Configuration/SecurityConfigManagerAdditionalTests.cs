@@ -69,7 +69,7 @@ namespace Opc.Ua.Core.Tests.Stack.Configuration
             }
         }
 
-        private string CreateAppConfigXml(
+        private static string CreateAppConfigXml(
             string appName,
             string appUri,
             string appType = "Server_0")

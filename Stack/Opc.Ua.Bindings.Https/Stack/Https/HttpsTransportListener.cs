@@ -317,11 +317,12 @@ namespace Opc.Ua.Bindings
                 // which default to the ephemeral KeySet. Also a new certificate must be reloaded.
                 // If the key fails to copy, its probably a non exportable key from the X509Store.
                 // Then we can use the original certificate, the private key is already in the key store.
-                Certificate copy = X509Utils.CreateCopyWithPrivateKey(serverCertificate, false);
+                using Certificate copy = X509Utils.CreateCopyWithPrivateKey(serverCertificate, false);
                 if (!ReferenceEquals(copy, serverCertificate))
                 {
                     serverCertificate.Dispose();
                     serverCertificate = copy;
+                    serverCertificate.AddRef();
                 }
             }
             catch (CryptographicException ce)
@@ -639,10 +640,13 @@ namespace Opc.Ua.Bindings
 
             try
             {
-                using Certificate cert = Certificate.FromRawData(clientCertificate.RawData);
+                using var cert = Certificate.FromRawData(clientCertificate.RawData);
+#pragma warning disable CA2025
                 CertificateValidationResult result = m_quotas.CertificateValidator
                     .ValidateAsync(cert, ct: default)
-                    .GetAwaiter().GetResult();
+                    .GetAwaiter()
+                    .GetResult();
+#pragma warning restore CA2025
                 if (!result.IsValid)
                 {
                     return false;

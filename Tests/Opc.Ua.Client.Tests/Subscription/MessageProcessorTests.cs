@@ -89,7 +89,6 @@ namespace Opc.Ua.Client.Subscriptions
             };
             await using (sut.ConfigureAwait(false))
             {
-
                 // Act
                 await sut.OnPublishReceivedAsync(message, availableSequenceNumbers, stringTable).ConfigureAwait(false);
                 await sut.KeepAliveNotificationReceived.WaitAsync().WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
@@ -144,7 +143,6 @@ namespace Opc.Ua.Client.Subscriptions
             };
             await using (sut.ConfigureAwait(false))
             {
-
                 await sut.OnPublishReceivedAsync(new NotificationMessage
                 {
                     SequenceNumber = 1
@@ -222,7 +220,6 @@ namespace Opc.Ua.Client.Subscriptions
             };
             await using (sut.ConfigureAwait(false))
             {
-
                 sut.Block.Wait();
                 await sut.OnPublishReceivedAsync(new NotificationMessage
                 {
@@ -259,7 +256,6 @@ namespace Opc.Ua.Client.Subscriptions
             };
             await using (sut.ConfigureAwait(false))
             {
-
                 var message = new NotificationMessage
                 {
                     SequenceNumber = 5,
@@ -316,7 +312,6 @@ namespace Opc.Ua.Client.Subscriptions
             };
             await using (sut.ConfigureAwait(false))
             {
-
                 // 1: notification
                 await sut.OnPublishReceivedAsync(new NotificationMessage
                 {
@@ -380,7 +375,6 @@ namespace Opc.Ua.Client.Subscriptions
             };
             await using (sut.ConfigureAwait(false))
             {
-
                 // NotificationData is null/default.
                 await sut.OnPublishReceivedAsync(new NotificationMessage
                 {
@@ -410,7 +404,6 @@ namespace Opc.Ua.Client.Subscriptions
             };
             await using (sut.ConfigureAwait(false))
             {
-
                 // First message at sequence 1.
                 await sut.OnPublishReceivedAsync(new NotificationMessage
                 {
@@ -468,7 +461,6 @@ namespace Opc.Ua.Client.Subscriptions
             };
             await using (sut.ConfigureAwait(false))
             {
-
                 // Republish for the first message's "missing" gap (we start
                 // from LastSequenceNumberProcessed=0 so no gap is computed
                 // for this first one) — but for the second message, the gap
@@ -512,7 +504,6 @@ namespace Opc.Ua.Client.Subscriptions
             };
             await using (sut.ConfigureAwait(false))
             {
-
                 // Act
                 await sut.OnPublishReceivedAsync(new NotificationMessage
                 {

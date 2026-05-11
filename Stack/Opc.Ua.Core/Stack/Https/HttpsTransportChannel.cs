@@ -420,11 +420,12 @@ namespace Opc.Ua.Bindings
                             // which default to the ephemeral KeySet. Also a new certificate must be reloaded.
                             // If the key fails to copy, its probably a non exportable key from the X509Store.
                             // Then we can use the original certificate, the private key is already in the key store.
-                            Certificate copy = X509Utils.CreateCopyWithPrivateKey(clientCertificate, false);
+                            using Certificate copy = X509Utils.CreateCopyWithPrivateKey(clientCertificate, false);
                             if (!ReferenceEquals(copy, clientCertificate))
                             {
                                 clientCertificate.Dispose();
                                 clientCertificate = copy;
+                                clientCertificate.AddRef();
                             }
                         }
                         catch (CryptographicException ce)

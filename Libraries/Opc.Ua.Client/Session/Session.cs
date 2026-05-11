@@ -4697,6 +4697,7 @@ namespace Opc.Ua.Client
         /// Time in milliseconds added to <see cref="m_keepAliveInterval"/> before <see cref="KeepAliveStopped"/> is set to true
         /// </summary>
         protected int m_keepAliveGuardBand = 1000;
+
         private readonly Lock m_lock = new();
         private readonly List<Subscription> m_subscriptions = [];
         private uint m_maxRequestMessageSize;

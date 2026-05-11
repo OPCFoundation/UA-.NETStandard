@@ -1528,7 +1528,7 @@ namespace Quickstarts
         /// <summary>
         /// Event handler to defer publish response sequence number acknowledge.
         /// </summary>
-        private void DeferSubscriptionAcknowledge(
+        private static void DeferSubscriptionAcknowledge(
             ISession session,
             PublishSequenceNumbersToAcknowledgeEventArgs e)
         {

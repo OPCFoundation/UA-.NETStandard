@@ -32,39 +32,28 @@
 using System;
 using System.Diagnostics.Metrics;
 using Opc.Ua.Security.Certificates;
-
-#if NET6_0_OR_GREATER
 using BitFaster.Caching;
 using BitFaster.Caching.Lru;
-#endif
 
 namespace Opc.Ua
 {
     /// <summary>
-    /// A two-tier LRU cache for certificates.
-    /// Public-key certificates use LRU eviction only.
-    /// Private-key certificates use LRU + TTL eviction.
-    /// On platforms older than .NET 6 this is a no-op passthrough.
+    /// A two-tier LRU cache for certificates. Public-key certificates use LRU
+    /// eviction only. Private-key certificates use LRU + TTL eviction.
     /// </summary>
     internal sealed class CertificateCache : IDisposable
     {
-        private const int kDefaultPublicKeyCacheCapacity = 256;
-        private const int kDefaultPrivateKeyCacheCapacity = 64;
-
-        private readonly Meter? m_meter;
-
-#if NET6_0_OR_GREATER
-        private static readonly TimeSpan s_defaultPrivateKeyTtl = TimeSpan.FromSeconds(30);
-        private readonly ICache<string, Certificate> m_publicKeyCache;
-        private readonly ICache<string, Certificate> m_privateKeyCache;
-
         /// <summary>
         /// Creates a new certificate cache.
         /// </summary>
-        /// <param name="telemetry">The telemetry context for logging and metrics.</param>
-        /// <param name="publicKeyCacheCapacity">Maximum number of public-key certificates to cache.</param>
-        /// <param name="privateKeyCacheCapacity">Maximum number of private-key certificates to cache.</param>
-        /// <param name="privateKeyTtl">Time-to-live for private-key certificate entries.</param>
+        /// <param name="telemetry">The telemetry context for logging and
+        /// metrics.</param>
+        /// <param name="publicKeyCacheCapacity">Maximum number of public-key
+        /// certificates to cache.</param>
+        /// <param name="privateKeyCacheCapacity">Maximum number of private-key
+        /// certificates to cache.</param>
+        /// <param name="privateKeyTtl">Time-to-live for private-key certificate
+        /// entries.</param>
         public CertificateCache(
             ITelemetryContext telemetry,
             int publicKeyCacheCapacity = kDefaultPublicKeyCacheCapacity,
@@ -202,56 +191,12 @@ namespace Opc.Ua
             m_privateKeyCache.Clear();
             m_meter?.Dispose();
         }
-#else
-        /// <summary>
-        /// Creates a new certificate cache (no-op on this platform).
-        /// </summary>
-        public CertificateCache(
-            ITelemetryContext telemetry,
-            int publicKeyCacheCapacity = kDefaultPublicKeyCacheCapacity,
-            int privateKeyCacheCapacity = kDefaultPrivateKeyCacheCapacity,
-            TimeSpan? privateKeyTtl = null)
-        {
-            _ = publicKeyCacheCapacity;
-            _ = privateKeyCacheCapacity;
-            _ = privateKeyTtl;
-            m_meter = telemetry?.CreateMeter();
-        }
 
-        /// <summary>
-        /// No caching on this platform.
-        /// </summary>
-        public Certificate? TryGet(string thumbprint)
-        {
-            return null;
-        }
-
-        /// <summary>
-        /// No caching on this platform.
-        /// </summary>
-        public void Set(string thumbprint, Certificate certificate)
-        {
-        }
-
-        /// <summary>
-        /// No caching on this platform.
-        /// </summary>
-        public void Remove(string thumbprint)
-        {
-        }
-
-        /// <summary>
-        /// No caching on this platform.
-        /// </summary>
-        public void Clear()
-        {
-        }
-
-        /// <inheritdoc/>
-        public void Dispose()
-        {
-            m_meter?.Dispose();
-        }
-#endif
+        private const int kDefaultPublicKeyCacheCapacity = 256;
+        private const int kDefaultPrivateKeyCacheCapacity = 64;
+        private static readonly TimeSpan s_defaultPrivateKeyTtl = TimeSpan.FromSeconds(30);
+        private readonly Meter? m_meter;
+        private readonly ICache<string, Certificate> m_publicKeyCache;
+        private readonly ICache<string, Certificate> m_privateKeyCache;
     }
 }

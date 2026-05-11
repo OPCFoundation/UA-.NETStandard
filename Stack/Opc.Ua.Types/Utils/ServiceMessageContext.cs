@@ -181,7 +181,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public IEncodeableFactory Factory
         {
-            get => field;
+            get;
             private set
             {
                 if (value == null)

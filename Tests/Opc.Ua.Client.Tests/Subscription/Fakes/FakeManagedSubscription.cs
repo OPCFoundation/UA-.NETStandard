@@ -74,11 +74,11 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
         /// Optional overrides for behaviour
         /// </summary>
         public Func<NotificationMessage, IReadOnlyList<uint>?,
-            IReadOnlyList<string>, ValueTask>? OnPublishReceivedAsyncFunc
-        { get; set; }
+            IReadOnlyList<string>, ValueTask>? OnPublishReceivedAsyncFunc { get; set; }
+
         public Func<IReadOnlyList<uint>, CancellationToken, ValueTask<bool>>?
-            OnTryCompleteTransferAsync
-        { get; set; }
+            OnTryCompleteTransferAsync { get; set; }
+
         public Func<CancellationToken, ValueTask>? OnRecreateAsync { get; set; }
         public Func<CancellationToken, ValueTask>? OnConditionRefreshAsync { get; set; }
         public Func<ValueTask>? OnDisposeAsync { get; set; }

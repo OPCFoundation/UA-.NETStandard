@@ -560,7 +560,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeInvalidMessageTypeDoesNotThrow()
         {
-            const string invalidJson = @"{""MessageId"":""test"",""MessageType"":""ua-invalid""}";
+            const string invalidJson = /*lang=json,strict*/ """{"MessageId":"test","MessageType":"ua-invalid"}""";
             byte[] encoded = System.Text.Encoding.UTF8.GetBytes(invalidJson);
 
             var decoded = new PubSubEncoding.JsonNetworkMessage();

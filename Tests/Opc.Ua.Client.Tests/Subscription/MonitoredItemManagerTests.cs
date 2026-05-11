@@ -83,7 +83,6 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             var sut = new MonitoredItemManager(m_context, m_telemetry);
             await using (sut.ConfigureAwait(false))
             {
-
                 // Act
                 sut.TryAdd("Item3", OptionsFactory.Create<MonitoredItemOptions>(), out IMonitoredItem existingItem3);
                 Assert.That(sut.TryAdd("Item4", OptionsFactory.Create<MonitoredItemOptions>(), out IMonitoredItem existingItem4), Is.True);
@@ -105,7 +104,6 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             var sut = new MonitoredItemManager(m_context, m_telemetry);
             await using (sut.ConfigureAwait(false))
             {
-
                 // Act
                 sut.TryAdd("Item3", OptionsFactory.Create<MonitoredItemOptions>(), out IMonitoredItem existingItem3);
                 Assert.That(sut.TryAdd("Item4", OptionsFactory.Create<MonitoredItemOptions>(), out IMonitoredItem existingItem4), Is.True);
@@ -128,7 +126,6 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             var sut = new MonitoredItemManager(m_context, m_telemetry);
             await using (sut.ConfigureAwait(false))
             {
-
                 // Act
                 sut.TryAdd("Item3", OptionsFactory.Create<MonitoredItemOptions>(), out IMonitoredItem existingItem3);
                 sut.TryAdd("Item4", OptionsFactory.Create<MonitoredItemOptions>(), out IMonitoredItem existingItem4);
@@ -154,7 +151,6 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             var sut = new MonitoredItemManager(m_context, m_telemetry);
             await using (sut.ConfigureAwait(false))
             {
-
                 var monitoredItemMock = new Mock<IMonitoredItem>();
                 monitoredItemMock.SetupGet(m => m.ClientHandle).Returns(1);
 
@@ -189,7 +185,6 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             var sut = new MonitoredItemManager(m_context, m_telemetry);
             await using (sut.ConfigureAwait(false))
             {
-
                 var monitoredItemMock = new Mock<IMonitoredItem>();
                 monitoredItemMock.SetupGet(m => m.ClientHandle).Returns(1);
 
@@ -247,7 +242,6 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             var sut = new MonitoredItemManager(m_context, m_telemetry);
             await using (sut.ConfigureAwait(false))
             {
-
                 var monitoredItemMock = new Mock<IMonitoredItem>();
                 monitoredItemMock.SetupGet(m => m.ClientHandle).Returns(1);
 
@@ -542,7 +536,6 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             var sut = new MonitoredItemManager(m_context, m_telemetry);
             await using (sut.ConfigureAwait(false))
             {
-
                 bool success = sut.TryAdd("Item1", OptionsFactory.Create<MonitoredItemOptions>(), out IMonitoredItem existingItem);
                 Assert.That(existingItem, Is.TypeOf<TestMonitoredItem>());
                 Assert.That(((TestMonitoredItem)existingItem).Options.CurrentValue.SamplingInterval, Is.Not.EqualTo(TimeSpan.FromSeconds(100)));

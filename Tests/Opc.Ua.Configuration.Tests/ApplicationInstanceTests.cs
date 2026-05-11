@@ -1564,7 +1564,11 @@ namespace Opc.Ua.Configuration.Tests
                 .SetNotAfter(issuerNotAfter)
                 .SetCAConstraint(-1)
                 .CreateForRSA();
-            using Certificate appCert = DefaultCertificateFactory.Instance.CreateApplicationCertificate(ApplicationUri, ApplicationName, SubjectName, domainNames)
+            using Certificate appCert = DefaultCertificateFactory.Instance.CreateApplicationCertificate(
+                ApplicationUri,
+                ApplicationName,
+                SubjectName,
+                domainNames)
                 .SetNotBefore(notBefore)
                 .SetNotAfter(notAfter)
                 .SetIssuer(rootCA)
