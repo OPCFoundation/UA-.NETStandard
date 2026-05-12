@@ -197,7 +197,7 @@ namespace Quickstarts.ReferenceServer
                     server.Create(Servers.Utils.NodeManagerFactories);
 
                     // Add GDS node manager if configured
-                    GlobalDiscoveryServerConfiguration gdsConfig = server.Configuration
+                    GlobalDiscoveryServerConfiguration? gdsConfig = server.Configuration
                         .ParseExtension<GlobalDiscoveryServerConfiguration>();
                     if (gdsConfig != null)
                     {
