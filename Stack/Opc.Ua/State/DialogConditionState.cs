@@ -175,7 +175,7 @@ namespace Opc.Ua
             {
                 if (AreEventsMonitored)
                 {
-                    using var e = new AuditConditionRespondEventState(null);
+                    var e = new AuditConditionRespondEventState(null);
 
                     var info = new TranslationInfo(
                         "AuditConditionDialogResponse",

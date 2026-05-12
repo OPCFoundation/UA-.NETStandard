@@ -1625,7 +1625,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(id.NamespaceUri, Is.EqualTo("http://ns.org/"));
         }
 
-        private const string ParseLongFormKnownNamespace= "http://opcfoundation.org/UA/Test/";
+        private const string ParseLongFormKnownNamespace = "http://opcfoundation.org/UA/Test/";
         private const string ParseLongFormUnknownNamespace = "http://opcfoundation.org/UA/Unknown/";
         private const string ParseLongFormKnownServer = "urn:server:known";
 
@@ -1661,8 +1661,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void ParseLongFormBareIdentifier()
         {
             NamespaceTable table = BuildParseLongFormNamespaces();
-            ExpandedNodeId result = ExpandedNodeId.ParseLongForm("i=10", table);
-            Assert.That(result.NamespaceIndex, Is.EqualTo(0));
+            var result = ExpandedNodeId.ParseLongForm("i=10", table);
+            Assert.That(result.NamespaceIndex, Is.Zero);
             Assert.That(GetParseLongFormUInt(result), Is.EqualTo((uint)10));
             Assert.That(result.IsAbsolute, Is.False);
         }
@@ -1671,7 +1671,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void ParseLongFormResolvesKnownNamespaceUri()
         {
             NamespaceTable table = BuildParseLongFormNamespaces();
-            ExpandedNodeId result = ExpandedNodeId.ParseLongForm(
+            var result = ExpandedNodeId.ParseLongForm(
                 $"nsu={ParseLongFormKnownNamespace};i=11", table);
             Assert.That(result.NamespaceIndex, Is.EqualTo(1));
             Assert.That(GetParseLongFormUInt(result), Is.EqualTo((uint)11));
@@ -1693,9 +1693,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ParseDefaultsAcceptUnresolvedNamespaceUri()
         {
-            ServiceMessageContext context = ServiceMessageContext.CreateEmpty(null);
+            var context = ServiceMessageContext.CreateEmpty(null);
             context.NamespaceUris = BuildParseLongFormNamespaces();
-            ExpandedNodeId result = ExpandedNodeId.Parse(
+            var result = ExpandedNodeId.Parse(
                 context, $"nsu={ParseLongFormUnknownNamespace};i=1");
             Assert.That(result.IsAbsolute, Is.True);
             Assert.That(result.NamespaceUri, Is.EqualTo(ParseLongFormUnknownNamespace));
@@ -1707,13 +1707,13 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             NamespaceTable table = BuildParseLongFormNamespaces();
             StringTable servers = BuildParseLongFormServers();
-            ExpandedNodeId result = ExpandedNodeId.ParseLongForm(
+            var result = ExpandedNodeId.ParseLongForm(
                 $"svu={ParseLongFormKnownServer};nsu={ParseLongFormKnownNamespace};i=5",
                 table,
                 servers);
             Assert.That(result.NamespaceIndex, Is.EqualTo(1));
             Assert.That(GetParseLongFormUInt(result), Is.EqualTo((uint)5));
-            Assert.That(result.ServerIndex, Is.EqualTo((uint)0));
+            Assert.That(result.ServerIndex, Is.Zero);
         }
 
         [Test]
@@ -1749,7 +1749,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void ParseLongFormServerIndexPrefix()
         {
             NamespaceTable table = BuildParseLongFormNamespaces();
-            ExpandedNodeId result = ExpandedNodeId.ParseLongForm(
+            var result = ExpandedNodeId.ParseLongForm(
                 $"svr=2;nsu={ParseLongFormKnownNamespace};i=8", table);
             Assert.That(result.ServerIndex, Is.EqualTo((uint)2));
             Assert.That(result.NamespaceIndex, Is.EqualTo(1));
@@ -1761,17 +1761,17 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             NamespaceTable table = BuildParseLongFormNamespaces();
             StringTable servers = BuildParseLongFormServers();
-            ServiceMessageContext context = ServiceMessageContext.CreateEmpty(null);
+            var context = ServiceMessageContext.CreateEmpty(null);
             context.NamespaceUris = table;
             context.ServerUris = servers;
 
-            var original = new ExpandedNodeId((uint)42, ParseLongFormKnownNamespace, 0);
+            var original = new ExpandedNodeId(42u, ParseLongFormKnownNamespace, 0);
             string formatted = original.Format(context, useUris: true);
-            ExpandedNodeId parsed = ExpandedNodeId.ParseLongForm(formatted, table, servers);
+            var parsed = ExpandedNodeId.ParseLongForm(formatted, table, servers);
 
             Assert.That(GetParseLongFormUInt(parsed), Is.EqualTo((uint)42));
             Assert.That(parsed.NamespaceIndex, Is.EqualTo(1));
-            Assert.That(parsed.ServerIndex, Is.EqualTo((uint)0));
+            Assert.That(parsed.ServerIndex, Is.Zero);
         }
     }
 }

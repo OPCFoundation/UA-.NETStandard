@@ -193,7 +193,7 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
             {
                 FilterOperator = FilterOperator.Not
             };
-            notElement.SetOperands(new FilterOperand[] { new ElementOperand(1) });
+            notElement.SetOperands([new ElementOperand(1)]);
 
             var filter = new Ua.ContentFilter
             {
@@ -211,7 +211,7 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
             {
                 FilterOperator = FilterOperator.Not
             };
-            notElement.SetOperands(new FilterOperand[] { new ElementOperand(1) });
+            notElement.SetOperands([new ElementOperand(1)]);
 
             var filter = new Ua.ContentFilter
             {
@@ -230,7 +230,7 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
             {
                 FilterOperator = FilterOperator.And
             };
-            andElement.SetOperands(new FilterOperand[] { new ElementOperand(1), new ElementOperand(2) });
+            andElement.SetOperands([new ElementOperand(1), new ElementOperand(2)]);
 
             var filter = new Ua.ContentFilter
             {
@@ -249,7 +249,7 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
             {
                 FilterOperator = FilterOperator.And
             };
-            andElement.SetOperands(new FilterOperand[] { new ElementOperand(1), new ElementOperand(2) });
+            andElement.SetOperands([new ElementOperand(1), new ElementOperand(2)]);
 
             var filter = new Ua.ContentFilter
             {
@@ -268,7 +268,7 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
             {
                 FilterOperator = FilterOperator.Or
             };
-            orElement.SetOperands(new FilterOperand[] { new ElementOperand(1), new ElementOperand(2) });
+            orElement.SetOperands([new ElementOperand(1), new ElementOperand(2)]);
 
             var filter = new Ua.ContentFilter
             {
@@ -287,7 +287,7 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
             {
                 FilterOperator = FilterOperator.Or
             };
-            orElement.SetOperands(new FilterOperand[] { new ElementOperand(1), new ElementOperand(2) });
+            orElement.SetOperands([new ElementOperand(1), new ElementOperand(2)]);
 
             var filter = new Ua.ContentFilter
             {
@@ -401,7 +401,7 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
         [Test]
         public void EqualsWithDifferentNumericTypesReturnsFalse()
         {
-            Ua.ContentFilter filter = BuildBinaryFilter(FilterOperator.Equals, Variant.From((int)42), Variant.From((double)42.0));
+            Ua.ContentFilter filter = BuildBinaryFilter(FilterOperator.Equals, Variant.From(42), Variant.From((double)42.0));
             bool result = filter.Evaluate(m_filterContext, m_target);
             Assert.That(result, Is.False);
         }
@@ -467,7 +467,7 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
         public void ContentFilterExtensionEvaluate()
         {
             Ua.ContentFilter filter = BuildBinaryFilter(FilterOperator.Equals, Variant.From(1), Variant.From(1));
-            bool result = ContentFilterExtensions.Evaluate(filter, m_filterContext, m_target);
+            bool result = filter.Evaluate(m_filterContext, m_target);
             Assert.That(result, Is.True);
         }
 
@@ -504,7 +504,7 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
             var operand = new SimpleAttributeOperand(ObjectTypeIds.BaseEventType, new QualifiedName("Severity"));
 
             var element = new ContentFilterElement { FilterOperator = FilterOperator.Equals };
-            element.SetOperands(new FilterOperand[] { operand, new LiteralOperand(Variant.From(42)) });
+            element.SetOperands([operand, new LiteralOperand(Variant.From(42))]);
 
             var filter = new Ua.ContentFilter
             {
@@ -591,36 +591,34 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
         private static Ua.ContentFilter BuildBinaryFilter(FilterOperator op, Variant left, Variant right)
         {
             ContentFilterElement element = BuildBinaryElement(op, left, right);
-            var filter = new Ua.ContentFilter
+            return new Ua.ContentFilter
             {
                 Elements = [element]
             };
-            return filter;
         }
 
         private static ContentFilterElement BuildBinaryElement(FilterOperator op, Variant left, Variant right)
         {
             var element = new ContentFilterElement { FilterOperator = op };
-            element.SetOperands(new FilterOperand[]
-            {
+            element.SetOperands(
+            [
                 new LiteralOperand(left),
                 new LiteralOperand(right)
-            });
+            ]);
             return element;
         }
 
         private static Ua.ContentFilter BuildUnaryFilter(FilterOperator op, Variant operand)
         {
             var element = new ContentFilterElement { FilterOperator = op };
-            element.SetOperands(new FilterOperand[]
-            {
+            element.SetOperands(
+            [
                 new LiteralOperand(operand)
-            });
-            var filter = new Ua.ContentFilter
+            ]);
+            return new Ua.ContentFilter
             {
                 Elements = [element]
             };
-            return filter;
         }
 
         private sealed class MockFilterTarget : IFilterTarget

@@ -27,6 +27,9 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+// CA2000: test code; many disposables are ownership-transferred to test fixtures or short-lived,
+// making CA2000 noisy without a real leak risk. Disabled file-level for the suite.
+#pragma warning disable CA2000
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -34,7 +37,6 @@ using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
-using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -193,7 +195,7 @@ namespace Opc.Ua.Client.Tests
 
                 if (!endpoint.ServerCertificate.IsEmpty)
                 {
-                    using X509Certificate2 cert = CertificateFactory.Create(
+                    using var cert = Certificate.FromRawData(
                         endpoint.ServerCertificate);
                     TestContext.Out.WriteLine("  [{0}]", cert.Thumbprint);
                 }
@@ -644,8 +646,8 @@ namespace Opc.Ua.Client.Tests
         public async Task ConnectJWTAsync(string securityPolicy)
         {
             byte[] identityToken = "fakeTokenString"u8.ToArray();
-            using var issuedToken = new IssuedIdentityTokenHandler(Profiles.JwtUserToken, identityToken);
-            using var userIdentity = new UserIdentity(issuedToken);
+            var issuedToken = new IssuedIdentityTokenHandler(Profiles.JwtUserToken, identityToken);
+            var userIdentity = new UserIdentity(issuedToken);
 
             ISession session = await ClientFixture
                 .ConnectAsync(ServerUrl, securityPolicy, Endpoints, userIdentity)
@@ -656,7 +658,7 @@ namespace Opc.Ua.Client.Tests
             byte[] receivedToken = TokenValidator.LastIssuedToken.DecryptedTokenData;
             Assert.That(receivedToken, Is.EqualTo(identityToken));
 
-            StatusCode result = await session.CloseAsync().ConfigureAwait(false);
+            _ = await session.CloseAsync().ConfigureAwait(false);
             session.Dispose();
         }
 
@@ -671,7 +673,7 @@ namespace Opc.Ua.Client.Tests
             }
 
             byte[] identityToken = "fakeTokenString"u8.ToArray();
-            using UserIdentity userIdentity = CreateUserIdentity(identityToken);
+            UserIdentity userIdentity = CreateUserIdentity(identityToken);
 
             ISession session = await ClientFixture
                 .ConnectAsync(ServerUrl, securityPolicy, Endpoints, userIdentity)
@@ -870,7 +872,7 @@ namespace Opc.Ua.Client.Tests
 
             ServiceResultException sre;
 
-            using UserIdentity userIdentity = anonymous
+            UserIdentity userIdentity = anonymous
                 ? new UserIdentity()
                 : new UserIdentity("user1", "password"u8);
 
@@ -983,7 +985,7 @@ namespace Opc.Ua.Client.Tests
             await IgnoreIfPolicyNotAdvertisedAsync(securityPolicy).ConfigureAwait(false);
             await IgnoreIfPolicyNotAdvertisedAsync(userTokenPolicy).ConfigureAwait(false);
 
-            using var userIdentity = new UserIdentity("user1", "password"u8);
+            var userIdentity = new UserIdentity("user1", "password"u8);
 
             // the first channel determines the endpoint
             ConfiguredEndpoint endpoint = await ClientFixture
@@ -1044,8 +1046,8 @@ namespace Opc.Ua.Client.Tests
         [Order(270)]
         public async Task RecreateSessionWithRenewUserIdentityAsync()
         {
-            using var userIdentityAnonymous = new UserIdentity();
-            using var userIdentityPW = new UserIdentity("user1", "password"u8);
+            var userIdentityAnonymous = new UserIdentity();
+            var userIdentityPW = new UserIdentity("user1", "password"u8);
 
             // the first channel determines the endpoint
             ConfiguredEndpoint endpoint = await ClientFixture
@@ -1782,7 +1784,7 @@ namespace Opc.Ua.Client.Tests
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
-            Activity rootActivity = new Activity("Test_Activity_Root")
+            using Activity rootActivity = new Activity("Test_Activity_Root")
             {
                 ActivityTraceFlags = ActivityTraceFlags.Recorded
             }.Start();
@@ -1902,7 +1904,7 @@ namespace Opc.Ua.Client.Tests
             IgnoreUnsupportedBrainpoolOnMacOs(securityPolicy);
             await IgnoreIfPolicyNotAdvertisedAsync(securityPolicy).ConfigureAwait(false);
 
-            using var userIdentity = new UserIdentity("user1", "password"u8);
+            var userIdentity = new UserIdentity("user1", "password"u8);
 
             // the first channel determines the endpoint
             ConfiguredEndpoint endpoint = await ClientFixture
@@ -1922,7 +1924,7 @@ namespace Opc.Ua.Client.Tests
             }
 
             // the active channel
-            ISession session1 = await ClientFixture.ConnectAsync(endpoint, userIdentity)
+            using ISession session1 = await ClientFixture.ConnectAsync(endpoint, userIdentity)
                 .ConfigureAwait(false);
             Assert.NotNull(session1);
 
@@ -1946,10 +1948,10 @@ namespace Opc.Ua.Client.Tests
 
             const string identityToken = "fakeTokenString";
 
-            using var issuedToken = new IssuedIdentityTokenHandler(
+            var issuedToken = new IssuedIdentityTokenHandler(
                 Profiles.JwtUserToken,
                 Encoding.UTF8.GetBytes(identityToken));
-            using var userIdentity = new UserIdentity(issuedToken);
+            var userIdentity = new UserIdentity(issuedToken);
 
             // the first channel determines the endpoint
             ConfiguredEndpoint endpoint = await ClientFixture
@@ -1970,7 +1972,7 @@ namespace Opc.Ua.Client.Tests
             }
 
             // the active channel
-            ISession session1 = await ClientFixture.ConnectAsync(endpoint, userIdentity)
+            using ISession session1 = await ClientFixture.ConnectAsync(endpoint, userIdentity)
                 .ConfigureAwait(false);
             Assert.NotNull(session1);
 
@@ -2017,12 +2019,22 @@ namespace Opc.Ua.Client.Tests
                 if (eccurveHashPair.Curve.Oid.FriendlyName
                     .Contains(extractedFriendlyNamae, StringComparison.Ordinal))
                 {
-                    X509Certificate2 cert = CertificateBuilder
+                    using Certificate cert = CertificateBuilder
                         .Create("CN=Client Test ECC Subject, O=OPC Foundation")
                         .SetECCurve(eccurveHashPair.Curve)
                         .CreateForECDsa();
 
-                    var userIdentity = new UserIdentity(cert);
+                    using var inProcProvider = new InProcessCertificateProvider(cert);
+                    var certIdentifier = new CertificateIdentifier
+                    {
+                        Thumbprint = cert.Thumbprint,
+                        SubjectName = cert.Subject
+                    };
+                    var userIdentity = new UserIdentity(
+                        new X509IdentityTokenHandler(
+                            certIdentifier,
+                            new CertificatePasswordProvider(),
+                            inProcProvider));
 
                     // the first channel determines the endpoint
                     ConfiguredEndpoint endpoint = await ClientFixture
@@ -2042,7 +2054,7 @@ namespace Opc.Ua.Client.Tests
                     }
 
                     // the active channel
-                    ISession session1 = await ClientFixture.ConnectAsync(endpoint, userIdentity)
+                    using ISession session1 = await ClientFixture.ConnectAsync(endpoint, userIdentity)
                         .ConfigureAwait(false);
                     Assert.That(session1, Is.Not.Null);
 

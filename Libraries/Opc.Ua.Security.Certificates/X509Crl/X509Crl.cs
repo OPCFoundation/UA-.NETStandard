@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 using System;
 using System.Collections.Generic;
 using System.Formats.Asn1;
@@ -95,7 +97,7 @@ namespace Opc.Ua.Security.Certificates
         }
 
         /// <inheritdoc/>
-        public X500DistinguishedName IssuerName { get; private set; }
+        public X500DistinguishedName IssuerName { get; private set; } = null!;
 
         /// <inheritdoc/>
         public string Issuer => IssuerName.Name;
@@ -116,19 +118,20 @@ namespace Opc.Ua.Security.Certificates
         public X509ExtensionCollection CrlExtensions { get; private set; }
 
         /// <inheritdoc/>
-        public byte[] RawData { get; }
+        public byte[] RawData { get; } = null!;
 
         /// <summary>
         /// Verifies the signature on the CRL.
         /// </summary>
         /// <exception cref="CryptographicException"></exception>
-        public bool VerifySignature(X509Certificate2 issuer, bool throwOnError)
+        public bool VerifySignature(Certificate issuer, bool throwOnError)
         {
             bool result;
             try
             {
-                var signature = new X509Signature(RawData);
-                result = signature.Verify(issuer);
+                var signature = new X509Signature(RawData
+                    ?? throw new CryptographicException("CRL has no raw data."));
+                result = signature.Verify(issuer.X509);
             }
             catch (Exception)
             {
@@ -145,9 +148,9 @@ namespace Opc.Ua.Security.Certificates
         /// Returns true if the certificate is revoked in the CRL.
         /// </summary>
         /// <exception cref="CryptographicException"></exception>
-        public bool IsRevoked(X509Certificate2 certificate)
+        public bool IsRevoked(Certificate certificate)
         {
-            if (certificate.IssuerName.Equals(IssuerName))
+            if (certificate.X509.IssuerName.Equals(IssuerName))
             {
                 throw new CryptographicException("Certificate was not created by the CRL Issuer.");
             }
@@ -250,9 +253,12 @@ namespace Opc.Ua.Security.Certificates
                                     AsnReader crlEntryExtensions = crlEntry.ReadSequence();
                                     while (crlEntryExtensions.HasData)
                                     {
-                                        X509Extension extension = crlEntryExtensions
-                                            .ReadExtension()!;
-                                        revokedCertificate.CrlEntryExtensions.Add(extension);
+                                        X509Extension? extension = crlEntryExtensions
+                                            .ReadExtension();
+                                        if (extension != null)
+                                        {
+                                            revokedCertificate.CrlEntryExtensions.Add(extension);
+                                        }
                                     }
                                     crlEntryExtensions.ThrowIfNotEmpty();
                                 }
@@ -272,8 +278,11 @@ namespace Opc.Ua.Security.Certificates
                             AsnReader crlExtensions = optReader.ReadSequence();
                             while (crlExtensions.HasData)
                             {
-                                X509Extension extension = crlExtensions.ReadExtension()!;
-                                crlExtensionList.Add(extension);
+                                X509Extension? extension = crlExtensions.ReadExtension();
+                                if (extension != null)
+                                {
+                                    crlExtensionList.Add(extension);
+                                }
                             }
                             CrlExtensions = crlExtensionList;
                         }
@@ -329,7 +338,7 @@ namespace Opc.Ua.Security.Certificates
         }
 
         private bool m_decoded;
-        private X509Signature m_signature = null!;
+        private X509Signature? m_signature;
         private List<RevokedCertificate> m_revokedCertificates;
     }
 

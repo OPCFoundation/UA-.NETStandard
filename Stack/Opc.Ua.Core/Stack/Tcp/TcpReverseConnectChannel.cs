@@ -49,7 +49,7 @@ namespace Opc.Ua.Bindings
             ChannelQuotas quotas,
             List<EndpointDescription> endpoints,
             ITelemetryContext telemetry)
-            : base(contextId, listener, bufferManager, quotas, null, endpoints, telemetry)
+            : base(contextId, listener, bufferManager, quotas, null!, endpoints, telemetry)
         {
             m_logger = telemetry.CreateLogger<TcpReverseConnectChannel>();
         }

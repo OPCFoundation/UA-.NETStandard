@@ -46,13 +46,11 @@ namespace Quickstarts.Servers
         private const string kFilename = "subscriptionsStore.bin";
         private readonly DurableMonitoredItemQueueFactory? m_durableMonitoredItemQueueFactory;
         private readonly ILogger m_logger;
-        private readonly ITelemetryContext m_telemetry;
         private readonly IServiceMessageContext m_messageContext;
 
         public SubscriptionStore(IServerInternal server)
         {
             m_logger = server.Telemetry.CreateLogger<SubscriptionStore>();
-            m_telemetry = server.Telemetry;
             m_messageContext = server.MessageContext;
             m_durableMonitoredItemQueueFactory = server
                 .MonitoredItemQueueFactory as DurableMonitoredItemQueueFactory;

@@ -27,7 +27,10 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 using System;
+using System.Runtime.InteropServices;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
@@ -138,16 +141,16 @@ namespace Opc.Ua
         public bool NoPrivateKeys { get; private set; }
 
         /// <inheritdoc/>
-        public Task<X509Certificate2Collection> EnumerateAsync(CancellationToken ct = default)
+        public Task<CertificateCollection> EnumerateAsync(CancellationToken ct = default)
         {
             using var store = new X509Store(m_storeName, m_storeLocation);
             store.Open(OpenFlags.ReadOnly);
-            return Task.FromResult(new X509Certificate2Collection(store.Certificates));
+            return Task.FromResult(CertificateCollection.From([.. store.Certificates]));
         }
 
         /// <inheritdoc/>
         public Task AddAsync(
-            X509Certificate2 certificate,
+            Certificate certificate,
             char[]? password = null,
             CancellationToken ct = default)
         {
@@ -159,30 +162,61 @@ namespace Opc.Ua
             using (var store = new X509Store(m_storeName, m_storeLocation))
             {
                 store.Open(OpenFlags.ReadWrite);
-                if (!store.Certificates.Contains(certificate))
+                using X509Certificate2 x509ForCheck = X509CertificateLoader.LoadCertificate(certificate.RawData);
+                if (!store.Certificates.Contains(x509ForCheck))
                 {
                     if (certificate.HasPrivateKey && !NoPrivateKeys)
                     {
-                        // X509Store needs a persisted private key
-                        X509Certificate2 persistedCertificate = X509Utils.CreateCopyWithPrivateKey(
-                            certificate,
-                            true);
-                        store.Add(persistedCertificate);
+                        // Adding a private-key certificate to an X509Store
+                        // requires a key handle the platform store can
+                        // persist:
+                        //   * On Windows, the key must be re-imported with
+                        //     PersistKeySet so it lands in the appropriate
+                        //     CryptoAPI/CNG container.
+                        //   * On macOS and Linux, the platform store
+                        //     (Keychain / OpenSSL on-disk store) only
+                        //     accepts certs whose key is reachable through
+                        //     the existing handle. Re-importing a PKCS#12
+                        //     blob there yields a transient key that the
+                        //     keychain refuses to retrieve, surfacing as
+                        //     "AppleCommonCryptoCryptographicException:
+                        //     The contents of this item cannot be
+                        //     retrieved." For these platforms we therefore
+                        //     pass the original cert through, matching
+                        //     the legacy CreateCopyWithPrivateKey
+                        //     behaviour.
+                        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+                        {
+                            byte[] pfx = certificate.Export(X509ContentType.Pfx);
+                            using X509Certificate2 persistedX509 = X509CertificateLoader.LoadPkcs12(
+                                pfx,
+                                null,
+                                X509KeyStorageFlags.PersistKeySet);
+                            store.Add(persistedX509);
+                        }
+                        else
+                        {
+                            // Pass the original X509Certificate2 wrapped by
+                            // the Certificate. Re-importing via PFX changes
+                            // the platform key handle in a way that the
+                            // macOS Keychain refuses to persist.
+                            store.Add(certificate.X509);
+                        }
                     }
                     else if (certificate.HasPrivateKey && NoPrivateKeys)
                     {
                         // ensure no private key is added to store
-                        using X509Certificate2 publicKey = CertificateFactory.Create(certificate.RawData);
-                        store.Add(publicKey);
+                        using X509Certificate2 publicX509 = X509CertificateLoader.LoadCertificate(certificate.RawData);
+                        store.Add(publicX509);
                     }
                     else
                     {
-                        store.Add(certificate);
+                        store.Add(x509ForCheck);
                     }
 
                     m_logger.LogInformation(
-                        "Added certificate {Certificate} to X509Store {Name}.",
-                        certificate.AsLogSafeString(),
+                        "Added certificate with thumbprint {Thumbprint} to X509Store {Name}.",
+                        certificate.Thumbprint,
                         store.Name);
                 }
             }
@@ -210,24 +244,26 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public Task<X509Certificate2Collection> FindByThumbprintAsync(
+        public Task<CertificateCollection> FindByThumbprintAsync(
             string thumbprint,
             CancellationToken ct = default)
         {
             using var store = new X509Store(m_storeName, m_storeLocation);
             store.Open(OpenFlags.ReadOnly);
 
-            var collection = new X509Certificate2Collection();
+            using var collection = new CertificateCollection();
 
             foreach (X509Certificate2 certificate in store.Certificates)
             {
                 if (certificate.Thumbprint == thumbprint)
                 {
-                    collection.Add(certificate);
+                    var cert = Certificate.From(certificate);
+                    collection.Add(cert);
+                    cert.Dispose();
                 }
             }
 
-            return Task.FromResult(collection);
+            return Task.FromResult(collection.AddRef());
         }
 
         /// <inheritdoc/>
@@ -235,7 +271,7 @@ namespace Opc.Ua
 
         /// <inheritdoc/>
         /// <remarks>The LoadPrivateKey special handling is not necessary in this store.</remarks>
-        public Task<X509Certificate2?> LoadPrivateKeyAsync(
+        public Task<Certificate?> LoadPrivateKeyAsync(
             string thumbprint,
             string? subjectName,
             string? applicationUri,
@@ -243,7 +279,7 @@ namespace Opc.Ua
             char[]? password,
             CancellationToken ct = default)
         {
-            return Task.FromResult<X509Certificate2?>(null);
+            return Task.FromResult<Certificate?>(null);
         }
 
         /// <inheritdoc/>
@@ -253,8 +289,8 @@ namespace Opc.Ua
         /// <inheritdoc/>
         /// <remarks>CRLs are only supported on Windows Platform.</remarks>
         public async Task<StatusCode> IsRevokedAsync(
-            X509Certificate2 issuer,
-            X509Certificate2 certificate,
+            Certificate issuer,
+            Certificate certificate,
             CancellationToken ct = default)
         {
             if (!SupportsCRLs)
@@ -343,7 +379,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         /// <remarks>CRLs are only supported on Windows Platform.</remarks>
         public async Task<X509CRLCollection> EnumerateCRLsAsync(
-            X509Certificate2 issuer,
+            Certificate issuer,
             bool validateUpdateTime = true,
             CancellationToken ct = default)
         {
@@ -393,10 +429,10 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(crl));
             }
 
-            X509Certificate2? issuer = null;
-            X509Certificate2Collection certificates = await EnumerateAsync(ct).ConfigureAwait(
+            Certificate? issuer = null;
+            using CertificateCollection certificates = await EnumerateAsync(ct).ConfigureAwait(
                 false);
-            foreach (X509Certificate2 certificate in certificates)
+            foreach (Certificate certificate in certificates)
             {
                 if (X509Utils.CompareDistinguishedName(certificate.SubjectName, crl.IssuerName) &&
                     crl.VerifySignature(certificate, false))
@@ -438,7 +474,7 @@ namespace Opc.Ua
 
         /// <inheritdoc/>
         public Task AddRejectedAsync(
-            X509Certificate2Collection certificates,
+            CertificateCollection certificates,
             int maxCertificates,
             CancellationToken ct = default)
         {

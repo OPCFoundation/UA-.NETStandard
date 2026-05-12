@@ -32,12 +32,12 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Security;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Bindings
 {
@@ -54,9 +54,9 @@ namespace Opc.Ua.Bindings
             BufferManager bufferManager,
             IMessageSocketFactory socketFactory,
             ChannelQuotas quotas,
-            X509Certificate2? clientCertificate,
-            X509Certificate2Collection? clientCertificateChain,
-            X509Certificate2? serverCertificate,
+            Certificate? clientCertificate,
+            CertificateCollection? clientCertificateChain,
+            Certificate? serverCertificate,
             EndpointDescription? endpoint,
             ITelemetryContext telemetry)
             : base(
@@ -634,10 +634,8 @@ namespace Opc.Ua.Bindings
             // parse the security header.
             uint channelId;
 
-            X509Certificate2? serverCertificate;
-
+            Certificate? serverCertificate = null;
             uint requestId;
-
             uint sequenceNumber;
             try
             {
@@ -658,6 +656,12 @@ namespace Opc.Ua.Bindings
             }
             catch (Exception e)
             {
+                // CA1508: serverCertificate is assigned via out param before this catch — the analyzer's
+                // null-flow does not track that path. Defensive null check kept on purpose.
+#pragma warning disable CA1508
+                serverCertificate?.Dispose();
+#pragma warning restore CA1508
+
                 m_logger.LogDebug(e,
                    "ChannelId {ChannelId}: Could not verify security on OpenSecureChannel response",
                    ChannelId);
@@ -772,6 +776,11 @@ namespace Opc.Ua.Bindings
             }
             finally
             {
+                // CA1508: serverCertificate is assigned via out param earlier — the analyzer's
+                // null-flow does not track that path. Defensive null check kept on purpose.
+#pragma warning disable CA1508
+                serverCertificate?.Dispose();
+#pragma warning restore CA1508
                 chunksToProcess?.Release(BufferManager, "ProcessOpenSecureChannelResponse");
             }
 

@@ -28,12 +28,12 @@
  * ======================================================================*/
 
 using System;
+using System.Diagnostics;
 using Microsoft.CodeAnalysis;
 using Microsoft.Extensions.Logging;
-using IExternalLogger = SGF.Diagnostics.ILogger;
 using ExternalLogLevel = SGF.Diagnostics.LogLevel;
+using IExternalLogger = SGF.Diagnostics.ILogger;
 using SourceProductionContext = SGF.SgfSourceProductionContext;
-using System.Diagnostics;
 
 namespace Opc.Ua.SourceGeneration
 {

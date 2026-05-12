@@ -249,7 +249,7 @@ namespace Opc.Ua.Server.Tests
                         requestHeader,
                         null,
                         0,
-                        ArrayOf<BrowseDescription>.Empty).ConfigureAwait(false));
+                        []).ConfigureAwait(false));
                 Assert.That(sre.StatusCode, Is.EqualTo(StatusCodes.BadNothingToDo));
             }
 
@@ -592,7 +592,7 @@ namespace Opc.Ua.Server.Tests
                 publishResponse.ResponseHeader.StringTable,
                 services.Logger);
             Assert.That(publishResponse.SubscriptionId, Is.EqualTo(id));
-            Assert.That(publishResponse.AvailableSequenceNumbers.Count, Is.EqualTo(0));
+            Assert.That(publishResponse.AvailableSequenceNumbers.Count, Is.Zero);
 
             // enable publishing
             enabled = true;
@@ -880,7 +880,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(statusMessage, Does.Contain("Status=GoodSubscriptionTransferred"));
 
             // static node, do not acknowledge
-            Assert.That(publishResponse.AvailableSequenceNumbers.Count, Is.EqualTo(0));
+            Assert.That(publishResponse.AvailableSequenceNumbers.Count, Is.Zero);
 
             if (deleteSubscriptions)
             {

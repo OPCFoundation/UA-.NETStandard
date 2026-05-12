@@ -1,4 +1,4 @@
-﻿/* Copyright (c) 1996-2022 The OPC Foundation. All rights reserved.
+/* Copyright (c) 1996-2022 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
      - RCL: for OPC Foundation Corporate Members in good-standing
      - GPL V2: everybody else
@@ -11,12 +11,8 @@
 */
 
 using System;
-using System.Globalization;
-using System.Numerics;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
-using System.Text;
-using Opc.Ua.Bindings;
 using Opc.Ua.Security.Certificates;
 #if CURVE25519
 using Org.BouncyCastle.Pkcs;
@@ -30,6 +26,8 @@ using Org.BouncyCastle.Crypto.Generators;
 using Org.BouncyCastle.Crypto.Modes;
 using Org.BouncyCastle.Crypto.Digests;
 #endif
+
+#nullable enable
 
 namespace Opc.Ua
 {
@@ -68,7 +66,7 @@ namespace Opc.Ua
         /// </summary>
         public static bool IsEccPolicy(string securityPolicyUri)
         {
-            var info = SecurityPolicies.GetInfo(securityPolicyUri);
+            SecurityPolicyInfo? info = SecurityPolicies.GetInfo(securityPolicyUri);
 
             if (info != null)
             {
@@ -81,7 +79,7 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the NodeId for the certificate type for the specified certificate.
         /// </summary>
-        public static NodeId GetEccCertificateTypeId(X509Certificate2 certificate)
+        public static NodeId GetEccCertificateTypeId(Certificate certificate)
         {
             string keyAlgorithm = certificate.GetKeyAlgorithm();
             if (keyAlgorithm != Oids.ECPublicKey)
@@ -90,7 +88,13 @@ namespace Opc.Ua
             }
 
             PublicKey encodedPublicKey = certificate.PublicKey;
-            switch (BitConverter.ToString(encodedPublicKey.EncodedParameters!.RawData!))
+
+            if (encodedPublicKey.EncodedParameters is null)
+            {
+                return NodeId.Null;
+            }
+
+            switch (BitConverter.ToString(encodedPublicKey.EncodedParameters.RawData))
             {
                 // nistP256
                 case NistP256KeyParameters:
@@ -152,12 +156,17 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the signature algorithm for the specified certificate.
         /// </summary>
-        public static string GetECDsaQualifier(X509Certificate2 certificate)
+        public static string GetECDsaQualifier(Certificate certificate)
         {
             if (X509Utils.IsECDsaSignature(certificate))
             {
                 const string signatureQualifier = "ECDsa";
                 PublicKey encodedPublicKey = certificate.PublicKey;
+
+                if (encodedPublicKey.EncodedParameters is null)
+                {
+                    return string.Empty;
+                }
 
                 // New values can be determined by running the dotted-decimal OID value
                 // through BitConverter.ToString(CryptoConfig.EncodeOID(dottedDecimal));
@@ -182,7 +191,7 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the public key for the specified certificate.
         /// </summary>
-        public static ECDsa? GetPublicKey(X509Certificate2 certificate)
+        public static ECDsa? GetPublicKey(Certificate certificate)
         {
             return GetPublicKey(certificate, out string[]? _);
         }
@@ -193,7 +202,7 @@ namespace Opc.Ua
         /// <exception cref="InvalidOperationException"></exception>
         /// <exception cref="NotImplementedException"></exception>
         public static ECDsa? GetPublicKey(
-            X509Certificate2 certificate,
+            Certificate certificate,
             out string[]? securityPolicyUris)
         {
             securityPolicyUris = null;
@@ -231,6 +240,12 @@ namespace Opc.Ua
             }
 
             PublicKey encodedPublicKey = certificate.PublicKey;
+
+            if (encodedPublicKey.EncodedParameters is null)
+            {
+                return null;
+            }
+
             string keyParameters = BitConverter.ToString(
                 encodedPublicKey.EncodedParameters!.RawData!);
             byte[] keyValue = encodedPublicKey.EncodedKeyValue.RawData;
@@ -285,7 +300,7 @@ namespace Opc.Ua
         /// Returns the length of a ECDsa signature of a digest.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public static int GetSignatureLength(X509Certificate2 signingCertificate)
+        public static int GetSignatureLength(Certificate signingCertificate)
         {
             if (signingCertificate == null)
             {
@@ -313,20 +328,24 @@ namespace Opc.Ua
         /// </summary>
         public static byte[]? Sign(
             ArraySegment<byte> dataToSign,
-            X509Certificate2 signingCertificate,
+            Certificate signingCertificate,
             string securityPolicyUri)
         {
-            var info = SecurityPolicies.GetInfo(securityPolicyUri);
-            return Sign(dataToSign, signingCertificate, info?.AsymmetricSignatureAlgorithm ?? AsymmetricSignatureAlgorithm.None);
+            SecurityPolicyInfo info = SecurityPolicies.GetInfo(securityPolicyUri)
+                ?? throw new ArgumentException(
+                    $"Cannot resolve SecurityPolicy '{securityPolicyUri}'.",
+                    nameof(securityPolicyUri));
+            return Sign(dataToSign, signingCertificate, info.AsymmetricSignatureAlgorithm);
         }
 
         /// <summary>
         /// Computes a signature.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
+        /// <exception cref="NotSupportedException"></exception>
         public static byte[]? Sign(
             ArraySegment<byte> dataToSign,
-            X509Certificate2 signingCertificate,
+            Certificate signingCertificate,
             AsymmetricSignatureAlgorithm algorithm)
         {
             switch (algorithm)
@@ -379,35 +398,33 @@ namespace Opc.Ua
                     StatusCodes.BadCertificateInvalid,
                     "Missing private key needed for create a signature.");
 
+            byte[] arrayToSign = dataToSign.Array
+                ?? throw new ServiceResultException(StatusCodes.BadInvalidArgument, "Data to sign must not be empty.");
+
             using (senderPrivateKey)
             {
-                byte[] signature = senderPrivateKey.SignData(
-                    dataToSign.GetArray(),
+                return senderPrivateKey.SignData(
+                    arrayToSign,
                     dataToSign.Offset,
                     dataToSign.Count,
                     hashAlgorithm);
-
-                return signature;
             }
         }
 
         /// <summary>
         /// Verifies a signature.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public static bool Verify(
             ArraySegment<byte> dataToVerify,
             byte[] signature,
-            X509Certificate2 signingCertificate,
+            Certificate signingCertificate,
             string securityPolicyUri)
         {
-            var info = SecurityPolicies.GetInfo(securityPolicyUri);
-
-            if (info == null)
-            {
-                throw new ServiceResultException(
+            SecurityPolicyInfo info = SecurityPolicies.GetInfo(securityPolicyUri)
+                ?? throw new ServiceResultException(
                     StatusCodes.BadSecurityChecksFailed,
                     $"Unknown security policy: {securityPolicyUri}");
-            }
 
             return Verify(
                 dataToVerify,
@@ -419,10 +436,12 @@ namespace Opc.Ua
         /// <summary>
         /// Verifies a signature.
         /// </summary>
+        /// <exception cref="NotSupportedException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
         public static bool Verify(
             ArraySegment<byte> dataToVerify,
             byte[] signature,
-            X509Certificate2 signingCertificate,
+            Certificate signingCertificate,
             AsymmetricSignatureAlgorithm algorithm)
         {
             switch (algorithm)
@@ -472,10 +491,14 @@ namespace Opc.Ua
                     throw new NotSupportedException($"AsymmetricSignatureAlgorithm not supported: {algorithm}.");
             }
 
-            using ECDsa? ecdsa = GetPublicKey(signingCertificate);
+            using ECDsa ecdsa = GetPublicKey(signingCertificate)
+                ?? throw new ServiceResultException(StatusCodes.BadCertificateInvalid, "Missing ECC public key for signature verification.");
 
-            return ecdsa!.VerifyData(
-                dataToVerify.GetArray(),
+            byte[] arrayToVerify = dataToVerify.Array
+                ?? throw new ServiceResultException(StatusCodes.BadInvalidArgument, "Data to verify must not be empty.");
+
+            return ecdsa.VerifyData(
+                arrayToVerify,
                 dataToVerify.Offset,
                 dataToVerify.Count,
                 signature,
@@ -493,16 +516,17 @@ namespace Opc.Ua
         /// padding (e.g., HMAC) and must be considered for block alignment.</param>
         /// <returns>Output: buffer with unencrypted data starting at 0; plaintext data
         /// starting at offset; padding added.</returns>
+        /// <exception cref="ArgumentNullException"></exception>
         private static ArraySegment<byte> AddPadding(ArraySegment<byte> data, int blockSize, int trailingBytes = 0)
         {
+            byte[] dataArray = data.Array ?? throw new ArgumentNullException(nameof(data), "Data array must not be null.");
+
             int paddingByteSize = blockSize > byte.MaxValue ? 2 : 1;
             int paddingSize = blockSize - ((data.Count + paddingByteSize + trailingBytes) % blockSize);
             paddingSize %= blockSize;
 
             int endOfData = data.Offset + data.Count;
             int endOfPaddedData = data.Offset + data.Count + paddingSize + paddingByteSize;
-
-            byte[] dataArray = data.GetArray();
 
             for (int ii = endOfData; ii < endOfPaddedData - paddingByteSize && ii < dataArray.Length; ii++)
             {
@@ -529,9 +553,12 @@ namespace Opc.Ua
         /// <returns>Output: buffer with unencrypted data starting at 0; plaintext starting
         /// at offset; padding excluded.</returns>
         /// <exception cref="CryptographicException"></exception>
+        /// <exception cref="ArgumentNullException"></exception>
         private static ArraySegment<byte> RemovePadding(ArraySegment<byte> data, int blockSize)
         {
-            byte[] dataArray = data.GetArray();
+            byte[] dataArray = data.Array ??
+                throw new ArgumentNullException(nameof(data), "Data array must not be null.");
+
             int paddingSize = dataArray[data.Offset + data.Count - 1];
             int paddingByteSize = 1;
 
@@ -569,6 +596,7 @@ namespace Opc.Ua
         /// </summary>
         /// <exception cref="NotSupportedException"></exception>
         /// <exception cref="CryptographicException"></exception>
+        /// <exception cref="ArgumentNullException"></exception>
         public static ArraySegment<byte> SymmetricEncryptAndSign(
             ArraySegment<byte> data,
             SecurityPolicyInfo securityPolicy,
@@ -675,14 +703,14 @@ namespace Opc.Ua
 #if NET8_0_OR_GREATER
         private static byte[] ApplyAeadMask(uint tokenId, uint lastSequenceNumber, byte[] iv)
         {
-            var copy = new byte[iv.Length];
+            byte[] copy = new byte[iv.Length];
             Buffer.BlockCopy(iv, 0, copy, 0, iv.Length);
 
-            copy[0] ^= (byte)((tokenId & 0x000000FF));
+            copy[0] ^= (byte)(tokenId & 0x000000FF);
             copy[1] ^= (byte)((tokenId & 0x0000FF00) >> 8);
             copy[2] ^= (byte)((tokenId & 0x00FF0000) >> 16);
             copy[3] ^= (byte)((tokenId & 0xFF000000) >> 24);
-            copy[4] ^= (byte)((lastSequenceNumber & 0x000000FF));
+            copy[4] ^= (byte)(lastSequenceNumber & 0x000000FF);
             copy[5] ^= (byte)((lastSequenceNumber & 0x0000FF00) >> 8);
             copy[6] ^= (byte)((lastSequenceNumber & 0x00FF0000) >> 16);
             copy[7] ^= (byte)((lastSequenceNumber & 0xFF000000) >> 24);
@@ -942,6 +970,7 @@ namespace Opc.Ua
         /// </summary>
         /// <exception cref="CryptographicException"></exception>
         /// <exception cref="NotSupportedException"></exception>
+        /// <exception cref="ArgumentNullException"></exception>
         public static ArraySegment<byte> SymmetricDecryptAndVerify(
            ArraySegment<byte> data,
            SecurityPolicyInfo securityPolicy,
@@ -983,6 +1012,9 @@ namespace Opc.Ua
 #endif
             }
 
+            // The buffer originates from BufferManager so the backing array is non-null.
+            byte[] dataArray = data.GetArray();
+
             if (!signOnly)
             {
                 using var aes = Aes.Create();
@@ -995,21 +1027,22 @@ namespace Opc.Ua
                 using ICryptoTransform decryptor = aes.CreateDecryptor();
 
                 decryptor.TransformBlock(
-                    data.GetArray(),
+                    dataArray,
                     data.Offset,
                     data.Count,
-                    data.GetArray(),
+                    dataArray,
                     data.Offset);
             }
 
             int isNotValid = 0;
-            // Buffer originates from BufferManager so the backing array is non-null.
-            byte[] dataArray = data.GetArray();
 
             if (signingKey != null)
             {
-                using HMAC? hmac = securityPolicy.CreateSignatureHmac(signingKey);
-                byte[] hash = hmac!.ComputeHash(dataArray, 0, data.Offset + data.Count - (hmac.HashSize / 8));
+                using HMAC hmac = securityPolicy.CreateSignatureHmac(signingKey) ??
+                    throw new ServiceResultException(
+                        StatusCodes.BadSecurityChecksFailed,
+                        "Could not create signature HMAC.");
+                byte[] hash = hmac.ComputeHash(dataArray, 0, data.Offset + data.Count - (hmac.HashSize / 8));
                 for (int ii = 0; ii < hash.Length; ii++)
                 {
                     int index = data.Offset + data.Count - hash.Length + ii;

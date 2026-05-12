@@ -27,13 +27,13 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Xml;
-using Moq;
-using Opc.Ua.Tests;
 using System;
 using System.IO;
-using NUnit.Framework;
 using System.Runtime.Serialization;
+using System.Xml;
+using Moq;
+using NUnit.Framework;
+using Opc.Ua.Tests;
 
 namespace Opc.Ua.Types.Tests.Encoders
 {

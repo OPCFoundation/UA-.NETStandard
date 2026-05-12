@@ -132,7 +132,10 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public static bool operator ==(RolePermissionType? left, RolePermissionType? right)
         {
-            if (left is null) return right is null;
+            if (left is null)
+            {
+                return right is null;
+            }
             return left.Equals(right);
         }
 

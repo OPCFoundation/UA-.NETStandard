@@ -163,7 +163,7 @@ namespace Opc.Ua
             string globalChannelId,
             EndpointDescription endpointDescription,
             OpenSecureChannelRequest request,
-            X509Certificate2 clientCertificate,
+            Certificate clientCertificate,
             Exception exception)
         {
             // raise an audit open secure channel event.
@@ -179,7 +179,7 @@ namespace Opc.Ua
 
         /// <inheritdoc/>
         public virtual void ReportAuditCertificateEvent(
-            X509Certificate2 clientCertificate,
+            Certificate clientCertificate,
             Exception exception)
         {
             // raise the audit certificate
@@ -615,23 +615,23 @@ namespace Opc.Ua
         /// Sets the Server Certificate in an Endpoint description if the description requires encryption.
         /// </summary>
         /// <param name="description">the endpoint Description to set the server certificate</param>
-        /// <param name="certificateTypesProvider">The provider to get the server certificate per certificate type.</param>
+        /// <param name="serverCertificates">The registry that exposes the server's instance certificates per certificate type.</param>
         /// <param name="checkRequireEncryption">only set certificate if the endpoint does require Encryption</param>
         public static void SetServerCertificateInEndpointDescription(
             EndpointDescription description,
-            CertificateTypesProvider certificateTypesProvider,
+            ICertificateRegistry serverCertificates,
             bool checkRequireEncryption = true)
         {
             if (!checkRequireEncryption || RequireEncryption(description))
             {
-                X509Certificate2? serverCertificate = certificateTypesProvider
+                Certificate? serverCertificate = serverCertificates
                     .GetInstanceCertificate(
-                        description.SecurityPolicyUri!);
+                        description.SecurityPolicyUri!)?.Certificate;
                 // check if complete chain should be sent.
-                if (certificateTypesProvider.SendCertificateChain)
+                if (serverCertificates.SendCertificateChain)
                 {
-                    description.ServerCertificate = certificateTypesProvider
-                        .LoadCertificateChainRaw(serverCertificate)!.ToByteString();
+                    description.ServerCertificate = serverCertificates
+                        .LoadCertificateChainRaw(serverCertificate!)!.ToByteString();
                 }
                 else
                 {
@@ -677,16 +677,9 @@ namespace Opc.Ua
         protected ArrayOf<EndpointDescription> Endpoints { get; private set; }
 
         /// <summary>
-        /// The object used to verify client certificates
+        /// Gets the certificate manager, if available.
         /// </summary>
-        /// <value>The identifier for an X509 certificate.</value>
-        public CertificateValidator? CertificateValidator { get; private set; }
-
-        /// <summary>
-        /// The server's application instance certificate types provider.
-        /// </summary>
-        /// <value>The provider for the X.509 certificates.</value>
-        public CertificateTypesProvider? InstanceCertificateTypesProvider { get; private set; }
+        public CertificateManager? CertificateManager { get; protected set; }
 
         /// <summary>
         /// Gets or sets the encodeable factory to use for this server instance.
@@ -764,24 +757,18 @@ namespace Opc.Ua
         /// <summary>
         /// Called after the application certificate update.
         /// </summary>
-        protected virtual async void OnCertificateUpdateAsync(object? sender, CertificateUpdateEventArgs e)
+#pragma warning disable RCS1047 // protected virtual member kept for binary compatibility with existing overrides
+        protected virtual void OnCertificateUpdateAsync(object? sender, CertificateUpdateEventArgs e)
+#pragma warning restore RCS1047
         {
             try
             {
-                // Configuration and InstanceCertificateTypesProvider are populated once the server starts.
-                CertificateTypesProvider provider = InstanceCertificateTypesProvider!;
-                ApplicationConfiguration configuration = Configuration!;
-                provider.Update(e.SecurityConfiguration);
+                ICertificateRegistry? serverCertificates = CertificateManager;
+                ICertificateValidatorEx? certificateValidator = e.CertificateValidator;
 
-                ArrayOf<CertificateIdentifier> applicationCertificates = configuration.SecurityConfiguration.ApplicationCertificates;
-                for (int i = 0; i < applicationCertificates.Count; i++)
+                if (serverCertificates == null)
                 {
-                    CertificateIdentifier certificateIdentifier = applicationCertificates[i];
-                    // preload chain
-                    X509Certificate2 certificate = (await certificateIdentifier.FindAsync(false)
-                        .ConfigureAwait(false))!;
-                    await provider.LoadCertificateChainAsync(certificate)
-                        .ConfigureAwait(false);
+                    return;
                 }
 
                 //update certificate in the endpoint descriptions
@@ -789,14 +776,14 @@ namespace Opc.Ua
                 {
                     SetServerCertificateInEndpointDescription(
                         endpointDescription,
-                        provider);
+                        serverCertificates);
                 }
 
                 foreach (ITransportListener listener in TransportListeners)
                 {
                     listener.CertificateUpdate(
-                        e.CertificateValidator,
-                        provider);
+                        certificateValidator,
+                        serverCertificates);
                 }
             }
             catch (Exception ex)
@@ -819,7 +806,7 @@ namespace Opc.Ua
             List<EndpointDescription> endpoints,
             EndpointConfiguration endpointConfiguration,
             ITransportListener listener,
-            ICertificateValidator certificateValidator)
+            ICertificateValidatorEx certificateValidator)
         {
             // create the stack listener.
             try
@@ -830,7 +817,7 @@ namespace Opc.Ua
                 {
                     Descriptions = endpoints,
                     Configuration = endpointConfiguration,
-                    ServerCertificateTypesProvider = InstanceCertificateTypesProvider,
+                    ServerCertificates = CertificateManager,
                     CertificateValidator = certificateValidator,
                     NamespaceUris = messageContext.NamespaceUris,
                     Factory = messageContext.Factory,
@@ -1393,7 +1380,6 @@ namespace Opc.Ua
         [MemberNotNull(
             nameof(Configuration),
             nameof(ServerProperties),
-            nameof(InstanceCertificateTypesProvider),
             nameof(m_messageContext))]
         protected virtual void OnServerStarting(ApplicationConfiguration configuration)
         {
@@ -1433,12 +1419,33 @@ namespace Opc.Ua
                 }
             }
 
+            // Initialize the new CertificateManager first so the provider can
+            // be backed by it (registry-mode). Reuse the manager already
+            // configured on the ApplicationConfiguration when available so that
+            // a single CertificateManager instance is shared by the
+            // ApplicationInstance and the ServerBase. Without this, GDS
+            // ApplyChanges would update the ApplicationInstance's manager but
+            // the server-side change observer would never fire because it is
+            // subscribed to a different (server-owned) instance.
+            if (CertificateManager == null)
+            {
+                if (configuration.CertificateManager is CertificateManager configManager)
+                {
+                    CertificateManager = configManager;
+                }
+                else
+                {
+                    CertificateManager = CertificateManagerFactory.Create(
+                        configuration.SecurityConfiguration,
+                        m_telemetry);
+                }
+                CertificateManager.LoadApplicationCertificatesAsync(
+                    configuration.SecurityConfiguration,
+                    configuration.ApplicationUri).GetAwaiter().GetResult();
+            }
+
             // load the instance certificate.
-            X509Certificate2? defaultInstanceCertificate = null;
-            InstanceCertificateTypesProvider = new CertificateTypesProvider(
-                configuration,
-                m_telemetry);
-            InstanceCertificateTypesProvider.InitializeAsync().GetAwaiter().GetResult();
+            Certificate? defaultInstanceCertificate = null;
 
             foreach (ServerSecurityPolicy securityPolicy in configuration.ServerConfiguration!
                 .SecurityPolicies)
@@ -1448,9 +1455,9 @@ namespace Opc.Ua
                     continue;
                 }
 
-                X509Certificate2 instanceCertificate =
-                    InstanceCertificateTypesProvider.GetInstanceCertificate(
-                        securityPolicy.SecurityPolicyUri!)
+                Certificate instanceCertificate =
+                    CertificateManager.GetInstanceCertificate(
+                        securityPolicy.SecurityPolicyUri!)?.Certificate
                     ?? throw ServiceResultException.ConfigurationError(
                         "Server does not have an instance certificate assigned.");
 
@@ -1461,20 +1468,14 @@ namespace Opc.Ua
                 }
 
                 defaultInstanceCertificate ??= instanceCertificate;
-
-                // preload chain
-                InstanceCertificateTypesProvider
-                    .LoadCertificateChainAsync(instanceCertificate)
-                    .GetAwaiter()
-                    .GetResult();
             }
 
             // assign a unique identifier if none specified.
             if (string.IsNullOrEmpty(configuration.ApplicationUri))
             {
-                X509Certificate2? instanceCertificate = InstanceCertificateTypesProvider
+                Certificate? instanceCertificate = CertificateManager
                     .GetInstanceCertificate(
-                        configuration.ServerConfiguration.SecurityPolicies[0].SecurityPolicyUri!);
+                        configuration.ServerConfiguration.SecurityPolicies[0].SecurityPolicyUri!)?.Certificate;
 
                 IReadOnlyList<string> applicationUris = X509Utils.GetApplicationUrisFromCertificate(
                     instanceCertificate!);
@@ -1502,9 +1503,6 @@ namespace Opc.Ua
                     X509NameType.DnsName,
                     false);
             }
-
-            // save the certificate validator.
-            CertificateValidator = configuration.CertificateValidator;
         }
 
         /// <summary>

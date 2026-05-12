@@ -28,9 +28,9 @@
  * ======================================================================*/
 
 using System;
-using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Client
 {
@@ -265,47 +265,66 @@ namespace Opc.Ua.Client
             // checks the domains in the certificate.
             if (checkDomain && endpoint.Description.ServerCertificate.Length > 0)
             {
-                using X509Certificate2 serverCert = CertificateFactory.Create(endpoint.Description.ServerCertificate);
-                configuration.CertificateValidator?.ValidateDomains(serverCert, endpoint);
+                using var certificate = Certificate.FromRawData(endpoint.Description.ServerCertificate);
+                ICertificateValidatorEx? validator = configuration.CertificateManager;
+                validator?.ValidateDomains(certificate, endpoint);
             }
 
-            X509Certificate2? clientCertificate = null;
-            X509Certificate2Collection? clientCertificateChain = null;
-            if (endpointDescription.SecurityPolicyUri is not null and not SecurityPolicies.None)
+            Certificate? clientCertificate = null;
+            CertificateCollection? clientCertificateChain = null;
+            try
             {
-                clientCertificate = await Session.LoadInstanceCertificateAsync(
-                    configuration,
-                    endpointDescription.SecurityPolicyUri,
-                    messageContext.Telemetry,
-                    ct).ConfigureAwait(false);
-                clientCertificateChain = await Session.LoadCertificateChainAsync(
-                    configuration,
-                    clientCertificate,
-                    ct).ConfigureAwait(false);
-            }
+                if (endpointDescription.SecurityPolicyUri is not null and not SecurityPolicies.None)
+                {
+                    clientCertificate = await Session.LoadInstanceCertificateAsync(
+                        configuration,
+                        endpointDescription.SecurityPolicyUri,
+                        messageContext.Telemetry,
+                        ct).ConfigureAwait(false);
+                    clientCertificateChain = await Session.LoadCertificateChainAsync(
+                        configuration,
+                        clientCertificate,
+                        ct).ConfigureAwait(false);
+                }
 
-            // initialize the channel which will be created with the server.
-            if (connection != null)
+                // initialize the channel which will be created with the server.
+                ITransportChannel channel;
+                if (connection != null)
+                {
+                    channel = await UaChannelBase.CreateUaBinaryChannelAsync(
+                        configuration,
+                        connection,
+                        endpointDescription,
+                        endpointConfiguration,
+                        clientCertificate,
+                        clientCertificateChain,
+                        messageContext,
+                        ct).ConfigureAwait(false);
+                }
+                else
+                {
+                    channel = await UaChannelBase.CreateUaBinaryChannelAsync(
+                        configuration,
+                        endpointDescription,
+                        endpointConfiguration,
+                        clientCertificate,
+                        clientCertificateChain,
+                        messageContext,
+                        ct).ConfigureAwait(false);
+                }
+
+                // Ownership of the cert and chain has been transferred to the
+                // channel's TransportChannelSettings; the channel disposes
+                // them when it is disposed, so we must not dispose here.
+                clientCertificate = null;
+                clientCertificateChain = null;
+                return channel;
+            }
+            finally
             {
-                return await UaChannelBase.CreateUaBinaryChannelAsync(
-                    configuration,
-                    connection,
-                    endpointDescription,
-                    endpointConfiguration,
-                    clientCertificate,
-                    clientCertificateChain,
-                    messageContext,
-                    ct).ConfigureAwait(false);
+                clientCertificateChain?.Dispose();
+                clientCertificate?.Dispose();
             }
-
-            return await UaChannelBase.CreateUaBinaryChannelAsync(
-                configuration,
-                endpointDescription,
-                endpointConfiguration,
-                clientCertificate,
-                clientCertificateChain,
-                messageContext,
-                ct).ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
@@ -366,8 +385,8 @@ namespace Opc.Ua.Client
             ITransportChannel channel,
             ApplicationConfiguration configuration,
             ConfiguredEndpoint endpoint,
-            X509Certificate2? clientCertificate = null,
-            X509Certificate2Collection? clientCertificateChain = null,
+            Certificate? clientCertificate = null,
+            CertificateCollection? clientCertificateChain = null,
             ArrayOf<EndpointDescription> availableEndpoints = default,
             ArrayOf<string> discoveryProfileUris = default)
         {
@@ -450,10 +469,6 @@ namespace Opc.Ua.Client
             {
                 session.Dispose();
                 throw;
-            }
-            finally
-            {
-                tempIdentity?.Dispose();
             }
 
             return session;

@@ -27,11 +27,13 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 using System;
 using System.IO;
 using System.Security.Cryptography;
-using System.Security.Cryptography.X509Certificates;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua
 {
@@ -66,18 +68,18 @@ namespace Opc.Ua
         /// Return the plaintext block size for RSA OAEP encryption.
         /// </summary>
         internal static int GetPlainTextBlockSize(
-            X509Certificate2 encryptingCertificate,
+            Certificate encryptingCertificate,
             Padding padding)
         {
             using RSA? rsa = encryptingCertificate.GetRSAPublicKey();
-            return GetPlainTextBlockSize(rsa!, padding);
+            return GetPlainTextBlockSize(rsa, padding);
         }
 
         /// <summary>
         /// Return the plaintext block size for RSA OAEP encryption.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        internal static int GetPlainTextBlockSize(RSA rsa, Padding padding)
+        internal static int GetPlainTextBlockSize(RSA? rsa, Padding padding)
         {
             if (rsa != null)
             {
@@ -99,16 +101,16 @@ namespace Opc.Ua
         /// <summary>
         /// Return the ciphertext block size for RSA OAEP encryption.
         /// </summary>
-        internal static int GetCipherTextBlockSize(X509Certificate2 encryptingCertificate)
+        internal static int GetCipherTextBlockSize(Certificate encryptingCertificate)
         {
             using RSA? rsa = encryptingCertificate.GetRSAPublicKey();
-            return GetCipherTextBlockSize(rsa!);
+            return GetCipherTextBlockSize(rsa);
         }
 
         /// <summary>
         /// Return the ciphertext block size for RSA OAEP encryption.
         /// </summary>
-        internal static int GetCipherTextBlockSize(RSA rsa)
+        internal static int GetCipherTextBlockSize(RSA? rsa)
         {
             if (rsa != null)
             {
@@ -121,7 +123,7 @@ namespace Opc.Ua
         /// Returns the length of a RSA PKCS#1 v1.5 signature of a digest.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        internal static int GetSignatureLength(X509Certificate2 signingCertificate)
+        internal static int GetSignatureLength(Certificate signingCertificate)
         {
             using RSA rsa =
                 signingCertificate.GetRSAPublicKey()
@@ -137,7 +139,7 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException"></exception>
         internal static byte[] Rsa_Sign(
             ArraySegment<byte> dataToSign,
-            X509Certificate2 signingCertificate,
+            Certificate signingCertificate,
             HashAlgorithmName hashAlgorithm,
             RSASignaturePadding rsaSignaturePadding)
         {
@@ -164,7 +166,7 @@ namespace Opc.Ua
         internal static bool Rsa_Verify(
             ArraySegment<byte> dataToVerify,
             byte[] signature,
-            X509Certificate2 signingCertificate,
+            Certificate signingCertificate,
             HashAlgorithmName hashAlgorithm,
             RSASignaturePadding rsaSignaturePadding)
         {
@@ -191,7 +193,7 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException"></exception>
         internal static byte[] Encrypt(
             ReadOnlySpan<byte> dataToEncrypt,
-            X509Certificate2 encryptingCertificate,
+            Certificate encryptingCertificate,
             Padding padding,
             ILogger logger)
         {
@@ -286,7 +288,7 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException"></exception>
         internal static byte[] Decrypt(
             ArraySegment<byte> dataToDecrypt,
-            X509Certificate2 encryptingCertificate,
+            Certificate encryptingCertificate,
             Padding padding,
             ILogger logger)
         {

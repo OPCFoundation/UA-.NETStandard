@@ -357,16 +357,11 @@ namespace Opc.Ua.Server.Fluent
                     "NodeId is null or empty.");
             }
 
-            NodeState node = m_nodeIdResolver(nodeId);
-            if (node == null)
-            {
+            return m_nodeIdResolver(nodeId) ??
                 throw ServiceResultException.Create(
                     StatusCodes.BadNodeIdUnknown,
                     "NodeId '{0}' did not resolve to a predefined node.",
                     nodeId);
-            }
-
-            return node;
         }
 
         private NodeState ResolveByTypeDefinition(NodeId typeDefinitionId, QualifiedName browseName)
@@ -379,7 +374,7 @@ namespace Opc.Ua.Server.Fluent
             }
 
             IReadOnlyList<NodeState> candidates = m_typeIdResolver(typeDefinitionId)
-                ?? Array.Empty<NodeState>();
+                ?? [];
 
             if (candidates.Count == 0)
             {
@@ -438,8 +433,8 @@ namespace Opc.Ua.Server.Fluent
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadInvalidState,
-                    "Cannot wire additional nodes after the builder has been sealed. "
-                    + "All Node(...) calls must occur inside the Configure delegate.");
+                    "Cannot wire additional nodes after the builder has been sealed. " +
+                    "All Node(...) calls must occur inside the Configure delegate.");
             }
         }
 

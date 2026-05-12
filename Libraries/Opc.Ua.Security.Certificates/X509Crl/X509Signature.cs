@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 using System;
 using System.Formats.Asn1;
 using System.Security.Cryptography;
@@ -52,7 +54,7 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// The encoded signature algorithm that was used for signing.
         /// </summary>
-        public byte[] SignatureAlgorithmIdentifier { get; } = null!;
+        public byte[]? SignatureAlgorithmIdentifier { get; }
 
         /// <summary>
         /// The signature algorithm as Oid string.

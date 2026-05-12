@@ -197,11 +197,6 @@ namespace Opc.Ua.Server
                 m_writeSemaphore.Wait(500);
                 try
                 {
-                    foreach (NodeState node in PredefinedNodes.Values)
-                    {
-                        node?.Dispose();
-                    }
-
                     PredefinedNodes.Clear();
                 }
                 finally
@@ -974,13 +969,12 @@ namespace Opc.Ua.Server
         /// </summary>
         public virtual ValueTask DeleteAddressSpaceAsync(CancellationToken cancellationToken = default)
         {
-            NodeState[] nodes = [.. PredefinedNodes.Values];
+            // NodeState[] nodes = [.. PredefinedNodes.Values];
             PredefinedNodes.Clear();
-
-            foreach (NodeState node in nodes)
-            {
-                node?.Dispose();
-            }
+            // foreach (var node in nodes)
+            // {
+            //     node.Delete();
+            // }
             return default;
         }
 
@@ -1430,7 +1424,6 @@ namespace Opc.Ua.Server
 
             // release the continuation point if all done.
             continuationPoint.Dispose();
-            continuationPoint = null!;
 
             return null!;
         }
@@ -2314,7 +2307,7 @@ namespace Opc.Ua.Server
         /// </summary>
         protected void RaiseSemanticChangeEvent(ISystemContext systemContext, NodeState node, PropertyState property)
         {
-            using var e = new SemanticChangeEventState(null);
+            var e = new SemanticChangeEventState(null);
 
             var message = new TranslationInfo(
                 "SemanticChangeEvent",
@@ -3550,27 +3543,20 @@ namespace Opc.Ua.Server
         {
             if (RootNotifiers.TryRemove(notifier.NodeId, out notifier!))
             {
-                try
+                lock (notifier)
                 {
-                    lock (notifier)
-                    {
-                        notifier.OnReportEvent = null;
+                    notifier.OnReportEvent = null;
 
-                        if (notifier.ReferenceExists(
+                    if (notifier.ReferenceExists(
+                        ReferenceTypeIds.HasNotifier,
+                        true,
+                        ObjectIds.Server))
+                    {
+                        notifier.RemoveReference(
                             ReferenceTypeIds.HasNotifier,
                             true,
-                            ObjectIds.Server))
-                        {
-                            notifier.RemoveReference(
-                                ReferenceTypeIds.HasNotifier,
-                                true,
-                                ObjectIds.Server);
-                        }
+                            ObjectIds.Server);
                     }
-                }
-                finally
-                {
-                    notifier.Dispose();
                 }
             }
             return default;

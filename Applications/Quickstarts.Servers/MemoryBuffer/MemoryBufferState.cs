@@ -36,8 +36,10 @@ using Opc.Ua.Server;
 
 namespace MemoryBuffer
 {
+#pragma warning disable CA1001 // Using timers that are disposed in OnAfterDelete
     public partial class MemoryBufferState
     {
+#pragma warning restore CA1001 // Using timers that are disposed in OnAfterDelete
         /// <summary>
         /// Initializes the buffer from the configuration.
         /// </summary>
@@ -102,14 +104,11 @@ namespace MemoryBuffer
         public int MaximumScanRate { get; private set; }
 
         /// <inheritdoc/>
-        protected override void Dispose(bool disposing)
+        protected override void OnAfterDelete(ISystemContext context)
         {
-            if (disposing)
-            {
-                m_scanTimer?.Dispose();
-                m_scanTimer = null;
-            }
-            base.Dispose(disposing);
+            base.OnAfterDelete(context);
+            m_scanTimer?.Dispose();
+            m_scanTimer = null;
         }
 
         /// <summary>

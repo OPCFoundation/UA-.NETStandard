@@ -36,7 +36,7 @@ namespace Opc.Ua
     /// <summary>
     /// Reference node
     /// </summary>
-    [DataContract(Namespace = Types.Namespaces.OpcUaXsd)]
+    [DataContract(Namespace = Namespaces.OpcUaXsd)]
     public class ReferenceNode :
         IEncodeable,
         IReference,

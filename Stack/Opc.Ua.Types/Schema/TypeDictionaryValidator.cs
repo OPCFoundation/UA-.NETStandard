@@ -27,12 +27,12 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Xml;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
-using System;
 using System.Linq;
+using System.Xml;
 
 namespace Opc.Ua.Schema.Types
 {
@@ -603,7 +603,7 @@ namespace Opc.Ua.Schema.Types
                         .GetManifestResourceStream("Opc.Ua.Schema.BuiltInTypes.xml")!;
                     using var ms = new MemoryStream();
                     stream.CopyTo(ms);
-                    dictionary[Opc.Ua.Types.Namespaces.OpcUaBuiltInTypes] = ms.ToArray();
+                    dictionary[Ua.Types.Namespaces.OpcUaBuiltInTypes] = ms.ToArray();
                     field = dictionary;
                 }
                 return field;

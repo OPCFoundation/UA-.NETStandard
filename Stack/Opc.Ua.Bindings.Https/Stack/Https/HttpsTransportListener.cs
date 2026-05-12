@@ -169,6 +169,10 @@ namespace Opc.Ua.Bindings
                 ConnectionWaiting = null;
                 m_host?.Dispose();
                 m_host = null;
+                m_pinnedServerCertX509?.Dispose();
+                m_pinnedServerCertX509 = null;
+                m_pinnedServerCert?.Dispose();
+                m_pinnedServerCert = null;
             }
         }
 
@@ -223,7 +227,7 @@ namespace Opc.Ua.Bindings
             // save the callback to the server.
             m_callback = callback!;
 
-            m_serverCertProvider = settings.ServerCertificateTypesProvider!;
+            m_serverCertProvider = settings.ServerCertificates!;
 
             m_mutualTlsEnabled = settings.HttpsMutualTls;
             // start the listener
@@ -289,16 +293,23 @@ namespace Opc.Ua.Bindings
 #endif
         }
 
-        // CA1859: The IWebHostBuilder interface cannot be narrowed to WebHostBuilder here because
-        // on NET8_0_OR_GREATER this method is called from HostBuilder.ConfigureWebHostDefaults()
-        // which passes an IWebHostBuilder, not WebHostBuilder.
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1859:Use concrete types when possible for improved performance",
-            Justification = "IWebHostBuilder is required for cross-framework compatibility; on NET8_0_OR_GREATER ConfigureWebHostDefaults passes IWebHostBuilder.")]
+        /// <summary>
+        /// CA1859: The IWebHostBuilder interface cannot be narrowed to WebHostBuilder here because
+        /// on NET8_0_OR_GREATER this method is called from HostBuilder.ConfigureWebHostDefaults()
+        /// which passes an IWebHostBuilder, not WebHostBuilder.
+        /// </summary>
+        /// <param name="webHostBuilder"></param>
+#pragma warning disable CA1859
         private void ConfigureWebHost(IWebHostBuilder webHostBuilder)
+#pragma warning restore CA1859
         {
-            // prepare the server TLS certificate
-            X509Certificate2? serverCertificate = m_serverCertProvider.GetInstanceCertificate(
-                SecurityPolicies.Https);
+            // prepare the server TLS certificate. The provider returns a
+            // borrowed reference owned by the registry; AddRef so this
+            // listener owns the cert independent of the registry's lifetime
+            // (the registry may dispose its snapshot during cert hot-update,
+            // which would otherwise free the OS handle Kestrel still holds).
+            Certificate? serverCertificate = m_serverCertProvider.GetInstanceCertificate(
+                SecurityPolicies.Https)?.Certificate?.AddRef();
 #if NETSTANDARD2_1 || NET472_OR_GREATER || NET5_0_OR_GREATER
             try
             {
@@ -306,13 +317,28 @@ namespace Opc.Ua.Bindings
                 // which default to the ephemeral KeySet. Also a new certificate must be reloaded.
                 // If the key fails to copy, its probably a non exportable key from the X509Store.
                 // Then we can use the original certificate, the private key is already in the key store.
-                serverCertificate = X509Utils.CreateCopyWithPrivateKey(serverCertificate!, false);
+                using Certificate copy = X509Utils.CreateCopyWithPrivateKey(serverCertificate!, false);
+                if (!ReferenceEquals(copy, serverCertificate))
+                {
+                    serverCertificate!.Dispose();
+                    serverCertificate = copy;
+                    serverCertificate.AddRef();
+                }
             }
             catch (CryptographicException ce)
             {
                 m_logger.LogTrace("Copy of the private key for https was denied: {Message}", ce.Message);
             }
 #endif
+            // pin the cert for the lifetime of the listener so that the
+            // OS-level private key handle backing the Kestrel-held
+            // X509Certificate2 cannot be invalidated by a concurrent cert
+            // reload elsewhere in the process.
+            m_pinnedServerCert?.Dispose();
+            m_pinnedServerCert = serverCertificate;
+            m_pinnedServerCertX509?.Dispose();
+            m_pinnedServerCertX509 = serverCertificate.AsX509Certificate2();
+
             // save the server certificate so it can be used in the secure channel context.
             ServerChannelCertificate = serverCertificate!.RawData;
 
@@ -323,7 +349,7 @@ namespace Opc.Ua.Bindings
                     ? ClientCertificateMode.AllowCertificate
                     : ClientCertificateMode.NoCertificate,
                 // note: this is the TLS certificate!
-                ServerCertificate = serverCertificate,
+                ServerCertificate = m_pinnedServerCertX509,
                 ClientCertificateValidation = ValidateClientCertificate,
                 SslProtocols = SslProtocols.None
             };
@@ -534,19 +560,19 @@ namespace Opc.Ua.Bindings
         /// Called when a UpdateCertificate event occured.
         /// </summary>
         public void CertificateUpdate(
-            ICertificateValidator validator,
-            CertificateTypesProvider serverCertificateTypes)
+            ICertificateValidatorEx validator,
+            ICertificateRegistry serverCertificates)
         {
             Stop();
 
             m_quotas.CertificateValidator = validator;
-            m_serverCertProvider = serverCertificateTypes;
+            m_serverCertProvider = serverCertificates;
 
             foreach (EndpointDescription description in m_descriptions)
             {
                 ServerBase.SetServerCertificateInEndpointDescription(
                     description,
-                    serverCertificateTypes,
+                    serverCertificates,
                     false);
             }
 
@@ -614,7 +640,17 @@ namespace Opc.Ua.Bindings
 
             try
             {
-                m_quotas.CertificateValidator!.ValidateAsync(clientCertificate!, default).GetAwaiter().GetResult();
+                using var cert = Certificate.FromRawData(clientCertificate.RawData);
+#pragma warning disable CA2025
+                CertificateValidationResult result = m_quotas.CertificateValidator!
+                    .ValidateAsync(cert, ct: default)
+                    .GetAwaiter()
+                    .GetResult();
+#pragma warning restore CA2025
+                if (!result.IsValid)
+                {
+                    return false;
+                }
             }
             catch (Exception)
             {
@@ -632,7 +668,9 @@ namespace Opc.Ua.Bindings
 #else
         private IWebHost? m_host;
 #endif
-        private CertificateTypesProvider m_serverCertProvider = null!;
+        private ICertificateRegistry m_serverCertProvider = null!;
+        private Certificate? m_pinnedServerCert;
+        private X509Certificate2? m_pinnedServerCertX509;
         private bool m_mutualTlsEnabled;
         private readonly ILogger m_logger;
         private readonly ITelemetryContext m_telemetry;

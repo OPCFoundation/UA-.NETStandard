@@ -203,7 +203,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             EncodingType encoderType = encoderTypeGroup.EncoderType;
             JsonEncodingType jsonEncodingType = encoderTypeGroup.JsonEncodingType;
             bool useXmlParser = encoderTypeGroup.UseXmlParser;
-            Variant defaultValue = Variant.CreateDefault(TypeInfo.Create(builtInType, ValueRanks.Scalar));
+            var defaultValue = Variant.CreateDefault(TypeInfo.Create(builtInType, ValueRanks.Scalar));
             EncodeDecodeDataValue(
                 encoderType,
                 jsonEncodingType,

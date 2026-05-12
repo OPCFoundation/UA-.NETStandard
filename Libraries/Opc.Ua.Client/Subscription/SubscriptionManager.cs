@@ -92,10 +92,45 @@ namespace Opc.Ua.Client.Subscriptions
         public DiagnosticsMasks ReturnDiagnostics { get; set; }
 
         /// <inheritdoc/>
-        public int MinPublishWorkerCount { get; set; } = 2;
+        /// <remarks>
+        /// Setting this property signals the publish controller so the worker
+        /// pool resizes promptly — without the signal, the controller stays
+        /// parked on <see cref="m_publishControl"/> and the change does not
+        /// take effect until some other event (subscription add/remove,
+        /// pause/resume, worker exit) wakes it.
+        /// </remarks>
+        public int MinPublishWorkerCount
+        {
+            get;
+            set
+            {
+                if (field == value)
+                {
+                    return;
+                }
+                field = value;
+                m_publishControl.Set();
+            }
+        } = 2;
 
         /// <inheritdoc/>
-        public int MaxPublishWorkerCount { get; set; } = 15;
+        /// <remarks>
+        /// Setting this property signals the publish controller so the worker
+        /// pool resizes promptly. See <see cref="MinPublishWorkerCount"/>.
+        /// </remarks>
+        public int MaxPublishWorkerCount
+        {
+            get;
+            set
+            {
+                if (field == value)
+                {
+                    return;
+                }
+                field = value;
+                m_publishControl.Set();
+            }
+        } = 15;
 
         /// <inheritdoc/>
         public IEnumerable<ISubscription> Items
@@ -126,6 +161,40 @@ namespace Opc.Ua.Client.Subscriptions
 
         /// <inheritdoc/>
         public int BadPublishRequestCount => m_badPublishRequestCount;
+
+        /// <inheritdoc/>
+        public long MissingMessageCount
+        {
+            get
+            {
+                long total = 0;
+                lock (m_subscriptionLock)
+                {
+                    foreach (IManagedSubscription s in m_subscriptions)
+                    {
+                        total += s.MissingMessageCount;
+                    }
+                }
+                return total;
+            }
+        }
+
+        /// <inheritdoc/>
+        public long RepublishMessageCount
+        {
+            get
+            {
+                long total = 0;
+                lock (m_subscriptionLock)
+                {
+                    foreach (IManagedSubscription s in m_subscriptions)
+                    {
+                        total += s.RepublishMessageCount;
+                    }
+                }
+                return total;
+            }
+        }
 
         /// <inheritdoc/>
         public int PublishWorkerCount { get; private set; }
@@ -166,7 +235,7 @@ namespace Opc.Ua.Client.Subscriptions
         {
             try
             {
-                m_cts.Cancel();
+                await m_cts.CancelAsync().ConfigureAwait(false);
                 m_publishControl.Set();
                 await m_publishController.ConfigureAwait(false);
 
@@ -191,6 +260,7 @@ namespace Opc.Ua.Client.Subscriptions
             {
                 m_cts.Dispose();
                 (m_acks as IDisposable)?.Dispose();
+                GC.SuppressFinalize(this);
             }
         }
 
@@ -601,6 +671,7 @@ namespace Opc.Ua.Client.Subscriptions
                 finally
                 {
                     m_cts.Dispose();
+                    GC.SuppressFinalize(this);
                 }
             }
 

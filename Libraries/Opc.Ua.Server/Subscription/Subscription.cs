@@ -1158,8 +1158,10 @@ namespace Opc.Ua.Server
                     eventList.Add(events.Dequeue());
                     notificationCount++;
                 }
-                var notification = new EventNotificationList();
-                notification.Events = eventList;
+                var notification = new EventNotificationList
+                {
+                    Events = eventList
+                };
                 message.NotificationData =
                     message.NotificationData.AddItem(new ExtensionObject(notification));
             }
@@ -1187,9 +1189,11 @@ namespace Opc.Ua.Server
                     notificationCount++;
                 }
 
-                var notification = new DataChangeNotification();
-                notification.MonitoredItems = dataChangeList;
-                notification.DiagnosticInfos = (diagnosticsExist ? diagnosticInfos : default)!;
+                var notification = new DataChangeNotification
+                {
+                    MonitoredItems = dataChangeList,
+                    DiagnosticInfos = diagnosticsExist ? diagnosticInfos : default!
+                };
 
                 message.NotificationData =
                     message.NotificationData.AddItem(new ExtensionObject(notification));
@@ -2383,7 +2387,7 @@ namespace Opc.Ua.Server
             lock (m_lock)
             {
                 // generate start event.
-                using var e = new RefreshStartEventState(null);
+                var e = new RefreshStartEventState(null);
 
                 var message = new TranslationInfo(
                     "RefreshStartEvent",
@@ -2436,7 +2440,7 @@ namespace Opc.Ua.Server
             lock (m_lock)
             {
                 // generate start event.
-                using var e = new RefreshEndEventState(null);
+                var e = new RefreshEndEventState(null);
 
                 var message = new TranslationInfo(
                     "RefreshEndEvent",

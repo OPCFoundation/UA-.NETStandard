@@ -1980,7 +1980,7 @@ namespace Opc.Ua.Schema.Model
         /// </summary>
         private XmlDecoder CreateDecoder(System.Xml.XmlElement source, string sourceNodeSetUri = null)
         {
-            ServiceMessageContext messageContext = ServiceMessageContext.CreateEmpty(m_telemetry);
+            var messageContext = ServiceMessageContext.CreateEmpty(m_telemetry);
             messageContext.NamespaceUris = m_settings.NamespaceUris;
             messageContext.ServerUris = m_serverUris;
 

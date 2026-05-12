@@ -29,9 +29,9 @@
 
 using System;
 using System.Collections.Generic;
-using BenchmarkDotNet.Attributes;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using BenchmarkDotNet.Attributes;
 using NUnit.Framework;
 using Opc.Ua.Tests;
 

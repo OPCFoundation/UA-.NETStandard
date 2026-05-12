@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 using System;
 using System.Collections.Generic;
 using System.Formats.Asn1;
@@ -47,7 +49,7 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         /// <typeparam name="T">The type of the extension.</typeparam>
         /// <param name="certificate">The certificate with extensions.</param>
-        public static T? FindExtension<T>(this X509Certificate2 certificate)
+        public static T? FindExtension<T>(this Certificate certificate)
             where T : X509Extension
         {
             return FindExtension<T>(certificate.Extensions);
@@ -231,12 +233,13 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// Write an extension object as ASN.1.
         /// </summary>
+        /// <exception cref="CryptographicException"></exception>
         public static void WriteExtension(this AsnWriter writer, X509Extension extension)
         {
             Asn1Tag etag = Asn1Tag.Sequence;
             writer.PushSequence(etag);
             writer.WriteObjectIdentifier(extension.Oid?.Value
-                ?? throw new ArgumentException("Extension Oid value is null.", nameof(extension)));
+                ?? throw new CryptographicException("Extension OID value is null."));
             if (extension.Critical)
             {
                 writer.WriteBoolean(extension.Critical);
@@ -260,7 +263,7 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         /// <param name="issuerCaCertificate">The issuer CA certificate</param>
         public static X509Extension BuildAuthorityKeyIdentifier(
-            this X509Certificate2 issuerCaCertificate)
+            this Certificate issuerCaCertificate)
         {
             // force exception if SKI is not present
             X509SubjectKeyIdentifierExtension ski = issuerCaCertificate
@@ -268,7 +271,7 @@ namespace Opc.Ua.Security.Certificates
                 .OfType<X509SubjectKeyIdentifierExtension>()
                 .Single();
             return new X509AuthorityKeyIdentifierExtension(
-                ski.SubjectKeyIdentifier.FromHexString()!,
+                ski.SubjectKeyIdentifier.FromHexString() ?? [],
                 issuerCaCertificate.IssuerName,
                 issuerCaCertificate.GetSerialNumber());
         }

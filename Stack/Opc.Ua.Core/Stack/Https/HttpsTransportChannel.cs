@@ -36,6 +36,7 @@ using System.Net.Security;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua.Security.Certificates;
 using Microsoft.Extensions.Logging;
 using System.Diagnostics;
 #if NETSTANDARD2_1 || NET472_OR_GREATER || NET5_0_OR_GREATER
@@ -325,6 +326,13 @@ namespace Opc.Ua.Bindings
                 m_disposed = true;
                 m_client?.Dispose();
                 m_client = null;
+                m_pinnedClientCertX509?.Dispose();
+                m_pinnedClientCertX509 = null;
+                m_pinnedClientCert?.Dispose();
+                m_pinnedClientCert = null;
+                m_settings?.ServerCertificate?.Dispose();
+                m_settings?.ClientCertificate?.Dispose();
+                m_settings?.ClientCertificateChain?.Dispose();
             }
         }
 
@@ -398,8 +406,11 @@ namespace Opc.Ua.Bindings
                     // send client certificate for servers that require TLS client authentication
                     if (m_settings!.ClientCertificate != null)
                     {
-                        // prepare the server TLS certificate
-                        X509Certificate2 clientCertificate = m_settings.ClientCertificate;
+                        // prepare the client TLS certificate. AddRef so the
+                        // channel owns the cert independent of the source
+                        // (m_settings.ClientCertificate is a borrowed reference
+                        // owned by the application configuration).
+                        Certificate clientCertificate = m_settings.ClientCertificate.AddRef();
 #if NETSTANDARD2_1 || NET472_OR_GREATER || NET5_0_OR_GREATER
                         try
                         {
@@ -407,16 +418,29 @@ namespace Opc.Ua.Bindings
                             // which default to the ephemeral KeySet. Also a new certificate must be reloaded.
                             // If the key fails to copy, its probably a non exportable key from the X509Store.
                             // Then we can use the original certificate, the private key is already in the key store.
-                            clientCertificate = X509Utils.CreateCopyWithPrivateKey(
-                                m_settings.ClientCertificate,
-                                false);
+                            using Certificate copy = X509Utils.CreateCopyWithPrivateKey(clientCertificate, false);
+                            if (!ReferenceEquals(copy, clientCertificate))
+                            {
+                                clientCertificate.Dispose();
+                                clientCertificate = copy;
+                                clientCertificate.AddRef();
+                            }
                         }
                         catch (CryptographicException ce)
                         {
                             m_logger.LogError(ce, "Copy of the private key for https was denied");
                         }
 #endif
-                        handler.ClientCertificates.Add(clientCertificate);
+                        // pin the cert for the lifetime of the channel so the
+                        // OS-level private key handle backing the X509Certificate2
+                        // we hand to HttpClientHandler cannot be invalidated by a
+                        // concurrent cert reload elsewhere in the process.
+                        m_pinnedClientCert?.Dispose();
+                        m_pinnedClientCert = clientCertificate;
+                        m_pinnedClientCertX509?.Dispose();
+                        m_pinnedClientCertX509 = clientCertificate.AsX509Certificate2();
+
+                        handler.ClientCertificates.Add(m_pinnedClientCertX509);
                         ClientChannelCertificate = clientCertificate.RawData;
                     }
 
@@ -448,7 +472,7 @@ namespace Opc.Ua.Bindings
                                             Utils.TraceMasks.Security,
                                             "{Index}: {Certificate}",
                                             i,
-                                            element.Certificate.AsLogSafeString());
+                                            element.Certificate.Subject);
                                         validationChain.Add(element.Certificate);
                                         i++;
                                     }
@@ -458,12 +482,27 @@ namespace Opc.Ua.Bindings
                                     m_logger.LogInformation(
                                         Utils.TraceMasks.Security,
                                         "{ChannelType} Validate Server Certificate: {Certificate}",
-                                        cert.AsLogSafeString(),
+                                        cert.Subject,
                                         nameof(HttpsTransportChannel));
                                     validationChain.Add(cert);
                                 }
 
-                                m_quotas.CertificateValidator?.ValidateAsync(validationChain, default).GetAwaiter().GetResult();
+                                using var validationCollection = CertificateCollection.From(validationChain);
+                                if (m_quotas.CertificateValidator != null)
+                                {
+                                    // CA2025: task awaited via GetAwaiter().GetResult(); the disposable's
+                                    // using scope extends past the await.
+#pragma warning disable CA2025
+                                    CertificateValidationResult validationResult = m_quotas.CertificateValidator
+                                        .ValidateAsync(validationCollection, ct: default)
+                                        .GetAwaiter()
+                                        .GetResult();
+#pragma warning restore CA2025
+                                    if (!validationResult.IsValid)
+                                    {
+                                        throw new ServiceResultException(validationResult.StatusCode);
+                                    }
+                                }
                                 ServerChannelCertificate = cert.RawData;
                                 return true;
                             }
@@ -518,6 +557,8 @@ namespace Opc.Ua.Bindings
         private TransportChannelSettings? m_settings;
         private ChannelQuotas? m_quotas;
         private HttpClient? m_client;
+        private Certificate? m_pinnedClientCert;
+        private X509Certificate2? m_pinnedClientCertX509;
         private bool m_disposed;
         private readonly ITelemetryContext m_telemetry;
         private readonly ILogger m_logger;

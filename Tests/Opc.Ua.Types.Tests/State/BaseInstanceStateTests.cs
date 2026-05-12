@@ -65,7 +65,6 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(obj, Is.Not.Null);
             Assert.That(obj.Parent, Is.Null);
             Assert.That(obj.NodeClass, Is.EqualTo(NodeClass.Object));
-            obj.Dispose();
         }
 
         [Test]
@@ -74,8 +73,6 @@ namespace Opc.Ua.Types.Tests.State
             var parent = new BaseObjectState(null);
             var child = new BaseObjectState(parent);
             Assert.That(child.Parent, Is.SameAs(parent));
-            child.Dispose();
-            parent.Dispose();
         }
 
         [Test]
@@ -94,7 +91,6 @@ namespace Opc.Ua.Types.Tests.State
             obj.ClearChangeMasks(null, false);
             obj.ReferenceTypeId = refTypeId;
             Assert.That(obj.ChangeMasks, Is.EqualTo(NodeStateChangeMasks.None));
-            obj.Dispose();
         }
 
         [Test]
@@ -108,7 +104,6 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(obj.TypeDefinitionId, Is.EqualTo(typeDef));
             Assert.That(obj.ChangeMasks & NodeStateChangeMasks.References,
                 Is.EqualTo(NodeStateChangeMasks.References));
-            obj.Dispose();
         }
 
         [Test]
@@ -122,7 +117,6 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(obj.ModellingRuleId, Is.EqualTo(modelRule));
             Assert.That(obj.ChangeMasks & NodeStateChangeMasks.References,
                 Is.EqualTo(NodeStateChangeMasks.References));
-            obj.Dispose();
         }
 
         [Test]
@@ -133,7 +127,6 @@ namespace Opc.Ua.Types.Tests.State
                 NumericId = 42
             };
             Assert.That(obj.NumericId, Is.EqualTo(42u));
-            obj.Dispose();
         }
 
         [Test]
@@ -155,8 +148,6 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(clone.TypeDefinitionId, Is.EqualTo(obj.TypeDefinitionId));
             Assert.That(clone.ModellingRuleId, Is.EqualTo(obj.ModellingRuleId));
             Assert.That(clone.NumericId, Is.EqualTo(obj.NumericId));
-            clone.Dispose();
-            obj.Dispose();
         }
 
         [Test]
@@ -175,8 +166,7 @@ namespace Opc.Ua.Types.Tests.State
             // Test exercises the method and verifies it runs without error
             var obj2 = (BaseObjectState)obj1.Clone();
             Assert.That(obj1.DeepEquals(obj1), Is.True);
-            obj1.Dispose();
-            obj2.Dispose();
+            Assert.That(obj1.DeepEquals(obj2), Is.True);
         }
 
         [Test]
@@ -185,8 +175,6 @@ namespace Opc.Ua.Types.Tests.State
             var obj = new BaseObjectState(null);
             var view = new ViewState();
             Assert.That(obj.DeepEquals(view), Is.False);
-            obj.Dispose();
-            view.Dispose();
         }
 
         [Test]
@@ -199,7 +187,6 @@ namespace Opc.Ua.Types.Tests.State
             };
             int hash = obj.DeepGetHashCode();
             Assert.That(hash, Is.TypeOf<int>());
-            obj.Dispose();
         }
 
         [Test]
@@ -213,7 +200,6 @@ namespace Opc.Ua.Types.Tests.State
 
             string path = obj.GetDisplayPath();
             Assert.That(path, Is.Not.Null.And.Not.Empty);
-            obj.Dispose();
         }
 
         [Test]
@@ -234,8 +220,6 @@ namespace Opc.Ua.Types.Tests.State
             string path = child.GetDisplayPath();
             Assert.That(path, Does.Contain("Parent"));
             Assert.That(path, Does.Contain("Child"));
-            child.Dispose();
-            parent.Dispose();
         }
 
         [Test]
@@ -260,9 +244,6 @@ namespace Opc.Ua.Types.Tests.State
             string path = child.GetDisplayPath(5, '/');
             Assert.That(path, Is.Not.Null.And.Not.Empty);
             Assert.That(path, Does.Contain("/"));
-            child.Dispose();
-            parent.Dispose();
-            grandparent.Dispose();
         }
 
         [Test]
@@ -275,7 +256,6 @@ namespace Opc.Ua.Types.Tests.State
 
             string text = obj.GetDisplayText();
             Assert.That(text, Is.EqualTo("My Display Text"));
-            obj.Dispose();
         }
 
         [Test]
@@ -288,7 +268,6 @@ namespace Opc.Ua.Types.Tests.State
 
             string text = obj.GetDisplayText();
             Assert.That(text, Is.EqualTo("FallbackName"));
-            obj.Dispose();
         }
 
         [Test]
@@ -305,7 +284,6 @@ namespace Opc.Ua.Types.Tests.State
             var table = new NodeTable(m_context.NamespaceUris, m_context.ServerUris, null);
             obj.Export(m_context, table);
             Assert.That(table, Is.Not.Empty);
-            obj.Dispose();
         }
 
         [Test]
@@ -329,8 +307,6 @@ namespace Opc.Ua.Types.Tests.State
             restored.LoadAsBinary(m_context, stream);
 
             Assert.That(restored.BrowseName, Is.EqualTo(obj.BrowseName));
-            restored.Dispose();
-            obj.Dispose();
         }
 
         [Test]
@@ -358,8 +334,6 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(restored.TypeDefinitionId, Is.EqualTo(obj.TypeDefinitionId));
             Assert.That(restored.ModellingRuleId, Is.EqualTo(obj.ModellingRuleId));
             Assert.That(restored.NumericId, Is.EqualTo(obj.NumericId));
-            restored.Dispose();
-            obj.Dispose();
         }
 
         [Test]
@@ -383,8 +357,6 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(restored.TypeDefinitionId, Is.EqualTo(NodeId.Null));
             Assert.That(restored.ModellingRuleId, Is.EqualTo(NodeId.Null));
             Assert.That(restored.NumericId, Is.Zero);
-            restored.Dispose();
-            obj.Dispose();
         }
 
         [Test]
@@ -400,8 +372,6 @@ namespace Opc.Ua.Types.Tests.State
             obj2.ReferenceTypeId = new NodeId(999);
 
             Assert.That(obj1.DeepEquals(obj2), Is.False);
-            obj1.Dispose();
-            obj2.Dispose();
         }
 
         [Test]
@@ -417,8 +387,6 @@ namespace Opc.Ua.Types.Tests.State
             obj2.TypeDefinitionId = new NodeId(888);
 
             Assert.That(obj1.DeepEquals(obj2), Is.False);
-            obj1.Dispose();
-            obj2.Dispose();
         }
 
         [Test]
@@ -434,8 +402,6 @@ namespace Opc.Ua.Types.Tests.State
             obj2.ModellingRuleId = new NodeId(777);
 
             Assert.That(obj1.DeepEquals(obj2), Is.False);
-            obj1.Dispose();
-            obj2.Dispose();
         }
 
         [Test]
@@ -453,8 +419,6 @@ namespace Opc.Ua.Types.Tests.State
             var obj2 = (BaseObjectState)obj1.Clone();
 
             Assert.That(obj1.DeepEquals(obj2), Is.True);
-            obj1.Dispose();
-            obj2.Dispose();
         }
 
         [Test]
@@ -488,11 +452,6 @@ namespace Opc.Ua.Types.Tests.State
             string pathWithMax = level3.GetDisplayPath(10, '/');
             Assert.That(pathWithMax, Does.Contain("/"));
             Assert.That(pathWithMax, Does.Contain("Level3"));
-
-            level3.Dispose();
-            level2.Dispose();
-            level1.Dispose();
-            root.Dispose();
         }
 
         [Test]
@@ -504,19 +463,16 @@ namespace Opc.Ua.Types.Tests.State
                 BrowseName = new QualifiedName("BrowseNameValue")
             };
             Assert.That(withDisplayName.GetDisplayText(), Is.EqualTo("DisplayNameValue"));
-            withDisplayName.Dispose();
 
             var withBrowseNameOnly = new BaseObjectState(null)
             {
                 BrowseName = new QualifiedName("OnlyBrowseName")
             };
             Assert.That(withBrowseNameOnly.GetDisplayText(), Is.EqualTo("OnlyBrowseName"));
-            withBrowseNameOnly.Dispose();
 
             var withNeither = new BaseObjectState(null);
             string text = withNeither.GetDisplayText();
             Assert.That(text, Is.Not.Null);
-            withNeither.Dispose();
         }
 
         [Test]
@@ -531,7 +487,6 @@ namespace Opc.Ua.Types.Tests.State
 
             obj.NumericId = 0;
             Assert.That(obj.NumericId, Is.Zero);
-            obj.Dispose();
         }
 
         [Test]
@@ -547,9 +502,6 @@ namespace Opc.Ua.Types.Tests.State
             parent.AddChild(variable);
             parent.SetMinimumSamplingInterval(m_context, 500.0);
             Assert.That(variable.MinimumSamplingInterval, Is.EqualTo(500.0));
-
-            variable.Dispose();
-            parent.Dispose();
         }
 
         [Test]
@@ -558,7 +510,6 @@ namespace Opc.Ua.Types.Tests.State
             var obj = new BaseObjectState(null);
             // Should not throw even though BaseObjectState is not a variable
             Assert.DoesNotThrow(() => obj.SetMinimumSamplingInterval(m_context, 1000.0));
-            obj.Dispose();
         }
 
         [Test]
@@ -578,7 +529,6 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(attrs & AttributesToSave.TypeDefinitionId, Is.Not.EqualTo(AttributesToSave.None));
             Assert.That(attrs & AttributesToSave.ModellingRuleId, Is.Not.EqualTo(AttributesToSave.None));
             Assert.That(attrs & AttributesToSave.NumericId, Is.Not.EqualTo(AttributesToSave.None));
-            obj.Dispose();
         }
 
         [Test]
@@ -594,7 +544,6 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(attrs & AttributesToSave.TypeDefinitionId, Is.EqualTo(AttributesToSave.None));
             Assert.That(attrs & AttributesToSave.ModellingRuleId, Is.EqualTo(AttributesToSave.None));
             Assert.That(attrs & AttributesToSave.NumericId, Is.EqualTo(AttributesToSave.None));
-            obj.Dispose();
         }
 
         [Test]
@@ -626,7 +575,6 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(restoredObj.ReferenceTypeId, Is.EqualTo(obj.ReferenceTypeId));
             Assert.That(restoredObj.TypeDefinitionId, Is.EqualTo(obj.TypeDefinitionId));
             Assert.That(restoredObj.ModellingRuleId, Is.EqualTo(obj.ModellingRuleId));
-            obj.Dispose();
         }
 
         [Test]
@@ -645,8 +593,6 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(path, Is.Not.Null.And.Not.Empty);
             Assert.That(path, Does.Contain("ParentDisplay"));
             Assert.That(path, Does.Contain("ChildDisplay"));
-            child.Dispose();
-            parent.Dispose();
         }
     }
 }

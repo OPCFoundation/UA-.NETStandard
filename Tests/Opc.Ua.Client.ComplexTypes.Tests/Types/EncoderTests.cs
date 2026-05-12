@@ -49,7 +49,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
     [Parallelizable]
     public class ComplexTypesEncoderTests : ComplexTypesCommon
     {
-        private static readonly JsonSerializerOptions s_ignoreCyclesOptions = new JsonSerializerOptions
+        private static readonly JsonSerializerOptions s_ignoreCyclesOptions = new()
         {
             ReferenceHandler = ReferenceHandler.IgnoreCycles
         };
@@ -138,7 +138,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             (nodeId, complexType) = TypeDictionary[StructureType.StructureWithOptionalFields];
             object emittedType = Activator.CreateInstance(complexType);
             var baseType = emittedType as BaseComplexType;
-            BuiltInType builtInType = structureFieldParameter.BuiltInType;
+
+            _ = structureFieldParameter.BuiltInType;
             TestContext.Out.WriteLine(
                 $"Optional Field: {structureFieldParameter.BuiltInType} is the only value.");
             baseType[structureFieldParameter.Name] = DataGenerator.GetRandomVariant(structureFieldParameter.BuiltInType, false);
@@ -210,7 +211,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             (nodeId, complexType) = TypeDictionary[StructureType.Union];
             object emittedType = Activator.CreateInstance(complexType);
             var baseType = emittedType as BaseComplexType;
-            BuiltInType builtInType = structureFieldParameter.BuiltInType;
+
+            _ = structureFieldParameter.BuiltInType;
             TestContext.Out
                 .WriteLine($"Union Field: {structureFieldParameter.BuiltInType} is random.");
             baseType[structureFieldParameter.Name] = DataGenerator.GetRandomVariant(structureFieldParameter.BuiltInType, false);

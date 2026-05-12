@@ -35,7 +35,7 @@ namespace Opc.Ua.Server.Tests
 
                 using var nodeManager = new TestableCustomNodeManger2(server.CurrentInstance, ns);
 
-                using var baseObject = new BaseObjectState(null);
+                var baseObject = new BaseObjectState(null);
                 var nodeHandle = new NodeHandle(
                     CommonTestWorkers.NodeIdTestSetStatic[0]
                         .WithNamespaceIndex(0)
@@ -80,7 +80,7 @@ namespace Opc.Ua.Server.Tests
                 using var nodeManager = new TestableCustomNodeManger2(server.CurrentInstance, ns);
                 int index = server.CurrentInstance.NamespaceUris.GetIndex(ns);
 
-                using var baseObject = new DataItemState(null);
+                var baseObject = new DataItemState(null);
                 NodeId nodeId =
                     CommonTestWorkers.NodeIdTestSetStatic[0]
                     .WithNamespaceIndex((ushort)index)

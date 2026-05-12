@@ -178,6 +178,38 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Resolves a store type using registered <see cref="ICertificateStoreProvider"/>
+        /// instances, falling back to the built-in store types.
+        /// </summary>
+        /// <param name="storeTypeName">The store type name to resolve.</param>
+        /// <param name="telemetry">The telemetry context for logging and diagnostics.</param>
+        /// <param name="providers">
+        /// An optional set of providers to try before the built-in store types.
+        /// </param>
+        /// <returns>A new <see cref="ICertificateStore"/> instance.</returns>
+#nullable enable
+        public static ICertificateStore CreateStore(
+            string storeTypeName,
+            ITelemetryContext telemetry,
+            IEnumerable<ICertificateStoreProvider>? providers)
+        {
+            if (providers != null)
+            {
+                foreach (ICertificateStoreProvider provider in providers)
+                {
+                    if (provider.StoreTypeName == storeTypeName)
+                    {
+                        return provider.CreateStore(telemetry);
+                    }
+                }
+            }
+
+            // Fallback to existing logic
+            return CreateStore(storeTypeName, telemetry);
+        }
+#nullable restore
+
+        /// <summary>
         /// Returns an object that can be used to access the store.
         /// </summary>
         /// <exception cref="ArgumentException"></exception>
@@ -284,6 +316,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="storeTypeName">The name of the store type.</param>
         /// <param name="storeType">Store type</param>
+        [Obsolete("Use ICertificateStoreProvider registered via DI instead.")]
         public static void RegisterCertificateStoreType(
             string storeTypeName,
             ICertificateStoreType storeType)

@@ -198,7 +198,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void EnumArrayToInt32ArrayWithNullReturnsDefault()
         {
-            ArrayOf<int> result = EnumHelper.EnumArrayToInt32Array(null!);
+            ArrayOf<int> result = EnumHelper.EnumArrayToInt32Array(null);
             Assert.That(result.IsNull, Is.True);
         }
 
@@ -230,7 +230,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void EnumArrayToInt32MatrixWithNullReturnsDefault()
         {
-            MatrixOf<int> result = EnumHelper.EnumArrayToInt32Matrix(null!);
+            MatrixOf<int> result = EnumHelper.EnumArrayToInt32Matrix(null);
             Assert.That(result.IsNull, Is.True);
         }
 
@@ -327,7 +327,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             MatrixOf<int> source = s_testIntValues.ToMatrixOf(2, 2);
             Array? result = EnumHelper.Int32MatrixToEnumArray(source, typeof(int));
             Assert.That(result, Is.Not.Null);
-            Assert.That(result!, Has.Length.EqualTo(4));
+            Assert.That(result, Has.Length.EqualTo(4));
         }
 
         [Test]
@@ -337,7 +337,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Array? result = EnumHelper.Int32MatrixToEnumArray(
                 source, typeof(NodeClass));
             Assert.That(result, Is.Not.Null);
-            Assert.That(result!.Rank, Is.EqualTo(2));
+            Assert.That(result.Rank, Is.EqualTo(2));
             Assert.That(result.GetLength(0), Is.EqualTo(2));
             Assert.That(result.GetLength(1), Is.EqualTo(2));
         }

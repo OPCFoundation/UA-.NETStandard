@@ -75,6 +75,7 @@ namespace Opc.Ua.Client
             m_logger = Telemetry.CreateLogger<Subscription>();
             State = options ?? new SubscriptionOptions();
             DefaultItem = CreateMonitoredItem();
+            m_timeProvider = TimeProvider.System;
         }
 
         /// <summary>
@@ -90,6 +91,7 @@ namespace Opc.Ua.Client
             }
 
             m_telemetry = template.m_telemetry;
+            m_timeProvider = template.m_timeProvider;
             m_logger = template.m_logger;
             State = template.State;
             Handle = template.Handle;
@@ -174,6 +176,7 @@ namespace Opc.Ua.Client
         {
             Task? workerTask;
             CancellationTokenSource? workerCts;
+            ITimer? publishTimer;
             lock (m_cache)
             {
                 // Called under the m_cache lock
@@ -186,7 +189,7 @@ namespace Opc.Ua.Client
                 }
 
                 // stop the publish timer.
-                m_publishTimer?.Dispose();
+                publishTimer = m_publishTimer;
                 m_publishTimer = null;
 
                 if (m_messageWorkerTask == null)
@@ -207,7 +210,10 @@ namespace Opc.Ua.Client
                 m_messageWorkerEvent.Set();
                 try
                 {
-                    workerCts?.Cancel();
+                    if (workerCts != null)
+                    {
+                        await workerCts.CancelAsync().ConfigureAwait(false);
+                    }
                 }
                 catch (ObjectDisposedException)
                 {
@@ -221,6 +227,10 @@ namespace Opc.Ua.Client
             }
             finally
             {
+                if (publishTimer != null)
+                {
+                    await publishTimer.DisposeAsync().ConfigureAwait(false);
+                }
                 try
                 {
                     workerCts?.Dispose();
@@ -2049,11 +2059,11 @@ namespace Opc.Ua.Client
                     m_publishTimer = null;
                     Interlocked.Exchange(ref m_lastNotificationTime, DateTime.UtcNow.Ticks);
                     m_lastNotificationTickCount = HiResClock.TickCount;
-                    m_publishTimer = new Timer(
+                    m_publishTimer = m_timeProvider.CreateTimer(
                         OnKeepAlive,
                         m_keepAliveInterval,
-                        m_keepAliveInterval,
-                        m_keepAliveInterval);
+                        TimeSpan.FromMilliseconds(m_keepAliveInterval),
+                        TimeSpan.FromMilliseconds(m_keepAliveInterval));
                     startPublishing = true;
                 }
 
@@ -2109,8 +2119,7 @@ namespace Opc.Ua.Client
             if (session != null &&
                 session.Connected &&
                 !session.Reconnecting &&
-                !session.KeepAliveStopped
-                )
+                !session.KeepAliveStopped)
             {
                 TraceState("PUBLISHING STOPPED");
 
@@ -2694,7 +2703,9 @@ namespace Opc.Ua.Client
                             ServiceResult serviceResult = StatusCodes.BadMessageNotAvailable;
                             if (tasks[ii].IsCompleted)
                             {
+#pragma warning disable CA1849 // Call async methods when in an async method
                                 (success, serviceResult) = tasks[ii].Result.ToTuple();
+#pragma warning restore CA1849 // Call async methods when in an async method
                             }
                             messagesToRepublish[ii].Republished = success;
                             messagesToRepublish[ii].RepublishStatus = serviceResult.StatusCode;
@@ -3143,7 +3154,8 @@ namespace Opc.Ua.Client
         private event SubscriptionStateChangedEventHandler? m_StateChanged;
         private event PublishStateChangedEventHandler? m_PublishStatusChanged;
         private SubscriptionChangeMask m_changeMask;
-        private Timer? m_publishTimer;
+        private readonly TimeProvider m_timeProvider;
+        private ITimer? m_publishTimer;
         private long m_lastNotificationTime;
         private int m_lastNotificationTickCount;
         private int m_keepAliveInterval;

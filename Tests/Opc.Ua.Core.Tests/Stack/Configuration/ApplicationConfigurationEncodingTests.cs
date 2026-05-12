@@ -77,7 +77,9 @@ namespace Opc.Ua.Core.Tests
             Assert.That(config.Properties, Is.Not.Null);
             Assert.That(config.ExtensionObjects, Is.Not.Null);
             Assert.That(config.PropertiesLock, Is.Not.Null);
-            Assert.That(config.CertificateValidator, Is.Not.Null);
+            // CertificateManager is created lazily by ValidateAsync; it
+            // is null until the configuration is validated.
+            Assert.That(config.CertificateManager, Is.Null);
         }
 
         [Test]
@@ -285,7 +287,7 @@ namespace Opc.Ua.Core.Tests
             Assert.That(File.Exists(filePath), Is.True);
             Assert.That(new FileInfo(filePath).Length, Is.GreaterThan(0));
 
-            ApplicationConfiguration loaded = ApplicationConfiguration.LoadWithNoValidation(
+            var loaded = ApplicationConfiguration.LoadWithNoValidation(
                 new FileInfo(filePath),
                 typeof(ApplicationConfiguration),
                 m_telemetry);
@@ -315,7 +317,7 @@ namespace Opc.Ua.Core.Tests
             string filePath = Path.Combine(m_tempDir, "quotas_config.xml");
             config.SaveToFile(filePath);
 
-            ApplicationConfiguration loaded = ApplicationConfiguration.LoadWithNoValidation(
+            var loaded = ApplicationConfiguration.LoadWithNoValidation(
                 new FileInfo(filePath),
                 typeof(ApplicationConfiguration),
                 m_telemetry);
@@ -341,7 +343,7 @@ namespace Opc.Ua.Core.Tests
             string filePath = Path.Combine(m_tempDir, "server_config.xml");
             config.SaveToFile(filePath);
 
-            ApplicationConfiguration loaded = ApplicationConfiguration.LoadWithNoValidation(
+            var loaded = ApplicationConfiguration.LoadWithNoValidation(
                 new FileInfo(filePath),
                 typeof(ApplicationConfiguration),
                 m_telemetry);
@@ -365,7 +367,7 @@ namespace Opc.Ua.Core.Tests
             string filePath = Path.Combine(m_tempDir, "client_config.xml");
             config.SaveToFile(filePath);
 
-            ApplicationConfiguration loaded = ApplicationConfiguration.LoadWithNoValidation(
+            var loaded = ApplicationConfiguration.LoadWithNoValidation(
                 new FileInfo(filePath),
                 typeof(ApplicationConfiguration),
                 m_telemetry);
@@ -398,7 +400,7 @@ namespace Opc.Ua.Core.Tests
             string filePath = Path.Combine(m_tempDir, "nulltype_config.xml");
             config.SaveToFile(filePath);
 
-            ApplicationConfiguration loaded = ApplicationConfiguration.LoadWithNoValidation(
+            var loaded = ApplicationConfiguration.LoadWithNoValidation(
                 new FileInfo(filePath),
                 null,
                 m_telemetry);
@@ -460,7 +462,7 @@ namespace Opc.Ua.Core.Tests
             string filePath = Path.Combine(m_tempDir, "discovery_config.xml");
             config.SaveToFile(filePath);
 
-            ApplicationConfiguration loaded = ApplicationConfiguration.LoadWithNoValidation(
+            var loaded = ApplicationConfiguration.LoadWithNoValidation(
                 new FileInfo(filePath),
                 typeof(ApplicationConfiguration),
                 m_telemetry);
@@ -482,7 +484,7 @@ namespace Opc.Ua.Core.Tests
             string filePath = Path.Combine(m_tempDir, "clock_config.xml");
             config.SaveToFile(filePath);
 
-            ApplicationConfiguration loaded = ApplicationConfiguration.LoadWithNoValidation(
+            var loaded = ApplicationConfiguration.LoadWithNoValidation(
                 new FileInfo(filePath),
                 typeof(ApplicationConfiguration),
                 m_telemetry);
@@ -504,7 +506,7 @@ namespace Opc.Ua.Core.Tests
             string filePath = Path.Combine(m_tempDir, "trace_config.xml");
             config.SaveToFile(filePath);
 
-            ApplicationConfiguration loaded = ApplicationConfiguration.LoadWithNoValidation(
+            var loaded = ApplicationConfiguration.LoadWithNoValidation(
                 new FileInfo(filePath),
                 typeof(ApplicationConfiguration),
                 m_telemetry);
@@ -545,7 +547,7 @@ namespace Opc.Ua.Core.Tests
             string filePath = Path.Combine(m_tempDir, "stream_config.xml");
             config.SaveToFile(filePath);
 
-            ApplicationConfiguration loaded = ApplicationConfiguration.LoadWithNoValidation(
+            var loaded = ApplicationConfiguration.LoadWithNoValidation(
                 new FileInfo(filePath),
                 typeof(ApplicationConfiguration),
                 m_telemetry);
@@ -568,7 +570,7 @@ namespace Opc.Ua.Core.Tests
             string filePath = Path.Combine(m_tempDir, "fileinfo_config.xml");
             config.SaveToFile(filePath);
 
-            ApplicationConfiguration loaded = ApplicationConfiguration.LoadWithNoValidation(
+            var loaded = ApplicationConfiguration.LoadWithNoValidation(
                 new FileInfo(filePath),
                 typeof(ApplicationConfiguration),
                 m_telemetry);

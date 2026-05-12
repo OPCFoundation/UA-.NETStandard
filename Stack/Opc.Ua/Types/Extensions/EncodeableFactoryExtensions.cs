@@ -52,8 +52,7 @@ namespace Opc.Ua
             /// <returns></returns>
             private static EncodeableFactory GetRoot()
             {
-                if (!EncodeableFactory.Root.IsValueCreated
-                    ||
+                if (!EncodeableFactory.Root.IsValueCreated ||
                     // Also test whether it was initialized to prevent that
                     // a service message context was created with the root
                     // and then the encodeable factory is created.

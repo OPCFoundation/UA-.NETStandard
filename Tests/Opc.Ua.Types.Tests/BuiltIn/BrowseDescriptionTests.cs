@@ -96,7 +96,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(bd.XmlEncodingId, Is.EqualTo(ObjectIds.BrowseDescription_Encoding_DefaultXml));
         }
 
-
         [Test]
         public void EncodeDecodeRoundTripPreservesAllProperties()
         {

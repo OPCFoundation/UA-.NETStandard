@@ -50,7 +50,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             {
                 FieldInfo field = typeof(ServerBase).GetField(
                     "m_messageContext",
-                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                    BindingFlags.NonPublic | BindingFlags.Instance);
                 field.SetValue(this, ServiceMessageContext.Create(NUnitTelemetryContext.Create(true)));
             }
 

@@ -216,7 +216,10 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public static bool operator ==(BrowseDescription? left, BrowseDescription? right)
         {
-            if (left is null) return right is null;
+            if (left is null)
+            {
+                return right is null;
+            }
             return left.Equals(right);
         }
 

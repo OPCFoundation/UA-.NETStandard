@@ -53,7 +53,7 @@ namespace Opc.Ua.Server.Tests
         {
             // Arrange
             var nodeId = new NodeId("testNode", 1);
-            using var node = new BaseDataVariableState(null)
+            var node = new BaseDataVariableState(null)
             {
                 NodeId = nodeId,
                 BrowseName = new QualifiedName("testNode", 1),
@@ -100,7 +100,7 @@ namespace Opc.Ua.Server.Tests
         {
             // Arrange
             var nodeId = new NodeId("testNode", 1);
-            using var node = new BaseDataVariableState(null)
+            var node = new BaseDataVariableState(null)
             {
                 NodeId = nodeId,
                 BrowseName = new QualifiedName("testNode", 1),
@@ -152,7 +152,7 @@ namespace Opc.Ua.Server.Tests
         {
             // Arrange
             var nodeId = new NodeId("testNode", 1);
-            using var node = new BaseDataVariableState(null)
+            var node = new BaseDataVariableState(null)
             {
                 NodeId = nodeId,
                 BrowseName = new QualifiedName("testNode", 1),
@@ -203,7 +203,7 @@ namespace Opc.Ua.Server.Tests
         public void NodeState_RolePermissionsPropertyChange_SetsRolePermissionsChangeMask()
         {
             // Arrange & Act
-            using var node = new BaseDataVariableState(null)
+            var node = new BaseDataVariableState(null)
             {
                 NodeId = new NodeId("testNode", 1),
                 BrowseName = new QualifiedName("testNode", 1),
@@ -224,7 +224,7 @@ namespace Opc.Ua.Server.Tests
         public void NodeState_UserRolePermissionsPropertyChange_SetsRolePermissionsChangeMask()
         {
             // Arrange
-            using var node = new BaseDataVariableState(null)
+            var node = new BaseDataVariableState(null)
             {
                 NodeId = new NodeId("testNode", 1),
                 BrowseName = new QualifiedName("testNode", 1),
@@ -245,7 +245,7 @@ namespace Opc.Ua.Server.Tests
         public void NodeState_ClearChangeMasks_FiresCallbackWithRolePermissionsMask()
         {
             // Arrange
-            using var node = new BaseDataVariableState(null)
+            var node = new BaseDataVariableState(null)
             {
                 NodeId = new NodeId("testNode", 1),
                 BrowseName = new QualifiedName("testNode", 1),
@@ -275,7 +275,7 @@ namespace Opc.Ua.Server.Tests
         {
             // Arrange
             var nodeId = new NodeId("testNode", 1);
-            using var node = new BaseDataVariableState(null)
+            var node = new BaseDataVariableState(null)
             {
                 NodeId = nodeId,
                 BrowseName = new QualifiedName("testNode", 1),

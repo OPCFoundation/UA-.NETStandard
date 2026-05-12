@@ -25,7 +25,7 @@
  *
  * The complete license agreement can be found here:
  * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+ * ======================================================================*/
 
 #nullable enable
 
@@ -56,7 +56,8 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
         /// assign this before invoking the manager.
         /// </summary>
         public Func<string, IOptionsMonitor<V2MonitoredItemOptions>,
-            IMonitoredItemContext, V2MonitoredItem> CreateMonitoredItemFactory { get; set; }
+            IMonitoredItemContext, V2MonitoredItem> CreateMonitoredItemFactory
+        { get; set; }
             = (_, _, _) => throw new InvalidOperationException(
                 "CreateMonitoredItemFactory not set on FakeMonitoredItemManagerContext.");
 

@@ -120,7 +120,10 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public static bool operator ==(EnumField? left, EnumField? right)
         {
-            if (left is null) return right is null;
+            if (left is null)
+            {
+                return right is null;
+            }
             return left.Equals(right);
         }
 

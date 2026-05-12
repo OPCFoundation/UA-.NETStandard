@@ -101,7 +101,7 @@ namespace Opc.Ua.Mcp.Tools
                 var systemContext = new SystemContext(sessionManager.Telemetry)
                 {
                     NamespaceUris = session.NamespaceUris,
-                    ServerUris = session.ServerUris,
+                    ServerUris = session.ServerUris
                 };
 
                 CoreClientUtils.ExportNodesToNodeSet2(
@@ -122,8 +122,8 @@ namespace Opc.Ua.Mcp.Tools
                         .Select((uri, idx) => new Dictionary<string, object?>
                         {
                             ["index"] = idx,
-                            ["uri"] = uri,
-                        }).ToList(),
+                            ["uri"] = uri
+                        }).ToList()
                 });
             }
             catch (ServiceResultException ex)
@@ -132,7 +132,7 @@ namespace Opc.Ua.Mcp.Tools
                 {
                     ["error"] = true,
                     ["statusCode"] = ex.StatusCode.ToString(),
-                    ["message"] = ex.Message,
+                    ["message"] = ex.Message
                 });
             }
         }
@@ -194,7 +194,7 @@ namespace Opc.Ua.Mcp.Tools
                         }
                         return !string.Equals(nsUri, Namespaces.OpcUa, StringComparison.OrdinalIgnoreCase);
                     })
-                    .ToDictionary(g => g.Key, g => (IList<INode>)g.ToList());
+                    .ToDictionary(g => g.Key, g => (IList<INode>)[.. g]);
 
                 var exportedFiles = new List<Dictionary<string, object?>>();
 
@@ -210,7 +210,7 @@ namespace Opc.Ua.Mcp.Tools
                     var systemContext = new SystemContext(sessionManager.Telemetry)
                     {
                         NamespaceUris = session.NamespaceUris,
-                        ServerUris = session.ServerUris,
+                        ServerUris = session.ServerUris
                     };
 
                     CoreClientUtils.ExportNodesToNodeSet2(
@@ -222,7 +222,7 @@ namespace Opc.Ua.Mcp.Tools
                         ["namespaceIndex"] = kvp.Key,
                         ["filePath"] = filePath,
                         ["nodeCount"] = kvp.Value.Count,
-                        ["fileSizeBytes"] = new FileInfo(filePath).Length,
+                        ["fileSizeBytes"] = new FileInfo(filePath).Length
                     });
                 }
 
@@ -235,7 +235,7 @@ namespace Opc.Ua.Mcp.Tools
                     ["totalNodeCount"] = nodes.Count,
                     ["exportedNamespaces"] = exportedFiles.Count,
                     ["durationMs"] = stopwatch.ElapsedMilliseconds,
-                    ["files"] = exportedFiles,
+                    ["files"] = exportedFiles
                 });
             }
             catch (ServiceResultException ex)
@@ -244,7 +244,7 @@ namespace Opc.Ua.Mcp.Tools
                 {
                     ["error"] = true,
                     ["statusCode"] = ex.StatusCode.ToString(),
-                    ["message"] = ex.Message,
+                    ["message"] = ex.Message
                 });
             }
         }
@@ -308,7 +308,7 @@ namespace Opc.Ua.Mcp.Tools
                 nodesToBrowse = nextNodesToBrowse.ToArray();
             }
 
-            return nodeDictionary.Values.ToList();
+            return [.. nodeDictionary.Values];
         }
 
         /// <summary>

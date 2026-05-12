@@ -2894,7 +2894,7 @@ namespace Opc.Ua
 
             if (index != -1)
             {
-                name = name![(index + 1)..];
+                _ = name![(index + 1)..];
             }
 
             PushNamespace(ns);

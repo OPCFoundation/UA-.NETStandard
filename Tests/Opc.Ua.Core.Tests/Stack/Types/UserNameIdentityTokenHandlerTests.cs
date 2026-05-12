@@ -27,9 +27,12 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+// CA2000: test code; many disposables are ownership-transferred to test fixtures or short-lived,
+// making CA2000 noisy without a real leak risk. Disabled file-level for the suite.
+#pragma warning disable CA2000
 using System;
 using System.Security.Cryptography;
-using System.Security.Cryptography.X509Certificates;
+using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Tests;
@@ -48,15 +51,15 @@ namespace Opc.Ua.Core.Tests.Stack.Types
         private const int TestLegacyPasswordLength = 12;
 
         [Test]
-        public void DecryptSupportsRsaEncryptedSecretFormat()
+        public async Task DecryptSupportsRsaEncryptedSecretFormatAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            IServiceMessageContext context = ServiceMessageContext.CreateEmpty(telemetry);
+            var context = ServiceMessageContext.CreateEmpty(telemetry);
             SecurityPolicyInfo securityPolicy = SecurityPolicies.GetInfo(kSecurityPolicyUri);
             byte[] receiverNonce = Nonce.CreateNonce(securityPolicy.SecureChannelNonceLength).Data;
             byte[] expectedPassword = Nonce.CreateNonce(96).Data;
 
-            using X509Certificate2 certificate = CertificateBuilder
+            using Certificate certificate = CertificateBuilder
                 .Create("CN=User Identity Token Test Subject, O=OPC Foundation")
                 .SetRSAKeySize(2048)
                 .CreateForRSA();
@@ -75,26 +78,26 @@ namespace Opc.Ua.Core.Tests.Stack.Types
                 EncryptionAlgorithm = null
             };
 
-            using var tokenHandler = new UserNameIdentityTokenHandler(token);
-            tokenHandler.Decrypt(
+            var tokenHandler = new UserNameIdentityTokenHandler(token);
+            await tokenHandler.DecryptAsync(
                 certificate,
                 Nonce.CreateNonce(securityPolicy, receiverNonce),
                 kSecurityPolicyUri,
-                context);
+                context).ConfigureAwait(false);
 
             Assert.That(tokenHandler.DecryptedPassword, Is.EqualTo(expectedPassword));
         }
 
         [Test]
-        public void DecryptKeepsLegacyRsaEncryptedTokenPath()
+        public async Task DecryptKeepsLegacyRsaEncryptedTokenPathAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            IServiceMessageContext context = ServiceMessageContext.CreateEmpty(telemetry);
+            var context = ServiceMessageContext.CreateEmpty(telemetry);
             SecurityPolicyInfo securityPolicy = SecurityPolicies.GetInfo(kSecurityPolicyUri);
             byte[] receiverNonce = Nonce.CreateNonce(securityPolicy.SecureChannelNonceLength).Data;
             byte[] expectedPassword = GetRandomBytes(TestLegacyPasswordLength);
 
-            using X509Certificate2 certificate = CertificateBuilder
+            using Certificate certificate = CertificateBuilder
                 .Create("CN=User Identity Token Legacy Test Subject, O=OPC Foundation")
                 .SetRSAKeySize(2048)
                 .CreateForRSA();
@@ -113,12 +116,12 @@ namespace Opc.Ua.Core.Tests.Stack.Types
                 EncryptionAlgorithm = encryptedData.Algorithm
             };
 
-            using var tokenHandler = new UserNameIdentityTokenHandler(token);
-            tokenHandler.Decrypt(
+            var tokenHandler = new UserNameIdentityTokenHandler(token);
+            await tokenHandler.DecryptAsync(
                 certificate,
                 Nonce.CreateNonce(securityPolicy, receiverNonce),
                 kSecurityPolicyUri,
-                context);
+                context).ConfigureAwait(false);
 
             Assert.That(tokenHandler.DecryptedPassword, Is.EqualTo(expectedPassword));
         }
@@ -127,7 +130,7 @@ namespace Opc.Ua.Core.Tests.Stack.Types
         public void DecryptThrowsBadIdentityTokenInvalidWhenECCTryDecryptFails()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            IServiceMessageContext context = ServiceMessageContext.CreateEmpty(telemetry);
+            var context = ServiceMessageContext.CreateEmpty(telemetry);
 
             var token = new UserNameIdentityToken
             {
@@ -136,9 +139,9 @@ namespace Opc.Ua.Core.Tests.Stack.Types
                 EncryptionAlgorithm = null
             };
 
-            using var tokenHandler = new UserNameIdentityTokenHandler(token);
+            var tokenHandler = new UserNameIdentityTokenHandler(token);
             Assert.That(
-                () => tokenHandler.Decrypt(
+                async () => await tokenHandler.DecryptAsync(
                     certificate: null,
                     receiverNonce: null,
                     securityPolicyUri: SecurityPolicies.ECC_nistP256,
@@ -146,107 +149,107 @@ namespace Opc.Ua.Core.Tests.Stack.Types
                     ephemeralKey: null,
                     senderCertificate: null,
                     senderIssuerCertificates: null,
-                    validator: null),
+                    validator: null).ConfigureAwait(false),
                 Throws.TypeOf<ServiceResultException>()
                     .With.Property(nameof(ServiceResultException.StatusCode)).EqualTo(StatusCodes.BadIdentityTokenInvalid));
         }
 
         [Test]
-        public void EncryptUsesLegacyRsaFormatForShortPassword()
+        public async Task EncryptUsesLegacyRsaFormatForShortPasswordAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            IServiceMessageContext context = ServiceMessageContext.CreateEmpty(telemetry);
+            var context = ServiceMessageContext.CreateEmpty(telemetry);
             SecurityPolicyInfo securityPolicy = SecurityPolicies.GetInfo(kSecurityPolicyUri);
             byte[] receiverNonce = Nonce.CreateNonce(securityPolicy.SecureChannelNonceLength).Data;
             byte[] password = GetRandomBytes(RsaEncryptedSecretPasswordThreshold - 1);
 
-            using X509Certificate2 certificate = CertificateBuilder
+            using Certificate certificate = CertificateBuilder
                 .Create("CN=User Identity Token Encrypt Legacy Subject, O=OPC Foundation")
                 .SetRSAKeySize(2048)
                 .CreateForRSA();
 
-            using var tokenHandler = new UserNameIdentityTokenHandler("legacyUser", password);
-            tokenHandler.Encrypt(certificate, receiverNonce, kSecurityPolicyUri, context);
+            var tokenHandler = new UserNameIdentityTokenHandler("legacyUser", password);
+            await tokenHandler.EncryptAsync(certificate, receiverNonce, kSecurityPolicyUri, context).ConfigureAwait(false);
 
             Assert.That(tokenHandler.Token, Is.TypeOf<UserNameIdentityToken>());
             var token = (UserNameIdentityToken)tokenHandler.Token;
             Assert.That(token.EncryptionAlgorithm, Is.Not.Null.And.Not.Empty);
 
-            using var decryptHandler = new UserNameIdentityTokenHandler(token);
-            decryptHandler.Decrypt(
+            var decryptHandler = new UserNameIdentityTokenHandler(token);
+            await decryptHandler.DecryptAsync(
                 certificate,
                 Nonce.CreateNonce(securityPolicy, receiverNonce),
                 kSecurityPolicyUri,
-                context);
+                context).ConfigureAwait(false);
 
             Assert.That(decryptHandler.DecryptedPassword, Is.EqualTo(password));
         }
 
         [Test]
-        public void EncryptUsesLegacyRsaFormatAtThresholdPasswordLength()
+        public async Task EncryptUsesLegacyRsaFormatAtThresholdPasswordLengthAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            IServiceMessageContext context = ServiceMessageContext.CreateEmpty(telemetry);
+            var context = ServiceMessageContext.CreateEmpty(telemetry);
             SecurityPolicyInfo securityPolicy = SecurityPolicies.GetInfo(kSecurityPolicyUri);
             byte[] receiverNonce = Nonce.CreateNonce(securityPolicy.SecureChannelNonceLength).Data;
             byte[] password = GetRandomBytes(RsaEncryptedSecretPasswordThreshold);
 
-            using X509Certificate2 certificate = CertificateBuilder
+            using Certificate certificate = CertificateBuilder
                 .Create("CN=User Identity Token Encrypt Threshold Subject, O=OPC Foundation")
                 .SetRSAKeySize(2048)
                 .CreateForRSA();
 
-            using var tokenHandler = new UserNameIdentityTokenHandler("thresholdUser", password);
-            tokenHandler.Encrypt(certificate, receiverNonce, kSecurityPolicyUri, context);
+            var tokenHandler = new UserNameIdentityTokenHandler("thresholdUser", password);
+            await tokenHandler.EncryptAsync(certificate, receiverNonce, kSecurityPolicyUri, context).ConfigureAwait(false);
 
             Assert.That(tokenHandler.Token, Is.TypeOf<UserNameIdentityToken>());
             var token = (UserNameIdentityToken)tokenHandler.Token;
             Assert.That(token.EncryptionAlgorithm, Is.Not.Null.And.Not.Empty);
 
-            using var decryptHandler = new UserNameIdentityTokenHandler(token);
-            decryptHandler.Decrypt(
+            var decryptHandler = new UserNameIdentityTokenHandler(token);
+            await decryptHandler.DecryptAsync(
                 certificate,
                 Nonce.CreateNonce(securityPolicy, receiverNonce),
                 kSecurityPolicyUri,
-                context);
+                context).ConfigureAwait(false);
 
             Assert.That(decryptHandler.DecryptedPassword, Is.EqualTo(password));
         }
 
         [Test]
-        public void EncryptUsesRsaEncryptedSecretForLongPassword()
+        public async Task EncryptUsesRsaEncryptedSecretForLongPasswordAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            IServiceMessageContext context = ServiceMessageContext.CreateEmpty(telemetry);
+            var context = ServiceMessageContext.CreateEmpty(telemetry);
             SecurityPolicyInfo securityPolicy = SecurityPolicies.GetInfo(kSecurityPolicyUri);
             byte[] receiverNonce = Nonce.CreateNonce(securityPolicy.SecureChannelNonceLength).Data;
             byte[] password = GetRandomBytes(RsaEncryptedSecretPasswordThreshold + 1);
 
-            using X509Certificate2 certificate = CertificateBuilder
+            using Certificate certificate = CertificateBuilder
                 .Create("CN=User Identity Token Encrypt Secret Subject, O=OPC Foundation")
                 .SetRSAKeySize(2048)
                 .CreateForRSA();
 
-            using var tokenHandler = new UserNameIdentityTokenHandler("secretUser", password);
-            tokenHandler.Encrypt(certificate, receiverNonce, kSecurityPolicyUri, context);
+            var tokenHandler = new UserNameIdentityTokenHandler("secretUser", password);
+            await tokenHandler.EncryptAsync(certificate, receiverNonce, kSecurityPolicyUri, context).ConfigureAwait(false);
 
             Assert.That(tokenHandler.Token, Is.TypeOf<UserNameIdentityToken>());
             var token = (UserNameIdentityToken)tokenHandler.Token;
             Assert.That(token.EncryptionAlgorithm, Is.Null);
 
-            using var decryptHandler = new UserNameIdentityTokenHandler(token);
-            decryptHandler.Decrypt(
+            var decryptHandler = new UserNameIdentityTokenHandler(token);
+            await decryptHandler.DecryptAsync(
                 certificate,
                 Nonce.CreateNonce(securityPolicy, receiverNonce),
                 kSecurityPolicyUri,
-                context);
+                context).ConfigureAwait(false);
 
             Assert.That(decryptHandler.DecryptedPassword, Is.EqualTo(password));
         }
 
         private static byte[] CreateRsaEncryptedSecret(
-            IServiceMessageContext context,
-            X509Certificate2 receiverCertificate,
+            ServiceMessageContext context,
+            Certificate receiverCertificate,
             string securityPolicyUri,
             byte[] secret,
             byte[] nonce)
@@ -332,7 +335,7 @@ namespace Opc.Ua.Core.Tests.Stack.Types
             encoder.WriteByteString(null, secret);
 
             int dataLength = encoder.Position - startOfPayload + 2;
-            int paddingCount = dataLength % blockSize == 0 ? 0 : blockSize - dataLength % blockSize;
+            int paddingCount = dataLength % blockSize == 0 ? 0 : blockSize - (dataLength % blockSize);
             if (paddingCount + secret.Length < blockSize)
             {
                 paddingCount += blockSize;
@@ -354,7 +357,7 @@ namespace Opc.Ua.Core.Tests.Stack.Types
             Buffer.BlockCopy(plainPayload, 0, encryptedPayload, 0, plainPayload.Length);
 
 #pragma warning disable CA5401 // Symmetric encryption uses non-default initialization vector
-            using Aes aes = Aes.Create();
+            using var aes = Aes.Create();
             aes.Mode = CipherMode.CBC;
             aes.Padding = PaddingMode.None;
             aes.Key = encryptingKey;
@@ -367,18 +370,20 @@ namespace Opc.Ua.Core.Tests.Stack.Types
 
         private static byte[] GetRandomBytes(int count)
         {
-            var bytes = new byte[count];
-            using RandomNumberGenerator randomNumberGenerator = RandomNumberGenerator.Create();
+            byte[] bytes = new byte[count];
+            using var randomNumberGenerator = RandomNumberGenerator.Create();
             randomNumberGenerator.GetBytes(bytes);
             return bytes;
         }
 
         private static byte[] ComputeSha1Hash(byte[] data)
         {
-#pragma warning disable CA5350 // Do Not Use Weak Cryptographic Algorithms
-            using SHA1 sha1 = SHA1.Create();
+            // CA5350: SHA1 required for legacy compatibility test vector.
+            // CA1850: SHA1.HashData() is .NET 5+ only and the suite still targets net472/net48.
+#pragma warning disable CA5350, CA1850
+            using var sha1 = SHA1.Create();
             return sha1.ComputeHash(data);
-#pragma warning restore CA5350 // Do Not Use Weak Cryptographic Algorithms
+#pragma warning restore CA5350, CA1850
         }
     }
 }

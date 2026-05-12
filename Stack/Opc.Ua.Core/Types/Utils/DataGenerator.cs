@@ -1630,7 +1630,8 @@ namespace Opc.Ua.Test
             }
 
             var variants = new Variant[length];
-            var typeInfo = TypeInfo.CreateScalar(builtInType);
+
+            _ = TypeInfo.CreateScalar(builtInType);
 
             for (int ii = 0; ii < variants.Length; ii++)
             {

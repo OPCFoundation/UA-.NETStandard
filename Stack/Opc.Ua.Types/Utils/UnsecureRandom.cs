@@ -28,8 +28,7 @@
  * ======================================================================*/
 
 using System;
-using System.Collections;
-using System.Collections.Generic;
+using System.Threading;
 
 namespace Opc.Ua
 {
@@ -158,14 +157,12 @@ namespace Opc.Ua
             for (int i = 0; i < count; i++)
             {
                 int j = Next(i, count);
-                T temp = source[i];
-                source[i] = source[j];
-                source[j] = temp;
+                (source[j], source[i]) = (source[i], source[j]);
             }
 #endif
         }
 
         private readonly Random m_random;
-        private readonly object m_lock = new();
+        private readonly Lock m_lock = new();
     }
 }

@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 #if NETFRAMEWORK
 using System;
 using System.Collections.Generic;
@@ -36,8 +38,8 @@ using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text.RegularExpressions;
 using Org.BouncyCastle.Asn1;
-using Org.BouncyCastle.Asn1.X9;
 using Org.BouncyCastle.Asn1.X509;
+using Org.BouncyCastle.Asn1.X9;
 using Org.BouncyCastle.Crypto;
 using Org.BouncyCastle.Crypto.Parameters;
 using Org.BouncyCastle.Math;
@@ -105,12 +107,13 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
         }
 
         /// <summary>
-        /// Get public key parameters from a X509Certificate2
+        /// Get public key parameters from a Certificate
         /// </summary>
-        internal static RsaKeyParameters GetRsaPublicKeyParameter(X509Certificate2 certificate)
+        /// <exception cref="CryptographicException"></exception>
+        internal static RsaKeyParameters GetRsaPublicKeyParameter(Certificate certificate)
         {
-            using RSA rsa = certificate.GetRSAPublicKey();
-            return GetRsaPublicKeyParameter(rsa);
+            using RSA? rsa = certificate.GetRSAPublicKey();
+            return GetRsaPublicKeyParameter(rsa ?? throw new CryptographicException("RSA public key not found."));
         }
 
         /// <summary>
@@ -126,11 +129,11 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
         }
 
         /// <summary>
-        /// Get RSA private key parameters from a X509Certificate2.
+        /// Get RSA private key parameters from a Certificate.
         /// The private key must be exportable.
         /// </summary>
         internal static RsaPrivateCrtKeyParameters? GetRsaPrivateKeyParameter(
-            X509Certificate2 certificate)
+            Certificate certificate)
         {
             // try to get signing/private key from certificate passed in
             using RSA? rsa = certificate.GetRSAPrivateKey();
@@ -160,11 +163,11 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
         }
 
         /// <summary>
-        /// Get ECDsa private key parameters from a X509Certificate2.
+        /// Get ECDsa private key parameters from a Certificate.
         /// The private key must be exportable.
         /// </summary>
         internal static ECPrivateKeyParameters? GetECDsaPrivateKeyParameter(
-            X509Certificate2 certificate)
+            Certificate certificate)
         {
             // try to get signing/private key from certificate passed in
             using ECDsa? ecdsa = certificate.GetECDsaPrivateKey();
@@ -187,8 +190,8 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
 
             X9ECParameters? curve = GetX9ECParameters(ecParams);
 
-            string friendlyName = ecParams.Curve.Oid.FriendlyName!;
-            if (!s_friendlyNameToOidMap.TryGetValue(friendlyName, out string? oidValue))
+            string? friendlyName = ecParams.Curve.Oid.FriendlyName;
+            if (friendlyName == null || !s_friendlyNameToOidMap.TryGetValue(friendlyName, out string? oidValue))
             {
                 throw new NotSupportedException($"Unknown friendly name: {friendlyName}");
             }
@@ -328,7 +331,7 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
         /// <summary>
         /// Get the serial number from a certificate as BigInteger.
         /// </summary>
-        internal static BigInteger GetSerialNumber(X509Certificate2 certificate)
+        internal static BigInteger GetSerialNumber(Certificate certificate)
         {
             byte[] serialNumber = certificate.GetSerialNumber();
             return new BigInteger(1, [.. ((IEnumerable<byte>)serialNumber).Reverse()]);

@@ -37,6 +37,7 @@ using Microsoft.Extensions.Logging;
 using Opc.Ua.Configuration;
 using Opc.Ua.Gds.Client;
 using Opc.Ua.Gds.Server;
+using Opc.Ua.Security.Certificates;
 using Opc.Ua.Server.Tests;
 using Opc.Ua.Test;
 using Opc.Ua.Tests;
@@ -340,19 +341,36 @@ namespace Opc.Ua.Gds.Tests
         public static async Task CleanupTrustListAsync(IOpenStore id, ITelemetryContext telemetry)
         {
             using ICertificateStore store = id.OpenStore(telemetry);
-            System.Security.Cryptography.X509Certificates.X509Certificate2Collection certs
+            await CleanupStoreAsync(store).ConfigureAwait(false);
+        }
+
+        public static async Task CleanupTrustListAsync(
+            CertificateIdentifier id,
+            ITelemetryContext telemetry)
+        {
+            using ICertificateStore store = CertificateIdentifierResolver.OpenStore(id, telemetry);
+            if (store == null)
+            {
+                return;
+            }
+            await CleanupStoreAsync(store).ConfigureAwait(false);
+        }
+
+        private static async Task CleanupStoreAsync(ICertificateStore store)
+        {
+            CertificateCollection certs
                 = await store
                 .EnumerateAsync()
                 .ConfigureAwait(false);
-            foreach (System.Security.Cryptography.X509Certificates.X509Certificate2 cert in certs)
+            foreach (Certificate cert in certs)
             {
                 await store.DeleteAsync(cert.Thumbprint).ConfigureAwait(false);
             }
             if (store.SupportsCRLs)
             {
-                Security.Certificates.X509CRLCollection crls = await store.EnumerateCRLsAsync()
+                X509CRLCollection crls = await store.EnumerateCRLsAsync()
                     .ConfigureAwait(false);
-                foreach (Security.Certificates.X509CRL crl in crls)
+                foreach (X509CRL crl in crls)
                 {
                     await store.DeleteCRLAsync(crl).ConfigureAwait(false);
                 }
@@ -406,8 +424,8 @@ namespace Opc.Ua.Gds.Tests
         {
             GlobalDiscoveryTestServer server = null;
             int testPort = ServerFixtureUtils.GetNextFreeIPPort();
-            bool retryStartServer = false;
             int serverStartRetries = 25;
+            bool retryStartServer;
             do
             {
                 retryStartServer = false;
@@ -422,6 +440,20 @@ namespace Opc.Ua.Gds.Tests
                     if (serverStartRetries == 0 || sre.StatusCode != StatusCodes.BadNoCommunication)
                     {
                         throw;
+                    }
+
+                    // Dispose the half-initialised server so its
+                    // ApplicationInstance/CertificateManager don't leak.
+                    if (server != null)
+                    {
+                        try
+                        {
+                            await server.DisposeAsync().ConfigureAwait(false);
+                        }
+                        catch
+                        {
+                        }
+                        server = null;
                     }
 
                     testPort = UnsecureRandom.Shared.Next(

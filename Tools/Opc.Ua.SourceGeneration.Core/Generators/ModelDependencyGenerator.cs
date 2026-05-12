@@ -109,7 +109,7 @@ namespace Opc.Ua.SourceGeneration
                 {
                     continue;
                 }
-                if (ns.Value == Ua.Types.Namespaces.OpcUa)
+                if (ns.Value == Types.Namespaces.OpcUa)
                 {
                     continue;
                 }
@@ -130,7 +130,7 @@ namespace Opc.Ua.SourceGeneration
                 {
                     continue;
                 }
-                if (r.ModelUri == Ua.Types.Namespaces.OpcUa)
+                if (r.ModelUri == Types.Namespaces.OpcUa)
                 {
                     continue;
                 }
@@ -177,9 +177,7 @@ namespace Opc.Ua.SourceGeneration
 
         private static string FormatDate(DateTime? d)
         {
-            return d.HasValue
-                ? d.Value.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ", CultureInfo.InvariantCulture)
-                : null;
+            return d?.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ", CultureInfo.InvariantCulture);
         }
 
         private readonly record struct Entry(

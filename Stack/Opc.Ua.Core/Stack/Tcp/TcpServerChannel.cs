@@ -30,7 +30,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -53,7 +52,7 @@ namespace Opc.Ua.Bindings
             ITcpChannelListener listener,
             BufferManager bufferManager,
             ChannelQuotas quotas,
-            CertificateTypesProvider serverCertificateTypesProvider,
+            ICertificateRegistry serverCertificates,
             List<EndpointDescription> endpoints,
             ITelemetryContext telemetry)
             : base(
@@ -61,7 +60,7 @@ namespace Opc.Ua.Bindings
                 listener,
                 bufferManager,
                 quotas,
-                serverCertificateTypesProvider,
+                serverCertificates,
                 endpoints,
                 telemetry)
         {
@@ -74,9 +73,14 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected override void Dispose(bool disposing)
         {
-            lock (DataLock)
+            if (disposing)
             {
-                base.Dispose(disposing);
+                lock (DataLock)
+                {
+                    ClientCertificate?.Dispose();
+                    ClientCertificate = null;
+                    base.Dispose(disposing);
+                }
             }
         }
 
@@ -233,7 +237,7 @@ namespace Opc.Ua.Bindings
             IMessageSocket socket,
             uint requestId,
             uint sequenceNumber,
-            X509Certificate2 clientCertificate,
+            Certificate clientCertificate,
             ChannelToken token,
             OpenSecureChannelRequest request)
         {
@@ -558,7 +562,7 @@ namespace Opc.Ua.Bindings
 
             // parse the security header.
             uint channelId = 0;
-            X509Certificate2? clientCertificate = null;
+            Certificate? clientCertificate = null;
             uint requestId = 0;
             uint sequenceNumber = 0;
 
@@ -599,6 +603,9 @@ namespace Opc.Ua.Bindings
 
                 // report the audit event for open certificate error
                 ReportAuditCertificateEvent?.Invoke(clientCertificate!, e);
+
+                // dispose the client certificate since it will not be stored
+                clientCertificate?.Dispose();
 
                 // If the certificate structure, signature and trust list checks pass,
                 // return the other specific validation errors instead of BadSecurityChecksFailed
@@ -649,6 +656,7 @@ namespace Opc.Ua.Bindings
                 if (ClientCertificate != null)
                 {
                     CompareCertificates(ClientCertificate, clientCertificate, false);
+                    clientCertificate?.Dispose();
                 }
                 else
                 {

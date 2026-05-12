@@ -34,6 +34,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.Client;
+using Opc.Ua.Security.Certificates;
 
 namespace Quickstarts
 {
@@ -70,10 +71,9 @@ namespace Quickstarts
             m_logger = telemetry.CreateLogger<UAClient>();
             m_telemetry = telemetry;
             m_configuration = configuration;
-            // CertificateValidator is set during configuration load; cache the non-null
-            // reference so the Dispose path doesn't repeat the null-forgiving operator.
-            m_certificateValidator = m_configuration.CertificateValidator!;
-            m_certificateValidator.CertificateValidation += CertificateValidation;
+            // Modern global accept hook on ICertificateManager — fires for
+            // every certificate validation done via this manager.
+            m_configuration.CertificateManager.AcceptError = AcceptCertificate;
             m_reverseConnectManager = reverseConnectManager;
         }
 
@@ -98,7 +98,7 @@ namespace Quickstarts
             {
                 m_reconnectHandler?.Dispose();
                 Session?.Dispose();
-                m_certificateValidator.CertificateValidation -= CertificateValidation;
+                m_configuration.CertificateManager.AcceptError = null;
             }
             m_disposed = true;
         }
@@ -226,13 +226,10 @@ namespace Quickstarts
                                 cts.Token);
                             connection = await m_reverseConnectManager
                                 .WaitForConnectionAsync(new Uri(serverUrl), null, linkedCTS.Token)
-                                .ConfigureAwait(false);
-                            if (connection == null)
-                            {
+                                .ConfigureAwait(false) ??
                                 throw new ServiceResultException(
                                     StatusCodes.BadTimeout,
                                     "Waiting for a reverse connection timed out.");
-                            }
                             if (endpointDescription == null)
                             {
                                 Console.WriteLine("Discover reverse connection endpoints....");
@@ -466,41 +463,37 @@ namespace Quickstarts
         }
 
         /// <summary>
-        /// Handles the certificate validation event.
-        /// This event is triggered every time an untrusted certificate is received from the server.
+        /// Per-error accept callback invoked by the new
+        /// <see cref="ICertificateValidatorEx.AcceptError"/> hook every time
+        /// an untrusted certificate is received from the server. Returns
+        /// <see langword="true"/> to accept the error, <see langword="false"/>
+        /// to reject it.
         /// </summary>
-        protected virtual void CertificateValidation(
-            CertificateValidator sender,
-            CertificateValidationEventArgs e)
+        protected virtual bool AcceptCertificate(Certificate certificate, ServiceResult error)
         {
-            bool certificateAccepted = false;
-
             // ****
             // Implement a custom logic to decide if the certificate should be
-            // accepted or not and set certificateAccepted flag accordingly.
-            // The certificate can be retrieved from the e.Certificate field
+            // accepted or not. Return true to accept, false to reject.
             // ***
-
-            ServiceResult error = e.Error;
             m_logger.LogInformation("{Error}", error);
-            if (error.StatusCode == StatusCodes.BadCertificateUntrusted && AutoAccept)
-            {
-                certificateAccepted = true;
-            }
+
+            bool certificateAccepted =
+                error.StatusCode == StatusCodes.BadCertificateUntrusted && AutoAccept;
 
             if (certificateAccepted)
             {
                 m_logger.LogInformation(
                     "Untrusted Certificate accepted. Subject = {Subject}",
-                    e.Certificate.Subject);
-                e.Accept = true;
+                    certificate.Subject);
             }
             else
             {
                 m_logger.LogInformation(
                     "Untrusted Certificate rejected. Subject = {Subject}",
-                    e.Certificate.Subject);
+                    certificate.Subject);
             }
+
+            return certificateAccepted;
         }
 
         private readonly Lock m_lock = new();

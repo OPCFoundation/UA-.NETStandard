@@ -1108,6 +1108,7 @@ namespace Quickstarts
         /// Outputs elapsed time information for perf testing and lists all
         /// types that were successfully added to the session encodeable type factory.
         /// </remarks>
+        /// <exception cref="ServiceResultException"></exception>
         public async Task LoadTypeSystemAsync(ComplexTypeSystem complexTypeSystem, CancellationToken ct = default)
         {
             m_logger.LogInformation("Load the server type system.");
@@ -1546,7 +1547,7 @@ namespace Quickstarts
         /// <summary>
         /// Event handler to defer publish response sequence number acknowledge.
         /// </summary>
-        private void DeferSubscriptionAcknowledge(
+        private static void DeferSubscriptionAcknowledge(
             ISession session,
             PublishSequenceNumbersToAcknowledgeEventArgs e)
         {

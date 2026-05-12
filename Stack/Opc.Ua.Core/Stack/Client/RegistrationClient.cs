@@ -28,9 +28,9 @@
  * ======================================================================*/
 
 using System;
-using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua
 {
@@ -53,7 +53,7 @@ namespace Opc.Ua
             ApplicationConfiguration configuration,
             EndpointDescription description,
             EndpointConfiguration endpointConfiguration,
-            X509Certificate2 instanceCertificate,
+            Certificate instanceCertificate,
             DiagnosticsMasks returnDiagnostics = DiagnosticsMasks.None,
             CancellationToken ct = default)
         {

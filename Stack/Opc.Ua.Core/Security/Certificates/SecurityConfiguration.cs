@@ -27,13 +27,15 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua
 {
@@ -51,9 +53,7 @@ namespace Opc.Ua
         /// Get the provider which is invoked when a password
         /// for a private key is requested.
         /// </summary>
-        // Set externally by callers (e.g. ApplicationInstance, ApplicationConfigurationBuilder)
-        // after the configuration is loaded; treated as required for callers that need a password.
-        public ICertificatePasswordProvider CertificatePasswordProvider { get; set; } = null!;
+        public ICertificatePasswordProvider? CertificatePasswordProvider { get; set; }
 
         /// <summary>
         /// Adds a certificate as a trusted peer.
@@ -62,7 +62,7 @@ namespace Opc.Ua
         {
             TrustedPeerCertificates.TrustedCertificates =
                 TrustedPeerCertificates.TrustedCertificates.AddItem(
-                    new CertificateIdentifier(certificate));
+                    new CertificateIdentifier { RawData = certificate });
         }
 
         /// <summary>
@@ -153,7 +153,7 @@ namespace Opc.Ua
         /// <summary>
         /// Find application certificate for a security policy.
         /// </summary>
-        public async Task<X509Certificate2?> FindApplicationCertificateAsync(
+        public async Task<Certificate?> FindApplicationCertificateAsync(
             string securityPolicy,
             bool privateKey,
             ITelemetryContext telemetry,
@@ -162,36 +162,58 @@ namespace Opc.Ua
             foreach (NodeId certType in CertificateIdentifier.MapSecurityPolicyToCertificateTypes(
                 securityPolicy))
             {
-                CertificateIdentifier? id = ApplicationCertificates.ToArray()!.FirstOrDefault(certId =>
+                CertificateIdentifier? id = (ApplicationCertificates.ToArray() ?? []).FirstOrDefault(certId =>
                     certId.CertificateType == certType);
                 if (id == null)
                 {
                     if (certType == ObjectTypeIds.RsaSha256ApplicationCertificateType)
                     {
                         // undefined certificate type as RsaSha256
-                        id = ApplicationCertificates.ToArray()!.FirstOrDefault(
+                        id = (ApplicationCertificates.ToArray() ?? []).FirstOrDefault(
                             certId => certId.CertificateType.IsNull);
                     }
                     else if (certType == ObjectTypeIds.ApplicationCertificateType)
                     {
                         // first certificate
-                        id = ApplicationCertificates.ToArray()!.FirstOrDefault();
+                        id = (ApplicationCertificates.ToArray() ?? []).FirstOrDefault();
                     }
                     else if (certType == ObjectTypeIds.EccApplicationCertificateType)
                     {
-                        // first Ecc certificate
-                        id = ApplicationCertificates.ToArray()!.FirstOrDefault(certId =>
-                            certId.Certificate != null && X509Utils.IsECDsaSignature(certId.Certificate));
+                        // first Ecc certificate (matches by configured CertificateType
+                        // since identifier no longer caches a Certificate to inspect).
+                        id = (ApplicationCertificates.ToArray() ?? []).FirstOrDefault(certId =>
+                            certId.CertificateType == ObjectTypeIds.EccNistP256ApplicationCertificateType ||
+                            certId.CertificateType == ObjectTypeIds.EccNistP384ApplicationCertificateType ||
+                            certId.CertificateType == ObjectTypeIds.EccBrainpoolP256r1ApplicationCertificateType ||
+                            certId.CertificateType == ObjectTypeIds.EccBrainpoolP384r1ApplicationCertificateType ||
+                            certId.CertificateType == ObjectTypeIds.EccCurve25519ApplicationCertificateType ||
+                            certId.CertificateType == ObjectTypeIds.EccCurve448ApplicationCertificateType);
                     }
                 }
 
                 if (id != null)
                 {
-                    return await id.FindAsync(
-                        privateKey,
-                        applicationUri: null,
-                        telemetry: telemetry,
-                        ct).ConfigureAwait(false);
+                    if (privateKey)
+                    {
+                        return await CertificateIdentifierResolver
+                            .LoadPrivateKeyAsync(
+                                id,
+                                CertificatePasswordProvider,
+                                applicationUri: null,
+                                telemetry,
+                                ct)
+                            .ConfigureAwait(false);
+                    }
+
+                    return await CertificateIdentifierResolver
+                        .ResolveAsync(
+                            id,
+                            registry: null,
+                            needPrivateKey: false,
+                            applicationUri: null,
+                            telemetry,
+                            ct)
+                        .ConfigureAwait(false);
                 }
             }
 

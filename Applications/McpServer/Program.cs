@@ -28,9 +28,9 @@
  * ======================================================================*/
 
 using System;
+using System.CommandLine;
 using System.Threading;
 using System.Threading.Tasks;
-using System.CommandLine;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -124,10 +124,7 @@ static async Task RunSseServerAsync(int port, CancellationToken ct)
     await app.RunAsync(ct).ConfigureAwait(false);
 }
 
-static void ConfigureServices(IServiceCollection services)
-{
-    services.AddSingleton<OpcUaSessionManager>();
-}
+static void ConfigureServices(IServiceCollection services) => services.AddSingleton<OpcUaSessionManager>();
 
 static void ConfigureLogging(ILoggingBuilder logging)
 {

@@ -13,13 +13,14 @@
 using System;
 using System.IO;
 using System.Security.Cryptography;
-using System.Security.Cryptography.X509Certificates;
 using Microsoft.Extensions.Logging;
-using Opc.Ua.Bindings;
+using Opc.Ua.Security.Certificates;
 #if CURVE25519
 using Org.BouncyCastle.Crypto.Modes;
 using Org.BouncyCastle.Crypto.Parameters;
 #endif
+
+#nullable enable
 
 namespace Opc.Ua
 {
@@ -30,8 +31,11 @@ namespace Opc.Ua
     {
         private static readonly TimeSpan s_rsaEncryptedSecretMaxClockSkew = TimeSpan.FromMinutes(5);
         private static readonly TimeSpan s_rsaEncryptedSecretMaxTokenAge = TimeSpan.FromHours(1);
-        // ECC encrypted secrets use the same one-hour age window as RSA encrypted secrets
-        // to preserve consistent token replay tolerance across both encryption formats.
+
+        /// <summary>
+        /// ECC encrypted secrets use the same one-hour age window as RSA encrypted secrets
+        /// to preserve consistent token replay tolerance across both encryption formats.
+        /// </summary>
         private static readonly TimeSpan s_eccEncryptedSecretMaxTokenAge = TimeSpan.FromHours(1);
 
         /// <summary>
@@ -40,12 +44,12 @@ namespace Opc.Ua
         public EncryptedSecret(
             IServiceMessageContext context,
             string securityPolicyUri,
-            X509Certificate2Collection? senderIssuerCertificates,
-            X509Certificate2 receiverCertificate,
+            CertificateCollection? senderIssuerCertificates,
+            Certificate receiverCertificate,
             Nonce? receiverNonce,
-            X509Certificate2? senderCertificate,
+            Certificate? senderCertificate,
             Nonce? senderNonce,
-            CertificateValidator? validator = null,
+            ICertificateValidatorEx? validator = null,
             bool doNotEncodeSenderCertificate = false)
         {
             SenderCertificate = senderCertificate;
@@ -55,7 +59,10 @@ namespace Opc.Ua
             ReceiverNonce = receiverNonce;
             ReceiverCertificate = receiverCertificate;
             Validator = validator;
-            SecurityPolicy = SecurityPolicies.GetInfo(securityPolicyUri) ?? throw new ArgumentException($"Cannot resolve SecurityPolicy '{securityPolicyUri}'.", nameof(securityPolicyUri));
+            SecurityPolicy = SecurityPolicies.GetInfo(securityPolicyUri)
+                ?? throw new ArgumentException(
+                    $"Cannot resolve SecurityPolicy '{securityPolicyUri}'.",
+                    nameof(securityPolicyUri));
             Context = context;
         }
 
@@ -65,7 +72,7 @@ namespace Opc.Ua
         public static EncryptedSecret CreateForRsa(
             IServiceMessageContext context,
             string securityPolicyUri,
-            X509Certificate2 receiverCertificate,
+            Certificate receiverCertificate,
             Nonce? receiverNonce = null)
         {
             return new EncryptedSecret(
@@ -84,12 +91,12 @@ namespace Opc.Ua
         public static EncryptedSecret CreateForEcc(
             IServiceMessageContext context,
             string securityPolicyUri,
-            X509Certificate2Collection? senderIssuerCertificates,
-            X509Certificate2 receiverCertificate,
+            CertificateCollection senderIssuerCertificates,
+            Certificate receiverCertificate,
             Nonce receiverNonce,
-            X509Certificate2 senderCertificate,
+            Certificate senderCertificate,
             Nonce senderNonce,
-            CertificateValidator? validator = null,
+            ICertificateValidatorEx? validator = null,
             bool doNotEncodeSenderCertificate = false)
         {
             return new EncryptedSecret(
@@ -107,12 +114,12 @@ namespace Opc.Ua
         /// <summary>
         /// Gets or sets the X.509 certificate of the sender.
         /// </summary>
-        public X509Certificate2? SenderCertificate { get; private set; }
+        public Certificate? SenderCertificate { get; private set; }
 
         /// <summary>
         /// Gets or sets the collection of X.509 certificates of the sender's issuer.
         /// </summary>
-        public X509Certificate2Collection? SenderIssuerCertificates { get; private set; }
+        public CertificateCollection? SenderIssuerCertificates { get; private set; }
 
         /// <summary>
         /// Gets or sets a value indicating whether the sender's certificate should not be encoded.
@@ -132,12 +139,12 @@ namespace Opc.Ua
         /// <summary>
         /// Gets or sets the X.509 certificate of the receiver.
         /// </summary>
-        public X509Certificate2 ReceiverCertificate { get; }
+        public Certificate ReceiverCertificate { get; }
 
         /// <summary>
         /// Gets or sets the certificate validator.
         /// </summary>
-        public CertificateValidator? Validator { get; }
+        public ICertificateValidatorEx? Validator { get; }
 
         /// <summary>
         /// Gets or sets the security policy.
@@ -154,6 +161,7 @@ namespace Opc.Ua
         /// <summary>
         /// Creates the encrypting key and initialization vector (IV) for Elliptic Curve Cryptography (ECC) encryption or decryption.
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
         private static void CreateKeysForEcc(
             SecurityPolicyInfo securityPolicy,
             Nonce localNonce,
@@ -168,7 +176,7 @@ namespace Opc.Ua
             encryptingKey = new byte[encryptingKeySize];
             iv = new byte[blockSize];
 
-            byte[]? secret = localNonce.GenerateSecret(remoteNonce, null);
+            byte[] secret = localNonce.GenerateSecret(remoteNonce, null!) ?? throw new InvalidOperationException("Failed to generate secret.");
             byte[] keyLength = BitConverter.GetBytes((ushort)(encryptingKeySize + blockSize));
 
             byte[] salt = Utils.Append(
@@ -195,6 +203,7 @@ namespace Opc.Ua
         /// <param name="secret">The secret to encrypt.</param>
         /// <param name="nonce">The nonce to use for encryption.</param>
         /// <returns>The encrypted secret.</returns>
+        /// <exception cref="ServiceResultException"></exception>
         public byte[] Encrypt(byte[] secret, byte[] nonce)
         {
             if (SecurityPolicy.EphemeralKeyAlgorithm == CertificateKeyAlgorithm.None)
@@ -202,8 +211,10 @@ namespace Opc.Ua
                 return EncryptRsa(secret, nonce);
             }
 
-            byte[]? message = null;
-            int lengthPosition = 0;
+            if (SenderCertificate == null)
+            {
+                throw new ServiceResultException(StatusCodes.BadCertificateInvalid, "Sender certificate is required for ECC encryption.");
+            }
 
             int signatureLength = CryptoUtils.GetSignatureLength(SenderCertificate!);
 
@@ -213,7 +224,7 @@ namespace Opc.Ua
             encoder.WriteNodeId(null, DataTypeIds.EccEncryptedSecret);
             encoder.WriteByte(null, (byte)ExtensionObjectEncoding.Binary);
 
-            lengthPosition = encoder.Position;
+            int lengthPosition = encoder.Position;
             encoder.WriteUInt32(null, 0);
 
             encoder.WriteString(null, SecurityPolicy.Uri);
@@ -228,7 +239,7 @@ namespace Opc.Ua
                 {
                     int blobSize = senderCertificate.Length;
 
-                    foreach (X509Certificate2 issuer in SenderIssuerCertificates)
+                    foreach (Certificate issuer in SenderIssuerCertificates)
                     {
                         blobSize += issuer.RawData.Length;
                     }
@@ -238,7 +249,7 @@ namespace Opc.Ua
 
                     int pos = senderCertificate.Length;
 
-                    foreach (X509Certificate2 issuer in SenderIssuerCertificates)
+                    foreach (Certificate issuer in SenderIssuerCertificates)
                     {
                         byte[] data = issuer.RawData;
                         Buffer.BlockCopy(data, 0, blob, pos, data.Length);
@@ -256,7 +267,14 @@ namespace Opc.Ua
             {
                 throw new ServiceResultException(
                     StatusCodes.BadArgumentsMissing,
-                    $"The receiver did not provide an ephemeral key.");
+                    "The receiver did not provide an ephemeral key.");
+            }
+
+            if (SenderNonce?.Data == null)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadArgumentsMissing,
+                    "The sender nonce is required for ECC encryption.");
             }
 
             byte[] senderNonce = SenderNonce!.Data;
@@ -339,8 +357,7 @@ namespace Opc.Ua
                 encoder.WriteByte(null, 0xDE);
             }
 
-            message = encoder.CloseAndReturnBuffer();
-
+            byte[]? message = encoder.CloseAndReturnBuffer();
             int length = message!.Length - lengthPosition - 4;
 
             message[lengthPosition++] = (byte)(length & 0xFF);
@@ -358,8 +375,9 @@ namespace Opc.Ua
 
             byte[]? signature = CryptoUtils.Sign(
                 dataToSign,
-                SenderCertificate!,
-                SecurityPolicy.AsymmetricSignatureAlgorithm);
+                SenderCertificate,
+                SecurityPolicy.AsymmetricSignatureAlgorithm) ??
+                throw new ServiceResultException(StatusCodes.BadSecurityChecksFailed, "Failed to sign data.");
 
             Buffer.BlockCopy(
                 signature!,
@@ -374,6 +392,7 @@ namespace Opc.Ua
         /// <summary>
         /// Encrypts a secret using RSAEncryptedSecret format.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public byte[] EncryptRsa(byte[] secret, byte[] nonce)
         {
             if (SecurityPolicy.EphemeralKeyAlgorithm != CertificateKeyAlgorithm.None)
@@ -404,7 +423,8 @@ namespace Opc.Ua
                     ReceiverCertificate,
                     SecurityPolicy.Uri,
                     keyData,
-                    logger).Data;
+                    logger).Data ??
+                    throw new ServiceResultException(StatusCodes.BadSecurityChecksFailed, "Failed to encrypt key data.");
 
                 using var payloadEncoder = new BinaryEncoder(Context);
                 payloadEncoder.WriteByteString(null, nonce ?? []);
@@ -431,7 +451,7 @@ namespace Opc.Ua
                 }
 
 #pragma warning disable CA5401 // Symmetric encryption uses non-default initialization vector
-                using Aes aes = Aes.Create();
+                using var aes = Aes.Create();
                 aes.Mode = CipherMode.CBC;
                 aes.Padding = PaddingMode.None;
                 aes.Key = encryptingKey;
@@ -457,9 +477,7 @@ namespace Opc.Ua
                 int lengthPosition = encoder.Position;
                 encoder.WriteUInt32(null, 0);
                 encoder.WriteString(null, SecurityPolicy.Uri);
-#pragma warning disable CA5350 // SHA1 is required by OPC UA RsaEncryptedSecret certificate hash field.
                 encoder.WriteByteString(null, ComputeSha1Hash(ReceiverCertificate.RawData));
-#pragma warning restore CA5350
                 encoder.WriteDateTime(null, DateTime.UtcNow);
                 encoder.WriteUInt16(null, (ushort)encryptedKeyData!.Length);
 
@@ -532,6 +550,7 @@ namespace Opc.Ua
         /// <summary>
         /// Tries to decrypt an RSAEncryptedSecret payload.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public bool TryDecryptRsa(byte[] encodedSecret, byte[] expectedNonce, out byte[]? secret)
         {
             secret = null;
@@ -578,20 +597,19 @@ namespace Opc.Ua
             ByteString certificateHash = decoder.ReadByteString(null);
             if (certificateHash.Length > 0)
             {
-#pragma warning disable CA5350 // SHA1 is required by OPC UA RsaEncryptedSecret certificate hash field.
                 byte[] actualCertificateHash = ComputeSha1Hash(ReceiverCertificate.RawData);
-#pragma warning restore CA5350
                 if (!Utils.IsEqual(certificateHash.ToArray(), actualCertificateHash))
                 {
                     throw new ServiceResultException(StatusCodes.BadCertificateInvalid);
                 }
             }
 
-            DateTime signingTime = (DateTime)decoder.ReadDateTime(null);
+            var signingTime = (DateTime)decoder.ReadDateTime(null);
             DateTime now = DateTime.UtcNow;
             // Accept tokens from the recent past to account for transit/processing delays while
             // only allowing a small future clock skew to prevent replay with future-dated tokens.
-            if (signingTime < now - s_rsaEncryptedSecretMaxTokenAge || signingTime > now + s_rsaEncryptedSecretMaxClockSkew)
+            if (signingTime < now - s_rsaEncryptedSecretMaxTokenAge ||
+                signingTime > now + s_rsaEncryptedSecretMaxClockSkew)
             {
                 throw new ServiceResultException(StatusCodes.BadInvalidTimestamp);
             }
@@ -685,10 +703,11 @@ namespace Opc.Ua
                 ArraySegment<byte> plainText = CryptoUtils.SymmetricDecryptAndVerify(
                     new ArraySegment<byte>(encryptedPayload!),
                     SecurityPolicy,
-                    encryptingKey!,
-                    iv!);
+                    encryptingKey,
+                    iv);
+                byte[] plainTextArray = plainText.Array ?? throw new ServiceResultException(StatusCodes.BadDecodingError);
                 payload = new byte[plainText.Count];
-                Buffer.BlockCopy(plainText.GetArray(), plainText.Offset, payload, 0, payload.Length);
+                Buffer.BlockCopy(plainTextArray, plainText.Offset, payload, 0, payload.Length);
 
                 using var payloadDecoder = new BinaryDecoder(payload, Context);
 
@@ -751,25 +770,25 @@ namespace Opc.Ua
                     Context.Telemetry);
                 return true;
             }
-            catch (Exception ex) when (
-                ex is ServiceResultException ||
-                ex is CryptographicException ||
-                ex is IOException ||
-                ex is FormatException ||
-                ex is ArgumentException)
+            catch (Exception ex) when (ex is
+                ServiceResultException or
+                CryptographicException or
+                IOException or
+                FormatException or
+                ArgumentException)
             {
                 return false;
             }
         }
 
-        private int GetPaddingCount(int blockSize, int secretLength, int dataLength)
+        private static int GetPaddingCount(int blockSize, int secretLength, int dataLength)
         {
             dataLength += 2; // add padding size
 
             int paddingCount =
                 dataLength % blockSize == 0
                 ? 0
-                : blockSize - dataLength % blockSize;
+                : blockSize - (dataLength % blockSize);
 
             if (paddingCount + secretLength < blockSize)
             {
@@ -787,15 +806,16 @@ namespace Opc.Ua
         /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         /// <returns>The encrypted data.</returns>
         /// <exception cref="ServiceResultException"></exception>
+        /// <exception cref="ArgumentNullException"></exception>
         private ArraySegment<byte> VerifyHeaderForEcc(
             ArraySegment<byte> dataToDecrypt,
             DateTime earliestTime,
             ITelemetryContext telemetry)
         {
-            // Buffer-backed segment guarantees a non-null backing array.
-            byte[] dataArray = dataToDecrypt.GetArray();
+            byte[] decryptArray = dataToDecrypt.Array ?? throw new ArgumentNullException(nameof(dataToDecrypt));
+
             using var decoder = new BinaryDecoder(
-                dataArray,
+                decryptArray,
                 dataToDecrypt.Offset,
                 dataToDecrypt.Count,
                 Context);
@@ -834,11 +854,11 @@ namespace Opc.Ua
             }
             else
             {
-                X509Certificate2Collection senderCertificateChain = Utils.ParseCertificateChainBlob(
+                using CertificateCollection senderCertificateChain = Utils.ParseCertificateChainBlob(
                     senderCertificate.ToArray(),
                     telemetry);
 
-                SenderCertificate = senderCertificateChain[0];
+                SenderCertificate = senderCertificateChain[0].AddRef();
                 SenderIssuerCertificates = [];
 
                 for (int ii = 1; ii < senderCertificateChain.Count; ii++)
@@ -847,11 +867,13 @@ namespace Opc.Ua
                 }
 
                 // validate the sender.
+#pragma warning disable CA2025 // Do not pass 'IDisposable' instances into unawaited tasks
                 Validator?.ValidateAsync(senderCertificateChain, default).GetAwaiter().GetResult();
+#pragma warning restore CA2025 // Do not pass 'IDisposable' instances into unawaited tasks
             }
 
             // extract the send certificate and any chain.
-            DateTime signingTime = (DateTime)decoder.ReadDateTime(null);
+            var signingTime = (DateTime)decoder.ReadDateTime(null);
 
             if (signingTime < earliestTime)
             {
@@ -884,7 +906,7 @@ namespace Opc.Ua
 
             SenderNonce = Nonce.CreateNonce(SecurityPolicy, senderPublicKey.ToArray());
 
-            if (!Utils.IsEqual(receiverPublicKey.ToArray(), ReceiverNonce!.Data))
+            if (!Utils.IsEqual(receiverPublicKey.ToArray(), ReceiverNonce?.Data))
             {
                 throw new ServiceResultException(
                     StatusCodes.BadDecodingError,
@@ -902,14 +924,14 @@ namespace Opc.Ua
             byte[] signature = new byte[signatureLength];
 
             Buffer.BlockCopy(
-                dataArray,
+                decryptArray,
                 dataToDecrypt.Offset + dataToDecrypt.Count - signatureLength,
                 signature,
                 0,
                 signatureLength);
 
             var dataToSign = new ArraySegment<byte>(
-                dataArray,
+                decryptArray,
                 dataToDecrypt.Offset,
                 dataToDecrypt.Count - signatureLength);
 
@@ -922,7 +944,7 @@ namespace Opc.Ua
 
             // extract the encrypted data.
             return new ArraySegment<byte>(
-                dataArray,
+                decryptArray,
                 dataToDecrypt.Offset + startOfEncryption,
                 dataToDecrypt.Count - startOfEncryption - signatureLength);
         }
@@ -950,6 +972,11 @@ namespace Opc.Ua
                 new ArraySegment<byte>(data, offset, count),
                 earliestTime,
                 telemetry);
+
+            if (ReceiverNonce == null || SenderNonce == null)
+            {
+                throw new ServiceResultException(StatusCodes.BadArgumentsMissing, "Receiver and sender nonces are required for ECC decryption.");
+            }
 
             CreateKeysForEcc(
                 SecurityPolicy,
@@ -989,17 +1016,17 @@ namespace Opc.Ua
             }
 
             ByteString key = decoder.ReadByteString(null);
-            var paddingCount = decoder.ReadByte(null);
+            byte paddingCount = decoder.ReadByte(null);
 
             int error = 0;
 
             for (int ii = 0; ii < paddingCount; ii++)
             {
-                var padding = decoder.ReadByte(null);
-                error |= (padding & ~paddingCount);
+                byte padding = decoder.ReadByte(null);
+                error |= padding & ~paddingCount;
             }
 
-            var highByte = decoder.ReadByte(null);
+            byte highByte = decoder.ReadByte(null);
 
             if (error != 0 || highByte != 0)
             {
@@ -1012,6 +1039,7 @@ namespace Opc.Ua
         /// <summary>
         /// Computes the SHA-1 hash required by the OPC UA RSAEncryptedSecret certificate hash field.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="data"/> is <c>null</c>.</exception>
         private static byte[] ComputeSha1Hash(byte[] data)
         {
             if (data == null)
@@ -1019,8 +1047,14 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(data));
             }
 
-            using SHA1 sha1 = SHA1.Create();
+#pragma warning disable CA5350 // Do Not Use Weak Cryptographic Algorithms
+#if NET8_0_OR_GREATER
+            return SHA1.HashData(data);
+#else
+            using var sha1 = SHA1.Create();
             return sha1.ComputeHash(data);
+#endif
+#pragma warning restore CA5350 // Do Not Use Weak Cryptographic Algorithms
         }
 
         private static void ZeroMemory(byte[]? buffer)

@@ -39,8 +39,7 @@ namespace Opc.Ua.Gds.Client
     /// <summary>
     /// A class that provides access to a Global Discovery Server.
     /// </summary>
-    public class GlobalDiscoveryServerClient
-        : IGlobalDiscoveryServerClient, IAsyncDisposable, IDisposable
+    public sealed class GlobalDiscoveryServerClient : IGlobalDiscoveryServerClient, IDisposable
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="GlobalDiscoveryServerClient"/> class.
@@ -74,12 +73,7 @@ namespace Opc.Ua.Gds.Client
             ISessionFactory? sessionFactory = null,
             DiagnosticsMasks diagnosticsMasks = DiagnosticsMasks.None)
         {
-            if (configuration == null)
-            {
-                throw new ArgumentNullException(nameof(configuration));
-            }
-
-            Configuration = configuration;
+            Configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
             m_options = options ?? new GdsClientOptions();
             MessageContext = configuration.CreateMessageContext();
             m_logger = MessageContext.Telemetry.CreateLogger<GlobalDiscoveryServerClient>();
@@ -122,7 +116,7 @@ namespace Opc.Ua.Gds.Client
             m_disposed = true;
             try
             {
-                m_disposeCts.Cancel();
+                await m_disposeCts.CancelAsync().ConfigureAwait(false);
             }
             catch (ObjectDisposedException)
             {
@@ -183,10 +177,6 @@ namespace Opc.Ua.Gds.Client
         /// </summary>
         public CertificateDirectoryTypeClient? CertificateDirectory => m_certificateDirectory;
 
-        private DirectoryTypeClient? m_directory;
-
-        private CertificateDirectoryTypeClient? m_certificateDirectory;
-
         /// <summary>
         /// Gets the endpoint. The setter is write-once: an endpoint may be
         /// assigned only before the first connect and only when not already
@@ -218,17 +208,19 @@ namespace Opc.Ua.Gds.Client
         {
             AdminCredentials = null;
         }
+
         /// <inheritdoc/>
         public async ValueTask<List<string>> GetDefaultServerUrlsAsync(
             LocalDiscoveryServerClient? lds,
             CancellationToken ct = default)
         {
             var serverUrls = new List<string>();
-
+            LocalDiscoveryServerClient localLds = lds != null ?
+                null :
+                new LocalDiscoveryServerClient(Configuration);
             try
             {
-                lds ??= new LocalDiscoveryServerClient(Configuration);
-
+                lds ??= localLds;
                 (ArrayOf<ServerOnNetwork> servers, DateTimeUtc _) = await lds.FindServersOnNetworkAsync(
                     0,
                     1000,
@@ -250,20 +242,28 @@ namespace Opc.Ua.Gds.Client
             {
                 m_logger.LogError(exception, "Unexpected error connecting to LDS");
             }
-
+            finally
+            {
+                if (localLds != null)
+                {
+                    await localLds.DisposeAsync().ConfigureAwait(false);
+                }
+            }
             return serverUrls;
         }
+
         /// <inheritdoc/>
         public async ValueTask<List<string>> GetDefaultGdsUrlsAsync(
             LocalDiscoveryServerClient? lds,
             CancellationToken ct = default)
         {
             var gdsUrls = new List<string>();
-
+            LocalDiscoveryServerClient localLds = lds != null ?
+                null :
+                new LocalDiscoveryServerClient(Configuration);
             try
             {
-                lds ??= new LocalDiscoveryServerClient(Configuration);
-
+                lds ??= localLds;
                 (ArrayOf<ServerOnNetwork> servers, DateTimeUtc _) = await lds.FindServersOnNetworkAsync(
                     0,
                     1000,
@@ -281,14 +281,23 @@ namespace Opc.Ua.Gds.Client
             {
                 m_logger.LogError(exception, "Unexpected error connecting to LDS");
             }
+            finally
+            {
+                if (localLds != null)
+                {
+                    await localLds.DisposeAsync().ConfigureAwait(false);
+                }
+            }
 
             return gdsUrls;
         }
+
         /// <inheritdoc/>
         public ValueTask ConnectAsync(CancellationToken ct = default)
         {
             return ConnectAsync(m_endpoint, ct);
         }
+
         /// <inheritdoc/>
         public async ValueTask ConnectAsync(string endpointUrl, CancellationToken ct = default)
         {
@@ -340,23 +349,17 @@ namespace Opc.Ua.Gds.Client
                     }
                 }
             }
-            throw lastException ?? ServiceResultException.Create(
-                StatusCodes.BadNoCommunication,
-                "Failed to connect after {0} attempts.",
-                maxAttempts);
+            throw lastException ??
+                ServiceResultException.Create(
+                    StatusCodes.BadNoCommunication,
+                    "Failed to connect after {0} attempts.",
+                    maxAttempts);
         }
+
         /// <inheritdoc/>
         public async ValueTask ConnectAsync(ConfiguredEndpoint? endpoint, CancellationToken ct = default)
         {
-            if (endpoint == null)
-            {
-                endpoint = m_endpoint;
-
-                if (endpoint == null)
-                {
-                    throw new ArgumentNullException(nameof(endpoint));
-                }
-            }
+            endpoint ??= m_endpoint ?? throw new ArgumentNullException(nameof(endpoint));
 
             int maxAttempts = m_options.MaxConnectAttempts;
             int backoffMs = (int)m_options.ConnectBackoff.TotalMilliseconds;
@@ -381,11 +384,13 @@ namespace Opc.Ua.Gds.Client
                     }
                 }
             }
-            throw lastException ?? ServiceResultException.Create(
-                StatusCodes.BadNoCommunication,
-                "Failed to connect after {0} attempts.",
-                maxAttempts);
+            throw lastException ??
+                ServiceResultException.Create(
+                    StatusCodes.BadNoCommunication,
+                    "Failed to connect after {0} attempts.",
+                    maxAttempts);
         }
+
         /// <inheritdoc/>
         public async ValueTask DisconnectAsync(CancellationToken ct = default)
         {
@@ -791,7 +796,7 @@ namespace Opc.Ua.Gds.Client
                     Session.Factory.Builder.AddOpcUaGds().Commit();
                 }
 
-                NodeId directoryNodeId = ExpandedNodeId.ToNodeId(
+                var directoryNodeId = ExpandedNodeId.ToNodeId(
                     ObjectIds.Directory,
                     Session.NamespaceUris);
                 m_directory = new DirectoryTypeClient(
@@ -844,6 +849,8 @@ namespace Opc.Ua.Gds.Client
         private readonly ILogger m_logger;
         private readonly GdsClientOptions m_options;
         private readonly CancellationTokenSource m_disposeCts = new();
+        private DirectoryTypeClient? m_directory;
+        private CertificateDirectoryTypeClient? m_certificateDirectory;
         private ConfiguredEndpoint? m_endpoint;
         private bool m_disposed;
     }

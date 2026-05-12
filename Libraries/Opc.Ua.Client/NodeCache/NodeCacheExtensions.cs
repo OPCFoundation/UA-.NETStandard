@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -241,7 +239,7 @@ namespace Opc.Ua
             ExpandedNodeId nodeId,
             CancellationToken ct = default)
         {
-            NodeId current = ExpandedNodeId.ToNodeId(nodeId, cache.NamespaceUris);
+            var current = ExpandedNodeId.ToNodeId(nodeId, cache.NamespaceUris);
             while (!current.IsNull)
             {
                 current = await cache.FindSuperTypeAsync(current, ct).ConfigureAwait(false);

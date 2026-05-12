@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 using System;
 using System.Text;
 
@@ -47,14 +49,31 @@ namespace Opc.Ua
     /// <summary>
     /// The default certificate password provider implementation.
     /// </summary>
+    /// <remarks>
+    /// Internally the password bytes are stored in an
+    /// <see cref="ISecretRegistry"/> (defaulting to a per-instance
+    /// <see cref="InMemorySecretStore"/>) under an opaque
+    /// <see cref="SecretIdentifier"/>. The legacy
+    /// <see cref="ICertificatePasswordProvider.GetPassword"/> contract
+    /// is preserved: callers receive a fresh <c>char[]</c> they may
+    /// zero after use. Future stores (DPAPI, Kubernetes, Key Vault)
+    /// can be plugged in via the
+    /// <see cref="CertificatePasswordProvider(ISecretRegistry, SecretIdentifier)"/>
+    /// ctor without touching this class.
+    /// </remarks>
     public class CertificatePasswordProvider : ICertificatePasswordProvider
     {
+        private const string kDefaultSecretName = "default";
+
+        private readonly ISecretRegistry m_registry;
+        private readonly SecretIdentifier m_id;
+
         /// <summary>
-        /// Default constructor.
+        /// Default constructor — empty password.
         /// </summary>
         public CertificatePasswordProvider()
         {
-            m_password = [];
+            (m_registry, m_id) = CreateInMemoryRegistry(passwordBytes: null);
         }
 
         /// <summary>
@@ -65,32 +84,32 @@ namespace Opc.Ua
         /// <param name="isUtf8String">Whether the password is utf8 string</param>
         public CertificatePasswordProvider(byte[] password, bool isUtf8String = true)
         {
-            if (password != null)
+            byte[] passwordBytes;
+            if (password == null)
             {
-                if (isUtf8String)
-                {
-                    m_password = Encoding.UTF8.GetString(password).ToCharArray();
-                }
-                else
-                {
-                    char[] charToken = new char[password.Length * 3];
-                    int length = Convert.ToBase64CharArray(
-                        password,
-                        0,
-                        password.Length,
-                        charToken,
-                        0,
-                        Base64FormattingOptions.None);
-                    char[] passcode = new char[length];
-                    charToken.CopyTo(passcode, 0);
-                    Array.Clear(charToken, 0, charToken.Length);
-                    m_password = passcode;
-                }
+                passwordBytes = [];
+            }
+            else if (isUtf8String)
+            {
+                // Already UTF-8; persist verbatim.
+                passwordBytes = (byte[])password.Clone();
             }
             else
             {
-                m_password = [];
+                // Treat the input as raw bytes and base64-encode for storage.
+                char[] charToken = new char[password.Length * 3];
+                int length = Convert.ToBase64CharArray(
+                    password,
+                    0,
+                    password.Length,
+                    charToken,
+                    0,
+                    Base64FormattingOptions.None);
+                passwordBytes = Encoding.UTF8.GetBytes(charToken, 0, length);
+                Array.Clear(charToken, 0, charToken.Length);
             }
+
+            (m_registry, m_id) = CreateInMemoryRegistry(passwordBytes);
         }
 
         /// <summary>
@@ -99,14 +118,35 @@ namespace Opc.Ua
         /// <param name="password"></param>
         public CertificatePasswordProvider(ReadOnlySpan<char> password)
         {
+            byte[]? passwordBytes;
             if (!password.IsEmpty && !password.IsWhiteSpace())
             {
-                m_password = password.ToArray();
+                passwordBytes = Encoding.UTF8.GetBytes(password.ToArray());
             }
             else
             {
-                m_password = [];
+                passwordBytes = null;
             }
+
+            (m_registry, m_id) = CreateInMemoryRegistry(passwordBytes);
+        }
+
+        /// <summary>
+        /// Advanced constructor that resolves the password from an existing
+        /// <see cref="ISecretRegistry"/> via a caller-supplied
+        /// <see cref="SecretIdentifier"/>. Use this overload to plug in a
+        /// custom store (e.g. a DPAPI or Key Vault backed
+        /// <see cref="ISecretStore"/>) without copying password bytes
+        /// through the legacy ctors.
+        /// </summary>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="registry"/> or <paramref name="id"/> is
+        /// <c>null</c>.
+        /// </exception>
+        public CertificatePasswordProvider(ISecretRegistry registry, SecretIdentifier id)
+        {
+            m_registry = registry ?? throw new ArgumentNullException(nameof(registry));
+            m_id = id ?? throw new ArgumentNullException(nameof(id));
         }
 
         /// <summary>
@@ -114,9 +154,42 @@ namespace Opc.Ua
         /// </summary>
         public char[] GetPassword(CertificateIdentifier certificateIdentifier)
         {
-            return m_password;
+            using ISecret? secret = m_registry.TryGet(m_id);
+            if (secret == null || secret.Bytes.IsEmpty)
+            {
+                return [];
+            }
+
+            return Encoding.UTF8.GetChars(secret.Bytes.ToArray());
         }
 
-        private readonly char[] m_password;
+        /// <summary>
+        /// Builds a per-instance in-memory store + registry pair holding
+        /// <paramref name="passwordBytes"/> (if non-null/non-empty)
+        /// under <see cref="kDefaultSecretName"/>.
+        /// </summary>
+        private static (ISecretRegistry registry, SecretIdentifier id) CreateInMemoryRegistry(
+            byte[]? passwordBytes)
+        {
+            var store = new InMemorySecretStore();
+            var registry = new SecretRegistry(store);
+            var id = new SecretIdentifier(
+                kDefaultSecretName,
+                InMemorySecretStore.DefaultStoreType);
+
+            if (passwordBytes != null && passwordBytes.Length > 0)
+            {
+                // The store hands out per-call ISecret views over a
+                // private byte[] copy; SetAsync on InMemorySecretStore
+                // completes synchronously so blocking is safe here.
+                System.Threading.Tasks.ValueTask vt = store.SetAsync(id, passwordBytes);
+                if (!vt.IsCompletedSuccessfully)
+                {
+                    vt.AsTask().GetAwaiter().GetResult();
+                }
+            }
+
+            return (registry, id);
+        }
     }
 }

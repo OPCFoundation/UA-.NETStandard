@@ -28,7 +28,7 @@
  * ======================================================================*/
 
 using System;
-using System.Security.Cryptography.X509Certificates;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua
 {
@@ -49,7 +49,7 @@ namespace Opc.Ua
             string globalChannelId,
             EndpointDescription endpointDescription,
             OpenSecureChannelRequest request,
-            X509Certificate2 clientCertificate,
+            Certificate clientCertificate,
             Exception exception);
 
         /// <summary>
@@ -64,6 +64,6 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="clientCertificate">The client certificate.</param>
         /// <param name="exception">The Exception that triggers a certificate audit event.</param>
-        void ReportAuditCertificateEvent(X509Certificate2 clientCertificate, Exception exception);
+        void ReportAuditCertificateEvent(Certificate clientCertificate, Exception exception);
     }
 }

@@ -1773,7 +1773,7 @@ namespace Opc.Ua
                     values = default;
                     return true;
                 }
-                EnumValue[] result = new EnumValue[elements.Count];
+                var result = new EnumValue[elements.Count];
                 for (int i = 0; i < elements.Count; i++)
                 {
                     if (!TryGetEnumerationFromElement(elements[i], out result[i]))
@@ -3426,7 +3426,10 @@ namespace Opc.Ua
                     case BuiltInType.String when TryGetStringArrayFromElement(
                         element,
                         out ArrayOf<string?> v):
-#pragma warning disable CS8620 // Argument cannot be used due to nullability differences. ArrayOf<string?> and ArrayOf<string> share runtime layout; null elements are tolerated by Variant.
+                        // Argument cannot be used due to nullability differences.
+                        // ArrayOf<string?> and ArrayOf<string> share runtime layout;
+                        // null elements are tolerated by Variant.
+#pragma warning disable CS8620
                         value = Variant.From(v);
 #pragma warning restore CS8620
                         return true;
@@ -3477,7 +3480,10 @@ namespace Opc.Ua
                     case BuiltInType.DataValue when TryGetDataValueArrayFromElement(
                         element,
                         out ArrayOf<DataValue?> v):
-#pragma warning disable CS8620 // Argument cannot be used due to nullability differences. ArrayOf<DataValue?> and ArrayOf<DataValue> share runtime layout; null elements are tolerated by Variant.
+                        // Argument cannot be used due to nullability differences.
+                        // ArrayOf<DataValue?> and ArrayOf<DataValue> share runtime layout;
+                        // null elements are tolerated by Variant.
+#pragma warning disable CS8620
                         value = Variant.From(v);
 #pragma warning restore CS8620
                         return true;
@@ -3614,7 +3620,10 @@ namespace Opc.Ua
                         case BuiltInType.String when TryGetStringArrayFromElement(
                             element,
                             out ArrayOf<string?> v):
-#pragma warning disable CS8620 // Argument cannot be used due to nullability differences. MatrixOf<string?> and MatrixOf<string> share runtime layout; null elements are tolerated by Variant.
+                            // Argument cannot be used due to nullability differences.
+                            // MatrixOf<string?> and MatrixOf<string> share runtime layout;
+                            // null elements are tolerated by Variant.
+#pragma warning disable CS8620
                             value = Variant.From(v.ToMatrix(dims));
 #pragma warning restore CS8620
                             return true;
@@ -3665,7 +3674,10 @@ namespace Opc.Ua
                         case BuiltInType.DataValue when TryGetDataValueArrayFromElement(
                             element,
                             out ArrayOf<DataValue?> v):
-#pragma warning disable CS8620 // Argument cannot be used due to nullability differences. MatrixOf<DataValue?> and MatrixOf<DataValue> share runtime layout; null elements are tolerated by Variant.
+                            // Argument cannot be used due to nullability differences.
+                            // MatrixOf<DataValue?> and MatrixOf<DataValue> share runtime layout;
+                            // null elements are tolerated by Variant.
+#pragma warning disable CS8620
                             value = Variant.From(v.ToMatrix(dims));
 #pragma warning restore CS8620
                             return true;

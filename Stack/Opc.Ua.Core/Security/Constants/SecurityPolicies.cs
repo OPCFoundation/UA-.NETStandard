@@ -31,8 +31,8 @@ using System;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Security.Cryptography;
-using System.Security.Cryptography.X509Certificates;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Security.Certificates;
 
 #if NET8_0_OR_GREATER
 using System.Collections.Frozen;
@@ -484,7 +484,7 @@ namespace Opc.Ua
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
         public static EncryptedData Encrypt(
-            X509Certificate2 certificate,
+            Certificate certificate,
             string securityPolicyUri,
             ReadOnlySpan<byte> plainText,
             ILogger logger)
@@ -500,7 +500,7 @@ namespace Opc.Ua
 
             // get the info object.
             // unsupported policy.
-            var info = GetInfo(securityPolicyUri) ??
+            SecurityPolicyInfo info = GetInfo(securityPolicyUri) ??
                 throw ServiceResultException.Create(
                     StatusCodes.BadSecurityPolicyRejected,
                     "Unsupported security policy: {0}",
@@ -520,7 +520,6 @@ namespace Opc.Ua
                             logger);
                         break;
                     case AsymmetricEncryptionAlgorithm.RsaPkcs15Sha1:
-                    {
                         encryptedData.Algorithm = SecurityAlgorithms.Rsa15;
                         encryptedData.Data = RsaUtils.Encrypt(
                             plainText,
@@ -528,9 +527,7 @@ namespace Opc.Ua
                             RsaUtils.Padding.Pkcs1,
                             logger);
                         break;
-                    }
                     case AsymmetricEncryptionAlgorithm.RsaOaepSha256:
-                    {
                         encryptedData.Algorithm = SecurityAlgorithms.RsaOaepSha256;
                         encryptedData.Data = RsaUtils.Encrypt(
                             plainText,
@@ -538,7 +535,6 @@ namespace Opc.Ua
                             RsaUtils.Padding.OaepSHA256,
                             logger);
                         break;
-                    }
                 }
             }
             else
@@ -555,7 +551,7 @@ namespace Opc.Ua
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
         public static byte[]? Decrypt(
-            X509Certificate2 certificate,
+            Certificate certificate,
             string securityPolicyUri,
             EncryptedData? dataToDecrypt,
             ILogger logger)
@@ -574,7 +570,7 @@ namespace Opc.Ua
 
             // get the info object.
             // unsupported policy.
-            var info = GetInfo(securityPolicyUri) ??
+            SecurityPolicyInfo info = GetInfo(securityPolicyUri) ??
                 throw ServiceResultException.Create(
                     StatusCodes.BadSecurityPolicyRejected,
                     "Unsupported security policy: {0}",
@@ -635,7 +631,7 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException"></exception>
         public static SignatureData CreateSignatureData(
             string securityPolicyUri,
-            X509Certificate2 signingCertificate,
+            Certificate signingCertificate,
             byte[]? secureChannelSecret,
             byte[]? remoteCertificate,
             byte[]? remoteChannelCertificate,
@@ -653,7 +649,7 @@ namespace Opc.Ua
 
             // get the info object.
             // unsupported policy.
-            var info = GetInfo(securityPolicyUri) ??
+            SecurityPolicyInfo info = GetInfo(securityPolicyUri) ??
                 throw ServiceResultException.Create(
                     StatusCodes.BadSecurityPolicyRejected,
                     "Unsupported security policy: {0}",
@@ -681,17 +677,14 @@ namespace Opc.Ua
         /// </summary>
         public static SignatureData CreateSignatureData(
            string securityPolicyUri,
-           X509Certificate2 localCertificate,
+           Certificate localCertificate,
            byte[] dataToSign)
         {
-            var info = GetInfo(securityPolicyUri);
-            if (info == null)
-            {
+            SecurityPolicyInfo info = GetInfo(securityPolicyUri) ??
                 throw ServiceResultException.Create(
                     StatusCodes.BadSecurityPolicyRejected,
                     "Unsupported security policy: {0}",
                     securityPolicyUri);
-            }
             return CreateSignatureData(info, localCertificate, dataToSign);
         }
 
@@ -701,7 +694,7 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException"></exception>
         public static SignatureData CreateSignatureData(
            SecurityPolicyInfo securityPolicy,
-           X509Certificate2 localCertificate,
+           Certificate localCertificate,
            byte[] dataToSign)
         {
             var signatureData = new SignatureData();
@@ -753,7 +746,7 @@ namespace Opc.Ua
         public static bool VerifySignatureData(
             SignatureData signature,
             string securityPolicyUri,
-            X509Certificate2 signingCertificate,
+            Certificate signingCertificate,
             byte[]? secureChannelSecret,
             byte[]? localCertificate,
             byte[]? localChannelCertificate,
@@ -761,7 +754,7 @@ namespace Opc.Ua
             byte[]? localNonce,
             byte[]? remoteNonce)
         {
-            var signatureData = new SignatureData();
+            _ = new SignatureData();
 
             // nothing more to do if no encryption.
             if (string.IsNullOrEmpty(securityPolicyUri))
@@ -771,7 +764,7 @@ namespace Opc.Ua
 
             // get the info object.
             // unsupported policy.
-            var info = GetInfo(securityPolicyUri) ??
+            SecurityPolicyInfo info = GetInfo(securityPolicyUri) ??
                 throw ServiceResultException.Create(
                     StatusCodes.BadSecurityPolicyRejected,
                     "Unsupported security policy: {0}",
@@ -797,20 +790,18 @@ namespace Opc.Ua
         /// <summary>
         /// Verifies the signature using the SecurityPolicyUri and return true if valid.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public static bool VerifySignatureData(
             SignatureData signature,
             string securityPolicyUri,
-            X509Certificate2 signingCertificate,
+            Certificate signingCertificate,
             byte[] dataToVerify)
         {
-            var info = GetInfo(securityPolicyUri);
-            if (info == null)
-            {
+            SecurityPolicyInfo info = GetInfo(securityPolicyUri) ??
                 throw ServiceResultException.Create(
                     StatusCodes.BadSecurityPolicyRejected,
                     "Unsupported security policy: {0}",
                     securityPolicyUri);
-            }
             return VerifySignatureData(signature, info, signingCertificate, dataToVerify);
         }
 
@@ -821,7 +812,7 @@ namespace Opc.Ua
         public static bool VerifySignatureData(
             SignatureData signature,
             SecurityPolicyInfo securityPolicy,
-            X509Certificate2 signingCertificate,
+            Certificate signingCertificate,
             byte[] dataToVerify)
         {
             // check if nothing to do.

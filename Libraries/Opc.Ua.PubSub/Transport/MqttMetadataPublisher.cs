@@ -36,7 +36,11 @@ namespace Opc.Ua.PubSub.Transport
     /// <summary>
     /// Entity responsible to trigger DataSetMetaData messages as configured for a <see cref="DataSetWriterDataType"/>.
     /// </summary>
+    // CA1001: public class — adding IDisposable is a binary break. The IntervalRunner
+    // is owned and stopped via the public Stop() lifecycle method.
+#pragma warning disable CA1001
     public class MqttMetadataPublisher
+#pragma warning restore CA1001
     {
         private readonly IMqttPubSubConnection m_parentConnection;
         private readonly WriterGroupDataType m_writerGroup;

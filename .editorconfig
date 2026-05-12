@@ -420,8 +420,22 @@ dotnet_diagnostic.IDE1005.severity                                            = 
 dotnet_diagnostic.IDE0046.severity                                            = silent
 # IDE0130: Namespace does not match folder structure
 dotnet_diagnostic.IDE0130.severity                                            = none
-# IDE0032: Use auto property
-dotnet_diagnostic.IDE0032.severity                                            = suggestion
+# IDE0032: Use auto property — explicit backing fields are intentional in many sites
+# (state-machine wrappers, NodeState subclasses); auto-fixer cannot tell the difference.
+dotnet_diagnostic.IDE0032.severity                                            = silent
+# IDE0360: Use primary constructor — explicitly disabled (project policy: no primary constructors)
+dotnet_diagnostic.IDE0360.severity                                            = none
+# IDE0060: Remove unused parameter — most sites are OPC UA framework / NodeManager
+# callbacks where the parameter is required by the contract. Per-site fixes are
+# not practical at the current volume.
+dotnet_diagnostic.IDE0060.severity                                            = silent
+# IDE1006: Naming rule violation — repo convention is 'm_' prefix for private/internal
+# fields (long-standing). Public-API symbols also follow OPC UA spec terms that the
+# rule flags as violations; renaming the public surface would break consumers.
+dotnet_diagnostic.IDE1006.severity                                            = silent
+# IDE0370: 'Suppression is unnecessary' — auto-fixer cannot safely apply (some analyzer
+# configurations make these suppressions necessary on TFMs the fixer cannot evaluate).
+dotnet_diagnostic.IDE0370.severity                                            = silent
 
 #
 # Introduced in .net 10 as part of all analysis configuration

@@ -27,6 +27,9 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+// CA2000: test code; many disposables are ownership-transferred to test fixtures or short-lived,
+// making CA2000 noisy without a real leak risk. Disabled file-level for the suite.
+#pragma warning disable CA2000
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -64,8 +67,8 @@ namespace Opc.Ua.Core.Tests.Types.Nonce
         {
             if (IsSupportedByPlatform(securityPolicyUri))
             {
-                var info = Ua.SecurityPolicies.GetInfo(securityPolicyUri);
-                var nonceLength = info.SecureChannelNonceLength;
+                SecurityPolicyInfo info = SecurityPolicies.GetInfo(securityPolicyUri);
+                int nonceLength = info.SecureChannelNonceLength;
 
                 var nonce = Ua.Nonce.CreateNonce(securityPolicyUri);
 
@@ -84,8 +87,8 @@ namespace Opc.Ua.Core.Tests.Types.Nonce
         {
             if (IsSupportedByPlatform(securityPolicyUri))
             {
-                var info = Ua.SecurityPolicies.GetInfo(securityPolicyUri);
-                var nonceLength = info.SecureChannelNonceLength;
+                SecurityPolicyInfo info = SecurityPolicies.GetInfo(securityPolicyUri);
+                int nonceLength = info.SecureChannelNonceLength;
                 var nonceByLen = Ua.Nonce.CreateNonce(securityPolicyUri);
 
                 var nonceByData = Ua.Nonce.CreateNonce(info, nonceByLen.Data);
@@ -107,8 +110,8 @@ namespace Opc.Ua.Core.Tests.Types.Nonce
         {
             if (IsSupportedByPlatform(securityPolicyUri))
             {
-                var info = Ua.SecurityPolicies.GetInfo(securityPolicyUri);
-                var nonceLength = info.SecureChannelNonceLength;
+                SecurityPolicyInfo info = SecurityPolicies.GetInfo(securityPolicyUri);
+                int nonceLength = info.SecureChannelNonceLength;
 
                 byte[] randomValue = Ua.Nonce.CreateRandomNonceData(nonceLength);
 

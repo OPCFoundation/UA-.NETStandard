@@ -326,7 +326,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         public void ConstructorWithNullApplicationDescriptionThrows()
         {
             Assert.Throws<ArgumentNullException>(() =>
-                new ConfiguredEndpoint((ApplicationDescription)null, EndpointConfiguration.Create()));
+                new ConfiguredEndpoint(null, EndpointConfiguration.Create()));
         }
 
         [Test]

@@ -389,7 +389,7 @@ namespace Quickstarts.Servers
                 return null;
             }
 
-            Uuid id = decoder.ReadGuid(null);
+            _ = decoder.ReadGuid(null);
             uint batchSize = decoder.ReadUInt32(null);
             uint monItemId = decoder.ReadUInt32(null);
             bool isPersisted = decoder.ReadBoolean(null);
@@ -486,7 +486,7 @@ namespace Quickstarts.Servers
                 return null;
             }
 
-            Uuid id = decoder.ReadGuid(null);
+            _ = decoder.ReadGuid(null);
             uint batchSize = decoder.ReadUInt32(null);
             uint monItemId = decoder.ReadUInt32(null);
             bool isPersisted = decoder.ReadBoolean(null);

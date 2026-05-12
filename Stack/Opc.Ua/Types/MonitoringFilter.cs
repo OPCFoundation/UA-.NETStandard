@@ -135,7 +135,7 @@ namespace Opc.Ua
                 return true;
             }
 
-            Ua.DeadbandType actualDeadbandType = (Ua.DeadbandType)(int)DeadbandType;
+            var actualDeadbandType = (DeadbandType)(int)DeadbandType;
             BuiltInType builtInType = value1.TypeInfo.BuiltInType;
             int valueRank = value1.TypeInfo.ValueRank;
 
@@ -590,7 +590,7 @@ namespace Opc.Ua
         private static bool ExceedsDeadband(
             Variant value1,
             Variant value2,
-            Ua.DeadbandType deadbandType,
+            DeadbandType deadbandType,
             double deadband,
             double range)
         {
@@ -603,7 +603,7 @@ namespace Opc.Ua
             try
             {
                 if (!value1.TryGetDecimal(out decimal decimal1) ||
-                   !value2.TryGetDecimal(out decimal decimal2))
+                    !value2.TryGetDecimal(out decimal decimal2))
                 {
                     throw new InvalidOperationException("Failed to check for deadband");
                 }
@@ -633,7 +633,7 @@ namespace Opc.Ua
         private static bool ExceedsDeadband(
             double value1,
             double value2,
-            Ua.DeadbandType deadbandType,
+            DeadbandType deadbandType,
             double deadband,
             double range)
         {

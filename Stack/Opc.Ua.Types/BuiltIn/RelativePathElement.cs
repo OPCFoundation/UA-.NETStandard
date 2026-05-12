@@ -176,7 +176,10 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public static bool operator ==(RelativePathElement? left, RelativePathElement? right)
         {
-            if (left is null) return right is null;
+            if (left is null)
+            {
+                return right is null;
+            }
             return left.Equals(right);
         }
 

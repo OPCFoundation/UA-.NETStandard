@@ -174,12 +174,14 @@ namespace Quickstarts
                 string? outputFilePath = configuration.TraceConfiguration!.OutputFilePath;
                 if (!string.IsNullOrWhiteSpace(outputFilePath))
                 {
+#pragma warning disable CA1305 // Specify IFormatProvider
                     loggerConfiguration.WriteTo.File(
                         Utils.ReplaceSpecialFolderNames(outputFilePath)!,
-                        outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff} [{Level:u3}] {Message:lj}{NewLine}{Exception}",
                         restrictedToMinimumLevel: (LogEventLevel)fileLevel,
+                        outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff} [{Level:u3}] {Message:lj}{NewLine}{Exception}",
                         rollOnFileSizeLimit: true
                     );
+#pragma warning restore CA1305 // Specify IFormatProvider
                 }
             }
 

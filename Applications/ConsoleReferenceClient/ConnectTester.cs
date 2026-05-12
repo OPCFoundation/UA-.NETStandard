@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -40,13 +39,14 @@ using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.Client;
 using Opc.Ua.Configuration;
+using Opc.Ua.Security.Certificates;
 
 namespace Quickstarts
 {
     /// <summary>
     /// Wraps connect testing functionality
     /// </summary>
-    public sealed class ConnectTester : IDisposable
+    public sealed class ConnectTester : IAsyncDisposable
     {
         public ConnectTester(
             ITelemetryContext telemetry,
@@ -58,9 +58,15 @@ namespace Quickstarts
         }
 
         /// <inheritdoc/>
-        public void Dispose()
+        public async ValueTask DisposeAsync()
         {
             m_reconnectHandler?.Dispose();
+            ISession session = m_wrapper?.Session;
+            if (session != null)
+            {
+                await session.DisposeAsync().ConfigureAwait(false);
+            }
+            GC.SuppressFinalize(this);
         }
 
         /// <summary>
@@ -94,22 +100,24 @@ namespace Quickstarts
                     ConfigSectionName = configSectionName,
                     CertificatePasswordProvider = passwordProvider
                 };
-
-                // load the application configuration.
-                ApplicationConfiguration configuration = m_configuration = await application
-                    .LoadApplicationConfigurationAsync(silent: false, ct: ct)
-                    .ConfigureAwait(false);
-
-                m_configuration.CertificateValidator!.CertificateValidation += CertificateValidation;
-
-                // check the application certificate.
-                bool haveAppCertificate = await application
-                    .CheckApplicationInstanceCertificatesAsync(false, ct: ct)
-                    .ConfigureAwait(false);
-
-                if (!haveAppCertificate)
+                await using (application.ConfigureAwait(false))
                 {
-                    throw new InvalidOperationException("Application instance certificate invalid!");
+                    // load the application configuration.
+                    m_configuration = await application
+                        .LoadApplicationConfigurationAsync(silent: false, ct: ct)
+                        .ConfigureAwait(false);
+
+                    m_configuration.CertificateManager.AcceptError = AcceptCertificate;
+
+                    // check the application certificate.
+                    bool haveAppCertificate = await application
+                        .CheckApplicationInstanceCertificatesAsync(false, ct: ct)
+                        .ConfigureAwait(false);
+
+                    if (!haveAppCertificate)
+                    {
+                        throw new InvalidOperationException("Application instance certificate invalid!");
+                    }
                 }
 
                 m_logger.LogInformation("Connecting to... {ServerUrl}", kServerUrl);
@@ -135,7 +143,10 @@ namespace Quickstarts
 
                     string thumbprint = x509.Thumbprint!;
 
-                    UserIdentity certificateIdentity = await LoadUserCertificateAsync(thumbprint, "password", ct).ConfigureAwait(false);
+                    UserIdentity certificateIdentity = await LoadUserCertificateAsync(
+                        thumbprint,
+                        "password",
+                        ct).ConfigureAwait(false);
 
                     var identities = new List<UserIdentity>
                     {
@@ -267,26 +278,37 @@ namespace Quickstarts
                     ct
                 )
                 .ConfigureAwait(false);
-
-            SessionWrapper wrapper = m_wrapper = new SessionWrapper { Session = isession };
-
-            // Assign the created session
-            if (!wrapper.Session.Connected)
+            bool ownsSession = true;
+            try
             {
-                throw new InvalidOperationException("Could not connect to server at " + kServerUrl);
+                SessionWrapper wrapper = m_wrapper = new SessionWrapper { Session = isession };
+                ownsSession = false;
+
+                // Assign the created session
+                if (!wrapper.Session.Connected)
+                {
+                    throw new InvalidOperationException("Could not connect to server at " + kServerUrl);
+                }
+
+                wrapper.Session.KeepAliveInterval = 10000;
+                wrapper.Session.KeepAlive += Session_KeepAlive;
+
+                var samples = new ClientSamples(m_telemetry, null, m_quitEvent);
+                ArrayOf<ReferenceDescription> nodes = await samples.BrowseFullAddressSpaceAsync(
+                    wrapper,
+                    ObjectIds.ObjectsFolder,
+                    null,
+                    ct).ConfigureAwait(false);
+
+                return wrapper;
             }
-
-            wrapper.Session.KeepAliveInterval = 10000;
-            wrapper.Session.KeepAlive += Session_KeepAlive;
-
-            var samples = new ClientSamples(m_telemetry, null, m_quitEvent);
-            ArrayOf<ReferenceDescription> nodes = await samples.BrowseFullAddressSpaceAsync(
-                wrapper,
-                ObjectIds.ObjectsFolder,
-                null,
-                ct).ConfigureAwait(false);
-
-            return wrapper;
+            finally
+            {
+                if (ownsSession)
+                {
+                    await isession.DisposeAsync().ConfigureAwait(false);
+                }
+            }
         }
 
         private async Task<UserIdentity> LoadUserCertificateAsync(
@@ -297,15 +319,17 @@ namespace Quickstarts
             CertificateTrustList store = m_configuration.SecurityConfiguration.TrustedUserCertificates!;
 #if NET8_0_OR_GREATER
             // get user certificate with matching thumbprint
-            X509Certificate2Collection certificates =
+            using CertificateCollection certificates =
                 await store.GetCertificatesAsync(m_telemetry, ct).ConfigureAwait(false);
-            X509Certificate2 hit = certificates
+            using Certificate hit = certificates
                 .Find(X509FindType.FindByThumbprint, thumbprint, false)
                 .FirstOrDefault()!;
 
             // create Certificate Identifier
-            var cid = new CertificateIdentifier(hit)
+            var cid = new CertificateIdentifier
             {
+                Thumbprint = hit.Thumbprint,
+                SubjectName = hit.Subject,
                 StorePath = store.StorePath,
                 StoreType = store.StoreType
             };
@@ -313,12 +337,8 @@ namespace Quickstarts
             return await UserIdentity.CreateAsync(
                 cid,
                 new CertificatePasswordProvider(new UTF8Encoding(false).GetBytes(password)),
-                m_telemetry,
+                m_configuration.CertificateManager.CertificateProvider,
                 ct).ConfigureAwait(false);
-#else
-            await Task.Delay(1, ct).ConfigureAwait(false);
-            throw new NotSupportedException("User certificate identity is only supported on .NET 8 or greater.");
-#endif
         }
 
         private static async ValueTask<ArrayOf<EndpointDescription>> GetEndpointsAsync(
@@ -337,38 +357,29 @@ namespace Quickstarts
             return await client.GetEndpointsAsync(default, ct).ConfigureAwait(false);
         }
 
-        private void CertificateValidation(
-            CertificateValidator sender,
-            CertificateValidationEventArgs e)
+        private bool AcceptCertificate(Certificate certificate, ServiceResult error)
         {
-            bool certificateAccepted = false;
-
             // ****
             // Implement a custom logic to decide if the certificate should be
-            // accepted or not and set certificateAccepted flag accordingly.
-            // The certificate can be retrieved from the e.Certificate field
+            // accepted. Return true to accept, false to reject.
             // ***
-
-            ServiceResult error = e.Error;
             m_logger.LogInformation("{ServiceResult}", error);
-            if (error.StatusCode == StatusCodes.BadCertificateUntrusted)
-            {
-                certificateAccepted = true;
-            }
+            bool certificateAccepted = error.StatusCode == StatusCodes.BadCertificateUntrusted;
 
             if (certificateAccepted)
             {
                 m_logger.LogInformation(
                     "Untrusted Certificate accepted. Subject = {Subject}",
-                    e.Certificate.Subject);
-                e.Accept = true;
+                    certificate.Subject);
             }
             else
             {
                 m_logger.LogInformation(
                     "Untrusted Certificate rejected. Subject = {Subject}",
-                    e.Certificate.Subject);
+                    certificate.Subject);
             }
+
+            return certificateAccepted;
         }
 
         /// <summary>
@@ -489,8 +500,8 @@ namespace Quickstarts
         private SessionReconnectHandler? m_reconnectHandler;
         private ApplicationConfiguration m_configuration = null!;
         private SessionWrapper? m_wrapper;
-        private ILogger m_logger;
-        private ITelemetryContext m_telemetry;
+        private readonly ILogger m_logger;
+        private readonly ITelemetryContext m_telemetry;
         private readonly ManualResetEvent? m_quitEvent;
 
         private const string kServerUrl = "opc.tcp://localhost:62541";

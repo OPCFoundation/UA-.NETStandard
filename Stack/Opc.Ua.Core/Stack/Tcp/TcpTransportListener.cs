@@ -34,7 +34,6 @@ using System.Globalization;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
-using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -370,7 +369,7 @@ namespace Opc.Ua.Bindings
             m_quotas.CertificateValidator = settings.CertificateValidator;
 
             // save the server certificate.
-            m_serverCertificateTypesProvider = settings.ServerCertificateTypesProvider!;
+            m_serverCertificates = settings.ServerCertificates!;
 
             m_bufferManager = new BufferManager("Server", m_quotas.MaxBufferSize, m_telemetry);
             m_channels = new ConcurrentDictionary<uint, TcpListenerChannel>();
@@ -428,7 +427,7 @@ namespace Opc.Ua.Bindings
             uint requestId,
             uint sequenceNumber,
             uint channelId,
-            X509Certificate2 clientCertificate,
+            Certificate clientCertificate,
             ChannelToken token,
             OpenSecureChannelRequest request)
         {
@@ -496,7 +495,7 @@ namespace Opc.Ua.Bindings
                     this,
                     m_bufferManager,
                     m_quotas,
-                    m_serverCertificateTypesProvider,
+                    m_serverCertificates,
                     m_descriptions,
                     m_telemetry);
 
@@ -795,24 +794,24 @@ namespace Opc.Ua.Bindings
         /// Called when a UpdateCertificate event occured.
         /// </summary>
         public void CertificateUpdate(
-            ICertificateValidator validator,
-            CertificateTypesProvider serverCertificateTypes)
+            ICertificateValidatorEx validator,
+            ICertificateRegistry serverCertificates)
         {
             m_quotas.CertificateValidator = validator;
-            m_serverCertificateTypesProvider = serverCertificateTypes;
+            m_serverCertificates = serverCertificates;
             foreach (EndpointDescription description in m_descriptions)
             {
                 // TODO: why only if SERVERCERT != null
                 if (!description.ServerCertificate.IsEmpty)
                 {
-                    X509Certificate2? serverCertificate = serverCertificateTypes
+                    Certificate? serverCertificate = serverCertificates
                         .GetInstanceCertificate(
-                            description.SecurityPolicyUri!);
-                    if (serverCertificateTypes.SendCertificateChain)
+                            description.SecurityPolicyUri!)?.Certificate;
+                    if (serverCertificates.SendCertificateChain)
                     {
                         description.ServerCertificate =
-                            serverCertificateTypes.LoadCertificateChainRaw(
-                                serverCertificate)!.ToByteString();
+                            serverCertificates.LoadCertificateChainRaw(
+                                serverCertificate!)!.ToByteString();
                     }
                     else
                     {
@@ -947,7 +946,7 @@ namespace Opc.Ua.Bindings
                                         this,
                                         m_bufferManager,
                                         m_quotas,
-                                        m_serverCertificateTypesProvider,
+                                        m_serverCertificates,
                                         m_descriptions,
                                         m_telemetry);
                                 }
@@ -1114,6 +1113,21 @@ namespace Opc.Ua.Bindings
             catch (Exception e)
             {
                 m_logger.LogError(e, "TCPLISTENER - Unexpected error processing request.");
+
+                // Send a service fault back to the client so it does not hang waiting
+                // for a response to a request the server failed to dispatch (e.g. when a
+                // certificate became invalid mid-flight during ApplyChanges).
+                try
+                {
+                    ServiceFault fault = EndpointBase.CreateFault(m_logger, request, e);
+                    ((TcpServerChannel)channel).SendResponse(requestId, fault);
+                }
+                catch (Exception faultEx)
+                {
+                    m_logger.LogError(
+                        faultEx,
+                        "TCPLISTENER - Failed to send fault response to client.");
+                }
             }
         }
 
@@ -1123,7 +1137,7 @@ namespace Opc.Ua.Bindings
         private void OnReportAuditOpenSecureChannelEvent(
             TcpServerChannel channel,
             OpenSecureChannelRequest request,
-            X509Certificate2? clientCertificate,
+            Certificate? clientCertificate,
             Exception? exception)
         {
             try
@@ -1166,7 +1180,7 @@ namespace Opc.Ua.Bindings
         /// Callback for reporting the certificate audit events
         /// </summary>
         private void OnReportAuditCertificateEvent(
-            X509Certificate2 clientCertificate,
+            Certificate clientCertificate,
             Exception exception)
         {
             try
@@ -1198,7 +1212,7 @@ namespace Opc.Ua.Bindings
         private List<EndpointDescription> m_descriptions = null!;
         private BufferManager m_bufferManager = null!;
         private ChannelQuotas m_quotas = null!;
-        private CertificateTypesProvider m_serverCertificateTypesProvider = null!;
+        private ICertificateRegistry m_serverCertificates = null!;
         private int m_lastChannelId;
         private Socket? m_listeningSocket;
         private Socket? m_listeningSocketIPv6;

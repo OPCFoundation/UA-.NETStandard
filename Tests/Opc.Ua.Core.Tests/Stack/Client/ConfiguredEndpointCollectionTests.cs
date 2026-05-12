@@ -62,7 +62,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             collection.Save(ms);
 
             ms.Position = 0;
-            ConfiguredEndpointCollection loaded =
+            var loaded =
                 ConfiguredEndpointCollection.Load(ms, m_telemetry);
 
             Assert.That(loaded.Count, Is.EqualTo(2));
@@ -402,7 +402,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             collection.Save(ms);
 
             ms.Position = 0;
-            ConfiguredEndpointCollection loaded =
+            var loaded =
                 ConfiguredEndpointCollection.Load(ms, m_telemetry);
 
             Assert.That(loaded.Count, Is.EqualTo(1));

@@ -27,12 +27,14 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 using System;
 using System.IO;
-using System.Security.Cryptography.X509Certificates;
 using System.Text;
 #if NETSTANDARD2_1 || NET5_0_OR_GREATER
 using System.Diagnostics.CodeAnalysis;
+using System.Security.Cryptography.X509Certificates;
 using System.Security.Cryptography;
 #endif
 
@@ -41,7 +43,11 @@ namespace Opc.Ua.Security.Certificates
     /// <summary>
     /// Write certificate/crl data in PEM format.
     /// </summary>
-    public static partial class PEMWriter
+    public static
+#if NETFRAMEWORK
+        partial
+#endif
+        class PEMWriter
     {
         /// <summary>
         /// Returns a byte array containing the CRL in PEM format.
@@ -62,7 +68,7 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// Returns a byte array containing the cert in PEM format.
         /// </summary>
-        public static byte[] ExportCertificateAsPEM(X509Certificate2 certificate)
+        public static byte[] ExportCertificateAsPEM(Certificate certificate)
         {
             return EncodeAsPEM(certificate.RawData, "CERTIFICATE");
         }
@@ -71,52 +77,47 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// Returns a byte array containing the public key in PEM format.
         /// </summary>
-        public static byte[] ExportPublicKeyAsPEM(X509Certificate2 certificate)
+        /// <exception cref="CryptographicException"></exception>
+        public static byte[] ExportPublicKeyAsPEM(Certificate certificate)
         {
-            byte[] exportedPublicKey;
-            using (RSA? rsaPublicKey = certificate.GetRSAPublicKey())
-            {
-                // TODO: validate non-null public key before dereferencing.
-                exportedPublicKey = rsaPublicKey!.ExportSubjectPublicKeyInfo();
-            }
+            using RSA rsaPublicKey = certificate.GetRSAPublicKey()
+                ?? throw new CryptographicException("RSA public key not found.");
+            byte[] exportedPublicKey = rsaPublicKey.ExportSubjectPublicKeyInfo();
             return EncodeAsPEM(exportedPublicKey, "PUBLIC KEY");
         }
 
         /// <summary>
         /// Returns a byte array containing the RSA private key in PEM format.
         /// </summary>
-        public static byte[] ExportRSAPrivateKeyAsPEM(X509Certificate2 certificate)
+        /// <exception cref="CryptographicException"></exception>
+        public static byte[] ExportRSAPrivateKeyAsPEM(Certificate certificate)
         {
-            byte[] exportedRSAPrivateKey;
-            using (RSA? rsaPrivateKey = certificate.GetRSAPrivateKey())
-            {
-                // TODO: validate non-null private key before dereferencing.
-                // write private key as PKCS#1
-                exportedRSAPrivateKey = rsaPrivateKey!.ExportRSAPrivateKey();
-            }
+            using RSA rsaPrivateKey = certificate.GetRSAPrivateKey()
+                ?? throw new CryptographicException("RSA private key not found.");
+            // write private key as PKCS#1
+            byte[] exportedRSAPrivateKey = rsaPrivateKey.ExportRSAPrivateKey();
             return EncodeAsPEM(exportedRSAPrivateKey, "RSA PRIVATE KEY");
         }
 
         /// <summary>
         /// Returns a byte array containing the ECDsa private key in PEM format.
         /// </summary>
-        public static byte[] ExportECDsaPrivateKeyAsPEM(X509Certificate2 certificate)
+        /// <exception cref="CryptographicException"></exception>
+        public static byte[] ExportECDsaPrivateKeyAsPEM(Certificate certificate)
         {
-            byte[] exportedECPrivateKey;
-            using (ECDsa? ecdsaPrivateKey = certificate.GetECDsaPrivateKey())
-            {
-                // TODO: validate non-null private key before dereferencing.
-                // write private key as PKCS#1
-                exportedECPrivateKey = ecdsaPrivateKey!.ExportECPrivateKey();
-            }
+            using ECDsa ecdsaPrivateKey = certificate.GetECDsaPrivateKey()
+                ?? throw new CryptographicException("ECDsa private key not found.");
+            // write private key as PKCS#1
+            byte[] exportedECPrivateKey = ecdsaPrivateKey.ExportECPrivateKey();
             return EncodeAsPEM(exportedECPrivateKey, "EC PRIVATE KEY");
         }
 
         /// <summary>
         /// Returns a byte array containing the private key in PEM format.
         /// </summary>
+        /// <exception cref="CryptographicException"></exception>
         public static byte[] ExportPrivateKeyAsPEM(
-            X509Certificate2 certificate,
+            Certificate certificate,
             ReadOnlySpan<char> password = default)
         {
             byte[]? exportedPkcs8PrivateKey = null;
@@ -154,7 +155,7 @@ namespace Opc.Ua.Security.Certificates
 
             // TODO: returns null content if neither RSA nor ECDsa private key is present.
             return EncodeAsPEM(
-                exportedPkcs8PrivateKey!,
+                exportedPkcs8PrivateKey ?? throw new CryptographicException("No private key found."),
                 password.IsEmpty || password.IsWhiteSpace() ? "PRIVATE KEY" : "ENCRYPTED PRIVATE KEY");
         }
 
@@ -202,21 +203,20 @@ namespace Opc.Ua.Security.Certificates
                         out int bytesWritten))
                     {
 #if NET6_0_OR_GREATER
-                        X509Certificate2 certificate = X509CertificateLoader.LoadCertificate(
+                        using X509Certificate2 certificate = X509CertificateLoader.LoadCertificate(
                             pemCertificateDecoded);
 #else
-                        X509Certificate2 certificate = X509CertificateLoader.LoadCertificate(
+                        using X509Certificate2 certificate = X509CertificateLoader.LoadCertificate(
                             pemCertificateDecoded.ToArray());
 #endif
-                        if (thumbprint.Equals(
-                            certificate.Thumbprint,
-                            StringComparison.OrdinalIgnoreCase))
+                        if (thumbprint.Equals(certificate.Thumbprint, StringComparison.OrdinalIgnoreCase))
                         {
+                            int blockStart = beginIndex - beginlabel.Length;
+                            int blockEnd = endIndex + endlabel.Length;
+                            int blockLength = blockEnd - blockStart;
                             modifiedPemDataBlob = Encoding.ASCII.GetBytes(
                                 pemText.Replace(
-                                    pemText.Substring(
-                                        beginIndex -= beginlabel.Length,
-                                        endIndex + endlabel.Length),
+                                    pemText.Substring(blockStart, blockLength),
                                     string.Empty,
                                     StringComparison.Ordinal));
                             return true;

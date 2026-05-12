@@ -40,7 +40,7 @@ namespace Opc.Ua
     /// <summary>
     /// The base class for custom nodes.
     /// </summary>
-    public abstract class NodeState : IDisposable, IFormattable, ICloneable
+    public abstract class NodeState : IFormattable, ICloneable
     {
         /// <summary>
         /// Creates an empty object.
@@ -49,23 +49,6 @@ namespace Opc.Ua
         protected NodeState(NodeClass nodeClass)
         {
             NodeClass = nodeClass;
-        }
-
-        /// <summary>
-        /// An overrideable version of the Dispose.
-        /// </summary>
-        public void Dispose()
-        {
-            Dispose(true);
-            GC.SuppressFinalize(this);
-        }
-
-        /// <summary>
-        /// An overrideable version of the Dispose.
-        /// </summary>
-        protected virtual void Dispose(bool disposing)
-        {
-            // does nothing.
         }
 
         /// <inheritdoc/>

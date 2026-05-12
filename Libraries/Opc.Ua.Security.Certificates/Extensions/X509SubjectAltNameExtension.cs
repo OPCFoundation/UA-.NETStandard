@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -86,7 +88,8 @@ namespace Opc.Ua.Security.Certificates
         /// Creates an extension from ASN.1 encoded data.
         /// </summary>
         public X509SubjectAltNameExtension(AsnEncodedData encodedExtension, bool critical)
-            : this(encodedExtension.Oid!, encodedExtension.RawData, critical)
+            : this(encodedExtension.Oid ?? throw new ArgumentException("Encoded extension has no OID.", nameof(encodedExtension)),
+                   encodedExtension.RawData, critical)
         {
         }
 

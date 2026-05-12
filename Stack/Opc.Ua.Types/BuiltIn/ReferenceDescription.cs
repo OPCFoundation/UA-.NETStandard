@@ -229,7 +229,10 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public static bool operator ==(ReferenceDescription? left, ReferenceDescription? right)
         {
-            if (left is null) return right is null;
+            if (left is null)
+            {
+                return right is null;
+            }
             return left.Equals(right);
         }
 

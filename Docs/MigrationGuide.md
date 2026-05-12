@@ -3,11 +3,13 @@
 - [Migration Guide](#migration-guide)
   - [Migrating from 1.5.378 to 1.6.x](#migrating-from-15378-to-16x)
     - [Source Generation](#source-generation)
+      - [Default value of boolean properties in source-generated data types is now false](#default-value-of-boolean-properties-in-source-generated-data-types-is-now-false)
       - [Project Structure](#project-structure)
     - [Improved Type safety](#improved-type-safety)
       - [Several built in types are now immutable value types](#several-built-in-types-are-now-immutable-value-types)
       - [ByteString](#bytestring)
       - [ArrayOf and MatrixOf](#arrayof-and-matrixof)
+        - [Configuration collection types removed](#configuration-collection-types-removed)
       - [DateTimeUtc](#datetimeutc)
       - [QualifiedName and LocalizedText](#qualifiedname-and-localizedtext)
       - [StatusCode](#statuscode)
@@ -17,25 +19,11 @@
         - [Replacement of all use of System.Object in generated code and API](#replacement-of-all-use-of-systemobject-in-generated-code-and-api)
       - [XmlElement](#xmlelement)
       - [EnumValue to represent the enumeration built in type](#enumvalue-to-represent-the-enumeration-built-in-type)
+      - [ExtensionObject array helpers changed](#extensionobject-array-helpers-changed)
       - [Other Data Types](#other-data-types)
       - [Obsoleted APIs and replacements](#obsoleted-apis-and-replacements)
       - [APIs permanently removed](#apis-permanently-removed)
-    - [Encoders and Decoders](#encoders-and-decoders)
-    - [Node States](#node-states)
-      - [Generics and Typed BaseVariableState and BaseVariableTypeState](#generics-and-typed-basevariablestate-and-basevariabletypestate)
-      - [Predefined node processing](#predefined-node-processing)
-    - [User Identity Token Handlers](#user-identity-token-handlers)
-    - [Serialization and Configuration](#serialization-and-configuration)
-      - [DataContract to DataType migration](#datacontract-to-datatype-migration)
-      - [Configuration collection types removed](#configuration-collection-types-removed)
-      - [DataContractSerializer replaced](#datacontractserializer-replaced)
-      - [Newtonsoft.Json removed from Opc.Ua.Core](#newtonsoftjson-removed-from-opcuacore)
-      - [ParseExtension/UpdateExtension signature changed](#parseextensionupdateextension-signature-changed)
-    - [NodeState Cloning and Lifecycle](#nodestate-cloning-and-lifecycle)
-      - [Clone() replaced with CreateCopy()](#clone-replaced-with-createcopy)
-      - [BaseVariableState Read/Write helpers removed](#basevariablestate-readwrite-helpers-removed)
-      - [OnAfterCreate gains CancellationToken](#onaftercreate-gains-cancellationtoken)
-    - [Encodeable Factory and Type System](#encodeable-factory-and-type-system)
+    - [Encodeable Factory and Complex Type System](#encodeable-factory-and-complex-type-system)
       - [IType hierarchy](#itype-hierarchy)
       - [IEncodeableTypeLookup changes](#iencodeabletypelookup-changes)
       - [IEncodeableFactoryBuilder changes](#iencodeablefactorybuilder-changes)
@@ -45,12 +33,24 @@
     - [Complex Types](#complex-types)
       - [ComplexTypes moved to Opc.Ua.Client assembly](#complextypes-moved-to-opcuaclient-assembly)
       - [OptionSet DataType support](#optionset-datatype-support)
-    - [Session and Browser State Persistence](#session-and-browser-state-persistence)
-      - [Property type changes](#property-type-changes)
-      - [`IUserIdentity` on `SessionOptions` is now computed](#iuseridentity-on-sessionoptions-is-now-computed)
-      - [Encoding format is not guaranteed backward compatible](#encoding-format-is-not-guaranteed-backward-compatible)
-    - [Other Breaking Changes](#other-breaking-changes)
-      - [Boolean default values in source-generated data types](#boolean-default-values-in-source-generated-data-types)
+    - [Encoders and Decoders](#encoders-and-decoders)
+    - [Node States](#node-states)
+      - [Generics and Typed BaseVariableState and BaseVariableTypeState](#generics-and-typed-basevariablestate-and-basevariabletypestate)
+      - [Predefined node processing](#predefined-node-processing)
+      - [NodeState Cloning and Lifecycle](#nodestate-cloning-and-lifecycle)
+        - [Clone() replaced with CreateCopy()](#clone-replaced-with-createcopy)
+        - [BaseVariableState Read/Write helpers removed](#basevariablestate-readwrite-helpers-removed)
+        - [OnAfterCreate gains CancellationToken](#onaftercreate-gains-cancellationtoken)
+    - [User Identity Token Handlers](#user-identity-token-handlers)
+    - [Configuration](#configuration)
+      - [Data Contract Serializer support removed](#data-contract-serializer-support-removed)
+      - [Newtonsoft.Json removed from Opc.Ua.Core](#newtonsoftjson-removed-from-opcuacore)
+      - [ParseExtension/UpdateExtension signature changed](#parseextensionupdateextension-signature-changed)
+      - [Session and Browser State Persistence](#session-and-browser-state-persistence)
+    - [Certificate Management](#certificate-management)
+      - [Certificate and CertificateCollection wrapper types](#certificate-and-certificatecollection-wrapper-types)
+      - [CertificateManager and segregated interfaces](#certificatemanager-and-segregated-interfaces)
+      - [Obsoleted certificate APIs](#obsoleted-certificate-apis)
     - [GDS Client API modernization](#gds-client-api-modernization)
       - [`Task` → `ValueTask` on GDS client interfaces](#task--valuetask-on-gds-client-interfaces)
       - [Removal of obsolete GDS APIs](#removal-of-obsolete-gds-apis)
@@ -76,7 +76,7 @@ Version 1.6 introduces a major architectural change from pre-generated code file
 
 ### Source Generation
 
-Instead of generating code for OPC UA design files using the [ModelCompiler](https://github.com/OPCFoundation/UA-ModelCompiler), this version of the stack uses [Source Generators](https://learn.microsoft.com/dotnet/csharp/roslyn-sdk/#source-generators) to generate code behind for your project. Input into the source generator can be NodeSet2.xml files or ModelDesign.xml files (the same that ModelCompiler consumes). Source generators are Roslyn analyzers, that are called by the Roslyn compiler and emit code during the build process.
+Instead of generating code for OPC UA design files using the [ModelCompiler](https://github.com/OPCFoundation/UA-ModelCompiler), this version of the stack uses [Source Generators](https://learn.microsoft.com/dotnet/csharp/roslyn-sdk/#source-generators) to generate code behind for your project. Input into the source generator can be NodeSet2.xml files or ModelDesign.xml files (the same that ModelCompiler consumes). Example projects are provided in the Applications folder. Source generators are Roslyn analyzers, that are called by the Roslyn compiler and emit code during the build process.
 
 **Model compiler generated csharp code is not supported in this version!**
 
@@ -104,7 +104,45 @@ Code generation during compilation also allows not just emitting code ahead of t
 
 The stack itself uses source generators to generate the core opc ua code. Therefore all pre-generated code files (`Generated/` folders) have been removed and are now generated at build time. As a result of using source generators to generate the stack code all `*.nodeset2.xml` files previously included as embedded zip have been removed. Also, all `*.Types.xsd` and `*.Types.bsd` files are now included as string resource instead of embedded resources. If you need access to these, use the new `Schemas.XmlAsStream` and `Schemas.BinaryAsStream` APIs in the node manager namespace which produce a utf8 stream. Alternatively you can use the existing ModelCompiler tool to generate these files.
 
-When you encounter slower build times use incremental compilation and avoid changes to code in Opc.Ua and Opc.Ua.Core project. In addition you can change your builds to only build for your target framework using the dotnet `-f <tfm>` command line option.
+When you encounter slower build times use incremental compilation and avoid changes to code in Opc.Ua and Opc.Ua.Core project. In addition you can change your builds to only build for your target framework using the dotnet `-f <tfm>` command line option, e.g. `-f net10`.
+
+#### Default value of boolean properties in source-generated data types is now false
+
+**Breaking Change**: Boolean properties on source-generated data types now correctly default to `false` instead of `true`.
+
+Generated code produced by the model compiler contained a bug because it inverted the default value for boolean fields in generated data types. Boolean fields without an explicit `<DefaultValue>` in the model design XML were initialized to `true` instead of `false` as expected and defined in Part 6. This has been fixed.
+
+**Impact**: Any code that creates instances of source-generated data types and relies on boolean properties being `true` by default must now explicitly set those properties to `true`. This primarily affects PubSub configuration types:
+
+| Type | Property | Old Default | New Default |
+|---|---|---|---|
+| `PubSubConfigurationDataType` | `Enabled` | `true` | `false` |
+| `PubSubConnectionDataType` | `Enabled` | `true` | `false` |
+| `WriterGroupDataType` | `Enabled` | `true` | `false` |
+| `ReaderGroupDataType` | `Enabled` | `true` | `false` |
+| `DataSetWriterDataType` | `Enabled` | `true` | `false` |
+| `DataSetReaderDataType` | `Enabled` | `true` | `false` |
+| `PublishedDataSetCustomSourceDataType` | `CyclicDataSet` | `true` | `false` |
+
+Other affected types include all source-generated structures with boolean fields (e.g., `AggregateConfiguration.TreatUncertainAsBad`, `MonitoringParameters.DiscardOldest`, `CreateSubscriptionRequest.PublishingEnabled`) as well as 
+some hand-written types in `Opc.Ua.Types` (such as `BrowseDescription`, `RelativePathElement`).
+
+**Migration**: Add explicit initialization where your code depends on `true` as the default:
+
+```csharp
+// Before (relied on incorrect true default)
+var connection = new PubSubConnectionDataType
+{
+    Name = "MyConnection"
+};
+
+// After (explicitly set Enabled)
+var connection = new PubSubConnectionDataType
+{
+    Enabled = true,
+    Name = "MyConnection"
+};
+```
 
 #### Project Structure
 
@@ -184,6 +222,10 @@ Note that equality operators and methods now compare the content of the Array an
     var first = !c.IsEmpty ? c[0] : default;
     ArrayOf<int> i = c.ConvertAll(v => (int)v);
 ```
+
+##### Configuration collection types removed
+
+All `List<T>`-based collection wrappers for configuration types have been removed and replaced with `ArrayOf<T>`: `ServerSecurityPolicyCollection`, `TransportConfigurationCollection`, `SamplingRateGroupCollection`, `ReverseConnectClientCollection`, `ReverseConnectClientEndpointCollection`, `ServerRegistrationCollection`, `CertificateIdentifierCollection`, `CertificateGroupConfigurationCollection`, `OAuth2ServerSettingsCollection`, `OAuth2CredentialCollection`.
 
 #### DateTimeUtc
 
@@ -283,6 +325,10 @@ Variant v = new Variant(EnumValue.From(MyEnum.Value)); // or
 Variant v = Variant.From(MyEnum.Value);
 ```
 
+#### ExtensionObject array helpers changed
+
+`ExtensionObject.ToArray(object, Type)` and `ToList<T>(object)` removed. Use `extensionObjects.GetStructuresOf<T>()` or `ExtensionObject.ToArray<T>(ArrayOf<ExtensionObject>)`.
+
 #### Other Data Types
 
 All generated data types implementing `IEncodeable` are now equality comparable using `==` and `!=` and implement `IEquatable<T>`. Equality defaults to the `IsEqual` implementation of the `IEncodeable` interface. In addition `ToString()` and `GetHashCode()` are implemented making all generated data types effectively equivalent to `record` classes with the exception of supporting `with` expressions.
@@ -341,6 +387,47 @@ No changes are required, however there can be subtle bugs exposed, e.g.:
 - Session `Call/CallAsync(param object[])` -> use `Call/CallAsync(param Variant[])`
 - `byte[]` as ByteString -> use `ByteString`
 - `new DataValue(DataValue)` copy constructor -> use `DataValue.Copy()` instance method or `Clone()`
+
+### Encodeable Factory and Complex Type System
+
+#### IType hierarchy
+
+New type abstraction layer: `IType` (base) with `IBuiltInType`, `IEnumeratedType` (new), and `IEncodeableType` (now extends `IType`). Many APIs return `IType` instead of `Type`:
+
+- `TypeInfo.GetSystemType(ExpandedNodeId, IEncodeableTypeLookup)` → returns `IType` (was `Type`). Use `.Type` property to get the CLR `Type`.
+- The overload `TypeInfo.GetSystemType(BuiltInType, int valueRank)` was removed.
+
+#### IEncodeableTypeLookup changes
+
+- `TryGetEncodeableType<T>()` removed.
+- Added: `TryGetEnumeratedType(ExpandedNodeId, out IEnumeratedType?)`, `TryGetType(XmlQualifiedName, out IType?)`.
+
+#### IEncodeableFactoryBuilder changes
+
+- `AddEncodeableType(ExpandedNodeId, Type)` → renamed to `AddType(ExpandedNodeId, Type)`.
+- Added: `AddEnumeratedType(IEnumeratedType)`, `AddEnumeratedType(ExpandedNodeId, IEnumeratedType)`.
+- `AddEncodeableType(Type)` and `AddEncodeableTypes(Assembly)` now have AOT annotations (`[DynamicallyAccessedMembers]`, `[RequiresUnreferencedCode]`).
+
+#### EncodeableFactory.GlobalFactory removed
+
+The `[Obsolete]` static `EncodeableFactory.GlobalFactory` was removed. `EncodeableFactory.Create()` renamed to `Fork()`. Use `ServiceMessageContext.Factory` instead.
+
+#### ComplexTypes moved to Opc.Ua.Client assembly
+
+Core complex type interfaces and default (non-reflection-emit) implementations moved from `Opc.Ua.Client.ComplexTypes` to `Libraries/Opc.Ua.Client/ComplexTypes/`.
+Namespace remains `Opc.Ua.Client.ComplexTypes`. If you used the default constructors without specifying the builder, and want to use the Reflection.Emit based type builders,
+you need to change your code to call `ComplexTypeSystem.Create(...)` instead of `new ComplexTypeSystem(...)` which now uses the new default builder not supporting Reflection.Emit.
+
+#### OptionSet DataType support
+
+Concrete Structure-backed sub-types of the abstract `OptionSet` DataType (`i=12755`) are now automatically registered by the default `ComplexTypeSystem` builder with a new runtime class `Opc.Ua.Encoders.OptionSet` (in `Stack/Opc.Ua.Types`). Bit-field metadata is resolved from `DataTypeDefinition` (`EnumDefinition`) or, as a fallback, synthesized from the `OptionSetValues` property (`LocalizedText[]`).
+
+Impact on existing code:
+
+- **Source-breaking for custom `IComplexTypeBuilder` implementations**: a new member `AddOptionSetType(QualifiedName, ExpandedNodeId, ExpandedNodeId, ExpandedNodeId, ExpandedNodeId, EnumDefinition)` was added to `IComplexTypeBuilder`. Custom implementations must provide it.
+- The Reflection.Emit builder in `Opc.Ua.Client.ComplexTypes` throws `NotSupportedException` from `AddOptionSetType`; callers relying on the Reflection.Emit path for OptionSet sub-types should switch to the default builder (`new ComplexTypeSystem(session)`).
+- No wire-format changes: encoders/decoders continue to route through `IEncodeableFactory` → `IEncodeableType.CreateInstance`, which now yields `Opc.Ua.Encoders.OptionSet` for registered sub-types.
+- UInteger-backed OptionSet DataTypes remain treated as their underlying unsigned integer in a `Variant` (unchanged).
 
 ### Encoders and Decoders
 
@@ -423,21 +510,65 @@ Example guidance (mirrors BoilerNodeManager): the node passed to `AddBehaviorToP
 
 See [NodeStates](./../Stack/Opc.Ua.Types/State/readme.md) document for more information.
 
-### User Identity Token Handlers
+#### NodeState Cloning and Lifecycle
 
-**Breaking Change**: Identity tokens no longer perform cryptographic operations directly. New handler pattern introduced for better security and lifetime management.
+##### Node state does not implement IDisposable anymore.
 
-**Before**:
+Node states do not manage resources, they access resources. Therefore the management of resources must be done in a node manager.
+If you are overriding Dispose() on a NodeState to manage the node state, make the method public instead of protected, and maintain
+a list of node states on which you must call the Dispose() method when the Node Manager is disposed.  Better, associated node states 
+only via an identifier with a backend "system" that manages all state centrally and in your control.
+
+##### Clone() replaced with CreateCopy()
+
+`NodeState.Clone()` is now a concrete method that calls `CreateCopy()` + `CopyTo()`. The new `protected abstract NodeState CreateCopy()` must be overridden by all direct NodeState subclasses.
 
 ```csharp
-    var token = new X509IdentityToken();
-    token.Encrypt(certificate, nonce, securityPolicy, context);
-    token.Decrypt(certificate, nonce, securityPolicy, context);
-    var signature = token.Sign(data, securityPolicy);
-    bool isValid = token.Verify(data, signature, securityPolicy);
+// Before
+public override object Clone()
+{
+    var clone = new MyNodeState(Parent);
+    CopyTo(clone);
+    return clone;
+}
+
+// After
+protected override NodeState CreateCopy()
+{
+    return new MyNodeState(Parent);
+}
 ```
 
-**After**:
+If you had custom deep-copy logic beyond what `CopyTo()` does, override `CopyTo()` instead.
+
+##### BaseVariableState Read/Write helpers removed
+
+The `protected ServiceResult Read(object, ref object)` and `protected object Write(object)` methods were removed.
+Use the `CopyPolicy` property or the new `CopyOnWrite` bool directly with `CoreUtils.Clone()` for copy-on-read/write semantics.
+
+##### OnAfterCreate gains CancellationToken
+
+`OnAfterCreate(ISystemContext, NodeState)` now has an optional `CancellationToken ct = default` parameter.
+Existing overrides compile (source-compatible) but are **binary-incompatible** — pre-compiled assemblies won't match at runtime.
+
+```csharp
+protected override void OnAfterCreate(ISystemContext context, NodeState node, CancellationToken ct = default)
+{
+    base.OnAfterCreate(context, node, ct);
+}
+```
+
+### User Identity Token Handlers
+
+**Breaking Change**: Identity tokens no longer perform cryptographic
+operations directly. The handler pattern introduced earlier is now
+**fully asynchronous** and **non-disposable**, and the
+`Certificate`-taking ctors of `UserIdentity` and
+`X509IdentityTokenHandler` have been removed in favour of a
+`CertificateIdentifier` + `ICertificateProvider` model that resolves
+the private-key cert on demand.
+
+**Before**:
 
 ```csharp
     var token = new X509IdentityToken();
@@ -446,68 +577,177 @@ See [NodeStates](./../Stack/Opc.Ua.Types/State/readme.md) document for more info
     handler.Decrypt(certificate, nonce, securityPolicy, context);
     var signature = handler.Sign(data, securityPolicy);
     bool isValid = handler.Verify(data, signature, securityPolicy);
+
+    using var userIdentity = new UserIdentity(certificate);   // legacy ctor
 ```
 
-**New Interface**:
+**After**:
+
+```csharp
+    var token = new X509IdentityToken();
+    var handler = token.AsTokenHandler();                      // not IDisposable
+    await handler.EncryptAsync(certificate, nonce, securityPolicy, context, ct: ct);
+    await handler.DecryptAsync(certificate, nonce, securityPolicy, context, ct: ct);
+    SignatureData signature = await handler.SignAsync(data, securityPolicy, ct);
+    bool isValid = await handler.VerifyAsync(data, signature, securityPolicy, ct);
+
+    // New cert-based UserIdentity: identifier + cache-aware provider.
+    UserIdentity userIdentity = await UserIdentity.CreateAsync(
+        certificateIdentifier,
+        passwordProvider,
+        configuration.CertificateManager.CertificateProvider,
+        ct);
+```
+
+**New interface shape**:
 
 ```csharp
     public interface IUserIdentityTokenHandler :
-        IDisposable, ICloneable, IEquatable<IUserIdentityTokenHandler>
+        ICloneable, IEquatable<IUserIdentityTokenHandler>
     {
         UserIdentityToken Token { get; }
         string DisplayName { get; }
         UserTokenType TokenType { get; }
 
         void UpdatePolicy(UserTokenPolicy userTokenPolicy);
-        void Encrypt(X509Certificate2 receiverCertificate, byte[] receiverNonce,
-                    string securityPolicyUri, IServiceMessageContext context, ...);
-        void Decrypt(X509Certificate2 certificate, Nonce receiverNonce,
-                    string securityPolicyUri, IServiceMessageContext context, ...);
-        SignatureData Sign(byte[] dataToSign, string securityPolicyUri);
-        bool Verify(byte[] dataToVerify, SignatureData signatureData, string securityPolicyUri);
+
+        ValueTask EncryptAsync(
+            Certificate receiverCertificate, byte[] receiverNonce,
+            string securityPolicyUri, IServiceMessageContext context,
+            ..., CancellationToken ct = default);
+        ValueTask DecryptAsync(
+            Certificate certificate, Nonce receiverNonce,
+            string securityPolicyUri, IServiceMessageContext context,
+            ..., CancellationToken ct = default);
+        ValueTask<SignatureData> SignAsync(
+            byte[] dataToSign, string securityPolicyUri,
+            CancellationToken ct = default);
+        ValueTask<bool> VerifyAsync(
+            byte[] dataToVerify, SignatureData signatureData,
+            string securityPolicyUri, CancellationToken ct = default);
     }
 ```
 
-**Migration Required**:
+**Migration required**:
 
-1. **Replace direct token crypto operations**:
+| Removed | Replacement |
+| ------- | ----------- |
+| `IUserIdentityTokenHandler : IDisposable` | `IUserIdentityTokenHandler` (no `IDisposable`). Drop `using` on handler instances. Sensitive byte buffers (`UserNameIdentityTokenHandler.DecryptedPassword`, `IssuedIdentityTokenHandler.DecryptedTokenData`) are no longer cleared on disposal — secure-memory management is the secret store's responsibility (deferred to a future revision). |
+| `UserIdentity : IDisposable`, `UserIdentity.Dispose()` | `UserIdentity` (no `IDisposable`). Drop `using` on `new UserIdentity(...)`. |
+| `handler.Encrypt(...)` (sync) | `await handler.EncryptAsync(..., ct)` |
+| `handler.Decrypt(...)` (sync) | `await handler.DecryptAsync(..., ct)` |
+| `SignatureData handler.Sign(...)` (sync) | `await handler.SignAsync(..., ct)` |
+| `bool handler.Verify(...)` (sync) | `await handler.VerifyAsync(..., ct)` |
+| `new UserIdentity(Certificate)` (legacy ctor) | `await UserIdentity.CreateAsync(certificateIdentifier, passwordProvider, certificateProvider, ct)` — the new ctor stores the identifier; the cert is materialised on demand by the provider. |
+| `new X509IdentityTokenHandler(Certificate)` | `new X509IdentityTokenHandler(CertificateIdentifier, ICertificatePasswordProvider, ICertificateProvider)` — handler holds no live Certificate; on `SignAsync` the provider's cache is consulted (`TryGetPrivateKeyCertificate`) then the store (`GetPrivateKeyCertificateAsync`). |
+| `[Obsolete] new UserIdentity(CertificateIdentifier, CertificatePasswordProvider)` | `await UserIdentity.CreateAsync(certificateIdentifier, passwordProvider, certificateProvider, ct)` — the obsolete ctor blocked on async; the new factory does not pre-resolve. |
+| `await UserIdentity.CreateAsync(certId, passwordProvider, telemetry, ct)` | `await UserIdentity.CreateAsync(certId, passwordProvider, certificateProvider, ct)` — `ICertificateProvider` (typically `configuration.CertificateManager.CertificateProvider`) replaces the telemetry-only argument list. |
 
-    ```csharp
-    // OLD - Direct operations on token
-    userIdentityToken.Encrypt(...);
-
-    // NEW - Use handler pattern
-    using var handler = userIdentityToken.AsTokenHandler();
-    handler.Encrypt(...);
-    ```
-
-2. **Proper lifetime management**:
-
-    ```csharp
-    // For temporary use - dispose immediately
-    using var handler = token.AsTokenHandler();
-    handler.Encrypt(...);
-
-    // For storage - clone and dispose original
-    var storedHandler = token.AsTokenHandler().Copy();
-    // Use storedHandler later, remember to dispose when done
-    ```
-
-3. **Available token handlers**:
+**Available token handlers** (all non-disposable):
    - `AnonymousIdentityTokenHandler`
-   - `UserNameIdentityTokenHandler`  
+   - `UserNameIdentityTokenHandler`
    - `X509IdentityTokenHandler`
    - `IssuedIdentityTokenHandler`
 
-### Serialization and Configuration
+**Note on secure-memory management**: with `IDisposable` gone, the
+sync `Array.Clear` of decrypted password / issued-token bytes that
+used to happen in `Dispose()` no longer fires. Bytes live in plain
+fields until GC. A follow-up revision will route inbound decrypted
+secrets through the new `ISecretStore` abstraction (see *Secrets*
+below) so secure clearing becomes the store's responsibility, with no
+public surface change.
+
+### Secrets — caller-supplied passwords go through a secret registry
+
+A new low-level abstraction layer carries caller-supplied secrets
+(currently the password held by `CertificatePasswordProvider`) without
+forcing a `byte[] DecryptedPassword`-style field to live on the
+identity object.
+
+```csharp
+public sealed record SecretIdentifier(string Name, string StoreType, string? StorePath = null);
+public interface ISecret : IDisposable { ReadOnlySpan<byte> Bytes { get; } }
+public interface ISecretStore { ISecret? TryGet(SecretIdentifier id); /* + async Get/Set/Remove */ }
+public interface ISecretRegistry { void RegisterStore(ISecretStore store); /* + Get/TryGet */ }
+```
+
+The default `InMemorySecretStore` keeps bytes in a `ConcurrentDictionary`
+keyed by `SecretIdentifier.Name`. Every `TryGet`/`GetAsync` returns a
+fresh `ISecret` view; the receiver disposes it when done. The
+implementation chooses what disposal does — no-op for `InMemorySecret`
+in this revision, future stores (DPAPI, Kubernetes secret, Azure Key
+Vault) can implement clear-on-dispose, lease-return, or watch-handle
+release.
+
+`CertificatePasswordProvider` is reimplemented over this registry.
+**The existing public ctors stay BC** — they internally create a
+per-instance `InMemorySecretStore` and register the password under an
+opaque identifier:
+
+```csharp
+new CertificatePasswordProvider();                                  // empty
+new CertificatePasswordProvider("password");                        // string
+new CertificatePasswordProvider(passwordBytes, isUtf8String: true); // bytes
+new CertificatePasswordProvider(passwordSpan);                      // ReadOnlySpan<char>
+
+// New advanced ctor for callers who want to plug in a custom store:
+new CertificatePasswordProvider(secretRegistry, secretIdentifier);
+```
+
+`ICertificatePasswordProvider.GetPassword(CertificateIdentifier)` still
+returns `char[]` for backward compatibility — internally it resolves
+the secret bytes from the registry and decodes UTF-8 on every call.
+
+### Centralised certificate cache via `ICertificateProvider`
+
+A new public `ICertificateProvider` interface exposes the existing
+`CertificateCache` for resolving private-key certs on demand:
+
+```csharp
+public interface ICertificateProvider
+{
+    Certificate? TryGetPrivateKeyCertificate(string thumbprint);          // sync
+    ValueTask<Certificate?> GetPrivateKeyCertificateAsync(
+        CertificateIdentifier identifier,
+        ICertificatePasswordProvider? passwordProvider = null,
+        string? applicationUri = null,
+        CancellationToken ct = default);
+}
+```
+
+`CertificateManager` exposes one via the new `CertificateProvider`
+property; `ICertificateManager` likewise. The provider follows the
+**TryGet → async ValueTask** pattern: cache hits complete
+synchronously without allocations; misses fall through to
+`CertificateIdentifierResolver.LoadPrivateKeyAsync` and write the
+loaded cert back into the cache.
+
+Wire it through to the new `X509IdentityTokenHandler` /
+`UserIdentity.CreateAsync` overloads:
+
+```csharp
+UserIdentity userIdentity = await UserIdentity.CreateAsync(
+    certificateIdentifier,
+    passwordProvider,
+    configuration.CertificateManager.CertificateProvider,
+    ct);
+```
+
+
+
+### Configuration
+
+#### Data Contract Serializer support removed
 
 Because **Data Contract serialization** is not AOT compliant and does not support trimming, all use of `DataContract` in the configuration has been removed. Instead, the source generator enables generating *IEncodeable* implementations using the `DataType` and `DataTypeField` attributes which are now consequently used for all configuration. Because the configuration is now `IEncodeable` the existing encoders and decoders (in particular the new `XmlParser` which parses Xml and allows out of order fields) compliant with Part 6 can be used to serialize and deserialize all configuration and configuration extensions.
 
 > Generated Data types still support DataContract based serialization, however, consider this a deprecated feature.
 
-#### DataContract to DataType migration
-
 All configuration DTO classes (`ApplicationConfiguration`, `ServerConfiguration`, `TraceConfiguration`, `TransportConfiguration`, `ServerSecurityPolicy`, `OAuth2ServerSettings`, `OAuth2Credential`, `GlobalDiscoveryServerConfiguration`, `CertificateGroupConfiguration`, `BrowserOptions`, etc.) migrated from `[DataContract]`/`[DataMember]` to source-generated `[DataType]`/`[DataTypeField]` attributes and are now `partial` classes.
+
+- `ApplicationConfiguration.LoadWithNoValidation` uses `XmlParser`/`IEncodeable.Decode()`. Existing XML config files should remain loadable.
+- Browser and session state persistence switched from XML to OPC UA Binary encoding. **Old persisted files cannot be loaded** — delete and re-save.
+- `SecuredApplication` uses `SecuredApplicationEncoding` helpers instead of `DataContractSerializer`.
 
 **Change code as follows:**
 
@@ -515,20 +755,6 @@ All configuration DTO classes (`ApplicationConfiguration`, `ServerConfiguration`
 - Add the `partial` keyword to any subclass of these configuration types.
 - Custom configuration extension types must implement `IEncodeable` (the `[DataType]` source generator handles this automatically for `partial` classes).
 - Code using reflection to inspect `[DataContract]`/`[DataMember]` attributes must switch to `[DataType]`/`[DataTypeField]`.
-
-#### Configuration collection types removed
-
-All `List<T>`-based collection wrappers for configuration types have been removed and replaced with `ArrayOf<T>`: `ServerSecurityPolicyCollection`, `TransportConfigurationCollection`, `SamplingRateGroupCollection`, `ReverseConnectClientCollection`, `ReverseConnectClientEndpointCollection`, `ServerRegistrationCollection`, `CertificateIdentifierCollection`, `CertificateGroupConfigurationCollection`, `OAuth2ServerSettingsCollection`, `OAuth2CredentialCollection`.
-
-See the [ArrayOf and MatrixOf](#arrayof-and-matrixof) section for migration guidance on using `ArrayOf<T>`.
-
-#### DataContractSerializer replaced
-
-`DataContractSerializer` has been removed from config loading and persistence paths:
-
-- `ApplicationConfiguration.LoadWithNoValidation` uses `XmlParser`/`IEncodeable.Decode()`. Existing XML config files should remain loadable.
-- Browser and session state persistence switched from XML to OPC UA Binary encoding. **Old persisted files cannot be loaded** — delete and re-save.
-- `SecuredApplication` uses `SecuredApplicationEncoding` helpers instead of `DataContractSerializer`.
 
 #### Newtonsoft.Json removed from Opc.Ua.Core
 
@@ -551,71 +777,6 @@ var config = configuration.ParseExtension<MyConfig>(
     new XmlQualifiedName("MyConfig", myNamespace),
     decoder => { var c = new MyConfig(); c.Decode(decoder); return c; });
 ```
-
-### NodeState Cloning and Lifecycle
-
-#### Clone() replaced with CreateCopy()
-
-`NodeState.Clone()` is now a concrete method that calls `CreateCopy()` + `CopyTo()`. The new `protected abstract NodeState CreateCopy()` must be overridden by all direct NodeState subclasses.
-
-```csharp
-// Before
-public override object Clone()
-{
-    var clone = new MyNodeState(Parent);
-    CopyTo(clone);
-    return clone;
-}
-
-// After
-protected override NodeState CreateCopy()
-{
-    return new MyNodeState(Parent);
-}
-```
-
-If you had custom deep-copy logic beyond what `CopyTo()` does, override `CopyTo()` instead.
-
-#### BaseVariableState Read/Write helpers removed
-
-The `protected ServiceResult Read(object, ref object)` and `protected object Write(object)` methods were removed.
-Use the `CopyPolicy` property or the new `CopyOnWrite` bool directly with `CoreUtils.Clone()` for copy-on-read/write semantics.
-
-#### OnAfterCreate gains CancellationToken
-
-`OnAfterCreate(ISystemContext, NodeState)` now has an optional `CancellationToken ct = default` parameter.
-Existing overrides compile (source-compatible) but are **binary-incompatible** — pre-compiled assemblies won't match at runtime.
-
-```csharp
-protected override void OnAfterCreate(ISystemContext context, NodeState node, CancellationToken ct = default)
-{
-    base.OnAfterCreate(context, node, ct);
-}
-```
-
-### Encodeable Factory and Type System
-
-#### IType hierarchy
-
-New type abstraction layer: `IType` (base) with `IBuiltInType`, `IEnumeratedType` (new), and `IEncodeableType` (now extends `IType`). Many APIs return `IType` instead of `Type`:
-
-- `TypeInfo.GetSystemType(ExpandedNodeId, IEncodeableTypeLookup)` → returns `IType` (was `Type`). Use `.Type` property to get the CLR `Type`.
-- The overload `TypeInfo.GetSystemType(BuiltInType, int valueRank)` was removed.
-
-#### IEncodeableTypeLookup changes
-
-- `TryGetEncodeableType<T>()` removed.
-- Added: `TryGetEnumeratedType(ExpandedNodeId, out IEnumeratedType?)`, `TryGetType(XmlQualifiedName, out IType?)`.
-
-#### IEncodeableFactoryBuilder changes
-
-- `AddEncodeableType(ExpandedNodeId, Type)` → renamed to `AddType(ExpandedNodeId, Type)`.
-- Added: `AddEnumeratedType(IEnumeratedType)`, `AddEnumeratedType(ExpandedNodeId, IEnumeratedType)`.
-- `AddEncodeableType(Type)` and `AddEncodeableTypes(Assembly)` now have AOT annotations (`[DynamicallyAccessedMembers]`, `[RequiresUnreferencedCode]`).
-
-#### EncodeableFactory.GlobalFactory removed
-
-The `[Obsolete]` static `EncodeableFactory.GlobalFactory` was removed. `EncodeableFactory.Create()` renamed to `Fork()`. Use `ServiceMessageContext.Factory` instead.
 
 #### ExtensionObject array helpers changed
 
@@ -669,82 +830,167 @@ To register the state types with the encodeable factory:
 context.Factory.Builder.AddOpcUaClientDataTypes();
 ```
 
-#### Property type changes
+> The encoding format for session state has changed. Existing persisted session state files **cannot** be loaded by the new `SessionConfiguration.Create()` method. Handle restore failures and re-persist the new session state.
 
-The following property types have changed to use the new stack value types:
+### Certificate Management
 
-| Class | Property | Old Type | New Type |
-|---|---|---|---|
-| `SessionState` | `ServerNonce` | `byte[]?` | `ByteString` |
-| `SessionState` | `ClientNonce` | `byte[]?` | `ByteString` |
-| `SessionState` | `ServerEccEphemeralKey` | `byte[]?` | `ByteString` |
-| `SessionState` | `Timestamp` | `DateTime` | `DateTimeUtc` |
-| `SessionState` | `Subscriptions` | `SubscriptionStateCollection?` | `ArrayOf<SubscriptionState>` |
-| `SubscriptionState` | `MonitoredItems` | `MonitoredItemStateCollection` | `ArrayOf<MonitoredItemState>` |
-| `SubscriptionState` | `Timestamp` | `DateTime` | `DateTimeUtc` |
+#### Certificate and CertificateCollection wrapper types
 
-#### `IUserIdentity` on `SessionOptions` is now computed
+`X509Certificate2` and `X509Certificate2Collection` are no longer used directly in the public API. They are replaced by `Certificate` and `CertificateCollection` (in `Opc.Ua.Security.Certificates`).
 
-`SessionOptions.Identity` (`IUserIdentity?`) is no longer a serialized field. It is a computed property backed by `UserIdentityToken? IdentityToken`, which is the actual serialized field:
+**Migration steps:**
 
 ```csharp
-public partial record class SessionOptions
-{
-    // Serialized field
-    [DataTypeField(Order = 2, StructureHandling = StructureHandling.ExtensionObject)]
-    public UserIdentityToken? IdentityToken { get; set; }
+// Before:
+X509Certificate2 cert = new X509Certificate2(rawData);
+X509Certificate2Collection certs = await store.Enumerate();
 
-    // Computed — not serialized
-    public IUserIdentity? Identity
+// After:
+Certificate cert = new Certificate(rawData);
+CertificateCollection certs = await store.EnumerateAsync();
+```
+
+`Certificate` implements reference counting. Call `AddRef()` before sharing a certificate across ownership boundaries, and `Dispose()` to release. The inner `X509Certificate2` is disposed when the last reference is released.
+
+For .NET interop, use `certificate.AsX509Certificate2()` which returns a copy the caller must dispose. The internal `X509Certificate2` is accessible via the `internal X509` property for `InternalsVisibleTo` friends.
+
+`CertificateBuilder.CreateForRSA()` and `CreateForECDsa()` now return `Certificate` instead of `X509Certificate2`.
+
+#### CertificateManager and segregated interfaces
+
+A new centralized `CertificateManager` replaces the scattered certificate handling across `CertificateValidator`, `CertificateIdentifier`, `CertificateTypesProvider`, and `CertificateFactory`. It is composed of focused interfaces:
+
+| Interface | Purpose | Location |
+|-----------|---------|----------|
+| `ICertificateRegistry` | Read-only access to app certificates | `Opc.Ua` |
+| `ICertificateTrustListManager` | Named trust-list management | `Opc.Ua` |
+| `ICertificateValidatorEx` | Trust-list-scoped validation | `Opc.Ua` |
+| `ICertificateLifecycle` | Change notifications + cert updates | `Opc.Ua` |
+| `ICertificateFactory` | Stateless cert creation/parsing | `Opc.Ua.Security.Certificates` |
+| `ICertificateIssuer` | CA signing + CRL revocation | `Opc.Ua.Security.Certificates` |
+| `ICertificateStoreProvider` | Pluggable store backends | `Opc.Ua` |
+
+The `CertificateManager` is automatically initialized by `ServerBase` and `ApplicationInstance` during startup. Access it via `ServerBase.CertificateManager` or `ApplicationInstance.CertificateManager`.
+
+**Trust-lists are now named and extensible:**
+
+```csharp
+// Well-known: TrustListIdentifier.Peers, .Users, .Https, .Rejected
+// Custom:
+manager.RegisterTrustList(new TrustListIdentifier("MqttBrokers"),
+    trustedStorePath: "...", issuerStorePath: "...");
+
+// Validate against any trust-list
+var result = await manager.ValidateAsync(cert, TrustListIdentifier.Users);
+```
+
+**Subscribe to certificate changes:**
+
+```csharp
+manager.CertificateChanges.Subscribe(observer);
+```
+
+See [CertificateManager.md](CertificateManager.md) for the full API reference and usage guide.
+
+#### CertificateIdentifier is metadata-only
+
+`CertificateIdentifier` no longer caches a `Certificate`, no longer implements `IDisposable`, and the cert-bearing constructors / instance methods have been removed. Use `CertificateIdentifierResolver` to materialize a `Certificate` from an identifier.
+
+**Removed members:**
+
+* `Certificate` get/set property and the cached `m_certificate` field.
+* `IDisposable` declaration, `Dispose()`, `DisposeCertificate()`.
+* Constructors `CertificateIdentifier(Certificate)`, `CertificateIdentifier(Certificate, CertificateValidationOptions)`, `CertificateIdentifier(byte[])`.
+* Instance methods `FindAsync(...)`, `LoadPrivateKeyAsync(char[], ...)`, `LoadPrivateKeyExAsync(...)`, `OpenStore(...)`.
+* `IOpenStore` interface declaration on `CertificateIdentifier`.
+
+**`RawData`** is now backed by an explicit `byte[]` field. The setter still derives `SubjectName` / `Thumbprint` / `CertificateType` from the parsed raw bytes.
+
+**`ICertificateRegistry.GetIssuersAsync`** now returns `IList<CertificateIssuerReference>` (a public sealed record with `Certificate Certificate, CertificateValidationOptions Options`) instead of `IList<CertificateIdentifier>`. Existing callers must update the list type and switch from `CertificateIdentifier.Certificate` to `CertificateIssuerReference.Certificate`.
+
+**Migration patterns:**
+
+| Before (legacy) | After |
+|---|---|
+| `var id = new CertificateIdentifier(cert);` | `var id = new CertificateIdentifier { Thumbprint = cert.Thumbprint, SubjectName = cert.Subject, CertificateType = CertificateIdentifier.GetCertificateType(cert) };` |
+| `var id = new CertificateIdentifier(rawData);` | `var id = new CertificateIdentifier { RawData = rawData };` |
+| `id.Certificate` (read) | `await CertificateIdentifierResolver.ResolveAsync(id, registry, needPrivateKey: false, applicationUri, telemetry, ct)` |
+| `id.Certificate = cert;` | Drop the assignment. Cert lifecycle is owned by `CertificateManager` (use `ICertificateLifecycle.UpdateApplicationCertificateAsync`) or by a local variable. |
+| `await id.FindAsync(true, applicationUri, telemetry, ct)` | `await CertificateIdentifierResolver.LoadPrivateKeyAsync(id, passwordProvider, applicationUri, telemetry, ct)` |
+| `await id.LoadPrivateKeyExAsync(passwordProvider, applicationUri, telemetry, ct)` | `await CertificateIdentifierResolver.LoadPrivateKeyAsync(id, passwordProvider, applicationUri, telemetry, ct)` |
+| `id.OpenStore(telemetry)` | `CertificateIdentifierResolver.OpenStore(id, telemetry)` |
+| `using var id = new CertificateIdentifier(...);` | `var id = new CertificateIdentifier(...);` (no `using`) |
+| `IList<CertificateIdentifier> issuers = ...; var cert = issuers[i].Certificate;` | `IList<CertificateIssuerReference> issuers = ...; var cert = issuers[i].Certificate;` |
+
+See [CertificateManager.md](CertificateManager.md#migration-certificateidentifier-is-metadata-only) for the full migration walkthrough.
+
+#### Obsoleted certificate APIs
+
+The following APIs are marked `[Obsolete]` and will be removed in the next minor version. They remain
+functional forwarders to the new design for binary-compatibility, but emit `CS0618` warnings when used.
+
+| Obsolete API | Replacement |
+|-------------|-------------|
+| `CertificateFactory.Create(ReadOnlyMemory<byte>)` | `Certificate.FromRawData(ReadOnlyMemory<byte>)` or `DefaultCertificateFactory.Instance.CreateFromRawData(...)` |
+| `CertificateFactory.CreateCertificate(string)` | `DefaultCertificateFactory.Instance.CreateCertificate(string)` |
+| `CertificateFactory.CreateCertificate(string, string, string, ArrayOf<string>)` | `DefaultCertificateFactory.Instance.CreateApplicationCertificate(...)` |
+| `CertificateFactory.CreateSigningRequest(...)` | `DefaultCertificateFactory.Instance.CreateSigningRequest(...)` |
+| `CertificateFactory.RevokeCertificate(...)` | `DefaultCertificateIssuer.Instance.RevokeCertificates(...)` |
+| `CertificateFactory.CreateCertificateWithPEMPrivateKey(...)` | `DefaultCertificateFactory.Instance.CreateWithPEMPrivateKey(...)` |
+| `CertificateFactory.CreateCertificateWithPrivateKey(...)` | `DefaultCertificateFactory.Instance.CreateWithPrivateKey(...)` |
+| `CertificateStoreIdentifier.RegisterCertificateStoreType(...)` | Register `ICertificateStoreProvider` via DI or pass to the `CertificateManager` constructor |
+| `CertificateValidator` (class) | `ICertificateManager` (composed of `ICertificateValidatorEx` for validation, `ICertificateRegistry` for app certs, `ICertificateTrustListManager` for trust lists, `ICertificateLifecycle` for change events). Construct via `CertificateManagerFactory.Create(securityConfiguration, telemetry, ...)` |
+| `ICertificateValidator` (interface) | `ICertificateValidatorEx` from `ICertificateManager`. The new interface returns a structured `CertificateValidationResult` (`IsValid`, `StatusCode`, `Errors`, `IsBeingTrustedTransiently`) instead of throwing. Per-error accept logic moves from the `CertificateValidation` event to the new `CertificateValidationOptions.AcceptError` callback. |
+| `CertificateTypesProvider` (class) | `ICertificateRegistry` (composed in `ICertificateManager`). Use `manager.GetInstanceCertificate(securityPolicyUri)` and `manager.LoadCertificateChainAsync(...)`. |
+| `ApplicationConfiguration.CertificateValidator` (property) | `ApplicationConfiguration.CertificateManager` (parallel property — set in `ApplicationInstance.CheckApplicationInstanceCertificatesAsync`) |
+| `ServerBase.CertificateValidator` (property) | `ServerBase.CertificateManager` |
+| `ServerBase.InstanceCertificateTypesProvider` (property) | `ServerBase.CertificateManager` (use `ICertificateRegistry` surface) |
+
+##### Migrating the `CertificateValidator.CertificateValidation` event
+
+The legacy event with mutable `e.Accept = true` mutability has been replaced by
+the structured `CertificateValidationOptions.AcceptError` callback:
+
+```csharp
+// Before:
+configuration.CertificateValidator.CertificateValidation += (s, e) =>
+{
+    if (e.Error.StatusCode == StatusCodes.BadCertificateUntrusted)
     {
-        get => IdentityToken != null ? new UserIdentity(IdentityToken) : null;
-        set => IdentityToken = value?.TokenHandler?.Token;
+        e.Accept = true;
     }
+};
+await configuration.CertificateValidator.ValidateAsync(cert);
+
+// After:
+var options = new CertificateValidationOptions
+{
+    AcceptError = (cert, error) =>
+        error.StatusCode == StatusCodes.BadCertificateUntrusted
+};
+CertificateValidationResult result =
+    await applicationInstance.CertificateManager.ValidateAsync(cert, options: options);
+if (!result.IsValid)
+{
+    throw new ServiceResultException(result.StatusCode);
 }
 ```
 
-#### Encoding format is not guaranteed backward compatible
+##### Endpoint-aware validation helpers
 
-The encoding format for session state has changed. Existing persisted session state files **cannot** be loaded by the new `SessionConfiguration.Create()` method. Handle restore failures and re-persist the new session state.
+`CertificateValidator.ValidateApplicationUri(...)` and
+`CertificateValidator.ValidateDomains(...)` are now exposed as extension
+methods on `ICertificateValidatorEx` in the
+`Opc.Ua.CertificateValidationExtensions` static class. Existing call sites
+that previously used the legacy class continue to work transparently.
 
-### Other Breaking Changes
+> The `CertificateFactory.DefaultKeySize` / `DefaultLifeTime` / `DefaultHashSize` constants are
+> intentionally **not** marked obsolete; they remain the canonical default values used across
+> configuration sites.
 
-#### Boolean default values in source-generated data types
-
-**Breaking Change**: Boolean properties on source-generated data types now correctly default to `false` instead of `true`.
-
-Generated code produced by the model compiler contained a bug because it inverted the default value for boolean fields in generated data types. Boolean fields without an explicit `<DefaultValue>` in the model design XML were initialized to `true` instead of `false` as expected and defined in Part 6. This has been fixed.
-
-**Impact**: Any code that creates instances of source-generated data types and relies on boolean properties being `true` by default must now explicitly set those properties to `true`. This primarily affects PubSub configuration types:
-
-| Type | Property | Old Default | New Default |
-|---|---|---|---|
-| `PubSubConfigurationDataType` | `Enabled` | `true` | `false` |
-| `PubSubConnectionDataType` | `Enabled` | `true` | `false` |
-| `WriterGroupDataType` | `Enabled` | `true` | `false` |
-| `ReaderGroupDataType` | `Enabled` | `true` | `false` |
-| `DataSetWriterDataType` | `Enabled` | `true` | `false` |
-| `DataSetReaderDataType` | `Enabled` | `true` | `false` |
-| `PublishedDataSetCustomSourceDataType` | `CyclicDataSet` | `true` | `false` |
-
-Other affected types include all source-generated structures with boolean fields (e.g., `AggregateConfiguration.TreatUncertainAsBad`, `MonitoringParameters.DiscardOldest`, `CreateSubscriptionRequest.PublishingEnabled`) as well as 
-some hand-written types in `Opc.Ua.Types` (such as `BrowseDescription`, `RelativePathElement`).
-
-**Migration**: Add explicit initialization where your code depends on `true` as the default:
-
+To suppress `CS0618` warnings while migrating, add at the top of affected files:
 ```csharp
-// Before (relied on incorrect true default)
-var connection = new PubSubConnectionDataType
-{
-    Name = "MyConnection"
-};
-
-// After (explicitly set Enabled)
-var connection = new PubSubConnectionDataType
-{
-    Enabled = true,
-    Name = "MyConnection"
-};
+#pragma warning disable CS0618 // Obsolete API usage during migration
 ```
 
 ### GDS Client API modernization

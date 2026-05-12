@@ -30,7 +30,6 @@
 using System;
 using System.Collections.Generic;
 using Microsoft.Extensions.Logging;
-using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Bindings
 {
@@ -59,7 +58,8 @@ namespace Opc.Ua.Bindings
             ArrayOf<string> baseAddresses,
             ApplicationDescription serverDescription,
             ArrayOf<ServerSecurityPolicy> securityPolicies,
-            CertificateTypesProvider instanceCertificateTypesProvider)
+            ICertificateRegistry serverCertificates,
+            ICertificateValidatorEx clientCertificateValidator)
         {
             // generate a unique host name.
             string hostName = "/Tcp";
@@ -98,7 +98,7 @@ namespace Opc.Ua.Bindings
                     uri.Host = computerName;
                 }
 
-                _ = instanceCertificateTypesProvider.SendCertificateChain;
+                _ = serverCertificates.SendCertificateChain;
                 ITransportListener listener = Create(serverBase.MessageContext.Telemetry);
                 if (listener != null)
                 {
@@ -126,7 +126,7 @@ namespace Opc.Ua.Bindings
 
                         ServerBase.SetServerCertificateInEndpointDescription(
                             description,
-                            instanceCertificateTypesProvider);
+                            serverCertificates);
 
                         listenerEndpoints.Add(description);
                     }
@@ -136,7 +136,7 @@ namespace Opc.Ua.Bindings
                         listenerEndpoints,
                         endpointConfiguration,
                         listener,
-                        configuration.CertificateValidator!.GetChannelValidator());
+                        clientCertificateValidator);
 
                     endpoints.AddRange(listenerEndpoints);
                 }

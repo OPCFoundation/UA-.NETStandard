@@ -28,7 +28,9 @@
  * ======================================================================*/
 
 using System;
-using System.Security.Cryptography.X509Certificates;
+using System.Threading;
+using System.Threading.Tasks;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua
 {
@@ -39,13 +41,19 @@ namespace Opc.Ua
     /// the Token property and passed as extension object in service calls.
     /// </summary>
     /// <remarks>
-    /// Previously the tokens themselves implemented crypto operations, but
-    /// for security and better separation of concerns, the handlers now
-    /// perform these operations and are disposable/copyable to ensure better
-    /// lifetime management of sensitive data.
+    /// <para>
+    /// Handlers are intentionally non-disposable: the previously cached
+    /// <see cref="Certificate"/> reference and
+    /// sensitive byte buffers are now owned elsewhere
+    /// (<see cref="ICertificateProvider"/> for certificates,
+    /// <see cref="ISecretRegistry"/> for caller-supplied secrets), so the
+    /// handler is a POCO that can be safely passed around without
+    /// <c>using</c>. Secure-memory clearing of decrypted server-side
+    /// inbound bytes is the responsibility of a future revision.
+    /// </para>
     /// </remarks>
     public interface IUserIdentityTokenHandler :
-        IDisposable, ICloneable, IEquatable<IUserIdentityTokenHandler>
+        ICloneable, IEquatable<IUserIdentityTokenHandler>
     {
         /// <summary>
         /// The token the handler operates on.
@@ -70,45 +78,61 @@ namespace Opc.Ua
         void UpdatePolicy(UserTokenPolicy userTokenPolicy);
 
         /// <summary>
-        /// Encrypts the token
+        /// Encrypts the token.
         /// </summary>
-        void Encrypt(
-            X509Certificate2 receiverCertificate,
+        /// <remarks>
+        /// Implementations may need to resolve secrets or certificates from
+        /// stores asynchronously. The returned <see cref="ValueTask"/>
+        /// completes synchronously when the underlying material is already
+        /// cached/resident.
+        /// </remarks>
+        ValueTask EncryptAsync(
+            Certificate receiverCertificate,
             byte[] receiverNonce,
             string securityPolicyUri,
             IServiceMessageContext context,
             Nonce? receiverEphemeralKey = null,
-            X509Certificate2? senderCertificate = null,
-            X509Certificate2Collection? senderIssuerCertificates = null,
-            bool doNotEncodeSenderCertificate = false);
+            Certificate? senderCertificate = null,
+            CertificateCollection? senderIssuerCertificates = null,
+            bool doNotEncodeSenderCertificate = false,
+            CancellationToken ct = default);
 
         /// <summary>
-        /// Decrypts the token
+        /// Decrypts the token.
         /// </summary>
-        void Decrypt(
-            X509Certificate2 certificate,
+        /// <remarks>
+        /// May resolve material from external stores; see
+        /// <see cref="EncryptAsync"/>.
+        /// </remarks>
+        ValueTask DecryptAsync(
+            Certificate certificate,
             Nonce receiverNonce,
             string securityPolicyUri,
             IServiceMessageContext context,
             Nonce? ephemeralKey = null,
-            X509Certificate2? senderCertificate = null,
-            X509Certificate2Collection? senderIssuerCertificates = null,
-            CertificateValidator? validator = null);
+            Certificate? senderCertificate = null,
+            CertificateCollection? senderIssuerCertificates = null,
+            ICertificateValidatorEx? validator = null,
+            CancellationToken ct = default);
 
         /// <summary>
-        /// Creates a signature with the token
+        /// Creates a signature with the token. May resolve a private-key
+        /// certificate from the configured certificate provider, which is
+        /// why the operation is asynchronous.
         /// </summary>
-        SignatureData Sign(
+        ValueTask<SignatureData> SignAsync(
             byte[] dataToSign,
-            string securityPolicyUri);
+            string securityPolicyUri,
+            CancellationToken ct = default);
 
         /// <summary>
-        /// Verifies a signature created with the token
+        /// Verifies a signature created with the token.
         /// </summary>
-        bool Verify(
+        ValueTask<bool> VerifyAsync(
             byte[] dataToVerify,
             SignatureData signatureData,
-            string securityPolicyUri);
+            string securityPolicyUri,
+            CancellationToken ct = default);
     }
 
     /// <summary>

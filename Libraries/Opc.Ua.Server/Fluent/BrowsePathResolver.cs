@@ -93,30 +93,22 @@ namespace Opc.Ua.Server.Fluent
 
             List<QualifiedName> segments = ParseSegments(browsePath, defaultNamespaceIndex);
 
-            NodeState current = rootResolver(segments[0]);
-            if (current == null)
-            {
+            NodeState current = rootResolver(segments[0]) ??
                 throw ServiceResultException.Create(
                     StatusCodes.BadNodeIdUnknown,
                     "Browse path '{0}' did not resolve: root segment '{1}' not found.",
                     browsePath,
                     segments[0]);
-            }
 
             for (int i = 1; i < segments.Count; i++)
             {
-                BaseInstanceState? child = current.FindChild(context, segments[i]);
-                if (child == null)
-                {
+                current = current.FindChild(context, segments[i]) ??
                     throw ServiceResultException.Create(
                         StatusCodes.BadNodeIdUnknown,
                         "Browse path '{0}' did not resolve: segment '{1}' not found under '{2}'.",
                         browsePath,
                         segments[i],
                         current.BrowseName);
-                }
-
-                current = child;
             }
 
             return current;
@@ -158,7 +150,7 @@ namespace Opc.Ua.Server.Fluent
                     browsePath);
             }
 
-            ReadOnlySpan<char> body = input.Slice(start, end - start);
+            ReadOnlySpan<char> body = input[start..end];
             var segments = new List<QualifiedName>(8);
 
             int segmentStart = 0;
@@ -195,12 +187,12 @@ namespace Opc.Ua.Server.Fluent
             ReadOnlySpan<char> name = segment;
 
             // Optional ns=N; prefix.
-            if (segment.Length > 3
-                && (segment[0] == 'n' || segment[0] == 'N')
-                && (segment[1] == 's' || segment[1] == 'S')
-                && segment[2] == '=')
+            if (segment.Length > 3 &&
+                (segment[0] == 'n' || segment[0] == 'N') &&
+                (segment[1] == 's' || segment[1] == 'S') &&
+                segment[2] == '=')
             {
-                int semi = segment.Slice(3).IndexOf(';');
+                int semi = segment[3..].IndexOf(';');
                 if (semi <= 0)
                 {
                     throw ServiceResultException.Create(
@@ -224,7 +216,7 @@ namespace Opc.Ua.Server.Fluent
                         nsText.ToString());
                 }
 
-                name = segment.Slice(3 + semi + 1);
+                name = segment[(3 + semi + 1)..];
             }
 
             if (name.IsEmpty)

@@ -28,8 +28,8 @@
  * ======================================================================*/
 
 using System;
-using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Bindings
 {
@@ -51,7 +51,7 @@ namespace Opc.Ua.Bindings
             uint requestId,
             uint sequenceNumber,
             uint channelId,
-            X509Certificate2 clientCertificate,
+            Certificate clientCertificate,
             ChannelToken token,
             OpenSecureChannelRequest request);
 

@@ -155,7 +155,7 @@ namespace Opc.Ua.SourceGeneration
                 // strip a UTF-8 BOM if present on the first row.
                 if (line.Length > 0 && line[0] == '\uFEFF')
                 {
-                    line = line.Substring(1);
+                    line = line[1..];
                 }
 
                 if (string.IsNullOrWhiteSpace(line))
@@ -163,14 +163,14 @@ namespace Opc.Ua.SourceGeneration
                     continue;
                 }
 
-                int index = line.IndexOf(',');
+                int index = line.IndexOf(',', StringComparison.Ordinal);
                 if (index < 0)
                 {
                     continue;
                 }
 
-                string id = line.Substring(0, index).Trim();
-                string description = line.Substring(index + 1).Trim();
+                string id = line[..index].Trim();
+                string description = line[(index + 1)..].Trim();
                 if (id.Length == 0)
                 {
                     continue;
@@ -212,14 +212,14 @@ namespace Opc.Ua.SourceGeneration
             string text = description.Trim();
 
             // first sentence wins, otherwise the first 80 chars.
-            int dot = text.IndexOf('.');
+            int dot = text.IndexOf('.', StringComparison.Ordinal);
             if (dot > 0)
             {
-                text = text.Substring(0, dot + 1);
+                text = text[..(dot + 1)];
             }
             else if (text.Length > 80)
             {
-                text = text.Substring(0, 80);
+                text = text[..80];
             }
 
             return EscapeXml(text);
@@ -231,7 +231,9 @@ namespace Opc.Ua.SourceGeneration
             {
                 return value ?? string.Empty;
             }
-            return value.Replace("\\", "\\\\").Replace("\"", "\\\"");
+            return value
+                .Replace("\\", "\\\\", StringComparison.Ordinal)
+                .Replace("\"", "\\\"", StringComparison.Ordinal);
         }
 
         private static string EscapeXml(string value)
@@ -241,9 +243,9 @@ namespace Opc.Ua.SourceGeneration
                 return value ?? string.Empty;
             }
             return value
-                .Replace("&", "&amp;")
-                .Replace("<", "&lt;")
-                .Replace(">", "&gt;");
+                .Replace("&", "&amp;", StringComparison.Ordinal)
+                .Replace("<", "&lt;", StringComparison.Ordinal)
+                .Replace(">", "&gt;", StringComparison.Ordinal);
         }
 
         /// <summary>

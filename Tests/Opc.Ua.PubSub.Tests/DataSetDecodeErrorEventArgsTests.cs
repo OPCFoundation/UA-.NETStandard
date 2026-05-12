@@ -122,13 +122,10 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         public void ConstructorWithNullNetworkMessageAndReaderDoesNotThrow()
         {
             DataSetDecodeErrorEventArgs args = null;
-            Assert.DoesNotThrow(() =>
-            {
-                args = new DataSetDecodeErrorEventArgs(
+            Assert.DoesNotThrow(() => args = new DataSetDecodeErrorEventArgs(
                     DataSetDecodeErrorReason.NoError,
                     null,
-                    null);
-            });
+                    null));
             Assert.That(args.UaNetworkMessage, Is.Null);
             Assert.That(args.DataSetReader, Is.Null);
         }

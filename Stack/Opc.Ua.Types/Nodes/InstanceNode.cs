@@ -35,7 +35,7 @@ namespace Opc.Ua
     /// <summary>
     /// Instance node
     /// </summary>
-    [DataContract(Namespace = Types.Namespaces.OpcUaXsd)]
+    [DataContract(Namespace = Namespaces.OpcUaXsd)]
     public class InstanceNode : Node
     {
         /// <inheritdoc/>

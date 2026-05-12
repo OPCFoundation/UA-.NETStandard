@@ -28,9 +28,9 @@
  * ======================================================================*/
 
 using System;
+using System.CommandLine;
 using System.IO;
 using Microsoft.Extensions.Logging;
-using System.CommandLine;
 
 namespace Opc.Ua.Fuzzing
 {

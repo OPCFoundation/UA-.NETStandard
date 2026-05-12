@@ -208,6 +208,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="certificate"></param>
         /// <returns></returns>
+        [Obsolete("Use Certificate.ToString() instead.")]
         public static string AsLogSafeString(this X509Certificate2 certificate)
         {
             if (certificate == null)

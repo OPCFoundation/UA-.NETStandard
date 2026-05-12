@@ -29,8 +29,8 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Collections.Immutable;
+using System.Linq;
 using Opc.Ua.Schema.Model;
 
 namespace Opc.Ua.SourceGeneration
@@ -91,7 +91,7 @@ namespace Opc.Ua.SourceGeneration
                 .WithFallback(fileSystem);
 
             HashSet<NodeManagerAttributeBinding> usedBindings = nodeManagerBindings is { Count: > 0 }
-                ? new HashSet<NodeManagerAttributeBinding>()
+                ? []
                 : null;
 
             int totalDesigns = designFiles.Targets.Count;
@@ -113,11 +113,10 @@ namespace Opc.Ua.SourceGeneration
                     referencedModels.TryGetValue(target.Value,
                         out ModelDependencyReference referenced) &&
                     string.Equals(referenced.Prefix, target.Prefix,
-                        System.StringComparison.Ordinal))
+                        StringComparison.Ordinal))
                 {
                     continue;
                 }
-
 
                 DesignFileOptions effectiveOptions = ApplyNodeManagerBinding(
                     model,
@@ -298,7 +297,7 @@ namespace Opc.Ua.SourceGeneration
                 .WithFallback(fileSystem);
 
             HashSet<NodeManagerAttributeBinding> usedBindings = nodeManagerBindings is { Count: > 0 }
-                ? new HashSet<NodeManagerAttributeBinding>()
+                ? []
                 : null;
 
             int totalDesigns = nodesets.ModelUris.Count();
@@ -321,7 +320,7 @@ namespace Opc.Ua.SourceGeneration
                 if (referencedModels.TryGetValue(modelUri,
                         out ModelDependencyReference referenced) &&
                     string.Equals(referenced.Prefix, nodeset.Info.Prefix,
-                        System.StringComparison.Ordinal))
+                        StringComparison.Ordinal))
                 {
                     continue;
                 }

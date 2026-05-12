@@ -263,7 +263,7 @@ namespace Opc.Ua.Client
             // (Use the fully qualified type to disambiguate from the
             // local Session property.)
             if (session is not null and
-                not global::Opc.Ua.Client.Session)
+                not Client.Session)
             {
                 throw new NotSupportedException(
                     "SessionReconnectHandler only supports the legacy " +

@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Security.Cryptography.X509Certificates;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Security.Certificates;
 
@@ -63,7 +62,8 @@ namespace Opc.Ua.Bindings
             ArrayOf<string> baseAddresses,
             ApplicationDescription serverDescription,
             ArrayOf<ServerSecurityPolicy> securityPolicies,
-            CertificateTypesProvider instanceCertificateTypesProvider)
+            ICertificateRegistry serverCertificates,
+            ICertificateValidatorEx clientCertificateValidator)
         {
             // generate a unique host name.
             string hostName = hostName = "/Https";
@@ -151,20 +151,20 @@ namespace Opc.Ua.Bindings
                     Server = serverDescription
                 };
 
-                if (instanceCertificateTypesProvider != null)
+                if (serverCertificates != null)
                 {
-                    X509Certificate2? instanceCertificate = instanceCertificateTypesProvider
+                    Certificate? instanceCertificate = serverCertificates
                         .GetInstanceCertificate(
-                            bestPolicy.SecurityPolicyUri!);
+                            bestPolicy.SecurityPolicyUri)?.Certificate;
                     description.ServerCertificate =
                         instanceCertificate!.RawData.ToByteString();
 
                     // check if complete chain should be sent.
-                    if (instanceCertificateTypesProvider.SendCertificateChain)
+                    if (serverCertificates.SendCertificateChain)
                     {
                         description.ServerCertificate =
-                            instanceCertificateTypesProvider.LoadCertificateChainRaw(
-                                instanceCertificate)!.ToByteString();
+                            serverCertificates.LoadCertificateChainRaw(
+                                instanceCertificate!).ToByteString();
                     }
                 }
 
@@ -195,7 +195,7 @@ namespace Opc.Ua.Bindings
                         endpoints,
                         endpointConfiguration,
                         listener,
-                        configuration.CertificateValidator!.GetChannelValidator());
+                        clientCertificateValidator);
                 }
                 else
                 {

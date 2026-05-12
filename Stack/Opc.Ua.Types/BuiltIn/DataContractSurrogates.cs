@@ -505,7 +505,10 @@ namespace Opc.Ua
             SerializableVariant? left,
             SerializableVariant? right)
         {
-            if (left is null) return right is null;
+            if (left is null)
+            {
+                return right is null;
+            }
             return left.Equals(right);
         }
 
@@ -522,7 +525,10 @@ namespace Opc.Ua
             SerializableVariant? left,
             Variant right)
         {
-            if (left is null) return right.IsNull;
+            if (left is null)
+            {
+                return right.IsNull;
+            }
             return left.Equals(right);
         }
 

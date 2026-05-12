@@ -30,8 +30,8 @@
 using System;
 using System.IO;
 using System.Security.Cryptography;
-using System.Security.Cryptography.X509Certificates;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Bindings
 {
@@ -47,7 +47,7 @@ namespace Opc.Ua.Bindings
         private ArraySegment<byte> Rsa_Encrypt(
             ArraySegment<byte> dataToEncrypt,
             ArraySegment<byte> headerToCopy,
-            X509Certificate2 encryptingCertificate,
+            Certificate encryptingCertificate,
             RsaUtils.Padding padding)
         {
             // get the encrypting key.
@@ -110,7 +110,7 @@ namespace Opc.Ua.Bindings
         private ArraySegment<byte> Rsa_Decrypt(
             ArraySegment<byte> dataToDecrypt,
             ArraySegment<byte> headerToCopy,
-            X509Certificate2 encryptingCertificate,
+            Certificate encryptingCertificate,
             RsaUtils.Padding padding)
         {
             // get the encrypting key.

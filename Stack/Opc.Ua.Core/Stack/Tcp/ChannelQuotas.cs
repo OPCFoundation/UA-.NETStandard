@@ -54,7 +54,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Validator to use when handling certificates.
         /// </summary>
-        public ICertificateValidator? CertificateValidator { get; set; }
+        public ICertificateValidatorEx? CertificateValidator { get; set; }
 
         /// <summary>
         /// The maximum size for a message sent or received.

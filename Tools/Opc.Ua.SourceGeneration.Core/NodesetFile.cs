@@ -27,16 +27,16 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using Microsoft.Extensions.Logging;
-using Opc.Ua.Export;
-using Opc.Ua.Schema.Model;
-using Opc.Ua.Types;
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using Microsoft.Extensions.Logging;
+using Opc.Ua.Export;
+using Opc.Ua.Schema.Model;
+using Opc.Ua.Types;
 
 namespace Opc.Ua.SourceGeneration
 {

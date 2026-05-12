@@ -200,7 +200,7 @@ namespace Opc.Ua.Client.Tests
 
             Assert.That(method, Is.Not.Null);
             ParameterInfo[] parameters = method.GetParameters();
-            Assert.That(parameters.Length, Is.EqualTo(2));
+            Assert.That(parameters, Has.Length.EqualTo(2));
             Assert.That(parameters[0].ParameterType, Is.EqualTo(typeof(ConfiguredEndpoint)));
             Assert.That(parameters[1].ParameterType, Is.EqualTo(typeof(ITransportWaitingConnection)));
         }

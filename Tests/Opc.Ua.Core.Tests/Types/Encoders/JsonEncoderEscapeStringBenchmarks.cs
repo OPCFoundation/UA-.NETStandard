@@ -33,11 +33,11 @@ using System.Globalization;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Text;
+using System.Text.Encodings.Web;
+using System.Text.Json;
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Diagnosers;
 using Microsoft.IO;
-using System.Text.Encodings.Web;
-using System.Text.Json;
 using NUnit.Framework;
 
 namespace Opc.Ua.Core.Tests.Types.Encoders
@@ -373,7 +373,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// Set up some variables for benchmarks.
         /// </summary>
         [GlobalSetup]
-        private void GlobalSetup()
+        public void GlobalSetup()
         {
             m_memoryManager = new RecyclableMemoryStreamManager();
             m_memoryStream = new RecyclableMemoryStream(m_memoryManager);
@@ -382,7 +382,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         }
 
         [GlobalCleanup]
-        private void GlobalCleanup()
+        public void GlobalCleanup()
         {
             m_streamWriter?.Dispose();
             m_streamWriter = null;

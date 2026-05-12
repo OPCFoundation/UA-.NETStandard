@@ -3095,8 +3095,9 @@ namespace Opc.Ua.PubSub.Encoding
 
                 foreach (Variant ii in list)
                 {
-                    if (ii is Variant vt)
+                    if (!ii.IsNull)
                     {
+                        Variant vt = ii;
                         PushStructure(null);
                         WriteVariantContents(vt.Value, vt.TypeInfo);
                         PopStructure();

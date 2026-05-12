@@ -553,7 +553,7 @@ namespace Opc.Ua.Security
             IServiceMessageContext ctx = AmbientMessageContext.CurrentContext ??
                 ServiceMessageContext.CreateEmpty(m_telemetry);
             using var memoryStream = new MemoryStream();
-            var writerSettings = Utils.DefaultXmlWriterSettings();
+            XmlWriterSettings writerSettings = Utils.DefaultXmlWriterSettings();
             writerSettings.Encoding = new UTF8Encoding(false);
             using var writer = XmlWriter.Create(memoryStream, writerSettings);
             using var encoder = new XmlEncoder(

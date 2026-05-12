@@ -275,7 +275,7 @@ namespace Opc.Ua.Core.Tests.Stack.Configuration
             {
                 ApplicationName = "TestAppConfig",
                 ApplicationUri = "urn:test:appconfig",
-                ApplicationType = Opc.Ua.ApplicationType.Server,
+                ApplicationType = ApplicationType.Server,
                 SecurityConfiguration = new SecurityConfiguration
                 {
                     ApplicationCertificate = new CertificateIdentifier
