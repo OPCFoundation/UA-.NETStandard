@@ -132,10 +132,7 @@ namespace Opc.Ua.Client.Conformance.Tests
                 await Task.Delay(300).ConfigureAwait(false);
                 try
                 {
-                    PublishResponse pub = await Session.PublishAsync(
-                        null,
-                        default,
-                        CancellationToken.None).ConfigureAwait(false);
+                    PublishResponse pub = await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
 
                     // May get BadNoSubscription or a publish for another sub
                     Assert.That(pub.SubscriptionId,
@@ -305,9 +302,7 @@ namespace Opc.Ua.Client.Conformance.Tests
             await Task.Delay(300).ConfigureAwait(false);
 
             // Publish to generate seq numbers
-            await Session.PublishAsync(
-                null, default,
-                CancellationToken.None).ConfigureAwait(false);
+            await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
 
             Client.ISession session2 = await CreateSessionAsync()
                 .ConfigureAwait(false);
@@ -394,9 +389,7 @@ namespace Opc.Ua.Client.Conformance.Tests
 
             // Consume initial on original session
             await Task.Delay(300).ConfigureAwait(false);
-            await Session.PublishAsync(
-                null, default,
-                CancellationToken.None).ConfigureAwait(false);
+            await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
 
             Client.ISession session2 = await CreateSessionAsync()
                 .ConfigureAwait(false);
@@ -490,9 +483,7 @@ namespace Opc.Ua.Client.Conformance.Tests
 
             // Consume initial
             await Task.Delay(300).ConfigureAwait(false);
-            await Session.PublishAsync(
-                null, default,
-                CancellationToken.None).ConfigureAwait(false);
+            await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
 
             Client.ISession session2 = await CreateSessionAsync()
                 .ConfigureAwait(false);
@@ -1335,9 +1326,7 @@ namespace Opc.Ua.Client.Conformance.Tests
 
             await Task.Delay(300).ConfigureAwait(false);
 
-            PublishResponse pubBefore = await Session.PublishAsync(
-                null, default,
-                CancellationToken.None).ConfigureAwait(false);
+            PublishResponse pubBefore = await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
             uint seqBefore =
                 pubBefore.NotificationMessage.SequenceNumber;
 

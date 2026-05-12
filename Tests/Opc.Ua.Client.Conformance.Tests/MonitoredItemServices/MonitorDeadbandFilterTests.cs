@@ -102,9 +102,7 @@ namespace Opc.Ua.Client.Conformance.Tests
 
             await Task.Delay(300).ConfigureAwait(false);
 
-            PublishResponse pubResp = await Session.PublishAsync(
-                null, default,
-                CancellationToken.None).ConfigureAwait(false);
+            PublishResponse pubResp = await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
 
             Assert.That(
                 StatusCode.IsGood(pubResp.ResponseHeader.ServiceResult),
@@ -143,9 +141,7 @@ namespace Opc.Ua.Client.Conformance.Tests
 
             await Task.Delay(300).ConfigureAwait(false);
 
-            PublishResponse pubSmall = await Session.PublishAsync(
-                null, default,
-                CancellationToken.None).ConfigureAwait(false);
+            PublishResponse pubSmall = await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
 
             Assert.That(
                 pubSmall.NotificationMessage.NotificationData.Count,
@@ -158,9 +154,7 @@ namespace Opc.Ua.Client.Conformance.Tests
 
             await Task.Delay(300).ConfigureAwait(false);
 
-            PublishResponse pubLarge = await Session.PublishAsync(
-                null, default,
-                CancellationToken.None).ConfigureAwait(false);
+            PublishResponse pubLarge = await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
 
             Assert.That(
                 pubLarge.NotificationMessage.NotificationData.Count,
@@ -194,9 +188,7 @@ namespace Opc.Ua.Client.Conformance.Tests
 
             await Task.Delay(300).ConfigureAwait(false);
 
-            PublishResponse pubResp = await Session.PublishAsync(
-                null, default,
-                CancellationToken.None).ConfigureAwait(false);
+            PublishResponse pubResp = await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
 
             Assert.That(
                 pubResp.NotificationMessage.NotificationData.Count,
@@ -231,9 +223,7 @@ namespace Opc.Ua.Client.Conformance.Tests
 
             await Task.Delay(300).ConfigureAwait(false);
 
-            PublishResponse pubResp = await Session.PublishAsync(
-                null, default,
-                CancellationToken.None).ConfigureAwait(false);
+            PublishResponse pubResp = await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
 
             Assert.That(
                 StatusCode.IsGood(pubResp.ResponseHeader.ServiceResult),
@@ -316,9 +306,7 @@ namespace Opc.Ua.Client.Conformance.Tests
 
             await Task.Delay(300).ConfigureAwait(false);
 
-            PublishResponse pubResp = await Session.PublishAsync(
-                null, default,
-                CancellationToken.None).ConfigureAwait(false);
+            PublishResponse pubResp = await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
 
             Assert.That(
                 StatusCode.IsGood(pubResp.ResponseHeader.ServiceResult),
@@ -355,9 +343,7 @@ namespace Opc.Ua.Client.Conformance.Tests
 
             await Task.Delay(300).ConfigureAwait(false);
 
-            PublishResponse pubResp = await Session.PublishAsync(
-                null, default,
-                CancellationToken.None).ConfigureAwait(false);
+            PublishResponse pubResp = await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
 
             Assert.That(
                 StatusCode.IsGood(pubResp.ResponseHeader.ServiceResult),
@@ -394,9 +380,7 @@ namespace Opc.Ua.Client.Conformance.Tests
 
             await Task.Delay(300).ConfigureAwait(false);
 
-            PublishResponse pubResp = await Session.PublishAsync(
-                null, default,
-                CancellationToken.None).ConfigureAwait(false);
+            PublishResponse pubResp = await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
 
             Assert.That(
                 StatusCode.IsGood(pubResp.ResponseHeader.ServiceResult),
@@ -434,9 +418,7 @@ namespace Opc.Ua.Client.Conformance.Tests
 
             await Task.Delay(300).ConfigureAwait(false);
 
-            PublishResponse pubResp = await Session.PublishAsync(
-                null, default,
-                CancellationToken.None).ConfigureAwait(false);
+            PublishResponse pubResp = await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
 
             Assert.That(
                 StatusCode.IsGood(pubResp.ResponseHeader.ServiceResult),
@@ -614,9 +596,7 @@ namespace Opc.Ua.Client.Conformance.Tests
 
             await Task.Delay(300).ConfigureAwait(false);
 
-            PublishResponse pubResp = await Session.PublishAsync(
-                null, default,
-                CancellationToken.None).ConfigureAwait(false);
+            PublishResponse pubResp = await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
 
             Assert.That(
                 pubResp.NotificationMessage.NotificationData.Count,
@@ -878,9 +858,7 @@ namespace Opc.Ua.Client.Conformance.Tests
         private async Task ConsumeInitialPublishAsync()
         {
             await Task.Delay(300).ConfigureAwait(false);
-            await Session.PublishAsync(
-                null, default,
-                CancellationToken.None).ConfigureAwait(false);
+            await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
         }
 
         private async Task<double> ReadCurrentDoubleAsync(NodeId nodeId)
@@ -1195,9 +1173,7 @@ namespace Opc.Ua.Client.Conformance.Tests
             }
 
             await Task.Delay(300).ConfigureAwait(false);
-            PublishResponse pubSmall = await Session.PublishAsync(
-                null, default,
-                CancellationToken.None).ConfigureAwait(false);
+            PublishResponse pubSmall = await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
             Assert.That(
                 NotificationCount(pubSmall), Is.Zero,
                 "Change within deadband should not notify.");
@@ -1207,9 +1183,7 @@ namespace Opc.Ua.Client.Conformance.Tests
                 .ConfigureAwait(false);
 
             await Task.Delay(300).ConfigureAwait(false);
-            PublishResponse pubLarge = await Session.PublishAsync(
-                null, default,
-                CancellationToken.None).ConfigureAwait(false);
+            PublishResponse pubLarge = await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
             Assert.That(
                 pubLarge.NotificationMessage.NotificationData.Count,
                 Is.GreaterThan(0),
@@ -1245,9 +1219,7 @@ namespace Opc.Ua.Client.Conformance.Tests
             }
 
             await Task.Delay(300).ConfigureAwait(false);
-            PublishResponse pubSmall = await Session.PublishAsync(
-                null, default,
-                CancellationToken.None).ConfigureAwait(false);
+            PublishResponse pubSmall = await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
             Assert.That(
                 NotificationCount(pubSmall), Is.Zero,
                 "Change within deadband should not notify.");
@@ -1257,9 +1229,7 @@ namespace Opc.Ua.Client.Conformance.Tests
                 .ConfigureAwait(false);
 
             await Task.Delay(300).ConfigureAwait(false);
-            PublishResponse pubLarge = await Session.PublishAsync(
-                null, default,
-                CancellationToken.None).ConfigureAwait(false);
+            PublishResponse pubLarge = await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
             Assert.That(
                 pubLarge.NotificationMessage.NotificationData.Count,
                 Is.GreaterThan(0),
@@ -1304,9 +1274,7 @@ samplingInterval: 50,                                 filter: filter)
                 Assert.That(StatusCode.IsGood(status), Is.True);
 
                 await Task.Delay(300).ConfigureAwait(false);
-                await Session.PublishAsync(
-                    null, default,
-                    CancellationToken.None).ConfigureAwait(false);
+                await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
 
                 double current = await ReadCurrentDoubleAsync(nodeId)
                     .ConfigureAwait(false);
@@ -1319,9 +1287,7 @@ samplingInterval: 50,                                 filter: filter)
                 }
 
                 await Task.Delay(300).ConfigureAwait(false);
-                PublishResponse pubResp = await Session.PublishAsync(
-                    null, default,
-                    CancellationToken.None).ConfigureAwait(false);
+                PublishResponse pubResp = await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
                 if (NotificationCount(pubResp) != 0)
                 {
                     Assert.Ignore("Timing-sensitive: received notification within large deadband threshold.");
@@ -1374,9 +1340,7 @@ samplingInterval: 50,                                 filter: filter)
             }
 
             await Task.Delay(300).ConfigureAwait(false);
-            PublishResponse pub1 = await Session.PublishAsync(
-                null, default,
-                CancellationToken.None).ConfigureAwait(false);
+            PublishResponse pub1 = await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
             Assert.That(
                 pub1.NotificationMessage.NotificationData.Count,
                 Is.GreaterThan(0),
@@ -1388,9 +1352,7 @@ samplingInterval: 50,                                 filter: filter)
                 .ConfigureAwait(false);
 
             await Task.Delay(300).ConfigureAwait(false);
-            PublishResponse pub2 = await Session.PublishAsync(
-                null, default,
-                CancellationToken.None).ConfigureAwait(false);
+            PublishResponse pub2 = await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
             if (NotificationCount(pub2) != 0)
             {
                 Assert.Ignore("Timing-sensitive: server notified for within-deadband change.");
@@ -1403,9 +1365,7 @@ samplingInterval: 50,                                 filter: filter)
                 .ConfigureAwait(false);
 
             await Task.Delay(300).ConfigureAwait(false);
-            PublishResponse pub3 = await Session.PublishAsync(
-                null, default,
-                CancellationToken.None).ConfigureAwait(false);
+            PublishResponse pub3 = await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
             Assert.That(
                 pub3.NotificationMessage.NotificationData.Count,
                 Is.GreaterThan(0),
@@ -1448,9 +1408,7 @@ samplingInterval: 50,                                 filter: filter)
             }
 
             await Task.Delay(300).ConfigureAwait(false);
-            PublishResponse pub1 = await Session.PublishAsync(
-                null, default,
-                CancellationToken.None).ConfigureAwait(false);
+            PublishResponse pub1 = await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
             Assert.That(
                 NotificationCount(pub1), Is.Zero,
                 "Change outside monitored IndexRange should not notify.");
@@ -1460,9 +1418,7 @@ samplingInterval: 50,                                 filter: filter)
             await TryWriteArrayAsync(nodeId, modified).ConfigureAwait(false);
 
             await Task.Delay(300).ConfigureAwait(false);
-            PublishResponse pub2 = await Session.PublishAsync(
-                null, default,
-                CancellationToken.None).ConfigureAwait(false);
+            PublishResponse pub2 = await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
             Assert.That(
                 pub2.NotificationMessage.NotificationData.Count,
                 Is.GreaterThan(0),
@@ -1507,9 +1463,7 @@ samplingInterval: 50,                                 filter: filter)
             }
 
             await Task.Delay(300).ConfigureAwait(false);
-            PublishResponse pub1 = await Session.PublishAsync(
-                null, default,
-                CancellationToken.None).ConfigureAwait(false);
+            PublishResponse pub1 = await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
             Assert.That(
                 NotificationCount(pub1), Is.Zero,
                 "Change outside middle range should not notify.");
@@ -1519,9 +1473,7 @@ samplingInterval: 50,                                 filter: filter)
             await TryWriteArrayAsync(nodeId, modified).ConfigureAwait(false);
 
             await Task.Delay(300).ConfigureAwait(false);
-            PublishResponse pub2 = await Session.PublishAsync(
-                null, default,
-                CancellationToken.None).ConfigureAwait(false);
+            PublishResponse pub2 = await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
             Assert.That(
                 pub2.NotificationMessage.NotificationData.Count,
                 Is.GreaterThan(0),
@@ -1564,9 +1516,7 @@ samplingInterval: 50,                                 filter: filter)
             }
 
             await Task.Delay(300).ConfigureAwait(false);
-            PublishResponse pub1 = await Session.PublishAsync(
-                null, default,
-                CancellationToken.None).ConfigureAwait(false);
+            PublishResponse pub1 = await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
             Assert.That(
                 pub1.NotificationMessage.NotificationData.Count,
                 Is.GreaterThan(0),
@@ -1577,9 +1527,7 @@ samplingInterval: 50,                                 filter: filter)
             await TryWriteArrayAsync(nodeId, modified).ConfigureAwait(false);
 
             await Task.Delay(300).ConfigureAwait(false);
-            PublishResponse pub2 = await Session.PublishAsync(
-                null, default,
-                CancellationToken.None).ConfigureAwait(false);
+            PublishResponse pub2 = await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
             if (NotificationCount(pub2) != 0)
             {
                 Assert.Ignore("Timing-sensitive: server notified for within-deadband change.");
@@ -1591,9 +1539,7 @@ samplingInterval: 50,                                 filter: filter)
             await TryWriteArrayAsync(nodeId, modified).ConfigureAwait(false);
 
             await Task.Delay(300).ConfigureAwait(false);
-            PublishResponse pub3 = await Session.PublishAsync(
-                null, default,
-                CancellationToken.None).ConfigureAwait(false);
+            PublishResponse pub3 = await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
             Assert.That(
                 pub3.NotificationMessage.NotificationData.Count,
                 Is.GreaterThan(0),
@@ -1637,9 +1583,7 @@ samplingInterval: 50,                                 filter: filter)
             }
 
             await Task.Delay(300).ConfigureAwait(false);
-            PublishResponse pub1 = await Session.PublishAsync(
-                null, default,
-                CancellationToken.None).ConfigureAwait(false);
+            PublishResponse pub1 = await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
             Assert.That(
                 pub1.NotificationMessage.NotificationData.Count,
                 Is.GreaterThan(0),
@@ -1650,9 +1594,7 @@ samplingInterval: 50,                                 filter: filter)
             await TryWriteArrayAsync(nodeId, modified).ConfigureAwait(false);
 
             await Task.Delay(300).ConfigureAwait(false);
-            PublishResponse pub2 = await Session.PublishAsync(
-                null, default,
-                CancellationToken.None).ConfigureAwait(false);
+            PublishResponse pub2 = await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
             Assert.That(
                 pub2.NotificationMessage.NotificationData.Count,
                 Is.GreaterThan(0),
@@ -1730,9 +1672,7 @@ samplingInterval: 50,                                 filter: filter)
                 Assert.Fail("Array node is not writable.");
             }
             await Task.Delay(300).ConfigureAwait(false);
-            PublishResponse pub1 = await Session.PublishAsync(
-                null, default,
-                CancellationToken.None).ConfigureAwait(false);
+            PublishResponse pub1 = await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
             Assert.That(
                 pub1.NotificationMessage.NotificationData.Count,
                 Is.GreaterThan(0),
@@ -1742,9 +1682,7 @@ samplingInterval: 50,                                 filter: filter)
             modified[0] += 5;
             await TryWriteArrayAsync(nodeId, modified).ConfigureAwait(false);
             await Task.Delay(300).ConfigureAwait(false);
-            PublishResponse pub2 = await Session.PublishAsync(
-                null, default,
-                CancellationToken.None).ConfigureAwait(false);
+            PublishResponse pub2 = await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
             if (NotificationCount(pub2) != 0)
             {
                 Assert.Fail("Timing-sensitive: server notified for within-deadband change.");
@@ -1754,9 +1692,7 @@ samplingInterval: 50,                                 filter: filter)
             modified[0] -= 16;
             await TryWriteArrayAsync(nodeId, modified).ConfigureAwait(false);
             await Task.Delay(300).ConfigureAwait(false);
-            PublishResponse pub3 = await Session.PublishAsync(
-                null, default,
-                CancellationToken.None).ConfigureAwait(false);
+            PublishResponse pub3 = await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
             Assert.That(
                 pub3.NotificationMessage.NotificationData.Count,
                 Is.GreaterThan(0),
@@ -1765,9 +1701,7 @@ samplingInterval: 50,                                 filter: filter)
             // Repeat same value — should not notify
             await TryWriteArrayAsync(nodeId, modified).ConfigureAwait(false);
             await Task.Delay(300).ConfigureAwait(false);
-            PublishResponse pub4 = await Session.PublishAsync(
-                null, default,
-                CancellationToken.None).ConfigureAwait(false);
+            PublishResponse pub4 = await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
             Assert.That(
                 NotificationCount(pub4), Is.Zero,
                 "Unchanged repeat should not notify.");
@@ -1808,9 +1742,7 @@ samplingInterval: 50,                                 filter: filter)
                 Assert.Ignore("Array node is not writable.");
             }
             await Task.Delay(300).ConfigureAwait(false);
-            PublishResponse pub1 = await Session.PublishAsync(
-                null, default,
-                CancellationToken.None).ConfigureAwait(false);
+            PublishResponse pub1 = await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
             Assert.That(
                 pub1.NotificationMessage.NotificationData.Count,
                 Is.GreaterThan(0),
@@ -1820,9 +1752,7 @@ samplingInterval: 50,                                 filter: filter)
             modified[0] += 5;
             await TryWriteArrayAsync(nodeId, modified).ConfigureAwait(false);
             await Task.Delay(300).ConfigureAwait(false);
-            PublishResponse pub2 = await Session.PublishAsync(
-                null, default,
-                CancellationToken.None).ConfigureAwait(false);
+            PublishResponse pub2 = await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
             if (NotificationCount(pub2) != 0)
             {
                 Assert.Ignore("Timing-sensitive: server notified for within-deadband change.");
@@ -1833,9 +1763,7 @@ samplingInterval: 50,                                 filter: filter)
             modified[0] = current[0] - 11;
             await TryWriteArrayAsync(nodeId, modified).ConfigureAwait(false);
             await Task.Delay(300).ConfigureAwait(false);
-            PublishResponse pub3 = await Session.PublishAsync(
-                null, default,
-                CancellationToken.None).ConfigureAwait(false);
+            PublishResponse pub3 = await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
             Assert.That(
                 pub3.NotificationMessage.NotificationData.Count,
                 Is.GreaterThan(0),
@@ -1844,9 +1772,7 @@ samplingInterval: 50,                                 filter: filter)
             // Repeat unchanged — should not notify
             await TryWriteArrayAsync(nodeId, modified).ConfigureAwait(false);
             await Task.Delay(300).ConfigureAwait(false);
-            PublishResponse pub4 = await Session.PublishAsync(
-                null, default,
-                CancellationToken.None).ConfigureAwait(false);
+            PublishResponse pub4 = await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
             Assert.That(
                 NotificationCount(pub4), Is.Zero,
                 "Unchanged should not notify with queue 1.");

@@ -88,9 +88,7 @@ namespace Opc.Ua.Client.Conformance.Tests
 
             await Task.Delay(500).ConfigureAwait(false);
 
-            PublishResponse pubResp = await Session.PublishAsync(
-                null, default,
-                CancellationToken.None).ConfigureAwait(false);
+            PublishResponse pubResp = await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
 
             Assert.That(StatusCode.IsGood(pubResp.ResponseHeader.ServiceResult), Is.True);
             Assert.That(pubResp.NotificationMessage.NotificationData.Count, Is.GreaterThan(0));
@@ -119,9 +117,7 @@ namespace Opc.Ua.Client.Conformance.Tests
 
             await Task.Delay(500).ConfigureAwait(false);
 
-            PublishResponse pubResp = await Session.PublishAsync(
-                null, default,
-                CancellationToken.None).ConfigureAwait(false);
+            PublishResponse pubResp = await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
 
             Assert.That(StatusCode.IsGood(pubResp.ResponseHeader.ServiceResult), Is.True);
             Assert.That(pubResp.NotificationMessage.NotificationData.Count, Is.GreaterThan(0));

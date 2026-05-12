@@ -1204,10 +1204,7 @@ namespace Opc.Ua.Client.Conformance.Tests
         {
             await Task.Delay(delayMs).ConfigureAwait(false);
 
-            PublishResponse pubResp = await Session.PublishAsync(
-                null,
-                default,
-                CancellationToken.None).ConfigureAwait(false);
+            PublishResponse pubResp = await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
 
             Assert.That(
                 StatusCode.IsGood(pubResp.ResponseHeader.ServiceResult),
@@ -1232,10 +1229,7 @@ namespace Opc.Ua.Client.Conformance.Tests
             try
             {
                 await Task.Delay(200).ConfigureAwait(false);
-                await Session.PublishAsync(
-                    null,
-                    default,
-                    CancellationToken.None).ConfigureAwait(false);
+                await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
             }
             catch (ServiceResultException)
             {

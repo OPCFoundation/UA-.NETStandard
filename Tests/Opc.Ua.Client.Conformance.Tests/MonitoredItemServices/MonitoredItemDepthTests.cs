@@ -120,9 +120,7 @@ namespace Opc.Ua.Client.Conformance.Tests
             // Publish to get initial values
             await Task.Delay(300).ConfigureAwait(false);
 
-            PublishResponse pubResp = await Session.PublishAsync(
-                null, default,
-                CancellationToken.None).ConfigureAwait(false);
+            PublishResponse pubResp = await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
 
             Assert.That(StatusCode.IsGood(pubResp.ResponseHeader.ServiceResult), Is.True);
             Assert.That(pubResp.NotificationMessage.NotificationData.Count, Is.GreaterThan(0),
@@ -149,9 +147,7 @@ namespace Opc.Ua.Client.Conformance.Tests
 
             await Task.Delay(300).ConfigureAwait(false);
 
-            PublishResponse pubResp = await Session.PublishAsync(
-                null, default,
-                CancellationToken.None).ConfigureAwait(false);
+            PublishResponse pubResp = await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
 
             Assert.That(StatusCode.IsGood(pubResp.ResponseHeader.ServiceResult), Is.True);
             Assert.That(pubResp.NotificationMessage.NotificationData.Count, Is.GreaterThan(0));
@@ -264,9 +260,7 @@ namespace Opc.Ua.Client.Conformance.Tests
 
             // Consume initial notification
             await Task.Delay(300).ConfigureAwait(false);
-            await Session.PublishAsync(
-                null, default,
-                CancellationToken.None).ConfigureAwait(false);
+            await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
 
             // Read current value
             ReadResponse readResp = await Session.ReadAsync(
@@ -287,9 +281,7 @@ namespace Opc.Ua.Client.Conformance.Tests
 
             await Task.Delay(300).ConfigureAwait(false);
 
-            PublishResponse pubResp = await Session.PublishAsync(
-                null, default,
-                CancellationToken.None).ConfigureAwait(false);
+            PublishResponse pubResp = await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
 
             Assert.That(StatusCode.IsGood(pubResp.ResponseHeader.ServiceResult), Is.True);
             // Should be KeepAlive (no notification data) since change < deadband
@@ -325,9 +317,7 @@ namespace Opc.Ua.Client.Conformance.Tests
 
             // Consume initial
             await Task.Delay(300).ConfigureAwait(false);
-            await Session.PublishAsync(
-                null, default,
-                CancellationToken.None).ConfigureAwait(false);
+            await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
 
             // Read current value
             ReadResponse readResp = await Session.ReadAsync(
@@ -348,9 +338,7 @@ namespace Opc.Ua.Client.Conformance.Tests
 
             await Task.Delay(300).ConfigureAwait(false);
 
-            PublishResponse pubResp = await Session.PublishAsync(
-                null, default,
-                CancellationToken.None).ConfigureAwait(false);
+            PublishResponse pubResp = await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
 
             Assert.That(StatusCode.IsGood(pubResp.ResponseHeader.ServiceResult), Is.True);
             Assert.That(pubResp.NotificationMessage.NotificationData.Count, Is.GreaterThan(0),
@@ -409,9 +397,7 @@ namespace Opc.Ua.Client.Conformance.Tests
 
             await Task.Delay(300).ConfigureAwait(false);
 
-            PublishResponse pubResp = await Session.PublishAsync(
-                null, default,
-                CancellationToken.None).ConfigureAwait(false);
+            PublishResponse pubResp = await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
 
             Assert.That(StatusCode.IsGood(pubResp.ResponseHeader.ServiceResult), Is.True);
             Assert.That(pubResp.NotificationMessage.NotificationData.Count, Is.GreaterThan(0));
@@ -437,9 +423,7 @@ namespace Opc.Ua.Client.Conformance.Tests
 
             // Consume initial
             await Task.Delay(200).ConfigureAwait(false);
-            await Session.PublishAsync(
-                null, default,
-                CancellationToken.None).ConfigureAwait(false);
+            await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
 
             // Write 3 values rapidly
             for (int i = 0; i < 3; i++)
@@ -449,9 +433,7 @@ namespace Opc.Ua.Client.Conformance.Tests
 
             await Task.Delay(300).ConfigureAwait(false);
 
-            PublishResponse pubResp = await Session.PublishAsync(
-                null, default,
-                CancellationToken.None).ConfigureAwait(false);
+            PublishResponse pubResp = await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
 
             Assert.That(StatusCode.IsGood(pubResp.ResponseHeader.ServiceResult), Is.True);
             Assert.That(pubResp.NotificationMessage.NotificationData.Count, Is.GreaterThan(0));
@@ -472,9 +454,7 @@ queueSize: 1, discardOldest: true))
 
             // Consume initial
             await Task.Delay(200).ConfigureAwait(false);
-            await Session.PublishAsync(
-                null, default,
-                CancellationToken.None).ConfigureAwait(false);
+            await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
 
             // Write 5 values rapidly
             int lastVal = 0;
@@ -486,9 +466,7 @@ queueSize: 1, discardOldest: true))
 
             await Task.Delay(300).ConfigureAwait(false);
 
-            PublishResponse pubResp = await Session.PublishAsync(
-                null, default,
-                CancellationToken.None).ConfigureAwait(false);
+            PublishResponse pubResp = await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
 
             Assert.That(StatusCode.IsGood(pubResp.ResponseHeader.ServiceResult), Is.True);
 
@@ -530,9 +508,7 @@ queueSize: 1, discardOldest: true))
 
             // Consume initial
             await Task.Delay(300).ConfigureAwait(false);
-            await Session.PublishAsync(
-                null, default,
-                CancellationToken.None).ConfigureAwait(false);
+            await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
 
             // Delete first item
             DeleteMonitoredItemsResponse delResp = await Session.DeleteMonitoredItemsAsync(
@@ -545,9 +521,7 @@ queueSize: 1, discardOldest: true))
 
             await Task.Delay(300).ConfigureAwait(false);
 
-            PublishResponse pubResp = await Session.PublishAsync(
-                null, default,
-                CancellationToken.None).ConfigureAwait(false);
+            PublishResponse pubResp = await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
 
             Assert.That(StatusCode.IsGood(pubResp.ResponseHeader.ServiceResult), Is.True);
             // Remaining item should still produce notifications
@@ -567,9 +541,7 @@ queueSize: 1, discardOldest: true))
 
             // Consume initial
             await Task.Delay(300).ConfigureAwait(false);
-            await Session.PublishAsync(
-                null, default,
-                CancellationToken.None).ConfigureAwait(false);
+            await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
 
             // Set to Disabled
             SetMonitoringModeResponse disableResp = await Session.SetMonitoringModeAsync(
@@ -580,9 +552,7 @@ queueSize: 1, discardOldest: true))
 
             await Task.Delay(300).ConfigureAwait(false);
 
-            PublishResponse pubResp = await Session.PublishAsync(
-                null, default,
-                CancellationToken.None).ConfigureAwait(false);
+            PublishResponse pubResp = await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
 
             Assert.That(StatusCode.IsGood(pubResp.ResponseHeader.ServiceResult), Is.True);
             Assert.That(pubResp.NotificationMessage.NotificationData.Count, Is.Zero,
@@ -608,9 +578,7 @@ queueSize: 1, discardOldest: true))
 
             // Consume any pending
             await Task.Delay(200).ConfigureAwait(false);
-            await Session.PublishAsync(
-                null, default,
-                CancellationToken.None).ConfigureAwait(false);
+            await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
 
             // Re-enable to Reporting
             SetMonitoringModeResponse reportResp = await Session.SetMonitoringModeAsync(
@@ -621,9 +589,7 @@ queueSize: 1, discardOldest: true))
 
             await Task.Delay(300).ConfigureAwait(false);
 
-            PublishResponse pubResp = await Session.PublishAsync(
-                null, default,
-                CancellationToken.None).ConfigureAwait(false);
+            PublishResponse pubResp = await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
 
             Assert.That(StatusCode.IsGood(pubResp.ResponseHeader.ServiceResult), Is.True);
             // Re-enabling should produce at least one notification (latest value)
@@ -670,9 +636,7 @@ queueSize: 1, discardOldest: true))
 
             await Task.Delay(300).ConfigureAwait(false);
 
-            PublishResponse pubResp = await Session.PublishAsync(
-                null, default,
-                CancellationToken.None).ConfigureAwait(false);
+            PublishResponse pubResp = await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
 
             Assert.That(StatusCode.IsGood(pubResp.ResponseHeader.ServiceResult), Is.True);
             Assert.That(pubResp.NotificationMessage.NotificationData.Count, Is.GreaterThan(0));
@@ -880,9 +844,7 @@ queueSize: 1, discardOldest: true))
 
             // Consume initial notifications
             await Task.Delay(300).ConfigureAwait(false);
-            await Session.PublishAsync(
-                null, default,
-                CancellationToken.None).ConfigureAwait(false);
+            await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
 
             // Write to the linked (sampling) node only
             await WriteValueAsync(linkedNode, new Random().Next(1, 10000)).ConfigureAwait(false);
@@ -890,9 +852,7 @@ queueSize: 1, discardOldest: true))
             // Wait for trigger node (CurrentTime) to change and produce notification
             await Task.Delay(300).ConfigureAwait(false);
 
-            PublishResponse pubResp = await Session.PublishAsync(
-                null, default,
-                CancellationToken.None).ConfigureAwait(false);
+            PublishResponse pubResp = await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
 
             Assert.That(StatusCode.IsGood(pubResp.ResponseHeader.ServiceResult), Is.True);
             Assert.That(pubResp.NotificationMessage, Is.Not.Null);
@@ -1030,16 +990,12 @@ queueSize: 1, discardOldest: true))
             // Collect two publishes and verify values differ
             await Task.Delay(300).ConfigureAwait(false);
 
-            PublishResponse pub1 = await Session.PublishAsync(
-                null, default,
-                CancellationToken.None).ConfigureAwait(false);
+            PublishResponse pub1 = await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
             Assert.That(StatusCode.IsGood(pub1.ResponseHeader.ServiceResult), Is.True);
 
             await Task.Delay(300).ConfigureAwait(false);
 
-            PublishResponse pub2 = await Session.PublishAsync(
-                null, default,
-                CancellationToken.None).ConfigureAwait(false);
+            PublishResponse pub2 = await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
             Assert.That(StatusCode.IsGood(pub2.ResponseHeader.ServiceResult), Is.True);
 
             // Both should have notification data since CurrentTime changes
@@ -1127,9 +1083,7 @@ queueSize: 1, discardOldest: true))
 
             // Publish should now return KeepAlive
             await Task.Delay(200).ConfigureAwait(false);
-            PublishResponse pubResp = await Session.PublishAsync(
-                null, default,
-                CancellationToken.None).ConfigureAwait(false);
+            PublishResponse pubResp = await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
 
             Assert.That(StatusCode.IsGood(pubResp.ResponseHeader.ServiceResult), Is.True);
             Assert.That(pubResp.NotificationMessage.NotificationData.Count, Is.Zero);
@@ -1160,9 +1114,7 @@ queueSize: 1, discardOldest: true))
 
             await Task.Delay(300).ConfigureAwait(false);
 
-            PublishResponse pubResp = await Session.PublishAsync(
-                null, default,
-                CancellationToken.None).ConfigureAwait(false);
+            PublishResponse pubResp = await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
 
             Assert.That(StatusCode.IsGood(pubResp.ResponseHeader.ServiceResult), Is.True);
             Assert.That(pubResp.NotificationMessage.NotificationData.Count, Is.GreaterThan(0));
@@ -1230,9 +1182,7 @@ queueSize: 1, discardOldest: true))
 
             await Task.Delay(500).ConfigureAwait(false);
 
-            PublishResponse pubResp = await Session.PublishAsync(
-                null, default,
-                CancellationToken.None).ConfigureAwait(false);
+            PublishResponse pubResp = await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
 
             Assert.That(StatusCode.IsGood(pubResp.ResponseHeader.ServiceResult), Is.True);
             Assert.That(pubResp.NotificationMessage, Is.Not.Null);

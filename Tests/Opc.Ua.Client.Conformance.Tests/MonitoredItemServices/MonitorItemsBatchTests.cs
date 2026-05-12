@@ -447,9 +447,7 @@ namespace Opc.Ua.Client.Conformance.Tests
 
             // Consume initial notifications
             await Task.Delay(300).ConfigureAwait(false);
-            await Session.PublishAsync(
-                null, default,
-                CancellationToken.None).ConfigureAwait(false);
+            await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
 
             // Delete all items
             uint[] monIds = [.. createResp.Results.ToArray().Select(r => r.MonitoredItemId)];
@@ -473,9 +471,7 @@ namespace Opc.Ua.Client.Conformance.Tests
 
             await Task.Delay(300).ConfigureAwait(false);
 
-            PublishResponse pubResp = await Session.PublishAsync(
-                null, default,
-                CancellationToken.None).ConfigureAwait(false);
+            PublishResponse pubResp = await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
 
             Assert.That(
                 StatusCode.IsGood(pubResp.ResponseHeader.ServiceResult),

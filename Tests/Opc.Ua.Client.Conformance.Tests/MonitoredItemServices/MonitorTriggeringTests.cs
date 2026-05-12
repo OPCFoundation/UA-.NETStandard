@@ -2611,10 +2611,7 @@ namespace Opc.Ua.Client.Conformance.Tests
             await Task.Delay(300).ConfigureAwait(false);
             try
             {
-                await Session.PublishAsync(
-                    null,
-                    default,
-                    CancellationToken.None).ConfigureAwait(false);
+                await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
             }
             catch (ServiceResultException)
             {
@@ -2625,10 +2622,7 @@ namespace Opc.Ua.Client.Conformance.Tests
         private async Task<PublishResponse> PublishAndWaitAsync(int delayMs = 300)
         {
             await Task.Delay(delayMs).ConfigureAwait(false);
-            return await Session.PublishAsync(
-                null,
-                default,
-                CancellationToken.None).ConfigureAwait(false);
+            return await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
         }
 
         /// <summary>
@@ -2651,8 +2645,7 @@ namespace Opc.Ua.Client.Conformance.Tests
                 PublishResponse pub;
                 try
                 {
-                    pub = await Session.PublishAsync(
-                        null, default, CancellationToken.None).ConfigureAwait(false);
+                    pub = await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
                 }
                 catch (ServiceResultException)
                 {

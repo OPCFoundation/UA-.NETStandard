@@ -249,9 +249,7 @@ namespace Opc.Ua.Client.Conformance.Tests
                 Assert.That(StatusCode.IsGood(callResult.StatusCode), Is.True,
                     $"ConditionRefresh should return Good: {callResult.StatusCode}");
 
-                PublishResponse pubResp = await Session.PublishAsync(
-                    null, default,
-                    CancellationToken.None).ConfigureAwait(false);
+                PublishResponse pubResp = await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
                 Assert.That(StatusCode.IsGood(pubResp.ResponseHeader.ServiceResult),
                     Is.True);
             }

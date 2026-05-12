@@ -1057,9 +1057,7 @@ namespace Opc.Ua.Client.Conformance.Tests
                 // (shorter lifetime). Wait for keep-alive or timeout.
                 await Task.Delay(1000).ConfigureAwait(false);
 
-                PublishResponse pub = await Session.PublishAsync(
-                    null, default,
-                    CancellationToken.None).ConfigureAwait(false);
+                PublishResponse pub = await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
 
                 Assert.That(
                     StatusCode.IsGood(pub.ResponseHeader.ServiceResult) ||
@@ -1101,9 +1099,7 @@ namespace Opc.Ua.Client.Conformance.Tests
             // Attempting to publish should eventually return BadNoSubscription
             try
             {
-                PublishResponse pub = await Session.PublishAsync(
-                    null, default,
-                    CancellationToken.None).ConfigureAwait(false);
+                PublishResponse pub = await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
 
                 Assert.That(
                     pub.ResponseHeader.ServiceResult == StatusCodes.BadNoSubscription ||

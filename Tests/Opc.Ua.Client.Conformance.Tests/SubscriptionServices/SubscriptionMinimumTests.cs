@@ -2113,9 +2113,7 @@ namespace Opc.Ua.Client.Conformance.Tests
 
         private async Task<PublishResponse> PublishAsync()
         {
-            return await Session.PublishAsync(
-                null, default,
-                CancellationToken.None).ConfigureAwait(false);
+            return await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
         }
 
         private static bool HasDataChangeNotification(PublishResponse pub)

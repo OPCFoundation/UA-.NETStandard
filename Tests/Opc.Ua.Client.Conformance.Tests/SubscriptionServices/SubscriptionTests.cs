@@ -543,10 +543,7 @@ namespace Opc.Ua.Client.Conformance.Tests
                 publishingEnabled: false).ConfigureAwait(false);
             uint id = createResp.SubscriptionId;
 
-            PublishResponse publishResp = await Session.PublishAsync(
-                null,
-                default,
-                CancellationToken.None).ConfigureAwait(false);
+            PublishResponse publishResp = await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
 
             Assert.That(StatusCode.IsGood(publishResp.ResponseHeader.ServiceResult), Is.True);
             Assert.That(publishResp.SubscriptionId, Is.EqualTo(id));
@@ -569,10 +566,7 @@ namespace Opc.Ua.Client.Conformance.Tests
 
             await Task.Delay(300).ConfigureAwait(false);
 
-            PublishResponse pub1 = await Session.PublishAsync(
-                null,
-                default,
-                CancellationToken.None).ConfigureAwait(false);
+            PublishResponse pub1 = await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
 
             Assert.That(StatusCode.IsGood(pub1.ResponseHeader.ServiceResult), Is.True);
             uint seq1 = pub1.NotificationMessage.SequenceNumber;
@@ -611,10 +605,7 @@ namespace Opc.Ua.Client.Conformance.Tests
 
             await Task.Delay(300).ConfigureAwait(false);
 
-            PublishResponse pubResp = await Session.PublishAsync(
-                null,
-                default,
-                CancellationToken.None).ConfigureAwait(false);
+            PublishResponse pubResp = await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
 
             Assert.That(StatusCode.IsGood(pubResp.ResponseHeader.ServiceResult), Is.True);
             Assert.That((DateTime)pubResp.NotificationMessage.PublishTime, Is.GreaterThan(DateTime.MinValue));
@@ -639,10 +630,7 @@ namespace Opc.Ua.Client.Conformance.Tests
 
             // Consume initial notification
             await Task.Delay(300).ConfigureAwait(false);
-            await Session.PublishAsync(
-                null,
-                default,
-                CancellationToken.None).ConfigureAwait(false);
+            await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
 
             // Write new value
             int newValue = new Random().Next(1, 10000);
@@ -650,10 +638,7 @@ namespace Opc.Ua.Client.Conformance.Tests
 
             await Task.Delay(300).ConfigureAwait(false);
 
-            PublishResponse pubResp = await Session.PublishAsync(
-                null,
-                default,
-                CancellationToken.None).ConfigureAwait(false);
+            PublishResponse pubResp = await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
 
             Assert.That(StatusCode.IsGood(pubResp.ResponseHeader.ServiceResult), Is.True);
             Assert.That(pubResp.NotificationMessage, Is.Not.Null);
@@ -677,10 +662,7 @@ namespace Opc.Ua.Client.Conformance.Tests
 
             await Task.Delay(300).ConfigureAwait(false);
 
-            PublishResponse pub1 = await Session.PublishAsync(
-                null,
-                default,
-                CancellationToken.None).ConfigureAwait(false);
+            PublishResponse pub1 = await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
 
             Assert.That(StatusCode.IsGood(pub1.ResponseHeader.ServiceResult), Is.True);
 
@@ -717,10 +699,7 @@ namespace Opc.Ua.Client.Conformance.Tests
 
             await Task.Delay(300).ConfigureAwait(false);
 
-            PublishResponse pubResp = await Session.PublishAsync(
-                null,
-                default,
-                CancellationToken.None).ConfigureAwait(false);
+            PublishResponse pubResp = await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
 
             Assert.That(StatusCode.IsGood(pubResp.ResponseHeader.ServiceResult), Is.True);
             uint seqNum = pubResp.NotificationMessage.SequenceNumber;

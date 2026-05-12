@@ -99,9 +99,7 @@ queueSize: 1, discardOldest: true))
 
             await Task.Delay(300).ConfigureAwait(false);
 
-            PublishResponse pubResp = await Session.PublishAsync(
-                null, default,
-                CancellationToken.None).ConfigureAwait(false);
+            PublishResponse pubResp = await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
 
             Assert.That(
                 StatusCode.IsGood(pubResp.ResponseHeader.ServiceResult), Is.True);
@@ -141,9 +139,7 @@ queueSize: 1, discardOldest: true))
 
             await Task.Delay(300).ConfigureAwait(false);
 
-            PublishResponse pubResp = await Session.PublishAsync(
-                null, default,
-                CancellationToken.None).ConfigureAwait(false);
+            PublishResponse pubResp = await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
 
             Assert.That(
                 StatusCode.IsGood(pubResp.ResponseHeader.ServiceResult), Is.True);
@@ -180,9 +176,7 @@ queueSize: 1, discardOldest: true))
 
             await Task.Delay(300).ConfigureAwait(false);
 
-            PublishResponse pubResp = await Session.PublishAsync(
-                null, default,
-                CancellationToken.None).ConfigureAwait(false);
+            PublishResponse pubResp = await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
 
             Assert.That(
                 StatusCode.IsGood(pubResp.ResponseHeader.ServiceResult), Is.True);
@@ -239,9 +233,7 @@ queueSize: 2, discardOldest: true))
 
             await Task.Delay(300).ConfigureAwait(false);
 
-            PublishResponse pubResp = await Session.PublishAsync(
-                null, default,
-                CancellationToken.None).ConfigureAwait(false);
+            PublishResponse pubResp = await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
 
             Assert.That(
                 StatusCode.IsGood(pubResp.ResponseHeader.ServiceResult), Is.True);
@@ -284,9 +276,7 @@ queueSize: 2, discardOldest: false))
 
             await Task.Delay(300).ConfigureAwait(false);
 
-            PublishResponse pubResp = await Session.PublishAsync(
-                null, default,
-                CancellationToken.None).ConfigureAwait(false);
+            PublishResponse pubResp = await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
 
             Assert.That(
                 StatusCode.IsGood(pubResp.ResponseHeader.ServiceResult), Is.True);
@@ -329,9 +319,7 @@ queueSize: 2, discardOldest: false))
 
             await Task.Delay(300).ConfigureAwait(false);
 
-            PublishResponse pubResp = await Session.PublishAsync(
-                null, default,
-                CancellationToken.None).ConfigureAwait(false);
+            PublishResponse pubResp = await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
 
             Assert.That(
                 StatusCode.IsGood(pubResp.ResponseHeader.ServiceResult), Is.True);
@@ -413,9 +401,7 @@ queueSize: 2, discardOldest: true))
 
             await Task.Delay(300).ConfigureAwait(false);
 
-            PublishResponse pubResp = await Session.PublishAsync(
-                null, default,
-                CancellationToken.None).ConfigureAwait(false);
+            PublishResponse pubResp = await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
 
             Assert.That(
                 StatusCode.IsGood(pubResp.ResponseHeader.ServiceResult), Is.True);
@@ -460,9 +446,7 @@ queueSize: 1, discardOldest: true))
 
             await Task.Delay(300).ConfigureAwait(false);
 
-            PublishResponse pubResp = await Session.PublishAsync(
-                null, default,
-                CancellationToken.None).ConfigureAwait(false);
+            PublishResponse pubResp = await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
 
             Assert.That(
                 StatusCode.IsGood(pubResp.ResponseHeader.ServiceResult), Is.True);
@@ -505,9 +489,7 @@ queueSize: queueSize, discardOldest: true))
 
             await Task.Delay(300).ConfigureAwait(false);
 
-            PublishResponse pubResp = await Session.PublishAsync(
-                null, default,
-                CancellationToken.None).ConfigureAwait(false);
+            PublishResponse pubResp = await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
 
             Assert.That(
                 StatusCode.IsGood(pubResp.ResponseHeader.ServiceResult), Is.True);
@@ -647,9 +629,7 @@ queueSize: 1, discardOldest: true))
 
             await Task.Delay(300).ConfigureAwait(false);
 
-            PublishResponse pubResp = await Session.PublishAsync(
-                null, default,
-                CancellationToken.None).ConfigureAwait(false);
+            PublishResponse pubResp = await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
 
             Assert.That(
                 StatusCode.IsGood(pubResp.ResponseHeader.ServiceResult),
@@ -696,9 +676,7 @@ queueSize: 5))
 
             await Task.Delay(300).ConfigureAwait(false);
 
-            PublishResponse pubResp = await Session.PublishAsync(
-                null, default,
-                CancellationToken.None).ConfigureAwait(false);
+            PublishResponse pubResp = await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
 
             Assert.That(
                 StatusCode.IsGood(pubResp.ResponseHeader.ServiceResult),
@@ -742,9 +720,7 @@ queueSize: 10))
 
             await Task.Delay(300).ConfigureAwait(false);
 
-            PublishResponse pubResp = await Session.PublishAsync(
-                null, default,
-                CancellationToken.None).ConfigureAwait(false);
+            PublishResponse pubResp = await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
 
             Assert.That(
                 StatusCode.IsGood(pubResp.ResponseHeader.ServiceResult),
@@ -808,9 +784,7 @@ queueSize: 2, discardOldest: true))
 
             await Task.Delay(300).ConfigureAwait(false);
 
-            PublishResponse pubResp = await Session.PublishAsync(
-                null, default,
-                CancellationToken.None).ConfigureAwait(false);
+            PublishResponse pubResp = await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
 
             Assert.That(
                 StatusCode.IsGood(pubResp.ResponseHeader.ServiceResult),
@@ -857,9 +831,7 @@ queueSize: 2, discardOldest: false))
 
             await Task.Delay(300).ConfigureAwait(false);
 
-            PublishResponse pubResp = await Session.PublishAsync(
-                null, default,
-                CancellationToken.None).ConfigureAwait(false);
+            PublishResponse pubResp = await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
 
             Assert.That(
                 StatusCode.IsGood(pubResp.ResponseHeader.ServiceResult),
@@ -906,9 +878,7 @@ queueSize: 2))
 
             await Task.Delay(300).ConfigureAwait(false);
 
-            PublishResponse pubResp = await Session.PublishAsync(
-                null, default,
-                CancellationToken.None).ConfigureAwait(false);
+            PublishResponse pubResp = await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
 
             Assert.That(
                 StatusCode.IsGood(pubResp.ResponseHeader.ServiceResult),
@@ -995,9 +965,7 @@ queueSize: 2, discardOldest: true))
 
             await Task.Delay(300).ConfigureAwait(false);
 
-            PublishResponse pubResp = await Session.PublishAsync(
-                null, default,
-                CancellationToken.None).ConfigureAwait(false);
+            PublishResponse pubResp = await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
 
             Assert.That(
                 StatusCode.IsGood(pubResp.ResponseHeader.ServiceResult),
@@ -1046,9 +1014,7 @@ queueSize: 1, discardOldest: true))
 
             await Task.Delay(300).ConfigureAwait(false);
 
-            PublishResponse pubResp = await Session.PublishAsync(
-                null, default,
-                CancellationToken.None).ConfigureAwait(false);
+            PublishResponse pubResp = await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
 
             Assert.That(
                 StatusCode.IsGood(pubResp.ResponseHeader.ServiceResult),
@@ -1093,9 +1059,7 @@ queueSize: queueSize, discardOldest: true))
 
             await Task.Delay(300).ConfigureAwait(false);
 
-            PublishResponse pubResp = await Session.PublishAsync(
-                null, default,
-                CancellationToken.None).ConfigureAwait(false);
+            PublishResponse pubResp = await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
 
             Assert.That(
                 StatusCode.IsGood(pubResp.ResponseHeader.ServiceResult),
@@ -1215,9 +1179,7 @@ queueSize: 8)
         private async Task ConsumeInitialPublishAsync()
         {
             await Task.Delay(300).ConfigureAwait(false);
-            await Session.PublishAsync(
-                null, default,
-                CancellationToken.None).ConfigureAwait(false);
+            await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
         }
 
         private uint m_subscriptionId;

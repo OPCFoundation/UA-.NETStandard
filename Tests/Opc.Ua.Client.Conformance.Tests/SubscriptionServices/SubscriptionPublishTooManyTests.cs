@@ -56,10 +56,7 @@ namespace Opc.Ua.Client.Conformance.Tests
             int goodCount = 0;
             for (int i = 0; i < 20; i++)
             {
-                PublishResponse pub = await Session.PublishAsync(
-                    null,
-                    default,
-                    CancellationToken.None).ConfigureAwait(false);
+                PublishResponse pub = await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
 
                 if (StatusCode.IsGood(pub.ResponseHeader.ServiceResult))
                 {
@@ -88,10 +85,7 @@ namespace Opc.Ua.Client.Conformance.Tests
             bool sawGood = false;
             for (int i = 0; i < 15; i++)
             {
-                PublishResponse pub = await Session.PublishAsync(
-                    null,
-                    default,
-                    CancellationToken.None).ConfigureAwait(false);
+                PublishResponse pub = await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
 
                 if (StatusCode.IsGood(pub.ResponseHeader.ServiceResult))
                 {
@@ -120,10 +114,7 @@ namespace Opc.Ua.Client.Conformance.Tests
             int goodCount = 0;
             for (int i = 0; i < 10; i++)
             {
-                PublishResponse pub = await Session.PublishAsync(
-                    null,
-                    default,
-                    CancellationToken.None).ConfigureAwait(false);
+                PublishResponse pub = await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
 
                 if (StatusCode.IsGood(pub.ResponseHeader.ServiceResult))
                 {
@@ -149,20 +140,14 @@ namespace Opc.Ua.Client.Conformance.Tests
             // Flood publishes
             for (int i = 0; i < 10; i++)
             {
-                await Session.PublishAsync(
-                    null,
-                    default,
-                    CancellationToken.None).ConfigureAwait(false);
+                await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
                 await Task.Delay(30).ConfigureAwait(false);
             }
 
             // Wait and verify subscription still works
             await Task.Delay(500).ConfigureAwait(false);
 
-            PublishResponse pub = await Session.PublishAsync(
-                null,
-                default,
-                CancellationToken.None).ConfigureAwait(false);
+            PublishResponse pub = await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
 
             Assert.That(
                 StatusCode.IsGood(pub.ResponseHeader.ServiceResult),
@@ -186,10 +171,7 @@ namespace Opc.Ua.Client.Conformance.Tests
             int validCount = 0;
             for (int i = 0; i < 10; i++)
             {
-                PublishResponse pub = await Session.PublishAsync(
-                    null,
-                    default,
-                    CancellationToken.None).ConfigureAwait(false);
+                PublishResponse pub = await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
 
                 Assert.That(pub.ResponseHeader, Is.Not.Null);
                 Assert.That(pub.NotificationMessage, Is.Not.Null);
