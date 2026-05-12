@@ -278,7 +278,7 @@ namespace Opc.Ua.Server.Fluent
                     browseName));
         }
 
-        private VariableBuilder<TValue> ToVariableBuilder<TValue>(NodeState node, string lookupHint)
+        internal VariableBuilder<TValue> ToVariableBuilder<TValue>(NodeState node, string lookupHint)
         {
             if (node is not BaseVariableState variable)
             {
