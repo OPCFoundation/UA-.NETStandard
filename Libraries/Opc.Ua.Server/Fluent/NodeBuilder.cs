@@ -293,7 +293,7 @@ namespace Opc.Ua.Server.Fluent
     /// <see cref="Node"/> property.
     /// </summary>
     /// <typeparam name="TState"></typeparam>
-    internal sealed class NodeBuilder<TState> : NodeBuilder, INodeBuilder<TState>
+    internal class NodeBuilder<TState> : NodeBuilder, INodeBuilder<TState>
         where TState : NodeState
     {
         public NodeBuilder(NodeManagerBuilder parent, TState node)

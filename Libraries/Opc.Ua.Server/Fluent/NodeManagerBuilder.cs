@@ -238,6 +238,68 @@ namespace Opc.Ua.Server.Fluent
         }
 
         /// <inheritdoc/>
+        public IVariableBuilder<TValue> Variable<TValue>(string browsePath)
+        {
+            ThrowIfSealed();
+            NodeState node = BrowsePathResolver.Resolve(
+                Context,
+                browsePath,
+                m_defaultNamespaceIndex,
+                m_rootResolver);
+            return ToVariableBuilder<TValue>(node, browsePath);
+        }
+
+        /// <inheritdoc/>
+        public IVariableBuilder<TValue> Variable<TValue>(NodeId nodeId)
+        {
+            ThrowIfSealed();
+            NodeState node = ResolveNodeId(nodeId);
+            return ToVariableBuilder<TValue>(node, FormatNodeId(nodeId));
+        }
+
+        /// <inheritdoc/>
+        public IVariableBuilder<TValue> VariableFromTypeId<TValue>(NodeId typeDefinitionId)
+        {
+            ThrowIfSealed();
+            NodeState node = ResolveByTypeDefinition(typeDefinitionId, (QualifiedName)null);
+            return ToVariableBuilder<TValue>(node, FormatNodeId(typeDefinitionId));
+        }
+
+        /// <inheritdoc/>
+        public IVariableBuilder<TValue> VariableFromTypeId<TValue>(NodeId typeDefinitionId, QualifiedName browseName)
+        {
+            ThrowIfSealed();
+            NodeState node = ResolveByTypeDefinition(typeDefinitionId, browseName);
+            return ToVariableBuilder<TValue>(
+                node,
+                CoreUtils.Format(
+                    "{0} (browse name '{1}')",
+                    FormatNodeId(typeDefinitionId),
+                    browseName));
+        }
+
+        private VariableBuilder<TValue> ToVariableBuilder<TValue>(NodeState node, string lookupHint)
+        {
+            if (node is not BaseVariableState variable)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadTypeMismatch,
+                    "Lookup '{0}' resolved to {1}, which is not a BaseVariableState.",
+                    lookupHint,
+                    node.GetType().Name);
+            }
+            return new VariableBuilder<TValue>(this, variable);
+        }
+
+        private static string FormatNodeId(NodeId nodeId)
+        {
+            // NodeId is a readonly struct so the caller may pass `default`;
+            // .IsNull guards both the default-struct case and a constructed
+            // NodeId with no identifier.
+            return nodeId.IsNull ? "(null)" : nodeId.ToString();
+        }
+
+        /// <inheritdoc/>
         public bool TryHandleHistoryRead(
             ISystemContext context,
             NodeState node,
