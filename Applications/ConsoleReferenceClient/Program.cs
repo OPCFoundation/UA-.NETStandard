@@ -373,9 +373,9 @@ namespace Quickstarts.ConsoleReferenceClient
                     {
                         CertificateIdentifier? userCertificateIdentifier =
                             await FindUserCertificateIdentifierAsync(
-                                userCertificateThumbprint,
+                                userCertificateThumbprint!,
                                 appConfig.SecurityConfiguration
-                                    .TrustedUserCertificates,
+                                    .TrustedUserCertificates!,
                                 telemetry,
                                 ct).ConfigureAwait(true);
 
@@ -384,8 +384,8 @@ namespace Quickstarts.ConsoleReferenceClient
                             userIdentity = UserIdentity
                                 .CreateAsync(
                                     userCertificateIdentifier,
-                                    new CertificatePasswordProvider(userCertificatePassword),
-                                    application.ApplicationConfiguration.CertificateManager.CertificateProvider,
+                                    new CertificatePasswordProvider(userCertificatePassword!),
+                                    application.ApplicationConfiguration!.CertificateManager!.CertificateProvider,
                                     ct)
                                 .GetAwaiter()
                                 .GetResult();

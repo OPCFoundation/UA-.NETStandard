@@ -1101,7 +1101,7 @@ namespace Opc.Ua.Configuration
                         .OpenStore(m_telemetry!);
                     if (store != null)
                     {
-                        bool deleted = await store.DeleteAsync(thumbprint, ct)
+                        bool deleted = await store.DeleteAsync(thumbprint!, ct)
                             .ConfigureAwait(false);
                         if (deleted)
                         {

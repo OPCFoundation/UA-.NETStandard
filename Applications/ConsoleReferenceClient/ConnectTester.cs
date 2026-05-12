@@ -61,7 +61,7 @@ namespace Quickstarts
         public async ValueTask DisposeAsync()
         {
             m_reconnectHandler?.Dispose();
-            ISession session = m_wrapper?.Session;
+            ISession? session = m_wrapper?.Session;
             if (session != null)
             {
                 await session.DisposeAsync().ConfigureAwait(false);
@@ -339,6 +339,9 @@ namespace Quickstarts
                 new CertificatePasswordProvider(new UTF8Encoding(false).GetBytes(password)),
                 m_configuration.CertificateManager.CertificateProvider,
                 ct).ConfigureAwait(false);
+#else
+            throw new NotSupportedException("User certificate identity requires net8.0 or greater.");
+#endif
         }
 
         private static async ValueTask<ArrayOf<EndpointDescription>> GetEndpointsAsync(

@@ -499,7 +499,6 @@ namespace Quickstarts
         private readonly Lock m_lock = new();
         private readonly ReverseConnectManager? m_reverseConnectManager;
         private readonly ApplicationConfiguration m_configuration;
-        private readonly CertificateValidator m_certificateValidator;
         private SessionReconnectHandler? m_reconnectHandler;
         private readonly ILogger m_logger;
         private readonly ITelemetryContext m_telemetry;

@@ -68,7 +68,7 @@ namespace Opc.Ua.PubSub.Transport
             if (!string.IsNullOrEmpty(clientCertificatePath))
             {
                 m_clientCertificate = new Certificate(
-                    clientCertificatePath,
+                    clientCertificatePath!,
                     ClientCertificatePassword);
             }
 
