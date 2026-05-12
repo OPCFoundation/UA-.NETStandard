@@ -41,10 +41,10 @@ namespace Opc.Ua.Aot.Tests
     /// </summary>
     public sealed class AotTestFixture : IAsyncInitializer, IAsyncDisposable
     {
-        public AotServerFixture<ReferenceServer> ServerFixture { get; private set; } = null!;
+        public AotServerFixture<ReferenceServer> ServerFixture { get; private set; }
         public ISession Session { get; private set; }
-        public string ServerUrl { get; private set; } = null!;
-        public ITelemetryContext Telemetry { get; private set; } = null!;
+        public string ServerUrl { get; private set; }
+        public ITelemetryContext Telemetry { get; private set; }
         private ApplicationConfiguration m_clientConfiguration;
         private string m_pkiRoot;
 
@@ -111,8 +111,9 @@ namespace Opc.Ua.Aot.Tests
             };
             await m_clientConfiguration.ValidateAsync(
                 ApplicationType.Client).ConfigureAwait(false);
-            m_clientConfiguration.CertificateValidator
-                .CertificateValidation += (s, e) => e.Accept = true;
+            m_clientConfiguration.CertificateManager ??= CertificateManagerFactory.Create(
+                m_clientConfiguration.SecurityConfiguration, Telemetry);
+            m_clientConfiguration.CertificateManager.AcceptError = static (cert, err) => true;
 
             // Connect session
             EndpointDescription endpointDescription = await CoreClientUtils.SelectEndpointAsync(
@@ -171,8 +172,14 @@ namespace Opc.Ua.Aot.Tests
                 Session.DeleteSubscriptionsOnClose = true;
                 await Session.CloseAsync(CancellationToken.None)
                     .ConfigureAwait(false);
-                Session.Dispose();
+                await Session.DisposeAsync().ConfigureAwait(false);
                 Session = null;
+            }
+
+            if (m_clientConfiguration?.CertificateManager is IDisposable disposableManager)
+            {
+                disposableManager.Dispose();
+                m_clientConfiguration.CertificateManager = null;
             }
 
             if (ServerFixture != null)
@@ -197,6 +204,7 @@ namespace Opc.Ua.Aot.Tests
                     }
                 }
             }
+            GC.SuppressFinalize(this);
         }
     }
 }

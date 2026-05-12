@@ -273,9 +273,9 @@ namespace Opc.Ua.Server.Tests
 
             var values = new List<MonitoredItemNotification>
             {
-                new MonitoredItemNotification { Value = new DataValue(1) },
-                new MonitoredItemNotification { Value = new DataValue(2) },
-                new MonitoredItemNotification { Value = new DataValue(3) }
+                new() { Value = new DataValue(1) },
+                new() { Value = new DataValue(2) },
+                new() { Value = new DataValue(3) }
             };
 
             int counter = 0;
@@ -312,18 +312,18 @@ namespace Opc.Ua.Server.Tests
 
             // First publish
             var ctx1 = new OperationContext(m_sessionMock.Object, new DiagnosticsMasks());
-            var message = subscription.Publish(ctx1, out var availableSequenceNumbers, out bool moreNotifications1);
+            NotificationMessage message = subscription.Publish(ctx1, out ArrayOf<uint> availableSequenceNumbers, out bool moreNotifications1);
             messages.Add(message);
 
             // Should be more because we generated multiple notifications and limit the max per publish to 1 for tests.
             Assert.That(moreNotifications1, Is.True);
 
             // Second publish
-            var message2 = subscription.Publish(ctx1, out availableSequenceNumbers, out bool moreNotifications2);
+            NotificationMessage message2 = subscription.Publish(ctx1, out availableSequenceNumbers, out bool moreNotifications2);
 
             // third publish
-            var message3 = subscription.Publish(ctx1, out availableSequenceNumbers, out bool moreNotifications3);
-            
+            NotificationMessage message3 = subscription.Publish(ctx1, out availableSequenceNumbers, out bool moreNotifications3);
+
             Assert.That(message2, Is.Not.Null);
             Assert.That(message3, Is.Not.Null);
             Assert.That(moreNotifications2, Is.True);

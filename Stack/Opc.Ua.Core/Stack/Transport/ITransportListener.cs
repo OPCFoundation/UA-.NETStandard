@@ -29,7 +29,6 @@
 
 using System;
 using System.Threading.Tasks;
-using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua
 {
@@ -77,9 +76,17 @@ namespace Opc.Ua
         /// <summary>
         /// Updates the application certificate for a listener.
         /// </summary>
+        /// <param name="validator">
+        /// The peer-certificate validator used by the listener to validate
+        /// inbound client certificates.
+        /// </param>
+        /// <param name="serverCertificates">
+        /// The registry that exposes the server's instance certificates and
+        /// chain blobs.
+        /// </param>
         void CertificateUpdate(
-            ICertificateValidator validator,
-            CertificateTypesProvider serverCertificateTypes);
+            ICertificateValidatorEx validator,
+            ICertificateRegistry serverCertificates);
 
         /// <summary>
         /// Raised when a new connection is waiting for a client.

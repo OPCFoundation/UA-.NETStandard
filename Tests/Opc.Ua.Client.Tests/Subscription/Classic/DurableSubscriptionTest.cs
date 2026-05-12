@@ -133,7 +133,7 @@ namespace Opc.Ua.Client.Tests
                 try
                 {
                     ClientFixture.SessionTimeout = 10000;
-                    using var userIdentity = new UserIdentity("sysadmin", "demo"u8);
+                    var userIdentity = new UserIdentity("sysadmin", "demo"u8);
                     Session = await ClientFixture
                         .ConnectAsync(
                             ServerUrl,
@@ -490,7 +490,7 @@ namespace Opc.Ua.Client.Tests
 
             DateTimeUtc restartTime = DateTimeUtc.Now;
 #if !DEBUG_CONNECT_FAILED
-            using var transferUserIdentity = new UserIdentity("sysadmin", "demo"u8);
+            var transferUserIdentity = new UserIdentity("sysadmin", "demo"u8);
             ISession transferSession = await ClientFixture
                 .ConnectAsync(
                     ServerUrl,
@@ -504,7 +504,7 @@ namespace Opc.Ua.Client.Tests
             {
                 try
                 {
-                    using var retryUserIdentity = new UserIdentity("sysadmin", "demo"u8);
+                    var retryUserIdentity = new UserIdentity("sysadmin", "demo"u8);
                     transferSession = await ClientFixture
                         .ConnectAsync(
                             ServerUrl,

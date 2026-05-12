@@ -79,7 +79,7 @@ namespace Opc.Ua.SourceGeneration
                     IsError = isError,
                     Message = $"Property '{field.PropertyName}' has unsupported type " +
                         $"'{field.ShortTypeName}'. Only OPC UA built-in types, " +
-                        $"IEncodeable, enums, ArrayOf<T>, and MatrixOf<T> are supported."
+                        "IEncodeable, enums, ArrayOf<T>, and MatrixOf<T> are supported."
                 });
             }
 
@@ -780,7 +780,7 @@ namespace Opc.Ua.SourceGeneration
                 ["DataValue"] = ("WriteDataValue", "ReadDataValue"),
                 ["Variant"] = ("WriteVariant", "ReadVariant"),
                 ["DiagnosticInfo"] = ("WriteDiagnosticInfo", "ReadDiagnosticInfo"),
-                ["XmlElement"] = ("WriteXmlElement", "ReadXmlElement"),
+                ["XmlElement"] = ("WriteXmlElement", "ReadXmlElement")
             };
 
         internal static readonly Dictionary<string, string> NotDefaultCheckExpression =

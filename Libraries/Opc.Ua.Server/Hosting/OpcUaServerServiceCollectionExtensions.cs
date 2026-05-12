@@ -62,6 +62,7 @@ namespace Opc.Ua.Server.Hosting
         /// need to wire telemetry separately.
         /// </para>
         /// </remarks>
+        /// <exception cref="ArgumentNullException"></exception>
         public static IOpcUaServerBuilder AddOpcUaServer(
             this IServiceCollection services,
             Action<OpcUaServerOptions> configure)

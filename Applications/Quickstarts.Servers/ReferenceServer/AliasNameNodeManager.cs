@@ -265,7 +265,7 @@ namespace Quickstarts.ReferenceServer
             }
 
             if (!inputArguments[1].TryGetValue(out NodeId refTypeFilter) ||
-                refTypeFilter == null || refTypeFilter.IsNull)
+                refTypeFilter.IsNull)
             {
                 return new ServiceResult(StatusCodes.BadInvalidArgument);
             }

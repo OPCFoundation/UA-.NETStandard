@@ -31,12 +31,16 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
-using Opc.Ua.Tests;
 using Opc.Ua.Client.Subscriptions;
 using Opc.Ua.Client.Subscriptions.Engine;
+using Opc.Ua.Tests;
+
+// CA2000: test code; many disposables are ownership-transferred to test fixtures or short-lived,
+// making CA2000 noisy without a real leak risk. Disabled file-level for the suite (the existing
+// narrow-scope pragma below at line ~163 predates the file-level decision).
+#pragma warning disable CA2000
 
 namespace Opc.Ua.Client.Tests
 {
@@ -272,7 +276,7 @@ namespace Opc.Ua.Client.Tests
                 publishTime: DateTime.UtcNow,
                 notification: changes.AsMemory(),
                 publishStateMask: PublishState.None,
-                stringTable: Array.Empty<string>())
+                stringTable: [])
                 .ConfigureAwait(false);
 
             Assert.That(sink.Calls, Has.Count.EqualTo(1));
@@ -300,7 +304,7 @@ namespace Opc.Ua.Client.Tests
                 publishTime: DateTime.UtcNow,
                 notification: events.AsMemory(),
                 publishStateMask: PublishState.None,
-                stringTable: new List<string> { "ns-entry" })
+                stringTable: ["ns-entry"])
                 .ConfigureAwait(false);
 
             Assert.That(sink.Calls, Has.Count.EqualTo(1));
@@ -332,7 +336,7 @@ namespace Opc.Ua.Client.Tests
                 publishTime: DateTime.UtcNow,
                 notification: changes.AsMemory(),
                 publishStateMask: PublishState.None,
-                stringTable: Array.Empty<string>())
+                stringTable: [])
                 .ConfigureAwait(false);
 
             Assert.That(sink.Calls, Has.Count.EqualTo(1));
@@ -361,10 +365,7 @@ namespace Opc.Ua.Client.Tests
         private sealed class RecordingSubscriptionMessageSink
             : ISubscriptionMessageSink
         {
-            public List<(ArrayOf<uint> AvailableSequenceNumbers, NotificationMessage Message)> Calls
-            {
-                get;
-            } = new();
+            public List<(ArrayOf<uint> AvailableSequenceNumbers, NotificationMessage Message)> Calls { get; } = [];
 
             public void SaveMessageInCache(
                 ArrayOf<uint> availableSequenceNumbers,

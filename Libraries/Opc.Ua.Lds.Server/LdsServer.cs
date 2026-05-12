@@ -30,11 +30,11 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Bindings;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Lds.Server
 {
@@ -404,7 +404,7 @@ namespace Opc.Ua.Lds.Server
             {
                 try
                 {
-                    using var cert = X509CertificateLoader.LoadCertificate(certBytes);
+                    using Certificate cert = Certificate.FromRawData(certBytes);
                     IReadOnlyList<string> applicationUris = X509Utils.GetApplicationUrisFromCertificate(cert);
                     if (applicationUris.Count > 0
                         && !applicationUris.Any(uri => string.Equals(uri, server.ServerUri, StringComparison.Ordinal)))
@@ -511,7 +511,8 @@ namespace Opc.Ua.Lds.Server
                         configuration.ServerConfiguration.BaseAddresses,
                         serverDescription,
                         configuration.ServerConfiguration.SecurityPolicies,
-                        InstanceCertificateTypesProvider);
+                        CertificateManager,
+                        configuration.CertificateManager);
                     endpointsList.AddRange(endpointsForHost);
                 }
             }

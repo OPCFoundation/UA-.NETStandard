@@ -454,8 +454,8 @@ namespace Opc.Ua.Server.Tests
 
             var events = new List<EventFieldList>
             {
-                new EventFieldList { ClientHandle = 1 },
-                new EventFieldList { ClientHandle = 2 }
+                new() { ClientHandle = 1 },
+                new() { ClientHandle = 2 }
             };
             var batch = new EventBatch(events, 5, 77);
 

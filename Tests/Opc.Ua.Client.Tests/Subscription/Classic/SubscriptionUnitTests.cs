@@ -411,7 +411,7 @@ namespace Opc.Ua.Client.Tests
             await subscription.CreateAsync(ct).ConfigureAwait(false);
             await Task.WhenAny(keepAliveCompleted.Task, Task.Delay(-1, ct)).ConfigureAwait(false);
 
-            Assert.That(keepAliveCompleted.Task.Result, Is.EqualTo(testData.ExpectedPublishState));
+            Assert.That(await keepAliveCompleted.Task.ConfigureAwait(false), Is.EqualTo(testData.ExpectedPublishState));
         }
     }
 }

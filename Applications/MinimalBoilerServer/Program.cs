@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Server.Hosting;
@@ -49,6 +47,6 @@ builder.Services
         o.AutoAcceptUntrustedCertificates = true;
         o.EndpointUrls.Add($"opc.tcp://localhost:{port}/MinimalBoilerServer");
     })
-    .AddNodeManager<global::Boiler.BoilerNodeManagerFactory>();
+    .AddNodeManager<Boiler.BoilerNodeManagerFactory>();
 
 await builder.Build().RunAsync().ConfigureAwait(false);

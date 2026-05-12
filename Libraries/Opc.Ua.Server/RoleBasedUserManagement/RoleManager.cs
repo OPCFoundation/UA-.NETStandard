@@ -30,8 +30,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Security.Cryptography.X509Certificates;
 using System.Threading;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Server
 {
@@ -78,7 +78,7 @@ namespace Opc.Ua.Server
         /// </summary>
         public RoleEntry EnsureRole(NodeId roleId)
         {
-            if (roleId == null) { throw new ArgumentNullException(nameof(roleId)); }
+            if (roleId.IsNull) { throw new ArgumentException("roleId cannot be null.", nameof(roleId)); }
 
             m_lock.EnterWriteLock();
             try
@@ -298,7 +298,7 @@ namespace Opc.Ua.Server
             try
             {
                 return m_roles.TryGetValue(roleId, out RoleEntry entry)
-                    ? entry.Identities.Select(Clone).ToList()
+                    ? entry.Identities.ConvertAll(Clone)
                     : [];
             }
             finally
@@ -343,7 +343,7 @@ namespace Opc.Ua.Server
                     return [];
                 }
                 exclude = entry.EndpointsExclude;
-                return entry.Endpoints.Select(CloneEndpoint).ToList();
+                return entry.Endpoints.ConvertAll(CloneEndpoint);
             }
             finally
             {
@@ -395,7 +395,7 @@ namespace Opc.Ua.Server
         /// </remarks>
         public IList<NodeId> ResolveGrantedRoles(
             IUserIdentity identity,
-            X509Certificate2 clientCertificate,
+            Certificate clientCertificate,
             EndpointDescription endpoint)
         {
             if (identity == null) { throw new ArgumentNullException(nameof(identity)); }
@@ -429,7 +429,7 @@ namespace Opc.Ua.Server
         private bool RoleMatches(
             RoleEntry entry,
             IUserIdentity identity,
-            X509Certificate2 clientCertificate,
+            Certificate clientCertificate,
             string clientApplicationUri,
             string endpointUrl,
             IReadOnlyList<NodeId> rolesGrantedSoFar)
@@ -470,7 +470,7 @@ namespace Opc.Ua.Server
         private static bool IdentityRuleMatches(
             IdentityMappingRuleType rule,
             IUserIdentity identity,
-            X509Certificate2 clientCertificate,
+            Certificate clientCertificate,
             IReadOnlyList<NodeId> rolesGrantedSoFar)
         {
             UserTokenType tokenType = identity.TokenType;
@@ -500,7 +500,7 @@ namespace Opc.Ua.Server
 
         private RoleEntry GetEntryOrFail(NodeId roleId, out ServiceResult error)
         {
-            if (roleId == null) { throw new ArgumentNullException(nameof(roleId)); }
+            if (roleId.IsNull) { throw new ArgumentException("roleId cannot be null.", nameof(roleId)); }
             m_lock.EnterReadLock();
             try
             {
@@ -611,7 +611,7 @@ namespace Opc.Ua.Server
         /// </summary>
         public ServiceResult RemoveRole(NodeId roleId)
         {
-            if (roleId == null) { throw new ArgumentNullException(nameof(roleId)); }
+            if (roleId.IsNull) { throw new ArgumentException("roleId cannot be null.", nameof(roleId)); }
 
             m_lock.EnterWriteLock();
             try

@@ -38,21 +38,21 @@ namespace Opc.Ua.Encoders
 {
     /// <summary>
     /// Runtime representation of a concrete Structure-backed
-    /// sub-type of the abstract <see cref="Opc.Ua.OptionSet"/>
+    /// sub-type of the abstract <see cref="Ua.OptionSet"/>
     /// DataType whose field semantics are described by an
     /// <see cref="EnumDefinition"/>.
     /// </summary>
     /// <remarks>
     /// The wire format (<c>Value</c> / <c>ValidBits</c>
     /// <see cref="ByteString"/>s) is inherited from the generated
-    /// <see cref="Opc.Ua.OptionSet"/> base class. This class carries
+    /// <see cref="Ua.OptionSet"/> base class. This class carries
     /// the concrete sub-type's TypeId / encoding ids and the
     /// bit-field metadata, and self-registers with
     /// <see cref="IEncodeableFactory"/> via
     /// <see cref="IEncodeableType"/>.
     /// </remarks>
     public sealed class OptionSet :
-        global::Opc.Ua.OptionSet,
+        Ua.OptionSet,
         IEncodeableType
     {
         /// <summary>
@@ -67,20 +67,20 @@ namespace Opc.Ua.Encoders
         {
             XmlName = xmlName ?? throw new ArgumentNullException(nameof(xmlName));
             Definition = enumDefinition ?? throw new ArgumentNullException(nameof(enumDefinition));
-            m_typeId = typeId;
-            m_binaryEncodingId = binaryEncodingId;
-            m_xmlEncodingId = xmlEncodingId;
-            m_byteLength = ComputeByteLength(enumDefinition);
+            TypeId = typeId;
+            BinaryEncodingId = binaryEncodingId;
+            XmlEncodingId = xmlEncodingId;
+            ByteLength = ComputeByteLength(enumDefinition);
         }
 
         private OptionSet(OptionSet source, bool copyValues)
         {
             XmlName = source.XmlName;
             Definition = source.Definition;
-            m_typeId = source.m_typeId;
-            m_binaryEncodingId = source.m_binaryEncodingId;
-            m_xmlEncodingId = source.m_xmlEncodingId;
-            m_byteLength = source.m_byteLength;
+            TypeId = source.TypeId;
+            BinaryEncodingId = source.BinaryEncodingId;
+            XmlEncodingId = source.XmlEncodingId;
+            ByteLength = source.ByteLength;
             if (copyValues)
             {
                 Value = source.Value.Copy();
@@ -101,8 +101,8 @@ namespace Opc.Ua.Encoders
         public EnumDefinition Definition { get; }
 
         /// <summary>
-        /// The fixed byte length of the <see cref="Opc.Ua.OptionSet.Value"/>
-        /// and <see cref="Opc.Ua.OptionSet.ValidBits"/> ByteStrings for this
+        /// The fixed byte length of the <see cref="Ua.OptionSet.Value"/>
+        /// and <see cref="Ua.OptionSet.ValidBits"/> ByteStrings for this
         /// OptionSet sub-type, derived from the highest bit index declared
         /// in <see cref="Definition"/>.
         /// </summary>
@@ -112,16 +112,16 @@ namespace Opc.Ua.Encoders
         /// ByteStrings. This value is therefore fixed at construction; bits
         /// outside the range <c>[0, ByteLength*8)</c> cannot be set.
         /// </remarks>
-        public int ByteLength => m_byteLength;
+        public int ByteLength { get; }
 
         /// <inheritdoc/>
-        public override ExpandedNodeId TypeId => m_typeId;
+        public override ExpandedNodeId TypeId { get; }
 
         /// <inheritdoc/>
-        public override ExpandedNodeId BinaryEncodingId => m_binaryEncodingId;
+        public override ExpandedNodeId BinaryEncodingId { get; }
 
         /// <inheritdoc/>
-        public override ExpandedNodeId XmlEncodingId => m_xmlEncodingId;
+        public override ExpandedNodeId XmlEncodingId { get; }
 
         /// <inheritdoc/>
         public IEncodeable CreateInstance()
@@ -139,6 +139,7 @@ namespace Opc.Ua.Encoders
         /// Gets or sets the bit corresponding to the given field name
         /// (as declared in <see cref="Definition"/>).
         /// </summary>
+        /// <exception cref="ArgumentException"></exception>
         public bool this[string fieldName]
         {
             get
@@ -174,8 +175,8 @@ namespace Opc.Ua.Encoders
 
         /// <summary>
         /// Returns the names of all bits that are set and marked
-        /// valid according to <see cref="Opc.Ua.OptionSet.ValidBits"/>.
-        /// If <see cref="Opc.Ua.OptionSet.ValidBits"/> is empty the
+        /// valid according to <see cref="Ua.OptionSet.ValidBits"/>.
+        /// If <see cref="Ua.OptionSet.ValidBits"/> is empty the
         /// OptionSet is treated as fully valid.
         /// </summary>
         public IReadOnlyList<string> GetSetFieldNames()
@@ -206,7 +207,7 @@ namespace Opc.Ua.Encoders
         /// <inheritdoc/>
         public override string ToString()
         {
-            var sb = new StringBuilder(XmlName?.Name ?? "OptionSet").Append(" {");
+            StringBuilder sb = new StringBuilder(XmlName?.Name ?? "OptionSet").Append(" {");
             bool first = true;
             foreach (string name in GetSetFieldNames())
             {
@@ -253,22 +254,22 @@ namespace Opc.Ua.Encoders
 
         private void SetBit(int bit, bool on)
         {
-            if (bit < 0 || bit >= m_byteLength * 8)
+            if (bit < 0 || bit >= ByteLength * 8)
             {
                 throw new ArgumentOutOfRangeException(
                     nameof(bit),
                     CoreUtils.Format(
-                        "Bit index {0} is outside the fixed {1}-byte OptionSet length. "
-                        + "OPC UA Part 3 §8.40 requires that sub-types do not change the overall length.",
+                        "Bit index {0} is outside the fixed {1}-byte OptionSet length. " +
+                        "OPC UA Part 3 §8.40 requires that sub-types do not change the overall length.",
                         bit,
-                        m_byteLength));
+                        ByteLength));
             }
             int byteIndex = bit >> 3;
             int mask = 1 << (bit & 7);
 
-            Value = WithBit(Value, byteIndex, mask, on, m_byteLength);
+            Value = WithBit(Value, byteIndex, mask, on, ByteLength);
             // Setting a bit implicitly marks the bit valid.
-            ValidBits = WithBit(ValidBits, byteIndex, mask, true, m_byteLength);
+            ValidBits = WithBit(ValidBits, byteIndex, mask, true, ByteLength);
         }
 
         private static ByteString WithBit(ByteString source, int byteIndex, int mask, bool on, int fixedLength)
@@ -277,7 +278,7 @@ namespace Opc.Ua.Encoders
             if (!source.IsEmpty)
             {
                 int copyLength = Math.Min(source.Length, fixedLength);
-                source.Span.Slice(0, copyLength).CopyTo(buffer);
+                source.Span[..copyLength].CopyTo(buffer);
             }
             if (on)
             {
@@ -310,11 +311,5 @@ namespace Opc.Ua.Encoders
             }
             return (int)((maxBit >> 3) + 1);
         }
-
-        private readonly int m_byteLength;
-
-        private readonly ExpandedNodeId m_typeId;
-        private readonly ExpandedNodeId m_binaryEncodingId;
-        private readonly ExpandedNodeId m_xmlEncodingId;
     }
 }

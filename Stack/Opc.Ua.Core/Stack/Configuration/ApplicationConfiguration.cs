@@ -101,9 +101,17 @@ namespace Opc.Ua
         public string SourceFilePath { get; private set; }
 
         /// <summary>
-        /// Gets or sets the certificate validator which is configured to use.
+        /// Gets or sets the certificate manager that owns this application's
+        /// certificates and trust lists.
         /// </summary>
-        public CertificateValidator CertificateValidator { get; set; }
+        /// <remarks>
+        /// Populated by <c>ApplicationInstance</c> during
+        /// <c>CheckApplicationInstanceCertificatesAsync</c>. The
+        /// <c>ICertificateManager</c> aggregates registry, trust-list,
+        /// validation, lifecycle, and trust-list-file capabilities; use it
+        /// directly for validation, lifecycle, and trust-list operations.
+        /// </remarks>
+        public ICertificateManager CertificateManager { get; set; }
 
         /// <summary>
         /// Returns the domain names which the server is configured to use.
@@ -637,20 +645,6 @@ namespace Opc.Ua
 
             SecurityConfiguration.Validate(m_telemetry);
 
-            // load private keys
-            ArrayOf<CertificateIdentifier> appCerts = SecurityConfiguration.ApplicationCertificates;
-            for (int i = 0; i < appCerts.Count; i++)
-            {
-                CertificateIdentifier applicationCertificate = appCerts[i];
-                await applicationCertificate
-                    .LoadPrivateKeyExAsync(
-                        SecurityConfiguration.CertificatePasswordProvider,
-                        ApplicationUri,
-                        m_telemetry,
-                        ct)
-                    .ConfigureAwait(false);
-            }
-
             string GenerateDefaultUri()
             {
                 var sb = new StringBuilder();
@@ -709,11 +703,27 @@ namespace Opc.Ua
                 ServerConfiguration.PublishingResolution = 50;
             }
 
-            await CertificateValidator.UpdateAsync(
+            // Eagerly create a CertificateManager from the security
+            // configuration so consumers (Session, ClientChannelManager,
+            // server bring-up) can rely on it being non-null even when
+            // the configuration was not built through ApplicationInstance.
+            // The lifetime of this instance is owned by the surrounding
+            // ApplicationInstance (or the test fixture), which disposes
+            // the configuration's CertificateManager on shutdown.
+            CertificateManager ??= CertificateManagerFactory.Create(
                 SecurityConfiguration,
-                applicationUri: null,
-                ct)
-                .ConfigureAwait(false);
+                m_telemetry);
+
+            // Eagerly load configured application certificates into the
+            // manager registry so consumers (Session, validator, etc) can
+            // resolve them via ICertificateRegistry without depending on
+            // the legacy CertificateIdentifier cache.
+            if (CertificateManager is CertificateManager certManager)
+            {
+                await certManager
+                    .LoadApplicationCertificatesAsync(SecurityConfiguration, ApplicationUri, ct)
+                    .ConfigureAwait(false);
+            }
         }
 
         /// <summary>

@@ -28,12 +28,12 @@
  * ======================================================================*/
 
 using System;
-using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client;
 using Opc.Ua.Client.Conformance.Tests.Security;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Client.Conformance.Tests
 {
@@ -92,7 +92,7 @@ namespace Opc.Ua.Client.Conformance.Tests
                 slug: "corrupted-none",
                 makeCert: (subject, uri) =>
                 {
-                    using X509Certificate2 valid =
+                    using Certificate valid =
                         TestCertificateFactory.CreateValidAppInstanceCert(subject, uri);
                     return TestCertificateFactory.CorruptCertSignature(valid);
                 });
@@ -100,11 +100,11 @@ namespace Opc.Ua.Client.Conformance.Tests
 
         private async Task AssertNoneChannelAcceptsCertAsync(
             string slug,
-            Func<string, string, X509Certificate2> makeCert)
+            Func<string, string, Certificate> makeCert)
         {
             string subject = "CN=" + slug + ", O=OPC Foundation";
             string appUri = $"urn:localhost:opcfoundation.org:NoneSessionTest:{slug}:{Guid.NewGuid():N}";
-            X509Certificate2 cert = makeCert(subject, appUri);
+            Certificate cert = makeCert(subject, appUri);
 
             // Per Part 4 §5.4.2.2 a SecurityMode.None channel does
             // not transmit/validate the client application instance

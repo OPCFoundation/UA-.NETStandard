@@ -2317,8 +2317,10 @@ namespace Opc.Ua
         private readonly ILogger m_logger;
         private readonly JsonEncoderOptions m_options;
         private readonly Utf8JsonWriter m_writer;
+#pragma warning disable IDE0052 // TODO Keep for future implementation or remove
         private ushort[]? m_namespaceMappings;
         private ushort[]? m_serverMappings;
+#pragma warning restore IDE0052
         private bool m_disposed;
     }
 }

@@ -93,7 +93,7 @@ namespace Opc.Ua.Server.Tests
             // set security context
             var secureChannelContext
                 = new SecureChannelContext(
-                    sessionName, 
+                    sessionName,
                     endpoint, RequestEncoding.Binary,
                     null,
                     null,

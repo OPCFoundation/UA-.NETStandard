@@ -28,9 +28,9 @@
  * ======================================================================*/
 
 using System;
-using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua
 {
@@ -48,8 +48,8 @@ namespace Opc.Ua
             ITransportWaitingConnection connection,
             EndpointDescription description,
             EndpointConfiguration endpointConfiguration,
-            X509Certificate2 clientCertificate,
-            X509Certificate2Collection clientCertificateChain,
+            Certificate clientCertificate,
+            CertificateCollection clientCertificateChain,
             IServiceMessageContext messageContext,
             CancellationToken ct = default)
         {
@@ -80,8 +80,8 @@ namespace Opc.Ua
             ApplicationConfiguration configuration,
             EndpointDescription description,
             EndpointConfiguration endpointConfiguration,
-            X509Certificate2 clientCertificate,
-            X509Certificate2Collection clientCertificateChain,
+            Certificate clientCertificate,
+            CertificateCollection clientCertificateChain,
             IServiceMessageContext messageContext,
             CancellationToken ct = default)
         {
@@ -109,7 +109,7 @@ namespace Opc.Ua
             ApplicationConfiguration configuration,
             EndpointDescription description,
             EndpointConfiguration endpointConfiguration,
-            X509Certificate2 clientCertificate,
+            Certificate clientCertificate,
             IServiceMessageContext messageContext,
             CancellationToken ct = default)
         {
@@ -132,8 +132,8 @@ namespace Opc.Ua
             ITransportWaitingConnection connection,
             EndpointDescription description,
             EndpointConfiguration endpointConfiguration,
-            X509Certificate2 clientCertificate,
-            X509Certificate2Collection clientCertificateChain,
+            Certificate clientCertificate,
+            CertificateCollection clientCertificateChain,
             IServiceMessageContext messageContext)
         {
             return CreateUaBinaryChannelAsync(
@@ -155,7 +155,7 @@ namespace Opc.Ua
             ApplicationConfiguration configuration,
             EndpointDescription description,
             EndpointConfiguration endpointConfiguration,
-            X509Certificate2 clientCertificate,
+            Certificate clientCertificate,
             IServiceMessageContext messageContext)
         {
             return CreateUaBinaryChannelAsync(
@@ -175,8 +175,8 @@ namespace Opc.Ua
             ApplicationConfiguration configuration,
             EndpointDescription description,
             EndpointConfiguration endpointConfiguration,
-            X509Certificate2 clientCertificate,
-            X509Certificate2Collection clientCertificateChain,
+            Certificate clientCertificate,
+            CertificateCollection clientCertificateChain,
             IServiceMessageContext messageContext)
         {
             return CreateUaBinaryChannelAsync(

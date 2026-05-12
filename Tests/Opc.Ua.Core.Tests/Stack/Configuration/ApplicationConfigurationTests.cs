@@ -48,7 +48,9 @@ namespace Opc.Ua.Core.Tests
         }
 
         [Test]
+        /// <summary>
         /// Parameterless constructor creates a valid instance.
+        /// </summary>
         public void ConstructorDefault()
         {
             var config = new ApplicationConfiguration();
@@ -56,7 +58,9 @@ namespace Opc.Ua.Core.Tests
         }
 
         [Test]
+        /// <summary>
         /// Constructor with telemetry creates a valid instance.
+        /// </summary>
         public void ConstructorWithTelemetry()
         {
             var config = new ApplicationConfiguration(m_telemetry);
@@ -64,7 +68,9 @@ namespace Opc.Ua.Core.Tests
         }
 
         [Test]
+        /// <summary>
         /// Copy constructor copies all supported properties.
+        /// </summary>
         public void ConstructorCopy()
         {
             var original = new ApplicationConfiguration(m_telemetry)
@@ -83,7 +89,9 @@ namespace Opc.Ua.Core.Tests
         }
 
         [Test]
+        /// <summary>
         /// ApplicationName get/set round-trips correctly.
+        /// </summary>
         public void ApplicationNameGetSet()
         {
             var config = new ApplicationConfiguration(m_telemetry)
@@ -94,7 +102,9 @@ namespace Opc.Ua.Core.Tests
         }
 
         [Test]
+        /// <summary>
         /// ApplicationName defaults to null.
+        /// </summary>
         public void ApplicationNameDefaultIsNull()
         {
             var config = new ApplicationConfiguration(m_telemetry);
@@ -102,7 +112,9 @@ namespace Opc.Ua.Core.Tests
         }
 
         [Test]
+        /// <summary>
         /// ApplicationUri get/set round-trips correctly.
+        /// </summary>
         public void ApplicationUriGetSet()
         {
             var config = new ApplicationConfiguration(m_telemetry)
@@ -113,7 +125,9 @@ namespace Opc.Ua.Core.Tests
         }
 
         [Test]
+        /// <summary>
         /// ApplicationUri defaults to null.
+        /// </summary>
         public void ApplicationUriDefaultIsNull()
         {
             var config = new ApplicationConfiguration(m_telemetry);
@@ -121,7 +135,9 @@ namespace Opc.Ua.Core.Tests
         }
 
         [Test]
+        /// <summary>
         /// ProductUri get/set round-trips correctly.
+        /// </summary>
         public void ProductUriGetSet()
         {
             var config = new ApplicationConfiguration(m_telemetry)
@@ -132,7 +148,9 @@ namespace Opc.Ua.Core.Tests
         }
 
         [Test]
+        /// <summary>
         /// ProductUri defaults to null.
+        /// </summary>
         public void ProductUriDefaultIsNull()
         {
             var config = new ApplicationConfiguration(m_telemetry);
@@ -140,7 +158,9 @@ namespace Opc.Ua.Core.Tests
         }
 
         [Test]
+        /// <summary>
         /// ApplicationType get/set round-trips correctly.
+        /// </summary>
         public void ApplicationTypeGetSet()
         {
             var config = new ApplicationConfiguration(m_telemetry)
@@ -151,7 +171,9 @@ namespace Opc.Ua.Core.Tests
         }
 
         [Test]
+        /// <summary>
         /// ApplicationType defaults to Server.
+        /// </summary>
         public void ApplicationTypeDefaultIsServer()
         {
             var config = new ApplicationConfiguration(m_telemetry);
@@ -159,7 +181,9 @@ namespace Opc.Ua.Core.Tests
         }
 
         [Test]
+        /// <summary>
         /// ServerConfiguration get/set round-trips correctly.
+        /// </summary>
         public void ServerConfigurationGetSet()
         {
             var config = new ApplicationConfiguration(m_telemetry);
@@ -169,7 +193,9 @@ namespace Opc.Ua.Core.Tests
         }
 
         [Test]
+        /// <summary>
         /// ServerConfiguration defaults to null.
+        /// </summary>
         public void ServerConfigurationDefaultIsNull()
         {
             var config = new ApplicationConfiguration(m_telemetry);
@@ -177,7 +203,9 @@ namespace Opc.Ua.Core.Tests
         }
 
         [Test]
+        /// <summary>
         /// ClientConfiguration get/set round-trips correctly.
+        /// </summary>
         public void ClientConfigurationGetSet()
         {
             var config = new ApplicationConfiguration(m_telemetry);
@@ -187,7 +215,9 @@ namespace Opc.Ua.Core.Tests
         }
 
         [Test]
+        /// <summary>
         /// ClientConfiguration defaults to null.
+        /// </summary>
         public void ClientConfigurationDefaultIsNull()
         {
             var config = new ApplicationConfiguration(m_telemetry);
@@ -195,7 +225,9 @@ namespace Opc.Ua.Core.Tests
         }
 
         [Test]
+        /// <summary>
         /// SecurityConfiguration is created by default constructor.
+        /// </summary>
         public void SecurityConfigurationDefaultIsNotNull()
         {
             var config = new ApplicationConfiguration(m_telemetry);
@@ -203,7 +235,9 @@ namespace Opc.Ua.Core.Tests
         }
 
         [Test]
+        /// <summary>
         /// SecurityConfiguration set with null reverts to default.
+        /// </summary>
         public void SecurityConfigurationSetNullReturnsDefault()
         {
             var config = new ApplicationConfiguration(m_telemetry)
@@ -214,7 +248,9 @@ namespace Opc.Ua.Core.Tests
         }
 
         [Test]
+        /// <summary>
         /// SecurityConfiguration get/set round-trips correctly.
+        /// </summary>
         public void SecurityConfigurationGetSet()
         {
             var config = new ApplicationConfiguration(m_telemetry);
@@ -224,7 +260,9 @@ namespace Opc.Ua.Core.Tests
         }
 
         [Test]
+        /// <summary>
         /// TransportQuotas get/set round-trips correctly.
+        /// </summary>
         public void TransportQuotasGetSet()
         {
             var config = new ApplicationConfiguration(m_telemetry);
@@ -234,7 +272,9 @@ namespace Opc.Ua.Core.Tests
         }
 
         [Test]
+        /// <summary>
         /// TransportQuotas defaults to null.
+        /// </summary>
         public void TransportQuotasDefaultIsNull()
         {
             var config = new ApplicationConfiguration(m_telemetry);
@@ -242,7 +282,9 @@ namespace Opc.Ua.Core.Tests
         }
 
         [Test]
+        /// <summary>
         /// TransportConfigurations is created by default constructor.
+        /// </summary>
         public void TransportConfigurationsDefaultIsNotNull()
         {
             var config = new ApplicationConfiguration(m_telemetry);
@@ -250,50 +292,61 @@ namespace Opc.Ua.Core.Tests
         }
 
         [Test]
+        /// <summary>
         /// TransportConfigurations get/set round-trips correctly.
+        /// </summary>
         public void TransportConfigurationsGetSet()
         {
-            var config = new ApplicationConfiguration(m_telemetry);
-            ArrayOf<TransportConfiguration> transports =
-                new List<TransportConfiguration>
-                {
-                    new("opc.tcp", typeof(object))
-                }.ToArrayOf();
-            config.TransportConfigurations = transports;
+            var config = new ApplicationConfiguration(m_telemetry)
+            {
+                TransportConfigurations = new List<TransportConfiguration>
+                    {
+                        new("opc.tcp", typeof(object))
+                    }.ToArrayOf()
+            };
             Assert.That(config.TransportConfigurations.Count, Is.EqualTo(1));
         }
 
         [Test]
-        /// CertificateValidator is created by default constructor.
-        public void CertificateValidatorDefaultIsNotNull()
+        /// <summary>
+        /// CertificateManager is null by default before validation.
+        /// </summary>
+        public void CertificateManagerDefaultIsNull()
         {
             var config = new ApplicationConfiguration(m_telemetry);
-            Assert.That(config.CertificateValidator, Is.Not.Null);
+            Assert.That(config.CertificateManager, Is.Null);
         }
 
         [Test]
-        /// CertificateValidator get/set round-trips correctly.
-        public void CertificateValidatorGetSet()
+        /// <summary>
+        /// CertificateManager get/set round-trips correctly.
+        /// </summary>
+        public void CertificateManagerGetSet()
         {
             var config = new ApplicationConfiguration(m_telemetry);
-            var validator = new CertificateValidator(m_telemetry);
-            config.CertificateValidator = validator;
-            Assert.That(config.CertificateValidator, Is.SameAs(validator));
+            using var manager = new CertificateManager(m_telemetry);
+            config.CertificateManager = manager;
+            Assert.That(config.CertificateManager, Is.SameAs(manager));
         }
 
         [Test]
+        /// <summary>
         /// TraceConfiguration get/set round-trips correctly.
+        /// </summary>
         public void TraceConfigurationGetSet()
         {
-            var config = new ApplicationConfiguration(m_telemetry);
-            var trace = new TraceConfiguration { OutputFilePath = "trace.log" };
-            config.TraceConfiguration = trace;
+            var config = new ApplicationConfiguration(m_telemetry)
+            {
+                TraceConfiguration = new TraceConfiguration { OutputFilePath = "trace.log" }
+            };
             Assert.That(config.TraceConfiguration, Is.Not.Null);
             Assert.That(config.TraceConfiguration.OutputFilePath, Is.EqualTo("trace.log"));
         }
 
         [Test]
+        /// <summary>
         /// TraceConfiguration defaults to null.
+        /// </summary>
         public void TraceConfigurationDefaultIsNull()
         {
             var config = new ApplicationConfiguration(m_telemetry);
@@ -301,7 +354,9 @@ namespace Opc.Ua.Core.Tests
         }
 
         [Test]
+        /// <summary>
         /// DisableHiResClock get/set round-trips correctly.
+        /// </summary>
         public void DisableHiResClockGetSet()
         {
             var config = new ApplicationConfiguration(m_telemetry)
@@ -312,7 +367,9 @@ namespace Opc.Ua.Core.Tests
         }
 
         [Test]
+        /// <summary>
         /// DisableHiResClock defaults to false.
+        /// </summary>
         public void DisableHiResClockDefaultIsFalse()
         {
             var config = new ApplicationConfiguration(m_telemetry);
@@ -320,7 +377,9 @@ namespace Opc.Ua.Core.Tests
         }
 
         [Test]
+        /// <summary>
         /// DiscoveryServerConfiguration get/set round-trips correctly.
+        /// </summary>
         public void DiscoveryServerConfigurationGetSet()
         {
             var config = new ApplicationConfiguration(m_telemetry);
@@ -330,7 +389,9 @@ namespace Opc.Ua.Core.Tests
         }
 
         [Test]
+        /// <summary>
         /// DiscoveryServerConfiguration defaults to null.
+        /// </summary>
         public void DiscoveryServerConfigurationDefaultIsNull()
         {
             var config = new ApplicationConfiguration(m_telemetry);
@@ -338,7 +399,9 @@ namespace Opc.Ua.Core.Tests
         }
 
         [Test]
+        /// <summary>
         /// Properties dictionary is accessible and initially empty.
+        /// </summary>
         public void PropertiesDictionaryIsAccessible()
         {
             var config = new ApplicationConfiguration(m_telemetry);
@@ -347,7 +410,9 @@ namespace Opc.Ua.Core.Tests
         }
 
         [Test]
+        /// <summary>
         /// PropertiesLock is not null.
+        /// </summary>
         public void PropertiesLockIsNotNull()
         {
             var config = new ApplicationConfiguration(m_telemetry);
@@ -355,7 +420,9 @@ namespace Opc.Ua.Core.Tests
         }
 
         [Test]
+        /// <summary>
         /// ExtensionObjects list is accessible.
+        /// </summary>
         public void ExtensionObjectsIsAccessible()
         {
             var config = new ApplicationConfiguration(m_telemetry);
@@ -363,7 +430,9 @@ namespace Opc.Ua.Core.Tests
         }
 
         [Test]
+        /// <summary>
         /// CreateMessageContext returns a valid ServiceMessageContext.
+        /// </summary>
         public void CreateMessageContextReturnsValidContext()
         {
             var config = new ApplicationConfiguration(m_telemetry);
@@ -373,7 +442,9 @@ namespace Opc.Ua.Core.Tests
         }
 
         [Test]
+        /// <summary>
         /// CreateMessageContext with factory returns context with that factory.
+        /// </summary>
         public void CreateMessageContextWithFactory()
         {
             var config = new ApplicationConfiguration(m_telemetry);
@@ -384,7 +455,9 @@ namespace Opc.Ua.Core.Tests
         }
 
         [Test]
+        /// <summary>
         /// CreateMessageContext applies TransportQuotas when set.
+        /// </summary>
         public void CreateMessageContextAppliesTransportQuotas()
         {
             var config = new ApplicationConfiguration(m_telemetry)
@@ -410,7 +483,9 @@ namespace Opc.Ua.Core.Tests
         }
 
         [Test]
+        /// <summary>
         /// CreateMessageContext without TransportQuotas uses defaults.
+        /// </summary>
         public void CreateMessageContextWithoutTransportQuotasUsesDefaults()
         {
             var config = new ApplicationConfiguration(m_telemetry);
@@ -420,7 +495,9 @@ namespace Opc.Ua.Core.Tests
         }
 
         [Test]
+        /// <summary>
         /// GetServerDomainNames returns empty when ServerConfiguration is null.
+        /// </summary>
         public void GetServerDomainNamesReturnsEmptyWhenNoServerConfig()
         {
             var config = new ApplicationConfiguration(m_telemetry);
@@ -429,7 +506,9 @@ namespace Opc.Ua.Core.Tests
         }
 
         [Test]
+        /// <summary>
         /// GetServerDomainNames extracts domains from base addresses.
+        /// </summary>
         public void GetServerDomainNamesExtractsFromBaseAddresses()
         {
             var config = new ApplicationConfiguration(m_telemetry)
@@ -446,7 +525,9 @@ namespace Opc.Ua.Core.Tests
         }
 
         [Test]
+        /// <summary>
         /// GetServerDomainNames deduplicates domain names.
+        /// </summary>
         public void GetServerDomainNamesDeduplicates()
         {
             var config = new ApplicationConfiguration(m_telemetry)
@@ -464,7 +545,9 @@ namespace Opc.Ua.Core.Tests
         }
 
         [Test]
+        /// <summary>
         /// GetServerDomainNames includes alternate base addresses.
+        /// </summary>
         public void GetServerDomainNamesIncludesAlternateAddresses()
         {
             var config = new ApplicationConfiguration(m_telemetry)
@@ -485,7 +568,9 @@ namespace Opc.Ua.Core.Tests
         }
 
         [Test]
+        /// <summary>
         /// ValidateAsync throws when ApplicationName is empty.
+        /// </summary>
         public void ValidateAsyncThrowsWhenApplicationNameEmpty()
         {
             var config = new ApplicationConfiguration(m_telemetry);
@@ -494,7 +579,9 @@ namespace Opc.Ua.Core.Tests
         }
 
         [Test]
+        /// <summary>
         /// ValidateAsync throws when SecurityConfiguration is null.
+        /// </summary>
         public void ValidateAsyncThrowsWhenSecurityConfigurationNull()
         {
             var config = new ApplicationConfiguration(m_telemetry)
@@ -512,7 +599,9 @@ namespace Opc.Ua.Core.Tests
         }
 
         [Test]
+        /// <summary>
         /// ValidateAsync throws for Server type when ServerConfiguration is null.
+        /// </summary>
         public async Task ValidateAsyncThrowsForServerWithNoServerConfiguration()
         {
             ApplicationConfiguration config = CreateMinimalValidatableConfig();
@@ -525,7 +614,9 @@ namespace Opc.Ua.Core.Tests
         }
 
         [Test]
+        /// <summary>
         /// ValidateAsync throws for Client type when ClientConfiguration is null.
+        /// </summary>
         public async Task ValidateAsyncThrowsForClientWithNoClientConfiguration()
         {
             ApplicationConfiguration config = CreateMinimalValidatableConfig();
@@ -537,7 +628,9 @@ namespace Opc.Ua.Core.Tests
         }
 
         [Test]
+        /// <summary>
         /// ValidateAsync throws for DiscoveryServer type when DiscoveryServerConfiguration is null.
+        /// </summary>
         public async Task ValidateAsyncThrowsForDiscoveryServerWithNoConfig()
         {
             ApplicationConfiguration config = CreateMinimalValidatableConfig();
@@ -549,7 +642,9 @@ namespace Opc.Ua.Core.Tests
         }
 
         [Test]
+        /// <summary>
         /// SourceFilePath is null by default.
+        /// </summary>
         public void SourceFilePathDefaultIsNull()
         {
             var config = new ApplicationConfiguration(m_telemetry);
@@ -557,7 +652,9 @@ namespace Opc.Ua.Core.Tests
         }
 
         [Test]
+        /// <summary>
         /// Extensions property get/set round-trips correctly.
+        /// </summary>
         public void ExtensionsGetSet()
         {
             var config = new ApplicationConfiguration(m_telemetry)
@@ -569,7 +666,9 @@ namespace Opc.Ua.Core.Tests
         }
 
         [Test]
+        /// <summary>
         /// Properties dictionary supports adding and retrieving values.
+        /// </summary>
         public void PropertiesCanStoreAndRetrieveValues()
         {
             var config = new ApplicationConfiguration(m_telemetry);
@@ -578,7 +677,9 @@ namespace Opc.Ua.Core.Tests
         }
 
         [Test]
+        /// <summary>
         /// Copy constructor copies ServerConfiguration reference.
+        /// </summary>
         public void CopyConstructorCopiesServerConfiguration()
         {
             var serverConfig = new ServerConfiguration();
@@ -593,7 +694,9 @@ namespace Opc.Ua.Core.Tests
         }
 
         [Test]
+        /// <summary>
         /// Copy constructor copies ClientConfiguration reference.
+        /// </summary>
         public void CopyConstructorCopiesClientConfiguration()
         {
             var clientConfig = new ClientConfiguration();
@@ -608,22 +711,26 @@ namespace Opc.Ua.Core.Tests
         }
 
         [Test]
-        /// Copy constructor copies CertificateValidator reference.
-        public void CopyConstructorCopiesCertificateValidator()
+        /// <summary>
+        /// Copy constructor copies CertificateManager by reference.
+        /// </summary>
+        public void CopyConstructorCopiesCertificateManager()
         {
-            var validator = new CertificateValidator(m_telemetry);
+            using var manager = new CertificateManager(m_telemetry);
             var original = new ApplicationConfiguration(m_telemetry)
             {
                 ApplicationName = "CopyTest",
-                CertificateValidator = validator
+                CertificateManager = manager
             };
 
             var copy = new ApplicationConfiguration(original);
-            Assert.That(copy.CertificateValidator, Is.SameAs(validator));
+            Assert.That(copy.CertificateManager, Is.SameAs(manager));
         }
 
         [Test]
+        /// <summary>
         /// Copy constructor copies TransportQuotas reference.
+        /// </summary>
         public void CopyConstructorCopiesTransportQuotas()
         {
             var quotas = new TransportQuotas();
@@ -638,7 +745,9 @@ namespace Opc.Ua.Core.Tests
         }
 
         [Test]
+        /// <summary>
         /// TransportQuotas default values match DefaultEncodingLimits.
+        /// </summary>
         public void TransportQuotasDefaultValues()
         {
             var quotas = new TransportQuotas();
@@ -651,7 +760,9 @@ namespace Opc.Ua.Core.Tests
         }
 
         [Test]
+        /// <summary>
         /// GetFilePathFromAppConfig returns a non-null path.
+        /// </summary>
         public void GetFilePathFromAppConfigReturnsPath()
         {
             string path = ApplicationConfiguration.GetFilePathFromAppConfig(

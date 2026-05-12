@@ -187,7 +187,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             m_configurator.AddReaderGroup(connId, readerGroup);
 
             List<uint> children = m_configurator.FindChildrenIdsForObject(connection);
-            Assert.That(children.Count, Is.GreaterThanOrEqualTo(2));
+            Assert.That(children, Has.Count.GreaterThanOrEqualTo(2));
         }
 
         [Test]
@@ -234,7 +234,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void EnableNullThrowsArgumentException()
         {
-            Assert.Throws<ArgumentException>(() => m_configurator.Enable((object)null));
+            Assert.Throws<ArgumentException>(() => m_configurator.Enable(null));
         }
 
         [Test]
@@ -286,7 +286,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test]
         public void DisableNullThrowsArgumentException()
         {
-            Assert.Throws<ArgumentException>(() => m_configurator.Disable((object)null));
+            Assert.Throws<ArgumentException>(() => m_configurator.Disable(null));
         }
 
         [Test]

@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
 using System.Collections.Generic;
 
 namespace Opc.Ua.SourceGeneration
@@ -77,7 +76,6 @@ namespace Opc.Ua.SourceGeneration
         /// XML encoding id string, or null.
         /// </summary>
         public string XmlEncodingId { get; set; }
-
 
         /// <summary>
         /// True if the type is a C# record type.
@@ -138,13 +136,13 @@ namespace Opc.Ua.SourceGeneration
         /// Ordered list of fields to encode/decode.
         /// </summary>
         public IReadOnlyList<TypeFieldModel> Fields { get; set; }
-            = Array.Empty<TypeFieldModel>();
+            = [];
 
         /// <summary>
         /// For enums, the list of enum members.
         /// </summary>
         public IReadOnlyList<TypeEnumMember> EnumMembers { get; set; }
-            = Array.Empty<TypeEnumMember>();
+            = [];
     }
 
     /// <summary>

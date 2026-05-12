@@ -7,7 +7,11 @@ namespace Opc.Ua.Server.Tests
 {
     [GroupBenchmarksBy(BenchmarkLogicalGroupRule.ByCategory)]
     [MemoryDiagnoser]
+    // CA1001: benchmark class; ownership/disposal is handled by BenchmarkDotNet's
+    // [GlobalSetup]/[GlobalCleanup] lifecycle.
+#pragma warning disable CA1001
     public class MonitoredItemBenchmarks
+#pragma warning restore CA1001
     {
         private DataValue m_valueDouble;
         private DataValue m_lastValueDouble;
@@ -161,8 +165,6 @@ namespace Opc.Ua.Server.Tests
         public void Cleanup()
         {
             m_monitoredItem?.Dispose();
-            m_event1?.Dispose();
-            m_event2?.Dispose();
             m_queueFactory?.Dispose();
         }
 

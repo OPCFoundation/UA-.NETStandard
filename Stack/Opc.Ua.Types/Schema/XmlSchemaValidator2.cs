@@ -27,14 +27,14 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
+using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
+using System.IO;
+using System.Linq;
 using System.Text;
 using System.Xml;
 using System.Xml.Schema;
-using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
-using System;
-using System.Linq;
-using System.IO;
 
 namespace Opc.Ua.Schema.Xml
 {
@@ -49,9 +49,9 @@ namespace Opc.Ua.Schema.Xml
         public static readonly IReadOnlyDictionary<string, string> WellKnown =
             new Dictionary<string, string>
             {
-                [Opc.Ua.Types.Namespaces.OpcUaBuiltInTypes] = "BuiltInTypes.xsd",
-                [Opc.Ua.Types.Namespaces.OpcUaXsd] = "Opc.Ua.Types.xsd",
-                [Opc.Ua.Types.Namespaces.OpcUa] = "Opc.Ua.Types.xsd"
+                [Ua.Types.Namespaces.OpcUaBuiltInTypes] = "BuiltInTypes.xsd",
+                [Ua.Types.Namespaces.OpcUaXsd] = "Opc.Ua.Types.xsd",
+                [Ua.Types.Namespaces.OpcUa] = "Opc.Ua.Types.xsd"
             };
 
         /// <summary>

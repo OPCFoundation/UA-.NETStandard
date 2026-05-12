@@ -239,7 +239,7 @@ namespace Opc.Ua.Client.Tests
                 await Task.Delay(TimeSpan.FromSeconds(testDurationSeconds)).ConfigureAwait(false);
 
                 // Stop writer
-                writerCts.Cancel();
+                await writerCts.CancelAsync().ConfigureAwait(false);
                 try
                 {
                     await writerTask.ConfigureAwait(false);
@@ -640,7 +640,7 @@ namespace Opc.Ua.Client.Tests
                 var sw = System.Diagnostics.Stopwatch.StartNew();
                 while (!testCts.IsCancellationRequested)
                 {
-                    using var e = new BaseEventState(null);
+                    var e = new BaseEventState(null);
                     e.Initialize(
                         serverContext,
                         serverInternal.ServerObject,

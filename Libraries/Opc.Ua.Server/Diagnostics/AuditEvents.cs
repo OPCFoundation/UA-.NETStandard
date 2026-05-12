@@ -29,8 +29,8 @@
 
 using System;
 using System.Globalization;
-using System.Security.Cryptography.X509Certificates;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Server
 {
@@ -87,7 +87,7 @@ namespace Opc.Ua.Server
             {
                 ISystemContext systemContext = server.DefaultAuditContext;
 
-                using var e = new AuditEventState(null);
+                var e = new AuditEventState(null);
 
                 var message = new TranslationInfo(
                     "AuditEvent",
@@ -165,7 +165,7 @@ namespace Opc.Ua.Server
 
             try
             {
-                using var e = new AuditWriteUpdateEventState(null);
+                var e = new AuditWriteUpdateEventState(null);
 
                 var message = new TranslationInfo(
                     "AuditWriteUpdateEvent",
@@ -260,7 +260,7 @@ namespace Opc.Ua.Server
 
             try
             {
-                using var e = new AuditHistoryValueUpdateEventState(null);
+                var e = new AuditHistoryValueUpdateEventState(null);
 
                 InitializeAuditHistoryUpdateEvent(
                     e,
@@ -319,7 +319,7 @@ namespace Opc.Ua.Server
 
             try
             {
-                using var e = new AuditHistoryAnnotationUpdateEventState(null);
+                var e = new AuditHistoryAnnotationUpdateEventState(null);
 
                 InitializeAuditHistoryUpdateEvent(
                     e,
@@ -373,7 +373,7 @@ namespace Opc.Ua.Server
 
             try
             {
-                using var e = new AuditHistoryEventUpdateEventState(null);
+                var e = new AuditHistoryEventUpdateEventState(null);
 
                 InitializeAuditHistoryUpdateEvent(
                     e,
@@ -437,7 +437,7 @@ namespace Opc.Ua.Server
 
             try
             {
-                using var e = new AuditHistoryRawModifyDeleteEventState(null);
+                var e = new AuditHistoryRawModifyDeleteEventState(null);
 
                 InitializeAuditHistoryUpdateEvent(
                     e,
@@ -502,7 +502,7 @@ namespace Opc.Ua.Server
 
             try
             {
-                using var e = new AuditHistoryAtTimeDeleteEventState(null);
+                var e = new AuditHistoryAtTimeDeleteEventState(null);
 
                 InitializeAuditHistoryUpdateEvent(
                     e,
@@ -557,7 +557,7 @@ namespace Opc.Ua.Server
 
             try
             {
-                using var e = new AuditHistoryEventDeleteEventState(null);
+                var e = new AuditHistoryEventDeleteEventState(null);
 
                 InitializeAuditHistoryUpdateEvent(
                     e,
@@ -597,7 +597,7 @@ namespace Opc.Ua.Server
         /// <param name="logger">A contextual logger to log to</param>
         public static void ReportAuditCertificateEvent(
             this IAuditEventServer server,
-            X509Certificate2 clientCertificate,
+            Certificate clientCertificate,
             Exception exception,
             ILogger logger)
         {
@@ -642,7 +642,7 @@ namespace Opc.Ua.Server
             this IAuditEventServer server,
             ILogger logger,
             ISystemContext systemContext,
-            X509Certificate2 clientCertificate,
+            Certificate clientCertificate,
             ServiceResultException sre)
         {
             try
@@ -721,8 +721,6 @@ namespace Opc.Ua.Server
                         false);
 
                     server.ReportAuditEvent(systemContext, auditCertificateEventState);
-
-                    auditCertificateEventState.Dispose();
                 }
             }
             catch (Exception ex)
@@ -746,7 +744,7 @@ namespace Opc.Ua.Server
         /// <param name="logger">A contextual logger to log to</param>
         public static void ReportAuditCertificateDataMismatchEvent(
             this IAuditEventServer server,
-            X509Certificate2 clientCertificate,
+            Certificate clientCertificate,
             string invalidHostName,
             string invalidUri,
             StatusCode statusCode,
@@ -763,7 +761,7 @@ namespace Opc.Ua.Server
                 ISystemContext systemContext = server.DefaultAuditContext;
 
                 // create AuditCertificateDataMismatchEventType
-                using var e = new AuditCertificateDataMismatchEventState(null);
+                var e = new AuditCertificateDataMismatchEventState(null);
 
                 e.Initialize(
                     systemContext,
@@ -834,7 +832,7 @@ namespace Opc.Ua.Server
                 ISystemContext systemContext = server.DefaultAuditContext;
 
                 // create AuditCancelEventState
-                using var e = new AuditCancelEventState(null);
+                var e = new AuditCancelEventState(null);
 
                 e.Initialize(
                     systemContext,
@@ -896,7 +894,7 @@ namespace Opc.Ua.Server
             try
             {
                 // create RoleMappingRuleChangedAuditEventState
-                using var e = new RoleMappingRuleChangedAuditEventState(null);
+                var e = new RoleMappingRuleChangedAuditEventState(null);
 
                 e.Initialize(
                     systemContext,
@@ -957,7 +955,7 @@ namespace Opc.Ua.Server
                 ISystemContext systemContext = server.DefaultAuditContext;
 
                 // raise an audit event.
-                using var e = new AuditCreateSessionEventState(null);
+                var e = new AuditCreateSessionEventState(null);
 
                 TranslationInfo message = default;
                 if (exception == null)
@@ -1047,7 +1045,7 @@ namespace Opc.Ua.Server
             {
                 ISystemContext systemContext = server.DefaultAuditContext;
 
-                using var e = new AuditActivateSessionEventState(null);
+                var e = new AuditActivateSessionEventState(null);
 
                 TranslationInfo message = default;
                 if (exception == null)
@@ -1122,7 +1120,7 @@ namespace Opc.Ua.Server
             {
                 ISystemContext systemContext = server.DefaultAuditContext;
 
-                using var e = new AuditUrlMismatchEventState(null);
+                var e = new AuditUrlMismatchEventState(null);
 
                 var message = new TranslationInfo(
                     "AuditUrlMismatchEvent",
@@ -1207,7 +1205,7 @@ namespace Opc.Ua.Server
                 ISystemContext systemContext = server.DefaultAuditContext;
 
                 // raise an audit event.
-                using var e = new AuditSessionEventState(null);
+                var e = new AuditSessionEventState(null);
 
                 var message = new TranslationInfo(
                     "AuditCloseSessionEvent",
@@ -1255,7 +1253,7 @@ namespace Opc.Ua.Server
                 ISystemContext systemContext = server.DefaultAuditContext;
 
                 // raise an audit event.
-                using var e = new AuditSessionEventState(null);
+                var e = new AuditSessionEventState(null);
 
                 var message = new TranslationInfo(
                     "AuditSessionEventState",
@@ -1313,7 +1311,7 @@ namespace Opc.Ua.Server
         {
             try
             {
-                using var e = new CertificateUpdatedAuditEventState(null);
+                var e = new CertificateUpdatedAuditEventState(null);
 
                 TranslationInfo message = default;
                 if (exception == null)
@@ -1395,7 +1393,7 @@ namespace Opc.Ua.Server
         {
             try
             {
-                using var e = new CertificateUpdateRequestedAuditEventState(null);
+                var e = new CertificateUpdateRequestedAuditEventState(null);
 
                 var message = new TranslationInfo(
                     "CertificateUpdateRequestedAuditEvent",
@@ -1454,7 +1452,7 @@ namespace Opc.Ua.Server
 
             try
             {
-                using var e = new AuditAddNodesEventState(null);
+                var e = new AuditAddNodesEventState(null);
 
                 var message = new TranslationInfo(
                     "AuditAddNodesEventState",
@@ -1517,7 +1515,7 @@ namespace Opc.Ua.Server
 
             try
             {
-                using var e = new AuditDeleteNodesEventState(null);
+                var e = new AuditDeleteNodesEventState(null);
 
                 var message = new TranslationInfo(
                     "AuditDeleteNodesEventState",
@@ -1570,7 +1568,7 @@ namespace Opc.Ua.Server
             string globalChannelId,
             EndpointDescription endpointDescription,
             OpenSecureChannelRequest request,
-            X509Certificate2 clientCertificate,
+            Certificate clientCertificate,
             Exception exception,
             ILogger logger)
         {
@@ -1583,7 +1581,7 @@ namespace Opc.Ua.Server
             try
             {
                 // raise an audit event.
-                using var e = new AuditOpenSecureChannelEventState(null);
+                var e = new AuditOpenSecureChannelEventState(null);
                 TranslationInfo message = default;
                 if (exception == null)
                 {
@@ -1732,7 +1730,7 @@ namespace Opc.Ua.Server
             try
             {
                 // raise an audit event.
-                using var e = new AuditChannelEventState(null);
+                var e = new AuditChannelEventState(null);
 
                 TranslationInfo message = default;
                 if (exception == null)
@@ -1830,7 +1828,7 @@ namespace Opc.Ua.Server
             }
             try
             {
-                using var e = new AuditUpdateMethodEventState(null);
+                var e = new AuditUpdateMethodEventState(null);
 
                 var message = new TranslationInfo(
                     "AuditUpdateMethodEventState",
@@ -1899,7 +1897,7 @@ namespace Opc.Ua.Server
         {
             try
             {
-                using var e = new TrustListUpdatedAuditEventState(null);
+                var e = new TrustListUpdatedAuditEventState(null);
 
                 var message = new TranslationInfo(
                     "TrustListUpdatedAuditEvent",
@@ -1955,7 +1953,7 @@ namespace Opc.Ua.Server
         {
             try
             {
-                using var e = new TrustListUpdateRequestedAuditEventState(null);
+                var e = new TrustListUpdateRequestedAuditEventState(null);
 
                 var message = new TranslationInfo(
                     "TrustListUpdateRequestedAuditEvent",

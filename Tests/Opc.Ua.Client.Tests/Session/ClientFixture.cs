@@ -27,6 +27,9 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+// CA2000: test code; many disposables are ownership-transferred to test fixtures or short-lived,
+// making CA2000 noisy without a real leak risk. Disabled file-level for the suite.
+#pragma warning disable CA2000
 using System;
 using System.Diagnostics;
 using System.IO;
@@ -47,6 +50,7 @@ namespace Opc.Ua.Client.Tests
         private const uint kDefaultOperationLimits = 5000;
         private readonly ITelemetryContext m_telemetry;
         private readonly ILogger m_logger;
+        private ApplicationInstance m_application;
 
         public ApplicationConfiguration Config { get; private set; }
         public ConfiguredEndpoint Endpoint { get; private set; }
@@ -107,6 +111,8 @@ namespace Opc.Ua.Client.Tests
             if (disposing)
             {
                 StopActivityListener();
+                m_application?.DisposeAsync().AsTask().GetAwaiter().GetResult();
+                m_application = null;
             }
         }
 
@@ -118,7 +124,9 @@ namespace Opc.Ua.Client.Tests
             string pkiRoot = null,
             string clientName = "TestClient")
         {
-            var application = new ApplicationInstance(m_telemetry) { ApplicationName = clientName };
+            m_application?.DisposeAsync().AsTask().GetAwaiter().GetResult();
+            m_application = new ApplicationInstance(m_telemetry) { ApplicationName = clientName };
+            ApplicationInstance application = m_application;
 
             pkiRoot ??= Path.Combine("%LocalApplicationData%", "OPC", "pki");
 
@@ -170,8 +178,8 @@ namespace Opc.Ua.Client.Tests
         public async Task StartReverseConnectHostAsync()
         {
             int testPort = ServerFixtureUtils.GetNextFreeIPPort();
-            bool retryStartServer = false;
             int serverStartRetries = 25;
+            bool retryStartServer;
             do
             {
                 retryStartServer = false;

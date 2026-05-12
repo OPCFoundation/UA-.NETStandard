@@ -27,9 +27,9 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using NUnit.Framework;
 using System;
 using System.Runtime.InteropServices;
+using NUnit.Framework;
 
 namespace Opc.Ua.SourceGeneration.Generator.Tests
 {

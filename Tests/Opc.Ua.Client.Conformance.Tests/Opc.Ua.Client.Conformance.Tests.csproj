@@ -4,6 +4,14 @@
     <TargetFrameworks>$(TestsTargetFrameworks)</TargetFrameworks>
     <RootNamespace>Opc.Ua.Client.Conformance.Tests</RootNamespace>
     <GenerateProgramFile>false</GenerateProgramFile>
+    <!--
+      Suppress Roslynator formatting/style warnings that became errors after
+      master bumped Microsoft.CodeAnalysis.CSharp to 5.3.0. These are
+      pre-existing stylistic concerns (long lines, redundant async/await,
+      value-type vs null comparisons, etc.) in the large conformance test
+      suite; fixing them inline is out of scope for the master merge.
+    -->
+    <NoWarn>$(NoWarn);RCS0056;RCS1166;RCS1174;RCS1229;RCS1047;RCS1077;NUnit2023;NUnit2010;NUnit2045</NoWarn>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" />

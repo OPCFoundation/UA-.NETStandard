@@ -212,7 +212,7 @@ namespace TestData
 
             if (AreEventsMonitored)
             {
-                using var e = new GenerateValuesEventState(null);
+                var e = new GenerateValuesEventState(null);
 
                 var message = new TranslationInfo(
                     "GenerateValuesEventType",

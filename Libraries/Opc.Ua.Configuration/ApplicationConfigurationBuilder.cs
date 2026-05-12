@@ -354,13 +354,6 @@ namespace Opc.Ua.Configuration
             await ApplicationConfiguration.ValidateAsync(ApplicationInstance.ApplicationType, ct)
                 .ConfigureAwait(false);
 
-            await ApplicationConfiguration
-                .CertificateValidator.UpdateAsync(
-                    ApplicationConfiguration.SecurityConfiguration,
-                    applicationUri: null,
-                    ct)
-                .ConfigureAwait(false);
-
             return ApplicationConfiguration;
         }
 
@@ -511,12 +504,7 @@ namespace Opc.Ua.Configuration
         public IApplicationConfigurationBuilderServerSelected AddUserTokenPolicy(
             UserTokenPolicy userTokenPolicy)
         {
-            if (userTokenPolicy == null)
-            {
-                throw new ArgumentNullException(nameof(userTokenPolicy));
-            }
-
-            ApplicationConfiguration.ServerConfiguration.UserTokenPolicies += userTokenPolicy;
+            ApplicationConfiguration.ServerConfiguration.UserTokenPolicies += userTokenPolicy ?? throw new ArgumentNullException(nameof(userTokenPolicy));
             return this;
         }
 
@@ -1198,24 +1186,24 @@ namespace Opc.Ua.Configuration
             if (!RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
             {
                 certificateIdentifiers.AddRange(
-                    [
-                        new CertificateIdentifier
-                        {
-                            StoreType = storeType,
-                            StorePath = storePath,
-                            SubjectName = subjectName,
-                            CertificateType = ObjectTypeIds
-                                .EccBrainpoolP256r1ApplicationCertificateType
-                        },
-                        new CertificateIdentifier
-                        {
-                            StoreType = storeType,
-                            StorePath = storePath,
-                            SubjectName = subjectName,
-                            CertificateType = ObjectTypeIds
-                                .EccBrainpoolP384r1ApplicationCertificateType
-                        }
-                    ]);
+                [
+                    new CertificateIdentifier
+                    {
+                        StoreType = storeType,
+                        StorePath = storePath,
+                        SubjectName = subjectName,
+                        CertificateType = ObjectTypeIds
+                            .EccBrainpoolP256r1ApplicationCertificateType
+                    },
+                    new CertificateIdentifier
+                    {
+                        StoreType = storeType,
+                        StorePath = storePath,
+                        SubjectName = subjectName,
+                        CertificateType = ObjectTypeIds
+                            .EccBrainpoolP384r1ApplicationCertificateType
+                    }
+                ]);
             }
             return certificateIdentifiers.ToArrayOf();
         }

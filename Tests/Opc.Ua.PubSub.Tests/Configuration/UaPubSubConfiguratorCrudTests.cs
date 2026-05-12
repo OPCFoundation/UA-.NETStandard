@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.IO;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Configuration;
 using Opc.Ua.Tests;
@@ -41,18 +40,6 @@ namespace Opc.Ua.PubSub.Tests.Configuration
     [Parallelizable]
     public class UaPubSubConfiguratorCrudTests
     {
-        private static readonly string s_publisherConfigurationFileName = Path.Combine(
-            "Configuration",
-            "PublisherConfiguration.xml");
-
-        private UaPubSubConfigurator CreateConfiguratorFromFile()
-        {
-            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            PubSubConfigurationDataType config = UaPubSubConfigurationHelper.LoadConfiguration(
-                s_publisherConfigurationFileName, telemetry);
-            return new UaPubSubConfigurator(telemetry);
-        }
-
         private static UaPubSubConfigurator CreateConfiguratorWithConfig(PubSubConfigurationDataType config)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
@@ -118,8 +105,8 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             var config = new PubSubConfigurationDataType { Enabled = true };
             UaPubSubConfigurator configurator = CreateConfiguratorWithConfig(config);
 
-            var writerGroup = new WriterGroupDataType { Enabled = true, Name = "" };
-            var readerGroup = new ReaderGroupDataType { Enabled = true, Name = "" };
+            var writerGroup = new WriterGroupDataType { Enabled = true, Name = string.Empty };
+            var readerGroup = new ReaderGroupDataType { Enabled = true, Name = string.Empty };
             var connection = new PubSubConnectionDataType
             {
                 Enabled = true,

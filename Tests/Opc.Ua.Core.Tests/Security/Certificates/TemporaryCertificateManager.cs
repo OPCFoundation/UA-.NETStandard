@@ -35,24 +35,28 @@ using System.Threading.Tasks;
 namespace Opc.Ua.Core.Tests
 {
     /// <summary>
-    /// Test helper to create a temporary directory cert store.
+    /// Test helper that creates a temporary directory-backed PKI store
+    /// and exposes an <see cref="ICertificateManager"/> built from it.
     /// </summary>
-    public class TemporaryCertValidator : IDisposable
+    /// <remarks>
+    /// New tests should prefer this helper. The store layout is
+    /// (issuer / trusted / rejected directories).
+    /// </remarks>
+    public sealed class TemporaryCertificateManager : IDisposable
     {
         /// <summary>
-        /// Create the cert store in a temp location.
+        /// Create the PKI store under a fresh temporary path and return
+        /// the helper.
         /// </summary>
-        public static TemporaryCertValidator Create(ITelemetryContext telemetry, bool rejectedStore = false)
+        public static TemporaryCertificateManager Create(
+            ITelemetryContext telemetry,
+            bool rejectedStore = false)
         {
-            return new TemporaryCertValidator(telemetry, rejectedStore);
+            return new TemporaryCertificateManager(telemetry, rejectedStore);
         }
 
-        /// <summary>
-        /// Ctor of the store, creates the random path name in a OS temp folder.
-        /// </summary>
-        private TemporaryCertValidator(ITelemetryContext telemetry, bool rejectedStore)
+        private TemporaryCertificateManager(ITelemetryContext telemetry, bool rejectedStore)
         {
-            // pki directory root for test runs.
             m_pkiRoot = Path.GetTempPath() + Path.GetRandomFileName() + Path.DirectorySeparatorChar;
             m_telemetry = telemetry;
             m_issuerStore = new DirectoryCertificateStore(telemetry);
@@ -66,10 +70,7 @@ namespace Opc.Ua.Core.Tests
             }
         }
 
-        /// <summary>
-        /// Clean up the temporary folder.
-        /// </summary>
-        ~TemporaryCertValidator()
+        ~TemporaryCertificateManager()
         {
             Dispose(false);
         }
@@ -80,10 +81,7 @@ namespace Opc.Ua.Core.Tests
             GC.SuppressFinalize(this);
         }
 
-        /// <summary>
-        /// Dispose the certificates and delete folders used.
-        /// </summary>
-        protected virtual void Dispose(bool disposing)
+        private void Dispose(bool disposing)
         {
             if (disposing && Interlocked.CompareExchange(ref m_disposed, 1, 0) == 0)
             {
@@ -112,9 +110,18 @@ namespace Opc.Ua.Core.Tests
         }
 
         /// <summary>
-        /// The certificate validator for the stores.
+        /// The certificate manager built from the temporary stores. The
+        /// instance is created on demand via <see cref="UpdateAsync"/>
+        /// (mirroring the legacy <c>TemporaryCertValidator.Update</c>
+        /// pattern) and refreshed each time it is called.
         /// </summary>
-        public ICertificateValidator CertificateValidator => m_certificateValidator;
+        public ICertificateManager Manager => m_manager;
+
+        /// <summary>
+        /// Convenience accessor that returns <see cref="Manager"/> typed
+        /// as <see cref="ICertificateValidatorEx"/>.
+        /// </summary>
+        public ICertificateValidatorEx Validator => m_manager;
 
         /// <summary>
         /// The issuer store, contains certs used for chain validation.
@@ -122,7 +129,8 @@ namespace Opc.Ua.Core.Tests
         public ICertificateStore IssuerStore => m_issuerStore;
 
         /// <summary>
-        /// The trusted store, used for trusted CA, Sub CA and leaf certificates.
+        /// The trusted store, used for trusted CA, Sub CA and leaf
+        /// certificates.
         /// </summary>
         public ICertificateStore TrustedStore => m_trustedStore;
 
@@ -132,47 +140,69 @@ namespace Opc.Ua.Core.Tests
         public ICertificateStore RejectedStore => m_rejectedStore;
 
         /// <summary>
-        /// Creates the validator using the issuer and trusted store.
+        /// (Re)builds the certificate manager from the current state of
+        /// the issuer / trusted / rejected directories. Returns the
+        /// concrete <see cref="CertificateManager"/> for direct use in
+        /// tests that need its full surface (e.g. the
+        /// <c>MaxRejectedCertificates</c> setter).
         /// </summary>
-        public CertificateValidator Update()
+        public CertificateManager Update()
         {
-            var certValidator = new CertificateValidator(m_telemetry);
-            var issuerTrustList = new CertificateTrustList
+            (m_manager as CertificateManager)?.Dispose();
+
+            var securityConfiguration = new SecurityConfiguration
             {
-                StoreType = CertificateStoreType.Directory,
-                StorePath = m_issuerStore.Directory.FullName
+                TrustedIssuerCertificates = new CertificateTrustList
+                {
+                    StoreType = CertificateStoreType.Directory,
+                    StorePath = m_issuerStore.Directory.FullName
+                },
+                TrustedPeerCertificates = new CertificateTrustList
+                {
+                    StoreType = CertificateStoreType.Directory,
+                    StorePath = m_trustedStore.Directory.FullName
+                }
             };
-            var trustedTrustList = new CertificateTrustList
-            {
-                StoreType = CertificateStoreType.Directory,
-                StorePath = m_trustedStore.Directory.FullName
-            };
-            CertificateStoreIdentifier rejectedList = null;
             if (m_rejectedStore != null)
             {
-                rejectedList = new CertificateStoreIdentifier
+                securityConfiguration.RejectedCertificateStore = new CertificateTrustList
                 {
                     StoreType = CertificateStoreType.Directory,
                     StorePath = m_rejectedStore.Directory.FullName
                 };
             }
-            certValidator.Update(issuerTrustList, trustedTrustList, rejectedList);
-            m_certificateValidator = certValidator;
-            return certValidator;
+
+            CertificateManager manager = CertificateManagerFactory.Create(
+                securityConfiguration,
+                m_telemetry);
+            m_manager = manager;
+            return manager;
         }
 
         /// <summary>
-        /// Clean up (delete) the content of the issuer and trusted store.
+        /// Async wrapper around <see cref="Update"/> for parity with
+        /// callers that expect an awaitable factory.
+        /// </summary>
+        public Task<CertificateManager> UpdateAsync()
+        {
+            return Task.FromResult(Update());
+        }
+
+        /// <summary>
+        /// Cleans up (deletes) the contents of the issuer, trusted and
+        /// rejected stores. Disposes the underlying manager when
+        /// <paramref name="dispose"/> is <see langword="true"/>.
         /// </summary>
         public async Task CleanupValidatorAndStoresAsync(bool dispose = false)
         {
+            (m_manager as CertificateManager)?.Dispose();
             await TestUtils.CleanupTrustListAsync(m_issuerStore, dispose).ConfigureAwait(false);
             await TestUtils.CleanupTrustListAsync(m_trustedStore, dispose).ConfigureAwait(false);
             await TestUtils.CleanupTrustListAsync(m_rejectedStore, dispose).ConfigureAwait(false);
         }
 
         private int m_disposed;
-        private CertificateValidator m_certificateValidator;
+        private ICertificateManager m_manager;
         private DirectoryCertificateStore m_issuerStore;
         private DirectoryCertificateStore m_trustedStore;
         private DirectoryCertificateStore m_rejectedStore;

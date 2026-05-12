@@ -27,6 +27,9 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+// CA2000: test code; many disposables are ownership-transferred to test fixtures or short-lived,
+// making CA2000 noisy without a real leak risk. Disabled file-level for the suite.
+#pragma warning disable CA2000
 using System;
 using System.IO;
 using System.Xml;
@@ -405,7 +408,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         public void EncodeDataSetFieldWithXmlElementType()
         {
             var doc = new XmlDocument();
-            using (var reader = new System.IO.StringReader("<root>test</root>"))
+            using (var reader = new StringReader("<root>test</root>"))
             using (var xmlReader = XmlReader.Create(reader))
             {
                 doc.Load(xmlReader);

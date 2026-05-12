@@ -27,6 +27,9 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+// CA2000: test code; many disposables are ownership-transferred to test fixtures or short-lived,
+// making CA2000 noisy without a real leak risk. Disabled file-level for the suite.
+#pragma warning disable CA2000
 using System.Collections.Generic;
 using NUnit.Framework;
 using Opc.Ua.Server.Fluent;
@@ -42,7 +45,7 @@ namespace Opc.Ua.Server.Tests.Fluent
         {
             List<QualifiedName> segments = BrowsePathResolver.ParseSegments("Boilers", 2);
 
-            Assert.That(segments.Count, Is.EqualTo(1));
+            Assert.That(segments, Has.Count.EqualTo(1));
             Assert.That(segments[0].Name, Is.EqualTo("Boilers"));
             Assert.That(segments[0].NamespaceIndex, Is.EqualTo((ushort)2));
         }
@@ -54,7 +57,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                 "Boilers/Boiler1/Pipe/Valve",
                 3);
 
-            Assert.That(segments.Count, Is.EqualTo(4));
+            Assert.That(segments, Has.Count.EqualTo(4));
             foreach (QualifiedName name in segments)
             {
                 Assert.That(name.NamespaceIndex, Is.EqualTo((ushort)3));
@@ -70,7 +73,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                 "ns=5;Methods/Increment",
                 2);
 
-            Assert.That(segments.Count, Is.EqualTo(2));
+            Assert.That(segments, Has.Count.EqualTo(2));
             Assert.That(segments[0].Name, Is.EqualTo("Methods"));
             Assert.That(segments[0].NamespaceIndex, Is.EqualTo((ushort)5));
             Assert.That(segments[1].Name, Is.EqualTo("Increment"));
@@ -82,7 +85,7 @@ namespace Opc.Ua.Server.Tests.Fluent
         {
             List<QualifiedName> segments = BrowsePathResolver.ParseSegments("/A/B/", 1);
 
-            Assert.That(segments.Count, Is.EqualTo(2));
+            Assert.That(segments, Has.Count.EqualTo(2));
             Assert.That(segments[0].Name, Is.EqualTo("A"));
             Assert.That(segments[1].Name, Is.EqualTo("B"));
         }
@@ -108,7 +111,7 @@ namespace Opc.Ua.Server.Tests.Fluent
             ServiceResultException ex = Assert.Throws<ServiceResultException>(
                 () => BrowsePathResolver.ParseSegments(input, 0));
 
-            Assert.That(ex!.StatusCode, Is.EqualTo((uint)StatusCodes.BadBrowseNameInvalid));
+            Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadBrowseNameInvalid));
         }
 
         [TestCase("ns=;Foo")]
@@ -121,7 +124,7 @@ namespace Opc.Ua.Server.Tests.Fluent
             ServiceResultException ex = Assert.Throws<ServiceResultException>(
                 () => BrowsePathResolver.ParseSegments(input, 0));
 
-            Assert.That(ex!.StatusCode, Is.EqualTo((uint)StatusCodes.BadBrowseNameInvalid));
+            Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadBrowseNameInvalid));
         }
 
         private static SystemContext CreateContext()
@@ -169,7 +172,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                     0,
                     rootResolver: _ => null));
 
-            Assert.That(ex!.StatusCode, Is.EqualTo((uint)StatusCodes.BadNodeIdUnknown));
+            Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadNodeIdUnknown));
         }
 
         [Test]
@@ -190,7 +193,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                     2,
                     rootResolver: _ => root));
 
-            Assert.That(ex!.StatusCode, Is.EqualTo((uint)StatusCodes.BadNodeIdUnknown));
+            Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadNodeIdUnknown));
         }
     }
 }

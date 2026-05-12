@@ -34,9 +34,9 @@ using System.Globalization;
 using System.IO;
 using System.Reflection;
 using System.Runtime.Serialization;
-using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua
 {
@@ -679,7 +679,7 @@ namespace Opc.Ua
         /// Creates a X509 certificate object from the DER encoded bytes.
         /// </summary>
         [Obsolete("Use ParseCertificateBlob with telemetry context.")]
-        public static X509Certificate2 ParseCertificateBlob(
+        public static Certificate ParseCertificateBlob(
             ReadOnlyMemory<byte> certificateData,
             bool useAsnParser = false)
         {
@@ -690,7 +690,7 @@ namespace Opc.Ua
         /// Creates a X509 certificate collection object from the DER encoded bytes.
         /// </summary>
         [Obsolete("Use ParseCertificateChainBlobs with telemetry context.")]
-        public static X509Certificate2Collection ParseCertificateChainBlob(
+        public static CertificateCollection ParseCertificateChainBlob(
             ReadOnlyMemory<byte> certificateData,
             bool useAsnParser = false)
         {

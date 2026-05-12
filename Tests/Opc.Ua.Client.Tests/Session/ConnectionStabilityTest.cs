@@ -360,8 +360,8 @@ namespace Opc.Ua.Client.Tests
 
                 // Stop tasks
                 TestContext.Out.WriteLine("Test duration elapsed. Stopping writer and status tasks...");
-                writerCts.Cancel();
-                statusReportingCts.Cancel();
+                await writerCts.CancelAsync().ConfigureAwait(false);
+                await statusReportingCts.CancelAsync().ConfigureAwait(false);
 
                 try
                 {

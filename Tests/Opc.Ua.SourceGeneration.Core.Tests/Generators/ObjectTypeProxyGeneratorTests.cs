@@ -29,7 +29,6 @@
 
 using System;
 using System.IO;
-using System.Linq;
 using System.Text;
 using System.Xml;
 using Moq;
@@ -321,11 +320,8 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             new ObjectTypeProxyGenerator(CreateContext()).Emit();
             string content = Encoding.UTF8.GetString(stream.ToArray());
 
-            Assert.That(
-                content,
-                Does.Contain("public partial class FooTypeClient : global::"
-                    + kTestNamespacePrefix +
-                    ".FooBaseTypeClient"));
+            Assert.That(content, Does.Contain(
+                "public partial class FooTypeClient : global::" + kTestNamespacePrefix + ".FooBaseTypeClient"));
         }
 
         [Test]
@@ -375,10 +371,8 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             new ObjectTypeProxyGenerator(CreateContext()).Emit();
             string content = Encoding.UTF8.GetString(stream.ToArray());
 
-            Assert.That(
-                content,
-                Does.Contain(
-                    "public partial class RootTypeClient : global::Opc.Ua.ObjectTypeClient"));
+            Assert.That(content, Does.Contain(
+                "public partial class RootTypeClient : global::Opc.Ua.ObjectTypeClient"));
         }
 
         private GeneratorContext CreateContext(GeneratorOptions options = null)

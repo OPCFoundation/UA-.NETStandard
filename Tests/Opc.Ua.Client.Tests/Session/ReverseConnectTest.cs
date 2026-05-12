@@ -231,7 +231,7 @@ namespace Opc.Ua.Client.Tests
             Assert.That(endpoint, Is.Not.Null);
 
             // connect
-            using var userIdentity = new UserIdentity();
+            var userIdentity = new UserIdentity();
             ISession session = await sessionFactory.Create(telemetry)
                 .CreateAsync(
                     config,
@@ -263,7 +263,7 @@ namespace Opc.Ua.Client.Tests
             Assert.That(referenceDescriptions.IsNull, Is.False);
 
             // close session
-            StatusCode result = await session.CloseAsync().ConfigureAwait(false);
+            _ = await session.CloseAsync().ConfigureAwait(false);
             session.Dispose();
         }
 
@@ -296,7 +296,7 @@ namespace Opc.Ua.Client.Tests
             Assert.That(endpoint, Is.Not.Null);
 
             // connect
-            using var userIdentity = new UserIdentity();
+            var userIdentity = new UserIdentity();
             ISession session = await sessionFactory.Create(telemetry)
                 .CreateAsync(
                     config,
@@ -329,7 +329,7 @@ namespace Opc.Ua.Client.Tests
             Assert.That(referenceDescriptions.IsNull, Is.False);
 
             // close session
-            StatusCode result = await session.CloseAsync().ConfigureAwait(false);
+            _ = await session.CloseAsync().ConfigureAwait(false);
             session.Dispose();
         }
 

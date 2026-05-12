@@ -27,10 +27,11 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Security.Cryptography.X509Certificates;
+using System.IO;
+using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Security.Certificates;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
+using Opc.Ua.Tests;
 
 namespace Opc.Ua.Core.Tests.Stack.Types
 {
@@ -41,26 +42,68 @@ namespace Opc.Ua.Core.Tests.Stack.Types
     [Parallelizable]
     public class X509IdentityTokenHandlerTests
     {
+        /// <summary>
+        /// Verifies the <see cref="X509IdentityTokenHandler(CertificateIdentifier,
+        /// ICertificatePasswordProvider, ICertificateProvider)"/> ctor:
+        /// the handler is a POCO (no live cert reference) and
+        /// <see cref="X509IdentityTokenHandler.SignAsync"/> resolves
+        /// the private-key cert via <see cref="ICertificateProvider"/>
+        /// on each call.
+        /// </summary>
         [Test]
-        public void CopyPreservesPrivateKeyForSigning()
+        public async Task CertificateIdentifierCtorResolvesViaProviderForSignAsync()
         {
-            using X509Certificate2 cert = CertificateBuilder
-                .Create("CN=User Identity Test Subject, O=OPC Foundation")
-                .SetRSAKeySize(2048)
-                .CreateForRSA();
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            string storePath = Path.Combine(
+                Path.GetTempPath(),
+                "opcua-x509handler-id-" + System.Guid.NewGuid().ToString("N")[..8]);
+            Directory.CreateDirectory(storePath);
+            try
+            {
+                using Certificate cert = CertificateBuilder
+                    .Create("CN=X509HandlerCertIdentifier, O=OPC Foundation")
+                    .SetRSAKeySize(2048)
+                    .CreateForRSA();
 
-            using var tokenHandler = new X509IdentityTokenHandler(cert);
-            using X509IdentityTokenHandler copy = tokenHandler.Copy();
+                await cert.AddToStoreAsync(
+                    CertificateStoreType.Directory,
+                    storePath,
+                    password: null,
+                    telemetry).ConfigureAwait(false);
 
-            Assert.IsTrue(copy.Certificate.HasPrivateKey);
+                var id = new CertificateIdentifier
+                {
+                    StoreType = CertificateStoreType.Directory,
+                    StorePath = storePath,
+                    Thumbprint = cert.Thumbprint
+                };
 
-            SignatureData signature = copy.Sign(
-                [0x01, 0x02, 0x03, 0x04],
-                SecurityPolicies.Basic256Sha256);
+                using var manager = new CertificateManager(telemetry);
+                var passwordProvider = new CertificatePasswordProvider();
+                var handler = new X509IdentityTokenHandler(
+                    id,
+                    passwordProvider,
+                    manager.CertificateProvider);
 
-            Assert.NotNull(signature);
-            Assert.NotNull(signature.Signature);
-            Assert.Greater(signature.Signature.Length, 0);
+                Assert.That(handler.Token, Is.Not.Null,
+                    "Wire-format X509IdentityToken must be populated.");
+                Assert.That(((X509IdentityToken)handler.Token).CertificateData.Length,
+                    Is.GreaterThan(0));
+
+                SignatureData signature = await handler.SignAsync(
+                    [0x01, 0x02, 0x03, 0x04],
+                    SecurityPolicies.Basic256Sha256).ConfigureAwait(false);
+
+                Assert.That(signature, Is.Not.Null);
+                Assert.That(signature.Signature.Length, Is.GreaterThan(0));
+            }
+            finally
+            {
+                if (Directory.Exists(storePath))
+                {
+                    Directory.Delete(storePath, true);
+                }
+            }
         }
     }
 }

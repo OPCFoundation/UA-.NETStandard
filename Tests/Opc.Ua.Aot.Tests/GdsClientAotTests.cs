@@ -70,7 +70,7 @@ namespace Opc.Ua.Aot.Tests
         [Test]
         public async Task FindApplicationAsync()
         {
-            string appUri = "urn:localhost:OPCFoundation:AotTest:Find";
+            const string appUri = "urn:localhost:OPCFoundation:AotTest:Find";
             ApplicationRecordDataType appRecord = CreateTestAppRecord(appUri);
 
             NodeId id = await fixture.GdsClient
@@ -93,7 +93,7 @@ namespace Opc.Ua.Aot.Tests
         [Test]
         public async Task GetApplicationAsync()
         {
-            string appUri = "urn:localhost:OPCFoundation:AotTest:Get";
+            const string appUri = "urn:localhost:OPCFoundation:AotTest:Get";
             ApplicationRecordDataType appRecord = CreateTestAppRecord(appUri);
 
             NodeId id = await fixture.GdsClient
@@ -116,7 +116,7 @@ namespace Opc.Ua.Aot.Tests
         [Test]
         public async Task UpdateApplicationAsync()
         {
-            string appUri = "urn:localhost:OPCFoundation:AotTest:Update";
+            const string appUri = "urn:localhost:OPCFoundation:AotTest:Update";
             ApplicationRecordDataType appRecord = CreateTestAppRecord(appUri);
 
             NodeId id = await fixture.GdsClient
@@ -124,7 +124,7 @@ namespace Opc.Ua.Aot.Tests
                 .ConfigureAwait(false);
             appRecord.ApplicationId = id;
 
-            string updatedUri = appUri + "/v2";
+            const string updatedUri = appUri + "/v2";
             appRecord.ApplicationUri = updatedUri;
             await fixture.GdsClient
                 .UpdateApplicationAsync(appRecord)
@@ -146,7 +146,7 @@ namespace Opc.Ua.Aot.Tests
         [Test]
         public async Task QueryServersAsync()
         {
-            string appUri = "urn:localhost:OPCFoundation:AotTest:QuerySrv";
+            const string appUri = "urn:localhost:OPCFoundation:AotTest:QuerySrv";
             ApplicationRecordDataType appRecord = CreateTestAppRecord(appUri);
 
             NodeId id = await fixture.GdsClient
@@ -169,7 +169,7 @@ namespace Opc.Ua.Aot.Tests
         [Test]
         public async Task QueryApplicationsAsync()
         {
-            string appUri = "urn:localhost:OPCFoundation:AotTest:QueryApp";
+            const string appUri = "urn:localhost:OPCFoundation:AotTest:QueryApp";
             ApplicationRecordDataType appRecord = CreateTestAppRecord(appUri);
 
             NodeId id = await fixture.GdsClient
@@ -197,7 +197,7 @@ namespace Opc.Ua.Aot.Tests
         [Test]
         public async Task GetCertificateGroupsAsync()
         {
-            string appUri = "urn:localhost:OPCFoundation:AotTest:CertGroups";
+            const string appUri = "urn:localhost:OPCFoundation:AotTest:CertGroups";
             ApplicationRecordDataType appRecord = CreateTestAppRecord(appUri);
 
             NodeId id = await fixture.GdsClient
@@ -219,7 +219,7 @@ namespace Opc.Ua.Aot.Tests
         [Test]
         public async Task UnregisterApplicationAsync()
         {
-            string appUri = "urn:localhost:OPCFoundation:AotTest:Unreg";
+            const string appUri = "urn:localhost:OPCFoundation:AotTest:Unreg";
             ApplicationRecordDataType appRecord = CreateTestAppRecord(appUri);
 
             NodeId id = await fixture.GdsClient

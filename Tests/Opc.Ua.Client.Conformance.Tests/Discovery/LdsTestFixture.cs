@@ -38,6 +38,7 @@ using NUnit.Framework;
 using Opc.Ua.Client;
 using Opc.Ua.Client.Tests;
 using Opc.Ua.Lds.Server;
+using Opc.Ua.Security.Certificates;
 using Opc.Ua.Server.Tests;
 using Opc.Ua.Tests;
 
@@ -185,10 +186,9 @@ namespace Opc.Ua.Client.Conformance.Tests.Discovery
 
             EndpointConfiguration endpointConfiguration = EndpointConfiguration.Create(ClientFixture.Config);
 
-            System.Security.Cryptography.X509Certificates.X509Certificate2 instanceCertificate =
-                await ClientFixture.Config.SecurityConfiguration
-                    .ApplicationCertificate.FindAsync(ct: ct)
-                    .ConfigureAwait(false);
+            Certificate instanceCertificate = ClientFixture.Config.CertificateManager?
+                .GetInstanceCertificate(matching.SecurityPolicyUri ?? SecurityPolicies.None)?
+                .Certificate;
 
             return await RegistrationClient
                 .CreateAsync(

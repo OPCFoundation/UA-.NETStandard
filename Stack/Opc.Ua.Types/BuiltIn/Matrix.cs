@@ -40,7 +40,7 @@ namespace Opc.Ua
     /// <summary>
     /// Wraps a multi-dimensional array for use within a Variant.
     /// </summary>
-    [DataContract(Namespace = Types.Namespaces.OpcUaXsd)]
+    [DataContract(Namespace = Namespaces.OpcUaXsd)]
     public class Matrix : ICloneable, IFormattable
     {
         /// <summary>
@@ -267,7 +267,9 @@ namespace Opc.Ua
         private static void SanityCheckArrayElements(Array elements, BuiltInType builtInType)
         {
 #if DEBUG
+#pragma warning disable IDE0004 // Remove Unnecessary Cast
             var sanityCheck = TypeInfo.Construct((object)elements);
+#pragma warning restore IDE0004 // Remove Unnecessary Cast
             Debug.Assert(
                 sanityCheck.BuiltInType == builtInType ||
                 builtInType == BuiltInType.Enumeration ||

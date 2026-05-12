@@ -51,10 +51,6 @@ namespace Opc.Ua.SourceGeneration
         {
             m_context = context ?? throw new ArgumentNullException(nameof(context));
             m_messageContext = ServiceMessageContext.CreateEmpty(context.Telemetry);
-            m_systemContext = new SystemContext(context.Telemetry)
-            {
-                NamespaceUris = context.ModelDesign.NamespaceUris
-            };
             m_logger = context.Telemetry.CreateLogger<NodeStateGenerator>();
             CollectNodesToGenerate();
         }
@@ -1514,7 +1510,7 @@ namespace Opc.Ua.SourceGeneration
 
             string forInstanceVariableValue =
                 node.RootIsTypeDefinition ? "forInstance" :
-                (node.Parent?.InstanceOf != null || node.Parent?.Parent == null) ? "true" : "forInstance";
+                node.Parent?.InstanceOf != null || node.Parent?.Parent == null ? "true" : "forInstance";
             if (node.Parent != null && IsInAddressSpace(node.Parent))
             {
                 switch (node.Parent.Design)
@@ -2159,7 +2155,7 @@ namespace Opc.Ua.SourceGeneration
                 GetModellingRuleReplacement(node.ModellingRule));
             context.Template.AddReplacement(
                 Tokens.EventNotifier,
-                (node.SupportsEvents || HasForwardEventReferences(references))
+                node.SupportsEvents || HasForwardEventReferences(references)
                     ? "global::Opc.Ua.EventNotifiers.SubscribeToEvents"
                     : "global::Opc.Ua.EventNotifiers.None");
         }
@@ -2232,7 +2228,7 @@ namespace Opc.Ua.SourceGeneration
                 if (!reference.IsInverse &&
                     reference.ReferenceTypeId != null &&
                     (reference.ReferenceTypeId.Name == "HasEventSource" ||
-                     reference.ReferenceTypeId.Name == "HasNotifier"))
+                        reference.ReferenceTypeId.Name == "HasNotifier"))
                 {
                     return true;
                 }
@@ -3234,7 +3230,6 @@ namespace Opc.Ua.SourceGeneration
         private readonly Dictionary<string, Resource> m_initializers = [];
         private readonly Dictionary<XmlQualifiedName, NodeToGenerate> m_nodes = [];
         private readonly Dictionary<XmlQualifiedName, NodeToGenerate> m_instances = [];
-        private readonly SystemContext m_systemContext;
         private readonly ILogger m_logger;
         private readonly IServiceMessageContext m_messageContext;
         private readonly IGeneratorContext m_context;

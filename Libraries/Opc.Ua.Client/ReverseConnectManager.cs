@@ -32,10 +32,10 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
-using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Client
 {
@@ -163,7 +163,7 @@ namespace Opc.Ua.Client
             /// <param name="endpointUrl">The endpoint Url of the server.</param>
             /// <param name="onConnectionWaiting">The connection to use.</param>
             public Registration(
-                X509Certificate2 serverCertificate,
+                Certificate serverCertificate,
                 Uri endpointUrl,
                 EventHandler<ConnectionWaitingEventArgs> onConnectionWaiting)
                 : this(endpointUrl, onConnectionWaiting)

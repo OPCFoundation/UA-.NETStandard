@@ -370,7 +370,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void ReadGuidReturnsValue()
         {
-            Guid expected = Guid.NewGuid();
+            var expected = Guid.NewGuid();
             string json = "{\"Id\": \"" + expected + "\"}";
             using var decoder = new PubSubJsonDecoder(json, m_context);
 

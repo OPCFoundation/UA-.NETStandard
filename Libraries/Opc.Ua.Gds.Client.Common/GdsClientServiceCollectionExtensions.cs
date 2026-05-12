@@ -50,6 +50,7 @@ namespace Opc.Ua.Gds.Client
         /// <param name="services">The service collection.</param>
         /// <param name="configure">Optional callback used to bind
         /// <see cref="GdsClientOptions"/>.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="services"/> is <c>null</c>.</exception>
         public static IServiceCollection AddOpcUaGdsClient(
             this IServiceCollection services,
             Action<GdsClientOptions> configure = null)

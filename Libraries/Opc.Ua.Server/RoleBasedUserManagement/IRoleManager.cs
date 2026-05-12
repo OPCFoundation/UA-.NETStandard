@@ -28,7 +28,7 @@
  * ======================================================================*/
 
 using System.Collections.Generic;
-using System.Security.Cryptography.X509Certificates;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Server
 {
@@ -126,7 +126,7 @@ namespace Opc.Ua.Server
         /// </summary>
         IList<NodeId> ResolveGrantedRoles(
             IUserIdentity identity,
-            X509Certificate2 clientCertificate,
+            Certificate clientCertificate,
             EndpointDescription endpoint);
 
         /// <summary>

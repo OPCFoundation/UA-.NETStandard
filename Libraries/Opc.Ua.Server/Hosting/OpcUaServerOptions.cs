@@ -72,7 +72,7 @@ namespace Opc.Ua.Server.Hosting
         /// <summary>
         /// Listen URLs. Mutated in place by <c>options.EndpointUrls.Add(...)</c>.
         /// </summary>
-        public IList<string> EndpointUrls { get; } = new List<string>();
+        public IList<string> EndpointUrls { get; } = [];
 
         /// <summary>
         /// Filesystem root used for the certificate stores. When empty, defaults

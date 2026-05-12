@@ -603,7 +603,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 #pragma warning restore CS0618
         }
 
-        private const string ParseLongFormKnownNamespace= "http://opcfoundation.org/UA/Test/";
+        private const string ParseLongFormKnownNamespace = "http://opcfoundation.org/UA/Test/";
         private const string ParseLongFormUnknownNamespace = "http://opcfoundation.org/UA/Unknown/";
 
         private static NamespaceTable BuildParseLongFormNamespaces()
@@ -625,7 +625,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void ParseLongFormReturnsNullForNullText()
         {
             NamespaceTable table = BuildParseLongFormNamespaces();
-            QualifiedName result = QualifiedName.ParseLongForm(null, table);
+            var result = QualifiedName.ParseLongForm(null, table);
             Assert.That(result, Is.EqualTo(QualifiedName.Null));
         }
 
@@ -633,7 +633,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void ParseLongFormReturnsNullForEmptyText()
         {
             NamespaceTable table = BuildParseLongFormNamespaces();
-            QualifiedName result = QualifiedName.ParseLongForm(string.Empty, table);
+            var result = QualifiedName.ParseLongForm(string.Empty, table);
             Assert.That(result, Is.EqualTo(QualifiedName.Null));
         }
 
@@ -641,16 +641,16 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void ParseLongFormBareName()
         {
             NamespaceTable table = BuildParseLongFormNamespaces();
-            QualifiedName result = QualifiedName.ParseLongForm("Foo", table);
+            var result = QualifiedName.ParseLongForm("Foo", table);
             Assert.That(result.Name, Is.EqualTo("Foo"));
-            Assert.That(result.NamespaceIndex, Is.EqualTo(0));
+            Assert.That(result.NamespaceIndex, Is.Zero);
         }
 
         [Test]
         public void ParseLongFormNumericPrefixShortcut()
         {
             NamespaceTable table = BuildParseLongFormNamespaces();
-            QualifiedName result = QualifiedName.ParseLongForm("1:Foo", table);
+            var result = QualifiedName.ParseLongForm("1:Foo", table);
             Assert.That(result.Name, Is.EqualTo("Foo"));
             Assert.That(result.NamespaceIndex, Is.EqualTo(1));
         }
@@ -659,7 +659,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void ParseLongFormResolvesKnownNamespaceUri()
         {
             NamespaceTable table = BuildParseLongFormNamespaces();
-            QualifiedName result = QualifiedName.ParseLongForm(
+            var result = QualifiedName.ParseLongForm(
                 $"nsu={ParseLongFormKnownNamespace};Bar", table);
             Assert.That(result.Name, Is.EqualTo("Bar"));
             Assert.That(result.NamespaceIndex, Is.EqualTo(1));
@@ -708,12 +708,12 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void ParseLongFormRoundTrip()
         {
             NamespaceTable table = BuildParseLongFormNamespaces();
-            ServiceMessageContext context = ServiceMessageContext.CreateEmpty(null);
+            var context = ServiceMessageContext.CreateEmpty(null);
             context.NamespaceUris = table;
 
             var original = new QualifiedName("Bar", 1);
             string formatted = original.Format(context, useNamespaceUri: true);
-            QualifiedName parsed = QualifiedName.ParseLongForm(formatted, table);
+            var parsed = QualifiedName.ParseLongForm(formatted, table);
 
             Assert.That(parsed.Name, Is.EqualTo("Bar"));
             Assert.That(parsed.NamespaceIndex, Is.EqualTo(1));

@@ -1996,7 +1996,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(a.CompareTo(b), Is.Zero);
         }
 
-        private const string ParseLongFormKnownNamespace= "http://opcfoundation.org/UA/Test/";
+        private const string ParseLongFormKnownNamespace = "http://opcfoundation.org/UA/Test/";
         private const string ParseLongFormUnknownNamespace = "http://opcfoundation.org/UA/Unknown/";
 
         private static NamespaceTable BuildParseLongFormNamespaces()
@@ -2042,7 +2042,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void ParseLongFormReturnsNullForNullText()
         {
             NamespaceTable table = BuildParseLongFormNamespaces();
-            NodeId result = NodeId.ParseLongForm(null, table);
+            var result = NodeId.ParseLongForm(null, table);
             Assert.That(result, Is.EqualTo(NodeId.Null));
         }
 
@@ -2050,7 +2050,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void ParseLongFormReturnsNullForEmptyText()
         {
             NamespaceTable table = BuildParseLongFormNamespaces();
-            NodeId result = NodeId.ParseLongForm(string.Empty, table);
+            var result = NodeId.ParseLongForm(string.Empty, table);
             Assert.That(result, Is.EqualTo(NodeId.Null));
         }
 
@@ -2058,8 +2058,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void ParseLongFormBareNumericIdentifier()
         {
             NamespaceTable table = BuildParseLongFormNamespaces();
-            NodeId result = NodeId.ParseLongForm("i=42", table);
-            Assert.That(result.NamespaceIndex, Is.EqualTo(0));
+            var result = NodeId.ParseLongForm("i=42", table);
+            Assert.That(result.NamespaceIndex, Is.Zero);
             Assert.That(GetParseLongFormUInt(result), Is.EqualTo((uint)42));
         }
 
@@ -2067,7 +2067,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void ParseLongFormResolvesKnownNamespaceUriNumeric()
         {
             NamespaceTable table = BuildParseLongFormNamespaces();
-            NodeId result = NodeId.ParseLongForm($"nsu={ParseLongFormKnownNamespace};i=99", table);
+            var result = NodeId.ParseLongForm($"nsu={ParseLongFormKnownNamespace};i=99", table);
             Assert.That(result.NamespaceIndex, Is.EqualTo(1));
             Assert.That(GetParseLongFormUInt(result), Is.EqualTo((uint)99));
         }
@@ -2076,7 +2076,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void ParseLongFormResolvesKnownNamespaceUriString()
         {
             NamespaceTable table = BuildParseLongFormNamespaces();
-            NodeId result = NodeId.ParseLongForm($"nsu={ParseLongFormKnownNamespace};s=Tag1", table);
+            var result = NodeId.ParseLongForm($"nsu={ParseLongFormKnownNamespace};s=Tag1", table);
             Assert.That(result.NamespaceIndex, Is.EqualTo(1));
             Assert.That(GetParseLongFormString(result), Is.EqualTo("Tag1"));
         }
@@ -2086,7 +2086,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             NamespaceTable table = BuildParseLongFormNamespaces();
             var guid = new Guid("12345678-1234-1234-1234-1234567890AB");
-            NodeId result = NodeId.ParseLongForm($"nsu={ParseLongFormKnownNamespace};g={guid}", table);
+            var result = NodeId.ParseLongForm($"nsu={ParseLongFormKnownNamespace};g={guid}", table);
             Assert.That(result.NamespaceIndex, Is.EqualTo(1));
             Assert.That(GetParseLongFormGuid(result), Is.EqualTo(guid));
         }
@@ -2097,7 +2097,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             NamespaceTable table = BuildParseLongFormNamespaces();
             byte[] bytes = [1, 2, 3, 4];
             string base64 = Convert.ToBase64String(bytes);
-            NodeId result = NodeId.ParseLongForm(
+            var result = NodeId.ParseLongForm(
                 $"nsu={ParseLongFormKnownNamespace};b={base64}", table);
             Assert.That(result.NamespaceIndex, Is.EqualTo(1));
             Assert.That(GetParseLongFormBytes(result), Is.EqualTo((ByteString)bytes));
@@ -2128,10 +2128,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ParseFallbackToStringIdentifierRecoversMalformedTypedIdentifier()
         {
-            ServiceMessageContext context = ServiceMessageContext.CreateEmpty(null);
-            NamespaceTable table = BuildParseLongFormNamespaces();
-            context.NamespaceUris = table;
-            NodeId result = NodeId.Parse(
+            var context = ServiceMessageContext.CreateEmpty(null);
+            context.NamespaceUris = BuildParseLongFormNamespaces();
+            var result = NodeId.Parse(
                 context,
                 $"nsu={ParseLongFormKnownNamespace};i=notanumber",
                 new NodeIdParsingOptions
@@ -2147,7 +2146,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void ParseLongFormNamespaceIndexPrefixUsesNamespaceTable()
         {
             NamespaceTable table = BuildParseLongFormNamespaces();
-            NodeId result = NodeId.ParseLongForm("ns=1;i=7", table);
+            var result = NodeId.ParseLongForm("ns=1;i=7", table);
             Assert.That(result.NamespaceIndex, Is.EqualTo(1));
             Assert.That(GetParseLongFormUInt(result), Is.EqualTo((uint)7));
         }

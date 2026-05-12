@@ -28,8 +28,10 @@
  * ======================================================================*/
 
 using System;
-using System.Security.Cryptography.X509Certificates;
+using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua
 {
@@ -90,20 +92,21 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public void Encrypt(
-            X509Certificate2 receiverCertificate,
+        public ValueTask EncryptAsync(
+            Certificate receiverCertificate,
             byte[] receiverNonce,
             string securityPolicyUri,
             IServiceMessageContext context,
             Nonce receiverEphemeralKey = null,
-            X509Certificate2 senderCertificate = null,
-            X509Certificate2Collection senderIssuerCertificates = null,
-            bool doNotEncodeSenderCertificate = false)
+            Certificate senderCertificate = null,
+            CertificateCollection senderIssuerCertificates = null,
+            bool doNotEncodeSenderCertificate = false,
+            CancellationToken ct = default)
         {
             if (DecryptedPassword == null)
             {
                 m_token.Password = default;
-                return;
+                return default;
             }
 
             // handle no encryption.
@@ -112,11 +115,11 @@ namespace Opc.Ua
             {
                 m_token.Password = DecryptedPassword.ToByteString();
                 m_token.EncryptionAlgorithm = null;
-                return;
+                return default;
             }
 
             // handle RSA encryption.
-            var securityPolicy = SecurityPolicies.GetInfo(securityPolicyUri);
+            SecurityPolicyInfo securityPolicy = SecurityPolicies.GetInfo(securityPolicyUri);
 
             if (securityPolicy.EphemeralKeyAlgorithm == CertificateKeyAlgorithm.None)
             {
@@ -128,7 +131,7 @@ namespace Opc.Ua
                         receiverCertificate);
                     m_token.Password = encryptedSecret.Encrypt(DecryptedPassword, receiverNonce).ToByteString();
                     m_token.EncryptionAlgorithm = null;
-                    return;
+                    return default;
                 }
 
                 byte[] dataToEncrypt = Utils.Append(DecryptedPassword, receiverNonce);
@@ -153,7 +156,7 @@ namespace Opc.Ua
                     senderIssuerCertificates.Count > 0 &&
                     senderIssuerCertificates[0].Thumbprint == senderCertificate.Thumbprint)
                 {
-                    var issuers = new X509Certificate2Collection();
+                    var issuers = new CertificateCollection();
 
                     for (int ii = 1; ii < senderIssuerCertificates.Count; ii++)
                     {
@@ -176,18 +179,21 @@ namespace Opc.Ua
                 m_token.Password = secret.Encrypt(DecryptedPassword, receiverNonce).ToByteString();
                 m_token.EncryptionAlgorithm = null;
             }
+
+            return default;
         }
 
         /// <inheritdoc/>
-        public void Decrypt(
-            X509Certificate2 certificate,
+        public ValueTask DecryptAsync(
+            Certificate certificate,
             Nonce receiverNonce,
             string securityPolicyUri,
             IServiceMessageContext context,
             Nonce ephemeralKey = null,
-            X509Certificate2 senderCertificate = null,
-            X509Certificate2Collection senderIssuerCertificates = null,
-            CertificateValidator validator = null)
+            Certificate senderCertificate = null,
+            CertificateCollection senderIssuerCertificates = null,
+            ICertificateValidatorEx validator = null,
+            CancellationToken ct = default)
         {
             //zero out existing password
             if (DecryptedPassword != null)
@@ -201,11 +207,11 @@ namespace Opc.Ua
             {
                 DecryptedPassword = new byte[m_token.Password.Length];
                 Array.Copy(m_token.Password.ToArray(), DecryptedPassword, m_token.Password.Length);
-                return;
+                return default;
             }
 
             // handle RSA encryption.
-            var securityPolicy = SecurityPolicies.GetInfo(securityPolicyUri);
+            SecurityPolicyInfo securityPolicy = SecurityPolicies.GetInfo(securityPolicyUri);
 
             if (securityPolicy.EphemeralKeyAlgorithm == CertificateKeyAlgorithm.None)
             {
@@ -218,7 +224,7 @@ namespace Opc.Ua
                     encryptedSecret.TryDecrypt(m_token.Password.ToArray(), receiverNonce?.Data, out byte[] decryptedSecret))
                 {
                     DecryptedPassword = decryptedSecret;
-                    return;
+                    return default;
                 }
 
                 var encryptedData = new EncryptedData
@@ -237,7 +243,7 @@ namespace Opc.Ua
                 if (decryptedPassword == null)
                 {
                     DecryptedPassword = null;
-                    return;
+                    return default;
                 }
 
                 // verify the sender's nonce.
@@ -286,36 +292,27 @@ namespace Opc.Ua
 
                 DecryptedPassword = decryptedSecret;
             }
+
+            return default;
         }
 
         /// <inheritdoc/>
-        public SignatureData Sign(
+        public ValueTask<SignatureData> SignAsync(
             byte[] dataToSign,
-            string securityPolicyUri)
+            string securityPolicyUri,
+            CancellationToken ct = default)
         {
-            return new SignatureData();
+            return new ValueTask<SignatureData>(new SignatureData());
         }
 
         /// <inheritdoc/>
-        public bool Verify(
+        public ValueTask<bool> VerifyAsync(
             byte[] dataToVerify,
             SignatureData signatureData,
-            string securityPolicyUri)
+            string securityPolicyUri,
+            CancellationToken ct = default)
         {
-            return true;
-        }
-
-        /// <inheritdoc/>
-        public void Dispose()
-        {
-            if (DecryptedPassword != null)
-            {
-                Array.Clear(DecryptedPassword, 0, DecryptedPassword.Length);
-                DecryptedPassword = null;
-            }
-
-            // Array.Clear(m_token.Password, 0, m_token.Password.Length);
-            m_token.Password = default;
+            return new ValueTask<bool>(true);
         }
 
         /// <inheritdoc/>

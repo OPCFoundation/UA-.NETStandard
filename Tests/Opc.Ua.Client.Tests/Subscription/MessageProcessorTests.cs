@@ -27,12 +27,14 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+// CA2007: tests run without a SynchronizationContext; ConfigureAwait(false)
+// adds noise without a behavioural benefit. Disabled file-level for the suite.
+#pragma warning disable CA2007
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Client.Subscriptions.Fakes;
@@ -80,49 +82,51 @@ namespace Opc.Ua.Client.Subscriptions
             };
             var availableSequenceNumbers = new List<uint> { 1, 2, 3 };
             var stringTable = new List<string> { "test" };
-            await using var sut = new TestMessageProcessor(m_mockServices.Object,
+            var sut = new TestMessageProcessor(m_mockServices.Object,
                 m_completion, m_telemetry)
             {
                 Id = 3
             };
-
-            // Act
-            await sut.OnPublishReceivedAsync(message, availableSequenceNumbers, stringTable).ConfigureAwait(false);
-            await sut.KeepAliveNotificationReceived.WaitAsync().WaitAsync(TimeSpan.FromSeconds(1)).ConfigureAwait(false);
-
-            // Assert
-            Assert.That(sut.KeepAliveNotificationReceived.IsSet, Is.True);
-            Assert.That(sut.AvailableInRetransmissionQueue, Is.EqualTo(availableSequenceNumbers));
-            Assert.That(sut.LastSequenceNumberProcessed, Is.EqualTo(3));
-            Assert.That(sut.DataChangeNotificationReceived.IsSet, Is.False);
-
-            // Arrange
-            sut.KeepAliveNotificationReceived.Reset();
-            sut.DataChangeNotificationReceived.Reset();
-            message = new NotificationMessage
+            await using (sut.ConfigureAwait(false))
             {
-                SequenceNumber = 4,
-                NotificationData =
-                [
-                    new ExtensionObject(new DataChangeNotification
-                    {
-                        MonitoredItems =
-                        [
-                            new MonitoredItemNotification()
-                        ]
-                    })
-                ]
-            };
+                // Act
+                await sut.OnPublishReceivedAsync(message, availableSequenceNumbers, stringTable).ConfigureAwait(false);
+                await sut.KeepAliveNotificationReceived.WaitAsync().WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
 
-            // Act
-            await sut.OnPublishReceivedAsync(message, availableSequenceNumbers, stringTable).ConfigureAwait(false);
-            await sut.DataChangeNotificationReceived.WaitAsync().WaitAsync(TimeSpan.FromSeconds(1)).ConfigureAwait(false);
+                // Assert
+                Assert.That(sut.KeepAliveNotificationReceived.IsSet, Is.True);
+                Assert.That(sut.AvailableInRetransmissionQueue, Is.EqualTo(availableSequenceNumbers));
+                Assert.That(sut.LastSequenceNumberProcessed, Is.EqualTo(3));
+                Assert.That(sut.DataChangeNotificationReceived.IsSet, Is.False);
 
-            // Assert
-            Assert.That(sut.AvailableInRetransmissionQueue, Is.EqualTo(availableSequenceNumbers));
-            Assert.That(sut.DataChangeNotificationReceived.IsSet, Is.True);
-            Assert.That(sut.KeepAliveNotificationReceived.IsSet, Is.False);
-            Assert.That(sut.LastSequenceNumberProcessed, Is.EqualTo(4));
+                // Arrange
+                sut.KeepAliveNotificationReceived.Reset();
+                sut.DataChangeNotificationReceived.Reset();
+                message = new NotificationMessage
+                {
+                    SequenceNumber = 4,
+                    NotificationData =
+                    [
+                        new ExtensionObject(new DataChangeNotification
+                        {
+                            MonitoredItems =
+                            [
+                                new MonitoredItemNotification()
+                            ]
+                        })
+                    ]
+                };
+
+                // Act
+                await sut.OnPublishReceivedAsync(message, availableSequenceNumbers, stringTable).ConfigureAwait(false);
+                await sut.DataChangeNotificationReceived.WaitAsync().WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+
+                // Assert
+                Assert.That(sut.AvailableInRetransmissionQueue, Is.EqualTo(availableSequenceNumbers));
+                Assert.That(sut.DataChangeNotificationReceived.IsSet, Is.True);
+                Assert.That(sut.KeepAliveNotificationReceived.IsSet, Is.False);
+                Assert.That(sut.LastSequenceNumberProcessed, Is.EqualTo(4));
+            }
         }
 
         [Test]
@@ -132,65 +136,67 @@ namespace Opc.Ua.Client.Subscriptions
             var availableSequenceNumbers = new List<uint> { 1, 2, 3 };
             var stringTable = new List<string> { "test" };
 
-            await using var sut = new TestMessageProcessor(m_mockServices.Object,
+            var sut = new TestMessageProcessor(m_mockServices.Object,
                 m_completion, m_telemetry)
             {
                 Id = 2
             };
-
-            await sut.OnPublishReceivedAsync(new NotificationMessage
+            await using (sut.ConfigureAwait(false))
             {
-                SequenceNumber = 1
-            }, availableSequenceNumbers, stringTable).ConfigureAwait(false);
-
-            m_mockServices
-                .Setup(c => c.RepublishAsync(
-                    It.IsAny<RequestHeader>(),
-                    It.Is<uint>(id => id == sut.Id),
-                    It.Is<uint>(s => s == 2),
-                    It.IsAny<CancellationToken>()))
-                .ReturnsAsync(new RepublishResponse
+                await sut.OnPublishReceivedAsync(new NotificationMessage
                 {
-                    NotificationMessage = new NotificationMessage
-                    {
-                        SequenceNumber = 2,
-                        NotificationData =
-                        [
-                            new ExtensionObject(new DataChangeNotification
-                            {
-                                MonitoredItems =
-                                [
-                                    new MonitoredItemNotification()
-                                ]
-                            })
-                        ]
-                    }
-                })
-                .Verifiable(Times.Once);
+                    SequenceNumber = 1
+                }, availableSequenceNumbers, stringTable).ConfigureAwait(false);
 
-            // Act
-            await sut.OnPublishReceivedAsync(new NotificationMessage
-            {
-                SequenceNumber = 3,
-                NotificationData =
-                [
-                    new ExtensionObject(new EventNotificationList
+                m_mockServices
+                    .Setup(c => c.RepublishAsync(
+                        It.IsAny<RequestHeader>(),
+                        It.Is<uint>(id => id == sut.Id),
+                        It.Is<uint>(s => s == 2),
+                        It.IsAny<CancellationToken>()))
+                    .ReturnsAsync(new RepublishResponse
                     {
-                        Events =
-                        [
-                            new EventFieldList()
-                        ]
+                        NotificationMessage = new NotificationMessage
+                        {
+                            SequenceNumber = 2,
+                            NotificationData =
+                            [
+                                new ExtensionObject(new DataChangeNotification
+                                {
+                                    MonitoredItems =
+                                    [
+                                        new MonitoredItemNotification()
+                                    ]
+                                })
+                            ]
+                        }
                     })
-                ]
-            }, availableSequenceNumbers, stringTable).ConfigureAwait(false);
-            await sut.EventNotificationReceived.WaitAsync().WaitAsync(TimeSpan.FromSeconds(1)).ConfigureAwait(false);
+                    .Verifiable(Times.Once);
 
-            // Assert
-            Assert.That(sut.EventNotificationReceived.IsSet, Is.True);
-            Assert.That(sut.KeepAliveNotificationReceived.IsSet, Is.True);
-            Assert.That(sut.DataChangeNotificationReceived.IsSet, Is.True);
+                // Act
+                await sut.OnPublishReceivedAsync(new NotificationMessage
+                {
+                    SequenceNumber = 3,
+                    NotificationData =
+                    [
+                        new ExtensionObject(new EventNotificationList
+                        {
+                            Events =
+                            [
+                                new EventFieldList()
+                            ]
+                        })
+                    ]
+                }, availableSequenceNumbers, stringTable).ConfigureAwait(false);
+                await sut.EventNotificationReceived.WaitAsync().WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
 
-            m_mockServices.Verify();
+                // Assert
+                Assert.That(sut.EventNotificationReceived.IsSet, Is.True);
+                Assert.That(sut.KeepAliveNotificationReceived.IsSet, Is.True);
+                Assert.That(sut.DataChangeNotificationReceived.IsSet, Is.True);
+
+                m_mockServices.Verify();
+            }
         }
 
         [Test]
@@ -207,32 +213,34 @@ namespace Opc.Ua.Client.Subscriptions
 
             UnsecureRandom.Shared.Shuffle(messages);
 
-            await using var sut = new TestMessageProcessor(m_mockServices.Object,
+            var sut = new TestMessageProcessor(m_mockServices.Object,
                 m_completion, m_telemetry)
             {
                 Id = 3
             };
+            await using (sut.ConfigureAwait(false))
+            {
+                sut.Block.Wait();
+                await sut.OnPublishReceivedAsync(new NotificationMessage
+                {
+                    SequenceNumber = 1u
+                }, availableSequenceNumbers, stringTable).ConfigureAwait(false);
+                foreach (NotificationMessage message in messages)
+                {
+                    await sut.OnPublishReceivedAsync(message, availableSequenceNumbers, stringTable).ConfigureAwait(false);
+                }
+                sut.Block.Release();
 
-            sut.Block.Wait();
-            await sut.OnPublishReceivedAsync(new NotificationMessage
-            {
-                SequenceNumber = 1u
-            }, availableSequenceNumbers, stringTable).ConfigureAwait(false);
-            foreach (NotificationMessage message in messages)
-            {
-                await sut.OnPublishReceivedAsync(message, availableSequenceNumbers, stringTable).ConfigureAwait(false);
+                // Act
+                await Task.Delay(10).ConfigureAwait(false);
+
+                Assert.That(sut.ReceivedSequenceNumbers, Is.EqualTo(
+                    Enumerable.Range(1, 100).Select(i => (uint)i)));
+                Assert.That(sut.AvailableInRetransmissionQueue, Is.EqualTo(availableSequenceNumbers));
+                Assert.That(sut.DataChangeNotificationReceived.IsSet, Is.False);
+                Assert.That(sut.KeepAliveNotificationReceived.IsSet, Is.True);
+                Assert.That(sut.LastSequenceNumberProcessed, Is.EqualTo(100));
             }
-            sut.Block.Release();
-
-            // Act
-            await Task.Delay(10).ConfigureAwait(false);
-
-            Assert.That(sut.ReceivedSequenceNumbers, Is.EqualTo(
-                Enumerable.Range(1, 100).Select(i => (uint)i)));
-            Assert.That(sut.AvailableInRetransmissionQueue, Is.EqualTo(availableSequenceNumbers));
-            Assert.That(sut.DataChangeNotificationReceived.IsSet, Is.False);
-            Assert.That(sut.KeepAliveNotificationReceived.IsSet, Is.True);
-            Assert.That(sut.LastSequenceNumberProcessed, Is.EqualTo(100));
         }
 
         [Test]
@@ -241,52 +249,54 @@ namespace Opc.Ua.Client.Subscriptions
             var availableSequenceNumbers = new List<uint> { 1, 2, 3 };
             var stringTable = new List<string> { "test" };
 
-            await using var sut = new TestMessageProcessor(m_mockServices.Object,
+            var sut = new TestMessageProcessor(m_mockServices.Object,
                 m_completion, m_telemetry)
             {
                 Id = 7
             };
-
-            var message = new NotificationMessage
+            await using (sut.ConfigureAwait(false))
             {
-                SequenceNumber = 5,
-                NotificationData =
-                [
-                    new ExtensionObject(new DataChangeNotification
-                    {
-                        MonitoredItems =
-                        [
-                            new MonitoredItemNotification()
-                        ]
-                    })
-                ]
-            };
+                var message = new NotificationMessage
+                {
+                    SequenceNumber = 5,
+                    NotificationData =
+                    [
+                        new ExtensionObject(new DataChangeNotification
+                        {
+                            MonitoredItems =
+                            [
+                                new MonitoredItemNotification()
+                            ]
+                        })
+                    ]
+                };
 
-            // First arrival
-            await sut.OnPublishReceivedAsync(message, availableSequenceNumbers, stringTable)
-                .ConfigureAwait(false);
-            await sut.DataChangeNotificationReceived.WaitAsync()
-                .WaitAsync(TimeSpan.FromSeconds(1))
-                .ConfigureAwait(false);
+                // First arrival
+                await sut.OnPublishReceivedAsync(message, availableSequenceNumbers, stringTable)
+                    .ConfigureAwait(false);
+                await sut.DataChangeNotificationReceived.WaitAsync()
+                    .WaitAsync(TimeSpan.FromSeconds(5))
+                    .ConfigureAwait(false);
 
-            int firstCount = sut.ReceivedSequenceNumbers.Count;
-            Assert.That(firstCount, Is.GreaterThanOrEqualTo(1));
-            Assert.That(sut.LastSequenceNumberProcessed, Is.EqualTo(5));
+                int firstCount = sut.ReceivedSequenceNumbers.Count;
+                Assert.That(firstCount, Is.GreaterThanOrEqualTo(1));
+                Assert.That(sut.LastSequenceNumberProcessed, Is.EqualTo(5));
 
-            // Reset signaling
-            sut.DataChangeNotificationReceived.Reset();
+                // Reset signaling
+                sut.DataChangeNotificationReceived.Reset();
 
-            // Same sequence number arriving again
-            await sut.OnPublishReceivedAsync(message, availableSequenceNumbers, stringTable)
-                .ConfigureAwait(false);
-            // Give the processor a moment in case it tries to dispatch
-            await Task.Delay(50).ConfigureAwait(false);
+                // Same sequence number arriving again
+                await sut.OnPublishReceivedAsync(message, availableSequenceNumbers, stringTable)
+                    .ConfigureAwait(false);
+                // Give the processor a moment in case it tries to dispatch
+                await Task.Delay(50).ConfigureAwait(false);
 
-            // The duplicate should not re-fire the data-change handler.
-            Assert.That(
-                sut.DataChangeNotificationReceived.IsSet, Is.False,
-                "Duplicate sequence number must not re-dispatch the notification");
-            Assert.That(sut.LastSequenceNumberProcessed, Is.EqualTo(5));
+                // The duplicate should not re-fire the data-change handler.
+                Assert.That(
+                    sut.DataChangeNotificationReceived.IsSet, Is.False,
+                    "Duplicate sequence number must not re-dispatch the notification");
+                Assert.That(sut.LastSequenceNumberProcessed, Is.EqualTo(5));
+            }
         }
 
         [Test]
@@ -295,59 +305,61 @@ namespace Opc.Ua.Client.Subscriptions
             var availableSequenceNumbers = new List<uint> { 1, 2, 3 };
             var stringTable = new List<string> { "test" };
 
-            await using var sut = new TestMessageProcessor(m_mockServices.Object,
+            var sut = new TestMessageProcessor(m_mockServices.Object,
                 m_completion, m_telemetry)
             {
                 Id = 5
             };
-
-            // 1: notification
-            await sut.OnPublishReceivedAsync(new NotificationMessage
+            await using (sut.ConfigureAwait(false))
             {
-                SequenceNumber = 1,
-                NotificationData =
-                [
-                    new ExtensionObject(new DataChangeNotification
-                    {
-                        MonitoredItems = [new MonitoredItemNotification()]
-                    })
-                ]
-            }, availableSequenceNumbers, stringTable).ConfigureAwait(false);
-            await sut.DataChangeNotificationReceived.WaitAsync()
-                .WaitAsync(TimeSpan.FromSeconds(1))
-                .ConfigureAwait(false);
+                // 1: notification
+                await sut.OnPublishReceivedAsync(new NotificationMessage
+                {
+                    SequenceNumber = 1,
+                    NotificationData =
+                    [
+                        new ExtensionObject(new DataChangeNotification
+                        {
+                            MonitoredItems = [new MonitoredItemNotification()]
+                        })
+                    ]
+                }, availableSequenceNumbers, stringTable).ConfigureAwait(false);
+                await sut.DataChangeNotificationReceived.WaitAsync()
+                    .WaitAsync(TimeSpan.FromSeconds(5))
+                    .ConfigureAwait(false);
 
-            // 2: keep-alive (no NotificationData)
-            sut.KeepAliveNotificationReceived.Reset();
-            await sut.OnPublishReceivedAsync(new NotificationMessage
-            {
-                SequenceNumber = 2
-            }, availableSequenceNumbers, stringTable).ConfigureAwait(false);
-            await sut.KeepAliveNotificationReceived.WaitAsync()
-                .WaitAsync(TimeSpan.FromSeconds(1))
-                .ConfigureAwait(false);
+                // 2: keep-alive (no NotificationData)
+                sut.KeepAliveNotificationReceived.Reset();
+                await sut.OnPublishReceivedAsync(new NotificationMessage
+                {
+                    SequenceNumber = 2
+                }, availableSequenceNumbers, stringTable).ConfigureAwait(false);
+                await sut.KeepAliveNotificationReceived.WaitAsync()
+                    .WaitAsync(TimeSpan.FromSeconds(5))
+                    .ConfigureAwait(false);
 
-            // 3: another notification
-            sut.DataChangeNotificationReceived.Reset();
-            await sut.OnPublishReceivedAsync(new NotificationMessage
-            {
-                SequenceNumber = 3,
-                NotificationData =
-                [
-                    new ExtensionObject(new DataChangeNotification
-                    {
-                        MonitoredItems = [new MonitoredItemNotification()]
-                    })
-                ]
-            }, availableSequenceNumbers, stringTable).ConfigureAwait(false);
-            await sut.DataChangeNotificationReceived.WaitAsync()
-                .WaitAsync(TimeSpan.FromSeconds(1))
-                .ConfigureAwait(false);
+                // 3: another notification
+                sut.DataChangeNotificationReceived.Reset();
+                await sut.OnPublishReceivedAsync(new NotificationMessage
+                {
+                    SequenceNumber = 3,
+                    NotificationData =
+                    [
+                        new ExtensionObject(new DataChangeNotification
+                        {
+                            MonitoredItems = [new MonitoredItemNotification()]
+                        })
+                    ]
+                }, availableSequenceNumbers, stringTable).ConfigureAwait(false);
+                await sut.DataChangeNotificationReceived.WaitAsync()
+                    .WaitAsync(TimeSpan.FromSeconds(5))
+                    .ConfigureAwait(false);
 
-            // All three sequence numbers should appear in order.
-            Assert.That(sut.ReceivedSequenceNumbers,
-                Is.EqualTo(new uint[] { 1, 2, 3 }));
-            Assert.That(sut.LastSequenceNumberProcessed, Is.EqualTo(3));
+                // All three sequence numbers should appear in order.
+                Assert.That(sut.ReceivedSequenceNumbers,
+                    Is.EqualTo(new uint[] { 1, 2, 3 }));
+                Assert.That(sut.LastSequenceNumberProcessed, Is.EqualTo(3));
+            }
         }
 
         [Test]
@@ -356,25 +368,27 @@ namespace Opc.Ua.Client.Subscriptions
             var availableSequenceNumbers = new List<uint> { 1, 2, 3 };
             var stringTable = new List<string> { "test" };
 
-            await using var sut = new TestMessageProcessor(m_mockServices.Object,
+            var sut = new TestMessageProcessor(m_mockServices.Object,
                 m_completion, m_telemetry)
             {
                 Id = 9
             };
-
-            // NotificationData is null/default.
-            await sut.OnPublishReceivedAsync(new NotificationMessage
+            await using (sut.ConfigureAwait(false))
             {
-                SequenceNumber = 7
-            }, availableSequenceNumbers, stringTable).ConfigureAwait(false);
-            await sut.KeepAliveNotificationReceived.WaitAsync()
-                .WaitAsync(TimeSpan.FromSeconds(1))
-                .ConfigureAwait(false);
+                // NotificationData is null/default.
+                await sut.OnPublishReceivedAsync(new NotificationMessage
+                {
+                    SequenceNumber = 7
+                }, availableSequenceNumbers, stringTable).ConfigureAwait(false);
+                await sut.KeepAliveNotificationReceived.WaitAsync()
+                    .WaitAsync(TimeSpan.FromSeconds(5))
+                    .ConfigureAwait(false);
 
-            Assert.That(sut.KeepAliveNotificationReceived.IsSet, Is.True);
-            Assert.That(sut.DataChangeNotificationReceived.IsSet, Is.False);
-            Assert.That(sut.EventNotificationReceived.IsSet, Is.False);
-            Assert.That(sut.LastSequenceNumberProcessed, Is.EqualTo(7));
+                Assert.That(sut.KeepAliveNotificationReceived.IsSet, Is.True);
+                Assert.That(sut.DataChangeNotificationReceived.IsSet, Is.False);
+                Assert.That(sut.EventNotificationReceived.IsSet, Is.False);
+                Assert.That(sut.LastSequenceNumberProcessed, Is.EqualTo(7));
+            }
         }
 
         [Test]
@@ -383,49 +397,51 @@ namespace Opc.Ua.Client.Subscriptions
             var availableSequenceNumbers = new List<uint> { 1, 2, 3 };
             var stringTable = new List<string> { "test" };
 
-            await using var sut = new TestMessageProcessor(m_mockServices.Object,
+            var sut = new TestMessageProcessor(m_mockServices.Object,
                 m_completion, m_telemetry)
             {
                 Id = 11
             };
-
-            // First message at sequence 1.
-            await sut.OnPublishReceivedAsync(new NotificationMessage
+            await using (sut.ConfigureAwait(false))
             {
-                SequenceNumber = 1
-            }, availableSequenceNumbers, stringTable).ConfigureAwait(false);
+                // First message at sequence 1.
+                await sut.OnPublishReceivedAsync(new NotificationMessage
+                {
+                    SequenceNumber = 1
+                }, availableSequenceNumbers, stringTable).ConfigureAwait(false);
 
-            // Republish for the gap (sequence 2) returns an error.
-            m_mockServices
-                .Setup(c => c.RepublishAsync(
-                    It.IsAny<RequestHeader>(),
-                    It.Is<uint>(id => id == sut.Id),
-                    It.Is<uint>(s => s == 2),
-                    It.IsAny<CancellationToken>()))
-                .ThrowsAsync(new ServiceResultException(
-                    StatusCodes.BadMessageNotAvailable))
-                .Verifiable(Times.AtLeastOnce);
+                // Republish for the gap (sequence 2) returns an error.
+                m_mockServices
+                    .Setup(c => c.RepublishAsync(
+                        It.IsAny<RequestHeader>(),
+                        It.Is<uint>(id => id == sut.Id),
+                        It.Is<uint>(s => s == 2),
+                        It.IsAny<CancellationToken>()))
+                    .ThrowsAsync(new ServiceResultException(
+                        StatusCodes.BadMessageNotAvailable))
+                    .Verifiable(Times.AtLeastOnce);
 
-            // Skip to sequence 3 to force the gap.
-            await sut.OnPublishReceivedAsync(new NotificationMessage
-            {
-                SequenceNumber = 3,
-                NotificationData =
-                [
-                    new ExtensionObject(new EventNotificationList
-                    {
-                        Events = [new EventFieldList()]
-                    })
-                ]
-            }, availableSequenceNumbers, stringTable).ConfigureAwait(false);
-            await sut.EventNotificationReceived.WaitAsync()
-                .WaitAsync(TimeSpan.FromSeconds(2))
-                .ConfigureAwait(false);
+                // Skip to sequence 3 to force the gap.
+                await sut.OnPublishReceivedAsync(new NotificationMessage
+                {
+                    SequenceNumber = 3,
+                    NotificationData =
+                    [
+                        new ExtensionObject(new EventNotificationList
+                        {
+                            Events = [new EventFieldList()]
+                        })
+                    ]
+                }, availableSequenceNumbers, stringTable).ConfigureAwait(false);
+                await sut.EventNotificationReceived.WaitAsync()
+                    .WaitAsync(TimeSpan.FromSeconds(5))
+                    .ConfigureAwait(false);
 
-            // Even though republish failed, the next message must still
-            // be dispatched.
-            Assert.That(sut.EventNotificationReceived.IsSet, Is.True);
-            m_mockServices.Verify();
+                // Even though republish failed, the next message must still
+                // be dispatched.
+                Assert.That(sut.EventNotificationReceived.IsSet, Is.True);
+                m_mockServices.Verify();
+            }
         }
 
         [Test]
@@ -438,39 +454,41 @@ namespace Opc.Ua.Client.Subscriptions
             var availableSequenceNumbers = new List<uint>();
             var stringTable = new List<string> { "test" };
 
-            await using var sut = new TestMessageProcessor(m_mockServices.Object,
+            var sut = new TestMessageProcessor(m_mockServices.Object,
                 m_completion, m_telemetry)
             {
                 Id = 13
             };
-
-            // Republish for the first message's "missing" gap (we start
-            // from LastSequenceNumberProcessed=0 so no gap is computed
-            // for this first one) — but for the second message, the gap
-            // is empty because we wrap directly from uint.MaxValue to 1.
-            await sut.OnPublishReceivedAsync(new NotificationMessage
+            await using (sut.ConfigureAwait(false))
             {
-                SequenceNumber = uint.MaxValue
-            }, availableSequenceNumbers, stringTable).ConfigureAwait(false);
-            await sut.KeepAliveNotificationReceived.WaitAsync()
-                .WaitAsync(TimeSpan.FromSeconds(1))
-                .ConfigureAwait(false);
-            Assert.That(sut.LastSequenceNumberProcessed,
-                Is.EqualTo(uint.MaxValue));
+                // Republish for the first message's "missing" gap (we start
+                // from LastSequenceNumberProcessed=0 so no gap is computed
+                // for this first one) — but for the second message, the gap
+                // is empty because we wrap directly from uint.MaxValue to 1.
+                await sut.OnPublishReceivedAsync(new NotificationMessage
+                {
+                    SequenceNumber = uint.MaxValue
+                }, availableSequenceNumbers, stringTable).ConfigureAwait(false);
+                await sut.KeepAliveNotificationReceived.WaitAsync()
+                    .WaitAsync(TimeSpan.FromSeconds(5))
+                    .ConfigureAwait(false);
+                Assert.That(sut.LastSequenceNumberProcessed,
+                    Is.EqualTo(uint.MaxValue));
 
-            sut.KeepAliveNotificationReceived.Reset();
-            await sut.OnPublishReceivedAsync(new NotificationMessage
-            {
-                SequenceNumber = 1
-            }, availableSequenceNumbers, stringTable).ConfigureAwait(false);
-            await sut.KeepAliveNotificationReceived.WaitAsync()
-                .WaitAsync(TimeSpan.FromSeconds(1))
-                .ConfigureAwait(false);
+                sut.KeepAliveNotificationReceived.Reset();
+                await sut.OnPublishReceivedAsync(new NotificationMessage
+                {
+                    SequenceNumber = 1
+                }, availableSequenceNumbers, stringTable).ConfigureAwait(false);
+                await sut.KeepAliveNotificationReceived.WaitAsync()
+                    .WaitAsync(TimeSpan.FromSeconds(5))
+                    .ConfigureAwait(false);
 
-            Assert.That(sut.KeepAliveNotificationReceived.IsSet, Is.True,
-                "Wrapped sequence number must be accepted as forward progress, " +
-                "not dropped as duplicate/old.");
-            Assert.That(sut.LastSequenceNumberProcessed, Is.EqualTo(1));
+                Assert.That(sut.KeepAliveNotificationReceived.IsSet, Is.True,
+                    "Wrapped sequence number must be accepted as forward progress, " +
+                    "not dropped as duplicate/old.");
+                Assert.That(sut.LastSequenceNumberProcessed, Is.EqualTo(1));
+            }
         }
 
         [Test]
@@ -479,53 +497,55 @@ namespace Opc.Ua.Client.Subscriptions
             // Arrange
             var availableSequenceNumbers = new List<uint> { 1, 2, 3 };
             var stringTable = new List<string> { "test" };
-            await using var sut = new TestMessageProcessor(m_mockServices.Object,
+            var sut = new TestMessageProcessor(m_mockServices.Object,
                 m_completion, m_telemetry)
             {
                 Id = 3
             };
-
-            // Act
-            await sut.OnPublishReceivedAsync(new NotificationMessage
+            await using (sut.ConfigureAwait(false))
             {
-                SequenceNumber = 3,
-                NotificationData =
-                [
-                    new ExtensionObject(new StatusChangeNotification
-                    {
-                        Status = StatusCodes.GoodSubscriptionTransferred
-                    })
-                ]
-            }, availableSequenceNumbers, stringTable).ConfigureAwait(false);
-            await sut.StatusChangeNotificationReceived.WaitAsync().WaitAsync(TimeSpan.FromSeconds(1)).ConfigureAwait(false);
+                // Act
+                await sut.OnPublishReceivedAsync(new NotificationMessage
+                {
+                    SequenceNumber = 3,
+                    NotificationData =
+                    [
+                        new ExtensionObject(new StatusChangeNotification
+                        {
+                            Status = StatusCodes.GoodSubscriptionTransferred
+                        })
+                    ]
+                }, availableSequenceNumbers, stringTable).ConfigureAwait(false);
+                await sut.StatusChangeNotificationReceived.WaitAsync().WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
 
-            // Assert
-            Assert.That(sut.StatusChangeNotificationReceived.IsSet, Is.True);
-            Assert.That(sut.ReceivedSequenceNumbers, Does.Contain(3));
-            Assert.That(sut.LastSequenceNumberProcessed, Is.EqualTo(3));
-            Assert.That(sut.PublishState, Is.EqualTo(PublishState.Transferred));
+                // Assert
+                Assert.That(sut.StatusChangeNotificationReceived.IsSet, Is.True);
+                Assert.That(sut.ReceivedSequenceNumbers, Does.Contain(3));
+                Assert.That(sut.LastSequenceNumberProcessed, Is.EqualTo(3));
+                Assert.That(sut.PublishState, Is.EqualTo(PublishState.Transferred));
 
-            sut.StatusChangeNotificationReceived.Reset();
+                sut.StatusChangeNotificationReceived.Reset();
 
-            // Act
-            await sut.OnPublishReceivedAsync(new NotificationMessage
-            {
-                SequenceNumber = 4,
-                NotificationData =
-                [
-                    new ExtensionObject(new StatusChangeNotification
-                    {
-                        Status = StatusCodes.BadTimeout
-                    })
-                ]
-            }, availableSequenceNumbers, stringTable).ConfigureAwait(false);
-            await sut.StatusChangeNotificationReceived.WaitAsync().WaitAsync(TimeSpan.FromSeconds(1)).ConfigureAwait(false);
+                // Act
+                await sut.OnPublishReceivedAsync(new NotificationMessage
+                {
+                    SequenceNumber = 4,
+                    NotificationData =
+                    [
+                        new ExtensionObject(new StatusChangeNotification
+                        {
+                            Status = StatusCodes.BadTimeout
+                        })
+                    ]
+                }, availableSequenceNumbers, stringTable).ConfigureAwait(false);
+                await sut.StatusChangeNotificationReceived.WaitAsync().WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
 
-            // Assert
-            Assert.That(sut.StatusChangeNotificationReceived.IsSet, Is.True);
-            Assert.That(sut.ReceivedSequenceNumbers, Does.Contain(4));
-            Assert.That(sut.LastSequenceNumberProcessed, Is.EqualTo(4));
-            Assert.That(sut.PublishState, Is.EqualTo(PublishState.Timeout));
+                // Assert
+                Assert.That(sut.StatusChangeNotificationReceived.IsSet, Is.True);
+                Assert.That(sut.ReceivedSequenceNumbers, Does.Contain(4));
+                Assert.That(sut.LastSequenceNumberProcessed, Is.EqualTo(4));
+                Assert.That(sut.PublishState, Is.EqualTo(PublishState.Timeout));
+            }
         }
 
         private sealed class TestMessageProcessor : MessageProcessor

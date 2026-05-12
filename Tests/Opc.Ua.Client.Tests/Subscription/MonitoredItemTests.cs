@@ -27,6 +27,9 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+// CA2000: test code; many disposables are ownership-transferred to test fixtures or short-lived,
+// making CA2000 noisy without a real leak risk. Disabled file-level for the suite.
+#pragma warning disable CA2000
 using System;
 using System.Linq;
 using System.Threading.Tasks;
@@ -126,12 +129,12 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
 
             // Assert
             Assert.That(m_context.NotifyItemChangeResultCalls
-                .Count(c => c.MonitoredItem == sut
-                    && c.RetryCount == 1
-                    && c.Source == m_options.CurrentValue
-                    && c.ServiceResult.StatusCode == StatusCodes.Bad
-                    && c.Final == false
-                    && c.FilterResult == null), Is.EqualTo(1));
+                .Count(c => c.MonitoredItem == sut &&
+                    c.RetryCount == 1 &&
+                    c.Source == m_options.CurrentValue &&
+                    c.ServiceResult.StatusCode == StatusCodes.Bad &&
+                    !c.Final &&
+                    c.FilterResult == null), Is.EqualTo(1));
         }
 
         [Test]
@@ -165,12 +168,12 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
 
             // Assert
             Assert.That(m_context.NotifyItemChangeResultCalls
-                .Count(c => c.MonitoredItem == sut
-                    && c.RetryCount == 1
-                    && c.Source == m_options.CurrentValue
-                    && c.ServiceResult.StatusCode == StatusCodes.Bad
-                    && c.Final == false
-                    && c.FilterResult == null), Is.EqualTo(1));
+                .Count(c => c.MonitoredItem == sut &&
+                    c.RetryCount == 1 &&
+                    c.Source == m_options.CurrentValue &&
+                    c.ServiceResult.StatusCode == StatusCodes.Bad &&
+                    !c.Final &&
+                    c.FilterResult == null), Is.EqualTo(1));
         }
 
         [Test]
@@ -206,12 +209,12 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
 
             // Assert
             Assert.That(m_context.NotifyItemChangeResultCalls
-                .Count(c => c.MonitoredItem == sut
-                    && c.RetryCount == 0
-                    && c.Source == m_options.CurrentValue
-                    && c.ServiceResult == ServiceResult.Good
-                    && c.Final == true
-                    && Utils.IsEqual(c.FilterResult, filterResult)), Is.EqualTo(1));
+                .Count(c => c.MonitoredItem == sut &&
+                    c.RetryCount == 0 &&
+                    c.Source == m_options.CurrentValue &&
+                    c.ServiceResult == ServiceResult.Good &&
+                    c.Final &&
+                    Utils.IsEqual(c.FilterResult, filterResult)), Is.EqualTo(1));
         }
 
         [Test]
@@ -374,7 +377,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
 
             // Assert
             Assert.That(m_context.NotifyItemChangeCalls
-                .Count(c => c.MonitoredItem == sut && c.ItemDisposed == true), Is.EqualTo(1));
+                .Count(c => c.MonitoredItem == sut && c.ItemDisposed), Is.EqualTo(1));
         }
 
         [Test]
@@ -392,7 +395,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
 
             // Assert
             Assert.That(m_context.NotifyItemChangeCalls
-                .Count(c => c.MonitoredItem == sut && c.ItemDisposed == true), Is.EqualTo(1));
+                .Count(c => c.MonitoredItem == sut && c.ItemDisposed), Is.EqualTo(1));
         }
 
         [Test]

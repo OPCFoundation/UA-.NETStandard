@@ -74,7 +74,7 @@ namespace Opc.Ua.Aot.Tests
 
             await Assert.That(enumRef).IsNotNull();
 
-            NodeId enumNodeId = ExpandedNodeId.ToNodeId(
+            var enumNodeId = ExpandedNodeId.ToNodeId(
                 enumRef.NodeId, fixture.Session.NamespaceUris);
 
             DataValue enumValues = await fixture.Session.ReadValueAsync(

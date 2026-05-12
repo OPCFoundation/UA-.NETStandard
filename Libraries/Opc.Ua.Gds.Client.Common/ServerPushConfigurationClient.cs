@@ -28,20 +28,18 @@
  * ======================================================================*/
 
 using System;
-using System.IO;
-using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Client;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Gds.Client
 {
     /// <summary>
     /// A class used to access the Push Configuration information model.
     /// </summary>
-    public class ServerPushConfigurationClient
-        : IServerPushConfigurationClient, IAsyncDisposable, IDisposable
+    public sealed class ServerPushConfigurationClient : IServerPushConfigurationClient, IDisposable
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="ServerPushConfigurationClient"/> class.
@@ -71,11 +69,7 @@ namespace Opc.Ua.Gds.Client
             ISessionFactory sessionFactory = null,
             DiagnosticsMasks diagnosticsMasks = DiagnosticsMasks.None)
         {
-            if (configuration == null)
-            {
-                throw new ArgumentNullException(nameof(configuration));
-            }
-            Configuration = configuration;
+            Configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
             m_options = options ?? new GdsClientOptions();
             MessageContext = configuration.CreateMessageContext();
             m_logger = MessageContext.Telemetry.CreateLogger<ServerPushConfigurationClient>();
@@ -199,7 +193,7 @@ namespace Opc.Ua.Gds.Client
             m_disposed = true;
             try
             {
-                m_disposeCts.Cancel();
+                await m_disposeCts.CancelAsync().ConfigureAwait(false);
             }
             catch (ObjectDisposedException)
             {
@@ -281,10 +275,11 @@ namespace Opc.Ua.Gds.Client
                     }
                 }
             }
-            throw lastException ?? ServiceResultException.Create(
-                StatusCodes.BadNoCommunication,
-                "Failed to connect after {0} attempts.",
-                maxAttempts);
+            throw lastException ??
+                ServiceResultException.Create(
+                    StatusCodes.BadNoCommunication,
+                    "Failed to connect after {0} attempts.",
+                    maxAttempts);
         }
         /// <inheritdoc/>
         public async ValueTask ConnectAsync(ConfiguredEndpoint endpoint, CancellationToken ct = default)
@@ -314,10 +309,11 @@ namespace Opc.Ua.Gds.Client
                     }
                 }
             }
-            throw lastException ?? ServiceResultException.Create(
-                StatusCodes.BadNoCommunication,
-                "Failed to connect after {0} attempts.",
-                maxAttempts);
+            throw lastException ??
+                ServiceResultException.Create(
+                    StatusCodes.BadNoCommunication,
+                    "Failed to connect after {0} attempts.",
+                    maxAttempts);
         }
         /// <inheritdoc/>
         public async ValueTask DisconnectAsync(CancellationToken ct = default)
@@ -488,7 +484,7 @@ namespace Opc.Ua.Gds.Client
                 MessageContext.Telemetry);
         }
         /// <inheritdoc/>
-        public async ValueTask AddCertificateAsync(X509Certificate2 certificate, bool isTrustedCertificate, CancellationToken ct = default)
+        public async ValueTask AddCertificateAsync(Certificate certificate, bool isTrustedCertificate, CancellationToken ct = default)
         {
             ISession session = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
             IUserIdentity oldUser = await ElevatePermissionsAsync(session, ct).ConfigureAwait(false);
@@ -622,7 +618,7 @@ namespace Opc.Ua.Gds.Client
             }
         }
         /// <inheritdoc/>
-        public async ValueTask<X509Certificate2Collection> GetRejectedListAsync(CancellationToken ct = default)
+        public async ValueTask<CertificateCollection> GetRejectedListAsync(CancellationToken ct = default)
         {
             ISession session = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
             IUserIdentity oldUser = await ElevatePermissionsAsync(session, ct).ConfigureAwait(false);
@@ -630,10 +626,10 @@ namespace Opc.Ua.Gds.Client
             try
             {
                 ArrayOf<ByteString> rawCertificates = await m_serverConfiguration.GetRejectedListAsync(ct).ConfigureAwait(false);
-                var collection = new X509Certificate2Collection();
+                var collection = new CertificateCollection();
                 foreach (ByteString rawCertificate in rawCertificates)
                 {
-                    collection.Add(CertificateFactory.Create(rawCertificate));
+                    collection.Add(Certificate.FromRawData(rawCertificate));
                 }
                 return collection;
             }

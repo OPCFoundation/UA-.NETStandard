@@ -25,7 +25,7 @@ namespace Opc.Ua.Server.Tests
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             ILogger logger = telemetry.CreateLogger<MonitoredItemTests>();
 
-            using var monitoredItem = CreateMonitoredItem(telemetry);
+            using MonitoredItem monitoredItem = CreateMonitoredItem(telemetry);
             Assert.That(monitoredItem, Is.Not.Null);
             Assert.That(monitoredItem.ItemsInQueue, Is.Zero);
 
@@ -56,11 +56,11 @@ namespace Opc.Ua.Server.Tests
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
-            using var monitoredItem = CreateMonitoredItem(telemetry, true);
+            using MonitoredItem monitoredItem = CreateMonitoredItem(telemetry, true);
             Assert.That(monitoredItem, Is.Not.Null);
             Assert.That(monitoredItem.ItemsInQueue, Is.Zero);
 
-            using var event1 = new AuditUrlMismatchEventState(null);
+            var event1 = new AuditUrlMismatchEventState(null);
             monitoredItem.QueueEvent(event1);
 
             Assert.That(monitoredItem.ItemsInQueue, Is.EqualTo(1));
@@ -81,7 +81,7 @@ namespace Opc.Ua.Server.Tests
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             ILogger logger = telemetry.CreateLogger<MonitoredItemTests>();
 
-            using var monitoredItem = CreateMonitoredItem(telemetry, false, 0);
+            using MonitoredItem monitoredItem = CreateMonitoredItem(telemetry, false, 0);
 
             Assert.That(monitoredItem.QueueSize, Is.EqualTo(1));
 
@@ -108,18 +108,18 @@ namespace Opc.Ua.Server.Tests
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
-            using var monitoredItem = CreateMonitoredItem(telemetry, true, 2);
+            using MonitoredItem monitoredItem = CreateMonitoredItem(telemetry, true, 2);
             Assert.That(monitoredItem, Is.Not.Null);
             Assert.That(monitoredItem.ItemsInQueue, Is.Zero);
 
-            using var overflowEvent1 = new AuditUrlMismatchEventState(null);
-            using var overflowEvent2 = new AuditUrlMismatchEventState(null);
+            var overflowEvent1 = new AuditUrlMismatchEventState(null);
+            var overflowEvent2 = new AuditUrlMismatchEventState(null);
             monitoredItem.QueueEvent(overflowEvent1);
             monitoredItem.QueueEvent(overflowEvent2);
 
             Assert.That(monitoredItem.ItemsInQueue, Is.EqualTo(2));
 
-            using var overflowEvent3 = new AuditUrlMismatchEventState(null);
+            var overflowEvent3 = new AuditUrlMismatchEventState(null);
             monitoredItem.QueueEvent(overflowEvent3);
 
             Assert.That(monitoredItem.ItemsInQueue, Is.EqualTo(2));
@@ -139,18 +139,18 @@ namespace Opc.Ua.Server.Tests
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
-            using var monitoredItem = CreateMonitoredItem(telemetry, true, 2);
+            using MonitoredItem monitoredItem = CreateMonitoredItem(telemetry, true, 2);
             Assert.That(monitoredItem, Is.Not.Null);
             Assert.That(monitoredItem.ItemsInQueue, Is.Zero);
 
-            using var multiEvent1 = new AuditUrlMismatchEventState(null);
-            using var multiEvent2 = new AuditUrlMismatchEventState(null);
+            var multiEvent1 = new AuditUrlMismatchEventState(null);
+            var multiEvent2 = new AuditUrlMismatchEventState(null);
             monitoredItem.QueueEvent(multiEvent1);
             monitoredItem.QueueEvent(multiEvent2);
 
             Assert.That(monitoredItem.ItemsInQueue, Is.EqualTo(2));
 
-            using var multiEvent3 = new AuditUrlMismatchEventState(null);
+            var multiEvent3 = new AuditUrlMismatchEventState(null);
             monitoredItem.QueueEvent(multiEvent3);
 
             Assert.That(monitoredItem.ItemsInQueue, Is.EqualTo(2));
@@ -184,18 +184,18 @@ namespace Opc.Ua.Server.Tests
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
-            using var monitoredItem = CreateMonitoredItem(telemetry, true, 2, true);
+            using MonitoredItem monitoredItem = CreateMonitoredItem(telemetry, true, 2, true);
             Assert.That(monitoredItem, Is.Not.Null);
             Assert.That(monitoredItem.ItemsInQueue, Is.Zero);
 
-            using var noDiscardEvent1 = new AuditUrlMismatchEventState(null);
-            using var noDiscardEvent2 = new AuditUrlMismatchEventState(null);
+            var noDiscardEvent1 = new AuditUrlMismatchEventState(null);
+            var noDiscardEvent2 = new AuditUrlMismatchEventState(null);
             monitoredItem.QueueEvent(noDiscardEvent1);
             monitoredItem.QueueEvent(noDiscardEvent2);
 
             Assert.That(monitoredItem.ItemsInQueue, Is.EqualTo(2));
 
-            using var noDiscardEvent3 = new AuditUrlMismatchEventState(null);
+            var noDiscardEvent3 = new AuditUrlMismatchEventState(null);
             monitoredItem.QueueEvent(noDiscardEvent3);
 
             Assert.That(monitoredItem.ItemsInQueue, Is.EqualTo(2));
@@ -215,13 +215,13 @@ namespace Opc.Ua.Server.Tests
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
-            using var monitoredItem = CreateMonitoredItem(telemetry, true, 3);
+            using MonitoredItem monitoredItem = CreateMonitoredItem(telemetry, true, 3);
             Assert.That(monitoredItem, Is.Not.Null);
             Assert.That(monitoredItem.ItemsInQueue, Is.Zero);
 
-            using var partialEvent1 = new AuditUrlMismatchEventState(null);
-            using var partialEvent2 = new AuditUrlMismatchEventState(null);
-            using var partialEvent3 = new AuditUrlMismatchEventState(null);
+            var partialEvent1 = new AuditUrlMismatchEventState(null);
+            var partialEvent2 = new AuditUrlMismatchEventState(null);
+            var partialEvent3 = new AuditUrlMismatchEventState(null);
             monitoredItem.QueueEvent(partialEvent1);
             monitoredItem.QueueEvent(partialEvent2);
             monitoredItem.QueueEvent(partialEvent3);

@@ -27,6 +27,9 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+// CA2000: test code; many disposables are ownership-transferred to test fixtures or short-lived,
+// making CA2000 noisy without a real leak risk. Disabled file-level for the suite.
+#pragma warning disable CA2000
 using System;
 using System.IO;
 using System.Text;
@@ -1143,14 +1146,14 @@ namespace Opc.Ua.Configuration.Tests
             // Explicit zero (0 = no limit for MaxTrustListSize)
             Assert.That(
                 config.ServerConfiguration.MaxTrustListSize,
-                Is.EqualTo(0),
+                Is.Zero,
                 "MaxTrustListSize should preserve explicit 0 from XML.");
 
             // Round-trip
             string xml = EncodeToXml(config);
             ApplicationConfiguration roundTripped = DecodeFromString<ApplicationConfiguration>(xml);
             Assert.That(roundTripped.ServerConfiguration.MaxSessionCount, Is.EqualTo(50));
-            Assert.That(roundTripped.ServerConfiguration.MaxTrustListSize, Is.EqualTo(0));
+            Assert.That(roundTripped.ServerConfiguration.MaxTrustListSize, Is.Zero);
         }
 
         [Test]

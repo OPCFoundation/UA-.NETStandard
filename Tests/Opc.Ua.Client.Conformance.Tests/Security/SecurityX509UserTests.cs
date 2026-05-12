@@ -34,6 +34,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client;
+using Opc.Ua.Client.Conformance.Tests.Security;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Client.Conformance.Tests
 {
@@ -80,13 +82,13 @@ namespace Opc.Ua.Client.Conformance.Tests
                 Assert.Fail("No secure endpoint available.");
             }
 
-            using X509Certificate2 userCert = CreateSelfSignedUserCert();
+            using Certificate userCert = CreateSelfSignedUserCert();
             await AddCertToServerTrustStoreAsync(userCert).ConfigureAwait(false);
             try
             {
                 ISession session = await ClientFixture.ConnectAsync(
                     ServerUrl, ep.SecurityPolicyUri,
-                    userIdentity: new UserIdentity(userCert))
+                    userIdentity: X509UserIdentityHelper.Create(userCert))
                     .ConfigureAwait(false);
                 try
                 {
@@ -128,7 +130,7 @@ namespace Opc.Ua.Client.Conformance.Tests
                 Assert.Fail("No secure endpoint available.");
             }
 
-            using X509Certificate2 expiredCert = CreateSelfSignedUserCert(
+            using Certificate expiredCert = CreateSelfSignedUserCert(
                 notBefore: DateTimeOffset.UtcNow.AddYears(-2),
                 notAfter: DateTimeOffset.UtcNow.AddDays(-1));
 
@@ -138,7 +140,7 @@ namespace Opc.Ua.Client.Conformance.Tests
             {
                 ISession session = await ConnectOnceAsync(
                     ep.SecurityPolicyUri,
-                    new UserIdentity(expiredCert))
+                    X509UserIdentityHelper.Create(expiredCert))
                     .ConfigureAwait(false);
                 await session.CloseAsync(5000, true).ConfigureAwait(false);
                 session.Dispose();
@@ -173,13 +175,13 @@ namespace Opc.Ua.Client.Conformance.Tests
                 Assert.Fail("No Certificate token advertised.");
             }
 
-            using X509Certificate2 userCert = CreateSelfSignedUserCert();
+            using Certificate userCert = CreateSelfSignedUserCert();
             await AddCertToServerTrustStoreAsync(userCert).ConfigureAwait(false);
             try
             {
                 ISession session = await ClientFixture.ConnectAsync(
                     ServerUrl, SecurityPolicies.None,
-                    userIdentity: new UserIdentity(userCert))
+                    userIdentity: X509UserIdentityHelper.Create(userCert))
                     .ConfigureAwait(false);
                 try
                 {
@@ -228,7 +230,7 @@ namespace Opc.Ua.Client.Conformance.Tests
                 Assert.Fail("No secure endpoint available.");
             }
 
-            using X509Certificate2 userCert = CreateSelfSignedUserCert();
+            using Certificate userCert = CreateSelfSignedUserCert();
             await AddCertToServerTrustStoreAsync(userCert).ConfigureAwait(false);
             try
             {
@@ -237,7 +239,7 @@ namespace Opc.Ua.Client.Conformance.Tests
                 {
                     session = await ClientFixture.ConnectAsync(
                         ServerUrl, ep.SecurityPolicyUri,
-                        userIdentity: new UserIdentity(userCert))
+                        userIdentity: X509UserIdentityHelper.Create(userCert))
                         .ConfigureAwait(false);
                 }
                 catch (ServiceResultException)
@@ -297,7 +299,7 @@ namespace Opc.Ua.Client.Conformance.Tests
                 Assert.Fail("No secure endpoint available.");
             }
 
-            using X509Certificate2 userCert = CreateSelfSignedUserCert();
+            using Certificate userCert = CreateSelfSignedUserCert();
             await AddCertToServerTrustStoreAsync(userCert).ConfigureAwait(false);
             try
             {
@@ -306,7 +308,7 @@ namespace Opc.Ua.Client.Conformance.Tests
                 {
                     session = await ClientFixture.ConnectAsync(
                         ServerUrl, ep.SecurityPolicyUri,
-                        userIdentity: new UserIdentity(userCert))
+                        userIdentity: X509UserIdentityHelper.Create(userCert))
                         .ConfigureAwait(false);
                 }
                 catch (ServiceResultException)
@@ -369,7 +371,7 @@ namespace Opc.Ua.Client.Conformance.Tests
                 Assert.Fail("No secure endpoint available.");
             }
 
-            using X509Certificate2 userCert = CreateSelfSignedUserCert();
+            using Certificate userCert = CreateSelfSignedUserCert();
             await AddCertToServerTrustStoreAsync(userCert).ConfigureAwait(false);
             try
             {
@@ -378,7 +380,7 @@ namespace Opc.Ua.Client.Conformance.Tests
                 {
                     session = await ClientFixture.ConnectAsync(
                         ServerUrl, ep.SecurityPolicyUri,
-                        userIdentity: new UserIdentity(userCert))
+                        userIdentity: X509UserIdentityHelper.Create(userCert))
                         .ConfigureAwait(false);
                 }
                 catch (ServiceResultException)
@@ -431,7 +433,7 @@ namespace Opc.Ua.Client.Conformance.Tests
                 Assert.Fail("No secure endpoint available.");
             }
 
-            using X509Certificate2 userCert = CreateSelfSignedUserCert();
+            using Certificate userCert = CreateSelfSignedUserCert();
             await AddCertToServerTrustStoreAsync(userCert).ConfigureAwait(false);
             try
             {
@@ -442,7 +444,7 @@ namespace Opc.Ua.Client.Conformance.Tests
                 {
                     // Switch to X509
                     await session.UpdateSessionAsync(
-                        new UserIdentity(userCert),
+                        X509UserIdentityHelper.Create(userCert),
                         session.PreferredLocales).ConfigureAwait(false);
                     Assert.That(session.Connected, Is.True);
                 }
@@ -483,13 +485,13 @@ namespace Opc.Ua.Client.Conformance.Tests
             }
 
             // Do NOT add to trust store
-            using X509Certificate2 untrustedCert = CreateSelfSignedUserCert(
+            using Certificate untrustedCert = CreateSelfSignedUserCert(
                 cn: "CN=UntrustedUser, O=Test");
             try
             {
                 ISession session = await ConnectOnceAsync(
                     ep.SecurityPolicyUri,
-                    new UserIdentity(untrustedCert))
+                    X509UserIdentityHelper.Create(untrustedCert))
                     .ConfigureAwait(false);
                 await session.CloseAsync(5000, true).ConfigureAwait(false);
                 session.Dispose();
@@ -527,7 +529,7 @@ namespace Opc.Ua.Client.Conformance.Tests
                 Assert.Fail("No secure endpoint available.");
             }
 
-            using X509Certificate2 userCert = CreateSelfSignedUserCert();
+            using Certificate userCert = CreateSelfSignedUserCert();
             await AddCertToServerTrustStoreAsync(userCert).ConfigureAwait(false);
             try
             {
@@ -537,11 +539,11 @@ namespace Opc.Ua.Client.Conformance.Tests
                 {
                     session1 = await ClientFixture.ConnectAsync(
                         ServerUrl, ep.SecurityPolicyUri,
-                        userIdentity: new UserIdentity(userCert))
+                        userIdentity: X509UserIdentityHelper.Create(userCert))
                         .ConfigureAwait(false);
                     session2 = await ClientFixture.ConnectAsync(
                         ServerUrl, ep.SecurityPolicyUri,
-                        userIdentity: new UserIdentity(userCert))
+                        userIdentity: X509UserIdentityHelper.Create(userCert))
                         .ConfigureAwait(false);
                 }
                 catch (ServiceResultException)
@@ -583,8 +585,8 @@ namespace Opc.Ua.Client.Conformance.Tests
                 Assert.Fail("No Certificate token advertised.");
             }
 
-            using X509Certificate2 userCert = CreateSelfSignedUserCert();
-            var identity = new UserIdentity(userCert);
+            using Certificate userCert = CreateSelfSignedUserCert();
+            var identity = X509UserIdentityHelper.Create(userCert);
 
             Assert.That(identity.TokenType,
                 Is.EqualTo(UserTokenType.Certificate));
@@ -612,7 +614,7 @@ namespace Opc.Ua.Client.Conformance.Tests
                 Assert.Fail("No secure endpoint available.");
             }
 
-            using X509Certificate2 userCert = CreateSelfSignedUserCert(
+            using Certificate userCert = CreateSelfSignedUserCert(
                 cn: "CN=DiagTestUser, O=OPC Foundation");
             await AddCertToServerTrustStoreAsync(userCert).ConfigureAwait(false);
             try
@@ -622,7 +624,7 @@ namespace Opc.Ua.Client.Conformance.Tests
                 {
                     session = await ClientFixture.ConnectAsync(
                         ServerUrl, ep.SecurityPolicyUri,
-                        userIdentity: new UserIdentity(userCert))
+                        userIdentity: X509UserIdentityHelper.Create(userCert))
                         .ConfigureAwait(false);
                 }
                 catch (ServiceResultException)
@@ -681,9 +683,9 @@ namespace Opc.Ua.Client.Conformance.Tests
                 DateTimeOffset.UtcNow.AddMinutes(-5),
                 DateTimeOffset.UtcNow.AddYears(1));
             byte[] pfx = tempCert.Export(X509ContentType.Pfx, "test");
-            using X509Certificate2 wrongKuCert =
-                X509CertificateLoader.LoadPkcs12(
+            using X509Certificate2 wrongKuCertLoaded = X509CertificateLoader.LoadPkcs12(
                     pfx, "test", X509KeyStorageFlags.Exportable);
+            using Certificate wrongKuCert = Certificate.From(wrongKuCertLoaded);
 
             await AddCertToServerTrustStoreAsync(wrongKuCert)
                 .ConfigureAwait(false);
@@ -691,7 +693,7 @@ namespace Opc.Ua.Client.Conformance.Tests
             {
                 ISession session = await ConnectOnceAsync(
                     ep.SecurityPolicyUri,
-                    new UserIdentity(wrongKuCert))
+                    X509UserIdentityHelper.Create(wrongKuCert))
                     .ConfigureAwait(false);
                 await session.CloseAsync(5000, true).ConfigureAwait(false);
                 session.Dispose();
@@ -756,16 +758,16 @@ namespace Opc.Ua.Client.Conformance.Tests
                 DateTimeOffset.UtcNow.AddMinutes(-5),
                 DateTimeOffset.UtcNow.AddYears(1));
             byte[] pfx = tempCert.Export(X509ContentType.Pfx, "test");
-            using X509Certificate2 sanCert =
-                X509CertificateLoader.LoadPkcs12(
+            using X509Certificate2 sanCertLoaded = X509CertificateLoader.LoadPkcs12(
                     pfx, "test", X509KeyStorageFlags.Exportable);
+            using Certificate sanCert = Certificate.From(sanCertLoaded);
 
             await AddCertToServerTrustStoreAsync(sanCert).ConfigureAwait(false);
             try
             {
                 ISession session = await ConnectOnceAsync(
                     ep.SecurityPolicyUri,
-                    new UserIdentity(sanCert))
+                    X509UserIdentityHelper.Create(sanCert))
                     .ConfigureAwait(false);
                 try
                 {
@@ -799,9 +801,9 @@ namespace Opc.Ua.Client.Conformance.Tests
         [Property("Tag", "001")]
         public Task X509UserCertDnAccessible()
         {
-            using X509Certificate2 userCert = CreateSelfSignedUserCert(
+            using Certificate userCert = CreateSelfSignedUserCert(
                 cn: "CN=DnCheckUser, O=OPC Foundation, C=US");
-            var identity = new UserIdentity(userCert);
+            var identity = X509UserIdentityHelper.Create(userCert);
 
             Assert.That(identity.DisplayName, Is.Not.Null.And.Not.Empty,
                 "X509 user identity should have a display name derived from cert DN.");
@@ -826,7 +828,7 @@ namespace Opc.Ua.Client.Conformance.Tests
                 Assert.Fail("No SignAndEncrypt endpoint available.");
             }
 
-            using X509Certificate2 userCert = CreateSelfSignedUserCert();
+            using Certificate userCert = CreateSelfSignedUserCert();
             await AddCertToServerTrustStoreAsync(userCert).ConfigureAwait(false);
             try
             {
@@ -835,7 +837,7 @@ namespace Opc.Ua.Client.Conformance.Tests
                 {
                     session = await ClientFixture.ConnectAsync(
                         ServerUrl, ep.SecurityPolicyUri,
-                        userIdentity: new UserIdentity(userCert))
+                        userIdentity: X509UserIdentityHelper.Create(userCert))
                         .ConfigureAwait(false);
                 }
                 catch (ServiceResultException)
@@ -924,7 +926,7 @@ namespace Opc.Ua.Client.Conformance.Tests
             return null;
         }
 
-        private static X509Certificate2 CreateSelfSignedUserCert(
+        private static Certificate CreateSelfSignedUserCert(
             string cn = "CN=TestUser, O=OPC Foundation",
             DateTimeOffset? notBefore = null,
             DateTimeOffset? notAfter = null)
@@ -946,16 +948,16 @@ namespace Opc.Ua.Client.Conformance.Tests
             DateTimeOffset nb = notBefore ?? DateTimeOffset.UtcNow.AddMinutes(-5);
             DateTimeOffset na = notAfter ?? DateTimeOffset.UtcNow.AddYears(1);
 
-            X509Certificate2 cert = certReq.CreateSelfSigned(nb, na);
+            using X509Certificate2 cert = certReq.CreateSelfSigned(nb, na);
             // Export and reimport so the private key is fully accessible
             byte[] pfx = cert.Export(X509ContentType.Pfx, "test");
-            cert.Dispose();
-            return X509CertificateLoader.LoadPkcs12(pfx, "test",
-                X509KeyStorageFlags.Exportable);
+            using X509Certificate2 loaded = X509CertificateLoader.LoadPkcs12(
+                pfx, "test", X509KeyStorageFlags.Exportable);
+            return Certificate.From(loaded);
         }
 
         private async Task AddCertToServerTrustStoreAsync(
-            X509Certificate2 cert)
+            Certificate cert)
         {
             // Add to the server's user certificate trust store
             CertificateTrustList userCertStore = ServerFixture.Config?
@@ -968,13 +970,11 @@ namespace Opc.Ua.Client.Conformance.Tests
 
             using ICertificateStore store =
                 userCertStore.OpenStore(Telemetry);
-            await store.AddAsync(
-                CertificateFactory.Create(cert.RawData))
-                .ConfigureAwait(false);
+            await store.AddAsync(cert.AddRef()).ConfigureAwait(false);
         }
 
         private async Task RemoveCertFromServerTrustStoreAsync(
-            X509Certificate2 cert)
+            Certificate cert)
         {
             CertificateTrustList userCertStore = ServerFixture.Config?
                 .SecurityConfiguration?.TrustedUserCertificates;

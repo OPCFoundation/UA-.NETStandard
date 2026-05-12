@@ -37,7 +37,7 @@ namespace Opc.Ua
     /// <summary>
     /// Argument
     /// </summary>
-    [DataContract(Namespace = Types.Namespaces.OpcUaXsd)]
+    [DataContract(Namespace = Namespaces.OpcUaXsd)]
     public class Argument : IEncodeable, IEquatable<Argument>
     {
         /// <summary>

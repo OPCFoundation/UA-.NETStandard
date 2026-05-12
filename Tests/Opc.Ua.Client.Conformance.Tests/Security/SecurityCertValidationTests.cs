@@ -1052,7 +1052,7 @@ namespace Opc.Ua.Client.Conformance.Tests
             // ReplaceDCLocalhost call doesn't change the subject (which would
             // otherwise trigger an ArgumentException on SubjectName setter).
             string subject = "CN=" + slug + ", O=OPC Foundation";
-            X509Certificate2 cert = expired
+            Certificate cert = expired
                 ? TestCertificateFactory.CreateExpiredAppInstanceCert(subject, appUri)
                 : TestCertificateFactory.CreateNotYetValidAppInstanceCert(subject, appUri);
 
@@ -1098,10 +1098,8 @@ namespace Opc.Ua.Client.Conformance.Tests
             string slug = "corrupted010";
             string subject = "CN=" + slug + ", O=OPC Foundation";
             string appUri = NewTestApplicationUri(slug);
-            X509Certificate2 valid = TestCertificateFactory.CreateValidAppInstanceCert(subject, appUri);
-            X509Certificate2 corrupted = TestCertificateFactory.CorruptCertSignature(valid);
-            valid.Dispose();
-
+            Certificate valid = TestCertificateFactory.CreateValidAppInstanceCert(subject, appUri);
+            Certificate corrupted = TestCertificateFactory.CorruptCertSignature(valid);
             // The corrupted DER may not even round-trip through the
             // application configuration loader (the loader tries to
             // re-parse it). Either way the server cannot accept it,
@@ -1165,7 +1163,7 @@ namespace Opc.Ua.Client.Conformance.Tests
             // run would also test the trusted variant via test
             // infrastructure that adds the CA to the trust list,
             // covered indirectly by Phase Q tests on Sign endpoints.)
-            using X509Certificate2 ca = TestCertificateFactory.CreateIssuingCa(
+            using Certificate ca = TestCertificateFactory.CreateIssuingCa(
                 "CN=test-issuing-ca-037, O=OPC Foundation");
             return AssertUntrustedCertIsRejectedAsync(
                 slug: "issued-037",
@@ -1195,7 +1193,7 @@ namespace Opc.Ua.Client.Conformance.Tests
         [Property("Tag", "042")]
         public Task CertValidation042TrustedIssuedCertNoRevocationListAsync()
         {
-            using X509Certificate2 ca = TestCertificateFactory.CreateIssuingCa(
+            using Certificate ca = TestCertificateFactory.CreateIssuingCa(
                 "CN=test-issuing-ca-042, O=OPC Foundation");
             return AssertUntrustedCertIsRejectedAsync(
                 slug: "issued-042",
@@ -1208,7 +1206,7 @@ namespace Opc.Ua.Client.Conformance.Tests
         [Property("Tag", "043")]
         public Task CertValidation043UntrustedIssuedCertNoRevocationListAsync()
         {
-            using X509Certificate2 ca = TestCertificateFactory.CreateIssuingCa(
+            using Certificate ca = TestCertificateFactory.CreateIssuingCa(
                 "CN=test-issuing-ca-043, O=OPC Foundation");
             return AssertUntrustedCertIsRejectedAsync(
                 slug: "issued-043",
@@ -1221,7 +1219,7 @@ namespace Opc.Ua.Client.Conformance.Tests
         [Property("Tag", "044")]
         public Task CertValidation044TrustedIssuedCertCANotTrustedAsync()
         {
-            using X509Certificate2 ca = TestCertificateFactory.CreateIssuingCa(
+            using Certificate ca = TestCertificateFactory.CreateIssuingCa(
                 "CN=test-issuing-ca-044, O=OPC Foundation");
             return AssertUntrustedCertIsRejectedAsync(
                 slug: "issued-044",
@@ -1234,7 +1232,7 @@ namespace Opc.Ua.Client.Conformance.Tests
         [Property("Tag", "045")]
         public Task CertValidation045UntrustedIssuedCertCANotTrustedAsync()
         {
-            using X509Certificate2 ca = TestCertificateFactory.CreateIssuingCa(
+            using Certificate ca = TestCertificateFactory.CreateIssuingCa(
                 "CN=test-issuing-ca-045, O=OPC Foundation");
             return AssertUntrustedCertIsRejectedAsync(
                 slug: "issued-045",
@@ -1269,11 +1267,11 @@ namespace Opc.Ua.Client.Conformance.Tests
 
         private async Task AssertUntrustedCertIsRejectedAsync(
             string slug,
-            Func<string, string, X509Certificate2> makeCert)
+            Func<string, string, Certificate> makeCert)
         {
             string subject = "CN=" + slug + ", O=OPC Foundation";
             string appUri = NewTestApplicationUri(slug);
-            X509Certificate2 cert = makeCert(subject, appUri);
+            Certificate cert = makeCert(subject, appUri);
 
             // The in-process reference server has AutoAccept=true for
             // untrusted certificates so a self-signed app instance
@@ -1407,7 +1405,7 @@ namespace Opc.Ua.Client.Conformance.Tests
         {
             string subject = "CN=" + slug + ", O=OPC Foundation";
             string appUri = NewTestApplicationUri(slug);
-            X509Certificate2 cert = TestCertificateFactory.CreateValidAppInstanceCert(
+            Certificate cert = TestCertificateFactory.CreateValidAppInstanceCert(
                 subject, appUri, rsaKeySize, HashAlgorithmName.SHA256);
 
             // Modern crypto should connect cleanly. The connection
@@ -1522,7 +1520,7 @@ namespace Opc.Ua.Client.Conformance.Tests
         /// underlying <see cref="ServiceResultException"/> on failure.
         /// </summary>
         private async Task<ISession> OpenSessionWithClientCertAsync(
-            X509Certificate2 clientCert,
+            Certificate clientCert,
             string applicationUri,
             MessageSecurityMode mode = MessageSecurityMode.SignAndEncrypt,
             string policyUri = null)

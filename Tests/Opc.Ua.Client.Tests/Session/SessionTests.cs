@@ -27,6 +27,9 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+// CA2000: test code; many disposables are ownership-transferred to test fixtures or short-lived,
+// making CA2000 noisy without a real leak risk. Disabled file-level for the suite.
+#pragma warning disable CA2000
 using System;
 using System.IO;
 using System.Linq;
@@ -1274,7 +1277,7 @@ namespace Opc.Ua.Client.Tests
                 }))
                 .Verifiable(Times.Once);
 
-            using var identity = new UserIdentity();
+            var identity = new UserIdentity();
             await sut.OpenAsync("test", identity, ct).ConfigureAwait(false);
 
             Assert.That(sut.ServerNonce, Is.EqualTo(ByteString.From([1, 2, 3, 4])));
@@ -1341,7 +1344,7 @@ namespace Opc.Ua.Client.Tests
                 .Returns(new ValueTask())
                 .Verifiable(Times.Once);
 
-            using var identity = new UserIdentity();
+            var identity = new UserIdentity();
             ServiceResultException sre = Assert.ThrowsAsync<ServiceResultException>(
                 async () => await sut.OpenAsync("test", identity, default).ConfigureAwait(false));
             Assert.That(sre.StatusCode, Is.EqualTo(StatusCodes.BadSessionNotActivated));
@@ -1408,7 +1411,7 @@ namespace Opc.Ua.Client.Tests
                 .Throws(new ServiceResultException(StatusCodes.BadNotConnected))
                 .Verifiable(Times.Once);
 
-            using var identity = new UserIdentity();
+            var identity = new UserIdentity();
             ServiceResultException sre = Assert.ThrowsAsync<ServiceResultException>(
                 async () => await sut.OpenAsync(
                     "test",
@@ -1445,7 +1448,7 @@ namespace Opc.Ua.Client.Tests
                 .ThrowsAsync(new ServiceResultException(StatusCodes.BadUnexpectedError))
                 .Verifiable(Times.Exactly(2));
 
-            using var identity = new UserIdentity();
+            var identity = new UserIdentity();
             ServiceResultException sre = Assert.ThrowsAsync<ServiceResultException>(
                   async () => await sut.OpenAsync("test", identity, default).ConfigureAwait(false));
             Assert.That(sre.StatusCode, Is.EqualTo(StatusCodes.BadUnexpectedError));
@@ -1469,7 +1472,7 @@ namespace Opc.Ua.Client.Tests
             };
             using var sut = SessionMock.Create(ep);
 
-            using var identity = new UserIdentity();
+            var identity = new UserIdentity();
             ServiceResultException sre = Assert.ThrowsAsync<ServiceResultException>(
                   async () => await sut.OpenAsync("test", identity, default).ConfigureAwait(false));
             Assert.That(sre.StatusCode, Is.EqualTo(StatusCodes.BadSecurityPolicyRejected));
@@ -1497,7 +1500,7 @@ namespace Opc.Ua.Client.Tests
             };
             using var sut = SessionMock.Create(ep);
 
-            using var identity = new UserIdentity();
+            var identity = new UserIdentity();
             ServiceResultException sre = Assert.ThrowsAsync<ServiceResultException>(
                   async () => await sut.OpenAsync("test", identity, default).ConfigureAwait(false));
             Assert.That(sre.StatusCode, Is.EqualTo(StatusCodes.BadIdentityTokenInvalid));
@@ -1516,7 +1519,7 @@ namespace Opc.Ua.Client.Tests
                 .ThrowsAsync(new TaskCanceledException())
                 .Verifiable(Times.Once);
 
-            using var identity = new UserIdentity();
+            var identity = new UserIdentity();
             Assert.ThrowsAsync<TaskCanceledException>(
                 async () => await sut.OpenAsync("test", identity, default).ConfigureAwait(false));
 
@@ -1540,7 +1543,7 @@ namespace Opc.Ua.Client.Tests
                 }))
                 .Verifiable(Times.Once);
 
-            using var identity = new UserIdentity();
+            var identity = new UserIdentity();
             Assert.ThrowsAsync<ServiceResultException>(
                 async () => await sut.OpenAsync("test", identity, ct).ConfigureAwait(false));
 
@@ -1609,31 +1612,31 @@ namespace Opc.Ua.Client.Tests
         private static void SetClientNonce(Session session, byte[] value)
         {
             typeof(Session)
-                .GetField("m_clientNonce", PrivateInstance)!
+                .GetField("m_clientNonce", PrivateInstance)
                 .SetValue(session, value.ToArray());
         }
 
         private static void SetServerNonce(Session session, byte[] value)
         {
             typeof(Session)
-                .GetField("m_serverNonce", PrivateInstance)!
+                .GetField("m_serverNonce", PrivateInstance)
                 .SetValue(session, ByteString.From(value));
         }
 
         private static byte[] GetClientNonce(Session session)
         {
-            return (typeof(Session)
-                .GetField("m_clientNonce", PrivateInstance)!
-                .GetValue(session) is byte[] bytes)
-                ? bytes.ToArray()
+            return typeof(Session)
+                .GetField("m_clientNonce", PrivateInstance)
+                .GetValue(session) is byte[] bytes
+                ? [.. bytes]
                 : [];
         }
 
         private static byte[] GetServerNonce(Session session)
         {
             return ((ByteString)typeof(Session)
-                .GetField("m_serverNonce", PrivateInstance)!
-                .GetValue(session)!).ToArray();
+                .GetField("m_serverNonce", PrivateInstance)
+                .GetValue(session)).ToArray();
         }
     }
 }

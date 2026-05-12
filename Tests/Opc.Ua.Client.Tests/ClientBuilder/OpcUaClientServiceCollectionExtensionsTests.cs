@@ -10,7 +10,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
-using Opc.Ua.Client;
 using Opc.Ua.Tests;
 
 namespace Opc.Ua.Client.Tests.ClientBuilder

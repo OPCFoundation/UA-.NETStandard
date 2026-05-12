@@ -101,18 +101,17 @@ namespace Opc.Ua.Client.Subscriptions
         /// </remarks>
         public int MinPublishWorkerCount
         {
-            get => m_minPublishWorkerCount;
+            get;
             set
             {
-                if (m_minPublishWorkerCount == value)
+                if (field == value)
                 {
                     return;
                 }
-                m_minPublishWorkerCount = value;
+                field = value;
                 m_publishControl.Set();
             }
-        }
-        private int m_minPublishWorkerCount = 2;
+        } = 2;
 
         /// <inheritdoc/>
         /// <remarks>
@@ -121,18 +120,17 @@ namespace Opc.Ua.Client.Subscriptions
         /// </remarks>
         public int MaxPublishWorkerCount
         {
-            get => m_maxPublishWorkerCount;
+            get;
             set
             {
-                if (m_maxPublishWorkerCount == value)
+                if (field == value)
                 {
                     return;
                 }
-                m_maxPublishWorkerCount = value;
+                field = value;
                 m_publishControl.Set();
             }
-        }
-        private int m_maxPublishWorkerCount = 15;
+        } = 15;
 
         /// <inheritdoc/>
         public IEnumerable<ISubscription> Items
@@ -237,7 +235,7 @@ namespace Opc.Ua.Client.Subscriptions
         {
             try
             {
-                m_cts.Cancel();
+                await m_cts.CancelAsync().ConfigureAwait(false);
                 m_publishControl.Set();
                 await m_publishController.ConfigureAwait(false);
 
@@ -262,6 +260,7 @@ namespace Opc.Ua.Client.Subscriptions
             {
                 m_cts.Dispose();
                 (m_acks as IDisposable)?.Dispose();
+                GC.SuppressFinalize(this);
             }
         }
 
@@ -672,6 +671,7 @@ namespace Opc.Ua.Client.Subscriptions
                 finally
                 {
                     m_cts.Dispose();
+                    GC.SuppressFinalize(this);
                 }
             }
 

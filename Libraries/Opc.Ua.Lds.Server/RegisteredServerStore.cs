@@ -126,7 +126,7 @@ namespace Opc.Ua.Lds.Server
             m_lock.Wait();
             try
             {
-                return m_records.Select(Clone).ToList();
+                return m_records.ConvertAll(Clone);
             }
             finally
             {

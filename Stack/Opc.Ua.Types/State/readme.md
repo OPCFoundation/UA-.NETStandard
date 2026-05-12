@@ -400,8 +400,8 @@ var node = context.NodeStateFactory.CreateInstance(
 4. **Thread Safety**: Use appropriate locking when accessing nodes from multiple threads.
    The `NodeState` class uses internal locks for children and references collections.
 
-5. **Memory Management**: Call `Dispose()` when nodes are no longer needed, especially
-   for nodes with event handlers or external resources.
+5. **Memory Management**: All resources allocated for a node state must be managed outsidee
+   of the node state, e.g. in the node manager that owns the node state.
 
 6. **Use Callbacks Sparingly**: Only attach callbacks (`OnReadValue`, `OnWriteValue`, etc.)
    when custom behavior is needed. Default behavior is often sufficient.

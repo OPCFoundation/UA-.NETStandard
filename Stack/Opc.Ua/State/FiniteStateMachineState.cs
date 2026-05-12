@@ -612,7 +612,7 @@ namespace Opc.Ua
         {
             try
             {
-                using var e = new AuditProgramTransitionEventState(null);
+                var e = new AuditProgramTransitionEventState(null);
 
                 UpdateAuditEvent(context, causeMethod, inputArguments, causeId, e, result);
 

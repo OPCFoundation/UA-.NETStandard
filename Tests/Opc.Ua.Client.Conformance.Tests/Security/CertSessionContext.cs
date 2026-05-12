@@ -33,6 +33,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Configuration;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Client.Conformance.Tests.Security
 {
@@ -51,11 +52,11 @@ namespace Opc.Ua.Client.Conformance.Tests.Security
         private readonly string m_pkiRoot;
         private bool m_disposed;
         public ApplicationConfiguration ClientConfig { get; }
-        public X509Certificate2 ClientCertificate { get; }
+        public Certificate ClientCertificate { get; }
 
         private CertSessionContext(
             ApplicationConfiguration clientConfig,
-            X509Certificate2 clientCertificate,
+            Certificate clientCertificate,
             string pkiRoot)
         {
             ClientConfig = clientConfig;
@@ -71,7 +72,7 @@ namespace Opc.Ua.Client.Conformance.Tests.Security
         /// disposed.
         /// </summary>
         public static async Task<CertSessionContext> CreateAsync(
-            X509Certificate2 clientCertificate,
+            Certificate clientCertificate,
             string applicationUri,
             ITelemetryContext telemetry)
         {
@@ -107,7 +108,7 @@ namespace Opc.Ua.Client.Conformance.Tests.Security
                 {
                     StoreType = CertificateStoreType.Directory,
                     StorePath = ownStorePath,
-                    Certificate = clientCertificate,
+                    RawData = clientCertificate.RawData,
                     Thumbprint = clientCertificate.Thumbprint
                 };
 

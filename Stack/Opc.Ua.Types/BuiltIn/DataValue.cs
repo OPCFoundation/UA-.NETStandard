@@ -73,7 +73,7 @@ namespace Opc.Ua
     /// </example>
     /// <seealso cref="Variant"/>
     /// <seealso cref="StatusCode"/>
-    [DataContract(Namespace = Types.Namespaces.OpcUaXsd)]
+    [DataContract(Namespace = Namespaces.OpcUaXsd)]
     public class DataValue : ICloneable, IFormattable, IEquatable<DataValue>
     {
         /// <summary>

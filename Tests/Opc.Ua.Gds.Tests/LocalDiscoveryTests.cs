@@ -27,6 +27,9 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+// CA2000: test code; many disposables are ownership-transferred to test fixtures or short-lived,
+// making CA2000 noisy without a real leak risk. Disabled file-level for the suite.
+#pragma warning disable CA2000
 using NUnit.Framework;
 using Opc.Ua.Gds.Client;
 
@@ -114,9 +117,10 @@ namespace Opc.Ua.Gds.Tests
         public void PreferredLocalesCanBeReplaced()
         {
             var appConfig = new ApplicationConfiguration();
-            var client = new LocalDiscoveryServerClient(appConfig);
-            ArrayOf<string> newLocales = s_frenchGermanLocales;
-            client.PreferredLocales = newLocales;
+            var client = new LocalDiscoveryServerClient(appConfig)
+            {
+                PreferredLocales = (ArrayOf<string>)s_frenchGermanLocales
+            };
             Assert.That(client.PreferredLocales.ToList(), Does.Contain("fr-FR"));
             Assert.That(client.PreferredLocales.ToList(), Does.Contain("de-DE"));
         }

@@ -51,13 +51,13 @@ namespace Opc.Ua.Client.Subscriptions
         /// Number of notification messages detected as missing during
         /// gap-walking of the SequenceNumber on this subscription.
         /// </summary>
-        public long MissingMessageCount => System.Threading.Volatile.Read(ref m_missingCount);
+        public long MissingMessageCount => Volatile.Read(ref m_missingCount);
 
         /// <summary>
         /// Number of republish requests issued for this subscription
         /// (counts every attempt regardless of outcome).
         /// </summary>
-        public long RepublishMessageCount => System.Threading.Volatile.Read(ref m_republishCount);
+        public long RepublishMessageCount => Volatile.Read(ref m_republishCount);
 
         /// <summary>
         /// Observability context
@@ -123,8 +123,7 @@ namespace Opc.Ua.Client.Subscriptions
                 try
                 {
                     m_messages.Writer.TryComplete();
-                    m_cts.Cancel();
-
+                    await m_cts.CancelAsync().ConfigureAwait(false);
                     await m_messageWorkerTask.ConfigureAwait(false);
                 }
                 finally
@@ -314,7 +313,7 @@ namespace Opc.Ua.Client.Subscriptions
             if (prevDataSeq != 0)
             {
                 uint delta = unchecked(curSeqNum - prevDataSeq);
-                if (delta == 0 || delta >= kBackwardThreshold)
+                if (delta is 0 or >= kBackwardThreshold)
                 {
                     if (!Logger.IsEnabled(LogLevel.Debug))
                     {
@@ -351,7 +350,7 @@ namespace Opc.Ua.Client.Subscriptions
                     {
                         break;
                     }
-                    System.Threading.Interlocked.Increment(ref m_missingCount);
+                    Interlocked.Increment(ref m_missingCount);
                     await TryRepublishAsync(missing, curSeqNum, ct).ConfigureAwait(false);
                 }
             }
@@ -370,7 +369,7 @@ namespace Opc.Ua.Client.Subscriptions
                 {
                     uint seq = available[i];
                     uint delta = unchecked(curSeqNum - seq);
-                    if (delta != 0 && delta < kBackwardThreshold)
+                    if (delta is not 0 and < kBackwardThreshold)
                     {
                         await TryRepublishAsync(seq, curSeqNum, ct).ConfigureAwait(false);
                     }
@@ -394,7 +393,7 @@ namespace Opc.Ua.Client.Subscriptions
         private async ValueTask TryRepublishAsync(uint missing, uint curSeqNum,
             CancellationToken ct)
         {
-            System.Threading.Interlocked.Increment(ref m_republishCount);
+            Interlocked.Increment(ref m_republishCount);
             if (!AvailableInRetransmissionQueue.Contains(missing))
             {
                 Logger.LogWarning(
@@ -576,10 +575,6 @@ namespace Opc.Ua.Client.Subscriptions
         internal long LastNotificationTimestamp;
         internal uint LastSequenceNumberProcessed;
         internal uint LastDataSequenceNumberProcessed;
-        // Counters surfaced via ISubscription / ISubscriptionManager so clients
-        // can monitor stack health.  m_missingCount counts notification messages
-        // detected as missing during gap-walk; m_republishCount counts republish
-        // attempts (any outcome) issued to recover them.
         internal long m_missingCount;
         internal long m_republishCount;
         internal IReadOnlyList<uint> AvailableInRetransmissionQueue;

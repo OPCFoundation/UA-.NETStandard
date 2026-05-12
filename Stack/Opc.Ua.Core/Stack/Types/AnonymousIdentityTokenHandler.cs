@@ -27,7 +27,9 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Security.Cryptography.X509Certificates;
+using System.Threading;
+using System.Threading.Tasks;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua
 {
@@ -71,51 +73,52 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public void Encrypt(
-            X509Certificate2 receiverCertificate,
+        public ValueTask EncryptAsync(
+            Certificate receiverCertificate,
             byte[] receiverNonce,
             string securityPolicyUri,
             IServiceMessageContext context,
             Nonce receiverEphemeralKey = null,
-            X509Certificate2 senderCertificate = null,
-            X509Certificate2Collection senderIssuerCertificates = null,
-            bool doNotEncodeSenderCertificate = false)
+            Certificate senderCertificate = null,
+            CertificateCollection senderIssuerCertificates = null,
+            bool doNotEncodeSenderCertificate = false,
+            CancellationToken ct = default)
         {
+            return default;
         }
 
         /// <inheritdoc/>
-        public void Decrypt(
-            X509Certificate2 certificate,
+        public ValueTask DecryptAsync(
+            Certificate certificate,
             Nonce receiverNonce,
             string securityPolicyUri,
             IServiceMessageContext context,
             Nonce ephemeralKey = null,
-            X509Certificate2 senderCertificate = null,
-            X509Certificate2Collection senderIssuerCertificates = null,
-            CertificateValidator validator = null)
+            Certificate senderCertificate = null,
+            CertificateCollection senderIssuerCertificates = null,
+            ICertificateValidatorEx validator = null,
+            CancellationToken ct = default)
         {
+            return default;
         }
 
         /// <inheritdoc/>
-        public SignatureData Sign(
+        public ValueTask<SignatureData> SignAsync(
             byte[] dataToSign,
-            string securityPolicyUri)
+            string securityPolicyUri,
+            CancellationToken ct = default)
         {
-            return new SignatureData();
+            return new ValueTask<SignatureData>(new SignatureData());
         }
 
         /// <inheritdoc/>
-        public bool Verify(
+        public ValueTask<bool> VerifyAsync(
             byte[] dataToVerify,
             SignatureData signatureData,
-            string securityPolicyUri)
+            string securityPolicyUri,
+            CancellationToken ct = default)
         {
-            return true;
-        }
-
-        /// <inheritdoc/>
-        public void Dispose()
-        {
+            return new ValueTask<bool>(true);
         }
 
         /// <inheritdoc/>

@@ -61,7 +61,7 @@ namespace Opc.Ua.Client.Conformance.Tests.Security
         /// containing the supplied application URI as a UniformResourceIdentifier
         /// SAN entry (and the host name so it passes domain-name checks).
         /// </summary>
-        public static X509Certificate2 CreateValidAppInstanceCert(
+        public static Certificate CreateValidAppInstanceCert(
             string subjectName,
             string applicationUri,
             ushort keySize = DefaultRsaKeySize,
@@ -85,7 +85,7 @@ namespace Opc.Ua.Client.Conformance.Tests.Security
         /// Returns an application instance certificate whose NotAfter
         /// is in the past.
         /// </summary>
-        public static X509Certificate2 CreateExpiredAppInstanceCert(
+        public static Certificate CreateExpiredAppInstanceCert(
             string subjectName,
             string applicationUri,
             string hostName = "localhost")
@@ -102,7 +102,7 @@ namespace Opc.Ua.Client.Conformance.Tests.Security
         /// Returns an application instance certificate whose NotBefore
         /// is in the future.
         /// </summary>
-        public static X509Certificate2 CreateNotYetValidAppInstanceCert(
+        public static Certificate CreateNotYetValidAppInstanceCert(
             string subjectName,
             string applicationUri,
             string hostName = "localhost")
@@ -121,7 +121,7 @@ namespace Opc.Ua.Client.Conformance.Tests.Security
         /// server should reject because the certificate isn't an
         /// application instance certificate.
         /// </summary>
-        public static X509Certificate2 CreateCaCert(
+        public static Certificate CreateCaCert(
             string subjectName,
             string applicationUri,
             string hostName = "localhost")
@@ -139,7 +139,7 @@ namespace Opc.Ua.Client.Conformance.Tests.Security
         /// supplied key size — used to verify the server rejects weak
         /// crypto.
         /// </summary>
-        public static X509Certificate2 CreateSha1AppInstanceCert(
+        public static Certificate CreateSha1AppInstanceCert(
             string subjectName,
             string applicationUri,
             ushort keySize,
@@ -158,7 +158,7 @@ namespace Opc.Ua.Client.Conformance.Tests.Security
         /// a different host name from the one the test will connect
         /// to.
         /// </summary>
-        public static X509Certificate2 CreateWrongHostnameAppInstanceCert(
+        public static Certificate CreateWrongHostnameAppInstanceCert(
             string subjectName,
             string applicationUri)
         {
@@ -175,26 +175,24 @@ namespace Opc.Ua.Client.Conformance.Tests.Security
         /// modification is made on a clone — the input certificate is
         /// not altered.
         /// </summary>
-        public static X509Certificate2 CorruptCertSignature(X509Certificate2 cert)
+        public static Certificate CorruptCertSignature(Certificate cert)
         {
             if (cert == null)
             {
                 throw new ArgumentNullException(nameof(cert));
             }
-            byte[] der = cert.Export(X509ContentType.Cert);
+            byte[] der = cert.AsX509Certificate2().Export(X509ContentType.Cert);
             // Mutate a byte near the end of the DER blob — the
             // signature value sits at the tail.
             der[^5] ^= 0xFF;
-#pragma warning disable SYSLIB0057 // X509Certificate2(byte[]) is obsolete on net9
-            return new X509Certificate2(der);
-#pragma warning restore SYSLIB0057
+            return Certificate.FromRawData(der);
         }
 
         /// <summary>
         /// Returns a CA certificate suitable for issuing application
         /// instance certificates. The CA itself is self-signed.
         /// </summary>
-        public static X509Certificate2 CreateIssuingCa(string subjectName)
+        public static Certificate CreateIssuingCa(string subjectName)
         {
             return CertificateBuilder.Create(subjectName)
                 .SetCAConstraint(0)
@@ -209,10 +207,10 @@ namespace Opc.Ua.Client.Conformance.Tests.Security
         /// untrusted-issued certs (the trust state is decided by what
         /// is added to the server's stores).
         /// </summary>
-        public static X509Certificate2 CreateCaIssuedAppInstanceCert(
+        public static Certificate CreateCaIssuedAppInstanceCert(
             string subjectName,
             string applicationUri,
-            X509Certificate2 issuerCa,
+            Certificate issuerCa,
             string hostName = "localhost")
         {
             if (issuerCa == null)

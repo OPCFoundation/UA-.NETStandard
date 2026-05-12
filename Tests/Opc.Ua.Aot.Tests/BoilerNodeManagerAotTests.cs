@@ -31,7 +31,6 @@ extern alias boilersample;
 
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Client;
-using Opc.Ua.Configuration;
 using Opc.Ua.Server;
 using TUnit.Core.Interfaces;
 
@@ -40,7 +39,7 @@ namespace Opc.Ua.Aot.Tests
     /// <summary>
     /// AOT smoke tests that verify the source-generated
     /// <c>Boiler.BoilerNodeManagerFactory</c> emitted by the
-    /// <c>[NodeManager]</c> attribute on <see cref="global::Boiler.BoilerNodeManager"/>
+    /// <c>[NodeManager]</c> attribute on <see cref="Boiler.BoilerNodeManager"/>
     /// (in the MinimalBoilerServer sample) actually loads the boiler
     /// address space, registers its namespace, and dispatches the
     /// fluent <c>OnRead</c> callback wired in
@@ -77,7 +76,7 @@ namespace Opc.Ua.Aot.Tests
                 drumLevel, CancellationToken.None).ConfigureAwait(false);
 
             await Assert.That(StatusCode.IsGood(dv.StatusCode)).IsTrue();
-            double value = dv.GetValue<double>(double.NaN);
+            double value = dv.GetValue(double.NaN);
             // Configure-wired OnRead returns 50 + 10*sin(t*0.05).
             await Assert.That(value).IsBetween(40.0 - 1e-9, 60.0 + 1e-9);
         }
@@ -92,7 +91,7 @@ namespace Opc.Ua.Aot.Tests
                 pipeFlow, CancellationToken.None).ConfigureAwait(false);
 
             await Assert.That(StatusCode.IsGood(dv.StatusCode)).IsTrue();
-            double value = dv.GetValue<double>(double.NaN);
+            double value = dv.GetValue(double.NaN);
             // Configure-wired OnRead returns 100 + 25*cos(t*0.07).
             await Assert.That(value).IsBetween(75.0 - 1e-9, 125.0 + 1e-9);
         }
@@ -173,12 +172,10 @@ namespace Opc.Ua.Aot.Tests
     /// </summary>
     public sealed class BoilerAotFixture : IAsyncInitializer, IAsyncDisposable
     {
-        public AotServerFixture<BoilerTestServer> ServerFixture { get; private set; } = null!;
-        public Opc.Ua.Client.ISession Session { get; private set; } = null!;
-        public string ServerUrl { get; private set; } = null!;
-        public ITelemetryContext Telemetry { get; private set; } = null!;
-        private ApplicationConfiguration m_clientConfiguration = null!;
-        private string m_pkiRoot = null!;
+        public AotServerFixture<BoilerTestServer> ServerFixture { get; private set; }
+        public Client.ISession Session { get; private set; }
+        public string ServerUrl { get; private set; }
+        public ITelemetryContext Telemetry { get; private set; }
 
         public async Task InitializeAsync()
         {
@@ -241,8 +238,9 @@ namespace Opc.Ua.Aot.Tests
             };
             await m_clientConfiguration.ValidateAsync(
                 ApplicationType.Client).ConfigureAwait(false);
-            m_clientConfiguration.CertificateValidator
-                .CertificateValidation += (s, e) => e.Accept = true;
+            m_clientConfiguration.CertificateManager ??= CertificateManagerFactory.Create(
+                m_clientConfiguration.SecurityConfiguration, Telemetry);
+            m_clientConfiguration.CertificateManager.AcceptError = static (cert, err) => true;
 
             EndpointDescription endpointDescription =
                 await CoreClientUtils.SelectEndpointAsync(
@@ -272,20 +270,29 @@ namespace Opc.Ua.Aot.Tests
             {
                 await Session.CloseAsync(CancellationToken.None)
                     .ConfigureAwait(false);
-                Session.Dispose();
-                Session = null!;
+                await Session.DisposeAsync().ConfigureAwait(false);
+                Session = null;
+            }
+            if (m_clientConfiguration?.CertificateManager is IDisposable disposableManager)
+            {
+                disposableManager.Dispose();
+                m_clientConfiguration.CertificateManager = null;
             }
             if (ServerFixture != null)
             {
                 await ServerFixture.StopAsync().ConfigureAwait(false);
-                ServerFixture = null!;
+                ServerFixture = null;
             }
+            GC.SuppressFinalize(this);
         }
+
+        private ApplicationConfiguration m_clientConfiguration;
+        private string m_pkiRoot;
     }
 
     /// <summary>
     /// Public <see cref="StandardServer"/> subclass that registers the
-    /// source-generated <see cref="global::Boiler.BoilerNodeManagerFactory"/>.
+    /// source-generated <see cref="Boiler.BoilerNodeManagerFactory"/>.
     /// Mirrors the internal <c>BoilerStandardServer</c> in
     /// MinimalBoilerServer's <c>Program.cs</c> but is exposed as
     /// <c>public</c> so <see cref="AotServerFixture{T}"/> can host it.

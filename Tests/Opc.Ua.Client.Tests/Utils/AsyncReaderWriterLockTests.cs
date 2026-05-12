@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -46,7 +45,7 @@ namespace Opc.Ua.Client.Tests.AsyncPrimitives
         [Test]
         public async Task ReadersDoNotMutuallyExcludeAsync()
         {
-            var rwLock = new AsyncReaderWriterLock();
+            using var rwLock = new AsyncReaderWriterLock();
 
             // Acquire two readers concurrently — neither should
             // block the other.
@@ -63,7 +62,7 @@ namespace Opc.Ua.Client.Tests.AsyncPrimitives
         [Test]
         public async Task WriterExcludesReadersAsync()
         {
-            var rwLock = new AsyncReaderWriterLock();
+            using var rwLock = new AsyncReaderWriterLock();
 
             AsyncReaderWriterLock.Releaser writer =
                 await rwLock.WriterLockAsync().ConfigureAwait(false);
@@ -86,7 +85,7 @@ namespace Opc.Ua.Client.Tests.AsyncPrimitives
         [Test]
         public async Task WriterWaitsForReadersToDrainAsync()
         {
-            var rwLock = new AsyncReaderWriterLock();
+            using var rwLock = new AsyncReaderWriterLock();
 
             AsyncReaderWriterLock.Releaser r1 =
                 await rwLock.ReaderLockAsync().ConfigureAwait(false);
@@ -126,23 +125,22 @@ namespace Opc.Ua.Client.Tests.AsyncPrimitives
             // entered. This test runs many tight reader cycles
             // alongside one writer that asserts m_activeReaders == 0
             // (via a probe) when it acquires.
-            var rwLock = new AsyncReaderWriterLock();
+            using var rwLock = new AsyncReaderWriterLock();
             int activeReaders = 0;
             int maxObservedReadersInsideWriter = 0;
 
             // Start a churn of readers in tight loops.
             using var churnCts = CancellationTokenSource
                 .CreateLinkedTokenSource(ct);
-            Task[] churn = new Task[8];
+            var churn = new Task[8];
             for (int i = 0; i < churn.Length; i++)
             {
                 churn[i] = Task.Run(async () =>
                 {
                     while (!churnCts.IsCancellationRequested)
                     {
-                        using AsyncReaderWriterLock.Releaser r = await rwLock
-                            .ReaderLockAsync(churnCts.Token)
-                            .ConfigureAwait(false);
+                        using AsyncReaderWriterLock.Releaser r =
+                            await rwLock.ReaderLockAsync(churnCts.Token).ConfigureAwait(false);
                         Interlocked.Increment(ref activeReaders);
                         await Task.Yield();
                         Interlocked.Decrement(ref activeReaders);
@@ -167,7 +165,7 @@ namespace Opc.Ua.Client.Tests.AsyncPrimitives
                 await Task.Yield();
             }
 
-            churnCts.Cancel();
+            await churnCts.CancelAsync().ConfigureAwait(false);
             try
             {
                 await Task.WhenAll(churn).ConfigureAwait(false);
@@ -185,7 +183,7 @@ namespace Opc.Ua.Client.Tests.AsyncPrimitives
         public async Task WriterCancellationWhileDrainingReleasesSemaphoreAsync(
             CancellationToken testCt)
         {
-            var rwLock = new AsyncReaderWriterLock();
+            using var rwLock = new AsyncReaderWriterLock();
 
             // Hold a reader so the writer must wait for drain.
             AsyncReaderWriterLock.Releaser reader =
@@ -200,9 +198,9 @@ namespace Opc.Ua.Client.Tests.AsyncPrimitives
             Assert.That(writerTask.IsCompleted, Is.False);
 
             // Cancel the writer while draining.
-            writerCts.Cancel();
+            await writerCts.CancelAsync().ConfigureAwait(false);
             Assert.That(
-                async () => await writerTask.ConfigureAwait(false),
+                () => writerTask,
                 Throws.InstanceOf<OperationCanceledException>());
 
             // The cancelled writer must have released the writer-entry
@@ -220,7 +218,7 @@ namespace Opc.Ua.Client.Tests.AsyncPrimitives
         public async Task WriterCanReacquireAfterReleaseAsync(
             CancellationToken ct)
         {
-            var rwLock = new AsyncReaderWriterLock();
+            using var rwLock = new AsyncReaderWriterLock();
 
             using (AsyncReaderWriterLock.Releaser w1 =
                 await rwLock.WriterLockAsync(ct).ConfigureAwait(false))
@@ -228,24 +226,22 @@ namespace Opc.Ua.Client.Tests.AsyncPrimitives
                 // hold and release
             }
 
-            using (AsyncReaderWriterLock.Releaser w2 =
-                await rwLock.WriterLockAsync(ct).ConfigureAwait(false))
-            {
-                // would deadlock if the previous writer leaked.
-            }
+            using AsyncReaderWriterLock.Releaser w2 =
+                await rwLock.WriterLockAsync(ct).ConfigureAwait(false);
+
+            // would deadlock if the previous writer leaked.
         }
 
         [Test]
         [CancelAfter(10_000)]
-        public async Task WriterIsNotReentrantAndDeadlocksWithSelfAsync(
-            CancellationToken ct)
+        public async Task WriterIsNotReentrantAndDeadlocksWithSelfAsync(CancellationToken ct)
         {
             // Sanity: reentrancy is intentionally NOT supported. A
             // writer that asks for the writer lock again on the same
             // logical flow must NOT silently succeed (which would
             // indicate accidental reentrancy). It deadlocks; we
             // detect by short timeout.
-            var rwLock = new AsyncReaderWriterLock();
+            using var rwLock = new AsyncReaderWriterLock();
             using AsyncReaderWriterLock.Releaser outer =
                 await rwLock.WriterLockAsync(ct).ConfigureAwait(false);
 
@@ -262,12 +258,11 @@ namespace Opc.Ua.Client.Tests.AsyncPrimitives
 
         [Test]
         [CancelAfter(10_000)]
-        public async Task ManyParallelReadersAdmittedAsync(
-            CancellationToken ct)
+        public async Task ManyParallelReadersAdmittedAsync(CancellationToken ct)
         {
             // Spin up 32 readers in parallel; all should hold the lock
             // simultaneously without blocking each other.
-            var rwLock = new AsyncReaderWriterLock();
+            using var rwLock = new AsyncReaderWriterLock();
             var startGate = new TaskCompletionSource<bool>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
             int holdingCount = 0;
@@ -276,22 +271,23 @@ namespace Opc.Ua.Client.Tests.AsyncPrimitives
             var releaseGate = new TaskCompletionSource<bool>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
 
-            Task[] readers = new Task[kReaders];
+            var readers = new Task[kReaders];
             for (int i = 0; i < kReaders; i++)
             {
                 readers[i] = Task.Run(async () =>
                 {
                     using AsyncReaderWriterLock.Releaser r =
-                        await rwLock.ReaderLockAsync(ct)
-                            .ConfigureAwait(false);
+                    await rwLock.ReaderLockAsync(ct).ConfigureAwait(false);
                     int now = Interlocked.Increment(ref holdingCount);
                     int peak;
                     do
                     {
                         peak = Volatile.Read(ref peakHolding);
-                        if (now <= peak) break;
-                    } while (Interlocked.CompareExchange(
-                        ref peakHolding, now, peak) != peak);
+                        if (now <= peak)
+                        {
+                            break;
+                        }
+                    } while (Interlocked.CompareExchange(ref peakHolding, now, peak) != peak);
                     await releaseGate.Task.ConfigureAwait(false);
                     Interlocked.Decrement(ref holdingCount);
                 }, ct);

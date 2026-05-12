@@ -21,7 +21,9 @@
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
     <PackageReference Include="Microsoft.Extensions.Diagnostics" />
     <PackageReference Include="Microsoft.Extensions.Logging" />
+    <PackageReference Include="Microsoft.Bcl.TimeProvider" />
     <PackageReference Include="System.Threading.Channels" />
+    <PackageReference Include="BitFaster.Caching" />
   </ItemGroup>
   <ItemGroup Condition="'$(TargetFramework)' == 'net48' OR '$(TargetFramework)' == 'net472'">
     <Reference Include="System.Net.Http" />

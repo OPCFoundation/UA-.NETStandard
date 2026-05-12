@@ -34,6 +34,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client;
+using Opc.Ua.Client.Conformance.Tests.Security;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Client.Conformance.Tests
 {
@@ -237,7 +239,7 @@ namespace Opc.Ua.Client.Conformance.Tests
             ConfiguredEndpoint endpoint = await ClientFixture
                 .GetEndpointAsync(ServerUrl, securityPolicyUri).ConfigureAwait(false);
             return await ClientFixture
-                .ConnectAsync(endpoint, new UserIdentity(userCert)).ConfigureAwait(false);
+                .ConnectAsync(endpoint, X509UserIdentityHelper.Create(userCert)).ConfigureAwait(false);
         }
 
         private async Task<EndpointDescription> FindSecureEndpointAsync()
@@ -296,7 +298,7 @@ namespace Opc.Ua.Client.Conformance.Tests
                 Assert.Ignore("Server has no TrustedIssuerCertificates store.");
             }
             using ICertificateStore s = store.OpenStore(Telemetry);
-            await s.AddAsync(CertificateFactory.Create(caCert.RawData)).ConfigureAwait(false);
+            await s.AddAsync(Certificate.FromRawData(caCert.RawData)).ConfigureAwait(false);
         }
 
         private async Task RemoveIssuerFromServerAsync(X509Certificate2 caCert)
@@ -320,7 +322,7 @@ namespace Opc.Ua.Client.Conformance.Tests
                 Assert.Ignore("Server has no TrustedUserCertificates store.");
             }
             using ICertificateStore s = store.OpenStore(Telemetry);
-            await s.AddAsync(CertificateFactory.Create(cert.RawData)).ConfigureAwait(false);
+            await s.AddAsync(Certificate.FromRawData(cert.RawData)).ConfigureAwait(false);
         }
 
         private async Task RemoveTrustedUserAsync(X509Certificate2 cert)

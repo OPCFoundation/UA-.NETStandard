@@ -70,9 +70,9 @@ namespace Opc.Ua.Aot.Tests
                     .IsEqualTo(nodesToRead.Count);
             }
             catch (ServiceResultException ex)
-                when (ex.StatusCode == StatusCodes.BadHistoryOperationUnsupported
-                    || ex.StatusCode == StatusCodes.BadHistoryOperationInvalid
-                    || ex.StatusCode == StatusCodes.BadNotSupported)
+                when (ex.StatusCode == StatusCodes.BadHistoryOperationUnsupported ||
+                    ex.StatusCode == StatusCodes.BadHistoryOperationInvalid ||
+                    ex.StatusCode == StatusCodes.BadNotSupported)
             {
                 // Server does not support history — test passes
             }
@@ -112,10 +112,10 @@ namespace Opc.Ua.Aot.Tests
                     .IsEqualTo(nodesToRead.Count);
             }
             catch (ServiceResultException ex)
-                when (ex.StatusCode == StatusCodes.BadHistoryOperationUnsupported
-                    || ex.StatusCode == StatusCodes.BadHistoryOperationInvalid
-                    || ex.StatusCode == StatusCodes.BadNotSupported
-                    || ex.StatusCode == StatusCodes.BadAggregateNotSupported)
+                when (ex.StatusCode == StatusCodes.BadHistoryOperationUnsupported ||
+                    ex.StatusCode == StatusCodes.BadHistoryOperationInvalid ||
+                    ex.StatusCode == StatusCodes.BadNotSupported ||
+                    ex.StatusCode == StatusCodes.BadAggregateNotSupported)
             {
                 // Server does not support history — test passes
             }

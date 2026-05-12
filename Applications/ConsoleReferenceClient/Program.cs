@@ -30,7 +30,6 @@
 using System;
 using System.Collections.Generic;
 using System.CommandLine;
-using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -43,6 +42,7 @@ using Opc.Ua;
 using Opc.Ua.Client;
 using Opc.Ua.Client.ComplexTypes;
 using Opc.Ua.Configuration;
+using Opc.Ua.Security.Certificates;
 
 namespace Quickstarts.ConsoleReferenceClient
 {
@@ -249,7 +249,7 @@ namespace Quickstarts.ConsoleReferenceClient
                 bool enableDurableSubscriptions =
                     parseResult.GetValue(durableSubscriptionOption);
                 var serverUrl = new Uri(parseResult.GetValue(serverUrlArgument));
-                var testallEndpoints = parseResult.GetValue(testallEndpointsOption);
+                bool testallEndpoints = parseResult.GetValue(testallEndpointsOption);
 
                 ReverseConnectManager reverseConnectManager = null;
                 using var telemetry = new ConsoleTelemetry();
@@ -339,10 +339,11 @@ namespace Quickstarts.ConsoleReferenceClient
                     // handle connect all endpoints test.
                     if (testallEndpoints)
                     {
-                        var tester = new ConnectTester(
-                            telemetry,
-                            quitEvent);
-                        await tester.RunAsync(ct).ConfigureAwait(false);
+                        var tester = new ConnectTester(telemetry, quitEvent);
+                        await using (tester.ConfigureAwait(false))
+                        {
+                            await tester.RunAsync(ct).ConfigureAwait(false);
+                        }
                         return;
                     }
 
@@ -363,24 +364,24 @@ namespace Quickstarts.ConsoleReferenceClient
                     // set user identity of type certificate
                     if (!string.IsNullOrEmpty(userCertificateThumbprint))
                     {
-                        CertificateIdentifier userCertificateIdentifier
-                                = await FindUserCertificateIdentifierAsync(
-                                    userCertificateThumbprint,
-                                    application.ApplicationConfiguration.SecurityConfiguration
-                                        .TrustedUserCertificates,
-                                    telemetry,
-                                    ct
-                                )
-                                .ConfigureAwait(true);
+                        CertificateIdentifier userCertificateIdentifier =
+                            await FindUserCertificateIdentifierAsync(
+                                userCertificateThumbprint,
+                                application.ApplicationConfiguration.SecurityConfiguration
+                                    .TrustedUserCertificates,
+                                telemetry,
+                                ct).ConfigureAwait(true);
 
                         if (userCertificateIdentifier != null)
                         {
-                            userIdentity = UserIdentity.CreateAsync(
-                                userCertificateIdentifier,
-                                new CertificatePasswordProvider(userCertificatePassword),
-                                telemetry,
-                                ct
-                            ).GetAwaiter().GetResult();
+                            userIdentity = UserIdentity
+                                .CreateAsync(
+                                    userCertificateIdentifier,
+                                    new CertificatePasswordProvider(userCertificatePassword),
+                                    application.ApplicationConfiguration.CertificateManager.CertificateProvider,
+                                    ct)
+                                .GetAwaiter()
+                                .GetResult();
 
                             Console.WriteLine($"Connect with user certificate with Thumbprint {userCertificateThumbprint}");
                         }
@@ -775,18 +776,20 @@ namespace Quickstarts.ConsoleReferenceClient
         {
             CertificateIdentifier userCertificateIdentifier = null;
 
-            X509Certificate2Collection userCertificatesWithMatchingThumbprint =
+            using CertificateCollection certificates =
                 await trustedUserCertificates.GetCertificatesAsync(telemetry, ct).ConfigureAwait(false);
             // get user certificate with matching thumbprint
-            userCertificatesWithMatchingThumbprint =
-                userCertificatesWithMatchingThumbprint.Find(X509FindType.FindByThumbprint, thumbprint, false);
+            using CertificateCollection userCertificatesWithMatchingThumbprint =
+                certificates.Find(X509FindType.FindByThumbprint, thumbprint, false);
 
             // create Certificate Identifier
             if (userCertificatesWithMatchingThumbprint.Count == 1)
             {
-                userCertificateIdentifier = new CertificateIdentifier(
-                    userCertificatesWithMatchingThumbprint[0])
+                Certificate userCert = userCertificatesWithMatchingThumbprint[0];
+                userCertificateIdentifier = new CertificateIdentifier
                 {
+                    Thumbprint = userCert.Thumbprint,
+                    SubjectName = userCert.Subject,
                     StorePath = trustedUserCertificates.StorePath,
                     StoreType = trustedUserCertificates.StoreType
                 };

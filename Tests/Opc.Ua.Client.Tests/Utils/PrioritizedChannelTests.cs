@@ -172,6 +172,9 @@ namespace Opc.Ua.Types.Polyfills.Tests
         {
             Channel<int> channel = CreateChannel();
 
+            // CA5394: deterministic test vector — Random with fixed seed is intentional
+            // for repeatable test ordering. Not security-relevant.
+#pragma warning disable CA5394
             var random = new Random(12345);
             var values = new List<int>(1000);
 
@@ -179,6 +182,7 @@ namespace Opc.Ua.Types.Polyfills.Tests
             {
                 values.Add(random.Next(0, 10000));
             }
+#pragma warning restore CA5394
 
             foreach (int v in values)
             {
@@ -251,6 +255,32 @@ namespace Opc.Ua.Types.Polyfills.Tests
             // consumed the underlying signal.
             Assert.That(channel.Reader.TryRead(out int item), Is.True);
             Assert.That(item, Is.EqualTo(7));
+        }
+
+        /// <summary>
+        /// Regression test: the reader must support Count / CanCount the same
+        /// way the framework's UnboundedPrioritizedChannel does. Without these
+        /// the SubscriptionManager publish worker (which calls
+        /// <c>m_acks.Reader.Count</c>) would throw NotSupportedException on
+        /// runtimes that fall back to this polyfill, leading to a tight loop
+        /// of worker re-creation.
+        /// </summary>
+        [Test]
+        public void ReaderSupportsCount()
+        {
+            Channel<int> channel = CreateChannel();
+
+            Assert.That(channel.Reader.CanCount, Is.True);
+            Assert.That(channel.Reader.Count, Is.EqualTo(0));
+
+            Assert.That(channel.Writer.TryWrite(1), Is.True);
+            Assert.That(channel.Writer.TryWrite(2), Is.True);
+            Assert.That(channel.Writer.TryWrite(3), Is.True);
+            Assert.That(channel.Reader.Count, Is.EqualTo(3));
+
+            Assert.That(channel.Reader.TryRead(out int item), Is.True);
+            Assert.That(item, Is.EqualTo(1));
+            Assert.That(channel.Reader.Count, Is.EqualTo(2));
         }
     }
 }
