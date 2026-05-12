@@ -146,12 +146,16 @@ namespace Opc.Ua.Client.Conformance.Tests
             ClientFixture.Config.TransportQuotas.MaxMessageSize = TransportQuotaMaxMessageSize;
             ClientFixture.Config.TransportQuotas.MaxByteStringLength =
                 ClientFixture.Config.TransportQuotas.MaxStringLength = TransportQuotaMaxStringLength;
-            // Slow CI runners need more headroom than the ClientFixture's
-            // defaults (10 s SessionTimeout / 10 s OperationTimeout) to avoid
-            // spurious BadRequestTimeout on Publish / CreateSubscription and
-            // session death between tests. Bump both to 5 minutes.
+            // Slow CI runners need more SessionTimeout (server-side session
+            // lifetime) than the ClientFixture's 10 s default to keep the
+            // shared session alive across a long test suite. OperationTimeout
+            // stays at 60 s — long enough for slow Publish / CreateSubscription
+            // but short enough that a test passing pathological input (e.g. a
+            // ReadProcessed with a negative ProcessingInterval that the server
+            // never answers) fails fast instead of hanging the whole testhost
+            // until the dotnet test --blame-hang-timeout fires.
             ClientFixture.SessionTimeout = 300_000;
-            ClientFixture.OperationTimeout = 300_000;
+            ClientFixture.OperationTimeout = 60_000;
 
             Session = await ClientFixture
                 .ConnectAsync(ServerUrl, SecurityPolicies.None)
