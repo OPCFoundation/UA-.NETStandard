@@ -29,6 +29,7 @@
 
 using System;
 using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.Server.Fluent;
@@ -52,30 +53,61 @@ namespace Boiler
     /// <em>after</em> <c>base.CreateAddressSpace</c> has materialized the
     /// predefined Boiler instance, so all browse paths into the
     /// <c>Boilers/Boiler #1</c> sub-tree are addressable here.
+    /// <para>
+    /// The wiring below is intentionally a mix of the four addressing
+    /// styles — string browse path, absolute <see cref="NodeId"/>,
+    /// type-definition lookup, and the new typed
+    /// <see cref="IVariableBuilder{TValue}"/> surface — to demonstrate
+    /// that the legacy and source-generator-friendly APIs interoperate.
+    /// </para>
     /// </remarks>
     [NodeManager(NamespaceUri = "http://opcfoundation.org/UA/Boiler/")]
     public partial class BoilerNodeManager
     {
         private long m_drumLevelTicks;
         private long m_pipeFlowTicks;
+        private long m_inputFlowTicks;
 
         partial void Configure(INodeManagerBuilder builder)
         {
-            // Addressing by browse-path — works against the deployment
-            // tree produced by the generator from the NodeSet2.
+            // (1) Legacy browse-path addressing with the lower-level
+            // ref-Variant callback. Use this when you need full control
+            // over the StatusCode / SourceTimestamp returned per read.
             builder
                 .Node("Boilers/Boiler #1/DrumX001/LIX001/Output")
                 .OnRead(GenerateDrumLevel);
 
-            // Addressing by absolute NodeId — use the generator's
-            // strongly-typed identifier table instead of a magic string.
+            // (2) Absolute NodeId addressing using the strongly-typed
+            // identifier table generated from the NodeSet2.
             builder
                 .Node(ExpandedNodeId.ToNodeId(
                     VariableIds.Boilers_Boiler__1_PipeX001_FTX001_Output,
                     Server.NamespaceUris))
                 .OnRead(GeneratePipeFlow);
 
-            // Addressing by TypeDefinitionId — robust for well-known
+            // (3) New typed IVariableBuilder<T> via the absolute NodeId
+            // table — the simple Func<double> overload removes the
+            // ref-Variant boilerplate from the lambda and runs through
+            // the same sync read path as (1).
+            builder
+                .Variable<double>(ExpandedNodeId.ToNodeId(
+                    VariableIds.Boilers_Boiler__1_FCX001_Measurement,
+                    Server.NamespaceUris))
+                .OnRead(GenerateInputFlow);
+
+            // (4) New typed async IVariableBuilder<T> overload — the
+            // handler runs OUTSIDE the NodeState lock (lock-released
+            // semantics in BaseVariableState.ReadAttributeAsync), so the
+            // lambda may freely await without tying up a thread-pool
+            // thread. Hooked to the second pipe's flow output to show
+            // the routing end-to-end through AsyncCustomNodeManager.
+            builder
+                .Variable<double>(ExpandedNodeId.ToNodeId(
+                    VariableIds.Boilers_Boiler__1_PipeX002_FTX002_Output,
+                    Server.NamespaceUris))
+                .OnRead(GenerateOutputFlowAsync);
+
+            // (5) TypeDefinitionId addressing — robust for well-known
             // singletons, independent of browse-path layout.
             builder
                 .NodeFromTypeId(ExpandedNodeId.ToNodeId(ObjectTypeIds.BoilerType, Server.NamespaceUris))
@@ -119,6 +151,24 @@ namespace Boiler
             statusCode = StatusCodes.Good;
             timestamp = DateTimeUtc.Now;
             return ServiceResult.Good;
+        }
+
+        private double GenerateInputFlow()
+        {
+            long t = Interlocked.Increment(ref m_inputFlowTicks);
+            return 80.0 + (15.0 * Math.Sin(t * 0.09));
+        }
+
+        private async ValueTask<double> GenerateOutputFlowAsync(CancellationToken cancellationToken)
+        {
+            // Token-aware no-op delay simulates an out-of-process source
+            // (a database round-trip, a remote sensor read, etc.) without
+            // pulling in a real I/O dependency. Cancellation correctness
+            // here flows all the way back to AsyncCustomNodeManager.ReadAsync.
+            await Task.Yield();
+            cancellationToken.ThrowIfCancellationRequested();
+            long t = Interlocked.Increment(ref m_pipeFlowTicks);
+            return 105.0 + (25.0 * Math.Cos(t * 0.07));
         }
     }
 }
