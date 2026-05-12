@@ -204,6 +204,21 @@ namespace Quickstarts.ReferenceServer
             return new MasterNodeManager(server, configuration, null, asyncNodeManagers, nodeManagers);
         }
 
+        /// <summary>
+        /// Overrides the SDK default factory to plug in a
+        /// reference-server-specific <see cref="ConfigurationNodeManager"/>
+        /// that applies a few CTT-only address-space tweaks (Server-node
+        /// RolePermissions, HasAddIn instance, optional EngineeringUnits
+        /// on AnalogItemType). Keeping these out of the SDK avoids
+        /// polluting the standard nodeset for non-CTT hosts.
+        /// </summary>
+        protected override IMainNodeManagerFactory CreateMainNodeManagerFactory(
+            IServerInternal server,
+            ApplicationConfiguration configuration)
+        {
+            return new ReferenceServerMainNodeManagerFactory(configuration, server);
+        }
+
         protected override IMonitoredItemQueueFactory CreateMonitoredItemQueueFactory(
             IServerInternal server,
             ApplicationConfiguration configuration)
@@ -678,6 +693,15 @@ namespace Quickstarts.ReferenceServer
         /// parent node's namespace; an inverse reference is also added to
         /// the parent so the new node is reachable via Browse.
         /// </summary>
+        /// <remarks>
+        /// TODO (follow-up, see PR #3750 review comment): move this
+        /// implementation into <see cref="StandardServer"/> and resolve it
+        /// through <see cref="MasterNodeManager"/> so AddNodes / DeleteNodes
+        /// dispatch is centralised in the SDK rather than reimplemented in
+        /// each derived server. The current routing keeps writes constrained
+        /// to <see cref="ReferenceNodeManager"/> which is acceptable for the
+        /// CTT but not the desired long-term shape.
+        /// </remarks>
         public override async ValueTask<AddNodesResponse> AddNodesAsync(
             SecureChannelContext secureChannelContext,
             RequestHeader requestHeader,
