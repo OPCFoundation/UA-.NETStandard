@@ -62,10 +62,13 @@ jobs:
 
     - name: Test
       # note: /p:CollectCoverage=true is only used to disable deterministic builds.
-      # --blame-hang-timeout terminates the test host if a single test hangs > 5 min
+      # --blame-hang-timeout terminates the test host if a single test hangs > 10 min
       # and dumps a process dump, instead of letting the runner stall until GHA
       # evicts it. --blame writes a sequence.xml so we know which test was running.
-      run: dotnet test ${{ env.CSPROJECT }} --no-build --framework ${{ matrix.framework }} --logger trx --configuration ${{ matrix.configuration }} /p:CollectCoverage=true /p:CustomTestTarget=${{ matrix.customtesttarget }} --collect:"XPlat Code Coverage" --settings ./Tests/coverlet.runsettings.xml --results-directory ${{ env.TESTRESULTS }} --blame --blame-hang-timeout 5m --blame-hang-dump-type mini
+      # The Conformance suite has individual tests that legitimately take 1-3 min
+      # under load (keep-alive cycles, slow-sampling waits) — keep the timeout
+      # generous enough to absorb those plus a normal test on top.
+      run: dotnet test ${{ env.CSPROJECT }} --no-build --framework ${{ matrix.framework }} --logger trx --configuration ${{ matrix.configuration }} /p:CollectCoverage=true /p:CustomTestTarget=${{ matrix.customtesttarget }} --collect:"XPlat Code Coverage" --settings ./Tests/coverlet.runsettings.xml --results-directory ${{ env.TESTRESULTS }} --blame --blame-hang-timeout 10m --blame-hang-dump-type mini
 
     - name: Upload test results
       uses: actions/upload-artifact@v7
