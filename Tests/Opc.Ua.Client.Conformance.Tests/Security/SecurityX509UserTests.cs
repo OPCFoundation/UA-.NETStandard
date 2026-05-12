@@ -683,7 +683,7 @@ namespace Opc.Ua.Client.Conformance.Tests
                 DateTimeOffset.UtcNow.AddMinutes(-5),
                 DateTimeOffset.UtcNow.AddYears(1));
             byte[] pfx = tempCert.Export(X509ContentType.Pfx, "test");
-            using X509Certificate2 wrongKuCertLoaded = X509CertificateLoader.LoadPkcs12(
+            X509Certificate2 wrongKuCertLoaded = X509CertificateLoader.LoadPkcs12(
                     pfx, "test", X509KeyStorageFlags.Exportable);
             using Certificate wrongKuCert = Certificate.From(wrongKuCertLoaded);
 
@@ -758,7 +758,7 @@ namespace Opc.Ua.Client.Conformance.Tests
                 DateTimeOffset.UtcNow.AddMinutes(-5),
                 DateTimeOffset.UtcNow.AddYears(1));
             byte[] pfx = tempCert.Export(X509ContentType.Pfx, "test");
-            using X509Certificate2 sanCertLoaded = X509CertificateLoader.LoadPkcs12(
+            X509Certificate2 sanCertLoaded = X509CertificateLoader.LoadPkcs12(
                     pfx, "test", X509KeyStorageFlags.Exportable);
             using Certificate sanCert = Certificate.From(sanCertLoaded);
 
@@ -949,9 +949,13 @@ namespace Opc.Ua.Client.Conformance.Tests
             DateTimeOffset na = notAfter ?? DateTimeOffset.UtcNow.AddYears(1);
 
             using X509Certificate2 cert = certReq.CreateSelfSigned(nb, na);
-            // Export and reimport so the private key is fully accessible
+            // Export and reimport so the private key is fully accessible.
+            // The X509Certificate2 returned by LoadPkcs12 below is owned by
+            // the wrapping Certificate (Certificate.From wraps a reference);
+            // do NOT dispose it here or downstream access (Thumbprint, etc.)
+            // will throw "m_safeCertContext is an invalid handle".
             byte[] pfx = cert.Export(X509ContentType.Pfx, "test");
-            using X509Certificate2 loaded = X509CertificateLoader.LoadPkcs12(
+            X509Certificate2 loaded = X509CertificateLoader.LoadPkcs12(
                 pfx, "test", X509KeyStorageFlags.Exportable);
             return Certificate.From(loaded);
         }

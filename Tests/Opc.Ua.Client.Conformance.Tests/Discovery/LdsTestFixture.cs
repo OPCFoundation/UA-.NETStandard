@@ -188,7 +188,8 @@ namespace Opc.Ua.Client.Conformance.Tests.Discovery
 
             Certificate instanceCertificate = ClientFixture.Config.CertificateManager?
                 .GetInstanceCertificate(matching.SecurityPolicyUri ?? SecurityPolicies.None)?
-                .Certificate;
+                .Certificate?
+                .AddRef();
 
             return await RegistrationClient
                 .CreateAsync(
