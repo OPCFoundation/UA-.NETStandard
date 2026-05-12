@@ -46,10 +46,9 @@ namespace Opc.Ua.Client.Conformance.Tests
         [SetUp]
         public async Task SetUp()
         {
-            CreateSubscriptionResponse response = await Session.CreateSubscriptionAsync(
-                null, 1000, 100, 10, 0, true, 0,
-                CancellationToken.None).ConfigureAwait(false);
-            m_subscriptionId = response.SubscriptionId;
+            m_subscriptionId = await CreateSetupSubscriptionAsync(
+                publishingInterval: 1000, requestedLifetimeCount: 100,
+                requestedMaxKeepAliveCount: 10).ConfigureAwait(false);
         }
 
         [TearDown]
