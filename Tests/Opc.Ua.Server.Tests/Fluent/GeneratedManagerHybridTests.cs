@@ -27,7 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Linq;
+using System.Collections.Generic;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server.Fluent;
@@ -63,12 +63,13 @@ namespace Opc.Ua.Server.Tests.Fluent
         private const string kPrimaryUri = "http://example.org/UA/Primary/";
         private const string kInstanceUri = "http://example.org/UA/Primary/Instance";
 
-        // ----- Stand-in for a generated factory: matches the template
-        // output (public partial, virtual members, single namespace).
+        /// <summary>
+        /// Stand-in for a generated factory: matches the template
+        /// output (public partial, virtual members, single namespace).
+        /// </summary>
         private class FakeGeneratedFactory : INodeManagerFactory
         {
-            public virtual ArrayOf<string> NamespacesUris
-                => new ArrayOf<string>(new[] { kPrimaryUri });
+            public virtual ArrayOf<string> NamespacesUris => [kPrimaryUri];
 
             public virtual INodeManager Create(
                 IServerInternal server,
@@ -78,15 +79,16 @@ namespace Opc.Ua.Server.Tests.Fluent
             }
         }
 
-        // ----- A Boiler-style customization: adds a second namespace and
-        // returns a custom manager. The fact this compiles is itself part
-        // of the contract — generated factory must NOT be sealed.
+        /// <summary>
+        /// A Boiler-style customization: adds a second namespace and
+        /// returns a custom manager. The fact this compiles is itself part
+        /// of the contract — generated factory must NOT be sealed.
+        /// </summary>
         private sealed class CustomFactory : FakeGeneratedFactory
         {
             public INodeManager LastCreated { get; private set; }
 
-            public override ArrayOf<string> NamespacesUris
-                => new ArrayOf<string>(new[] { kPrimaryUri, kInstanceUri });
+            public override ArrayOf<string> NamespacesUris => [kPrimaryUri, kInstanceUri];
 
             public override INodeManager Create(
                 IServerInternal server,
@@ -105,7 +107,7 @@ namespace Opc.Ua.Server.Tests.Fluent
 
             string[] uris = factory.NamespacesUris.ToArray();
 
-            Assert.That(uris, Is.EqualTo(new[] { kPrimaryUri, kInstanceUri }));
+            Assert.That(uris, Is.EqualTo([kPrimaryUri, kInstanceUri]));
         }
 
         [Test]
@@ -133,11 +135,13 @@ namespace Opc.Ua.Server.Tests.Fluent
                 Is.Not.Null);
         }
 
-        // ----- Stand-in for the generated CreateAddressSpace post-base
-        // wiring: build a fluent builder against a subclass-supplied
-        // predefined-node graph and replay NotifyNodeAdded for each
-        // existing node. This mirrors the template at
-        // NodeManagerTemplates.cs (CreateAddressSpace section).
+        /// <summary>
+        /// Stand-in for the generated CreateAddressSpace post-base
+        /// wiring: build a fluent builder against a subclass-supplied
+        /// predefined-node graph and replay NotifyNodeAdded for each
+        /// existing node. This mirrors the template at
+        /// NodeManagerTemplates.cs (CreateAddressSpace section).
+        /// </summary>
         [Test]
         public void GeneratedManagerWiringSequence_FiresOnNodeAddedAfterSeal()
         {
@@ -158,11 +162,11 @@ namespace Opc.Ua.Server.Tests.Fluent
             };
             root.AddChild(var1);
 
-            var roots = new System.Collections.Generic.Dictionary<QualifiedName, NodeState>
+            var roots = new Dictionary<QualifiedName, NodeState>
             {
                 [root.BrowseName] = root
             };
-            var byId = new System.Collections.Generic.Dictionary<NodeId, NodeState>
+            var byId = new Dictionary<NodeId, NodeState>
             {
                 [root.NodeId] = root,
                 [var1.NodeId] = var1
@@ -174,7 +178,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                 kNs,
                 q => roots.TryGetValue(q, out NodeState n) ? n : null,
                 id => byId.TryGetValue(id, out NodeState n) ? n : null,
-                _ => System.Array.Empty<NodeState>());
+                _ => []);
 
             int nodeAddedCount = 0;
             builder.Node("Root/Var1").OnNodeAdded((_, _) => nodeAddedCount++);

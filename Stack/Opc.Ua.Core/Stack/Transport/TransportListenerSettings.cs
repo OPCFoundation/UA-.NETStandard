@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System.Collections.Generic;
-using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua
 {
@@ -48,9 +47,10 @@ namespace Opc.Ua
         public EndpointConfiguration Configuration { get; set; }
 
         /// <summary>
-        /// Gets or sets the server certificate type provider.
+        /// Gets or sets the registry that exposes the server's instance
+        /// certificates and chain blobs.
         /// </summary>
-        public CertificateTypesProvider ServerCertificateTypesProvider { get; set; }
+        public ICertificateRegistry ServerCertificates { get; set; }
 
         /// <summary>
         /// Gets or Sets the certificate validator.
@@ -59,7 +59,7 @@ namespace Opc.Ua
         /// This is the object used by the channel to validate received certificates.
         /// Validatation errors are reported to the application via this object.
         /// </remarks>
-        public ICertificateValidator CertificateValidator { get; set; }
+        public ICertificateValidatorEx CertificateValidator { get; set; }
 
         /// <summary>
         /// Gets or sets a reference to the table of namespaces for the server.

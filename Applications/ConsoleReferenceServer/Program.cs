@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.CommandLine;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
@@ -36,8 +37,6 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.Gds.Server;
-using Opc.Ua.Gds.Server.Database.Linq;
-using System.CommandLine;
 
 namespace Quickstarts.ReferenceServer
 {
@@ -198,7 +197,7 @@ namespace Quickstarts.ReferenceServer
                     server.Create(Servers.Utils.NodeManagerFactories);
 
                     // Add GDS node manager if configured
-                    var gdsConfig = server.Configuration
+                    GlobalDiscoveryServerConfiguration gdsConfig = server.Configuration
                         .ParseExtension<GlobalDiscoveryServerConfiguration>();
                     if (gdsConfig != null)
                     {
@@ -262,7 +261,7 @@ namespace Quickstarts.ReferenceServer
                     // wait for timeout or Ctrl-C (cancellationToken is cancelled on Ctrl-C by System.CommandLine)
                     if (timeout >= 0)
                     {
-                        using CancellationTokenSource timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
                         timeoutCts.CancelAfter(timeout);
                         try
                         {

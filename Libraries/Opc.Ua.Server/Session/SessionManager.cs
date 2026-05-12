@@ -31,10 +31,10 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
-using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Server
 {
@@ -152,13 +152,13 @@ namespace Opc.Ua.Server
         /// <exception cref="ServiceResultException"></exception>
         public virtual async ValueTask<CreateSessionResult> CreateSessionAsync(
             OperationContext context,
-            X509Certificate2 serverCertificate,
+            Certificate serverCertificate,
             string sessionName,
             ByteString clientNonce,
             ApplicationDescription clientDescription,
             string endpointUrl,
-            X509Certificate2 clientCertificate,
-            X509Certificate2Collection clientCertificateChain,
+            Certificate clientCertificate,
+            CertificateCollection clientCertificateChain,
             double requestedSessionTimeout,
             uint maxResponseMessageSize,
             CancellationToken cancellationToken = default)
@@ -298,8 +298,6 @@ namespace Opc.Ua.Server
         {
             ByteString serverNonce = default;
 
-            Nonce serverNonceObject = null;
-
             ISession session = null;
             IUserIdentityTokenHandler newIdentity = null;
             UserTokenPolicy userTokenPolicy = null;
@@ -310,76 +308,74 @@ namespace Opc.Ua.Server
             {
                 throw new ServiceResultException(StatusCodes.BadSessionIdInvalid);
             }
-
-            await m_semaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
+            Nonce serverNonceObject = null;
             try
             {
-                // find session.
-                if (!m_sessions.TryGetValue(authenticationToken, out session))
+                await m_semaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
+                try
                 {
-                    throw new ServiceResultException(StatusCodes.BadSessionIdInvalid);
+                    // find session.
+                    if (!m_sessions.TryGetValue(authenticationToken, out session))
+                    {
+                        throw new ServiceResultException(StatusCodes.BadSessionIdInvalid);
+                    }
+
+                    // get client lockout key.
+                    clientKey = GetClientLockoutKey(session);
+
+                    // check if client is locked out due to too many failed authentication attempts.
+                    if (IsClientLockedOut(clientKey, out long remainingLockoutTicks))
+                    {
+                        long remainingSeconds = remainingLockoutTicks / HiResClock.Frequency;
+                        m_logger.LogWarning(
+                            "Client {ClientKey} is locked out. Remaining lockout time: {RemainingSeconds} seconds.",
+                            clientKey,
+                            remainingSeconds);
+                        throw new ServiceResultException(
+                            StatusCodes.BadUserAccessDenied,
+                            $"Too many failed authentication attempts. Try again in {remainingSeconds} seconds.");
+                    }
+
+                    // check if session timeout has expired.
+                    if (session.HasExpired)
+                    {
+                        // raise audit event for session closed because of timeout
+                        m_server.ReportAuditCloseSessionEvent(null, session, m_logger, "Session/Timeout");
+
+                        await m_server.CloseSessionAsync(null, session.Id, false, default).ConfigureAwait(false);
+
+                        throw new ServiceResultException(StatusCodes.BadSessionClosed);
+                    }
+
+                    // create new server nonce.
+                    serverNonceObject = Nonce.CreateNonce(
+                        context.ChannelContext.EndpointDescription.SecurityPolicyUri);
+
+                    // validate before activation.
+                    session.ValidateBeforeActivate(
+                        context,
+                        clientSignature,
+                        userIdentityToken,
+                        userTokenSignature,
+                        out newIdentity,
+                        out userTokenPolicy);
+
+                    serverNonce = serverNonceObject.Data.ToByteString();
                 }
-
-                // get client lockout key.
-                clientKey = GetClientLockoutKey(session);
-
-                // check if client is locked out due to too many failed authentication attempts.
-                if (IsClientLockedOut(clientKey, out long remainingLockoutTicks))
+                catch (ServiceResultException)
                 {
-                    long remainingSeconds = remainingLockoutTicks / HiResClock.Frequency;
-                    m_logger.LogWarning(
-                        "Client {ClientKey} is locked out. Remaining lockout time: {RemainingSeconds} seconds.",
-                        clientKey,
-                        remainingSeconds);
-                    throw new ServiceResultException(
-                        StatusCodes.BadUserAccessDenied,
-                        $"Too many failed authentication attempts. Try again in {remainingSeconds} seconds.");
+                    RecordFailedAuthentication(clientKey);
+                    throw;
                 }
-
-                // check if session timeout has expired.
-                if (session.HasExpired)
+                finally
                 {
-                    // raise audit event for session closed because of timeout
-                    m_server.ReportAuditCloseSessionEvent(null, session, m_logger, "Session/Timeout");
-
-                    m_server.CloseSession(null, session.Id, false);
-
-                    throw new ServiceResultException(StatusCodes.BadSessionClosed);
+                    m_semaphoreSlim.Release();
                 }
+                IUserIdentity identity = null;
+                IUserIdentity effectiveIdentity = null;
+                ServiceResult error = null;
+                UserIdentity tempIdentity = null;
 
-                // create new server nonce.
-                serverNonceObject = Nonce.CreateNonce(
-                    context.ChannelContext.EndpointDescription.SecurityPolicyUri);
-
-                // validate before activation.
-                session.ValidateBeforeActivate(
-                    context,
-                    clientSignature,
-                    userIdentityToken,
-                    userTokenSignature,
-                    out newIdentity,
-                    out userTokenPolicy);
-
-                serverNonce = serverNonceObject.Data.ToByteString();
-            }
-            catch (ServiceResultException)
-            {
-                serverNonceObject?.Dispose();
-                serverNonceObject = null;
-                RecordFailedAuthentication(clientKey);
-                throw;
-            }
-            finally
-            {
-                m_semaphoreSlim.Release();
-            }
-            IUserIdentity identity = null;
-            IUserIdentity effectiveIdentity = null;
-            ServiceResult error = null;
-            UserIdentity tempIdentity = null;
-
-            try
-            {
                 try
                 {
                     // check if the application has a callback which validates the identity tokens.
@@ -476,7 +472,6 @@ namespace Opc.Ua.Server
             finally
             {
                 serverNonceObject?.Dispose();
-                tempIdentity?.Dispose();
             }
         }
 
@@ -495,9 +490,12 @@ namespace Opc.Ua.Server
             {
                 if (current.Value.Id == sessionId)
                 {
-                    if (!m_sessions.TryRemove(current.Key, out session))
+#pragma warning disable CA2000 // Disposed correctly later
+                    if (m_sessions.TryRemove(current.Key, out session))
+#pragma warning restore CA2000
                     {
                         // found but was already removed
+                        System.Diagnostics.Debug.Assert(session == null);
                         return;
                     }
                     break;
@@ -647,15 +645,15 @@ namespace Opc.Ua.Server
         protected virtual ISession CreateSession(
             OperationContext context,
             IServerInternal server,
-            X509Certificate2 serverCertificate,
+            Certificate serverCertificate,
             NodeId sessionCookie,
             ByteString clientNonce,
             Nonce serverNonce,
             string sessionName,
             ApplicationDescription clientDescription,
             string endpointUrl,
-            X509Certificate2 clientCertificate,
-            X509Certificate2Collection clientCertificateChain,
+            Certificate clientCertificate,
+            CertificateCollection clientCertificateChain,
             double sessionTimeout,
             uint maxResponseMessageSize,
             int maxRequestAge, // TBD - Remove unused parameter.

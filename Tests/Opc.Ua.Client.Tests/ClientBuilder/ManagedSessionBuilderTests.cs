@@ -55,7 +55,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             {
                 EndpointUrl = "opc.tcp://localhost:4840"
             });
-            var builder = new ManagedSessionBuilder(CreateConfig(telemetry), telemetry)
+            ManagedSessionBuilder builder = new ManagedSessionBuilder(CreateConfig(telemetry), telemetry)
                 .UseEndpoint(endpoint)
                 .WithSessionName("Custom")
                 .WithSessionTimeout(TimeSpan.FromSeconds(30))
@@ -73,7 +73,10 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             Assert.That(opts.Endpoint, Is.SameAs(endpoint));
             Assert.That(opts.SessionName, Is.EqualTo("Custom"));
             Assert.That(opts.SessionTimeout, Is.EqualTo(TimeSpan.FromSeconds(30)));
-            Assert.That(opts.PreferredLocales, Is.EquivalentTo(new[] { "en-US", "de-DE" }));
+            // CA1861: literal array in a test assertion — readability beats hoisting to a field.
+#pragma warning disable CA1861
+            Assert.That(opts.PreferredLocales, Is.EquivalentTo(["en-US", "de-DE"]));
+#pragma warning restore CA1861
             Assert.That(opts.CheckDomain, Is.True);
             Assert.That(opts.ReconnectPolicy.Strategy, Is.EqualTo(BackoffStrategy.Linear));
             Assert.That(opts.ReconnectPolicy.MaxRetries, Is.EqualTo(5));
@@ -102,11 +105,13 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
 
             var builder = new ManagedSessionBuilder(CreateConfig(telemetry), telemetry);
 
+#pragma warning disable IDE0004 // Remove Unnecessary Cast
             Assert.That(() => builder.UseEndpoint((ConfiguredEndpoint)null!),
                 Throws.ArgumentNullException);
+#pragma warning restore IDE0004 // Remove Unnecessary Cast
             Assert.That(() => builder.UseEndpoint((string)null!),
                 Throws.ArgumentNullException);
-            Assert.That(() => builder.WithSessionName(""),
+            Assert.That(() => builder.WithSessionName(string.Empty),
                 Throws.ArgumentException);
             Assert.That(() => builder.WithSessionTimeout(TimeSpan.Zero),
                 Throws.InstanceOf<ArgumentOutOfRangeException>());
@@ -125,7 +130,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
 
             Assert.That(policy.Strategy, Is.EqualTo(BackoffStrategy.Linear));
             Assert.That(policy.MaxRetries, Is.EqualTo(3));
-            Assert.That(policy.JitterFactor, Is.EqualTo(0));
+            Assert.That(policy.JitterFactor, Is.Zero);
         }
     }
 }

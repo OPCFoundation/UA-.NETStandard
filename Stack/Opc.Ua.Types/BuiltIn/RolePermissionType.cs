@@ -37,7 +37,7 @@ namespace Opc.Ua
     /// <summary>
     /// Role permission type
     /// </summary>
-    [DataContract(Namespace = Types.Namespaces.OpcUaXsd)]
+    [DataContract(Namespace = Namespaces.OpcUaXsd)]
     public class RolePermissionType :
         IEncodeable,
         IEquatable<RolePermissionType>

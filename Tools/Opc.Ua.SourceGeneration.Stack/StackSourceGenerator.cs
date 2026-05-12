@@ -28,9 +28,9 @@
  * ======================================================================*/
 
 using Microsoft.CodeAnalysis;
+using IIncrementalGenerator = SGF.IncrementalGenerator;
 using IncrementalGeneratorAttribute = SGF.IncrementalGeneratorAttribute;
 using IncrementalGeneratorInitializationContext = SGF.SgfInitializationContext;
-using IIncrementalGenerator = SGF.IncrementalGenerator;
 
 namespace Opc.Ua.SourceGeneration
 {

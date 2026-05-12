@@ -1776,7 +1776,7 @@ namespace Opc.Ua
                     values = default;
                     return true;
                 }
-                EnumValue[] result = new EnumValue[elements.Count];
+                var result = new EnumValue[elements.Count];
                 for (int i = 0; i < elements.Count; i++)
                 {
                     if (!TryGetEnumerationFromElement(elements[i], out result[i]))

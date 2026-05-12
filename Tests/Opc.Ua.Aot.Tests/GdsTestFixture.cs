@@ -90,7 +90,7 @@ namespace Opc.Ua.Aot.Tests
             CleanDirectory(m_gdsRoot);
 
             // Start GDS server with retry logic
-            int testPort = AotServerFixture<ServerBase>.GetNextFreeIPPort();
+            int testPort = AotServerFixtureSupport.GetNextFreeIPPort();
             bool retryStartServer;
             int serverStartRetries = 25;
             do
@@ -110,8 +110,8 @@ namespace Opc.Ua.Aot.Tests
                         Server = null;
                     }
                     testPort = UnsecureRandom.Shared.Next(
-                        AotServerFixture<ServerBase>.MinTestPort,
-                        AotServerFixture<ServerBase>.MaxTestPort);
+                        AotServerFixtureSupport.MinTestPort,
+                        AotServerFixtureSupport.MaxTestPort);
                     if (serverStartRetries == 0 ||
                         sre.StatusCode != StatusCodes.BadNoCommunication)
                     {
@@ -167,8 +167,9 @@ namespace Opc.Ua.Aot.Tests
             await m_clientConfiguration.ValidateAsync(ApplicationType.Client)
                 .ConfigureAwait(false);
 
-            m_clientConfiguration.CertificateValidator
-                .CertificateValidation += (s, e) => e.Accept = true;
+            m_clientConfiguration.CertificateManager ??= CertificateManagerFactory.Create(
+                m_clientConfiguration.SecurityConfiguration, Telemetry);
+            m_clientConfiguration.CertificateManager.AcceptError = static (cert, err) => true;
 
             // Create the GDS client with admin credentials
             GdsClient = new GlobalDiscoveryServerClient(
@@ -236,8 +237,15 @@ namespace Opc.Ua.Aot.Tests
                 m_serverApplication = null;
             }
 
+            if (m_clientConfiguration?.CertificateManager is IDisposable disposableManager)
+            {
+                disposableManager.Dispose();
+                m_clientConfiguration.CertificateManager = null;
+            }
+
             CleanDirectory(m_pkiRoot);
             CleanDirectory(m_gdsRoot);
+            GC.SuppressFinalize(this);
         }
 
         [UnconditionalSuppressMessage("AOT",
@@ -302,7 +310,7 @@ namespace Opc.Ua.Aot.Tests
                 ConfigSectionName = "Opc.Ua.GdsAotTestServer"
             };
 
-            ApplicationConfiguration config = await m_serverApplication
+            _ = await m_serverApplication
                 .Build(
                     "urn:localhost:opcfoundation.org:GdsAotTestServer",
                     "http://opcfoundation.org/UA/GdsAotTestServer")
@@ -322,7 +330,7 @@ namespace Opc.Ua.Aot.Tests
                 .SetRejectSHA1SignedCertificates(false)
                 .SetRejectUnknownRevocationStatus(true)
                 .SetMinimumCertificateKeySize(1024)
-                .AddExtension<GlobalDiscoveryServerConfiguration>(
+                .AddExtension(
                     null, gdsConfig)
                 .SetDeleteOnLoad(true)
                 .CreateAsync()

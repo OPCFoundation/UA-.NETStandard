@@ -156,7 +156,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             Namespace target = ConfigureSelf();
             var opcUa = new Namespace
             {
-                Value = Ua.Types.Namespaces.OpcUa,
+                Value = Types.Namespaces.OpcUa,
                 Prefix = "Opc.Ua",
                 Name = "OpcUa"
             };
@@ -166,7 +166,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             generator.Emit();
 
             string output = ReadOutput();
-            Assert.That(output, Does.Not.Contain(Ua.Types.Namespaces.OpcUa));
+            Assert.That(output, Does.Not.Contain(Types.Namespaces.OpcUa));
             Assert.That(output, Does.Contain(TestUri));
         }
 

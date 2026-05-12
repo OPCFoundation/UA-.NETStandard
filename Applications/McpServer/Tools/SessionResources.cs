@@ -53,7 +53,7 @@ namespace Opc.Ua.Mcp.Tools
             "endpoint URLs, and security configuration.")]
         public static string ListSessions(OpcUaSessionManager sessionManager)
         {
-            var sessions = sessionManager.GetAllSessions();
+            IReadOnlyCollection<OpcUaSessionManager.SessionInfo> sessions = sessionManager.GetAllSessions();
             var result = sessions.Select(s => new Dictionary<string, object?>
             {
                 ["name"] = s.Name,
@@ -61,13 +61,13 @@ namespace Opc.Ua.Mcp.Tools
                 ["securityMode"] = s.Endpoint.SecurityMode.ToString(),
                 ["authType"] = s.AuthType,
                 ["isConnected"] = s.IsConnected,
-                ["connectedAt"] = s.ConnectedAt.ToString("o", CultureInfo.InvariantCulture),
+                ["connectedAt"] = s.ConnectedAt.ToString("o", CultureInfo.InvariantCulture)
             }).ToList();
 
             return OpcUaJsonHelper.Serialize(new Dictionary<string, object?>
             {
                 ["sessionCount"] = result.Count,
-                ["sessions"] = result,
+                ["sessions"] = result
             });
         }
 
@@ -82,13 +82,13 @@ namespace Opc.Ua.Mcp.Tools
             "security, session ID, and namespace table.")]
         public static string GetSession(OpcUaSessionManager sessionManager, string name)
         {
-            var info = sessionManager.GetSessionInfo(name);
+            OpcUaSessionManager.SessionInfo? info = sessionManager.GetSessionInfo(name);
             if (info == null)
             {
                 return OpcUaJsonHelper.Serialize(new Dictionary<string, object?>
                 {
                     ["error"] = true,
-                    ["message"] = $"Session '{name}' not found.",
+                    ["message"] = $"Session '{name}' not found."
                 });
             }
 
@@ -103,14 +103,14 @@ namespace Opc.Ua.Mcp.Tools
                 ["sessionId"] = info.Session.SessionId.ToString(),
                 ["sessionName"] = info.Session.SessionName,
                 ["connectedAt"] = info.ConnectedAt.ToString("o", CultureInfo.InvariantCulture),
-                ["namespaces"] = info.Session.NamespaceUris.ToArray()!
+                ["namespaces"] = info.Session.NamespaceUris.ToArray()
                     .Select((uri, idx) => new Dictionary<string, object?>
                     {
                         ["index"] = idx,
                         ["uri"] = uri
                     })
                     .ToList(),
-                ["serverUris"] = info.Session.ServerUris?.ToArray(),
+                ["serverUris"] = info.Session.ServerUris?.ToArray()
             });
         }
 
@@ -124,17 +124,17 @@ namespace Opc.Ua.Mcp.Tools
         [Description("Get the server namespace table for a named session.")]
         public static string GetNamespaces(OpcUaSessionManager sessionManager, string name)
         {
-            var info = sessionManager.GetSessionInfo(name);
+            OpcUaSessionManager.SessionInfo? info = sessionManager.GetSessionInfo(name);
             if (info == null)
             {
                 return OpcUaJsonHelper.Serialize(new Dictionary<string, object?>
                 {
                     ["error"] = true,
-                    ["message"] = $"Session '{name}' not found.",
+                    ["message"] = $"Session '{name}' not found."
                 });
             }
 
-            return OpcUaJsonHelper.Serialize(info.Session.NamespaceUris.ToArray()!
+            return OpcUaJsonHelper.Serialize(info.Session.NamespaceUris.ToArray()
                 .Select((uri, idx) => new Dictionary<string, object?>
                 {
                     ["index"] = idx,

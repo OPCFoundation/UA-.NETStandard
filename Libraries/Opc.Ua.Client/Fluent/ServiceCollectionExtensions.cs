@@ -28,10 +28,14 @@
  * ======================================================================*/
 
 using System;
+using System.Diagnostics;
+using System.Diagnostics.Metrics;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Opc.Ua.Client
 {
@@ -61,6 +65,7 @@ namespace Opc.Ua.Client
         /// <see cref="OpcUaClientOptions.Configuration"/> and
         /// <see cref="ManagedSessionOptions.Endpoint"/>.</param>
         /// <returns>An <see cref="IClientBuilder"/> for chaining.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="services"/> is <c>null</c>.</exception>
         public static IClientBuilder AddOpcUaClient(
             this IServiceCollection services,
             Action<OpcUaClientOptions> configure)
@@ -88,11 +93,11 @@ namespace Opc.Ua.Client
                 {
                     SubscriptionEngineFactory =
                         options.Session.SubscriptionEngineFactory
-                            ?? DefaultSubscriptionEngineFactory.Instance
+                        ?? DefaultSubscriptionEngineFactory.Instance
                 };
             });
 
-            services.TryAddSingleton<ManagedSessionFactory>(sp =>
+            services.TryAddSingleton(sp =>
             {
                 ITelemetryContext telemetry = sp.GetRequiredService<ITelemetryContext>();
                 return new ManagedSessionFactory(telemetry);
@@ -121,10 +126,6 @@ namespace Opc.Ua.Client
         /// </summary>
         private sealed class ManagedSessionAccessor
         {
-            private readonly IServiceProvider m_sp;
-            private Task<ManagedSession>? m_connectTask;
-            private readonly object m_gate = new();
-
             public ManagedSessionAccessor(IServiceProvider sp)
             {
                 m_sp = sp;
@@ -167,7 +168,7 @@ namespace Opc.Ua.Client
                 }
                 if (options.Session.PreferredLocales is { Count: > 0 } locales)
                 {
-                    var arr = new string[locales.Count];
+                    string[] arr = new string[locales.Count];
                     for (int i = 0; i < locales.Count; i++)
                     {
                         arr[i] = locales[i];
@@ -189,33 +190,42 @@ namespace Opc.Ua.Client
 
                 return builder.ConnectAsync(ct);
             }
+
+            private readonly IServiceProvider m_sp;
+            private Task<ManagedSession>? m_connectTask;
+            private readonly Lock m_gate = new();
         }
 
         /// <summary>
         /// <see cref="ITelemetryContext"/> implementation that obtains the
-        /// host's <see cref="Microsoft.Extensions.Logging.ILoggerFactory"/>
-        /// from DI when available, otherwise a no-op logger factory.
+        /// host's <see cref="ILoggerFactory"/> from DI when available,
+        /// otherwise a no-op logger factory.
         /// </summary>
-        private sealed class ServiceProviderTelemetryContext : ITelemetryContext
+        private sealed class ServiceProviderTelemetryContext :
+            ITelemetryContext, IDisposable
         {
-            private readonly IServiceProvider m_sp;
-            private readonly System.Diagnostics.ActivitySource m_activitySource = new("Opc.Ua.Client");
-
             public ServiceProviderTelemetryContext(IServiceProvider sp)
             {
                 m_sp = sp;
             }
 
-            public Microsoft.Extensions.Logging.ILoggerFactory LoggerFactory =>
-                m_sp.GetService<Microsoft.Extensions.Logging.ILoggerFactory>()
-                    ?? Microsoft.Extensions.Logging.Abstractions.NullLoggerFactory.Instance;
+            public ILoggerFactory LoggerFactory =>
+                m_sp.GetService<ILoggerFactory>()
+                ?? NullLoggerFactory.Instance;
 
-            public System.Diagnostics.ActivitySource ActivitySource => m_activitySource;
+            public ActivitySource ActivitySource { get; } = new("Opc.Ua.Client");
 
-            public System.Diagnostics.Metrics.Meter CreateMeter()
+            public Meter CreateMeter()
             {
-                return new System.Diagnostics.Metrics.Meter("Opc.Ua.Client");
+                return new Meter("Opc.Ua.Client");
             }
+
+            public void Dispose()
+            {
+                ActivitySource.Dispose();
+            }
+
+            private readonly IServiceProvider m_sp;
         }
     }
 }

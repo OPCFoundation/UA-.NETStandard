@@ -2053,9 +2053,9 @@ namespace Opc.Ua.Schema.Model
             EncodingType encodingType,
             List<NodeDesign> nodesToAdd)
         {
-            DictionaryDesign dictionary = null;
             var descriptions = new List<InstanceDesign>();
 
+            DictionaryDesign dictionary;
             {
                 dictionary = new DictionaryDesign();
 
@@ -2175,20 +2175,17 @@ namespace Opc.Ua.Schema.Model
                 }
             }
 
-            if (dictionary != null)
+            dictionary.Children = new ListOfChildren
             {
-                dictionary.Children = new ListOfChildren
-                {
-                    Items = [.. descriptions]
-                };
+                Items = [.. descriptions]
+            };
 
-                m_nodes[dictionary.SymbolicId] = dictionary;
-                m_logger.LogDebug(
-                    "Added {Type}: {Name}",
-                    dictionary.GetType().Name,
-                    dictionary.SymbolicId.Name);
-                nodesToAdd.Add(dictionary);
-            }
+            m_nodes[dictionary.SymbolicId] = dictionary;
+            m_logger.LogDebug(
+                "Added {Type}: {Name}",
+                dictionary.GetType().Name,
+                dictionary.SymbolicId.Name);
+            nodesToAdd.Add(dictionary);
         }
 
         private void AddProperty(
@@ -3732,7 +3729,7 @@ namespace Opc.Ua.Schema.Model
                         if (!reference.IsInverse &&
                             reference.ReferenceType != null &&
                             (reference.ReferenceType.Name == "HasEventSource" ||
-                             reference.ReferenceType.Name == "HasNotifier"))
+                                reference.ReferenceType.Name == "HasNotifier"))
                         {
                             objectNode.SupportsEvents = true;
                             objectNode.SupportsEventsSpecified = true;
@@ -3749,7 +3746,7 @@ namespace Opc.Ua.Schema.Model
                         if (!reference.IsInverse &&
                             reference.ReferenceType != null &&
                             (reference.ReferenceType.Name == "HasEventSource" ||
-                             reference.ReferenceType.Name == "HasNotifier"))
+                                reference.ReferenceType.Name == "HasNotifier"))
                         {
                             objectTypeNode.SupportsEvents = true;
                             objectTypeNode.SupportsEventsSpecified = true;

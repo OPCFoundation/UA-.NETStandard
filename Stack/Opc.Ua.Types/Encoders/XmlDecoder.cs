@@ -1119,7 +1119,7 @@ namespace Opc.Ua
                                 CultureInfo.InvariantCulture);
                             value = new EnumValue(numericValue, xml[..index]);
                         }
-                        else if (int.TryParse(xml, out var numeric))
+                        else if (int.TryParse(xml, out int numeric))
                         {
                             value = (EnumValue)numeric;
                         }
@@ -1998,15 +1998,12 @@ namespace Opc.Ua
             {
                 var enums = new List<EnumValue>();
 
-                XmlQualifiedName xmlName = Peek(XmlNodeType.Element);
-                if (xmlName is null)
-                {
+                XmlQualifiedName xmlName = Peek(XmlNodeType.Element) ??
                     throw ServiceResultException.Create(
                         StatusCodes.BadDecodingError,
                         "Unable to read field {0} in function {1}: The enumerated array does not contain any elements.",
                         fieldName,
                         nameof(ReadEnumeratedArray));
-                }
                 PushNamespace(xmlName.Namespace);
 
                 while (MoveToElement(xmlName.Name))

@@ -896,7 +896,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                 Connections = [],
                 PublishedDataSets = []
             };
-            using UaPubSubApplication uaPubSubApplication = UaPubSubApplication.Create(appConfPubSubConfiguration, telemetry);
+            using var uaPubSubApplication = UaPubSubApplication.Create(appConfPubSubConfiguration, telemetry);
 
             int targetIdx = uaPubSubApplication.UaPubSubConfigurator.PubSubConfiguration
                 .PublishedDataSets
@@ -927,7 +927,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                 Connections = [],
                 PublishedDataSets = []
             };
-            using UaPubSubApplication uaPubSubApplication = UaPubSubApplication.Create(appConfPubSubConfiguration, telemetry);
+            using var uaPubSubApplication = UaPubSubApplication.Create(appConfPubSubConfiguration, telemetry);
 
             int initialNrPublishedDs = uaPubSubApplication
                 .UaPubSubConfigurator
@@ -962,7 +962,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                 Connections = [],
                 PublishedDataSets = []
             };
-            using UaPubSubApplication uaPubSubApplication = UaPubSubApplication.Create(appConfPubSubConfiguration, telemetry);
+            using var uaPubSubApplication = UaPubSubApplication.Create(appConfPubSubConfiguration, telemetry);
 
             int targetIdx = uaPubSubApplication.PubSubConnections.Count;
             foreach (PubSubConnectionDataType pscon in m_subConfigurationLoaded.Connections)
@@ -1010,7 +1010,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                 Connections = [],
                 PublishedDataSets = []
             };
-            using UaPubSubApplication uaPubSubApplication = UaPubSubApplication.Create(appConfPubSubConfiguration, telemetry);
+            using var uaPubSubApplication = UaPubSubApplication.Create(appConfPubSubConfiguration, telemetry);
 
             int targetIdx = uaPubSubApplication.PubSubConnections.Count;
             foreach (PubSubConnectionDataType pscon in m_subConfigurationLoaded.Connections)
@@ -1061,7 +1061,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                 Connections = [],
                 PublishedDataSets = []
             };
-            using UaPubSubApplication uaPubSubApplication = UaPubSubApplication.Create(appConfPubSubConfiguration, telemetry);
+            using var uaPubSubApplication = UaPubSubApplication.Create(appConfPubSubConfiguration, telemetry);
 
             int targetIdx = uaPubSubApplication.PubSubConnections.Count;
             foreach (PubSubConnectionDataType pscon in m_subConfigurationLoaded.Connections)

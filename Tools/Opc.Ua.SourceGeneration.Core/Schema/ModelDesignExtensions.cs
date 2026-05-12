@@ -730,12 +730,6 @@ namespace Opc.Ua.Schema.Model
                 case BasicDataType.ByteString:
                 case BasicDataType.XmlElement:
                     return true;
-                case BasicDataType.String:
-                case BasicDataType.DiagnosticInfo:
-                case BasicDataType.DataValue:
-                case BasicDataType.UserDefined:
-                case BasicDataType.Enumeration:
-                    return false;
                 default:
                     return false;
             }

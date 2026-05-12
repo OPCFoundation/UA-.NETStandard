@@ -33,6 +33,12 @@ using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server.Fluent;
 
+// CA2000: BaseObjectState instances created in MakeObject() are passed to the builder under
+// test which owns them for the test fixture lifetime. The collection-expression rewrite from
+// IDE0300 makes the analyzer's flow analysis lose the ownership-transfer inference; the
+// disposables are still cleaned up correctly when the fixture tears down.
+#pragma warning disable CA2000
+
 namespace Opc.Ua.Server.Tests.Fluent
 {
     [TestFixture]
@@ -90,7 +96,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                 defaultNamespaceIndex: kNs,
                 rootResolver: q => roots.TryGetValue(q, out NodeState n) ? n : null,
                 nodeIdResolver: id => byId.TryGetValue(id, out NodeState n) ? n : null,
-                typeIdResolver: _ => System.Array.Empty<NodeState>());
+                typeIdResolver: _ => []);
 
             return (builder, root, var1, method);
         }
@@ -193,11 +199,11 @@ namespace Opc.Ua.Server.Tests.Fluent
         {
             (NodeManagerBuilder b, _, BaseDataVariableState v, _) = CreateBuilderWithGraph();
 
-            NodeValueSimpleEventHandler handler = (ISystemContext c, NodeState n, ref Variant val) =>
+            static ServiceResult handler(ISystemContext c, NodeState n, ref Variant val) =>
                 ServiceResult.Good;
             b.Node("Root/Var1").OnRead(handler);
 
-            Assert.That(v.OnSimpleReadValue, Is.SameAs(handler));
+            Assert.That(v.OnSimpleReadValue, Is.SameAs((NodeValueSimpleEventHandler)handler));
         }
 
         [Test]
@@ -205,7 +211,7 @@ namespace Opc.Ua.Server.Tests.Fluent
         {
             (NodeManagerBuilder b, _, _, MethodState m) = CreateBuilderWithGraph();
 
-            NodeValueSimpleEventHandler noop = (ISystemContext c, NodeState n, ref Variant v) =>
+            static ServiceResult noop(ISystemContext c, NodeState n, ref Variant v) =>
                 ServiceResult.Good;
 
             ServiceResultException ex = Assert.Throws<ServiceResultException>(
@@ -217,7 +223,7 @@ namespace Opc.Ua.Server.Tests.Fluent
         public void OnSimpleReadCalledTwiceThrowsBadConfigurationError()
         {
             (NodeManagerBuilder b, _, _, _) = CreateBuilderWithGraph();
-            NodeValueSimpleEventHandler noop = (ISystemContext c, NodeState n, ref Variant v) =>
+            static ServiceResult noop(ISystemContext c, NodeState n, ref Variant v) =>
                 ServiceResult.Good;
 
             INodeBuilder nb = b.Node("Root/Var1").OnRead(noop);
@@ -232,10 +238,10 @@ namespace Opc.Ua.Server.Tests.Fluent
         {
             (NodeManagerBuilder b, _, _, MethodState m) = CreateBuilderWithGraph();
 
-            GenericMethodCalledEventHandler2 handler = (c, mn, oid, args, outs) => ServiceResult.Good;
+            static ServiceResult handler(ISystemContext c, MethodState mn, NodeId oid, ArrayOf<Variant> args, List<Variant> outs) => ServiceResult.Good;
             b.Node(m.NodeId).OnCall(handler);
 
-            Assert.That(m.OnCallMethod2, Is.SameAs(handler));
+            Assert.That(m.OnCallMethod2, Is.SameAs((GenericMethodCalledEventHandler2)handler));
         }
 
         [Test]
@@ -447,7 +453,7 @@ namespace Opc.Ua.Server.Tests.Fluent
         }
 
         private static NodeManagerBuilder CreateBuilderWithTypeIndex(
-            IReadOnlyDictionary<NodeId, IReadOnlyList<NodeState>> byType)
+            Dictionary<NodeId, IReadOnlyList<NodeState>> byType)
         {
             return new NodeManagerBuilder(
                 CreateContext(),
@@ -457,7 +463,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                 _ => null,
                 id => byType.TryGetValue(id, out IReadOnlyList<NodeState> list)
                     ? list
-                    : System.Array.Empty<NodeState>());
+                    : []);
         }
 
         private static BaseObjectState MakeObject(string name, NodeId typeDefId)
@@ -476,7 +482,7 @@ namespace Opc.Ua.Server.Tests.Fluent
             NodeId typeId = ObjectTypeIds.ServerCapabilitiesType;
             BaseObjectState only = MakeObject("Caps", typeId);
             NodeManagerBuilder b = CreateBuilderWithTypeIndex(
-                new Dictionary<NodeId, IReadOnlyList<NodeState>> { [typeId] = new[] { only } });
+                new Dictionary<NodeId, IReadOnlyList<NodeState>> { [typeId] = [only] });
 
             INodeBuilder nb = b.NodeFromTypeId(typeId);
 
@@ -487,7 +493,7 @@ namespace Opc.Ua.Server.Tests.Fluent
         public void NodeFromTypeIdNullThrowsBadNodeIdInvalid()
         {
             NodeManagerBuilder b = CreateBuilderWithTypeIndex(
-                new Dictionary<NodeId, IReadOnlyList<NodeState>>());
+                []);
 
             ServiceResultException ex = Assert.Throws<ServiceResultException>(
                 () => b.NodeFromTypeId(NodeId.Null));
@@ -498,7 +504,7 @@ namespace Opc.Ua.Server.Tests.Fluent
         public void NodeFromTypeIdUnknownThrowsBadNodeIdUnknown()
         {
             NodeManagerBuilder b = CreateBuilderWithTypeIndex(
-                new Dictionary<NodeId, IReadOnlyList<NodeState>>());
+                []);
 
             ServiceResultException ex = Assert.Throws<ServiceResultException>(
                 () => b.NodeFromTypeId(ObjectTypeIds.BaseObjectType));
@@ -512,7 +518,7 @@ namespace Opc.Ua.Server.Tests.Fluent
             BaseObjectState a = MakeObject("Boiler1", typeId);
             BaseObjectState bn = MakeObject("Boiler2", typeId);
             NodeManagerBuilder b = CreateBuilderWithTypeIndex(
-                new Dictionary<NodeId, IReadOnlyList<NodeState>> { [typeId] = new NodeState[] { a, bn } });
+                new Dictionary<NodeId, IReadOnlyList<NodeState>> { [typeId] = [a, bn] });
 
             ServiceResultException ex = Assert.Throws<ServiceResultException>(
                 () => b.NodeFromTypeId(typeId));
@@ -526,7 +532,7 @@ namespace Opc.Ua.Server.Tests.Fluent
             BaseObjectState a = MakeObject("Boiler1", typeId);
             BaseObjectState bn = MakeObject("Boiler2", typeId);
             NodeManagerBuilder b = CreateBuilderWithTypeIndex(
-                new Dictionary<NodeId, IReadOnlyList<NodeState>> { [typeId] = new NodeState[] { a, bn } });
+                new Dictionary<NodeId, IReadOnlyList<NodeState>> { [typeId] = [a, bn] });
 
             INodeBuilder nb = b.NodeFromTypeId(typeId, new QualifiedName("Boiler2", kNs));
 
@@ -539,7 +545,7 @@ namespace Opc.Ua.Server.Tests.Fluent
             NodeId typeId = ObjectTypeIds.BaseObjectType;
             BaseObjectState a = MakeObject("Boiler1", typeId);
             NodeManagerBuilder b = CreateBuilderWithTypeIndex(
-                new Dictionary<NodeId, IReadOnlyList<NodeState>> { [typeId] = new NodeState[] { a } });
+                new Dictionary<NodeId, IReadOnlyList<NodeState>> { [typeId] = [a] });
 
             ServiceResultException ex = Assert.Throws<ServiceResultException>(
                 () => b.NodeFromTypeId(typeId, new QualifiedName("Nope", kNs)));
@@ -552,7 +558,7 @@ namespace Opc.Ua.Server.Tests.Fluent
             NodeId typeId = ObjectTypeIds.ServerCapabilitiesType;
             BaseObjectState only = MakeObject("Caps", typeId);
             NodeManagerBuilder b = CreateBuilderWithTypeIndex(
-                new Dictionary<NodeId, IReadOnlyList<NodeState>> { [typeId] = new[] { only } });
+                new Dictionary<NodeId, IReadOnlyList<NodeState>> { [typeId] = [only] });
 
             INodeBuilder<BaseObjectState> nb = b.NodeFromTypeId<BaseObjectState>(typeId);
 
@@ -565,7 +571,7 @@ namespace Opc.Ua.Server.Tests.Fluent
             NodeId typeId = ObjectTypeIds.ServerCapabilitiesType;
             BaseObjectState only = MakeObject("Caps", typeId);
             NodeManagerBuilder b = CreateBuilderWithTypeIndex(
-                new Dictionary<NodeId, IReadOnlyList<NodeState>> { [typeId] = new[] { only } });
+                new Dictionary<NodeId, IReadOnlyList<NodeState>> { [typeId] = [only] });
 
             ServiceResultException ex = Assert.Throws<ServiceResultException>(
                 () => b.NodeFromTypeId<MethodState>(typeId));

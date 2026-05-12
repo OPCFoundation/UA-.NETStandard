@@ -40,7 +40,11 @@ namespace Opc.Ua.PubSub.Transport
     /// <summary>
     /// Class responsible to manage the UDP Discovery Request/Response messages for a <see cref="UdpPubSubConnection"/> entity as a subscriber.
     /// </summary>
+    // CA1001: the IntervalRunner is owned and stopped via the Stop() lifecycle
+    // inherited from UdpDiscovery; matching the MqttMetadataPublisher pattern.
+#pragma warning disable CA1001
     internal class UdpDiscoverySubscriber : UdpDiscovery
+#pragma warning restore CA1001
     {
         private const int kInitialRequestInterval = 5000;
 

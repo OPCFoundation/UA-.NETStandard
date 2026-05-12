@@ -27,7 +27,9 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
+// CA2000: test code; many disposables are ownership-transferred to test fixtures or short-lived,
+// making CA2000 noisy without a real leak risk. Disabled file-level for the suite.
+#pragma warning disable CA2000
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -53,8 +55,8 @@ namespace Opc.Ua.PubSub.Tests
         public void ConstructorSetsProperties()
         {
             object id = "runner1";
-            Func<bool> canExecute = () => true;
-            Func<Task> action = () => Task.CompletedTask;
+            static bool canExecute() => true;
+            static Task action() => Task.CompletedTask;
 
             using var runner = new IntervalRunner(id, 100, canExecute, action, m_telemetry);
 
@@ -161,7 +163,7 @@ namespace Opc.Ua.PubSub.Tests
             using var runner = new IntervalRunner(
                 "runner", 100, () => true, () => Task.CompletedTask, m_telemetry);
 
-            Assert.DoesNotThrow(() => runner.Stop());
+            Assert.DoesNotThrow(runner.Stop);
         }
 
         [Test]
@@ -170,7 +172,7 @@ namespace Opc.Ua.PubSub.Tests
             var runner = new IntervalRunner(
                 "runner", 100, () => true, () => Task.CompletedTask, m_telemetry);
 
-            Assert.DoesNotThrow(() => runner.Dispose());
+            Assert.DoesNotThrow(runner.Dispose);
         }
 
         [Test]
@@ -180,7 +182,7 @@ namespace Opc.Ua.PubSub.Tests
                 "runner", 100, () => true, () => Task.CompletedTask, m_telemetry);
 
             runner.Start();
-            Assert.DoesNotThrow(() => runner.Dispose());
+            Assert.DoesNotThrow(runner.Dispose);
         }
 
         [Test]
@@ -190,7 +192,7 @@ namespace Opc.Ua.PubSub.Tests
                 "runner", 100, () => true, () => Task.CompletedTask, m_telemetry);
 
             runner.Dispose();
-            Assert.DoesNotThrow(() => runner.Dispose());
+            Assert.DoesNotThrow(runner.Dispose);
         }
 
         [Test]

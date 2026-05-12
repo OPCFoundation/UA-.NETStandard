@@ -71,22 +71,19 @@ namespace Boiler
             // strongly-typed identifier table instead of a magic string.
             builder
                 .Node(ExpandedNodeId.ToNodeId(
-                    Boiler.VariableIds.Boilers_Boiler__1_PipeX001_FTX001_Output,
+                    VariableIds.Boilers_Boiler__1_PipeX001_FTX001_Output,
                     Server.NamespaceUris))
                 .OnRead(GeneratePipeFlow);
 
             // Addressing by TypeDefinitionId — robust for well-known
             // singletons, independent of browse-path layout.
             builder
-                .NodeFromTypeId(ExpandedNodeId.ToNodeId(Boiler.ObjectTypeIds.BoilerType, Server.NamespaceUris))
-                .OnNodeAdded((context, node) =>
-                {
-                    Server.Telemetry.CreateLogger<BoilerNodeManager>()
+                .NodeFromTypeId(ExpandedNodeId.ToNodeId(ObjectTypeIds.BoilerType, Server.NamespaceUris))
+                .OnNodeAdded((context, node) => Server.Telemetry.CreateLogger<BoilerNodeManager>()
                         .LogInformation(
                             "Boiler instance materialized: {NodeId} ({BrowseName})",
                             node.NodeId,
-                            node.BrowseName);
-                });
+                            node.BrowseName));
         }
 
         private ServiceResult GenerateDrumLevel(
@@ -102,7 +99,7 @@ namespace Boiler
             // to plot without needing a background timer in this single
             // file. Each Read advances the wave; suitable for a quickstart.
             long t = Interlocked.Increment(ref m_drumLevelTicks);
-            value = new Variant(50.0 + 10.0 * Math.Sin(t * 0.05));
+            value = new Variant(50.0 + (10.0 * Math.Sin(t * 0.05)));
             statusCode = StatusCodes.Good;
             timestamp = DateTimeUtc.Now;
             return ServiceResult.Good;
@@ -118,7 +115,7 @@ namespace Boiler
             ref DateTimeUtc timestamp)
         {
             long t = Interlocked.Increment(ref m_pipeFlowTicks);
-            value = new Variant(100.0 + 25.0 * Math.Cos(t * 0.07));
+            value = new Variant(100.0 + (25.0 * Math.Cos(t * 0.07)));
             statusCode = StatusCodes.Good;
             timestamp = DateTimeUtc.Now;
             return ServiceResult.Good;

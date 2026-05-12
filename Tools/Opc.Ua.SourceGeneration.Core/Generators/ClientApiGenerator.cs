@@ -146,8 +146,9 @@ namespace Opc.Ua.SourceGeneration
             context.Template.AddReplacement(Tokens.ServiceSet, serviceSet.Name);
 
             string baseInterfaces = serviceSet.BaseInterfaces.Length > 0
-                ? " :\n        " + string.Join(",\n        ", serviceSet.BaseInterfaces.Select(
-                    b => CoreUtils.Format("global::Opc.Ua.{0}", b)))
+                ? " :\n        " +
+                    string.Join(",\n        ", serviceSet.BaseInterfaces.Select(
+                        b => CoreUtils.Format("global::Opc.Ua.{0}", b)))
                 : string.Empty;
             context.Template.AddReplacement(Tokens.BaseInterfaces, baseInterfaces);
 
@@ -556,7 +557,7 @@ namespace Opc.Ua.SourceGeneration
                 : this(Name, BaseInterfaces, Categories, Categories, EmitClass)
             {
             }
-        };
+        }
 
         private readonly IGeneratorContext m_context;
     }

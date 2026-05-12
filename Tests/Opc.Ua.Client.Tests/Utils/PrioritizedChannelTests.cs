@@ -172,6 +172,9 @@ namespace Opc.Ua.Types.Polyfills.Tests
         {
             Channel<int> channel = CreateChannel();
 
+            // CA5394: deterministic test vector — Random with fixed seed is intentional
+            // for repeatable test ordering. Not security-relevant.
+#pragma warning disable CA5394
             var random = new Random(12345);
             var values = new List<int>(1000);
 
@@ -179,6 +182,7 @@ namespace Opc.Ua.Types.Polyfills.Tests
             {
                 values.Add(random.Next(0, 10000));
             }
+#pragma warning restore CA5394
 
             foreach (int v in values)
             {

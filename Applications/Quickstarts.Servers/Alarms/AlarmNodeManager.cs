@@ -234,7 +234,10 @@ namespace Alarms
                     m_triggerMap.Add("Boolean", booleanSourceController);
 
                     const string setpointSourceName = "SetpointSource";
-                    const string setpointSourceNodeName = alarmsNodeName + "." + setpointSourceName;
+                    const string setpointSourceNodeName =
+                        alarmsNodeName +
+                        "." +
+                        setpointSourceName;
                     BaseDataVariableState setpointSource = AlarmHelpers.CreateVariable(
                         alarmsFolder,
                         NamespaceIndex,
@@ -242,7 +245,9 @@ namespace Alarms
                         setpointSourceName);
 
                     const string discrepancyTargetSourceName = AlarmDefines.DISCREPANCY_TARGET_NAME;
-                    const string discrepancyTargetSourceNodeName = alarmsNodeName + "." +
+                    const string discrepancyTargetSourceNodeName =
+                        alarmsNodeName +
+                        "." +
                         discrepancyTargetSourceName;
                     BaseDataVariableState discrepancyTargetSource = AlarmHelpers.CreateVariable(
                         alarmsFolder,
@@ -426,13 +431,6 @@ namespace Alarms
                 catch (Exception e)
                 {
                     m_logger.LogError(e, "Error creating the AlarmNodeManager address space.");
-                }
-                finally
-                {
-                    endMethod?.Dispose();
-                    startBranchMethod?.Dispose();
-                    startMethod?.Dispose();
-                    alarmsFolder?.Dispose();
                 }
             }
         }

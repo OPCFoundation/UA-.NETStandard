@@ -38,6 +38,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Gds.Server.Database;
 using Opc.Ua.Gds.Server.Diagnostics;
+using Opc.Ua.Security.Certificates;
 using Opc.Ua.Server;
 
 namespace Opc.Ua.Gds.Server
@@ -47,6 +48,11 @@ namespace Opc.Ua.Gds.Server
     /// </summary>
     public class ApplicationsNodeManager : CustomNodeManager2, ICallAsyncNodeManager
     {
+        /// <summary>
+        /// Gets or sets the trust-list manager for named store access.
+        /// </summary>
+        public ICertificateTrustListManager TrustListManager { get; set; }
+
         private readonly NodeId m_defaultApplicationGroupId;
         private readonly NodeId m_defaultHttpsGroupId;
         private readonly NodeId m_defaultUserTokenGroupId;
@@ -136,7 +142,6 @@ namespace Opc.Ua.Gds.Server
 
                 m_logger.LogInformation("Database Initialized!");
             }
-
         }
 
         /// <summary>
@@ -191,11 +196,11 @@ namespace Opc.Ua.Gds.Server
         {
             if (certificate.Length > 0)
             {
-                using X509Certificate2 x509 = CertificateFactory.Create(certificate);
+                using var x509 = Certificate.FromRawData(certificate);
                 NodeId certificateType = CertificateIdentifier.GetCertificateType(x509);
                 foreach (ICertificateGroup certificateGroup in m_certificateGroups.Values)
                 {
-                    KeyValuePair<NodeId, X509Certificate2> matchingCert = certificateGroup
+                    KeyValuePair<NodeId, Certificate> matchingCert = certificateGroup
                         .Certificates
                         .FirstOrDefault(
                             kvp =>
@@ -223,10 +228,10 @@ namespace Opc.Ua.Gds.Server
 
                 if (certificateGroup != null)
                 {
-                    using X509Certificate2 x509 = CertificateFactory.Create(certificate);
+                    using var x509 = Certificate.FromRawData(certificate);
                     try
                     {
-                        Security.Certificates.X509CRL crl = await certificateGroup
+                        X509CRL crl = await certificateGroup
                             .RevokeCertificateAsync(x509)
                             .ConfigureAwait(false);
                         if (crl != null)
@@ -840,21 +845,23 @@ namespace Opc.Ua.Gds.Server
             try
             {
                 //create chain to validate Certificate against it
-                var chain = new X509Chain();
+                using var chain = new X509Chain();
                 chain.ChainPolicy.RevocationMode = X509RevocationMode.Online;
                 chain.ChainPolicy.RevocationFlag = X509RevocationFlag.EntireChain;
 
                 //add GDS Issuer Cert Store Certificates to the Chain validation for consistent behaviour on all Platforms
-                ICertificateStore store = m_configuration.SecurityConfiguration
+                using ICertificateStore store = m_configuration.SecurityConfiguration
                     .TrustedIssuerCertificates
                     .OpenStore(Server.Telemetry);
                 if (store != null)
                 {
                     try
                     {
+                        using CertificateCollection issuerCerts = await store
+                            .EnumerateAsync(cancellationToken)
+                            .ConfigureAwait(false);
                         chain.ChainPolicy.ExtraStore
-                            .AddRange(await store.EnumerateAsync(cancellationToken)
-                                .ConfigureAwait(false));
+                            .AddRange(issuerCerts.AsX509Certificate2Collection());
                     }
                     finally
                     {
@@ -862,8 +869,9 @@ namespace Opc.Ua.Gds.Server
                     }
                 }
 
-                using X509Certificate2 x509 = CertificateFactory.Create(certificate);
-                if (chain.Build(x509))
+                using var x509 = Certificate.FromRawData(certificate);
+                using X509Certificate2 x509Cert = x509.AsX509Certificate2();
+                if (chain.Build(x509Cert))
                 {
                     result.CertificateStatus = StatusCodes.Good;
                     return result;
@@ -1478,7 +1486,7 @@ namespace Opc.Ua.Gds.Server
             }
 
             // distinguish cert creation at approval/complete time
-            X509Certificate2 certificate = null;
+            Certificate certificate = null;
             if (result.Certificate.IsEmpty)
             {
                 state = m_request.ReadRequest(
@@ -1503,14 +1511,12 @@ namespace Opc.Ua.Gds.Server
                     try
                     {
                         string[] defaultDomainNames = GetDefaultDomainNames(application);
-                        certificate = certificateGroup
-                            .SigningRequestAsync(
-                                application,
-                                certificateTypeNodeId,
-                                defaultDomainNames,
-                                certificateRequest,
-                                cancellationToken)
-                            .Result;
+                        certificate = await certificateGroup.SigningRequestAsync(
+                            application,
+                            certificateTypeNodeId,
+                            defaultDomainNames,
+                            certificateRequest,
+                            cancellationToken).ConfigureAwait(false);
                     }
                     catch (Exception e)
                     {
@@ -1529,16 +1535,14 @@ namespace Opc.Ua.Gds.Server
                     X509Certificate2KeyPair newKeyPair = null;
                     try
                     {
-                        newKeyPair = certificateGroup
-                            .NewKeyPairRequestAsync(
-                                application,
-                                certificateTypeNodeId,
-                                subjectName,
-                                domainNames,
-                                privateKeyFormat,
-                                privateKeyPassword.ToArray(),
-                                cancellationToken)
-                            .Result;
+                        newKeyPair = await certificateGroup.NewKeyPairRequestAsync(
+                            application,
+                            certificateTypeNodeId,
+                            subjectName,
+                            domainNames,
+                            privateKeyFormat,
+                            privateKeyPassword.ToArray(),
+                            cancellationToken).ConfigureAwait(false);
                     }
                     catch (Exception e)
                     {
@@ -1559,7 +1563,7 @@ namespace Opc.Ua.Gds.Server
             }
             else
             {
-                certificate = CertificateFactory.Create(result.Certificate);
+                certificate = Certificate.FromRawData(result.Certificate);
             }
 
             // TODO: return chain, verify issuer chain cert is up to date, otherwise update local chain
@@ -1852,14 +1856,10 @@ namespace Opc.Ua.Gds.Server
                 // Create a new custom certificate group node in the address space
                 // for any group whose Id does not match one of the three predefined groups.
                 CertificateGroupFolderState certGroupsFolder = FindPredefinedNode<CertificateGroupFolderState>(
-                    ExpandedNodeId.ToNodeId(ObjectIds.Directory_CertificateGroups, Server.NamespaceUris));
-
-                if (certGroupsFolder == null)
-                {
+                    ExpandedNodeId.ToNodeId(ObjectIds.Directory_CertificateGroups, Server.NamespaceUris)) ??
                     throw new ServiceResultException(
                         StatusCodes.BadInternalError,
                         "CertificateGroups folder node was not found in the address space.");
-                }
 
                 var customGroupNode = new CertificateGroupState(certGroupsFolder);
                 customGroupNode.Create(
@@ -1872,10 +1872,7 @@ namespace Opc.Ua.Gds.Server
                 // Read back the NodeId assigned by Create (assignNodeIds: true reassigns the root id).
                 certificateGroup.Id = customGroupNode.NodeId;
 
-                if (customGroupNode.CertificateTypes != null)
-                {
-                    customGroupNode.CertificateTypes.Value = [.. certificateGroup.CertificateTypes];
-                }
+                customGroupNode.CertificateTypes?.Value = [.. certificateGroup.CertificateTypes];
 
                 certGroupsFolder.AddChild(customGroupNode);
                 AddPredefinedNode(SystemContext, customGroupNode);

@@ -69,18 +69,26 @@ namespace Opc.Ua.Core.Tests.Stack.Configuration
             }
         }
 
-        private string CreateAppConfigXml(
+        private static string CreateAppConfigXml(
             string appName,
             string appUri,
             string appType = "Server_0")
         {
             return
-@"<?xml version=""1.0"" encoding=""utf-8""?>
-<ApplicationConfiguration xmlns=""http://opcfoundation.org/UA/SDK/Configuration.xsd""
-    xmlns:ua=""http://opcfoundation.org/UA/2008/02/Types.xsd"">
-  <ApplicationName>" + appName + @"</ApplicationName>
-  <ApplicationUri>" + appUri + @"</ApplicationUri>
-  <ApplicationType>" + appType + @"</ApplicationType>
+                """
+<?xml version="1.0" encoding="utf-8"?>
+<ApplicationConfiguration xmlns="http://opcfoundation.org/UA/SDK/Configuration.xsd"
+    xmlns:ua="http://opcfoundation.org/UA/2008/02/Types.xsd">
+  <ApplicationName>
+""" +
+                appName +
+                @"</ApplicationName>
+  <ApplicationUri>" +
+                appUri +
+                @"</ApplicationUri>
+  <ApplicationType>" +
+                appType +
+                @"</ApplicationType>
   <SecurityConfiguration>
     <ApplicationCertificates />
     <TrustedIssuerCertificates>
@@ -116,7 +124,7 @@ namespace Opc.Ua.Core.Tests.Stack.Configuration
             {
                 ApplicationName = "SecuredApp",
                 ApplicationUri = "urn:secured:app",
-                ApplicationType = Opc.Ua.Security.ApplicationType.Server_0,
+                ApplicationType = Ua.Security.ApplicationType.Server_0,
                 ProductName = "TestProduct",
                 LastExportTime = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc)
             };
@@ -311,9 +319,10 @@ namespace Opc.Ua.Core.Tests.Stack.Configuration
         public void ReadConfigurationWithDiscoveryServerConfig()
         {
             const string xml =
-@"<?xml version=""1.0"" encoding=""utf-8""?>
-<ApplicationConfiguration xmlns=""http://opcfoundation.org/UA/SDK/Configuration.xsd""
-    xmlns:ua=""http://opcfoundation.org/UA/2008/02/Types.xsd"">
+"""
+<?xml version="1.0" encoding="utf-8"?>
+<ApplicationConfiguration xmlns="http://opcfoundation.org/UA/SDK/Configuration.xsd"
+    xmlns:ua="http://opcfoundation.org/UA/2008/02/Types.xsd">
   <ApplicationName>DiscoveryApp</ApplicationName>
   <ApplicationUri>urn:test:discovery</ApplicationUri>
   <ApplicationType>DiscoveryServer_3</ApplicationType>
@@ -331,7 +340,8 @@ namespace Opc.Ua.Core.Tests.Stack.Configuration
       </ServerSecurityPolicy>
     </SecurityPolicies>
   </DiscoveryServerConfiguration>
-</ApplicationConfiguration>";
+</ApplicationConfiguration>
+""";
 
             string filePath = Path.Combine(m_tempDir, "read_discovery.xml");
             File.WriteAllText(filePath, xml, Encoding.UTF8);

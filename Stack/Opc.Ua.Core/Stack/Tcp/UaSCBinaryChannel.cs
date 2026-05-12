@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -50,7 +49,7 @@ namespace Opc.Ua.Bindings
             string contextId,
             BufferManager bufferManager,
             ChannelQuotas quotas,
-            X509Certificate2 serverCertificate,
+            Certificate serverCertificate,
             List<EndpointDescription> endpoints,
             MessageSecurityMode securityMode,
             string securityPolicyUri,
@@ -75,7 +74,7 @@ namespace Opc.Ua.Bindings
             string contextId,
             BufferManager bufferManager,
             ChannelQuotas quotas,
-            CertificateTypesProvider serverCertificateTypesProvider,
+            ICertificateRegistry serverCertificates,
             List<EndpointDescription> endpoints,
             MessageSecurityMode securityMode,
             string securityPolicyUri,
@@ -84,7 +83,7 @@ namespace Opc.Ua.Bindings
                 contextId,
                 bufferManager,
                 quotas,
-                serverCertificateTypesProvider,
+                serverCertificates,
                 null,
                 endpoints,
                 securityMode,
@@ -100,8 +99,8 @@ namespace Opc.Ua.Bindings
             string contextId,
             BufferManager bufferManager,
             ChannelQuotas quotas,
-            CertificateTypesProvider serverCertificateTypesProvider,
-            X509Certificate2 serverCertificate,
+            ICertificateRegistry serverCertificates,
+            Certificate serverCertificate,
             List<EndpointDescription> endpoints,
             MessageSecurityMode securityMode,
             string securityPolicyUri,
@@ -123,11 +122,11 @@ namespace Opc.Ua.Bindings
                 securityPolicyUri = SecurityPolicies.None;
             }
 
-            X509Certificate2Collection serverCertificateChain = null;
-            if (serverCertificateTypesProvider != null && securityMode != MessageSecurityMode.None)
+            CertificateCollection serverCertificateChain = null;
+            if (serverCertificates != null && securityMode != MessageSecurityMode.None)
             {
                 serverCertificate =
-                    serverCertificateTypesProvider.GetInstanceCertificate(securityPolicyUri)
+                    serverCertificates.GetInstanceCertificate(securityPolicyUri)?.Certificate
                     ?? throw new ArgumentNullException(nameof(serverCertificate));
 
                 if (serverCertificate.RawData.Length > TcpMessageLimits.MaxCertificateSize)
@@ -140,10 +139,7 @@ namespace Opc.Ua.Bindings
                         nameof(serverCertificate));
                 }
 
-                serverCertificateChain = serverCertificateTypesProvider
-                    .LoadCertificateChainAsync(serverCertificate)
-                    .GetAwaiter()
-                    .GetResult();
+                serverCertificateChain = serverCertificates.LoadCertificateChain(serverCertificate);
             }
 
             if (Encoding.UTF8.GetByteCount(securityPolicyUri) > TcpMessageLimits
@@ -159,7 +155,7 @@ namespace Opc.Ua.Bindings
 
             BufferManager = bufferManager ?? throw new ArgumentNullException(nameof(bufferManager));
             Quotas = quotas ?? throw new ArgumentNullException(nameof(quotas));
-            m_serverCertificateTypesProvider = serverCertificateTypesProvider;
+            m_serverCertificates = serverCertificates;
             ServerCertificate = serverCertificate;
             ServerCertificateChain = serverCertificateChain;
             m_endpoints = endpoints;
@@ -225,6 +221,9 @@ namespace Opc.Ua.Bindings
                 Socket?.Close();
                 DiscardTokens();
                 Socket?.Dispose();
+
+                ServerCertificateChain?.Dispose();
+                ServerCertificateChain = null;
 
                 m_localNonce?.Dispose();
                 m_localNonce = null;

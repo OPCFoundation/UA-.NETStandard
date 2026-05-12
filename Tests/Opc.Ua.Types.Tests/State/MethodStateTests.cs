@@ -69,7 +69,6 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(method.Executable, Is.True);
             Assert.That(method.UserExecutable, Is.True);
             Assert.That(method.Parent, Is.Null);
-            method.Dispose();
         }
 
         [Test]
@@ -78,8 +77,6 @@ namespace Opc.Ua.Types.Tests.State
             var parent = new BaseObjectState(null);
             var method = new MethodState(parent);
             Assert.That(method.Parent, Is.SameAs(parent));
-            method.Dispose();
-            parent.Dispose();
         }
 
         [Test]
@@ -87,7 +84,6 @@ namespace Opc.Ua.Types.Tests.State
         {
             NodeState node = MethodState.Construct(null);
             Assert.That(node, Is.InstanceOf<MethodState>());
-            node.Dispose();
         }
 
         [Test]
@@ -106,7 +102,6 @@ namespace Opc.Ua.Types.Tests.State
             method.ClearChangeMasks(null, false);
             method.Executable = false;
             Assert.That(method.ChangeMasks, Is.EqualTo(NodeStateChangeMasks.None));
-            method.Dispose();
         }
 
         [Test]
@@ -119,7 +114,6 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(method.UserExecutable, Is.False);
             Assert.That(method.ChangeMasks & NodeStateChangeMasks.NonValue,
                 Is.EqualTo(NodeStateChangeMasks.NonValue));
-            method.Dispose();
         }
 
         [Test]
@@ -130,7 +124,6 @@ namespace Opc.Ua.Types.Tests.State
             method.MethodDeclarationId = nodeId;
             Assert.That(method.MethodDeclarationId, Is.EqualTo(nodeId));
             Assert.That(method.TypeDefinitionId, Is.EqualTo(nodeId));
-            method.Dispose();
         }
 
         [Test]
@@ -151,7 +144,6 @@ namespace Opc.Ua.Types.Tests.State
             // Setting triggers Children change mask
             Assert.That(method.ChangeMasks & NodeStateChangeMasks.Children,
                 Is.EqualTo(NodeStateChangeMasks.Children));
-            method.Dispose();
         }
 
         [Test]
@@ -173,8 +165,6 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(clone.UserExecutable, Is.EqualTo(method.UserExecutable));
             Assert.That(clone.MethodDeclarationId, Is.EqualTo(method.MethodDeclarationId));
             Assert.That(clone.BrowseName, Is.EqualTo(method.BrowseName));
-            clone.Dispose();
-            method.Dispose();
         }
 
         [Test]
@@ -189,7 +179,6 @@ namespace Opc.Ua.Types.Tests.State
 
             // Exercises DeepEquals on same object (always true)
             Assert.That(method1.DeepEquals(method1), Is.True);
-            method1.Dispose();
         }
 
         [Test]
@@ -198,8 +187,6 @@ namespace Opc.Ua.Types.Tests.State
             var method = new MethodState(null);
             var view = new ViewState();
             Assert.That(method.DeepEquals(view), Is.False);
-            method.Dispose();
-            view.Dispose();
         }
 
         [Test]
@@ -214,7 +201,6 @@ namespace Opc.Ua.Types.Tests.State
             // Exercise DeepGetHashCode - verifies the code path runs without error
             int hash = method.DeepGetHashCode();
             Assert.That(hash, Is.Not.Zero.Or.Zero);
-            method.Dispose();
         }
 
         [Test]
@@ -234,7 +220,6 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(children, Has.Count.GreaterThanOrEqualTo(2));
             Assert.That(children, Does.Contain(inputArgs));
             Assert.That(children, Does.Contain(outputArgs));
-            method.Dispose();
         }
 
         [Test]
@@ -249,7 +234,6 @@ namespace Opc.Ua.Types.Tests.State
             AttributesToSave attrs = method.GetAttributesToSave(m_context);
             Assert.That(attrs & AttributesToSave.Executable, Is.Not.EqualTo(AttributesToSave.None));
             Assert.That(attrs & AttributesToSave.UserExecutable, Is.Not.EqualTo(AttributesToSave.None));
-            method.Dispose();
         }
 
         [Test]
@@ -264,7 +248,6 @@ namespace Opc.Ua.Types.Tests.State
             AttributesToSave attrs = method.GetAttributesToSave(m_context);
             Assert.That(attrs & AttributesToSave.Executable, Is.EqualTo(AttributesToSave.None));
             Assert.That(attrs & AttributesToSave.UserExecutable, Is.EqualTo(AttributesToSave.None));
-            method.Dispose();
         }
 
         [Test]
@@ -283,7 +266,6 @@ namespace Opc.Ua.Types.Tests.State
             method.Export(m_context, table);
 
             Assert.That(table, Is.Not.Empty);
-            method.Dispose();
         }
 
         [Test]
@@ -303,7 +285,6 @@ namespace Opc.Ua.Types.Tests.State
                 m_context, new NodeId(1), inputArgs, argumentErrors, outputArgs);
 
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadNotImplemented));
-            method.Dispose();
         }
 
         [Test]
@@ -331,7 +312,6 @@ namespace Opc.Ua.Types.Tests.State
 
             Assert.That(handlerCalled, Is.True);
             Assert.That(StatusCode.IsGood(result.StatusCode), Is.True);
-            method.Dispose();
         }
 
         [Test]
@@ -351,7 +331,6 @@ namespace Opc.Ua.Types.Tests.State
                 m_context, new NodeId(1), inputArgs, argumentErrors, outputArgs);
 
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadNotExecutable));
-            method.Dispose();
         }
 
         [Test]
@@ -371,7 +350,6 @@ namespace Opc.Ua.Types.Tests.State
                 m_context, new NodeId(1), inputArgs, argumentErrors, outputArgs);
 
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
-            method.Dispose();
         }
 
         [Test]
@@ -387,7 +365,6 @@ namespace Opc.Ua.Types.Tests.State
             // Calling again returns the same instance
             PropertyState<ArrayOf<Argument>> result2 = method.CreateOrReplaceInputArguments(m_context, null);
             Assert.That(result2, Is.SameAs(result));
-            method.Dispose();
         }
 
         [Test]
@@ -402,7 +379,6 @@ namespace Opc.Ua.Types.Tests.State
 
             PropertyState<ArrayOf<Argument>> result2 = method.CreateOrReplaceOutputArguments(m_context, null);
             Assert.That(result2, Is.SameAs(result));
-            method.Dispose();
         }
 
         [Test]
@@ -426,8 +402,6 @@ namespace Opc.Ua.Types.Tests.State
 
             Assert.That(restored.Executable, Is.EqualTo(method.Executable));
             Assert.That(restored.UserExecutable, Is.EqualTo(method.UserExecutable));
-            restored.Dispose();
-            method.Dispose();
         }
 
         [Test]
@@ -454,8 +428,6 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(restored.UserExecutable, Is.EqualTo(method.UserExecutable));
             Assert.That(restored.MethodDeclarationId, Is.EqualTo(method.MethodDeclarationId));
             Assert.That(restored.BrowseName, Is.EqualTo(method.BrowseName));
-            restored.Dispose();
-            method.Dispose();
         }
 
         [Test]
@@ -481,8 +453,6 @@ namespace Opc.Ua.Types.Tests.State
             // Verify the round-trip at least deserializes without error
             Assert.That(restored.BrowseName, Is.EqualTo(method.BrowseName));
             Assert.That(restored.DisplayName, Is.EqualTo(method.DisplayName));
-            restored.Dispose();
-            method.Dispose();
         }
 
         [Test]
@@ -513,7 +483,6 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(restoredMethod, Is.Not.Null);
             Assert.That(restoredMethod.Executable, Is.EqualTo(method.Executable));
             Assert.That(restoredMethod.UserExecutable, Is.EqualTo(method.UserExecutable));
-            method.Dispose();
         }
 
         [Test]
@@ -530,8 +499,6 @@ namespace Opc.Ua.Types.Tests.State
             method2.Executable = false;
 
             Assert.That(method1.DeepEquals(method2), Is.False);
-            method1.Dispose();
-            method2.Dispose();
         }
 
         [Test]
@@ -548,8 +515,6 @@ namespace Opc.Ua.Types.Tests.State
             method2.UserExecutable = false;
 
             Assert.That(method1.DeepEquals(method2), Is.False);
-            method1.Dispose();
-            method2.Dispose();
         }
 
         [Test]
@@ -565,8 +530,6 @@ namespace Opc.Ua.Types.Tests.State
             method2.MethodDeclarationId = new NodeId(200);
 
             Assert.That(method1.DeepEquals(method2), Is.False);
-            method1.Dispose();
-            method2.Dispose();
         }
 
         [Test]
@@ -588,7 +551,6 @@ namespace Opc.Ua.Types.Tests.State
             attrs = method.GetAttributesToSave(m_context);
             Assert.That(attrs & AttributesToSave.Executable, Is.EqualTo(AttributesToSave.None));
             Assert.That(attrs & AttributesToSave.UserExecutable, Is.EqualTo(AttributesToSave.None));
-            method.Dispose();
         }
 
         [Test]
@@ -611,7 +573,6 @@ namespace Opc.Ua.Types.Tests.State
             // Verify that children are retrievable by type
             Assert.That(method.InputArguments, Is.Not.Null);
             Assert.That(method.OutputArguments, Is.Not.Null);
-            method.Dispose();
         }
 
         [Test]
@@ -629,8 +590,6 @@ namespace Opc.Ua.Types.Tests.State
             PropertyState<ArrayOf<Argument>> result = method.CreateOrReplaceInputArguments(m_context, replacement);
             Assert.That(result, Is.Not.Null);
             Assert.That(method.InputArguments, Is.SameAs(result));
-            replacement.Dispose();
-            method.Dispose();
         }
 
         [Test]
@@ -648,8 +607,6 @@ namespace Opc.Ua.Types.Tests.State
             PropertyState<ArrayOf<Argument>> result = method.CreateOrReplaceOutputArguments(m_context, replacement);
             Assert.That(result, Is.Not.Null);
             Assert.That(method.OutputArguments, Is.SameAs(result));
-            replacement.Dispose();
-            method.Dispose();
         }
 
         [Test]
@@ -677,7 +634,6 @@ namespace Opc.Ua.Types.Tests.State
 
             Assert.That(handlerCalled, Is.True);
             Assert.That(StatusCode.IsGood(result.StatusCode), Is.True);
-            method.Dispose();
         }
 
         [Test]
@@ -697,7 +653,6 @@ namespace Opc.Ua.Types.Tests.State
                 m_context, new NodeId(1), inputArgs, argumentErrors, outputArgs).ConfigureAwait(false);
 
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadNotExecutable));
-            method.Dispose();
         }
 
         [Test]
@@ -725,7 +680,6 @@ namespace Opc.Ua.Types.Tests.State
 
             Assert.That(handlerCalled, Is.True);
             Assert.That(StatusCode.IsGood(result.StatusCode), Is.True);
-            method.Dispose();
         }
 
         [Test]
@@ -742,8 +696,6 @@ namespace Opc.Ua.Types.Tests.State
 
             var method2 = (MethodState)method1.Clone();
             Assert.That(method1.DeepEquals(method2), Is.True);
-            method1.Dispose();
-            method2.Dispose();
         }
 
         [Test]
@@ -757,7 +709,6 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(children, Has.Count.GreaterThanOrEqualTo(1));
             Assert.That(method.InputArguments, Is.Not.Null);
             Assert.That(children, Does.Contain(method.InputArguments));
-            method.Dispose();
         }
 
         [Test]
@@ -771,7 +722,6 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(children, Has.Count.GreaterThanOrEqualTo(1));
             Assert.That(method.OutputArguments, Is.Not.Null);
             Assert.That(children, Does.Contain(method.OutputArguments));
-            method.Dispose();
         }
     }
 }

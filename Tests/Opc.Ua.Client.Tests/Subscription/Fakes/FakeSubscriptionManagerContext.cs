@@ -25,7 +25,7 @@
  *
  * The complete license agreement can be found here:
  * http://opcfoundation.org/License/MIT/1.00/
- * ======================================================================*/
+ * ======================================================================*/
 
 #nullable enable
 
@@ -63,7 +63,8 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
         /// </summary>
         public Func<ISubscriptionNotificationHandler,
             IOptionsMonitor<SubscriptionOptions>, IMessageAckQueue,
-            IManagedSubscription> CreateSubscriptionFactory { get; set; }
+            IManagedSubscription> CreateSubscriptionFactory
+        { get; set; }
             = (_, _, _) => throw new InvalidOperationException(
                 "CreateSubscriptionFactory not set on FakeSubscriptionManagerContext.");
 
@@ -72,19 +73,22 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
         /// returns a default <see cref="PublishResponse"/>.
         /// </summary>
         public Func<RequestHeader?, ArrayOf<SubscriptionAcknowledgement>,
-            CancellationToken, ValueTask<PublishResponse>>? OnPublishAsync { get; set; }
+            CancellationToken, ValueTask<PublishResponse>>? OnPublishAsync
+        { get; set; }
 
         /// <summary>
         /// Optional override for <see cref="TransferSubscriptionsAsync"/>.
         /// </summary>
         public Func<RequestHeader?, ArrayOf<uint>, bool, CancellationToken,
-            ValueTask<TransferSubscriptionsResponse>>? OnTransferSubscriptionsAsync { get; set; }
+            ValueTask<TransferSubscriptionsResponse>>? OnTransferSubscriptionsAsync
+        { get; set; }
 
         /// <summary>
         /// Optional override for <see cref="DeleteSubscriptionsAsync"/>.
         /// </summary>
         public Func<RequestHeader?, ArrayOf<uint>, CancellationToken,
-            ValueTask<DeleteSubscriptionsResponse>>? OnDeleteSubscriptionsAsync { get; set; }
+            ValueTask<DeleteSubscriptionsResponse>>? OnDeleteSubscriptionsAsync
+        { get; set; }
 
         public IManagedSubscription CreateSubscription(
             ISubscriptionNotificationHandler handler,

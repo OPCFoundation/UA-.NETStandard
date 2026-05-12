@@ -82,7 +82,7 @@ namespace Opc.Ua.Client.Subscriptions
         /// <summary>
         /// Number of missing notification messages detected by the
         /// gap-walking sequence-number tracker for this subscription.
-        /// Each missing slot triggers a republish attempt — see
+        /// Each missing slot triggers a republish attempt â€” see
         /// <see cref="RepublishMessageCount"/>.
         /// </summary>
         long MissingMessageCount { get; }

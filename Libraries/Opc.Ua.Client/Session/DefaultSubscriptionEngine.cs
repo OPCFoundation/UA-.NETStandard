@@ -86,7 +86,7 @@ namespace Opc.Ua.Client
         /// new options-based subscription API. Exposed so callers can access
         /// the V2 manager via the engine.
         /// </summary>
-        public Subscriptions.ISubscriptionManager SubscriptionManager => m_manager;
+        public ISubscriptionManager SubscriptionManager => m_manager;
 
         /// <inheritdoc/>
         public int MinPublishRequestCount

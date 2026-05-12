@@ -512,7 +512,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     BuiltInType = (byte)BuiltInType.Int64,
                     ValueRank = ValueRanks.Scalar
                 },
-                Value = new DataValue(new Variant((long)-9999999999))
+                Value = new DataValue(new Variant(-9999999999L))
             };
 
             var message = new PubSubEncoding.JsonDataSetMessage(
@@ -637,7 +637,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     BuiltInType = (byte)BuiltInType.UInt32,
                     ValueRank = ValueRanks.Scalar
                 },
-                Value = new DataValue(new Variant((uint)4000000000))
+                Value = new DataValue(new Variant(4000000000))
             };
 
             var message = new PubSubEncoding.JsonDataSetMessage(

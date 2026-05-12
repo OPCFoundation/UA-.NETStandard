@@ -27,6 +27,9 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+// CA2000: test code; many disposables are ownership-transferred to test fixtures or short-lived,
+// making CA2000 noisy without a real leak risk. Disabled file-level for the suite.
+#pragma warning disable CA2000
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -54,7 +57,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
-            using var testNodeState = new AnalogUnitRangeState(null);
+            var testNodeState = new AnalogUnitRangeState(null);
             var serviceMessageContext = ServiceMessageContext.Create(telemetry);
 
             var systemContext = new SystemContext(telemetry)
@@ -124,7 +127,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
                 NamespaceUris = serviceMessageContext.NamespaceUris
             };
 
-            using var testNodeState = new BaseObjectState(null);
+            var testNodeState = new BaseObjectState(null);
 
             testNodeState.Create(
                 new SystemContext(telemetry) { NamespaceUris = serviceMessageContext.NamespaceUris },
@@ -199,7 +202,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
                 NamespaceUris = serviceMessageContext.NamespaceUris
             };
 
-            using var testNodeState = new BaseObjectState(null);
+            var testNodeState = new BaseObjectState(null);
 
             testNodeState.Create(
                 new SystemContext(telemetry) { NamespaceUris = serviceMessageContext.NamespaceUris },

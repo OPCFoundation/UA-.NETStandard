@@ -335,7 +335,7 @@ namespace Opc.Ua.Types.Buffers.Tests
 
             // Assert
             void Act() => writer.GetSpan();
-            Assert.That((Action)Act, Throws.TypeOf<NullReferenceException>());
+            Assert.That(Act, Throws.TypeOf<NullReferenceException>());
         }
 
         [Test]

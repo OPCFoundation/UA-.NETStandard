@@ -235,7 +235,7 @@ namespace Opc.Ua.Types.Tests.Utils
         {
             var ex = ServiceResultException.Create(
                 StatusCodes.BadInvalidArgument,
-                null!,
+                null,
                 []);
 
             Assert.That(ex.Code, Is.EqualTo(StatusCodes.BadInvalidArgument.Code));
@@ -263,7 +263,7 @@ namespace Opc.Ua.Types.Tests.Utils
             var ex = ServiceResultException.Create(
                 StatusCodes.BadEncodingError,
                 inner,
-                null!,
+                null,
                 []);
 
             Assert.That(ex.Code, Is.EqualTo(StatusCodes.BadEncodingError.Code));
@@ -298,7 +298,7 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void UnexpectedWithNullFormatReturnsBadUnexpectedError()
         {
-            var ex = ServiceResultException.Unexpected(null!, []);
+            var ex = ServiceResultException.Unexpected(null, []);
 
             Assert.That(ex.Code, Is.EqualTo(StatusCodes.BadUnexpectedError.Code));
         }
@@ -318,7 +318,7 @@ namespace Opc.Ua.Types.Tests.Utils
         public void UnexpectedWithExceptionAndNullFormatReturnsBadUnexpectedError()
         {
             var inner = new InvalidOperationException("inner");
-            var ex = ServiceResultException.Unexpected(inner, null!, []);
+            var ex = ServiceResultException.Unexpected(inner, null, []);
 
             Assert.That(ex.Code, Is.EqualTo(StatusCodes.BadUnexpectedError.Code));
             Assert.That(ex.InnerException, Is.SameAs(inner));
@@ -336,7 +336,7 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void ConfigurationErrorWithNullFormatReturnsBadConfigurationError()
         {
-            var ex = ServiceResultException.ConfigurationError(null!, []);
+            var ex = ServiceResultException.ConfigurationError(null, []);
 
             Assert.That(ex.Code, Is.EqualTo(StatusCodes.BadConfigurationError.Code));
         }
@@ -356,7 +356,7 @@ namespace Opc.Ua.Types.Tests.Utils
         public void ConfigurationErrorWithExceptionAndNullFormatReturnsBadConfigurationError()
         {
             var inner = new InvalidOperationException("inner");
-            var ex = ServiceResultException.ConfigurationError(inner, null!, []);
+            var ex = ServiceResultException.ConfigurationError(inner, null, []);
 
             Assert.That(ex.Code, Is.EqualTo(StatusCodes.BadConfigurationError.Code));
             Assert.That(ex.InnerException, Is.SameAs(inner));

@@ -75,7 +75,7 @@ namespace Opc.Ua.SourceGeneration
             GeneratorAttributeSyntaxContext context,
             CancellationToken cancellationToken)
         {
-            INamedTypeSymbol symbol = (INamedTypeSymbol)context.TargetSymbol;
+            var symbol = (INamedTypeSymbol)context.TargetSymbol;
             AttributeData attr = context.Attributes.FirstOrDefault();
 
             string namespaceUri = attr.GetValue(nameof(NodeManagerAttributeBinding.NamespaceUri));

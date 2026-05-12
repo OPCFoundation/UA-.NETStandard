@@ -35,17 +35,17 @@ using Opc.Ua;
 
 namespace Boiler
 {
+#pragma warning disable CA1001 // Using timers that are disposed in OnAfterDelete
     public partial class BoilerState
     {
+#pragma warning restore CA1001 // Using timers that are disposed in OnAfterDelete
         protected override void Initialize(ITelemetryContext telemetry)
         {
             m_logger = telemetry.CreateLogger<BoilerState>();
             base.Initialize(telemetry);
         }
 
-        /// <summary>
-        /// Initializes the object as a collection of counters which change value on read.
-        /// </summary>
+        /// <inheritdoc/>
         protected override void OnAfterCreate(ISystemContext context, NodeState node, CancellationToken ct = default)
         {
             base.OnAfterCreate(context, node, ct);
@@ -53,17 +53,13 @@ namespace Boiler
             Simulation.OnAfterTransition = OnControlSimulation;
         }
 
-        /// <summary>
-        /// Cleans up when the object is disposed.
-        /// </summary>
-        protected override void Dispose(bool disposing)
+        /// <inheritdoc/>
+        protected override void OnAfterDelete(ISystemContext context)
         {
-            if (disposing && m_simulationTimer != null)
-            {
-                m_simulationTimer.Dispose();
-                m_simulationTimer = null;
-            }
-            base.Dispose(disposing);
+            base.OnAfterDelete(context);
+
+            m_simulationTimer?.Dispose();
+            m_simulationTimer = null;
         }
 
         /// <summary>

@@ -90,9 +90,11 @@ namespace Opc.Ua.Mcp.Tools
                         DataType = DataTypeIds.BaseDataType,
                         AccessLevel = AccessLevels.CurrentReadOrWrite,
                         UserAccessLevel = AccessLevels.CurrentReadOrWrite,
-                        SpecifiedAttributes = (uint)(NodeAttributesMask.DisplayName |
-                            NodeAttributesMask.DataType | NodeAttributesMask.AccessLevel |
-                            NodeAttributesMask.UserAccessLevel)
+                        SpecifiedAttributes =
+                            (int)NodeAttributesMask.DisplayName |
+                            (int)NodeAttributesMask.DataType |
+                            (int)NodeAttributesMask.AccessLevel |
+                            (int)NodeAttributesMask.UserAccessLevel
                     }),
                     _ => new ExtensionObject(new ObjectAttributes
                     {

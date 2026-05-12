@@ -45,7 +45,7 @@ namespace Opc.Ua.Client
     /// <para>
     /// Service calls are gated during reconnect — callers transparently
     /// wait until the session is reconnected. The gating uses an
-    /// <see cref="Opc.Ua.Client.AsyncReaderWriterLock"/>: connected
+    /// <see cref="AsyncReaderWriterLock"/>: connected
     /// service calls take a reader lock (cheap, concurrent), while
     /// reconnect / failover holds the writer lock exclusively.
     /// </para>
@@ -279,9 +279,9 @@ namespace Opc.Ua.Client
         /// The new options-based <see cref="Subscriptions.ISubscriptionManager"/>.
         /// Available when the underlying session was created with the V2
         /// subscription engine (the default for <see cref="ManagedSession"/>).
-        /// Throws <see cref="InvalidOperationException"/> when the session
-        /// is using the classic engine.
         /// </summary>
+        /// <exception cref="InvalidOperationException">when the session
+        /// is using the classic engine.</exception>
         public Subscriptions.ISubscriptionManager SubscriptionManager
         {
             get
@@ -1131,6 +1131,8 @@ namespace Opc.Ua.Client
                     UnwireSessionEvents(session);
                     session.Dispose();
                 }
+
+                m_serviceLock.Dispose();
             }
         }
 

@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 #if NETFRAMEWORK
 using System;
 using System.IO;
@@ -54,7 +56,7 @@ namespace Opc.Ua.Security.Certificates
         {
             using var ms = new MemoryStream(pemDataBlob);
             using var reader = new StreamReader(ms, Encoding.UTF8, true);
-            var pemReader = new PemReader(reader);
+            using var pemReader = new PemReader(reader);
             try
             {
                 object pemObject = pemReader.ReadObject();
@@ -97,7 +99,7 @@ namespace Opc.Ua.Security.Certificates
             using (var ms = new MemoryStream(pemDataBlob))
             using (var reader = new StreamReader(ms, Encoding.UTF8, true))
             {
-                var pemReader = new PemReader(reader);
+                using var pemReader = new PemReader(reader);
                 int certCount = 0;
                 try
                 {
@@ -166,18 +168,11 @@ namespace Opc.Ua.Security.Certificates
                 true);
 
             using var pwFinder = new Password(password); // Clears its copy on return
+            using PemReader pemReader = password.IsEmpty ?
+                new PemReader(pemStreamReader) :
+                new PemReader(pemStreamReader, pwFinder);
 
-            PemReader pemReader;
-            if (password.IsEmpty)
-            {
-                pemReader = new PemReader(pemStreamReader);
-            }
-            else
-            {
-                pemReader = new PemReader(pemStreamReader, pwFinder);
-            }
-
-            AsymmetricAlgorithm key = null;
+            AsymmetricAlgorithm? key = null;
             try
             {
                 // find the private key in the PEM blob
@@ -259,7 +254,7 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         internal class Password : IPasswordFinder, IDisposable
         {
-            private readonly char[] m_password;
+            private readonly char[]? m_password;
 
             public Password(ReadOnlySpan<char> word)
             {
@@ -271,7 +266,7 @@ namespace Opc.Ua.Security.Certificates
                 }
             }
 
-            public char[] GetPassword()
+            public char[]? GetPassword()
             {
                 return m_password;
             }

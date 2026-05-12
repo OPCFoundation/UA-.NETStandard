@@ -27,6 +27,9 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+// CA2007: tests run without a SynchronizationContext; ConfigureAwait(false)
+// adds noise without a behavioural benefit. Disabled file-level for the suite.
+#pragma warning disable CA2007
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -61,11 +64,11 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             return new ConnectionStateMachine(
                 policy ??
                 new ReconnectPolicy
-                    {
-                        JitterFactor = 0.0,
-                        Strategy = BackoffStrategy.Constant,
-                        InitialDelay = TimeSpan.FromMilliseconds(10)
-                    },
+                {
+                    JitterFactor = 0.0,
+                    Strategy = BackoffStrategy.Constant,
+                    InitialDelay = TimeSpan.FromMilliseconds(10)
+                },
                 m_logger);
         }
 
@@ -309,7 +312,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             sm.ConnectAsync = _ =>
                 Task.FromResult(ServiceResult.Good);
 
-            sm.CloseSessionAsync = async _ => await closeTcs.Task.ConfigureAwait(false);
+            sm.CloseSessionAsync = _ => closeTcs.Task;
 
             sm.Start();
             sm.RequestConnect();
@@ -567,37 +570,39 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 It.IsAny<CancellationToken>()))
                 .Returns(TimeSpan.FromMilliseconds(5));
 
-            await using var sm = new ConnectionStateMachine(
+            var sm = new ConnectionStateMachine(
                 mockPolicy.Object, m_logger);
-
-            int connectCallCount = 0;
-            sm.ConnectAsync = _ =>
+            await using (sm.ConfigureAwait(false))
             {
-                int call = Interlocked.Increment(
-                    ref connectCallCount);
-                if (call == 1)
+                int connectCallCount = 0;
+                sm.ConnectAsync = _ =>
                 {
-                    return Task.FromResult(
-                        new ServiceResult(
-                            StatusCodes.BadConnectionClosed));
-                }
-                return Task.FromResult(ServiceResult.Good);
-            };
+                    int call = Interlocked.Increment(
+                        ref connectCallCount);
+                    if (call == 1)
+                    {
+                        return Task.FromResult(
+                            new ServiceResult(
+                                StatusCodes.BadConnectionClosed));
+                    }
+                    return Task.FromResult(ServiceResult.Good);
+                };
 
-            sm.ReconnectAsync = _ =>
-                Task.FromResult(ServiceResult.Good);
+                sm.ReconnectAsync = _ =>
+                    Task.FromResult(ServiceResult.Good);
 
-            sm.Start();
-            sm.RequestConnect();
+                sm.Start();
+                sm.RequestConnect();
 
-            await WaitForStateAsync(sm, ConnectionState.Connected)
-                .ConfigureAwait(false);
+                await WaitForStateAsync(sm, ConnectionState.Connected)
+                    .ConfigureAwait(false);
 
-            mockPolicy.Verify(
-                p => p.Reset(),
-                Times.AtLeastOnce,
-                "Policy should be reset after successful " +
-                "reconnect");
+                mockPolicy.Verify(
+                    p => p.Reset(),
+                    Times.AtLeastOnce,
+                    "Policy should be reset after successful " +
+                    "reconnect");
+            }
         }
 
         [Test]

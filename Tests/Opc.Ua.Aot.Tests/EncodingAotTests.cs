@@ -150,7 +150,7 @@ namespace Opc.Ua.Aot.Tests
             [
                 Variant.From(123),
                 Variant.From("Hello AOT"),
-                Variant.From((ArrayOf<int>)[1, 2, 3]),
+                Variant.From([1, 2, 3]),
                 Variant.From(DateTimeUtc.Now)
             ];
 
@@ -158,9 +158,9 @@ namespace Opc.Ua.Aot.Tests
             using (var encoder = new BinaryEncoder(
                 stream, fixture.Session.MessageContext, true))
             {
-                foreach (Variant v in variants)
+                for (int i = 0; i < variants.Length; i++)
                 {
-                    encoder.WriteVariant("Variant", v);
+                    encoder.WriteVariant("Variant", variants[i]);
                 }
             }
 

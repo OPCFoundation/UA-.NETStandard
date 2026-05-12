@@ -81,10 +81,10 @@ namespace Opc.Ua.Sample
                     m_samplingTimer?.Dispose();
                     m_samplingTimer = null;
 
-                    foreach (NodeState node in PredefinedNodes.Values)
-                    {
-                        node?.Dispose();
-                    }
+                    // foreach (NodeState node in PredefinedNodes.Values)
+                    // {
+                    //     node?.Delete();
+                    // }
                 }
             }
         }

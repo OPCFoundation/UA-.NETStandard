@@ -96,7 +96,7 @@ namespace Opc.Ua.SourceGeneration
             GeneratorAttributeSyntaxContext context,
             CancellationToken cancellationToken)
         {
-            INamedTypeSymbol symbol = (INamedTypeSymbol)context.TargetSymbol;
+            var symbol = (INamedTypeSymbol)context.TargetSymbol;
             Location = symbol.Locations.FirstOrDefault();
 
             AttributeData dataTypeAttr = context.Attributes.FirstOrDefault();
@@ -117,9 +117,9 @@ namespace Opc.Ua.SourceGeneration
                     Model = BuildEnumModel(
                         symbol, dataTypeNamespace, dataTypeId,
                         binaryEncodingId, xmlEncodingId);
-                    ValidFields = System.Array.Empty<TypeFieldModel>();
+                    ValidFields = [];
                     Diagnostics =
-                        System.Array.Empty<TypeSourceGeneratorDiagnostic>();
+                        [];
                     return;
                 }
 
@@ -132,9 +132,9 @@ namespace Opc.Ua.SourceGeneration
                     HasErrors = true;
                     ErrorMessage =
                         "[DataType] class must be declared as partial.";
-                    ValidFields = System.Array.Empty<TypeFieldModel>();
+                    ValidFields = [];
                     Diagnostics =
-                        System.Array.Empty<TypeSourceGeneratorDiagnostic>();
+                        [];
                     return;
                 }
 
@@ -145,9 +145,9 @@ namespace Opc.Ua.SourceGeneration
                     HasErrors = true;
                     ErrorMessage =
                         "[DataType] class must have a parameterless ctor.";
-                    ValidFields = System.Array.Empty<TypeFieldModel>();
+                    ValidFields = [];
                     Diagnostics =
-                        System.Array.Empty<TypeSourceGeneratorDiagnostic>();
+                        [];
                     return;
                 }
 
@@ -164,15 +164,15 @@ namespace Opc.Ua.SourceGeneration
                 Diagnostics = diags;
                 HasErrors = diags.Any(d => d.IsError);
             }
-            catch (System.Exception ex)
+            catch (Exception ex)
             {
                 HasErrors = true;
                 ErrorMessage =
                     $"[DataType] generator error for '{symbol.Name}': " +
                     $"{ex.GetType().Name}: {ex.Message}";
-                ValidFields ??= System.Array.Empty<TypeFieldModel>();
+                ValidFields ??= [];
                 Diagnostics ??=
-                    System.Array.Empty<TypeSourceGeneratorDiagnostic>();
+                    [];
             }
         }
 
@@ -277,8 +277,8 @@ namespace Opc.Ua.SourceGeneration
                 IsSealed = symbol.IsSealed,
                 IsDerived = baseTypeIsEncodeable,
                 IsInternal =
-                    symbol.DeclaredAccessibility == Accessibility.Internal ||
-                    symbol.DeclaredAccessibility == Accessibility.NotApplicable,
+                    symbol.DeclaredAccessibility is Accessibility.Internal or
+                    Accessibility.NotApplicable,
                 BaseTypeIsEncodeable = baseTypeIsEncodeable,
                 HasManualClone = symbol.GetMembers()
                     .OfType<IMethodSymbol>()

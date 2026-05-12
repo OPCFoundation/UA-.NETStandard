@@ -28,8 +28,8 @@
  * ======================================================================*/
 
 using System;
-using System.Threading;
 using System.CommandLine;
+using System.Threading;
 using Opc.Ua;
 using Opc.Ua.PubSub;
 using Opc.Ua.PubSub.Configuration;
@@ -127,7 +127,7 @@ namespace Quickstarts.ConsoleReferenceSubscriber
                     }
 
                     // Create the UA Publisher application
-                    using (UaPubSubApplication uaPubSubApplication = UaPubSubApplication.Create(pubSubConfiguration, telemetry))
+                    using (var uaPubSubApplication = UaPubSubApplication.Create(pubSubConfiguration, telemetry))
                     {
                         // Subscribte to RawDataReceived event
                         uaPubSubApplication.RawDataReceived += UaPubSubApplication_RawDataReceived;

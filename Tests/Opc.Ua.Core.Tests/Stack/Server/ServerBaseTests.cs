@@ -569,7 +569,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
 
             // Verify that opc.tcp has exactly 2 base addresses (localhost and 192.168.1.100)
             // both on the same port - this is the core scenario under test.
-            List<BaseAddress> tcpAddresses = BaseAddresses
+            var tcpAddresses = BaseAddresses
                 .Where(a => a.Url.Scheme == Utils.UriSchemeOpcTcp)
                 .ToList();
             Assert.That(tcpAddresses, Has.Count.EqualTo(2),
@@ -612,7 +612,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
         [Test]
         public void RequireEncryptionNullDescriptionReturnsFalse()
         {
-            bool result = ServerBase.RequireEncryption(null);
+            bool result = RequireEncryption(null);
             Assert.That(result, Is.False);
         }
 
@@ -631,7 +631,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                     }
                 ]
             };
-            bool result = ServerBase.RequireEncryption(desc);
+            bool result = RequireEncryption(desc);
             Assert.That(result, Is.False);
         }
 
@@ -642,7 +642,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             {
                 SecurityPolicyUri = SecurityPolicies.Basic256Sha256
             };
-            bool result = ServerBase.RequireEncryption(desc);
+            bool result = RequireEncryption(desc);
             Assert.That(result, Is.True);
         }
 
@@ -653,7 +653,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             {
                 SecurityPolicyUri = SecurityPolicies.Aes128_Sha256_RsaOaep
             };
-            bool result = ServerBase.RequireEncryption(desc);
+            bool result = RequireEncryption(desc);
             Assert.That(result, Is.True);
         }
 
@@ -664,7 +664,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             {
                 SecurityPolicyUri = SecurityPolicies.Aes256_Sha256_RsaPss
             };
-            bool result = ServerBase.RequireEncryption(desc);
+            bool result = RequireEncryption(desc);
             Assert.That(result, Is.True);
         }
 
@@ -683,7 +683,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                     }
                 ]
             };
-            bool result = ServerBase.RequireEncryption(desc);
+            bool result = RequireEncryption(desc);
             Assert.That(result, Is.True);
         }
 
@@ -708,7 +708,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                     }
                 ]
             };
-            bool result = ServerBase.RequireEncryption(desc);
+            bool result = RequireEncryption(desc);
             Assert.That(result, Is.True);
         }
 
@@ -727,7 +727,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                     }
                 ]
             };
-            bool result = ServerBase.RequireEncryption(desc);
+            bool result = RequireEncryption(desc);
             Assert.That(result, Is.False);
         }
 
@@ -739,7 +739,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                 SecurityPolicyUri = SecurityPolicies.None,
                 UserIdentityTokens = []
             };
-            bool result = ServerBase.RequireEncryption(desc);
+            bool result = RequireEncryption(desc);
             Assert.That(result, Is.False);
         }
 
@@ -783,7 +783,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             {
                 SecurityPolicyUri = SecurityPolicies.ECC_nistP256
             };
-            bool result = ServerBase.RequireEncryption(desc);
+            bool result = RequireEncryption(desc);
             Assert.That(result, Is.True);
         }
 
@@ -794,7 +794,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             {
                 SecurityPolicyUri = SecurityPolicies.ECC_brainpoolP256r1
             };
-            bool result = ServerBase.RequireEncryption(desc);
+            bool result = RequireEncryption(desc);
             Assert.That(result, Is.True);
         }
 
@@ -813,7 +813,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                     }
                 ]
             };
-            bool result = ServerBase.RequireEncryption(desc);
+            bool result = RequireEncryption(desc);
             Assert.That(result, Is.True);
         }
 
@@ -859,7 +859,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                     }
                 ]
             };
-            bool result = ServerBase.RequireEncryption(desc);
+            bool result = RequireEncryption(desc);
             Assert.That(result, Is.True);
         }
     }

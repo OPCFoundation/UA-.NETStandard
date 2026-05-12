@@ -67,7 +67,6 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(refType.NodeClass, Is.EqualTo(NodeClass.ReferenceType));
             Assert.That(refType.Symmetric, Is.False);
             Assert.That(refType.IsAbstract, Is.False);
-            refType.Dispose();
         }
 
         [Test]
@@ -75,7 +74,6 @@ namespace Opc.Ua.Types.Tests.State
         {
             NodeState node = ReferenceTypeState.Construct(null);
             Assert.That(node, Is.InstanceOf<ReferenceTypeState>());
-            node.Dispose();
         }
 
         [Test]
@@ -89,7 +87,6 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(refType.InverseName, Is.EqualTo(inverseName));
             Assert.That(refType.ChangeMasks & NodeStateChangeMasks.NonValue,
                 Is.EqualTo(NodeStateChangeMasks.NonValue));
-            refType.Dispose();
         }
 
         [Test]
@@ -106,7 +103,6 @@ namespace Opc.Ua.Types.Tests.State
             refType.ClearChangeMasks(null, false);
             refType.Symmetric = true;
             Assert.That(refType.ChangeMasks, Is.EqualTo(NodeStateChangeMasks.None));
-            refType.Dispose();
         }
 
         [Test]
@@ -129,8 +125,6 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(clone.Symmetric, Is.EqualTo(refType.Symmetric));
             Assert.That(clone.IsAbstract, Is.EqualTo(refType.IsAbstract));
             Assert.That(clone.SuperTypeId, Is.EqualTo(refType.SuperTypeId));
-            clone.Dispose();
-            refType.Dispose();
         }
 
         [Test]
@@ -142,8 +136,7 @@ namespace Opc.Ua.Types.Tests.State
             // Test exercises the method and verifies it runs without error
             var rt2 = (ReferenceTypeState)rt1.Clone();
             Assert.That(rt1.DeepEquals(rt1), Is.True);
-            rt1.Dispose();
-            rt2.Dispose();
+            Assert.That(rt1.DeepEquals(rt2), Is.True);
         }
 
         [Test]
@@ -152,8 +145,6 @@ namespace Opc.Ua.Types.Tests.State
             var refType = new ReferenceTypeState();
             var view = new ViewState();
             Assert.That(refType.DeepEquals(view), Is.False);
-            refType.Dispose();
-            view.Dispose();
         }
 
         [Test]
@@ -162,7 +153,6 @@ namespace Opc.Ua.Types.Tests.State
             var refType = new ReferenceTypeState { InverseName = new LocalizedText("TestInverse"), Symmetric = true };
             int hash = refType.DeepGetHashCode();
             Assert.That(hash, Is.TypeOf<int>());
-            refType.Dispose();
         }
 
         [Test]
@@ -176,7 +166,6 @@ namespace Opc.Ua.Types.Tests.State
             AttributesToSave attrs = refType.GetAttributesToSave(m_context);
             Assert.That(attrs & AttributesToSave.InverseName, Is.Not.EqualTo(AttributesToSave.None));
             Assert.That(attrs & AttributesToSave.Symmetric, Is.Not.EqualTo(AttributesToSave.None));
-            refType.Dispose();
         }
 
         [Test]
@@ -186,7 +175,6 @@ namespace Opc.Ua.Types.Tests.State
             AttributesToSave attrs = refType.GetAttributesToSave(m_context);
             Assert.That(attrs & AttributesToSave.InverseName, Is.EqualTo(AttributesToSave.None));
             Assert.That(attrs & AttributesToSave.Symmetric, Is.EqualTo(AttributesToSave.None));
-            refType.Dispose();
         }
 
         [Test]
@@ -205,7 +193,6 @@ namespace Opc.Ua.Types.Tests.State
             var table = new NodeTable(m_context.NamespaceUris, m_context.ServerUris, null);
             refType.Export(m_context, table);
             Assert.That(table, Is.Not.Empty);
-            refType.Dispose();
         }
 
         [Test]
@@ -229,8 +216,6 @@ namespace Opc.Ua.Types.Tests.State
 
             Assert.That(restored.InverseName, Is.EqualTo(refType.InverseName));
             Assert.That(restored.Symmetric, Is.EqualTo(refType.Symmetric));
-            restored.Dispose();
-            refType.Dispose();
         }
 
         [Test]
@@ -265,8 +250,6 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(restored.Symmetric, Is.EqualTo(original.Symmetric));
             Assert.That(restored.SuperTypeId, Is.EqualTo(original.SuperTypeId));
             Assert.That(restored.IsAbstract, Is.EqualTo(original.IsAbstract));
-            restored.Dispose();
-            original.Dispose();
         }
 
         [Test]
@@ -283,8 +266,6 @@ namespace Opc.Ua.Types.Tests.State
             rt2.InverseName = new LocalizedText("InverseB");
 
             Assert.That(rt1.DeepEquals(rt2), Is.False);
-            rt1.Dispose();
-            rt2.Dispose();
         }
 
         [Test]
@@ -301,8 +282,6 @@ namespace Opc.Ua.Types.Tests.State
             rt2.Symmetric = true;
 
             Assert.That(rt1.DeepEquals(rt2), Is.False);
-            rt1.Dispose();
-            rt2.Dispose();
         }
 
         [Test]
@@ -325,8 +304,6 @@ namespace Opc.Ua.Types.Tests.State
             };
 
             Assert.That(rt1.DeepGetHashCode(), Is.Not.EqualTo(rt2.DeepGetHashCode()));
-            rt1.Dispose();
-            rt2.Dispose();
         }
     }
 }

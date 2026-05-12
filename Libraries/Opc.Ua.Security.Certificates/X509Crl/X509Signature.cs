@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 using System;
 using System.Formats.Asn1;
 using System.Security.Cryptography;
@@ -42,22 +44,22 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// The field contains the ASN.1 data to be signed.
         /// </summary>
-        public byte[] Tbs { get; private set; }
+        public byte[] Tbs { get; private set; } = null!;
 
         /// <summary>
         /// The signature of the data.
         /// </summary>
-        public byte[] Signature { get; private set; }
+        public byte[] Signature { get; private set; } = null!;
 
         /// <summary>
         /// The encoded signature algorithm that was used for signing.
         /// </summary>
-        public byte[] SignatureAlgorithmIdentifier { get; }
+        public byte[]? SignatureAlgorithmIdentifier { get; }
 
         /// <summary>
         /// The signature algorithm as Oid string.
         /// </summary>
-        public string SignatureAlgorithm { get; private set; }
+        public string SignatureAlgorithm { get; private set; } = null!;
 
         /// <summary>
         /// The hash algorithm used for signing.
@@ -192,7 +194,7 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         private bool VerifyForRSA(X509Certificate2 certificate, RSASignaturePadding padding)
         {
-            using RSA rsa = certificate.GetRSAPublicKey();
+            using RSA? rsa = certificate.GetRSAPublicKey();
             if (rsa == null)
             {
                 return false;
@@ -205,12 +207,12 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         private bool VerifyForECDsa(X509Certificate2 certificate)
         {
-            using ECDsa key = certificate.GetECDsaPublicKey();
+            using ECDsa? key = certificate.GetECDsaPublicKey();
             if (key == null)
             {
                 return false;
             }
-            byte[] decodedSignature = DecodeECDsa(Signature, key.KeySize);
+            byte[]? decodedSignature = DecodeECDsa(Signature, key.KeySize);
             if (decodedSignature == null)
             {
                 return false;
@@ -242,7 +244,7 @@ namespace Opc.Ua.Security.Certificates
         /// <param name="signature">The signature to decode from ASN.1</param>
         /// <param name="keySize">The keySize in bits.</param>
         /// <exception cref="CryptographicException"></exception>
-        private static byte[] DecodeECDsa(ReadOnlyMemory<byte> signature, int keySize)
+        private static byte[]? DecodeECDsa(ReadOnlyMemory<byte> signature, int keySize)
         {
             var reader = new AsnReader(signature, AsnEncodingRules.DER);
             AsnReader seqReader = reader.ReadSequence();

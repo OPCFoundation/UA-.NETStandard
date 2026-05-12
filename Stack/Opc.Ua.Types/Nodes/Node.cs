@@ -38,7 +38,7 @@ namespace Opc.Ua
     /// <summary>
     /// A node in the server address space.
     /// </summary>
-    [DataContract(Namespace = Types.Namespaces.OpcUaXsd)]
+    [DataContract(Namespace = Namespaces.OpcUaXsd)]
     public class Node : IEncodeable, IFormattable, ILocalNode
     {
         /// <summary>

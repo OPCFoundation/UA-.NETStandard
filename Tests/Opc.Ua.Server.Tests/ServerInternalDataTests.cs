@@ -95,9 +95,7 @@ namespace Opc.Ua.Server.Tests
             return new ServerInternalData(
                 m_serverProperties,
                 m_configuration,
-                m_messageContext,
-                null,
-                null);
+                m_messageContext);
         }
 
         [Test]
@@ -178,7 +176,7 @@ namespace Opc.Ua.Server.Tests
         {
             m_configuration.ServerConfiguration.BaseAddresses = [];
             using ServerInternalData data = CreateServerInternalData();
-            Assert.That(data.EndpointAddresses.Count(), Is.EqualTo(0));
+            Assert.That(data.EndpointAddresses.Count(), Is.Zero);
         }
 
         [Test]
@@ -399,7 +397,7 @@ namespace Opc.Ua.Server.Tests
         public void DisposeDoesNotThrowWhenPropertiesAreNull()
         {
             using ServerInternalData data = CreateServerInternalData();
-            Assert.DoesNotThrow(() => data.Dispose());
+            Assert.DoesNotThrow(data.Dispose);
         }
 
         [Test]
@@ -407,7 +405,7 @@ namespace Opc.Ua.Server.Tests
         {
             ServerInternalData data = CreateServerInternalData();
             data.Dispose();
-            Assert.DoesNotThrow(() => data.Dispose());
+            Assert.DoesNotThrow(data.Dispose);
         }
 
         [Test]
@@ -480,7 +478,7 @@ namespace Opc.Ua.Server.Tests
         public void EndpointAddressesParsesValidUrls()
         {
             using ServerInternalData data = CreateServerInternalData();
-            Uri[] addresses = data.EndpointAddresses.ToArray();
+            Uri[] addresses = [.. data.EndpointAddresses];
             Assert.That(addresses[0].ToString(), Does.Contain("localhost:4840"));
             Assert.That(addresses[1].ToString(), Does.Contain("localhost:4841"));
         }
