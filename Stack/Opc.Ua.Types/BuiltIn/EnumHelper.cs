@@ -209,7 +209,7 @@ namespace Opc.Ua
         /// <summary>
         /// Cast from enum array
         /// </summary>
-        public static ArrayOf<int> EnumArrayToInt32Array(Array values)
+        public static ArrayOf<int> EnumArrayToInt32Array(Array? values)
         {
             if (values == null)
             {
@@ -233,7 +233,7 @@ namespace Opc.Ua
         /// <summary>
         /// Cast from enum matrix
         /// </summary>
-        public static MatrixOf<int> EnumArrayToInt32Matrix(Array values)
+        public static MatrixOf<int> EnumArrayToInt32Matrix(Array? values)
         {
             if (values == null)
             {

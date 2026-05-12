@@ -192,7 +192,7 @@ namespace Opc.Ua
         /// <summary>
         /// Returns true if the relative path does not specify any elements.
         /// </summary>
-        public static bool IsEmpty(RelativePath relativePath)
+        public static bool IsEmpty(RelativePath? relativePath)
         {
             if (relativePath != null)
             {
@@ -206,7 +206,7 @@ namespace Opc.Ua
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="typeTree"/> is <c>null</c>.</exception>
         /// <exception cref="ServiceResultException"></exception>
-        public static RelativePath Parse(string browsePath, ITypeTable typeTree)
+        public static RelativePath Parse(string browsePath, ITypeTable? typeTree)
         {
             if (typeTree == null)
             {
@@ -274,7 +274,7 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException"></exception>
         public static RelativePath Parse(
             string browsePath,
-            ITypeTable typeTree,
+            ITypeTable? typeTree,
             NamespaceTable currentTable,
             NamespaceTable targetTable)
         {

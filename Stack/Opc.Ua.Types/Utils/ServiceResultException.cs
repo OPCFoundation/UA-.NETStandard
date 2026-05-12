@@ -189,7 +189,7 @@ namespace Opc.Ua
         /// </summary>
         public static ServiceResultException Create(
             StatusCode code,
-            string format,
+            string? format,
             params object[] args)
         {
             if (format == null)
@@ -206,7 +206,7 @@ namespace Opc.Ua
         public static ServiceResultException Create(
             StatusCode code,
             Exception e,
-            string format,
+            string? format,
             params object[] args)
         {
             if (format == null)
