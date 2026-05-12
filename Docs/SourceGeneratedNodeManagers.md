@@ -202,6 +202,82 @@ against the in-memory predefined-node tree. There is no reflection, no
 `Activator.CreateInstance`, no `Expression.Compile` — the whole pipeline
 is NativeAOT-safe.
 
+## Typed model-traversal — the `Configure(I{Manager}NodeManagerBuilder)` partial
+
+Alongside the string/NodeId/TypeId addressing surface above, the
+generator emits a **second** `Configure` partial whose builder parameter
+exposes one IntelliSense-aware accessor per predefined instance, child,
+variable and method in the model. Every wiring site becomes a chain of
+properties — typos are compile-time errors, not startup-time
+`ServiceResultException`s.
+
+```csharp
+public partial class BoilerNodeManager
+{
+    // Untyped Configure remains available for nodes outside the model
+    // (e.g. dynamic instances, foreign-namespace nodes, or just to keep
+    // hand-written wiring side-by-side with typed wiring).
+    partial void Configure(INodeManagerBuilder builder)
+    {
+        builder
+            .Node("Boilers/Boiler #1/DrumX001/LIX001/Output")
+            .OnRead(GenerateDrumLevel);
+    }
+
+    // Typed Configure: every accessor below is a generated property
+    // resolved against the model. The compiler enforces both the path
+    // shape AND the value type of every leaf.
+    partial void Configure(IBoilerNodeManagerBuilder builder)
+    {
+        // Variable: typed Func<double> handler — the generator removed
+        // the ref-Variant boilerplate.
+        builder.Boilers.Boiler__1.LCX001.Measurement
+            .OnRead(GenerateLevelMeasurement);
+
+        // Variable, async: routes through BaseVariableState.ReadAttributeAsync
+        // outside the lock so the lambda may freely await.
+        builder.Boilers.Boiler__1.PipeX002.FTX002.Output
+            .OnRead(GenerateOutputFlowAsync);
+
+        // Method, async: typed OnCall(Func<CancellationToken,ValueTask>)
+        // overload. Bind sync Action variants the same way.
+        builder.Boilers.Boiler__1.Simulation.Halt
+            .OnCall(HaltSimulationAsync);
+    }
+}
+```
+
+Both partials are optional and both run; wiring the same node from
+both is illegal and throws at startup. Choose whichever shape best fits
+each call site — typed for everything declared in the model, untyped
+for everything else.
+
+### What the generator emits per model
+
+For a model with `N` ObjectTypes and `M` predefined instances/children
+the generator emits, into a single `{Manager}.FluentBuilders.g.cs`:
+
+- `internal interface I{Manager}NodeManagerBuilder : INodeManagerBuilder`
+  — one accessor per top-level predefined instance.
+- `internal sealed class {Manager}NodeManagerTypedBuilder` — proxy that
+  forwards `INodeManagerBuilder` members to the runtime builder while
+  surfacing the typed accessors.
+- One `internal sealed class` per instance node — whose properties map
+  to typed `IVariableBuilder<TValue>`, child wrapper instances, and
+  method wrappers.
+- One `internal sealed class` per method — exposing sync
+  `OnCall(Action)` and async
+  `OnCall(Func<CancellationToken, ValueTask>)` overloads. (Method
+  overloads with input/output arguments are unboxed and re-boxed by
+  the generator using the same `Variant.TryGetValue` /
+  `Variant.From<T>` pattern as the client-side `[ObjectType]` proxies.)
+
+All emitted types are `internal sealed` because `Configure` is a
+private partial — the surface never escapes the assembly. Child
+accessors resolve namespace indices lazily through
+`ISystemContext.NamespaceUris.GetIndexOrAppend(...)` so the wrappers
+work regardless of the namespace-table order at runtime.
+
 ## Single-file `Program.cs` — what it looks like
 
 The shipping `Opc.Ua.Server.Hosting.AddOpcUaServer(...)` extension wires the
