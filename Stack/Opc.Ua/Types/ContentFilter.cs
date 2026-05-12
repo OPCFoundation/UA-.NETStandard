@@ -161,7 +161,8 @@ namespace Opc.Ua
             {
                 // check if a FilterOperand was provided.
 
-#pragma warning disable CS8600 // Converting null literal or possible null value to non-nullable type. (TryGetStructure uses MaybeNullWhen(false); we check the bool.)
+                // TryGetStructure uses MaybeNullWhen(false); we check the bool.
+#pragma warning disable CS8600 // Converting null literal or possible null value to non-nullable type.
                 if (operands[ii].TryGetStructure(out FilterOperand filterOperand))
                 {
                     element.FilterOperands =
