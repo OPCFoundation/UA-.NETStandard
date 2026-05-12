@@ -79,6 +79,14 @@ namespace Opc.Ua.SourceGeneration
                     /// </summary>
                     partial void Configure(global::Opc.Ua.Server.Fluent.INodeManagerBuilder builder);
 
+                    /// <summary>
+                    /// Source-generated typed counterpart of
+                    /// <see cref="Configure(global::Opc.Ua.Server.Fluent.INodeManagerBuilder)"/>.
+                    /// Implement in a sibling <c>partial</c> to wire callbacks via the
+                    /// strongly-typed model-traversal surface generated for this manager.
+                    /// </summary>
+                    partial void Configure(I{{Tokens.NodeManagerClassName}}Builder builder);
+
                     /// <inheritdoc/>
                     protected override global::System.Threading.Tasks.ValueTask<global::Opc.Ua.NodeStateCollection> LoadPredefinedNodesAsync(
                         global::Opc.Ua.ISystemContext context,
@@ -107,6 +115,7 @@ namespace Opc.Ua.SourceGeneration
                             __FindByTypeDefinitionId);
 
                         Configure(__m_builder);
+                        Configure(new {{Tokens.NodeManagerClassName}}TypedBuilder(__m_builder));
                         __m_builder.Seal();
 
                         foreach (global::Opc.Ua.NodeState __node in PredefinedNodes.Values)

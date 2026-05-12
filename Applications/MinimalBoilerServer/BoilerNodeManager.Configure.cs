@@ -118,6 +118,58 @@ namespace Boiler
                             node.BrowseName));
         }
 
+        /// <summary>
+        /// Source-generator-emitted typed builder partial. The fluent
+        /// surface here walks the model's predefined-instance tree
+        /// directly: each segment is a generated property whose return
+        /// type is the typed wrapper for the next node. Browse paths,
+        /// NodeIds, and namespace-index lookups are eliminated at the
+        /// callsite — IntelliSense surfaces every legal child, and
+        /// typos are compile-time errors.
+        /// </summary>
+        /// <remarks>
+        /// This partial coexists with <see cref="Configure(INodeManagerBuilder)"/>;
+        /// the generated <c>CreateAddressSpaceAsync</c> override invokes
+        /// both. Wiring the same node from both partials is illegal and
+        /// will throw at startup, so the targets here are deliberately
+        /// disjoint from the ones in the non-typed partial above.
+        /// </remarks>
+        partial void Configure(IBoilerNodeManagerBuilder builder)
+        {
+            // (6) Typed traversal — the LCX001 level controller measurement
+            // is reached via generated accessors with no string paths or
+            // NodeIds in sight. The Func<double> handler is the same shape
+            // as wiring (3) but the resolution is fully type-checked.
+            builder.Boilers.Boiler__1.LCX001.Measurement
+                .OnRead(GenerateLevelControlMeasurement);
+
+            // (7) Typed traversal of a method node — the Halt method is
+            // bound to an async lambda. The generator emits the typed
+            // OnCall(Func<CancellationToken, ValueTask>) overload that
+            // erases the (ISystemContext, MethodState, NodeId, ArrayOf,
+            // List, CancellationToken)/ServiceResult plumbing entirely.
+            builder.Boilers.Boiler__1.Simulation.Halt
+                .OnCall(HaltSimulationAsync);
+        }
+
+        private long m_levelMeasurementTicks;
+
+        private double GenerateLevelControlMeasurement()
+        {
+            long t = Interlocked.Increment(ref m_levelMeasurementTicks);
+            return 50.0 + (10.0 * Math.Cos(t * 0.05));
+        }
+
+        private async ValueTask HaltSimulationAsync(CancellationToken cancellationToken)
+        {
+            // Token-aware async work to demonstrate the end-to-end async
+            // method call path through AsyncCustomNodeManager.CallAsync.
+            await Task.Yield();
+            cancellationToken.ThrowIfCancellationRequested();
+            Server.Telemetry.CreateLogger<BoilerNodeManager>()
+                .LogInformation("Boiler simulation halted.");
+        }
+
         private ServiceResult GenerateDrumLevel(
             ISystemContext context,
             NodeState node,

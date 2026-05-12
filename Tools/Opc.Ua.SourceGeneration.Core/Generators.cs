@@ -526,6 +526,12 @@ namespace Opc.Ua.SourceGeneration
                     OverrideClassName = designOptions.NodeManagerClassName,
                     EmitFactory = designOptions.EmitNodeManagerFactory
                 }.Emit();
+
+                new FluentBuilderGenerator(context)
+                {
+                    OverrideManagerNamespace = designOptions.NodeManagerNamespace,
+                    OverrideManagerClassName = designOptions.NodeManagerClassName
+                }.Emit();
             }
 
             if (context.Options?.OmitObjectTypeProxies != true)
