@@ -94,6 +94,31 @@ namespace Opc.Ua.Server.Fluent
         INodeBuilder OnWrite(NodeValueSimpleEventHandler handler);
 
         /// <summary>
+        /// Wires <see cref="BaseVariableState.OnReadValueAsync"/>. Use this
+        /// overload when the read source performs I/O — the handler runs
+        /// without holding <c>lock(this)</c>, so the call can <c>await</c>
+        /// freely.
+        /// </summary>
+        INodeBuilder OnRead(NodeValueEventHandlerAsync handler);
+
+        /// <summary>
+        /// Wires <see cref="BaseVariableState.OnSimpleReadValueAsync"/>.
+        /// The framework still applies index-range / data-encoding /
+        /// copy-policy post-processing to the returned value.
+        /// </summary>
+        INodeBuilder OnRead(NodeValueSimpleEventHandlerAsync handler);
+
+        /// <summary>
+        /// Wires <see cref="BaseVariableState.OnWriteValueAsync"/>.
+        /// </summary>
+        INodeBuilder OnWrite(NodeValueWriteEventHandlerAsync handler);
+
+        /// <summary>
+        /// Wires <see cref="BaseVariableState.OnSimpleWriteValueAsync"/>.
+        /// </summary>
+        INodeBuilder OnWrite(NodeValueSimpleWriteEventHandlerAsync handler);
+
+        /// <summary>
         /// Wires <see cref="MethodState.OnCallMethod2"/>.
         /// </summary>
         INodeBuilder OnCall(GenericMethodCalledEventHandler2 handler);

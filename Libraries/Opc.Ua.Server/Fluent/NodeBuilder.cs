@@ -105,6 +105,42 @@ namespace Opc.Ua.Server.Fluent
         }
 
         /// <inheritdoc/>
+        public INodeBuilder OnRead(NodeValueEventHandlerAsync handler)
+        {
+            BaseVariableState v = RequireVariable("OnReadAsync");
+            ThrowIfSlotOccupied(v.OnReadValueAsync, "OnReadAsync");
+            v.OnReadValueAsync = handler ?? throw new ArgumentNullException(nameof(handler));
+            return this;
+        }
+
+        /// <inheritdoc/>
+        public INodeBuilder OnRead(NodeValueSimpleEventHandlerAsync handler)
+        {
+            BaseVariableState v = RequireVariable("OnSimpleReadAsync");
+            ThrowIfSlotOccupied(v.OnSimpleReadValueAsync, "OnSimpleReadAsync");
+            v.OnSimpleReadValueAsync = handler ?? throw new ArgumentNullException(nameof(handler));
+            return this;
+        }
+
+        /// <inheritdoc/>
+        public INodeBuilder OnWrite(NodeValueWriteEventHandlerAsync handler)
+        {
+            BaseVariableState v = RequireVariable("OnWriteAsync");
+            ThrowIfSlotOccupied(v.OnWriteValueAsync, "OnWriteAsync");
+            v.OnWriteValueAsync = handler ?? throw new ArgumentNullException(nameof(handler));
+            return this;
+        }
+
+        /// <inheritdoc/>
+        public INodeBuilder OnWrite(NodeValueSimpleWriteEventHandlerAsync handler)
+        {
+            BaseVariableState v = RequireVariable("OnSimpleWriteAsync");
+            ThrowIfSlotOccupied(v.OnSimpleWriteValueAsync, "OnSimpleWriteAsync");
+            v.OnSimpleWriteValueAsync = handler ?? throw new ArgumentNullException(nameof(handler));
+            return this;
+        }
+
+        /// <inheritdoc/>
         public INodeBuilder OnCall(GenericMethodCalledEventHandler2 handler)
         {
             MethodState m = RequireMethod("OnCall");
