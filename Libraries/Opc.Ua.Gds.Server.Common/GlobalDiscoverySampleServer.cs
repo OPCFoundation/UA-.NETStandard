@@ -234,20 +234,10 @@ namespace Opc.Ua.Gds.Server
             {
                 IEnumerable<Role> roles = m_userDatabase.GetUserRoles(userNameToken.UserName);
 
-                UserIdentity? tempIdentity = null;
-                try
-                {
-                    tempIdentity = new UserIdentity(userNameToken);
-                    args.Identity = new GdsRoleBasedIdentity(
-                        tempIdentity,
-                        roles,
-                        ServerInternal.MessageContext.NamespaceUris);
-                    tempIdentity = null; // ownership transferred to GdsRoleBasedIdentity
-                }
-                finally
-                {
-                    tempIdentity?.Dispose();
-                }
+                args.Identity = new GdsRoleBasedIdentity(
+                    new UserIdentity(userNameToken),
+                    roles,
+                    ServerInternal.MessageContext.NamespaceUris);
                 return;
             }
 
@@ -346,9 +336,9 @@ namespace Opc.Ua.Gds.Server
                 // CA2025: task awaited via GetAwaiter().GetResult(); the disposable's
                 // using scope extends past the await.
 #pragma warning disable CA2025
-                CertificateValidationResult result = CertificateManager
+                CertificateValidationResult result = CertificateManager!
                     .ValidateAsync(
-                        userCertificate,
+                        userCertificate!,
                         TrustListIdentifier.Users)
                     .GetAwaiter().GetResult();
 #pragma warning restore CA2025
@@ -418,21 +408,11 @@ namespace Opc.Ua.Gds.Server
             m_logger.LogInformation(
                 "Application {ApplicationUri} accepted based on ApplicationInstanceCertificate as ApplicationSelfAdmin",
                 applicationUri);
-            UserIdentity? tempIdentity = null;
-            try
-            {
-                tempIdentity = new UserIdentity();
-                args.Identity = new GdsRoleBasedIdentity(
-                    tempIdentity,
-                    [GdsRole.ApplicationSelfAdmin],
-                    applicationId,
-                    ServerInternal.MessageContext.NamespaceUris);
-                tempIdentity = null; // ownership transferred to GdsRoleBasedIdentity
-            }
-            finally
-            {
-                tempIdentity?.Dispose();
-            }
+            args.Identity = new GdsRoleBasedIdentity(
+                new UserIdentity(),
+                [GdsRole.ApplicationSelfAdmin],
+                applicationId,
+                ServerInternal.MessageContext.NamespaceUris);
         }
 
         private readonly Dictionary<uint, ImpersonationContext> m_contexts = [];

@@ -215,13 +215,15 @@ namespace Opc.Ua.Gds.Client
             CancellationToken ct = default)
         {
             var serverUrls = new List<string>();
-            LocalDiscoveryServerClient localLds = lds != null ?
+            LocalDiscoveryServerClient? localLds = lds != null ?
                 null :
                 new LocalDiscoveryServerClient(Configuration);
             try
             {
                 lds ??= localLds;
-                (ArrayOf<ServerOnNetwork> servers, DateTimeUtc _) = await lds.FindServersOnNetworkAsync(
+                // After ??=, lds is guaranteed non-null: either the caller passed a non-null lds,
+                // or localLds was constructed above.
+                (ArrayOf<ServerOnNetwork> servers, DateTimeUtc _) = await lds!.FindServersOnNetworkAsync(
                     0,
                     1000,
                     ct).ConfigureAwait(false);
@@ -258,13 +260,15 @@ namespace Opc.Ua.Gds.Client
             CancellationToken ct = default)
         {
             var gdsUrls = new List<string>();
-            LocalDiscoveryServerClient localLds = lds != null ?
+            LocalDiscoveryServerClient? localLds = lds != null ?
                 null :
                 new LocalDiscoveryServerClient(Configuration);
             try
             {
                 lds ??= localLds;
-                (ArrayOf<ServerOnNetwork> servers, DateTimeUtc _) = await lds.FindServersOnNetworkAsync(
+                // After ??=, lds is guaranteed non-null: either the caller passed a non-null lds,
+                // or localLds was constructed above.
+                (ArrayOf<ServerOnNetwork> servers, DateTimeUtc _) = await lds!.FindServersOnNetworkAsync(
                     0,
                     1000,
                     ct).ConfigureAwait(false);

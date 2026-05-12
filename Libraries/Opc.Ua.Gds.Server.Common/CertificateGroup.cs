@@ -73,7 +73,7 @@ namespace Opc.Ua.Gds.Server
         /// Gets or sets the certificate issuer service.
         /// When set, certificate signing and CRL operations use this interface.
         /// </summary>
-        public ICertificateIssuer CertificateIssuer { get; set; }
+        public ICertificateIssuer? CertificateIssuer { get; set; }
 
         protected string SubjectName { get; }
 
@@ -93,7 +93,7 @@ namespace Opc.Ua.Gds.Server
             Configuration = null!;
             SubjectName = null!;
             AuthoritiesStore = null!;
-            Certificates = new ConcurrentDictionary<NodeId, X509Certificate2?>();
+            Certificates = new ConcurrentDictionary<NodeId, Certificate?>();
             DefaultTrustList = null!;
         }
 
@@ -618,7 +618,9 @@ namespace Opc.Ua.Gds.Server
             {
                 throw new ArgumentException("Cannot create an empty Crl for non-CA certificate!");
             }
-            ICertificateStore store = storeIdentifier.OpenStore(telemetry) ?? throw new ArgumentException("Invalid store path/type");
+            // telemetry may be null on legacy callers; OpenStore's signature is non-nullable but
+            // implementations tolerate null. Forward as-is to preserve existing behavior.
+            ICertificateStore store = storeIdentifier.OpenStore(telemetry!) ?? throw new ArgumentException("Invalid store path/type");
             try
             {
                 X509CRLCollection certCACrl = await store.EnumerateCRLsAsync(caCertificate, false, ct)

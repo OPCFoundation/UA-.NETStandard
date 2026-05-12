@@ -625,7 +625,7 @@ namespace Opc.Ua.Gds.Client
 
             try
             {
-                ArrayOf<ByteString> rawCertificates = await m_serverConfiguration.GetRejectedListAsync(ct).ConfigureAwait(false);
+                ArrayOf<ByteString> rawCertificates = await m_serverConfiguration!.GetRejectedListAsync(ct).ConfigureAwait(false);
                 var collection = new CertificateCollection();
                 foreach (ByteString rawCertificate in rawCertificates)
                 {

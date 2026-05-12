@@ -63,7 +63,7 @@ namespace Opc.Ua.Gds.Server
     {
         NodeId Id { get; set; }
         ArrayOf<NodeId> CertificateTypes { get; set; }
-        ConcurrentDictionary<NodeId, Certificate> Certificates { get; }
+        ConcurrentDictionary<NodeId, Certificate?> Certificates { get; }
         CertificateGroupConfiguration Configuration { get; }
         CertificateStoreIdentifier AuthoritiesStore { get; }
         CertificateStoreIdentifier? IssuerCertificatesStore { get; }

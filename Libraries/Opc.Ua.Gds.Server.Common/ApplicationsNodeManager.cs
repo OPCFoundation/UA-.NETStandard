@@ -51,7 +51,7 @@ namespace Opc.Ua.Gds.Server
         /// <summary>
         /// Gets or sets the trust-list manager for named store access.
         /// </summary>
-        public ICertificateTrustListManager TrustListManager { get; set; }
+        public ICertificateTrustListManager? TrustListManager { get; set; }
 
         private readonly NodeId m_defaultApplicationGroupId;
         private readonly NodeId m_defaultHttpsGroupId;
