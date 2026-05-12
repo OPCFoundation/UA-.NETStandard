@@ -1718,14 +1718,13 @@ namespace Opc.Ua.Client.Conformance.Tests
         private async Task<PublishResponse> PublishWithAckAsync(uint subId, uint seqNum)
         {
             var ack = new SubscriptionAcknowledgement { SubscriptionId = subId, SequenceNumber = seqNum };
-            return await Session.PublishAsync(
-                null, new SubscriptionAcknowledgement[] { ack }.ToArrayOf(),
-                CancellationToken.None).ConfigureAwait(false);
+            return await Session.PublishWithTimeoutAsync(
+                new SubscriptionAcknowledgement[] { ack }.ToArrayOf()).ConfigureAwait(false);
         }
 
         private async Task<PublishResponse> PublishWithAcksAsync(SubscriptionAcknowledgement[] acks)
         {
-            return await Session.PublishAsync(null, acks.ToArrayOf(), CancellationToken.None).ConfigureAwait(false);
+            return await Session.PublishWithTimeoutAsync(acks.ToArrayOf()).ConfigureAwait(false);
         }
 
         private static bool HasDataChangeNotification(PublishResponse pub)

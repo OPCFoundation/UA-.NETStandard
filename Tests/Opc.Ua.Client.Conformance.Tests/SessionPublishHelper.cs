@@ -100,5 +100,36 @@ namespace Opc.Ua.Client.Conformance.Tests
                     $"Conformance test Publish exceeded {timeoutMs} ms.");
             }
         }
+
+        /// <summary>
+        /// Issues a <see cref="ISession.PublishAsync"/> with a bounded
+        /// client-side timeout AND a non-empty subscription-acknowledgement
+        /// list. Same hang protection as <see cref="PublishWithTimeoutAsync"/>.
+        /// </summary>
+        public static async Task<PublishResponse> PublishWithTimeoutAsync(
+            this ISession session,
+            ArrayOf<SubscriptionAcknowledgement> acks,
+            int timeoutMs = DefaultPublishTimeoutMs)
+        {
+            if (session == null)
+            {
+                throw new ArgumentNullException(nameof(session));
+            }
+
+            using var cts = new CancellationTokenSource(
+                TimeSpan.FromMilliseconds(timeoutMs));
+            try
+            {
+                return await session
+                    .PublishAsync(null, acks, cts.Token)
+                    .ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (cts.IsCancellationRequested)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadRequestTimeout,
+                    $"Conformance test Publish exceeded {timeoutMs} ms.");
+            }
+        }
     }
 }

@@ -1553,10 +1553,9 @@ namespace Opc.Ua.Client.Conformance.Tests
                 SubscriptionId = subId,
                 SequenceNumber = seqNum
             };
-            return await Session.PublishAsync(
-                null,
-                new SubscriptionAcknowledgement[] { ack }.ToArrayOf(),
-                CancellationToken.None).ConfigureAwait(false);
+            return await Session.PublishWithTimeoutAsync(
+                new SubscriptionAcknowledgement[] { ack }.ToArrayOf())
+                .ConfigureAwait(false);
         }
 
         private const double DefaultInterval = 500;
