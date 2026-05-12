@@ -188,7 +188,33 @@ namespace Opc.Ua.Client.Conformance.Tests
             // pattern: one CreateSubscription / Publish timed out on a slow
             // CI runner -> BadSessionIdInvalid on subsequent calls), re-open
             // the session so the next test runs against a healthy fixture.
-            if (Session != null && !Session.Connected)
+            // First check the cheap Session.Connected flag; if that still
+            // reports true, do a 5 s health-check Read (Server status) to
+            // catch the case where the client thinks it's connected but
+            // the channel/server has gone away.
+            bool sessionDead = Session != null && !Session.Connected;
+            if (!sessionDead && Session != null)
+            {
+                try
+                {
+                    using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+                    await Session.ReadAsync(
+                        null, 0, TimestampsToReturn.Neither,
+                        new ReadValueId[]
+                        {
+                            new() { NodeId = new NodeId(Variables.Server_ServerStatus_State),
+                                    AttributeId = Attributes.Value }
+                        }.ToArrayOf(),
+                        cts.Token).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    m_logger.LogWarning(ex,
+                        "Session health-check Read failed; treating as dead.");
+                    sessionDead = true;
+                }
+            }
+            if (sessionDead)
             {
                 try
                 {
