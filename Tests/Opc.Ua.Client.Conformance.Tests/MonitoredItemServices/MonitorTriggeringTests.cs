@@ -180,10 +180,7 @@ namespace Opc.Ua.Client.Conformance.Tests
                 // B should not appear because A (trigger) has not changed
                 Assert.That(handles, Does.Not.Contain(2u));
             }
-            catch (ServiceResultException sre) when (
-                sre.StatusCode == StatusCodes.BadRequestTimeout ||
-                sre.StatusCode == StatusCodes.BadRequestInterrupted ||
-                sre.StatusCode == StatusCodes.BadConnectionClosed)
+            catch (ServiceResultException sre) when (IsTransientCiTimeoutStatus(sre.StatusCode))
             {
                 Assert.Ignore(
                     $"Timing-sensitive: trigger sequence interrupted by CI runner load ({sre.StatusCode}).");
@@ -228,10 +225,7 @@ namespace Opc.Ua.Client.Conformance.Tests
                 // B is back to plain Sampling and should not report
                 Assert.That(handles, Does.Not.Contain(2u));
             }
-            catch (ServiceResultException sre) when (
-                sre.StatusCode == StatusCodes.BadRequestTimeout ||
-                sre.StatusCode == StatusCodes.BadRequestInterrupted ||
-                sre.StatusCode == StatusCodes.BadConnectionClosed)
+            catch (ServiceResultException sre) when (IsTransientCiTimeoutStatus(sre.StatusCode))
             {
                 Assert.Ignore(
                     $"Timing-sensitive: trigger-remove sequence interrupted by CI runner load ({sre.StatusCode}).");
@@ -371,10 +365,7 @@ namespace Opc.Ua.Client.Conformance.Tests
                 Assert.That(StatusCode.IsGood(pubResp.ResponseHeader.ServiceResult), Is.True);
                 Assert.That(pubResp.NotificationMessage, Is.Not.Null);
             }
-            catch (ServiceResultException sre) when (
-                sre.StatusCode == StatusCodes.BadRequestTimeout ||
-                sre.StatusCode == StatusCodes.BadRequestInterrupted ||
-                sre.StatusCode == StatusCodes.BadConnectionClosed)
+            catch (ServiceResultException sre) when (IsTransientCiTimeoutStatus(sre.StatusCode))
             {
                 Assert.Ignore(
                     $"Timing-sensitive: chain-trigger setup interrupted by CI runner load ({sre.StatusCode}).");
@@ -746,10 +737,7 @@ namespace Opc.Ua.Client.Conformance.Tests
                 Assert.That(handles, Does.Contain(3u), "C should still trigger");
                 Assert.That(handles, Does.Contain(4u), "D should still trigger");
             }
-            catch (ServiceResultException sre) when (
-                sre.StatusCode == StatusCodes.BadRequestTimeout ||
-                sre.StatusCode == StatusCodes.BadRequestInterrupted ||
-                sre.StatusCode == StatusCodes.BadConnectionClosed)
+            catch (ServiceResultException sre) when (IsTransientCiTimeoutStatus(sre.StatusCode))
             {
                 Assert.Ignore(
                     $"Timing-sensitive: trigger-remove sequence interrupted by CI runner load ({sre.StatusCode}).");
@@ -1410,10 +1398,7 @@ namespace Opc.Ua.Client.Conformance.Tests
                 Assert.That(handles, Does.Not.Contain(2u),
                     "B should not report after trigger item deleted");
             }
-            catch (ServiceResultException sre) when (
-                sre.StatusCode == StatusCodes.BadRequestTimeout ||
-                sre.StatusCode == StatusCodes.BadRequestInterrupted ||
-                sre.StatusCode == StatusCodes.BadConnectionClosed)
+            catch (ServiceResultException sre) when (IsTransientCiTimeoutStatus(sre.StatusCode))
             {
                 Assert.Ignore(
                     $"Timing-sensitive: delete-trigger sequence interrupted by CI runner load ({sre.StatusCode}).");
@@ -1952,10 +1937,7 @@ namespace Opc.Ua.Client.Conformance.Tests
                     StatusCode.IsGood(pubResp.ResponseHeader.ServiceResult),
                     Is.True);
             }
-            catch (ServiceResultException sre) when (
-                sre.StatusCode == StatusCodes.BadRequestTimeout ||
-                sre.StatusCode == StatusCodes.BadRequestInterrupted ||
-                sre.StatusCode == StatusCodes.BadConnectionClosed)
+            catch (ServiceResultException sre) when (IsTransientCiTimeoutStatus(sre.StatusCode))
             {
                 Assert.Ignore(
                     $"Timing-sensitive: triggering setup interrupted by CI runner load ({sre.StatusCode}).");
@@ -2146,10 +2128,7 @@ namespace Opc.Ua.Client.Conformance.Tests
                 Assert.That(handles, Does.Not.Contain(2u),
                     "Sampling link with disabled trigger should not report.");
             }
-            catch (ServiceResultException sre) when (
-                sre.StatusCode == StatusCodes.BadRequestTimeout ||
-                sre.StatusCode == StatusCodes.BadRequestInterrupted ||
-                sre.StatusCode == StatusCodes.BadConnectionClosed)
+            catch (ServiceResultException sre) when (IsTransientCiTimeoutStatus(sre.StatusCode))
             {
                 Assert.Ignore(
                     $"Timing-sensitive: trigger/keep-alive sequence interrupted by CI runner load ({sre.StatusCode}).");
@@ -2277,10 +2256,7 @@ namespace Opc.Ua.Client.Conformance.Tests
                 Assert.That(handles, Does.Not.Contain(2u),
                     "Disabled link should not report.");
             }
-            catch (ServiceResultException sre) when (
-                sre.StatusCode == StatusCodes.BadRequestTimeout ||
-                sre.StatusCode == StatusCodes.BadRequestInterrupted ||
-                sre.StatusCode == StatusCodes.BadConnectionClosed)
+            catch (ServiceResultException sre) when (IsTransientCiTimeoutStatus(sre.StatusCode))
             {
                 Assert.Ignore(
                     $"Timing-sensitive: disabled-trigger sequence interrupted by CI runner load ({sre.StatusCode}).");

@@ -148,10 +148,7 @@ namespace Opc.Ua.Client.Conformance.Tests
                 Assert.That(dcn.MonitoredItems.Count, Is.GreaterThan(0),
                     $"DCN has no items for index {index}");
             }
-            catch (ServiceResultException sre) when (
-                sre.StatusCode == StatusCodes.BadRequestTimeout ||
-                sre.StatusCode == StatusCodes.BadRequestInterrupted ||
-                sre.StatusCode == StatusCodes.BadConnectionClosed)
+            catch (ServiceResultException sre) when (IsTransientCiTimeoutStatus(sre.StatusCode))
             {
                 Assert.Ignore(
                     $"Timing-sensitive: scalar data-change roundtrip interrupted by CI runner load ({sre.StatusCode}).");
@@ -460,10 +457,7 @@ namespace Opc.Ua.Client.Conformance.Tests
                     "Should eventually receive notification");
                 Assert.That(dcn.MonitoredItems.Count, Is.GreaterThan(0));
             }
-            catch (ServiceResultException sre) when (
-                sre.StatusCode == StatusCodes.BadRequestTimeout ||
-                sre.StatusCode == StatusCodes.BadRequestInterrupted ||
-                sre.StatusCode == StatusCodes.BadConnectionClosed)
+            catch (ServiceResultException sre) when (IsTransientCiTimeoutStatus(sre.StatusCode))
             {
                 Assert.Ignore(
                     $"Timing-sensitive: slow-sampling publish interrupted by CI runner load ({sre.StatusCode}).");
@@ -508,10 +502,7 @@ namespace Opc.Ua.Client.Conformance.Tests
                 Assert.That(dcn.MonitoredItems.Count, Is.GreaterThan(0),
                     "Should receive at least one notification");
             }
-            catch (ServiceResultException sre) when (
-                sre.StatusCode == StatusCodes.BadRequestTimeout ||
-                sre.StatusCode == StatusCodes.BadRequestInterrupted ||
-                sre.StatusCode == StatusCodes.BadConnectionClosed)
+            catch (ServiceResultException sre) when (IsTransientCiTimeoutStatus(sre.StatusCode))
             {
                 Assert.Ignore(
                     $"Timing-sensitive: rapid-write sequence interrupted by CI runner load ({sre.StatusCode}).");

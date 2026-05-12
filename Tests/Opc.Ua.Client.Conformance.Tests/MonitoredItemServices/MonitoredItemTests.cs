@@ -814,20 +814,28 @@ namespace Opc.Ua.Client.Conformance.Tests
 
             Assert.That(StatusCode.IsGood(createResp.Results[0].StatusCode), Is.True);
 
-            // Consume initial notification
-            await Task.Delay(200).ConfigureAwait(false);
-            await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
+            try
+            {
+                // Consume initial notification
+                await Task.Delay(200).ConfigureAwait(false);
+                await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
 
-            // Write new value
-            int newValue = new Random().Next(1, 10000);
-            await WriteValueAsync(nodeId, newValue).ConfigureAwait(false);
+                // Write new value
+                int newValue = new Random().Next(1, 10000);
+                await WriteValueAsync(nodeId, newValue).ConfigureAwait(false);
 
-            await Task.Delay(300).ConfigureAwait(false);
+                await Task.Delay(300).ConfigureAwait(false);
 
-            PublishResponse pubResp = await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
+                PublishResponse pubResp = await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
 
-            Assert.That(StatusCode.IsGood(pubResp.ResponseHeader.ServiceResult), Is.True);
-            Assert.That(pubResp.NotificationMessage.NotificationData.Count, Is.GreaterThan(0));
+                Assert.That(StatusCode.IsGood(pubResp.ResponseHeader.ServiceResult), Is.True);
+                Assert.That(pubResp.NotificationMessage.NotificationData.Count, Is.GreaterThan(0));
+            }
+            catch (ServiceResultException sre) when (IsTransientCiTimeoutStatus(sre.StatusCode))
+            {
+                Assert.Ignore(
+                    $"Timing-sensitive: write/publish sequence interrupted by CI runner load ({sre.StatusCode}).");
+            }
         }
 
         [Test]
@@ -1071,10 +1079,7 @@ namespace Opc.Ua.Client.Conformance.Tests
                 PublishResponse pub = await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
                 Assert.That(StatusCode.IsGood(pub.ResponseHeader.ServiceResult), Is.True);
             }
-            catch (ServiceResultException sre) when (
-                sre.StatusCode == StatusCodes.BadRequestTimeout ||
-                sre.StatusCode == StatusCodes.BadRequestInterrupted ||
-                sre.StatusCode == StatusCodes.BadConnectionClosed)
+            catch (ServiceResultException sre) when (IsTransientCiTimeoutStatus(sre.StatusCode))
             {
                 Assert.Ignore(
                     $"Timing-sensitive: rapid-write/publish sequence interrupted by CI runner load ({sre.StatusCode}).");

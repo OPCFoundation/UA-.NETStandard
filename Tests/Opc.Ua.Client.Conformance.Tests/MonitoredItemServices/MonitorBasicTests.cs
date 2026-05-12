@@ -594,10 +594,7 @@ namespace Opc.Ua.Client.Conformance.Tests
                 PublishResponse pub2 = await PublishAndAckAsync().ConfigureAwait(false);
                 Assert.That(StatusCode.IsGood(pub2.ResponseHeader.ServiceResult), Is.True);
             }
-            catch (ServiceResultException sre) when (
-                sre.StatusCode == StatusCodes.BadRequestTimeout ||
-                sre.StatusCode == StatusCodes.BadRequestInterrupted ||
-                sre.StatusCode == StatusCodes.BadConnectionClosed)
+            catch (ServiceResultException sre) when (IsTransientCiTimeoutStatus(sre.StatusCode))
             {
                 Assert.Ignore(
                     $"Timing-sensitive: SetMonitoringMode/Publish interrupted by CI runner load ({sre.StatusCode}).");

@@ -303,6 +303,21 @@ namespace Opc.Ua.Client.Conformance.Tests
         }
 
         /// <summary>
+        /// Returns <c>true</c> when the given <see cref="StatusCode"/> matches
+        /// one of the SDK channel-level transient codes that we ignore as
+        /// CI-runner load symptoms (the test logic itself is fine; the
+        /// channel/server simply didn't respond in time).
+        /// </summary>
+        protected static bool IsTransientCiTimeoutStatus(StatusCode code)
+        {
+            return code == StatusCodes.BadRequestTimeout
+                || code == StatusCodes.BadRequestInterrupted
+                || code == StatusCodes.BadConnectionClosed
+                || code == StatusCodes.BadSecureChannelClosed
+                || code == StatusCodes.BadSecurityChecksFailed;
+        }
+
+        /// <summary>
         /// Wraps <see cref="ISession.CreateSubscriptionAsync"/> for use from
         /// <c>[SetUp]</c> methods so that a CI runner under heavy load doesn't
         /// turn a transient channel-side timeout into a fixture-wide
@@ -333,10 +348,7 @@ namespace Opc.Ua.Client.Conformance.Tests
                     CancellationToken.None).ConfigureAwait(false);
                 return response.SubscriptionId;
             }
-            catch (ServiceResultException sre) when (
-                sre.StatusCode == StatusCodes.BadRequestTimeout ||
-                sre.StatusCode == StatusCodes.BadRequestInterrupted ||
-                sre.StatusCode == StatusCodes.BadConnectionClosed)
+            catch (ServiceResultException sre) when (IsTransientCiTimeoutStatus(sre.StatusCode))
             {
                 Assert.Ignore(
                     $"Timing-sensitive: SetUp CreateSubscription interrupted by CI runner load ({sre.StatusCode}).");

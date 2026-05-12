@@ -119,10 +119,7 @@ namespace Opc.Ua.Client.Conformance.Tests
                 Assert.That(StatusCode.IsGood(pubResp.ResponseHeader.ServiceResult), Is.True);
                 Assert.That(pubResp.NotificationMessage, Is.Not.Null);
             }
-            catch (ServiceResultException sre) when (
-                sre.StatusCode == StatusCodes.BadRequestTimeout ||
-                sre.StatusCode == StatusCodes.BadRequestInterrupted ||
-                sre.StatusCode == StatusCodes.BadConnectionClosed)
+            catch (ServiceResultException sre) when (IsTransientCiTimeoutStatus(sre.StatusCode))
             {
                 Assert.Ignore(
                     $"Timing-sensitive: keep-alive publish interrupted by CI runner load ({sre.StatusCode}).");

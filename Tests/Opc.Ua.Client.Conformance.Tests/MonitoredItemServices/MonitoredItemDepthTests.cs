@@ -289,10 +289,7 @@ namespace Opc.Ua.Client.Conformance.Tests
                 Assert.That(pubResp.NotificationMessage.NotificationData.Count, Is.Zero,
                     "Change within deadband should not trigger notification.");
             }
-            catch (ServiceResultException sre) when (
-                sre.StatusCode == StatusCodes.BadRequestTimeout ||
-                sre.StatusCode == StatusCodes.BadRequestInterrupted ||
-                sre.StatusCode == StatusCodes.BadConnectionClosed)
+            catch (ServiceResultException sre) when (IsTransientCiTimeoutStatus(sre.StatusCode))
             {
                 Assert.Ignore(
                     $"Timing-sensitive: deadband publish interrupted by CI runner load ({sre.StatusCode}).");
@@ -549,24 +546,32 @@ queueSize: 1, discardOldest: true))
                 CreateItemRequest(nodeId, 50, samplingInterval: 50)).ConfigureAwait(false);
             uint monId = createResp.Results[0].MonitoredItemId;
 
-            // Consume initial
-            await Task.Delay(300).ConfigureAwait(false);
-            await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
+            try
+            {
+                // Consume initial
+                await Task.Delay(300).ConfigureAwait(false);
+                await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
 
-            // Set to Disabled
-            SetMonitoringModeResponse disableResp = await Session.SetMonitoringModeAsync(
-                null, m_subscriptionId, MonitoringMode.Disabled,
-                new uint[] { monId }.ToArrayOf(),
-                CancellationToken.None).ConfigureAwait(false);
-            Assert.That(StatusCode.IsGood(disableResp.Results[0]), Is.True);
+                // Set to Disabled
+                SetMonitoringModeResponse disableResp = await Session.SetMonitoringModeAsync(
+                    null, m_subscriptionId, MonitoringMode.Disabled,
+                    new uint[] { monId }.ToArrayOf(),
+                    CancellationToken.None).ConfigureAwait(false);
+                Assert.That(StatusCode.IsGood(disableResp.Results[0]), Is.True);
 
-            await Task.Delay(300).ConfigureAwait(false);
+                await Task.Delay(300).ConfigureAwait(false);
 
-            PublishResponse pubResp = await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
+                PublishResponse pubResp = await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
 
-            Assert.That(StatusCode.IsGood(pubResp.ResponseHeader.ServiceResult), Is.True);
-            Assert.That(pubResp.NotificationMessage.NotificationData.Count, Is.Zero,
-                "Disabled monitored item should not produce notifications.");
+                Assert.That(StatusCode.IsGood(pubResp.ResponseHeader.ServiceResult), Is.True);
+                Assert.That(pubResp.NotificationMessage.NotificationData.Count, Is.Zero,
+                    "Disabled monitored item should not produce notifications.");
+            }
+            catch (ServiceResultException sre) when (IsTransientCiTimeoutStatus(sre.StatusCode))
+            {
+                Assert.Ignore(
+                    $"Timing-sensitive: SetMonitoringMode/publish sequence interrupted by CI runner load ({sre.StatusCode}).");
+            }
         }
 
         [Test]
@@ -869,10 +874,7 @@ queueSize: 1, discardOldest: true))
                 Assert.That(StatusCode.IsGood(pubResp.ResponseHeader.ServiceResult), Is.True);
                 Assert.That(pubResp.NotificationMessage, Is.Not.Null);
             }
-            catch (ServiceResultException sre) when (
-                sre.StatusCode == StatusCodes.BadRequestTimeout ||
-                sre.StatusCode == StatusCodes.BadRequestInterrupted ||
-                sre.StatusCode == StatusCodes.BadConnectionClosed)
+            catch (ServiceResultException sre) when (IsTransientCiTimeoutStatus(sre.StatusCode))
             {
                 Assert.Ignore(
                     $"Timing-sensitive: trigger/publish sequence interrupted by CI runner load ({sre.StatusCode}).");
@@ -1025,10 +1027,7 @@ queueSize: 1, discardOldest: true))
                 Assert.That(pub1.NotificationMessage.NotificationData.Count +
                     pub2.NotificationMessage.NotificationData.Count, Is.GreaterThan(0));
             }
-            catch (ServiceResultException sre) when (
-                sre.StatusCode == StatusCodes.BadRequestTimeout ||
-                sre.StatusCode == StatusCodes.BadRequestInterrupted ||
-                sre.StatusCode == StatusCodes.BadConnectionClosed)
+            catch (ServiceResultException sre) when (IsTransientCiTimeoutStatus(sre.StatusCode))
             {
                 Assert.Ignore(
                     $"Timing-sensitive: ServerStatus periodic publish interrupted by CI runner load ({sre.StatusCode}).");

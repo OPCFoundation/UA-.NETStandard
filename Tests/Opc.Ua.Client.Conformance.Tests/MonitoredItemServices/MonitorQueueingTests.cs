@@ -464,11 +464,7 @@ queueSize: 1, discardOldest: true))
                         "Queue size 1 should deliver at most 1-2 items.");
                 }
             }
-            catch (ServiceResultException sre) when (
-                sre.StatusCode == StatusCodes.BadRequestTimeout ||
-                sre.StatusCode == StatusCodes.BadRequestInterrupted ||
-                sre.StatusCode == StatusCodes.BadConnectionClosed ||
-                sre.StatusCode == StatusCodes.BadSecurityChecksFailed)
+            catch (ServiceResultException sre) when (IsTransientCiTimeoutStatus(sre.StatusCode))
             {
                 Assert.Ignore(
                     $"Timing-sensitive: rapid-write/publish sequence interrupted by CI runner load ({sre.StatusCode}).");
@@ -750,10 +746,7 @@ queueSize: 10))
                     Is.GreaterThanOrEqualTo(1),
                     "All 3 changes should be delivered with queue 10.");
             }
-            catch (ServiceResultException sre) when (
-                sre.StatusCode == StatusCodes.BadRequestTimeout ||
-                sre.StatusCode == StatusCodes.BadRequestInterrupted ||
-                sre.StatusCode == StatusCodes.BadConnectionClosed)
+            catch (ServiceResultException sre) when (IsTransientCiTimeoutStatus(sre.StatusCode))
             {
                 Assert.Ignore(
                     $"Timing-sensitive: write/publish sequence interrupted by CI runner load ({sre.StatusCode}).");
