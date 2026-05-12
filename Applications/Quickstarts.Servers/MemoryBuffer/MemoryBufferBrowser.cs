@@ -137,9 +137,9 @@ namespace MemoryBuffer
                     return null;
                 }
 
-                string name = BrowseName.Name;
+                string? name = BrowseName.Name;
 
-                for (int ii = 0; ii < name.Length; ii++)
+                for (int ii = 0; ii < name!.Length; ii++)
                 {
                     if (!"0123456789ABCDEF".Contains(name[ii], StringComparison.Ordinal))
                     {
@@ -150,7 +150,7 @@ namespace MemoryBuffer
                 m_position = Convert.ToUInt32(name, 16);
 
                 // check for memory overflow.
-                if (m_position >= m_buffer.SizeInBytes.Value)
+                if (m_position >= m_buffer!.SizeInBytes!.Value)
                 {
                     return null;
                 }
@@ -161,7 +161,7 @@ namespace MemoryBuffer
             // return the child at the next position.
             else
             {
-                if (m_position >= m_buffer.SizeInBytes.Value)
+                if (m_position >= m_buffer!.SizeInBytes!.Value)
                 {
                     return null;
                 }

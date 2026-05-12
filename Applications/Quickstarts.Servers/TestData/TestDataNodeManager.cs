@@ -553,7 +553,7 @@ namespace TestData
                     // start reading.
                     reader.BeginReadRaw(
                         serverContext!,
-                        details,
+                        details!,
                         timestampsToReturn,
                         nodeToRead.ParsedIndexRange,
                         nodeToRead.DataEncoding,

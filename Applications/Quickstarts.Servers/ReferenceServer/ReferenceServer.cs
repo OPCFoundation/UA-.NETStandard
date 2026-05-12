@@ -131,7 +131,7 @@ namespace Quickstarts.ReferenceServer
             }
             else
             {
-                ReferenceNodeManager referenceNodeManager = null;
+                ReferenceNodeManager? referenceNodeManager = null;
                 try
                 {
                     // CA2000: ownership-transfer pattern — nulled after handoff to asyncNodeManagers.
@@ -476,7 +476,7 @@ namespace Quickstarts.ReferenceServer
 #pragma warning disable CA2025
                     Opc.Ua.CertificateValidationResult userCertResult = m_userCertificateValidator
                         .ValidateAsync(
-                            userCertificate,
+                            userCertificate!,
                             TrustListIdentifier.Users,
                             default)
                         .GetAwaiter()
@@ -492,9 +492,9 @@ namespace Quickstarts.ReferenceServer
                     // CA2025: task awaited via GetAwaiter().GetResult(); the disposable's
                     // using scope extends past the await.
 #pragma warning disable CA2025
-                    Opc.Ua.CertificateValidationResult fallbackCertResult = CertificateManager
+                    Opc.Ua.CertificateValidationResult fallbackCertResult = CertificateManager!
                         .ValidateAsync(
-                            userCertificate,
+                            userCertificate!,
                             TrustListIdentifier.Users,
                             default)
                         .GetAwaiter()
