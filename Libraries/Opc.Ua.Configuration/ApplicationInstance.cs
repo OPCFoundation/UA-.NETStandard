@@ -37,6 +37,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Configuration
@@ -61,7 +62,7 @@ namespace Opc.Ua.Configuration
                 Server = null;
             }
 
-            CertificateManager localManager = CertificateManager;
+            CertificateManager? localManager = CertificateManager;
             localManager?.Dispose();
             if (ApplicationConfiguration?.CertificateManager is CertificateManager configManager && !ReferenceEquals(configManager, localManager))
             {
@@ -95,7 +96,7 @@ namespace Opc.Ua.Configuration
         public ApplicationInstance(ITelemetryContext? telemetry)
         {
             m_telemetry = telemetry;
-            m_logger = telemetry.CreateLogger<ApplicationInstance>();
+            m_logger = telemetry?.CreateLogger<ApplicationInstance>() ?? NullLogger<ApplicationInstance>.Instance;
             DisableCertificateAutoCreation = false;
         }
 
@@ -145,7 +146,7 @@ namespace Opc.Ua.Configuration
         /// <summary>
         /// Gets the certificate manager for this application instance.
         /// </summary>
-        public CertificateManager CertificateManager { get; private set; }
+        public CertificateManager? CertificateManager { get; private set; }
 
         /// <inheritdoc/>
         public async Task StartAsync(IServerBase server, CancellationToken ct = default)
@@ -344,12 +345,12 @@ namespace Opc.Ua.Configuration
             // for per-certificate validation below.
             CertificateManager ??= CertificateManagerFactory.Create(
                 securityConfiguration,
-                m_telemetry);
+                m_telemetry!);
 
             // Make the manager visible via the configuration so consumers
             // that only see ApplicationConfiguration (e.g. Session) can
             // route validation through the new pipeline.
-            ApplicationConfiguration.CertificateManager = CertificateManager;
+            ApplicationConfiguration!.CertificateManager = CertificateManager;
 
             // Note: The FindAsync method searches certificates in this order: thumbprint, subjectName, then applicationUri.
             // When SubjectName or Thumbprint is specified, certificates may be loaded even if their ApplicationUri
@@ -398,7 +399,7 @@ namespace Opc.Ua.Configuration
             }
 
             // load the certificate (with private key if available).
-            ICertificatePasswordProvider passwordProvider = configuration
+            ICertificatePasswordProvider? passwordProvider = configuration
                 .SecurityConfiguration
                 .CertificatePasswordProvider;
 
@@ -486,13 +487,13 @@ namespace Opc.Ua.Configuration
                                 .AppendLine("Requested: {0}")
                                 .AppendLine("Found: {1}");
                             if (!await ApproveMessageAsync(
-                                Utils.Format(message.ToString(), id.SubjectName, certificate.Subject), silent)
+                                Utils.Format(message.ToString(), id.SubjectName!, certificate.Subject), silent)
                                     .ConfigureAwait(false))
                             {
                                 throw ServiceResultException.ConfigurationError(
                                     "Thumbprint for {0} was explicitly specified in the configuration but\n" +
                                     "another certificate with the same subject name {1} was found.",
-                                    id.SubjectName,
+                                    id.SubjectName!,
                                     certificate.Subject);
                             }
                         }
@@ -713,7 +714,7 @@ namespace Opc.Ua.Configuration
                     : null;
                 using var chain = new CertificateCollection { publicKeyCert ?? certificate };
 
-                CertificateValidationResult result = await CertificateManager
+                CertificateValidationResult result = await CertificateManager!
                     .ValidateAsync(
                         chain,
                         trustList: null,
@@ -989,7 +990,7 @@ namespace Opc.Ua.Configuration
                 id.CertificateType = CertificateIdentifier.GetCertificateType(newCertificate);
             }
 
-            ICertificatePasswordProvider passwordProvider = configuration
+            ICertificatePasswordProvider? passwordProvider = configuration
                 .SecurityConfiguration
                 .CertificatePasswordProvider;
             await newCertificate.AddToStoreAsync(

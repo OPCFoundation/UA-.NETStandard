@@ -337,7 +337,7 @@ namespace Opc.Ua.Bindings
             m_pinnedServerCert?.Dispose();
             m_pinnedServerCert = serverCertificate;
             m_pinnedServerCertX509?.Dispose();
-            m_pinnedServerCertX509 = serverCertificate.AsX509Certificate2();
+            m_pinnedServerCertX509 = serverCertificate!.AsX509Certificate2();
 
             // save the server certificate so it can be used in the secure channel context.
             ServerChannelCertificate = serverCertificate!.RawData;
@@ -640,7 +640,7 @@ namespace Opc.Ua.Bindings
 
             try
             {
-                using var cert = Certificate.FromRawData(clientCertificate.RawData);
+                using var cert = Certificate.FromRawData(clientCertificate!.RawData);
 #pragma warning disable CA2025
                 CertificateValidationResult result = m_quotas.CertificateValidator!
                     .ValidateAsync(cert, ct: default)
