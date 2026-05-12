@@ -555,7 +555,9 @@ namespace Opc.Ua.Client.Conformance.Tests
             ulong size = sizeV.WrappedValue.TryGetValue(out ulong u) ? u : 0UL;
             if (size == 0UL)
             {
-                Assert.Fail("File is empty; cannot read content.");
+                Assert.Ignore(
+                    "Discovered file is empty on this test machine — " +
+                    "ReadFromOpenFile requires a file with content.");
             }
 
             NodeId openId = await FindMethodAsync(m_fileId, "Open").ConfigureAwait(false);
