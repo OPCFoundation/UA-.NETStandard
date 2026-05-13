@@ -28,6 +28,8 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -67,6 +69,7 @@ namespace Boiler
         private long m_drumLevelTicks;
         private long m_pipeFlowTicks;
         private long m_inputFlowTicks;
+        private long m_drumHeartbeatTicks;
 
         partial void Configure(INodeManagerBuilder builder)
         {
@@ -150,6 +153,19 @@ namespace Boiler
             // List, CancellationToken)/ServiceResult plumbing entirely.
             builder.Boilers.Boiler__1.Simulation.Halt
                 .OnCall(HaltSimulationAsync);
+
+            // (8) Event publish source — the source-generated typed
+            // wrapper for DrumX001 exposes Publish<TEvent> because the
+            // model declares EventNotifier=SubscribeToEvents on this
+            // node. The factory iterator runs lazily: the registry
+            // activates it the first time a client subscribes to events
+            // on the drum (or any ancestor that walks via inverse
+            // HasNotifier/HasEventSource references) and cancels it once
+            // the last interested monitored item disappears. The
+            // registry auto-populates EventId/EventType/Time/SourceNode
+            // so the iterator only fills the user-meaningful fields.
+            builder.Boilers.Boiler__1.DrumX001
+                .Publish<BaseEventState>(GenerateDrumHeartbeatAsync);
         }
 
         private long m_levelMeasurementTicks;
@@ -168,6 +184,47 @@ namespace Boiler
             cancellationToken.ThrowIfCancellationRequested();
             Server.Telemetry.CreateLogger<BoilerNodeManager>()
                 .LogInformation("Boiler simulation halted.");
+        }
+
+        /// <summary>
+        /// Lazily emits a synthetic heartbeat <see cref="BaseEventState"/>
+        /// every 500ms while at least one client is monitoring events on
+        /// the drum notifier. Cancellation tears the iterator down on the
+        /// last unsubscribe (or on manager disposal). The registry fills
+        /// in <c>EventId</c>, <c>EventType</c>, <c>SourceNode</c>,
+        /// <c>SourceName</c>, <c>Time</c>, and <c>ReceiveTime</c> on the
+        /// way out, so the iterator only sets the user-meaningful fields.
+        /// </summary>
+        private async IAsyncEnumerable<BaseEventState> GenerateDrumHeartbeatAsync(
+            BaseObjectState notifier,
+            ISystemContext context,
+            [EnumeratorCancellation] CancellationToken cancellationToken)
+        {
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                Task delay = Task.Delay(
+                    TimeSpan.FromMilliseconds(500), cancellationToken);
+                try
+                {
+                    await delay.ConfigureAwait(false);
+                }
+                catch (OperationCanceledException)
+                {
+                    yield break;
+                }
+
+                long sequence = Interlocked.Increment(ref m_drumHeartbeatTicks);
+                var ev = new BaseEventState(parent: notifier);
+                ev.Severity = PropertyState<ushort>.With<VariantBuilder>(
+                    ev, (ushort)EventSeverity.Medium);
+                ev.Message = PropertyState<LocalizedText>.With<VariantBuilder>(
+                    ev,
+                    new LocalizedText(string.Format(
+                        System.Globalization.CultureInfo.InvariantCulture,
+                        "Drum heartbeat #{0}",
+                        sequence)));
+                yield return ev;
+            }
         }
 
         private ServiceResult GenerateDrumLevel(

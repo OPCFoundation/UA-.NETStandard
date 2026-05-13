@@ -345,6 +345,135 @@ in `CalcNodeManager.Configure.cs`). The companion AOT round-trip tests
 in `Tests/Opc.Ua.Aot.Tests/CalculatorNodeManagerAotTests.cs` exercise
 each shape over a real `Session.CallAsync(...)`.
 
+## Event sources — typed `Publish<TEvent>` on notifier wrappers
+
+Beyond reads, writes and method calls, the fluent API lets callers
+register an `IAsyncEnumerable<TEvent>` against any notifier object so
+events flow into the standard `NodeState.ReportEvent` path
+automatically. The runtime owns the entire lifecycle: it starts the
+iterator the first time a client subscribes to events on the notifier
+(or any ancestor that walks via inverse `HasNotifier` /
+`HasEventSource` references), cancels it when the last interested
+monitored item disappears, and disposes it on manager teardown.
+
+Generated managers derive from `Opc.Ua.Server.Fluent.FluentNodeManagerBase`
+out of the box, so wiring is one call:
+
+```csharp
+partial void Configure(IBoilerNodeManagerBuilder builder)
+{
+    // The DrumX001 wrapper exposes Publish<TEvent> because the model
+    // declares EventNotifier=SubscribeToEvents on the node. Lazy by
+    // default — the iterator only runs while a client is monitoring.
+    builder.Boilers.Boiler__1.DrumX001
+        .Publish<BaseEventState>(GenerateDrumHeartbeatAsync);
+}
+
+private async IAsyncEnumerable<BaseEventState> GenerateDrumHeartbeatAsync(
+    BaseObjectState notifier,
+    ISystemContext context,
+    [EnumeratorCancellation] CancellationToken cancellationToken)
+{
+    while (!cancellationToken.IsCancellationRequested)
+    {
+        try
+        {
+            await Task.Delay(TimeSpan.FromMilliseconds(500), cancellationToken)
+                .ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) { yield break; }
+
+        var ev = new BaseEventState(parent: notifier);
+        ev.Severity = PropertyState<ushort>.With<VariantBuilder>(
+            ev, (ushort)EventSeverity.Medium);
+        ev.Message = PropertyState<LocalizedText>.With<VariantBuilder>(
+            ev, new LocalizedText("Drum heartbeat"));
+        yield return ev;
+    }
+}
+```
+
+The runtime auto-populates `EventId`, `EventType`, `SourceNode`,
+`SourceName` (browse name of the notifier), `Time`, `ReceiveTime`,
+`Severity` (Medium when 0) and `Message` (empty `LocalizedText` when
+unset) on the way out, so the iterator only sets the user-meaningful
+fields.
+
+### Where the typed overload appears
+
+The generator emits `Publish<TEvent>` on a wrapper **only** when the
+underlying node qualifies as an event source:
+
+- `ObjectDesign.SupportsEvents == true` (i.e. the model declares
+  `EventNotifier=SubscribeToEvents`, `HasNotifier`, or
+  `HasEventSource`), or
+- The node has a forward `GeneratesEvent` / `AlwaysGeneratesEvent`
+  reference.
+
+`TEvent` is constrained to `BaseEventState` — pass any subtype that
+fits the model's event hierarchy. For nodes outside the model, or
+hand-written managers, the same `Publish<TNotifier, TEvent>` extension
+is available directly on `INodeBuilder<TNotifier>` where
+`TNotifier : BaseObjectState`.
+
+### Two registration shapes
+
+```csharp
+// Direct stream — registry uses the same instance for every activation.
+builder.Boilers.Boiler__1.DrumX001
+    .Publish<BaseEventState>(channel.Reader.ReadAllAsync(default));
+
+// Factory — registry calls the factory each time a client subscribes,
+// so the iterator can capture the live notifier / context / token.
+builder.Boilers.Boiler__1.DrumX001
+    .Publish<BaseEventState>(
+        (notifier, context, ct) => GenerateAsync(notifier, context, ct));
+```
+
+### Tuning lifecycle with `EventPublishOptions`
+
+```csharp
+builder.Boilers.Boiler__1.DrumX001
+    .Publish<BaseEventState>(GenerateDrumHeartbeatAsync,
+        new EventPublishOptions
+        {
+            // Keep iterator running even with no monitored items.
+            AlwaysOn               = false,
+
+            // Skip default population of EventId / EventType / Time /
+            // ReceiveTime / SourceNode / SourceName / Severity / Message.
+            SkipDefaultPopulation  = false,
+
+            // Register the notifier as a server-wide root notifier so
+            // clients can monitor events on the Server object itself.
+            RegisterAsRootNotifier = true,
+
+            // Bound how long the registry waits for the iterator to
+            // honour cancellation on deactivation.
+            CancellationTimeout    = TimeSpan.FromSeconds(5),
+
+            // Optional fault-handler invoked when the iterator throws.
+            OnError = (notifier, exception, context) => { /* log */ }
+        });
+```
+
+### Hand-written node managers
+
+Managers that don't use the source generator can opt in by deriving
+from `Opc.Ua.Server.Fluent.FluentNodeManagerBase` and calling
+`AttachToBuilder(builder)` from inside their address-space-build
+callback. Once attached, all `Publish` extensions resolve against the
+manager's registry exactly as for generated managers.
+
+The end-to-end sample lives in
+`Applications/MinimalBoilerServer/BoilerNodeManager.Configure.cs`
+(wiring `GenerateDrumHeartbeatAsync` on the drum). The companion AOT
+round-trip test in
+`Tests/Opc.Ua.Aot.Tests/PublishedEventsAotTests.cs` subscribes a
+real client `MonitoredItem` with an `EventFilter` and asserts the
+heartbeats arrive end-to-end under NativeAOT constraints (no JIT, no
+reflection).
+
 ## Single-file `Program.cs` — what it looks like
 
 The shipping `Opc.Ua.Server.Hosting.AddOpcUaServer(...)` extension wires the
