@@ -165,6 +165,48 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         }
 
         [Test]
+        public void EmittedFluentBuilders_TopLevelInstanceWrapperLivesAtNamespaceScope()
+        {
+            string fb = GetFluentBuilders();
+
+            // Top-level wrappers must sit directly under the namespace
+            // body — i.e. at column 4 (one level into the namespace block
+            // emitted by FluentBuilderTemplates.File). Use TestObject as
+            // an exemplar — TestModel.xml declares it as a top-level
+            // instance.
+            Assert.That(fb, Does.Match(@"(?m)^    internal sealed class TestObjectBuilder\b"),
+                "Top-level wrappers must be declared at namespace scope (column 4)");
+        }
+
+        [Test]
+        public void EmittedFluentBuilders_MethodWrapperIsNestedInsideOwningObject()
+        {
+            string fb = GetFluentBuilders();
+
+            // TestObject's RestrictedObjectType has a Mandatory Method
+            // child 'Blue'. Its wrapper class must be nested one level
+            // inside TestObjectBuilder — i.e. declared at column 8.
+            Assert.That(fb, Does.Match(
+                @"(?m)^        internal sealed class BlueMethodBuilder\b"),
+                "Method wrappers must be nested inside the owning object's wrapper (column 8)");
+        }
+
+        [Test]
+        public void EmittedFluentBuilders_ChildAccessorReturnsSimpleLeafName()
+        {
+            string fb = GetFluentBuilders();
+
+            // Child accessors should return the simple leaf name only
+            // (e.g. 'BlueMethodBuilder') because the wrapper is nested
+            // inside the parent, not the old flat
+            // 'TestObject_BlueMethodBuilder' identifier.
+            Assert.That(fb, Does.Not.Match(@"public\s+TestObject_\w+Builder\s+\w+"),
+                "Child accessors must reference the simple leaf-name wrapper, not a flat dotted identifier");
+            Assert.That(fb, Does.Match(@"public\s+BlueMethodBuilder\s+Blue\b"),
+                "Child accessor for 'Blue' should return the simple-leaf-name 'BlueMethodBuilder'");
+        }
+
+        [Test]
         public void EmittedNodeManager_InvokesBothPlainAndTypedConfigurePartials()
         {
             Dictionary<string, string> files = GenerateForTestModel(generateNodeManager: true);

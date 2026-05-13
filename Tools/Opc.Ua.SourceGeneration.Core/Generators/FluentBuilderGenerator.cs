@@ -126,6 +126,11 @@ namespace Opc.Ua.SourceGeneration
             // are running outside the Roslyn diagnostic pipeline here).
             ValidateNoCollisions();
 
+            // Wire each wrapper to its direct child object/method
+            // wrappers so the recursive emitter can walk the tree
+            // depth-first and emit nested type declarations.
+            LinkChildWrappers();
+
             string fileStem = string.IsNullOrEmpty(OverrideManagerClassName)
                 ? nsPrefix
                 : OverrideManagerClassName;
@@ -158,16 +163,15 @@ namespace Opc.Ua.SourceGeneration
                         managerClassName,
                         roots);
 
-                    foreach (InstanceWrapper wrapper in m_wrappers.Values
-                        .OrderBy(w => w.ClassName, StringComparer.Ordinal))
+                    // Walk top-level instance wrappers depth-first so each
+                    // child object/method wrapper is emitted as a nested
+                    // type inside its parent. Top-level wrappers (those
+                    // whose parent path is empty) live at namespace scope.
+                    foreach (InstanceWrapper top in m_wrappers.Values
+                        .Where(w => w.ParentKey == null)
+                        .OrderBy(w => w.LeafName, StringComparer.Ordinal))
                     {
-                        EmitInstanceWrapper(ctx.Out, wrapper);
-                    }
-
-                    foreach (MethodWrapper method in m_methodWrappers.Values
-                        .OrderBy(w => w.ClassName, StringComparer.Ordinal))
-                    {
-                        EmitMethodWrapper(ctx.Out, method);
+                        EmitInstanceWrapper(ctx.Out, top, indent: string.Empty);
                     }
 
                     return null;
@@ -316,7 +320,7 @@ namespace Opc.Ua.SourceGeneration
         }
 
         /// <summary>
-        /// Registers an <see cref="InstanceWrapper"/> for the supplied
+        /// Registers an <c>InstanceWrapper</c> for the supplied
         /// node. Idempotent — if the wrapper has already been registered
         /// (e.g. via a sibling root) the existing entry is reused.
         /// </summary>
@@ -332,15 +336,21 @@ namespace Opc.Ua.SourceGeneration
                 return;
             }
 
-            string className = ComposeClassName(root, relativePath, suffix: "Builder");
+            string leafName = ResolveLeafName(root, relativePath, hnode.Instance);
+            string parentKey = ResolveParentKey(root, relativePath, leafName);
+            string className = ComposeWrapperClassName(leafName, suffix: "Builder");
             string nsUri = ResolveNodeBrowseNamespace(hnode.Instance);
             var wrapper = new InstanceWrapper
             {
                 Key = key,
                 ClassName = className,
+                LeafName = leafName,
+                ParentKey = parentKey,
                 NodeStateType = ResolveStateClrType(hnode.Instance),
                 BrowseNamespaceUri = nsUri,
-                Children = []
+                Children = [],
+                ChildObjectKeys = [],
+                ChildMethodKeys = []
             };
 
             // Children resolved relative to this node.
@@ -356,6 +366,7 @@ namespace Opc.Ua.SourceGeneration
                     string accessorName = GetAccessorName(kid.Instance);
                     string browseName = GetBrowseName(kid.Instance);
                     string browseNsUri = ResolveNodeBrowseNamespace(kid.Instance);
+                    string childLeaf = ResolveLeafName(root, kid.RelativePath, kid.Instance);
                     var child = new ChildAccessor
                     {
                         AccessorName = accessorName,
@@ -369,15 +380,21 @@ namespace Opc.Ua.SourceGeneration
                             child.Kind = ChildKind.Variable;
                             child.ValueClrType = GetVariableValueClrType(var);
                             break;
-                        case MethodDesign method:
+                        case MethodDesign:
                             child.Kind = ChildKind.Method;
-                            child.WrapperClassName = ComposeClassName(
-                                root, kid.RelativePath, suffix: "MethodBuilder");
+                            // Lexical scope: methods are emitted as nested
+                            // classes inside the parent wrapper, so the
+                            // simple leaf name resolves correctly here.
+                            child.WrapperClassName = ComposeWrapperClassName(
+                                childLeaf, suffix: "MethodBuilder");
                             break;
                         case ObjectDesign:
                             child.Kind = ChildKind.Object;
-                            child.WrapperClassName = ComposeClassName(
-                                root, kid.RelativePath, suffix: "Builder");
+                            // Lexical scope: object child wrappers are
+                            // nested classes; the simple leaf name resolves
+                            // through the enclosing parent wrapper.
+                            child.WrapperClassName = ComposeWrapperClassName(
+                                childLeaf, suffix: "Builder");
                             child.ChildKey = childKey;
                             child.ChildStateType = ResolveStateClrType(kid.Instance);
                             break;
@@ -393,10 +410,9 @@ namespace Opc.Ua.SourceGeneration
         }
 
         /// <summary>
-        /// Registers a <see cref="MethodWrapper"/> for the supplied method
-        /// design. Resolves typed argument shapes from
-        /// <see cref="MethodDesign.InputArguments"/> /
-        /// <see cref="MethodDesign.OutputArguments"/>.
+        /// Registers a <c>MethodWrapper</c> for the supplied method
+        /// design. Resolves typed argument shapes from the method's
+        /// <c>InputArguments</c>/<c>OutputArguments</c>.
         /// </summary>
         private void RegisterMethodWrapper(
             InstanceDesign root,
@@ -409,11 +425,15 @@ namespace Opc.Ua.SourceGeneration
                 return;
             }
 
-            string className = ComposeClassName(root, relativePath, suffix: "MethodBuilder");
+            string leafName = ResolveLeafName(root, relativePath, method);
+            string parentKey = ResolveParentKey(root, relativePath, leafName);
+            string className = ComposeWrapperClassName(leafName, suffix: "MethodBuilder");
             var wrapper = new MethodWrapper
             {
                 Key = key,
                 ClassName = className,
+                LeafName = leafName,
+                ParentKey = parentKey,
                 Inputs = method.InputArguments ?? [],
                 Outputs = method.OutputArguments ?? []
             };
@@ -423,6 +443,46 @@ namespace Opc.Ua.SourceGeneration
         // ============================================================
         // Validation
         // ============================================================
+
+        /// <summary>
+        /// Wires each wrapper to its direct child object/method wrappers
+        /// so the recursive emitter can walk the tree depth-first. Sorts
+        /// siblings by leaf name (ordinal) so generation is deterministic.
+        /// </summary>
+        private void LinkChildWrappers()
+        {
+            foreach (InstanceWrapper child in m_wrappers.Values)
+            {
+                if (child.ParentKey == null)
+                {
+                    continue;
+                }
+                if (m_wrappers.TryGetValue(child.ParentKey, out InstanceWrapper parent))
+                {
+                    parent.ChildObjectKeys.Add(child.Key);
+                }
+            }
+            foreach (MethodWrapper method in m_methodWrappers.Values)
+            {
+                if (method.ParentKey == null)
+                {
+                    continue;
+                }
+                if (m_wrappers.TryGetValue(method.ParentKey, out InstanceWrapper parent))
+                {
+                    parent.ChildMethodKeys.Add(method.Key);
+                }
+            }
+            foreach (InstanceWrapper wrapper in m_wrappers.Values)
+            {
+                wrapper.ChildObjectKeys.Sort((a, b) => string.CompareOrdinal(
+                    m_wrappers[a].LeafName,
+                    m_wrappers[b].LeafName));
+                wrapper.ChildMethodKeys.Sort((a, b) => string.CompareOrdinal(
+                    m_methodWrappers[a].LeafName,
+                    m_methodWrappers[b].LeafName));
+            }
+        }
 
         /// <summary>
         /// Verifies that no two children of the same wrapper sanitize to
@@ -672,143 +732,200 @@ namespace Opc.Ua.SourceGeneration
 
         /// <summary>
         /// Emits one wrapper class for an <see cref="InstanceDesign"/>
-        /// describing a non-method instance.
+        /// describing a non-method instance. The class is rendered at the
+        /// indentation depth supplied by <paramref name="indent"/>; child
+        /// object/method wrappers are emitted recursively as nested types
+        /// one level deeper.
         /// </summary>
-        private void EmitInstanceWrapper(ITemplateWriter writer, InstanceWrapper wrapper)
+        private void EmitInstanceWrapper(
+            ITemplateWriter writer,
+            InstanceWrapper wrapper,
+            string indent)
         {
+            string memberIndent = indent + Indent;
+
             writer.WriteLine();
-            writer.WriteLine("/// <summary>Typed wrapper for the predefined instance.</summary>");
+            writer.WriteLine("{0}/// <summary>Typed wrapper for the predefined instance.</summary>", indent);
             writer.WriteLine(
-                "[global::System.CodeDom.Compiler.GeneratedCodeAttribute(\"{0}\", \"{1}\")]",
+                "{0}[global::System.CodeDom.Compiler.GeneratedCodeAttribute(\"{1}\", \"{2}\")]",
+                indent,
                 ToolName,
                 ToolVersion);
-            writer.WriteLine("internal sealed class {0}", wrapper.ClassName);
-            writer.WriteLine("{");
-            writer.WriteLine("    private readonly global::Opc.Ua.Server.Fluent.INodeBuilder<{0}> __node;",
-                wrapper.NodeStateType);
+            writer.WriteLine("{0}internal sealed class {1}", indent, wrapper.ClassName);
+            writer.WriteLine("{0}{{", indent);
+            writer.WriteLine("{0}private readonly global::Opc.Ua.Server.Fluent.INodeBuilder<{1}> __node;",
+                memberIndent, wrapper.NodeStateType);
             writer.WriteLine();
-            writer.WriteLine("    internal {0}(global::Opc.Ua.Server.Fluent.INodeBuilder<{1}> node)",
-                wrapper.ClassName, wrapper.NodeStateType);
-            writer.WriteLine("    {");
-            writer.WriteLine("        __node = node ?? throw new global::System.ArgumentNullException(nameof(node));");
-            writer.WriteLine("    }");
+            writer.WriteLine("{0}internal {1}(global::Opc.Ua.Server.Fluent.INodeBuilder<{2}> node)",
+                memberIndent, wrapper.ClassName, wrapper.NodeStateType);
+            writer.WriteLine("{0}{{", memberIndent);
+            writer.WriteLine("{0}__node = node ?? throw new global::System.ArgumentNullException(nameof(node));",
+                memberIndent + Indent);
+            writer.WriteLine("{0}}}", memberIndent);
             writer.WriteLine();
-            writer.WriteLine("    /// <summary>Underlying typed node builder.</summary>");
-            writer.WriteLine("    public global::Opc.Ua.Server.Fluent.INodeBuilder<{0}> Builder => __node;",
-                wrapper.NodeStateType);
+            writer.WriteLine("{0}/// <summary>Underlying typed node builder.</summary>", memberIndent);
+            writer.WriteLine("{0}public global::Opc.Ua.Server.Fluent.INodeBuilder<{1}> Builder => __node;",
+                memberIndent, wrapper.NodeStateType);
             writer.WriteLine();
-            writer.WriteLine("    /// <summary>Resolved underlying node.</summary>");
-            writer.WriteLine("    public {0} Node => __node.Node;", wrapper.NodeStateType);
+            writer.WriteLine("{0}/// <summary>Resolved underlying node.</summary>", memberIndent);
+            writer.WriteLine("{0}public {1} Node => __node.Node;", memberIndent, wrapper.NodeStateType);
 
             foreach (ChildAccessor child in wrapper.Children)
             {
-                EmitChildAccessor(writer, child);
+                EmitChildAccessor(writer, child, memberIndent);
             }
 
-            writer.WriteLine("}");
+            // Emit the nested method wrappers, then the nested object
+            // wrappers. Sibling order is leaf-name ordinal (set up by
+            // LinkChildWrappers) so generation is deterministic.
+            foreach (string methodKey in wrapper.ChildMethodKeys)
+            {
+                if (m_methodWrappers.TryGetValue(methodKey, out MethodWrapper nestedMethod))
+                {
+                    EmitMethodWrapper(writer, nestedMethod, memberIndent);
+                }
+            }
+            foreach (string childKey in wrapper.ChildObjectKeys)
+            {
+                if (m_wrappers.TryGetValue(childKey, out InstanceWrapper nested))
+                {
+                    EmitInstanceWrapper(writer, nested, memberIndent);
+                }
+            }
+
+            writer.WriteLine("{0}}}", indent);
         }
 
         /// <summary>
-        /// Emits one accessor property on the parent wrapper.
+        /// Emits one accessor property on the parent wrapper at the
+        /// supplied <paramref name="indent"/> (the parent's member
+        /// indent).
         /// </summary>
-        private void EmitChildAccessor(ITemplateWriter writer, ChildAccessor child)
+        private void EmitChildAccessor(
+            ITemplateWriter writer,
+            ChildAccessor child,
+            string indent)
         {
+            string bodyIndent = indent + Indent;
+            string innerIndent = bodyIndent + Indent;
+
             writer.WriteLine();
             switch (child.Kind)
             {
                 case ChildKind.Variable:
-                    writer.WriteLine("    /// <summary>Typed accessor for variable child <c>{0}</c>.</summary>",
-                        child.BrowseName);
-                    writer.WriteLine("    public global::Opc.Ua.Server.Fluent.IVariableBuilder<{0}> {1}",
-                        child.ValueClrType, child.AccessorName);
-                    writer.WriteLine("    {");
-                    writer.WriteLine("        get");
-                    writer.WriteLine("        {");
-                    writer.WriteLine("            ushort __ns = __node.Builder.Context.NamespaceUris.GetIndexOrAppend(\"{0}\");",
-                        EscapeStringLiteral(child.BrowseNamespaceUri));
-                    writer.WriteLine("            return __node.Variable<{0}>(new global::Opc.Ua.QualifiedName(\"{1}\", __ns));",
+                    writer.WriteLine("{0}/// <summary>Typed accessor for variable child <c>{1}</c>.</summary>",
+                        indent, child.BrowseName);
+                    writer.WriteLine("{0}public global::Opc.Ua.Server.Fluent.IVariableBuilder<{1}> {2}",
+                        indent, child.ValueClrType, child.AccessorName);
+                    writer.WriteLine("{0}{{", indent);
+                    writer.WriteLine("{0}get", bodyIndent);
+                    writer.WriteLine("{0}{{", bodyIndent);
+                    writer.WriteLine("{0}ushort __ns = __node.Builder.Context.NamespaceUris.GetIndexOrAppend(\"{1}\");",
+                        innerIndent, EscapeStringLiteral(child.BrowseNamespaceUri));
+                    writer.WriteLine("{0}return __node.Variable<{1}>(new global::Opc.Ua.QualifiedName(\"{2}\", __ns));",
+                        innerIndent,
                         child.ValueClrType,
                         EscapeStringLiteral(child.BrowseName));
-                    writer.WriteLine("        }");
-                    writer.WriteLine("    }");
+                    writer.WriteLine("{0}}}", bodyIndent);
+                    writer.WriteLine("{0}}}", indent);
                     break;
                 case ChildKind.Method:
-                    writer.WriteLine("    /// <summary>Typed accessor for method child <c>{0}</c>.</summary>",
-                        child.BrowseName);
-                    writer.WriteLine("    public {0} {1}", child.WrapperClassName, child.AccessorName);
-                    writer.WriteLine("    {");
-                    writer.WriteLine("        get");
-                    writer.WriteLine("        {");
-                    writer.WriteLine("            ushort __ns = __node.Builder.Context.NamespaceUris.GetIndexOrAppend(\"{0}\");",
-                        EscapeStringLiteral(child.BrowseNamespaceUri));
-                    writer.WriteLine("            return new {0}(__node.Child<global::Opc.Ua.MethodState>(new global::Opc.Ua.QualifiedName(\"{1}\", __ns)));",
+                    writer.WriteLine("{0}/// <summary>Typed accessor for method child <c>{1}</c>.</summary>",
+                        indent, child.BrowseName);
+                    writer.WriteLine("{0}public {1} {2}", indent, child.WrapperClassName, child.AccessorName);
+                    writer.WriteLine("{0}{{", indent);
+                    writer.WriteLine("{0}get", bodyIndent);
+                    writer.WriteLine("{0}{{", bodyIndent);
+                    writer.WriteLine("{0}ushort __ns = __node.Builder.Context.NamespaceUris.GetIndexOrAppend(\"{1}\");",
+                        innerIndent, EscapeStringLiteral(child.BrowseNamespaceUri));
+                    writer.WriteLine("{0}return new {1}(__node.Child<global::Opc.Ua.MethodState>(new global::Opc.Ua.QualifiedName(\"{2}\", __ns)));",
+                        innerIndent,
                         child.WrapperClassName,
                         EscapeStringLiteral(child.BrowseName));
-                    writer.WriteLine("        }");
-                    writer.WriteLine("    }");
+                    writer.WriteLine("{0}}}", bodyIndent);
+                    writer.WriteLine("{0}}}", indent);
                     break;
                 case ChildKind.Object:
-                    writer.WriteLine("    /// <summary>Typed accessor for object child <c>{0}</c>.</summary>",
-                        child.BrowseName);
-                    writer.WriteLine("    public {0} {1}", child.WrapperClassName, child.AccessorName);
-                    writer.WriteLine("    {");
-                    writer.WriteLine("        get");
-                    writer.WriteLine("        {");
-                    writer.WriteLine("            ushort __ns = __node.Builder.Context.NamespaceUris.GetIndexOrAppend(\"{0}\");",
-                        EscapeStringLiteral(child.BrowseNamespaceUri));
-                    writer.WriteLine("            return new {0}(__node.Child<{1}>(new global::Opc.Ua.QualifiedName(\"{2}\", __ns)));",
+                    writer.WriteLine("{0}/// <summary>Typed accessor for object child <c>{1}</c>.</summary>",
+                        indent, child.BrowseName);
+                    writer.WriteLine("{0}public {1} {2}", indent, child.WrapperClassName, child.AccessorName);
+                    writer.WriteLine("{0}{{", indent);
+                    writer.WriteLine("{0}get", bodyIndent);
+                    writer.WriteLine("{0}{{", bodyIndent);
+                    writer.WriteLine("{0}ushort __ns = __node.Builder.Context.NamespaceUris.GetIndexOrAppend(\"{1}\");",
+                        innerIndent, EscapeStringLiteral(child.BrowseNamespaceUri));
+                    writer.WriteLine("{0}return new {1}(__node.Child<{2}>(new global::Opc.Ua.QualifiedName(\"{3}\", __ns)));",
+                        innerIndent,
                         child.WrapperClassName,
                         child.ChildStateType,
                         EscapeStringLiteral(child.BrowseName));
-                    writer.WriteLine("        }");
-                    writer.WriteLine("    }");
+                    writer.WriteLine("{0}}}", bodyIndent);
+                    writer.WriteLine("{0}}}", indent);
                     break;
             }
         }
 
         /// <summary>
         /// Emits one wrapper class for a method instance with typed
-        /// <c>OnCall</c> overloads.
+        /// <c>OnCall</c> overloads at the supplied <paramref name="indent"/>.
         /// </summary>
-        private void EmitMethodWrapper(ITemplateWriter writer, MethodWrapper method)
+        private void EmitMethodWrapper(
+            ITemplateWriter writer,
+            MethodWrapper method,
+            string indent)
         {
+            string memberIndent = indent + Indent;
+
             writer.WriteLine();
-            writer.WriteLine("/// <summary>Typed method-call wrapper for the predefined method.</summary>");
+            writer.WriteLine("{0}/// <summary>Typed method-call wrapper for the predefined method.</summary>", indent);
             writer.WriteLine(
-                "[global::System.CodeDom.Compiler.GeneratedCodeAttribute(\"{0}\", \"{1}\")]",
+                "{0}[global::System.CodeDom.Compiler.GeneratedCodeAttribute(\"{1}\", \"{2}\")]",
+                indent,
                 ToolName,
                 ToolVersion);
-            writer.WriteLine("internal sealed class {0}", method.ClassName);
-            writer.WriteLine("{");
-            writer.WriteLine("    private readonly global::Opc.Ua.Server.Fluent.INodeBuilder<global::Opc.Ua.MethodState> __node;");
+            writer.WriteLine("{0}internal sealed class {1}", indent, method.ClassName);
+            writer.WriteLine("{0}{{", indent);
+            writer.WriteLine("{0}private readonly global::Opc.Ua.Server.Fluent.INodeBuilder<global::Opc.Ua.MethodState> __node;",
+                memberIndent);
             writer.WriteLine();
-            writer.WriteLine("    internal {0}(global::Opc.Ua.Server.Fluent.INodeBuilder<global::Opc.Ua.MethodState> node)",
-                method.ClassName);
-            writer.WriteLine("    {");
-            writer.WriteLine("        __node = node ?? throw new global::System.ArgumentNullException(nameof(node));");
-            writer.WriteLine("    }");
+            writer.WriteLine("{0}internal {1}(global::Opc.Ua.Server.Fluent.INodeBuilder<global::Opc.Ua.MethodState> node)",
+                memberIndent, method.ClassName);
+            writer.WriteLine("{0}{{", memberIndent);
+            writer.WriteLine("{0}__node = node ?? throw new global::System.ArgumentNullException(nameof(node));",
+                memberIndent + Indent);
+            writer.WriteLine("{0}}}", memberIndent);
             writer.WriteLine();
-            writer.WriteLine("    /// <summary>Underlying typed node builder. Use to drop into the non-typed fluent surface.</summary>");
-            writer.WriteLine("    public global::Opc.Ua.Server.Fluent.INodeBuilder<global::Opc.Ua.MethodState> Builder => __node;");
+            writer.WriteLine("{0}/// <summary>Underlying typed node builder. Use to drop into the non-typed fluent surface.</summary>",
+                memberIndent);
+            writer.WriteLine("{0}public global::Opc.Ua.Server.Fluent.INodeBuilder<global::Opc.Ua.MethodState> Builder => __node;",
+                memberIndent);
             writer.WriteLine();
-            writer.WriteLine("    /// <summary>Resolved underlying method state.</summary>");
-            writer.WriteLine("    public global::Opc.Ua.MethodState Node => __node.Node;");
+            writer.WriteLine("{0}/// <summary>Resolved underlying method state.</summary>", memberIndent);
+            writer.WriteLine("{0}public global::Opc.Ua.MethodState Node => __node.Node;", memberIndent);
 
             // Sync typed OnCall.
-            EmitMethodOnCall(writer, method, async: false);
+            EmitMethodOnCall(writer, method, async: false, indent: memberIndent);
             // Async typed OnCall.
-            EmitMethodOnCall(writer, method, async: true);
+            EmitMethodOnCall(writer, method, async: true, indent: memberIndent);
 
-            writer.WriteLine("}");
+            writer.WriteLine("{0}}}", indent);
         }
 
         /// <summary>
         /// Emits one OnCall overload for a method wrapper. The overload
         /// shape is determined by the method's argument signature plus the
-        /// requested sync/async flavor.
+        /// requested sync/async flavor. <paramref name="indent"/> is the
+        /// member indent of the enclosing method wrapper.
         /// </summary>
-        private void EmitMethodOnCall(ITemplateWriter writer, MethodWrapper method, bool async)
+        private void EmitMethodOnCall(
+            ITemplateWriter writer,
+            MethodWrapper method,
+            bool async,
+            string indent)
         {
+            string bodyIndent = indent + Indent;
+            string lambdaIndent = bodyIndent + Indent;
+
             string targetNamespace = m_context.ModelDesign.TargetNamespace.Value;
             Namespace[] namespaces = m_context.ModelDesign.Namespaces;
             Parameter[] inputs = method.Inputs;
@@ -860,46 +977,48 @@ namespace Opc.Ua.SourceGeneration
             }
 
             writer.WriteLine();
-            writer.WriteLine("    /// <summary>Wires the method-call handler ({0}).</summary>",
-                async ? "async" : "sync");
-            writer.WriteLine("    public {0} OnCall({1} handler)", method.ClassName, handlerType);
-            writer.WriteLine("    {");
-            writer.WriteLine("        if (handler == null) throw new global::System.ArgumentNullException(nameof(handler));");
+            writer.WriteLine("{0}/// <summary>Wires the method-call handler ({1}).</summary>",
+                indent, async ? "async" : "sync");
+            writer.WriteLine("{0}public {1} OnCall({2} handler)", indent, method.ClassName, handlerType);
+            writer.WriteLine("{0}{{", indent);
+            writer.WriteLine("{0}if (handler == null) throw new global::System.ArgumentNullException(nameof(handler));",
+                bodyIndent);
             if (async)
             {
-                writer.WriteLine("        __node.OnCall(async (");
-                writer.WriteLine("            global::Opc.Ua.ISystemContext __ctx,");
-                writer.WriteLine("            global::Opc.Ua.MethodState __m,");
-                writer.WriteLine("            global::Opc.Ua.NodeId __oid,");
-                writer.WriteLine("            global::Opc.Ua.ArrayOf<global::Opc.Ua.Variant> __inputs,");
-                writer.WriteLine("            global::System.Collections.Generic.List<global::Opc.Ua.Variant> __outputs,");
-                writer.WriteLine("            global::System.Threading.CancellationToken __ct) =>");
-                writer.WriteLine("        {");
+                writer.WriteLine("{0}__node.OnCall(async (", bodyIndent);
+                writer.WriteLine("{0}global::Opc.Ua.ISystemContext __ctx,", lambdaIndent);
+                writer.WriteLine("{0}global::Opc.Ua.MethodState __m,", lambdaIndent);
+                writer.WriteLine("{0}global::Opc.Ua.NodeId __oid,", lambdaIndent);
+                writer.WriteLine("{0}global::Opc.Ua.ArrayOf<global::Opc.Ua.Variant> __inputs,", lambdaIndent);
+                writer.WriteLine("{0}global::System.Collections.Generic.List<global::Opc.Ua.Variant> __outputs,", lambdaIndent);
+                writer.WriteLine("{0}global::System.Threading.CancellationToken __ct) =>", lambdaIndent);
+                writer.WriteLine("{0}{{", bodyIndent);
             }
             else
             {
-                writer.WriteLine("        __node.OnCall((");
-                writer.WriteLine("            global::Opc.Ua.ISystemContext __ctx,");
-                writer.WriteLine("            global::Opc.Ua.MethodState __m,");
-                writer.WriteLine("            global::Opc.Ua.NodeId __oid,");
-                writer.WriteLine("            global::Opc.Ua.ArrayOf<global::Opc.Ua.Variant> __inputs,");
-                writer.WriteLine("            global::System.Collections.Generic.List<global::Opc.Ua.Variant> __outputs) =>");
-                writer.WriteLine("        {");
+                writer.WriteLine("{0}__node.OnCall((", bodyIndent);
+                writer.WriteLine("{0}global::Opc.Ua.ISystemContext __ctx,", lambdaIndent);
+                writer.WriteLine("{0}global::Opc.Ua.MethodState __m,", lambdaIndent);
+                writer.WriteLine("{0}global::Opc.Ua.NodeId __oid,", lambdaIndent);
+                writer.WriteLine("{0}global::Opc.Ua.ArrayOf<global::Opc.Ua.Variant> __inputs,", lambdaIndent);
+                writer.WriteLine("{0}global::System.Collections.Generic.List<global::Opc.Ua.Variant> __outputs) =>", lambdaIndent);
+                writer.WriteLine("{0}{{", bodyIndent);
             }
 
             // Validate input arg count.
             if (inputs.Length > 0)
             {
-                writer.WriteLine("            if (__inputs.Count < {0})", inputs.Length);
-                writer.WriteLine("            {");
-                writer.WriteLine("                return new global::Opc.Ua.ServiceResult(global::Opc.Ua.StatusCodes.BadArgumentsMissing);");
-                writer.WriteLine("            }");
+                writer.WriteLine("{0}if (__inputs.Count < {1})", lambdaIndent, inputs.Length);
+                writer.WriteLine("{0}{{", lambdaIndent);
+                writer.WriteLine("{0}return new global::Opc.Ua.ServiceResult(global::Opc.Ua.StatusCodes.BadArgumentsMissing);",
+                    lambdaIndent + Indent);
+                writer.WriteLine("{0}}}", lambdaIndent);
             }
 
             // Unpack inputs.
             for (int ii = 0; ii < inputs.Length; ii++)
             {
-                EmitInputUnpack(writer, inputs[ii], ii, targetNamespace, namespaces);
+                EmitInputUnpack(writer, inputs[ii], ii, targetNamespace, namespaces, lambdaIndent);
             }
 
             // Invoke user handler.
@@ -907,19 +1026,13 @@ namespace Opc.Ua.SourceGeneration
             {
                 if (outputs.Length == 0)
                 {
-                    writer.Write("            await handler(");
-                    EmitInputArgPassThrough(writer, inputs, withCt: true);
-                    writer.WriteLine(").ConfigureAwait(false);");
-                }
-                else if (outputs.Length == 1)
-                {
-                    writer.Write("            var __r = await handler(");
+                    writer.Write("{0}await handler(", lambdaIndent);
                     EmitInputArgPassThrough(writer, inputs, withCt: true);
                     writer.WriteLine(").ConfigureAwait(false);");
                 }
                 else
                 {
-                    writer.Write("            var __r = await handler(");
+                    writer.Write("{0}var __r = await handler(", lambdaIndent);
                     EmitInputArgPassThrough(writer, inputs, withCt: true);
                     writer.WriteLine(").ConfigureAwait(false);");
                 }
@@ -928,13 +1041,13 @@ namespace Opc.Ua.SourceGeneration
             {
                 if (outputs.Length == 0)
                 {
-                    writer.Write("            handler(");
+                    writer.Write("{0}handler(", lambdaIndent);
                     EmitInputArgPassThrough(writer, inputs, withCt: false);
                     writer.WriteLine(");");
                 }
                 else
                 {
-                    writer.Write("            var __r = handler(");
+                    writer.Write("{0}var __r = handler(", lambdaIndent);
                     EmitInputArgPassThrough(writer, inputs, withCt: false);
                     writer.WriteLine(");");
                 }
@@ -943,33 +1056,29 @@ namespace Opc.Ua.SourceGeneration
             // Marshal outputs.
             for (int ii = 0; ii < outputs.Length; ii++)
             {
-                EmitOutputBox(writer, outputs[ii], ii, outputs.Length);
+                EmitOutputBox(writer, outputs[ii], ii, outputs.Length, lambdaIndent);
             }
 
-            writer.WriteLine("            return global::Opc.Ua.ServiceResult.Good;");
-            if (async)
-            {
-                writer.WriteLine("        });");
-            }
-            else
-            {
-                writer.WriteLine("        });");
-            }
-            writer.WriteLine("        return this;");
-            writer.WriteLine("    }");
+            writer.WriteLine("{0}return global::Opc.Ua.ServiceResult.Good;", lambdaIndent);
+            writer.WriteLine("{0}}});", bodyIndent);
+            writer.WriteLine("{0}return this;", bodyIndent);
+            writer.WriteLine("{0}}}", indent);
         }
 
         /// <summary>
         /// Emits the typed unpack code for a single input argument. Mirrors
-        /// the logic in <see cref="ObjectTypeProxyGenerator"/>.
+        /// the logic in <c>ObjectTypeProxyGenerator</c>. <paramref name="indent"/>
+        /// is the lambda-body indent of the surrounding OnCall.
         /// </summary>
         private static void EmitInputUnpack(
             ITemplateWriter writer,
             Parameter input,
             int index,
             string targetNamespace,
-            Namespace[] namespaces)
+            Namespace[] namespaces,
+            string indent)
         {
+            string innerIndent = indent + Indent;
             string typeName = input.DataTypeNode.GetMethodArgumentTypeAsCode(
                 input.ValueRank,
                 targetNamespace,
@@ -979,21 +1088,23 @@ namespace Opc.Ua.SourceGeneration
             switch (input.DataTypeNode.BasicDataType)
             {
                 case BasicDataType.UserDefined:
-                    writer.WriteLine("            if (!__inputs[{0}].TryGetStructure(out {1} {2}))",
-                        index, typeName, local);
-                    writer.WriteLine("            {");
-                    writer.WriteLine("                return new global::Opc.Ua.ServiceResult(global::Opc.Ua.StatusCodes.BadInvalidArgument);");
-                    writer.WriteLine("            }");
+                    writer.WriteLine("{0}if (!__inputs[{1}].TryGetStructure(out {2} {3}))",
+                        indent, index, typeName, local);
+                    writer.WriteLine("{0}{{", indent);
+                    writer.WriteLine("{0}return new global::Opc.Ua.ServiceResult(global::Opc.Ua.StatusCodes.BadInvalidArgument);",
+                        innerIndent);
+                    writer.WriteLine("{0}}}", indent);
                     break;
                 case BasicDataType.BaseDataType when input.ValueRank == ValueRank.Scalar:
-                    writer.WriteLine("            {0} {1} = __inputs[{2}];", typeName, local, index);
+                    writer.WriteLine("{0}{1} {2} = __inputs[{3}];", indent, typeName, local, index);
                     break;
                 default:
-                    writer.WriteLine("            if (!__inputs[{0}].TryGetValue(out {1} {2}))",
-                        index, typeName, local);
-                    writer.WriteLine("            {");
-                    writer.WriteLine("                return new global::Opc.Ua.ServiceResult(global::Opc.Ua.StatusCodes.BadInvalidArgument);");
-                    writer.WriteLine("            }");
+                    writer.WriteLine("{0}if (!__inputs[{1}].TryGetValue(out {2} {3}))",
+                        indent, index, typeName, local);
+                    writer.WriteLine("{0}{{", indent);
+                    writer.WriteLine("{0}return new global::Opc.Ua.ServiceResult(global::Opc.Ua.StatusCodes.BadInvalidArgument);",
+                        innerIndent);
+                    writer.WriteLine("{0}}}", indent);
                     break;
             }
         }
@@ -1029,12 +1140,15 @@ namespace Opc.Ua.SourceGeneration
         /// Emits the boxing code for a single output argument. For multi-
         /// output methods the user returns a <c>ValueTuple</c> and we
         /// destructure by field name (<c>Item1</c>, <c>Item2</c>, …).
+        /// <paramref name="indent"/> is the lambda-body indent of the
+        /// surrounding OnCall.
         /// </summary>
         private static void EmitOutputBox(
             ITemplateWriter writer,
             Parameter output,
             int index,
-            int totalOutputs)
+            int totalOutputs,
+            string indent)
         {
             string source;
             if (totalOutputs == 1)
@@ -1049,13 +1163,13 @@ namespace Opc.Ua.SourceGeneration
             switch (output.DataTypeNode.BasicDataType)
             {
                 case BasicDataType.UserDefined:
-                    writer.WriteLine("            __outputs.Add(global::Opc.Ua.Variant.FromStructure({0}));", source);
+                    writer.WriteLine("{0}__outputs.Add(global::Opc.Ua.Variant.FromStructure({1}));", indent, source);
                     break;
                 case BasicDataType.BaseDataType when output.ValueRank == ValueRank.Scalar:
-                    writer.WriteLine("            __outputs.Add({0});", source);
+                    writer.WriteLine("{0}__outputs.Add({1});", indent, source);
                     break;
                 default:
-                    writer.WriteLine("            __outputs.Add(global::Opc.Ua.Variant.From({0}));", source);
+                    writer.WriteLine("{0}__outputs.Add(global::Opc.Ua.Variant.From({1}));", indent, source);
                     break;
             }
         }
@@ -1153,13 +1267,70 @@ namespace Opc.Ua.SourceGeneration
             return rootId + "_" + relativePath;
         }
 
-        private static string ComposeClassName(
+        /// <summary>
+        /// Returns the simple leaf name (the last segment of the relative
+        /// path) used as the C# class name's stem. Honors the convention
+        /// that segment names themselves can contain underscores so we
+        /// rely on the instance's <c>SymbolicName.Name</c> rather than
+        /// splitting on <c>NodeDesign.PathChar</c>. For the root
+        /// instance (empty <paramref name="relativePath"/>) the leaf is
+        /// the root's own <c>SymbolicId.Name</c>.
+        /// </summary>
+        private static string ResolveLeafName(
             InstanceDesign root,
             string relativePath,
-            string suffix)
+            NodeDesign instance)
         {
-            string key = ComposeKey(root, relativePath);
-            return key + suffix;
+            if (string.IsNullOrEmpty(relativePath))
+            {
+                return root?.SymbolicId?.Name ?? string.Empty;
+            }
+            string symbolicName = instance?.SymbolicName?.Name;
+            if (string.IsNullOrEmpty(symbolicName))
+            {
+                return relativePath;
+            }
+            return symbolicName;
+        }
+
+        /// <summary>
+        /// Returns the wrapper key of the lexical parent for the wrapper
+        /// at <paramref name="relativePath"/> under <paramref name="root"/>.
+        /// Returns <c>null</c> for the root itself (lives at namespace
+        /// scope), the root's key for direct children, and the parent
+        /// path's key for deeper nesting.
+        /// </summary>
+        private static string ResolveParentKey(
+            InstanceDesign root,
+            string relativePath,
+            string leafName)
+        {
+            if (string.IsNullOrEmpty(relativePath))
+            {
+                return null;
+            }
+            if (relativePath.Length == leafName.Length)
+            {
+                return ComposeKey(root, string.Empty);
+            }
+            int trim = leafName.Length + 1;
+            if (relativePath.Length <= trim)
+            {
+                return ComposeKey(root, string.Empty);
+            }
+            string parentPath = relativePath[..^trim];
+            return ComposeKey(root, parentPath);
+        }
+
+        /// <summary>
+        /// Returns the wrapper's CLR class name. Wrappers are emitted as
+        /// nested types so the simple leaf name is sufficient — full
+        /// dotted access is composed by the consumer through the chain
+        /// of typed accessor properties.
+        /// </summary>
+        private static string ComposeWrapperClassName(string leafName, string suffix)
+        {
+            return (leafName ?? string.Empty) + suffix;
         }
 
         private static string GetAccessorName(NodeDesign node)
@@ -1274,6 +1445,11 @@ namespace Opc.Ua.SourceGeneration
         private Dictionary<string, InstanceWrapper> m_wrappers = [];
         private Dictionary<string, MethodWrapper> m_methodWrappers = [];
 
+        // Single nesting step. Wrappers are emitted inside the body of
+        // the file template at column 4; each additional nesting level
+        // adds one Indent.
+        private const string Indent = "    ";
+
         private static string ToolName
             => System.Reflection.Assembly.GetExecutingAssembly().GetName().Name;
         private static string ToolVersion
@@ -1290,9 +1466,13 @@ namespace Opc.Ua.SourceGeneration
         {
             public string Key;
             public string ClassName;
+            public string LeafName;
+            public string ParentKey;
             public string NodeStateType;
             public string BrowseNamespaceUri;
             public List<ChildAccessor> Children;
+            public List<string> ChildObjectKeys = [];
+            public List<string> ChildMethodKeys = [];
         }
 
         private sealed class ChildAccessor
@@ -1311,6 +1491,8 @@ namespace Opc.Ua.SourceGeneration
         {
             public string Key;
             public string ClassName;
+            public string LeafName;
+            public string ParentKey;
             public Parameter[] Inputs;
             public Parameter[] Outputs;
         }
