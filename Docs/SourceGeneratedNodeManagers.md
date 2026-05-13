@@ -265,18 +265,85 @@ the generator emits, into a single `{Manager}.FluentBuilders.g.cs`:
 - One `internal sealed class` per instance node — whose properties map
   to typed `IVariableBuilder<TValue>`, child wrapper instances, and
   method wrappers.
-- One `internal sealed class` per method — exposing sync
-  `OnCall(Action)` and async
-  `OnCall(Func<CancellationToken, ValueTask>)` overloads. (Method
-  overloads with input/output arguments are unboxed and re-boxed by
-  the generator using the same `Variant.TryGetValue` /
-  `Variant.From<T>` pattern as the client-side `[ObjectType]` proxies.)
+- One `internal sealed class` per method — exposing typed
+  `OnCall(Func<TIn1, …, TResult>)` and async
+  `OnCall(Func<TIn1, …, CancellationToken, ValueTask<TResult>>)`
+  overloads when the model declares input/output arguments
+  (the generator handles `Variant.TryGetValue` unpacking and
+  `Variant.From<T>` boxing — see [Methods with arguments](#methods-with-arguments--typed-oncall-overloads)).
+  Argument-less methods keep the no-arg `OnCall(Action)` /
+  `OnCall(Func<CancellationToken, ValueTask>)` overloads.
 
 All emitted types are `internal sealed` because `Configure` is a
 private partial — the surface never escapes the assembly. Child
 accessors resolve namespace indices lazily through
 `ISystemContext.NamespaceUris.GetIndexOrAppend(...)` so the wrappers
 work regardless of the namespace-table order at runtime.
+
+### Methods with arguments — typed `OnCall` overloads
+
+When a model method declares input or output arguments the generator
+emits **typed `OnCall` overloads** that bind directly to the user
+handler's parameters and return value. Inputs are unboxed via
+`Variant.TryGetValue<T>(out T)`, the boxed result is written back
+through `Variant.From<T>(value)`, and `BadInvalidArgument` /
+`BadArgumentsMissing` is returned when the wire shape does not match
+the declared signature — none of which the user has to spell out.
+
+Two overloads are emitted per method:
+
+- `OnCall(Func<TIn1, TIn2, …, TResult> handler)` — synchronous
+  dispatch through `MethodState.OnCallMethod2`.
+- `OnCall(Func<TIn1, TIn2, …, CancellationToken, ValueTask<TResult>>
+  handler)` — async dispatch through `MethodState.OnCallMethod2Async`,
+  awaited inside `AsyncCustomNodeManager.CallAsync` so the lambda may
+  freely `await`.
+
+Methods with multiple output arguments are bound to a `ValueTuple`
+return — slot `i` is written from `__r.Item{i+1}`. Methods with no
+return value (action-only) keep the existing `OnCall(Action)` /
+`OnCall(Func<CancellationToken, ValueTask>)` overloads.
+
+```csharp
+[NodeManager(NamespaceUri = "http://opcfoundation.org/UA/Calc/")]
+public partial class CalcNodeManager
+{
+    partial void Configure(ICalcNodeManagerBuilder builder)
+    {
+        // Sync int+int → int. The generator unpacks each Variant
+        // through Variant.TryGetValue<int> and boxes the result back
+        // through Variant.From<int>.
+        builder.Calculator.Add
+            .OnCall((int a, int b) => a + b);
+
+        // Async double+double → double. The CancellationToken is
+        // forwarded by AsyncCustomNodeManager.CallAsync so the
+        // handler may freely await and honour cancellation.
+        builder.Calculator.Multiply
+            .OnCall(async (double x, double y, CancellationToken ct) =>
+            {
+                await Task.Yield();
+                ct.ThrowIfCancellationRequested();
+                return x * y;
+            });
+
+        // Sync string+string → string. Reference-typed inputs and
+        // return values use the same Variant.TryGetValue / Variant.From
+        // path; the handler can null-coalesce safely because a missing
+        // input is reported as BadInvalidArgument before the lambda
+        // ever runs.
+        builder.Calculator.Concat
+            .OnCall((string left, string right) =>
+                (left ?? string.Empty) + (right ?? string.Empty));
+    }
+}
+```
+
+The end-to-end sample lives in
+`Applications/MinimalCalcServer/` (model in `Model/Calc.xml`, wiring
+in `CalcNodeManager.Configure.cs`). The companion AOT round-trip tests
+in `Tests/Opc.Ua.Aot.Tests/CalculatorNodeManagerAotTests.cs` exercise
+each shape over a real `Session.CallAsync(...)`.
 
 ## Single-file `Program.cs` — what it looks like
 
@@ -384,5 +451,11 @@ warnings** (~29 MB self-contained EXE).
 
 ## Sample
 
-`Applications/MinimalBoilerServer/` — a fully self-contained, NativeAOT
-single-file Boiler server. Read it top-to-bottom in &lt;200 lines.
+- `Applications/MinimalBoilerServer/` — a fully self-contained,
+  NativeAOT single-file Boiler server. Read it top-to-bottom in
+  &lt;200 lines.
+- `Applications/MinimalCalcServer/` — a calculator server that
+  exercises the typed
+  [methods-with-arguments OnCall overloads](#methods-with-arguments--typed-oncall-overloads)
+  end-to-end (sync `int+int → int`, async `double+double → double`,
+  sync `string+string → string`).
