@@ -77,24 +77,17 @@ namespace Quickstarts.ReferenceServer
         {
             if (disposing)
             {
-                // Dispose the simulation timer first and wait for any
-                // in-flight callback to finish before disposing the
-                // semaphore. Otherwise a Timer callback already scheduled
-                // by the threadpool can race past Timer.Dispose() and hit
-                // a disposed SemaphoreSlim, throwing ObjectDisposedException
-                // (caught by DoSimulation, but it can keep test-host
-                // background threads alive long enough to confuse the
-                // NUnit blame-hang-timeout).
-                Timer simulationTimer = m_simulationTimer;
+                // Dispose the simulation timer first so the threadpool stops
+                // scheduling DoSimulation callbacks before the semaphore is
+                // disposed. DoSimulation's own try/catch swallows the racy
+                // ObjectDisposedException on m_semaphore if a callback was
+                // already in-flight when Timer.Dispose() returned — that's
+                // an acceptable trade-off versus blocking Dispose on a
+                // Timer.Dispose(WaitHandle) which itself can throw a worse
+                // unhandled ObjectDisposedException when the supplied
+                // WaitHandle is collected before the runtime signals it.
+                m_simulationTimer?.Dispose();
                 m_simulationTimer = null;
-                if (simulationTimer != null)
-                {
-                    using var disposed = new System.Threading.ManualResetEvent(false);
-                    if (simulationTimer.Dispose(disposed))
-                    {
-                        disposed.WaitOne(2000);
-                    }
-                }
 
                 m_semaphore?.Dispose();
                 m_historyArchive?.Dispose();
