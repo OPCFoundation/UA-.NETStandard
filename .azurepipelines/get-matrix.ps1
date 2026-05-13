@@ -64,8 +64,18 @@ if (![string]::IsNullOrEmpty($JobPrefix)) {
     $JobPrefix = "$($JobPrefix)-"
 }
 
-if ($AgentTable -eq $null) {
+if ($null -eq $AgentTable) {
+    # Caller did not supply an AgentTable - do not fan out across agents.
     $AgentTable = @{}
+}
+elseif ($AgentTable.Count -eq 0) {
+    # Caller supplied an empty AgentTable - use the cross-platform defaults
+    # (preserves the original get-matrix.ps1 behaviour for ci.yml callers).
+    $AgentTable = @{
+        windows = 'windows-2025-vs2026'
+        linux   = 'ubuntu-22.04'
+        mac     = 'macOS-15'
+    }
 }
 $useAgents = $AgentTable.Count -gt 0
 
