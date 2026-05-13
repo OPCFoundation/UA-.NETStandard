@@ -467,6 +467,24 @@
     </opc:Fields>
   </opc:DataType>
 
+  <!-- Notifier object: SupportsEvents=true is the design-XML form of
+       EventNotifier=SubscribeToEvents. Wrappers for this node must
+       expose typed Publish<TEvent> overloads. -->
+  <opc:Object SymbolicName="NotifierObject" TypeDefinition="ua:BaseObjectType" SupportsEvents="true" />
+
+  <!-- Event-emitting object: declares an outgoing GeneratesEvent
+       reference. Wrappers must expose typed Publish<TEvent> even though
+       SupportsEvents is not set explicitly (the model says this object
+       can fire BaseEventType events). -->
+  <opc:Object SymbolicName="EventEmittingObject" TypeDefinition="ua:BaseObjectType">
+    <opc:References>
+      <opc:Reference>
+        <opc:ReferenceType>ua:GeneratesEvent</opc:ReferenceType>
+        <opc:TargetId>ua:BaseEventType</opc:TargetId>
+      </opc:Reference>
+    </opc:References>
+  </opc:Object>
+
   <opc:Extensions>
     <opc:Extension>
       <blue:Something xmlns:blue="http://something.net/schemas">

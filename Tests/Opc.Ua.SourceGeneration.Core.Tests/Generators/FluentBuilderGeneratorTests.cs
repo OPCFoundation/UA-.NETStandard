@@ -309,6 +309,62 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 "Typed Configure call must be present in CreateAddressSpaceAsync");
         }
 
+        [Test]
+        public void EmittedFluentBuilders_PublishOverloadEmittedOnSupportsEventsWrapper()
+        {
+            string fb = GetFluentBuilders();
+
+            // TestModel declares NotifierObject with SupportsEvents="true"
+            // (the design-XML form of EventNotifier=SubscribeToEvents). Its
+            // wrapper must expose typed Publish<TEvent> overloads bound to
+            // the wrapper's underlying state type and constrained to
+            // BaseEventState.
+            Assert.That(fb, Does.Match(
+                @"internal\s+sealed\s+class\s+NotifierObjectBuilder\b"),
+                "NotifierObject must produce a wrapper class");
+            Assert.That(fb, Does.Match(
+                @"public\s+global::Opc\.Ua\.Server\.Fluent\.INodeBuilder<global::Opc\.Ua\.BaseObjectState>\s+Publish<TEvent>\(\s*global::System\.Collections\.Generic\.IAsyncEnumerable<TEvent>\s+source"),
+                "NotifierObjectBuilder must expose Publish<TEvent>(IAsyncEnumerable<TEvent>, EventPublishOptions)");
+            Assert.That(fb, Does.Match(
+                @"public\s+global::Opc\.Ua\.Server\.Fluent\.INodeBuilder<global::Opc\.Ua\.BaseObjectState>\s+Publish<TEvent>\(\s*global::System\.Func<global::Opc\.Ua\.BaseObjectState,\s*global::Opc\.Ua\.ISystemContext,\s*global::System\.Threading\.CancellationToken,\s*global::System\.Collections\.Generic\.IAsyncEnumerable<TEvent>>\s+factory"),
+                "NotifierObjectBuilder must expose the factory-style Publish<TEvent> overload");
+            Assert.That(fb, Does.Contain(
+                "where TEvent : global::Opc.Ua.BaseEventState"),
+                "Publish<TEvent> must be constrained to BaseEventState");
+            Assert.That(fb, Does.Contain(
+                "global::Opc.Ua.Server.Fluent.EventNotifierBuilderExtensions.Publish<global::Opc.Ua.BaseObjectState, TEvent>(__node,"),
+                "Publish overload must forward to EventNotifierBuilderExtensions.Publish with the wrapper's state type as TNotifier");
+        }
+
+        [Test]
+        public void EmittedFluentBuilders_PublishOverloadEmittedOnGeneratesEventWrapper()
+        {
+            string fb = GetFluentBuilders();
+
+            // EventEmittingObject does not set SupportsEvents but declares
+            // a forward GeneratesEvent reference. The wrapper must still
+            // expose Publish<TEvent>; the qualification logic walks both
+            // the SupportsEvents flag and outgoing GeneratesEvent /
+            // AlwaysGeneratesEvent references.
+            Assert.That(fb, Does.Match(
+                @"(?ms)internal\s+sealed\s+class\s+EventEmittingObjectBuilder\b.*?Publish<TEvent>"),
+                "EventEmittingObjectBuilder must expose Publish<TEvent> because of the GeneratesEvent reference");
+        }
+
+        [Test]
+        public void EmittedFluentBuilders_PublishOverloadAbsentOnPlainObjectWrapper()
+        {
+            string fb = GetFluentBuilders();
+
+            // TestObject (RestrictedObjectType) is a plain object: no
+            // SupportsEvents, no GeneratesEvent. It must NOT carry a
+            // typed Publish overload — the surface stays clean and only
+            // notifier candidates become discoverable through intellisense.
+            Assert.That(fb, Does.Not.Match(
+                @"(?ms)internal\s+sealed\s+class\s+TestObjectBuilder\b(?:(?!internal\s+sealed\s+class).)*?Publish<TEvent>"),
+                "TestObjectBuilder must not expose Publish<TEvent> — it's not a notifier");
+        }
+
         private static string GetFluentBuilders()
         {
             Dictionary<string, string> files = GenerateForTestModel(generateNodeManager: true);

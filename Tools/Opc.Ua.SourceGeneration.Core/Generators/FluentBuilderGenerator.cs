@@ -348,6 +348,7 @@ namespace Opc.Ua.SourceGeneration
                 ParentKey = parentKey,
                 NodeStateType = ResolveStateClrType(hnode.Instance),
                 BrowseNamespaceUri = nsUri,
+                SupportsPublish = QualifiesAsEventNotifier(hnode.Instance),
                 Children = [],
                 ChildObjectKeys = [],
                 ChildMethodKeys = []
@@ -775,6 +776,11 @@ namespace Opc.Ua.SourceGeneration
                 EmitChildAccessor(writer, child, memberIndent);
             }
 
+            if (wrapper.SupportsPublish)
+            {
+                EmitPublishOverloads(writer, wrapper, memberIndent);
+            }
+
             // Emit the nested method wrappers, then the nested object
             // wrappers. Sibling order is leaf-name ordinal (set up by
             // LinkChildWrappers) so generation is deterministic.
@@ -863,6 +869,61 @@ namespace Opc.Ua.SourceGeneration
                     writer.WriteLine("{0}}}", indent);
                     break;
             }
+        }
+
+        /// <summary>
+        /// Emits the typed <c>Publish&lt;TEvent&gt;</c> overloads on a
+        /// notifier-capable wrapper. Both overloads forward to
+        /// <c>Opc.Ua.Server.Fluent.EventNotifierBuilderExtensions</c>;
+        /// the wrapper's underlying node-state type is bound as the
+        /// <c>TNotifier</c> type argument so callers don't need to spell
+        /// it out. The shape mirrors the extension's two overloads (direct
+        /// stream + factory).
+        /// </summary>
+        private static void EmitPublishOverloads(
+            ITemplateWriter writer,
+            InstanceWrapper wrapper,
+            string indent)
+        {
+            writer.WriteLine();
+            writer.WriteLine(
+                "{0}/// <summary>Registers an event source for this notifier; lazy by default. See <see cref=\"global::Opc.Ua.Server.Fluent.EventPublishOptions\"/> for activation tuning.</summary>",
+                indent);
+            writer.WriteLine(
+                "{0}public global::Opc.Ua.Server.Fluent.INodeBuilder<{1}> Publish<TEvent>(",
+                indent, wrapper.NodeStateType);
+            writer.WriteLine(
+                "{0}global::System.Collections.Generic.IAsyncEnumerable<TEvent> source,",
+                indent + Indent);
+            writer.WriteLine(
+                "{0}global::Opc.Ua.Server.Fluent.EventPublishOptions? options = null)",
+                indent + Indent);
+            writer.WriteLine(
+                "{0}where TEvent : global::Opc.Ua.BaseEventState",
+                indent + Indent);
+            writer.WriteLine(
+                "{0}=> global::Opc.Ua.Server.Fluent.EventNotifierBuilderExtensions.Publish<{1}, TEvent>(__node, source, options);",
+                indent + Indent, wrapper.NodeStateType);
+
+            writer.WriteLine();
+            writer.WriteLine(
+                "{0}/// <summary>Registers a factory-based event source for this notifier; the factory runs on each activation. See <see cref=\"global::Opc.Ua.Server.Fluent.EventPublishOptions\"/> for activation tuning.</summary>",
+                indent);
+            writer.WriteLine(
+                "{0}public global::Opc.Ua.Server.Fluent.INodeBuilder<{1}> Publish<TEvent>(",
+                indent, wrapper.NodeStateType);
+            writer.WriteLine(
+                "{0}global::System.Func<{1}, global::Opc.Ua.ISystemContext, global::System.Threading.CancellationToken, global::System.Collections.Generic.IAsyncEnumerable<TEvent>> factory,",
+                indent + Indent, wrapper.NodeStateType);
+            writer.WriteLine(
+                "{0}global::Opc.Ua.Server.Fluent.EventPublishOptions? options = null)",
+                indent + Indent);
+            writer.WriteLine(
+                "{0}where TEvent : global::Opc.Ua.BaseEventState",
+                indent + Indent);
+            writer.WriteLine(
+                "{0}=> global::Opc.Ua.Server.Fluent.EventNotifierBuilderExtensions.Publish<{1}, TEvent>(__node, factory, options);",
+                indent + Indent, wrapper.NodeStateType);
         }
 
         /// <summary>
@@ -1377,6 +1438,48 @@ namespace Opc.Ua.SourceGeneration
         }
 
         /// <summary>
+        /// Returns true when the supplied node should expose typed
+        /// <c>Publish&lt;TEvent&gt;</c> overloads on its wrapper. A node
+        /// qualifies if it carries the <c>EventNotifier=SubscribeToEvents</c>
+        /// attribute (modeled as <see cref="ObjectDesign.SupportsEvents"/>;
+        /// the model validator auto-promotes nodes with forward
+        /// <c>HasEventSource</c>/<c>HasNotifier</c> references) or has a
+        /// forward <c>GeneratesEvent</c>/<c>AlwaysGeneratesEvent</c>
+        /// reference. Per the locked decision the typed overload is
+        /// emitted only on spec-accurate notifier candidates so call sites
+        /// don't drift from the model intent.
+        /// </summary>
+        private static bool QualifiesAsEventNotifier(NodeDesign node)
+        {
+            if (node is ObjectDesign od && od.SupportsEvents)
+            {
+                return true;
+            }
+
+            Reference[] references = node?.References;
+            if (references == null || references.Length == 0)
+            {
+                return false;
+            }
+
+            foreach (Reference reference in references)
+            {
+                if (reference == null || reference.IsInverse)
+                {
+                    continue;
+                }
+                string refName = reference.ReferenceType?.Name;
+                if (refName == "GeneratesEvent" ||
+                    refName == "AlwaysGeneratesEvent")
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>
         /// Returns the C# type name of the runtime <see cref="NodeState"/>
         /// derivative for the supplied instance.
         /// </summary>
@@ -1480,6 +1583,7 @@ namespace Opc.Ua.SourceGeneration
             public string ParentKey;
             public string NodeStateType;
             public string BrowseNamespaceUri;
+            public bool SupportsPublish;
             public List<ChildAccessor> Children;
             public List<string> ChildObjectKeys = [];
             public List<string> ChildMethodKeys = [];
