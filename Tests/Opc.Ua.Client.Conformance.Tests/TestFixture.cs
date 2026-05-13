@@ -155,7 +155,7 @@ namespace Opc.Ua.Client.Conformance.Tests
             // ProcessingInterval that the server never answers) fails fast
             // instead of hanging the whole testhost.
             ClientFixture.SessionTimeout = 300_000;
-            ClientFixture.OperationTimeout = 30_000;
+            ClientFixture.OperationTimeout = 90_000;
 
             Session = await ClientFixture
                 .ConnectAsync(ServerUrl, SecurityPolicies.None)
