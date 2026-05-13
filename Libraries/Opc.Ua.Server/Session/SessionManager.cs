@@ -492,11 +492,10 @@ namespace Opc.Ua.Server
                 if (current.Value.Id == sessionId)
                 {
 #pragma warning disable CA2000 // Disposed correctly later
-                    if (m_sessions.TryRemove(current.Key, out session))
+                    if (!m_sessions.TryRemove(current.Key, out session))
 #pragma warning restore CA2000
                     {
-                        // found but was already removed
-                        System.Diagnostics.Debug.Assert(session == null);
+                        // found but was already removed by another thread
                         return;
                     }
                     break;
