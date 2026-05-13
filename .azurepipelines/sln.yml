@@ -38,7 +38,8 @@ jobs:
       msbuildVersion: 'latest'
       configuration: 'Release'
       platform: 'Any CPU'
-      msbuildArguments:
+      maximumCpuCount: true
+      msbuildArguments: '/p:BuildInParallel=true'
   - task: NuGetCommand@2
     displayName: Restore Debug
     inputs:
@@ -52,4 +53,5 @@ jobs:
       msbuildVersion: 'latest'
       configuration: 'Debug'
       platform: 'Any CPU'
-      msbuildArguments:
+      maximumCpuCount: true
+      msbuildArguments: '/p:BuildInParallel=true'
