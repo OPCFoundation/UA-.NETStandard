@@ -1315,55 +1315,63 @@ namespace Opc.Ua.Server.Tests
                 BrowseName = new QualifiedName("ResolverBaseType", nsIdx),
                 SuperTypeId = NodeId.Null
             };
-            baseType.CreateAsPredefinedNode(context);
-
-            var baseMethod = new MethodState(baseType)
-            {
-                NodeId = new NodeId("ResolverBaseMethod", nsIdx),
-                BrowseName = new QualifiedName("ResolverBaseMethod", nsIdx)
-            };
-            baseType.AddChild(baseMethod);
-
             var derivedType = new BaseObjectTypeState
             {
                 NodeId = new NodeId("ResolverDerivedType", nsIdx),
                 BrowseName = new QualifiedName("ResolverDerivedType", nsIdx),
                 SuperTypeId = baseType.NodeId
             };
-            derivedType.CreateAsPredefinedNode(context);
-
             var instance = new BaseObjectState(null)
             {
                 NodeId = new NodeId("ResolverDerivedInstance", nsIdx),
                 BrowseName = new QualifiedName("ResolverDerivedInstance", nsIdx),
                 TypeDefinitionId = derivedType.NodeId
             };
-            instance.CreateAsPredefinedNode(context);
-
-            await manager.AddPredefinedNodePublicAsync(context, baseType).ConfigureAwait(false);
-            await manager.AddPredefinedNodePublicAsync(context, derivedType).ConfigureAwait(false);
-            await manager.AddNodeAsync(context, default, instance).ConfigureAwait(false);
-
-            m_mockServer.Object.TypeTree.AddSubtype(baseType.NodeId, NodeId.Null);
-            m_mockServer.Object.TypeTree.AddSubtype(derivedType.NodeId, baseType.NodeId);
-
-            var request = new CallMethodRequest
+            try
             {
-                ObjectId = instance.NodeId,
-                MethodId = baseMethod.NodeId,
-                InputArguments = []
-            };
-            var operationContext = new OperationContext(new RequestHeader(), null, RequestType.Call, RequestLifetime.None);
+                var baseMethod = new MethodState(baseType)
+                {
+                    NodeId = new NodeId("ResolverBaseMethod", nsIdx),
+                    BrowseName = new QualifiedName("ResolverBaseMethod", nsIdx)
+                };
+                baseType.AddChild(baseMethod);
 
-            MethodState method = await manager.FindMethodStateAsync(operationContext, request).ConfigureAwait(false);
-            Assert.That(method, Is.Not.Null);
-            Assert.That(method.NodeId, Is.EqualTo(baseMethod.NodeId));
+                // Initialize after relationships are set up so predefined state reflects the full type hierarchy.
+                baseType.CreateAsPredefinedNode(context);
+                derivedType.CreateAsPredefinedNode(context);
+                instance.CreateAsPredefinedNode(context);
 
-            var syncResolver = manager.SyncNodeManager as INodeManager3;
-            Assert.That(syncResolver, Is.Not.Null);
-            MethodState syncMethod = syncResolver.FindMethodState(operationContext, request);
-            Assert.That(syncMethod, Is.Not.Null);
-            Assert.That(syncMethod.NodeId, Is.EqualTo(baseMethod.NodeId));
+                await manager.AddPredefinedNodePublicAsync(context, baseType).ConfigureAwait(false);
+                await manager.AddPredefinedNodePublicAsync(context, derivedType).ConfigureAwait(false);
+                await manager.AddNodeAsync(context, default, instance).ConfigureAwait(false);
+
+                m_mockServer.Object.TypeTree.AddSubtype(baseType.NodeId, NodeId.Null);
+                m_mockServer.Object.TypeTree.AddSubtype(derivedType.NodeId, baseType.NodeId);
+
+                var request = new CallMethodRequest
+                {
+                    ObjectId = instance.NodeId,
+                    MethodId = baseMethod.NodeId,
+                    InputArguments = []
+                };
+                var operationContext = new OperationContext(new RequestHeader(), null, RequestType.Call, RequestLifetime.None);
+
+                MethodState method = await manager.FindMethodStateAsync(operationContext, request).ConfigureAwait(false);
+                Assert.That(method, Is.Not.Null);
+                Assert.That(method.NodeId, Is.EqualTo(baseMethod.NodeId));
+
+                var syncNodeManager = manager.SyncNodeManager as INodeManager3;
+                Assert.That(syncNodeManager, Is.Not.Null);
+                MethodState syncMethod = syncNodeManager.FindMethodState(operationContext, request);
+                Assert.That(syncMethod, Is.Not.Null);
+                Assert.That(syncMethod.NodeId, Is.EqualTo(baseMethod.NodeId));
+            }
+            finally
+            {
+                DisposeIfNeeded(instance);
+                DisposeIfNeeded(derivedType);
+                DisposeIfNeeded(baseType);
+            }
         }
 
         [Test]
@@ -3841,6 +3849,14 @@ namespace Opc.Ua.Server.Tests
                     var handle = new NodeHandle(nodeId, nodeState);
                     return new ValueTask<(object handle, IAsyncNodeManager nodeManager)>((handle, manager));
                 });
+        }
+
+        private static void DisposeIfNeeded(object value)
+        {
+            if (value is IDisposable disposable)
+            {
+                disposable.Dispose();
+            }
         }
     }
 
