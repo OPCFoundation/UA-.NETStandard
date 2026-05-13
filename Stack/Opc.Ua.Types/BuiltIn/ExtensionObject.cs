@@ -30,7 +30,6 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.Contracts;
-using System.Runtime.CompilerServices;
 using System.Text.Json.Serialization;
 using Opc.Ua.Types;
 

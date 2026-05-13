@@ -1730,7 +1730,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var settings = new XmlWriterSettings { ConformanceLevel = ConformanceLevel.Fragment };
             using var writer = XmlWriter.Create(sb, settings);
             using var encoder = new XmlEncoder(new XmlQualifiedName("Root", Namespaces.OpcUaXsd), writer, messageContext);
-            ReadOnlySpan<byte> bytes = ReadOnlySpan<byte>.Empty;
+            ReadOnlySpan<byte> bytes = [];
 
             // Act
             encoder.WriteByteString("TestByteString", bytes);

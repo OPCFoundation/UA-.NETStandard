@@ -27,33 +27,35 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 using System;
-using System.Security.Cryptography.X509Certificates;
-using System.Threading;
 
 namespace Opc.Ua
 {
     /// <summary>
-    /// Extension methods for ICertificateValidator.
+    /// A certificate store provider that creates in-memory
+    /// <see cref="CertificateIdentifierCollectionStore"/> instances,
+    /// primarily intended for testing scenarios.
     /// </summary>
-    public static class CertificateValidatorObsolete
+    public sealed class InMemoryStoreProvider : ICertificateStoreProvider
     {
-        /// <summary>
-        /// Validates a certificate.
-        /// </summary>
-        [Obsolete("Use ValidateAsync")]
-        public static void Validate(this ICertificateValidator validator, X509Certificate2 certificate)
+        /// <inheritdoc/>
+        public string StoreTypeName => "InMemory";
+
+        /// <inheritdoc/>
+        public bool SupportsStorePath(string storePath)
         {
-            validator.ValidateAsync(certificate, CancellationToken.None).GetAwaiter().GetResult();
+            return !string.IsNullOrEmpty(storePath) &&
+                storePath.StartsWith(
+                    "InMemory:",
+                    StringComparison.OrdinalIgnoreCase);
         }
 
-        /// <summary>
-        /// Validates a certificate chain.
-        /// </summary>
-        [Obsolete("Use ValidateAsync")]
-        public static void Validate(this ICertificateValidator validator, X509Certificate2Collection certificateChain)
+        /// <inheritdoc/>
+        public ICertificateStore CreateStore(ITelemetryContext telemetry)
         {
-            validator.ValidateAsync(certificateChain, CancellationToken.None).GetAwaiter().GetResult();
+            return new CertificateIdentifierCollectionStore(telemetry);
         }
     }
 }

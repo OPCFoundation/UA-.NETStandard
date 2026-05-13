@@ -173,7 +173,7 @@ namespace Opc.Ua.Client.Tests
             const int kQueueSize = 10;
 
             ServiceResultException sre;
-            using UserIdentity userIdentity = anonymous
+            UserIdentity userIdentity = anonymous
                 ? new UserIdentity()
                 : new UserIdentity("user1", "password"u8);
 
@@ -376,9 +376,13 @@ namespace Opc.Ua.Client.Tests
                 if (endpoint.EndpointUrl.ToString()
                     .StartsWith(Utils.UriSchemeOpcTcp, StringComparison.Ordinal))
                 {
+                    // CA2025: Assert.ThrowsAsync awaits the lambda synchronously;
+                    // session1's lifetime spans through the assertion.
+#pragma warning disable CA2025
                     sre = Assert.ThrowsAsync<ServiceResultException>(() =>
                         session1.ReadValueAsync<ServerStatusDataType>(
                             VariableIds.Server_ServerStatus));
+#pragma warning restore CA2025
                     Assert.That(
                         sre.StatusCode,
                         Is.EqualTo(StatusCodes.BadSecureChannelIdInvalid),

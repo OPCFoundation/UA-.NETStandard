@@ -207,12 +207,26 @@ namespace System.Threading.Channels
                 m_channel = channel;
             }
 
+            /// <inheritdoc/>
+            public override bool CanCount => true;
+
+            /// <inheritdoc/>
+            public override int Count
+            {
+                get
+                {
+                    lock (m_channel.m_lock)
+                    {
+                        return m_channel.m_heap.Count;
+                    }
+                }
+            }
+
             public override bool TryRead(out T item)
             {
                 lock (m_channel.m_lock)
                 {
-                    if (m_channel.m_heap.Count > 0 &&
-                        m_channel.m_semaphore.Wait(0))
+                    if (m_channel.m_heap.Count > 0)
                     {
                         item = m_channel.HeapPop();
                         return true;

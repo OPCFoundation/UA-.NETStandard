@@ -30,9 +30,9 @@
 using System;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
-using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Configuration
 {
@@ -102,7 +102,7 @@ namespace Opc.Ua.Configuration
         /// </summary>
         /// <param name="certificate">The certificate to add to the store</param>
         /// <param name="ct">The cancellation token</param>
-        Task AddOwnCertificateToTrustedStoreAsync(X509Certificate2 certificate, CancellationToken ct);
+        Task AddOwnCertificateToTrustedStoreAsync(Certificate certificate, CancellationToken ct);
 
         /// <summary>
         /// Create a builder for a UA application configuration.

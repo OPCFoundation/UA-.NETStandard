@@ -136,7 +136,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(path.XmlEncodingId, Is.EqualTo(ObjectIds.RelativePath_Encoding_DefaultXml));
         }
 
-
         [Test]
         public void EncodeWritesElementsArray()
         {
@@ -187,7 +186,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void IsEqualWithNullReturnsFalse()
         {
             var path = new RelativePath(new QualifiedName("Test"));
-            Assert.That(path.IsEqual(null!), Is.False);
+            Assert.That(path.IsEqual(null), Is.False);
         }
 
         [Test]
@@ -276,7 +275,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void IsEmptyWithNullReturnsTrue()
         {
-            Assert.That(RelativePath.IsEmpty(null!), Is.True);
+            Assert.That(RelativePath.IsEmpty(null), Is.True);
         }
 
         [Test]
@@ -297,7 +296,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void ParseWithNullTypeTreeThrowsArgumentNullException()
         {
             Assert.That(
-                () => RelativePath.Parse("/TestNode", null!),
+                () => RelativePath.Parse("/TestNode", null),
                 Throws.TypeOf<ArgumentNullException>());
         }
 
@@ -465,7 +464,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var targetTable = new NamespaceTable();
 
             Assert.That(
-                () => RelativePath.Parse("<HasComponent>Target", null!, currentTable, targetTable),
+                () => RelativePath.Parse("<HasComponent>Target", null, currentTable, targetTable),
                 Throws.TypeOf<InvalidOperationException>());
         }
 
@@ -504,7 +503,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var currentTable = new NamespaceTable();
             var targetTable = new NamespaceTable();
 
-            var result = RelativePath.Parse("/Node", null!, currentTable, targetTable);
+            var result = RelativePath.Parse("/Node", null, currentTable, targetTable);
 
             Assert.That(result.Elements.Count, Is.EqualTo(1));
             Assert.That(result.Elements[0].ReferenceTypeId, Is.EqualTo(ReferenceTypeIds.HierarchicalReferences));
@@ -559,7 +558,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var element = new RelativePathElement();
             Assert.That(element.XmlEncodingId, Is.EqualTo(ObjectIds.RelativePathElement_Encoding_DefaultXml));
         }
-
 
         [Test]
         public void RelativePathElementEncodeWritesAllFields()
@@ -618,7 +616,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void RelativePathElementIsEqualWithNullReturnsFalse()
         {
             var element = new RelativePathElement();
-            Assert.That(element.IsEqual(null!), Is.False);
+            Assert.That(element.IsEqual(null), Is.False);
         }
 
         [Test]

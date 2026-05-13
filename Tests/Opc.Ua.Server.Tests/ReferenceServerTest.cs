@@ -700,7 +700,7 @@ namespace Opc.Ua.Server.Tests
             // Generate event directly on the server
             IServerInternal serverInternal = m_server.CurrentInstance;
             ISystemContext serverContext = serverInternal.DefaultSystemContext;
-            using var e = new BaseEventState(null);
+            var e = new BaseEventState(null);
             const string eventMessage = "Integration Test Event";
             e.Initialize(
                 serverContext,
@@ -1006,7 +1006,7 @@ namespace Opc.Ua.Server.Tests
                     publishResponse.ResponseHeader.StringTable,
                     serverTestServices.Logger);
                 Assert.That(publishResponse.SubscriptionId, Is.EqualTo(subscriptionIds[0]));
-                Assert.That(publishResponse.NotificationMessage.NotificationData.Count, Is.EqualTo(0));
+                Assert.That(publishResponse.NotificationMessage.NotificationData.Count, Is.Zero);
             }
 
             // Validate ResendData method call returns error from different session contexts
@@ -1042,7 +1042,7 @@ namespace Opc.Ua.Server.Tests
                 publishResponse.ResponseHeader.StringTable,
                 serverTestServices.Logger);
             Assert.That(publishResponse.SubscriptionId, Is.EqualTo(subscriptionIds[0]));
-            Assert.That(publishResponse.NotificationMessage.NotificationData.Count, Is.EqualTo(0));
+            Assert.That(publishResponse.NotificationMessage.NotificationData.Count, Is.Zero);
 
             if (updateValues)
             {
@@ -1112,7 +1112,7 @@ namespace Opc.Ua.Server.Tests
                 publishResponse.ResponseHeader.StringTable,
                 serverTestServices.Logger);
             Assert.That(publishResponse.SubscriptionId, Is.EqualTo(subscriptionIds[0]));
-            Assert.That(publishResponse.NotificationMessage.NotificationData.Count, Is.EqualTo(0));
+            Assert.That(publishResponse.NotificationMessage.NotificationData.Count, Is.Zero);
 
             resendDataRequestHeader.Timestamp = DateTimeUtc.Now;
             await m_server.CloseSessionAsync(resendDataSecurityContext, resendDataRequestHeader, true, RequestLifetime.None).ConfigureAwait(false);
@@ -1371,10 +1371,9 @@ namespace Opc.Ua.Server.Tests
                 UnitId = 4274026 // "V"
             };
 
-            var writeValues = new WriteValue[]
+            ArrayOf<WriteValue> writeValues = new WriteValue[]
             {
-                new WriteValue
-                {
+                new() {
                     NodeId = euNodeId,
                     AttributeId = Attributes.Value,
                     Value = new DataValue(new ExtensionObject(engUnits))
@@ -1428,8 +1427,8 @@ namespace Opc.Ua.Server.Tests
                     {
                         if (e.ClientHandle == 1 && e.EventFields.Count >= 2)
                         {
-                            var success = e.EventFields[1]
-                                .TryGetStructure<SemanticChangeStructureDataType>(out ArrayOf<SemanticChangeStructureDataType> semanticChangeEvent);
+                            bool success = e.EventFields[1]
+                                .TryGetStructure(out ArrayOf<SemanticChangeStructureDataType> semanticChangeEvent);
 
                             if (success && !semanticChangeEvent.IsNull && semanticChangeEvent.Count > 0)
                             {
@@ -1529,13 +1528,13 @@ namespace Opc.Ua.Server.Tests
             if (accessHistoryEventsCapability || accessHistoryDataCapability)
             {
                 Assert.That(eventNotifier & EventNotifiers.HistoryRead,
-                    Is.Not.EqualTo(0),
+                    Is.Not.Zero,
                     "Server EventNotifier should have HistoryRead bit set when history capabilities are enabled");
             }
 
             // Verify SubscribeToEvents bit is set (Server object should always support events)
             Assert.That(eventNotifier & EventNotifiers.SubscribeToEvents,
-                Is.Not.EqualTo(0),
+                Is.Not.Zero,
                 "Server EventNotifier should have SubscribeToEvents bit set");
         }
 
@@ -1634,7 +1633,7 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(historizing, Is.True, "Int32Value node should have Historizing=true");
             Assert.That(accessLevel & AccessLevels.HistoryRead,
-                Is.Not.EqualTo(0),
+                Is.Not.Zero,
                 "Int32Value node should have HistoryRead access level");
 
             // Perform a history read operation
@@ -1749,28 +1748,6 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
-        /// Reads the TypeDefinitionId of a node and checks it matches the expected value.
-        /// </summary>
-        private async Task ReadAndVerifyTypeDefinitionAsync(NodeId nodeId, NodeId expectedTypeDefinitionId)
-        {
-            ArrayOf<ReadValueId> nodesToRead =
-            [
-                new ReadValueId { NodeId = nodeId, AttributeId = Attributes.Value }
-            ];
-            m_requestHeader.Timestamp = DateTimeUtc.Now;
-            ReadResponse readResponse = await m_server.ReadAsync(
-                m_secureChannelContext,
-                m_requestHeader,
-                kMaxAge,
-                TimestampsToReturn.Neither,
-                nodesToRead,
-                RequestLifetime.None).ConfigureAwait(false);
-            ServerFixtureUtils.ValidateResponse(readResponse.ResponseHeader, readResponse.Results, nodesToRead);
-            Assert.That(readResponse.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good),
-                $"Expected Good status reading {nodeId}");
-        }
-
-        /// <summary>
         /// Test that ArrayItemType sub-type nodes are accessible and readable.
         /// </summary>
         [Test]
@@ -1785,7 +1762,7 @@ namespace Opc.Ua.Server.Tests
                 { "NDimension", new NodeId("DataAccess_ArrayItemType_NDimension", 2) }
             };
 
-            foreach (var kvp in nodeIds)
+            foreach (KeyValuePair<string, NodeId> kvp in nodeIds)
             {
                 string name = kvp.Key;
                 NodeId nodeId = kvp.Value;
@@ -1887,7 +1864,7 @@ namespace Opc.Ua.Server.Tests
                 { "Scalar_Static_Arrays2D_Variant", new NodeId("Scalar_Static_Arrays2D_Variant", 2) }
             };
 
-            foreach (var kvp in nodeIds)
+            foreach (KeyValuePair<string, NodeId> kvp in nodeIds)
             {
                 string name = kvp.Key;
                 NodeId nodeId = kvp.Value;
@@ -1909,6 +1886,7 @@ namespace Opc.Ua.Server.Tests
                     $"Read of {name} should succeed");
             }
         }
+
         /// <summary>
         /// Test that Enumeration and Image type scalar nodes are accessible.
         /// </summary>
@@ -1925,7 +1903,7 @@ namespace Opc.Ua.Server.Tests
                 { "ImagePNG", new NodeId("Scalar_Static_ImagePNG", 2) }
             };
 
-            foreach (var kvp in nodeIds)
+            foreach (KeyValuePair<string, NodeId> kvp in nodeIds)
             {
                 string name = kvp.Key;
                 NodeId nodeId = kvp.Value;

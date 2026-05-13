@@ -29,6 +29,11 @@
 
 #nullable enable
 
+// CA2016: integration tests intentionally call cleanup in finally without forwarding the test
+// cancellation token. The test CT may already be cancelled (the [CancelAfter] timeout), which
+// would prevent cleanup from running. CloseAsync/DisposeAsync must complete regardless.
+#pragma warning disable CA2016
+
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -330,7 +335,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
                 .GetEndpointAsync(ServerUrl, SecurityPolicies.None)
                 .ConfigureAwait(false);
 
-            var builder = new ManagedSessionBuilder(ClientFixture.Config, Telemetry)
+            ManagedSessionBuilder builder = new ManagedSessionBuilder(ClientFixture.Config, Telemetry)
                 .UseEndpoint(endpoint)
                 .WithSessionName(nameof(ConnectionStateChangedReportsExpectedSequence))
                 .WithReconnectPolicy(p => p with
@@ -1354,7 +1359,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             using var timeoutCts = new CancellationTokenSource(timeout);
             using var linked = CancellationTokenSource.CreateLinkedTokenSource(
                 timeoutCts.Token, ct);
-            Task delay = Task.Delay(Timeout.Infinite, linked.Token);
+            var delay = Task.Delay(Timeout.Infinite, linked.Token);
             Task winner = await Task.WhenAny(waitTask, delay).ConfigureAwait(false);
             if (winner == waitTask)
             {

@@ -1735,7 +1735,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result, Is.EqualTo(expected));
         }
 
-#pragma warning disable CA1859 // Use concrete types when possible for improved performance
+#pragma warning disable CA1822, CA1859 // Use concrete types when possible for improved performance
         private IDecoder CreateDecoder(ReadOnlySequence<byte> buffers, IServiceMessageContext messageContext)
         {
             return new JsonDecoder(buffers, messageContext);
@@ -1745,6 +1745,6 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             return new JsonEncoder(buffer, messageContext);
         }
-#pragma warning restore CA1859 // Use concrete types when possible for improved performance
+#pragma warning restore CA1822, CA1859 // Use concrete types when possible for improved performance
     }
 }

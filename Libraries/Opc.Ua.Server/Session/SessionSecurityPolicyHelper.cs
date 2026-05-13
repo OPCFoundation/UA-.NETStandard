@@ -28,8 +28,8 @@
  * ======================================================================*/
 
 using System.Collections.Generic;
-using System.Security.Cryptography.X509Certificates;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Server
 {
@@ -43,8 +43,8 @@ namespace Opc.Ua.Server
         /// </summary>
         public static SignatureData CreateServerSignature(
             OperationContext context,
-            X509Certificate2 instanceCertificate,
-            X509Certificate2 parsedClientCertificate,
+            Certificate instanceCertificate,
+            Certificate parsedClientCertificate,
             ByteString clientNonce,
             ByteString serverNonce)
         {

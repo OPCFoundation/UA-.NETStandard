@@ -27,6 +27,9 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+// CA2000: test code; many disposables are ownership-transferred to test fixtures or short-lived,
+// making CA2000 noisy without a real leak risk. Disabled file-level for the suite.
+#pragma warning disable CA2000
 using System;
 using System.IO;
 using Newtonsoft.Json.Linq;
@@ -558,7 +561,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.That(encoder.EncodingToUse, Is.EqualTo(PubSubJsonEncoding.NonReversible));
 
             encoder.PushStructure(null);
-            encoder.UsingReversibleEncoding<int>(
+            encoder.UsingReversibleEncoding(
                 (name, value) =>
                 {
                     Assert.That(encoder.EncodingToUse, Is.EqualTo(PubSubJsonEncoding.Reversible));
@@ -580,7 +583,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.That(encoder.EncodingToUse, Is.EqualTo(PubSubJsonEncoding.Reversible));
 
             encoder.PushStructure(null);
-            encoder.UsingAlternateEncoding<int>(
+            encoder.UsingAlternateEncoding(
                 (name, value) =>
                 {
                     Assert.That(encoder.EncodingToUse, Is.EqualTo(PubSubJsonEncoding.Compact));

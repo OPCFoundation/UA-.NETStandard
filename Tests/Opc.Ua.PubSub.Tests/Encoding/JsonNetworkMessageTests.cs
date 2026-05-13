@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
 using System.Collections.Generic;
 using System.IO;
 using NUnit.Framework;
@@ -466,7 +465,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             var decoded = new PubSubEncoding.JsonNetworkMessage();
             decoded.Decode(m_messageContext, encoded, [reader]);
 
-            Assert.That(decoded.DataSetMessages.Count, Is.Zero);
+            Assert.That(decoded.DataSetMessages, Has.Count.Zero);
         }
 
         [Test]
@@ -486,7 +485,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             var decoded = new PubSubEncoding.JsonNetworkMessage();
             decoded.Decode(m_messageContext, encoded, [reader]);
 
-            Assert.That(decoded.DataSetMessages.Count, Is.GreaterThanOrEqualTo(0));
+            Assert.That(decoded.DataSetMessages, Has.Count.GreaterThanOrEqualTo(0));
         }
 
         [Test]
@@ -533,7 +532,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             var decoded = new PubSubEncoding.JsonNetworkMessage();
             decoded.Decode(m_messageContext, encoded, [reader]);
 
-            Assert.That(decoded.DataSetMessages.Count, Is.Zero);
+            Assert.That(decoded.DataSetMessages, Has.Count.Zero);
         }
 
         [Test]
@@ -555,13 +554,13 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             var decoded = new PubSubEncoding.JsonNetworkMessage();
             decoded.Decode(m_messageContext, encoded, [reader]);
 
-            Assert.That(decoded.DataSetMessages.Count, Is.Zero);
+            Assert.That(decoded.DataSetMessages, Has.Count.Zero);
         }
 
         [Test]
         public void DecodeInvalidMessageTypeDoesNotThrow()
         {
-            string invalidJson = @"{""MessageId"":""test"",""MessageType"":""ua-invalid""}";
+            const string invalidJson = /*lang=json,strict*/ """{"MessageId":"test","MessageType":"ua-invalid"}""";
             byte[] encoded = System.Text.Encoding.UTF8.GetBytes(invalidJson);
 
             var decoded = new PubSubEncoding.JsonNetworkMessage();
@@ -676,7 +675,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         {
             var writerGroup = new WriterGroupDataType { Enabled = true, Name = "WG1" };
             var msg = new PubSubEncoding.JsonNetworkMessage(
-                writerGroup, new List<PubSubEncoding.JsonDataSetMessage>(), null);
+                writerGroup, [], null);
             msg.SetNetworkMessageContentMask(
                 JsonNetworkMessageContentMask.NetworkMessageHeader);
             msg.PublisherId = "Pub1";
@@ -782,7 +781,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         [Test]
         public void DecodeMetaDataWithMissingDataSetWriterIdDoesNotThrow()
         {
-            string json =
+            const string json =
                 @"{""MessageId"":""id1"",""MessageType"":""ua-metadata""," +
                 @"""PublisherId"":""Pub1"",""MetaData"":{""Name"":""M1""," +
                 @"""Fields"":[],""ConfigurationVersion"":" +

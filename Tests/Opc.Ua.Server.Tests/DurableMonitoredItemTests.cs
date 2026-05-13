@@ -1255,7 +1255,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(monitoredItem.IsDurable, Is.True);
             Assert.That(monitoredItem.ItemsInQueue, Is.Zero);
 
-            using var eventState = new AuditUrlMismatchEventState(null);
+            var eventState = new AuditUrlMismatchEventState(null);
             monitoredItem.QueueEvent(eventState);
 
             Assert.That(monitoredItem.ItemsInQueue, Is.EqualTo(1));
@@ -1332,14 +1332,14 @@ namespace Opc.Ua.Server.Tests
             Assert.That(monitoredItem.IsDurable, Is.True);
             Assert.That(monitoredItem.ItemsInQueue, Is.Zero);
 
-            using var eventState1 = new AuditUrlMismatchEventState(null);
+            var eventState1 = new AuditUrlMismatchEventState(null);
             monitoredItem.QueueEvent(eventState1);
-            using var eventState2 = new AuditUrlMismatchEventState(null);
+            var eventState2 = new AuditUrlMismatchEventState(null);
             monitoredItem.QueueEvent(eventState2);
 
             Assert.That(monitoredItem.ItemsInQueue, Is.EqualTo(2));
 
-            using var eventState3 = new AuditUrlMismatchEventState(null);
+            var eventState3 = new AuditUrlMismatchEventState(null);
             monitoredItem.QueueEvent(eventState3);
 
             Assert.That(monitoredItem.ItemsInQueue, Is.EqualTo(2));

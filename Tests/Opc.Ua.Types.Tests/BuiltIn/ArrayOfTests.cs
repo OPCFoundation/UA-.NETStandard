@@ -29,11 +29,11 @@
 
 #nullable enable
 
-using NUnit.Framework;
 using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Globalization;
+using NUnit.Framework;
 
 #pragma warning disable CA1508 // Avoid dead conditional code
 #pragma warning disable IDE0028 // Simplify collection initialization
@@ -462,7 +462,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var arrayOf = new ArrayOf<int>([1, 2, 3]);
             int[]? array = (int[]?)arrayOf;
-            Assert.That(array!, Is.Not.Null);
+            Assert.That(array, Is.Not.Null);
             int[] expected = [1, 2, 3];
             Assert.That(array, Is.EquivalentTo(expected));
         }

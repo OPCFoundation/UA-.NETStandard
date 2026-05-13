@@ -29,13 +29,17 @@
 
 #nullable enable
 
+// CA2016: integration tests intentionally call cleanup in finally without forwarding the test
+// cancellation token. The test CT may already be cancelled (the [CancelAfter] timeout), which
+// would prevent cleanup from running. CloseAsync/DisposeAsync must complete regardless.
+#pragma warning disable CA2016
+
 using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client.Subscriptions;
-using Opc.Ua.Client.Subscriptions.MonitoredItems;
 using ManagedSessionType = Opc.Ua.Client.ManagedSession;
 using V2 = Opc.Ua.Client.Subscriptions;
 
@@ -109,7 +113,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
 
                 ISubscriptionManager manager = session.SubscriptionManager;
                 Assert.That(manager, Is.Not.Null);
-                Assert.That(manager.Count, Is.EqualTo(0));
+                Assert.That(manager.Count, Is.Zero);
 
                 TestContext.Out.WriteLine(
                     "ManagedSession connected, SessionId: {0}",
@@ -142,7 +146,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             var handler = new RecordingHandler();
             try
             {
-                V2.ISubscription subscription = session.AddSubscription(
+                ISubscription subscription = session.AddSubscription(
                     handler,
                     new V2.SubscriptionOptions
                     {
@@ -243,7 +247,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             public int EventCount;
 
             public ValueTask OnDataChangeNotificationAsync(
-                V2.ISubscription subscription,
+                ISubscription subscription,
                 uint sequenceNumber,
                 DateTime publishTime,
                 ReadOnlyMemory<DataValueChange> notification,
@@ -256,7 +260,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             }
 
             public ValueTask OnEventDataNotificationAsync(
-                V2.ISubscription subscription,
+                ISubscription subscription,
                 uint sequenceNumber,
                 DateTime publishTime,
                 ReadOnlyMemory<EventNotification> notification,
@@ -268,7 +272,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             }
 
             public ValueTask OnKeepAliveNotificationAsync(
-                V2.ISubscription subscription,
+                ISubscription subscription,
                 uint sequenceNumber,
                 DateTime publishTime,
                 PublishState publishStateMask)

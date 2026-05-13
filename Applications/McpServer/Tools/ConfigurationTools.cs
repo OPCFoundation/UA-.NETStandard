@@ -200,7 +200,7 @@ namespace Opc.Ua.Mcp.Tools
                 {
                     ["success"] = true,
                     ["message"] = "Configuration updated for current session (in-memory only, not saved to disk). " +
-                                  "Disconnect and reconnect for transport quota changes to take effect.",
+                        "Disconnect and reconnect for transport quota changes to take effect.",
                     ["changes"] = changes
                 });
             }

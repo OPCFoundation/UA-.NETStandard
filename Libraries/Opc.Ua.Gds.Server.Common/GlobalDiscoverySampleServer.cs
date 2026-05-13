@@ -30,7 +30,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -234,20 +233,11 @@ namespace Opc.Ua.Gds.Server
             {
                 IEnumerable<Role> roles = m_userDatabase.GetUserRoles(userNameToken.UserName);
 
-                UserIdentity tempIdentity = null;
-                try
-                {
-                    tempIdentity = new UserIdentity(userNameToken);
-                    args.Identity = new GdsRoleBasedIdentity(
-                        tempIdentity,
-                        roles,
-                        ServerInternal.MessageContext.NamespaceUris);
-                    tempIdentity = null; // ownership transferred to GdsRoleBasedIdentity
-                }
-                finally
-                {
-                    tempIdentity?.Dispose();
-                }
+                var tempIdentity = new UserIdentity(userNameToken);
+                args.Identity = new GdsRoleBasedIdentity(
+                    tempIdentity,
+                    roles,
+                    ServerInternal.MessageContext.NamespaceUris);
                 return;
             }
 
@@ -283,7 +273,8 @@ namespace Opc.Ua.Gds.Server
         /// <param name="session">the session</param>
         private bool VerifiyApplicationRegistered(ISession session)
         {
-            X509Certificate2 applicationInstanceCertificate = session.ClientCertificate;
+            using var applicationInstanceCertificate =
+                Certificate.FromRawData(session.ClientCertificate.RawData);
             bool applicationRegistered = false;
 
             Uri applicationUri = Utils.ParseUri(
@@ -299,11 +290,11 @@ namespace Opc.Ua.Gds.Server
                 configuration.ApplicationCertificatesStorePath);
             using (ICertificateStore applicationsStore = certificateStoreIdentifier.OpenStore(MessageContext.Telemetry))
             {
-                X509Certificate2Collection matchingCerts = applicationsStore
+                using CertificateCollection matchingCerts = applicationsStore
                     .FindByThumbprintAsync(applicationInstanceCertificate.Thumbprint)
                     .Result;
 
-                if (matchingCerts.Contains(applicationInstanceCertificate))
+                if (matchingCerts.Count > 0)
                 {
                     applicationRegistered = true;
                 }
@@ -335,12 +326,26 @@ namespace Opc.Ua.Gds.Server
         /// <exception cref="ServiceResultException"></exception>
         private void VerifyX509IdentityToken(X509IdentityToken token)
         {
-            using var x509TokenHandler = new X509IdentityTokenHandler(token);
+            using Certificate userCertificate = token.CertificateData.IsEmpty
+                ? null
+                : Certificate.FromRawData(token.CertificateData);
             try
             {
-                CertificateValidator.ValidateAsync(
-                    x509TokenHandler.Certificate,
-                    default).GetAwaiter().GetResult();
+                // Validate against the Users trust list using the new
+                // CertificateManager pipeline. Throws on validation failure.
+                // CA2025: task awaited via GetAwaiter().GetResult(); the disposable's
+                // using scope extends past the await.
+#pragma warning disable CA2025
+                CertificateValidationResult result = CertificateManager
+                    .ValidateAsync(
+                        userCertificate,
+                        TrustListIdentifier.Users)
+                    .GetAwaiter().GetResult();
+#pragma warning restore CA2025
+                if (!result.IsValid)
+                {
+                    throw new ServiceResultException(result.StatusCode);
+                }
             }
             catch (Exception e)
             {
@@ -353,7 +358,7 @@ namespace Opc.Ua.Gds.Server
                         "InvalidCertificate",
                         "en-US",
                         "'{0}' is an invalid user certificate.",
-                        x509TokenHandler.Certificate.Subject);
+                        userCertificate?.Subject ?? string.Empty);
 
                     result = StatusCodes.BadIdentityTokenInvalid;
                 }
@@ -364,7 +369,7 @@ namespace Opc.Ua.Gds.Server
                         "UntrustedCertificate",
                         "en-US",
                         "'{0}' is not a trusted user certificate.",
-                        x509TokenHandler.Certificate.Subject);
+                        userCertificate?.Subject ?? string.Empty);
                 }
 
                 // create an exception with a vendor defined sub-code.
@@ -403,21 +408,12 @@ namespace Opc.Ua.Gds.Server
             m_logger.LogInformation(
                 "Application {ApplicationUri} accepted based on ApplicationInstanceCertificate as ApplicationSelfAdmin",
                 applicationUri);
-            UserIdentity tempIdentity = null;
-            try
-            {
-                tempIdentity = new UserIdentity();
-                args.Identity = new GdsRoleBasedIdentity(
-                    tempIdentity,
-                    [GdsRole.ApplicationSelfAdmin],
-                    applicationId,
-                    ServerInternal.MessageContext.NamespaceUris);
-                tempIdentity = null; // ownership transferred to GdsRoleBasedIdentity
-            }
-            finally
-            {
-                tempIdentity?.Dispose();
-            }
+            var tempIdentity = new UserIdentity();
+            args.Identity = new GdsRoleBasedIdentity(
+                tempIdentity,
+                [GdsRole.ApplicationSelfAdmin],
+                applicationId,
+                ServerInternal.MessageContext.NamespaceUris);
         }
 
         private readonly Dictionary<uint, ImpersonationContext> m_contexts = [];

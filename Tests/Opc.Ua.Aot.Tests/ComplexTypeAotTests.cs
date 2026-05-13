@@ -83,17 +83,17 @@ namespace Opc.Ua.Aot.Tests
                 .ConfigureAwait(false);
 
             int testDataTypesFound = 0;
-            List<ReferenceDescription> dataTypeRefs = allRefs
+            var dataTypeRefs = allRefs
                 .Filter(r => r.NodeClass == NodeClass.DataType)
                 .ToList();
 
             foreach (ReferenceDescription dtRef in dataTypeRefs)
             {
-                NodeId nodeId = ExpandedNodeId.ToNodeId(
+                var nodeId = ExpandedNodeId.ToNodeId(
                     dtRef.NodeId, fixture.Session.NamespaceUris);
                 if (nodeId.NamespaceIndex == testNsIndex)
                 {
-                    ExpandedNodeId expandedId = NodeId.ToExpandedNodeId(
+                    var expandedId = NodeId.ToExpandedNodeId(
                         nodeId, fixture.Session.NamespaceUris);
                     Type systemType = fixture.Session.Factory.GetSystemType(expandedId);
                     if (systemType != null)
@@ -192,7 +192,7 @@ namespace Opc.Ua.Aot.Tests
                 .ConfigureAwait(false);
 
             // Collect variable NodeIds in the test namespace
-            List<NodeId> candidateVarIds = refs
+            var candidateVarIds = refs
                 .Filter(r =>
                     r.NodeClass == NodeClass.Variable &&
                     ExpandedNodeId.ToNodeId(
@@ -248,7 +248,7 @@ namespace Opc.Ua.Aot.Tests
                     "ExtensionObject should contain a decoded IEncodeable, " +
                     "not raw bytes");
 
-            IStructure complexType = encodeable as IStructure;
+            var complexType = encodeable as IStructure;
             await Assert.That(complexType).IsNotNull()
                 .Because("Decoded type should implement IStructure");
             await Assert.That(complexType.GetFields().Count).IsGreaterThan(0);

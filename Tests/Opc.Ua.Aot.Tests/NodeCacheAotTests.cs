@@ -38,12 +38,12 @@ namespace Opc.Ua.Aot.Tests
         [Test]
         public async Task FetchNodeAsync()
         {
-            Node node = await fixture.Session!.NodeCache
+            Node node = await fixture.Session.NodeCache
                 .FetchNodeAsync(ObjectIds.Server, CancellationToken.None)
                 .ConfigureAwait(false);
 
             await Assert.That(node).IsNotNull();
-            await Assert.That(node!.NodeId.IsNull).IsFalse();
+            await Assert.That(node.NodeId.IsNull).IsFalse();
             await Assert.That(node.BrowseName.Name).IsNotNull();
         }
 
@@ -57,7 +57,7 @@ namespace Opc.Ua.Aot.Tests
                 ObjectIds.TypesFolder
             ];
 
-            ArrayOf<Node> nodes = await fixture.Session!.NodeCache
+            ArrayOf<Node> nodes = await fixture.Session.NodeCache
                 .FetchNodesAsync(nodeIds, CancellationToken.None)
                 .ConfigureAwait(false);
 
@@ -66,7 +66,7 @@ namespace Opc.Ua.Aot.Tests
             foreach (Node node in nodes.ToList())
             {
                 await Assert.That(node).IsNotNull();
-                await Assert.That(node!.NodeId.IsNull).IsFalse();
+                await Assert.That(node.NodeId.IsNull).IsFalse();
             }
         }
 
@@ -74,8 +74,8 @@ namespace Opc.Ua.Aot.Tests
         public async Task FindReferencesAsync()
         {
             // Ensure reference types are loaded in the NodeCache
-            NamespaceTable namespaceUris = fixture.Session!.NamespaceUris;
-            ArrayOf<ExpandedNodeId> referenceTypes = ReferenceTypeIds.Identifiers
+            NamespaceTable namespaceUris = fixture.Session.NamespaceUris;
+            var referenceTypes = ReferenceTypeIds.Identifiers
                 .Select(nodeId => NodeId.ToExpandedNodeId(nodeId, namespaceUris))
                 .ToArrayOf();
             await fixture.Session.FetchTypeTreeAsync(
@@ -96,9 +96,9 @@ namespace Opc.Ua.Aot.Tests
         [Test]
         public async Task FetchTypeTreeAsync()
         {
-            ExpandedNodeId baseDataTypeId = NodeId.ToExpandedNodeId(
+            var baseDataTypeId = NodeId.ToExpandedNodeId(
                 DataTypeIds.BaseDataType,
-                fixture.Session!.NamespaceUris);
+                fixture.Session.NamespaceUris);
 
             await fixture.Session.FetchTypeTreeAsync(
                 baseDataTypeId, CancellationToken.None)

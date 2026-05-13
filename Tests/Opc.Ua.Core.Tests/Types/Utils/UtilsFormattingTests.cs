@@ -234,7 +234,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         {
             Assert.That(
 #pragma warning disable IDE0004 // Remove Unnecessary Cast
-                Utils.IsEqual(new List<int> { 1 }, (IEnumerable<int>)null),
+                Utils.IsEqual([1], (IEnumerable<int>)null),
 #pragma warning restore IDE0004 // Remove Unnecessary Cast
                 Is.False);
         }

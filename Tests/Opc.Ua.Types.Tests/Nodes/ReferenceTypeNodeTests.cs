@@ -127,7 +127,6 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(node.XmlEncodingId, Is.EqualTo(ObjectIds.ReferenceTypeNode_Encoding_DefaultXml));
         }
 
-
         [Test]
         public void EncodeDecodeRoundTripPreservesAllProperties()
         {

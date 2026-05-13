@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 namespace Opc.Ua.Security.Certificates
 {
     /// <summary>

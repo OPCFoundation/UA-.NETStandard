@@ -28,10 +28,10 @@
  * ======================================================================*/
 
 using System;
-using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua
 {
@@ -265,7 +265,7 @@ namespace Opc.Ua
             endpointConfiguration ??= EndpointConfiguration.Create();
 
             // check if application configuration contains instance certificate.
-            X509Certificate2 clientCertificate = null;
+            Certificate clientCertificate = null;
 
             ServiceMessageContext messageContext = applicationConfiguration.CreateMessageContext();
             try
@@ -276,8 +276,11 @@ namespace Opc.Ua
                     .ApplicationCertificate;
                 if (applicationCertificate != null)
                 {
-                    clientCertificate = await applicationCertificate.FindAsync(
-                        true,
+                    clientCertificate = await CertificateIdentifierResolver.ResolveAsync(
+                        applicationCertificate,
+                        registry: null,
+                        needPrivateKey: true,
+                        applicationUri: null,
                         telemetry: messageContext.Telemetry,
                         ct: ct).ConfigureAwait(false);
                 }
@@ -287,17 +290,27 @@ namespace Opc.Ua
                 // ignore errors
             }
 
-            ITransportChannel channel = await CreateChannelAsync(
-                applicationConfiguration,
-                discoveryUrl,
-                endpointConfiguration,
-                messageContext,
-                clientCertificate,
-                ct).ConfigureAwait(false);
-            return new DiscoveryClient(channel, messageContext.Telemetry)
+            try
             {
-                ReturnDiagnostics = returnDiagnostics
-            };
+                ITransportChannel channel = await CreateChannelAsync(
+                    applicationConfiguration,
+                    discoveryUrl,
+                    endpointConfiguration,
+                    messageContext,
+                    clientCertificate,
+                    ct).ConfigureAwait(false);
+                return new DiscoveryClient(channel, messageContext.Telemetry)
+                {
+                    ReturnDiagnostics = returnDiagnostics
+                };
+            }
+            finally
+            {
+                // The channel stores the cert reference in TransportChannelSettings
+                // but does not take ownership. Discovery uses SecurityMode.None so
+                // the cert is not needed after the channel is opened.
+                clientCertificate?.Dispose();
+            }
         }
 
         /// <summary>
@@ -359,7 +372,7 @@ namespace Opc.Ua
             endpointConfiguration ??= EndpointConfiguration.Create();
 
             // check if application configuration contains instance certificate.
-            X509Certificate2 clientCertificate = null;
+            Certificate clientCertificate = null;
 
             ITransportChannel channel = await CreateChannelAsync(
                 null,
@@ -502,7 +515,7 @@ namespace Opc.Ua
             Uri discoveryUrl,
             EndpointConfiguration endpointConfiguration,
             IServiceMessageContext messageContext,
-            X509Certificate2 clientCertificate = null,
+            Certificate clientCertificate = null,
             CancellationToken ct = default)
         {
             // create a default description.
@@ -534,7 +547,7 @@ namespace Opc.Ua
             ITransportWaitingConnection connection,
             EndpointConfiguration endpointConfiguration,
             IServiceMessageContext messageContext,
-            X509Certificate2 clientCertificate = null,
+            Certificate clientCertificate = null,
             CancellationToken ct = default)
         {
             // create a default description.
@@ -567,7 +580,7 @@ namespace Opc.Ua
             Uri discoveryUrl,
             EndpointConfiguration endpointConfiguration,
             IServiceMessageContext messageContext,
-            X509Certificate2 clientCertificate = null,
+            Certificate clientCertificate = null,
             CancellationToken ct = default)
         {
             // create a default description.

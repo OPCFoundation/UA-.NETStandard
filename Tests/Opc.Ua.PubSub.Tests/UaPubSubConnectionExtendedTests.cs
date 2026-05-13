@@ -188,7 +188,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
 
             List<DataSetReaderDataType> readers = connection.GetOperationalDataSetReaders();
             Assert.That(readers, Is.Not.Null);
-            Assert.That(readers.Count, Is.GreaterThanOrEqualTo(0));
+            Assert.That(readers, Has.Count.GreaterThanOrEqualTo(0));
         }
 
         [Test]
@@ -303,7 +303,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             var connection = app.PubSubConnections[0] as UaPubSubConnection;
 
             WriterGroupDataType wg = connection.PubSubConnectionConfiguration.WriterGroups[0];
-            Assert.That(wg.DataSetWriters, Is.Not.EqualTo(default(ArrayOf<DataSetWriterDataType>)));
+            Assert.That(wg.DataSetWriters, Is.Not.Default);
             Assert.That(wg.DataSetWriters.Count, Is.GreaterThan(0));
         }
 

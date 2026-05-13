@@ -65,7 +65,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 ServerPicoseconds = 200
             };
 
-            var copy = original.Copy();
+            DataValue copy = original.Copy();
 
             Assert.That(copy.WrappedValue, Is.EqualTo(original.WrappedValue));
             Assert.That(copy.StatusCode, Is.EqualTo(original.StatusCode));

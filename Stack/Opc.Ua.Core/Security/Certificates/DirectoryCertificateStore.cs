@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -35,6 +37,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua.Redaction;
 using Opc.Ua.Security.Certificates;
 using Microsoft.Extensions.Logging;
 
@@ -76,6 +79,7 @@ namespace Opc.Ua
         public DirectoryCertificateStore(bool noSubDirs, ITelemetryContext telemetry)
         {
             m_logger = telemetry.CreateLogger<DirectoryCertificateStore>();
+            m_cache = new CertificateCache(telemetry);
             m_noSubDirs = noSubDirs;
             m_certificates = [];
         }
@@ -106,8 +110,10 @@ namespace Opc.Ua
                 finally
                 {
                     m_lock.Release();
-                    // m_lock.Dispose(); // Fix store model
+                    // m_lock.Dispose(); // CA2213 acknowledged: store may be re-opened by tests/long-lived apps; disposing the lock would break that pattern. Tracked for follow-up.
                 }
+
+                m_cache.Dispose();
             }
             Close();
         }
@@ -115,7 +121,7 @@ namespace Opc.Ua
         /// <summary>
         /// The directory containing the certificate store.
         /// </summary>
-        public DirectoryInfo Directory { get; private set; }
+        public DirectoryInfo? Directory { get; private set; }
 
         /// <inheritdoc/>
         public void Open(string location, bool noPrivateKeys = false)
@@ -124,7 +130,7 @@ namespace Opc.Ua
             try
             {
                 string trimmedLocation = Utils.ReplaceSpecialFolderNames(location);
-                DirectoryInfo directory = !string.IsNullOrEmpty(trimmedLocation)
+                DirectoryInfo? directory = !string.IsNullOrEmpty(trimmedLocation)
                     ? new DirectoryInfo(trimmedLocation)
                     : null;
                 if (directory == null ||
@@ -135,19 +141,19 @@ namespace Opc.Ua
                     NoPrivateKeys = noPrivateKeys;
                     StorePath = location;
                     Directory = directory;
-                    if (m_noSubDirs || Directory == null)
+                    if (m_noSubDirs || directory == null)
                     {
-                        m_certificateSubdir = Directory;
-                        m_crlSubdir = Directory;
-                        m_privateKeySubdir = !noPrivateKeys ? Directory : null;
+                        m_certificateSubdir = directory;
+                        m_crlSubdir = directory;
+                        m_privateKeySubdir = !noPrivateKeys ? directory : null;
                     }
                     else
                     {
                         m_certificateSubdir = new DirectoryInfo(
-                            Path.Combine(Directory.FullName, kCertsPath));
-                        m_crlSubdir = new DirectoryInfo(Path.Combine(Directory.FullName, kCrlPath));
+                            Path.Combine(directory.FullName, kCertsPath));
+                        m_crlSubdir = new DirectoryInfo(Path.Combine(directory.FullName, kCrlPath));
                         m_privateKeySubdir = !noPrivateKeys
-                            ? new DirectoryInfo(Path.Combine(Directory.FullName, kPrivateKeyPath))
+                            ? new DirectoryInfo(Path.Combine(directory.FullName, kPrivateKeyPath))
                             : null;
                     }
 
@@ -165,26 +171,26 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public void Close()
         {
-            // intentionally keep information cached, dispose frees up resources
+            m_cache.Clear();
         }
 
         /// <inheritdoc/>
         public string StoreType => CertificateStoreType.Directory;
 
         /// <inheritdoc/>
-        public string StorePath { get; private set; }
+        public string StorePath { get; private set; } = string.Empty;
 
         /// <inheritdoc/>
         public bool NoPrivateKeys { get; private set; }
 
         /// <inheritdoc/>
-        public async Task<X509Certificate2Collection> EnumerateAsync(CancellationToken ct = default)
+        public async Task<CertificateCollection> EnumerateAsync(CancellationToken ct = default)
         {
             await m_lock.WaitAsync(ct).ConfigureAwait(false);
             try
             {
-                IDictionary<string, Entry> certificatesInStore = Load(null);
-                var certificates = new X509Certificate2Collection();
+                IDictionary<string, Entry> certificatesInStore = Load(thumbprint: null);
+                var certificates = new CertificateCollection();
 
                 foreach (Entry entry in certificatesInStore.Values)
                 {
@@ -208,8 +214,8 @@ namespace Opc.Ua
 
         /// <inheritdoc/>
         public async Task AddAsync(
-            X509Certificate2 certificate,
-            char[] password = null,
+            Certificate certificate,
+            char[]? password = null,
             CancellationToken ct = default)
         {
             if (certificate == null)
@@ -221,7 +227,7 @@ namespace Opc.Ua
             try
             {
                 // check for certificate file.
-                Entry entry = Find(certificate.Thumbprint);
+                Entry? entry = Find(certificate.Thumbprint);
 
                 if (entry != null)
                 {
@@ -234,10 +240,14 @@ namespace Opc.Ua
                 byte[] data;
                 if (writePrivateKey)
                 {
-                    string passcode = password == null ||
-                        password.Length == 0 ? string.Empty : new string(password);
-
-                    data = certificate.Export(X509ContentType.Pkcs12, passcode);
+                    if (password == null || password.Length == 0)
+                    {
+                        data = certificate.Export(X509ContentType.Pkcs12);
+                    }
+                    else
+                    {
+                        data = certificate.Export(X509ContentType.Pkcs12, password);
+                    }
                 }
                 else
                 {
@@ -256,14 +266,18 @@ namespace Opc.Ua
                 }
 
                 m_lastDirectoryCheck = DateTime.MinValue;
+                m_logger.LogDebug(
+                    Utils.TraceMasks.Security,
+                    "Certificate {Thumbprint} added to store.",
+                    certificate.Thumbprint);
             }
             catch (Exception ex)
             {
                 m_logger.LogError(
                     ex,
-                    "Failed to add certificate {Certificate} to store {StorePath}.",
-                    certificate.AsLogSafeString(),
-                    StorePath);
+                    "Failed to add certificate with thumbprint {Thumbprint} to store {StorePath}.",
+                    certificate.Thumbprint,
+                    Redact.Create(StorePath));
                 throw;
             }
             finally
@@ -274,7 +288,7 @@ namespace Opc.Ua
 
         /// <inheritdoc/>
         public async Task AddRejectedAsync(
-            X509Certificate2Collection certificates,
+            CertificateCollection certificates,
             int maxCertificates,
             CancellationToken ct = default)
         {
@@ -288,11 +302,11 @@ namespace Opc.Ua
             try
             {
                 // sync cache if necessary.
-                Load(null);
+                Load(thumbprint: null);
 
                 DateTime now = DateTime.UtcNow;
                 int entries = 0;
-                foreach (X509Certificate2 certificate in certificates)
+                foreach (Certificate certificate in certificates)
                 {
                     // limit the number of certificates added per call.
                     if (maxCertificates != 0 && entries >= maxCertificates)
@@ -300,7 +314,7 @@ namespace Opc.Ua
                         break;
                     }
 
-                    if (m_certificates.TryGetValue(certificate.Thumbprint, out Entry entry))
+                    if (m_certificates.TryGetValue(certificate.Thumbprint, out Entry? entry))
                     {
                         entry.LastWriteTimeUtc = now;
                     }
@@ -310,12 +324,16 @@ namespace Opc.Ua
                         string fileName = GetFileName(certificate);
 
                         // store is created if it does not exist
-                        FileInfo fileInfo = WriteFile(certificate.RawData, fileName, false, true);
+                        FileInfo? fileInfo = WriteFile(certificate.RawData, fileName, false, true);
+                        if (fileInfo == null)
+                        {
+                            continue;
+                        }
 
-                        // add entry
+                        // add entry (own the reference for the store)
                         entry = new Entry
                         {
-                            Certificate = certificate,
+                            Certificate = certificate.AddRef(),
                             CertificateFile = fileInfo,
                             PrivateKeyFile = null,
                             CertificateWithPrivateKey = null,
@@ -357,6 +375,11 @@ namespace Opc.Ua
                             entry.CertificateFile.FullName);
                         reload = true;
                     }
+                    finally
+                    {
+                        entry.Certificate?.Dispose();
+                        entry.CertificateWithPrivateKey?.Dispose();
+                    }
                 }
 
                 m_lastDirectoryCheck = reload ? DateTime.MinValue : DateTime.UtcNow;
@@ -381,7 +404,7 @@ namespace Opc.Ua
                 await m_lock.WaitAsync(ct).ConfigureAwait(false);
                 try
                 {
-                    Entry entry = Find(thumbprint);
+                    Entry? entry = Find(thumbprint);
                     try
                     {
                         if (entry != null)
@@ -405,7 +428,8 @@ namespace Opc.Ua
                                     if (PEMWriter.TryRemovePublicKeyFromPEM(
                                             entry.Certificate.Thumbprint,
                                             File.ReadAllBytes(entry.CertificateFile.FullName),
-                                            out byte[] newContent))
+                                            out byte[]? newContent) &&
+                                        newContent != null)
                                     {
                                         var writer = new BinaryWriter(
                                             entry.CertificateFile
@@ -458,6 +482,7 @@ namespace Opc.Ua
                     if (found)
                     {
                         m_lastDirectoryCheck = DateTime.MinValue;
+                        m_logger.LogDebug(Utils.TraceMasks.Security, "Certificate {Thumbprint} removed from store.", thumbprint);
                     }
                 }
                 finally
@@ -475,16 +500,16 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public async Task<X509Certificate2Collection> FindByThumbprintAsync(
+        public async Task<CertificateCollection> FindByThumbprintAsync(
             string thumbprint,
             CancellationToken ct = default)
         {
-            var certificates = new X509Certificate2Collection();
+            var certificates = new CertificateCollection();
 
             await m_lock.WaitAsync(ct).ConfigureAwait(false);
             try
             {
-                Entry entry = Find(thumbprint);
+                Entry? entry = Find(thumbprint);
 
                 if (entry != null)
                 {
@@ -511,12 +536,12 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="thumbprint">The thumbprint of the certificate.</param>
         /// <returns>The path.</returns>
-        public string GetPublicKeyFilePath(string thumbprint)
+        public string? GetPublicKeyFilePath(string thumbprint)
         {
             m_lock.Wait();
             try
             {
-                Entry entry = Find(thumbprint);
+                Entry? entry = Find(thumbprint);
 
                 if (entry == null)
                 {
@@ -541,12 +566,12 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="thumbprint">The thumbprint of the certificate.</param>
         /// <returns>The path.</returns>
-        public string GetPrivateKeyFilePath(string thumbprint)
+        public string? GetPrivateKeyFilePath(string thumbprint)
         {
             m_lock.Wait();
             try
             {
-                Entry entry = Find(thumbprint);
+                Entry? entry = Find(thumbprint);
 
                 if (entry == null)
                 {
@@ -572,18 +597,20 @@ namespace Opc.Ua
         /// <summary>
         /// Loads the private key from a PFX file in the certificate store.
         /// </summary>
-        public async Task<X509Certificate2> LoadPrivateKeyAsync(
+        public async Task<Certificate?> LoadPrivateKeyAsync(
             string thumbprint,
             string subjectName,
             string applicationUri,
             NodeId certificateType,
-            char[] password,
+            char[]? password,
             CancellationToken ct = default)
         {
+            DirectoryInfo? privateKeySubdir = m_privateKeySubdir;
+            DirectoryInfo? certificateSubdir = m_certificateSubdir;
             if (NoPrivateKeys ||
-                m_privateKeySubdir == null ||
-                m_certificateSubdir == null ||
-                !m_certificateSubdir.Exists)
+                privateKeySubdir == null ||
+                certificateSubdir == null ||
+                !certificateSubdir.Exists)
             {
                 return null;
             }
@@ -598,201 +625,224 @@ namespace Opc.Ua
             for (int i = 0; ; i++)
             {
                 bool certificateFound = false;
-                Exception importException = null;
-                IEnumerable<FileInfo> files = m_certificateSubdir
+                Exception? importException = null;
+                IEnumerable<FileInfo> files = certificateSubdir
                     .GetFiles(kCertSearchString)
-                    .Concat(m_certificateSubdir.GetFiles(kPemCertSearchString));
+                    .Concat(certificateSubdir.GetFiles(kPemCertSearchString));
 
                 foreach (FileInfo file in files)
                 {
                     try
                     {
-                        var certificatesInFile = new X509Certificate2Collection();
+                        CertificateCollection certificatesInFile;
                         if (file.Extension
                             .Equals(kPemExtension, StringComparison.OrdinalIgnoreCase))
                         {
-                            certificatesInFile = PEMReader.ImportPublicKeysFromPEM(
-                                File.ReadAllBytes(file.FullName));
+                            certificatesInFile = CertificateCollection.From(
+                                PEMReader.ImportPublicKeysFromPEM(
+                                    File.ReadAllBytes(file.FullName)));
                         }
                         else
                         {
-                            certificatesInFile.Add(
-                                X509CertificateLoader.LoadCertificateFromFile(file.FullName));
+                            certificatesInFile = CertificateCollection.From(
+                                [
+                                    X509CertificateLoader.LoadCertificateFromFile(file.FullName)
+                                ]);
                         }
 
-                        foreach (X509Certificate2 cert in certificatesInFile)
+                        using (certificatesInFile)
                         {
-                            X509Certificate2 certificate = cert;
-
-                            if (!string.IsNullOrEmpty(thumbprint) &&
-                                !string.Equals(
-                                    certificate.Thumbprint,
-                                    thumbprint,
-                                    StringComparison.OrdinalIgnoreCase))
+                            foreach (Certificate cert in certificatesInFile)
                             {
-                                continue;
-                            }
+                                Certificate certificate = cert;
 
-                            if (!string.IsNullOrEmpty(subjectName) &&
-                                !X509Utils.CompareDistinguishedName(
-                                    subjectName,
-                                    certificate.Subject))
-                            {
-                                if (subjectName.Contains('=', StringComparison.Ordinal))
+                                if (!string.IsNullOrEmpty(thumbprint) &&
+                                    !string.Equals(
+                                        certificate.Thumbprint,
+                                        thumbprint,
+                                        StringComparison.OrdinalIgnoreCase))
                                 {
                                     continue;
                                 }
 
-                                if (!X509Utils
-                                        .ParseDistinguishedName(certificate.Subject)
-                                        .Any(s => s.Equals(
-                                            "CN=" + subjectName,
-                                            StringComparison.Ordinal)))
+                                if (!string.IsNullOrEmpty(subjectName) &&
+                                    !X509Utils.CompareDistinguishedName(
+                                        subjectName,
+                                        certificate.Subject))
+                                {
+                                    if (subjectName.Contains('=', StringComparison.Ordinal))
+                                    {
+                                        continue;
+                                    }
+
+                                    if (!X509Utils
+                                            .ParseDistinguishedName(certificate.Subject)
+                                            .Any(s => s.Equals(
+                                                "CN=" + subjectName,
+                                                StringComparison.Ordinal)))
+                                    {
+                                        continue;
+                                    }
+                                }
+
+                                if (!string.IsNullOrEmpty(applicationUri) &&
+                                    !X509Utils.CompareApplicationUriWithCertificate(
+                                        certificate, applicationUri))
                                 {
                                     continue;
                                 }
-                            }
 
-                            if (!string.IsNullOrEmpty(applicationUri) &&
-                                !X509Utils.CompareApplicationUriWithCertificate(certificate, applicationUri))
-                            {
-                                continue;
-                            }
+                                if (!CertificateIdentifier.ValidateCertificateType(
+                                    certificate,
+                                    certificateType))
+                                {
+                                    continue;
+                                }
 
-                            if (!CertificateIdentifier.ValidateCertificateType(
-                                certificate,
-                                certificateType))
-                            {
-                                continue;
-                            }
+                                string fileRoot = file.Name[..^file.Extension.Length];
 
-                            string fileRoot = file.Name[..^file.Extension.Length];
+                                StringBuilder filePath = new StringBuilder()
+                                    .Append(privateKeySubdir.FullName)
+                                    .Append(Path.DirectorySeparatorChar)
+                                    .Append(fileRoot);
 
-                            StringBuilder filePath = new StringBuilder()
-                                .Append(m_privateKeySubdir.FullName)
-                                .Append(Path.DirectorySeparatorChar)
-                                .Append(fileRoot);
-
-                            X509KeyStorageFlags defaultStorageSet
-                                = X509KeyStorageFlags.DefaultKeySet;
+                                X509KeyStorageFlags defaultStorageSet
+                                    = X509KeyStorageFlags.DefaultKeySet;
 #if NETSTANDARD2_1_OR_GREATER || NET472_OR_GREATER || NET5_0_OR_GREATER
-                            if (!RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-                            {
-                                defaultStorageSet |= X509KeyStorageFlags.EphemeralKeySet;
-                            }
-#endif
-                            // By default keys are not persisted
-                            defaultStorageSet |= X509KeyStorageFlags.Exportable;
-
-                            X509KeyStorageFlags[] storageFlags =
-                            [
-                                defaultStorageSet | X509KeyStorageFlags.MachineKeySet,
-                                defaultStorageSet | X509KeyStorageFlags.UserKeySet
-                            ];
-
-                            var privateKeyFilePfx = new FileInfo(filePath + kPfxExtension);
-                            var privateKeyFilePem = new FileInfo(filePath + kPemExtension);
-                            if (privateKeyFilePfx.Exists)
-                            {
-                                certificateFound = true;
-                                foreach (X509KeyStorageFlags flag in storageFlags)
+                                if (!RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
                                 {
+                                    defaultStorageSet |= X509KeyStorageFlags.EphemeralKeySet;
+                                }
+#endif
+                                // By default keys are not persisted
+                                defaultStorageSet |= X509KeyStorageFlags.Exportable;
+
+                                X509KeyStorageFlags[] storageFlags =
+                                [
+                                    defaultStorageSet | X509KeyStorageFlags.MachineKeySet,
+                                defaultStorageSet | X509KeyStorageFlags.UserKeySet
+                                ];
+
+                                var privateKeyFilePfx = new FileInfo(filePath + kPfxExtension);
+                                var privateKeyFilePem = new FileInfo(filePath + kPemExtension);
+                                if (privateKeyFilePfx.Exists)
+                                {
+                                    certificateFound = true;
+                                    foreach (X509KeyStorageFlags flag in storageFlags)
+                                    {
+                                        try
+                                        {
+                                            certificate = Certificate.From(
+                                                X509CertificateLoader.LoadPkcs12FromFile(
+                                                    privateKeyFilePfx.FullName,
+                                                    password,
+                                                    flag));
+                                            if (X509PfxUtils.VerifyKeyPair(
+                                                certificate, certificate, true))
+                                            {
+                                                m_logger.LogInformation(
+                                                    Utils.TraceMasks.Security,
+                                                    "Imported the PFX private key for {Certificate}.",
+                                                    certificate);
+                                                return certificate;
+                                            }
+                                            m_logger.LogDebug(
+                                                "PFX Private key could not be verified for {Certificate}.",
+                                                certificate);
+                                            certificate.Dispose();
+                                        }
+                                        catch (Exception ex)
+                                        {
+                                            m_logger.LogDebug(
+                                                ex,
+                                                "Failed to import the PFX private for {Certificate}.",
+                                                certificate);
+                                            importException = ex;
+                                            certificate?.Dispose();
+                                        }
+                                    }
+                                }
+                                // if PFX file doesn't exist, check for PEM file.
+                                else if (privateKeyFilePem.Exists)
+                                {
+                                    certificateFound = true;
                                     try
                                     {
-                                        certificate = X509CertificateLoader.LoadPkcs12FromFile(
-                                            privateKeyFilePfx.FullName,
-                                            password,
-                                            flag);
-                                        if (X509Utils.VerifyKeyPair(certificate, certificate, true))
+                                        byte[] pemDataBlob = File.ReadAllBytes(
+                                            privateKeyFilePem.FullName);
+                                        certificate = DefaultCertificateFactory.Instance
+                                            .CreateWithPEMPrivateKey(
+                                                certificate,
+                                                pemDataBlob,
+                                                password);
+                                        if (X509PfxUtils.VerifyKeyPair(
+                                            certificate, certificate, true))
                                         {
                                             m_logger.LogInformation(
                                                 Utils.TraceMasks.Security,
-                                                "Imported the PFX private key for {Certificate}.",
-                                                certificate.AsLogSafeString());
+                                                "Imported the PEM private key for {Certificate}.",
+                                                certificate);
                                             return certificate;
                                         }
-                                        m_logger.LogDebug("PFX Private key could not be verified for {Certificate}.",
-                                            certificate.AsLogSafeString());
+                                        m_logger.LogDebug(
+                                            "PEM Private key could not be verified for {Certificate}.",
+                                            certificate);
+                                        certificate.Dispose();
                                     }
-                                    catch (Exception ex)
+                                    catch (Exception exception)
                                     {
-                                        m_logger.LogDebug(ex, "Failed to import the PFX private for {Certificate}.",
-                                            certificate.AsLogSafeString());
-                                        importException = ex;
+                                        m_logger.LogDebug(
+                                            exception,
+                                            "Failed to import the PEM private for {Certificate}.",
+                                            certificate);
                                         certificate?.Dispose();
+                                        importException = exception;
                                     }
                                 }
-                            }
-                            // if PFX file doesn't exist, check for PEM file.
-                            else if (privateKeyFilePem.Exists)
-                            {
-                                certificateFound = true;
-                                try
+                                else if (file.Extension
+                                        .Equals(kPemExtension, StringComparison.OrdinalIgnoreCase) &&
+                                    PEMReader.ContainsPrivateKey(File.ReadAllBytes(file.FullName)))
                                 {
-                                    byte[] pemDataBlob = File.ReadAllBytes(
-                                        privateKeyFilePem.FullName);
-                                    certificate = CertificateFactory
-                                        .CreateCertificateWithPEMPrivateKey(
-                                            certificate,
-                                            pemDataBlob,
-                                            password);
-                                    if (X509Utils.VerifyKeyPair(certificate, certificate, true))
+                                    certificateFound = true;
+                                    try
                                     {
-                                        m_logger.LogInformation(
-                                            Utils.TraceMasks.Security,
-                                            "Imported the PEM private key for {Certificate}.",
-                                            certificate.AsLogSafeString());
-                                        return certificate;
+                                        byte[] pemDataBlob = File.ReadAllBytes(file.FullName);
+                                        certificate = DefaultCertificateFactory.Instance
+                                            .CreateWithPEMPrivateKey(
+                                                certificate,
+                                                pemDataBlob,
+                                                password);
+                                        if (X509PfxUtils.VerifyKeyPair(
+                                            certificate, certificate, true))
+                                        {
+                                            m_logger.LogInformation(
+                                                Utils.TraceMasks.Security,
+                                                "Imported the PEM private key for {Certificate}.",
+                                                certificate);
+                                            return certificate;
+                                        }
+                                        m_logger.LogDebug(
+                                            "PEM Private key could not be verified for {Certificate}.",
+                                            certificate);
+                                        certificate.Dispose();
                                     }
-                                    m_logger.LogDebug("PEM Private key could not be verified for {Certificate}.",
-                                        certificate.AsLogSafeString());
-                                }
-                                catch (Exception exception)
-                                {
-                                    m_logger.LogDebug(exception, "Failed to import the PEM private for {Certificate}.",
-                                        certificate.AsLogSafeString());
-                                    certificate?.Dispose();
-                                    importException = exception;
-                                }
-                            }
-                            else if (file.Extension
-                                    .Equals(kPemExtension, StringComparison.OrdinalIgnoreCase) &&
-                                PEMReader.ContainsPrivateKey(File.ReadAllBytes(file.FullName)))
-                            {
-                                certificateFound = true;
-                                try
-                                {
-                                    byte[] pemDataBlob = File.ReadAllBytes(file.FullName);
-                                    certificate = CertificateFactory
-                                        .CreateCertificateWithPEMPrivateKey(
-                                            certificate,
-                                            pemDataBlob,
-                                            password);
-                                    if (X509Utils.VerifyKeyPair(certificate, certificate, true))
+                                    catch (Exception exception)
                                     {
-                                        m_logger.LogInformation(
-                                            Utils.TraceMasks.Security,
-                                            "Imported the PEM private key for {Certificate}.",
-                                            certificate.AsLogSafeString());
-                                        return certificate;
+                                        m_logger.LogDebug(
+                                            exception,
+                                            "Failed to import the PEM private for {Certificate}.",
+                                            certificate);
+                                        certificate?.Dispose();
+                                        importException = exception;
                                     }
-                                    m_logger.LogDebug("PEM Private key could not be verified for {Certificate}.",
-                                        certificate.AsLogSafeString());
                                 }
-                                catch (Exception exception)
+                                else
                                 {
-                                    m_logger.LogDebug(exception, "Failed to import the PEM private for {Certificate}.",
-                                        certificate.AsLogSafeString());
-                                    certificate?.Dispose();
-                                    importException = exception;
+                                    m_logger.LogError(
+                                        Utils.TraceMasks.Security,
+                                        "A private key for the certificate {Certificate} does not exist.",
+                                         certificate);
                                 }
-                            }
-                            else
-                            {
-                                m_logger.LogError(
-                                    Utils.TraceMasks.Security,
-                                    "A private key for the certificate {Certificate} does not exist.",
-                                     certificate.AsLogSafeString());
                             }
                         }
                     }
@@ -854,8 +904,8 @@ namespace Opc.Ua
 
         /// <inheritdoc/>
         public Task<StatusCode> IsRevokedAsync(
-            X509Certificate2 issuer,
-            X509Certificate2 certificate,
+            Certificate issuer,
+            Certificate certificate,
             CancellationToken ct = default)
         {
             if (issuer == null)
@@ -869,13 +919,14 @@ namespace Opc.Ua
             }
 
             // check for CRL.
-            if (m_crlSubdir.Exists)
+            DirectoryInfo? crlSubdir = m_crlSubdir;
+            if (crlSubdir is { Exists: true })
             {
                 bool crlExpired = true;
 
-                foreach (FileInfo file in m_crlSubdir.GetFiles("*" + kCrlExtension))
+                foreach (FileInfo file in crlSubdir.GetFiles("*" + kCrlExtension))
                 {
-                    X509CRL crl = null;
+                    X509CRL? crl = null;
 
                     try
                     {
@@ -933,10 +984,11 @@ namespace Opc.Ua
             var crls = new X509CRLCollection();
 
             // check for CRL.
-            m_crlSubdir.Refresh();
-            if (m_crlSubdir.Exists)
+            DirectoryInfo? crlSubdir = m_crlSubdir;
+            crlSubdir?.Refresh();
+            if (crlSubdir is { Exists: true })
             {
-                foreach (FileInfo file in m_crlSubdir.GetFiles("*" + kCrlExtension))
+                foreach (FileInfo file in crlSubdir.GetFiles("*" + kCrlExtension))
                 {
                     try
                     {
@@ -959,7 +1011,7 @@ namespace Opc.Ua
 
         /// <inheritdoc/>
         public async Task<X509CRLCollection> EnumerateCRLsAsync(
-            X509Certificate2 issuer,
+            Certificate issuer,
             bool validateUpdateTime = true,
             CancellationToken ct = default)
         {
@@ -1001,10 +1053,10 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(crl));
             }
 
-            X509Certificate2 issuer = null;
-            X509Certificate2Collection certificates = await EnumerateAsync(ct).ConfigureAwait(
+            Certificate? issuer = null;
+            using CertificateCollection certificates = await EnumerateAsync(ct).ConfigureAwait(
                 false);
-            foreach (X509Certificate2 certificate in certificates)
+            foreach (Certificate certificate in certificates)
             {
                 if (X509Utils.CompareDistinguishedName(certificate.SubjectName, crl.IssuerName) &&
                     crl.VerifySignature(certificate, false))
@@ -1021,16 +1073,17 @@ namespace Opc.Ua
                     "Could not find issuer of the CRL.");
             }
 
+            DirectoryInfo crlSubdir = m_crlSubdir ?? throw new InvalidOperationException("Store is not open.");
             var builder = new StringBuilder();
-            builder.Append(m_crlSubdir.FullName).Append(Path.DirectorySeparatorChar)
+            builder.Append(crlSubdir.FullName).Append(Path.DirectorySeparatorChar)
                 .Append(GetFileName(issuer))
                 .Append(kCrlExtension);
 
             var fileInfo = new FileInfo(builder.ToString());
 
-            if (!fileInfo.Directory.Exists)
+            if (fileInfo.Directory is { Exists: false } parentDir)
             {
-                fileInfo.Directory.Create();
+                parentDir.Create();
             }
 
             File.WriteAllBytes(fileInfo.FullName, crl.RawData);
@@ -1044,10 +1097,11 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(crl));
             }
 
-            m_crlSubdir.Refresh();
-            if (m_crlSubdir.Exists)
+            DirectoryInfo? crlSubdir = m_crlSubdir;
+            crlSubdir?.Refresh();
+            if (crlSubdir is { Exists: true })
             {
-                foreach (FileInfo fileInfo in m_crlSubdir.GetFiles("*" + kCrlExtension))
+                foreach (FileInfo fileInfo in crlSubdir.GetFiles("*" + kCrlExtension))
                 {
                     if (fileInfo.Length == crl.RawData.Length)
                     {
@@ -1068,12 +1122,13 @@ namespace Opc.Ua
         /// <summary>
         /// Reads the current contents of the directory from disk.
         /// </summary>
-        private Dictionary<string, Entry> Load(string thumbprint)
+        private Dictionary<string, Entry> Load(string? thumbprint)
         {
             DateTime now = DateTime.UtcNow;
 
             // refresh the directories.
-            m_certificateSubdir?.Refresh();
+            DirectoryInfo? certSubdir = m_certificateSubdir;
+            certSubdir?.Refresh();
 
             if (!NoPrivateKeys)
             {
@@ -1081,14 +1136,14 @@ namespace Opc.Ua
             }
 
             // check if store exists.
-            if (m_certificateSubdir?.Exists != true)
+            if (certSubdir == null || !certSubdir.Exists)
             {
                 ClearCertificates();
                 return m_certificates;
             }
 
             // check if cache is still good.
-            if ((m_certificateSubdir.LastWriteTimeUtc < m_lastDirectoryCheck) &&
+            if ((certSubdir.LastWriteTimeUtc < m_lastDirectoryCheck) &&
                 (
                     NoPrivateKeys ||
                     m_privateKeySubdir == null ||
@@ -1102,8 +1157,8 @@ namespace Opc.Ua
                 // current value. Comparing the cached entry count to the
                 // current file count detects external changes without re-parsing
                 // every certificate file in the common (unchanged) case.
-                int onDiskCount = m_certificateSubdir.GetFiles(kCertSearchString).Length
-                    + m_certificateSubdir.GetFiles(kPemCertSearchString).Length;
+                int onDiskCount = certSubdir.GetFiles(kCertSearchString).Length +
+                    certSubdir.GetFiles(kPemCertSearchString).Length;
                 if (onDiskCount == m_certificates.Count)
                 {
                     return m_certificates;
@@ -1114,28 +1169,34 @@ namespace Opc.Ua
             m_lastDirectoryCheck = now;
             bool incompleteSearch = false;
 
-            IEnumerable<FileInfo> files = m_certificateSubdir
+            IEnumerable<FileInfo> files = certSubdir
                 .GetFiles(kCertSearchString)
-                .Concat(m_certificateSubdir.GetFiles(kPemCertSearchString));
+                .Concat(certSubdir.GetFiles(kPemCertSearchString));
 
             foreach (FileInfo file in files)
             {
                 try
                 {
-                    var certificatesInFile = new X509Certificate2Collection();
+                    using var certificatesInFile = new CertificateCollection();
                     if (file.Extension
                         .Equals(kPemExtension, StringComparison.OrdinalIgnoreCase))
                     {
-                        certificatesInFile = PEMReader.ImportPublicKeysFromPEM(
-                            File.ReadAllBytes(file.FullName));
+                        X509Certificate2Collection pemCerts =
+                            PEMReader.ImportPublicKeysFromPEM(
+                                File.ReadAllBytes(file.FullName));
+                        foreach (X509Certificate2 pemCert in pemCerts)
+                        {
+                            certificatesInFile.Add(Certificate.From(pemCert));
+                        }
                     }
                     else
                     {
                         certificatesInFile.Add(
-                            X509CertificateLoader.LoadCertificateFromFile(file.FullName));
+                            Certificate.From(
+                                X509CertificateLoader.LoadCertificateFromFile(file.FullName)));
                     }
 
-                    foreach (X509Certificate2 certificate in certificatesInFile)
+                    foreach (Certificate certificate in certificatesInFile)
                     {
                         var entry = new Entry
                         {
@@ -1146,7 +1207,7 @@ namespace Opc.Ua
                             LastWriteTimeUtc = file.LastWriteTimeUtc
                         };
 
-                        if (!NoPrivateKeys)
+                        if (!NoPrivateKeys && m_privateKeySubdir is { } pkSubdir)
                         {
                             string fileRoot = file.Name[
                                 ..(entry.CertificateFile.Name.Length -
@@ -1154,7 +1215,7 @@ namespace Opc.Ua
                             ];
 
                             StringBuilder filePath = new StringBuilder()
-                                .Append(m_privateKeySubdir.FullName)
+                                .Append(pkSubdir.FullName)
                                 .Append(Path.DirectorySeparatorChar)
                                 .Append(fileRoot);
 
@@ -1175,16 +1236,35 @@ namespace Opc.Ua
                             }
                         }
 
+                        // If an entry with this thumbprint already exists in
+                        // the dictionary (e.g., the cert file contains a
+                        // duplicate thumbprint), dispose the previous entry
+                        // before overwriting it to avoid leaking the
+                        // Certificate reference.
+                        if (m_certificates.TryGetValue(
+                                entry.Certificate.Thumbprint,
+                                out Entry? existing) &&
+                            existing != null)
+                        {
+                            existing.Certificate?.Dispose();
+                            existing.CertificateWithPrivateKey?.Dispose();
+                        }
+
                         m_certificates[entry.Certificate.Thumbprint] = entry;
 
-                        if (!string.IsNullOrEmpty(thumbprint) &&
-                            thumbprint.Equals(
+                        if (!incompleteSearch &&
+                            !string.IsNullOrEmpty(thumbprint) &&
+                            thumbprint!.Equals(
                                 entry.Certificate.Thumbprint,
                                 StringComparison.OrdinalIgnoreCase))
                         {
                             incompleteSearch = true;
-                            break;
                         }
+                    }
+
+                    if (incompleteSearch)
+                    {
+                        break;
                     }
                 }
                 catch (Exception e)
@@ -1201,17 +1281,23 @@ namespace Opc.Ua
                 m_lastDirectoryCheck = DateTime.MinValue;
             }
 
+            m_logger.LogInformation(
+                Utils.TraceMasks.Security,
+                "Certificate store reloaded from {Path}, {Count} entries.",
+                Redact.Create(StorePath),
+                m_certificates.Count);
+
             return m_certificates;
         }
 
         /// <summary>
         /// Finds the public key for the certificate.
         /// </summary>
-        private Entry Find(string thumbprint)
+        private Entry? Find(string thumbprint)
         {
             IDictionary<string, Entry> certificates = Load(thumbprint);
 
-            Entry entry = null;
+            Entry? entry = null;
 
             if (!string.IsNullOrEmpty(thumbprint) &&
                 !certificates.TryGetValue(thumbprint, out entry))
@@ -1227,13 +1313,18 @@ namespace Opc.Ua
         /// </summary>
         private void ClearCertificates()
         {
+            foreach (Entry entry in m_certificates.Values)
+            {
+                entry.Certificate?.Dispose();
+                entry.CertificateWithPrivateKey?.Dispose();
+            }
             m_certificates.Clear();
         }
 
         /// <summary>
         /// Returns the file name to use for the certificate.
         /// </summary>
-        private static string GetFileName(X509Certificate2 certificate)
+        private static string GetFileName(Certificate certificate)
         {
             // build file name.
             string commonName = certificate.FriendlyName;
@@ -1282,7 +1373,8 @@ namespace Opc.Ua
         /// <summary>
         /// Writes the data to a file.
         /// </summary>
-        private FileInfo WriteFile(
+        /// <exception cref="InvalidOperationException"></exception>
+        private FileInfo? WriteFile(
             byte[] data,
             string fileName,
             bool includePrivateKey,
@@ -1290,9 +1382,9 @@ namespace Opc.Ua
         {
             var filePath = new StringBuilder();
 
-            if (!Directory.Exists)
+            if (Directory is { Exists: false } storeDir)
             {
-                Directory.Create();
+                storeDir.Create();
             }
 
             if (includePrivateKey)
@@ -1306,7 +1398,9 @@ namespace Opc.Ua
             }
             else
             {
-                filePath.Append(m_certificateSubdir.FullName);
+                DirectoryInfo certSubdir = m_certificateSubdir
+                    ?? throw new InvalidOperationException("Store is not open.");
+                filePath.Append(certSubdir.FullName);
             }
 
             filePath.Append(Path.DirectorySeparatorChar)
@@ -1323,9 +1417,9 @@ namespace Opc.Ua
 
             // create the directory.
             var fileInfo = new FileInfo(filePath.ToString());
-            if (!fileInfo.Directory.Exists)
+            if (fileInfo.Directory is { Exists: false } parentDir)
             {
-                fileInfo.Directory.Create();
+                parentDir.Create();
             }
 
             // write file.
@@ -1341,7 +1435,7 @@ namespace Opc.Ua
                 writer.Dispose();
             }
 
-            m_certificateSubdir.Refresh();
+            m_certificateSubdir?.Refresh();
             m_privateKeySubdir?.Refresh();
 
             return fileInfo;
@@ -1349,19 +1443,27 @@ namespace Opc.Ua
 
         private class Entry
         {
-            public FileInfo CertificateFile;
-            public X509Certificate2 Certificate;
-            public FileInfo PrivateKeyFile;
-            public X509Certificate2 CertificateWithPrivateKey;
+            public FileInfo CertificateFile = null!;
+            public Certificate Certificate = null!;
+            public FileInfo? PrivateKeyFile;
+            public Certificate? CertificateWithPrivateKey;
             public DateTime LastWriteTimeUtc;
         }
 
+        // CA2213: m_lock SemaphoreSlim cannot be disposed because the
+        // store supports being re-opened (Open/Close lifecycle); disposing
+        // the lock would break that pattern. m_cache.Dispose() IS called in
+        // Dispose(bool) at line 116 but the analyzer's flow analysis misses
+        // it because it sits inside ``if (disposing)``.
+#pragma warning disable CA2213
         private readonly SemaphoreSlim m_lock = new(1, 1);
         private readonly ILogger m_logger;
+        private readonly CertificateCache m_cache;
+#pragma warning restore CA2213
         private readonly bool m_noSubDirs;
-        private DirectoryInfo m_certificateSubdir;
-        private DirectoryInfo m_crlSubdir;
-        private DirectoryInfo m_privateKeySubdir;
+        private DirectoryInfo? m_certificateSubdir;
+        private DirectoryInfo? m_crlSubdir;
+        private DirectoryInfo? m_privateKeySubdir;
         private readonly Dictionary<string, Entry> m_certificates;
         private DateTime m_lastDirectoryCheck;
     }

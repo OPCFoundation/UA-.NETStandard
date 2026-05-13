@@ -38,12 +38,11 @@ namespace Opc.Ua.Client.Tests
 
         public void Dispose()
         {
-            LastIssuedToken?.Dispose();
+            LastIssuedToken = null;
         }
 
         public IUserIdentity ValidateToken(IssuedIdentityTokenHandler issuedToken)
         {
-            LastIssuedToken?.Dispose();
             LastIssuedToken = issuedToken.Copy();
 
             return new UserIdentity(issuedToken);

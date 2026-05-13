@@ -177,7 +177,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(result, Is.Not.Null);
             Assert.That(result.WrappedValue.IsNull, Is.False);
             double delta = (double)result.WrappedValue.ConvertToDouble();
-            Assert.That(delta, Is.EqualTo(0.0).Within(0.0001));
+            Assert.That(delta, Is.Zero.Within(0.0001));
         }
 
         [Test]

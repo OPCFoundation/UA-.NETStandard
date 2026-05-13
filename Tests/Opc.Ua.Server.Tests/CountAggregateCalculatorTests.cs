@@ -155,7 +155,7 @@ namespace Opc.Ua.Server.Tests
                 StatusCodes.Good,
                 StatusCodes.Bad,
                 StatusCodes.Good,
-                StatusCodes.Good,
+                StatusCodes.Good
             ];
             List<DataValue> dataValues = CreateMixedStatusDataValues(
                 firstValueTime, values, statuses, 2000);
@@ -220,7 +220,7 @@ namespace Opc.Ua.Server.Tests
                 StatusCodes.Good,
                 StatusCodes.Bad,
                 StatusCodes.Good,
-                StatusCodes.Good,
+                StatusCodes.Good
             ];
             List<DataValue> dataValues = CreateMixedStatusDataValues(
                 firstValueTime, values, statuses, 2000);
@@ -295,7 +295,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(result, Is.Not.Null);
             Assert.That(result.WrappedValue.IsNull, Is.False);
             double duration = (double)result.WrappedValue.ConvertToDouble();
-            Assert.That(duration, Is.EqualTo(0.0).Within(0.001));
+            Assert.That(duration, Is.Zero.Within(0.001));
         }
 
         [Test]
@@ -314,7 +314,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(result, Is.Not.Null);
             Assert.That(result.WrappedValue.IsNull, Is.False);
             double duration = (double)result.WrappedValue.ConvertToDouble();
-            Assert.That(duration, Is.EqualTo(0.0).Within(0.001));
+            Assert.That(duration, Is.Zero.Within(0.001));
         }
 
         [Test]
@@ -352,7 +352,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(result, Is.Not.Null);
             Assert.That(result.WrappedValue.IsNull, Is.False);
             int count = (int)(double)result.WrappedValue.ConvertToDouble();
-            Assert.That(count, Is.EqualTo(0));
+            Assert.That(count, Is.Zero);
         }
 
         [Test]

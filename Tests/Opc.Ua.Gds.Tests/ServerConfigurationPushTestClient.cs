@@ -34,6 +34,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Configuration;
 using Opc.Ua.Gds.Client;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Gds.Tests
 {
@@ -58,16 +59,18 @@ namespace Opc.Ua.Gds.Tests
         public void Dispose()
         {
             PushClient?.Dispose();
-            if (m_application != null)
-            {
-                m_application.DisposeAsync().AsTask().GetAwaiter().GetResult();
-                m_application = null;
-            }
+            m_application?.DisposeAsync().AsTask().GetAwaiter().GetResult();
+            m_application = null;
         }
 
         public async Task LoadClientConfigurationAsync(int port = -1)
         {
             ApplicationInstance.MessageDlg = new ApplicationMessageDlg(m_logger);
+            if (m_application != null)
+            {
+                await m_application.DisposeAsync().ConfigureAwait(false);
+                m_application = null;
+            }
             m_application = new ApplicationInstance(m_telemetry)
             {
                 ApplicationName = "Server Configuration Push Test Client",
@@ -121,7 +124,7 @@ namespace Opc.Ua.Gds.Tests
                 .SetRejectSHA1SignedCertificates(false)
                 .SetRejectUnknownRevocationStatus(true)
                 .SetMinimumCertificateKeySize(1024)
-                .AddExtension<ServerConfigurationPushTestClientConfiguration>(null, clientConfig)
+                .AddExtension(null, clientConfig)
                 .SetOutputFilePath(Path.Combine(root, "Logs", "Opc.Ua.Gds.Tests.log.txt"))
                 .SetTraceMasks(Utils.TraceMasks.Error)
                 .CreateAsync()
@@ -136,9 +139,7 @@ namespace Opc.Ua.Gds.Tests
                 throw new InvalidOperationException("Application instance certificate invalid!");
             }
 
-            Config.CertificateValidator.CertificateValidation
-                += new CertificateValidationEventHandler(
-                CertificateValidator_CertificateValidation);
+            Config.CertificateManager?.AcceptError = AcceptCertificate;
 
             ServerConfigurationPushTestClientConfiguration clientConfiguration =
                 m_application.ApplicationConfiguration
@@ -177,7 +178,7 @@ namespace Opc.Ua.Gds.Tests
                 }
                 finally
                 {
-                    pushClient.Dispose();
+                    await pushClient.DisposeAsync().ConfigureAwait(false);
                 }
             }
         }
@@ -188,22 +189,18 @@ namespace Opc.Ua.Gds.Tests
                 Utils.ReplaceSpecialFolderNames(Config.TraceConfiguration.OutputFilePath));
         }
 
-        private void CertificateValidator_CertificateValidation(
-            CertificateValidator validator,
-            CertificateValidationEventArgs e)
+        private bool AcceptCertificate(Certificate certificate, ServiceResult error)
         {
-            if (e.Error.StatusCode == StatusCodes.BadCertificateUntrusted)
+            if (error.StatusCode == StatusCodes.BadCertificateUntrusted)
             {
-                e.Accept = AutoAccept;
                 if (AutoAccept)
                 {
-                    m_logger.LogInformation("Accepted Certificate: {Subject}", e.Certificate.Subject);
+                    m_logger.LogInformation("Accepted Certificate: {Subject}", certificate.Subject);
+                    return true;
                 }
-                else
-                {
-                    m_logger.LogInformation("Rejected Certificate: {Subject}", e.Certificate.Subject);
-                }
+                m_logger.LogInformation("Rejected Certificate: {Subject}", certificate.Subject);
             }
+            return false;
         }
 
         /// <summary>

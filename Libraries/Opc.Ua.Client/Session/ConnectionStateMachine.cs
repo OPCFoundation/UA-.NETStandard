@@ -236,6 +236,7 @@ namespace Opc.Ua.Client
             }
 
             m_cts.Dispose();
+            GC.SuppressFinalize(this);
         }
 
         /// <summary>

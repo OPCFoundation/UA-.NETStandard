@@ -122,70 +122,63 @@ namespace MemoryBuffer
         {
             MemoryTagState tag = null;
 
-            try
+            // check if a specific browse name is requested.
+            if (!BrowseName.IsNull)
             {
-                // check if a specific browse name is requested.
-                if (!BrowseName.IsNull)
+                // check if match found previously.
+                if (m_position == uint.MaxValue)
                 {
-                    // check if match found previously.
-                    if (m_position == uint.MaxValue)
-                    {
-                        return null;
-                    }
-
-                    // browse name must be qualified by the correct namespace.
-                    if (m_buffer.TypeDefinitionId.NamespaceIndex != BrowseName.NamespaceIndex)
-                    {
-                        return null;
-                    }
-
-                    string name = BrowseName.Name;
-
-                    for (int ii = 0; ii < name.Length; ii++)
-                    {
-                        if (!"0123456789ABCDEF".Contains(name[ii], StringComparison.Ordinal))
-                        {
-                            return null;
-                        }
-                    }
-
-                    m_position = Convert.ToUInt32(name, 16);
-
-                    // check for memory overflow.
-                    if (m_position >= m_buffer.SizeInBytes.Value)
-                    {
-                        return null;
-                    }
-
-                    tag = new MemoryTagState(m_buffer, m_position);
-                    m_position = uint.MaxValue;
+                    return null;
                 }
-                // return the child at the next position.
-                else
+
+                // browse name must be qualified by the correct namespace.
+                if (m_buffer.TypeDefinitionId.NamespaceIndex != BrowseName.NamespaceIndex)
                 {
-                    if (m_position >= m_buffer.SizeInBytes.Value)
-                    {
-                        return null;
-                    }
+                    return null;
+                }
 
-                    tag = new MemoryTagState(m_buffer, m_position);
-                    m_position += m_buffer.ElementSize;
+                string name = BrowseName.Name;
 
-                    // check for memory overflow.
-                    if (m_position >= m_buffer.SizeInBytes.Value)
+                for (int ii = 0; ii < name.Length; ii++)
+                {
+                    if (!"0123456789ABCDEF".Contains(name[ii], StringComparison.Ordinal))
                     {
                         return null;
                     }
                 }
 
-                var result = new NodeStateReference(ReferenceTypeIds.HasComponent, false, tag);
-                tag = null;
-                return result;
+                m_position = Convert.ToUInt32(name, 16);
+
+                // check for memory overflow.
+                if (m_position >= m_buffer.SizeInBytes.Value)
+                {
+                    return null;
+                }
+
+                tag = new MemoryTagState(m_buffer, m_position);
+                m_position = uint.MaxValue;
             }
-            finally
+            // return the child at the next position.
+            else
             {
-                tag?.Dispose();
+                if (m_position >= m_buffer.SizeInBytes.Value)
+                {
+                    return null;
+                }
+
+                tag = new MemoryTagState(m_buffer, m_position);
+                m_position += m_buffer.ElementSize;
+
+                // check for memory overflow.
+                if (m_position >= m_buffer.SizeInBytes.Value)
+                {
+                    return null;
+                }
             }
+
+            var result = new NodeStateReference(ReferenceTypeIds.HasComponent, false, tag);
+            tag = null;
+            return result;
         }
 
         /// <summary>

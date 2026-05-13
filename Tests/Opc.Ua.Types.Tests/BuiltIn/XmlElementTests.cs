@@ -29,9 +29,9 @@
 
 #nullable enable
 
-using NUnit.Framework;
 using System;
 using System.Xml.Linq;
+using NUnit.Framework;
 
 #pragma warning disable CA1508 // Avoid dead conditional code
 

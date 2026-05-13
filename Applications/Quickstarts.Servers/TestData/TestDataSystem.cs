@@ -52,7 +52,11 @@ namespace TestData
         StatusCode OnGenerateValues(ISystemContext context);
     }
 
+    // CA1001: quickstart sample; ownership/disposal patterns documented in the
+    // class methods rather than via IDisposable.
+#pragma warning disable CA1001
     public class TestDataSystem
+#pragma warning restore CA1001
     {
         public TestDataSystem(
             ITestDataSystemCallback callback,

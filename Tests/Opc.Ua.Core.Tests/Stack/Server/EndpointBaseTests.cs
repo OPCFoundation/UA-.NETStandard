@@ -27,6 +27,9 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+// CA2000: test code; many disposables are ownership-transferred to test fixtures or short-lived,
+// making CA2000 noisy without a real leak risk. Disabled file-level for the suite.
+#pragma warning disable CA2000
 using System;
 using System.Diagnostics;
 using Microsoft.Extensions.Logging;
@@ -218,7 +221,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                     }
                 ]
             };
-            bool result = EndpointBase.TryExtractActivityContextFromParameters(parameters, out ActivityContext context);
+            bool result = EndpointBase.TryExtractActivityContextFromParameters(parameters, out _);
             Assert.That(result, Is.False);
         }
 
@@ -235,7 +238,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                     }
                 ]
             };
-            bool result = EndpointBase.TryExtractActivityContextFromParameters(parameters, out ActivityContext context);
+            bool result = EndpointBase.TryExtractActivityContextFromParameters(parameters, out _);
             Assert.That(result, Is.False);
         }
 
@@ -280,8 +283,8 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             ServiceFault fault = EndpointBase.CreateFault(m_logger, request, exception);
 
             DateTime after = DateTime.UtcNow;
-            Assert.That((DateTime)fault.ResponseHeader.Timestamp >= before, Is.True);
-            Assert.That((DateTime)fault.ResponseHeader.Timestamp <= after, Is.True);
+            Assert.That((DateTime)fault.ResponseHeader.Timestamp, Is.GreaterThanOrEqualTo(before));
+            Assert.That((DateTime)fault.ResponseHeader.Timestamp, Is.LessThanOrEqualTo(after));
         }
     }
 }

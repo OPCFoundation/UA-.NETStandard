@@ -49,7 +49,7 @@ namespace Opc.Ua.SourceGeneration
         /// Sentinel representing "no version declared". Compares as less than
         /// every parseable version; two missing versions compare equal.
         /// </summary>
-        public static readonly SemVer Unspecified = default;
+        public static readonly SemVer Unspecified;
 
         private static readonly char[] s_prereleaseSeparators = ['-', '+'];
 
@@ -93,7 +93,7 @@ namespace Opc.Ua.SourceGeneration
             string s = text.Trim();
             if (s.Length > 0 && (s[0] == 'v' || s[0] == 'V'))
             {
-                s = s.Substring(1);
+                s = s[1..];
             }
 
             // Detach any pre-release tag after '-' or '+'.
@@ -102,7 +102,7 @@ namespace Opc.Ua.SourceGeneration
             if (tagAt >= 0)
             {
                 isPrerelease = true;
-                s = s.Substring(0, tagAt);
+                s = s[..tagAt];
             }
 
             if (s.Length == 0)
@@ -142,6 +142,7 @@ namespace Opc.Ua.SourceGeneration
         }
 
         /// <summary>Parses or throws.</summary>
+        /// <exception cref="FormatException"></exception>
         public static SemVer Parse(string text)
         {
             if (!TryParse(text, out SemVer v))

@@ -27,6 +27,9 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+// CA2000: test code; many disposables are ownership-transferred to test fixtures or short-lived,
+// making CA2000 noisy without a real leak risk. Disabled file-level for the suite.
+#pragma warning disable CA2000
 using System;
 using System.Collections.Generic;
 using System.Reflection;
@@ -200,13 +203,15 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 // may or may not have run depending on multicast order.
             }
 
-            Assert.That(otherInvocations is 0 or 1);
+            Assert.That(otherInvocations, Is.Zero.Or.EqualTo(1));
             // If the second handler did run, sender should be the
             // managed session (event forwarding preserves identity).
+#pragma warning disable CA1508 // Avoid dead conditional code
             if (otherInvocations == 1)
             {
                 Assert.That(otherSender, Is.SameAs(m_managedSession));
             }
+#pragma warning restore CA1508 // Avoid dead conditional code
         }
 
         [Test]
@@ -327,11 +332,6 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         // tests below verifies (a) the request reaches the underlying
         // channel, (b) it is of the expected request type, and (c) the
         // response from InnerSession bubbles back unchanged.
-
-        private static readonly Func<
-            Session,
-            Mock<ITransportChannel>,
-            ApplicationConfiguration>[] s_unused = [];
 
         public static IEnumerable<TestCaseData> ServicePassthroughCases()
         {
@@ -482,7 +482,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             return new TestCaseData(
                 invoke,
                 typeof(TRequest),
-                (Func<TResponse>)(() => new TResponse()))
+                () => new TResponse())
                 .SetName(name + "DelegatesToInnerSession");
         }
 
@@ -514,7 +514,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         public async Task ReadAsyncPassesCancellationTokenThrough()
         {
             using var cts = new CancellationTokenSource();
-            cts.Cancel();
+            await cts.CancelAsync().ConfigureAwait(false);
 
             m_innerSession.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -551,7 +551,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                     .ConfigureAwait(false),
                 Throws.TypeOf<ServiceResultException>()
                     .With.Property("StatusCode")
-                    .EqualTo((StatusCode)StatusCodes.BadInternalError));
+                    .EqualTo(StatusCodes.BadInternalError));
 
             // The reader-lock is non-recursive; if the previous call had
             // failed to release, the next service call would deadlock.

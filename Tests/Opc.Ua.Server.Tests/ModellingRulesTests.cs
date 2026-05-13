@@ -142,7 +142,7 @@ namespace Opc.Ua.Server.Tests
                     {
                         found = true;
                         // Verify it's of the correct type
-                        NodeId expectedTypeDefinition = ExpandedNodeId.ToNodeId(
+                        var expectedTypeDefinition = ExpandedNodeId.ToNodeId(
                             ObjectTypeIds.ModellingRuleType,
                             m_server.CurrentInstance.NamespaceUris);
                         Assert.That(reference.TypeDefinition, Is.EqualTo(expectedTypeDefinition));
@@ -187,7 +187,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(results[0].References.Count, Is.GreaterThan(0));
 
             // All references should be of type ModellingRuleType
-            NodeId expectedTypeDefinition = ExpandedNodeId.ToNodeId(
+            var expectedTypeDefinition = ExpandedNodeId.ToNodeId(
                 ObjectTypeIds.ModellingRuleType,
                 m_server.CurrentInstance.NamespaceUris);
 

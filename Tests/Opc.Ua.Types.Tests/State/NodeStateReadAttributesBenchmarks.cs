@@ -136,8 +136,6 @@ namespace Opc.Ua.Types.Tests.State
         [OneTimeTearDown]
         public void TearDown()
         {
-            m_objectNode?.Dispose();
-            m_variableNode?.Dispose();
             m_commonVariants = null;
             m_allNonValueVariants = null;
             m_variableVariants = null;

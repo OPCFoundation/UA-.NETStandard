@@ -27,9 +27,9 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using Moq;
 using NUnit.Framework;
-using System;
 
 namespace Opc.Ua.SourceGeneration.Generator.Tests
 {

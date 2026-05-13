@@ -1246,7 +1246,7 @@ namespace Opc.Ua.Server
                     if (m_eventQueueHandler.Overflow)
                     {
                         // construct event.
-                        using var e = new EventQueueOverflowEventState(null);
+                        var e = new EventQueueOverflowEventState(null);
 
                         var message = new TranslationInfo(
                             "EventQueueOverflowEventState",
@@ -1628,7 +1628,7 @@ namespace Opc.Ua.Server
             }
 
             // select default data change filters.
-            double deadband = 0.0;
+            const double deadband = 0.0;
             DeadbandType deadbandType = DeadbandType.None;
             DataChangeTrigger trigger = DataChangeTrigger.StatusValue;
 
@@ -1637,7 +1637,7 @@ namespace Opc.Ua.Server
             {
                 trigger = filter.Trigger;
                 deadbandType = (DeadbandType)(int)filter.DeadbandType;
-                deadband = filter.DeadbandValue;
+                _ = filter.DeadbandValue;
 
                 // when deadband is used and the trigger is StatusValueTimestamp, then it should behave as if trigger is StatusValue.
                 if ((deadbandType != DeadbandType.None) &&

@@ -235,7 +235,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 Connections = [connectionConfig]
             };
 
-            using UaPubSubApplication app = UaPubSubApplication.Create(pubSubConfig, m_telemetry);
+            using var app = UaPubSubApplication.Create(pubSubConfig, m_telemetry);
             Assert.That(app.PubSubConnections.Count, Is.EqualTo(1));
 
             var connection = app.PubSubConnections[0] as UaPubSubConnection;

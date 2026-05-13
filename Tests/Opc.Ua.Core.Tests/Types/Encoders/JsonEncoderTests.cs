@@ -27,6 +27,9 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+// CA2000: test code; many disposables are ownership-transferred to test fixtures or short-lived,
+// making CA2000 noisy without a real leak risk. Disabled file-level for the suite.
+#pragma warning disable CA2000
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -1786,7 +1789,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// <summary>
         /// Validate that the DateTime format strings return an equal result.
         /// </summary>
-        private void DateTimeEncodeStringTest(DateTimeUtc testDateTime)
+        private static void DateTimeEncodeStringTest(DateTimeUtc testDateTime)
         {
             string resultString = testDateTime.ToString(
                 "yyyy-MM-dd'T'HH:mm:ss.FFFFFFFK",

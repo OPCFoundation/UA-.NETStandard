@@ -51,6 +51,9 @@ namespace Opc.Ua.Gds.Client
         /// <see cref="StatusCodes.BadEncodingLimitsExceeded"/>. The caller
         /// remains responsible for closing the file handle.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="file"/> is <c>null</c>.</exception>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
         public static async Task<TrustListDataType> ReadAsync(
             FileTypeClient file,
             uint fileHandle,
@@ -84,7 +87,7 @@ namespace Opc.Ua.Gds.Client
                 {
                     ByteString chunk = await file.ReadAsync(fileHandle, chunkSize, ct)
                         .ConfigureAwait(false);
-                    byte[] bytes = chunk.ToArray() ?? Array.Empty<byte>();
+                    byte[] bytes = chunk.ToArray() ?? [];
 
                     totalBytesRead += bytes.Length;
                     if (totalBytesRead > maxTrustListSize)
@@ -121,6 +124,9 @@ namespace Opc.Ua.Gds.Client
         /// <see cref="TrustListTypeClient.CloseAndUpdateAsync"/>. The size is
         /// bounded by <paramref name="maxTrustListSize"/>.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="trustListClient"/> is <c>null</c>.</exception>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
         public static async Task<bool> WriteAsync(
             TrustListTypeClient trustListClient,
             TrustListDataType trustList,
@@ -166,7 +172,7 @@ namespace Opc.Ua.Gds.Client
             }
 
             uint fileHandle = await trustListClient.OpenAsync(
-                (byte)((int)OpenFileMode.Write | (int)OpenFileMode.EraseExisting),
+                (int)OpenFileMode.Write | (int)OpenFileMode.EraseExisting,
                 ct).ConfigureAwait(false);
 
             byte[] rentedBuffer = ArrayPool<byte>.Shared.Rent(chunkSize);
@@ -180,7 +186,7 @@ namespace Opc.Ua.Gds.Client
                         break;
                     }
 
-                    var slice = new byte[bytesRead];
+                    byte[] slice = new byte[bytesRead];
                     Buffer.BlockCopy(rentedBuffer, 0, slice, 0, bytesRead);
                     await trustListClient.WriteAsync(
                         fileHandle,

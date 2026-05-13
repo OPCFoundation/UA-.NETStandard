@@ -135,7 +135,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             var networkMessage = new PubSubEncoding.JsonNetworkMessage();
             networkMessage.Decode(m_context, bytes, null);
 
-            Assert.That(networkMessage.DataSetMessages.Count, Is.Zero);
+            Assert.That(networkMessage.DataSetMessages, Has.Count.Zero);
         }
 
         [Test]
@@ -165,9 +165,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 MakeField("Int16Field", BuiltInType.Int16, (short)1000),
                 MakeField("UInt16Field", BuiltInType.UInt16, (ushort)60000),
                 MakeField("Int32Field", BuiltInType.Int32, 123456),
-                MakeField("UInt32Field", BuiltInType.UInt32, (uint)4000000),
-                MakeField("Int64Field", BuiltInType.Int64, (long)9999999999L),
-                MakeField("UInt64Field", BuiltInType.UInt64, (ulong)18000000000UL),
+                MakeField("UInt32Field", BuiltInType.UInt32, 4000000u),
+                MakeField("Int64Field", BuiltInType.Int64, 9999999999L),
+                MakeField("UInt64Field", BuiltInType.UInt64, 18000000000UL),
                 MakeField("FloatField", BuiltInType.Float, 1.5f),
                 MakeField("DoubleField", BuiltInType.Double, 2.718281828),
                 MakeField("StringField", BuiltInType.String, "test string")
@@ -346,7 +346,11 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             var decoded = new PubSubEncoding.JsonNetworkMessage();
             decoded.Decode(m_context, encodedMsg, [reader]);
 
+            // NUnit2046: deliberately a tautological assertion — exercises the decoder happy
+            // path without asserting an exact count (which depends on encoder versioning).
+#pragma warning disable NUnit2046
             Assert.That(decoded.DataSetMessages.Count, Is.Zero.Or.GreaterThan(0));
+#pragma warning restore NUnit2046
         }
 
         [Test]
@@ -455,7 +459,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             var decoded = new PubSubEncoding.JsonNetworkMessage();
             decoded.Decode(m_context, encoded, [wrongReader]);
 
-            Assert.That(decoded.DataSetMessages.Count, Is.Zero);
+            Assert.That(decoded.DataSetMessages, Has.Count.Zero);
         }
 
         [Test]
@@ -730,7 +734,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             using var decoder = new PubSubJsonDecoder(json, m_context);
             ByteString val = decoder.ReadByteString("V");
             Assert.That(val, Is.Not.Null);
-            Assert.That(val.Length, Is.EqualTo(3));
+            Assert.That(val, Has.Length.EqualTo(3));
         }
 
         [Test]
@@ -924,7 +928,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             using var decoder = new PubSubJsonDecoder(json, m_context);
             ArrayOf<int> val = decoder.ReadInt32Array("V");
             Assert.That(val, Is.Not.Null);
-            Assert.That(val.Count, Is.EqualTo(5));
+            Assert.That(val, Has.Count.EqualTo(5));
         }
 
         [Test]
@@ -934,7 +938,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             using var decoder = new PubSubJsonDecoder(json, m_context);
             ArrayOf<string> val = decoder.ReadStringArray("V");
             Assert.That(val, Is.Not.Null);
-            Assert.That(val.Count, Is.EqualTo(3));
+            Assert.That(val, Has.Count.EqualTo(3));
         }
 
         [Test]
@@ -944,7 +948,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             using var decoder = new PubSubJsonDecoder(json, m_context);
             ArrayOf<double> val = decoder.ReadDoubleArray("V");
             Assert.That(val, Is.Not.Null);
-            Assert.That(val.Count, Is.EqualTo(3));
+            Assert.That(val, Has.Count.EqualTo(3));
         }
 
         [Test]
@@ -954,7 +958,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             using var decoder = new PubSubJsonDecoder(json, m_context);
             ArrayOf<bool> val = decoder.ReadBooleanArray("V");
             Assert.That(val, Is.Not.Null);
-            Assert.That(val.Count, Is.EqualTo(3));
+            Assert.That(val, Has.Count.EqualTo(3));
         }
 
         [Test]
@@ -964,7 +968,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             using var decoder = new PubSubJsonDecoder(json, m_context);
             ArrayOf<float> val = decoder.ReadFloatArray("V");
             Assert.That(val, Is.Not.Null);
-            Assert.That(val.Count, Is.EqualTo(3));
+            Assert.That(val, Has.Count.EqualTo(3));
         }
 
         [Test]
@@ -974,7 +978,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             using var decoder = new PubSubJsonDecoder(json, m_context);
             ArrayOf<sbyte> val = decoder.ReadSByteArray("V");
             Assert.That(val, Is.Not.Null);
-            Assert.That(val.Count, Is.EqualTo(3));
+            Assert.That(val, Has.Count.EqualTo(3));
         }
 
         [Test]
@@ -985,7 +989,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             using var decoder = new PubSubJsonDecoder(json, m_context);
             ArrayOf<byte> val = decoder.ReadByteArray("V");
             Assert.That(val, Is.Not.Null);
-            Assert.That(val.Count, Is.EqualTo(3));
+            Assert.That(val, Has.Count.EqualTo(3));
         }
 
         [Test]
@@ -995,7 +999,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             using var decoder = new PubSubJsonDecoder(json, m_context);
             ArrayOf<byte> val = decoder.ReadByteArray("V");
             Assert.That(val, Is.Not.Null);
-            Assert.That(val.Count, Is.EqualTo(3));
+            Assert.That(val, Has.Count.EqualTo(3));
         }
 
         [Test]
@@ -1005,7 +1009,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             using var decoder = new PubSubJsonDecoder(json, m_context);
             ArrayOf<short> val = decoder.ReadInt16Array("V");
             Assert.That(val, Is.Not.Null);
-            Assert.That(val.Count, Is.EqualTo(3));
+            Assert.That(val, Has.Count.EqualTo(3));
         }
 
         [Test]
@@ -1015,7 +1019,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             using var decoder = new PubSubJsonDecoder(json, m_context);
             ArrayOf<ushort> val = decoder.ReadUInt16Array("V");
             Assert.That(val, Is.Not.Null);
-            Assert.That(val.Count, Is.EqualTo(3));
+            Assert.That(val, Has.Count.EqualTo(3));
         }
 
         [Test]
@@ -1025,7 +1029,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             using var decoder = new PubSubJsonDecoder(json, m_context);
             ArrayOf<uint> val = decoder.ReadUInt32Array("V");
             Assert.That(val, Is.Not.Null);
-            Assert.That(val.Count, Is.EqualTo(3));
+            Assert.That(val, Has.Count.EqualTo(3));
         }
 
         [Test]
@@ -1035,7 +1039,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             using var decoder = new PubSubJsonDecoder(json, m_context);
             ArrayOf<long> val = decoder.ReadInt64Array("V");
             Assert.That(val, Is.Not.Null);
-            Assert.That(val.Count, Is.EqualTo(2));
+            Assert.That(val, Has.Count.EqualTo(2));
         }
 
         [Test]
@@ -1045,7 +1049,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             using var decoder = new PubSubJsonDecoder(json, m_context);
             ArrayOf<ulong> val = decoder.ReadUInt64Array("V");
             Assert.That(val, Is.Not.Null);
-            Assert.That(val.Count, Is.EqualTo(2));
+            Assert.That(val, Has.Count.EqualTo(2));
         }
 
         [Test]
@@ -1055,7 +1059,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             using var decoder = new PubSubJsonDecoder(json, m_context);
             ArrayOf<DateTimeUtc> val = decoder.ReadDateTimeArray("V");
             Assert.That(val, Is.Not.Null);
-            Assert.That(val.Count, Is.EqualTo(2));
+            Assert.That(val, Has.Count.EqualTo(2));
         }
 
         [Test]
@@ -1067,7 +1071,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             using var decoder = new PubSubJsonDecoder(json, m_context);
             ArrayOf<Uuid> val = decoder.ReadGuidArray("V");
             Assert.That(val, Is.Not.Null);
-            Assert.That(val.Count, Is.EqualTo(2));
+            Assert.That(val, Has.Count.EqualTo(2));
         }
 
         [Test]
@@ -1077,7 +1081,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             using var decoder = new PubSubJsonDecoder(json, m_context);
             ArrayOf<NodeId> val = decoder.ReadNodeIdArray("V");
             Assert.That(val, Is.Not.Null);
-            Assert.That(val.Count, Is.EqualTo(2));
+            Assert.That(val, Has.Count.EqualTo(2));
         }
 
         [Test]
@@ -1087,7 +1091,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             using var decoder = new PubSubJsonDecoder(json, m_context);
             ArrayOf<ExpandedNodeId> val = decoder.ReadExpandedNodeIdArray("V");
             Assert.That(val, Is.Not.Null);
-            Assert.That(val.Count, Is.EqualTo(2));
+            Assert.That(val, Has.Count.EqualTo(2));
         }
 
         [Test]
@@ -1097,7 +1101,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             using var decoder = new PubSubJsonDecoder(json, m_context);
             ArrayOf<StatusCode> val = decoder.ReadStatusCodeArray("V");
             Assert.That(val, Is.Not.Null);
-            Assert.That(val.Count, Is.EqualTo(2));
+            Assert.That(val, Has.Count.EqualTo(2));
         }
 
         [Test]
@@ -1107,7 +1111,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             using var decoder = new PubSubJsonDecoder(json, m_context);
             ArrayOf<QualifiedName> val = decoder.ReadQualifiedNameArray("V");
             Assert.That(val, Is.Not.Null);
-            Assert.That(val.Count, Is.EqualTo(2));
+            Assert.That(val, Has.Count.EqualTo(2));
         }
 
         [Test]
@@ -1117,7 +1121,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             using var decoder = new PubSubJsonDecoder(json, m_context);
             ArrayOf<LocalizedText> val = decoder.ReadLocalizedTextArray("V");
             Assert.That(val, Is.Not.Null);
-            Assert.That(val.Count, Is.EqualTo(2));
+            Assert.That(val, Has.Count.EqualTo(2));
         }
 
         [Test]
@@ -1127,7 +1131,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             using var decoder = new PubSubJsonDecoder(json, m_context);
             ArrayOf<Variant> val = decoder.ReadVariantArray("V");
             Assert.That(val, Is.Not.Null);
-            Assert.That(val.Count, Is.EqualTo(2));
+            Assert.That(val, Has.Count.EqualTo(2));
         }
 
         [Test]
@@ -1137,7 +1141,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             using var decoder = new PubSubJsonDecoder(json, m_context);
             ArrayOf<DataValue> val = decoder.ReadDataValueArray("V");
             Assert.That(val, Is.Not.Null);
-            Assert.That(val.Count, Is.EqualTo(2));
+            Assert.That(val, Has.Count.EqualTo(2));
         }
 
         [Test]
@@ -1147,7 +1151,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             using var decoder = new PubSubJsonDecoder(json, m_context);
             ArrayOf<ExtensionObject> val = decoder.ReadExtensionObjectArray("V");
             Assert.That(val, Is.Not.Null);
-            Assert.That(val.Count, Is.EqualTo(2));
+            Assert.That(val, Has.Count.EqualTo(2));
         }
 
         [Test]
@@ -1159,7 +1163,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             using var decoder = new PubSubJsonDecoder(json, m_context);
             ArrayOf<ByteString> val = decoder.ReadByteStringArray("V");
             Assert.That(val, Is.Not.Null);
-            Assert.That(val.Count, Is.EqualTo(2));
+            Assert.That(val, Has.Count.EqualTo(2));
         }
 
         [Test]
@@ -1169,7 +1173,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             using var decoder = new PubSubJsonDecoder(json, m_context);
             ArrayOf<DiagnosticInfo> val = decoder.ReadDiagnosticInfoArray("V");
             Assert.That(val, Is.Not.Null);
-            Assert.That(val.Count, Is.EqualTo(2));
+            Assert.That(val, Has.Count.EqualTo(2));
         }
 
         [Test]
@@ -1710,7 +1714,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             var decoded = new PubSubEncoding.JsonNetworkMessage();
             decoded.Decode(m_context, encoded, [reader]);
 
-            Assert.That(decoded.DataSetMessages.Count, Is.GreaterThanOrEqualTo(0));
+            Assert.That(decoded.DataSetMessages, Has.Count.GreaterThanOrEqualTo(0));
         }
 
         private static Field MakeField(string name, BuiltInType builtInType, object value, int valueRank = ValueRanks.Scalar)

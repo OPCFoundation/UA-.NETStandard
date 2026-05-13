@@ -65,7 +65,7 @@ namespace Opc.Ua.Gds.Tests
         public void CredentialsRoundTrip()
         {
             var args = new AdminCredentialsRequiredEventArgs();
-            using var identity = new UserIdentity();
+            var identity = new UserIdentity();
             args.Credentials = identity;
             Assert.That(args.Credentials, Is.SameAs(identity));
         }

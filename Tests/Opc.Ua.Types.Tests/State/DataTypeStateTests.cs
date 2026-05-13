@@ -68,7 +68,6 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(dt.IsAbstract, Is.False);
             Assert.That(dt.SuperTypeId, Is.EqualTo(NodeId.Null));
             Assert.That(dt.DataTypeDefinition, Is.EqualTo(ExtensionObject.Null));
-            dt.Dispose();
         }
 
         [Test]
@@ -76,7 +75,6 @@ namespace Opc.Ua.Types.Tests.State
         {
             NodeState node = DataTypeState.Construct(null);
             Assert.That(node, Is.InstanceOf<DataTypeState>());
-            node.Dispose();
         }
 
         [Test]
@@ -90,7 +88,6 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(dt.DataTypeDefinition, Is.EqualTo(definition));
             Assert.That(dt.ChangeMasks & NodeStateChangeMasks.NonValue,
                 Is.EqualTo(NodeStateChangeMasks.NonValue));
-            dt.Dispose();
         }
 
         [Test]
@@ -105,7 +102,6 @@ namespace Opc.Ua.Types.Tests.State
 
             dt.DataTypeDefinition = definition;
             Assert.That(dt.ChangeMasks, Is.EqualTo(NodeStateChangeMasks.None));
-            dt.Dispose();
         }
 
         [Test]
@@ -120,7 +116,6 @@ namespace Opc.Ua.Types.Tests.State
 
             dt.Purpose = Export.DataTypePurpose.ServicesOnly;
             Assert.That(dt.Purpose, Is.EqualTo(Export.DataTypePurpose.ServicesOnly));
-            dt.Dispose();
         }
 
         [Test]
@@ -144,8 +139,6 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(clone.IsAbstract, Is.EqualTo(dt.IsAbstract));
             Assert.That(clone.DataTypeDefinition.IsNull, Is.False);
             Assert.That(clone.Purpose, Is.EqualTo(dt.Purpose));
-            clone.Dispose();
-            dt.Dispose();
         }
 
         [Test]
@@ -162,8 +155,6 @@ namespace Opc.Ua.Types.Tests.State
 
             var dt2 = (DataTypeState)dt1.Clone();
             Assert.That(dt1.DeepEquals(dt2), Is.True);
-            dt1.Dispose();
-            dt2.Dispose();
         }
 
         [Test]
@@ -172,8 +163,6 @@ namespace Opc.Ua.Types.Tests.State
             var dt = new DataTypeState();
             var view = new ViewState();
             Assert.That(dt.DeepEquals(view), Is.False);
-            dt.Dispose();
-            view.Dispose();
         }
 
         [Test]
@@ -190,8 +179,6 @@ namespace Opc.Ua.Types.Tests.State
             dt2.DataTypeDefinition = new ExtensionObject(new EnumDefinition());
 
             Assert.That(dt1.DeepEquals(dt2), Is.False);
-            dt1.Dispose();
-            dt2.Dispose();
         }
 
         [Test]
@@ -208,8 +195,6 @@ namespace Opc.Ua.Types.Tests.State
             dt2.Purpose = Export.DataTypePurpose.ServicesOnly;
 
             Assert.That(dt1.DeepEquals(dt2), Is.False);
-            dt1.Dispose();
-            dt2.Dispose();
         }
 
         [Test]
@@ -225,7 +210,6 @@ namespace Opc.Ua.Types.Tests.State
             int hash1 = dt.DeepGetHashCode();
             int hash2 = dt.DeepGetHashCode();
             Assert.That(hash1, Is.EqualTo(hash2));
-            dt.Dispose();
         }
 
         [Test]
@@ -246,8 +230,6 @@ namespace Opc.Ua.Types.Tests.State
             };
 
             Assert.That(dt1.DeepGetHashCode(), Is.Not.EqualTo(dt2.DeepGetHashCode()));
-            dt1.Dispose();
-            dt2.Dispose();
         }
 
         [Test]
@@ -259,7 +241,6 @@ namespace Opc.Ua.Types.Tests.State
             };
             AttributesToSave attrs = dt.GetAttributesToSave(m_context);
             Assert.That(attrs & AttributesToSave.DataTypeDefinition, Is.Not.EqualTo(AttributesToSave.None));
-            dt.Dispose();
         }
 
         [Test]
@@ -268,7 +249,6 @@ namespace Opc.Ua.Types.Tests.State
             var dt = new DataTypeState();
             AttributesToSave attrs = dt.GetAttributesToSave(m_context);
             Assert.That(attrs & AttributesToSave.DataTypeDefinition, Is.EqualTo(AttributesToSave.None));
-            dt.Dispose();
         }
 
         [Test]
@@ -301,8 +281,6 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(restored.SuperTypeId, Is.EqualTo(original.SuperTypeId));
             Assert.That(restored.IsAbstract, Is.EqualTo(original.IsAbstract));
             Assert.That(restored.DataTypeDefinition.IsNull, Is.False);
-            restored.Dispose();
-            original.Dispose();
         }
 
         [Test]
@@ -331,8 +309,6 @@ namespace Opc.Ua.Types.Tests.State
 
             Assert.That(restored.IsAbstract, Is.EqualTo(original.IsAbstract));
             Assert.That(restored.DataTypeDefinition.IsNull, Is.True);
-            restored.Dispose();
-            original.Dispose();
         }
 
         [Test]
@@ -358,8 +334,6 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(restored.SuperTypeId, Is.EqualTo(dt.SuperTypeId));
             Assert.That(restored.IsAbstract, Is.EqualTo(dt.IsAbstract));
             Assert.That(restored.DataTypeDefinition.IsNull, Is.False);
-            restored.Dispose();
-            dt.Dispose();
         }
 
         [Test]
@@ -377,7 +351,6 @@ namespace Opc.Ua.Types.Tests.State
             var table = new NodeTable(m_context.NamespaceUris, m_context.ServerUris, null);
             dt.Export(m_context, table);
             Assert.That(table, Is.Not.Empty);
-            dt.Dispose();
         }
     }
 }

@@ -52,7 +52,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             m_messageContext = ServiceMessageContext.Create(telemetry);
         }
 
-        private PubSubEncoding.JsonNetworkMessage CreateDataSetMessage(
+        private static PubSubEncoding.JsonNetworkMessage CreateDataSetMessage(
             JsonNetworkMessageContentMask contentMask,
             params (string name, Variant value)[] fields)
         {
@@ -395,7 +395,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 m_messageContext,
                 encoded,
                 [reader]);
-            Assert.That(decoded.DataSetMessages.Count, Is.Zero);
+            Assert.That(decoded.DataSetMessages, Has.Count.Zero);
         }
     }
 }

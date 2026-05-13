@@ -27,25 +27,45 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Security.Cryptography.X509Certificates;
-using System.Threading;
-using System.Threading.Tasks;
+using System;
+using NUnit.Framework;
+using Opc.Ua.Security.Certificates;
 
-namespace Opc.Ua
+namespace Opc.Ua.Server.Tests
 {
     /// <summary>
-    /// An abstract interface to the certificate validator.
+    /// Assembly-level setup/teardown that verifies no Certificate
+    /// instances are leaked during the test run.
     /// </summary>
-    public interface ICertificateValidator
+    [SetUpFixture]
+    public class LeakDetectionSetup
     {
-        /// <summary>
-        /// Validates a certificate.
-        /// </summary>
-        Task ValidateAsync(X509Certificate2 certificate, CancellationToken ct);
+        [OneTimeSetUp]
+        public void GlobalSetup()
+        {
+            Certificate.ResetLeakCounters();
+        }
 
-        /// <summary>
-        /// Validates a certificate chain.
-        /// </summary>
-        Task ValidateAsync(X509Certificate2Collection certificateChain, CancellationToken ct);
+        [OneTimeTearDown]
+        public void GlobalTeardown()
+        {
+            // Force GC to finalize any abandoned certificates. Multiple
+            // cycles ensure that finalizable objects whose finalizer
+            // creates new garbage are themselves collected.
+            for (int i = 0; i < 5; i++)
+            {
+                GC.Collect(GC.MaxGeneration, GCCollectionMode.Forced, blocking: true);
+                GC.WaitForPendingFinalizers();
+            }
+
+            long leaked = Certificate.InstancesLeaked;
+            if (leaked > 0)
+            {
+                Assert.Warn(
+                    $"Certificate leak detected: {leaked} instance(s) created " +
+                    $"but not disposed (created={Certificate.InstancesCreated}, " +
+                    $"disposed={Certificate.InstancesDisposed}).");
+            }
+        }
     }
 }

@@ -27,8 +27,9 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 using System;
-using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Security.Certificates;
@@ -87,7 +88,7 @@ namespace Opc.Ua
         /// <summary>
         /// Enumerates the certificates in the store.
         /// </summary>
-        Task<X509Certificate2Collection> EnumerateAsync(CancellationToken ct = default);
+        Task<CertificateCollection> EnumerateAsync(CancellationToken ct = default);
 
         /// <summary>
         /// Adds a certificate to the store.
@@ -96,8 +97,8 @@ namespace Opc.Ua
         /// <param name="password">The certificate password.</param>
         /// <param name="ct">Cancellation token to cancel operation with</param>
         Task AddAsync(
-            X509Certificate2 certificate,
-            char[] password = null,
+            Certificate certificate,
+            char[]? password = null,
             CancellationToken ct = default);
 
         /// <summary>
@@ -108,7 +109,7 @@ namespace Opc.Ua
         /// A negative number keeps no history, 0 is unlimited.</param>
         /// <param name="ct">Cancellation token to cancel operation with</param>
         Task AddRejectedAsync(
-            X509Certificate2Collection certificates,
+            CertificateCollection certificates,
             int maxCertificates,
             CancellationToken ct = default);
 
@@ -126,7 +127,7 @@ namespace Opc.Ua
         /// <param name="thumbprint">The thumbprint.</param>
         /// <param name="ct">Cancellation token to cancel operation with</param>
         /// <returns>The matching certificate</returns>
-        Task<X509Certificate2Collection> FindByThumbprintAsync(
+        Task<CertificateCollection> FindByThumbprintAsync(
             string thumbprint,
             CancellationToken ct = default);
 
@@ -146,20 +147,20 @@ namespace Opc.Ua
         /// <param name="ct">Cancellation token to cancel operation with</param>
         /// <remarks>Returns always null if SupportsLoadPrivateKey returns false.</remarks>
         /// <returns>The matching certificate with private key</returns>
-        Task<X509Certificate2> LoadPrivateKeyAsync(
+        Task<Certificate?> LoadPrivateKeyAsync(
             string thumbprint,
             string subjectName,
             string applicationUri,
             NodeId certificateType,
-            char[] password,
+            char[]? password,
             CancellationToken ct = default);
 
         /// <summary>
         /// Checks if issuer has revoked the certificate.
         /// </summary>
         Task<StatusCode> IsRevokedAsync(
-            X509Certificate2 issuer,
-            X509Certificate2 certificate,
+            Certificate issuer,
+            Certificate certificate,
             CancellationToken ct = default);
 
         /// <summary>
@@ -176,7 +177,7 @@ namespace Opc.Ua
         /// Returns the CRLs for the issuer.
         /// </summary>
         Task<X509CRLCollection> EnumerateCRLsAsync(
-            X509Certificate2 issuer,
+            Certificate issuer,
             bool validateUpdateTime = true,
             CancellationToken ct = default);
 
