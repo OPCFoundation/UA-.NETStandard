@@ -324,6 +324,28 @@
     <opc:DefaultRolePermissions Name="AuthenticatedUserOnly" />
   </opc:Object>
 
+  <opc:Object SymbolicName="MathInstance" TypeDefinition="ua:BaseObjectType">
+    <opc:Children>
+      <opc:Method SymbolicName="Compute" ModellingRule="Mandatory">
+        <opc:InputArguments>
+          <opc:Argument Name="x" DataType="ua:Int32" />
+        </opc:InputArguments>
+        <opc:OutputArguments>
+          <opc:Argument Name="result" DataType="ua:Int32" />
+        </opc:OutputArguments>
+      </opc:Method>
+      <opc:Method SymbolicName="Add" ModellingRule="Mandatory">
+        <opc:InputArguments>
+          <opc:Argument Name="a" DataType="ua:Int32" />
+          <opc:Argument Name="b" DataType="ua:Int32" />
+        </opc:InputArguments>
+        <opc:OutputArguments>
+          <opc:Argument Name="sum" DataType="ua:Int32" />
+        </opc:OutputArguments>
+      </opc:Method>
+    </opc:Children>
+  </opc:Object>
+
   <opc:Object SymbolicName="Test_Error" TypeDefinition="ua:BaseObjectType" />
 
   <opc:Object SymbolicName="Test_ErrorComponent" TypeDefinition="ua:BaseObjectType">

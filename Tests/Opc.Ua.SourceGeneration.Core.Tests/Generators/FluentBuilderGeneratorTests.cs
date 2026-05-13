@@ -207,6 +207,86 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         }
 
         [Test]
+        public void MethodWithIntInputAndOutputEmitsTypedSyncOverload()
+        {
+            string fb = GetFluentBuilders();
+
+            // TestModel's MathInstance has a Mandatory method 'Compute'
+            // declared inline with InputArguments(x: Int32) and
+            // OutputArguments(result: Int32). The generator must surface
+            // a typed sync OnCall overload that maps Variant<-> int both
+            // ways without requiring the user to touch ArrayOf<Variant>.
+            Assert.That(fb, Does.Match(
+                @"public\s+ComputeMethodBuilder\s+OnCall\s*\(\s*global::System\.Func<int,\s*int>\s+handler\s*\)"),
+                "Compute(Int32 -> Int32) should expose a sync OnCall(Func<int,int>) overload");
+        }
+
+        [Test]
+        public void MethodWithIntInputAndOutputEmitsTypedAsyncOverload()
+        {
+            string fb = GetFluentBuilders();
+
+            // The async overload threads CancellationToken between the
+            // unpacked inputs and the ValueTask<TResult> return type.
+            Assert.That(fb, Does.Match(
+                @"public\s+ComputeMethodBuilder\s+OnCall\s*\(\s*global::System\.Func<int,\s*global::System\.Threading\.CancellationToken,\s*global::System\.Threading\.Tasks\.ValueTask<int>>\s+handler\s*\)"),
+                "Compute(Int32 -> Int32) should expose an async OnCall(Func<int,CT,ValueTask<int>>) overload");
+        }
+
+        [Test]
+        public void MethodInputUnpackUsesVariantTryGetValue()
+        {
+            string fb = GetFluentBuilders();
+
+            // Inputs flow through Variant.TryGetValue<T>(out T) so the
+            // generated lambda short-circuits with BadInvalidArgument when
+            // the caller sends the wrong wire type.
+            Assert.That(fb, Does.Match(
+                @"if\s*\(!__inputs\[0\]\.TryGetValue\(out\s+int\s+__a0\)\)"),
+                "Input unpack should use Variant.TryGetValue<T>(out T) for primitive inputs");
+            Assert.That(fb, Does.Contain(
+                "return new global::Opc.Ua.ServiceResult(global::Opc.Ua.StatusCodes.BadInvalidArgument);"),
+                "Failed input unpack should return BadInvalidArgument");
+            Assert.That(fb, Does.Contain(
+                "return new global::Opc.Ua.ServiceResult(global::Opc.Ua.StatusCodes.BadArgumentsMissing);"),
+                "Missing input arg count should return BadArgumentsMissing");
+        }
+
+        [Test]
+        public void MethodOutputBoxUsesVariantFrom()
+        {
+            string fb = GetFluentBuilders();
+
+            // Outputs are boxed back through Variant.From<T>(value) and
+            // appended to the __outputs list. Single-output methods bind
+            // the user handler's return value to '__r'.
+            Assert.That(fb, Does.Contain(
+                "__outputs.Add(global::Opc.Ua.Variant.From(__r));"),
+                "Single-output methods should box the handler result via Variant.From(__r)");
+        }
+
+        [Test]
+        public void MethodWithMultipleInputArgsEmitsCorrectArity()
+        {
+            string fb = GetFluentBuilders();
+
+            // TestModel's MathInstance.Add(a: Int32, b: Int32 -> sum: Int32)
+            // must produce a sync OnCall overload whose handler arity
+            // matches the input count (Func<int,int,int>) and an async
+            // overload that appends CancellationToken + ValueTask<int>.
+            Assert.That(fb, Does.Match(
+                @"public\s+AddMethodBuilder\s+OnCall\s*\(\s*global::System\.Func<int,\s*int,\s*int>\s+handler\s*\)"),
+                "Add(Int32,Int32 -> Int32) should expose a sync OnCall(Func<int,int,int>) overload");
+            Assert.That(fb, Does.Match(
+                @"public\s+AddMethodBuilder\s+OnCall\s*\(\s*global::System\.Func<int,\s*int,\s*global::System\.Threading\.CancellationToken,\s*global::System\.Threading\.Tasks\.ValueTask<int>>\s+handler\s*\)"),
+                "Add(Int32,Int32 -> Int32) should expose an async OnCall(Func<int,int,CT,ValueTask<int>>) overload");
+            // Unpack arity: index 0 and index 1 must both be present.
+            Assert.That(fb, Does.Match(
+                @"if\s*\(!__inputs\[1\]\.TryGetValue\(out\s+int\s+__a1\)\)"),
+                "Multi-input methods should unpack each Variant by index (e.g. __inputs[1] -> __a1)");
+        }
+
+        [Test]
         public void EmittedNodeManager_InvokesBothPlainAndTypedConfigurePartials()
         {
             Dictionary<string, string> files = GenerateForTestModel(generateNodeManager: true);
