@@ -3571,6 +3571,7 @@ namespace Opc.Ua.Server
             (_, IAsyncNodeManager nodeManager) = await GetManagerHandleAsync(callMethodRequest.ObjectId, cancellationToken)
                     .ConfigureAwait(false);
 
+            // Method resolution fallback is provided by the IAsyncNodeManager adapter path.
             MethodState method = await nodeManager.FindMethodStateAsync(
                 operationContext,
                 callMethodRequest,
