@@ -291,6 +291,44 @@ namespace Opc.Ua.Server.Fluent
             return new VariableBuilder<TValue>(this, variable);
         }
 
+        /// <summary>
+        /// Event-source registry owned by the
+        /// <see cref="FluentNodeManagerBase"/>; populated via
+        /// <see cref="AttachEventSources"/> immediately after the
+        /// builder is constructed and before <c>Configure</c> runs.
+        /// </summary>
+        /// <remarks>
+        /// Hand-written managers that derive from
+        /// <see cref="CustomNodeManager2"/> rather than
+        /// <see cref="FluentNodeManagerBase"/> leave this property
+        /// <c>null</c>; the <c>Publish</c> extensions surface a
+        /// targeted error in that case.
+        /// </remarks>
+        internal EventSourceRegistry EventSources { get; private set; }
+
+        /// <summary>
+        /// Wires the supplied registry into this builder so the
+        /// <c>Publish</c> extensions can route source registrations to
+        /// the owning manager. Called once by
+        /// <see cref="FluentNodeManagerBase"/>; subsequent calls throw.
+        /// </summary>
+        internal void AttachEventSources(EventSourceRegistry registry)
+        {
+            if (registry == null)
+            {
+                throw new System.ArgumentNullException(nameof(registry));
+            }
+
+            if (EventSources != null)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadInvalidState,
+                    "An EventSourceRegistry is already attached to this builder.");
+            }
+
+            EventSources = registry;
+        }
+
         private static string FormatNodeId(NodeId nodeId)
         {
             // NodeId is a readonly struct so the caller may pass `default`;

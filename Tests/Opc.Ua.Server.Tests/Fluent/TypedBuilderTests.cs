@@ -417,7 +417,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                 {
                     seenContext = c;
                     seenToken = ct;
-                    return ValueTask.CompletedTask;
+                    return default;
                 });
 
             SystemContext ctx = CreateContext();

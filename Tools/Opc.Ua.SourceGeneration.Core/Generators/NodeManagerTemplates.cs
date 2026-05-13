@@ -114,6 +114,12 @@ namespace Opc.Ua.SourceGeneration
                             __FindRootByNodeId,
                             __FindByTypeDefinitionId);
 
+                        // Fluent managers carry an EventSourceRegistry for
+                        // Publish(...) bindings; attach it before Configure
+                        // so extension methods can resolve it. No-op for
+                        // non-fluent managers.
+                        (this as global::Opc.Ua.Server.Fluent.FluentNodeManagerBase)?.AttachToBuilder(__m_builder);
+
                         Configure(__m_builder);
                         Configure(new {{Tokens.NodeManagerClassName}}TypedBuilder(__m_builder));
                         __m_builder.Seal();
