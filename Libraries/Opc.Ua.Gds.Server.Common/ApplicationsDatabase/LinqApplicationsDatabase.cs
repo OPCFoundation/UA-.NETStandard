@@ -125,7 +125,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
                     select ii
                 ).Any();
 
-                if (existingApplication)
+                if (existingApplication && applicationId == Guid.Empty)
                 {
                     throw new ServiceResultException(
                         StatusCodes.BadEntryExists,
@@ -136,15 +136,19 @@ namespace Opc.Ua.Gds.Server.Database.Linq
 
                 if (applicationId != Guid.Empty)
                 {
-                    IEnumerable<Application> results =
-                        from ii in Applications
+                    record =
+                        (from ii in Applications
                         where ii.ApplicationId == applicationId
-                        select ii;
-
-                    record = results.SingleOrDefault();
+                        select ii).SingleOrDefault();
 
                     if (record != null)
                     {
+                        if (record.ApplicationUri != application.ApplicationUri)
+                        {
+                            throw new ServiceResultException(
+                                StatusCodes.BadWriteNotSupported);
+                        }
+
                         var endpoints = (
                             from ii in ServerEndpoints
                             where ii.ApplicationId == record.ApplicationId
@@ -234,9 +238,9 @@ namespace Opc.Ua.Gds.Server.Database.Linq
                 Application application =
                     (from ii in Applications where ii.ApplicationId == id select ii)
                         .SingleOrDefault()
-                    ?? throw new ArgumentException(
-                        "A record with the specified application id does not exist.",
-                        nameof(applicationId));
+                    ?? throw new ServiceResultException(
+                        StatusCodes.BadNotFound,
+                        "A record with the specified application id does not exist.");
 
                 IEnumerable<CertificateRequest> certificateRequests =
                     from ii in CertificateRequests

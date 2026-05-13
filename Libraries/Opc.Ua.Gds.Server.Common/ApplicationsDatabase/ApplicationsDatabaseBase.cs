@@ -355,7 +355,7 @@ namespace Opc.Ua.Gds.Server.Database
             if (NamespaceIndex != nodeId.NamespaceIndex ||
                 !nodeId.TryGetValue(out Guid id))
             {
-                throw new ServiceResultException(StatusCodes.BadNodeIdUnknown);
+                throw new ServiceResultException(StatusCodes.BadNotFound);
             }
 
             return id;
@@ -390,7 +390,7 @@ namespace Opc.Ua.Gds.Server.Database
             if ((nodeId.IdType != IdType.Guid && nodeId.IdType != IdType.String) ||
                 NamespaceIndex != nodeId.NamespaceIndex)
             {
-                throw new ServiceResultException(StatusCodes.BadNodeIdUnknown);
+                throw new ServiceResultException(StatusCodes.BadNotFound);
             }
         }
 

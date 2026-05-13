@@ -694,7 +694,14 @@ namespace Opc.Ua.Gds.Server
                     LocalizedText.From("The application id does not exist."));
             }
 
-            m_database.RegisterApplication(application);
+            try
+            {
+                m_database.RegisterApplication(application);
+            }
+            catch (ArgumentException ex)
+            {
+                throw new ServiceResultException(StatusCodes.BadInvalidArgument, ex);
+            }
 
             ArrayOf<Variant> inputArguments = [Variant.FromStructure(application)];
             Server.ReportApplicationRegistrationChangedAuditEvent(
@@ -830,7 +837,15 @@ namespace Opc.Ua.Gds.Server
                 AuthorizationHelper.AuthenticatedUserOrSelfAdmin,
                 applicationId);
             m_logger.LogInformation("OnGetApplication: {ApplicationId}", applicationId);
-            application = m_database.GetApplication(applicationId);
+
+            try
+            {
+                application = m_database.GetApplication(applicationId);
+            }
+            catch (ArgumentException ex)
+            {
+                throw new ServiceResultException(StatusCodes.BadInvalidArgument, ex);
+            }
 
             if (application == null)
             {

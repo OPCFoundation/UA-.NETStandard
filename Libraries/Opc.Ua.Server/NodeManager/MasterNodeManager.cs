@@ -1337,6 +1337,7 @@ namespace Opc.Ua.Server
             Type listType = typeof(T);
 
             if (listType != typeof(ReadValueId) &&
+                listType != typeof(WriteValue) &&
                 listType != typeof(BrowseDescription) &&
                 listType != typeof(CallMethodRequest))
             {

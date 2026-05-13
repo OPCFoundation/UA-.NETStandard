@@ -67,7 +67,7 @@ namespace Opc.Ua.Gds.Server.Diagnostics
                 e.SetChildValue(
                     systemContext,
                     Ua.BrowseNames.SourceName,
-                    "Method/UpdateCertificate",
+                    "Method/FinishRequest",
                     false);
                 e.SetChildValue(
                     systemContext,
@@ -148,7 +148,7 @@ namespace Opc.Ua.Gds.Server.Diagnostics
                 e.SetChildValue(
                     systemContext,
                     Ua.BrowseNames.SourceName,
-                    "Method/UpdateCertificate",
+                    "Method/StartNewKeyPairRequest",
                     false);
                 e.SetChildValue(
                     systemContext,
@@ -180,7 +180,7 @@ namespace Opc.Ua.Gds.Server.Diagnostics
             {
                 logger.LogError(
                     ex,
-                    "Error while reporting CertificateDeliveredAuditEventState event.");
+                    "Error while reporting CertificateRequestedAuditEventState event.");
             }
         }
 
@@ -216,12 +216,19 @@ namespace Opc.Ua.Gds.Server.Diagnostics
                 e.SetChildValue(
                     systemContext,
                     Ua.BrowseNames.SourceName,
-                    "Method/UpdateCertificate",
+                    "Method/RegisterApplication",
                     false);
+
                 e.SetChildValue(
                     systemContext,
                     Ua.BrowseNames.LocalTime,
                     TimeZoneDataType.Local,
+                    false);
+
+                e.SetChildValue(
+                    systemContext,
+                    Ua.BrowseNames.ActionTimeStamp,
+                    DateTimeUtc.Now,
                     false);
 
                 e.SetChildValue(systemContext, Ua.BrowseNames.MethodId, method?.NodeId ?? default, false);
@@ -237,7 +244,7 @@ namespace Opc.Ua.Gds.Server.Diagnostics
             {
                 logger.LogError(
                     ex,
-                    "Error while reporting CertificateDeliveredAuditEventState event.");
+                    "Error while reporting ApplicationRegistrationChangedAuditEventState event.");
             }
         }
     }
