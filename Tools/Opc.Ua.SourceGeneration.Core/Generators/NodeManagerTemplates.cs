@@ -58,7 +58,7 @@ namespace Opc.Ua.SourceGeneration
                 /// fluent API in <c>Opc.Ua.Server.Fluent</c>.
                 /// </remarks>
                 [global::System.CodeDom.Compiler.GeneratedCodeAttribute("{{Tokens.Tool}}", "{{Tokens.Version}}")]
-                public partial class {{Tokens.NodeManagerClassName}} : global::Opc.Ua.Server.AsyncCustomNodeManager
+                public partial class {{Tokens.NodeManagerClassName}} : global::Opc.Ua.Server.Fluent.FluentNodeManagerBase
                 {
                     private global::Opc.Ua.Server.Fluent.NodeManagerBuilder __m_builder;
 
@@ -114,11 +114,10 @@ namespace Opc.Ua.SourceGeneration
                             __FindRootByNodeId,
                             __FindByTypeDefinitionId);
 
-                        // Fluent managers carry an EventSourceRegistry for
-                        // Publish(...) bindings; attach it before Configure
-                        // so extension methods can resolve it. No-op for
-                        // non-fluent managers.
-                        (this as global::Opc.Ua.Server.Fluent.FluentNodeManagerBase)?.AttachToBuilder(__m_builder);
+                        // Attach the FluentNodeManagerBase event-source registry
+                        // to the builder so Publish(...) extensions can resolve
+                        // it before the user's Configure partial(s) run.
+                        AttachToBuilder(__m_builder);
 
                         Configure(__m_builder);
                         Configure(new {{Tokens.NodeManagerClassName}}TypedBuilder(__m_builder));

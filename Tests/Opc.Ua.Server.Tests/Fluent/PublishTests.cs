@@ -52,7 +52,11 @@ namespace Opc.Ua.Server.Tests.Fluent
     {
         private const ushort kNs = 2;
         private const string kNamespaceUri = "http://test.org/UA/Publish/";
-        private static readonly TimeSpan s_signalTimeout = TimeSpan.FromSeconds(5);
+        // Generous timeout: reconcile/worker tasks run on the thread pool which
+        // can be starved when the broader test suite (e.g. AsyncCustomNodeManager
+        // tests with [Parallelizable(ParallelScope.All)]) saturates CPU. 15s
+        // keeps green runs under 1s while eliminating false negatives under load.
+        private static readonly TimeSpan s_signalTimeout = TimeSpan.FromSeconds(15);
         private static readonly TimeSpan s_negativeWindow = TimeSpan.FromMilliseconds(250);
 
         private Mock<IServerInternal> m_mockServer;
@@ -158,19 +162,23 @@ namespace Opc.Ua.Server.Tests.Fluent
             using TestablePublishManager manager = CreateManager();
             BaseObjectState notifier = MakeNotifier(manager, "Toggling");
 
+            var iteratorEntered = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
             var iteratorObservedCancel = new TaskCompletionSource<bool>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
 
             manager.EventSources.Register(
                 notifier,
-                (_, _, ct) => CancelObservingStream(iteratorObservedCancel, ct),
+                (_, _, ct) => CancelObservingStream(iteratorEntered, iteratorObservedCancel, ct),
                 options: null);
 
             notifier.SetAreEventsMonitored(manager.SystemContext, true, false);
             manager.EventSources.SignalReconcile();
 
-            // Give the worker a chance to enter the iterator.
-            await Task.Delay(50).ConfigureAwait(false);
+            // Wait until the worker is actually inside the iterator before
+            // unmonitoring — otherwise the unsubscribe could race ahead and the
+            // cancel would be observed during enumerator setup, not the await.
+            await WaitForAsync(iteratorEntered.Task).ConfigureAwait(false);
 
             notifier.SetAreEventsMonitored(manager.SystemContext, false, false);
             manager.EventSources.SignalReconcile();
@@ -509,16 +517,19 @@ namespace Opc.Ua.Server.Tests.Fluent
             TestablePublishManager manager = CreateManager();
             BaseObjectState notifier = MakeNotifier(manager, "DisposeCancel");
 
+            var iteratorEntered = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
             var iteratorObservedCancel = new TaskCompletionSource<bool>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
 
             manager.EventSources.Register(
                 notifier,
-                (_, _, ct) => CancelObservingStream(iteratorObservedCancel, ct),
+                (_, _, ct) => CancelObservingStream(iteratorEntered, iteratorObservedCancel, ct),
                 new EventPublishOptions { AlwaysOn = true });
 
-            // Give the worker a chance to enter the iterator before we tear down.
-            await Task.Delay(50).ConfigureAwait(false);
+            // Wait until the worker is actually inside the iterator before
+            // disposing the manager so we observe cancel propagation, not setup.
+            await WaitForAsync(iteratorEntered.Task).ConfigureAwait(false);
 
             manager.Dispose();
 
@@ -730,9 +741,11 @@ namespace Opc.Ua.Server.Tests.Fluent
         }
 
         private static async IAsyncEnumerable<BaseEventState> CancelObservingStream(
+            TaskCompletionSource<bool> iteratorEntered,
             TaskCompletionSource<bool> observedCancel,
             [EnumeratorCancellation] CancellationToken ct)
         {
+            iteratorEntered.TrySetResult(true);
             try
             {
                 await Task.Delay(Timeout.Infinite, ct).ConfigureAwait(false);
