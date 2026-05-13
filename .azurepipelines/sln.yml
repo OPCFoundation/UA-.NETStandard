@@ -29,12 +29,12 @@ jobs:
     displayName: Restore Release
     inputs:
       command: restore
-      restoreSolution: '**/*.slnx'
+      restoreSolution: 'UA.slnx'
       configuration: 'Release'
   - task: MSBuild@1
     displayName: MS Build Release
     inputs:
-      solution: '**/*.slnx'
+      solution: 'UA.slnx'
       msbuildVersion: 'latest'
       configuration: 'Release'
       platform: 'Any CPU'
@@ -43,12 +43,12 @@ jobs:
     displayName: Restore Debug
     inputs:
       command: restore
-      restoreSolution: '**/*.slnx'
+      restoreSolution: 'UA.slnx'
       configuration: 'Debug'
   - task: MSBuild@1
     displayName: MS Build Debug
     inputs:
-      solution: '**/*.slnx'
+      solution: 'UA.slnx'
       msbuildVersion: 'latest'
       configuration: 'Debug'
       platform: 'Any CPU'
