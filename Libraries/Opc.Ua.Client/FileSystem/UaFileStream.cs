@@ -401,22 +401,25 @@ namespace Opc.Ua.Client.FileSystem
                         chunkLen,
                         ct).ConfigureAwait(false);
 
-                    byte[] payload = data.ToArray() ?? [];
-                    if (payload.Length == 0)
+                    // Empty payload = EOF: short-circuit before touching
+                    // the caller's buffer (or allocating anything).
+                    if (data.IsEmpty)
                     {
                         break;
                     }
 
-                    Buffer.BlockCopy(payload, 0, buffer, offset + total, payload.Length);
-                    total += payload.Length;
-                    m_position += payload.Length;
+                    int read = data.Length;
+                    data.Span.CopyTo(buffer.AsSpan(offset + total, read));
+                    total += read;
+                    m_position += read;
                     m_serverPosition = m_position;
                     if (m_position > m_length)
                     {
                         m_length = m_position;
                     }
-                    if (payload.Length < chunkLen)
+                    if (read < chunkLen)
                     {
+                        // Short read = EOF on most servers.
                         break;
                     }
                 }
@@ -454,11 +457,14 @@ namespace Opc.Ua.Client.FileSystem
                 while (written < count)
                 {
                     int chunkLen = Math.Min(m_chunkSize, count - written);
-                    var slice = new byte[chunkLen];
-                    Buffer.BlockCopy(buffer, offset + written, slice, 0, chunkLen);
+                    // Wrap the caller's slice directly — the encoder
+                    // copies it onto the wire during WriteAsync, and we
+                    // await before reusing the underlying buffer.
+                    var chunk = new ByteString(
+                        buffer.AsMemory(offset + written, chunkLen));
                     await m_proxy.WriteAsync(
                         Handle,
-                        slice.ToByteString(),
+                        chunk,
                         ct).ConfigureAwait(false);
                     written += chunkLen;
                     m_position += chunkLen;
