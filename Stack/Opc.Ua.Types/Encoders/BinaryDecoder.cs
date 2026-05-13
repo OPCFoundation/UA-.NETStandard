@@ -732,8 +732,8 @@ namespace Opc.Ua
                             extension.TypeId);
                         xmlDecoder.PopNamespace();
 
-                        // update body.
-                        extension = new ExtensionObject(body);
+                        // update body, preserve the wire encoding TypeId.
+                        extension = new ExtensionObject(extension.TypeId, body);
 
                         xmlDecoder.Close();
                     }
