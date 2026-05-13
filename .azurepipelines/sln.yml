@@ -1,14 +1,40 @@
 #
-# Build all solutions on windows
+# Build a matrix of (solution × configuration) on windows.
+# Each matrix entry becomes a parallel job with its own 60-minute timeout.
+#
+# Parameters:
+#   solutions  - Comma-separated list of .slnx paths to build. When empty,
+#                every .slnx file in the repository is discovered and built.
+#
+# Matrix entries supply these variables:
+#   file           - path of the .slnx file
+#   configuration  - Debug or Release
 #
 parameters:
   poolImage: 'windows-2025-vs2026'
   jobnamesuffix: ''
+  solutions: ''
 
 jobs:
+- job: buildslnprep${{ parameters.jobnamesuffix }}
+  displayName: Prepare Build Solutions Jobs
+  pool:
+    vmImage: 'windows-2025-vs2026'
+  steps:
+  - task: PowerShell@2
+    name: solutionmatrix
+    displayName: Prepare Solution Matrix
+    inputs:
+      targetType: filePath
+      filePath: ./.azurepipelines/get-matrix.ps1
+      arguments: -FileName '*.slnx' -Configurations 'Debug,Release' -Files "${{ parameters.solutions }}"
+
 - job: buildallsln${{ parameters.jobnamesuffix }}
-  displayName: Build Solutions ${{ parameters.jobnamesuffix }}
-  timeoutInMinutes: 90
+  displayName: Build Solution
+  timeoutInMinutes: 60
+  dependsOn: buildslnprep${{ parameters.jobnamesuffix }}
+  strategy:
+    matrix: $[ dependencies.buildslnprep${{ parameters.jobnamesuffix }}.outputs['solutionmatrix.jobMatrix'] ]
   pool:
     vmImage: ${{ parameters.poolImage }}
   steps:
@@ -26,30 +52,17 @@ jobs:
       targetType: filePath
       filePath: ./.azurepipelines/set-version.ps1
   - task: NuGetCommand@2
-    displayName: Restore Release
+    displayName: Restore $(configuration) $(file)
     inputs:
       command: restore
-      restoreSolution: '**/*.slnx'
-      configuration: 'Release'
+      restoreSolution: $(file)
+      configuration: $(configuration)
   - task: MSBuild@1
-    displayName: MS Build Release
+    displayName: MS Build $(configuration) $(file)
     inputs:
-      solution: '**/*.slnx'
+      solution: $(file)
       msbuildVersion: 'latest'
-      configuration: 'Release'
+      configuration: $(configuration)
       platform: 'Any CPU'
-      msbuildArguments:
-  - task: NuGetCommand@2
-    displayName: Restore Debug
-    inputs:
-      command: restore
-      restoreSolution: '**/*.slnx'
-      configuration: 'Debug'
-  - task: MSBuild@1
-    displayName: MS Build Debug
-    inputs:
-      solution: '**/*.slnx'
-      msbuildVersion: 'latest'
-      configuration: 'Debug'
-      platform: 'Any CPU'
-      msbuildArguments:
+      maximumCpuCount: true
+      msbuildArguments: '/p:BuildInParallel=true'
