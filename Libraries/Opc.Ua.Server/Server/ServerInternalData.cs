@@ -652,7 +652,7 @@ namespace Opc.Ua.Server
             serverObject.ServerCapabilities.MaxSubscriptions.Value = (uint)
                 m_configuration.ServerConfiguration.MaxSubscriptionCount;
 
-            // Phase 7b: expose MaxSubscriptionsPerSession (optional property
+            // Expose MaxSubscriptionsPerSession (optional property
             // on ServerCapabilitiesType per Part 5 §6.3) so clients that
             // enumerate per-session limits get a defined value instead of a
             // missing-attribute response. Use the configured global
@@ -838,31 +838,6 @@ namespace Opc.Ua.Server
             auditing.OnSimpleWriteValue += OnWriteAuditing;
             auditing.OnSimpleReadValue += OnReadAuditing;
             auditing.Value = Auditing;
-            // Per the standard OPC UA NodeSet, Server.Auditing grants Browse +
-            // Read to AnonymousRole (i=15644). Mirror that here so anonymous
-            // sessions can observe the server's auditing flag.
-            auditing.RolePermissions =
-            [
-                new RolePermissionType
-                {
-                    RoleId = ObjectIds.WellKnownRole_Anonymous,
-                    Permissions = (uint)(PermissionType.Browse | PermissionType.Read)
-                },
-                new RolePermissionType
-                {
-                    RoleId = ObjectIds.WellKnownRole_AuthenticatedUser,
-                    Permissions = (uint)(PermissionType.Browse | PermissionType.Read)
-                },
-                new RolePermissionType
-                {
-                    RoleId = ObjectIds.WellKnownRole_SecurityAdmin,
-                    Permissions = (uint)(
-                        PermissionType.Browse |
-                        PermissionType.Write |
-                        PermissionType.ReadRolePermissions |
-                        PermissionType.Read)
-                }
-            ];
             auditing.AccessLevel = AccessLevels.CurrentRead;
             auditing.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
             auditing.MinimumSamplingInterval = 1000;

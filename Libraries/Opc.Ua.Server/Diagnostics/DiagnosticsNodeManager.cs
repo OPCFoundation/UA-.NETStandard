@@ -140,7 +140,7 @@ namespace Opc.Ua.Server
         {
             await base.CreateAddressSpaceAsync(externalReferences, cancellationToken).ConfigureAwait(false);
 
-            // Phase 6d-1: SamplingIntervalDiagnosticsArray is part of the
+            // SamplingIntervalDiagnosticsArray is part of the
             // standard nodeset; rather than deleting the node (which makes
             // reads return BadNodeIdUnknown), leave it in place with a
             // default empty value. Per Part 5 §6.4.7 the array is optional

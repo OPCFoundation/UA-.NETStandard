@@ -31,6 +31,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -651,29 +652,20 @@ namespace Opc.Ua.Server
 
                 if (dynamicRoleIds.Count > 0)
                 {
-                    var dynamicRoles = new List<Role>(dynamicRoleIds.Count);
-                    foreach (NodeId roleId in dynamicRoleIds)
-                    {
-                        if (effectiveIdentity.GrantedRoleIds.Contains(roleId))
-                        {
-                            continue;
-                        }
-                        dynamicRoles.Add(new Role(roleId, roleId.ToString()));
-                    }
+                    var dynamicRoles = dynamicRoleIds
+                        .Select(roleId => new Role(roleId, roleId.ToString()))
+                        .ToList();
 
-                    if (dynamicRoles.Count > 0)
+                    if (effectiveIdentity is RoleBasedIdentity rbi2)
                     {
-                        if (effectiveIdentity is RoleBasedIdentity rbi2)
-                        {
-                            effectiveIdentity = rbi2.WithAdditionalRoles(dynamicRoles, m_server.NamespaceUris);
-                        }
-                        else
-                        {
-                            effectiveIdentity = new RoleBasedIdentity(
-                                effectiveIdentity,
-                                dynamicRoles,
-                                m_server.NamespaceUris);
-                        }
+                        effectiveIdentity = rbi2.WithAdditionalRoles(dynamicRoles, m_server.NamespaceUris);
+                    }
+                    else
+                    {
+                        effectiveIdentity = new RoleBasedIdentity(
+                            effectiveIdentity,
+                            dynamicRoles,
+                            m_server.NamespaceUris);
                     }
                 }
             }

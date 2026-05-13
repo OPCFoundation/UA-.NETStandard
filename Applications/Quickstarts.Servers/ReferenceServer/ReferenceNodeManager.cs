@@ -341,7 +341,7 @@ namespace Quickstarts.ReferenceServer
                         "Int32",
                         DataTypeIds.Int32,
                         ValueRanks.Scalar);
-                    // Phase 8d: expose RolePermissions / UserRolePermissions
+                    // Expose RolePermissions / UserRolePermissions
                     // on the Int32 static scalar so the conformance attribute
                     // tests (AttributeReadComplexTests RolePermissions /
                     // UserRolePermissions read) return Good rather than

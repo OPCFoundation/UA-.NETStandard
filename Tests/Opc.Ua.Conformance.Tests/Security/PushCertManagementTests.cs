@@ -1116,7 +1116,7 @@ namespace Opc.Ua.Conformance.Tests.Security
 
         private async Task<ISession> TryConnectAsAdminAsync()
         {
-            // Phase 7c: ServerConfiguration / TrustList push methods require
+            // ServerConfiguration / TrustList push methods require
             // a SignAndEncrypt channel per Part 12 §7.10.3 — try to find a
             // SignAndEncrypt endpoint with username token first, fall back
             // to SecurityPolicies.None (which preserves prior behavior for
