@@ -6,14 +6,15 @@ trigger:
   batch: 'true'
   branches:
     include:
-    - '*'
+    - 'master'
+    - 'main'
+    - 'release/*'
   paths:
     include:
     - '*'
     exclude:
-    - 'Docs/*'
-    - 'README.md'
-
+    - 'Docs/**'
+    - '**/*.md'
 pr:
   autoCancel: 'true'
   branches:
@@ -49,6 +50,12 @@ stages:
     parameters:
       poolImage: 'windows-2025-vs2026'
       jobnamesuffix: win2025
+      # PR builds compile only UA.slnx; master/scheduled/manual/fork-PR builds
+      # discover every *.slnx in the repository automatically.
+      ${{ if eq(variables.FullBuild, 'False') }}:
+        solutions: 'UA.slnx'
+      ${{ else }}:
+        solutions: ''
 - stage: testrelease
   dependsOn: [build]
   displayName: 'Test Core and SDK Release'
