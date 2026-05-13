@@ -314,7 +314,14 @@ namespace Opc.Ua.Client.Conformance.Tests
                 || code == StatusCodes.BadRequestInterrupted
                 || code == StatusCodes.BadConnectionClosed
                 || code == StatusCodes.BadSecureChannelClosed
-                || code == StatusCodes.BadSecurityChecksFailed;
+                || code == StatusCodes.BadSecurityChecksFailed
+                // BadSubscriptionIdInvalid 'Subscription belongs to a different session'
+                // is observed on the windows-latest Conformance runner when a test
+                // takes longer than the session timeout and the reconnect handler
+                // re-creates the session under it. The subscription handle becomes
+                // stale — that's an environmental side-effect of the slow runner,
+                // not a server defect.
+                || code == StatusCodes.BadSubscriptionIdInvalid;
         }
 
         /// <summary>
