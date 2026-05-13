@@ -1309,7 +1309,7 @@ namespace Opc.Ua.Server.Tests
             ServerSystemContext context = manager.SystemContext;
             ushort nsIdx = manager.NamespaceIndexes[0];
 
-            using var baseType = new BaseObjectTypeState
+            var baseType = new BaseObjectTypeState
             {
                 NodeId = new NodeId("ResolverBaseType", nsIdx),
                 BrowseName = new QualifiedName("ResolverBaseType", nsIdx),
@@ -1324,7 +1324,7 @@ namespace Opc.Ua.Server.Tests
             };
             baseType.AddChild(baseMethod);
 
-            using var derivedType = new BaseObjectTypeState
+            var derivedType = new BaseObjectTypeState
             {
                 NodeId = new NodeId("ResolverDerivedType", nsIdx),
                 BrowseName = new QualifiedName("ResolverDerivedType", nsIdx),
@@ -1332,7 +1332,7 @@ namespace Opc.Ua.Server.Tests
             };
             derivedType.CreateAsPredefinedNode(context);
 
-            using var instance = new BaseObjectState(null)
+            var instance = new BaseObjectState(null)
             {
                 NodeId = new NodeId("ResolverDerivedInstance", nsIdx),
                 BrowseName = new QualifiedName("ResolverDerivedInstance", nsIdx),
@@ -1359,7 +1359,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(method, Is.Not.Null);
             Assert.That(method.NodeId, Is.EqualTo(baseMethod.NodeId));
 
-            var syncResolver = manager.SyncNodeManager as IMethodStateResolverNodeManager;
+            var syncResolver = manager.SyncNodeManager as INodeManager3;
             Assert.That(syncResolver, Is.Not.Null);
             MethodState syncMethod = syncResolver.FindMethodState(operationContext, request);
             Assert.That(syncMethod, Is.Not.Null);

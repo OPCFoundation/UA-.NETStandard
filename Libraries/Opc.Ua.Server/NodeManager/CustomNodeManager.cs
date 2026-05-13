@@ -47,7 +47,7 @@ namespace Opc.Ua.Server
     /// is not part of the SDK because most real implementations of a INodeManager will need to
     /// modify the behavior of the base class.
     /// </remarks>
-    public partial class CustomNodeManager2 : INodeManager3, IMethodStateResolverNodeManager, INodeIdFactory, IDisposable
+    public partial class CustomNodeManager2 : INodeManager3, INodeIdFactory, IDisposable
     {
         /// <summary>
         /// Initializes the node manager.
@@ -3169,42 +3169,17 @@ namespace Opc.Ua.Server
                     methodToCall.Processed = true;
 
                     // validate the source node.
-                    NodeState source = ValidateNode(systemContext, handle, operationCache);
-
-                    if (source == null)
+                    if (ValidateNode(systemContext, handle, operationCache) == null)
                     {
                         errors[ii] = StatusCodes.BadNodeIdUnknown;
                         continue;
                     }
 
-                    // find the method.
-                    method = source.FindMethod(systemContext, methodToCall.MethodId);
-
+                    method = FindMethodState(context, methodToCall);
                     if (method == null)
                     {
-                        // check for loose coupling.
-                        if (source.ReferenceExists(
-                            ReferenceTypeIds.HasComponent,
-                            false,
-                            methodToCall.MethodId))
-                        {
-                            method = FindPredefinedNode<MethodState>(
-                                methodToCall.MethodId);
-                        }
-
-                        // Per OPC UA spec Part 4 section 5.12.2.2: the ObjectType of the Object
-                        // or a super type of that ObjectType may also be the source of a HasComponent
-                        // reference to the method.
-                        if (method == null && source is BaseInstanceState instanceState)
-                        {
-                            method = FindMethodInTypeHierarchy(systemContext, instanceState.TypeDefinitionId, methodToCall.MethodId);
-                        }
-
-                        if (method == null)
-                        {
-                            errors[ii] = StatusCodes.BadMethodInvalid;
-                            continue;
-                        }
+                        errors[ii] = StatusCodes.BadMethodInvalid;
+                        continue;
                     }
 
                     // validate the role permissions for method to be executed,

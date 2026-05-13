@@ -3568,22 +3568,13 @@ namespace Opc.Ua.Server
                 return StatusCodes.BadMethodInvalid;
             }
 
-            (object nodeHandle, IAsyncNodeManager nodeManager) = await GetManagerHandleAsync(callMethodRequest.ObjectId, cancellationToken)
+            (_, IAsyncNodeManager nodeManager) = await GetManagerHandleAsync(callMethodRequest.ObjectId, cancellationToken)
                     .ConfigureAwait(false);
 
-            MethodState method = null;
-
-            if (nodeManager is IMethodStateResolverAsyncNodeManager resolver)
-            {
-                method = await resolver.FindMethodStateAsync(
-                    operationContext,
-                    callMethodRequest,
-                    cancellationToken).ConfigureAwait(false);
-            }
-            else if (nodeHandle is NodeHandle parsedNode)
-            {
-                method = parsedNode.Node.FindMethod(Server.DefaultSystemContext, callMethodRequest.MethodId);
-            }
+            MethodState method = await nodeManager.FindMethodStateAsync(
+                operationContext,
+                callMethodRequest,
+                cancellationToken).ConfigureAwait(false);
 
             if (method != null)
             {

@@ -61,7 +61,7 @@ namespace Opc.Ua.Server
     /// This allows synchronous, or only partially asynchronous node managers to be treated as asynchronous, which can help
     /// unify the calling logic within the MasterNodeManager.
     /// </remarks>
-    public class AsyncNodeManagerAdapter : IAsyncNodeManager, IMethodStateResolverAsyncNodeManager, IDisposable
+    public class AsyncNodeManagerAdapter : IAsyncNodeManager, IDisposable
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="AsyncNodeManagerAdapter"/> class.
@@ -138,12 +138,7 @@ namespace Opc.Ua.Server
             CallMethodRequest methodToCall,
             CancellationToken cancellationToken = default)
         {
-            if (SyncNodeManager is IMethodStateResolverAsyncNodeManager asyncNodeManager)
-            {
-                return asyncNodeManager.FindMethodStateAsync(context, methodToCall, cancellationToken);
-            }
-
-            if (SyncNodeManager is IMethodStateResolverNodeManager nodeManager)
+            if (SyncNodeManager is INodeManager3 nodeManager)
             {
                 MethodState method = nodeManager.FindMethodState(context, methodToCall);
                 return new ValueTask<MethodState>(method);

@@ -47,7 +47,7 @@ namespace Opc.Ua.Server
     /// is not part of the SDK because most real implementations of a INodeManager will need to
     /// modify the behavior of the base class.
     /// </remarks>
-    public class AsyncCustomNodeManager : IAsyncNodeManager, IMethodStateResolverAsyncNodeManager, INodeIdFactory, IDisposable
+    public class AsyncCustomNodeManager : IAsyncNodeManager, INodeIdFactory, IDisposable
     {
         /// <summary>
         /// Initializes the node manager.
@@ -3322,51 +3322,21 @@ namespace Opc.Ua.Server
                 methodToCall.Processed = true;
 
                 // validate the source node.
-                NodeState source = await ValidateNodeAsync(systemContext, handle, operationCache, cancellationToken).ConfigureAwait(false);
-
-                if (source == null)
+                if (await ValidateNodeAsync(systemContext, handle, operationCache, cancellationToken).ConfigureAwait(false) == null)
                 {
                     errors[ii] = StatusCodes.BadNodeIdUnknown;
                     continue;
                 }
 
-                // find the method.
-                lock (source)
-                {
-                    method = source.FindMethod(systemContext, methodToCall.MethodId);
-                }
+                method = await FindMethodStateAsync(
+                    context,
+                    methodToCall,
+                    cancellationToken).ConfigureAwait(false);
 
                 if (method == null)
                 {
-                    bool referenceExists;
-                    lock (source)
-                    {
-                        referenceExists = source.ReferenceExists(
-                        ReferenceTypeIds.HasComponent,
-                        false,
-                        methodToCall.MethodId);
-                    }
-
-                    // check for loose coupling.
-                    if (referenceExists)
-                    {
-                        method = FindPredefinedNode<MethodState>(
-                            methodToCall.MethodId);
-                    }
-
-                    // Per OPC UA spec Part 4 section 5.12.2.2: the ObjectType of the Object
-                    // or a super type of that ObjectType may also be the source of a HasComponent
-                    // reference to the method.
-                    if (method == null && source is BaseInstanceState instanceState)
-                    {
-                        method = FindMethodInTypeHierarchy(systemContext, instanceState.TypeDefinitionId, methodToCall.MethodId);
-                    }
-
-                    if (method == null)
-                    {
-                        errors[ii] = StatusCodes.BadMethodInvalid;
-                        continue;
-                    }
+                    errors[ii] = StatusCodes.BadMethodInvalid;
+                    continue;
                 }
 
                 // validate the role permissions for method to be executed,
