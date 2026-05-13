@@ -886,7 +886,7 @@ namespace Opc.Ua
                         extension.TypeId);
                 }
             }
-            return new ExtensionObject(encodeable);
+            return new ExtensionObject(extension.TypeId, encodeable);
         }
 
         /// <inheritdoc/>
