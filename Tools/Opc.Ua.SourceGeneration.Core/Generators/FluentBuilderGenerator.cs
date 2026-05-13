@@ -1143,6 +1143,14 @@ namespace Opc.Ua.SourceGeneration
         /// <paramref name="indent"/> is the lambda-body indent of the
         /// surrounding OnCall.
         /// </summary>
+        /// <remarks>
+        /// The base <see cref="Opc.Ua.MethodState"/> dispatcher
+        /// pre-populates the outputs list with one default-valued
+        /// <see cref="Opc.Ua.Variant"/> per declared output argument
+        /// before invoking the user handler, so the wrapper assigns
+        /// boxed values by index rather than appending to avoid
+        /// double-counting outputs at the wire.
+        /// </remarks>
         private static void EmitOutputBox(
             ITemplateWriter writer,
             Parameter output,
@@ -1160,16 +1168,18 @@ namespace Opc.Ua.SourceGeneration
                 source = "__r.Item" + (index + 1).ToString(System.Globalization.CultureInfo.InvariantCulture);
             }
 
+            string indexLiteral = index.ToString(System.Globalization.CultureInfo.InvariantCulture);
+
             switch (output.DataTypeNode.BasicDataType)
             {
                 case BasicDataType.UserDefined:
-                    writer.WriteLine("{0}__outputs.Add(global::Opc.Ua.Variant.FromStructure({1}));", indent, source);
+                    writer.WriteLine("{0}__outputs[{1}] = global::Opc.Ua.Variant.FromStructure({2});", indent, indexLiteral, source);
                     break;
                 case BasicDataType.BaseDataType when output.ValueRank == ValueRank.Scalar:
-                    writer.WriteLine("{0}__outputs.Add({1});", indent, source);
+                    writer.WriteLine("{0}__outputs[{1}] = {2};", indent, indexLiteral, source);
                     break;
                 default:
-                    writer.WriteLine("{0}__outputs.Add(global::Opc.Ua.Variant.From({1}));", indent, source);
+                    writer.WriteLine("{0}__outputs[{1}] = global::Opc.Ua.Variant.From({2});", indent, indexLiteral, source);
                     break;
             }
         }

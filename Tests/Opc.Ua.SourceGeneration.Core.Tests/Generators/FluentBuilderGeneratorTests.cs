@@ -258,11 +258,13 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             string fb = GetFluentBuilders();
 
             // Outputs are boxed back through Variant.From<T>(value) and
-            // appended to the __outputs list. Single-output methods bind
-            // the user handler's return value to '__r'.
+            // assigned by index into the __outputs list which the base
+            // MethodState dispatcher pre-populates with default values
+            // (one slot per declared output argument). Single-output
+            // methods bind the user handler's return value to '__r'.
             Assert.That(fb, Does.Contain(
-                "__outputs.Add(global::Opc.Ua.Variant.From(__r));"),
-                "Single-output methods should box the handler result via Variant.From(__r)");
+                "__outputs[0] = global::Opc.Ua.Variant.From(__r);"),
+                "Single-output methods should box the handler result via __outputs[0] = Variant.From(__r)");
         }
 
         [Test]
