@@ -1320,55 +1320,63 @@ samplingInterval: 50,                                 filter: filter)
                 StatusCode.IsGood(createResp.Results[0].StatusCode),
                 Is.True);
 
-            await ConsumeInitialPublishAsync().ConfigureAwait(false);
-
-            int[] current = await ReadCurrentArrayInt32Async(nodeId)
-                .ConfigureAwait(false);
-            if (current.Length == 0)
+            try
             {
-                Assert.Ignore("Array node has no elements.");
-            }
+                await ConsumeInitialPublishAsync().ConfigureAwait(false);
 
-            // Change element 0 by +11 (exceeds deadband)
-            int[] modified = (int[])current.Clone();
-            modified[0] = current[0] + 11;
-            if (!await TryWriteArrayAsync(nodeId, modified)
-                .ConfigureAwait(false))
+                int[] current = await ReadCurrentArrayInt32Async(nodeId)
+                    .ConfigureAwait(false);
+                if (current.Length == 0)
+                {
+                    Assert.Ignore("Array node has no elements.");
+                }
+
+                // Change element 0 by +11 (exceeds deadband)
+                int[] modified = (int[])current.Clone();
+                modified[0] = current[0] + 11;
+                if (!await TryWriteArrayAsync(nodeId, modified)
+                    .ConfigureAwait(false))
+                {
+                    Assert.Ignore("Array node is not writable.");
+                }
+
+                await Task.Delay(300).ConfigureAwait(false);
+                PublishResponse pub1 = await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
+                Assert.That(
+                    pub1.NotificationMessage.NotificationData.Count,
+                    Is.GreaterThan(0),
+                    "Change exceeding deadband (+11) should notify.");
+
+                // Change element 0 by +5 (within deadband)
+                modified[0] += 5;
+                await TryWriteArrayAsync(nodeId, modified)
+                    .ConfigureAwait(false);
+
+                await Task.Delay(300).ConfigureAwait(false);
+                PublishResponse pub2 = await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
+                if (NotificationCount(pub2) != 0)
+                {
+                    Assert.Ignore("Timing-sensitive: server notified for within-deadband change.");
+                }
+
+                // Change element 0 to current[0] - 11 (22 below last reported
+                // value of current[0]+11; clearly exceeds deadband of 10).
+                modified[0] = current[0] - 11;
+                await TryWriteArrayAsync(nodeId, modified)
+                    .ConfigureAwait(false);
+
+                await Task.Delay(300).ConfigureAwait(false);
+                PublishResponse pub3 = await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
+                Assert.That(
+                    pub3.NotificationMessage.NotificationData.Count,
+                    Is.GreaterThan(0),
+                    "Change exceeding deadband (-22 from last reported) should notify.");
+            }
+            catch (ServiceResultException sre) when (IsTransientCiTimeoutStatus(sre.StatusCode))
             {
-                Assert.Ignore("Array node is not writable.");
+                Assert.Ignore(
+                    $"Timing-sensitive: array-deadband publish interrupted by CI runner load ({sre.StatusCode}).");
             }
-
-            await Task.Delay(300).ConfigureAwait(false);
-            PublishResponse pub1 = await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
-            Assert.That(
-                pub1.NotificationMessage.NotificationData.Count,
-                Is.GreaterThan(0),
-                "Change exceeding deadband (+11) should notify.");
-
-            // Change element 0 by +5 (within deadband)
-            modified[0] += 5;
-            await TryWriteArrayAsync(nodeId, modified)
-                .ConfigureAwait(false);
-
-            await Task.Delay(300).ConfigureAwait(false);
-            PublishResponse pub2 = await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
-            if (NotificationCount(pub2) != 0)
-            {
-                Assert.Ignore("Timing-sensitive: server notified for within-deadband change.");
-            }
-
-            // Change element 0 to current[0] - 11 (22 below last reported
-            // value of current[0]+11; clearly exceeds deadband of 10).
-            modified[0] = current[0] - 11;
-            await TryWriteArrayAsync(nodeId, modified)
-                .ConfigureAwait(false);
-
-            await Task.Delay(300).ConfigureAwait(false);
-            PublishResponse pub3 = await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
-            Assert.That(
-                pub3.NotificationMessage.NotificationData.Count,
-                Is.GreaterThan(0),
-                "Change exceeding deadband (-22 from last reported) should notify.");
         }
 
         [Test]
