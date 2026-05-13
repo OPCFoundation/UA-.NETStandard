@@ -41,6 +41,7 @@ using Opc.Ua.Server;
 using Opc.Ua.Server.Tests;
 using Opc.Ua.Tests;
 using Quickstarts.ReferenceServer;
+using ISession = Opc.Ua.Client.ISession;
 namespace Opc.Ua.Conformance.Tests.GDS
 {
     /// <summary>

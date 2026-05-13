@@ -34,6 +34,7 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Server;
 using Opc.Ua.Server.UserDatabase;
+using ISession = Opc.Ua.Client.ISession;
 namespace Opc.Ua.Conformance.Tests.Security
 {
     [TestFixture]

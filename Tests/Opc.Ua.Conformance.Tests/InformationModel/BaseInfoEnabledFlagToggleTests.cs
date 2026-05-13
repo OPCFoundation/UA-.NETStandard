@@ -32,6 +32,7 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client;
 using Opc.Ua.Server;
+using ISession = Opc.Ua.Client.ISession;
 
 namespace Opc.Ua.Conformance.Tests.InformationModel
 {
