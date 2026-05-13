@@ -17,18 +17,16 @@ jobs:
   build-and-test:
     name: test-${{matrix.os}}-${{matrix.csproj}}
     runs-on: ${{ matrix.os }}
-    # The conformance test suite has ~3,257 NUnit fixtures, many of which
-    # are [NonParallelizable] and exercise live keep-alive / publishing
-    # timers. On hosted Ubuntu runners the suite can run >2 h under load;
-    # cap individual jobs at 2.5 h so they fail fast rather than hitting
-    # GitHub Actions' 6 h hard limit and reporting as "cancelled".
-    timeout-minutes: 150
+    # Per-job time cap. The non-Conformance test projects all finish well
+    # inside an hour; the Conformance suite is split into shards in the
+    # `build-and-test-conformance` job below and has its own cap.
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
         # os: [ubuntu-latest, windows-latest, macOS-latest] - disable mac os due to cost
         os: [ubuntu-latest, windows-latest]
-        csproj: [Security.Certificates, Types, Core, Server, Client, Client.ComplexTypes, PubSub, Configuration, Gds, SourceGeneration.Stack, SourceGeneration, SourceGeneration.Core, Client.Conformance]
+        csproj: [Security.Certificates, Types, Core, Server, Client, Client.ComplexTypes, PubSub, Configuration, Gds, SourceGeneration.Stack, SourceGeneration, SourceGeneration.Core]
         include:
           - framework: 'net10.0'
             dotnet-version: '10.0.x'
@@ -65,9 +63,6 @@ jobs:
       # --blame-hang-timeout terminates the test host if a single test hangs > 10 min
       # and dumps a process dump, instead of letting the runner stall until GHA
       # evicts it. --blame writes a sequence.xml so we know which test was running.
-      # The Conformance suite has individual tests that legitimately take 1-3 min
-      # under load (keep-alive cycles, slow-sampling waits) — keep the timeout
-      # generous enough to absorb those plus a normal test on top.
       run: dotnet test ${{ env.CSPROJECT }} --no-build --framework ${{ matrix.framework }} --logger trx --configuration ${{ matrix.configuration }} /p:CollectCoverage=true /p:CustomTestTarget=${{ matrix.customtesttarget }} --collect:"XPlat Code Coverage" --settings ./Tests/coverlet.runsettings.xml --results-directory ${{ env.TESTRESULTS }} --blame --blame-hang-timeout 10m --blame-hang-dump-type mini
 
     - name: Upload test results
@@ -89,6 +84,95 @@ jobs:
         #path_to_write_report: "./coverage/codecov_report-${{matrix.os}}-${{matrix.framework}}-${{matrix.configuration}}/"
         verbose: true
       # Use always() to always run this step to publish test results when there are test failures
+      if: ${{ always() }}
+
+  build-and-test-conformance:
+    name: test-${{matrix.os}}-Conformance-${{matrix.shard}}
+    runs-on: ${{ matrix.os }}
+    # The conformance test suite has ~3,200 NUnit fixtures. We shard it into
+    # 6 parallel jobs to keep wall-time per shard under ~25 min on the slow
+    # hosted runners (was 50–100 min as a single job). Each shard uses a
+    # --filter that pins to its folders AND excludes the LongRunning
+    # category, which gets its own shard with a more generous budget.
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        # os: [ubuntu-latest, windows-latest, macOS-latest] - disable mac os due to cost
+        os: [ubuntu-latest, windows-latest]
+        shard:
+          - Security
+          - Subscription
+          - InformationModel
+          - AlarmsHistory
+          - Discovery
+          - LongRunning
+        include:
+          - framework: 'net10.0'
+            dotnet-version: '10.0.x'
+            configuration: 'Release'
+            customtesttarget: net10.0
+          - shard: Security
+            filter: '(FullyQualifiedName~Conformance.Tests.Security.|FullyQualifiedName~Conformance.Tests.Auditing.)&TestCategory!=LongRunning'
+          - shard: Subscription
+            filter: '(FullyQualifiedName~Conformance.Tests.SubscriptionServices.|FullyQualifiedName~Conformance.Tests.MonitoredItemServices.)&TestCategory!=LongRunning'
+          - shard: InformationModel
+            filter: '(FullyQualifiedName~Conformance.Tests.InformationModel.|FullyQualifiedName~Conformance.Tests.AddressSpaceModel.|FullyQualifiedName~Conformance.Tests.AttributeServices.|FullyQualifiedName~Conformance.Tests.ViewServices.|FullyQualifiedName~Conformance.Tests.MethodServices.|FullyQualifiedName~Conformance.Tests.NodeManagement.|FullyQualifiedName~Conformance.Tests.AliasName.)&TestCategory!=LongRunning'
+          - shard: AlarmsHistory
+            filter: '(FullyQualifiedName~Conformance.Tests.AlarmsAndConditions.|FullyQualifiedName~Conformance.Tests.HistoricalAccess.|FullyQualifiedName~Conformance.Tests.DataAccess.|FullyQualifiedName~Conformance.Tests.FileSystem.)&TestCategory!=LongRunning'
+          - shard: Discovery
+            filter: '(FullyQualifiedName~Conformance.Tests.Discovery.|FullyQualifiedName~Conformance.Tests.DiscoveryServices.|FullyQualifiedName~Conformance.Tests.GDS.|FullyQualifiedName~Conformance.Tests.SessionServices.|FullyQualifiedName~Conformance.Tests.Miscellaneous.|FullyQualifiedName~Conformance.Tests.Mock.)&TestCategory!=LongRunning'
+          - shard: LongRunning
+            filter: 'TestCategory=LongRunning'
+
+    env:
+      OS: ${{ matrix.os }}
+      DOTNET_VERSION: ${{ matrix.dotnet-version }}
+      CONFIGURATION:  ${{ matrix.configuration }}
+      CSPROJ: Conformance
+      CSPROJECT: "./Tests/Opc.Ua.Conformance.Tests/Opc.Ua.Conformance.Tests.csproj"
+      TESTRESULTS: "TestResults-Conformance-${{matrix.shard}}-${{matrix.os}}-${{matrix.framework}}-${{matrix.configuration}}"
+
+    steps:
+    - uses: actions/checkout@v6
+      with:
+        fetch-depth: 0
+
+    - name: Setup .NET ${{ matrix.dotnet-version }}
+      uses: actions/setup-dotnet@v5
+      with:
+        dotnet-version: ${{ matrix.dotnet-version }}
+
+    - name: Set Cloud Version
+      shell: pwsh
+      run: ./.azurepipelines/set-version.ps1
+
+    - name: Build
+      run: dotnet build ${{ env.CSPROJECT }} --framework ${{ matrix.framework }} --configuration ${{ matrix.configuration }} /p:CustomTestTarget=${{ matrix.customtesttarget }}
+
+    - name: Test
+      # The Conformance suite has individual tests that legitimately take 1-3 min
+      # under load (keep-alive cycles, slow-sampling waits); the LongRunning
+      # shard concentrates those into a separate budget. Keep --blame-hang-timeout
+      # generous enough to absorb a normal test on top.
+      run: dotnet test ${{ env.CSPROJECT }} --no-build --framework ${{ matrix.framework }} --logger trx --configuration ${{ matrix.configuration }} /p:CollectCoverage=true /p:CustomTestTarget=${{ matrix.customtesttarget }} --collect:"XPlat Code Coverage" --settings ./Tests/coverlet.runsettings.xml --results-directory ${{ env.TESTRESULTS }} --filter "${{ matrix.filter }}" --blame --blame-hang-timeout 10m --blame-hang-dump-type mini
+
+    - name: Upload test results
+      uses: actions/upload-artifact@v7
+      with:
+        name: dotnet-results-Conformance-${{matrix.shard}}-${{matrix.os}}-${{matrix.framework}}-${{matrix.configuration}}
+        path: ${{ env.TESTRESULTS }}
+      if: ${{ always() }}
+
+    - name: Upload to Codecov
+      uses: codecov/codecov-action@v6
+      with:
+        name: codecov-umbrella
+        token: ${{ secrets.CODECOV_TOKEN }}
+        directory: ${{ env.TESTRESULTS }}
+        env_vars: CSPROJ,OS,DOTNET_VERSION,CONFIGURATION
+        fail_ci_if_error: false
+        verbose: true
       if: ${{ always() }}
 
   aot-test:

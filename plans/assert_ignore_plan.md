@@ -5,7 +5,7 @@
 
 ## Background
 
-`Tests/Opc.Ua.Client.Conformance.Tests` ports the OPC Foundation Compliance Test Tool
+`Tests/Opc.Ua.Conformance.Tests` ports the OPC Foundation Compliance Test Tool
 (CTT) JavaScript test scripts to NUnit. As tests were initially scaffolded, many were
 left as placeholder stubs that just call `Assert.Ignore(...)`. Some real tests also
 fall back to `Assert.Ignore` when prerequisite features (e.g., shelving state) are not

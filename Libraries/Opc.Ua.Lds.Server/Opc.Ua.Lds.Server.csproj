@@ -12,7 +12,7 @@
   </PropertyGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Opc.Ua.Lds.Server.Tests" />
-    <InternalsVisibleTo Include="Opc.Ua.Client.Conformance.Tests" />
+    <InternalsVisibleTo Include="Opc.Ua.Conformance.Tests" />
   </ItemGroup>
   <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
     <PackageId>$(PackageId).Debug</PackageId>
