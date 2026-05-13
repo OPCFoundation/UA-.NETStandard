@@ -6,14 +6,15 @@ trigger:
   batch: 'true'
   branches:
     include:
-    - '*'
+    - 'master'
+    - 'main'
+    - 'release/*'
   paths:
     include:
     - '*'
     exclude:
-    - 'Docs/*'
-    - 'README.md'
-
+    - 'Docs/**'
+    - '**/*.md'
 pr:
   autoCancel: 'true'
   branches:

@@ -7,12 +7,14 @@ pr: none
 trigger:
   branches:
     include:
-    - master
+    - 'master'
+    - 'main'
   paths:
     include:
-    - 'Stack/'
-    - 'Libraries/'
-    - 'Applications/McpServer/'
+    - 'Stack/**'
+    - 'Libraries/**'
+    - 'Tools/**'
+    - 'Applications/Opc.Ua.*/**'
 
 stages:
 - stage: nugetpreview
