@@ -192,7 +192,7 @@ namespace Opc.Ua.Aot.Tests
             EndpointDescription selectedEndpoint = null;
             foreach (EndpointDescription ep in endpoints)
             {
-                if (ep.SecurityPolicyUri == SecurityPolicies.None)
+                if (ep.SecurityMode == MessageSecurityMode.SignAndEncrypt)
                 {
                     selectedEndpoint = ep;
                     break;

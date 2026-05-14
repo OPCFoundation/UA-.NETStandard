@@ -748,13 +748,13 @@ namespace Opc.Ua.Gds.Tests
             }
         }
 
-        [Test]
         [Order(480)]
         public async Task QueryAllApplicationsAsync()
         {
             AssertIgnoreTestWithoutGoodRegistration();
             await ConnectGDSAsync(false).ConfigureAwait(false);
             // get all applications
+            uint nextRecordId;
             ArrayOf<ApplicationDescription> allApplications = (await m_gdsClient.GDSClient.QueryApplicationsAsync(
                 0,
                 0,
@@ -763,8 +763,34 @@ namespace Opc.Ua.Gds.Tests
                 0,
                 string.Empty,
                 []).ConfigureAwait(false)).applications;
+            int totalCount = 0;
             Assert.That(allApplications.IsNull, Is.False);
-            Assert.That(allApplications.Count, Is.GreaterThan(0));
+            nextRecordId = 0;
+            foreach (ApplicationDescription _ in allApplications.ToList())
+            {
+                (
+                    ArrayOf<ApplicationDescription> oneApplication,
+                    DateTimeUtc _,
+                    nextRecordId
+                ) = await m_gdsClient.GDSClient
+                    .QueryApplicationsAsync(
+                        nextRecordId,
+                        1,
+                        string.Empty,
+                        string.Empty,
+                        0,
+                        string.Empty,
+                        []).ConfigureAwait(false);
+                Assert.That(oneApplication.IsNull, Is.False);
+                Assert.That(oneApplication.Count, Is.GreaterThanOrEqualTo(1));
+                // foreach (ApplicationDescription oneApp in oneApplication)
+                // {
+                //     Assert.AreEqual(oneApp., server.RecordId);
+                // }
+                totalCount++;
+            }
+            Assert.That(totalCount, Is.GreaterThanOrEqualTo(kGoodApplicationsTestCount));
+            Assert.That(allApplications.Count, Is.EqualTo(totalCount));
         }
 
         [Test]
