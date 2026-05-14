@@ -109,6 +109,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
 
         public override NodeId RegisterApplication(ApplicationRecordDataType application)
         {
+            bool isNewEntry = application.ApplicationId.IsNull;
             NodeId appNodeId = base.RegisterApplication(application);
             if (appNodeId.IsNull)
             {
@@ -125,7 +126,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
                     select ii
                 ).Any();
 
-                if (existingApplication && applicationId == Guid.Empty)
+                if (existingApplication && isNewEntry)
                 {
                     throw new ServiceResultException(
                         StatusCodes.BadEntryExists,
