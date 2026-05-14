@@ -73,7 +73,7 @@ namespace System
         /// </summary>
         public static bool Contains(this string target, char value, StringComparison comparisonType)
         {
-            return target.Contains(value);
+            return target.IndexOf(value, comparisonType) >= 0;
         }
 
         /// <summary>
@@ -84,7 +84,7 @@ namespace System
             string value,
             StringComparison comparisonType)
         {
-            return target.Contains(value);
+            return target.IndexOf(value, comparisonType) >= 0;
         }
 
         /// <summary>

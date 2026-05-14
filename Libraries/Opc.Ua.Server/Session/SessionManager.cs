@@ -494,8 +494,7 @@ namespace Opc.Ua.Server
                     if (!m_sessions.TryRemove(current.Key, out session))
 #pragma warning restore CA2000
                     {
-                        // found but already removed by a concurrent caller
-                        System.Diagnostics.Debug.Assert(session == null);
+                        // found but was already removed by another thread
                         return;
                     }
                     break;
