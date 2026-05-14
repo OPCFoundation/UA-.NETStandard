@@ -1,0 +1,77 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:UaLens.Plugins.GdsManagement"
+             x:Class="UaLens.Plugins.GdsManagement.CertGroupView"
+             x:DataType="vm:GdsManagementPlugin">
+  <UserControl.Styles>
+    <Style Selector="TextBlock.h">
+      <Setter Property="FontSize" Value="12" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Foreground" Value="#94A3B8" />
+    </Style>
+    <Style Selector="TextBlock.k">
+      <Setter Property="Foreground" Value="#64748B" />
+      <Setter Property="FontFamily" Value="Cascadia Mono, Consolas, monospace" />
+      <Setter Property="FontSize" Value="11" />
+    </Style>
+    <Style Selector="TextBlock.v">
+      <Setter Property="Foreground" Value="#E2E8F0" />
+      <Setter Property="FontFamily" Value="Cascadia Mono, Consolas, monospace" />
+      <Setter Property="FontSize" Value="11" />
+    </Style>
+  </UserControl.Styles>
+
+  <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+    <ItemsControl ItemsSource="{CompiledBinding CertGroups}">
+      <ItemsControl.ItemTemplate>
+        <DataTemplate DataType="vm:GdsCertGroupVm">
+          <Border BorderBrush="#1E293B" BorderThickness="1" CornerRadius="4"
+                  Background="#0B1220" Padding="8" Margin="4,4,4,8">
+            <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto">
+              <TextBlock Grid.Row="0" Classes="h"
+                         Text="{CompiledBinding DisplayName}" />
+
+              <TextBlock Grid.Row="1" Classes="k" Margin="0,6,0,2"
+                         Text="Trusted certificates" />
+              <ListBox   Grid.Row="2" ItemsSource="{CompiledBinding Trusted}"
+                         Background="#0F172A" Foreground="#E2E8F0"
+                         BorderThickness="0" Height="100">
+                <ListBox.ItemTemplate>
+                  <DataTemplate DataType="vm:GdsAppCertItem">
+                    <Grid ColumnDefinitions="180,*,100">
+                      <TextBlock Grid.Column="0" Classes="v"
+                                 Text="{CompiledBinding Thumbprint}" TextTrimming="CharacterEllipsis" />
+                      <TextBlock Grid.Column="1" Classes="v"
+                                 Text="{CompiledBinding Subject}" TextTrimming="CharacterEllipsis" />
+                      <TextBlock Grid.Column="2" Classes="v"
+                                 Text="{CompiledBinding NotAfter}" />
+                    </Grid>
+                  </DataTemplate>
+                </ListBox.ItemTemplate>
+              </ListBox>
+
+              <TextBlock Grid.Row="3" Classes="k" Margin="0,6,0,2"
+                         Text="Issuer certificates" />
+              <ListBox   Grid.Row="4" ItemsSource="{CompiledBinding Issuers}"
+                         Background="#0F172A" Foreground="#E2E8F0"
+                         BorderThickness="0" Height="80">
+                <ListBox.ItemTemplate>
+                  <DataTemplate DataType="vm:GdsAppCertItem">
+                    <Grid ColumnDefinitions="180,*,100">
+                      <TextBlock Grid.Column="0" Classes="v"
+                                 Text="{CompiledBinding Thumbprint}" TextTrimming="CharacterEllipsis" />
+                      <TextBlock Grid.Column="1" Classes="v"
+                                 Text="{CompiledBinding Subject}" TextTrimming="CharacterEllipsis" />
+                      <TextBlock Grid.Column="2" Classes="v"
+                                 Text="{CompiledBinding NotAfter}" />
+                    </Grid>
+                  </DataTemplate>
+                </ListBox.ItemTemplate>
+              </ListBox>
+            </Grid>
+          </Border>
+        </DataTemplate>
+      </ItemsControl.ItemTemplate>
+    </ItemsControl>
+  </ScrollViewer>
+</UserControl>

@@ -1,0 +1,64 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="UaLens.Plugins.GdsManagement.RegisterApplicationDialog"
+        Title="Register application"
+        Width="640" Height="640"
+        WindowStartupLocation="CenterOwner"
+        Background="#0F172A" Foreground="#E2E8F0">
+  <Window.Styles>
+    <Style Selector="TextBlock.k">
+      <Setter Property="Foreground" Value="#94A3B8" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+    <Style Selector="TextBox">
+      <Setter Property="FontFamily" Value="Cascadia Mono, Consolas, monospace" />
+      <Setter Property="FontSize" Value="12" />
+    </Style>
+  </Window.Styles>
+
+  <Grid Margin="16" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,*,Auto,Auto" ColumnDefinitions="160,*">
+
+    <TextBlock Grid.Row="0" Grid.ColumnSpan="2" Margin="0,0,0,12" TextWrapping="Wrap"
+               Text="Register a new application with the connected Global Discovery Server. Required fields are marked." />
+
+    <TextBlock Grid.Row="1" Grid.Column="0" Classes="k" Text="Application Name *" />
+    <TextBox   Grid.Row="1" Grid.Column="1" x:Name="NameBox" />
+
+    <TextBlock Grid.Row="2" Grid.Column="0" Classes="k" Text="Application URI *" Margin="0,8,0,0" />
+    <TextBox   Grid.Row="2" Grid.Column="1" x:Name="UriBox" Margin="0,8,0,0"
+               Watermark="urn:hostname:product" />
+
+    <TextBlock Grid.Row="3" Grid.Column="0" Classes="k" Text="Product URI *" Margin="0,8,0,0" />
+    <TextBox   Grid.Row="3" Grid.Column="1" x:Name="ProductUriBox" Margin="0,8,0,0"
+               Watermark="urn:vendor:product" />
+
+    <TextBlock Grid.Row="4" Grid.Column="0" Classes="k" Text="Application Type *" Margin="0,8,0,0" />
+    <ComboBox  Grid.Row="4" Grid.Column="1" x:Name="TypeBox" Margin="0,8,0,0" HorizontalAlignment="Stretch">
+      <ComboBoxItem Content="Server" />
+      <ComboBoxItem Content="Client" />
+      <ComboBoxItem Content="ClientAndServer" />
+      <ComboBoxItem Content="DiscoveryServer" />
+    </ComboBox>
+
+    <TextBlock Grid.Row="5" Grid.Column="0" Classes="k" Text="Discovery URLs" Margin="0,8,0,0" VerticalAlignment="Top" />
+    <TextBox   Grid.Row="5" Grid.Column="1" x:Name="DiscoveryBox" Margin="0,8,0,0"
+               AcceptsReturn="True" Height="80"
+               Watermark="One URL per line (e.g. opc.tcp://host:port/...)" />
+
+    <TextBlock Grid.Row="6" Grid.Column="0" Classes="k" Text="Server Capabilities" Margin="0,8,0,0" VerticalAlignment="Top" />
+    <TextBox   Grid.Row="6" Grid.Column="1" x:Name="CapabilitiesBox" Margin="0,8,0,0"
+               AcceptsReturn="True" Height="60"
+               Watermark="Comma- or newline-separated (e.g. DA, HA, LDS)" />
+
+    <!-- Spacer rows 7-9 reserved for future fields -->
+
+    <TextBlock Grid.Row="10" Grid.ColumnSpan="2" x:Name="ErrorLabel"
+               Foreground="#F87171" Margin="0,8,0,0" IsVisible="False" TextWrapping="Wrap" />
+
+    <StackPanel Grid.Row="11" Grid.ColumnSpan="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
+      <Button x:Name="OkButton"     Content="Register" IsDefault="True" Width="120" />
+      <Button x:Name="CancelButton" Content="Cancel"   IsCancel="True"  Width="100" Margin="8,0,0,0" />
+    </StackPanel>
+  </Grid>
+</Window>

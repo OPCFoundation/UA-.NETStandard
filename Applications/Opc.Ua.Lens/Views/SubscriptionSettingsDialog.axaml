@@ -1,0 +1,59 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="UaLens.Views.SubscriptionSettingsDialog"
+        Title="Subscription parameters"
+        Width="560" Height="540"
+        WindowStartupLocation="CenterOwner"
+        Background="#0F172A" Foreground="#E2E8F0">
+  <Grid Margin="16" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,*,Auto" ColumnDefinitions="260,*">
+
+    <!-- ========= Standard protocol settings ========= -->
+    <TextBlock Grid.Row="0" Grid.ColumnSpan="2"
+               Text="OPC UA subscription parameters"
+               FontWeight="SemiBold" FontSize="14"
+               Foreground="#06B6D4" Margin="0,0,0,4" />
+    <Border  Grid.Row="1" Grid.ColumnSpan="2" Height="1" Background="#1E293B" Margin="0,0,0,8" />
+
+    <TextBlock Grid.Row="2" Grid.Column="0" Text="Publishing interval (ms)" VerticalAlignment="Center" />
+    <TextBox   Grid.Row="2" Grid.Column="1" x:Name="PubMs" />
+
+    <TextBlock Grid.Row="3" Grid.Column="0" Text="Keep-alive count" VerticalAlignment="Center" Margin="0,8,0,0" />
+    <TextBox   Grid.Row="3" Grid.Column="1" x:Name="KeepAlive" Margin="0,8,0,0" />
+
+    <TextBlock Grid.Row="4" Grid.Column="0" Text="Lifetime count" VerticalAlignment="Center" Margin="0,8,0,0" />
+    <TextBox   Grid.Row="4" Grid.Column="1" x:Name="Lifetime" Margin="0,8,0,0" />
+
+    <TextBlock Grid.Row="5" Grid.Column="0" Text="Max notifications / publish" VerticalAlignment="Center" Margin="0,8,0,0" />
+    <TextBox   Grid.Row="5" Grid.Column="1" x:Name="MaxNotifs" Margin="0,8,0,0" />
+
+    <TextBlock Grid.Row="6" Grid.Column="0" Text="Priority (0–255)" VerticalAlignment="Center" Margin="0,8,0,0" />
+    <TextBox   Grid.Row="6" Grid.Column="1" x:Name="Priority" Margin="0,8,0,0" />
+
+    <CheckBox  Grid.Row="7" Grid.Column="1" x:Name="PublishingEnabled" Content="Publishing enabled" Margin="0,8,0,0" />
+
+    <!-- ========= Engine pipeline depth (visually separated) ========= -->
+    <TextBlock Grid.Row="8" Grid.ColumnSpan="2"
+               Text="Engine pipeline depth"
+               FontWeight="SemiBold" FontSize="14"
+               Foreground="#F59E0B" Margin="0,18,0,4" />
+    <Border    Grid.Row="9" Grid.ColumnSpan="2" Height="1" Background="#3F3320" Margin="0,0,0,4" />
+
+    <TextBlock Grid.Row="10" Grid.ColumnSpan="2"
+               x:Name="EngineHint"
+               TextWrapping="Wrap"
+               Foreground="#94A3B8" FontSize="11"
+               Margin="0,0,0,8"
+               Text="Drives the publish-request pipeline depth.  In the V2 (channel) engine this is also the size of the publish-worker pool." />
+
+    <TextBlock Grid.Row="11" Grid.Column="0" Text="Min publish workers / requests" VerticalAlignment="Center" Margin="0,2,0,0" />
+    <TextBox   Grid.Row="11" Grid.Column="1" x:Name="MinReq" Margin="0,2,0,0" />
+
+    <TextBlock Grid.Row="12" Grid.Column="0" Text="Max publish workers / requests" VerticalAlignment="Center" Margin="0,8,0,0" />
+    <TextBox   Grid.Row="12" Grid.Column="1" x:Name="MaxReq" Margin="0,8,0,0" />
+
+    <StackPanel Grid.Row="13" Grid.ColumnSpan="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+      <Button x:Name="OkButton"     Content="Apply"  IsDefault="True" Width="90" />
+      <Button x:Name="CancelButton" Content="Cancel" IsCancel="True"  Width="90" Margin="8,0,0,0" />
+    </StackPanel>
+  </Grid>
+</Window>

@@ -1,0 +1,76 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="UaLens.Plugins.GdsPush.CertificateRequestDialog"
+        Title="Request new certificate"
+        Width="720" Height="560"
+        WindowStartupLocation="CenterOwner"
+        Background="#0F172A" Foreground="#E2E8F0">
+  <Window.Styles>
+    <Style Selector="TextBlock.step">
+      <Setter Property="Foreground" Value="#94A3B8" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Margin" Value="0,0,0,8" />
+    </Style>
+    <Style Selector="TextBlock.k">
+      <Setter Property="Foreground" Value="#64748B" />
+      <Setter Property="FontSize" Value="11" />
+    </Style>
+  </Window.Styles>
+
+  <Grid Margin="16" RowDefinitions="Auto,*,Auto,Auto">
+
+    <TextBlock Grid.Row="0" x:Name="StepHeader" Classes="step" FontSize="14"
+               Text="Step 1 of 4: choose certificate group" />
+
+    <!-- Step 1 -->
+    <Grid Grid.Row="1" x:Name="Step1" RowDefinitions="Auto,Auto,Auto,Auto,*">
+      <TextBlock Grid.Row="0" TextWrapping="Wrap" Margin="0,0,0,8"
+                 Text="Pick which server certificate group + type the new certificate replaces. DefaultApplicationGroup is the usual choice for the server's application instance certificate." />
+      <TextBlock Grid.Row="1" Classes="k" Text="Certificate group" />
+      <ComboBox  Grid.Row="2" x:Name="GroupBox" HorizontalAlignment="Stretch" Margin="0,2,0,8" />
+      <TextBlock Grid.Row="3" Classes="k" Text="Certificate type" />
+      <TextBlock Grid.Row="4" x:Name="TypeLabel"
+                 FontFamily="Cascadia Mono, Consolas, monospace" FontSize="11" Margin="0,2,0,0" />
+    </Grid>
+
+    <!-- Step 2 -->
+    <Grid Grid.Row="1" x:Name="Step2" RowDefinitions="Auto,Auto,Auto,Auto,*" IsVisible="False">
+      <TextBlock Grid.Row="0" TextWrapping="Wrap" Margin="0,0,0,8"
+                 Text="Subject name (X.500). Common case: CN=Server, O=Acme. When 'Regenerate private key' is checked, the server creates a fresh keypair; otherwise it reuses the existing private key." />
+      <TextBlock Grid.Row="1" Classes="k" Text="Subject" />
+      <TextBox   Grid.Row="2" x:Name="SubjectBox" Margin="0,2,0,12"
+                 FontFamily="Cascadia Mono, Consolas, monospace" FontSize="12" />
+      <CheckBox  Grid.Row="3" x:Name="RegenKeyBox" Content="Regenerate private key" IsChecked="True" />
+    </Grid>
+
+    <!-- Step 3 -->
+    <Grid Grid.Row="1" x:Name="Step3" RowDefinitions="Auto,*" IsVisible="False">
+      <TextBlock Grid.Row="0" TextWrapping="Wrap" Margin="0,0,0,8"
+                 Text="CSR generated. Copy the PEM block below, sign it with your CA, then paste the resulting certificate (PEM or DER hex) in step 4." />
+      <TextBox   Grid.Row="1" x:Name="CsrBox" IsReadOnly="True" AcceptsReturn="True"
+                 FontFamily="Cascadia Mono, Consolas, monospace" FontSize="11"
+                 Background="#0B1220" Foreground="#E2E8F0" />
+    </Grid>
+
+    <!-- Step 4 -->
+    <Grid Grid.Row="1" x:Name="Step4" RowDefinitions="Auto,*,Auto,Auto" IsVisible="False">
+      <TextBlock Grid.Row="0" TextWrapping="Wrap" Margin="0,0,0,8"
+                 Text="Paste the signed certificate as PEM. Optionally append any issuer (CA) certificates as additional PEM blocks. Update Certificate will push the bundle to the server." />
+      <TextBox   Grid.Row="1" x:Name="SignedBox" AcceptsReturn="True"
+                 FontFamily="Cascadia Mono, Consolas, monospace" FontSize="11"
+                 Background="#0B1220" Foreground="#E2E8F0"
+                 Watermark="-----BEGIN CERTIFICATE-----&#x0A;…&#x0A;-----END CERTIFICATE-----" />
+      <CheckBox  Grid.Row="2" x:Name="CallApplyChangesBox" IsChecked="False" Margin="0,8,0,0"
+                 Content="Also call ApplyChanges() after update (server may drop session)" />
+    </Grid>
+
+    <TextBlock Grid.Row="2" x:Name="ErrorLabel" Foreground="#F87171" Margin="0,8,0,0"
+               IsVisible="False" TextWrapping="Wrap" />
+
+    <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
+      <Button x:Name="BackButton"   Content="Back"     Width="100" />
+      <Button x:Name="NextButton"   Content="Next"     IsDefault="True" Width="120" Margin="8,0,0,0" />
+      <Button x:Name="CancelButton" Content="Cancel"   IsCancel="True"  Width="100" Margin="8,0,0,0" />
+    </StackPanel>
+  </Grid>
+</Window>

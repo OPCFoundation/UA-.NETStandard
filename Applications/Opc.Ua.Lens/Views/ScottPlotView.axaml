@@ -1,0 +1,8 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ScottPlot="clr-namespace:ScottPlot.Avalonia;assembly=ScottPlot.Avalonia"
+             x:Class="UaLens.Views.ScottPlotView">
+  <Border Background="#0F172A" BorderBrush="#1E293B" BorderThickness="0" CornerRadius="0">
+    <ScottPlot:AvaPlot x:Name="Plot" />
+  </Border>
+</UserControl>

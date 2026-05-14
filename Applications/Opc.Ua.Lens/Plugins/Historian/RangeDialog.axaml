@@ -1,0 +1,25 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:v="using:UaLens.Views"
+        x:Class="UaLens.Plugins.Historian.RangeDialog"
+        Title="Pick time range"
+        Width="540" Height="240"
+        WindowStartupLocation="CenterOwner"
+        Background="#0F172A" Foreground="#E2E8F0">
+  <Grid Margin="16" RowDefinitions="Auto,Auto,Auto,*,Auto">
+    <TextBlock Grid.Row="0" Margin="0,0,0,12" TextWrapping="Wrap"
+               Text="Pick Start and End (UTC).  End defaults to now." />
+    <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="6" Margin="0,4,0,4">
+      <TextBlock Text="Start (UTC):" VerticalAlignment="Center" Width="100" />
+      <v:UtcDateTimePicker x:Name="StartPicker" />
+    </StackPanel>
+    <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="6" Margin="0,4,0,4">
+      <TextBlock Text="End (UTC):" VerticalAlignment="Center" Width="100" />
+      <v:UtcDateTimePicker x:Name="EndPicker" />
+    </StackPanel>
+    <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
+      <Button x:Name="OkButton"     Content="OK"     IsDefault="True" Width="100" />
+      <Button x:Name="CancelButton" Content="Cancel" IsCancel="True"  Width="100" Margin="8,0,0,0" />
+    </StackPanel>
+  </Grid>
+</Window>

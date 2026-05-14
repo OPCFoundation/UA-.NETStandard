@@ -1,0 +1,158 @@
+/* ========================================================================
+ * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+ * OPC Foundation MIT License 1.00
+ * ======================================================================*/
+
+using System;
+using System.Collections.Generic;
+using System.Collections.Specialized;
+using System.ComponentModel;
+using Avalonia.Controls;
+using Avalonia.Markup.Xaml;
+using Avalonia.Threading;
+using ScottPlot;
+using ScottPlot.Avalonia;
+using ScottPlot.Plottables;
+
+namespace UaLens.Plugins.Historian;
+
+/// <summary>
+/// Avalonia view for the Historian tab.  Owns one <see cref="AvaPlot"/>
+/// that renders the numeric subset of <see cref="HistorianPlugin.Rows"/>
+/// as a line chart and refreshes whenever the bound collection changes.
+/// All MVVM data flows through compiled bindings declared in the XAML.
+/// </summary>
+internal sealed partial class HistorianView : UserControl
+{
+    private AvaPlot? m_plot;
+    private Scatter? m_scatter;
+    private HistorianPlugin? m_vm;
+
+    private static readonly Color s_text = Color.FromHex("#E2E8F0");
+    private static readonly Color s_dim = Color.FromHex("#94A3B8");
+    private static readonly Color s_grid = Color.FromHex("#1E293B");
+    private static readonly Color s_figBg = Color.FromHex("#0F172A");
+    private static readonly Color s_dataBg = Color.FromHex("#0B1220");
+    private static readonly Color s_line = Color.FromHex("#0EA5E9");
+
+    public HistorianView()
+    {
+        InitializeComponent();
+    }
+
+    private void InitializeComponent()
+    {
+        AvaloniaXamlLoader.Load(this);
+        m_plot = this.FindControl<AvaPlot>("HistoryPlot");
+        ConfigurePlot();
+        DataContextChanged += OnDataContextChanged;
+    }
+
+    private void OnDataContextChanged(object? sender, EventArgs e)
+    {
+        DetachVm();
+        AttachVm(DataContext as HistorianPlugin);
+    }
+
+    protected override void OnAttachedToVisualTree(Avalonia.VisualTreeAttachmentEventArgs e)
+    {
+        base.OnAttachedToVisualTree(e);
+        AttachVm(DataContext as HistorianPlugin);
+    }
+
+    protected override void OnDetachedFromVisualTree(Avalonia.VisualTreeAttachmentEventArgs e)
+    {
+        DetachVm();
+        base.OnDetachedFromVisualTree(e);
+    }
+
+    private void AttachVm(HistorianPlugin? vm)
+    {
+        if (vm is null || ReferenceEquals(vm, m_vm))
+        {
+            return;
+        }
+
+        m_vm = vm;
+        vm.Rows.CollectionChanged += OnRowsChanged;
+        RefreshPlot();
+    }
+
+    private void DetachVm()
+    {
+        if (m_vm is null)
+        {
+            return;
+        }
+
+        m_vm.Rows.CollectionChanged -= OnRowsChanged;
+        m_vm = null;
+    }
+
+    private void OnRowsChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        Dispatcher.UIThread.Post(RefreshPlot, DispatcherPriority.Background);
+    }
+
+    private void ConfigurePlot()
+    {
+        if (m_plot is null)
+        {
+            return;
+        }
+
+        Plot plot = m_plot.Plot;
+        plot.FigureBackground.Color = s_figBg;
+        plot.DataBackground.Color = s_dataBg;
+        plot.Axes.Color(s_dim);
+        foreach (ScottPlot.IAxis a in plot.Axes.GetAxes())
+        {
+            a.MajorTickStyle.Color = s_dim;
+            a.MinorTickStyle.Color = s_dim;
+            a.FrameLineStyle.Color = s_grid;
+            a.Label.ForeColor = s_text;
+            a.TickLabelStyle.ForeColor = s_text;
+        }
+        plot.Grid.MajorLineColor = s_grid;
+        plot.Axes.DateTimeTicksBottom();
+        m_plot.Refresh();
+    }
+
+    private void RefreshPlot()
+    {
+        if (m_plot is null || m_vm is null)
+        {
+            return;
+        }
+
+        Plot plot = m_plot.Plot;
+        plot.Clear();
+        m_scatter = null;
+
+        var xs = new List<double>();
+        var ys = new List<double>();
+        foreach (HistoryRow r in m_vm.Rows)
+        {
+            if (!r.IsNumeric)
+            {
+                continue;
+            }
+
+            xs.Add(r.SourceTimestamp.ToOADate());
+            ys.Add(r.Numeric);
+        }
+        if (xs.Count == 0)
+        {
+            m_plot.Refresh();
+            return;
+        }
+        double[] x = xs.ToArray();
+        double[] y = ys.ToArray();
+        m_scatter = plot.Add.Scatter(x, y);
+        m_scatter.Color = s_line;
+        m_scatter.LineWidth = 1.5f;
+        m_scatter.MarkerSize = 4;
+        plot.Axes.AutoScale();
+        m_plot.Refresh();
+    }
+}

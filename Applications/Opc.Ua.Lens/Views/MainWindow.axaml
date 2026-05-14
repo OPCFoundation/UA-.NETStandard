@@ -1,0 +1,372 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:v="using:UaLens.Views"
+        xmlns:vm="using:UaLens.ViewModels"
+        x:Class="UaLens.Views.MainWindow"
+        x:DataType="vm:MainViewModel"
+        Title="UaLens — OPC UA Lens"
+        Icon="avares://UaLens/Assets/app-icon.png"
+        Width="1400" Height="900"
+        MinWidth="980" MinHeight="640"
+        Background="#0F172A" Foreground="#E2E8F0"
+        FontFamily="Inter, Segoe UI, sans-serif">
+  <Window.Styles>
+    <Style Selector="Border.panel">
+      <Setter Property="BorderBrush" Value="#1E293B" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="6" />
+      <Setter Property="Padding" Value="10" />
+      <Setter Property="Background" Value="#0B1220" />
+    </Style>
+    <Style Selector="TextBlock.h">
+      <Setter Property="FontSize" Value="13" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Foreground" Value="#94A3B8" />
+      <Setter Property="Margin" Value="0,0,0,6" />
+    </Style>
+    <Style Selector="TextBlock.status">
+      <Setter Property="Foreground" Value="#22C55E" />
+      <Setter Property="FontFamily" Value="Cascadia Mono, Consolas, monospace" />
+      <Setter Property="FontSize" Value="12" />
+    </Style>
+    <Style Selector="TextBlock.statusDim">
+      <Setter Property="Foreground" Value="#64748B" />
+      <Setter Property="FontFamily" Value="Cascadia Mono, Consolas, monospace" />
+      <Setter Property="FontSize" Value="11" />
+    </Style>
+    <Style Selector="Button.tonal">
+      <Setter Property="Background" Value="#1E293B" />
+      <Setter Property="Foreground" Value="#E2E8F0" />
+      <Setter Property="Padding" Value="12,6" />
+      <Setter Property="MinWidth" Value="100" />
+    </Style>
+    <Style Selector="Button.primary">
+      <Setter Property="Background" Value="#0EA5E9" />
+      <Setter Property="Foreground" Value="#0F172A" />
+      <Setter Property="Padding" Value="12,6" />
+      <Setter Property="MinWidth" Value="120" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+    <!-- Compact lists: drop the default tall padding so log + monitored items
+         render line-by-line without the visual blank gap between rows. -->
+    <Style Selector="ListBoxItem.compact">
+      <Setter Property="Padding" Value="4,0" />
+      <Setter Property="MinHeight" Value="14" />
+    </Style>
+  </Window.Styles>
+
+  <DockPanel LastChildFill="True">
+
+    <!-- ========= MENU BAR + connection indicator ========= -->
+    <DockPanel DockPanel.Dock="Top" Background="#0B1220">
+      <Border DockPanel.Dock="Right" Margin="0,0,8,0"
+              ToolTip.Tip="Connection state (green=connected, amber=keep-alive lost, gray=disconnected)">
+        <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+          <Ellipse x:Name="ConnectionDot" Width="10" Height="10" Fill="#64748B" />
+          <TextBlock x:Name="ConnectionDotLabel" VerticalAlignment="Center"
+                     FontFamily="Cascadia Mono, Consolas, monospace" FontSize="11"
+                     Foreground="#94A3B8" Text="disconnected" />
+        </StackPanel>
+      </Border>
+      <Menu Background="#0B1220">
+      <MenuItem Header="_File">
+        <MenuItem x:Name="MenuLoadSession" Header="_Load Session..."     InputGesture="Ctrl+O" />
+        <MenuItem x:Name="MenuSaveSession" Header="_Save Session..."     InputGesture="Ctrl+S" />
+        <Separator />
+        <MenuItem x:Name="MenuExport"      Header="_Export NodeSet2..."  InputGesture="Ctrl+E" />
+        <MenuItem x:Name="MenuExportTab"   Header="Export _Plugin Data..." InputGesture="Ctrl+Shift+E" />
+        <Separator />
+        <MenuItem x:Name="MenuQuit"        Header="_Quit"                InputGesture="Ctrl+Q" />
+      </MenuItem>
+      <MenuItem Header="_Certificates">
+        <MenuItem x:Name="MenuCertificates" Header="_Manage..."          InputGesture="Ctrl+K" />
+      </MenuItem>
+      <MenuItem Header="_Tabs">
+        <MenuItem Header="_Add…">
+          <MenuItem x:Name="MenuNewSubscription"   Header="⚡  _Subscription"    InputGesture="Ctrl+T" />
+          <MenuItem x:Name="MenuNewGdsPush"        Header="🛡  GDS _Push" />
+          <MenuItem x:Name="MenuNewGdsManagement"  Header="🏛  GDS _Management" />
+          <MenuItem x:Name="MenuNewPerformance"    Header="📊  Per_formance" />
+          <MenuItem x:Name="MenuNewEventView"      Header="🔔  _Event View" />
+          <MenuItem x:Name="MenuNewHistorian"      Header="📈  _Historian" />
+          <MenuItem x:Name="MenuNewFileSystem"     Header="📁  _File System" />
+        </MenuItem>
+        <Separator />
+        <MenuItem x:Name="MenuRenameTab"   Header="_Rename Active Tab"    InputGesture="F2" />
+        <MenuItem x:Name="MenuCloseTab"     Header="_Close Active Tab"     InputGesture="Ctrl+W" />
+      </MenuItem>
+      <MenuItem x:Name="MenuSubscription" Header="Subscri_ption"
+                IsVisible="{CompiledBinding IsSubscriptionTabActive}">
+        <MenuItem x:Name="MenuAddItemMenu"  Header="_Add Item..."          InputGesture="Ctrl+I" />
+        <MenuItem x:Name="MenuAddRecursive" Header="Add _Recursively..."  InputGesture="Ctrl+Shift+I" />
+        <MenuItem x:Name="MenuRemoveItem"   Header="_Remove Item..."       InputGesture="Ctrl+Shift+R" />
+        <MenuItem x:Name="MenuSettings"     Header="_Settings..."          InputGesture="Ctrl+OemComma" />
+      </MenuItem>
+      <MenuItem x:Name="DynamicKindMenuAnchor" Header="(kind menus injected here)" IsVisible="False" />
+      <MenuItem Header="_View">
+        <MenuItem x:Name="MenuToggleDiag"         Header="_Diagnostics" ToggleType="CheckBox" InputGesture="F2" />
+        <MenuItem x:Name="MenuToggleLog"          Header="_Log"         ToggleType="CheckBox" InputGesture="Ctrl+L" />
+        <Separator />
+        <MenuItem Header="_Address Space">
+          <MenuItem x:Name="MenuToggleAddressSpace" Header="_Show Address Space" ToggleType="CheckBox" IsChecked="True" InputGesture="Ctrl+B" />
+          <MenuItem x:Name="MenuToggleAttrs"        Header="A_ttributes"         ToggleType="CheckBox" InputGesture="Ctrl+A" />
+          <MenuItem x:Name="MenuToggleRefs"         Header="_References"         ToggleType="CheckBox" InputGesture="Ctrl+R" />
+        </MenuItem>
+      </MenuItem>
+      <MenuItem Header="_Help">
+        <MenuItem x:Name="MenuAbout" Header="_Cheat sheet" InputGesture="F1" />
+      </MenuItem>
+      </Menu>
+    </DockPanel>
+
+    <!-- ========= LOG (collapsed by default) ========= -->
+    <Border DockPanel.Dock="Bottom" x:Name="LogPanel" Classes="panel"
+            Margin="10,8,10,10" Height="180" IsVisible="False">
+      <Grid RowDefinitions="Auto,*">
+        <TextBlock Grid.Row="0" Classes="h" Text="≡ Log" />
+        <ListBox Grid.Row="1" x:Name="LogList" ItemsSource="{CompiledBinding LogLines}"
+                 Background="#0B1220" Foreground="#CBD5E1"
+                 FontFamily="Cascadia Mono, Consolas, monospace" FontSize="11" BorderThickness="0">
+          <ListBox.ItemContainerTheme>
+            <ControlTheme TargetType="ListBoxItem" BasedOn="{StaticResource {x:Type ListBoxItem}}">
+              <Setter Property="Padding"   Value="6,0" />
+              <Setter Property="MinHeight" Value="14" />
+            </ControlTheme>
+          </ListBox.ItemContainerTheme>
+        </ListBox>
+      </Grid>
+    </Border>
+
+    <!-- ========= RESOURCE STATUS PANE (CPU + Mem) ========= -->
+    <Border DockPanel.Dock="Bottom" Margin="10,4,10,10" Padding="8,2"
+            BorderBrush="#1E293B" BorderThickness="1" CornerRadius="4" Background="#0B1220">
+      <DockPanel>
+        <TextBlock VerticalAlignment="Center" Foreground="#64748B" FontSize="11">📊 process</TextBlock>
+        <TextBlock HorizontalAlignment="Right" DockPanel.Dock="Right"
+                   Foreground="#94A3B8"
+                   FontFamily="Cascadia Mono, Consolas, monospace"
+                   FontSize="11"
+                   Text="{CompiledBinding ResourceStatus}" />
+      </DockPanel>
+    </Border>
+
+    <!-- ========= TAB STATUS BAR (subscription counters) ========= -->
+    <Border DockPanel.Dock="Bottom" Margin="10,4,10,0" Padding="8,2"
+            BorderBrush="#1E293B" BorderThickness="1" CornerRadius="4" Background="#0B1220">
+      <DockPanel>
+        <TextBlock VerticalAlignment="Center" Foreground="#64748B" FontSize="11">📡 subscription</TextBlock>
+        <TextBlock HorizontalAlignment="Right" DockPanel.Dock="Right"
+                   x:Name="TabStatusLabel"
+                   Foreground="#94A3B8"
+                   FontFamily="Cascadia Mono, Consolas, monospace"
+                   FontSize="11"
+                   Text="—" />
+      </DockPanel>
+    </Border>
+
+    <!-- ========= DIAGNOSTICS PANEL (docked right, hidden by default) ========= -->
+    <v:DiagnosticsView DockPanel.Dock="Right" x:Name="DiagnosticsPanel" IsVisible="False" />
+
+    <!-- ========= MAIN BODY: address space ⇿ right column (resizable) ========= -->
+    <Grid x:Name="MainBody" Margin="10,8,10,0" ClipToBounds="True">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="360" />
+        <ColumnDefinition Width="4" />
+        <ColumnDefinition Width="*" />
+      </Grid.ColumnDefinitions>
+
+      <!-- LEFT: address-space tree + attributes + references (stacked, dynamically sized) -->
+      <Border Grid.Column="0" Classes="panel" Margin="0,0,0,0">
+        <Grid x:Name="LeftStackGrid" MinHeight="320">
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="4" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="4" />
+            <RowDefinition Height="*" />
+          </Grid.RowDefinitions>
+          <DockPanel Grid.Row="0">
+            <Button x:Name="RefreshAddressSpaceBtn" Classes="tonal"
+                    DockPanel.Dock="Right" Content="↻"
+                    ToolTip.Tip="Refresh address space"
+                    Padding="2,0"
+                    MinWidth="0"
+                    VerticalAlignment="Center" />
+            <TextBlock Classes="h" Text="Address space" VerticalAlignment="Center" />
+          </DockPanel>
+          <v:AddressSpaceView Grid.Row="1" x:Name="LiveTree" DataContext="{CompiledBinding Browser}" />
+          <GridSplitter Grid.Row="2"
+                        Height="4"
+                        HorizontalAlignment="Stretch"
+                        VerticalAlignment="Center"
+                        Background="#1E293B"
+                        IsVisible="{CompiledBinding ShowAttributes}" />
+          <ContentControl Grid.Row="3"
+                          x:Name="AttrsPanel"
+                          IsVisible="{CompiledBinding ShowAttributes}">
+            <v:NodeAttributesView DataContext="{CompiledBinding Attributes}" />
+          </ContentControl>
+          <GridSplitter Grid.Row="4"
+                        Height="4"
+                        HorizontalAlignment="Stretch"
+                        VerticalAlignment="Center"
+                        Background="#1E293B"
+                        IsVisible="{CompiledBinding ShowReferences}" />
+          <ContentControl Grid.Row="5"
+                          x:Name="RefsPanel"
+                          IsVisible="{CompiledBinding ShowReferences}">
+            <v:ReferencesView DataContext="{CompiledBinding References}" />
+          </ContentControl>
+        </Grid>
+      </Border>
+
+      <!-- VERTICAL splitter between address-space column and right column -->
+      <GridSplitter Grid.Column="1"
+                    Width="4"
+                    Margin="2,0,2,0"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Stretch"
+                    Background="#1E293B" />
+
+      <!-- RIGHT: Connection on top, Subscription below -->
+      <Grid Grid.Column="2" RowDefinitions="Auto,*">
+        <Border Grid.Row="0" Classes="panel" Margin="0,0,0,8">
+          <Grid RowDefinitions="Auto,Auto,Auto" ColumnDefinitions="Auto,*,Auto,Auto">
+            <TextBlock Grid.Row="0" Grid.ColumnSpan="4" Classes="h" Text="🔌 Connection" />
+            <TextBlock Grid.Row="1" Grid.Column="0" Text="Endpoint" VerticalAlignment="Center" Margin="0,0,8,0" />
+            <TextBox   Grid.Row="1" Grid.Column="1" x:Name="EndpointBox" Text="{CompiledBinding EndpointUrl, Mode=TwoWay}" />
+            <Button    Grid.Row="1" Grid.Column="2" x:Name="ConnectButton"      Classes="primary" Content="⏻ Connect"
+                       IsVisible="{CompiledBinding !IsConnected}" Margin="8,0,0,0" />
+            <Button    Grid.Row="1" Grid.Column="2" x:Name="ChangeButton"       Classes="primary" Content="Change ▾"
+                       IsVisible="{CompiledBinding IsConnected}" Margin="8,0,0,0">
+              <Button.Flyout>
+                <MenuFlyout>
+                  <MenuItem x:Name="MenuConnectionDisconnect" Header="Disconnect" />
+                  <MenuItem x:Name="MenuConnectionChangeUser" Header="Change User…" />
+                  <MenuItem x:Name="MenuConnectionReconnect" Header="Reconnect" />
+                </MenuFlyout>
+              </Button.Flyout>
+            </Button>
+            <Button    Grid.Row="1" Grid.Column="3" x:Name="ToggleEngineButton" Classes="tonal"   Content="{CompiledBinding EngineButtonText}" Margin="8,0,0,0" />
+            <TextBlock Grid.Row="2" Grid.ColumnSpan="4" Margin="0,8,0,0" Classes="status" Text="{CompiledBinding ConnectionStatus}" />
+          </Grid>
+        </Border>
+        <Border Grid.Row="1" Classes="panel" ClipToBounds="True">
+          <Grid RowDefinitions="Auto,*,Auto">
+            <ListBox Grid.Row="0" x:Name="TabStrip" Margin="0,0,0,0"
+                     ItemsSource="{CompiledBinding Tabs}"
+                     SelectedItem="{CompiledBinding SelectedTab, Mode=TwoWay}"
+                     Background="Transparent" BorderThickness="0">
+              <ListBox.ItemsPanel>
+                <ItemsPanelTemplate>
+                  <StackPanel Orientation="Horizontal" />
+                </ItemsPanelTemplate>
+              </ListBox.ItemsPanel>
+              <ListBox.ItemContainerTheme>
+                <ControlTheme TargetType="ListBoxItem" BasedOn="{StaticResource {x:Type ListBoxItem}}">
+                  <Setter Property="Padding"   Value="8,4" />
+                  <Setter Property="Margin"    Value="0,0,4,0" />
+                  <Setter Property="MinHeight" Value="22" />
+                </ControlTheme>
+              </ListBox.ItemContainerTheme>
+              <ListBox.ItemTemplate>
+                <DataTemplate x:DataType="vm:IPlugin">
+                  <StackPanel Orientation="Horizontal" Spacing="6">
+                    <StackPanel.ContextMenu>
+                      <ContextMenu>
+                        <MenuItem x:Name="TabMenuRename"    Header="_Rename..." />
+                        <MenuItem x:Name="TabMenuDuplicate" Header="_Duplicate" />
+                        <Separator />
+                        <MenuItem x:Name="TabMenuClose"     Header="_Close" />
+                      </ContextMenu>
+                    </StackPanel.ContextMenu>
+                    <TextBlock Text="{CompiledBinding Title}"
+                               VerticalAlignment="Center"
+                               IsVisible="{CompiledBinding !IsRenaming}"
+                               x:Name="TabTitleText" />
+                    <TextBox   Text="{CompiledBinding Title, Mode=TwoWay}"
+                               VerticalAlignment="Center"
+                               MinWidth="80"
+                               Padding="2,0"
+                               IsVisible="{CompiledBinding IsRenaming}"
+                               x:Name="TabTitleEdit" />
+                    <Button x:Name="CloseTabButton" Content="×" Width="20" Padding="0" VerticalAlignment="Center"
+                            Background="Transparent" BorderThickness="0" Tag="{CompiledBinding}" />
+                  </StackPanel>
+                </DataTemplate>
+              </ListBox.ItemTemplate>
+            </ListBox>
+            <Border Grid.Row="1" BorderBrush="#1E293B" BorderThickness="1" CornerRadius="4" Background="#121A2C" Margin="0,4,0,0">
+              <!-- Whole tab body is disabled while disconnected so users see
+                   the tab strip but can't interact with the active plugin. -->
+              <Grid IsEnabled="{CompiledBinding IsConnected}">
+                <!-- Subscription chart panel — visible only when a Subscription tab is active. -->
+                <Grid IsVisible="{CompiledBinding IsSubscriptionTabActive}"
+                      RowDefinitions="Auto,*">
+                  <!-- Toolbar moved here from above the tab strip so the
+                       subscription-specific buttons live INSIDE the tab. -->
+                  <Border Grid.Row="0" Background="#0B1220" Padding="8,6"
+                          BorderBrush="#1E293B" BorderThickness="0,0,0,1">
+                    <ScrollViewer HorizontalScrollBarVisibility="Auto"
+                                  VerticalScrollBarVisibility="Disabled"
+                                  BorderThickness="0">
+                      <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+                        <CheckBox x:Name="ResourceOverlayCheck"
+                                  VerticalAlignment="Center"
+                                  Content="CPU/Mem" />
+                        <TextBlock VerticalAlignment="Center" Margin="6,0,4,0" Foreground="#94A3B8" Text="View:" />
+                        <ComboBox x:Name="ViewModeCombo" MinWidth="110" SelectedIndex="0"
+                                  VerticalAlignment="Center" VerticalContentAlignment="Center"
+                                  MinHeight="28">
+                          <ComboBoxItem Content="Dots" />
+                          <ComboBoxItem Content="Bars" />
+                          <ComboBoxItem Content="Lines" />
+                          <ComboBoxItem Content="Signal" />
+                          <ComboBoxItem Content="Histogram" />
+                          <ComboBoxItem Content="Heatmap" />
+                        </ComboBox>
+                        <Button x:Name="TimeScaleDownBtn" Classes="tonal" Content="−" Width="30" Margin="12,0,0,0"
+                                VerticalAlignment="Center" />
+                        <TextBlock x:Name="TimeScaleLabel" VerticalAlignment="Center"
+                                   HorizontalAlignment="Center" Width="40"
+                                   TextAlignment="Center"
+                                   Foreground="#94A3B8"
+                                   FontFamily="Cascadia Mono, Consolas, monospace" Text="1.0×" />
+                        <Button x:Name="TimeScaleUpBtn"   Classes="tonal" Content="+" Width="30"
+                                VerticalAlignment="Center" />
+                        <Button x:Name="AddItemButton"    Classes="primary" Content="✚ Add" Width="100"
+                                Margin="12,0,0,0"
+                                IsEnabled="{CompiledBinding CanAddSelectedItem}"
+                                VerticalAlignment="Center" />
+                        <Button x:Name="RemoveItemButton" Classes="tonal"   Content="✗ Remove" Width="100"
+                                VerticalAlignment="Center" />
+                        <Button x:Name="SettingsButton"   Classes="tonal"   Content="⚙ Settings" Width="100"
+                                VerticalAlignment="Center" />
+                      </StackPanel>
+                    </ScrollViewer>
+                  </Border>
+                  <Grid Grid.Row="1">
+                    <v:AnimationCanvas x:Name="Animation" />
+                    <v:ScottPlotView   x:Name="ScottPlot" IsVisible="False" />
+                  </Grid>
+                </Grid>
+                <!-- Generic per-app view for non-Subscription tabs. -->
+                <ContentControl Content="{CompiledBinding SelectedTab.View}"
+                                IsVisible="{CompiledBinding IsCustomTabActive}" />
+                <!-- Disconnected-overlay: friendly hint while the user has
+                     no active session.  Sits on top of the disabled body. -->
+                <TextBlock IsVisible="{CompiledBinding !IsConnected}"
+                           HorizontalAlignment="Center" VerticalAlignment="Center"
+                           Foreground="#94A3B8" FontSize="14"
+                           Text="Connect to a server to activate this tab." />
+              </Grid>
+            </Border>
+            <TextBlock Grid.Row="2" Margin="0,6,0,0" Classes="status"
+                       Text="{CompiledBinding SelectedTab.Status, FallbackValue='● No tab'}" />
+          </Grid>
+        </Border>
+      </Grid>
+    </Grid>
+  </DockPanel>
+</Window>

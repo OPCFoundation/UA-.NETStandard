@@ -71,15 +71,15 @@ After installation, the `opcua-mcp` command is available globally.
 ### Option 2: Run from source
 
 ```bash
-cd Applications/McpServer
+cd Applications/Opc.Ua.Mcp
 dotnet run -c Release
 ```
 
 ### Option 3: Install from local build
 
 ```bash
-dotnet pack Applications/McpServer/Opc.Ua.Mcp.csproj -c Release
-dotnet tool install --global --add-source Applications/McpServer/bin/Release OPCFoundation.NetStandard.Opc.Ua.Mcp
+dotnet pack Applications/Opc.Ua.Mcp/Opc.Ua.Mcp.csproj -c Release
+dotnet tool install --global --add-source Applications/Opc.Ua.Mcp/bin/Release OPCFoundation.NetStandard.Opc.Ua.Mcp
 ```
 
 ## Configuration
@@ -309,11 +309,11 @@ This is normal behavior — not all servers support all services. Common status 
 ## Architecture
 
 ```
-Applications/McpServer/
-├── McpServer.csproj                     # .NET 10 project, packaged as dotnet tool
+Applications/Opc.Ua.Mcp/
+├── Opc.Ua.Mcp.csproj                    # .NET 10 project, packaged as dotnet tool
 ├── Program.cs                           # Entry point, stdio + HTTP/SSE transport
 ├── OpcUaSessionManager.cs               # OPC UA client session lifecycle
-├── McpServer.Config.xml                 # OPC UA client application config
+├── Opc.Ua.Mcp.Config.xml                # OPC UA client application config
 ├── .mcp/server.json                     # MCP server manifest for NuGet discovery
 ├── Tools/
 │   ├── ConnectionTools.cs               # GetEndpoints, Connect, Disconnect, GetConnectionStatus

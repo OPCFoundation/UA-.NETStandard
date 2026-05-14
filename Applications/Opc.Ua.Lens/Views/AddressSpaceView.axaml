@@ -1,0 +1,45 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:UaLens.ViewModels"
+             x:Class="UaLens.Views.AddressSpaceView"
+             x:DataType="vm:BrowserViewModel">
+  <Border BorderBrush="#1E293B" BorderThickness="1" CornerRadius="4" Padding="0">
+    <Grid RowDefinitions="Auto,*">
+      <TextBox Grid.Row="0" x:Name="SearchBox" Margin="4,4,4,2"
+               Watermark="Search BrowseName / NodeId (Enter, F3 next)"
+               FontFamily="Cascadia Mono, Consolas, monospace" />
+      <TreeView Grid.Row="1" x:Name="Tree"
+                ItemsSource="{CompiledBinding Roots}"
+                Background="#0F172A"
+                Foreground="#E2E8F0"
+                BorderThickness="0">
+        <TreeView.ContextMenu>
+          <ContextMenu x:Name="NodeMenu">
+            <MenuItem x:Name="MenuAddItem"   Header="Add Item…" />
+            <MenuItem x:Name="MenuAddRecursive" Header="Add Recursively…" />
+            <MenuItem x:Name="MenuCallMethod" Header="Call Method…" />
+            <MenuItem x:Name="MenuWriteValue" Header="Write Value…" />
+            <MenuItem x:Name="MenuReadHistory" Header="Read history…" />
+            <MenuItem x:Name="MenuShowEvents" Header="Show Events…" />
+            <MenuItem x:Name="MenuPerf" Header="Perf…" />
+            <MenuItem x:Name="MenuExportValue" Header="Export value to file…" />
+          </ContextMenu>
+        </TreeView.ContextMenu>
+        <TreeView.ItemTemplate>
+          <TreeDataTemplate DataType="vm:NodeViewModel" ItemsSource="{CompiledBinding Children}">
+            <TextBlock Text="{CompiledBinding Text}" />
+          </TreeDataTemplate>
+        </TreeView.ItemTemplate>
+        <TreeView.Styles>
+          <Style Selector="TreeViewItem" x:DataType="vm:NodeViewModel">
+            <Setter Property="IsExpanded" Value="{CompiledBinding IsExpanded, Mode=TwoWay}" />
+            <Setter Property="Padding" Value="4,2" />
+          </Style>
+        </TreeView.Styles>
+      </TreeView>
+    </Grid>
+  </Border>
+</UserControl>
+
+
+

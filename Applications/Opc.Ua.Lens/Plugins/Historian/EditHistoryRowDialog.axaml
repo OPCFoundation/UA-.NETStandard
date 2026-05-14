@@ -1,0 +1,38 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="UaLens.Plugins.Historian.EditHistoryRowDialog"
+        Title="Edit history row"
+        Width="560" Height="320"
+        WindowStartupLocation="CenterOwner"
+        Background="#0F172A" Foreground="#E2E8F0">
+  <Grid Margin="16" RowDefinitions="Auto,Auto,Auto,Auto,Auto,*,Auto" ColumnDefinitions="180,*">
+    <TextBlock Grid.Row="0" Grid.ColumnSpan="2"
+               Margin="0,0,0,12"
+               TextWrapping="Wrap"
+               Text="Edit the value + status for the selected history row. Action selects the HistoryUpdate variant per OPC UA Part 11 §6.8." />
+
+    <TextBlock Grid.Row="1" Grid.Column="0" Text="NodeId" VerticalAlignment="Center" />
+    <TextBlock Grid.Row="1" Grid.Column="1" x:Name="NodeIdLabel"
+               FontFamily="Cascadia Mono, Consolas, monospace"
+               TextWrapping="Wrap" />
+
+    <TextBlock Grid.Row="2" Grid.Column="0" Text="Timestamp (UTC)" VerticalAlignment="Center" Margin="0,8,0,0" />
+    <TextBlock Grid.Row="2" Grid.Column="1" x:Name="TimestampLabel"
+               FontFamily="Cascadia Mono, Consolas, monospace" Margin="0,8,0,0" />
+
+    <TextBlock Grid.Row="3" Grid.Column="0" Text="Action" VerticalAlignment="Center" Margin="0,8,0,0" />
+    <ComboBox  Grid.Row="3" Grid.Column="1" x:Name="ActionCombo" Margin="0,8,0,0" Width="240" HorizontalAlignment="Left" />
+
+    <TextBlock Grid.Row="4" Grid.Column="0" Text="Value (as double)" VerticalAlignment="Top" Margin="0,12,0,0" />
+    <TextBox   Grid.Row="4" Grid.Column="1" x:Name="ValueText" Margin="0,12,0,0" />
+
+    <TextBlock Grid.Row="5" Grid.ColumnSpan="2" x:Name="ResultLabel" Margin="0,8,0,0"
+               FontFamily="Cascadia Mono, Consolas, monospace" TextWrapping="Wrap"
+               Foreground="#F59E0B" />
+
+    <StackPanel Grid.Row="6" Grid.ColumnSpan="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
+      <Button x:Name="OkButton"     Content="Apply"  IsDefault="True" Width="100" />
+      <Button x:Name="CancelButton" Content="Cancel" IsCancel="True"  Width="100" Margin="8,0,0,0" />
+    </StackPanel>
+  </Grid>
+</Window>

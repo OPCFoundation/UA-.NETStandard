@@ -1,0 +1,179 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ScottPlot="clr-namespace:ScottPlot.Avalonia;assembly=ScottPlot.Avalonia"
+             xmlns:vm="using:UaLens.Plugins.Performance"
+             x:Class="UaLens.Plugins.Performance.PerformanceView"
+             x:DataType="vm:PerformancePlugin">
+  <UserControl.Styles>
+    <Style Selector="TextBlock.h">
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Foreground" Value="#94A3B8" />
+      <Setter Property="Margin" Value="0,0,0,2" />
+    </Style>
+    <Style Selector="TextBlock.stat">
+      <Setter Property="Foreground" Value="#E2E8F0" />
+      <Setter Property="FontFamily" Value="Cascadia Mono, Consolas, monospace" />
+      <Setter Property="FontSize" Value="12" />
+    </Style>
+    <Style Selector="TextBlock.statDim">
+      <Setter Property="Foreground" Value="#94A3B8" />
+      <Setter Property="FontFamily" Value="Cascadia Mono, Consolas, monospace" />
+      <Setter Property="FontSize" Value="11" />
+    </Style>
+    <Style Selector="Button.tonal">
+      <Setter Property="Background" Value="#1E293B" />
+      <Setter Property="Foreground" Value="#E2E8F0" />
+      <Setter Property="Padding" Value="10,5" />
+      <Setter Property="MinWidth" Value="86" />
+    </Style>
+    <Style Selector="Button.primary">
+      <Setter Property="Background" Value="#0EA5E9" />
+      <Setter Property="Foreground" Value="#0F172A" />
+      <Setter Property="Padding" Value="10,5" />
+      <Setter Property="MinWidth" Value="86" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+    <Style Selector="Button.danger">
+      <Setter Property="Background" Value="#EF4444" />
+      <Setter Property="Foreground" Value="#0F172A" />
+      <Setter Property="Padding" Value="10,5" />
+      <Setter Property="MinWidth" Value="86" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+  </UserControl.Styles>
+
+  <Border Background="#0F172A" BorderBrush="#1E293B" BorderThickness="1" CornerRadius="4" Padding="10">
+    <Grid RowDefinitions="Auto,Auto,*,*,Auto">
+
+      <!-- Row 0: target picker + workload + actions -->
+      <Border Grid.Row="0" Padding="10" Background="#0B1220" BorderBrush="#1E293B"
+              BorderThickness="1" CornerRadius="4">
+        <Grid ColumnDefinitions="*,12,*,12,Auto">
+
+          <!-- Target column -->
+          <StackPanel Grid.Column="0" Orientation="Vertical" Spacing="6">
+            <TextBlock Classes="h" Text="TARGET" />
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <ComboBox x:Name="ModeCombo"
+                        ItemsSource="{CompiledBinding ModeOptions}"
+                        SelectedItem="{CompiledBinding Mode, Mode=TwoWay}"
+                        MinWidth="100" />
+              <Button Classes="tonal" Content="Pick target…"
+                      Command="{CompiledBinding PickTargetCommand}" />
+            </StackPanel>
+            <TextBlock Classes="statDim"
+                       TextTrimming="CharacterEllipsis"
+                       MaxWidth="380"
+                       Text="{CompiledBinding TargetDescription}" />
+          </StackPanel>
+
+          <!-- Workload column -->
+          <StackPanel Grid.Column="2" Orientation="Vertical" Spacing="6">
+            <TextBlock Classes="h" Text="WORKLOAD" />
+            <Grid ColumnDefinitions="Auto,*,Auto" RowDefinitions="Auto,Auto">
+              <TextBlock Grid.Row="0" Grid.Column="0" Classes="statDim"
+                         VerticalAlignment="Center" Text="Rate (ops/s):" />
+              <Slider   Grid.Row="0" Grid.Column="1" x:Name="RateSlider"
+                        Minimum="1" Maximum="10000"
+                        Value="{CompiledBinding TargetRate, Mode=TwoWay}"
+                        IsEnabled="{CompiledBinding RateEditable}" Margin="6,0,6,0" />
+              <TextBlock Grid.Row="0" Grid.Column="2" Classes="stat"
+                         VerticalAlignment="Center" MinWidth="60" TextAlignment="Right"
+                         Text="{CompiledBinding TargetRateText}" />
+
+              <WrapPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="3"
+                          Orientation="Horizontal" Margin="0,4,0,0">
+                <CheckBox Content="Unbounded burst" Margin="0,0,12,0"
+                          IsChecked="{CompiledBinding UnboundedBurst, Mode=TwoWay}" />
+                <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center"
+                            Margin="0,0,12,0">
+                  <TextBlock Classes="statDim" VerticalAlignment="Center" Text="Duration:" />
+                  <NumericUpDown MinWidth="110"
+                                 Minimum="1" Maximum="9999" Increment="1"
+                                 Value="{CompiledBinding DurationSeconds, Mode=TwoWay}"
+                                 FormatString="0" />
+                  <ComboBox MinWidth="110"
+                            ItemsSource="{CompiledBinding DurationUnitOptions}"
+                            SelectedItem="{CompiledBinding DurationUnit, Mode=TwoWay}" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                  <TextBlock Classes="statDim" VerticalAlignment="Center" Text="Values:" />
+                  <ComboBox ItemsSource="{CompiledBinding GeneratorOptions}"
+                            SelectedItem="{CompiledBinding Generator, Mode=TwoWay}" MinWidth="100" />
+                </StackPanel>
+              </WrapPanel>
+            </Grid>
+            <TextBlock Classes="statDim" Text="{CompiledBinding ConcurrencyHint}" />
+          </StackPanel>
+
+          <!-- Action column -->
+          <WrapPanel Grid.Column="4" Orientation="Horizontal" MinWidth="270"
+                     VerticalAlignment="Center">
+            <Button Classes="primary" Content="▶ Run"  Margin="0,0,6,0"
+                    Command="{CompiledBinding RunCommand}" />
+            <Button Classes="danger"  Content="■ Stop" Margin="0,0,6,0"
+                    Command="{CompiledBinding StopCommand}" />
+            <Button Classes="tonal"   Content="↺ Reset"
+                    Command="{CompiledBinding ResetCommand}" />
+          </WrapPanel>
+        </Grid>
+      </Border>
+
+      <!-- Row 1: throughput chart heading -->
+      <TextBlock Grid.Row="1" Classes="h" Margin="2,10,2,4"
+                 Text="THROUGHPUT — rolling 60 s window (ops/sec)" />
+
+      <!-- Row 2: throughput chart -->
+      <Border Grid.Row="2" Background="#0B1220" BorderBrush="#1E293B"
+              BorderThickness="1" CornerRadius="4" Margin="0,0,0,8">
+        <ScottPlot:AvaPlot x:Name="ThroughputPlot" />
+      </Border>
+
+      <!-- Row 3: latency histogram -->
+      <Border Grid.Row="3" Background="#0B1220" BorderBrush="#1E293B"
+              BorderThickness="1" CornerRadius="4">
+        <Grid RowDefinitions="Auto,*">
+          <TextBlock Grid.Row="0" Classes="h" Margin="8,6,0,0"
+                     Text="LATENCY HISTOGRAM — log buckets, vertical lines mark p50 / p95 / p99" />
+          <ScottPlot:AvaPlot Grid.Row="1" x:Name="HistogramPlot" />
+        </Grid>
+      </Border>
+
+      <!-- Row 4: stats footer -->
+      <Border Grid.Row="4" Padding="8,6" Margin="0,8,0,0"
+              Background="#0B1220" BorderBrush="#1E293B" BorderThickness="1" CornerRadius="4">
+        <Grid ColumnDefinitions="*,*,*,*,*,*,*">
+          <StackPanel Grid.Column="0" Orientation="Vertical">
+            <TextBlock Classes="statDim" Text="TOTAL OPS" />
+            <TextBlock Classes="stat" Text="{CompiledBinding TotalOpsText}" />
+          </StackPanel>
+          <StackPanel Grid.Column="1" Orientation="Vertical">
+            <TextBlock Classes="statDim" Text="MEAN OPS/S" />
+            <TextBlock Classes="stat" Text="{CompiledBinding MeanRateText}" />
+          </StackPanel>
+          <StackPanel Grid.Column="2" Orientation="Vertical">
+            <TextBlock Classes="statDim" Text="p50 (ms)" />
+            <TextBlock Classes="stat" Text="{CompiledBinding P50Text}" />
+          </StackPanel>
+          <StackPanel Grid.Column="3" Orientation="Vertical">
+            <TextBlock Classes="statDim" Text="p95 (ms)" />
+            <TextBlock Classes="stat" Text="{CompiledBinding P95Text}" />
+          </StackPanel>
+          <StackPanel Grid.Column="4" Orientation="Vertical">
+            <TextBlock Classes="statDim" Text="p99 (ms)" />
+            <TextBlock Classes="stat" Text="{CompiledBinding P99Text}" />
+          </StackPanel>
+          <StackPanel Grid.Column="5" Orientation="Vertical">
+            <TextBlock Classes="statDim" Text="MAX (ms)" />
+            <TextBlock Classes="stat" Text="{CompiledBinding MaxLatencyText}" />
+          </StackPanel>
+          <StackPanel Grid.Column="6" Orientation="Vertical">
+            <TextBlock Classes="statDim" Text="ERRORS" />
+            <TextBlock Classes="stat" Text="{CompiledBinding ErrorsText}" />
+          </StackPanel>
+        </Grid>
+      </Border>
+    </Grid>
+  </Border>
+</UserControl>

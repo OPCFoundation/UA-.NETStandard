@@ -5,8 +5,9 @@
     <Project Path="Applications/ConsoleReferenceServer/ConsoleReferenceServer.csproj" />
     <Project Path="Applications/MinimalBoilerServer/MinimalBoilerServer.csproj" />
     <Project Path="Applications/ConsoleReferenceSubscriber/ConsoleReferenceSubscriber.csproj" />
-    <Project Path="Applications/McpServer/Opc.Ua.Mcp.csproj" />
     <Project Path="Applications/Quickstarts.Servers/Quickstarts.Servers.csproj" />
+    <Project Path="Applications/Opc.Ua.Mcp/Opc.Ua.Mcp.csproj" />
+    <Project Path="Applications/Opc.Ua.Lens/Opc.Ua.Lens.csproj" />
   </Folder>
   <Folder Name="/Fuzzing/">
     <File Path="Fuzzing/Fuzzing.md" />

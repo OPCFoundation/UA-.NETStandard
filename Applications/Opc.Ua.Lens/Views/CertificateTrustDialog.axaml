@@ -1,0 +1,44 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="UaLens.Views.CertificateTrustDialog"
+        Title="Server certificate"
+        Width="640" Height="480"
+        WindowStartupLocation="CenterOwner"
+        Background="#0F172A" Foreground="#E2E8F0">
+  <Grid Margin="16" RowDefinitions="Auto,Auto,*,Auto" ColumnDefinitions="160,*">
+
+    <TextBlock Grid.Row="0" Grid.ColumnSpan="2"
+               Margin="0,0,0,8"
+               TextWrapping="Wrap"
+               Foreground="#F59E0B"
+               x:Name="ErrorLabel"
+               Text="The server certificate could not be validated." />
+
+    <Border Grid.Row="1" Grid.ColumnSpan="2" Height="1" Background="#1E293B" Margin="0,0,0,8" />
+
+    <ScrollViewer Grid.Row="2" Grid.ColumnSpan="2">
+      <Grid ColumnDefinitions="160,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto" Margin="0,0,0,0">
+        <TextBlock Grid.Row="0" Grid.Column="0" Text="Subject"          Foreground="#94A3B8" FontFamily="Cascadia Mono, Consolas, monospace" />
+        <TextBlock Grid.Row="0" Grid.Column="1" x:Name="SubjectLabel"   FontFamily="Cascadia Mono, Consolas, monospace" TextWrapping="Wrap" />
+        <TextBlock Grid.Row="1" Grid.Column="0" Text="Issuer"           Foreground="#94A3B8" FontFamily="Cascadia Mono, Consolas, monospace" Margin="0,4,0,0" />
+        <TextBlock Grid.Row="1" Grid.Column="1" x:Name="IssuerLabel"    FontFamily="Cascadia Mono, Consolas, monospace" Margin="0,4,0,0" TextWrapping="Wrap" />
+        <TextBlock Grid.Row="2" Grid.Column="0" Text="ApplicationUri"   Foreground="#94A3B8" FontFamily="Cascadia Mono, Consolas, monospace" Margin="0,4,0,0" />
+        <TextBlock Grid.Row="2" Grid.Column="1" x:Name="AppUriLabel"    FontFamily="Cascadia Mono, Consolas, monospace" Margin="0,4,0,0" TextWrapping="Wrap" />
+        <TextBlock Grid.Row="3" Grid.Column="0" Text="Valid from"       Foreground="#94A3B8" FontFamily="Cascadia Mono, Consolas, monospace" Margin="0,4,0,0" />
+        <TextBlock Grid.Row="3" Grid.Column="1" x:Name="NotBeforeLabel" FontFamily="Cascadia Mono, Consolas, monospace" Margin="0,4,0,0" />
+        <TextBlock Grid.Row="4" Grid.Column="0" Text="Valid until"      Foreground="#94A3B8" FontFamily="Cascadia Mono, Consolas, monospace" Margin="0,4,0,0" />
+        <TextBlock Grid.Row="4" Grid.Column="1" x:Name="NotAfterLabel"  FontFamily="Cascadia Mono, Consolas, monospace" Margin="0,4,0,0" />
+        <TextBlock Grid.Row="5" Grid.Column="0" Text="Thumbprint"       Foreground="#94A3B8" FontFamily="Cascadia Mono, Consolas, monospace" Margin="0,4,0,0" />
+        <TextBlock Grid.Row="5" Grid.Column="1" x:Name="ThumbprintLabel" FontFamily="Cascadia Mono, Consolas, monospace" Margin="0,4,0,0" TextWrapping="Wrap" />
+        <TextBlock Grid.Row="6" Grid.Column="0" Text="Status"           Foreground="#94A3B8" FontFamily="Cascadia Mono, Consolas, monospace" Margin="0,4,0,0" />
+        <TextBlock Grid.Row="6" Grid.Column="1" x:Name="StatusCodeLabel" FontFamily="Cascadia Mono, Consolas, monospace" Margin="0,4,0,0" TextWrapping="Wrap" />
+      </Grid>
+    </ScrollViewer>
+
+    <StackPanel Grid.Row="3" Grid.ColumnSpan="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
+      <Button x:Name="AcceptOnceButton"   Content="Accept once"        Width="120" />
+      <Button x:Name="TrustButton"        Content="Trust permanently"  Width="160" Margin="8,0,0,0" />
+      <Button x:Name="RejectButton"       Content="Reject" IsCancel="True" Width="100" Margin="8,0,0,0" />
+    </StackPanel>
+  </Grid>
+</Window>

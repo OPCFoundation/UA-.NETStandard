@@ -1,0 +1,22 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="UaLens.Views.RemoveItemDialog"
+        Title="Remove monitored items"
+        Width="640" Height="440"
+        WindowStartupLocation="CenterOwner"
+        Background="#0F172A" Foreground="#E2E8F0">
+  <Grid Margin="12" RowDefinitions="Auto,Auto,*,Auto" ColumnDefinitions="*">
+    <TextBlock Grid.Row="0" Margin="0,0,0,8"
+               Text="Multi-select with Ctrl/Shift, or tick All. Remove or Esc." />
+
+    <CheckBox Grid.Row="1" x:Name="SelectAll" Content="All" Margin="0,0,0,6" />
+
+    <ListBox Grid.Row="2" x:Name="List" SelectionMode="Multiple" />
+
+    <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
+      <Button x:Name="OkButton"     Content="Remove" IsDefault="True" Width="90" />
+      <Button x:Name="CancelButton" Content="Cancel" IsCancel="True"  Width="90" Margin="8,0,0,0" />
+    </StackPanel>
+  </Grid>
+</Window>
+

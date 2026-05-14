@@ -1,0 +1,119 @@
+/* ========================================================================
+ * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+ * OPC Foundation MIT License 1.00
+ * ======================================================================*/
+
+using System;
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
+using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Layout;
+using Avalonia.Media;
+using CommunityToolkit.Mvvm.ComponentModel;
+
+namespace UaLens.ViewModels;
+
+/// <summary>
+/// Placeholder <see cref="IPlugin"/> implementation used for
+/// any kind whose real implementation is not yet shipped.  Renders a
+/// centered card describing what the app will do plus a "🚧 Coming
+/// soon" badge.  Auto-numbers titles per kind ("GDS Push 1", "Performance 1", …).
+/// </summary>
+internal sealed partial class StubPlugin : ObservableObject, IPlugin
+{
+    private static readonly Dictionary<PluginKind, int> s_perKindCounter = new();
+
+    private readonly PluginRegistration m_reg;
+
+    [ObservableProperty]
+    private string m_title;
+
+    [ObservableProperty]
+    private bool m_isRenaming;
+
+    public StubPlugin(PluginKind kind)
+    {
+        m_reg = PluginRegistry.For(kind);
+        int n;
+        lock (s_perKindCounter)
+        {
+            s_perKindCounter.TryGetValue(kind, out int prev);
+            n = prev + 1;
+            s_perKindCounter[kind] = n;
+        }
+        m_title = $"{m_reg.DisplayName} {n}";
+    }
+
+    public PluginKind Kind => m_reg.Kind;
+    Control? IPlugin.HeaderToolbar => null;
+
+    public string Status => $"● {m_reg.DisplayName} — coming soon";
+    public bool SupportsDuplicate => false;
+
+    Control? IPlugin.View => BuildStubView();
+
+    public IReadOnlyList<MenuItem> ContributeMenuItems() => Array.Empty<MenuItem>();
+
+    public void OnActivated() { }
+    public void OnDeactivated() { }
+
+    public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+
+    private Border BuildStubView()
+    {
+        var titleBlock = new TextBlock
+        {
+            Text = $"{m_reg.Glyph}  {m_reg.DisplayName}",
+            FontSize = 28,
+            FontWeight = FontWeight.SemiBold,
+            Foreground = new SolidColorBrush(Color.FromRgb(0xE2, 0xE8, 0xF0)),
+            HorizontalAlignment = HorizontalAlignment.Center,
+            Margin = new Thickness(0, 0, 0, 12)
+        };
+        var descBlock = new TextBlock
+        {
+            Text = m_reg.Description,
+            FontSize = 14,
+            Foreground = new SolidColorBrush(Color.FromRgb(0x94, 0xA3, 0xB8)),
+            TextWrapping = TextWrapping.Wrap,
+            MaxWidth = 520,
+            TextAlignment = TextAlignment.Center,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            Margin = new Thickness(0, 0, 0, 24)
+        };
+        var badge = new Border
+        {
+            Background = new SolidColorBrush(Color.FromArgb(0x40, 0xF5, 0x9E, 0x0B)),
+            BorderBrush = new SolidColorBrush(Color.FromRgb(0xF5, 0x9E, 0x0B)),
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(12),
+            Padding = new Thickness(14, 6),
+            HorizontalAlignment = HorizontalAlignment.Center,
+            Child = new TextBlock
+            {
+                Text = "🚧  Coming soon",
+                FontSize = 13,
+                FontWeight = FontWeight.SemiBold,
+                Foreground = new SolidColorBrush(Color.FromRgb(0xF5, 0x9E, 0x0B))
+            }
+        };
+        var stack = new StackPanel
+        {
+            Orientation = Orientation.Vertical,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+            Children = { titleBlock, descBlock, badge }
+        };
+        return new Border
+        {
+            Background = new SolidColorBrush(Color.FromRgb(0x12, 0x1A, 0x2C)),
+            BorderBrush = new SolidColorBrush(Color.FromRgb(0x1E, 0x29, 0x3B)),
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(4),
+            Padding = new Thickness(32),
+            Child = stack
+        };
+    }
+}

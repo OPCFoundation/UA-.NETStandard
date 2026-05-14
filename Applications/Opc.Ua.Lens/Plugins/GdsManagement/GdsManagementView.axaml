@@ -1,0 +1,164 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:UaLens.Plugins.GdsManagement"
+             x:Class="UaLens.Plugins.GdsManagement.GdsManagementView"
+             x:DataType="vm:GdsManagementPlugin">
+  <UserControl.Styles>
+    <Style Selector="Border.panel">
+      <Setter Property="BorderBrush" Value="#1E293B" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="6" />
+      <Setter Property="Padding" Value="10" />
+      <Setter Property="Background" Value="#0B1220" />
+    </Style>
+    <Style Selector="TextBlock.h">
+      <Setter Property="FontSize" Value="12" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Foreground" Value="#94A3B8" />
+    </Style>
+    <Style Selector="TextBlock.k">
+      <Setter Property="Foreground" Value="#64748B" />
+      <Setter Property="FontFamily" Value="Cascadia Mono, Consolas, monospace" />
+      <Setter Property="FontSize" Value="11" />
+    </Style>
+    <Style Selector="TextBlock.v">
+      <Setter Property="Foreground" Value="#E2E8F0" />
+      <Setter Property="FontFamily" Value="Cascadia Mono, Consolas, monospace" />
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="TextWrapping" Value="NoWrap" />
+      <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+    </Style>
+    <Style Selector="Button.tonal">
+      <Setter Property="Background" Value="#1E293B" />
+      <Setter Property="Foreground" Value="#E2E8F0" />
+      <Setter Property="Padding" Value="10,4" />
+      <Setter Property="MinWidth" Value="100" />
+    </Style>
+    <Style Selector="Button.primary">
+      <Setter Property="Background" Value="#0EA5E9" />
+      <Setter Property="Foreground" Value="#0F172A" />
+      <Setter Property="Padding" Value="10,4" />
+      <Setter Property="MinWidth" Value="120" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+  </UserControl.Styles>
+
+  <Grid Margin="10" RowDefinitions="Auto,Auto,*,Auto">
+
+    <!-- Row 0: connection bar -->
+    <Border Grid.Row="0" Classes="panel" Margin="0,0,0,6">
+      <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto,Auto">
+        <TextBlock Grid.Column="0" Classes="h" Text="GDS Endpoint" VerticalAlignment="Center" Margin="0,0,8,0" />
+        <TextBox   Grid.Column="1" x:Name="EndpointBox" VerticalAlignment="Center"
+                   Text="{CompiledBinding EndpointUrl, Mode=TwoWay}"
+                   FontFamily="Cascadia Mono, Consolas, monospace" FontSize="12"
+                   IsEnabled="{CompiledBinding !IsConnected}" />
+        <Button    Grid.Column="2" Classes="primary" Margin="8,0,0,0"
+                   Content="{CompiledBinding ConnectButtonText}"
+                   Command="{CompiledBinding UseDifferentEndpointCommand}" />
+        <Button    Grid.Column="3" Classes="tonal" Margin="8,0,0,0"
+                   Content="Disconnect"
+                   IsVisible="{CompiledBinding HasSecondarySession}"
+                   Command="{CompiledBinding DisconnectCommand}" />
+        <Button    Grid.Column="4" Classes="tonal" Margin="8,0,0,0"
+                   Content="↻ Refresh"
+                   IsEnabled="{CompiledBinding !IsBusy}"
+                   Command="{CompiledBinding RefreshCommand}" />
+        <TextBlock Grid.Column="5" Margin="12,0,0,0" Classes="v"
+                   VerticalAlignment="Center"
+                   Text="{CompiledBinding ConnectionStatus}" />
+      </Grid>
+    </Border>
+
+    <!-- Row 1: filter bar -->
+    <Border Grid.Row="1" Classes="panel" Margin="0,0,0,6">
+      <Grid ColumnDefinitions="Auto,*">
+        <TextBlock Grid.Column="0" Classes="h" Text="Filter" VerticalAlignment="Center" Margin="0,0,8,0" />
+        <TextBox   Grid.Column="1" VerticalAlignment="Center"
+                   Text="{CompiledBinding FilterText, Mode=TwoWay}"
+                   Watermark="Substring match against name, URI, type, capabilities…"
+                   FontFamily="Cascadia Mono, Consolas, monospace" FontSize="12"
+                   IsEnabled="{CompiledBinding IsConnected}" />
+      </Grid>
+    </Border>
+
+    <!-- Row 2: split view (apps list | details) -->
+    <Border Grid.Row="2" Classes="panel">
+      <Grid ColumnDefinitions="2*,5,3*">
+        <!-- Left: apps list -->
+        <Grid Grid.Column="0" RowDefinitions="Auto,*">
+          <Grid Grid.Row="0" ColumnDefinitions="2*,*,2*,*"
+                Background="#1E293B" Margin="0,0,0,0">
+            <TextBlock Grid.Column="0" Margin="6,4" Classes="h" Text="Application Name" />
+            <TextBlock Grid.Column="1" Margin="6,4" Classes="h" Text="Type" />
+            <TextBlock Grid.Column="2" Margin="6,4" Classes="h" Text="Product URI" />
+            <TextBlock Grid.Column="3" Margin="6,4" Classes="h" Text="NodeId" />
+          </Grid>
+          <ListBox Grid.Row="1" x:Name="AppsList"
+                   ItemsSource="{CompiledBinding FilteredApps}"
+                   SelectedItem="{CompiledBinding SelectedApp, Mode=TwoWay}"
+                   Background="#0B1220" Foreground="#E2E8F0"
+                   BorderThickness="0">
+            <ListBox.ItemTemplate>
+              <DataTemplate DataType="vm:RegisteredApp">
+                <Grid ColumnDefinitions="2*,*,2*,*">
+                  <TextBlock Grid.Column="0" Margin="6,2"
+                             Text="{CompiledBinding ApplicationName}" TextTrimming="CharacterEllipsis" />
+                  <TextBlock Grid.Column="1" Margin="6,2"
+                             FontFamily="Cascadia Mono, Consolas, monospace" FontSize="11"
+                             Text="{CompiledBinding ApplicationType}" TextTrimming="CharacterEllipsis" />
+                  <TextBlock Grid.Column="2" Margin="6,2"
+                             FontFamily="Cascadia Mono, Consolas, monospace" FontSize="11"
+                             Text="{CompiledBinding ProductUri}" TextTrimming="CharacterEllipsis" />
+                  <TextBlock Grid.Column="3" Margin="6,2"
+                             FontFamily="Cascadia Mono, Consolas, monospace" FontSize="11"
+                             Text="{CompiledBinding Identifier}" TextTrimming="CharacterEllipsis" />
+                </Grid>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+        </Grid>
+
+        <GridSplitter Grid.Column="1" Background="#1E293B" ResizeDirection="Columns" />
+
+        <!-- Right: details + cert groups -->
+        <Grid Grid.Column="2" RowDefinitions="Auto,*">
+          <Border Grid.Row="0" Padding="8" Background="#0F172A" Margin="0,0,0,6">
+            <StackPanel Orientation="Vertical" Spacing="4">
+              <TextBlock Classes="h" Text="Application Detail" />
+              <TextBlock Classes="v"
+                         Text="{CompiledBinding SelectedAppDetail}"
+                         TextWrapping="Wrap" />
+            </StackPanel>
+          </Border>
+          <Border Grid.Row="1" Padding="0" Background="#0F172A">
+            <Grid RowDefinitions="Auto,*">
+              <TextBlock Grid.Row="0" Classes="h" Text="Certificate Groups" Margin="8,4" />
+              <ContentControl Grid.Row="1">
+                <vm:CertGroupView DataContext="{CompiledBinding}" />
+              </ContentControl>
+            </Grid>
+          </Border>
+        </Grid>
+      </Grid>
+    </Border>
+
+    <!-- Row 3: action bar -->
+    <Border Grid.Row="3" Classes="panel" Margin="0,6,0,0">
+      <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Right">
+        <Button Classes="tonal" Content="＋ Register New…"
+                IsEnabled="{CompiledBinding !IsBusy}"
+                Command="{CompiledBinding RegisterApplicationCommand}" />
+        <Button Classes="tonal" Content="− Unregister Selected"
+                IsEnabled="{CompiledBinding !IsBusy}"
+                Command="{CompiledBinding UnregisterApplicationCommand}" />
+        <Button Classes="tonal" Content="🔑 Issue Cert…"
+                IsEnabled="{CompiledBinding !IsBusy}"
+                Command="{CompiledBinding IssueNewCertificateCommand}" />
+        <Button Classes="primary" Content="📜 View Cert Groups…"
+                IsEnabled="{CompiledBinding !IsBusy}"
+                Command="{CompiledBinding ViewCertGroupsCommand}" />
+      </StackPanel>
+    </Border>
+  </Grid>
+</UserControl>

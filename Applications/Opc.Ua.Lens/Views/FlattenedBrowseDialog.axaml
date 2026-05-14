@@ -1,0 +1,39 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:v="using:UaLens.Views"
+        x:Class="UaLens.Views.FlattenedBrowseDialog"
+        Width="780" Height="560"
+        WindowStartupLocation="CenterOwner"
+        Background="#0F172A" Foreground="#E2E8F0">
+  <Grid Margin="14" RowDefinitions="Auto,*,Auto,Auto,Auto">
+    <TextBlock Grid.Row="0"
+               x:Name="HeaderLabel"
+               Margin="0,0,0,8"
+               TextWrapping="Wrap" />
+    <Border Grid.Row="1" BorderBrush="#1E293B" BorderThickness="1" CornerRadius="4" Background="#0B1220">
+      <ListBox x:Name="ResultsList"
+               Background="Transparent" Foreground="#E2E8F0"
+               BorderThickness="0">
+        <ListBox.ItemTemplate>
+          <DataTemplate DataType="v:FlattenedNode">
+            <TextBlock Text="{CompiledBinding BrowsePath}"
+                       FontFamily="Cascadia Mono, Consolas, monospace"
+                       FontSize="11"
+                       TextTrimming="CharacterEllipsis" />
+          </DataTemplate>
+        </ListBox.ItemTemplate>
+      </ListBox>
+    </Border>
+    <TextBlock Grid.Row="2"
+               x:Name="StatusLabel"
+               Margin="0,8,0,4"
+               Foreground="#94A3B8"
+               FontSize="11" />
+    <ProgressBar Grid.Row="3" x:Name="Progress" Height="6"
+                 IsIndeterminate="True" Minimum="0" Maximum="100" />
+    <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
+      <Button x:Name="OkButton"     Content="OK"     IsDefault="True" Width="100" />
+      <Button x:Name="CancelButton" Content="Cancel" IsCancel="True"  Width="100" Margin="8,0,0,0" />
+    </StackPanel>
+  </Grid>
+</Window>

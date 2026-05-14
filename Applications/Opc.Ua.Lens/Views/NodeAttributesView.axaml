@@ -1,0 +1,41 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:UaLens.ViewModels"
+             x:Class="UaLens.Views.NodeAttributesView"
+             x:DataType="vm:NodeAttributesViewModel">
+  <Border BorderBrush="#1E293B" BorderThickness="1" CornerRadius="4" Background="#0B1220">
+    <Grid RowDefinitions="Auto,*">
+      <TextBlock Grid.Row="0"
+                 Margin="8,6,8,4"
+                 FontWeight="SemiBold"
+                 FontSize="12"
+                 Foreground="#94A3B8"
+                 TextTrimming="CharacterEllipsis"
+                 Text="{CompiledBinding Header}" />
+      <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Auto">
+        <ItemsControl ItemsSource="{CompiledBinding Rows}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate DataType="vm:AttributeRow">
+              <Grid ColumnDefinitions="160,*" Margin="8,2,8,2">
+                <TextBlock Grid.Column="0"
+                           Text="{CompiledBinding Name}"
+                           Foreground="#94A3B8"
+                           FontFamily="Cascadia Mono, Consolas, monospace"
+                           FontSize="11" />
+                <TextBlock Grid.Column="1"
+                           Text="{CompiledBinding Value}"
+                           Foreground="#E2E8F0"
+                           FontFamily="Cascadia Mono, Consolas, monospace"
+                           FontSize="11"
+                           TextWrapping="Wrap" />
+              </Grid>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </ScrollViewer>
+    </Grid>
+  </Border>
+</UserControl>
+
+
+

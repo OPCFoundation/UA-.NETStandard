@@ -1,0 +1,38 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:v="using:UaLens.Views"
+             x:Class="UaLens.Views.DiagnosticsView">
+  <Border BorderBrush="#1E293B" BorderThickness="1,0,0,0" Background="#0B1220" Width="380">
+    <Grid Margin="10" RowDefinitions="Auto,Auto,*,Auto">
+      <DockPanel Grid.Row="0" Margin="0,0,0,8">
+        <Button x:Name="HideButton" DockPanel.Dock="Right" Content="×" Width="24" Height="24"
+                Padding="0" Background="Transparent" BorderThickness="0"
+                ToolTip.Tip="Hide diagnostics" />
+        <TextBlock FontWeight="SemiBold" VerticalAlignment="Center"
+                   Text="📊 Server diagnostics" />
+      </DockPanel>
+      <TextBlock Grid.Row="1" x:Name="StatusLabel"
+                 FontFamily="Cascadia Mono, Consolas, monospace"
+                 FontSize="11"
+                 Foreground="#94A3B8" Margin="0,0,0,8"
+                 Text="(connect to a server first)" />
+      <ScrollViewer Grid.Row="2" HorizontalScrollBarVisibility="Auto">
+        <ItemsControl x:Name="RowsList">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate DataType="v:DiagRow">
+              <Grid ColumnDefinitions="220,*" Margin="0,1,0,1">
+                <TextBlock Grid.Column="0" Text="{CompiledBinding Name}"
+                           Foreground="#94A3B8" FontSize="11"
+                           FontFamily="Cascadia Mono, Consolas, monospace" />
+                <TextBlock Grid.Column="1" Text="{CompiledBinding Value}"
+                           Foreground="#E2E8F0" FontSize="11"
+                           FontFamily="Cascadia Mono, Consolas, monospace"
+                           TextWrapping="Wrap" />
+              </Grid>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </ScrollViewer>
+    </Grid>
+  </Border>
+</UserControl>

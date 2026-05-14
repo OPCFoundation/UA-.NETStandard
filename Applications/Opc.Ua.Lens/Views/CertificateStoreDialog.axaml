@@ -1,0 +1,147 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:v="using:UaLens.Views"
+        x:Class="UaLens.Views.CertificateStoreDialog"
+        Title="Certificate stores"
+        Width="980" Height="560"
+        WindowStartupLocation="CenterOwner"
+        Background="#0F172A" Foreground="#E2E8F0">
+  <Window.Styles>
+    <Style Selector="TabItem">
+      <Setter Property="Foreground" Value="#E2E8F0" />
+      <Setter Property="FontSize" Value="13" />
+      <Setter Property="MinHeight" Value="32" />
+    </Style>
+    <Style Selector="Button.act">
+      <Setter Property="Padding" Value="8,2" />
+      <Setter Property="Margin" Value="0,0,4,0" />
+    </Style>
+    <Style Selector="ListBoxItem.expired">
+      <Setter Property="Foreground" Value="#F87171" />
+    </Style>
+    <Style Selector="ListBoxItem.notyet">
+      <Setter Property="Foreground" Value="#FBBF24" />
+    </Style>
+  </Window.Styles>
+  <Grid Margin="14" RowDefinitions="Auto,*,Auto">
+    <TextBlock Grid.Row="0"
+               Margin="0,0,0,8"
+               TextWrapping="Wrap"
+               Foreground="#94A3B8"
+               Text="Manage local trust stores. Trust changes apply on next connect — disconnect and reconnect to pick them up. The application's own certificate is intentionally not exposed here." />
+
+    <TabControl x:Name="StoreTabs" Grid.Row="1" Background="#0B1220">
+      <TabItem Header="Trusted Peers">
+        <Grid RowDefinitions="Auto,*,Auto" Margin="0,8,0,0">
+          <Grid Grid.Row="0" ColumnDefinitions="2*,2*,110,110,180,90"
+                Background="#1E293B">
+            <TextBlock Grid.Column="0" Text="Subject"    Margin="6,4" Foreground="#94A3B8" FontWeight="SemiBold" />
+            <TextBlock Grid.Column="1" Text="Issuer"     Margin="6,4" Foreground="#94A3B8" FontWeight="SemiBold" />
+            <TextBlock Grid.Column="2" Text="Not Before" Margin="6,4" Foreground="#94A3B8" FontWeight="SemiBold" />
+            <TextBlock Grid.Column="3" Text="Not After"  Margin="6,4" Foreground="#94A3B8" FontWeight="SemiBold" />
+            <TextBlock Grid.Column="4" Text="Thumbprint" Margin="6,4" Foreground="#94A3B8" FontWeight="SemiBold" />
+            <TextBlock Grid.Column="5" Text="Status"     Margin="6,4" Foreground="#94A3B8" FontWeight="SemiBold" />
+          </Grid>
+          <ListBox Grid.Row="1" x:Name="TrustedList"
+                   Background="#0B1220" Foreground="#E2E8F0">
+            <ListBox.ItemTemplate>
+              <DataTemplate DataType="v:CertRow"><Grid ColumnDefinitions="2*,2*,110,110,180,90">
+                  <TextBlock Grid.Column="0" Text="{CompiledBinding Subject}"    Margin="6,2" />
+                  <TextBlock Grid.Column="1" Text="{CompiledBinding Issuer}"     Margin="6,2" />
+                  <TextBlock Grid.Column="2" Text="{CompiledBinding NotBefore}"  Margin="6,2" FontFamily="Cascadia Mono, Consolas, monospace" />
+                  <TextBlock Grid.Column="3" Text="{CompiledBinding NotAfter}"   Margin="6,2" FontFamily="Cascadia Mono, Consolas, monospace" />
+                  <TextBlock Grid.Column="4" Text="{CompiledBinding Thumbprint}" Margin="6,2" FontFamily="Cascadia Mono, Consolas, monospace" />
+                  <TextBlock Grid.Column="5" Text="{CompiledBinding Status}"     Margin="6,2" FontWeight="SemiBold" />
+                </Grid>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+          <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,8,0,0">
+            <Button x:Name="TrustedRefreshBtn" Classes="act" Content="↻ Refresh" />
+            <Button x:Name="TrustedUntrustBtn" Classes="act" Content="✗ Untrust selected" />
+            <Button x:Name="TrustedExpireBtn"  Classes="act" Content="🗑 Delete expired" />
+            <Button x:Name="TrustedAddBtn"     Classes="act" Content="＋ Add from file..." />
+          </StackPanel>
+        </Grid>
+      </TabItem>
+
+      <TabItem Header="Trusted Issuers">
+        <Grid RowDefinitions="Auto,*,Auto" Margin="0,8,0,0">
+          <Grid Grid.Row="0" ColumnDefinitions="2*,2*,110,110,180,90"
+                Background="#1E293B">
+            <TextBlock Grid.Column="0" Text="Subject"    Margin="6,4" Foreground="#94A3B8" FontWeight="SemiBold" />
+            <TextBlock Grid.Column="1" Text="Issuer"     Margin="6,4" Foreground="#94A3B8" FontWeight="SemiBold" />
+            <TextBlock Grid.Column="2" Text="Not Before" Margin="6,4" Foreground="#94A3B8" FontWeight="SemiBold" />
+            <TextBlock Grid.Column="3" Text="Not After"  Margin="6,4" Foreground="#94A3B8" FontWeight="SemiBold" />
+            <TextBlock Grid.Column="4" Text="Thumbprint" Margin="6,4" Foreground="#94A3B8" FontWeight="SemiBold" />
+            <TextBlock Grid.Column="5" Text="Status"     Margin="6,4" Foreground="#94A3B8" FontWeight="SemiBold" />
+          </Grid>
+          <ListBox Grid.Row="1" x:Name="IssuerList"
+                   Background="#0B1220" Foreground="#E2E8F0">
+            <ListBox.ItemTemplate>
+              <DataTemplate DataType="v:CertRow"><Grid ColumnDefinitions="2*,2*,110,110,180,90">
+                  <TextBlock Grid.Column="0" Text="{CompiledBinding Subject}"    Margin="6,2" />
+                  <TextBlock Grid.Column="1" Text="{CompiledBinding Issuer}"     Margin="6,2" />
+                  <TextBlock Grid.Column="2" Text="{CompiledBinding NotBefore}"  Margin="6,2" FontFamily="Cascadia Mono, Consolas, monospace" />
+                  <TextBlock Grid.Column="3" Text="{CompiledBinding NotAfter}"   Margin="6,2" FontFamily="Cascadia Mono, Consolas, monospace" />
+                  <TextBlock Grid.Column="4" Text="{CompiledBinding Thumbprint}" Margin="6,2" FontFamily="Cascadia Mono, Consolas, monospace" />
+                  <TextBlock Grid.Column="5" Text="{CompiledBinding Status}"     Margin="6,2" FontWeight="SemiBold" />
+                </Grid>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+          <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,8,0,0">
+            <Button x:Name="IssuerRefreshBtn" Classes="act" Content="↻ Refresh" />
+            <Button x:Name="IssuerUntrustBtn" Classes="act" Content="✗ Untrust selected" />
+            <Button x:Name="IssuerExpireBtn"  Classes="act" Content="🗑 Delete expired" />
+            <Button x:Name="IssuerAddBtn"     Classes="act" Content="＋ Add from file..." />
+          </StackPanel>
+        </Grid>
+      </TabItem>
+
+      <TabItem Header="Rejected">
+        <Grid RowDefinitions="Auto,*,Auto" Margin="0,8,0,0">
+          <Grid Grid.Row="0" ColumnDefinitions="2*,2*,110,110,180,90"
+                Background="#1E293B">
+            <TextBlock Grid.Column="0" Text="Subject"    Margin="6,4" Foreground="#94A3B8" FontWeight="SemiBold" />
+            <TextBlock Grid.Column="1" Text="Issuer"     Margin="6,4" Foreground="#94A3B8" FontWeight="SemiBold" />
+            <TextBlock Grid.Column="2" Text="Not Before" Margin="6,4" Foreground="#94A3B8" FontWeight="SemiBold" />
+            <TextBlock Grid.Column="3" Text="Not After"  Margin="6,4" Foreground="#94A3B8" FontWeight="SemiBold" />
+            <TextBlock Grid.Column="4" Text="Thumbprint" Margin="6,4" Foreground="#94A3B8" FontWeight="SemiBold" />
+            <TextBlock Grid.Column="5" Text="Status"     Margin="6,4" Foreground="#94A3B8" FontWeight="SemiBold" />
+          </Grid>
+          <ListBox Grid.Row="1" x:Name="RejectedList"
+                   Background="#0B1220" Foreground="#E2E8F0">
+            <ListBox.ItemTemplate>
+              <DataTemplate DataType="v:CertRow"><Grid ColumnDefinitions="2*,2*,110,110,180,90">
+                  <TextBlock Grid.Column="0" Text="{CompiledBinding Subject}"    Margin="6,2" />
+                  <TextBlock Grid.Column="1" Text="{CompiledBinding Issuer}"     Margin="6,2" />
+                  <TextBlock Grid.Column="2" Text="{CompiledBinding NotBefore}"  Margin="6,2" FontFamily="Cascadia Mono, Consolas, monospace" />
+                  <TextBlock Grid.Column="3" Text="{CompiledBinding NotAfter}"   Margin="6,2" FontFamily="Cascadia Mono, Consolas, monospace" />
+                  <TextBlock Grid.Column="4" Text="{CompiledBinding Thumbprint}" Margin="6,2" FontFamily="Cascadia Mono, Consolas, monospace" />
+                  <TextBlock Grid.Column="5" Text="{CompiledBinding Status}"     Margin="6,2" FontWeight="SemiBold" />
+                </Grid>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+          <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,8,0,0">
+            <Button x:Name="RejectedRefreshBtn" Classes="act" Content="↻ Refresh" />
+            <Button x:Name="RejectedTrustBtn"   Classes="act" Content="✓ Trust selected" />
+            <Button x:Name="RejectedDeleteBtn"  Classes="act" Content="✗ Delete selected" />
+            <Button x:Name="RejectedClearBtn"   Classes="act" Content="🗑 Clear all" />
+          </StackPanel>
+        </Grid>
+      </TabItem>
+    </TabControl>
+
+    <Grid Grid.Row="2" Margin="0,12,0,0" ColumnDefinitions="*,Auto">
+      <TextBlock Grid.Column="0" x:Name="StatusLabel"
+                 VerticalAlignment="Center"
+                 Foreground="#94A3B8"
+                 FontFamily="Cascadia Mono, Consolas, monospace"
+                 Text="" />
+      <Button Grid.Column="1" x:Name="CloseBtn" Content="Close" IsCancel="True" Width="100" />
+    </Grid>
+  </Grid>
+</Window>
+

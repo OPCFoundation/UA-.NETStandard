@@ -1,0 +1,45 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="UaLens.Plugins.GdsPush.AddCertificateDialog"
+        Title="Add certificate"
+        Width="640" Height="480"
+        WindowStartupLocation="CenterOwner"
+        Background="#0F172A" Foreground="#E2E8F0">
+  <Grid Margin="16" RowDefinitions="Auto,Auto,Auto,Auto,Auto,*,Auto,Auto">
+
+    <TextBlock Grid.Row="0" Margin="0,0,0,12" TextWrapping="Wrap"
+               Text="Add a certificate to the server's trust list. The certificate may be supplied as a file (DER or PEM) or pasted as PEM text below." />
+
+    <TextBlock Grid.Row="1" Margin="0,0,0,4" Foreground="#94A3B8" FontWeight="SemiBold"
+               Text="Destination" />
+    <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="12" Margin="0,0,0,8">
+      <RadioButton x:Name="DestTrusted" Content="Trusted Peers" GroupName="dest" IsChecked="True" />
+      <RadioButton x:Name="DestIssuer"  Content="Issuers"       GroupName="dest" />
+    </StackPanel>
+
+    <TextBlock Grid.Row="3" Margin="0,8,0,4" Foreground="#94A3B8" FontWeight="SemiBold"
+               Text="From file" />
+    <StackPanel Grid.Row="4" Orientation="Horizontal" Spacing="8">
+      <Button x:Name="BrowseButton" Content="Browse…" />
+      <TextBlock x:Name="FileLabel" VerticalAlignment="Center" Foreground="#94A3B8"
+                 FontFamily="Cascadia Mono, Consolas, monospace" FontSize="11"
+                 Text="(no file selected)" />
+    </StackPanel>
+
+    <Grid Grid.Row="5" Margin="0,12,0,0" RowDefinitions="Auto,*">
+      <TextBlock Grid.Row="0" Margin="0,0,0,4" Foreground="#94A3B8" FontWeight="SemiBold"
+                 Text="…or paste PEM text" />
+      <TextBox Grid.Row="1" x:Name="PemBox" AcceptsReturn="True"
+               FontFamily="Cascadia Mono, Consolas, monospace" FontSize="11"
+               Background="#0B1220" Foreground="#E2E8F0"
+               Watermark="-----BEGIN CERTIFICATE-----&#x0A;…&#x0A;-----END CERTIFICATE-----" />
+    </Grid>
+
+    <TextBlock Grid.Row="6" x:Name="ErrorLabel" Foreground="#F87171" Margin="0,8,0,0" IsVisible="False" TextWrapping="Wrap" />
+
+    <StackPanel Grid.Row="7" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
+      <Button x:Name="OkButton"     Content="Add"    IsDefault="True" Width="100" />
+      <Button x:Name="CancelButton" Content="Cancel" IsCancel="True"  Width="100" Margin="8,0,0,0" />
+    </StackPanel>
+  </Grid>
+</Window>

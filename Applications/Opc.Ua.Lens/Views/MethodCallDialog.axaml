@@ -1,0 +1,72 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:v="using:UaLens.Views"
+        x:Class="UaLens.Views.MethodCallDialog"
+        Title="Call method"
+        Width="700" Height="520"
+        WindowStartupLocation="CenterOwner"
+        Background="#0F172A" Foreground="#E2E8F0">
+  <Grid Margin="16" RowDefinitions="Auto,Auto,Auto,Auto,*,Auto,*,Auto" ColumnDefinitions="*">
+    <TextBlock Grid.Row="0" Margin="0,0,0,12" TextWrapping="Wrap"
+               Text="Fill in the method's input arguments. Parser uses each argument's DataType + ValueRank." />
+
+    <TextBlock Grid.Row="1" x:Name="MethodLabel"
+               FontFamily="Cascadia Mono, Consolas, monospace" Margin="0,0,0,4" />
+    <TextBlock Grid.Row="2" x:Name="ParentLabel"
+               FontFamily="Cascadia Mono, Consolas, monospace" Margin="0,0,0,8" Foreground="#94A3B8" />
+
+    <TextBlock Grid.Row="3" Text="Input arguments" FontWeight="SemiBold" Margin="0,4,0,4" />
+    <ScrollViewer Grid.Row="4" HorizontalScrollBarVisibility="Auto">
+      <ItemsControl x:Name="InputsList">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate DataType="v:MethodArgRow">
+            <Grid ColumnDefinitions="200,*,Auto" Margin="0,2,0,2">
+              <TextBlock Grid.Column="0" Text="{CompiledBinding Header}"
+                         Foreground="#94A3B8"
+                         FontFamily="Cascadia Mono, Consolas, monospace"
+                         VerticalAlignment="Center" />
+              <TextBox Grid.Column="1" Text="{CompiledBinding ValueText, Mode=TwoWay}"
+                       FontFamily="Cascadia Mono, Consolas, monospace" />
+              <Button Grid.Column="2" Content="📂"
+                      ToolTip.Tip="Import argument from file"
+                      Padding="6,2" Margin="6,0,0,0"
+                      Command="{CompiledBinding ImportCommand}" />
+            </Grid>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </ScrollViewer>
+
+    <TextBlock Grid.Row="5" Text="Result" FontWeight="SemiBold" Margin="0,8,0,4" />
+    <Grid Grid.Row="6" RowDefinitions="Auto,*">
+      <TextBlock Grid.Row="0" x:Name="ResultStatus"
+                 FontFamily="Cascadia Mono, Consolas, monospace"
+                 TextWrapping="Wrap" Margin="0,0,0,4" />
+      <ItemsControl Grid.Row="1" x:Name="OutputsList">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate DataType="v:MethodOutputRow">
+            <Grid ColumnDefinitions="40,160,*" Margin="0,1,0,1">
+              <TextBlock Grid.Column="0" Text="{CompiledBinding Index}"
+                         Foreground="#94A3B8"
+                         FontFamily="Cascadia Mono, Consolas, monospace" />
+              <TextBlock Grid.Column="1" Text="{CompiledBinding DataType}"
+                         Foreground="#A78BFA"
+                         FontFamily="Cascadia Mono, Consolas, monospace"
+                         TextTrimming="CharacterEllipsis" />
+              <TextBlock Grid.Column="2" Text="{CompiledBinding Value}"
+                         Foreground="#E2E8F0"
+                         FontFamily="Cascadia Mono, Consolas, monospace"
+                         TextWrapping="Wrap" />
+            </Grid>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </Grid>
+
+    <StackPanel Grid.Row="7" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
+      <Button x:Name="OkButton"     Content="Call"  IsDefault="True" Width="100" />
+      <Button x:Name="CancelButton" Content="Close" IsCancel="True"  Width="100" Margin="8,0,0,0" />
+    </StackPanel>
+  </Grid>
+</Window>
+

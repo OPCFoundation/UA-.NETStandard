@@ -1,0 +1,383 @@
+/* ========================================================================
+ * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+ * OPC Foundation MIT License 1.00
+ * ======================================================================*/
+
+using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Globalization;
+using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
+using Avalonia.Controls;
+using Avalonia.Markup.Xaml;
+using Avalonia.Media;
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+using Opc.Ua;
+using Opc.Ua.Client;
+using UaLens.Subscriptions;
+using UaLens.ViewModels;
+
+namespace UaLens.Views;
+
+/// <summary>
+/// Method invocation dialog: browses the method's
+/// <c>HasProperty(InputArguments)</c> property to discover the
+/// argument list, renders one <see cref="TextBox"/> per argument,
+/// then on OK parses each via <see cref="VariantParser"/>, builds a
+/// <see cref="CallMethodRequest"/>, and surfaces the
+/// <c>StatusCode</c> + <c>OutputArguments</c> in-dialog.
+/// </summary>
+internal sealed partial class MethodCallDialog : Window
+{
+    private readonly NodeViewModel m_method;
+    private readonly ManagedSession m_session;
+    private NodeId m_objectId = NodeId.Null;
+    private Argument[] m_arguments = Array.Empty<Argument>();
+    public ObservableCollection<MethodArgRow> Inputs { get; } = new();
+    public ObservableCollection<MethodOutputRow> Outputs { get; } = new();
+
+    public MethodCallDialog(NodeViewModel method, ManagedSession session)
+    {
+        m_method = method;
+        m_session = session;
+        InitializeComponent();
+
+        this.RequiredControl<TextBlock>("MethodLabel").Text = $"Method  {m_method.NodeId}";
+        this.RequiredControl<TextBlock>("ParentLabel").Text = "Parent  (resolving…)";
+        this.RequiredControl<ItemsControl>("InputsList").ItemsSource = Inputs;
+        this.RequiredControl<ItemsControl>("OutputsList").ItemsSource = Outputs;
+
+        this.RequiredControl<Button>("OkButton").Click += async (_, _) => await OnCall().ConfigureAwait(false);
+        this.RequiredControl<Button>("CancelButton").Click += (_, _) => Close();
+
+        Opened += async (_, _) => await LoadArgumentsAsync().ConfigureAwait(false);
+    }
+
+    private async Task LoadArgumentsAsync()
+    {
+        var parentLbl = this.RequiredControl<TextBlock>("ParentLabel");
+        try
+        {
+            // Step 1: parent ObjectId — prefer the cached ParentNodeId (set
+            // when the user expanded the parent); fall back to an Inverse
+            // HasComponent browse.
+            if (!m_method.ParentNodeId.IsNull)
+            {
+                m_objectId = m_method.ParentNodeId;
+            }
+            else
+            {
+                m_objectId = await ResolveParentObjectAsync().ConfigureAwait(true);
+            }
+            parentLbl.Text = m_objectId.IsNull
+                ? "Parent  (could not resolve)"
+                : $"Parent  {m_objectId}";
+
+            // Step 2: browse the method for HasProperty.InputArguments.
+            ArrayOf<BrowseDescription> browse = new BrowseDescription[]
+            {
+                new BrowseDescription
+                {
+                    NodeId = m_method.NodeId,
+                    BrowseDirection = BrowseDirection.Forward,
+                    ReferenceTypeId = ReferenceTypeIds.HasProperty,
+                    IncludeSubtypes = false,
+                    NodeClassMask = (uint)NodeClass.Variable,
+                    ResultMask = (uint)BrowseResultMask.All
+                }
+            };
+            BrowseResponse br = await m_session.BrowseAsync(null, null, 0, browse,
+                CancellationToken.None).ConfigureAwait(true);
+
+            NodeId inputArgsId = NodeId.Null;
+            if (br.Results.Count > 0 && !StatusCode.IsBad(br.Results[0].StatusCode))
+            {
+                foreach (ReferenceDescription r in br.Results[0].References)
+                {
+                    if (!r.BrowseName.IsNull
+                        && string.Equals(r.BrowseName.Name, BrowseNames.InputArguments, StringComparison.Ordinal))
+                    {
+                        inputArgsId = ExpandedNodeId.ToNodeId(r.NodeId, m_session.NamespaceUris);
+                        break;
+                    }
+                }
+            }
+
+            if (inputArgsId.IsNull)
+            {
+                // Method takes no inputs.
+                m_arguments = Array.Empty<Argument>();
+                Inputs.Clear();
+                return;
+            }
+
+            // Step 3: read the InputArguments property value (Argument[]).
+            ArrayOf<ReadValueId> ids =
+            [
+                new ReadValueId { NodeId = inputArgsId, AttributeId = Attributes.Value }
+            ];
+            ReadResponse rr = await m_session.ReadAsync(null, 0, TimestampsToReturn.Neither,
+                ids, CancellationToken.None).ConfigureAwait(true);
+            if (rr.Results.Count == 0 || StatusCode.IsBad(rr.Results[0].StatusCode))
+            {
+                return;
+            }
+            object? boxed = rr.Results[0].WrappedValue.AsBoxedObject();
+            if (boxed is ExtensionObject[] eos)
+            {
+                var args = new List<Argument>(eos.Length);
+                foreach (ExtensionObject eo in eos)
+                {
+                    if (eo.TryGetValue<Argument>(out Argument? a) && a is not null)
+                    {
+                        args.Add(a);
+                    }
+                }
+                m_arguments = args.ToArray();
+            }
+            else if (boxed is Argument[] a2)
+            {
+                m_arguments = a2;
+            }
+            else
+            {
+                m_arguments = Array.Empty<Argument>();
+            }
+
+            Inputs.Clear();
+            foreach (Argument a in m_arguments)
+            {
+                var row = new MethodArgRow(a, FormatDefault(a));
+                row.ImportCommand = new AsyncRelayCommand(() => OnImportArgAsync(row));
+                Inputs.Add(row);
+            }
+        }
+        catch (Exception ex)
+        {
+            this.RequiredControl<TextBlock>("ResultStatus").Text = $"Failed to load arguments: {ex.Message}";
+        }
+    }
+
+    private async Task<NodeId> ResolveParentObjectAsync()
+    {
+        try
+        {
+            ArrayOf<BrowseDescription> browse = new BrowseDescription[]
+            {
+                new BrowseDescription
+                {
+                    NodeId = m_method.NodeId,
+                    BrowseDirection = BrowseDirection.Inverse,
+                    ReferenceTypeId = ReferenceTypeIds.HasComponent,
+                    IncludeSubtypes = false,
+                    NodeClassMask = (uint)NodeClass.Object,
+                    ResultMask = (uint)BrowseResultMask.All
+                }
+            };
+            BrowseResponse br = await m_session.BrowseAsync(null, null, 0, browse,
+                CancellationToken.None).ConfigureAwait(true);
+            if (br.Results.Count > 0 && !StatusCode.IsBad(br.Results[0].StatusCode)
+                && br.Results[0].References.Count > 0)
+            {
+                return ExpandedNodeId.ToNodeId(br.Results[0].References[0].NodeId, m_session.NamespaceUris);
+            }
+        }
+        catch
+        {
+            // ignore — m_objectId stays null and the user gets a clear error.
+        }
+        return NodeId.Null;
+    }
+
+    private async Task OnCall()
+    {
+        var statusLbl = this.RequiredControl<TextBlock>("ResultStatus");
+        statusLbl.Foreground = new SolidColorBrush(Color.FromRgb(0xE2, 0xE8, 0xF0));
+        Outputs.Clear();
+
+        if (m_objectId.IsNull)
+        {
+            statusLbl.Text = "Cannot call — parent ObjectId could not be resolved.";
+            return;
+        }
+
+        // Parse every input argument; abort on first error.
+        var parsed = new List<Variant>(m_arguments.Length);
+        for (int i = 0; i < m_arguments.Length; i++)
+        {
+            Argument a = m_arguments[i];
+            string txt = i < Inputs.Count ? Inputs[i].ValueText : string.Empty;
+            if (!VariantParser.TryParse(a.DataType, a.ValueRank, txt ?? string.Empty,
+                out Variant v, out string? perr))
+            {
+                statusLbl.Text = $"Argument '{a.Name}' parse error: {perr}";
+                statusLbl.Foreground = new SolidColorBrush(Color.FromRgb(0xF8, 0x71, 0x71));
+                return;
+            }
+            parsed.Add(v);
+        }
+
+        try
+        {
+            ArrayOf<CallMethodRequest> calls =
+            [
+                new CallMethodRequest
+                {
+                    ObjectId = m_objectId,
+                    MethodId = m_method.NodeId,
+                    InputArguments = new ArrayOf<Variant>(parsed.ToArray())
+                }
+            ];
+            CallResponse resp = await m_session.CallAsync(null, calls, CancellationToken.None).ConfigureAwait(true);
+            if (resp.Results.Count == 0)
+            {
+                statusLbl.Text = "(no result)";
+                return;
+            }
+            CallMethodResult cmr = resp.Results[0];
+            var sb = new StringBuilder();
+            sb.Append(CultureInfo.InvariantCulture, $"StatusCode: {cmr.StatusCode}");
+            if (cmr.InputArgumentResults.Count > 0)
+            {
+                sb.Append("    InputArgumentResults: ");
+                for (int i = 0; i < cmr.InputArgumentResults.Count; i++)
+                {
+                    if (i > 0)
+                    {
+                        sb.Append(", ");
+                    }
+
+                    sb.Append(cmr.InputArgumentResults[i]);
+                }
+            }
+            statusLbl.Text = sb.ToString();
+            statusLbl.Foreground = StatusCode.IsGood(cmr.StatusCode)
+                ? new SolidColorBrush(Color.FromRgb(0x22, 0xC5, 0x5E))
+                : new SolidColorBrush(Color.FromRgb(0xF8, 0x71, 0x71));
+            // Per-output rows so the user sees them in a table.
+            for (int i = 0; i < cmr.OutputArguments.Count; i++)
+            {
+                Variant v = cmr.OutputArguments[i];
+                string dt = v.TypeInfo.BuiltInType.ToString();
+                if (v.TypeInfo.ValueRank != ValueRanks.Scalar)
+                {
+                    dt += "[]";
+                }
+                Outputs.Add(new MethodOutputRow(i, dt, FormatVariant(v)));
+            }
+        }
+        catch (Exception ex)
+        {
+            statusLbl.Text = $"Call exception: {ex.Message}";
+            statusLbl.Foreground = new SolidColorBrush(Color.FromRgb(0xF8, 0x71, 0x71));
+        }
+    }
+
+    private async Task OnImportArgAsync(MethodArgRow row)
+    {
+        var statusLbl = this.RequiredControl<TextBlock>("ResultStatus");
+        try
+        {
+            (byte[] bytes, UaLens.Connection.EncodingFormat fmt, string name) =
+                await EncodedValueIO.LoadAsync(this).ConfigureAwait(true);
+            if (bytes.Length == 0)
+            {
+                return;
+            }
+            Variant v = UaLens.Connection.DataValueCodec.DecodeVariant(
+                bytes, fmt, m_session.MessageContext);
+            row.ValueText = FormatVariant(v);
+            statusLbl.Text = $"Loaded {row.Header} from {name} ({fmt}).";
+            statusLbl.Foreground = new SolidColorBrush(Color.FromRgb(0x22, 0xC5, 0x5E));
+        }
+        catch (Exception ex)
+        {
+            statusLbl.Text = $"Import failed: {ex.Message}";
+            statusLbl.Foreground = new SolidColorBrush(Color.FromRgb(0xF8, 0x71, 0x71));
+        }
+    }
+
+    private static string FormatDefault(Argument a)
+    {
+        // Argument doesn't expose a DefaultValue for input; leave empty.
+        // Caller customises via the textbox.
+        return string.Empty;
+    }
+
+    private static string FormatVariant(Variant v)
+    {
+        if (v.IsNull)
+        {
+            return "(null)";
+        }
+
+        object? boxed = v.AsBoxedObject();
+        return boxed switch
+        {
+            null => "(null)",
+            string s => s,
+            LocalizedText l => l.Text ?? string.Empty,
+            QualifiedName q => q.ToString() ?? string.Empty,
+            Array a => FormatArray(a),
+            IFormattable f => f.ToString(null, CultureInfo.InvariantCulture),
+            _ => boxed.ToString() ?? string.Empty
+        };
+    }
+
+    private static string FormatArray(Array a)
+    {
+        var sb = new StringBuilder();
+        sb.Append('[');
+        for (int i = 0; i < a.Length; i++)
+        {
+            if (i > 0)
+            {
+                sb.Append(", ");
+            }
+
+            object? el = a.GetValue(i);
+            sb.Append(el switch
+            {
+                null => "null",
+                IFormattable f => f.ToString(null, CultureInfo.InvariantCulture),
+                _ => el.ToString() ?? string.Empty
+            });
+        }
+        sb.Append(']');
+        return sb.ToString();
+    }
+
+    private void InitializeComponent()
+    {
+        AvaloniaXamlLoader.Load(this);
+    }
+}
+
+internal sealed partial class MethodArgRow : ObservableObject
+{
+    public string Header { get; }
+
+    [ObservableProperty]
+    private string m_valueText;
+
+    /// <summary>
+    /// Per-row Import command, wired after construction by the dialog
+    /// code-behind so the DataTemplate can bind a small file-icon
+    /// button to it.  Made settable so the row stays plain-data here.
+    /// </summary>
+    public System.Windows.Input.ICommand? ImportCommand { get; set; }
+
+    public MethodArgRow(Argument a, string defaultValue)
+    {
+        Header = $"{a.Name} : {a.DataType} (rank={a.ValueRank})";
+        m_valueText = defaultValue;
+    }
+}
+
+/// <summary>
+/// Single row of the Method Call dialog's output table.
+/// </summary>
+internal sealed record MethodOutputRow(int Index, string DataType, string Value);

@@ -1,0 +1,54 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:v="using:UaLens.Views"
+        x:Class="UaLens.Views.BrowsePickerDialog"
+        Width="640" Height="540"
+        WindowStartupLocation="CenterOwner"
+        Background="#0F172A" Foreground="#E2E8F0">
+  <Grid Margin="14" RowDefinitions="Auto,*,Auto,Auto" ColumnDefinitions="*">
+    <TextBlock Grid.Row="0"
+               x:Name="HeaderLabel"
+               Margin="0,0,0,8"
+               TextWrapping="Wrap" />
+
+    <Border Grid.Row="1" BorderBrush="#1E293B" BorderThickness="1" CornerRadius="4" Background="#0B1220">
+      <TreeView x:Name="Tree"
+                Background="Transparent"
+                Foreground="#E2E8F0"
+                BorderThickness="0">
+        <TreeView.Styles>
+          <Style Selector="TreeViewItem" x:DataType="v:BrowsePickerNode">
+            <Setter Property="IsExpanded" Value="{CompiledBinding IsExpanded, Mode=TwoWay}" />
+            <Setter Property="Padding"    Value="4,2" />
+          </Style>
+        </TreeView.Styles>
+        <TreeView.ItemTemplate>
+          <TreeDataTemplate DataType="v:BrowsePickerNode" ItemsSource="{CompiledBinding Children}">
+            <TextBlock FontFamily="Cascadia Mono, Consolas, monospace">
+              <TextBlock.Text>
+                <CompiledBinding Path="DisplayName" />
+              </TextBlock.Text>
+              <TextBlock.Styles>
+                <Style Selector="TextBlock">
+                  <Setter Property="Foreground" Value="#E2E8F0" />
+                </Style>
+              </TextBlock.Styles>
+            </TextBlock>
+          </TreeDataTemplate>
+        </TreeView.ItemTemplate>
+      </TreeView>
+    </Border>
+
+    <TextBlock Grid.Row="2"
+               x:Name="StatusLabel"
+               Margin="0,8,0,0"
+               Foreground="#94A3B8"
+               FontSize="11" />
+
+    <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
+      <Button x:Name="FlattenButton" Content="Flatten…" Width="100" Margin="0,0,8,0" />
+      <Button x:Name="OkButton"     Content="OK"     IsDefault="True" Width="100" />
+      <Button x:Name="CancelButton" Content="Cancel" IsCancel="True"  Width="100" Margin="8,0,0,0" />
+    </StackPanel>
+  </Grid>
+</Window>
