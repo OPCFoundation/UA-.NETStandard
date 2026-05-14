@@ -490,6 +490,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         /// the issuer references are released.
         /// </summary>
         [Test]
+        [NonParallelizable]
         public async Task GetIssuersAsyncReturnedReferencesAreCallerOwnedAndDisposable()
         {
             using Certificate rootCa = CertificateBuilder

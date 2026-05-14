@@ -89,6 +89,12 @@ namespace Opc.Ua.Server
         void Shutdown();
 
         /// <summary>
+        /// Clears all tracked failed authentication attempts and lockouts.
+        /// Intended for diagnostic and test scenarios.
+        /// </summary>
+        void ClearAuthenticationLockouts();
+
+        /// <summary>
         /// Returns all of the sessions known to the session manager.
         /// </summary>
         /// <returns>A list of the sessions.</returns>

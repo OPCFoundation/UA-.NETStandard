@@ -112,6 +112,7 @@ namespace Opc.Ua.Server.Tests
                     "uri:opcfoundation.org:" + typeof(T).Name)
                 .SetMaxByteStringLength(4 * 1024 * 1024)
                 .SetMaxArrayLength(1024 * 1024)
+                .SetMaxMessageSize(16 * 1024 * 1024)
                 .SetChannelLifetime(30000)
                 .AsServer([endpointUrl]);
 

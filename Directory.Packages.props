@@ -30,6 +30,7 @@
     <PackageVersion Include="Microsoft.Extensions.Hosting" Version="10.0.7" />
     <PackageVersion Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.7" />
     <PackageVersion Include="Microsoft.Extensions.Options" Version="10.0.7" />
+    <PackageVersion Include="Makaretu.Dns.Multicast" Version="0.27.0" />
     <PackageVersion Include="Microsoft.IO.RecyclableMemoryStream" Version="3.0.1" />
     <PackageVersion Include="ModelContextProtocol" Version="1.3.0" />
     <PackageVersion Include="ModelContextProtocol.AspNetCore" Version="1.3.0" />

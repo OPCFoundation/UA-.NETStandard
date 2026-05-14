@@ -27,37 +27,25 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using Opc.Ua;
-
-namespace TestData
+namespace Quickstarts.FileSystem
 {
-    /// <summary>
-    /// An interface to an object which can access historical data for a variable.
-    /// </summary>
-    public interface IHistoryDataSource
-    {
-        /// <summary>
-        /// Returns the next value in the archive.
-        /// </summary>
-        /// <param name="startTime">The starting time for the search.</param>
-        /// <param name="isForward">Whether to search forward in time.</param>
-        /// <param name="isReadModified">Whether to return modified data.</param>
-        /// <param name="position">A index that must be passed to the NextRaw call. </param>
-        /// <returns>The DataValue.</returns>
-        DataValue FirstRaw(
-            DateTimeUtc startTime,
-            bool isForward,
-            bool isReadModified,
-            out int position);
+    using Opc.Ua;
+    using Opc.Ua.Server;
 
-        /// <summary>
-        /// Returns the next value in the archive.
-        /// </summary>
-        /// <param name="lastTime">The timestamp of the last value returned.</param>
-        /// <param name="isForward">Whether to search forward in time.</param>
-        /// <param name="isReadModified">Whether to return modified data.</param>
-        /// <param name="position">A index previously returned by the reader.</param>
-        /// <returns>The DataValue.</returns>
-        DataValue NextRaw(DateTimeUtc lastTime, bool isForward, bool isReadModified, ref int position);
+    /// <inheritdoc/>
+    public class FileSystemServer : INodeManagerFactory
+    {
+        /// <inheritdoc/>
+        public ArrayOf<string> NamespacesUris =>
+        [
+            Namespaces.FileSystem
+        ];
+
+        /// <inheritdoc/>
+        public INodeManager Create(IServerInternal server,
+            ApplicationConfiguration configuration)
+        {
+            return new FileSystemNodeManager(server, configuration);
+        }
     }
 }

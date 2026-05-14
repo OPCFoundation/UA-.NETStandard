@@ -153,6 +153,15 @@ namespace Opc.Ua.Server
         ISessionManager SessionManager { get; }
 
         /// <summary>
+        /// The manager for role identity / application / endpoint mapping rules
+        /// per OPC UA Part 18 §6.4. <c>null</c> only on stripped-down server hosts
+        /// that don't expose Server.ServerCapabilities.RoleSet. Integrators may
+        /// override the default in-memory implementation by calling
+        /// <see cref="SetRoleManager"/> before the address space is bound.
+        /// </summary>
+        IRoleManager RoleManager { get; }
+
+        /// <summary>
         /// The manager for active subscriptions.
         /// </summary>
         ISubscriptionManager SubscriptionManager { get; }
@@ -328,6 +337,17 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="subscriptionStore">The subscriptionstore.</param>
         void SetSubscriptionStore(ISubscriptionStore subscriptionStore);
+
+        /// <summary>
+        /// Replaces the role manager with a custom <see cref="IRoleManager"/>
+        /// implementation. Must be called before the diagnostics node manager
+        /// binds the address space (typically before <c>StartServer</c>).
+        /// Integrators use this to plug a persistent backing store, an LDAP
+        /// directory, etc., in place of the default in-memory
+        /// <see cref="Opc.Ua.Server.RoleManager"/>.
+        /// </summary>
+        /// <param name="roleManager">The role manager to use.</param>
+        void SetRoleManager(IRoleManager roleManager);
 
         /// <summary>
         /// Stores the AggregateManager in the datastore.

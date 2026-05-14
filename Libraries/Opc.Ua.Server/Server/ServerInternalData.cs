@@ -133,6 +133,9 @@ namespace Opc.Ua.Server
         /// <value>The session manager.</value>
         public ISessionManager SessionManager { get; private set; }
 
+        /// <inheritdoc/>
+        public IRoleManager RoleManager { get; private set; } = new RoleManager();
+
         /// <summary>
         /// The subscription manager to use with the server.
         /// </summary>
@@ -211,6 +214,13 @@ namespace Opc.Ua.Server
         public void SetSubscriptionStore(ISubscriptionStore subscriptionStore)
         {
             SubscriptionStore = subscriptionStore;
+        }
+
+        /// <inheritdoc/>
+        public void SetRoleManager(IRoleManager roleManager)
+        {
+            if (roleManager == null) { throw new ArgumentNullException(nameof(roleManager)); }
+            RoleManager = roleManager;
         }
 
         /// <summary>
@@ -642,6 +652,19 @@ namespace Opc.Ua.Server
             serverObject.ServerCapabilities.MaxSubscriptions.Value = (uint)
                 m_configuration.ServerConfiguration.MaxSubscriptionCount;
 
+            // Expose MaxSubscriptionsPerSession (optional property
+            // on ServerCapabilitiesType per Part 5 §6.3) so clients that
+            // enumerate per-session limits get a defined value instead of a
+            // missing-attribute response. Use the configured global
+            // MaxSubscriptionCount as the per-session ceiling — the SDK
+            // doesn't track per-session limits separately at this layer.
+            if (serverObject.ServerCapabilities.MaxSubscriptionsPerSession == null)
+            {
+                serverObject.ServerCapabilities.AddMaxSubscriptionsPerSession(DefaultSystemContext);
+            }
+            serverObject.ServerCapabilities.MaxSubscriptionsPerSession.Value = (uint)Math.Max(1,
+                m_configuration.ServerConfiguration.MaxSubscriptionCount);
+
             // Any operational limits Property that is provided shall have a non zero value.
             OperationLimitsState operationLimits = serverObject.ServerCapabilities
                 .OperationLimits;
@@ -815,26 +838,17 @@ namespace Opc.Ua.Server
             auditing.OnSimpleWriteValue += OnWriteAuditing;
             auditing.OnSimpleReadValue += OnReadAuditing;
             auditing.Value = Auditing;
-            auditing.RolePermissions =
-            [
-                new RolePermissionType
-                    {
-                        RoleId = ObjectIds.WellKnownRole_AuthenticatedUser,
-                        Permissions = (uint)(PermissionType.Browse | PermissionType.Read)
-                    },
-                    new RolePermissionType
-                    {
-                        RoleId = ObjectIds.WellKnownRole_SecurityAdmin,
-                        Permissions = (uint)(
-                            PermissionType.Browse |
-                            PermissionType.Write |
-                            PermissionType.ReadRolePermissions |
-                            PermissionType.Read)
-                    }
-            ];
             auditing.AccessLevel = AccessLevels.CurrentRead;
             auditing.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
             auditing.MinimumSamplingInterval = 1000;
+
+            // Wire RoleManager into the well-known role nodes so AddIdentity /
+            // AddApplication / AddEndpoint method calls update the live identity
+            // map used by the impersonation path.
+            if (DiagnosticsNodeManager is AsyncCustomNodeManager diagnosticsCustom)
+            {
+                RoleStateBinding.Bind(diagnosticsCustom, RoleManager);
+            }
         }
 
         /// <summary>
