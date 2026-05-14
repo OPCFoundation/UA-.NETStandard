@@ -110,6 +110,11 @@ core NodeSet (e.g. `FileTypeClient`, `TrustListTypeClient`,
 `ServerConfigurationTypeClient`, …) emitted into the `Opc.Ua` namespace,
 so downstream models can simply derive from them.
 
+For an ergonomic, `System.IO`-style async client built on top of the
+generated `FileTypeClient` / `FileDirectoryTypeClient` /
+`TemporaryFileTransferTypeClient` proxies, see
+[`Docs/FileSystemClient.md`](../../Docs/FileSystemClient.md).
+
 ### Output namespace
 
 By default each model emits its proxies into its **own** namespace —
