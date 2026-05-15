@@ -1,0 +1,114 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<!--
+ * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+-->
+<opc:ModelDesign
+  xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xmlns:ua="http://opcfoundation.org/UA/"
+  xmlns:opc="http://opcfoundation.org/UA/ModelDesign.xsd"
+  xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+  xmlns="http://opcfoundation.org/UA/Calc/"
+  TargetNamespace="http://opcfoundation.org/UA/Calc/"
+  TargetXmlNamespace="http://opcfoundation.org/UA/Calc/Types.xsd"
+  TargetVersion="1.00.0"
+  TargetPublicationDate="2025-01-01T00:00:00Z">
+
+  <opc:Namespaces>
+    <opc:Namespace Name="Calc" Prefix="Calc" XmlNamespace="http://opcfoundation.org/UA/Calc/Types.xsd" XmlPrefix="Calc">http://opcfoundation.org/UA/Calc/</opc:Namespace>
+    <opc:Namespace Name="OpcUa" Prefix="Opc.Ua" Version="1.05.07" PublicationDate="2025-12-25T00:00:00Z" InternalPrefix="Opc.Ua.Server" XmlNamespace="http://opcfoundation.org/UA/2008/02/Types.xsd" XmlPrefix="OpcUa">http://opcfoundation.org/UA/</opc:Namespace>
+  </opc:Namespaces>
+
+  <!--
+    Top-level MethodType declarations. The model compiler emits one
+    typed MethodState subclass per top-level Method (AddMethodState,
+    MultiplyMethodState, ConcatMethodState) plus the matching typed
+    OnCall delegate so the source-generated fluent surface can offer
+    Func<T1, T2, TResult> (sync) and Func<T1, T2, CancellationToken,
+    ValueTask<TResult>> (async) overloads on each MethodBuilder.
+  -->
+  <opc:Method SymbolicName="AddMethodType">
+    <opc:Description>Returns a + b.</opc:Description>
+    <opc:InputArguments>
+      <opc:Argument Name="a" DataType="ua:Int32">
+        <opc:Description>First addend.</opc:Description>
+      </opc:Argument>
+      <opc:Argument Name="b" DataType="ua:Int32">
+        <opc:Description>Second addend.</opc:Description>
+      </opc:Argument>
+    </opc:InputArguments>
+    <opc:OutputArguments>
+      <opc:Argument Name="sum" DataType="ua:Int32">
+        <opc:Description>Computed sum.</opc:Description>
+      </opc:Argument>
+    </opc:OutputArguments>
+  </opc:Method>
+
+  <opc:Method SymbolicName="MultiplyMethodType">
+    <opc:Description>Returns a * b. Wired with the asynchronous typed OnCall overload.</opc:Description>
+    <opc:InputArguments>
+      <opc:Argument Name="a" DataType="ua:Double">
+        <opc:Description>First factor.</opc:Description>
+      </opc:Argument>
+      <opc:Argument Name="b" DataType="ua:Double">
+        <opc:Description>Second factor.</opc:Description>
+      </opc:Argument>
+    </opc:InputArguments>
+    <opc:OutputArguments>
+      <opc:Argument Name="product" DataType="ua:Double">
+        <opc:Description>Computed product.</opc:Description>
+      </opc:Argument>
+    </opc:OutputArguments>
+  </opc:Method>
+
+  <opc:Method SymbolicName="ConcatMethodType">
+    <opc:Description>Returns left + right.</opc:Description>
+    <opc:InputArguments>
+      <opc:Argument Name="left" DataType="ua:String">
+        <opc:Description>Left-hand string.</opc:Description>
+      </opc:Argument>
+      <opc:Argument Name="right" DataType="ua:String">
+        <opc:Description>Right-hand string.</opc:Description>
+      </opc:Argument>
+    </opc:InputArguments>
+    <opc:OutputArguments>
+      <opc:Argument Name="result" DataType="ua:String">
+        <opc:Description>Concatenated value.</opc:Description>
+      </opc:Argument>
+    </opc:OutputArguments>
+  </opc:Method>
+
+  <!--
+    CalculatorType binds the three method types as Mandatory children so
+    every CalculatorType instance exposes the Add/Multiply/Concat
+    methods at fixed browse paths. The predefined Calculator instance
+    just below uses CalculatorType so users only need to wire one set
+    of OnCall handlers.
+  -->
+  <opc:ObjectType SymbolicName="CalculatorType" BaseType="ua:BaseObjectType">
+    <opc:Description>An object type that exposes Add/Multiply/Concat methods exercising the typed fluent OnCall surface.</opc:Description>
+    <opc:Children>
+      <opc:Method SymbolicName="Add" TypeDefinition="AddMethodType" ModellingRule="Mandatory" />
+      <opc:Method SymbolicName="Multiply" TypeDefinition="MultiplyMethodType" ModellingRule="Mandatory" />
+      <opc:Method SymbolicName="Concat" TypeDefinition="ConcatMethodType" ModellingRule="Mandatory" />
+    </opc:Children>
+  </opc:ObjectType>
+
+  <!--
+    Predefined Calculator instance. The source generator surfaces it on
+    the typed fluent root as builder.Calculator, with the three method
+    children reachable via builder.Calculator.Add/.Multiply/.Concat.
+  -->
+  <opc:Object SymbolicName="Calculator" TypeDefinition="CalculatorType">
+    <opc:Description>A calculator exposing Add, Multiply and Concat under the Objects folder.</opc:Description>
+    <opc:References>
+      <opc:Reference IsInverse="true">
+        <opc:ReferenceType>ua:Organizes</opc:ReferenceType>
+        <opc:TargetId>ua:ObjectsFolder</opc:TargetId>
+      </opc:Reference>
+    </opc:References>
+  </opc:Object>
+
+</opc:ModelDesign>

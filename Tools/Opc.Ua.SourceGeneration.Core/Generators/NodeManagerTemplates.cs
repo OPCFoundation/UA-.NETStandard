@@ -58,7 +58,7 @@ namespace Opc.Ua.SourceGeneration
                 /// fluent API in <c>Opc.Ua.Server.Fluent</c>.
                 /// </remarks>
                 [global::System.CodeDom.Compiler.GeneratedCodeAttribute("{{Tokens.Tool}}", "{{Tokens.Version}}")]
-                public partial class {{Tokens.NodeManagerClassName}} : global::Opc.Ua.Server.AsyncCustomNodeManager
+                public partial class {{Tokens.NodeManagerClassName}} : global::Opc.Ua.Server.Fluent.FluentNodeManagerBase
                 {
                     private global::Opc.Ua.Server.Fluent.NodeManagerBuilder __m_builder;
 
@@ -78,6 +78,14 @@ namespace Opc.Ua.SourceGeneration
                     /// <c>partial</c> to wire callbacks via the fluent builder.
                     /// </summary>
                     partial void Configure(global::Opc.Ua.Server.Fluent.INodeManagerBuilder builder);
+
+                    /// <summary>
+                    /// Source-generated typed counterpart of
+                    /// <see cref="Configure(global::Opc.Ua.Server.Fluent.INodeManagerBuilder)"/>.
+                    /// Implement in a sibling <c>partial</c> to wire callbacks via the
+                    /// strongly-typed model-traversal surface generated for this manager.
+                    /// </summary>
+                    partial void Configure(I{{Tokens.NodeManagerClassName}}Builder builder);
 
                     /// <inheritdoc/>
                     protected override global::System.Threading.Tasks.ValueTask<global::Opc.Ua.NodeStateCollection> LoadPredefinedNodesAsync(
@@ -106,7 +114,13 @@ namespace Opc.Ua.SourceGeneration
                             __FindRootByNodeId,
                             __FindByTypeDefinitionId);
 
+                        // Attach the FluentNodeManagerBase event-source registry
+                        // to the builder so Publish(...) extensions can resolve
+                        // it before the user's Configure partial(s) run.
+                        AttachToBuilder(__m_builder);
+
                         Configure(__m_builder);
+                        Configure(new {{Tokens.NodeManagerClassName}}TypedBuilder(__m_builder));
                         __m_builder.Seal();
 
                         foreach (global::Opc.Ua.NodeState __node in PredefinedNodes.Values)

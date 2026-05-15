@@ -198,5 +198,43 @@ namespace Opc.Ua.Server.Fluent
         /// <typeparam name="TState">See <see cref="NodeFromTypeId{TState}(NodeId)"/>.</typeparam>
         INodeBuilder<TState> NodeFromTypeId<TState>(NodeId typeDefinitionId, QualifiedName browseName)
             where TState : NodeState;
+
+        /// <summary>
+        /// Resolves a variable node by browse path and returns a typed
+        /// <see cref="IVariableBuilder{TValue}"/> view that exposes
+        /// simple <c>Func</c> / <c>Action</c> shaped
+        /// <c>OnRead</c>/<c>OnWrite</c> overloads.
+        /// </summary>
+        /// <typeparam name="TValue">
+        /// CLR type carried by the variable's <c>Value</c> attribute.
+        /// </typeparam>
+        /// <param name="browsePath">See <see cref="Node(string)"/>.</param>
+        /// <exception cref="ServiceResultException">
+        /// Thrown if the path does not resolve, or resolves to a node
+        /// that is not a <see cref="BaseVariableState"/>.
+        /// </exception>
+        IVariableBuilder<TValue> Variable<TValue>(string browsePath);
+
+        /// <summary>
+        /// Resolves a variable node by absolute <see cref="NodeId"/>
+        /// and returns a typed <see cref="IVariableBuilder{TValue}"/>
+        /// view.
+        /// </summary>
+        IVariableBuilder<TValue> Variable<TValue>(NodeId nodeId);
+
+        /// <summary>
+        /// Resolves the unique variable instance whose
+        /// <c>TypeDefinitionId</c> matches <paramref name="typeDefinitionId"/>
+        /// and returns a typed <see cref="IVariableBuilder{TValue}"/>
+        /// view. Same disambiguation semantics as
+        /// <see cref="NodeFromTypeId(NodeId)"/>.
+        /// </summary>
+        IVariableBuilder<TValue> VariableFromTypeId<TValue>(NodeId typeDefinitionId);
+
+        /// <summary>
+        /// Like <see cref="VariableFromTypeId{TValue}(NodeId)"/> but
+        /// disambiguates among multiple instances by browse name.
+        /// </summary>
+        IVariableBuilder<TValue> VariableFromTypeId<TValue>(NodeId typeDefinitionId, QualifiedName browseName);
     }
 }
