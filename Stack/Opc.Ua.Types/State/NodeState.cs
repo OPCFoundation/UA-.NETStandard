@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Xml;
 using Opc.Ua.Types;
 
@@ -3697,6 +3698,50 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Asynchronous sibling of
+        /// <see cref="ReadAttribute(ISystemContext, uint, NumericRange, QualifiedName, DataValue)"/>.
+        /// The default implementation simply wraps the synchronous call
+        /// inside a <c>lock(this)</c> so behaviour is bit-identical for
+        /// every <see cref="NodeState"/> that does not override it. Derived
+        /// types (notably <see cref="BaseVariableState"/>) can override
+        /// this method to dispatch to true asynchronous read hooks without
+        /// blocking a thread.
+        /// </summary>
+        /// <param name="context">The context for the current operation.</param>
+        /// <param name="attributeId">The attribute id.</param>
+        /// <param name="indexRange">The index range.</param>
+        /// <param name="dataEncoding">The data encoding.</param>
+        /// <param name="value">The value to populate.</param>
+        /// <param name="cancellationToken">Cancellation token.</param>
+        /// <returns>
+        /// An instance of the <see cref="ServiceResult"/> containing the
+        /// status code and diagnostic info for the operation.
+        /// </returns>
+        public virtual ValueTask<ServiceResult> ReadAttributeAsync(
+            ISystemContext context,
+            uint attributeId,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            DataValue value,
+            CancellationToken cancellationToken = default)
+        {
+            ServiceResult result;
+            // TODO: introduce a dedicated private lock object on NodeState —
+            // today's sync flow synchronises through `lock(source)` taken by
+            // external callers (e.g. CustomNodeManager2.Read), so the async
+            // path must lock on the same instance to preserve mutual
+            // exclusion. Switching to a private lock object requires
+            // updating every external `lock(source)` site.
+#pragma warning disable CA2002 // Do not lock on objects with weak identity
+            lock (this)
+#pragma warning restore CA2002
+            {
+                result = ReadAttribute(context, attributeId, indexRange, dataEncoding, value);
+            }
+            return new ValueTask<ServiceResult>(result);
+        }
+
+        /// <summary>
         /// Reads the value for any non-value attribute.
         /// </summary>
         /// <param name="context">The context.</param>
@@ -3997,6 +4042,40 @@ namespace Opc.Ua
                     StatusCodes.BadUnexpectedError,
                     "Failed to write non value attribute");
             }
+        }
+
+        /// <summary>
+        /// Asynchronous sibling of
+        /// <see cref="WriteAttribute(ISystemContext, uint, NumericRange, DataValue)"/>.
+        /// The default implementation wraps the synchronous call inside a
+        /// <c>lock(this)</c> so behaviour is bit-identical for every
+        /// <see cref="NodeState"/> that does not override it. Derived
+        /// types (notably <see cref="BaseVariableState"/>) can override
+        /// this method to dispatch to true asynchronous write hooks
+        /// without blocking a thread.
+        /// </summary>
+        /// <param name="context">The context for the current operation.</param>
+        /// <param name="attributeId">The attribute id.</param>
+        /// <param name="indexRange">The index range.</param>
+        /// <param name="value">The value to write.</param>
+        /// <param name="cancellationToken">Cancellation token.</param>
+        public virtual ValueTask<ServiceResult> WriteAttributeAsync(
+            ISystemContext context,
+            uint attributeId,
+            NumericRange indexRange,
+            DataValue value,
+            CancellationToken cancellationToken = default)
+        {
+            ServiceResult result;
+            // TODO: introduce a dedicated private lock object on NodeState —
+            // see the sibling note in ReadAttributeAsync for the rationale.
+#pragma warning disable CA2002 // Do not lock on objects with weak identity
+            lock (this)
+#pragma warning restore CA2002
+            {
+                result = WriteAttribute(context, attributeId, indexRange, value);
+            }
+            return new ValueTask<ServiceResult>(result);
         }
 
         /// <summary>
@@ -5339,6 +5418,99 @@ namespace Opc.Ua
         ref Variant value,
         ref StatusCode statusCode,
         ref DateTimeUtc timestamp);
+
+    /// <summary>
+    /// Result returned by an asynchronous full Value-attribute read hook
+    /// (<see cref="NodeValueEventHandlerAsync"/>). Carries the value plus
+    /// its status code and source timestamp; the framework writes all three
+    /// onto the supplied <see cref="DataValue"/> when the operation
+    /// succeeds. Allocated on the stack — no per-call allocation.
+    /// </summary>
+    /// <param name="Result">
+    /// Operation result. <see cref="ServiceResult.IsBad(ServiceResult)"/>
+    /// short-circuits the rest of the read pipeline.
+    /// </param>
+    /// <param name="Value">The value to return to the caller.</param>
+    /// <param name="StatusCode">Status code to attach to the value.</param>
+    /// <param name="SourceTimestamp">
+    /// Source timestamp to attach. <see cref="DateTimeUtc.MinValue"/>
+    /// causes the framework to substitute the current UTC time, mirroring
+    /// the synchronous <see cref="NodeValueEventHandler"/> behavior.
+    /// </param>
+    public readonly record struct AttributeReadResult(
+        ServiceResult Result,
+        Variant Value,
+        StatusCode StatusCode,
+        DateTimeUtc SourceTimestamp);
+
+    /// <summary>
+    /// Result returned by an asynchronous simple Value-attribute read hook
+    /// (<see cref="NodeValueSimpleEventHandlerAsync"/>). Carries only the
+    /// value; the framework reuses the variable's cached status code and
+    /// timestamp and runs the standard index-range / data-encoding
+    /// post-processing — matching the synchronous
+    /// <see cref="NodeValueSimpleEventHandler"/> pipeline.
+    /// </summary>
+    /// <param name="Result">Operation result.</param>
+    /// <param name="Value">The value to return to the caller.</param>
+    public readonly record struct AttributeSimpleReadResult(
+        ServiceResult Result,
+        Variant Value);
+
+    /// <summary>
+    /// Result returned by an asynchronous Value-attribute write hook
+    /// (<see cref="NodeValueWriteEventHandlerAsync"/> /
+    /// <see cref="NodeValueSimpleWriteEventHandlerAsync"/>).
+    /// </summary>
+    /// <param name="Result">Operation result.</param>
+    public readonly record struct AttributeWriteResult(
+        ServiceResult Result);
+
+    /// <summary>
+    /// Asynchronous sibling of <see cref="NodeValueEventHandler"/> for the
+    /// read direction. Returns a <see cref="AttributeReadResult"/> instead
+    /// of writing to <c>ref</c> parameters because <c>ref</c> cannot cross
+    /// an <c>await</c>.
+    /// </summary>
+    public delegate ValueTask<AttributeReadResult> NodeValueEventHandlerAsync(
+        ISystemContext context,
+        NodeState node,
+        NumericRange indexRange,
+        QualifiedName dataEncoding,
+        CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Asynchronous sibling of <see cref="NodeValueSimpleEventHandler"/>
+    /// for the read direction.
+    /// </summary>
+    public delegate ValueTask<AttributeSimpleReadResult> NodeValueSimpleEventHandlerAsync(
+        ISystemContext context,
+        NodeState node,
+        CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Asynchronous sibling of <see cref="NodeValueEventHandler"/> for the
+    /// write direction. The hook receives the value being written and
+    /// returns only a status; on success the framework updates the
+    /// variable's cached value and timestamp to mirror the synchronous
+    /// path.
+    /// </summary>
+    public delegate ValueTask<AttributeWriteResult> NodeValueWriteEventHandlerAsync(
+        ISystemContext context,
+        NodeState node,
+        NumericRange indexRange,
+        Variant value,
+        CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Asynchronous sibling of <see cref="NodeValueSimpleEventHandler"/>
+    /// for the write direction.
+    /// </summary>
+    public delegate ValueTask<AttributeWriteResult> NodeValueSimpleWriteEventHandlerAsync(
+        ISystemContext context,
+        NodeState node,
+        Variant value,
+        CancellationToken cancellationToken);
 
     /// <summary>
     /// Stores a reference from a node in the instance hierarchy.

@@ -202,6 +202,278 @@ against the in-memory predefined-node tree. There is no reflection, no
 `Activator.CreateInstance`, no `Expression.Compile` — the whole pipeline
 is NativeAOT-safe.
 
+## Typed model-traversal — the `Configure(I{Manager}NodeManagerBuilder)` partial
+
+Alongside the string/NodeId/TypeId addressing surface above, the
+generator emits a **second** `Configure` partial whose builder parameter
+exposes one IntelliSense-aware accessor per predefined instance, child,
+variable and method in the model. Every wiring site becomes a chain of
+properties — typos are compile-time errors, not startup-time
+`ServiceResultException`s.
+
+```csharp
+public partial class BoilerNodeManager
+{
+    // Untyped Configure remains available for nodes outside the model
+    // (e.g. dynamic instances, foreign-namespace nodes, or just to keep
+    // hand-written wiring side-by-side with typed wiring).
+    partial void Configure(INodeManagerBuilder builder)
+    {
+        builder
+            .Node("Boilers/Boiler #1/DrumX001/LIX001/Output")
+            .OnRead(GenerateDrumLevel);
+    }
+
+    // Typed Configure: every accessor below is a generated property
+    // resolved against the model. The compiler enforces both the path
+    // shape AND the value type of every leaf.
+    partial void Configure(IBoilerNodeManagerBuilder builder)
+    {
+        // Variable: typed Func<double> handler — the generator removed
+        // the ref-Variant boilerplate.
+        builder.Boilers.Boiler__1.LCX001.Measurement
+            .OnRead(GenerateLevelMeasurement);
+
+        // Variable, async: routes through BaseVariableState.ReadAttributeAsync
+        // outside the lock so the lambda may freely await.
+        builder.Boilers.Boiler__1.PipeX002.FTX002.Output
+            .OnRead(GenerateOutputFlowAsync);
+
+        // Method, async: typed OnCall(Func<CancellationToken,ValueTask>)
+        // overload. Bind sync Action variants the same way.
+        builder.Boilers.Boiler__1.Simulation.Halt
+            .OnCall(HaltSimulationAsync);
+    }
+}
+```
+
+Both partials are optional and both run; wiring the same node from
+both is illegal and throws at startup. Choose whichever shape best fits
+each call site — typed for everything declared in the model, untyped
+for everything else.
+
+### What the generator emits per model
+
+For a model with `N` ObjectTypes and `M` predefined instances/children
+the generator emits, into a single `{Manager}.FluentBuilders.g.cs`:
+
+- `internal interface I{Manager}NodeManagerBuilder : INodeManagerBuilder`
+  — one accessor per top-level predefined instance.
+- `internal sealed class {Manager}NodeManagerTypedBuilder` — proxy that
+  forwards `INodeManagerBuilder` members to the runtime builder while
+  surfacing the typed accessors.
+- One `internal sealed class` per instance node — whose properties map
+  to typed `IVariableBuilder<TValue>`, child wrapper instances, and
+  method wrappers.
+- One `internal sealed class` per method — exposing typed
+  `OnCall(Func<TIn1, …, TResult>)` and async
+  `OnCall(Func<TIn1, …, CancellationToken, ValueTask<TResult>>)`
+  overloads when the model declares input/output arguments
+  (the generator handles `Variant.TryGetValue` unpacking and
+  `Variant.From<T>` boxing — see [Methods with arguments](#methods-with-arguments--typed-oncall-overloads)).
+  Argument-less methods keep the no-arg `OnCall(Action)` /
+  `OnCall(Func<CancellationToken, ValueTask>)` overloads.
+
+All emitted types are `internal sealed` because `Configure` is a
+private partial — the surface never escapes the assembly. Child
+accessors resolve namespace indices lazily through
+`ISystemContext.NamespaceUris.GetIndexOrAppend(...)` so the wrappers
+work regardless of the namespace-table order at runtime.
+
+### Methods with arguments — typed `OnCall` overloads
+
+When a model method declares input or output arguments the generator
+emits **typed `OnCall` overloads** that bind directly to the user
+handler's parameters and return value. Inputs are unboxed via
+`Variant.TryGetValue<T>(out T)`, the boxed result is written back
+through `Variant.From<T>(value)`, and `BadInvalidArgument` /
+`BadArgumentsMissing` is returned when the wire shape does not match
+the declared signature — none of which the user has to spell out.
+
+Two overloads are emitted per method:
+
+- `OnCall(Func<TIn1, TIn2, …, TResult> handler)` — synchronous
+  dispatch through `MethodState.OnCallMethod2`.
+- `OnCall(Func<TIn1, TIn2, …, CancellationToken, ValueTask<TResult>>
+  handler)` — async dispatch through `MethodState.OnCallMethod2Async`,
+  awaited inside `AsyncCustomNodeManager.CallAsync` so the lambda may
+  freely `await`.
+
+Methods with multiple output arguments are bound to a `ValueTuple`
+return — slot `i` is written from `__r.Item{i+1}`. Methods with no
+return value (action-only) keep the existing `OnCall(Action)` /
+`OnCall(Func<CancellationToken, ValueTask>)` overloads.
+
+```csharp
+[NodeManager(NamespaceUri = "http://opcfoundation.org/UA/Calc/")]
+public partial class CalcNodeManager
+{
+    partial void Configure(ICalcNodeManagerBuilder builder)
+    {
+        // Sync int+int → int. The generator unpacks each Variant
+        // through Variant.TryGetValue<int> and boxes the result back
+        // through Variant.From<int>.
+        builder.Calculator.Add
+            .OnCall((int a, int b) => a + b);
+
+        // Async double+double → double. The CancellationToken is
+        // forwarded by AsyncCustomNodeManager.CallAsync so the
+        // handler may freely await and honour cancellation.
+        builder.Calculator.Multiply
+            .OnCall(async (double x, double y, CancellationToken ct) =>
+            {
+                await Task.Yield();
+                ct.ThrowIfCancellationRequested();
+                return x * y;
+            });
+
+        // Sync string+string → string. Reference-typed inputs and
+        // return values use the same Variant.TryGetValue / Variant.From
+        // path; the handler can null-coalesce safely because a missing
+        // input is reported as BadInvalidArgument before the lambda
+        // ever runs.
+        builder.Calculator.Concat
+            .OnCall((string left, string right) =>
+                (left ?? string.Empty) + (right ?? string.Empty));
+    }
+}
+```
+
+The end-to-end sample lives in
+`Applications/MinimalCalcServer/` (model in `Model/Calc.xml`, wiring
+in `CalcNodeManager.Configure.cs`). The companion AOT round-trip tests
+in `Tests/Opc.Ua.Aot.Tests/CalculatorNodeManagerAotTests.cs` exercise
+each shape over a real `Session.CallAsync(...)`.
+
+## Event sources — typed `Publish<TEvent>` on notifier wrappers
+
+Beyond reads, writes and method calls, the fluent API lets callers
+register an `IAsyncEnumerable<TEvent>` against any notifier object so
+events flow into the standard `NodeState.ReportEvent` path
+automatically. The runtime owns the entire lifecycle: it starts the
+iterator the first time a client subscribes to events on the notifier
+(or any ancestor that walks via inverse `HasNotifier` /
+`HasEventSource` references), cancels it when the last interested
+monitored item disappears, and disposes it on manager teardown.
+
+Generated managers derive from `Opc.Ua.Server.Fluent.FluentNodeManagerBase`
+out of the box, so wiring is one call:
+
+```csharp
+partial void Configure(IBoilerNodeManagerBuilder builder)
+{
+    // The DrumX001 wrapper exposes Publish<TEvent> because the model
+    // declares EventNotifier=SubscribeToEvents on the node. Lazy by
+    // default — the iterator only runs while a client is monitoring.
+    builder.Boilers.Boiler__1.DrumX001
+        .Publish<BaseEventState>(GenerateDrumHeartbeatAsync);
+}
+
+private async IAsyncEnumerable<BaseEventState> GenerateDrumHeartbeatAsync(
+    BaseObjectState notifier,
+    ISystemContext context,
+    [EnumeratorCancellation] CancellationToken cancellationToken)
+{
+    while (!cancellationToken.IsCancellationRequested)
+    {
+        try
+        {
+            await Task.Delay(TimeSpan.FromMilliseconds(500), cancellationToken)
+                .ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) { yield break; }
+
+        var ev = new BaseEventState(parent: notifier);
+        ev.Severity = PropertyState<ushort>.With<VariantBuilder>(
+            ev, (ushort)EventSeverity.Medium);
+        ev.Message = PropertyState<LocalizedText>.With<VariantBuilder>(
+            ev, new LocalizedText("Drum heartbeat"));
+        yield return ev;
+    }
+}
+```
+
+The runtime auto-populates `EventId`, `EventType`, `SourceNode`,
+`SourceName` (browse name of the notifier), `Time`, `ReceiveTime`,
+`Severity` (Medium when 0) and `Message` (empty `LocalizedText` when
+unset) on the way out, so the iterator only sets the user-meaningful
+fields.
+
+### Where the typed overload appears
+
+The generator emits `Publish<TEvent>` on a wrapper **only** when the
+underlying node qualifies as an event source:
+
+- `ObjectDesign.SupportsEvents == true` (i.e. the model declares
+  `EventNotifier=SubscribeToEvents`, `HasNotifier`, or
+  `HasEventSource`), or
+- The node has a forward `GeneratesEvent` / `AlwaysGeneratesEvent`
+  reference.
+
+`TEvent` is constrained to `BaseEventState` — pass any subtype that
+fits the model's event hierarchy. For nodes outside the model, or
+hand-written managers, the same `Publish<TNotifier, TEvent>` extension
+is available directly on `INodeBuilder<TNotifier>` where
+`TNotifier : BaseObjectState`.
+
+### Two registration shapes
+
+```csharp
+// Direct stream — registry uses the same instance for every activation.
+builder.Boilers.Boiler__1.DrumX001
+    .Publish<BaseEventState>(channel.Reader.ReadAllAsync(default));
+
+// Factory — registry calls the factory each time a client subscribes,
+// so the iterator can capture the live notifier / context / token.
+builder.Boilers.Boiler__1.DrumX001
+    .Publish<BaseEventState>(
+        (notifier, context, ct) => GenerateAsync(notifier, context, ct));
+```
+
+### Tuning lifecycle with `EventPublishOptions`
+
+```csharp
+builder.Boilers.Boiler__1.DrumX001
+    .Publish<BaseEventState>(GenerateDrumHeartbeatAsync,
+        new EventPublishOptions
+        {
+            // Keep iterator running even with no monitored items.
+            AlwaysOn               = false,
+
+            // Skip default population of EventId / EventType / Time /
+            // ReceiveTime / SourceNode / SourceName / Severity / Message.
+            SkipDefaultPopulation  = false,
+
+            // Register the notifier as a server-wide root notifier so
+            // clients can monitor events on the Server object itself.
+            RegisterAsRootNotifier = true,
+
+            // Bound how long the registry waits for the iterator to
+            // honour cancellation on deactivation.
+            CancellationTimeout    = TimeSpan.FromSeconds(5),
+
+            // Optional fault-handler invoked when the iterator throws.
+            OnError = (notifier, exception, context) => { /* log */ }
+        });
+```
+
+### Hand-written node managers
+
+Managers that don't use the source generator can opt in by deriving
+from `Opc.Ua.Server.Fluent.FluentNodeManagerBase` and calling
+`AttachToBuilder(builder)` from inside their address-space-build
+callback. Once attached, all `Publish` extensions resolve against the
+manager's registry exactly as for generated managers.
+
+The end-to-end sample lives in
+`Applications/MinimalBoilerServer/BoilerNodeManager.Configure.cs`
+(wiring `GenerateDrumHeartbeatAsync` on the drum). The companion AOT
+round-trip test in
+`Tests/Opc.Ua.Aot.Tests/PublishedEventsAotTests.cs` subscribes a
+real client `MonitoredItem` with an `EventFilter` and asserts the
+heartbeats arrive end-to-end under NativeAOT constraints (no JIT, no
+reflection).
+
 ## Single-file `Program.cs` — what it looks like
 
 The shipping `Opc.Ua.Server.Hosting.AddOpcUaServer(...)` extension wires the
@@ -308,5 +580,11 @@ warnings** (~29 MB self-contained EXE).
 
 ## Sample
 
-`Applications/MinimalBoilerServer/` — a fully self-contained, NativeAOT
-single-file Boiler server. Read it top-to-bottom in &lt;200 lines.
+- `Applications/MinimalBoilerServer/` — a fully self-contained,
+  NativeAOT single-file Boiler server. Read it top-to-bottom in
+  &lt;200 lines.
+- `Applications/MinimalCalcServer/` — a calculator server that
+  exercises the typed
+  [methods-with-arguments OnCall overloads](#methods-with-arguments--typed-oncall-overloads)
+  end-to-end (sync `int+int → int`, async `double+double → double`,
+  sync `string+string → string`).

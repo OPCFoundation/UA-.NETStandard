@@ -1962,15 +1962,18 @@ namespace Opc.Ua.Server
                 DataValue value = values[handle.Index];
 
                 // update the attribute value.
-                lock (source)
-                {
-                    errors[handle.Index] = source.ReadAttribute(
-                        context,
-                        nodeToRead.AttributeId,
-                        nodeToRead.ParsedIndexRange,
-                        nodeToRead.DataEncoding,
-                        value);
-                }
+                // Async path — the default NodeState.ReadAttributeAsync re-takes
+                // `lock(this)` around the synchronous fallback when no async
+                // hook is set, so behaviour is preserved bit-for-bit. When a
+                // BaseVariableState async hook is set the lock is dropped on
+                // the await, allowing true async I/O.
+                errors[handle.Index] = await source.ReadAttributeAsync(
+                    context,
+                    nodeToRead.AttributeId,
+                    nodeToRead.ParsedIndexRange,
+                    nodeToRead.DataEncoding,
+                    value,
+                    cancellationToken).ConfigureAwait(false);
             }
         }
 
@@ -2372,15 +2375,13 @@ namespace Opc.Ua.Server
 
                     WriteValue nodeToWrite = nodesToWrite[handle.Index];
 
-                    lock (source)
-                    {
-                        // write the attribute value.
-                        errors[handle.Index] = source.WriteAttribute(
-                            context,
-                            nodeToWrite.AttributeId,
-                            nodeToWrite.ParsedIndexRange,
-                            nodeToWrite.Value);
-                    }
+                    // Async path — see ReadAsync for the locking rationale.
+                    errors[handle.Index] = await source.WriteAttributeAsync(
+                        context,
+                        nodeToWrite.AttributeId,
+                        nodeToWrite.ParsedIndexRange,
+                        nodeToWrite.Value,
+                        cancellationToken).ConfigureAwait(false);
 
                     // updates to source finished - report changes to monitored items.
                     source.ClearChangeMasks(context, false);
