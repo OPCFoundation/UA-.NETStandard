@@ -392,18 +392,17 @@ namespace Opc.Ua.Gds.Client
                 await RevertPermissionsAsync(session, oldUser, ct).ConfigureAwait(false);
             }
         }
+
         /// <inheritdoc/>
-        public async ValueTask<TrustListDataType> ReadTrustListAsync(
-            TrustListMasks masks = TrustListMasks.All,
-            long maxTrustListSize = 0,
-            CancellationToken ct = default)
+        public async ValueTask<TrustListDataType> ReadTrustListAsync(NodeId certificateGroupId, TrustListMasks masks = TrustListMasks.All,
+            long maxTrustListSize = 0, CancellationToken ct = default)
         {
             ISession session = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
             IUserIdentity oldUser = await ElevatePermissionsAsync(session, ct).ConfigureAwait(false);
 
             try
             {
-                TrustListTypeClient trustListClient = GetDefaultApplicationGroupTrustListClient(session);
+                TrustListTypeClient trustListClient = await GetApplicationGroupTrustListClientAsync(session, certificateGroupId, ct).ConfigureAwait(false);
 
                 long sizeLimit = maxTrustListSize == 0
                     ? m_options.MaxTrustListSize
@@ -442,6 +441,16 @@ namespace Opc.Ua.Gds.Client
                 await RevertPermissionsAsync(session, oldUser, ct).ConfigureAwait(false);
             }
         }
+
+        /// <inheritdoc/>
+        public ValueTask<TrustListDataType> ReadTrustListAsync(
+            TrustListMasks masks = TrustListMasks.All,
+            long maxTrustListSize = 0,
+            CancellationToken ct = default)
+        {
+            return ReadTrustListAsync(DefaultApplicationGroup, masks, maxTrustListSize, ct);
+        }
+
         /// <inheritdoc/>
         public ValueTask<bool> UpdateTrustListAsync(TrustListDataType trustList, CancellationToken ct = default)
         {
@@ -449,14 +458,21 @@ namespace Opc.Ua.Gds.Client
         }
 
         /// <inheritdoc/>
-        public async ValueTask<bool> UpdateTrustListAsync(TrustListDataType trustList, long maxTrustListSize, CancellationToken ct = default)
+        public ValueTask<bool> UpdateTrustListAsync(TrustListDataType trustList, long maxTrustListSize, CancellationToken ct = default)
+        {
+            return UpdateTrustListAsync(DefaultApplicationGroup, trustList, maxTrustListSize, ct);
+        }
+
+        /// <inheritdoc/>
+        public async ValueTask<bool> UpdateTrustListAsync(NodeId certificateGroupId, TrustListDataType trustList, long maxTrustListSize,
+            CancellationToken ct = default)
         {
             ISession session = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
             IUserIdentity oldUser = await ElevatePermissionsAsync(session, ct).ConfigureAwait(false);
 
             try
             {
-                TrustListTypeClient trustListClient = GetDefaultApplicationGroupTrustListClient(session);
+                TrustListTypeClient trustListClient = await GetApplicationGroupTrustListClientAsync(session, certificateGroupId, ct).ConfigureAwait(false);
 
                 long sizeLimit = maxTrustListSize == 0
                     ? m_options.MaxTrustListSize
@@ -480,67 +496,74 @@ namespace Opc.Ua.Gds.Client
         /// Returns a <see cref="TrustListTypeClient"/> for the
         /// DefaultApplicationGroup trust list on the connected server.
         /// </summary>
-        private TrustListTypeClient GetDefaultApplicationGroupTrustListClient(ISession session)
+        private ValueTask<TrustListTypeClient> GetDefaultApplicationGroupTrustListClientAsync(
+            ISession session, CancellationToken ct = default)
         {
+            return GetApplicationGroupTrustListClientAsync(session,
+                Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup, ct);
+        }
+
+        /// <summary>
+        /// Returns a <see cref="TrustListTypeClient"/> for the specified certificate group on the connected server.
+        /// </summary>
+        private async ValueTask<TrustListTypeClient> GetApplicationGroupTrustListClientAsync(
+            ISession session, NodeId certificateGroupId, CancellationToken ct = default)
+        {
+            NodeId trustListId = await GetRelatedTrustListIdByCertificateGroupIdAsync(certificateGroupId, ct)
+                    .ConfigureAwait(false);
+
             return new TrustListTypeClient(
                 session,
-                ExpandedNodeId.ToNodeId(
-                    Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList,
-                    session.NamespaceUris),
+                trustListId,
                 MessageContext.Telemetry);
         }
+
         /// <inheritdoc/>
-        public async ValueTask AddCertificateAsync(Certificate certificate, bool isTrustedCertificate, CancellationToken ct = default)
+        public ValueTask AddCertificateAsync(Certificate certificate, bool isTrustedCertificate, CancellationToken ct = default)
+        {
+            return AddCertificateAsync(DefaultApplicationGroup, certificate, isTrustedCertificate, ct);
+        }
+
+        /// <inheritdoc/>
+        public async ValueTask AddCertificateAsync(NodeId certificateGroupId, Certificate certificate, bool isTrustedCertificate,
+            CancellationToken ct = default)
         {
             ISession session = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
             IUserIdentity oldUser = await ElevatePermissionsAsync(session, ct).ConfigureAwait(false);
             try
             {
-                await session.CallAsync(
-                    ExpandedNodeId.ToNodeId(
-                        Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList,
-                        session.NamespaceUris
-                    ),
-                    ExpandedNodeId.ToNodeId(
-                        Ua.MethodIds
-                            .ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_AddCertificate,
-                        session.NamespaceUris
-                    ),
-                    ct,
-                    certificate.RawData.ToByteString(),
-                    isTrustedCertificate).ConfigureAwait(false);
+                TrustListTypeClient trustListClient = await GetApplicationGroupTrustListClientAsync(session, certificateGroupId, ct).ConfigureAwait(false);
+                await trustListClient.AddCertificateAsync(certificate.RawData.ToByteString(), isTrustedCertificate, ct).ConfigureAwait(false);
             }
             finally
             {
                 await RevertPermissionsAsync(session, oldUser, ct).ConfigureAwait(false);
             }
         }
+
         /// <inheritdoc/>
-        public async ValueTask RemoveCertificateAsync(string thumbprint, bool isTrustedCertificate, CancellationToken ct = default)
+        public ValueTask RemoveCertificateAsync(string thumbprint, bool isTrustedCertificate, CancellationToken ct = default)
+        {
+            return RemoveCertificateAsync(DefaultApplicationGroup, thumbprint, isTrustedCertificate, ct);
+        }
+
+        /// <inheritdoc/>
+        public async ValueTask RemoveCertificateAsync(NodeId certificateGroupId, string thumbprint, bool isTrustedCertificate,
+            CancellationToken ct = default)
         {
             ISession session = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
             IUserIdentity oldUser = await ElevatePermissionsAsync(session, ct).ConfigureAwait(false);
             try
             {
-                await session.CallAsync(
-                    ExpandedNodeId.ToNodeId(
-                        Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList,
-                        session.NamespaceUris
-                    ),
-                    ExpandedNodeId.ToNodeId(
-                        Ua.MethodIds
-                            .ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_RemoveCertificate,
-                        session.NamespaceUris
-                    ),
-                    ct,
-                    thumbprint,
-                    isTrustedCertificate).ConfigureAwait(false);
+                TrustListTypeClient trustListClient = await GetApplicationGroupTrustListClientAsync(session, certificateGroupId, ct).ConfigureAwait(false);
+                await trustListClient.RemoveCertificateAsync(thumbprint, isTrustedCertificate, ct).ConfigureAwait(false);
             }
             finally
             {
                 await RevertPermissionsAsync(session, oldUser, ct).ConfigureAwait(false);
             }
         }
+
         /// <summary>
         /// returns the Certificates assigned to CertificateTypes associated with a CertificateGroup.
         /// </summary>
@@ -651,6 +674,72 @@ namespace Opc.Ua.Gds.Client
             await ElevatePermissionsAsync(session, ct).ConfigureAwait(false);
 
             await m_serverConfiguration.ApplyChangesAsync(ct).ConfigureAwait(false);
+        }
+
+
+        private ValueTask<NodeId> GetRelatedTrustListIdByCertificateGroupIdAsync(
+            NodeId certificateGroupId,
+            CancellationToken ct = default)
+        {
+            NodeId normalizedCertificateGroupId = certificateGroupId.WithNamespaceIndex(0);
+            if (normalizedCertificateGroupId ==
+                Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup)
+            {
+                return new ValueTask<NodeId>(ExpandedNodeId.ToNodeId(Ua.ObjectIds
+                    .ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList, Session.NamespaceUris));
+            }
+
+            if (normalizedCertificateGroupId ==
+                Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultHttpsGroup)
+            {
+                return new ValueTask<NodeId>(ExpandedNodeId.ToNodeId(Ua.ObjectIds
+                    .ServerConfiguration_CertificateGroups_DefaultHttpsGroup_TrustList, Session.NamespaceUris));
+            }
+
+            if (normalizedCertificateGroupId ==
+                Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultUserTokenGroup)
+            {
+                return new ValueTask<NodeId>(ExpandedNodeId.ToNodeId(Ua.ObjectIds
+                    .ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_TrustList, Session.NamespaceUris));
+            }
+
+            return FindChildByTypeDefinitionAsync(
+                ExpandedNodeId.ToNodeId(certificateGroupId, Session.NamespaceUris),
+                Ua.ObjectTypeIds.TrustListType,
+                ct);
+        }
+
+        private async ValueTask<NodeId> FindChildByTypeDefinitionAsync(
+            NodeId parentNodeId,
+            NodeId targetTypeDefinitionId,
+            CancellationToken ct = default)
+        {
+            var browseDescription = new BrowseDescription
+            {
+                NodeId = parentNodeId,
+                BrowseDirection = BrowseDirection.Forward,
+                ReferenceTypeId = ReferenceTypeIds.HasComponent,
+                IncludeSubtypes = true,
+                NodeClassMask = (uint)NodeClass.Object,
+                ResultMask = (uint)BrowseResultMask.All
+            };
+
+            BrowseResponse results = await Session.BrowseAsync(
+                null, null, 0, [browseDescription], ct).ConfigureAwait(false);
+
+            ReferenceDescription reference = results.Results.ToList()
+                .Where(r => StatusCode.IsGood(r.StatusCode))
+                .SelectMany(r => r.References.ToList())
+                .FirstOrDefault(r => r.TypeDefinition == targetTypeDefinitionId);
+
+            if (reference != null)
+            {
+                return ExpandedNodeId.ToNodeId(reference.NodeId, Session.NamespaceUris);
+            }
+
+            throw new ServiceResultException(
+                StatusCodes.BadNotFound,
+                $"Could not find child with TypeDefinition {targetTypeDefinitionId} under {parentNodeId}");
         }
 
         private async Task<IUserIdentity> ElevatePermissionsAsync(
