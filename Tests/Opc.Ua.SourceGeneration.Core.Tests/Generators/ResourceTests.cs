@@ -43,11 +43,6 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
     [Parallelizable]
     public class ResourceTests
     {
-        /// <summary>
-        /// Tests GetNameForFile with a simple filename containing a single dot.
-        /// Input: "test.xml" with null namespace prefix.
-        /// Expected: Returns "TestXml" with each part capitalized.
-        /// </summary>
         [Test]
         public void GetNameForFile_SimpleFilename_ReturnsPascalCaseName()
         {
@@ -60,11 +55,6 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             Assert.That(result, Is.EqualTo("TestXml"));
         }
 
-        /// <summary>
-        /// Tests GetNameForFile with a filename containing multiple dots.
-        /// Input: "test.file.config.xml" with null namespace prefix.
-        /// Expected: Returns "TestFileConfigXml" with all parts capitalized.
-        /// </summary>
         [Test]
         public void GetNameForFile_MultipleDotsInFilename_ReturnsAllPartsConcatenated()
         {
@@ -77,10 +67,8 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             Assert.That(result, Is.EqualTo("TestFileConfigXml"));
         }
 
-        /// <summary>
-        /// Tests GetNameForFile with a full file path.
-        /// </summary>
-        private void GetNameForFile_FullFilePath_ExtractsFilenameOnly()
+        [Test]
+        public void GetNameForFile_FullFilePath_ExtractsFilenameOnly()
         {
             string inputFile = RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ?
                 "C:\\test\\test\\file.xml" :
@@ -93,10 +81,8 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             Assert.That(result, Is.EqualTo("FileXml"));
         }
 
-        /// <summary>
-        /// Tests GetNameForFile with a full file path.
-        /// </summary>
-        private void GetNameForFile_RelativeFilePath_ExtractsFilenameOnly()
+        [Test]
+        public void GetNameForFile_RelativeFilePath_ExtractsFilenameOnly()
         {
             string inputFile = RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ?
                 "..\\..\\file.xml" :
@@ -109,9 +95,6 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             Assert.That(result, Is.EqualTo("FileXml"));
         }
 
-        /// <summary>
-        /// Tests GetNameForFile with a matching namespace prefix.
-        /// </summary>
         [Test]
         public void GetNameForFile_MatchingNamespacePrefix_StripsPrefixAndReturnsName()
         {
@@ -124,11 +107,6 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             Assert.That(result, Is.EqualTo("TestXml"));
         }
 
-        /// <summary>
-        /// Tests GetNameForFile with a non-matching namespace prefix.
-        /// Input: "Other.Test.xml" with namespace prefix "Opc.Ua.".
-        /// Expected: Returns "OtherTestXml" without stripping prefix.
-        /// </summary>
         [Test]
         public void GetNameForFile_NonMatchingNamespacePrefix_ReturnsFullName()
         {
@@ -141,11 +119,6 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             Assert.That(result, Is.EqualTo("OtherTestXml"));
         }
 
-        /// <summary>
-        /// Tests GetNameForFile with null namespace prefix.
-        /// Input: "test.xml" with null namespace prefix.
-        /// Expected: Returns "TestXml" without attempting to strip prefix.
-        /// </summary>
         [Test]
         public void GetNameForFile_NullNamespacePrefix_ReturnsTransformedName()
         {
@@ -158,11 +131,6 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             Assert.That(result, Is.EqualTo("TestXml"));
         }
 
-        /// <summary>
-        /// Tests GetNameForFile with empty namespace prefix.
-        /// Input: "test.xml" with empty string namespace prefix.
-        /// Expected: Returns "TestXml" without stripping anything.
-        /// </summary>
         [Test]
         public void GetNameForFile_EmptyNamespacePrefix_ReturnsTransformedName()
         {
@@ -175,11 +143,6 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             Assert.That(result, Is.EqualTo("TestXml"));
         }
 
-        /// <summary>
-        /// Tests GetNameForFile with leading and trailing dots in filename.
-        /// Input: ".test.xml." with null namespace prefix.
-        /// Expected: Returns "TestXml" with empty parts skipped.
-        /// </summary>
         [Test]
         public void GetNameForFile_LeadingAndTrailingDots_SkipsEmptyParts()
         {
@@ -192,11 +155,6 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             Assert.That(result, Is.EqualTo("TestXml"));
         }
 
-        /// <summary>
-        /// Tests GetNameForFile with consecutive dots in filename.
-        /// Input: "test..xml" with null namespace prefix.
-        /// Expected: Returns "TestXml" with empty parts between dots skipped.
-        /// </summary>
         [Test]
         public void GetNameForFile_ConsecutiveDots_SkipsEmptyParts()
         {
@@ -209,11 +167,6 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             Assert.That(result, Is.EqualTo("TestXml"));
         }
 
-        /// <summary>
-        /// Tests GetNameForFile with filename containing no dots.
-        /// Input: "testfile" with null namespace prefix.
-        /// Expected: Returns "Testfile" with first character uppercased.
-        /// </summary>
         [Test]
         public void GetNameForFile_NoDots_ReturnsCapitalizedName()
         {
@@ -226,11 +179,6 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             Assert.That(result, Is.EqualTo("Testfile"));
         }
 
-        /// <summary>
-        /// Tests GetNameForFile with single character parts.
-        /// Input: "a.b.c" with null namespace prefix.
-        /// Expected: Returns "ABC" with each single character uppercased.
-        /// </summary>
         [Test]
         public void GetNameForFile_SingleCharacterParts_UppercasesAllChars()
         {
@@ -243,11 +191,6 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             Assert.That(result, Is.EqualTo("ABC"));
         }
 
-        /// <summary>
-        /// Tests GetNameForFile with filename containing only dots.
-        /// Input: "..." with null namespace prefix.
-        /// Expected: Returns empty string as all parts are empty.
-        /// </summary>
         [Test]
         public void GetNameForFile_OnlyDots_ReturnsEmptyString()
         {
@@ -260,11 +203,6 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             Assert.That(result, Is.EqualTo(string.Empty));
         }
 
-        /// <summary>
-        /// Tests GetNameForFile with empty string input.
-        /// Input: "" with null namespace prefix.
-        /// Expected: Returns empty string.
-        /// </summary>
         [Test]
         public void GetNameForFile_EmptyString_ReturnsEmptyString()
         {
@@ -277,11 +215,6 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             Assert.That(result, Is.EqualTo(string.Empty));
         }
 
-        /// <summary>
-        /// Tests GetNameForFile with null input file.
-        /// Input: null file with null namespace prefix.
-        /// Expected: Throws NullReferenceException from Path.GetFileName.
-        /// </summary>
         [Test]
         public void GetNameForFile_NullInputFile_ThrowsNullReferenceException()
         {
@@ -292,11 +225,6 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             Assert.Throws<NullReferenceException>(() => Resource.GetNameForFile(inputFile, namespacePrefix));
         }
 
-        /// <summary>
-        /// Tests GetNameForFile with special characters in filename.
-        /// Input: "test-file_name.xml" with null namespace prefix.
-        /// Expected: Returns "Test-file_nameXml" with special chars preserved.
-        /// </summary>
         [Test]
         public void GetNameForFile_SpecialCharacters_PreservesSpecialChars()
         {
@@ -309,11 +237,6 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             Assert.That(result, Is.EqualTo("Test-file_nameXml"));
         }
 
-        /// <summary>
-        /// Tests GetNameForFile with uppercase filename.
-        /// Input: "TEST.XML" with null namespace prefix.
-        /// Expected: Returns "TESTXML" preserving uppercase.
-        /// </summary>
         [Test]
         public void GetNameForFile_UppercaseFilename_PreservesUppercase()
         {
@@ -326,11 +249,6 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             Assert.That(result, Is.EqualTo("TESTXML"));
         }
 
-        /// <summary>
-        /// Tests GetNameForFile with mixed case filename.
-        /// Input: "TeSt.XmL" with null namespace prefix.
-        /// Expected: Returns "TeStXmL" capitalizing first char only.
-        /// </summary>
         [Test]
         public void GetNameForFile_MixedCase_CapitalizesFirstCharOnly()
         {
@@ -343,11 +261,6 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             Assert.That(result, Is.EqualTo("TeStXmL"));
         }
 
-        /// <summary>
-        /// Tests GetNameForFile with namespace prefix matching entire filename.
-        /// Input: "Opc.Ua.xml" with namespace prefix "Opc.Ua.xml".
-        /// Expected: Returns empty string as entire filename is stripped.
-        /// </summary>
         [Test]
         public void GetNameForFile_NamespacePrefixMatchesEntireFilename_ReturnsEmptyString()
         {
@@ -360,11 +273,6 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             Assert.That(result, Is.EqualTo(string.Empty));
         }
 
-        /// <summary>
-        /// Tests GetNameForFile with namespace prefix longer than filename.
-        /// Input: "test.xml" with namespace prefix "VeryLongNamespace.test.xml.extra".
-        /// Expected: Returns "TestXml" as prefix doesn't match.
-        /// </summary>
         [Test]
         public void GetNameForFile_NamespacePrefixLongerThanFilename_ReturnsFullName()
         {
@@ -377,9 +285,6 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             Assert.That(result, Is.EqualTo("TestXml"));
         }
 
-        /// <summary>
-        /// Tests GetNameForFile with full path and matching namespace prefix.
-        /// </summary>
         [Test]
         public void GetNameForFile_FullPathWithMatchingPrefix_ExtractsAndStripsPrefix()
         {
@@ -394,11 +299,6 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             Assert.That(result, Is.EqualTo("TestXml"));
         }
 
-        /// <summary>
-        /// Tests GetNameForFile with whitespace in part.
-        /// Input: " test.xml" with null namespace prefix.
-        /// Expected: Returns " testXml" with whitespace preserved and first non-whitespace char uppercased.
-        /// </summary>
         [Test]
         public void GetNameForFile_WhitespaceInPart_PreservesWhitespace()
         {
@@ -411,11 +311,6 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             Assert.That(result, Is.EqualTo(" testXml"));
         }
 
-        /// <summary>
-        /// Tests GetNameForFile with very long filename.
-        /// Input: Long filename with multiple parts.
-        /// Expected: Returns concatenated PascalCase name with all parts.
-        /// </summary>
         [Test]
         public void GetNameForFile_VeryLongFilename_ReturnsFullConcatenatedName()
         {
@@ -428,11 +323,6 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             Assert.That(result, Is.EqualTo("VeryLongFilenameWithManyPartsAndDotsXml"));
         }
 
-        /// <summary>
-        /// Tests GetNameForFile with numeric parts in filename.
-        /// Input: "version2.0.1.xml" with null namespace prefix.
-        /// Expected: Returns "Version201Xml" with numbers preserved.
-        /// </summary>
         [Test]
         public void GetNameForFile_NumericParts_PreservesNumbers()
         {
@@ -445,11 +335,6 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             Assert.That(result, Is.EqualTo("Version201Xml"));
         }
 
-        /// <summary>
-        /// Tests GetNameForFile with namespace prefix that is a partial match.
-        /// Input: "Opc.Test.xml" with namespace prefix "Opc.Ua.".
-        /// Expected: Returns "OpcTestXml" as prefix doesn't match exactly.
-        /// </summary>
         [Test]
         public void GetNameForFile_PartialPrefixMatch_DoesNotStripPrefix()
         {
@@ -462,11 +347,6 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             Assert.That(result, Is.EqualTo("OpcTestXml"));
         }
 
-        /// <summary>
-        /// Tests GetNameForFile with namespace prefix without trailing dot.
-        /// Input: "OpcUaTest.xml" with namespace prefix "OpcUa".
-        /// Expected: Returns "Test.xml" with prefix stripped exactly.
-        /// </summary>
         [Test]
         public void GetNameForFile_PrefixWithoutTrailingDot_StripsExactMatch()
         {
@@ -479,11 +359,6 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             Assert.That(result, Is.EqualTo("TestXml"));
         }
 
-        /// <summary>
-        /// Tests GetNameForFile with Unicode characters in filename.
-        /// Input: "test\u00E9.xml" with null namespace prefix.
-        /// Expected: Returns "Test\u00E9Xml" with Unicode preserved.
-        /// </summary>
         [Test]
         public void GetNameForFile_UnicodeCharacters_PreservesUnicode()
         {
@@ -496,9 +371,6 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             Assert.That(result, Is.EqualTo("Test\u00E9Xml"));
         }
 
-        /// <summary>
-        /// Tests that the constructor throws NullReferenceException when resourceName is null.
-        /// </summary>
         [Test]
         public void Constructor_NullResourceName_ThrowsNullReferenceException()
         {
@@ -514,9 +386,6 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             Assert.Throws<NullReferenceException>(() => new BinaryResource(resourceName, data, false));
         }
 
-        /// <summary>
-        /// Tests the constructor with very long resourceName string.
-        /// </summary>
         [Test]
         public void Constructor_VeryLongResourceName_SetsPropertiesCorrectly()
         {
@@ -536,9 +405,6 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             Assert.That(resource.IsText, Is.False);
         }
 
-        /// <summary>
-        /// Tests the constructor with resourceName containing only dots followed by single character.
-        /// </summary>
         [Test]
         public void Constructor_ManyLeadingDotsWithSingleChar_SetsResourceNameWithDots()
         {
@@ -556,9 +422,6 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             Assert.That(resource.IsText, Is.True);
         }
 
-        /// <summary>
-        /// Tests the constructor with resourceName containing control characters.
-        /// </summary>
         [Test]
         public void Constructor_ControlCharactersInResourceName_HandlesCorrectly()
         {
@@ -576,9 +439,6 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             Assert.That(resource.IsText, Is.False);
         }
 
-        /// <summary>
-        /// Tests the IsText property is set correctly when true.
-        /// </summary>
         [Test]
         public void Constructor_IsTextTrue_SetsIsTextPropertyTrue()
         {
@@ -594,9 +454,6 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             Assert.That(resource.IsText, Is.True);
         }
 
-        /// <summary>
-        /// Tests the IsText property is set correctly when false.
-        /// </summary>
         [Test]
         public void Constructor_IsTextFalse_SetsIsTextPropertyFalse()
         {
@@ -612,9 +469,6 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             Assert.That(resource.IsText, Is.False);
         }
 
-        /// <summary>
-        /// Tests the constructor with unicode characters in resourceName.
-        /// </summary>
         [Test]
         public void Constructor_UnicodeCharacters_HandlesCorrectly()
         {
@@ -632,9 +486,6 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             Assert.That(resource.IsText, Is.True);
         }
 
-        /// <summary>
-        /// Tests the constructor with resourceName containing consecutive dots in the middle.
-        /// </summary>
         [Test]
         public void Constructor_ConsecutiveDotsInMiddle_SplitsOnFirstAfterTrim()
         {
@@ -652,9 +503,6 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             Assert.That(resource.IsText, Is.False);
         }
 
-        /// <summary>
-        /// Tests the constructor with resourceName that has dots trimmed completely leaving no dot.
-        /// </summary>
         [Test]
         public void Constructor_DotsOnlyAtEndsNoDotInMiddle_SetsEmptyGroup()
         {

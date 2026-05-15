@@ -48,7 +48,7 @@ namespace Opc.Ua.Server
                 nodeManager,
                 (uint)configuration.ServerConfiguration.MaxNotificationQueueSize,
                 (uint)configuration.ServerConfiguration.MaxDurableNotificationQueueSize,
-                configuration.ServerConfiguration.AvailableSamplingRates);
+                configuration.ServerConfiguration.AvailableSamplingRates.ToArray());
 
             m_nodeManager = nodeManager;
             m_server = server;
@@ -133,7 +133,7 @@ namespace Opc.Ua.Server
         {
             if (disposing)
             {
-                Utils.SilentDispose(m_samplingGroupManager);
+                m_samplingGroupManager?.Dispose();
             }
         }
 
@@ -283,7 +283,7 @@ namespace Opc.Ua.Server
             IEventMonitoredItem monitoredItem,
             bool unsubscribe)
         {
-            MonitoredNode2 monitoredNode = null;
+            MonitoredNode2 monitoredNode;
             // handle unsubscribe.
             if (unsubscribe)
             {

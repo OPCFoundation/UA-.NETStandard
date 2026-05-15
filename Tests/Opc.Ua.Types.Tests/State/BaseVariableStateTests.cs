@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.IO;
 using NUnit.Framework;
 using Opc.Ua.Tests;
@@ -51,13 +52,13 @@ namespace Opc.Ua.Types.Tests.State
         protected void OneTimeSetUp()
         {
             m_telemetry = NUnitTelemetryContext.Create();
-            m_messageContext = new ServiceMessageContext(m_telemetry);
+            m_messageContext = ServiceMessageContext.CreateEmpty(m_telemetry);
         }
 
         [OneTimeTearDown]
         protected void OneTimeTearDown()
         {
-            CoreUtils.SilentDispose(m_messageContext);
+            (m_messageContext as IDisposable)?.Dispose();
         }
 
         private SystemContext CreateSystemContext()
@@ -1226,7 +1227,7 @@ namespace Opc.Ua.Types.Tests.State
 
             // Save
             AttributesToSave attributesToSave = original.GetAttributesToSave(context);
-            using var ms = new MemoryStream();
+            var ms = new MemoryStream();
             using (var encoder = new BinaryEncoder(ms, m_messageContext, true))
             {
                 original.Save(context, encoder, attributesToSave);
@@ -1260,7 +1261,7 @@ namespace Opc.Ua.Types.Tests.State
             // Only default DataType is non-null by default
 
             AttributesToSave attributesToSave = original.GetAttributesToSave(context);
-            using var ms = new MemoryStream();
+            var ms = new MemoryStream();
             using (var encoder = new BinaryEncoder(ms, m_messageContext, true))
             {
                 original.Save(context, encoder, attributesToSave);
@@ -1287,7 +1288,7 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(attributesToSave.HasFlag(AttributesToSave.StatusCode),
                 Is.True);
 
-            using var ms = new MemoryStream();
+            var ms = new MemoryStream();
             using (var encoder = new BinaryEncoder(ms, m_messageContext, true))
             {
                 original.Save(context, encoder, attributesToSave);

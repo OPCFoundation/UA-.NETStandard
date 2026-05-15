@@ -29,12 +29,12 @@
 
 using System;
 using System.IO;
-using System.Runtime.Serialization;
 using System.Text;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Configuration;
 using Opc.Ua.Gds.Client;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Gds.Tests
 {
@@ -59,12 +59,19 @@ namespace Opc.Ua.Gds.Tests
         public void Dispose()
         {
             PushClient?.Dispose();
+            m_application?.DisposeAsync().AsTask().GetAwaiter().GetResult();
+            m_application = null;
         }
 
         public async Task LoadClientConfigurationAsync(int port = -1)
         {
             ApplicationInstance.MessageDlg = new ApplicationMessageDlg(m_logger);
-            var application = new ApplicationInstance(m_telemetry)
+            if (m_application != null)
+            {
+                await m_application.DisposeAsync().ConfigureAwait(false);
+                m_application = null;
+            }
+            m_application = new ApplicationInstance(m_telemetry)
             {
                 ApplicationName = "Server Configuration Push Test Client",
                 ApplicationType = ApplicationType.Client,
@@ -72,7 +79,7 @@ namespace Opc.Ua.Gds.Tests
             };
 #if USE_FILE_CONFIG
             // load the application configuration.
-            Config = await application.LoadApplicationConfigurationAsync(false)
+            Config = await m_application.LoadApplicationConfigurationAsync(false)
                 .ConfigureAwait(false);
 #else
             string root = Path.Combine(Path.GetTempPath(), "OPC");
@@ -99,14 +106,14 @@ namespace Opc.Ua.Gds.Tests
                 SecurityTokenLifetime = 3600000
             };
 
-            CertificateIdentifierCollection applicationCerts =
+            ArrayOf<CertificateIdentifier> applicationCerts =
                 ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
                     "CN=Server Configuration Push Test Client, O=OPC Foundation",
                     CertificateStoreType.Directory,
                     pkiRoot);
 
             // build the application configuration.
-            Config = await application
+            Config = await m_application
                 .Build(
                     "urn:localhost:opcfoundation.org:ServerConfigurationPushTestClient",
                     "http://opcfoundation.org/UA/ServerConfigurationPushTestClient")
@@ -117,14 +124,14 @@ namespace Opc.Ua.Gds.Tests
                 .SetRejectSHA1SignedCertificates(false)
                 .SetRejectUnknownRevocationStatus(true)
                 .SetMinimumCertificateKeySize(1024)
-                .AddExtension<ServerConfigurationPushTestClientConfiguration>(null, clientConfig)
+                .AddExtension(null, clientConfig)
                 .SetOutputFilePath(Path.Combine(root, "Logs", "Opc.Ua.Gds.Tests.log.txt"))
                 .SetTraceMasks(Utils.TraceMasks.Error)
                 .CreateAsync()
                 .ConfigureAwait(false);
 #endif
             // check the application certificate.
-            bool haveAppCertificate = await application
+            bool haveAppCertificate = await m_application
                 .CheckApplicationInstanceCertificatesAsync(true)
                 .ConfigureAwait(false);
             if (!haveAppCertificate)
@@ -132,14 +139,12 @@ namespace Opc.Ua.Gds.Tests
                 throw new InvalidOperationException("Application instance certificate invalid!");
             }
 
-            Config.CertificateValidator.CertificateValidation
-                += new CertificateValidationEventHandler(
-                CertificateValidator_CertificateValidation);
+            Config.CertificateManager?.AcceptError = AcceptCertificate;
 
             ServerConfigurationPushTestClientConfiguration clientConfiguration =
-                application.ApplicationConfiguration
+                m_application.ApplicationConfiguration
                     .ParseExtension<ServerConfigurationPushTestClientConfiguration>();
-            PushClient = new ServerPushConfigurationClient(application.ApplicationConfiguration);
+            PushClient = new ServerPushConfigurationClient(m_application.ApplicationConfiguration);
             EndpointUrl = TestUtils.PatchOnlyGDSEndpointUrlPort(
                 clientConfiguration.ServerUrl,
                 port);
@@ -173,7 +178,7 @@ namespace Opc.Ua.Gds.Tests
                 }
                 finally
                 {
-                    pushClient.Dispose();
+                    await pushClient.DisposeAsync().ConfigureAwait(false);
                 }
             }
         }
@@ -184,22 +189,18 @@ namespace Opc.Ua.Gds.Tests
                 Utils.ReplaceSpecialFolderNames(Config.TraceConfiguration.OutputFilePath));
         }
 
-        private void CertificateValidator_CertificateValidation(
-            CertificateValidator validator,
-            CertificateValidationEventArgs e)
+        private bool AcceptCertificate(Certificate certificate, ServiceResult error)
         {
-            if (e.Error.StatusCode == StatusCodes.BadCertificateUntrusted)
+            if (error.StatusCode == StatusCodes.BadCertificateUntrusted)
             {
-                e.Accept = AutoAccept;
                 if (AutoAccept)
                 {
-                    m_logger.LogInformation("Accepted Certificate: {Subject}", e.Certificate.Subject);
+                    m_logger.LogInformation("Accepted Certificate: {Subject}", certificate.Subject);
+                    return true;
                 }
-                else
-                {
-                    m_logger.LogInformation("Rejected Certificate: {Subject}", e.Certificate.Subject);
-                }
+                m_logger.LogInformation("Rejected Certificate: {Subject}", certificate.Subject);
             }
+            return false;
         }
 
         /// <summary>
@@ -243,6 +244,7 @@ namespace Opc.Ua.Gds.Tests
             await PushClient.ConnectAsync().ConfigureAwait(false);
         }
 
+        private ApplicationInstance m_application;
         private readonly ITelemetryContext m_telemetry;
         private readonly ILogger m_logger;
     }
@@ -250,25 +252,25 @@ namespace Opc.Ua.Gds.Tests
     /// <summary>
     /// Stores the configuration the data access node manager.
     /// </summary>
-    [DataContract(Namespace = Ua.Namespaces.OpcUaConfig)]
-    public class ServerConfigurationPushTestClientConfiguration
+    [DataType(Namespace = Ua.Namespaces.OpcUaConfig)]
+    public partial class ServerConfigurationPushTestClientConfiguration
     {
-        [DataMember(Order = 1, IsRequired = true)]
+        [DataTypeField(Order = 1)]
         public string ServerUrl { get; set; }
 
-        [DataMember(Order = 2)]
+        [DataTypeField(Order = 2)]
         public string AppUserName { get; set; }
 
-        [DataMember(Order = 3)]
+        [DataTypeField(Order = 3)]
         public string AppPassword { get; set; }
 
-        [DataMember(Order = 4, IsRequired = true)]
+        [DataTypeField(Order = 4)]
         public string SysAdminUserName { get; set; }
 
-        [DataMember(Order = 5, IsRequired = true)]
+        [DataTypeField(Order = 5)]
         public string SysAdminPassword { get; set; }
 
-        [DataMember(Order = 6, IsRequired = true)]
+        [DataTypeField(Order = 6)]
         public string TempStorePath { get; set; }
     }
 }

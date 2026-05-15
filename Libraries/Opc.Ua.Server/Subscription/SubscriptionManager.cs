@@ -125,17 +125,17 @@ namespace Opc.Ua.Server
 
                 foreach (SessionPublishQueue publishQueue in publishQueues)
                 {
-                    Utils.SilentDispose(publishQueue);
+                    publishQueue?.Dispose();
                 }
 
                 foreach (ISubscription subscription in subscriptions)
                 {
-                    Utils.SilentDispose(subscription);
+                    subscription?.Dispose();
                 }
 
-                Utils.SilentDispose(m_shutdownEvent);
-                Utils.SilentDispose(m_conditionRefreshEvent);
-                Utils.SilentDispose(m_semaphoreSlim);
+                m_shutdownEvent.Dispose();
+                m_conditionRefreshEvent.Dispose();
+                m_semaphoreSlim.Dispose();
             }
         }
 
@@ -180,7 +180,6 @@ namespace Opc.Ua.Server
                 }
             }
         }
-
 
         /// <inheritdoc/>
         public IList<ISubscription> GetSubscriptions()
@@ -484,15 +483,22 @@ namespace Opc.Ua.Server
             // close the publish queue for the session.
             if (m_publishQueues.TryRemove(sessionId, out SessionPublishQueue queue))
             {
-                subscriptionsToDelete = queue.Close();
-
-                // remove the subscriptions.
-                if (deleteSubscriptions && subscriptionsToDelete != null)
+                try
                 {
-                    for (int ii = 0; ii < subscriptionsToDelete.Count; ii++)
+                    subscriptionsToDelete = queue.Close();
+
+                    // remove the subscriptions.
+                    if (deleteSubscriptions && subscriptionsToDelete != null)
                     {
-                        m_subscriptions.TryRemove(subscriptionsToDelete[ii].Id, out _);
+                        for (int ii = 0; ii < subscriptionsToDelete.Count; ii++)
+                        {
+                            m_subscriptions.TryRemove(subscriptionsToDelete[ii].Id, out _);
+                        }
                     }
+                }
+                finally
+                {
+                    queue.Dispose();
                 }
             }
 
@@ -532,14 +538,11 @@ namespace Opc.Ua.Server
                         }
                     }
                     // mark the subscriptions as abandoned.
-                    else
+                    else if (m_abandonedSubscriptions.TryAdd(subscription.Id, subscription))
                     {
-                        if (m_abandonedSubscriptions.TryAdd(subscription.Id, subscription))
-                        {
-                            m_logger.LogWarning(
-                                "Subscription ABANDONED, Id={SubscriptionId}.",
-                                subscription.Id);
-                        }
+                        m_logger.LogWarning(
+                            "Subscription ABANDONED, Id={SubscriptionId}.",
+                            subscription.Id);
                     }
                 }
             }
@@ -957,7 +960,7 @@ namespace Opc.Ua.Server
                 {
                     m_logger.LogError(e, "Error occurred in DeleteSubscriptions");
 
-                    ServiceResult result = ServiceResult.Create(
+                    var result = ServiceResult.Create(
                         e,
                         StatusCodes.BadUnexpectedError,
                         string.Empty);
@@ -1322,7 +1325,7 @@ namespace Opc.Ua.Server
                         m_logger.LogError(e, "Error occurred in SetPublishingMode");
                     }
 
-                    ServiceResult result = ServiceResult.Create(
+                    var result = ServiceResult.Create(
                         e,
                         StatusCodes.BadUnexpectedError,
                         string.Empty);

@@ -27,13 +27,15 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua
 {
@@ -51,14 +53,16 @@ namespace Opc.Ua
         /// Get the provider which is invoked when a password
         /// for a private key is requested.
         /// </summary>
-        public ICertificatePasswordProvider CertificatePasswordProvider { get; set; }
+        public ICertificatePasswordProvider? CertificatePasswordProvider { get; set; }
 
         /// <summary>
         /// Adds a certificate as a trusted peer.
         /// </summary>
         public void AddTrustedPeer(byte[] certificate)
         {
-            TrustedPeerCertificates.TrustedCertificates.Add(new CertificateIdentifier(certificate));
+            TrustedPeerCertificates.TrustedCertificates =
+                TrustedPeerCertificates.TrustedCertificates.AddItem(
+                    new CertificateIdentifier { RawData = certificate });
         }
 
         /// <summary>
@@ -67,7 +71,7 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException"></exception>
         public void Validate(ITelemetryContext telemetry)
         {
-            if (m_applicationCertificates == null || m_applicationCertificates.Count == 0)
+            if (m_applicationCertificates.IsNull || m_applicationCertificates.Count == 0)
             {
                 throw ServiceResultException.ConfigurationError(
                     "ApplicationCertificate must be specified.");
@@ -133,7 +137,7 @@ namespace Opc.Ua
             }
             try
             {
-                ICertificateStore store = storeIdentifier.OpenStore(telemetry) ??
+                ICertificateStore store = storeIdentifier!.OpenStore(telemetry) ??
                     throw ServiceResultException.ConfigurationError(
                         "Failed to open {0} store", storeName);
                 store.Close();
@@ -149,7 +153,7 @@ namespace Opc.Ua
         /// <summary>
         /// Find application certificate for a security policy.
         /// </summary>
-        public async Task<X509Certificate2> FindApplicationCertificateAsync(
+        public async Task<Certificate?> FindApplicationCertificateAsync(
             string securityPolicy,
             bool privateKey,
             ITelemetryContext telemetry,
@@ -158,36 +162,58 @@ namespace Opc.Ua
             foreach (NodeId certType in CertificateIdentifier.MapSecurityPolicyToCertificateTypes(
                 securityPolicy))
             {
-                CertificateIdentifier id = ApplicationCertificates.FirstOrDefault(certId =>
+                CertificateIdentifier? id = (ApplicationCertificates.ToArray() ?? []).FirstOrDefault(certId =>
                     certId.CertificateType == certType);
                 if (id == null)
                 {
                     if (certType == ObjectTypeIds.RsaSha256ApplicationCertificateType)
                     {
                         // undefined certificate type as RsaSha256
-                        id = ApplicationCertificates.FirstOrDefault(
+                        id = (ApplicationCertificates.ToArray() ?? []).FirstOrDefault(
                             certId => certId.CertificateType.IsNull);
                     }
                     else if (certType == ObjectTypeIds.ApplicationCertificateType)
                     {
                         // first certificate
-                        id = ApplicationCertificates.FirstOrDefault();
+                        id = (ApplicationCertificates.ToArray() ?? []).FirstOrDefault();
                     }
                     else if (certType == ObjectTypeIds.EccApplicationCertificateType)
                     {
-                        // first Ecc certificate
-                        id = ApplicationCertificates.FirstOrDefault(certId =>
-                            X509Utils.IsECDsaSignature(certId.Certificate));
+                        // first Ecc certificate (matches by configured CertificateType
+                        // since identifier no longer caches a Certificate to inspect).
+                        id = (ApplicationCertificates.ToArray() ?? []).FirstOrDefault(certId =>
+                            certId.CertificateType == ObjectTypeIds.EccNistP256ApplicationCertificateType ||
+                            certId.CertificateType == ObjectTypeIds.EccNistP384ApplicationCertificateType ||
+                            certId.CertificateType == ObjectTypeIds.EccBrainpoolP256r1ApplicationCertificateType ||
+                            certId.CertificateType == ObjectTypeIds.EccBrainpoolP384r1ApplicationCertificateType ||
+                            certId.CertificateType == ObjectTypeIds.EccCurve25519ApplicationCertificateType ||
+                            certId.CertificateType == ObjectTypeIds.EccCurve448ApplicationCertificateType);
                     }
                 }
 
                 if (id != null)
                 {
-                    return await id.FindAsync(
-                        privateKey,
-                        applicationUri: null,
-                        telemetry: telemetry,
-                        ct).ConfigureAwait(false);
+                    if (privateKey)
+                    {
+                        return await CertificateIdentifierResolver
+                            .LoadPrivateKeyAsync(
+                                id,
+                                CertificatePasswordProvider,
+                                applicationUri: null,
+                                telemetry,
+                                ct)
+                            .ConfigureAwait(false);
+                    }
+
+                    return await CertificateIdentifierResolver
+                        .ResolveAsync(
+                            id,
+                            registry: null,
+                            needPrivateKey: false,
+                            applicationUri: null,
+                            telemetry,
+                            ct)
+                        .ConfigureAwait(false);
                 }
             }
 
@@ -208,31 +234,49 @@ namespace Opc.Ua
                     securityPolicies.Add(SecurityPolicies.Basic256Sha256);
                     securityPolicies.Add(SecurityPolicies.Aes128_Sha256_RsaOaep);
                     securityPolicies.Add(SecurityPolicies.Aes256_Sha256_RsaPss);
+                    securityPolicies.Add(SecurityPolicies.RSA_DH_AesGcm);
+                    securityPolicies.Add(SecurityPolicies.RSA_DH_ChaChaPoly);
                     continue;
                 }
-                if (applicationCertificate.CertificateType.TryGetIdentifier(out uint identifier))
+                if (applicationCertificate.CertificateType.TryGetValue(out uint identifier))
                 {
                     switch (identifier)
                     {
                         case ObjectTypes.EccNistP256ApplicationCertificateType:
                             securityPolicies.Add(SecurityPolicies.ECC_nistP256);
+                            securityPolicies.Add(SecurityPolicies.ECC_nistP256_AesGcm);
+                            securityPolicies.Add(SecurityPolicies.ECC_nistP256_ChaChaPoly);
                             break;
                         case ObjectTypes.EccNistP384ApplicationCertificateType:
                             securityPolicies.Add(SecurityPolicies.ECC_nistP256);
+                            securityPolicies.Add(SecurityPolicies.ECC_nistP256_AesGcm);
+                            securityPolicies.Add(SecurityPolicies.ECC_nistP256_ChaChaPoly);
                             securityPolicies.Add(SecurityPolicies.ECC_nistP384);
+                            securityPolicies.Add(SecurityPolicies.ECC_nistP384_AesGcm);
+                            securityPolicies.Add(SecurityPolicies.ECC_nistP384_ChaChaPoly);
                             break;
                         case ObjectTypes.EccBrainpoolP256r1ApplicationCertificateType:
                             securityPolicies.Add(SecurityPolicies.ECC_brainpoolP256r1);
+                            securityPolicies.Add(SecurityPolicies.ECC_brainpoolP256r1_AesGcm);
+                            securityPolicies.Add(SecurityPolicies.ECC_brainpoolP256r1_ChaChaPoly);
                             break;
                         case ObjectTypes.EccBrainpoolP384r1ApplicationCertificateType:
                             securityPolicies.Add(SecurityPolicies.ECC_brainpoolP256r1);
+                            securityPolicies.Add(SecurityPolicies.ECC_brainpoolP256r1_AesGcm);
+                            securityPolicies.Add(SecurityPolicies.ECC_brainpoolP256r1_ChaChaPoly);
                             securityPolicies.Add(SecurityPolicies.ECC_brainpoolP384r1);
+                            securityPolicies.Add(SecurityPolicies.ECC_brainpoolP384r1_AesGcm);
+                            securityPolicies.Add(SecurityPolicies.ECC_brainpoolP384r1_ChaChaPoly);
                             break;
                         case ObjectTypes.EccCurve25519ApplicationCertificateType:
                             securityPolicies.Add(SecurityPolicies.ECC_curve25519);
+                            securityPolicies.Add(SecurityPolicies.ECC_curve25519_AesGcm);
+                            securityPolicies.Add(SecurityPolicies.ECC_curve25519_ChaChaPoly);
                             break;
                         case ObjectTypes.EccCurve448ApplicationCertificateType:
                             securityPolicies.Add(SecurityPolicies.ECC_curve448);
+                            securityPolicies.Add(SecurityPolicies.ECC_curve448_AesGcm);
+                            securityPolicies.Add(SecurityPolicies.ECC_curve448_ChaChaPoly);
                             break;
                         case ObjectTypes.RsaMinApplicationCertificateType:
                             securityPolicies.Add(SecurityPolicies.Basic128Rsa15);
@@ -243,6 +287,8 @@ namespace Opc.Ua
                             securityPolicies.Add(SecurityPolicies.Basic256Sha256);
                             securityPolicies.Add(SecurityPolicies.Aes128_Sha256_RsaOaep);
                             securityPolicies.Add(SecurityPolicies.Aes256_Sha256_RsaPss);
+                            securityPolicies.Add(SecurityPolicies.RSA_DH_AesGcm);
+                            securityPolicies.Add(SecurityPolicies.RSA_DH_ChaChaPoly);
                             goto case ObjectTypes.RsaMinApplicationCertificateType;
                     }
                 }

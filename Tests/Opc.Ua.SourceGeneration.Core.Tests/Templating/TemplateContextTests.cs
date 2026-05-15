@@ -52,7 +52,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
         {
             // Arrange
             using var stringWriter = new StringWriter();
-            var writer = new TemplateWriter(stringWriter);
+            using var writer = new TemplateWriter(stringWriter);
             const string token = "testToken";
             TemplateString templateString = "testTemplate";
 
@@ -100,7 +100,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
         {
             // Arrange
             using var stringWriter = new StringWriter();
-            var writer = new TemplateWriter(stringWriter);
+            using var writer = new TemplateWriter(stringWriter);
             TemplateString templateString = "testTemplate";
 
             // Act
@@ -123,7 +123,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
         {
             // Arrange
             using var stringWriter = new StringWriter();
-            var writer = new TemplateWriter(stringWriter);
+            using var writer = new TemplateWriter(stringWriter);
             const string token = "";
             TemplateString templateString = "testTemplate";
 
@@ -147,7 +147,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
         {
             // Arrange
             using var stringWriter = new StringWriter();
-            var writer = new TemplateWriter(stringWriter);
+            using var writer = new TemplateWriter(stringWriter);
             const string token = "   \t\n";
             TemplateString templateString = "testTemplate";
 
@@ -171,7 +171,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
         {
             // Arrange
             using var stringWriter = new StringWriter();
-            var writer = new TemplateWriter(stringWriter);
+            using var writer = new TemplateWriter(stringWriter);
             const string token = "testToken";
 
             // Act
@@ -194,7 +194,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
         {
             // Arrange
             using var stringWriter = new StringWriter();
-            var writer = new TemplateWriter(stringWriter);
+            using var writer = new TemplateWriter(stringWriter);
             const string token = "!@#$%^&*()_+-={}[]|:;<>?,./~`";
             TemplateString templateString = "testTemplate";
 
@@ -218,7 +218,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
         {
             // Arrange
             using var stringWriter = new StringWriter();
-            var writer = new TemplateWriter(stringWriter);
+            using var writer = new TemplateWriter(stringWriter);
             string token = new('a', 10000);
             TemplateString templateString = "testTemplate";
 
@@ -228,7 +228,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             // Assert
             Assert.That(context.Out, Is.SameAs(writer));
             Assert.That(context.Token, Is.EqualTo(token));
-            Assert.That(context.Token.Length, Is.EqualTo(10000));
+            Assert.That(context.Token, Has.Length.EqualTo(10000));
             Assert.That(context.TemplateString, Is.SameAs(templateString));
             Assert.That(context.Index, Is.Zero);
         }
@@ -263,7 +263,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
         {
             // Arrange
             using var stringWriter = new StringWriter();
-            var writer = new TemplateWriter(stringWriter);
+            using var writer = new TemplateWriter(stringWriter);
             const string token = "Hello世界🌍مرحبا";
             TemplateString templateString = "testTemplate";
 
@@ -287,7 +287,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
         {
             // Arrange
             using var stringWriter = new StringWriter();
-            var writer = new TemplateWriter(stringWriter);
+            using var writer = new TemplateWriter(stringWriter);
             const string token = "test\0\a\b\f\r\n\ttoken";
             TemplateString templateString = "testTemplate";
 

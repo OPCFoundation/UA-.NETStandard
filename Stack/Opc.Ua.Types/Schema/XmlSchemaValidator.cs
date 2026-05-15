@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -101,6 +102,11 @@ namespace Opc.Ua.Schema.Xml
         /// <summary>
         /// Returns the schema for the specified type (returns the entire schema if null).
         /// </summary>
+        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2026",
+            Justification = "XmlSchema.Write is used with schema objects constructed at design time.")]
+        [UnconditionalSuppressMessage("AOT", "IL3050",
+            Justification =
+                "XmlSchema.Write is used with schema objects constructed at design time.")]
         public override string GetSchema(string typeName)
         {
             XmlWriterSettings settings = CoreUtils.DefaultXmlWriterSettings();

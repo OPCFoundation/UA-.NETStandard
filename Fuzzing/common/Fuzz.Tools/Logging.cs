@@ -51,8 +51,16 @@ namespace Opc.Ua.Fuzzing
                 {
                     builder.SetMinimumLevel(LogLevel.Information);
                     configure?.Invoke(builder);
-                })
-                .AddSerilog(Log.Logger);
+                });
+            try
+            {
+                LoggerFactory = LoggerFactory.AddSerilog(Log.Logger);
+            }
+            catch
+            {
+                LoggerFactory.Dispose();
+                throw;
+            }
 
             ActivitySource = new ActivitySource("Fuzzing", "1.0.0");
 

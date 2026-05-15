@@ -27,6 +27,9 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+// CA2000: test code; many disposables are ownership-transferred to test fixtures or short-lived,
+// making CA2000 noisy without a real leak risk. Disabled file-level for the suite.
+#pragma warning disable CA2000
 using System;
 using Newtonsoft.Json.Linq;
 using NUnit.Framework;
@@ -284,7 +287,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var encoder = new PubSubJsonEncoder(
-                new ServiceMessageContext(telemetry),
+                ServiceMessageContext.Create(telemetry),
                 encodingType);
             message.Encode(encoder);
             return encoder.CloseAndReturnText();

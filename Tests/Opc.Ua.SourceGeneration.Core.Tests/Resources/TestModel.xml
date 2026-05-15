@@ -286,6 +286,17 @@
     <opc:DefaultAccessRestrictions>EncryptionRequired</opc:DefaultAccessRestrictions>
   </opc:VariableType>
 
+  <opc:Method SymbolicName="RestrictedMethodType">
+    <opc:InputArguments>
+      <opc:Argument Name="In1" DataType="ua:Int32" />
+    </opc:InputArguments>
+    <opc:OutputArguments>
+      <opc:Argument Name="Out1" DataType="ua:Int32" />
+    </opc:OutputArguments>
+    <opc:DefaultRolePermissions Name="SecurityAdminOnly" />
+    <opc:DefaultAccessRestrictions>SigningRequired</opc:DefaultAccessRestrictions>
+  </opc:Method>
+
   <opc:ObjectType SymbolicName="RestrictedObjectType" BaseType="ua:BaseObjectType">
     <opc:Children>
       <opc:Variable SymbolicName="Red" TypeDefinition="RestrictedVariableType" ModellingRule="Mandatory"/>
@@ -305,10 +316,34 @@
         <some:World xmlns:some="http://tempuri.com/something">comes</some:World>
       </opc:Extension>
     </opc:Extensions>
+    <opc:DefaultRolePermissions Name="SecurityAdminOnly" />
+    <opc:DefaultAccessRestrictions>EncryptionRequired</opc:DefaultAccessRestrictions>
   </opc:ObjectType>
 
   <opc:Object SymbolicName="TestObject" TypeDefinition="RestrictedObjectType">
     <opc:DefaultRolePermissions Name="AuthenticatedUserOnly" />
+  </opc:Object>
+
+  <opc:Object SymbolicName="MathInstance" TypeDefinition="ua:BaseObjectType">
+    <opc:Children>
+      <opc:Method SymbolicName="Compute" ModellingRule="Mandatory">
+        <opc:InputArguments>
+          <opc:Argument Name="x" DataType="ua:Int32" />
+        </opc:InputArguments>
+        <opc:OutputArguments>
+          <opc:Argument Name="result" DataType="ua:Int32" />
+        </opc:OutputArguments>
+      </opc:Method>
+      <opc:Method SymbolicName="Add" ModellingRule="Mandatory">
+        <opc:InputArguments>
+          <opc:Argument Name="a" DataType="ua:Int32" />
+          <opc:Argument Name="b" DataType="ua:Int32" />
+        </opc:InputArguments>
+        <opc:OutputArguments>
+          <opc:Argument Name="sum" DataType="ua:Int32" />
+        </opc:OutputArguments>
+      </opc:Method>
+    </opc:Children>
   </opc:Object>
 
   <opc:Object SymbolicName="Test_Error" TypeDefinition="ua:BaseObjectType" />
@@ -431,6 +466,24 @@
       <opc:Field Name="University" DataType="ua:String" IsOptional="true" />
     </opc:Fields>
   </opc:DataType>
+
+  <!-- Notifier object: SupportsEvents=true is the design-XML form of
+       EventNotifier=SubscribeToEvents. Wrappers for this node must
+       expose typed Publish<TEvent> overloads. -->
+  <opc:Object SymbolicName="NotifierObject" TypeDefinition="ua:BaseObjectType" SupportsEvents="true" />
+
+  <!-- Event-emitting object: declares an outgoing GeneratesEvent
+       reference. Wrappers must expose typed Publish<TEvent> even though
+       SupportsEvents is not set explicitly (the model says this object
+       can fire BaseEventType events). -->
+  <opc:Object SymbolicName="EventEmittingObject" TypeDefinition="ua:BaseObjectType">
+    <opc:References>
+      <opc:Reference>
+        <opc:ReferenceType>ua:GeneratesEvent</opc:ReferenceType>
+        <opc:TargetId>ua:BaseEventType</opc:TargetId>
+      </opc:Reference>
+    </opc:References>
+  </opc:Object>
 
   <opc:Extensions>
     <opc:Extension>

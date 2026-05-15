@@ -27,6 +27,9 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+// CA2000: test code; many disposables are ownership-transferred to test fixtures or short-lived,
+// making CA2000 noisy without a real leak risk. Disabled file-level for the suite.
+#pragma warning disable CA2000
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -76,6 +79,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
 
             var writerGroupDataType = new WriterGroupDataType
             {
+                Enabled = true,
                 PublishingInterval = publishingInterval
             };
 
@@ -125,6 +129,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
 
             var writerGroupDataType = new WriterGroupDataType
             {
+                Enabled = true,
                 PublishingInterval = publishingInterval
             };
 
@@ -191,8 +196,8 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                 }
             }
             Assert.That(
-                faultIndex < 0,
-                Is.True,
+                faultIndex,
+                Is.LessThan(0),
                 $"publishingInterval={publishingInterval}, maxDeviation={maxDeviation}, publishTimeInSecods={publishTimeInSeconds}, deviation[{faultIndex}] = {faultDeviation} as max deviation");
         }
     }

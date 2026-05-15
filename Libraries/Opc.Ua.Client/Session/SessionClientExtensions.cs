@@ -467,8 +467,8 @@ namespace Opc.Ua.Client
             DataValue dataValue = await session.ReadValueAsync(nodeId, ct).ConfigureAwait(false);
             object value;
 
-            if (dataValue.WrappedValue.TryGet(out ExtensionObject extension) &&
-                extension.TryGetEncodeable(out IEncodeable encodeable))
+            if (dataValue.WrappedValue.TryGetValue(out ExtensionObject extension) &&
+                extension.TryGetValue(out IEncodeable encodeable))
             {
                 value = encodeable;
             }
@@ -766,7 +766,7 @@ namespace Opc.Ua.Client
                         throw new ServiceResultException(serviceResult);
                     }
 
-                    if (!results[0].WrappedValue.TryGet(out ByteString chunk) || chunk.Length == 0)
+                    if (!results[0].WrappedValue.TryGetValue(out ByteString chunk) || chunk.Length == 0)
                     {
                         // End of stream - fast path (no stream allocated yet)
                         // will return empty array constant.

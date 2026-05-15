@@ -42,6 +42,13 @@ namespace Opc.Ua
         EncodingType EncodingType { get; }
 
         /// <summary>
+        /// Returns true if the encoder supports omitting fields with default values.
+        /// Binary encoding returns false (all fields must be written).
+        /// XML and JSON return true.
+        /// </summary>
+        bool CanOmitFields { get; }
+
+        /// <summary>
         /// The message context associated with the encoder.
         /// </summary>
         IServiceMessageContext Context { get; }
@@ -247,6 +254,11 @@ namespace Opc.Ua
             where T : struct, Enum;
 
         /// <summary>
+        /// Writes an enumerated value to the stream.
+        /// </summary>
+        void WriteEnumerated(string fieldName, EnumValue value);
+
+        /// <summary>
         /// Writes a boolean array to the stream.
         /// </summary>
         void WriteBooleanArray(string fieldName, ArrayOf<bool> values);
@@ -402,6 +414,11 @@ namespace Opc.Ua
         /// <typeparam name="T">The type of the array elements</typeparam>
         void WriteEnumeratedArray<T>(string fieldName, ArrayOf<T> values)
             where T : struct, Enum;
+
+        /// <summary>
+        /// Writes an enumerated value array to the stream.
+        /// </summary>
+        void WriteEnumeratedArray(string fieldName, ArrayOf<EnumValue> values);
 
         /// <summary>
         /// Writes just the value inside the variant. In essence

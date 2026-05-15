@@ -27,6 +27,9 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+// CA2000: test code; many disposables are ownership-transferred to test fixtures or short-lived,
+// making CA2000 noisy without a real leak risk. Disabled file-level for the suite.
+#pragma warning disable CA2000
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -55,7 +58,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
             var testNodeState = new AnalogUnitRangeState(null);
-            var serviceMessageContext = new ServiceMessageContext(telemetry);
+            var serviceMessageContext = ServiceMessageContext.Create(telemetry);
 
             var systemContext = new SystemContext(telemetry)
             {
@@ -109,7 +112,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
             references.Clear();
             testNodeState.GetReferences(systemContext, references);
 
-            Assert.That(references.Count, Is.EqualTo(originalReferenceCount));
+            Assert.That(references, Has.Count.EqualTo(originalReferenceCount));
         }
 
         [Test]
@@ -118,7 +121,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
-            var serviceMessageContext = new ServiceMessageContext(telemetry);
+            var serviceMessageContext = ServiceMessageContext.Create(telemetry);
             var systemContext = new SystemContext(telemetry)
             {
                 NamespaceUris = serviceMessageContext.NamespaceUris
@@ -184,7 +187,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
             notifiers.Clear();
             testNodeState.GetNotifiers(systemContext, notifiers);
 
-            Assert.That(notifiers.Count, Is.EqualTo(originalNotifierCount));
+            Assert.That(notifiers, Has.Count.EqualTo(originalNotifierCount));
         }
 
         [Test]
@@ -193,7 +196,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
-            var serviceMessageContext = new ServiceMessageContext(telemetry);
+            var serviceMessageContext = ServiceMessageContext.Create(telemetry);
             var systemContext = new SystemContext(telemetry)
             {
                 NamespaceUris = serviceMessageContext.NamespaceUris
@@ -256,7 +259,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
             children.Clear();
             testNodeState.GetChildren(systemContext, children);
 
-            Assert.That(children.Count, Is.EqualTo(originalNotifierCount));
+            Assert.That(children, Has.Count.EqualTo(originalNotifierCount));
         }
     }
 }

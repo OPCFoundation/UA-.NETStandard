@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System.Threading;
 using Opc.Ua;
 
 namespace Boiler
@@ -36,9 +37,9 @@ namespace Boiler
         /// <summary>
         /// Initializes the object as a collection of counters which change value on read.
         /// </summary>
-        protected override void OnAfterCreate(ISystemContext context, NodeState node)
+        protected override void OnAfterCreate(ISystemContext context, NodeState node, CancellationToken ct = default)
         {
-            base.OnAfterCreate(context, node);
+            base.OnAfterCreate(context, node, ct);
 
             Start.OnCallMethod = OnStart;
             Start.OnReadExecutable = IsStartExecutable;

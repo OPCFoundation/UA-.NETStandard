@@ -58,7 +58,9 @@ namespace Opc.Ua.Client.Tests
         [
             new object[] { SecurityPolicies.None },
             new object[] { SecurityPolicies.ECC_nistP256 },
-            new object[] { SecurityPolicies.Basic256Sha256 }
+            new object[] { SecurityPolicies.Basic256Sha256 },
+            new object[] { SecurityPolicies.RSA_DH_AesGcm },
+            new object[] { SecurityPolicies.RSA_DH_ChaChaPoly }
         ];
 
         private readonly string m_securityPolicy;
@@ -164,6 +166,8 @@ namespace Opc.Ua.Client.Tests
             bool sequentialPublishing,
             bool sendInitialValues)
         {
+            await IgnoreIfPolicyNotAdvertisedAsync(securityPolicy).ConfigureAwait(false);
+
             const int kTestSubscriptions = 5;
             const int kDelay = 2_000;
             const int kQueueSize = 10;
@@ -207,7 +211,7 @@ namespace Opc.Ua.Client.Tests
             int[] originSubscriptionFastDataCounters = new int[kTestSubscriptions];
             int[] targetSubscriptionCounters = new int[kTestSubscriptions];
             int[] targetSubscriptionFastDataCounters = new int[kTestSubscriptions];
-            var subscriptionTemplate = new TestableSubscription(session1.DefaultSubscription)
+            using var subscriptionTemplate = new TestableSubscription(session1.DefaultSubscription)
             {
                 PublishingInterval = 1_000,
                 KeepAliveCount = 5,
@@ -372,9 +376,13 @@ namespace Opc.Ua.Client.Tests
                 if (endpoint.EndpointUrl.ToString()
                     .StartsWith(Utils.UriSchemeOpcTcp, StringComparison.Ordinal))
                 {
+                    // CA2025: Assert.ThrowsAsync awaits the lambda synchronously;
+                    // session1's lifetime spans through the assertion.
+#pragma warning disable CA2025
                     sre = Assert.ThrowsAsync<ServiceResultException>(() =>
                         session1.ReadValueAsync<ServerStatusDataType>(
                             VariableIds.Server_ServerStatus));
+#pragma warning restore CA2025
                     Assert.That(
                         sre.StatusCode,
                         Is.EqualTo(StatusCodes.BadSecureChannelIdInvalid),
@@ -394,8 +402,8 @@ namespace Opc.Ua.Client.Tests
                 session2.DeleteSubscriptionsOnClose = true;
                 await session1.CloseAsync(1000, true).ConfigureAwait(false);
                 await session2.CloseAsync(1000, true).ConfigureAwait(false);
-                Utils.SilentDispose(session1);
-                Utils.SilentDispose(session2);
+                session1?.Dispose();
+                session2?.Dispose();
             }
 
             Assert.That(session1ConfigChanged, Is.Zero);

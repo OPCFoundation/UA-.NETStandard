@@ -34,7 +34,6 @@ using System.Globalization;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
-using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -287,23 +286,16 @@ namespace Opc.Ua.Bindings
             {
                 lock (m_lock)
                 {
-                    if (m_inactivityDetectionTimer != null)
-                    {
-                        Utils.SilentDispose(m_inactivityDetectionTimer);
-                        m_inactivityDetectionTimer = null;
-                    }
+                    m_inactivityDetectionTimer?.Dispose();
+                    m_inactivityDetectionTimer = null;
 
-                    if (m_listeningSocket != null)
-                    {
-                        Utils.SilentDispose(m_listeningSocket);
-                        m_listeningSocket = null;
-                    }
+                    m_activeClientTracker?.Dispose();
 
-                    if (m_listeningSocketIPv6 != null)
-                    {
-                        Utils.SilentDispose(m_listeningSocketIPv6);
-                        m_listeningSocketIPv6 = null;
-                    }
+                    m_listeningSocket?.Dispose();
+                    m_listeningSocket = null;
+
+                    m_listeningSocketIPv6?.Dispose();
+                    m_listeningSocketIPv6 = null;
 
                     if (m_channels != null)
                     {
@@ -312,7 +304,7 @@ namespace Opc.Ua.Bindings
                         m_channels = null;
                         foreach (KeyValuePair<uint, TcpListenerChannel> channelKeyValue in channels)
                         {
-                            Utils.SilentDispose(channelKeyValue.Value);
+                            channelKeyValue.Value?.Dispose();
                         }
                     }
                 }
@@ -350,11 +342,10 @@ namespace Opc.Ua.Bindings
             EndpointConfiguration configuration = settings.Configuration;
 
             // initialize the quotas.
-            var messageContext = new ServiceMessageContext(m_telemetry)
+            var messageContext = new ServiceMessageContext(m_telemetry, settings.Factory)
             {
                 NamespaceUris = settings.NamespaceUris,
-                ServerUris = new StringTable(),
-                Factory = settings.Factory
+                ServerUris = new StringTable()
             };
             m_quotas = new ChannelQuotas(messageContext);
 
@@ -378,7 +369,7 @@ namespace Opc.Ua.Bindings
             m_quotas.CertificateValidator = settings.CertificateValidator;
 
             // save the server certificate.
-            m_serverCertificateTypesProvider = settings.ServerCertificateTypesProvider;
+            m_serverCertificates = settings.ServerCertificates;
 
             m_bufferManager = new BufferManager("Server", m_quotas.MaxBufferSize, m_telemetry);
             m_channels = new ConcurrentDictionary<uint, TcpListenerChannel>();
@@ -436,7 +427,7 @@ namespace Opc.Ua.Bindings
             uint requestId,
             uint sequenceNumber,
             uint channelId,
-            X509Certificate2 clientCertificate,
+            Certificate clientCertificate,
             ChannelToken token,
             OpenSecureChannelRequest request)
         {
@@ -463,10 +454,18 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public void ChannelClosed(uint channelId)
         {
+#pragma warning disable CA2000 // Channel is disposed in the finally block below
             if (m_channels?.TryRemove(channelId, out TcpListenerChannel channel) == true)
+#pragma warning restore CA2000
             {
-                Utils.SilentDispose(channel);
-                m_logger.LogInformation("ChannelId {Id}: closed", channelId);
+                try
+                {
+                    m_logger.LogInformation("ChannelId {Id}: closed", channelId);
+                }
+                finally
+                {
+                    channel.Dispose();
+                }
             }
             else
             {
@@ -487,23 +486,34 @@ namespace Opc.Ua.Bindings
         /// <inheritdoc/>
         public void CreateReverseConnection(Uri url, int timeout)
         {
-            var channel = new TcpServerChannel(
-                ListenerId,
-                this,
-                m_bufferManager,
-                m_quotas,
-                m_serverCertificateTypesProvider,
-                m_descriptions,
-                m_telemetry);
+#pragma warning disable CA2000 // Ownership of channel transfers to async callback via BeginReverseConnect
+            TcpServerChannel channel = null;
+            try
+            {
+                channel = new TcpServerChannel(
+                    ListenerId,
+                    this,
+                    m_bufferManager,
+                    m_quotas,
+                    m_serverCertificates,
+                    m_descriptions,
+                    m_telemetry);
 
-            uint channelId = GetNextChannelId();
-            channel.StatusChanged += Channel_StatusChanged;
-            channel.BeginReverseConnect(
-                channelId,
-                url,
-                OnReverseHelloComplete,
-                channel,
-                Math.Min(timeout, m_quotas.ChannelLifetime));
+                uint channelId = GetNextChannelId();
+                channel.StatusChanged += Channel_StatusChanged;
+                channel.BeginReverseConnect(
+                    channelId,
+                    url,
+                    OnReverseHelloComplete,
+                    channel,
+                    Math.Min(timeout, m_quotas.ChannelLifetime));
+                channel = null; // ownership transferred to async operation
+            }
+            finally
+            {
+                channel?.Dispose();
+            }
+#pragma warning restore CA2000
         }
 
         private void Channel_StatusChanged(
@@ -562,7 +572,7 @@ namespace Opc.Ua.Bindings
             }
             finally
             {
-                Utils.SilentDispose(channel);
+                channel?.Dispose();
             }
         }
 
@@ -609,9 +619,6 @@ namespace Opc.Ua.Bindings
                         NoDelay = true,
                         LingerState = new LingerOption(true, 5)
                     };
-                    var args = new SocketAsyncEventArgs();
-                    args.Completed += OnAccept;
-                    args.UserToken = m_listeningSocket;
                     m_listeningSocket.Bind(endpoint);
                     m_listeningSocket.Listen(kSocketBacklog);
 
@@ -621,9 +628,21 @@ namespace Opc.Ua.Bindings
                         m_inactivityDetectPeriod,
                         m_inactivityDetectPeriod);
 
-                    if (!m_listeningSocket.AcceptAsync(args))
+                    SocketAsyncEventArgs args = null;
+                    try
                     {
-                        OnAccept(null, args);
+                        args = new SocketAsyncEventArgs();
+                        args.Completed += OnAccept;
+                        args.UserToken = m_listeningSocket;
+                        if (!m_listeningSocket.AcceptAsync(args))
+                        {
+                            OnAccept(null, args);
+                        }
+                        args = null; // ownership transferred
+                    }
+                    finally
+                    {
+                        args?.Dispose();
                     }
                 }
                 catch (Exception ex)
@@ -652,14 +671,24 @@ namespace Opc.Ua.Bindings
                             NoDelay = true,
                             LingerState = new LingerOption(true, 5)
                         };
-                        var args = new SocketAsyncEventArgs { UserToken = m_listeningSocketIPv6 };
-                        args.Completed += OnAccept;
-
                         m_listeningSocketIPv6.Bind(endpointIPv6);
                         m_listeningSocketIPv6.Listen(kSocketBacklog);
-                        if (!m_listeningSocketIPv6.AcceptAsync(args))
+
+                        SocketAsyncEventArgs args = null;
+                        try
                         {
-                            OnAccept(null, args);
+                            args = new SocketAsyncEventArgs();
+                            args.Completed += OnAccept;
+                            args.UserToken = m_listeningSocketIPv6;
+                            if (!m_listeningSocketIPv6.AcceptAsync(args))
+                            {
+                                OnAccept(null, args);
+                            }
+                            args = null; // ownership transferred
+                        }
+                        finally
+                        {
+                            args?.Dispose();
                         }
                     }
                     catch (Exception ex)
@@ -733,21 +762,29 @@ namespace Opc.Ua.Bindings
                     "Could not find secure channel request.");
             }
 
-            // notify the application.
-            if (ConnectionWaiting != null)
+            try
             {
-                var args = new TcpConnectionWaitingEventArgs(
-                    serverUri,
-                    endpointUrl,
-                    channel.Socket);
-                await ConnectionWaiting(this, args).ConfigureAwait(false);
-                accepted = args.Accepted;
-            }
+                // notify the application.
+                if (ConnectionWaiting != null)
+                {
+                    var args = new TcpConnectionWaitingEventArgs(
+                        serverUri,
+                        endpointUrl,
+                        channel.Socket);
+                    await ConnectionWaiting(this, args).ConfigureAwait(false);
+                    accepted = args.Accepted;
+                }
 
-            if (!accepted)
+                if (!accepted)
+                {
+                    // add back in for other connection attempt.
+                    m_channels?.TryAdd(channelId, channel);
+                }
+                channel = null; // ownership transferred
+            }
+            finally
             {
-                // add back in for other connection attempt.
-                m_channels?.TryAdd(channelId, channel);
+                channel?.Dispose();
             }
 
             return accepted;
@@ -757,23 +794,23 @@ namespace Opc.Ua.Bindings
         /// Called when a UpdateCertificate event occured.
         /// </summary>
         public void CertificateUpdate(
-            ICertificateValidator validator,
-            CertificateTypesProvider serverCertificateTypes)
+            ICertificateValidatorEx validator,
+            ICertificateRegistry serverCertificates)
         {
             m_quotas.CertificateValidator = validator;
-            m_serverCertificateTypesProvider = serverCertificateTypes;
+            m_serverCertificates = serverCertificates;
             foreach (EndpointDescription description in m_descriptions)
             {
                 // TODO: why only if SERVERCERT != null
                 if (!description.ServerCertificate.IsEmpty)
                 {
-                    X509Certificate2 serverCertificate = serverCertificateTypes
+                    Certificate serverCertificate = serverCertificates
                         .GetInstanceCertificate(
-                            description.SecurityPolicyUri);
-                    if (serverCertificateTypes.SendCertificateChain)
+                            description.SecurityPolicyUri)?.Certificate;
+                    if (serverCertificates.SendCertificateChain)
                     {
                         description.ServerCertificate =
-                            serverCertificateTypes.LoadCertificateChainRaw(
+                            serverCertificates.LoadCertificateChainRaw(
                                 serverCertificate).ToByteString();
                     }
                     else
@@ -879,7 +916,7 @@ namespace Opc.Ua.Bindings
                                 "OnAccept: Maximum number of channels {CurrentCount} reached, serving channels is stopped until number is lower or equal than {MaxChannelCount} ",
                                 channelCount,
                                 MaxChannelCount);
-                            Utils.SilentDispose(e.AcceptSocket);
+                            e.AcceptSocket?.Dispose();
                         }
 
                         // check if the accept socket has been created.
@@ -909,7 +946,7 @@ namespace Opc.Ua.Bindings
                                         this,
                                         m_bufferManager,
                                         m_quotas,
-                                        m_serverCertificateTypesProvider,
+                                        m_serverCertificates,
                                         m_descriptions,
                                         m_telemetry);
                                 }
@@ -950,7 +987,7 @@ namespace Opc.Ua.Bindings
                             }
                             finally
                             {
-                                Utils.SilentDispose(channel);
+                                channel?.Dispose();
                             }
                         }
                     }
@@ -960,19 +997,26 @@ namespace Opc.Ua.Bindings
                     if (e.SocketError != SocketError.OperationAborted)
                     {
                         // go back and wait for the next connection.
+                        SocketAsyncEventArgs newArgs = null;
                         try
                         {
-                            e = new SocketAsyncEventArgs();
-                            e.Completed += OnAccept;
-                            e.UserToken = listeningSocket;
-                            if (!listeningSocket.AcceptAsync(e))
+                            newArgs = new SocketAsyncEventArgs();
+                            newArgs.Completed += OnAccept;
+                            newArgs.UserToken = listeningSocket;
+                            if (!listeningSocket.AcceptAsync(newArgs))
                             {
+                                e = newArgs;
                                 repeatAccept = true;
                             }
+                            newArgs = null; // ownership transferred
                         }
                         catch (Exception ex)
                         {
                             m_logger.LogError(ex, "Unexpected error listening for a new connection.");
+                        }
+                        finally
+                        {
+                            newArgs?.Dispose();
                         }
                     }
                 }
@@ -1029,7 +1073,10 @@ namespace Opc.Ua.Bindings
                     var context = new SecureChannelContext(
                         channel.GlobalChannelId,
                         channel.EndpointDescription,
-                        RequestEncoding.Binary);
+                        RequestEncoding.Binary,
+                        channel.ClientCertificate?.RawData,
+                        channel.ServerCertificate?.RawData,
+                        channel.ChannelThumbprint);
 
                     IServiceResponse response = await m_callback.ProcessRequestAsync(
                         context,
@@ -1066,6 +1113,21 @@ namespace Opc.Ua.Bindings
             catch (Exception e)
             {
                 m_logger.LogError(e, "TCPLISTENER - Unexpected error processing request.");
+
+                // Send a service fault back to the client so it does not hang waiting
+                // for a response to a request the server failed to dispatch (e.g. when a
+                // certificate became invalid mid-flight during ApplyChanges).
+                try
+                {
+                    ServiceFault fault = EndpointBase.CreateFault(m_logger, request, e);
+                    ((TcpServerChannel)channel).SendResponse(requestId, fault);
+                }
+                catch (Exception faultEx)
+                {
+                    m_logger.LogError(
+                        faultEx,
+                        "TCPLISTENER - Failed to send fault response to client.");
+                }
             }
         }
 
@@ -1075,7 +1137,7 @@ namespace Opc.Ua.Bindings
         private void OnReportAuditOpenSecureChannelEvent(
             TcpServerChannel channel,
             OpenSecureChannelRequest request,
-            X509Certificate2 clientCertificate,
+            Certificate clientCertificate,
             Exception exception)
         {
             try
@@ -1118,7 +1180,7 @@ namespace Opc.Ua.Bindings
         /// Callback for reporting the certificate audit events
         /// </summary>
         private void OnReportAuditCertificateEvent(
-            X509Certificate2 clientCertificate,
+            Certificate clientCertificate,
             Exception exception)
         {
             try
@@ -1148,7 +1210,7 @@ namespace Opc.Ua.Bindings
         private List<EndpointDescription> m_descriptions;
         private BufferManager m_bufferManager;
         private ChannelQuotas m_quotas;
-        private CertificateTypesProvider m_serverCertificateTypesProvider;
+        private ICertificateRegistry m_serverCertificates;
         private int m_lastChannelId;
         private Socket m_listeningSocket;
         private Socket m_listeningSocketIPv6;

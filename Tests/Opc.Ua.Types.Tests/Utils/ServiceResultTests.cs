@@ -91,7 +91,7 @@ namespace Opc.Ua.Types.Tests.Utils
             var result = new ServiceResult(StatusCodes.BadUnexpectedError, inner);
             Assert.That(result.Code, Is.EqualTo(StatusCodes.BadUnexpectedError.Code));
             Assert.That(result.InnerResult, Is.Not.Null);
-            Assert.That(result.InnerResult!.Code, Is.EqualTo(StatusCodes.BadDecodingError.Code));
+            Assert.That(result.InnerResult.Code, Is.EqualTo(StatusCodes.BadDecodingError.Code));
         }
 
         [Test]
@@ -165,10 +165,12 @@ namespace Opc.Ua.Types.Tests.Utils
         public void ConstructorWithXmlQualifiedNameNullUsesNull()
         {
             var text = new LocalizedText("en", "error");
+#pragma warning disable IDE0004 // Remove Unnecessary Cast
             var result = new ServiceResult(
                 StatusCodes.BadUnexpectedError,
                 (XmlQualifiedName?)null,
                 text);
+#pragma warning restore IDE0004 // Remove Unnecessary Cast
 
             Assert.That(result.NamespaceUri, Is.Null);
         }
@@ -395,12 +397,14 @@ namespace Opc.Ua.Types.Tests.Utils
         public void ConstructorWithInnerExceptionCollapseWhenNoNewInfo()
         {
             var innerException = new ServiceResultException(StatusCodes.BadDecodingError);
+#pragma warning disable IDE0004 // Remove Unnecessary Cast
             var result = new ServiceResult(
                 null,
                 StatusCodes.BadDecodingError,
                 LocalizedText.Null,
                 (string?)null,
                 (Exception)innerException);
+#pragma warning restore IDE0004 // Remove Unnecessary Cast
 
             Assert.That(result.Code, Is.EqualTo(StatusCodes.BadDecodingError.Code));
         }
@@ -409,12 +413,14 @@ namespace Opc.Ua.Types.Tests.Utils
         public void ConstructorWithInnerExceptionDoesNotCollapseWhenNewInfoProvided()
         {
             var innerException = new ServiceResultException(StatusCodes.BadDecodingError);
+#pragma warning disable IDE0004 // Remove Unnecessary Cast
             var result = new ServiceResult(
                 "http://ns.org",
                 StatusCodes.BadUnexpectedError,
                 new LocalizedText("en", "new info"),
                 "extra",
                 (Exception)innerException);
+#pragma warning restore IDE0004 // Remove Unnecessary Cast
 
             Assert.That(result.Code, Is.EqualTo(StatusCodes.BadUnexpectedError.Code));
             Assert.That(result.NamespaceUri, Is.EqualTo("http://ns.org"));
@@ -503,7 +509,9 @@ namespace Opc.Ua.Types.Tests.Utils
         public void ConstructorWithDiagnosticInfoNullLeavesDefaults()
         {
             var stringTable = new ArrayOf<string>(["unused"]);
+#pragma warning disable IDE0004 // Remove Unnecessary Cast
             var result = new ServiceResult(StatusCodes.BadUnexpectedError, (DiagnosticInfo?)null, stringTable);
+#pragma warning restore IDE0004 // Remove Unnecessary Cast
 
             Assert.That(result.Code, Is.EqualTo(StatusCodes.BadUnexpectedError.Code));
             Assert.That(result.NamespaceUri, Is.Null);
@@ -534,7 +542,7 @@ namespace Opc.Ua.Types.Tests.Utils
             var result = new ServiceResult(StatusCodes.BadUnexpectedError, diagInfo, stringTable);
 
             Assert.That(result.InnerResult, Is.Not.Null);
-            Assert.That(result.InnerResult!.Code, Is.EqualTo(StatusCodes.BadDecodingError.Code));
+            Assert.That(result.InnerResult.Code, Is.EqualTo(StatusCodes.BadDecodingError.Code));
         }
 
         [Test]
@@ -632,7 +640,7 @@ namespace Opc.Ua.Types.Tests.Utils
             var result = new ServiceResult(StatusCodes.BadUnexpectedError, 0, diagnosticInfos, stringTable);
 
             Assert.That(result.InnerResult, Is.Not.Null);
-            Assert.That(result.InnerResult!.Code, Is.EqualTo(StatusCodes.BadDecodingError.Code));
+            Assert.That(result.InnerResult.Code, Is.EqualTo(StatusCodes.BadDecodingError.Code));
         }
 
         [Test]
@@ -704,7 +712,7 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void CreateWithFormatNullReturnsCodeOnly()
         {
-            var result = ServiceResult.Create(StatusCodes.BadUnexpectedError, null!);
+            var result = ServiceResult.Create(StatusCodes.BadUnexpectedError, null);
 
             Assert.That(result.Code, Is.EqualTo(StatusCodes.BadUnexpectedError.Code));
             Assert.That(result.LocalizedText.IsNullOrEmpty, Is.True);
@@ -735,7 +743,7 @@ namespace Opc.Ua.Types.Tests.Utils
         public void CreateWithExceptionFormatNullReturnsCodeOnly()
         {
             var exception = new InvalidOperationException("test");
-            var result = ServiceResult.Create(exception, StatusCodes.BadUnexpectedError, null!);
+            var result = ServiceResult.Create(exception, StatusCodes.BadUnexpectedError, null);
 
             Assert.That(result.Code, Is.EqualTo(StatusCodes.BadUnexpectedError.Code));
         }
@@ -807,7 +815,7 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void IsGoodWithNullReturnsTrue()
         {
-            Assert.That(ServiceResult.IsGood(null!), Is.True);
+            Assert.That(ServiceResult.IsGood(null), Is.True);
         }
 
         [Test]
@@ -827,7 +835,7 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void IsNotGoodWithNullReturnsTrue()
         {
-            Assert.That(ServiceResult.IsNotGood(null!), Is.True);
+            Assert.That(ServiceResult.IsNotGood(null), Is.True);
         }
 
         [Test]
@@ -847,7 +855,7 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void IsUncertainWithNullReturnsFalse()
         {
-            Assert.That(ServiceResult.IsUncertain(null!), Is.False);
+            Assert.That(ServiceResult.IsUncertain(null), Is.False);
         }
 
         [Test]
@@ -874,7 +882,7 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void IsGoodOrUncertainWithNullReturnsFalse()
         {
-            Assert.That(ServiceResult.IsGoodOrUncertain(null!), Is.False);
+            Assert.That(ServiceResult.IsGoodOrUncertain(null), Is.False);
         }
 
         [Test]
@@ -894,7 +902,7 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void IsNotUncertainWithNullReturnsTrue()
         {
-            Assert.That(ServiceResult.IsNotUncertain(null!), Is.True);
+            Assert.That(ServiceResult.IsNotUncertain(null), Is.True);
         }
 
         [Test]
@@ -914,7 +922,7 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void IsBadWithNullReturnsFalse()
         {
-            Assert.That(ServiceResult.IsBad(null!), Is.False);
+            Assert.That(ServiceResult.IsBad(null), Is.False);
         }
 
         [Test]
@@ -934,7 +942,7 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void IsNotBadWithNullReturnsTrue()
         {
-            Assert.That(ServiceResult.IsNotBad(null!), Is.True);
+            Assert.That(ServiceResult.IsNotBad(null), Is.True);
         }
 
         [Test]
@@ -957,7 +965,7 @@ namespace Opc.Ua.Types.Tests.Utils
         public void ExplicitConversionFromNullReturnsGood()
         {
             ServiceResult? nullResult = null;
-            var statusCode = (StatusCode)nullResult!;
+            var statusCode = (StatusCode)nullResult;
             Assert.That(StatusCode.IsGood(statusCode), Is.True);
         }
 
@@ -1119,11 +1127,13 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void GetDefaultMessageWithNullExceptionThrows()
         {
+#pragma warning disable IDE0004 // Remove Unnecessary Cast
             Assert.That(() => new ServiceResult(
                 (Exception)null!,
                 "http://ns.org",
                 StatusCodes.BadUnexpectedError),
                 Throws.Nothing);
+#pragma warning restore IDE0004 // Remove Unnecessary Cast
         }
 
         [Test]

@@ -349,7 +349,7 @@ namespace Opc.Ua
         /// Returns the node id in whatever form, i.e.
         /// string, Guid, ByteString or uint.
         /// </remarks>
-        [Obsolete("Use TryGetIdentifier<T> to get strongly typed identifier values or " +
+        [Obsolete("Use TryGetValue<T> to get strongly typed identifier values or " +
             "consider using IdentifierAsString if you want to stringify the identifier.")]
         public object Identifier =>
             m_nodeId.IsNull ? null : m_nodeId.Identifier;
@@ -357,33 +357,33 @@ namespace Opc.Ua
         /// <summary>
         /// Try get the numeric node identifier.
         /// </summary>
-        public bool TryGetIdentifier(out uint identifier)
+        public bool TryGetValue(out uint identifier)
         {
-            return m_nodeId.TryGetIdentifier(out identifier);
+            return m_nodeId.TryGetValue(out identifier);
         }
 
         /// <summary>
         /// Try get the opque node identifier.
         /// </summary>
-        public bool TryGetIdentifier(out ByteString identifier)
+        public bool TryGetValue(out ByteString identifier)
         {
-            return m_nodeId.TryGetIdentifier(out identifier);
+            return m_nodeId.TryGetValue(out identifier);
         }
 
         /// <summary>
         /// Try get the string node identifier.
         /// </summary>
-        public bool TryGetIdentifier(out string identifier)
+        public bool TryGetValue(out string identifier)
         {
-            return m_nodeId.TryGetIdentifier(out identifier);
+            return m_nodeId.TryGetValue(out identifier);
         }
 
         /// <summary>
         /// Try get the Guid node identifier.
         /// </summary>
-        public bool TryGetIdentifier(out Guid identifier)
+        public bool TryGetValue(out Guid identifier)
         {
-            return m_nodeId.TryGetIdentifier(out identifier);
+            return m_nodeId.TryGetValue(out identifier);
         }
 
         /// <summary>
@@ -1014,6 +1014,50 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Creates a new ExpandedNodeId from a long-form text representation, resolving
+        /// namespace and server URIs against the supplied tables.
+        /// Use this overload when you know the caller is starting with a long form.
+        /// </summary>
+        /// <remarks>
+        /// Syntax (per OPC UA Part 6, section 5.1.12):
+        /// <code>
+        /// [ svu=&lt;uri&gt; | svr=&lt;N&gt; ; ] [ nsu=&lt;uri&gt; | ns=&lt;N&gt; ; ] &lt;id&gt;
+        /// </code>
+        /// See <see cref="NodeId.ParseLongForm(string, NamespaceTable)"/> for the
+        /// <c>&lt;id&gt;</c> portion.
+        /// <para>
+        /// The server prefix (<c>svu=&lt;uri&gt;;</c> or <c>svr=&lt;N&gt;;</c>) is optional.
+        /// If <c>svu=</c> is present, <paramref name="serverUris"/> must be supplied and must
+        /// contain the URI.
+        /// </para>
+        /// </remarks>
+        /// <param name="text">The long-form (Expanded)NodeId text.</param>
+        /// <param name="namespaceTable">Namespace table used to resolve <c>nsu=</c> URIs.</param>
+        /// <param name="serverUris">Server URI table used to resolve <c>svu=</c> URIs.
+        /// May be null if <c>svu=</c> is not used.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="namespaceTable"/> is
+        /// null.</exception>
+        /// <exception cref="ServiceResultException">The text cannot be parsed, or a URI
+        /// is not in the supplied table.</exception>
+        public static ExpandedNodeId ParseLongForm(
+            string text,
+            NamespaceTable namespaceTable,
+            StringTable serverUris = null)
+        {
+            var context = ServiceMessageContext.CreateEmpty(null);
+            context.NamespaceUris = namespaceTable ?? throw new ArgumentNullException(nameof(namespaceTable));
+            // Substitute an empty server table when none is supplied so that any
+            // svu= prefix in the input is naturally rejected (no URI in the
+            // empty table will resolve under RequireResolvedUris).
+            context.ServerUris = serverUris ?? new StringTable();
+
+            return Parse(
+                context,
+                text,
+                new NodeIdParsingOptions { RequireResolvedUris = true });
+        }
+
+        /// <summary>
         /// Parses a expanded node id string and returns a node id object.
         /// </summary>
         /// <remarks>
@@ -1399,6 +1443,16 @@ namespace Opc.Ua
                         ? context.NamespaceUris.GetIndexOrAppend(namespaceUri)
                         : context.NamespaceUris.GetIndex(namespaceUri);
 
+                // Default behavior is lenient: an unresolved nsu= URI is carried
+                // through as an absolute ExpandedNodeId. ParseLongForm (and any
+                // other caller that opts in) sets RequireResolvedUris to refuse
+                // unresolved URIs instead.
+                if (namespaceIndex < 0 && options?.RequireResolvedUris == true)
+                {
+                    error = NodeIdParseError.NoNamespaceMapping;
+                    return false;
+                }
+
                 text = text[(index + 1)..];
             }
 
@@ -1409,13 +1463,10 @@ namespace Opc.Ua
 
             if (namespaceIndex > 0)
             {
-#pragma warning disable CS0618 // Type or member is obsolete
                 value = new ExpandedNodeId(
-                    nodeId.Identifier,
-                    (ushort)namespaceIndex,
+                    nodeId.WithNamespaceIndex((ushort)namespaceIndex),
                     null,
                     (uint)serverIndex);
-#pragma warning restore CS0618 // Type or member is obsolete
             }
             else
             {

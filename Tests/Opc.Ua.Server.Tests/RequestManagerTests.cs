@@ -28,9 +28,9 @@
  * ======================================================================*/
 
 using System.Threading.Tasks;
-using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using NUnit.Framework;
+using Opc.Ua.Tests;
 
 namespace Opc.Ua.Server.Tests
 {
@@ -44,9 +44,7 @@ namespace Opc.Ua.Server.Tests
         public void SetUp()
         {
             m_mockServer = new Mock<IServerInternal>();
-            var mockTelemetry = new Mock<ITelemetryContext>();
-            mockTelemetry.Setup(t => t.LoggerFactory).Returns(NullLoggerFactory.Instance);
-            m_mockServer.Setup(s => s.Telemetry).Returns(mockTelemetry.Object);
+            m_mockServer.Setup(s => s.Telemetry).Returns(NUnitTelemetryContext.Create());
             m_requestManager = new RequestManager(m_mockServer.Object);
         }
 

@@ -57,14 +57,6 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public override object Clone()
-        {
-            var clone = new DataTypeState();
-            CopyTo(clone);
-            return clone;
-        }
-
-        /// <inheritdoc/>
         public override bool DeepEquals(NodeState node)
         {
             if (node is not DataTypeState state)
@@ -87,6 +79,12 @@ namespace Opc.Ua
             hash.Add(DataTypeDefinition);
             hash.Add(Purpose);
             return hash.ToHashCode();
+        }
+
+        /// <inheritdoc/>
+        protected override NodeState CreateCopy()
+        {
+            return new DataTypeState();
         }
 
         /// <inheritdoc/>
@@ -250,7 +248,7 @@ namespace Opc.Ua
 
                     if (ServiceResult.IsGood(result))
                     {
-                        if (dataTypeDefinition.TryGetEncodeable(out StructureDefinition structureType) &&
+                        if (dataTypeDefinition.TryGetValue(out StructureDefinition structureType) &&
                             structureType.DefaultEncodingId.IsNull)
                         {
                             // one time set the id for binary encoding, currently the only supported encoding
@@ -283,7 +281,7 @@ namespace Opc.Ua
             switch (attributeId)
             {
                 case Attributes.DataTypeDefinition:
-                    if (!value.TryGet(out ExtensionObject dataTypeDefinition))
+                    if (!value.TryGetValue(out ExtensionObject dataTypeDefinition))
                     {
                         dataTypeDefinition = default;
                     }

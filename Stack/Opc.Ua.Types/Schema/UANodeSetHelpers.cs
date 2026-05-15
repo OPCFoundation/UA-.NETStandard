@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -52,6 +53,96 @@ namespace Opc.Ua.Export
         public UANodeSet()
         {
         }
+
+        /// <summary>
+        /// Gets a cached <see cref="XmlSerializer"/> instance for
+        /// <see cref="UANodeSet"/>. The serializer is lazily created and
+        /// reused for all subsequent calls.
+        /// </summary>
+        /// <remarks>
+        /// The suppression is safe because <see cref="UANodeSet"/> and all
+        /// reachable types in the object graph are annotated with
+        /// <see cref="XmlRootAttribute"/>, <see cref="XmlTypeAttribute"/>,
+        /// <see cref="XmlIncludeAttribute"/>, and element/attribute
+        /// mapping attributes. The NativeAOT linker preserves these types
+        /// through the static attribute references.
+        /// </remarks>
+        internal static XmlSerializer Serializer => s_serializer.Value;
+
+        [UnconditionalSuppressMessage("AOT",
+            "IL3050:RequiresDynamicCode",
+            Justification = "UANodeSet and all reachable types are fully " +
+                "annotated with XML serialization attributes.")]
+        [UnconditionalSuppressMessage("Trimming",
+            "IL2026:RequiresUnreferencedCode",
+            Justification = "UANodeSet and all reachable types are fully " +
+                "annotated with XML serialization attributes.")]
+#if NET5_0_OR_GREATER
+        [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(UANodeSet))]
+        [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(ModelTableEntry))]
+        [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(NodeIdAlias))]
+        [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(UANode))]
+        [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(UAType))]
+        [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(UAInstance))]
+        [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(UAObject))]
+        [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(UAVariable))]
+        [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(UAMethod))]
+        [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(UAView))]
+        [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(UAObjectType))]
+        [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(UAVariableType))]
+        [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(UAReferenceType))]
+        [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(UADataType))]
+        [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(DataTypeDefinition))]
+        [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(DataTypeField))]
+        [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(Reference))]
+        [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(LocalizedText))]
+        [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(RolePermission))]
+        [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(UAMethodArgument))]
+        [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(TranslationType))]
+        [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(StructureTranslationType))]
+        [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(NodeSetStatus))]
+        [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(NodeToDelete))]
+        [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(ReferenceChange))]
+        [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(UANodeSetChanges))]
+        [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(UANodeSetChangesStatus))]
+        [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(ReleaseStatus))]
+        [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(DataTypePurpose))]
+        [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(System.Xml.XmlElement))]
+        [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(XmlDocument))]
+        [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(XmlNode))]
+#endif
+        private static XmlSerializer CreateSerializer()
+        {
+            return new XmlSerializer(typeof(UANodeSet));
+        }
+
+        private static readonly Lazy<XmlSerializer> s_serializer = new(CreateSerializer);
+
+#if NET5_0_OR_GREATER
+        /// <summary>
+        /// Serializes a <see cref="UANodeSet"/> to an <see cref="XmlWriter"/>
+        /// using the pre-generated serializer code. This avoids the
+        /// reflection-based fallback which fails under NativeAOT.
+        /// </summary>
+        private static void SerializePreGen(XmlWriter writer, UANodeSet nodeSet)
+        {
+            var serWriter = new UANodeSetXmlSerializerWriter(writer);
+            serWriter.Write26_UANodeSet(nodeSet);
+        }
+
+        /// <summary>
+        /// Exposes the protected <see cref="XmlSerializationWriter.Writer"/>
+        /// property for direct use outside <see cref="XmlSerializer"/>.
+        /// </summary>
+        private sealed class UANodeSetXmlSerializerWriter
+            : Microsoft.Xml.Serialization.GeneratedAssembly.XmlSerializationWriterUANodeSet
+        {
+            public UANodeSetXmlSerializerWriter(XmlWriter w)
+            {
+                Writer = w;
+            }
+        }
+#endif
 
         /// <summary>
         /// Validate the nodeset against the schema.
@@ -119,32 +210,226 @@ namespace Opc.Ua.Export
         /// </summary>
         /// <param name="istrm">The input stream.</param>
         /// <returns>The set of nodes</returns>
+        [UnconditionalSuppressMessage("AOT",
+            "IL3050:RequiresDynamicCode",
+            Justification = "UANodeSet and all reachable types are fully " +
+                "annotated with XML serialization attributes.")]
+        [UnconditionalSuppressMessage("Trimming",
+            "IL2026:RequiresUnreferencedCode",
+            Justification = "UANodeSet and all reachable types are fully " +
+                "annotated with XML serialization attributes.")]
         public static UANodeSet Read(Stream istrm)
         {
             using var reader = new StreamReader(istrm);
             using var xmlReader = XmlReader.Create(reader, CoreUtils.DefaultXmlReaderSettings());
-            var serializer = new XmlSerializer(typeof(UANodeSet));
-            return serializer.Deserialize(xmlReader) as UANodeSet;
+            return Serializer.Deserialize(xmlReader) as UANodeSet;
         }
 
         /// <summary>
         /// Write a nodeset to a stream.
         /// </summary>
         /// <param name="istrm">The input stream.</param>
+        [UnconditionalSuppressMessage("AOT",
+            "IL3050:RequiresDynamicCode",
+            Justification = "UANodeSet and all reachable types are fully " +
+                "annotated with XML serialization attributes.")]
+        [UnconditionalSuppressMessage("Trimming",
+            "IL2026:RequiresUnreferencedCode",
+            Justification = "UANodeSet and all reachable types are fully " +
+                "annotated with XML serialization attributes.")]
         public void Write(Stream istrm)
         {
             XmlWriterSettings setting = CoreUtils.DefaultXmlWriterSettings();
+            // Strip duplicate namespace declarations that inner value fragments emit.
+            // Combined with the DeclareRootNamespacesWriter below, the xmlns:xsi
+            // declaration only appears once (on UANodeSet) instead of once per Value.
+            setting.NamespaceHandling = NamespaceHandling.OmitDuplicates;
             var writer = XmlWriter.Create(istrm, setting);
+            // Pre-declare xmlns:xsi at the document root so inner value fragments
+            // (which contain xsi:nil="true" on unset fields) inherit the binding
+            // instead of each fragment declaring its own.
+            var rootWriter = new DeclareRootNamespacesWriter(
+                writer,
+                ("xsi", Namespaces.XmlSchemaInstance));
 
             try
             {
-                var serializer = new XmlSerializer(typeof(UANodeSet));
-                serializer.Serialize(writer, this, null);
+#if NET5_0_OR_GREATER
+                SerializePreGen(rootWriter, this);
+#else
+                Serializer.Serialize(rootWriter, this, null);
+#endif
             }
             finally
             {
-                writer.Flush();
-                writer.Dispose();
+                rootWriter.Flush();
+                rootWriter.Dispose();
+            }
+        }
+
+        /// <summary>
+        /// A delegating <see cref="XmlWriter"/> that emits a fixed set of
+        /// <c>xmlns:prefix</c> declarations on the first (root) element written.
+        /// </summary>
+        private sealed class DeclareRootNamespacesWriter : XmlWriter
+        {
+            private readonly XmlWriter m_inner;
+            private readonly (string Prefix, string Uri)[] m_declarations;
+            private bool m_declared;
+
+            public DeclareRootNamespacesWriter(
+                XmlWriter inner,
+                params (string Prefix, string Uri)[] declarations)
+            {
+                m_inner = inner;
+                m_declarations = declarations;
+            }
+
+            private void DeclareIfNeeded()
+            {
+                if (m_declared)
+                {
+                    return;
+                }
+                m_declared = true;
+                foreach ((string prefix, string uri) in m_declarations)
+                {
+                    m_inner.WriteAttributeString("xmlns", prefix, null, uri);
+                }
+            }
+
+            public override WriteState WriteState => m_inner.WriteState;
+
+            public override string LookupPrefix(string ns)
+            {
+                foreach ((string prefix, string uri) in m_declarations)
+                {
+                    if (uri == ns)
+                    {
+                        return prefix;
+                    }
+                }
+                return m_inner.LookupPrefix(ns);
+            }
+
+            public override void Flush()
+            {
+                m_inner.Flush();
+            }
+
+            public override void WriteBase64(byte[] buffer, int index, int count)
+            {
+                m_inner.WriteBase64(buffer, index, count);
+            }
+
+            public override void WriteCData(string text)
+            {
+                m_inner.WriteCData(text);
+            }
+
+            public override void WriteCharEntity(char ch)
+            {
+                m_inner.WriteCharEntity(ch);
+            }
+
+            public override void WriteChars(char[] buffer, int index, int count)
+            {
+                m_inner.WriteChars(buffer, index, count);
+            }
+
+            public override void WriteComment(string text)
+            {
+                m_inner.WriteComment(text);
+            }
+
+            public override void WriteDocType(string name, string pubid, string sysid, string subset)
+            {
+                m_inner.WriteDocType(name, pubid, sysid, subset);
+            }
+
+            public override void WriteEndAttribute()
+            {
+                m_inner.WriteEndAttribute();
+            }
+
+            public override void WriteEndDocument()
+            {
+                m_inner.WriteEndDocument();
+            }
+
+            public override void WriteEndElement()
+            {
+                m_inner.WriteEndElement();
+            }
+
+            public override void WriteEntityRef(string name)
+            {
+                m_inner.WriteEntityRef(name);
+            }
+
+            public override void WriteFullEndElement()
+            {
+                m_inner.WriteFullEndElement();
+            }
+
+            public override void WriteProcessingInstruction(string name, string text)
+            {
+                m_inner.WriteProcessingInstruction(name, text);
+            }
+
+            public override void WriteRaw(char[] buffer, int index, int count)
+            {
+                m_inner.WriteRaw(buffer, index, count);
+            }
+
+            public override void WriteRaw(string data)
+            {
+                m_inner.WriteRaw(data);
+            }
+
+            public override void WriteStartAttribute(string prefix, string localName, string ns)
+            {
+                m_inner.WriteStartAttribute(prefix, localName, ns);
+            }
+
+            public override void WriteStartDocument()
+            {
+                m_inner.WriteStartDocument();
+            }
+
+            public override void WriteStartDocument(bool standalone)
+            {
+                m_inner.WriteStartDocument(standalone);
+            }
+
+            public override void WriteStartElement(string prefix, string localName, string ns)
+            {
+                m_inner.WriteStartElement(prefix, localName, ns);
+                DeclareIfNeeded();
+            }
+
+            public override void WriteString(string text)
+            {
+                m_inner.WriteString(text);
+            }
+
+            public override void WriteSurrogateCharEntity(char lowChar, char highChar)
+            {
+                m_inner.WriteSurrogateCharEntity(lowChar, highChar);
+            }
+
+            public override void WriteWhitespace(string ws)
+            {
+                m_inner.WriteWhitespace(ws);
+            }
+
+            protected override void Dispose(bool disposing)
+            {
+                if (disposing)
+                {
+                    m_inner.Dispose();
+                }
+                base.Dispose(disposing);
             }
         }
 
@@ -1116,7 +1401,7 @@ namespace Opc.Ua.Export
                 definition.SymbolicName = dataType.SymbolicName;
             }
 
-            if (source.TryGetEncodeable(out StructureDefinition sd))
+            if (source.TryGetValue(out StructureDefinition sd))
             {
                 if (sd
                     .StructureType is StructureType.Union or StructureType.UnionWithSubtypedValues)
@@ -1185,7 +1470,7 @@ namespace Opc.Ua.Export
                 }
             }
 
-            if (source.TryGetEncodeable(out EnumDefinition ed))
+            if (source.TryGetValue(out EnumDefinition ed))
             {
                 definition.IsOptionSet = ed.IsOptionSet;
 

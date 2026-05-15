@@ -65,7 +65,7 @@ namespace Opc.Ua.Server
         /// </summary>
         protected override DataValue ComputeValue(TimeSlice slice)
         {
-            if (!AggregateId.TryGetIdentifier(out uint numericId))
+            if (!AggregateId.TryGetValue(out uint numericId))
             {
                 return base.ComputeValue(slice);
             }
@@ -128,7 +128,7 @@ namespace Opc.Ua.Server
 
             for (int ii = 0; ii < values.Count; ii++)
             {
-                DateTime currentTime = (DateTime)values[ii].SourceTimestamp;
+                var currentTime = (DateTime)values[ii].SourceTimestamp;
                 StatusCode currentStatus = values[ii].StatusCode;
 
                 // ignore bad values.
@@ -312,7 +312,7 @@ namespace Opc.Ua.Server
 
             for (int ii = 0; ii < values.Count; ii++)
             {
-                DateTime currentTime = (DateTime)values[ii].SourceTimestamp;
+                var currentTime = (DateTime)values[ii].SourceTimestamp;
                 StatusCode currentStatus = values[ii].StatusCode;
 
                 // ignore bad values (as determined by the TreatUncertainAsBad parameter).

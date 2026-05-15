@@ -97,14 +97,6 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public override object Clone()
-        {
-            var clone = (BaseDataVariableState)Activator.CreateInstance(GetType(), Parent);
-            CopyTo(clone);
-            return clone;
-        }
-
-        /// <inheritdoc/>
         public override bool DeepEquals(NodeState node)
         {
             if (node is not BaseDataVariableState state)
@@ -133,6 +125,12 @@ namespace Opc.Ua
                 state.EnumStrings = EnumStrings;
             }
             base.CopyTo(target);
+        }
+
+        /// <inheritdoc/>
+        protected override NodeState CreateCopy()
+        {
+            return new BaseDataVariableState(Parent);
         }
 
         /// <summary>
@@ -278,6 +276,12 @@ namespace Opc.Ua
             {
                 get => m_builder.GetValue(WrappedValue);
                 set => WrappedValue = m_builder.WithValue(value);
+            }
+
+            /// <inheritdoc/>
+            protected override NodeState CreateCopy()
+            {
+                return new Implementation<TBuilder>(Parent);
             }
 
             private readonly TBuilder m_builder = new();

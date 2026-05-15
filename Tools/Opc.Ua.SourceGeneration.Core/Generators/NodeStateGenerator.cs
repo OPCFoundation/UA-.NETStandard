@@ -50,11 +50,7 @@ namespace Opc.Ua.SourceGeneration
         public NodeStateGenerator(IGeneratorContext context)
         {
             m_context = context ?? throw new ArgumentNullException(nameof(context));
-            m_messageContext = new ServiceMessageContext(context.Telemetry);
-            m_systemContext = new SystemContext(context.Telemetry)
-            {
-                NamespaceUris = context.ModelDesign.NamespaceUris
-            };
+            m_messageContext = ServiceMessageContext.CreateEmpty(context.Telemetry);
             m_logger = context.Telemetry.CreateLogger<NodeStateGenerator>();
             CollectNodesToGenerate();
         }
@@ -558,12 +554,27 @@ namespace Opc.Ua.SourceGeneration
 
             context.Template.AddReplacement(Tokens.ChildName, field.Key);
             context.Template.AddReplacement(Tokens.ChildPath, field.Key);
-            context.Template.AddReplacement(Tokens.ChildDataType,
-                field.Value.DataTypeNode.GetDotNetTypeName(
-                    field.Value.ValueRank,
-                    m_context.ModelDesign.TargetNamespace.Value,
-                    m_context.ModelDesign.Namespaces,
-                    nullable: NullableAnnotation.NonNullable));
+
+            string childDataType = field.Value.DataTypeNode.GetDotNetTypeName(
+                field.Value.ValueRank,
+                m_context.ModelDesign.TargetNamespace.Value,
+                m_context.ModelDesign.Namespaces,
+                nullable: NullableAnnotation.NonNullable);
+
+            context.Template.AddReplacement(Tokens.ChildDataType, childDataType);
+
+            if (field.Value.DataTypeNode.NeedsCloning())
+            {
+                context.Template.AddReplacement(
+                    Tokens.ValueWrite,
+                    CoreUtils.Format(
+                        "CopyOnWrite ? ({0})global::Opc.Ua.CoreUtils.Clone(newValue) : newValue",
+                        childDataType));
+            }
+            else
+            {
+                context.Template.AddReplacement(Tokens.ValueWrite, "newValue");
+            }
 
             AddVariantAccessor(context, field.Value.DataTypeNode);
 
@@ -650,7 +661,7 @@ namespace Opc.Ua.SourceGeneration
                     break;
                 default:
                     context.Out.WriteLine(
-                        "_inputArguments[{2}].TryGet(out {1} {0});",
+                        "_inputArguments[{2}].TryGetValue(out {1} {0});",
                         fieldName,
                         typeName,
                         context.Index);
@@ -691,7 +702,7 @@ namespace Opc.Ua.SourceGeneration
                     break;
                 default:
                     context.Out.WriteLine(
-                        "_outputArguments[{2}].TryGet(out {1} {0});",
+                        "_outputArguments[{2}].TryGetValue(out {1} {0});",
                         fieldName,
                         typeName,
                         context.Index);
@@ -1094,8 +1105,12 @@ namespace Opc.Ua.SourceGeneration
                     continue;
                 }
 
+                if (instance.ModellingRule is ModellingRule.None)
+                {
+                    continue;
+                }
+
                 if (instance.ModellingRule is
-                    ModellingRule.None or
                     ModellingRule.OptionalPlaceholder or
                     ModellingRule.MandatoryPlaceholder)
                 {
@@ -1371,7 +1386,7 @@ namespace Opc.Ua.SourceGeneration
                     AddDataTypeStateFactoryReplacements(context, dataType);
                     break;
                 case ObjectDesign objectDesign:
-                    AddObjectReplacements(context, objectDesign);
+                    AddObjectReplacements(context, objectDesign, references);
                     break;
                 case VariableDesign variableDesign:
                     AddVariableStateFactoryReplacements(context, variableDesign, references);
@@ -1413,7 +1428,9 @@ namespace Opc.Ua.SourceGeneration
                     ? CoreUtils.Format("state.Specification = \"Part{0}\";", root.PartNo)
                     : null);
 
-            // Access restrictions
+            // Access restrictions — emit on all nodes (type and instance).
+            // Type hierarchy nodes carry restrictions as metadata but the server
+            // bypasses enforcement via IsPartOfTypeHierarchy at runtime.
             string accessRestrictions =
                 root.AccessRestrictions.GetAccessRestrictionsAsCode(
                     root.AccessRestrictionsSpecified) ??
@@ -1469,15 +1486,28 @@ namespace Opc.Ua.SourceGeneration
                 {
                     return null;
                 }
+                // Real instance children of a top-level (non-typed) parent belong in
+                // the always-emitted list so they materialize for the actual instance,
+                // not only when the node is treated as a type template.
+                if (node.Parent != null && node.Parent.Parent == null && node.Parent.InstanceOf == null)
+                {
+                    return null;
+                }
             }
 
             // Otherwise only add mandatory children - all others are created on demand
             else if (instance.ModellingRule != ModellingRule.Mandatory)
             {
-                return null;
+                // Exception: real instance children of a top-level (non-typed) parent.
+                if (!(node.Parent != null && node.Parent.Parent == null && node.Parent.InstanceOf == null))
+                {
+                    return null;
+                }
             }
 
-            string forInstanceVariableValue = node.Parent?.InstanceOf != null ? "true" : "forInstance";
+            string forInstanceVariableValue =
+                node.RootIsTypeDefinition ? "forInstance" :
+                node.Parent?.InstanceOf != null || node.Parent?.Parent == null ? "true" : "forInstance";
             if (node.Parent != null && IsInAddressSpace(node.Parent))
             {
                 switch (node.Parent.Design)
@@ -1487,7 +1517,7 @@ namespace Opc.Ua.SourceGeneration
                             "state.AddChild(Create{0}(context, state, forInstance: {1}));",
                             instance.SymbolicId.Name,
                             forInstanceVariableValue);
-                        break;
+                        return null;
                     case InstanceDesign parentInstance:
                         if (HasChildDefined(parentInstance.TypeDefinitionNode, instance.SymbolicName.Name) ||
                             IsBuiltInProperty(node))
@@ -1711,6 +1741,27 @@ namespace Opc.Ua.SourceGeneration
 
             AddVariantAccessor(context, variableType.DataTypeNode);
 
+            if (variableType.DataTypeNode.NeedsCloning())
+            {
+                context.Template.AddReplacement(
+                    Tokens.ValueWrite,
+                    CoreUtils.Format(
+                        "CopyOnWrite ? ({0})global::Opc.Ua.CoreUtils.Clone(newValue) : newValue",
+                        variableType.DataTypeNode.SymbolicName.Name));
+            }
+            else
+            {
+                context.Template.AddReplacement(Tokens.ValueWrite, "newValue");
+            }
+            if (variableType.DataTypeNode.IsDotNetEqualityComparable(variableType.ValueRank))
+            {
+                context.Template.AddReplacement(Tokens.ValueComparison, "m_value != newValue");
+            }
+            else
+            {
+                context.Template.AddReplacement(Tokens.ValueComparison,
+                    "!global::Opc.Ua.CoreUtils.IsEqual(m_value, newValue)");
+            }
             context.Template.AddReplacement(
                 Tokens.DefaultValue,
                 variableType.DataTypeNode.GetValueAsCode(
@@ -2071,7 +2122,8 @@ namespace Opc.Ua.SourceGeneration
 
         private void AddObjectReplacements(
             IWriteContext context,
-            ObjectDesign node)
+            ObjectDesign node,
+            HashSet<ReferenceToGenerate> references)
         {
             context.Template.AddReplacement(
                 Tokens.StateClassName,
@@ -2100,7 +2152,7 @@ namespace Opc.Ua.SourceGeneration
                 GetModellingRuleReplacement(node.ModellingRule));
             context.Template.AddReplacement(
                 Tokens.EventNotifier,
-                node.SupportsEvents
+                node.SupportsEvents || HasForwardEventReferences(references)
                     ? "global::Opc.Ua.EventNotifiers.SubscribeToEvents"
                     : "global::Opc.Ua.EventNotifiers.None");
         }
@@ -2153,6 +2205,33 @@ namespace Opc.Ua.SourceGeneration
                     ? "global::Opc.Ua.EventNotifiers.SubscribeToEvents"
                     : "global::Opc.Ua.EventNotifiers.None");
             context.Template.AddReplacement(Tokens.ContainsNoLoopsValue, node.ContainsNoLoops);
+        }
+
+        /// <summary>
+        /// Returns true if the references include a forward HasEventSource
+        /// (i=36) or HasNotifier (i=48) reference. Per OPC UA Part 3, the
+        /// EventNotifier attribute must be set on the source node of these
+        /// references to indicate that events can be subscribed to.
+        /// </summary>
+        private static bool HasForwardEventReferences(HashSet<ReferenceToGenerate> references)
+        {
+            if (references == null)
+            {
+                return false;
+            }
+
+            foreach (ReferenceToGenerate reference in references)
+            {
+                if (!reference.IsInverse &&
+                    reference.ReferenceTypeId != null &&
+                    (reference.ReferenceTypeId.Name == "HasEventSource" ||
+                        reference.ReferenceTypeId.Name == "HasNotifier"))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         private void CollectNodesToGenerate()
@@ -2245,6 +2324,81 @@ namespace Opc.Ua.SourceGeneration
                 }
                 GetChildren(instanceToGenerate, m_instances, true);
             }
+
+            // Collect DataType encoding nodes (Default Binary, Default XML, Default JSON).
+            // These are ObjectDesign instances with TypeDefinition=DataTypeEncodingType
+            // that are linked to DataTypes via HasEncoding references. They don't have
+            // a Hierarchy from the model validation, so we build a minimal one with
+            // their references to emit them into the address space.
+            CollectEncodingNodes();
+        }
+
+        private void CollectEncodingNodes()
+        {
+            foreach (NodeDesign node in m_context.ModelDesign.Nodes)
+            {
+                if (node is not ObjectDesign encoding)
+                {
+                    continue;
+                }
+
+                if (encoding.TypeDefinition == null ||
+                    encoding.TypeDefinition.Name != "DataTypeEncodingType")
+                {
+                    continue;
+                }
+
+                if (encoding.NotInAddressSpace)
+                {
+                    continue;
+                }
+
+                if (m_context.ModelDesign.IsExcluded(encoding))
+                {
+                    continue;
+                }
+
+                // Skip if already collected
+                if (m_nodes.ContainsKey(encoding.SymbolicId))
+                {
+                    continue;
+                }
+
+                // Build a synthetic Hierarchy with the encoding's references
+                var hierarchy = new Hierarchy();
+                if (encoding.References != null)
+                {
+                    foreach (Reference reference in encoding.References)
+                    {
+                        if (reference.ReferenceType == null)
+                        {
+                            continue;
+                        }
+
+                        hierarchy.References.Add(new HierarchyReference
+                        {
+                            SourcePath = string.Empty,
+                            ReferenceType = reference.ReferenceType,
+                            IsInverse = reference.IsInverse,
+                            TargetId = reference.TargetId,
+                            TargetPath = null
+                        });
+                    }
+                }
+
+                encoding.Hierarchy = hierarchy;
+
+                var entry = new NodeToGenerate(
+                    Parent: null,
+                    Path: string.Empty,
+                    Hierarchy: hierarchy,
+                    Design: encoding,
+                    IsNotExplicitlyDefined: false,
+                    RootIsTypeDefinition: false,
+                    InstanceOf: null);
+
+                m_nodes.TryAdd(encoding.SymbolicId, entry);
+            }
         }
 
         private bool ExcludeNodeStateClassGeneration(NodeToGenerate node)
@@ -2259,8 +2413,10 @@ namespace Opc.Ua.SourceGeneration
             }
 
             // Only process type designs and method types for definitions
+            // Also allow DataTypeEncodingType instances (Default Binary/XML/JSON)
             if (node.Design is not VariableTypeDesign and not ObjectTypeDesign &&
-                !node.Design.IsMethodTypeDesign())
+                !node.Design.IsMethodTypeDesign() &&
+                !IsDataTypeEncodingInstance(node.Design))
             {
                 return true;
             }
@@ -2298,6 +2454,13 @@ namespace Opc.Ua.SourceGeneration
                     !instanceDesign.Parent.NotInAddressSpace;
             }
             return isInAddressSpace;
+        }
+
+        private static bool IsDataTypeEncodingInstance(NodeDesign node)
+        {
+            return node is ObjectDesign objectDesign &&
+                objectDesign.TypeDefinition != null &&
+                objectDesign.TypeDefinition.Name == "DataTypeEncodingType";
         }
 
         /// <summary>
@@ -2513,6 +2676,15 @@ namespace Opc.Ua.SourceGeneration
                     {
                         add = true;
                     }
+                    else if (child.ModellingRule == ModellingRule.None &&
+                        current.ExplicitlyDefined)
+                    {
+                        // Include ModellingRule=None children that are explicitly defined
+                        // on this type (e.g., state machine states/transitions, type-level
+                        // methods like ConditionRefresh, and type-level properties like
+                        // Creatable or SupportsFilteredRetain).
+                        add = true;
+                    }
                     else if (child.ModellingRule is not ModellingRule.None)
                     {
                         m_logger.LogDebug(
@@ -2719,6 +2891,9 @@ namespace Opc.Ua.SourceGeneration
         private HashSet<RolePermission> GetRolePermissions(NodeDesign node)
         {
             var rolePermissions = new HashSet<RolePermission>();
+            // Emit RolePermissions on all nodes (type and instance).
+            // Type hierarchy nodes carry permissions as metadata but the server
+            // bypasses enforcement via IsPartOfTypeHierarchy at runtime.
             RolePermission[] nodeRolePermissions =
                 node.RolePermissions?.RolePermission ??
                 node.DefaultRolePermissions?.RolePermission;
@@ -2975,7 +3150,7 @@ namespace Opc.Ua.SourceGeneration
                     break;
                 default:
                     context.Template.AddReplacement(Tokens.VariantFrom, "From");
-                    context.Template.AddReplacement(Tokens.VariantTryGet, "TryGet");
+                    context.Template.AddReplacement(Tokens.VariantTryGet, "TryGetValue");
                     break;
             }
         }
@@ -3049,7 +3224,6 @@ namespace Opc.Ua.SourceGeneration
         private readonly Dictionary<string, Resource> m_initializers = [];
         private readonly Dictionary<XmlQualifiedName, NodeToGenerate> m_nodes = [];
         private readonly Dictionary<XmlQualifiedName, NodeToGenerate> m_instances = [];
-        private readonly SystemContext m_systemContext;
         private readonly ILogger m_logger;
         private readonly IServiceMessageContext m_messageContext;
         private readonly IGeneratorContext m_context;

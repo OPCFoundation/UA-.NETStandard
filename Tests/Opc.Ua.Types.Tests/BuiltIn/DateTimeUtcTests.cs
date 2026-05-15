@@ -91,7 +91,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             DateTime after = DateTime.UtcNow;
 
             // Assert
-            DateTime nowAsDateTime = (DateTime)now;
+            var nowAsDateTime = (DateTime)now;
             Assert.That(nowAsDateTime, Is.GreaterThanOrEqualTo(before));
             Assert.That(nowAsDateTime, Is.LessThanOrEqualTo(after));
         }
@@ -165,7 +165,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 
             // Assert
             DateTime expectedDateTime = DateTime.Parse(dateString, null).ToUniversalTime();
-            DateTime actualDateTime = (DateTime)result;
+            var actualDateTime = (DateTime)result;
             Assert.That(actualDateTime, Is.EqualTo(expectedDateTime));
         }
 
@@ -179,7 +179,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 
             // Assert
             DateTime expectedDateTime = DateTime.Parse(dateString, CultureInfo.InvariantCulture).ToUniversalTime();
-            DateTime actualDateTime = (DateTime)result;
+            var actualDateTime = (DateTime)result;
             Assert.That(actualDateTime, Is.EqualTo(expectedDateTime));
         }
 
@@ -197,7 +197,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 #pragma warning disable CA1305 // Specify IFormatProvider
             DateTime expectedDateTime = DateTime.Parse(dateString).ToUniversalTime();
 #pragma warning restore CA1305 // Specify IFormatProvider
-            DateTime actualDateTime = (DateTime)result;
+            var actualDateTime = (DateTime)result;
             Assert.That(actualDateTime, Is.EqualTo(expectedDateTime));
         }
 
@@ -215,7 +215,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 
             // Assert
             Assert.That(success, Is.True);
-            DateTime actualDateTime = (DateTime)result;
+            var actualDateTime = (DateTime)result;
             Assert.That(actualDateTime, Is.EqualTo(expectedDateTime));
         }
 
@@ -248,7 +248,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 
             // Assert
             Assert.That(success, Is.True);
-            DateTime actualDateTime = (DateTime)result;
+            var actualDateTime = (DateTime)result;
             Assert.That(actualDateTime, Is.EqualTo(expectedDateTime));
         }
 
@@ -278,7 +278,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 #pragma warning restore CA1305 // Specify IFormatProvider
 
             // Act
-            DateTime actualDateTime = (DateTime)DateTimeUtc.Parse(utf8Bytes, null);
+            var actualDateTime = (DateTime)DateTimeUtc.Parse(utf8Bytes, null);
 
             // Assert
             Assert.That(actualDateTime, Is.EqualTo(expectedDateTime));
@@ -311,7 +311,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 
             // Assert
             Assert.That(success, Is.True);
-            DateTime actualDateTime = (DateTime)result;
+            var actualDateTime = (DateTime)result;
             Assert.That(actualDateTime, Is.EqualTo(expectedDateTime));
         }
 
@@ -944,7 +944,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var dateTime = new DateTime(2023, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
             // Act
-            DateTime convertedDateTime = (DateTime)new DateTimeUtc(dateTime);
+            var convertedDateTime = (DateTime)new DateTimeUtc(dateTime);
 
             // Assert
             Assert.That(convertedDateTime, Is.EqualTo(dateTime));

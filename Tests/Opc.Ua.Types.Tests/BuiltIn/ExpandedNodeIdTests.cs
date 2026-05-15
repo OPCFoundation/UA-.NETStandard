@@ -89,7 +89,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             // string
             const string text = "i=123";
             var nodeIdText = ExpandedNodeId.Parse(text);
-            Assert.That(nodeIdText.TryGetIdentifier(out uint n1) ? n1 : 0, Is.EqualTo(123));
+            Assert.That(nodeIdText.TryGetValue(out uint n1) ? n1 : 0, Is.EqualTo(123));
 
             // explicit conversion;
             var inodeIdText = (ExpandedNodeId)text;
@@ -122,7 +122,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             ExpandedNodeId nodeId = NodeId.Parse("ns=1;s=Test");
             Assert.That(nodeId.NamespaceIndex, Is.EqualTo(1));
             Assert.That(nodeId.IdentifierAsString, Is.EqualTo("Test"));
-            Assert.That(nodeId.TryGetIdentifier(out string s1) ? s1 : null, Is.EqualTo("Test"));
+            Assert.That(nodeId.TryGetValue(out string s1) ? s1 : null, Is.EqualTo("Test"));
             Assert.That(nodeId.ToString(), Is.EqualTo("ns=1;s=Test"));
             Assert.That(nodeId, Is.EqualTo(id));
             Assert.That(nodeId, Is.EqualTo(id));
@@ -131,7 +131,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             nodeId = NodeId.Parse("s=Test");
             Assert.That(nodeId.NamespaceIndex, Is.Zero);
             Assert.That(nodeId.IdentifierAsString, Is.EqualTo("Test"));
-            Assert.That(nodeId.TryGetIdentifier(out string s4) ? s4 : null, Is.EqualTo("Test"));
+            Assert.That(nodeId.TryGetValue(out string s4) ? s4 : null, Is.EqualTo("Test"));
             Assert.That(nodeId.ToString(), Is.EqualTo("s=Test"));
             Assert.That(nodeId, Is.EqualTo(id));
             Assert.That(nodeId, Is.EqualTo(id));
@@ -139,13 +139,13 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 
             id = new ExpandedNodeId(123, namespaceUri, 2).WithNamespaceIndex(321);
             Assert.That(id.ServerIndex, Is.EqualTo(2));
-            Assert.That(id.TryGetIdentifier(out uint n2) ? n2 : 0, Is.EqualTo(123));
+            Assert.That(id.TryGetValue(out uint n2) ? n2 : 0, Is.EqualTo(123));
             Assert.That(id.NamespaceIndex, Is.EqualTo(321));
             Assert.That(id.NamespaceUri, Is.Null);
             Assert.That(id.ToString(), Is.EqualTo("svr=2;ns=321;i=123"));
             id = new ExpandedNodeId(123, namespaceUri, 2);
             Assert.That(id.ServerIndex, Is.EqualTo(2));
-            Assert.That(id.TryGetIdentifier(out uint n3) ? n3 : 0, Is.EqualTo(123));
+            Assert.That(id.TryGetValue(out uint n3) ? n3 : 0, Is.EqualTo(123));
             Assert.That(id.NamespaceIndex, Is.Zero);
             Assert.That(id.NamespaceUri, Is.EqualTo(namespaceUri));
             Assert.That(id.ToString(), Is.EqualTo($"svr=2;nsu={namespaceUri};i=123"));
@@ -192,52 +192,52 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             // Test numeric identifiers
             Assert.That(ExpandedNodeId.TryParse("i=1234", out ExpandedNodeId result), Is.True);
-            Assert.That(result.TryGetIdentifier(out uint n1) ? n1 : 0, Is.EqualTo(1234u));
+            Assert.That(result.TryGetValue(out uint n1) ? n1 : 0, Is.EqualTo(1234u));
             Assert.That(result.IdType, Is.EqualTo(IdType.Numeric));
             Assert.That(result.NamespaceIndex, Is.Zero);
 
             Assert.That(ExpandedNodeId.TryParse("ns=2;i=1234", out result), Is.True);
-            Assert.That(result.TryGetIdentifier(out uint n2) ? n2 : 0, Is.EqualTo(1234u));
+            Assert.That(result.TryGetValue(out uint n2) ? n2 : 0, Is.EqualTo(1234u));
             Assert.That(result.IdType, Is.EqualTo(IdType.Numeric));
             Assert.That(result.NamespaceIndex, Is.EqualTo(2));
 
             // Test string identifiers
             Assert.That(ExpandedNodeId.TryParse("s=HelloWorld", out result), Is.True);
-            Assert.That(result.TryGetIdentifier(out string s1) ? s1 : null, Is.EqualTo("HelloWorld"));
+            Assert.That(result.TryGetValue(out string s1) ? s1 : null, Is.EqualTo("HelloWorld"));
             Assert.That(result.IdType, Is.EqualTo(IdType.String));
             Assert.That(result.NamespaceIndex, Is.Zero);
 
             Assert.That(ExpandedNodeId.TryParse("ns=2;s=HelloWorld", out result), Is.True);
-            Assert.That(result.TryGetIdentifier(out string s2) ? s2 : null, Is.EqualTo("HelloWorld"));
+            Assert.That(result.TryGetValue(out string s2) ? s2 : null, Is.EqualTo("HelloWorld"));
             Assert.That(result.IdType, Is.EqualTo(IdType.String));
             Assert.That(result.NamespaceIndex, Is.EqualTo(2));
 
             // Test with namespace URI
             Assert.That(ExpandedNodeId.TryParse("nsu=http://opcfoundation.org/UA/;s=Test", out result), Is.True);
-            Assert.That(result.TryGetIdentifier(out string s3) ? s3 : null, Is.EqualTo("Test"));
+            Assert.That(result.TryGetValue(out string s3) ? s3 : null, Is.EqualTo("Test"));
             Assert.That(result.IdType, Is.EqualTo(IdType.String));
             Assert.That(result.NamespaceUri, Is.EqualTo("http://opcfoundation.org/UA/"));
 
             // Test with server index
             Assert.That(ExpandedNodeId.TryParse("svr=1;i=1234", out result), Is.True);
-            Assert.That(result.TryGetIdentifier(out uint n3) ? n3 : 0, Is.EqualTo(1234u));
+            Assert.That(result.TryGetValue(out uint n3) ? n3 : 0, Is.EqualTo(1234u));
             Assert.That(result.ServerIndex, Is.EqualTo(1u));
 
             // Test with both server index and namespace URI
             Assert.That(ExpandedNodeId.TryParse("svr=1;nsu=http://test.org/;s=Test", out result), Is.True);
-            Assert.That(result.TryGetIdentifier(out string s6) ? s6 : null, Is.EqualTo("Test"));
+            Assert.That(result.TryGetValue(out string s6) ? s6 : null, Is.EqualTo("Test"));
             Assert.That(result.ServerIndex, Is.EqualTo(1u));
             Assert.That(result.NamespaceUri, Is.EqualTo("http://test.org/"));
 
             // Test GUID identifiers
             Assert.That(ExpandedNodeId.TryParse("g=af469096-f02a-4563-940b-603958363b81", out result), Is.True);
-            Assert.That(result.TryGetIdentifier(out Guid g1) ? g1 : Guid.Empty, Is.EqualTo(new Guid("af469096-f02a-4563-940b-603958363b81")));
+            Assert.That(result.TryGetValue(out Guid g1) ? g1 : Guid.Empty, Is.EqualTo(new Guid("af469096-f02a-4563-940b-603958363b81")));
             Assert.That(result.IdType, Is.EqualTo(IdType.Guid));
 
             // Test opaque identifiers (b=01020304 is valid base64 that decodes to specific bytes)
             Assert.That(ExpandedNodeId.TryParse("b=01020304", out result), Is.True);
             var expectedOpaqueBytes = ByteString.FromBase64("01020304");
-            Assert.That(result.TryGetIdentifier(out ByteString o1) ? o1 : default, Is.EqualTo(expectedOpaqueBytes));
+            Assert.That(result.TryGetValue(out ByteString o1) ? o1 : default, Is.EqualTo(expectedOpaqueBytes));
             Assert.That(result.IdType, Is.EqualTo(IdType.Opaque));
 
             // Test null and empty
@@ -274,7 +274,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ExpandedNodeIdTryParseWithContext()
         {
-            var context = new ServiceMessageContext(NUnitTelemetryContext.Create())
+            var context = new ServiceMessageContext(NUnitTelemetryContext.Create(), new EncodeableFactory())
             {
                 NamespaceUris = new NamespaceTable(),
                 ServerUris = new StringTable()
@@ -285,23 +285,23 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 
             // Test with namespace URI
             Assert.That(ExpandedNodeId.TryParse(context, "nsu=http://test.org/;i=1234", out ExpandedNodeId result), Is.True);
-            Assert.That(result.TryGetIdentifier(out uint n3) ? n3 : 0, Is.EqualTo(1234u));
+            Assert.That(result.TryGetValue(out uint n3) ? n3 : 0, Is.EqualTo(1234u));
             Assert.That(result.NamespaceIndex, Is.EqualTo(2));
 
             // Test with namespace index
             Assert.That(ExpandedNodeId.TryParse(context, "ns=2;s=Test", out result), Is.True);
-            Assert.That(result.TryGetIdentifier(out string s1) ? s1 : null, Is.EqualTo("Test"));
+            Assert.That(result.TryGetValue(out string s1) ? s1 : null, Is.EqualTo("Test"));
             Assert.That(result.NamespaceIndex, Is.EqualTo(2));
 
             // Test with server URI - ServerUris table starts at index 0
             Assert.That(ExpandedNodeId.TryParse(context, "svu=urn:server1;i=1234", out result), Is.True);
-            Assert.That(result.TryGetIdentifier(out uint n1) ? n1 : 0, Is.EqualTo(1234u));
+            Assert.That(result.TryGetValue(out uint n1) ? n1 : 0, Is.EqualTo(1234u));
             Assert.That(result.ServerIndex, Is.Zero);  // First item in ServerUris is at index 0
 
             // Test with unknown namespace URI - ExpandedNodeId can store URIs not in the table
             // So this should succeed and create an ExpandedNodeId with the namespace URI
             Assert.That(ExpandedNodeId.TryParse(context, "nsu=http://unknown.org/;i=1234", out result), Is.True);
-            Assert.That(result.TryGetIdentifier(out uint n2) ? n2 : 0, Is.EqualTo(1234u));
+            Assert.That(result.TryGetValue(out uint n2) ? n2 : 0, Is.EqualTo(1234u));
             Assert.That(result.NamespaceUri, Is.EqualTo("http://unknown.org/"));
 
             // Test with unknown server URI (should fail because ServerIndex must be resolved)
@@ -325,7 +325,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(id.NamespaceUri, Is.EqualTo("http://test.org/"));
             // When namespaceUri is set, namespaceIndex is forced to 0
             Assert.That(id.NamespaceIndex, Is.Zero);
-            Assert.That(id.TryGetIdentifier(out uint n), Is.True);
+            Assert.That(id.TryGetValue(out uint n), Is.True);
             Assert.That(n, Is.EqualTo(42u));
         }
 
@@ -344,7 +344,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var id = new ExpandedNodeId("Hello", "http://test.org/", 2);
             Assert.That(id.NamespaceUri, Is.EqualTo("http://test.org/"));
             Assert.That(id.ServerIndex, Is.EqualTo(2u));
-            Assert.That(id.TryGetIdentifier(out string s), Is.True);
+            Assert.That(id.TryGetValue(out string s), Is.True);
             Assert.That(s, Is.EqualTo("Hello"));
         }
 
@@ -383,7 +383,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(id.NamespaceUri, Is.EqualTo("http://ns.org/"));
             Assert.That(id.NamespaceIndex, Is.Zero);
             Assert.That(id.ServerIndex, Is.EqualTo(2u));
-            Assert.That(id.TryGetIdentifier(out Guid g), Is.True);
+            Assert.That(id.TryGetValue(out Guid g), Is.True);
             Assert.That(g, Is.EqualTo(guid));
         }
 
@@ -419,7 +419,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void ConstructorFromString()
         {
             var id = new ExpandedNodeId("i=100");
-            Assert.That(id.TryGetIdentifier(out uint n), Is.True);
+            Assert.That(id.TryGetValue(out uint n), Is.True);
             Assert.That(n, Is.EqualTo(100u));
         }
 
@@ -501,7 +501,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 
             Assert.That(result.ServerIndex, Is.EqualTo(2u));
             Assert.That(result.NamespaceUri, Is.EqualTo("http://ns.org/"));
-            Assert.That(result.TryGetIdentifier(out uint n), Is.True);
+            Assert.That(result.TryGetValue(out uint n), Is.True);
             Assert.That(n, Is.EqualTo(99u));
         }
 
@@ -550,7 +550,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             ExpandedNodeId id1 = ExpandedNodeId.Null;
             ExpandedNodeId id2 = ExpandedNodeId.Null;
+#pragma warning disable IDE0004 // Remove Unnecessary Cast
             Assert.That(id1.CompareTo((object)id2), Is.Zero);
+#pragma warning restore IDE0004 // Remove Unnecessary Cast
         }
 
         [Test]
@@ -558,7 +560,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             // Make an absolute ExpandedNodeId that is also Null-ish
             ExpandedNodeId id = ExpandedNodeId.Null;
+#pragma warning disable IDE0004 // Remove Unnecessary Cast
             Assert.That(id.CompareTo((object)NodeId.Null), Is.Zero);
+#pragma warning restore IDE0004 // Remove Unnecessary Cast
         }
 
         [Test]
@@ -566,8 +570,10 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var id1 = new ExpandedNodeId(1u, "http://ns.org/", 1);
             var id2 = new ExpandedNodeId(1u, "http://ns.org/", 2);
+#pragma warning disable IDE0004 // Remove Unnecessary Cast
             Assert.That(id1.CompareTo((object)id2), Is.LessThan(0));
             Assert.That(id2.CompareTo((object)id1), Is.GreaterThan(0));
+#pragma warning restore IDE0004 // Remove Unnecessary Cast
         }
 
         [Test]
@@ -575,7 +581,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var id1 = new ExpandedNodeId(1u, "http://aaa.org/", 1);
             var id2 = new ExpandedNodeId(1u, "http://zzz.org/", 1);
+#pragma warning disable IDE0004 // Remove Unnecessary Cast
             Assert.That(id1.CompareTo((object)id2), Is.LessThan(0));
+#pragma warning restore IDE0004 // Remove Unnecessary Cast
         }
 
         [Test]
@@ -583,7 +591,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var id1 = new ExpandedNodeId(1u, null, 1);
             var id2 = new ExpandedNodeId(1u, "http://ns.org/", 1);
+#pragma warning disable IDE0004 // Remove Unnecessary Cast
             Assert.That(id1.CompareTo((object)id2), Is.LessThan(0));
+#pragma warning restore IDE0004 // Remove Unnecessary Cast
         }
 
         [Test]
@@ -591,14 +601,18 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var id1 = new ExpandedNodeId(1u, "http://ns.org/", 1);
             var id2 = new ExpandedNodeId(2u, "http://ns.org/", 1);
+#pragma warning disable IDE0004 // Remove Unnecessary Cast
             Assert.That(id1.CompareTo((object)id2), Is.LessThan(0));
+#pragma warning restore IDE0004 // Remove Unnecessary Cast
         }
 
         [Test]
         public void CompareToUnknownObjectType()
         {
             var id = new ExpandedNodeId(1u, "http://ns.org/", 1);
+#pragma warning disable IDE0004 // Remove Unnecessary Cast
             Assert.That(id.CompareTo((object)"not a node id"), Is.Not.Zero);
+#pragma warning restore IDE0004 // Remove Unnecessary Cast
         }
 
         [Test]
@@ -606,8 +620,12 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             // Create an absolute null expanded node id vs non-null
             var nullId = new ExpandedNodeId(NodeId.Null, null, 1);
+#pragma warning disable IDE0004 // Remove Unnecessary Cast
             var nonNullId = new ExpandedNodeId(42u, (string)null, 1);
+#pragma warning restore IDE0004 // Remove Unnecessary Cast
+#pragma warning disable IDE0004 // Remove Unnecessary Cast
             Assert.That(nullId.CompareTo((object)nonNullId), Is.LessThan(0));
+#pragma warning restore IDE0004 // Remove Unnecessary Cast
         }
 
         [Test]
@@ -618,11 +636,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var id3 = new ExpandedNodeId(1u);
 #pragma warning disable NUnit2043 // Use ComparisonConstraint for better assertion messages in case of failure
             Assert.That(id2 >= id1, Is.True);
-#pragma warning restore NUnit2043 // Use ComparisonConstraint for better assertion messages in case of failure
-#pragma warning disable NUnit2043 // Use ComparisonConstraint for better assertion messages in case of failure
             Assert.That(id1 >= id3, Is.True);
-#pragma warning restore NUnit2043 // Use ComparisonConstraint for better assertion messages in case of failure
-#pragma warning disable NUnit2043 // Use ComparisonConstraint for better assertion messages in case of failure
             Assert.That(id1 >= id2, Is.False);
 #pragma warning restore NUnit2043 // Use ComparisonConstraint for better assertion messages in case of failure
         }
@@ -635,8 +649,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var id3 = new ExpandedNodeId(1u);
 #pragma warning disable NUnit2043 // Use ComparisonConstraint for better assertion messages in case of failure
             Assert.That(id1 <= id2, Is.True);
-#pragma warning restore NUnit2043 // Use ComparisonConstraint for better assertion messages in case of failure
-#pragma warning disable NUnit2043 // Use ComparisonConstraint for better assertion messages in case of failure
             Assert.That(id1 <= id3, Is.True);
 #pragma warning restore NUnit2043 // Use ComparisonConstraint for better assertion messages in case of failure
             Assert.That(id2, Is.GreaterThan(id1));
@@ -647,7 +659,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             ExpandedNodeId nullId = ExpandedNodeId.Null;
 #pragma warning disable NUnit2010 // Use EqualConstraint for better assertion messages in case of failure
+#pragma warning disable IDE0004 // Remove Unnecessary Cast
             Assert.That(nullId.Equals((object)null));
+#pragma warning restore IDE0004 // Remove Unnecessary Cast
 #pragma warning restore NUnit2010 // Use EqualConstraint for better assertion messages in case of failure
             var nonNull = new ExpandedNodeId(1u);
 #pragma warning disable NUnit4002 // Use Specific constraint
@@ -722,7 +736,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void ExplicitCastToNodeIdNull()
         {
             ExpandedNodeId id = ExpandedNodeId.Null;
-            NodeId result = (NodeId)id;
+            var result = (NodeId)id;
             Assert.That(result.IsNull, Is.True);
         }
 
@@ -730,7 +744,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void ExplicitCastToNodeIdAbsoluteThrows()
         {
             var id = new ExpandedNodeId(1u, "http://ns.org/");
-            Assert.That(() => { NodeId _ = (NodeId)id; },
+            Assert.That(() => { var _ = (NodeId)id; },
                 Throws.TypeOf<InvalidCastException>());
         }
 
@@ -738,9 +752,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void ExplicitCastToNodeIdNonAbsolute()
         {
             var id = new ExpandedNodeId(new NodeId(42u, 3));
-            NodeId result = (NodeId)id;
+            var result = (NodeId)id;
             Assert.That(result.IsNull, Is.False);
-            Assert.That(result.TryGetIdentifier(out uint n), Is.True);
+            Assert.That(result.TryGetValue(out uint n), Is.True);
             Assert.That(n, Is.EqualTo(42u));
             Assert.That(result.NamespaceIndex, Is.EqualTo(3));
         }
@@ -765,15 +779,17 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void FormatWithContextNullNodeId()
         {
             ExpandedNodeId id = ExpandedNodeId.Null;
-            var ctx = new ServiceMessageContext(NUnitTelemetryContext.Create());
+            var ctx = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
             Assert.That(id.Format(ctx), Is.Null);
         }
 
         [Test]
         public void FormatWithContextServerIndexNoUris()
         {
+#pragma warning disable IDE0004 // Remove Unnecessary Cast
             var id = new ExpandedNodeId(1u, (string)null, 2);
-            var ctx = new ServiceMessageContext(NUnitTelemetryContext.Create());
+#pragma warning restore IDE0004 // Remove Unnecessary Cast
+            var ctx = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
             string result = id.Format(ctx, useUris: false);
             Assert.That(result, Does.StartWith("svr=2;"));
         }
@@ -781,10 +797,12 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void FormatWithContextServerIndexWithUrisResolved()
         {
-            var ctx = new ServiceMessageContext(NUnitTelemetryContext.Create());
+            var ctx = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
             ctx.ServerUris.Append("urn:placeholder");  // index 0
             ctx.ServerUris.Append("urn:server1");       // index 1
+#pragma warning disable IDE0004 // Remove Unnecessary Cast
             var id = new ExpandedNodeId(1u, (string)null, 1);
+#pragma warning restore IDE0004 // Remove Unnecessary Cast
             string result = id.Format(ctx, useUris: true);
             Assert.That(result, Does.Contain("svu="));
             Assert.That(result, Does.Contain("urn:server1"));
@@ -793,9 +811,11 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void FormatWithContextServerIndexWithUrisUnresolved()
         {
-            var ctx = new ServiceMessageContext(NUnitTelemetryContext.Create());
+            var ctx = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
             // ServerIndex 5 has no matching URI in the table
+#pragma warning disable IDE0004 // Remove Unnecessary Cast
             var id = new ExpandedNodeId(1u, (string)null, 5);
+#pragma warning restore IDE0004 // Remove Unnecessary Cast
             string result = id.Format(ctx, useUris: true);
             Assert.That(result, Does.StartWith("svr=5;"));
         }
@@ -805,7 +825,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var nsTable = new NamespaceTable();
             NodeId result = ExpandedNodeId.Parse("ns=0;i=42", nsTable);
-            Assert.That(result.TryGetIdentifier(out uint n), Is.True);
+            Assert.That(result.TryGetValue(out uint n), Is.True);
             Assert.That(n, Is.EqualTo(42u));
         }
 
@@ -815,7 +835,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var nsTable = new NamespaceTable();
             nsTable.Append("http://test.org/");
             NodeId result = ExpandedNodeId.Parse("nsu=http://test.org/;i=42", nsTable);
-            Assert.That(result.TryGetIdentifier(out uint n), Is.True);
+            Assert.That(result.TryGetValue(out uint n), Is.True);
             Assert.That(n, Is.EqualTo(42u));
             Assert.That(result.NamespaceIndex, Is.GreaterThan(0));
         }
@@ -838,7 +858,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void FormatWithServerIndex()
         {
+#pragma warning disable IDE0004 // Remove Unnecessary Cast
             var id = new ExpandedNodeId(1u, (string)null, 3);
+#pragma warning restore IDE0004 // Remove Unnecessary Cast
             string result = id.Format(CultureInfo.InvariantCulture);
             Assert.That(result, Does.StartWith("svr=3;"));
         }
@@ -883,9 +905,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var target = new NamespaceTable();
             target.Append("http://source.org/");
 
-            ExpandedNodeId result = ExpandedNodeId.Parse(
+            var result = ExpandedNodeId.Parse(
                 "ns=1;i=42", current, target);
-            Assert.That(result.TryGetIdentifier(out uint n), Is.True);
+            Assert.That(result.TryGetValue(out uint n), Is.True);
             Assert.That(n, Is.EqualTo(42u));
             Assert.That(result.NamespaceIndex, Is.EqualTo(1));
         }
@@ -897,9 +919,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var target = new NamespaceTable();
             target.Append("http://test.org/");
 
-            ExpandedNodeId result = ExpandedNodeId.Parse(
+            var result = ExpandedNodeId.Parse(
                 "nsu=http://test.org/;i=42", current, target);
-            Assert.That(result.TryGetIdentifier(out uint n), Is.True);
+            Assert.That(result.TryGetValue(out uint n), Is.True);
             Assert.That(n, Is.EqualTo(42u));
             Assert.That(result.NamespaceIndex, Is.EqualTo(1));
         }
@@ -922,7 +944,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var target = new NamespaceTable();
             target.Append("http://ns.org/");
 
-            ExpandedNodeId result = ExpandedNodeId.Parse(
+            var result = ExpandedNodeId.Parse(
                 "svr=1;nsu=http://ns.org/;i=42", current, target);
             Assert.That(result.ServerIndex, Is.EqualTo(1u));
             Assert.That(result.NamespaceUri, Is.EqualTo("http://ns.org/"));
@@ -931,7 +953,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void TryParseWithError()
         {
-            bool success = ExpandedNodeId.TryParse("svr=;i=1", out ExpandedNodeId value, out NodeIdParseError error);
+            bool success = ExpandedNodeId.TryParse("svr=;i=1", out _, out NodeIdParseError error);
             Assert.That(success, Is.False);
             Assert.That(error, Is.Not.EqualTo(NodeIdParseError.None));
         }
@@ -942,14 +964,14 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             bool success = ExpandedNodeId.TryParse("i=42", out ExpandedNodeId value, out NodeIdParseError error);
             Assert.That(success, Is.True);
             Assert.That(error, Is.EqualTo(NodeIdParseError.None));
-            Assert.That(value.TryGetIdentifier(out uint n), Is.True);
+            Assert.That(value.TryGetValue(out uint n), Is.True);
             Assert.That(n, Is.EqualTo(42u));
         }
 
         [Test]
         public void TryParseWithContextAndOptions()
         {
-            var ctx = new ServiceMessageContext(NUnitTelemetryContext.Create());
+            var ctx = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
             ctx.NamespaceUris.Append("http://test.org/");
             var options = new NodeIdParsingOptions { UpdateTables = false };
             bool success = ExpandedNodeId.TryParse(ctx, "nsu=http://test.org/;i=1", options, out ExpandedNodeId value);
@@ -960,9 +982,10 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void TryParseWithContextOptionsAndError()
         {
-            var ctx = new ServiceMessageContext(NUnitTelemetryContext.Create());
+            var ctx = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
             var options = new NodeIdParsingOptions { UpdateTables = false };
-            bool success = ExpandedNodeId.TryParse(ctx, "i=42", options, out ExpandedNodeId value, out NodeIdParseError error);
+
+            bool success = ExpandedNodeId.TryParse(ctx, "i=42", options, out _, out NodeIdParseError error);
             Assert.That(success, Is.True);
             Assert.That(error, Is.EqualTo(NodeIdParseError.None));
         }
@@ -970,8 +993,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void TryParseWithContextOptionsAndErrorFailure()
         {
-            var ctx = new ServiceMessageContext(NUnitTelemetryContext.Create());
-            bool success = ExpandedNodeId.TryParse(ctx, "svu=;i=42", null, out ExpandedNodeId value, out NodeIdParseError error);
+            var ctx = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
+
+            bool success = ExpandedNodeId.TryParse(ctx, "svu=;i=42", null, out _, out NodeIdParseError error);
             Assert.That(success, Is.False);
             Assert.That(error, Is.Not.EqualTo(NodeIdParseError.None));
         }
@@ -979,17 +1003,17 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ParseWithContextSuccess()
         {
-            var ctx = new ServiceMessageContext(NUnitTelemetryContext.Create());
+            var ctx = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
             ctx.NamespaceUris.Append("http://test.org/");
             var result = ExpandedNodeId.Parse(ctx, "nsu=http://test.org/;i=42");
-            Assert.That(result.TryGetIdentifier(out uint n), Is.True);
+            Assert.That(result.TryGetValue(out uint n), Is.True);
             Assert.That(n, Is.EqualTo(42u));
         }
 
         [Test]
         public void ParseWithContextFailureThrows()
         {
-            var ctx = new ServiceMessageContext(NUnitTelemetryContext.Create());
+            var ctx = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
             Assert.That(
                 () => ExpandedNodeId.Parse(ctx, "svu=;i=42"),
                 Throws.TypeOf<ServiceResultException>());
@@ -998,10 +1022,10 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ParseWithContextAndUpdateTablesOption()
         {
-            var ctx = new ServiceMessageContext(NUnitTelemetryContext.Create());
+            var ctx = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
             var options = new NodeIdParsingOptions { UpdateTables = true };
             var result = ExpandedNodeId.Parse(ctx, "nsu=http://newns.org/;i=42", options);
-            Assert.That(result.TryGetIdentifier(out uint n), Is.True);
+            Assert.That(result.TryGetValue(out uint n), Is.True);
             Assert.That(n, Is.EqualTo(42u));
             // The namespace should have been added to the table
             Assert.That(ctx.NamespaceUris.GetIndex("http://newns.org/"), Is.GreaterThanOrEqualTo(0));
@@ -1010,21 +1034,21 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void TryParseInvalidServerIndexNoSemicolon()
         {
-            bool success = ExpandedNodeId.TryParse("svr=1", out ExpandedNodeId value);
+            bool success = ExpandedNodeId.TryParse("svr=1", out _);
             Assert.That(success, Is.False);
         }
 
         [Test]
         public void TryParseInvalidServerIndexNonNumeric()
         {
-            bool success = ExpandedNodeId.TryParse("svr=abc;i=1", out ExpandedNodeId value);
+            bool success = ExpandedNodeId.TryParse("svr=abc;i=1", out _);
             Assert.That(success, Is.False);
         }
 
         [Test]
         public void TryParseInvalidNamespaceUriNoSemicolon()
         {
-            bool success = ExpandedNodeId.TryParse("nsu=http://test.org/", out ExpandedNodeId value);
+            bool success = ExpandedNodeId.TryParse("nsu=http://test.org/", out _);
             Assert.That(success, Is.False);
         }
 
@@ -1049,7 +1073,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void TryParseWithContextEmptyText()
         {
-            var ctx = new ServiceMessageContext(NUnitTelemetryContext.Create());
+            var ctx = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
             bool success = ExpandedNodeId.TryParse(ctx, string.Empty, out ExpandedNodeId value);
             Assert.That(success, Is.True);
             Assert.That(value.IsNull, Is.True);
@@ -1058,17 +1082,17 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void TryParseWithContextSvuNoSemicolon()
         {
-            var ctx = new ServiceMessageContext(NUnitTelemetryContext.Create());
-            bool success = ExpandedNodeId.TryParse(ctx, "svu=urn:server", out ExpandedNodeId value);
+            var ctx = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
+            bool success = ExpandedNodeId.TryParse(ctx, "svu=urn:server", out _);
             Assert.That(success, Is.False);
         }
 
         [Test]
         public void TryParseWithContextSvuUnknownServerUri()
         {
-            var ctx = new ServiceMessageContext(NUnitTelemetryContext.Create());
+            var ctx = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
             bool success = ExpandedNodeId.TryParse(
-                ctx, "svu=urn:unknown;i=1", null, out ExpandedNodeId value, out NodeIdParseError error);
+                ctx, "svu=urn:unknown;i=1", null, out _, out NodeIdParseError error);
             Assert.That(success, Is.False);
             Assert.That(error, Is.EqualTo(NodeIdParseError.NoServerUriMapping));
         }
@@ -1076,10 +1100,10 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void TryParseWithContextSvuUpdateTables()
         {
-            var ctx = new ServiceMessageContext(NUnitTelemetryContext.Create());
+            var ctx = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
             var options = new NodeIdParsingOptions { UpdateTables = true };
             bool success = ExpandedNodeId.TryParse(
-                ctx, "svu=urn:newserver;i=1", options, out ExpandedNodeId value);
+                ctx, "svu=urn:newserver;i=1", options, out _);
             Assert.That(success, Is.True);
             Assert.That(ctx.ServerUris.GetIndex("urn:newserver"), Is.GreaterThanOrEqualTo(0));
         }
@@ -1088,7 +1112,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void TryParseWithContextSvrFormat()
         {
             // Must pass options (even empty) to avoid NullReferenceException at line 1372
-            var ctx = new ServiceMessageContext(NUnitTelemetryContext.Create());
+            var ctx = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
             var options = new NodeIdParsingOptions();
             bool success = ExpandedNodeId.TryParse(ctx, "svr=2;i=1", options, out ExpandedNodeId value);
             Assert.That(success, Is.True);
@@ -1098,9 +1122,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void TryParseWithContextSvrNoSemicolon()
         {
-            var ctx = new ServiceMessageContext(NUnitTelemetryContext.Create());
+            var ctx = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
             bool success = ExpandedNodeId.TryParse(
-                ctx, "svr=2", null, out ExpandedNodeId value, out NodeIdParseError error);
+                ctx, "svr=2", null, out _, out NodeIdParseError error);
             Assert.That(success, Is.False);
             Assert.That(error, Is.EqualTo(NodeIdParseError.InvalidServerUriFormat));
         }
@@ -1108,9 +1132,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void TryParseWithContextNsuNoSemicolon()
         {
-            var ctx = new ServiceMessageContext(NUnitTelemetryContext.Create());
+            var ctx = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
             bool success = ExpandedNodeId.TryParse(
-                ctx, "nsu=http://test.org/", null, out ExpandedNodeId value, out NodeIdParseError error);
+                ctx, "nsu=http://test.org/", null, out _, out NodeIdParseError error);
             Assert.That(success, Is.False);
             Assert.That(error, Is.EqualTo(NodeIdParseError.InvalidNamespaceFormat));
         }
@@ -1118,7 +1142,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void TryParseWithContextNsuNamespaceResolvedToIndex()
         {
-            var ctx = new ServiceMessageContext(NUnitTelemetryContext.Create());
+            var ctx = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
             ctx.NamespaceUris.Append("http://test.org/");
             bool success = ExpandedNodeId.TryParse(
                 ctx, "nsu=http://test.org/;i=42", out ExpandedNodeId value);
@@ -1129,7 +1153,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void TryParseWithContextNsuNamespaceNotResolved()
         {
-            var ctx = new ServiceMessageContext(NUnitTelemetryContext.Create());
+            var ctx = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
             bool success = ExpandedNodeId.TryParse(
                 ctx, "nsu=http://unknown.org/;i=42", out ExpandedNodeId value);
             Assert.That(success, Is.True);
@@ -1139,8 +1163,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void TryParseWithContextInvalidNodeIdFails()
         {
-            var ctx = new ServiceMessageContext(NUnitTelemetryContext.Create());
-            bool success = ExpandedNodeId.TryParse(ctx, "i=notanumber", out ExpandedNodeId value);
+            var ctx = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
+            bool success = ExpandedNodeId.TryParse(ctx, "i=notanumber", out _);
             Assert.That(success, Is.False);
         }
 
@@ -1168,7 +1192,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void GetHashCodeForAbsoluteWithOnlyServerIndex()
         {
+#pragma warning disable IDE0004 // Remove Unnecessary Cast
             var id = new ExpandedNodeId(42u, (string)null, 3);
+#pragma warning restore IDE0004 // Remove Unnecessary Cast
             int hash = id.GetHashCode();
             Assert.That(hash, Is.Not.Zero);
         }
@@ -1185,7 +1211,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var id = new ExpandedNodeId(new NodeId(42u));
             var result = ExpandedNodeId.ToNodeId(id, null);
-            Assert.That(result.TryGetIdentifier(out uint n), Is.True);
+            Assert.That(result.TryGetValue(out uint n), Is.True);
             Assert.That(n, Is.EqualTo(42u));
         }
 
@@ -1344,7 +1370,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void SerializableExplicitFromString()
         {
             var s = (SerializableExpandedNodeId)"i=42";
-            Assert.That(s.Value.TryGetIdentifier(out uint n), Is.True);
+            Assert.That(s.Value.TryGetValue(out uint n), Is.True);
             Assert.That(n, Is.EqualTo(42u));
         }
 
@@ -1352,7 +1378,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void ImplicitConversionFromNodeId()
         {
             ExpandedNodeId eid = new NodeId(42u, 3);
-            Assert.That(eid.TryGetIdentifier(out uint n), Is.True);
+            Assert.That(eid.TryGetValue(out uint n), Is.True);
             Assert.That(n, Is.EqualTo(42u));
             Assert.That(eid.NamespaceIndex, Is.EqualTo(3));
         }
@@ -1361,7 +1387,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void ImplicitConversionFromUint()
         {
             ExpandedNodeId eid = 99u;
-            Assert.That(eid.TryGetIdentifier(out uint n), Is.True);
+            Assert.That(eid.TryGetValue(out uint n), Is.True);
             Assert.That(n, Is.EqualTo(99u));
         }
 
@@ -1370,7 +1396,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var guid = Guid.NewGuid();
             ExpandedNodeId eid = guid;
-            Assert.That(eid.TryGetIdentifier(out Guid g), Is.True);
+            Assert.That(eid.TryGetValue(out Guid g), Is.True);
             Assert.That(g, Is.EqualTo(guid));
         }
 
@@ -1379,7 +1405,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             ByteString bs = [1, 2, 3];
             var eid = (ExpandedNodeId)bs;
-            Assert.That(eid.TryGetIdentifier(out ByteString result), Is.True);
+            Assert.That(eid.TryGetValue(out ByteString result), Is.True);
             Assert.That(result, Is.EqualTo(bs));
         }
 
@@ -1433,7 +1459,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 
             var parsed = ExpandedNodeId.Parse(formatted);
             Assert.That(parsed.NamespaceUri, Is.EqualTo("http://ns.org/path;with;semicolons"));
-            Assert.That(parsed.TryGetIdentifier(out uint n), Is.True);
+            Assert.That(parsed.TryGetValue(out uint n), Is.True);
             Assert.That(n, Is.EqualTo(42u));
         }
 
@@ -1454,7 +1480,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             // Falls through to line 503 comparison
             var id = new ExpandedNodeId(10u, "http://ns.org/", 1);
             var nodeId = new NodeId(5u);
+#pragma warning disable IDE0004 // Remove Unnecessary Cast
             int cmp = id.CompareTo((object)nodeId);
+#pragma warning restore IDE0004 // Remove Unnecessary Cast
             Assert.That(cmp, Is.Not.Zero);
         }
 
@@ -1486,14 +1514,13 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void TryParseWithContextSvrWithServerMappings()
         {
-            var ctx = new ServiceMessageContext(NUnitTelemetryContext.Create());
+            var ctx = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
             var options = new NodeIdParsingOptions
             {
                 ServerMappings = [0, 5, 10],
                 NamespaceMappings = [0, 1, 2, 3]
             };
-            bool success = ExpandedNodeId.TryParse(
-                ctx, "svr=2;i=42", options, out ExpandedNodeId value);
+            bool success = ExpandedNodeId.TryParse(ctx, "svr=2;i=42", options, out _);
             Assert.That(success, Is.True);
         }
 
@@ -1510,8 +1537,12 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void CompareToAbsoluteNullNodeIdWithNonNullNodeId()
         {
             var nullAbsolute = new ExpandedNodeId(NodeId.Null, null, 1);
+#pragma warning disable IDE0004 // Remove Unnecessary Cast
             var other = new ExpandedNodeId(42u, (string)null, 1);
+#pragma warning restore IDE0004 // Remove Unnecessary Cast
+#pragma warning disable IDE0004 // Remove Unnecessary Cast
             int cmp = nullAbsolute.CompareTo((object)other);
+#pragma warning restore IDE0004 // Remove Unnecessary Cast
             Assert.That(cmp, Is.LessThan(0));
         }
 
@@ -1520,7 +1551,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var id1 = new ExpandedNodeId(10u, "http://ns.org/", 1);
             var id2 = new ExpandedNodeId(20u, "http://ns.org/", 1);
+#pragma warning disable IDE0004 // Remove Unnecessary Cast
             Assert.That(id1.CompareTo((object)id2), Is.LessThan(0));
+#pragma warning restore IDE0004 // Remove Unnecessary Cast
         }
 
         [Test]
@@ -1533,7 +1566,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ParseNullStringReturnsNull()
         {
+#pragma warning disable IDE0004 // Remove Unnecessary Cast
             var result = ExpandedNodeId.Parse((string)null);
+#pragma warning restore IDE0004 // Remove Unnecessary Cast
             Assert.That(result.IsNull, Is.True);
         }
 
@@ -1543,7 +1578,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var result = ExpandedNodeId.Parse("svr=2;nsu=http://test.org/;i=42");
             Assert.That(result.ServerIndex, Is.EqualTo(2u));
             Assert.That(result.NamespaceUri, Is.EqualTo("http://test.org/"));
-            Assert.That(result.TryGetIdentifier(out uint n), Is.True);
+            Assert.That(result.TryGetValue(out uint n), Is.True);
             Assert.That(n, Is.EqualTo(42u));
         }
 
@@ -1588,6 +1623,155 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             ByteString bs = [1, 2];
             var id = new ExpandedNodeId(bs, "http://ns.org/", 0);
             Assert.That(id.NamespaceUri, Is.EqualTo("http://ns.org/"));
+        }
+
+        private const string ParseLongFormKnownNamespace = "http://opcfoundation.org/UA/Test/";
+        private const string ParseLongFormUnknownNamespace = "http://opcfoundation.org/UA/Unknown/";
+        private const string ParseLongFormKnownServer = "urn:server:known";
+
+        private static NamespaceTable BuildParseLongFormNamespaces()
+        {
+            var table = new NamespaceTable();
+            table.Append(ParseLongFormKnownNamespace);
+            return table;
+        }
+
+        private static StringTable BuildParseLongFormServers()
+        {
+            var table = new StringTable();
+            table.Append(ParseLongFormKnownServer);
+            return table;
+        }
+
+        private static uint GetParseLongFormUInt(ExpandedNodeId id)
+        {
+            Assert.That(id.TryGetValue(out uint v), Is.True);
+            return v;
+        }
+
+        [Test]
+        public void ParseLongFormThrowsWhenTableIsNull()
+        {
+            Assert.That(
+                () => ExpandedNodeId.ParseLongForm("i=1", null),
+                Throws.TypeOf<ArgumentNullException>());
+        }
+
+        [Test]
+        public void ParseLongFormBareIdentifier()
+        {
+            NamespaceTable table = BuildParseLongFormNamespaces();
+            var result = ExpandedNodeId.ParseLongForm("i=10", table);
+            Assert.That(result.NamespaceIndex, Is.Zero);
+            Assert.That(GetParseLongFormUInt(result), Is.EqualTo((uint)10));
+            Assert.That(result.IsAbsolute, Is.False);
+        }
+
+        [Test]
+        public void ParseLongFormResolvesKnownNamespaceUri()
+        {
+            NamespaceTable table = BuildParseLongFormNamespaces();
+            var result = ExpandedNodeId.ParseLongForm(
+                $"nsu={ParseLongFormKnownNamespace};i=11", table);
+            Assert.That(result.NamespaceIndex, Is.EqualTo(1));
+            Assert.That(GetParseLongFormUInt(result), Is.EqualTo((uint)11));
+            Assert.That(result.IsAbsolute, Is.False);
+        }
+
+        [Test]
+        public void ParseLongFormThrowsForUnresolvedNamespaceUri()
+        {
+            NamespaceTable table = BuildParseLongFormNamespaces();
+            Assert.That(
+                () => ExpandedNodeId.ParseLongForm(
+                    $"nsu={ParseLongFormUnknownNamespace};i=1", table),
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo(StatusCodes.BadNodeIdInvalid));
+        }
+
+        [Test]
+        public void ParseDefaultsAcceptUnresolvedNamespaceUri()
+        {
+            var context = ServiceMessageContext.CreateEmpty(null);
+            context.NamespaceUris = BuildParseLongFormNamespaces();
+            var result = ExpandedNodeId.Parse(
+                context, $"nsu={ParseLongFormUnknownNamespace};i=1");
+            Assert.That(result.IsAbsolute, Is.True);
+            Assert.That(result.NamespaceUri, Is.EqualTo(ParseLongFormUnknownNamespace));
+            Assert.That(GetParseLongFormUInt(result), Is.EqualTo((uint)1));
+        }
+
+        [Test]
+        public void ParseLongFormResolvesKnownServerUri()
+        {
+            NamespaceTable table = BuildParseLongFormNamespaces();
+            StringTable servers = BuildParseLongFormServers();
+            var result = ExpandedNodeId.ParseLongForm(
+                $"svu={ParseLongFormKnownServer};nsu={ParseLongFormKnownNamespace};i=5",
+                table,
+                servers);
+            Assert.That(result.NamespaceIndex, Is.EqualTo(1));
+            Assert.That(GetParseLongFormUInt(result), Is.EqualTo((uint)5));
+            Assert.That(result.ServerIndex, Is.Zero);
+        }
+
+        [Test]
+        public void ParseLongFormThrowsForUnresolvedServerUri()
+        {
+            NamespaceTable table = BuildParseLongFormNamespaces();
+            StringTable servers = BuildParseLongFormServers();
+            Assert.That(
+                () => ExpandedNodeId.ParseLongForm(
+                    $"svu=urn:other;nsu={ParseLongFormKnownNamespace};i=5",
+                    table,
+                    servers),
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo(StatusCodes.BadNodeIdInvalid));
+        }
+
+        [Test]
+        public void ParseLongFormRejectsServerUriWithoutTable()
+        {
+            NamespaceTable table = BuildParseLongFormNamespaces();
+            Assert.That(
+                () => ExpandedNodeId.ParseLongForm(
+                    $"svu={ParseLongFormKnownServer};nsu={ParseLongFormKnownNamespace};i=5",
+                    table,
+                    serverUris: null),
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo(StatusCodes.BadNodeIdInvalid));
+        }
+
+        [Test]
+        public void ParseLongFormServerIndexPrefix()
+        {
+            NamespaceTable table = BuildParseLongFormNamespaces();
+            var result = ExpandedNodeId.ParseLongForm(
+                $"svr=2;nsu={ParseLongFormKnownNamespace};i=8", table);
+            Assert.That(result.ServerIndex, Is.EqualTo((uint)2));
+            Assert.That(result.NamespaceIndex, Is.EqualTo(1));
+            Assert.That(GetParseLongFormUInt(result), Is.EqualTo((uint)8));
+        }
+
+        [Test]
+        public void ParseLongFormRoundTrip()
+        {
+            NamespaceTable table = BuildParseLongFormNamespaces();
+            StringTable servers = BuildParseLongFormServers();
+            var context = ServiceMessageContext.CreateEmpty(null);
+            context.NamespaceUris = table;
+            context.ServerUris = servers;
+
+            var original = new ExpandedNodeId(42u, ParseLongFormKnownNamespace, 0);
+            string formatted = original.Format(context, useUris: true);
+            var parsed = ExpandedNodeId.ParseLongForm(formatted, table, servers);
+
+            Assert.That(GetParseLongFormUInt(parsed), Is.EqualTo((uint)42));
+            Assert.That(parsed.NamespaceIndex, Is.EqualTo(1));
+            Assert.That(parsed.ServerIndex, Is.Zero);
         }
     }
 }

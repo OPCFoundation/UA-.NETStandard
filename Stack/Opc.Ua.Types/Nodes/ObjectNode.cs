@@ -86,9 +86,6 @@ namespace Opc.Ua
         public override ExpandedNodeId XmlEncodingId => ObjectIds.ObjectNode_Encoding_DefaultXml;
 
         /// <inheritdoc/>
-        public override ExpandedNodeId JsonEncodingId => ObjectIds.ObjectNode_Encoding_DefaultJson;
-
-        /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
             base.Encode(encoder);

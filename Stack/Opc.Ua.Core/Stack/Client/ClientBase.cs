@@ -84,7 +84,7 @@ namespace Opc.Ua
             {
                 CloseChannelAsync(default).GetAwaiter().GetResult();
 
-                Utils.SilentDispose(m_meter);
+                m_meter?.Dispose();
                 m_instruments.Clear();
 
                 Disposed = true;
@@ -423,12 +423,14 @@ namespace Opc.Ua
                 };
                 if (request.RequestHeader.AdditionalHeader.IsNull)
                 {
-                    var additionalHeader = new AdditionalParametersType();
-                    additionalHeader.Parameters = [spanContextParameter];
+                    var additionalHeader = new AdditionalParametersType
+                    {
+                        Parameters = [spanContextParameter]
+                    };
                     request.RequestHeader.AdditionalHeader
                         = new ExtensionObject(additionalHeader);
                 }
-                else if (request.RequestHeader.AdditionalHeader.TryGetEncodeable(
+                else if (request.RequestHeader.AdditionalHeader.TryGetValue(
                     out AdditionalParametersType existingParameters))
                 {
                     // Merge the trace data into the existing parameters.
@@ -472,7 +474,7 @@ namespace Opc.Ua
                 statusCode = StatusCodes.Bad;
             }
 
-            DateTime? timestamp = (DateTime?)request?.RequestHeader?.Timestamp;
+            var timestamp = (DateTime?)request?.RequestHeader?.Timestamp;
             TimeSpan? duration = timestamp != null ? DateTime.UtcNow - timestamp.Value : null;
             if ((ActivityTraceFlags & ClientTraceFlags.Log) != 0)
             {

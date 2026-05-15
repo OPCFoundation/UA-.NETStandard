@@ -30,7 +30,6 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Linq;
 using System.Reflection;
 using System.Threading;
@@ -198,11 +197,6 @@ namespace Opc.Ua.Server
                 m_writeSemaphore.Wait(500);
                 try
                 {
-                    foreach (NodeState node in PredefinedNodes.Values)
-                    {
-                        Utils.SilentDispose(node);
-                    }
-
                     PredefinedNodes.Clear();
                 }
                 finally
@@ -215,13 +209,15 @@ namespace Opc.Ua.Server
                 m_monitoredItemSemaphore.Wait(500);
                 try
                 {
-                    Utils.SilentDispose(m_monitoredItemManager);
+                    m_monitoredItemManager?.Dispose();
                 }
                 finally
                 {
                     m_monitoredItemSemaphore.Release();
                 }
                 m_monitoredItemSemaphore.Dispose();
+
+                m_componentCacheSemaphore.Dispose();
             }
         }
 
@@ -661,6 +657,12 @@ namespace Opc.Ua.Server
 
             for (int ii = 0; ii < children.Count; ii++)
             {
+                // Propagate type hierarchy flag from parent to children
+                if (activeNode.IsPartOfTypeHierarchy)
+                {
+                    children[ii].IsPartOfTypeHierarchy = true;
+                }
+
                 await AddPredefinedNodeAsync(context, children[ii], cancellationToken).ConfigureAwait(false);
             }
         }
@@ -919,17 +921,60 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Searches for a method in the ObjectType hierarchy of an instance node.
+        /// Per OPC UA spec Part 4 section 5.12.2.2, the ObjectType of the Object or a super type
+        /// of that ObjectType may be the source of a HasComponent reference to the method.
+        /// </summary>
+        /// <param name="context">The system context.</param>
+        /// <param name="typeDefinitionId">The TypeDefinitionId of the object instance.</param>
+        /// <param name="methodId">The NodeId of the method to find.</param>
+        /// <returns>The found method state, or null if not found.</returns>
+        private MethodState FindMethodInTypeHierarchy(ISystemContext context, NodeId typeDefinitionId, NodeId methodId)
+        {
+            // A limit to prevent infinite loops in case of a circular type hierarchy in malformed address spaces.
+            const int maxHierarchyDepth = 100;
+            int depth = 0;
+            NodeId typeId = typeDefinitionId;
+
+            while (!typeId.IsNull && depth++ < maxHierarchyDepth)
+            {
+                NodeState typeNode = FindPredefinedNode<NodeState>(typeId);
+                if (typeNode != null)
+                {
+                    MethodState method = typeNode.FindMethod(context, methodId);
+                    if (method != null)
+                    {
+                        return method;
+                    }
+
+                    // check for loose coupling via the type node.
+                    if (typeNode.ReferenceExists(ReferenceTypeIds.HasComponent, false, methodId))
+                    {
+                        method = FindPredefinedNode<MethodState>(methodId);
+                        if (method != null)
+                        {
+                            return method;
+                        }
+                    }
+                }
+
+                typeId = Server.TypeTree.FindSuperType(typeId);
+            }
+
+            return null;
+        }
+
+        /// <summary>
         /// Frees any resources allocated for the address space.
         /// </summary>
         public virtual ValueTask DeleteAddressSpaceAsync(CancellationToken cancellationToken = default)
         {
-            NodeState[] nodes = [.. PredefinedNodes.Values];
+            // NodeState[] nodes = [.. PredefinedNodes.Values];
             PredefinedNodes.Clear();
-
-            foreach (NodeState node in nodes)
-            {
-                Utils.SilentDispose(node);
-            }
+            // foreach (var node in nodes)
+            // {
+            //     node.Delete();
+            // }
             return default;
         }
 
@@ -1128,44 +1173,45 @@ namespace Opc.Ua.Server
             {
                 NodeClass = target.NodeClass,
                 BrowseName = target.BrowseName,
-                DisplayName = target.DisplayName
+                DisplayName = target.DisplayName,
+                IsPartOfTypeHierarchy = target.IsPartOfTypeHierarchy
             };
 
-            if (nodeMetadataValues[0].TryGet(out uint writeMask) &&
-                nodeMetadataValues[1].TryGet(out uint userWriteMask))
+            if (nodeMetadataValues[0].TryGetValue(out uint writeMask) &&
+                nodeMetadataValues[1].TryGetValue(out uint userWriteMask))
             {
                 metadata.WriteMask = (AttributeWriteMask)(writeMask & userWriteMask);
             }
 
             metadata.DataType = nodeMetadataValues[2].GetNodeId();
 
-            if (nodeMetadataValues[3].TryGet(out int valueRank))
+            if (nodeMetadataValues[3].TryGetValue(out int valueRank))
             {
                 metadata.ValueRank = valueRank;
             }
 
-            if (nodeMetadataValues[4].TryGet(out ArrayOf<uint> arrayDimensions))
+            if (nodeMetadataValues[4].TryGetValue(out ArrayOf<uint> arrayDimensions))
             {
                 metadata.ArrayDimensions = arrayDimensions;
             }
-            if (nodeMetadataValues[5].TryGet(out byte accessLevel) &&
-                nodeMetadataValues[6].TryGet(out byte userAccessLevel))
+            if (nodeMetadataValues[5].TryGetValue(out byte accessLevel) &&
+                nodeMetadataValues[6].TryGetValue(out byte userAccessLevel))
             {
                 metadata.AccessLevel = (byte)(accessLevel & userAccessLevel);
             }
 
-            if (nodeMetadataValues[7].TryGet(out byte eventNotifier))
+            if (nodeMetadataValues[7].TryGetValue(out byte eventNotifier))
             {
                 metadata.EventNotifier = eventNotifier;
             }
 
-            if (nodeMetadataValues[8].TryGet(out bool executeAble) &&
-                nodeMetadataValues[9].TryGet(out bool userExecuteable))
+            if (nodeMetadataValues[8].TryGetValue(out bool executeAble) &&
+                nodeMetadataValues[9].TryGetValue(out bool userExecuteable))
             {
                 metadata.Executable = executeAble && userExecuteable;
             }
 
-            if (nodeMetadataValues[10].TryGet(out ushort accessRestrictionType))
+            if (nodeMetadataValues[10].TryGetValue(out ushort accessRestrictionType))
             {
                 metadata.AccessRestrictions = (AccessRestrictionType)accessRestrictionType;
             }
@@ -1205,7 +1251,7 @@ namespace Opc.Ua.Server
                     nameof(values));
             }
 
-            if (values[0].TryGet(out ushort accessRestrictions))
+            if (values[0].TryGetValue(out ushort accessRestrictions))
             {
                 metadata.AccessRestrictions = (AccessRestrictionType)accessRestrictions;
             }
@@ -1378,7 +1424,6 @@ namespace Opc.Ua.Server
 
             // release the continuation point if all done.
             continuationPoint.Dispose();
-            continuationPoint = null;
 
             return null;
         }
@@ -1917,15 +1962,18 @@ namespace Opc.Ua.Server
                 DataValue value = values[handle.Index];
 
                 // update the attribute value.
-                lock (source)
-                {
-                    errors[handle.Index] = source.ReadAttribute(
-                        context,
-                        nodeToRead.AttributeId,
-                        nodeToRead.ParsedIndexRange,
-                        nodeToRead.DataEncoding,
-                        value);
-                }
+                // Async path — the default NodeState.ReadAttributeAsync re-takes
+                // `lock(this)` around the synchronous fallback when no async
+                // hook is set, so behaviour is preserved bit-for-bit. When a
+                // BaseVariableState async hook is set the lock is dropped on
+                // the await, allowing true async I/O.
+                errors[handle.Index] = await source.ReadAttributeAsync(
+                    context,
+                    nodeToRead.AttributeId,
+                    nodeToRead.ParsedIndexRange,
+                    nodeToRead.DataEncoding,
+                    value,
+                    cancellationToken).ConfigureAwait(false);
             }
         }
 
@@ -2250,9 +2298,46 @@ namespace Opc.Ua.Server
                         }
 
                         monitoredItem.QueueValue(value, ServiceResult.Good, true);
+
+                        RaiseSemanticChangeEvent(systemContext, node, property);
                     }
                 }
             }
+        }
+
+        /// <summary>
+        /// Raises a semantic change event to notify clients that the structure or meaning of a node has changed.
+        /// </summary>
+        protected void RaiseSemanticChangeEvent(ISystemContext systemContext, NodeState node, PropertyState property)
+        {
+            var e = new SemanticChangeEventState(null);
+
+            var message = new TranslationInfo(
+                "SemanticChangeEvent",
+                "en-US",
+                "SemanticChangeEvent.");
+
+            e.Initialize(systemContext, null, EventSeverity.Min, new LocalizedText(message));
+
+            e.SetChildValue(
+                systemContext,
+                BrowseNames.SourceNode,
+                ObjectIds.Server,
+                false);
+            e.SetChildValue(systemContext, BrowseNames.SourceName, "Server", false);
+
+            e.CreateOrReplaceChanges(systemContext, null);
+
+            e.Changes.Value = new[]
+                            {
+                                new SemanticChangeStructureDataType
+                                {
+                                    Affected = node.NodeId,
+                                    AffectedType = property.TypeDefinitionId
+                                }
+                            }.ToArrayOf();
+
+            Server.ReportEvent(e);
         }
 
         /// <summary>
@@ -2290,15 +2375,13 @@ namespace Opc.Ua.Server
 
                     WriteValue nodeToWrite = nodesToWrite[handle.Index];
 
-                    lock (source)
-                    {
-                        // write the attribute value.
-                        errors[handle.Index] = source.WriteAttribute(
-                            context,
-                            nodeToWrite.AttributeId,
-                            nodeToWrite.ParsedIndexRange,
-                            nodeToWrite.Value);
-                    }
+                    // Async path — see ReadAsync for the locking rationale.
+                    errors[handle.Index] = await source.WriteAttributeAsync(
+                        context,
+                        nodeToWrite.AttributeId,
+                        nodeToWrite.ParsedIndexRange,
+                        nodeToWrite.Value,
+                        cancellationToken).ConfigureAwait(false);
 
                     // updates to source finished - report changes to monitored items.
                     source.ClearChangeMasks(context, false);
@@ -3205,6 +3288,14 @@ namespace Opc.Ua.Server
                             methodToCall.MethodId);
                     }
 
+                    // Per OPC UA spec Part 4 section 5.12.2.2: the ObjectType of the Object
+                    // or a super type of that ObjectType may also be the source of a HasComponent
+                    // reference to the method.
+                    if (method == null && source is BaseInstanceState instanceState)
+                    {
+                        method = FindMethodInTypeHierarchy(systemContext, instanceState.TypeDefinitionId, methodToCall.MethodId);
+                    }
+
                     if (method == null)
                     {
                         errors[ii] = StatusCodes.BadMethodInvalid;
@@ -3698,32 +3789,41 @@ namespace Opc.Ua.Server
                     NodeHandle handle = nodesToValidate[ii];
 
                     bool success;
+                    IMonitoredItem monitoredItem = null;
 
-                    // validate node.
-                    NodeState source = await ValidateNodeAsync(systemContext, handle, operationCache, cancellationToken).ConfigureAwait(false);
-
-                    if (source == null)
+                    try
                     {
-                        continue;
+                        // validate node.
+                        NodeState source = await ValidateNodeAsync(systemContext, handle, operationCache, cancellationToken).ConfigureAwait(false);
+
+                        if (source == null)
+                        {
+                            continue;
+                        }
+
+                        IStoredMonitoredItem itemToCreate = itemsToRestore[handle.Index];
+
+                        // create monitored item.
+                        success = RestoreMonitoredItem(
+                            systemContext,
+                            handle,
+                            itemToCreate,
+                            savedOwnerIdentity,
+                            out monitoredItem);
+
+                        if (!success)
+                        {
+                            continue;
+                        }
+
+                        // save the monitored item.
+                        monitoredItems[handle.Index] = monitoredItem;
+                        monitoredItem = null; // ownership transferred
                     }
-
-                    IStoredMonitoredItem itemToCreate = itemsToRestore[handle.Index];
-
-                    // create monitored item.
-                    success = RestoreMonitoredItem(
-                        systemContext,
-                        handle,
-                        itemToCreate,
-                        savedOwnerIdentity,
-                        out IMonitoredItem monitoredItem);
-
-                    if (!success)
+                    finally
                     {
-                        continue;
+                        (monitoredItem as IDisposable)?.Dispose();
                     }
-
-                    // save the monitored item.
-                    monitoredItems[handle.Index] = monitoredItem;
                 }
 
                 m_monitoredItemManager.ApplyChanges();
@@ -4275,6 +4375,7 @@ namespace Opc.Ua.Server
             {
                 result.FilterToUse = deadbandFilter;
                 result.StatusCode = StatusCodes.Good;
+                return result;
             }
 
             // deadband filters can only be used for numeric values.
@@ -4981,7 +5082,10 @@ namespace Opc.Ua.Server
             var values = new Variant[3];
 
             // construct the meta-data object.
-            var metadata = new NodeMetadata(target, target.NodeId);
+            var metadata = new NodeMetadata(target, target.NodeId)
+            {
+                IsPartOfTypeHierarchy = target.IsPartOfTypeHierarchy
+            };
 
             // Treat the case of calls originating from the optimized services that use the cache (Read, Browse and Call services)
             if (uniqueNodesServiceAttributesCache != null)

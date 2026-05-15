@@ -29,9 +29,9 @@
 
 using System;
 using System.Collections.Generic;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using BenchmarkDotNet.Attributes;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 using NUnit.Framework;
 using Opc.Ua.Tests;
 
@@ -125,32 +125,32 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         {
             NodeId n0 = decoder.ReadNodeId("D0");
             Assert.That((int)n0.NamespaceIndex, Is.Zero);
-            Assert.That(n0.TryGetIdentifier(out uint id0) ? id0 : 0, Is.EqualTo(2263U));
+            Assert.That(n0.TryGetValue(out uint id0) ? id0 : 0, Is.EqualTo(2263U));
 
             NodeId n1 = decoder.ReadNodeId("D1");
             Assert.That(
                 context.NamespaceUris.GetIndex(Get(NamespaceUris, index)),
                 Is.EqualTo((int)n1.NamespaceIndex));
-            Assert.That(n1.TryGetIdentifier(out uint id1) ? id1 : 0, Is.EqualTo(Get(NumericIds, index)));
+            Assert.That(n1.TryGetValue(out uint id1) ? id1 : 0, Is.EqualTo(Get(NumericIds, index)));
 
             NodeId n2 = decoder.ReadNodeId("D2");
             Assert.That(
                 context.NamespaceUris.GetIndex(Get(NamespaceUris, index + 1)),
                 Is.EqualTo((int)n2.NamespaceIndex));
-            Assert.That(n2.TryGetIdentifier(out string id3) ? id3 : string.Empty, Is.EqualTo(Get(StringIds, index)));
+            Assert.That(n2.TryGetValue(out string id3) ? id3 : string.Empty, Is.EqualTo(Get(StringIds, index)));
 
             NodeId n3 = decoder.ReadNodeId("D3");
             Assert.That(
                 context.NamespaceUris.GetIndex(Get(NamespaceUris, index + 2)),
                 Is.EqualTo((int)n3.NamespaceIndex));
-            Assert.That(n3.TryGetIdentifier(out Guid id4) ? id4 : Guid.Empty, Is.EqualTo(Get(GuidIds, index)));
+            Assert.That(n3.TryGetValue(out Guid id4) ? id4 : Guid.Empty, Is.EqualTo(Get(GuidIds, index)));
 
             NodeId n4 = decoder.ReadNodeId("D4");
             Assert.That(
                 context.NamespaceUris.GetIndex(Get(NamespaceUris, index + 3)),
                 Is.EqualTo((int)n4.NamespaceIndex));
             Assert.That(
-                (n4.TryGetIdentifier(out ByteString id5) ? id5 : ByteString.Empty).ToHexString(),
+                (n4.TryGetValue(out ByteString id5) ? id5 : ByteString.Empty).ToHexString(),
                 Is.EqualTo(Get(OpaqueIds, index).ToHexString()));
         }
 
@@ -162,7 +162,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             ExpandedNodeId n0 = decoder.ReadExpandedNodeId("D0");
             Assert.That((int)n0.ServerIndex, Is.Zero);
             Assert.That((int)n0.NamespaceIndex, Is.Zero);
-            Assert.That(n0.TryGetIdentifier(out uint id0) ? id0 : 0, Is.EqualTo(2263U));
+            Assert.That(n0.TryGetValue(out uint id0) ? id0 : 0, Is.EqualTo(2263U));
 
             ExpandedNodeId n1 = decoder.ReadExpandedNodeId("D1");
             Assert.That((int)n1.ServerIndex, Is.Zero);
@@ -178,7 +178,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 Assert.That(ns, Is.EqualTo(n1.NamespaceIndex));
             }
 
-            Assert.That(n1.TryGetIdentifier(out uint id1) ? id1 : 0, Is.EqualTo(Get(NumericIds, index)));
+            Assert.That(n1.TryGetValue(out uint id1) ? id1 : 0, Is.EqualTo(Get(NumericIds, index)));
 
             ExpandedNodeId n2 = decoder.ReadExpandedNodeId("D2");
             Assert.That((int)n2.ServerIndex, Is.Zero);
@@ -195,7 +195,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             }
 
             Assert.That(
-                n2.TryGetIdentifier(out string guid3) ? guid3 : null,
+                n2.TryGetValue(out string guid3) ? guid3 : null,
                 Is.EqualTo(Get(StringIds, index)));
 
             ExpandedNodeId n3 = decoder.ReadExpandedNodeId("D3");
@@ -213,7 +213,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             }
 
             Assert.That(
-                n3.TryGetIdentifier(out Guid id3) ? id3 : Guid.Empty,
+                n3.TryGetValue(out Guid id3) ? id3 : Guid.Empty,
                 Is.EqualTo(Get(GuidIds, index)));
 
             ExpandedNodeId n4 = decoder.ReadExpandedNodeId("D4");
@@ -231,7 +231,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             }
 
             Assert.That(
-                (n4.TryGetIdentifier(out ByteString id4) ? id4 : default).ToHexString(),
+                (n4.TryGetValue(out ByteString id4) ? id4 : default).ToHexString(),
                 Is.EqualTo(Get(OpaqueIds, index).ToHexString()));
 
             ExpandedNodeId n5 = decoder.ReadExpandedNodeId("D5");
@@ -251,7 +251,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             }
 
             Assert.That(
-                n5.TryGetIdentifier(out uint id5) ? id5 : 0,
+                n5.TryGetValue(out uint id5) ? id5 : 0,
                 Is.EqualTo(Get(NumericIds, index)));
 
             ExpandedNodeId n6 = decoder.ReadExpandedNodeId("D6");
@@ -271,7 +271,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             }
 
             Assert.That(
-                n6.TryGetIdentifier(out string id6) ? id6 : null,
+                n6.TryGetValue(out string id6) ? id6 : null,
                 Is.EqualTo(Get(StringIds, index)));
 
             ExpandedNodeId n7 = decoder.ReadExpandedNodeId("D7");
@@ -291,7 +291,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             }
 
             Assert.That(
-                n7.TryGetIdentifier(out Guid id7) ? id7 : Guid.Empty,
+                n7.TryGetValue(out Guid id7) ? id7 : Guid.Empty,
                 Is.EqualTo(Get(GuidIds, index)));
 
             ExpandedNodeId n8 = decoder.ReadExpandedNodeId("D8");
@@ -311,7 +311,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             }
 
             Assert.That(
-                (n8.TryGetIdentifier(out ByteString id8) ? id8 : default).ToHexString(),
+                (n8.TryGetValue(out ByteString id8) ? id8 : default).ToHexString(),
                 Is.EqualTo(Get(OpaqueIds, index).ToHexString()));
         }
 
@@ -369,7 +369,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             """;
 
-            var context = new ServiceMessageContext(telemetry);
+            var context = ServiceMessageContext.Create(telemetry);
 
             using var decoder = new JsonDecoder(data, context, new JsonDecoderOptions
             {
@@ -401,11 +401,11 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             """;
 
-            var jsonObj = JObject.Parse(data);
+            var jsonObj = JsonNode.Parse(data, documentOptions: new JsonDocumentOptions { AllowTrailingCommas = true });
             string expected = EncoderCommon.PrettifyAndValidateJson(
-                JsonConvert.SerializeObject(jsonObj, Formatting.None), true);
+                jsonObj.ToJsonString(), true);
 
-            var context = new ServiceMessageContext(telemetry);
+            var context = ServiceMessageContext.Create(telemetry);
             Array.ForEach(NamespaceUris, x => context.NamespaceUris.Append(x));
 
             using var encoder = new JsonEncoder(context,
@@ -471,7 +471,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             """;
 
-            var context = new ServiceMessageContext(telemetry);
+            var context = ServiceMessageContext.Create(telemetry);
 
             using var decoder = new JsonDecoder(data, context, new JsonDecoderOptions
             {
@@ -516,11 +516,11 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
 """;
 
-            var jsonObj = JObject.Parse(data);
+            var jsonObj = JsonNode.Parse(data, documentOptions: new JsonDocumentOptions { AllowTrailingCommas = true });
             string expected = EncoderCommon.PrettifyAndValidateJson(
-                JsonConvert.SerializeObject(jsonObj, Formatting.None), true);
+                jsonObj.ToJsonString(), true);
 
-            var context = new ServiceMessageContext(telemetry);
+            var context = ServiceMessageContext.Create(telemetry);
             Array.ForEach(NamespaceUris, x => context.NamespaceUris.Append(x));
             context.ServerUris.Append("http://server-placeholder");
             Array.ForEach(ServerUris, x => context.ServerUris.Append(x));
@@ -601,7 +601,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
 """;
 
-            var context = new ServiceMessageContext(telemetry);
+            var context = ServiceMessageContext.Create(telemetry);
 
             using var decoder = new JsonDecoder(data, context, new JsonDecoderOptions
             {
@@ -617,7 +617,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
-            var context1 = new ServiceMessageContext(telemetry);
+            var context1 = ServiceMessageContext.Create(telemetry);
             context1.NamespaceUris.Append(NamespaceUris[0]);
             context1.NamespaceUris.Append(NamespaceUris[1]);
             context1.NamespaceUris.Append(NamespaceUris[2]);
@@ -634,11 +634,11 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
 """;
 
-            var jsonObj = JObject.Parse(data);
-            string expected = JsonConvert.SerializeObject(jsonObj, Formatting.None);
+            var jsonObj = JsonNode.Parse(data, documentOptions: new JsonDocumentOptions { AllowTrailingCommas = true });
+            string expected = jsonObj.ToJsonString();
             EncoderCommon.PrettifyAndValidateJson(expected, true);
 
-            var context2 = new ServiceMessageContext(telemetry);
+            var context2 = ServiceMessageContext.Create(telemetry);
             context2.NamespaceUris.Append(NamespaceUris[2]);
             context2.NamespaceUris.Append(NamespaceUris[0]);
             context2.NamespaceUris.Append(NamespaceUris[1]);
@@ -689,19 +689,19 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 }
                 """;
 
-            var context = new ServiceMessageContext(telemetry);
+            var context = ServiceMessageContext.Create(telemetry);
 
             using var decoder = new JsonDecoder(data, context);
             Variant v1 = decoder.ReadVariantValue("D0", TypeInfo.Create(BuiltInType.Int64, 3));
             MatrixOf<long> a1 = v1.GetInt64Matrix();
-            Assert.That(a1.Dimensions.Length, Is.EqualTo(2));
+            Assert.That(a1.Dimensions, Has.Length.EqualTo(2));
             Assert.That(a1.Count, Is.EqualTo(6));
             Assert.That(a1.Dimensions[0], Is.EqualTo(2));
             Assert.That(a1.Dimensions[1], Is.EqualTo(3));
 
             Variant v2 = decoder.ReadVariantValue("D1", TypeInfo.Create(BuiltInType.Int64, 3));
             MatrixOf<long> a2 = v2.GetInt64Matrix();
-            Assert.That(a2.Dimensions.Length, Is.EqualTo(3));
+            Assert.That(a2.Dimensions, Has.Length.EqualTo(3));
             Assert.That(a2.Count, Is.EqualTo(6));
             Assert.That(a2.Dimensions[0], Is.EqualTo(1));
             Assert.That(a2.Dimensions[1], Is.EqualTo(2));
@@ -725,11 +725,11 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             """;
 
-            var jsonObj = JObject.Parse(data);
-            string expected = JsonConvert.SerializeObject(jsonObj, Formatting.None);
+            var jsonObj = JsonNode.Parse(data, documentOptions: new JsonDocumentOptions { AllowTrailingCommas = true });
+            string expected = jsonObj.ToJsonString();
             EncoderCommon.PrettifyAndValidateJson(expected, true);
 
-            var context = new ServiceMessageContext(telemetry);
+            var context = ServiceMessageContext.Create(telemetry);
 
             using var encoder = new JsonEncoder(context,
                 jsonEncoding == JsonEncodingType.Verbose ?
@@ -786,7 +786,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             """;
 
-            var context = new ServiceMessageContext(telemetry);
+            var context = ServiceMessageContext.Create(telemetry);
             context.Factory.AddEncodeableTypes(typeof(Gds.ApplicationRecordDataType).Assembly);
             context.NamespaceUris.Append("urn:localhost:server");
             context.NamespaceUris.Append(Gds.Namespaces.OpcUaGds);
@@ -794,7 +794,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             using var decoder = new JsonDecoder(data, context);
             ExtensionObject eo = decoder.ReadExtensionObject("D0");
             Assert.That(eo.TypeId.ToString(), Is.EqualTo(DataTypeIds.Range.ToString()));
-            Assert.That(eo.TryGetEncodeable(out Range range), Is.True);
+            Assert.That(eo.TryGetValue(out Range range), Is.True);
             Assert.That(range, Is.Not.Null);
             Assert.That(range.Low, Is.Zero);
             Assert.That(range.High, Is.EqualTo(9876.5432));
@@ -808,7 +808,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 eo.TypeId.ToString(),
                 Is.EqualTo(Gds.DataTypeIds.ApplicationRecordDataType.ToString()));
 
-            Assert.That(eo.TryGetEncodeable(out Gds.ApplicationRecordDataType record), Is.True);
+            Assert.That(eo.TryGetValue(out Gds.ApplicationRecordDataType record), Is.True);
             Assert.That(record, Is.Not.Null);
             Assert.That(record.ApplicationType, Is.EqualTo(ApplicationType.Client));
             Assert.That(record.ApplicationNames[0].Text, Is.EqualTo("Test Client"));
@@ -844,11 +844,11 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
 """;
 
-            var jsonObj = JObject.Parse(data);
-            string expected = JsonConvert.SerializeObject(jsonObj, Formatting.None);
+            var jsonObj = JsonNode.Parse(data, documentOptions: new JsonDocumentOptions { AllowTrailingCommas = true });
+            string expected = jsonObj.ToJsonString();
             EncoderCommon.PrettifyAndValidateJson(expected, true);
 
-            var context = new ServiceMessageContext(telemetry);
+            var context = ServiceMessageContext.Create(telemetry);
             context.NamespaceUris.Append("urn:localhost:server");
             context.NamespaceUris.Append(Gds.Namespaces.OpcUaGds);
 
@@ -906,7 +906,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             """;
 
-            var context = new ServiceMessageContext(telemetry);
+            var context = ServiceMessageContext.Create(telemetry);
             context.Factory.AddEncodeableTypes(typeof(Gds.ApplicationRecordDataType).Assembly);
             context.NamespaceUris.Append("urn:localhost:server");
             context.NamespaceUris.Append(Gds.Namespaces.OpcUaGds);
@@ -914,7 +914,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             using var decoder = new JsonDecoder(data, context);
             ExtensionObject eo = decoder.ReadExtensionObject("D0");
             Assert.That(eo.TypeId.ToString(), Is.EqualTo(DataTypeIds.Range.ToString()));
-            Assert.That(eo.TryGetEncodeable(out Range range), Is.True);
+            Assert.That(eo.TryGetValue(out Range range), Is.True);
             Assert.That(range, Is.Not.Null);
             Assert.That(range.Low, Is.Zero);
             Assert.That(range.High, Is.EqualTo(9876.5432));
@@ -928,7 +928,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 eo.TypeId.ToString(),
                 Is.EqualTo(Gds.DataTypeIds.ApplicationRecordDataType.ToString()));
 
-            Assert.That(eo.TryGetEncodeable(out Gds.ApplicationRecordDataType record), Is.True);
+            Assert.That(eo.TryGetValue(out Gds.ApplicationRecordDataType record), Is.True);
             Assert.That(record, Is.Not.Null);
             Assert.That(record.ApplicationType, Is.EqualTo(ApplicationType.Client));
             Assert.That(record.ApplicationNames[0].Text, Is.EqualTo("Test Client"));
@@ -965,11 +965,11 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
 """;
 
-            var jsonObj = JObject.Parse(data);
-            string expected = JsonConvert.SerializeObject(jsonObj, Formatting.None);
+            var jsonObj = JsonNode.Parse(data, documentOptions: new JsonDocumentOptions { AllowTrailingCommas = true });
+            string expected = jsonObj.ToJsonString();
             EncoderCommon.PrettifyAndValidateJson(expected, true);
 
-            var context = new ServiceMessageContext(telemetry);
+            var context = ServiceMessageContext.Create(telemetry);
             context.NamespaceUris.Append("urn:localhost:server");
             context.NamespaceUris.Append(Gds.Namespaces.OpcUaGds);
 

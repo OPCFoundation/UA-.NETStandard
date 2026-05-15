@@ -71,7 +71,9 @@ namespace Opc.Ua.Client.ComplexTypes
         /// Available since OPC UA V1.04 in the DataTypeDefinition attribute.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="enumDefinition"/> is <c>null</c>.</exception>
-        public Type AddEnumType(QualifiedName typeName, EnumDefinition enumDefinition)
+        public IEnumeratedType AddEnumType(
+            QualifiedName typeName,
+            EnumDefinition enumDefinition)
         {
             if (enumDefinition == null)
             {
@@ -113,7 +115,7 @@ namespace Opc.Ua.Client.ComplexTypes
                     newEnum.EnumMemberAttribute(fieldName, (int)enumValue.Value);
                 }
             }
-            return enumBuilder.CreateTypeInfo();
+            return ReflectionBasedType.From(enumBuilder.CreateTypeInfo()) as IEnumeratedType;
         }
 
         /// <summary>
@@ -145,6 +147,24 @@ namespace Opc.Ua.Client.ComplexTypes
             structureBuilder.DataContractAttribute(TargetNamespace);
             structureBuilder.StructureDefinitionAttribute(structureDefinition);
             return new ComplexTypeFieldBuilder(structureBuilder, structureDefinition.StructureType);
+        }
+
+        /// <summary>
+        /// OptionSet sub-types are not supported by the Reflection.Emit
+        /// complex type builder. Use the default (source-generated)
+        /// complex type builder instead for OptionSet support.
+        /// </summary>
+        /// <exception cref="NotSupportedException">Always thrown.</exception>
+        public IEncodeableType AddOptionSetType(
+            QualifiedName typeName,
+            ExpandedNodeId typeId,
+            ExpandedNodeId binaryEncodingId,
+            ExpandedNodeId xmlEncodingId,
+            EnumDefinition enumDefinition)
+        {
+            throw new NotSupportedException(
+                "OptionSet DataTypes are not supported by the Reflection.Emit " +
+                "complex type builder. Use the default complex type builder.");
         }
 
         /// <summary>

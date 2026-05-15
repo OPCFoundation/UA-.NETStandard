@@ -76,7 +76,7 @@ namespace Opc.Ua.Server
 
                 foreach (IEventMonitoredItem monitoredItem in monitoredItems)
                 {
-                    Utils.SilentDispose(monitoredItem);
+                    monitoredItem?.Dispose();
                 }
             }
         }

@@ -54,7 +54,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var id1 = Guid.NewGuid();
             var nodeId1 = new NodeId(id1);
             // implicit conversion;
-            NodeId inodeId1 = (NodeId)id1;
+            var inodeId1 = (NodeId)id1;
             Assert.That(inodeId1, Is.EqualTo(nodeId1));
 
             ByteString id2 = [65, 66, 67, 68, 69];
@@ -73,7 +73,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 
             const string text = "i=123";
             var nodeIdText = NodeId.Parse(text);
-            Assert.That(nodeIdText.TryGetIdentifier(out uint t1), Is.True);
+            Assert.That(nodeIdText.TryGetValue(out uint t1), Is.True);
             Assert.That(t1, Is.EqualTo(123));
             var inodeIdText = NodeId.Parse(text);
             Assert.That(inodeIdText, Is.EqualTo(nodeIdText));
@@ -92,15 +92,15 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 
             var id = new NodeId(123, 123);
             Assert.That(id.NamespaceIndex, Is.EqualTo(123));
-            Assert.That(id.TryGetIdentifier(out uint n2), Is.True);
+            Assert.That(id.TryGetValue(out uint n2), Is.True);
             Assert.That(n2, Is.EqualTo(123));
             id = new NodeId("Test", 123);
             Assert.That(id.NamespaceIndex, Is.EqualTo(123));
-            Assert.That(id.TryGetIdentifier(out string s3), Is.True);
+            Assert.That(id.TryGetValue(out string s3), Is.True);
             Assert.That(s3, Is.EqualTo("Test"));
             id = new NodeId(id2, 123);
             Assert.That(id.NamespaceIndex, Is.EqualTo(123));
-            Assert.That(id.TryGetIdentifier(out ByteString o1), Is.True);
+            Assert.That(id.TryGetValue(out ByteString o1), Is.True);
             Assert.That(o1, Is.EqualTo(id2));
             id = new NodeId(null, 0);
             Assert.That(id.IsNull, Is.True);
@@ -108,12 +108,12 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(id.IsNull, Is.True);
             id = new NodeId(id1, 123);
             Assert.That(id.NamespaceIndex, Is.EqualTo(123));
-            Assert.That(id.TryGetIdentifier(out Guid g4), Is.True);
+            Assert.That(id.TryGetValue(out Guid g4), Is.True);
             Assert.That(g4, Is.EqualTo(id1));
             var guid = Guid.NewGuid();
             id = new NodeId(guid, 123);
             Assert.That(id.NamespaceIndex, Is.EqualTo(123));
-            Assert.That(id.TryGetIdentifier(out Guid g5), Is.True);
+            Assert.That(id.TryGetValue(out Guid g5), Is.True);
             Assert.That(g5, Is.EqualTo(guid));
 
             ServiceResultException sre = Assert.Throws<ServiceResultException>(() =>
@@ -338,46 +338,46 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             // Test numeric identifiers
             Assert.That(NodeId.TryParse("i=1234", out NodeId result), Is.True);
-            Assert.That(result.TryGetIdentifier(out uint n1) ? n1 : 0, Is.EqualTo(1234u));
+            Assert.That(result.TryGetValue(out uint n1) ? n1 : 0, Is.EqualTo(1234u));
             Assert.That(result.IdType, Is.EqualTo(IdType.Numeric));
             Assert.That(result.NamespaceIndex, Is.Zero);
 
             Assert.That(NodeId.TryParse("ns=2;i=1234", out result), Is.True);
-            Assert.That(result.TryGetIdentifier(out uint n2) ? n2 : 0, Is.EqualTo(1234u));
+            Assert.That(result.TryGetValue(out uint n2) ? n2 : 0, Is.EqualTo(1234u));
             Assert.That(result.IdType, Is.EqualTo(IdType.Numeric));
             Assert.That(result.NamespaceIndex, Is.EqualTo(2));
 
             // Test string identifiers
             Assert.That(NodeId.TryParse("s=HelloWorld", out result), Is.True);
-            Assert.That(result.TryGetIdentifier(out string s1) ? s1 : null, Is.EqualTo("HelloWorld"));
+            Assert.That(result.TryGetValue(out string s1) ? s1 : null, Is.EqualTo("HelloWorld"));
             Assert.That(result.IdType, Is.EqualTo(IdType.String));
             Assert.That(result.NamespaceIndex, Is.Zero);
 
             Assert.That(NodeId.TryParse("ns=2;s=HelloWorld", out result), Is.True);
-            Assert.That(result.TryGetIdentifier(out string s2) ? s2 : null, Is.EqualTo("HelloWorld"));
+            Assert.That(result.TryGetValue(out string s2) ? s2 : null, Is.EqualTo("HelloWorld"));
             Assert.That(result.IdType, Is.EqualTo(IdType.String));
             Assert.That(result.NamespaceIndex, Is.EqualTo(2));
 
             // Test GUID identifiers
             Assert.That(NodeId.TryParse("g=af469096-f02a-4563-940b-603958363b81", out result), Is.True);
-            Assert.That(result.TryGetIdentifier(out Guid g1) ? g1 : Guid.Empty, Is.EqualTo(new Guid("af469096-f02a-4563-940b-603958363b81")));
+            Assert.That(result.TryGetValue(out Guid g1) ? g1 : Guid.Empty, Is.EqualTo(new Guid("af469096-f02a-4563-940b-603958363b81")));
             Assert.That(result.IdType, Is.EqualTo(IdType.Guid));
             Assert.That(result.NamespaceIndex, Is.Zero);
 
             Assert.That(NodeId.TryParse("ns=2;g=af469096-f02a-4563-940b-603958363b81", out result), Is.True);
-            Assert.That(result.TryGetIdentifier(out Guid g2) ? g2 : Guid.Empty, Is.EqualTo(new Guid("af469096-f02a-4563-940b-603958363b81")));
+            Assert.That(result.TryGetValue(out Guid g2) ? g2 : Guid.Empty, Is.EqualTo(new Guid("af469096-f02a-4563-940b-603958363b81")));
             Assert.That(result.IdType, Is.EqualTo(IdType.Guid));
             Assert.That(result.NamespaceIndex, Is.EqualTo(2));
 
             // Test opaque identifiers (b=01020304 is valid base64 that decodes to specific bytes)
             Assert.That(NodeId.TryParse("b=01020304", out result), Is.True);
             var expectedBytes1 = ByteString.FromBase64("01020304");
-            Assert.That(result.TryGetIdentifier(out ByteString b1) ? b1 : default, Is.EqualTo(expectedBytes1));
+            Assert.That(result.TryGetValue(out ByteString b1) ? b1 : default, Is.EqualTo(expectedBytes1));
             Assert.That(result.IdType, Is.EqualTo(IdType.Opaque));
             Assert.That(result.NamespaceIndex, Is.Zero);
             Assert.That(NodeId.TryParse("ns=2;b=04030201", out result), Is.True);
             byte[] expectedBytes2 = Convert.FromBase64String("04030201");
-            Assert.That(result.TryGetIdentifier(out ByteString b2) ? b2 : default, Is.EqualTo(expectedBytes2));
+            Assert.That(result.TryGetValue(out ByteString b2) ? b2 : default, Is.EqualTo(expectedBytes2));
             Assert.That(result.IdType, Is.EqualTo(IdType.Opaque));
             Assert.That(result.NamespaceIndex, Is.EqualTo(2));
 
@@ -420,7 +420,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void NodeIdTryParseWithContext()
         {
-            var context = new ServiceMessageContext(NUnitTelemetryContext.Create())
+            var context = new ServiceMessageContext(NUnitTelemetryContext.Create(), new EncodeableFactory())
             {
                 NamespaceUris = new NamespaceTable()
             };
@@ -429,12 +429,12 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 
             // Test with namespace URI
             Assert.That(NodeId.TryParse(context, "nsu=http://test.org/;i=1234", out NodeId result), Is.True);
-            Assert.That(result.TryGetIdentifier(out uint n1) ? n1 : 0, Is.EqualTo(1234u));
+            Assert.That(result.TryGetValue(out uint n1) ? n1 : 0, Is.EqualTo(1234u));
             Assert.That(result.NamespaceIndex, Is.EqualTo(2));
 
             // Test with namespace index
             Assert.That(NodeId.TryParse(context, "ns=2;s=Test", out result), Is.True);
-            Assert.That(result.TryGetIdentifier(out string s1) ? s1 : null, Is.EqualTo("Test"));
+            Assert.That(result.TryGetValue(out string s1) ? s1 : null, Is.EqualTo("Test"));
             Assert.That(result.NamespaceIndex, Is.EqualTo(2));
 
             // Test with unknown namespace URI (should fail)
@@ -451,8 +451,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ParseWithContextValidNumeric()
         {
-            var context = new ServiceMessageContext(NUnitTelemetryContext.Create());
-            NodeId result = NodeId.Parse(context, "i=42");
+            var context = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
+            var result = NodeId.Parse(context, "i=42");
             Assert.That(result.IdType, Is.EqualTo(IdType.Numeric));
             Assert.That(result, Is.EqualTo(new NodeId(42u)));
         }
@@ -460,8 +460,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ParseWithContextValidString()
         {
-            var context = new ServiceMessageContext(NUnitTelemetryContext.Create());
-            NodeId result = NodeId.Parse(context, "ns=2;s=TestNode");
+            var context = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
+            var result = NodeId.Parse(context, "ns=2;s=TestNode");
             Assert.That(result.IdType, Is.EqualTo(IdType.String));
             Assert.That(result.NamespaceIndex, Is.EqualTo(2));
         }
@@ -469,36 +469,36 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ParseWithContextValidGuid()
         {
-            var context = new ServiceMessageContext(NUnitTelemetryContext.Create());
+            var context = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
             var guid = Guid.NewGuid();
-            NodeId result = NodeId.Parse(context, $"g={guid}");
+            var result = NodeId.Parse(context, $"g={guid}");
             Assert.That(result.IdType, Is.EqualTo(IdType.Guid));
-            Assert.That(result.TryGetIdentifier(out Guid parsed), Is.True);
+            Assert.That(result.TryGetValue(out Guid parsed), Is.True);
             Assert.That(parsed, Is.EqualTo(guid));
         }
 
         [Test]
         public void ParseWithContextValidOpaque()
         {
-            var context = new ServiceMessageContext(NUnitTelemetryContext.Create());
-            byte[] bytes = new byte[] { 1, 2, 3, 4 };
+            var context = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
+            byte[] bytes = [1, 2, 3, 4];
             string base64 = Convert.ToBase64String(bytes);
-            NodeId result = NodeId.Parse(context, $"b={base64}");
+            var result = NodeId.Parse(context, $"b={base64}");
             Assert.That(result.IdType, Is.EqualTo(IdType.Opaque));
         }
 
         [Test]
         public void ParseWithContextNullOrEmptyReturnsNull()
         {
-            var context = new ServiceMessageContext(NUnitTelemetryContext.Create());
-            NodeId result = NodeId.Parse(context, string.Empty);
+            var context = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
+            var result = NodeId.Parse(context, string.Empty);
             Assert.That(result.IsNull, Is.True);
         }
 
         [Test]
         public void ParseWithContextInvalidThrows()
         {
-            var context = new ServiceMessageContext(NUnitTelemetryContext.Create());
+            var context = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
             Assert.Throws<ServiceResultException>(() =>
                 NodeId.Parse(context, "x=invalid"));
         }
@@ -506,10 +506,10 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ParseWithContextNamespaceUriValid()
         {
-            var context = new ServiceMessageContext(NUnitTelemetryContext.Create());
+            var context = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
             const string nsUri = "http://test.org/UA/";
             context.NamespaceUris.GetIndexOrAppend(nsUri);
-            NodeId result = NodeId.Parse(context, $"nsu={nsUri};i=100");
+            var result = NodeId.Parse(context, $"nsu={nsUri};i=100");
             Assert.That(result.IdType, Is.EqualTo(IdType.Numeric));
             Assert.That(result.NamespaceIndex, Is.Not.Zero);
         }
@@ -517,7 +517,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ParseWithContextNamespaceUriMissingSemicolon()
         {
-            var context = new ServiceMessageContext(NUnitTelemetryContext.Create());
+            var context = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
             Assert.Throws<ServiceResultException>(() =>
                 NodeId.Parse(context, "nsu=http://test.org"));
         }
@@ -525,7 +525,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ParseWithContextNamespaceUriNotInTable()
         {
-            var context = new ServiceMessageContext(NUnitTelemetryContext.Create());
+            var context = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
             Assert.Throws<ServiceResultException>(() =>
                 NodeId.Parse(context, "nsu=http://unknown.org/;i=1"));
         }
@@ -533,7 +533,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ParseWithContextNsIndexMissingSemicolon()
         {
-            var context = new ServiceMessageContext(NUnitTelemetryContext.Create());
+            var context = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
             Assert.Throws<ServiceResultException>(() =>
                 NodeId.Parse(context, "ns=2"));
         }
@@ -541,7 +541,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ParseWithContextInvalidIdentifierTypeReturnsError()
         {
-            var context = new ServiceMessageContext(NUnitTelemetryContext.Create());
+            var context = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
             bool result = NodeId.TryParse(context, "ns=0;x=invalid", out NodeId value);
             Assert.That(result, Is.False);
             Assert.That(value.IsNull, Is.True);
@@ -550,7 +550,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ParseWithContextStringWhitespaceIdentifier()
         {
-            var context = new ServiceMessageContext(NUnitTelemetryContext.Create());
+            var context = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
             bool result = NodeId.TryParse(context, "s=   ", out NodeId _);
             Assert.That(result, Is.False);
         }
@@ -558,7 +558,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ParseWithContextOpaqueInvalidBase64()
         {
-            var context = new ServiceMessageContext(NUnitTelemetryContext.Create());
+            var context = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
             bool result = NodeId.TryParse(context, "b=!!!invalid!!!", out NodeId _);
             Assert.That(result, Is.False);
         }
@@ -566,7 +566,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ParseWithContextGuidInvalid()
         {
-            var context = new ServiceMessageContext(NUnitTelemetryContext.Create());
+            var context = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
             bool result = NodeId.TryParse(context, "g=not-a-guid", out NodeId _);
             Assert.That(result, Is.False);
         }
@@ -574,7 +574,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ParseWithContextNumericInvalid()
         {
-            var context = new ServiceMessageContext(NUnitTelemetryContext.Create());
+            var context = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
             bool result = NodeId.TryParse(context, "i=abc", out NodeId _);
             Assert.That(result, Is.False);
         }
@@ -582,7 +582,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ParseWithContextShortIdentifier()
         {
-            var context = new ServiceMessageContext(NUnitTelemetryContext.Create());
+            var context = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
             bool result = NodeId.TryParse(context, "a", out NodeId _);
             Assert.That(result, Is.False);
         }
@@ -590,9 +590,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ParseWithContextUpdateTablesOption()
         {
-            var context = new ServiceMessageContext(NUnitTelemetryContext.Create());
+            var context = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
             var options = new NodeIdParsingOptions { UpdateTables = true };
-            NodeId result = NodeId.Parse(context, "nsu=http://newuri.com/;i=5", options);
+            var result = NodeId.Parse(context, "nsu=http://newuri.com/;i=5", options);
             Assert.That(result.IdType, Is.EqualTo(IdType.Numeric));
             Assert.That(result.NamespaceIndex, Is.Not.Zero);
         }
@@ -600,13 +600,13 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ParseWithContextNamespaceMappingsOption()
         {
-            var context = new ServiceMessageContext(NUnitTelemetryContext.Create());
+            var context = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
             var options = new NodeIdParsingOptions
             {
                 NamespaceMappings = [0, 5, 10]
             };
             // ns=1 should be less than NamespaceMappings.Length (3), so mapping is applied
-            bool result = NodeId.TryParse(context, "ns=1;i=42", options, out NodeId value);
+            bool result = NodeId.TryParse(context, "ns=1;i=42", options, out _);
             Assert.That(result, Is.True);
         }
 
@@ -630,7 +630,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void TryParseWithContextAndOptions()
         {
-            var context = new ServiceMessageContext(NUnitTelemetryContext.Create());
+            var context = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
             bool result = NodeId.TryParse(context, "i=99", null, out NodeId value);
             Assert.That(result, Is.True);
             Assert.That(value, Is.EqualTo(new NodeId(99u)));
@@ -639,7 +639,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void TryParseWithContextAndOptionsAndError()
         {
-            var context = new ServiceMessageContext(NUnitTelemetryContext.Create());
+            var context = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
             bool result = NodeId.TryParse(context, "i=77", null, out NodeId value, out NodeIdParseError error);
             Assert.That(result, Is.True);
             Assert.That(error, Is.EqualTo(NodeIdParseError.None));
@@ -687,7 +687,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void FormatWithContextNullReturnsEmpty()
         {
-            var context = new ServiceMessageContext(NUnitTelemetryContext.Create());
+            var context = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
             NodeId nullId = NodeId.Null;
             string result = nullId.Format(context);
             Assert.That(result, Is.EqualTo(string.Empty));
@@ -696,7 +696,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void FormatWithContextUseNamespaceUri()
         {
-            var context = new ServiceMessageContext(NUnitTelemetryContext.Create());
+            var context = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
             const string nsUri = "http://format.test.org/";
             ushort nsIndex = context.NamespaceUris.GetIndexOrAppend(nsUri);
             var nodeId = new NodeId(42u, nsIndex);
@@ -708,7 +708,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void FormatWithContextUseNamespaceUriNotFound()
         {
-            var context = new ServiceMessageContext(NUnitTelemetryContext.Create());
+            var context = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
             // namespace index 999 won't be in the table, falls back to ns= format
             var nodeId = new NodeId(42u, 999);
             string result = nodeId.Format(context, useNamespaceUri: true);
@@ -718,7 +718,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void FormatWithContextNoNamespaceUri()
         {
-            var context = new ServiceMessageContext(NUnitTelemetryContext.Create());
+            var context = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
             var nodeId = new NodeId(42u, 3);
             string result = nodeId.Format(context, useNamespaceUri: false);
             Assert.That(result, Does.Contain("ns=3"));
@@ -728,7 +728,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void FormatWithContextGuid()
         {
-            var context = new ServiceMessageContext(NUnitTelemetryContext.Create());
+            var context = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
             var guid = Guid.NewGuid();
             var nodeId = new NodeId(guid);
             string result = nodeId.Format(context);
@@ -738,7 +738,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void FormatWithContextOpaque()
         {
-            var context = new ServiceMessageContext(NUnitTelemetryContext.Create());
+            var context = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
             var nodeId = new NodeId(new ByteString(new byte[] { 0xAA, 0xBB }));
             string result = nodeId.Format(context);
             Assert.That(result, Does.StartWith("b="));
@@ -747,7 +747,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void FormatWithContextString()
         {
-            var context = new ServiceMessageContext(NUnitTelemetryContext.Create());
+            var context = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
             var nodeId = new NodeId("TestString", 0);
             string result = nodeId.Format(context);
             Assert.That(result, Is.EqualTo("s=TestString"));
@@ -828,7 +828,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var namespaceTable = new NamespaceTable();
             const string nsUri = "http://create.test.org/";
             namespaceTable.GetIndexOrAppend(nsUri);
-            NodeId result = NodeId.Create("TestIdentifier", nsUri, namespaceTable);
+            var result = NodeId.Create("TestIdentifier", nsUri, namespaceTable);
             Assert.That(result.IdType, Is.EqualTo(IdType.String));
             Assert.That(result.NamespaceIndex, Is.Not.Zero);
         }
@@ -839,7 +839,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var namespaceTable = new NamespaceTable();
             const string nsUri = "http://create.test.org/";
             namespaceTable.GetIndexOrAppend(nsUri);
-            NodeId result = NodeId.Create(42u, nsUri, namespaceTable);
+            var result = NodeId.Create(42u, nsUri, namespaceTable);
             Assert.That(result.IdType, Is.EqualTo(IdType.Numeric));
         }
 
@@ -849,7 +849,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var namespaceTable = new NamespaceTable();
             const string nsUri = "http://create.test.org/";
             namespaceTable.GetIndexOrAppend(nsUri);
-            NodeId result = NodeId.Create(new ByteString(new byte[] { 1, 2, 3 }), nsUri, namespaceTable);
+            var result = NodeId.Create(new ByteString(new byte[] { 1, 2, 3 }), nsUri, namespaceTable);
             Assert.That(result.IdType, Is.EqualTo(IdType.Opaque));
         }
 
@@ -860,7 +860,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             const string nsUri = "http://create.test.org/";
             namespaceTable.GetIndexOrAppend(nsUri);
             var guid = Guid.NewGuid();
-            NodeId result = NodeId.Create(guid, nsUri, namespaceTable);
+            var result = NodeId.Create(guid, nsUri, namespaceTable);
             Assert.That(result.IdType, Is.EqualTo(IdType.Guid));
         }
 
@@ -886,7 +886,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var namespaceTable = new NamespaceTable();
             const string nsUri = "http://create.test.org/";
             namespaceTable.GetIndexOrAppend(nsUri);
-            NodeId result = NodeId.Create((object)42u, nsUri, namespaceTable);
+            var result = NodeId.Create((object)42u, nsUri, namespaceTable);
             Assert.That(result.IdType, Is.EqualTo(IdType.Numeric));
         }
 #pragma warning restore CS0618
@@ -985,7 +985,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void CompareToNodeIdThisNull()
         {
             NodeId a = NodeId.Null;
-            NodeId b = new NodeId(42u);
+            var b = new NodeId(42u);
             Assert.That(a.CompareTo(b), Is.EqualTo(1));
         }
 
@@ -1053,7 +1053,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void CompareToStringNull()
         {
             NodeId nullId = NodeId.Null;
+#pragma warning disable IDE0004 // Remove Unnecessary Cast
             Assert.That(nullId.CompareTo((string)null), Is.Zero);
+#pragma warning restore IDE0004 // Remove Unnecessary Cast
             Assert.That(nullId.CompareTo(string.Empty), Is.Zero);
         }
 
@@ -1176,7 +1178,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var nodeId = new NodeId(42u);
             Assert.That(nodeId.CompareTo((object)42), Is.Zero);
-            Assert.That(nodeId.CompareTo((object)(-1)), Is.EqualTo(-1));
+#pragma warning disable IDE0004 // Remove Unnecessary Cast
+            Assert.That(nodeId.CompareTo((object)-1), Is.EqualTo(-1));
+#pragma warning restore IDE0004 // Remove Unnecessary Cast
         }
 
         [Test]
@@ -1237,7 +1241,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var nodeId = new NodeId(42u);
             var serializable = new SerializableNodeId(nodeId);
+#pragma warning disable IDE0004 // Remove Unnecessary Cast
             Assert.That(nodeId.CompareTo((object)serializable), Is.Zero);
+#pragma warning restore IDE0004 // Remove Unnecessary Cast
         }
 
         [Test]
@@ -1253,7 +1259,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void CompareToObjectUnknownType()
         {
             var nodeId = new NodeId(42u);
+#pragma warning disable IDE0004 // Remove Unnecessary Cast
             Assert.That(nodeId.CompareTo((object)3.14), Is.EqualTo(-1));
+#pragma warning restore IDE0004 // Remove Unnecessary Cast
         }
         [Test]
         public void OperatorGreaterThanOrEqual()
@@ -1316,7 +1324,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var nodeId = new NodeId(42u);
             Assert.That(nodeId, Is.EqualTo((object)42));
-            Assert.That(nodeId, Is.Not.EqualTo((object)(-1)));
+            Assert.That(nodeId, Is.Not.EqualTo((object)-1));
         }
 
         [Test]
@@ -1476,9 +1484,11 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void EqualsStringNullOrEmpty()
         {
-            NodeId nullId = new NodeId(string.Empty, 0);
+            var nullId = new NodeId(string.Empty, 0);
 #pragma warning disable NUnit4002 // Use Specific constraint
+#pragma warning disable IDE0004 // Remove Unnecessary Cast
             Assert.That(nullId, Is.EqualTo((string)null));
+#pragma warning restore IDE0004 // Remove Unnecessary Cast
 #pragma warning restore NUnit4002 // Use Specific constraint
             Assert.That(nullId, Is.EqualTo(string.Empty));
         }
@@ -1575,14 +1585,14 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void TryGetIdentifierUintFalseForNonNumeric()
         {
             var nodeId = new NodeId("test", 0);
-            Assert.That(nodeId.TryGetIdentifier(out uint _), Is.False);
+            Assert.That(nodeId.TryGetValue(out uint _), Is.False);
         }
 
         [Test]
         public void TryGetIdentifierByteStringFalseForNonOpaque()
         {
             var nodeId = new NodeId(42u);
-            Assert.That(nodeId.TryGetIdentifier(out ByteString _), Is.False);
+            Assert.That(nodeId.TryGetValue(out ByteString _), Is.False);
         }
 
         [Test]
@@ -1590,7 +1600,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var bytes = new ByteString(new byte[] { 1, 2, 3 });
             var nodeId = new NodeId(bytes);
-            Assert.That(nodeId.TryGetIdentifier(out ByteString result), Is.True);
+            Assert.That(nodeId.TryGetValue(out ByteString result), Is.True);
             Assert.That(result, Is.EqualTo(bytes));
         }
 
@@ -1598,14 +1608,14 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void TryGetIdentifierStringFalseForNonString()
         {
             var nodeId = new NodeId(42u);
-            Assert.That(nodeId.TryGetIdentifier(out string _), Is.False);
+            Assert.That(nodeId.TryGetValue(out string _), Is.False);
         }
 
         [Test]
         public void TryGetIdentifierStringTrue()
         {
             var nodeId = new NodeId("hello", 0);
-            Assert.That(nodeId.TryGetIdentifier(out string result), Is.True);
+            Assert.That(nodeId.TryGetValue(out string result), Is.True);
             Assert.That(result, Is.EqualTo("hello"));
         }
 
@@ -1613,7 +1623,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void TryGetIdentifierGuidFalseForNonGuid()
         {
             var nodeId = new NodeId(42u);
-            Assert.That(nodeId.TryGetIdentifier(out Guid _), Is.False);
+            Assert.That(nodeId.TryGetValue(out Guid _), Is.False);
         }
 
         [Test]
@@ -1621,7 +1631,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var guid = Guid.NewGuid();
             var nodeId = new NodeId(guid);
-            Assert.That(nodeId.TryGetIdentifier(out Guid result), Is.True);
+            Assert.That(nodeId.TryGetValue(out Guid result), Is.True);
             Assert.That(result, Is.EqualTo(guid));
         }
 #pragma warning disable CS0618 // Type or member is obsolete
@@ -1719,7 +1729,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void ToExpandedNodeIdNull()
         {
             var namespaceTable = new NamespaceTable();
-            ExpandedNodeId result = NodeId.ToExpandedNodeId(NodeId.Null, namespaceTable);
+            var result = NodeId.ToExpandedNodeId(NodeId.Null, namespaceTable);
             Assert.That(result.IsNull, Is.True);
         }
 
@@ -1730,7 +1740,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             const string nsUri = "http://test.org/";
             namespaceTable.GetIndexOrAppend(nsUri);
             var nodeId = new NodeId(42u, 1);
-            ExpandedNodeId result = NodeId.ToExpandedNodeId(nodeId, namespaceTable);
+            var result = NodeId.ToExpandedNodeId(nodeId, namespaceTable);
             Assert.That(result.IsNull, Is.False);
             Assert.That(result.NamespaceUri, Is.EqualTo(nsUri));
         }
@@ -1740,7 +1750,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var namespaceTable = new NamespaceTable();
             var nodeId = new NodeId(42u, 0);
-            ExpandedNodeId result = NodeId.ToExpandedNodeId(nodeId, namespaceTable);
+            var result = NodeId.ToExpandedNodeId(nodeId, namespaceTable);
             Assert.That(result.IsNull, Is.False);
             Assert.That(result.NamespaceUri, Is.Null.Or.Empty);
         }
@@ -1797,8 +1807,10 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ObsoleteObjectConstructorUnsupportedTypeThrows()
         {
+#pragma warning disable IDE0004 // Remove Unnecessary Cast
             Assert.Throws<ArgumentException>(() =>
     new NodeId((object)3.14, 0));
+#pragma warning restore IDE0004 // Remove Unnecessary Cast
         }
 #pragma warning restore CS0618
         [Test]
@@ -1841,7 +1853,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ImplicitConversionFromUint()
         {
-            NodeId nodeId = (NodeId)42u;
+            var nodeId = (NodeId)42u;
             Assert.That(nodeId.IdType, Is.EqualTo(IdType.Numeric));
             Assert.That(nodeId, Is.EqualTo(new NodeId(42u)));
         }
@@ -1850,7 +1862,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void ImplicitConversionFromGuid()
         {
             var guid = Guid.NewGuid();
-            NodeId nodeId = (NodeId)guid;
+            var nodeId = (NodeId)guid;
             Assert.That(nodeId.IdType, Is.EqualTo(IdType.Guid));
         }
 
@@ -1858,7 +1870,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void ExplicitConversionFromByteString()
         {
             var bytes = new ByteString(new byte[] { 1, 2 });
-            NodeId nodeId = (NodeId)bytes;
+            var nodeId = (NodeId)bytes;
             Assert.That(nodeId.IdType, Is.EqualTo(IdType.Opaque));
         }
         [Test]
@@ -1907,13 +1919,13 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void RoundTripContextFormat()
         {
             // Round trip through Format(context) and Parse(context)
-            var context = new ServiceMessageContext(NUnitTelemetryContext.Create());
+            var context = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
             const string nsUri = "http://roundtrip.org/";
             context.NamespaceUris.GetIndexOrAppend(nsUri);
             var original = new NodeId(42u, 1);
 
             string formatted = original.Format(context, useNamespaceUri: true);
-            NodeId parsed = NodeId.Parse(context, formatted);
+            var parsed = NodeId.Parse(context, formatted);
             Assert.That(parsed, Is.EqualTo(original));
         }
         [Test]
@@ -1982,6 +1994,161 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var a = new NodeId(42u, 0);
             var b = new NodeId(42u, 0);
             Assert.That(a.CompareTo(b), Is.Zero);
+        }
+
+        private const string ParseLongFormKnownNamespace = "http://opcfoundation.org/UA/Test/";
+        private const string ParseLongFormUnknownNamespace = "http://opcfoundation.org/UA/Unknown/";
+
+        private static NamespaceTable BuildParseLongFormNamespaces()
+        {
+            var table = new NamespaceTable();
+            table.Append(ParseLongFormKnownNamespace);
+            return table;
+        }
+
+        private static uint GetParseLongFormUInt(NodeId id)
+        {
+            Assert.That(id.TryGetValue(out uint v), Is.True);
+            return v;
+        }
+
+        private static string GetParseLongFormString(NodeId id)
+        {
+            Assert.That(id.TryGetValue(out string v), Is.True);
+            return v;
+        }
+
+        private static Guid GetParseLongFormGuid(NodeId id)
+        {
+            Assert.That(id.TryGetValue(out Guid v), Is.True);
+            return v;
+        }
+
+        private static ByteString GetParseLongFormBytes(NodeId id)
+        {
+            Assert.That(id.TryGetValue(out ByteString v), Is.True);
+            return v;
+        }
+
+        [Test]
+        public void ParseLongFormThrowsWhenTableIsNull()
+        {
+            Assert.That(
+                () => NodeId.ParseLongForm("i=42", null),
+                Throws.TypeOf<ArgumentNullException>());
+        }
+
+        [Test]
+        public void ParseLongFormReturnsNullForNullText()
+        {
+            NamespaceTable table = BuildParseLongFormNamespaces();
+            var result = NodeId.ParseLongForm(null, table);
+            Assert.That(result, Is.EqualTo(NodeId.Null));
+        }
+
+        [Test]
+        public void ParseLongFormReturnsNullForEmptyText()
+        {
+            NamespaceTable table = BuildParseLongFormNamespaces();
+            var result = NodeId.ParseLongForm(string.Empty, table);
+            Assert.That(result, Is.EqualTo(NodeId.Null));
+        }
+
+        [Test]
+        public void ParseLongFormBareNumericIdentifier()
+        {
+            NamespaceTable table = BuildParseLongFormNamespaces();
+            var result = NodeId.ParseLongForm("i=42", table);
+            Assert.That(result.NamespaceIndex, Is.Zero);
+            Assert.That(GetParseLongFormUInt(result), Is.EqualTo((uint)42));
+        }
+
+        [Test]
+        public void ParseLongFormResolvesKnownNamespaceUriNumeric()
+        {
+            NamespaceTable table = BuildParseLongFormNamespaces();
+            var result = NodeId.ParseLongForm($"nsu={ParseLongFormKnownNamespace};i=99", table);
+            Assert.That(result.NamespaceIndex, Is.EqualTo(1));
+            Assert.That(GetParseLongFormUInt(result), Is.EqualTo((uint)99));
+        }
+
+        [Test]
+        public void ParseLongFormResolvesKnownNamespaceUriString()
+        {
+            NamespaceTable table = BuildParseLongFormNamespaces();
+            var result = NodeId.ParseLongForm($"nsu={ParseLongFormKnownNamespace};s=Tag1", table);
+            Assert.That(result.NamespaceIndex, Is.EqualTo(1));
+            Assert.That(GetParseLongFormString(result), Is.EqualTo("Tag1"));
+        }
+
+        [Test]
+        public void ParseLongFormResolvesKnownNamespaceUriGuid()
+        {
+            NamespaceTable table = BuildParseLongFormNamespaces();
+            var guid = new Guid("12345678-1234-1234-1234-1234567890AB");
+            var result = NodeId.ParseLongForm($"nsu={ParseLongFormKnownNamespace};g={guid}", table);
+            Assert.That(result.NamespaceIndex, Is.EqualTo(1));
+            Assert.That(GetParseLongFormGuid(result), Is.EqualTo(guid));
+        }
+
+        [Test]
+        public void ParseLongFormResolvesKnownNamespaceUriOpaque()
+        {
+            NamespaceTable table = BuildParseLongFormNamespaces();
+            byte[] bytes = [1, 2, 3, 4];
+            string base64 = Convert.ToBase64String(bytes);
+            var result = NodeId.ParseLongForm(
+                $"nsu={ParseLongFormKnownNamespace};b={base64}", table);
+            Assert.That(result.NamespaceIndex, Is.EqualTo(1));
+            Assert.That(GetParseLongFormBytes(result), Is.EqualTo((ByteString)bytes));
+        }
+
+        [Test]
+        public void ParseLongFormThrowsForUnresolvedNamespaceUri()
+        {
+            NamespaceTable table = BuildParseLongFormNamespaces();
+            Assert.That(
+                () => NodeId.ParseLongForm($"nsu={ParseLongFormUnknownNamespace};i=1", table),
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo(StatusCodes.BadNodeIdInvalid));
+        }
+
+        [Test]
+        public void ParseLongFormThrowsForMalformedTypedIdentifier()
+        {
+            NamespaceTable table = BuildParseLongFormNamespaces();
+            Assert.That(
+                () => NodeId.ParseLongForm($"nsu={ParseLongFormKnownNamespace};i=notanumber", table),
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo(StatusCodes.BadNodeIdInvalid));
+        }
+
+        [Test]
+        public void ParseFallbackToStringIdentifierRecoversMalformedTypedIdentifier()
+        {
+            var context = ServiceMessageContext.CreateEmpty(null);
+            context.NamespaceUris = BuildParseLongFormNamespaces();
+            var result = NodeId.Parse(
+                context,
+                $"nsu={ParseLongFormKnownNamespace};i=notanumber",
+                new NodeIdParsingOptions
+                {
+                    RequireResolvedUris = true,
+                    FallbackToStringIdentifier = true
+                });
+            Assert.That(result.NamespaceIndex, Is.EqualTo(1));
+            Assert.That(GetParseLongFormString(result), Is.EqualTo("i=notanumber"));
+        }
+
+        [Test]
+        public void ParseLongFormNamespaceIndexPrefixUsesNamespaceTable()
+        {
+            NamespaceTable table = BuildParseLongFormNamespaces();
+            var result = NodeId.ParseLongForm("ns=1;i=7", table);
+            Assert.That(result.NamespaceIndex, Is.EqualTo(1));
+            Assert.That(GetParseLongFormUInt(result), Is.EqualTo((uint)7));
         }
     }
 }

@@ -110,7 +110,7 @@ namespace Opc.Ua.Security.Certificates.Tests
         [OneTimeSetUp]
         protected void OneTimeSetUp()
         {
-            ECCurve? curve = EccUtils.GetCurveFromCertificateTypeId(m_certificateType);
+            ECCurve? curve = CryptoUtils.GetCurveFromCertificateTypeId(m_certificateType);
 
             if (curve != null)
             {
@@ -223,25 +223,25 @@ namespace Opc.Ua.Security.Certificates.Tests
 
             if (empty)
             {
-                Assert.That(x509Crl.RevokedCertificates.Count, Is.Zero);
+                Assert.That(x509Crl.RevokedCertificates, Is.Empty);
             }
             else
             {
-                Assert.That(x509Crl.RevokedCertificates.Count, Is.EqualTo(2));
+                Assert.That(x509Crl.RevokedCertificates, Has.Count.EqualTo(2));
                 Assert.That(x509Crl.RevokedCertificates[0].UserCertificate, Is.EqualTo(serial));
                 Assert.That(x509Crl.RevokedCertificates[1].SerialNumber, Is.EqualTo(serstring));
             }
 
             if (noExtensions)
             {
-                Assert.That(x509Crl.CrlExtensions.Count, Is.Zero);
+                Assert.That(x509Crl.CrlExtensions, Is.Empty);
             }
             else
             {
-                Assert.That(x509Crl.CrlExtensions.Count, Is.EqualTo(2));
+                Assert.That(x509Crl.CrlExtensions, Has.Count.EqualTo(2));
             }
 
-            using X509Certificate2 issuerPubKey = CertificateFactory.Create(
+            using var issuerPubKey = Certificate.FromRawData(
                 m_issuerCert.RawData);
             Assert.That(x509Crl.VerifySignature(issuerPubKey, true), Is.True);
         }
@@ -289,11 +289,11 @@ namespace Opc.Ua.Security.Certificates.Tests
             Assert.That(x509Crl.IssuerName.RawData, Is.EqualTo(m_issuerCert.SubjectName.RawData));
             Assert.That(x509Crl.ThisUpdate, Is.EqualTo(crlBuilder.ThisUpdate));
             Assert.That(x509Crl.NextUpdate, Is.EqualTo(crlBuilder.NextUpdate));
-            Assert.That(x509Crl.RevokedCertificates.Count, Is.EqualTo(2));
+            Assert.That(x509Crl.RevokedCertificates, Has.Count.EqualTo(2));
             Assert.That(x509Crl.RevokedCertificates[0].UserCertificate, Is.EqualTo(serial));
             Assert.That(x509Crl.RevokedCertificates[1].SerialNumber, Is.EqualTo(serstring));
-            Assert.That(x509Crl.CrlExtensions.Count, Is.EqualTo(2));
-            using X509Certificate2 issuerPubKey = CertificateFactory.Create(
+            Assert.That(x509Crl.CrlExtensions, Has.Count.EqualTo(2));
+            using var issuerPubKey = Certificate.FromRawData(
                 m_issuerCert.RawData);
             Assert.That(x509Crl.VerifySignature(issuerPubKey, true), Is.True);
         }
@@ -396,14 +396,14 @@ namespace Opc.Ua.Security.Certificates.Tests
             Assert.That(
                 crlBuilder.NextUpdate,
                 Is.EqualTo(x509Crl.NextUpdate).Within(TimeSpan.FromSeconds(1)));
-            Assert.That(x509Crl.RevokedCertificates.Count, Is.EqualTo(2));
+            Assert.That(x509Crl.RevokedCertificates, Has.Count.EqualTo(2));
             Assert.That(x509Crl.RevokedCertificates[0].UserCertificate, Is.EqualTo(serial));
             Assert.That(x509Crl.RevokedCertificates[1].SerialNumber, Is.EqualTo(serstring));
-            Assert.That(x509Crl.CrlExtensions.Count, Is.EqualTo(1));
+            Assert.That(x509Crl.CrlExtensions, Has.Count.EqualTo(1));
             Assert.That(x509Crl.HashAlgorithmName, Is.EqualTo(hash));
         }
 
-        private X509Certificate2 m_issuerCert;
+        private Certificate m_issuerCert;
         private readonly NodeId m_certificateType;
     }
 }

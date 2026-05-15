@@ -60,7 +60,7 @@ namespace Opc.Ua.Server
         {
             if (disposing)
             {
-                Utils.SilentDispose(Data);
+                (Data as IDisposable)?.Dispose();
             }
         }
 

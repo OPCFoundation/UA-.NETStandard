@@ -37,7 +37,7 @@
   xmlns="http://opcfoundation.org/UA/Onboarding/"
   xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd"
   TargetNamespace="http://opcfoundation.org/UA/Onboarding/"
-  TargetVersion="1.05.04"
+  TargetVersion="1.05.05"
   TargetPublicationDate="2025-01-08T00:00:00Z"
 >
   <opc:Namespaces>

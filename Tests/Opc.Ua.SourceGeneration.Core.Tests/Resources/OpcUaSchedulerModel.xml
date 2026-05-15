@@ -58,6 +58,11 @@
           <uax:String>1.05.02</uax:String>
         </opc:DefaultValue>
       </opc:Property>
+      <opc:Property SymbolicName="ua:ModelVersion" DataType="ua:SemanticVersionString">
+        <opc:DefaultValue>
+          <uax:String>1.5.2</uax:String>
+        </opc:DefaultValue>
+      </opc:Property>
       <opc:Property SymbolicName="ua:NamespacePublicationDate" DataType="ua:DateTime">
         <opc:DefaultValue>
           <uax:DateTime>2022-11-01T00:00:00Z</uax:DateTime>

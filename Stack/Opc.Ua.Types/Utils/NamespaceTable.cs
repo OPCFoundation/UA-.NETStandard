@@ -319,7 +319,7 @@ namespace Opc.Ua
         /// </summary>
         public NamespaceTable()
         {
-            Append(Namespaces.OpcUa);
+            Append(Types.Namespaces.OpcUa);
         }
 
         /// <summary>
@@ -327,7 +327,7 @@ namespace Opc.Ua
         /// </summary>
         public NamespaceTable(bool shared)
         {
-            Append(Namespaces.OpcUa);
+            Append(Types.Namespaces.OpcUa);
 #if DEBUG
             m_shared = shared;
 #endif
@@ -340,7 +340,7 @@ namespace Opc.Ua
         public NamespaceTable(NamespaceTable namespaceTable)
             : base(namespaceTable)
         {
-            Debug.Assert(m_strings[0] == Namespaces.OpcUa);
+            Debug.Assert(m_strings[0] == Types.Namespaces.OpcUa);
         }
 
         /// <summary>
@@ -367,7 +367,7 @@ namespace Opc.Ua
             base.Update(namespaceUris);
 
             // check that first entry is the UA namespace.
-            if (m_strings[0] != Namespaces.OpcUa)
+            if (m_strings[0] != Types.Namespaces.OpcUa)
             {
                 throw new ArgumentException(
                     "The first namespace in the table must be the OPC-UA namespace.");

@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -50,7 +49,7 @@ namespace Opc.Ua.Bindings
             string contextId,
             BufferManager bufferManager,
             ChannelQuotas quotas,
-            X509Certificate2 serverCertificate,
+            Certificate serverCertificate,
             List<EndpointDescription> endpoints,
             MessageSecurityMode securityMode,
             string securityPolicyUri,
@@ -75,7 +74,7 @@ namespace Opc.Ua.Bindings
             string contextId,
             BufferManager bufferManager,
             ChannelQuotas quotas,
-            CertificateTypesProvider serverCertificateTypesProvider,
+            ICertificateRegistry serverCertificates,
             List<EndpointDescription> endpoints,
             MessageSecurityMode securityMode,
             string securityPolicyUri,
@@ -84,7 +83,7 @@ namespace Opc.Ua.Bindings
                 contextId,
                 bufferManager,
                 quotas,
-                serverCertificateTypesProvider,
+                serverCertificates,
                 null,
                 endpoints,
                 securityMode,
@@ -100,8 +99,8 @@ namespace Opc.Ua.Bindings
             string contextId,
             BufferManager bufferManager,
             ChannelQuotas quotas,
-            CertificateTypesProvider serverCertificateTypesProvider,
-            X509Certificate2 serverCertificate,
+            ICertificateRegistry serverCertificates,
+            Certificate serverCertificate,
             List<EndpointDescription> endpoints,
             MessageSecurityMode securityMode,
             string securityPolicyUri,
@@ -123,16 +122,12 @@ namespace Opc.Ua.Bindings
                 securityPolicyUri = SecurityPolicies.None;
             }
 
-            X509Certificate2Collection serverCertificateChain = null;
-            if (serverCertificateTypesProvider != null && securityMode != MessageSecurityMode.None)
+            CertificateCollection serverCertificateChain = null;
+            if (serverCertificates != null && securityMode != MessageSecurityMode.None)
             {
-                serverCertificate = serverCertificateTypesProvider.GetInstanceCertificate(
-                    securityPolicyUri);
-
-                if (serverCertificate == null)
-                {
-                    throw new ArgumentNullException(nameof(serverCertificate));
-                }
+                serverCertificate =
+                    serverCertificates.GetInstanceCertificate(securityPolicyUri)?.Certificate
+                    ?? throw new ArgumentNullException(nameof(serverCertificate));
 
                 if (serverCertificate.RawData.Length > TcpMessageLimits.MaxCertificateSize)
                 {
@@ -144,10 +139,7 @@ namespace Opc.Ua.Bindings
                         nameof(serverCertificate));
                 }
 
-                serverCertificateChain = serverCertificateTypesProvider
-                    .LoadCertificateChainAsync(serverCertificate)
-                    .GetAwaiter()
-                    .GetResult();
+                serverCertificateChain = serverCertificates.LoadCertificateChain(serverCertificate);
             }
 
             if (Encoding.UTF8.GetByteCount(securityPolicyUri) > TcpMessageLimits
@@ -163,7 +155,7 @@ namespace Opc.Ua.Bindings
 
             BufferManager = bufferManager ?? throw new ArgumentNullException(nameof(bufferManager));
             Quotas = quotas ?? throw new ArgumentNullException(nameof(quotas));
-            m_serverCertificateTypesProvider = serverCertificateTypesProvider;
+            m_serverCertificates = serverCertificates;
             ServerCertificate = serverCertificate;
             ServerCertificateChain = serverCertificateChain;
             m_endpoints = endpoints;
@@ -228,7 +220,10 @@ namespace Opc.Ua.Bindings
             {
                 Socket?.Close();
                 DiscardTokens();
-                Utils.SilentDispose(Socket);
+                Socket?.Dispose();
+
+                ServerCertificateChain?.Dispose();
+                ServerCertificateChain = null;
 
                 m_localNonce?.Dispose();
                 m_localNonce = null;
@@ -252,6 +247,15 @@ namespace Opc.Ua.Bindings
         /// The globally unique identifier assigned to the channel by the server.
         /// </summary>
         public string GlobalChannelId { get; private set; }
+
+        /// <inheritdoc/>
+        internal byte[] ChannelThumbprint { get; set; }
+
+        /// <inheritdoc/>
+        public byte[] ClientChannelCertificate { get; protected set; }
+
+        /// <inheritdoc/>
+        public byte[] ServerChannelCertificate { get; protected set; }
 
         /// <summary>
         /// Raised when the state of the channel changes.
@@ -286,7 +290,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected uint GetNewSequenceNumber()
         {
-            bool isLegacy = !EccUtils.IsEccPolicy(SecurityPolicyUri);
+            bool isLegacy = SecurityPolicy.LegacySequenceNumbers;
 
             long newSeqNumber = Interlocked.Increment(ref m_sequenceNumber);
             bool maxValueOverflow = isLegacy
@@ -335,8 +339,8 @@ namespace Opc.Ua.Bindings
             // Accept the first sequence number depending on security policy
             if (m_firstReceivedSequenceNumber &&
                 (
-                    !EccUtils.IsEccPolicy(SecurityPolicyUri) ||
-                    (EccUtils.IsEccPolicy(SecurityPolicyUri) && (sequenceNumber == 0))))
+                    !CryptoUtils.IsEccPolicy(SecurityPolicyUri) ||
+                    (CryptoUtils.IsEccPolicy(SecurityPolicyUri) && (sequenceNumber == 0))))
             {
                 m_remoteSequenceNumber = sequenceNumber;
                 m_firstReceivedSequenceNumber = false;
@@ -357,8 +361,8 @@ namespace Opc.Ua.Bindings
                 // only one rollover per token is allowed and with valid values depending on security policy
                 if (!m_sequenceRollover &&
                     (
-                        !EccUtils.IsEccPolicy(SecurityPolicyUri) ||
-                        (EccUtils.IsEccPolicy(SecurityPolicyUri) && (sequenceNumber == 0))))
+                        !CryptoUtils.IsEccPolicy(SecurityPolicyUri) ||
+                        (CryptoUtils.IsEccPolicy(SecurityPolicyUri) && (sequenceNumber == 0))))
                 {
                     m_sequenceRollover = true;
                     m_remoteSequenceNumber = sequenceNumber;
@@ -632,6 +636,8 @@ namespace Opc.Ua.Bindings
 
             try
             {
+                // m_logger.LogWarning("OUT:{Id}", TcpMessageType.GetTypeAndSize(buffers[0]));
+
                 Interlocked.Increment(ref m_activeWriteRequests);
                 args.BufferList = buffers;
                 args.Completed += OnWriteComplete;

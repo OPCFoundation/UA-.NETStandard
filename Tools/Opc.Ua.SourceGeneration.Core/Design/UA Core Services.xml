@@ -94,7 +94,7 @@
     <opc:Value Name="NonVolatile" BitMask="001000" />
     <opc:Value Name="Constant" BitMask="002000" />
   </opc:EnumeratedType>
-
+  
   <opc:EnumeratedType Name="EventNotifierType" PartNo="3" IsOptionSet="true" BaseType="s0:Byte">
     <opc:Value Name="SubscribeToEvents" BitMask="0001" />
     <opc:Value Name="HistoryRead" BitMask="0004" />
@@ -513,7 +513,7 @@
 
   <opc:TypeDeclaration Name="SessionAuthenticationToken" PartNo="4" SourceType="s0:NodeId" />
 
-  <opc:ComplexType Name="SignatureData" NotInAddressSpace="true" PartNo="4" Purpose="ServicesOnly">
+  <opc:ComplexType Name="SignatureData" PartNo="4">
     <opc:Field Name="Algorithm" DataType="s0:String" />
     <opc:Field Name="Signature" DataType="s0:ByteString" />
   </opc:ComplexType>
@@ -2031,7 +2031,7 @@
     <opc:Field Name="LastMethodReturnStatus" DataType="s0:StatusCode" />
   </opc:ComplexType>
 
-  <opc:ComplexType Name="Annotation" AllowArrays="true" PartNo="11">
+  <opc:ComplexType Name="Annotation" PartNo="11" AllowArrays="true">
     <opc:Field Name="Message" DataType="s0:String" />
     <opc:Field Name="UserName" DataType="s0:String" />
     <opc:Field Name="AnnotationTime" DataType="UtcTime" />

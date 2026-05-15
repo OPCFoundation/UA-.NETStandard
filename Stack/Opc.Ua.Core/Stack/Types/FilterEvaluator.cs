@@ -27,12 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
 using System.Collections.Generic;
-using System.Reflection;
 using System.Text.RegularExpressions;
-using System.Xml;
-using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua
 {
@@ -57,7 +53,6 @@ namespace Opc.Ua
             m_filter = filter;
             m_context = context;
             m_target = target;
-            m_logger = context.Telemetry.CreateLogger<FilterEvaluator>();
         }
 
         /// <summary>
@@ -78,7 +73,7 @@ namespace Opc.Ua
                     return true;
                 }
 
-                if (Evaluate(0).TryGet(out bool result))
+                if (Evaluate(0).TryGetValue(out bool result))
                 {
                     return result;
                 }
@@ -156,7 +151,7 @@ namespace Opc.Ua
                     throw ServiceResultException.Unexpected("FilterOperand is null.");
                 }
 
-                if (!extension.TryGetEncodeable(out FilterOperand operand))
+                if (!extension.TryGetValue(out FilterOperand operand))
                 {
                     throw ServiceResultException.Unexpected("FilterOperand is not supported.");
                 }
@@ -236,13 +231,13 @@ namespace Opc.Ua
             FilterOperand[] operands = GetOperands(element, 2);
 
             // no need for further processing if first operand is false.
-            bool lhsNil = !GetValue(operands[0]).TryGet(out bool lhs);
+            bool lhsNil = !GetValue(operands[0]).TryGetValue(out bool lhs);
             if (!lhsNil && !lhs)
             {
                 return false;
             }
 
-            bool rhsNil = !GetValue(operands[1]).TryGet(out bool rhs);
+            bool rhsNil = !GetValue(operands[1]).TryGetValue(out bool rhs);
 
             if (lhsNil)
             {
@@ -273,7 +268,7 @@ namespace Opc.Ua
         {
             FilterOperand[] operands = GetOperands(element, 2);
 
-            bool lhsNil = !GetValue(operands[0]).TryGet(out bool lhs);
+            bool lhsNil = !GetValue(operands[0]).TryGetValue(out bool lhs);
 
             // no need for further processing if first operand is true.
             if (lhs)
@@ -281,7 +276,7 @@ namespace Opc.Ua
                 return true;
             }
 
-            bool rhsNil = !GetValue(operands[1]).TryGet(out bool rhs);
+            bool rhsNil = !GetValue(operands[1]).TryGetValue(out bool rhs);
 
             if (lhsNil)
             {
@@ -313,7 +308,7 @@ namespace Opc.Ua
         {
             FilterOperand[] operands = GetOperands(element, 1);
 
-            bool rhsNil = !GetValue(operands[0]).TryGet(out bool rhs);
+            bool rhsNil = !GetValue(operands[0]).TryGetValue(out bool rhs);
 
             if (rhsNil)
             {
@@ -359,7 +354,7 @@ namespace Opc.Ua
             Variant lhs = GetValue(operands[0]);
             Variant rhs = GetValue(operands[1]);
 
-            if (lhs.TryGet(out string lhsString) && rhs.TryGet(out string rhsString))
+            if (lhs.TryGetValue(out string lhsString) && rhs.TryGetValue(out string rhsString))
             {
                 return lhsString.Equals(rhsString, ContentFilter.EqualsOperatorDefaultStringComparison);
             }
@@ -379,7 +374,7 @@ namespace Opc.Ua
 
             // return null if the types are not comparable.
             int compareResult = lhs.CompareTo(rhs);
-            return compareResult != int.MinValue && compareResult > 0;
+            return compareResult is not int.MinValue and > 0;
         }
 
         /// <summary>
@@ -394,7 +389,7 @@ namespace Opc.Ua
 
             // return null if the types are not comparable.
             int compareResult = lhs.CompareTo(rhs);
-            return compareResult != int.MinValue && compareResult >= 0;
+            return compareResult is not int.MinValue and >= 0;
         }
 
         /// <summary>
@@ -409,7 +404,7 @@ namespace Opc.Ua
 
             // return null if the types are not comparable.
             int compareResult = lhs.CompareTo(rhs);
-            return compareResult != int.MinValue && compareResult < 0;
+            return compareResult is not int.MinValue and < 0;
         }
 
         /// <summary>
@@ -424,7 +419,7 @@ namespace Opc.Ua
 
             // return null if the types are not comparable.
             int compareResult = lhs.CompareTo(rhs);
-            return compareResult != int.MinValue && compareResult <= 0;
+            return compareResult is not int.MinValue and <= 0;
         }
 
         /// <summary>
@@ -476,7 +471,7 @@ namespace Opc.Ua
             {
                 Variant rhs = GetValue(operands[ii]);
 
-                if (value.TryGet(out string lhsString) && rhs.TryGet(out string rhsString))
+                if (value.TryGetValue(out string lhsString) && rhs.TryGetValue(out string rhsString))
                 {
                     return lhsString.Equals(rhsString, ContentFilter.EqualsOperatorDefaultStringComparison);
                 }
@@ -500,7 +495,7 @@ namespace Opc.Ua
 
             Variant firstOperand = GetValue(operands[0]);
             string lhs;
-            if (firstOperand.TryGet(out LocalizedText firstOperandLocalizedText))
+            if (firstOperand.TryGetValue(out LocalizedText firstOperandLocalizedText))
             {
                 lhs = firstOperandLocalizedText.Text;
             }
@@ -511,7 +506,7 @@ namespace Opc.Ua
 
             Variant secondOperand = GetValue(operands[1]);
             string rhs;
-            if (secondOperand.TryGet(out LocalizedText secondOperandLocalizedText))
+            if (secondOperand.TryGetValue(out LocalizedText secondOperandLocalizedText))
             {
                 rhs = secondOperandLocalizedText.Text;
             }
@@ -558,7 +553,7 @@ namespace Opc.Ua
             }
 
             // get the datatype to cast to.
-            if (!GetValue(operands[1]).TryGet(out NodeId datatype))
+            if (!GetValue(operands[1]).TryGetValue(out NodeId datatype))
             {
                 return default;
             }
@@ -582,7 +577,7 @@ namespace Opc.Ua
             FilterOperand[] operands = GetOperands(element, 1);
 
             // get the desired type.
-            if (!GetValue(operands[0]).TryGet(out NodeId typeDefinitionId) ||
+            if (!GetValue(operands[0]).TryGetValue(out NodeId typeDefinitionId) ||
                 m_target == null)
             {
                 return false;
@@ -613,7 +608,7 @@ namespace Opc.Ua
             FilterOperand[] operands = GetOperands(element, 1);
 
             // get the desired type.
-            if (!GetValue(operands[0]).TryGet(out NodeId viewId) ||
+            if (!GetValue(operands[0]).TryGetValue(out NodeId viewId) ||
                 m_target == null)
             {
                 return false;
@@ -655,13 +650,13 @@ namespace Opc.Ua
             FilterOperand[] operands = GetOperands(element, 6);
 
             // get the type of the source.
-            if (!GetValue(operands[0]).TryGet(out NodeId sourceTypeId))
+            if (!GetValue(operands[0]).TryGetValue(out NodeId sourceTypeId))
             {
                 return false;
             }
 
             // get the type of reference to follow.
-            if (!GetValue(operands[2]).TryGet(out NodeId referenceTypeId))
+            if (!GetValue(operands[2]).TryGetValue(out NodeId referenceTypeId))
             {
                 return false;
             }
@@ -715,7 +710,7 @@ namespace Opc.Ua
                     var nestedType = ExtensionObject.ToEncodeable(
                         chainedElement.FilterOperands[0]) as FilterOperand;
 
-                    targetTypeId = GetValue(nestedType).TryGet(out NodeId n) ? n : default;
+                    targetTypeId = GetValue(nestedType).TryGetValue(out NodeId n) ? n : default;
                     if (targetTypeId.IsNull)
                     {
                         return false;
@@ -753,7 +748,7 @@ namespace Opc.Ua
             }
 
             // get the type of the m_target.
-            targetTypeId = GetValue(operands[1]).TryGet(out NodeId n2) ? n2 : default;
+            targetTypeId = GetValue(operands[1]).TryGetValue(out NodeId n2) ? n2 : default;
             if (targetTypeId.IsNull)
             {
                 return false;
@@ -839,7 +834,6 @@ namespace Opc.Ua
         private readonly ContentFilter m_filter;
         private readonly IFilterContext m_context;
         private readonly IFilterTarget m_target;
-        private readonly ILogger m_logger;
     }
 
     /// <summary>

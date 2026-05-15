@@ -36,8 +36,10 @@ using Opc.Ua.Server;
 
 namespace MemoryBuffer
 {
+#pragma warning disable CA1001 // Using timers that are disposed in OnAfterDelete
     public partial class MemoryBufferState
     {
+#pragma warning restore CA1001 // Using timers that are disposed in OnAfterDelete
         /// <summary>
         /// Initializes the buffer from the configuration.
         /// </summary>
@@ -102,14 +104,11 @@ namespace MemoryBuffer
         public int MaximumScanRate { get; private set; }
 
         /// <inheritdoc/>
-        protected override void Dispose(bool disposing)
+        protected override void OnAfterDelete(ISystemContext context)
         {
-            if (disposing)
-            {
-                Utils.SilentDispose(m_scanTimer);
-                m_scanTimer = null;
-            }
-            base.Dispose(disposing);
+            base.OnAfterDelete(context);
+            m_scanTimer?.Dispose();
+            m_scanTimer = null;
         }
 
         /// <summary>
@@ -301,7 +300,7 @@ namespace MemoryBuffer
                 {
                     case BuiltInType.UInt32:
                     {
-                        if (!value.TryGet(out uint valueToWrite))
+                        if (!value.TryGetValue(out uint valueToWrite))
                         {
                             return StatusCodes.BadTypeMismatch;
                         }
@@ -311,7 +310,7 @@ namespace MemoryBuffer
                     }
                     case BuiltInType.Double:
                     {
-                        if (!value.TryGet(out double valueToWrite))
+                        if (!value.TryGetValue(out double valueToWrite))
                         {
                             return StatusCodes.BadTypeMismatch;
                         }
@@ -495,7 +494,7 @@ namespace MemoryBuffer
             if (m_monitoringTable == null)
             {
                 m_monitoringTable = new MemoryBufferMonitoredItem[elementCount][];
-                Utils.SilentDispose(m_scanTimer);
+                m_scanTimer?.Dispose();
                 m_scanTimer = new Timer(DoScan, null, 100, 100);
             }
 

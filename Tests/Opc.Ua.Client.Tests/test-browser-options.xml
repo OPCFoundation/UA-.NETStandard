@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<uax:BrowserOptions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">
+  <uax:MaxReferencesReturned>500</uax:MaxReferencesReturned>
+  <uax:BrowseDirection>Inverse_1</uax:BrowseDirection>
+  <uax:ReferenceTypeId>
+    <uax:Identifier>i=33</uax:Identifier>
+  </uax:ReferenceTypeId>
+  <uax:IncludeSubtypes>false</uax:IncludeSubtypes>
+  <uax:NodeClassMask>255</uax:NodeClassMask>
+  <uax:ResultMask>63</uax:ResultMask>
+  <uax:ContinuationPointPolicy>Balanced_1</uax:ContinuationPointPolicy>
+  <uax:MaxNodesPerBrowse>100</uax:MaxNodesPerBrowse>
+  <uax:MaxBrowseContinuationPoints>10</uax:MaxBrowseContinuationPoints>
+</uax:BrowserOptions>

@@ -29,7 +29,8 @@
 
 using System;
 using System.IO;
-using Newtonsoft.Json;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace Opc.Ua.Gds.Server.Database.Linq
 {
@@ -66,7 +67,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
                 {
                     string json = File.ReadAllText(fileName);
                     JsonApplicationsDatabase db =
-                        JsonConvert.DeserializeObject<JsonApplicationsDatabase>(json);
+                        JsonSerializer.Deserialize(json, GdsApplicationsDatabaseJsonContext.Default.JsonApplicationsDatabase);
                     db.FileName = fileName;
                     return db;
                 }
@@ -82,7 +83,8 @@ namespace Opc.Ua.Gds.Server.Database.Linq
         /// </summary>
         public override void Save()
         {
-            string json = JsonConvert.SerializeObject(this, Formatting.Indented);
+            string json = JsonSerializer.Serialize(
+                this, GdsApplicationsDatabaseJsonContext.Default.JsonApplicationsDatabase);
             File.WriteAllText(FileName, json);
         }
 
@@ -92,4 +94,11 @@ namespace Opc.Ua.Gds.Server.Database.Linq
         [JsonIgnore]
         public string FileName { get; private set; }
     }
+
+    [JsonSerializable(typeof(JsonApplicationsDatabase))]
+    [JsonSourceGenerationOptions(
+        WriteIndented = true,
+        DefaultIgnoreCondition = JsonIgnoreCondition.Never,
+        IncludeFields = false)]
+    internal partial class GdsApplicationsDatabaseJsonContext : JsonSerializerContext;
 }

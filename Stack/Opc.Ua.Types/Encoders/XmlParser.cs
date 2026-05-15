@@ -333,7 +333,9 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public T DecodeMessage<T>() where T : IEncodeable
         {
-            if (!Context.Factory.TryGetEncodeableType<T>(out IEncodeableType activator))
+            XmlQualifiedName typeName = Peek(XmlNodeType.Element);
+            if (!Context.Factory.TryGetType(typeName, out IType type) ||
+                type is not IEncodeableType activator)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadDecodingError,
@@ -341,18 +343,14 @@ namespace Opc.Ua
                     typeof(T));
             }
 
-            XmlQualifiedName typeName = activator.XmlName;
-            string ns = typeName.Namespace;
             string name = typeName.Name;
-
             int index = name.IndexOf(':', StringComparison.Ordinal);
-
             if (index != -1)
             {
                 name = name[(index + 1)..];
             }
 
-            PushNamespace(ns);
+            PushNamespace(typeName.Namespace);
 
             // read the message.
             T encodeable = ReadEncodeable(name, (T)activator.CreateInstance());
@@ -1050,7 +1048,7 @@ namespace Opc.Ua
             where T : IEncodeable
         {
             ExtensionObject extensionObject = ReadExtensionObject(fieldName);
-            if (extensionObject.TryGetEncodeable(out T value))
+            if (extensionObject.TryGetValue(out T value))
             {
                 return value;
             }
@@ -1086,6 +1084,52 @@ namespace Opc.Ua
 #else
                             value = (T)Enum.Parse(typeof(T), xml, false);
 #endif
+                        }
+                    }
+                    catch (Exception ex) when (ex is
+                        ArgumentException or
+                        FormatException or
+                        OverflowException)
+                    {
+                        throw CreateBadDecodingError(fieldName, ex, value: xml);
+                    }
+                }
+
+                EndField(fieldName);
+            }
+
+            return value;
+        }
+
+        /// <inheritdoc/>
+        public EnumValue ReadEnumerated(string fieldName)
+        {
+            EnumValue value = default;
+
+            if (BeginField(fieldName, true))
+            {
+                string xml = SafeReadString();
+
+                if (!string.IsNullOrEmpty(xml))
+                {
+                    int index = xml.LastIndexOf('_');
+
+                    try
+                    {
+                        if (index != -1)
+                        {
+                            int numericValue = Convert.ToInt32(
+                                xml[(index + 1)..],
+                                CultureInfo.InvariantCulture);
+                            value = new EnumValue(numericValue, xml[..index]);
+                        }
+                        else if (int.TryParse(xml, out int numeric))
+                        {
+                            value = (EnumValue)numeric;
+                        }
+                        else
+                        {
+                            value = new EnumValue(0, xml);
                         }
                     }
                     catch (Exception ex) when (ex is
@@ -1954,6 +1998,53 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
+        public ArrayOf<EnumValue> ReadEnumeratedArray(string fieldName)
+        {
+            if (BeginField(fieldName, true, out bool isNil))
+            {
+                var enums = new List<EnumValue>();
+
+                if (!MoveToElement(null))
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadDecodingError,
+                        "Unable to read field {0} in function {1}: The enumerated array does not contain any elements.",
+                        fieldName,
+                        nameof(ReadEnumeratedArray));
+                }
+
+                XmlQualifiedName xmlName = Peek(XmlNodeType.Element);
+                PushNamespace(xmlName.Namespace);
+
+                while (MoveToElement(xmlName.Name))
+                {
+                    enums.Add(ReadEnumerated(xmlName.Name));
+                }
+
+                // check the length.
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < enums.Count)
+                {
+                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
+                }
+
+                PopNamespace();
+                EndField(fieldName);
+                return enums.ToArrayOf();
+            }
+
+            if (LastFieldWasEmpty)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadDecodingError,
+                    "Unable to read field {0} in function {1}: The enumerated array does not contain any elements.",
+                    fieldName,
+                    nameof(ReadEnumeratedArray));
+            }
+
+            return isNil ? default : [];
+        }
+
+        /// <inheritdoc/>
         public uint ReadSwitchField(IList<string> switches, out string fieldName)
         {
             fieldName = null;
@@ -1964,6 +2055,19 @@ namespace Opc.Ua
         public uint ReadEncodingMask(IList<string> masks)
         {
             return ReadUInt32("EncodingMask");
+        }
+
+        /// <inheritdoc/>
+        public bool HasField(string fieldName)
+        {
+            if (string.IsNullOrEmpty(fieldName))
+            {
+                return true;
+            }
+
+            ElementContext context = m_contextStack.Peek();
+            string ns = m_namespaces.Peek();
+            return FindChildIndex(context, fieldName, ns) >= 0;
         }
 
         /// <inheritdoc/>
@@ -2453,17 +2557,23 @@ namespace Opc.Ua
                     value.Decode(this);
                     PopNamespace();
 
-                    // No need to skip to end of encodeable in DOM mode -
-                    // unread children simply remain unconsumed.
-
                     EndField(fieldName);
+                    return value;
                 }
+
+                // If the element exists but is empty (e.g., <ServerConfiguration />),
+                // return the pre-created instance with defaults rather than null.
+                if (LastFieldWasEmpty)
+                {
+                    return value;
+                }
+
+                return default;
             }
             finally
             {
                 m_nestingLevel--;
             }
-            return value;
         }
 
         /// <summary>
@@ -2522,6 +2632,7 @@ namespace Opc.Ua
         private bool BeginField(string fieldName, bool isOptional, out bool isNil)
         {
             isNil = false;
+            m_lastFieldWasEmpty = false;
 
             // allow caller to skip reading element tag if field name is not specified.
             if (string.IsNullOrEmpty(fieldName))
@@ -2577,6 +2688,7 @@ namespace Opc.Ua
 
             if (isNil || isEmpty)
             {
+                m_lastFieldWasEmpty = isEmpty && !isNil;
                 return false;
             }
 
@@ -2762,7 +2874,7 @@ namespace Opc.Ua
 
             if (index != -1)
             {
-                name = name[(index + 1)..];
+                _ = name[(index + 1)..];
             }
 
             PushNamespace(ns);
@@ -2805,5 +2917,11 @@ namespace Opc.Ua
         private ushort[] m_namespaceMappings;
         private ushort[] m_serverMappings;
         private uint m_nestingLevel;
+        private bool m_lastFieldWasEmpty;
+
+        /// <summary>
+        /// Returns true if the last BeginField found the element but it was empty.
+        /// </summary>
+        private bool LastFieldWasEmpty => m_lastFieldWasEmpty;
     }
 }

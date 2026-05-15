@@ -29,12 +29,13 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
-using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Client
 {
@@ -162,7 +163,7 @@ namespace Opc.Ua.Client
             /// <param name="endpointUrl">The endpoint Url of the server.</param>
             /// <param name="onConnectionWaiting">The connection to use.</param>
             public Registration(
-                X509Certificate2 serverCertificate,
+                Certificate serverCertificate,
                 Uri endpointUrl,
                 EventHandler<ConnectionWaitingEventArgs> onConnectionWaiting)
                 : this(endpointUrl, onConnectionWaiting)
@@ -225,15 +226,9 @@ namespace Opc.Ua.Client
         protected virtual void Dispose(bool disposing)
         {
             // close the watcher.
-            if (m_configurationWatcher != null)
-            {
-                Utils.SilentDispose(m_configurationWatcher);
-                m_configurationWatcher = null;
-            }
-            if (m_cts != null)
-            {
-                Utils.SilentDispose(m_cts);
-            }
+            m_configurationWatcher?.Dispose();
+            m_configurationWatcher = null;
+            m_cts?.Dispose();
             DisposeHosts();
         }
 
@@ -268,6 +263,8 @@ namespace Opc.Ua.Client
         /// Called when the configuration is changed on disk.
         /// </summary>
         /// <param name="configuration">The configuration.</param>
+        [UnconditionalSuppressMessage("Trimming", "IL2074",
+            Justification = "The configuration type was loaded with PublicParameterlessConstructor, so GetType() is safe to store.")]
         protected virtual void OnUpdateConfiguration(ApplicationConfiguration configuration)
         {
             // save types for config watcher
@@ -447,7 +444,7 @@ namespace Opc.Ua.Client
                 {
                     m_logger.LogError(e, "Unexpected error starting reverse connect manager.");
                     m_state = ReverseConnectManagerState.Errored;
-                    ServiceResult error = ServiceResult.Create(
+                    var error = ServiceResult.Create(
                         e,
                         StatusCodes.BadInternalError,
                         "Unexpected error starting application");
@@ -487,7 +484,7 @@ namespace Opc.Ua.Client
                 {
                     m_logger.LogError(e, "Unexpected error starting reverse connect manager.");
                     m_state = ReverseConnectManagerState.Errored;
-                    ServiceResult error = ServiceResult.Create(
+                    var error = ServiceResult.Create(
                         e,
                         StatusCodes.BadInternalError,
                         "Unexpected error starting reverse connect manager");
@@ -835,12 +832,14 @@ namespace Opc.Ua.Client
             cts.Dispose();
         }
 
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)]
+        private Type? m_configType;
+
         private readonly Lock m_lock = new();
         private readonly ILogger m_logger;
         private readonly ITelemetryContext m_telemetry;
         private ConfigurationWatcher? m_configurationWatcher;
         private ApplicationType m_applicationType;
-        private Type? m_configType;
         private ReverseConnectClientConfiguration? m_configuration;
         private Dictionary<Uri, ReverseConnectInfo> m_endpointUrls;
         private ReverseConnectManagerState m_state;

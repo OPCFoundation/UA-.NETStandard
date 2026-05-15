@@ -206,10 +206,15 @@ is available. Such code shall be gradually refactored.
 
 ### Other temporary compromises
 
-The current codebase is still relying heavily on static methods and static classes (e.g. CertificateFactory), the
+The current codebase is still relying on some static methods and static classes, the
 telemetry context is added as argument to these static methods or to methods that belong to classes that are
 instantiated via default constructors and are effectively static too (e.g. anything that is DataContract
 serializable). The goal is to eventually remove static utilities and pass the context through constructors only.
+
+The static `CertificateFactory.Create / CreateCertificate / CreateCertificateWith{,PEM}PrivateKey` methods are
+now `[Obsolete]` and forward to `Certificate.FromRawData(...)` / `DefaultCertificateFactory.Instance.*` /
+`DefaultCertificateIssuer.Instance.*`. Internal callers have been migrated; new code should use the new
+factory/issuer interfaces (or their singletons) directly. See [CertificateManager.md](CertificateManager.md).
 
 Meanwhile, any passing of `ITelemetryContext` to "public" static methods was done by adding it as the last optional
 argument with a default null value except for async methods, where it comes before the CancellationToken argument.
@@ -222,6 +227,24 @@ context through constructors into "service" classes that manage things like pars
 The ambient model is marked as `Experimental` at this point and should not be used in new code.
 
 These issues will be addressed over time by refactoring the code base to be dependency injection friendly.
+
+### Opt out
+
+The simplest is to use a dummy implementation of `ITelemetryContext` such as 
+
+```csharp
+sealed class NullTelemetry : TelemetryContextBase
+{
+    public NullTelemetry()
+        : base(NullLoggerFactory.Instance) // <--- This comes from Microsoft.Extensions.Logging.Abstractions 
+    {
+    }
+}
+```
+
+It is also possible to pass `null` for a `ITelemetryContext` parameter, but this is not recommended as it
+will cause the code to fallback to the old tracing model and may cause format exceptions if the trace logger
+is not configured to handle semantic logging.
 
 ### Migrating
 
@@ -481,9 +504,19 @@ to the stack.
 
 ##### `DefaultSessionFactory`
 
-**File:** `Libraries/Opc.Ua.Client/Session/Factory/DefaultSessionFactory.cs`
+**File:** `Libraries/Opc.Ua.Client/Session/DefaultSessionFactory.cs`
 
-- **ADDED:** `public DefaultSessionFactory(ITelemetryContext telemetry)`- Constructor requires telemetry, default constructor marked as deprecated.
+- Creates raw `Session` instances (unchanged from earlier versions).
+- **ADDED:** `public DefaultSessionFactory(ITelemetryContext telemetry)` - Constructor requires telemetry, default constructor marked as deprecated.
+
+##### `ManagedSessionFactory`
+
+**File:** `Libraries/Opc.Ua.Client/Session/ManagedSessionFactory.cs`
+
+- **ADDED** in 1.6 as a new factory.
+- Creates `ManagedSession` instances that automatically handle reconnection and failover.
+- Uses `DefaultSessionFactory` internally to create the raw `Session` that is wrapped by `ManagedSession`.
+- Constructor: `public ManagedSessionFactory(ITelemetryContext telemetry)`.
 
 ##### `TraceableSessionFactory`
 

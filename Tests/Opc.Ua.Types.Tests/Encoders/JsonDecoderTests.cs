@@ -311,7 +311,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             using JsonDecoder reader = NewDecoder(Body(/*lang=json,strict*/ """{ "StatusCode": {}, "ServerPicoseconds": 123 }"""));
             DataValue result = reader.ReadDataValue(JsonProperties.Value);
-            Assert.That(result, Is.EqualTo(new DataValue(StatusCodes.Good) { ServerPicoseconds = 123 }));
+            Assert.That(result, Is.EqualTo(new DataValue(Variant.Null, StatusCodes.Good) { ServerPicoseconds = 123 }));
         }
 
         [Test]
@@ -319,7 +319,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             using JsonDecoder reader = NewDecoder(Body(/*lang=json,strict*/ """{ "StatusCode": {}, "ServerPicoseconds": 123 }"""), true);
             DataValue result = reader.ReadDataValue(JsonProperties.Value);
-            Assert.That(result, Is.EqualTo(new DataValue(StatusCodes.Good) { ServerPicoseconds = 0 }));
+            Assert.That(result, Is.EqualTo(new DataValue(Variant.Null, StatusCodes.Good) { ServerPicoseconds = 0 }));
         }
 
         [Test]
@@ -343,7 +343,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             using JsonDecoder reader = NewDecoder(Body(/*lang=json,strict*/ """{ "StatusCode": {}, "SourcePicoseconds": 123 }"""));
             DataValue result = reader.ReadDataValue(JsonProperties.Value);
-            Assert.That(result, Is.EqualTo(new DataValue(StatusCodes.Good) { SourcePicoseconds = 123 }));
+            Assert.That(result, Is.EqualTo(new DataValue(Variant.Null, StatusCodes.Good) { SourcePicoseconds = 123 }));
         }
 
         [Test]
@@ -351,7 +351,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             using JsonDecoder reader = NewDecoder(Body(/*lang=json,strict*/ """{ "StatusCode": {}, "SourcePicoseconds": 123 }"""), true);
             DataValue result = reader.ReadDataValue(JsonProperties.Value);
-            Assert.That(result, Is.EqualTo(new DataValue(StatusCodes.Good) { SourcePicoseconds = 0 }));
+            Assert.That(result, Is.EqualTo(new DataValue(Variant.Null, StatusCodes.Good) { SourcePicoseconds = 0 }));
         }
 
         [Test]
@@ -451,8 +451,8 @@ namespace Opc.Ua.Types.Tests.Encoders
         public void ReadDiagnosticInfoWithNestingLevelsExceedingThrows()
         {
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
-            var messageContext = new ServiceMessageContext(telemetryContext);
-            var writer = new JsonEncoder(messageContext);
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
+            using var writer = new JsonEncoder(messageContext);
             writer.WriteDiagnosticInfo(JsonProperties.Value, new DiagnosticInfo
             {
                 InnerDiagnosticInfo = new DiagnosticInfo
@@ -635,7 +635,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             using JsonDecoder reader = NewDecoder(Body(@"""Bonkers_2"""));
             TestEnum result = reader.ReadEnumerated<TestEnum>(JsonProperties.Value);
-            Assert.That(result, Is.EqualTo(TestEnum.None));
+            Assert.That(result, Is.EqualTo(TestEnum.Second));
         }
 
         [Test]
@@ -1548,7 +1548,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         public void ReadEncodeableAsExtensionObjectFromNullElementWithBinaryEncoding()
         {
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
-            var messageContext = new ServiceMessageContext(telemetryContext);
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
             using var writer = new BinaryEncoder(messageContext);
             writer.WriteEncodeable("argument", new Argument());
             string buffer = writer.CloseAndReturnText();
@@ -1717,8 +1717,8 @@ namespace Opc.Ua.Types.Tests.Encoders
                 Name = "test"
             };
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
-            var messageContext = new ServiceMessageContext(telemetryContext);
-            var writer = new XmlEncoder(messageContext);
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
+            using var writer = new XmlEncoder(messageContext);
             writer.PushNamespace(Namespaces.OpcUaXsd);
             writer.WriteEncodeable(nameof(Argument), expected);
             writer.PopNamespace();
@@ -1733,7 +1733,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         public void ReadEncodeableAsExtensionObjectWithBadBinaryEncoding1()
         {
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
-            var messageContext = new ServiceMessageContext(telemetryContext);
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
             using var writer = new BinaryEncoder(messageContext);
             writer.WriteEncodeable(null, new Argument
             {
@@ -1786,8 +1786,8 @@ namespace Opc.Ua.Types.Tests.Encoders
                 Name = "test"
             };
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
-            var messageContext = new ServiceMessageContext(telemetryContext);
-            var writer = new BinaryEncoder(messageContext);
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
+            using var writer = new BinaryEncoder(messageContext);
             writer.WriteEncodeable(null, expected);
             string buffer = writer.CloseAndReturnText();
             using JsonDecoder reader = NewDecoder(Body($$"""{"UaEncoding": 1, "UaTypeId": "i=296", "UaBody": "{{buffer}}"}"""));
@@ -2295,9 +2295,9 @@ namespace Opc.Ua.Types.Tests.Encoders
         public void WriteAndReadEnumeratedArrayCompact(StructureType value, int length)
         {
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
-            var messageContext = new ServiceMessageContext(telemetryContext);
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
             var expected = Enumerable.Repeat(value, length).ToArrayOf();
-            var buffers = new PooledBufferWriter();
+            using var buffers = new PooledBufferWriter();
 
             using (var encoder = new JsonEncoder(buffers, messageContext, JsonEncoderOptions.Compact))
             {
@@ -2322,7 +2322,10 @@ namespace Opc.Ua.Types.Tests.Encoders
         private static JsonDecoder NewDecoder(string json, bool strict = false)
         {
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
-            var messageContext = new ServiceMessageContext(telemetryContext);
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
+            messageContext.Factory.Builder
+                .AddEncodeableTypes(typeof(EncodeableFactory).Assembly)
+                .Commit();
             return new JsonDecoder(json, messageContext, new JsonDecoderOptions
             {
                 ParseStrict = strict

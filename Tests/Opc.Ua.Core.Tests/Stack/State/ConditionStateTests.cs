@@ -27,6 +27,10 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+// CA2000: test code; many disposables are ownership-transferred to test fixtures or short-lived,
+// making CA2000 noisy without a real leak risk. Disabled file-level for the suite.
+#pragma warning disable CA2000
+using System;
 using NUnit.Framework;
 using Opc.Ua.Tests;
 
@@ -49,7 +53,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
         protected void OneTimeSetUp()
         {
             m_telemetry = NUnitTelemetryContext.Create();
-            var messageContext = new ServiceMessageContext(m_telemetry);
+            var messageContext = ServiceMessageContext.Create(m_telemetry);
             // Add OPC UA namespace
             messageContext.NamespaceUris.GetIndexOrAppend(Namespaces.OpcUa);
             m_context = new SystemContext(m_telemetry)
@@ -61,7 +65,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
         [OneTimeTearDown]
         protected void OneTimeTearDown()
         {
-            Utils.SilentDispose(m_context);
+            (m_context as IDisposable)?.Dispose();
         }
 
         /// <summary>

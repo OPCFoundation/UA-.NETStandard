@@ -110,8 +110,8 @@ namespace Opc.Ua.Server
                     }
                 }
 
-                Utils.SilentDispose(m_samplingTask);
-                Utils.SilentDispose(m_shutdownEvent);
+                m_samplingTask?.Dispose();
+                m_shutdownEvent.Dispose();
             }
         }
 
@@ -499,7 +499,7 @@ namespace Opc.Ua.Server
                     {
                         if (values[ii] == null)
                         {
-                            values[ii] = new DataValue(
+                            values[ii] = DataValue.FromStatusCode(
                                 StatusCodes.BadInternalError,
                                 DateTime.UtcNow);
                         }

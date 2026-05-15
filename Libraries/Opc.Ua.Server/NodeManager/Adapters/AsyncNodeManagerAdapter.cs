@@ -743,7 +743,7 @@ namespace Opc.Ua.Server
         {
             if (disposing)
             {
-                Utils.SilentDispose(SyncNodeManager);
+                (SyncNodeManager as IDisposable)?.Dispose();
             }
         }
     }

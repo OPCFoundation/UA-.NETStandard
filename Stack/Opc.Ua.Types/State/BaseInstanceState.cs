@@ -74,11 +74,9 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public override object Clone()
+        protected override NodeState CreateCopy()
         {
-            var clone = new BaseInstanceState(NodeClass, Parent);
-            CopyTo(clone);
-            return clone;
+            return new BaseInstanceState(NodeClass, Parent);
         }
 
         /// <inheritdoc/>

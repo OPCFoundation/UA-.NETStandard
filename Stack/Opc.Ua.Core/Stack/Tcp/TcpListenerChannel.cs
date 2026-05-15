@@ -31,7 +31,6 @@ using System;
 using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
-using System.Security.Cryptography.X509Certificates;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Security.Certificates;
 
@@ -50,14 +49,14 @@ namespace Opc.Ua.Bindings
             ITcpChannelListener listener,
             BufferManager bufferManager,
             ChannelQuotas quotas,
-            CertificateTypesProvider serverCertificateTypeProvider,
+            ICertificateRegistry serverCertificates,
             List<EndpointDescription> endpoints,
             ITelemetryContext telemetry)
             : base(
                 contextId,
                 bufferManager,
                 quotas,
-                serverCertificateTypeProvider,
+                serverCertificates,
                 endpoints,
                 MessageSecurityMode.None,
                 SecurityPolicies.None,
@@ -511,71 +510,6 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
-        /// Sends a fault response secured with the asymmetric keys.
-        /// </summary>
-        protected void SendServiceFault(uint requestId, ServiceResult fault)
-        {
-            m_logger.LogDebug(
-                "ChannelId {Id}: Request {RequestId}: SendServiceFault={ServiceFault}",
-                ChannelId,
-                requestId,
-                fault.StatusCode);
-
-            BufferCollection chunksToSend = null;
-
-            try
-            {
-                // construct fault.
-                var response = new ServiceFault();
-
-                response.ResponseHeader.ServiceResult = fault.Code;
-
-                var stringTable = new StringTable();
-
-                response.ResponseHeader.ServiceDiagnostics = new DiagnosticInfo(
-                    fault,
-                    DiagnosticsMasks.NoInnerStatus,
-                    true,
-                    stringTable,
-                    m_logger);
-
-                response.ResponseHeader.StringTable = stringTable.ToArray();
-
-                // serialize fault.
-                byte[] buffer = BinaryEncoder.EncodeMessage(response, Quotas.MessageContext);
-
-                // secure message.
-                chunksToSend = WriteAsymmetricMessage(
-                    TcpMessageType.Open,
-                    requestId,
-                    ServerCertificate,
-                    ClientCertificate,
-                    new ArraySegment<byte>(buffer, 0, buffer.Length));
-
-                // write the message to the server.
-                BeginWriteMessage(chunksToSend, null);
-                chunksToSend = null;
-            }
-            catch (Exception e)
-            {
-                chunksToSend?.Release(BufferManager, "SendServiceFault");
-
-                m_logger.LogError(
-                    e,
-                    "ChannelId {Id}: Request {RequestId}: SendServiceFault={ServiceFault}: Unexpected error.",
-                    ChannelId,
-                    requestId,
-                    fault.StatusCode);
-
-                ForceChannelFault(
-                    ServiceResult.Create(
-                        e,
-                        StatusCodes.BadTcpInternalError,
-                        "Unexpected error sending a service fault."));
-            }
-        }
-
-        /// <summary>
         /// Handles a reconnect request.
         /// </summary>
         /// <exception cref="NotImplementedException"></exception>
@@ -583,7 +517,7 @@ namespace Opc.Ua.Bindings
             IMessageSocket socket,
             uint requestId,
             uint sequenceNumber,
-            X509Certificate2 clientCertificate,
+            Certificate clientCertificate,
             ChannelToken token,
             OpenSecureChannelRequest request)
         {
@@ -653,7 +587,7 @@ namespace Opc.Ua.Bindings
     public delegate void ReportAuditOpenSecureChannelEventHandler(
         TcpServerChannel channel,
         OpenSecureChannelRequest request,
-        X509Certificate2 clientCertificate,
+        Certificate clientCertificate,
         Exception exception);
 
     /// <summary>
@@ -667,6 +601,6 @@ namespace Opc.Ua.Bindings
     /// Used to report an open secure channel audit event.
     /// </summary>
     public delegate void ReportAuditCertificateEventHandler(
-        X509Certificate2 clientCertificate,
+        Certificate clientCertificate,
         Exception exception);
 }

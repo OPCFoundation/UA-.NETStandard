@@ -57,7 +57,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
         [Test]
         public void ClientCertificateHasPrivateKey()
         {
-            using X509Certificate2 cert = CertificateBuilder.Create("CN=Subject").CreateForRSA();
+            using Certificate cert = CertificateBuilder.Create("CN=Subject").CreateForRSA();
             using TestCertificateDirectory certificateDirectory = new();
             certificateDirectory.CreateAssets();
 
@@ -68,21 +68,22 @@ namespace Opc.Ua.PubSub.Tests.Transport
             var mqttConfiguration = new MqttClientProtocolConfiguration(
                 version: EnumMqttProtocolVersion.V500, mqttTlsOptions: mqttTlsOptions);
 
-            var uaPubSubApplication = UaPubSubApplication.Create(telemetry);
+            using var uaPubSubApplication = UaPubSubApplication.Create(telemetry);
             var pubSubConnectionDataType = new PubSubConnectionDataType
             {
+                Enabled = true,
                 Address = new ExtensionObject(new NetworkAddressUrlDataType { Url = "mqtts://localhost:8883" }),
                 ConnectionProperties = mqttConfiguration.ConnectionProperties
             };
 
-            var pubSubConnection = new MqttPubSubConnection(uaPubSubApplication, pubSubConnectionDataType, MessageMapping.Json, telemetry);
+            using var pubSubConnection = new MqttPubSubConnection(uaPubSubApplication, pubSubConnectionDataType, MessageMapping.Json, telemetry);
             MqttClientOptions mqttClientOptions = pubSubConnection.PublisherMqttClientOptions;
             MqttClientTlsOptions channelTlsOptions = mqttClientOptions.ChannelOptions.TlsOptions;
 
             Assert.That(channelTlsOptions.UseTls, Is.True);
             X509CertificateCollection clientCertificates = channelTlsOptions.ClientCertificatesProvider.GetCertificates();
-            Assert.That(clientCertificates.Count, Is.EqualTo(1));
-            Assert.That((clientCertificates[0] as X509Certificate2)!.HasPrivateKey, Is.True, "Client certificate needs private key");
+            Assert.That(clientCertificates, Has.Count.EqualTo(1));
+            Assert.That(((X509Certificate2)clientCertificates[0]).HasPrivateKey, Is.True, "Client certificate needs private key");
         }
 
 #if NET7_0_OR_GREATER
@@ -158,7 +159,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 "The MQTT publisher connection properties are not valid.");
 
             // Create publisher application for multiple datasets
-            UaPubSubApplication publisherApplication = UaPubSubApplication.Create(publisherConfiguration, telemetry);
+            using var publisherApplication = UaPubSubApplication.Create(publisherConfiguration, telemetry);
             publisherApplication.OnValidateBrokerCertificate = certificateDirectory.ValidateBrokerCertificate;
             MessagesHelper.LoadData(publisherApplication, kNamespaceIndexAllTypes);
 
@@ -237,7 +238,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 "The MQTT subscriber connection properties are not valid.");
 
             // Create subscriber application for multiple datasets
-            UaPubSubApplication subscriberApplication = UaPubSubApplication.Create(subscriberConfiguration, telemetry);
+            using var subscriberApplication = UaPubSubApplication.Create(subscriberConfiguration, telemetry);
             subscriberApplication.OnValidateBrokerCertificate = certificateDirectory.ValidateBrokerCertificate;
             Assert.That(subscriberApplication, Is.Not.Null, "subscriberApplication should not be null");
             Assert.That(
@@ -294,8 +295,8 @@ namespace Opc.Ua.PubSub.Tests.Transport
         private sealed class TestCertificateDirectory : IDisposable
         {
             private readonly string m_path;
-            private readonly X509Certificate2 m_clientCert;
-            private readonly X509Certificate2 m_serverCert;
+            private readonly Certificate m_clientCert;
+            private readonly Certificate m_serverCert;
 
             public TestCertificateDirectory()
             {
@@ -318,12 +319,12 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 File.WriteAllBytes(ClientCertificatePfxPath, m_clientCert.Export(X509ContentType.Pfx));
                 File.WriteAllBytes(clientCertificateDerPath, m_clientCert.Export(X509ContentType.Cert));
 #if NET7_0_OR_GREATER
-                string clientCertificatePem = m_clientCert.ExportCertificatePem();
+                string clientCertificatePem = m_clientCert.AsX509Certificate2().ExportCertificatePem();
                 File.WriteAllText(clientCertificateCrtPath, clientCertificatePem);
 
                 ServerCertificateCertPath = CombinePath("server.crt");
 
-                string serverCertificatePem = m_serverCert.ExportCertificatePem();
+                string serverCertificatePem = m_serverCert.AsX509Certificate2().ExportCertificatePem();
 
                 AsymmetricAlgorithm key = m_serverCert.GetRSAPrivateKey();
                 string privKeyPem = key.ExportPkcs8PrivateKeyPem();
@@ -342,7 +343,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
 
             public string MosquittoConfigFilePath { get; private set; }
             public string ClientCertificatePfxPath { get; private set; }
-            public string ServerCertificateCertPath { get; private set; }
+            public string ServerCertificateCertPath { get; set; }
 
             private string CombinePath(string fileName)
             {
@@ -379,7 +380,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
 #pragma warning restore RCS1075 // Avoid empty catch clause that catches System.Exception
             }
 
-            internal bool ValidateBrokerCertificate(X509Certificate2 brokerCertificate)
+            internal bool ValidateBrokerCertificate(Certificate brokerCertificate)
             {
                 return string.Equals(brokerCertificate.Thumbprint, m_serverCert.Thumbprint, StringComparison.OrdinalIgnoreCase);
             }

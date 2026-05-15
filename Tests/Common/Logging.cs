@@ -65,9 +65,8 @@ namespace Opc.Ua.Tests
         /// <summary>
         /// Create telemetry context
         /// </summary>
-        private NUnitTelemetryContext(ILoggerProvider provider)
-            : base(Microsoft.Extensions.Logging.LoggerFactory
-                .Create(builder => builder.AddProvider(provider)))
+        private NUnitTelemetryContext(ILoggerFactory loggerFactory)
+            : base(loggerFactory)
         {
         }
 
@@ -80,8 +79,21 @@ namespace Opc.Ua.Tests
             LogLevel logLevel = LogLevel.Debug)
         {
             string context = !isServer ? "TEST" : "SERVER";
-            return new NUnitTelemetryContext(
-                new NUnitLoggerProvider(context, logLevel));
+            using var provider = new NUnitLoggerProvider(context, logLevel);
+#pragma warning disable CA2000 // ownership transfers to NUnitTelemetryContext via TelemetryContextBase
+            ILoggerFactory factory = Microsoft.Extensions.Logging.LoggerFactory
+                .Create(builder => builder.AddProvider(provider));
+#pragma warning restore CA2000
+            try
+            {
+                var result = new NUnitTelemetryContext(factory);
+                factory = null; // ownership transferred
+                return result;
+            }
+            finally
+            {
+                factory?.Dispose();
+            }
         }
 
         /// <summary>
@@ -91,8 +103,21 @@ namespace Opc.Ua.Tests
         public static ITelemetryContext CreateForBenchmarks(
             LogLevel logLevel = LogLevel.Information)
         {
-            return new NUnitTelemetryContext(
-                new BenchmarkDotNetProvider(logLevel));
+            using var provider = new BenchmarkDotNetProvider(logLevel);
+#pragma warning disable CA2000 // ownership transfers to NUnitTelemetryContext via TelemetryContextBase
+            ILoggerFactory factory = Microsoft.Extensions.Logging.LoggerFactory
+                .Create(builder => builder.AddProvider(provider));
+#pragma warning restore CA2000
+            try
+            {
+                var result = new NUnitTelemetryContext(factory);
+                factory = null; // ownership transferred
+                return result;
+            }
+            finally
+            {
+                factory?.Dispose();
+            }
         }
 
         [ProviderAlias("BenchmarkDotNet")]

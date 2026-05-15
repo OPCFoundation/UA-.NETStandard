@@ -34,7 +34,7 @@ namespace Opc.Ua
     /// <summary>
     /// Node Id type
     /// </summary>
-    [DataContract(Namespace = Namespaces.OpcUaXsd)]
+    [DataContract(Namespace = Types.Namespaces.OpcUaXsd)]
     public enum IdType
     {
         /// <summary>

@@ -27,13 +27,14 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
+using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
+using System.IO;
+using System.Linq;
 using System.Text;
 using System.Xml;
 using System.Xml.Schema;
-using System.Collections.Generic;
-using System;
-using System.Linq;
-using System.IO;
 
 namespace Opc.Ua.Schema.Xml
 {
@@ -48,9 +49,9 @@ namespace Opc.Ua.Schema.Xml
         public static readonly IReadOnlyDictionary<string, string> WellKnown =
             new Dictionary<string, string>
             {
-                [Namespaces.OpcUaBuiltInTypes] = "BuiltInTypes.xsd",
-                [Namespaces.OpcUaXsd] = "Opc.Ua.Types.xsd",
-                [Namespaces.OpcUa] = "Opc.Ua.Types.xsd"
+                [Ua.Types.Namespaces.OpcUaBuiltInTypes] = "BuiltInTypes.xsd",
+                [Ua.Types.Namespaces.OpcUaXsd] = "Opc.Ua.Types.xsd",
+                [Ua.Types.Namespaces.OpcUa] = "Opc.Ua.Types.xsd"
             };
 
         /// <summary>
@@ -104,6 +105,11 @@ namespace Opc.Ua.Schema.Xml
         /// <summary>
         /// Returns the schema for the specified type (returns the entire schema if null).
         /// </summary>
+        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2026",
+            Justification = "XmlSchema.Write is used with schema objects constructed at design time.")]
+        [UnconditionalSuppressMessage("AOT", "IL3050",
+            Justification =
+                "XmlSchema.Write is used with schema objects constructed at design time.")]
         public override string GetSchema(string typeName)
         {
             var settings = new XmlWriterSettings

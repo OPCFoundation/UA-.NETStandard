@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ApplicationConfiguration xmlns="http://opcfoundation.org/UA/SDK/Configuration.xsd">
+  <ApplicationName>Defaults Test</ApplicationName>
+  <ApplicationUri>urn:localhost:defaultstest</ApplicationUri>
+  <ProductUri>http://test.org/defaults</ProductUri>
+  <ApplicationType>Server_0</ApplicationType>
+  <SecurityConfiguration>
+    <ApplicationCertificate>
+      <StoreType>Directory</StoreType>
+      <StorePath>%LocalApplicationData%/OPC/defaults</StorePath>
+      <SubjectName>CN=Defaults, O=Test</SubjectName>
+    </ApplicationCertificate>
+    <TrustedIssuerCertificates>
+      <StoreType>Directory</StoreType>
+      <StorePath>%LocalApplicationData%/OPC/issuers</StorePath>
+    </TrustedIssuerCertificates>
+    <TrustedPeerCertificates>
+      <StoreType>Directory</StoreType>
+      <StorePath>%LocalApplicationData%/OPC/trusted</StorePath>
+    </TrustedPeerCertificates>
+  </SecurityConfiguration>
+</ApplicationConfiguration>

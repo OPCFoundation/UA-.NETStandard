@@ -722,12 +722,12 @@ namespace Opc.Ua.Server.Tests
             Assert.IsNotNull(publishResponse.NotificationMessage.NotificationData);
             Assert.IsTrue(publishResponse.NotificationMessage.NotificationData.Count > 0);
 
-            publishResponse.NotificationMessage.NotificationData[0].TryGetEncodeable(out EventNotificationList eventNotification);
+            publishResponse.NotificationMessage.NotificationData[0].TryGetValue(out EventNotificationList eventNotification);
             Assert.IsNotNull(eventNotification);
             Assert.IsTrue(eventNotification.Events.Count > 0);
 
             EventFieldList targetEvent = eventNotification.Events.ToList().FirstOrDefault(
-                x => x.EventFields[5].TryGet(out LocalizedText lt) && lt.Text == eventMessage);
+                x => x.EventFields[5].TryGetValue(out LocalizedText lt) && lt.Text == eventMessage);
             Assert.IsNotNull(targetEvent, "Did not receive the target event.");
 
             ArrayOf<Variant> eventFields = targetEvent.EventFields;
@@ -738,10 +738,10 @@ namespace Opc.Ua.Server.Tests
             Assert.IsFalse(eventFields[2].IsNull); // SourceNode
             Assert.IsFalse(eventFields[3].IsNull); // SourceName
             Assert.IsFalse(eventFields[4].IsNull); // Time
-            Assert.That(eventFields[5].TryGet(out LocalizedText receivedMessage), Is.True); // Message
+            Assert.That(eventFields[5].TryGetValue(out LocalizedText receivedMessage), Is.True); // Message
             Assert.IsFalse(receivedMessage.IsNull);
             Assert.AreEqual(eventMessage, receivedMessage.Text);
-            Assert.That(eventFields[6].TryGet(out ushort receiveSeverity), Is.True);
+            Assert.That(eventFields[6].TryGetValue(out ushort receiveSeverity), Is.True);
             Assert.AreEqual((ushort)EventSeverity.Medium, receiveSeverity); // Severity
 
             // Delete subscription
@@ -1006,7 +1006,7 @@ namespace Opc.Ua.Server.Tests
                     publishResponse.ResponseHeader.StringTable,
                     serverTestServices.Logger);
                 Assert.That(publishResponse.SubscriptionId, Is.EqualTo(subscriptionIds[0]));
-                Assert.That(publishResponse.NotificationMessage.NotificationData.Count, Is.EqualTo(0));
+                Assert.That(publishResponse.NotificationMessage.NotificationData.Count, Is.Zero);
             }
 
             // Validate ResendData method call returns error from different session contexts
@@ -1042,7 +1042,7 @@ namespace Opc.Ua.Server.Tests
                 publishResponse.ResponseHeader.StringTable,
                 serverTestServices.Logger);
             Assert.That(publishResponse.SubscriptionId, Is.EqualTo(subscriptionIds[0]));
-            Assert.That(publishResponse.NotificationMessage.NotificationData.Count, Is.EqualTo(0));
+            Assert.That(publishResponse.NotificationMessage.NotificationData.Count, Is.Zero);
 
             if (updateValues)
             {
@@ -1112,7 +1112,7 @@ namespace Opc.Ua.Server.Tests
                 publishResponse.ResponseHeader.StringTable,
                 serverTestServices.Logger);
             Assert.That(publishResponse.SubscriptionId, Is.EqualTo(subscriptionIds[0]));
-            Assert.That(publishResponse.NotificationMessage.NotificationData.Count, Is.EqualTo(0));
+            Assert.That(publishResponse.NotificationMessage.NotificationData.Count, Is.Zero);
 
             resendDataRequestHeader.Timestamp = DateTimeUtc.Now;
             await m_server.CloseSessionAsync(resendDataSecurityContext, resendDataRequestHeader, true, RequestLifetime.None).ConfigureAwait(false);
@@ -1152,7 +1152,7 @@ namespace Opc.Ua.Server.Tests
 
                     foreach (ExtensionObject item in publishResponse.NotificationMessage.NotificationData)
                     {
-                        if (item.TryGetEncodeable(out DataChangeNotification dcn))
+                        if (item.TryGetValue(out DataChangeNotification dcn))
                         {
                             totalNotifications += dcn.MonitoredItems.Count;
                         }
@@ -1274,6 +1274,188 @@ namespace Opc.Ua.Server.Tests
                 logger);
         }
 
+        [Test]
+        public async Task SemanticChangeNotificationTestAsync()
+        {
+            var services = new ServerTestServices(m_server, m_secureChannelContext);
+            RequestHeader requestHeader = m_requestHeader;
+            requestHeader.Timestamp = DateTime.UtcNow;
+
+            // Step 1: Create a subscription
+            CreateSubscriptionResponse createSubscriptionResponse = await services.CreateSubscriptionAsync(
+                requestHeader,
+                100,
+                100,
+                10,
+                0,
+                true,
+                0).ConfigureAwait(false);
+
+            uint subscriptionId = createSubscriptionResponse.SubscriptionId;
+
+            // We monitor the server EventNotifier for SemanticChangeEventType
+            var serverObject = new ReadValueId { NodeId = ObjectIds.Server, AttributeId = Attributes.EventNotifier };
+            var eventFilter = new EventFilter();
+            eventFilter.AddSelectClause(
+                ObjectTypeIds.SemanticChangeEventType,
+                QualifiedName.From(BrowseNames.EventId));
+            eventFilter.AddSelectClause(
+                ObjectTypeIds.SemanticChangeEventType,
+                QualifiedName.From(BrowseNames.Changes));
+
+            // Monitor a variable from ReferenceNodeManager (AnalogItem with EngineeringUnits)
+            var nodeId = new NodeId("DataAccess_AnalogType_Double",
+                (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(Quickstarts.ReferenceServer.Namespaces.ReferenceServer));
+
+            ArrayOf<MonitoredItemCreateRequest> monitoredItems =
+            [
+                new MonitoredItemCreateRequest
+                {
+                    ItemToMonitor = serverObject,
+                    MonitoringMode = MonitoringMode.Reporting,
+                    RequestedParameters = new MonitoringParameters
+                    {
+                        ClientHandle = 1,
+                        SamplingInterval = 0,
+                        QueueSize = 1,
+                        DiscardOldest = true,
+                        Filter = new ExtensionObject(eventFilter)
+                    }
+                },
+                new MonitoredItemCreateRequest
+                {
+                    ItemToMonitor = new ReadValueId { NodeId = nodeId, AttributeId = Attributes.Value },
+                    MonitoringMode = MonitoringMode.Reporting,
+                    RequestedParameters = new MonitoringParameters
+                    {
+                        ClientHandle = 2,
+                        SamplingInterval = 0,
+                        QueueSize = 1,
+                        DiscardOldest = true
+                    }
+                }
+            ];
+
+            CreateMonitoredItemsResponse createItemsResponse = await services.CreateMonitoredItemsAsync(
+                requestHeader,
+                subscriptionId,
+                TimestampsToReturn.Both,
+                monitoredItems).ConfigureAwait(false);
+
+            ServerFixtureUtils.ValidateResponse(createItemsResponse.ResponseHeader, createItemsResponse.Results, monitoredItems);
+            Assert.AreEqual(2, createItemsResponse.Results.Count);
+            Assert.IsTrue(StatusCode.IsGood(createItemsResponse.Results[0].StatusCode));
+            Assert.IsTrue(StatusCode.IsGood(createItemsResponse.Results[1].StatusCode));
+
+            // Initial publish to clear any initial data change notifications
+            var acknowledgements = new ArrayOf<SubscriptionAcknowledgement>();
+            PublishResponse publishResponse = await services.PublishAsync(requestHeader, acknowledgements).ConfigureAwait(false);
+
+            if (publishResponse.NotificationMessage.NotificationData.Count > 0)
+            {
+                acknowledgements =
+                [
+                    new SubscriptionAcknowledgement
+                   {
+                       SubscriptionId = subscriptionId,
+                       SequenceNumber = publishResponse.NotificationMessage.SequenceNumber
+                   }
+                ];
+            }
+
+            // Step 2: Write a new value to a semantic property (EngineeringUnits)
+            var euNodeId = new NodeId("DataAccess_AnalogType_DataAccess_AnalogType_Double_EngineeringUnits",
+                (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(Quickstarts.ReferenceServer.Namespaces.ReferenceServer));
+            var engUnits = new EUInformation("V", "volt", "http://www.opcfoundation.org/UA/units/un/cefact")
+            {
+                UnitId = 4274026 // "V"
+            };
+
+            ArrayOf<WriteValue> writeValues = new WriteValue[]
+            {
+                new() {
+                    NodeId = euNodeId,
+                    AttributeId = Attributes.Value,
+                    Value = new DataValue(new ExtensionObject(engUnits))
+                }
+            }.ToArrayOf();
+
+            requestHeader.Timestamp = DateTime.UtcNow;
+            WriteResponse writeResponse = await m_server.WriteAsync(
+                m_secureChannelContext,
+                requestHeader,
+                writeValues, RequestLifetime.None).ConfigureAwait(false);
+
+            ServerFixtureUtils.ValidateResponse(writeResponse.ResponseHeader, writeResponse.Results, writeValues);
+            Assert.IsTrue(StatusCode.IsGood(writeResponse.Results[0]));
+
+            // Wait for subscription to deliver the event and data change notification
+            await Task.Delay(200).ConfigureAwait(false);
+
+            // Step 3: Issue publish to receive DataChangeNotification and SemanticChangeEvent
+            publishResponse = await services.PublishAsync(
+                requestHeader,
+                acknowledgements).ConfigureAwait(false);
+
+            Assert.IsNotNull(publishResponse.NotificationMessage);
+            Assert.IsNotNull(publishResponse.NotificationMessage.NotificationData);
+            Assert.IsTrue(publishResponse.NotificationMessage.NotificationData.Count == 2, "One Event and One DataChangeNotification expected.");
+
+            bool dataChangeReceived = false;
+            bool semanticsChangedBitSet = false;
+            bool eventReceived = false;
+
+            foreach (ExtensionObject data in publishResponse.NotificationMessage.NotificationData)
+            {
+                if (data.TryGetValue(out DataChangeNotification dcn))
+                {
+                    foreach (MonitoredItemNotification item in dcn.MonitoredItems)
+                    {
+                        if (item.ClientHandle == 2)
+                        {
+                            dataChangeReceived = true;
+                            if (item.Value.StatusCode.SemanticsChanged)
+                            {
+                                semanticsChangedBitSet = true;
+                            }
+                        }
+                    }
+                }
+                else if (data.TryGetValue(out EventNotificationList enl))
+                {
+                    foreach (EventFieldList e in enl.Events)
+                    {
+                        if (e.ClientHandle == 1 && e.EventFields.Count >= 2)
+                        {
+                            bool success = e.EventFields[1]
+                                .TryGetStructure(out ArrayOf<SemanticChangeStructureDataType> semanticChangeEvent);
+
+                            if (success && !semanticChangeEvent.IsNull && semanticChangeEvent.Count > 0)
+                            {
+                                foreach (SemanticChangeStructureDataType change in semanticChangeEvent)
+                                {
+                                    if (change.Affected == nodeId)
+                                    {
+                                        eventReceived = true;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            Assert.IsTrue(dataChangeReceived, "Did not receive DataChangeNotification.");
+            Assert.IsTrue(semanticsChangedBitSet, "SemanticsChanged bit is not set.");
+            Assert.IsTrue(eventReceived, "Did not receive SemanticChangeEvent.");
+
+            // Delete subscription
+            await services.DeleteSubscriptionsAsync(
+                requestHeader,
+                [subscriptionId]).ConfigureAwait(false);
+        }
+
         /// <summary>
         /// Test that Server object EventNotifier has HistoryRead bit set when history capabilities are enabled.
         /// </summary>
@@ -1346,13 +1528,13 @@ namespace Opc.Ua.Server.Tests
             if (accessHistoryEventsCapability || accessHistoryDataCapability)
             {
                 Assert.That(eventNotifier & EventNotifiers.HistoryRead,
-                    Is.Not.EqualTo(0),
+                    Is.Not.Zero,
                     "Server EventNotifier should have HistoryRead bit set when history capabilities are enabled");
             }
 
             // Verify SubscribeToEvents bit is set (Server object should always support events)
             Assert.That(eventNotifier & EventNotifiers.SubscribeToEvents,
-                Is.Not.EqualTo(0),
+                Is.Not.Zero,
                 "Server EventNotifier should have SubscribeToEvents bit set");
         }
 
@@ -1451,7 +1633,7 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(historizing, Is.True, "Int32Value node should have Historizing=true");
             Assert.That(accessLevel & AccessLevels.HistoryRead,
-                Is.Not.EqualTo(0),
+                Is.Not.Zero,
                 "Int32Value node should have HistoryRead access level");
 
             // Perform a history read operation
@@ -1496,7 +1678,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(result.HistoryData.IsNull, Is.False, "HistoryData should not be null");
 
             // Verify we got HistoryData back
-            if (result.HistoryData.TryGetEncodeable(out HistoryData historyData))
+            if (result.HistoryData.TryGetValue(out HistoryData historyData))
             {
                 logger.LogInformation("Retrieved {Count} history values", historyData.DataValues.Count);
                 Assert.That(historyData.DataValues.IsNull, Is.False, "DataValues should not be null");
@@ -1563,6 +1745,213 @@ namespace Opc.Ua.Server.Tests
 
             // Clean up
             await fixture.StopAsync().ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Test that ArrayItemType sub-type nodes are accessible and readable.
+        /// </summary>
+        [Test]
+        public async Task ArrayItemTypeNodesExistAndReadableAsync()
+        {
+            var nodeIds = new Dictionary<string, NodeId>
+            {
+                { "YArray", new NodeId("DataAccess_ArrayItemType_YArray", 2) },
+                { "XYArray", new NodeId("DataAccess_ArrayItemType_XYArray", 2) },
+                { "Image", new NodeId("DataAccess_ArrayItemType_Image", 2) },
+                { "Cube", new NodeId("DataAccess_ArrayItemType_Cube", 2) },
+                { "NDimension", new NodeId("DataAccess_ArrayItemType_NDimension", 2) }
+            };
+
+            foreach (KeyValuePair<string, NodeId> kvp in nodeIds)
+            {
+                string name = kvp.Key;
+                NodeId nodeId = kvp.Value;
+                m_requestHeader.Timestamp = DateTimeUtc.Now;
+                ArrayOf<ReadValueId> nodesToRead =
+                [
+                    new ReadValueId { NodeId = nodeId, AttributeId = Attributes.Value },
+                    new ReadValueId { NodeId = nodeId, AttributeId = Attributes.DataType },
+                    new ReadValueId { NodeId = nodeId, AttributeId = Attributes.ValueRank }
+                ];
+                ReadResponse readResponse = await m_server.ReadAsync(
+                    m_secureChannelContext,
+                    m_requestHeader,
+                    kMaxAge,
+                    TimestampsToReturn.Neither,
+                    nodesToRead,
+                    RequestLifetime.None).ConfigureAwait(false);
+
+                ServerFixtureUtils.ValidateResponse(readResponse.ResponseHeader, readResponse.Results, nodesToRead);
+                Assert.That(readResponse.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good),
+                    $"Value read of {name} should succeed");
+                Assert.That(readResponse.Results[1].StatusCode, Is.EqualTo(StatusCodes.Good),
+                    $"DataType read of {name} should succeed");
+                Assert.That(readResponse.Results[2].StatusCode, Is.EqualTo(StatusCodes.Good),
+                    $"ValueRank read of {name} should succeed");
+
+                TestContext.Out.WriteLine("{0}: DataType={1}, ValueRank={2}",
+                    name,
+                    readResponse.Results[1].WrappedValue,
+                    readResponse.Results[2].WrappedValue);
+            }
+        }
+
+        /// <summary>
+        /// Test that TriggerNode01 and TriggerNode02 exist, are readable and writable,
+        /// and that writing to them fires a BaseEvent.
+        /// </summary>
+        [Test]
+        public async Task TriggerNodesFiringEventsOnWriteAsync()
+        {
+            var triggerNode01 = new NodeId("NodeIds_Events_TriggerNode01", 2);
+            var triggerNode02 = new NodeId("NodeIds_Events_TriggerNode02", 2);
+
+            // Verify both nodes exist and are readable
+            foreach (NodeId nodeId in new[] { triggerNode01, triggerNode02 })
+            {
+                m_requestHeader.Timestamp = DateTimeUtc.Now;
+                ArrayOf<ReadValueId> nodesToRead =
+                [
+                    new ReadValueId { NodeId = nodeId, AttributeId = Attributes.Value }
+                ];
+                ReadResponse readResponse = await m_server.ReadAsync(
+                    m_secureChannelContext,
+                    m_requestHeader,
+                    kMaxAge,
+                    TimestampsToReturn.Neither,
+                    nodesToRead,
+                    RequestLifetime.None).ConfigureAwait(false);
+
+                ServerFixtureUtils.ValidateResponse(readResponse.ResponseHeader, readResponse.Results, nodesToRead);
+                Assert.That(readResponse.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good),
+                    $"Read of trigger node {nodeId} should succeed");
+            }
+
+            // Verify both nodes are writable
+            foreach (NodeId nodeId in new[] { triggerNode01, triggerNode02 })
+            {
+                m_requestHeader.Timestamp = DateTimeUtc.Now;
+                ArrayOf<WriteValue> nodesToWrite =
+                [
+                    new WriteValue
+                    {
+                        NodeId = nodeId,
+                        AttributeId = Attributes.Value,
+                        Value = new DataValue { WrappedValue = new Variant(42) }
+                    }
+                ];
+                WriteResponse writeResponse = await m_server.WriteAsync(
+                    m_secureChannelContext,
+                    m_requestHeader,
+                    nodesToWrite,
+                    RequestLifetime.None).ConfigureAwait(false);
+
+                ServerFixtureUtils.ValidateResponse(writeResponse.ResponseHeader, writeResponse.Results, nodesToWrite);
+                Assert.That(writeResponse.Results[0], Is.EqualTo(StatusCodes.Good),
+                    $"Write to trigger node {nodeId} should succeed and fire an event");
+            }
+        }
+
+        /// <summary>
+        /// Test that the Variant arrays (1D and 2D) are accessible with proper NodeIds.
+        /// </summary>
+        [Test]
+        public async Task VariantArrayNodesExistAndReadableAsync()
+        {
+            var nodeIds = new Dictionary<string, NodeId>
+            {
+                { "Scalar_Static_Arrays_Variant", new NodeId("Scalar_Static_Arrays_Variant", 2) },
+                { "Scalar_Static_Arrays2D_Variant", new NodeId("Scalar_Static_Arrays2D_Variant", 2) }
+            };
+
+            foreach (KeyValuePair<string, NodeId> kvp in nodeIds)
+            {
+                string name = kvp.Key;
+                NodeId nodeId = kvp.Value;
+                m_requestHeader.Timestamp = DateTimeUtc.Now;
+                ArrayOf<ReadValueId> nodesToRead =
+                [
+                    new ReadValueId { NodeId = nodeId, AttributeId = Attributes.Value }
+                ];
+                ReadResponse readResponse = await m_server.ReadAsync(
+                    m_secureChannelContext,
+                    m_requestHeader,
+                    kMaxAge,
+                    TimestampsToReturn.Neither,
+                    nodesToRead,
+                    RequestLifetime.None).ConfigureAwait(false);
+
+                ServerFixtureUtils.ValidateResponse(readResponse.ResponseHeader, readResponse.Results, nodesToRead);
+                Assert.That(readResponse.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good),
+                    $"Read of {name} should succeed");
+            }
+        }
+
+        /// <summary>
+        /// Test that Enumeration and Image type scalar nodes are accessible.
+        /// </summary>
+        [Test]
+        public async Task ScalarStaticEnumerationAndImageNodesExistAsync()
+        {
+            var nodeIds = new Dictionary<string, NodeId>
+            {
+                { "Enumeration", new NodeId("Scalar_Static_Enumeration", 2) },
+                { "Image", new NodeId("Scalar_Static_Image", 2) },
+                { "ImageBMP", new NodeId("Scalar_Static_ImageBMP", 2) },
+                { "ImageGIF", new NodeId("Scalar_Static_ImageGIF", 2) },
+                { "ImageJPG", new NodeId("Scalar_Static_ImageJPG", 2) },
+                { "ImagePNG", new NodeId("Scalar_Static_ImagePNG", 2) }
+            };
+
+            foreach (KeyValuePair<string, NodeId> kvp in nodeIds)
+            {
+                string name = kvp.Key;
+                NodeId nodeId = kvp.Value;
+                m_requestHeader.Timestamp = DateTimeUtc.Now;
+                ArrayOf<ReadValueId> nodesToRead =
+                [
+                    new ReadValueId { NodeId = nodeId, AttributeId = Attributes.Value },
+                    new ReadValueId { NodeId = nodeId, AttributeId = Attributes.DataType }
+                ];
+                ReadResponse readResponse = await m_server.ReadAsync(
+                    m_secureChannelContext,
+                    m_requestHeader,
+                    kMaxAge,
+                    TimestampsToReturn.Neither,
+                    nodesToRead,
+                    RequestLifetime.None).ConfigureAwait(false);
+
+                ServerFixtureUtils.ValidateResponse(readResponse.ResponseHeader, readResponse.Results, nodesToRead);
+                Assert.That(readResponse.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good),
+                    $"Value read of {name} should succeed");
+                Assert.That(readResponse.Results[1].StatusCode, Is.EqualTo(StatusCodes.Good),
+                    $"DataType read of {name} should succeed");
+            }
+        }
+
+        /// <summary>
+        /// Test that the HasReferenceTypeAndSubType node exists and has the expected references.
+        /// </summary>
+        [Test]
+        public async Task ReferencesHasReferenceTypeAndSubTypeNodeExistsAsync()
+        {
+            var nodeId = new NodeId("References_HasReferenceTypeAndSubType", 2);
+            m_requestHeader.Timestamp = DateTimeUtc.Now;
+            ArrayOf<ReadValueId> nodesToRead =
+            [
+                new ReadValueId { NodeId = nodeId, AttributeId = Attributes.Value }
+            ];
+            ReadResponse readResponse = await m_server.ReadAsync(
+                m_secureChannelContext,
+                m_requestHeader,
+                kMaxAge,
+                TimestampsToReturn.Neither,
+                nodesToRead,
+                RequestLifetime.None).ConfigureAwait(false);
+
+            ServerFixtureUtils.ValidateResponse(readResponse.ResponseHeader, readResponse.Results, nodesToRead);
+            Assert.That(readResponse.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good),
+                "Read of References_HasReferenceTypeAndSubType should succeed");
         }
     }
 }

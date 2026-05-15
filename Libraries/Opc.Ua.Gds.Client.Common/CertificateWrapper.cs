@@ -30,14 +30,14 @@
 using System;
 using System.Collections.Generic;
 using System.Runtime.Serialization;
-using System.Security.Cryptography.X509Certificates;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Gds.Client
 {
     [DataContract(Namespace = Namespaces.OpcUaXsd)]
-    public class CertificateWrapper : IFormattable, IEncodeable
+    public sealed class CertificateWrapper : IFormattable
     {
-        public X509Certificate2 Certificate { get; set; }
+        public Certificate Certificate { get; set; }
 
         [DataMember(Order = 1)]
         public string SubjectName
@@ -251,28 +251,7 @@ namespace Opc.Ua.Gds.Client
             return SubjectName;
         }
 
-        public ExpandedNodeId TypeId => NodeId.Null;
-
-        public ExpandedNodeId BinaryEncodingId => NodeId.Null;
-
-        public ExpandedNodeId XmlEncodingId => NodeId.Null;
-
-        public void Encode(IEncoder encoder)
-        {
-            throw new NotImplementedException();
-        }
-
-        public void Decode(IDecoder decoder)
-        {
-            throw new NotImplementedException();
-        }
-
-        public bool IsEqual(IEncodeable encodeable)
-        {
-            throw new NotImplementedException();
-        }
-
-        public object Clone()
+        public CertificateWrapper Clone()
         {
             return new CertificateWrapper { Certificate = Certificate };
         }

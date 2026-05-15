@@ -31,10 +31,10 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
-using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Server
 {
@@ -94,10 +94,12 @@ namespace Opc.Ua.Server
 
                 foreach (KeyValuePair<NodeId, ISession> sessionKeyValue in sessions)
                 {
-                    Utils.SilentDispose(sessionKeyValue.Value);
+                    sessionKeyValue.Value?.Dispose();
                 }
 
                 m_shutdownEvent.Set();
+                m_shutdownEvent.Dispose();
+                m_semaphoreSlim.Dispose();
             }
         }
 
@@ -140,7 +142,7 @@ namespace Opc.Ua.Server
 
             foreach (KeyValuePair<NodeId, ISession> sessionKeyValue in sessions)
             {
-                Utils.SilentDispose(sessionKeyValue.Value);
+                sessionKeyValue.Value?.Dispose();
             }
         }
 
@@ -150,13 +152,13 @@ namespace Opc.Ua.Server
         /// <exception cref="ServiceResultException"></exception>
         public virtual async ValueTask<CreateSessionResult> CreateSessionAsync(
             OperationContext context,
-            X509Certificate2 serverCertificate,
+            Certificate serverCertificate,
             string sessionName,
             ByteString clientNonce,
             ApplicationDescription clientDescription,
             string endpointUrl,
-            X509Certificate2 clientCertificate,
-            X509Certificate2Collection clientCertificateChain,
+            Certificate clientCertificate,
+            CertificateCollection clientCertificateChain,
             double requestedSessionTimeout,
             uint maxResponseMessageSize,
             CancellationToken cancellationToken = default)
@@ -167,6 +169,7 @@ namespace Opc.Ua.Server
             double revisedSessionTimeout = requestedSessionTimeout;
 
             ISession session;
+            Nonce tempNonce = null;
 
             await m_semaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
@@ -221,8 +224,9 @@ namespace Opc.Ua.Server
                 }
 
                 // create server nonce.
-                Nonce serverNonceObject = Nonce.CreateNonce(
+                tempNonce = Nonce.CreateNonce(
                     context.ChannelContext.EndpointDescription.SecurityPolicyUri);
+                Nonce serverNonceObject = tempNonce;
 
                 // assign client name.
                 if (string.IsNullOrEmpty(sessionName))
@@ -247,6 +251,7 @@ namespace Opc.Ua.Server
                     maxResponseMessageSize,
                     m_maxRequestAge,
                     m_maxBrowseContinuationPoints);
+                tempNonce = null; // ownership transferred to session
 
                 // get the session id.
                 sessionId = session.Id;
@@ -260,6 +265,7 @@ namespace Opc.Ua.Server
             }
             finally
             {
+                tempNonce?.Dispose();
                 m_semaphoreSlim.Release();
             }
 
@@ -292,8 +298,6 @@ namespace Opc.Ua.Server
         {
             ByteString serverNonce = default;
 
-            Nonce serverNonceObject = null;
-
             ISession session = null;
             IUserIdentityTokenHandler newIdentity = null;
             UserTokenPolicy userTokenPolicy = null;
@@ -304,150 +308,171 @@ namespace Opc.Ua.Server
             {
                 throw new ServiceResultException(StatusCodes.BadSessionIdInvalid);
             }
-
-            await m_semaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
+            Nonce serverNonceObject = null;
             try
             {
-                // find session.
-                if (!m_sessions.TryGetValue(authenticationToken, out session))
+                await m_semaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
+                try
                 {
-                    throw new ServiceResultException(StatusCodes.BadSessionIdInvalid);
+                    // find session.
+                    if (!m_sessions.TryGetValue(authenticationToken, out session))
+                    {
+                        throw new ServiceResultException(StatusCodes.BadSessionIdInvalid);
+                    }
+
+                    // get client lockout key.
+                    clientKey = GetClientLockoutKey(session);
+
+                    // check if client is locked out due to too many failed authentication attempts.
+                    if (IsClientLockedOut(clientKey, out long remainingLockoutTicks))
+                    {
+                        long remainingSeconds = remainingLockoutTicks / HiResClock.Frequency;
+                        m_logger.LogWarning(
+                            "Client {ClientKey} is locked out. Remaining lockout time: {RemainingSeconds} seconds.",
+                            clientKey,
+                            remainingSeconds);
+                        throw new ServiceResultException(
+                            StatusCodes.BadUserAccessDenied,
+                            $"Too many failed authentication attempts. Try again in {remainingSeconds} seconds.");
+                    }
+
+                    // check if session timeout has expired.
+                    if (session.HasExpired)
+                    {
+                        // raise audit event for session closed because of timeout
+                        m_server.ReportAuditCloseSessionEvent(null, session, m_logger, "Session/Timeout");
+
+                        await m_server.CloseSessionAsync(null, session.Id, false, default).ConfigureAwait(false);
+
+                        throw new ServiceResultException(StatusCodes.BadSessionClosed);
+                    }
+
+                    // create new server nonce.
+                    serverNonceObject = Nonce.CreateNonce(
+                        context.ChannelContext.EndpointDescription.SecurityPolicyUri);
+
+                    // validate before activation.
+                    session.ValidateBeforeActivate(
+                        context,
+                        clientSignature,
+                        userIdentityToken,
+                        userTokenSignature,
+                        out newIdentity,
+                        out userTokenPolicy);
+
+                    serverNonce = serverNonceObject.Data.ToByteString();
+                }
+                catch (ServiceResultException)
+                {
+                    RecordFailedAuthentication(clientKey);
+                    throw;
+                }
+                finally
+                {
+                    m_semaphoreSlim.Release();
+                }
+                IUserIdentity identity = null;
+                IUserIdentity effectiveIdentity = null;
+                ServiceResult error = null;
+                UserIdentity tempIdentity = null;
+
+                try
+                {
+                    // check if the application has a callback which validates the identity tokens.
+                    lock (m_eventLock)
+                    {
+                        if (m_ImpersonateUser != null)
+                        {
+                            var args = new ImpersonateEventArgs(
+                                newIdentity,
+                                userTokenPolicy,
+                                context.ChannelContext.EndpointDescription);
+                            m_ImpersonateUser(session, args);
+
+                            if (ServiceResult.IsBad(args.IdentityValidationError))
+                            {
+                                error = args.IdentityValidationError;
+                            }
+                            else
+                            {
+                                identity = args.Identity;
+                                effectiveIdentity = args.EffectiveIdentity;
+                            }
+                        }
+                    }
+
+                    // parse the token manually if the identity is not provided.
+                    if (identity == null)
+                    {
+                        tempIdentity = newIdentity != null
+                            ? new UserIdentity(newIdentity)
+                            : new UserIdentity();
+                        identity = tempIdentity;
+                    }
+
+                    // use the identity as the effectiveIdentity if not provided.
+                    effectiveIdentity ??= identity;
+                }
+                catch (Exception e)
+                {
+                    RecordFailedAuthentication(clientKey);
+
+                    if (e is not ServiceResultException)
+                    {
+                        throw ServiceResultException.Create(
+                        StatusCodes.BadIdentityTokenInvalid,
+                        e,
+                        "Could not validate user identity token: {0}",
+                        newIdentity);
+                    }
+                    throw;
                 }
 
-                // get client lockout key.
-                clientKey = GetClientLockoutKey(session);
-
-                // check if client is locked out due to too many failed authentication attempts.
-                if (IsClientLockedOut(clientKey, out long remainingLockoutTicks))
+                // check for validation error.
+                if (ServiceResult.IsBad(error))
                 {
-                    long remainingSeconds = remainingLockoutTicks / HiResClock.Frequency;
-                    m_logger.LogWarning(
-                        "Client {ClientKey} is locked out. Remaining lockout time: {RemainingSeconds} seconds.",
-                        clientKey,
-                        remainingSeconds);
-                    throw new ServiceResultException(
-                        StatusCodes.BadUserAccessDenied,
-                        $"Too many failed authentication attempts. Try again in {remainingSeconds} seconds.");
+                    RecordFailedAuthentication(clientKey);
+                    throw new ServiceResultException(error);
                 }
 
-                // check if session timeout has expired.
-                if (session.HasExpired)
+                // Clear failed authentication attempts on successful activation,
+                // but only for non-anonymous identities. An anonymous login must not
+                // reset the lockout counter that was accumulated from failed
+                // username/certificate attempts — otherwise an attacker can reset the
+                // counter by interleaving anonymous logins between password guesses.
+                if (newIdentity is not (null or AnonymousIdentityTokenHandler))
                 {
-                    // raise audit event for session closed because of timeout
-                    m_server.ReportAuditCloseSessionEvent(null, session, m_logger, "Session/Timeout");
-
-                    m_server.CloseSession(null, session.Id, false);
-
-                    throw new ServiceResultException(StatusCodes.BadSessionClosed);
+                    ClearFailedAuthentication(clientKey);
                 }
 
-                // create new server nonce.
-                serverNonceObject = Nonce.CreateNonce(
-                    context.ChannelContext.EndpointDescription.SecurityPolicyUri);
+                // Add mandatory roles based on session/channel security context (e.g., TrustedApplication).
+                effectiveIdentity = AddMandatoryRoles(session, context, effectiveIdentity);
 
-                // validate before activation.
-                session.ValidateBeforeActivate(
+                // activate session.
+
+                bool contextChanged = session.Activate(
                     context,
-                    clientSignature,
-                    userIdentityToken,
-                    userTokenSignature,
-                    out newIdentity,
-                    out userTokenPolicy);
+                    newIdentity,
+                    identity,
+                    effectiveIdentity,
+                    localeIds,
+                    serverNonceObject);
+                serverNonceObject = null; // ownership transferred to session
+                tempIdentity = null; // ownership transferred to session
 
-                serverNonce = serverNonceObject.Data.ToByteString();
-            }
-            catch (ServiceResultException)
-            {
-                RecordFailedAuthentication(clientKey);
-                throw;
+                // raise session related event.
+                if (contextChanged)
+                {
+                    RaiseSessionEvent(session, SessionEventReason.Activated);
+                }
+
+                // indicates that the identity context for the session has changed.
+                return (contextChanged, serverNonce);
             }
             finally
             {
-                m_semaphoreSlim.Release();
+                serverNonceObject?.Dispose();
             }
-            IUserIdentity identity = null;
-            IUserIdentity effectiveIdentity = null;
-            ServiceResult error = null;
-
-            try
-            {
-                // check if the application has a callback which validates the identity tokens.
-                lock (m_eventLock)
-                {
-                    if (m_ImpersonateUser != null)
-                    {
-                        var args = new ImpersonateEventArgs(
-                            newIdentity,
-                            userTokenPolicy,
-                            context.ChannelContext.EndpointDescription);
-                        m_ImpersonateUser(session, args);
-
-                        if (ServiceResult.IsBad(args.IdentityValidationError))
-                        {
-                            error = args.IdentityValidationError;
-                        }
-                        else
-                        {
-                            identity = args.Identity;
-                            effectiveIdentity = args.EffectiveIdentity;
-                        }
-                    }
-                }
-
-                // parse the token manually if the identity is not provided.
-                identity ??= newIdentity != null
-                    ? new UserIdentity(newIdentity)
-                    : new UserIdentity();
-
-                // use the identity as the effectiveIdentity if not provided.
-                effectiveIdentity ??= identity;
-            }
-            catch (Exception e)
-            {
-                RecordFailedAuthentication(clientKey);
-
-                if (e is not ServiceResultException)
-                {
-                    throw ServiceResultException.Create(
-                    StatusCodes.BadIdentityTokenInvalid,
-                    e,
-                    "Could not validate user identity token: {0}",
-                    newIdentity);
-                }
-                throw;
-            }
-
-            // check for validation error.
-            if (ServiceResult.IsBad(error))
-            {
-                RecordFailedAuthentication(clientKey);
-                throw new ServiceResultException(error);
-            }
-
-            // clear failed authentication attempts on successful activation.
-            ClearFailedAuthentication(clientKey);
-
-            // Add mandatory roles based on session/channel security context (e.g., TrustedApplication).
-            effectiveIdentity = AddMandatoryRoles(session, context, effectiveIdentity);
-
-            // activate session.
-
-            bool contextChanged = session.Activate(
-                context,
-                newIdentity,
-                identity,
-                effectiveIdentity,
-                localeIds,
-                serverNonceObject);
-
-            // raise session related event.
-            if (contextChanged)
-            {
-                RaiseSessionEvent(session, SessionEventReason.Activated);
-            }
-
-            // indicates that the identity context for the session has changed.
-            return (contextChanged, serverNonce);
         }
 
         /// <summary>
@@ -465,9 +490,11 @@ namespace Opc.Ua.Server
             {
                 if (current.Value.Id == sessionId)
                 {
+#pragma warning disable CA2000 // Disposed correctly later
                     if (!m_sessions.TryRemove(current.Key, out session))
+#pragma warning restore CA2000
                     {
-                        // found but was already removed
+                        // found but was already removed by another thread
                         return;
                     }
                     break;
@@ -477,16 +504,23 @@ namespace Opc.Ua.Server
             // close the session if removed.
             if (session != null)
             {
-                // raise session related event.
-                RaiseSessionEvent(session, SessionEventReason.Closing);
-
-                // close the session.
-                await session.CloseAsync(cancellationToken).ConfigureAwait(false);
-
-                // update diagnostics.
-                lock (m_server.DiagnosticsWriteLock)
+                try
                 {
-                    m_server.ServerDiagnostics.CurrentSessionCount--;
+                    // raise session related event.
+                    RaiseSessionEvent(session, SessionEventReason.Closing);
+
+                    // close the session.
+                    await session.CloseAsync(cancellationToken).ConfigureAwait(false);
+                }
+                finally
+                {
+                    session.Dispose();
+
+                    // update diagnostics.
+                    lock (m_server.DiagnosticsWriteLock)
+                    {
+                        m_server.ServerDiagnostics.CurrentSessionCount--;
+                    }
                 }
             }
         }
@@ -610,15 +644,15 @@ namespace Opc.Ua.Server
         protected virtual ISession CreateSession(
             OperationContext context,
             IServerInternal server,
-            X509Certificate2 serverCertificate,
+            Certificate serverCertificate,
             NodeId sessionCookie,
             ByteString clientNonce,
             Nonce serverNonce,
             string sessionName,
             ApplicationDescription clientDescription,
             string endpointUrl,
-            X509Certificate2 clientCertificate,
-            X509Certificate2Collection clientCertificateChain,
+            Certificate clientCertificate,
+            CertificateCollection clientCertificateChain,
             double sessionTimeout,
             uint maxResponseMessageSize,
             int maxRequestAge, // TBD - Remove unused parameter.

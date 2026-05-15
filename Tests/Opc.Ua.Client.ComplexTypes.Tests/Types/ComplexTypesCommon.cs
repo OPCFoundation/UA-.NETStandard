@@ -171,18 +171,18 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             int i = 1;
             foreach (StructureField field in complexTypeStructure.Fields)
             {
-                Type fieldType = TypeInfo.GetSystemType(field.DataType, null);
+                IType fieldType = TypeInfo.GetSystemType(field.DataType, null);
                 field.IsOptional = structureType == StructureType.StructureWithOptionalFields;
-                fieldBuilder.AddField(field, fieldType, i++, fieldType.IsEnum);
+                fieldBuilder.AddField(field, fieldType, i++, false);
             }
-            Type complexType = fieldBuilder.CreateType();
+            IEncodeableType complexType = fieldBuilder.CreateType();
             if (context != null)
             {
-                context.Factory.AddEncodeableType(nodeId, complexType);
-                context.Factory.AddEncodeableType(binaryEncodingId, complexType);
-                context.Factory.AddEncodeableType(xmlEncodingId, complexType);
+                context.Factory.Builder.AddEncodeableType(nodeId, complexType).Commit();
+                context.Factory.Builder.AddEncodeableType(binaryEncodingId, complexType).Commit();
+                context.Factory.Builder.AddEncodeableType(xmlEncodingId, complexType).Commit();
             }
-            return complexType;
+            return complexType.Type;
         }
 
         /// <summary>

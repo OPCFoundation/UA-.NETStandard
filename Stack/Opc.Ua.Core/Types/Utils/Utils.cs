@@ -31,22 +31,21 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net;
 using System.Reflection;
 using System.Runtime.CompilerServices;
-using System.Runtime.Serialization;
 using System.Security.Cryptography;
-using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
+using Opc.Ua.Security.Certificates;
 #if !NETFRAMEWORK
 using System.Runtime.InteropServices;
-using Opc.Ua.Security.Certificates;
 #endif
 
 namespace Opc.Ua
@@ -575,29 +574,6 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Suppresses any exceptions while disposing the object.
-        /// </summary>
-        /// <remarks>
-        /// Writes errors to trace output in DEBUG builds.
-        /// </remarks>
-        public static void SilentDispose(object objectToDispose)
-        {
-            var disposable = objectToDispose as IDisposable;
-            SilentDispose(disposable);
-        }
-
-        /// <summary>
-        /// Suppresses any exceptions while disposing the object.
-        /// </summary>
-        /// <remarks>
-        /// Writes errors to trace output in DEBUG builds.
-        /// </remarks>
-        public static void SilentDispose(IDisposable disposable)
-        {
-            CoreUtils.SilentDispose(disposable);
-        }
-
-        /// <summary>
         /// The earliest time that can be represented on with UA date/time values.
         /// </summary>
         public static DateTime TimeBase => CoreUtils.TimeBase;
@@ -666,7 +642,14 @@ namespace Opc.Ua
         /// <remarks>If the platform returns a FQDN, only the host name is returned.</remarks>
         public static string GetHostName()
         {
-            return Dns.GetHostName().Split('.')[0].ToLowerInvariant();
+            string hostName = Dns.GetHostName();
+            // If platform returns an IPv4 or IPv6 address return it as is
+            if (IPAddress.TryParse(hostName, out _))
+            {
+                return hostName;
+            }
+
+            return hostName.Split('.')[0].ToLowerInvariant();
         }
 
         /// <summary>
@@ -1047,19 +1030,6 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Converts a multidimension array to a flat array.
-        /// </summary>
-        /// <remarks>
-        /// The higher rank dimensions are written first.
-        /// e.g. a array with dimensions [2,2,2] is written in this order:
-        /// [0,0,0], [0,0,1], [0,1,0], [0,1,1], [1,0,0], [1,0,1], [1,1,0], [1,1,1]
-        /// </remarks>
-        public static Array FlattenArray(Array array)
-        {
-            return CoreUtils.FlattenArray(array);
-        }
-
-        /// <summary>
         /// Converts a buffer to a hexadecimal string.
         /// </summary>
 #if NETSTANDARD2_1_OR_GREATER || NET6_0_OR_GREATER
@@ -1082,23 +1052,24 @@ namespace Opc.Ua
         /// <summary>
         /// Converts a hexadecimal string to an array of bytes.
         /// </summary>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="buffer"/> is <c>null</c>.</exception>
         public static byte[] FromHexString(string buffer)
         {
-#if NET6_0_OR_GREATER
-            return Convert.FromHexString(buffer);
-#else
             if (buffer == null)
             {
                 return null;
             }
-
+#if NET6_0_OR_GREATER
+            return Convert.FromHexString(buffer);
+#else
             if (buffer.Length == 0)
             {
                 return [];
             }
 
-            string text = buffer.ToUpperInvariant();
             const string digits = "0123456789ABCDEF";
+            buffer = buffer.ToUpperInvariant();
 
             byte[] bytes = new byte[(buffer.Length / 2) + (buffer.Length % 2)];
 
@@ -1268,14 +1239,6 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Returns a deep copy of the value.
-        /// </summary>
-        public static object Clone(object value)
-        {
-            return CoreUtils.Clone(value);
-        }
-
-        /// <summary>
         /// Checks if two identities are equal.
         /// </summary>
         public static bool IsEqualUserIdentity(
@@ -1320,14 +1283,6 @@ namespace Opc.Ua
             }
 
             return false;
-        }
-
-        /// <summary>
-        /// Checks if two DateTime values are equal.
-        /// </summary>
-        public static bool IsEqual(DateTime time1, DateTime time2)
-        {
-            return CoreUtils.IsEqual(time1, time2);
         }
 
         /// <summary>
@@ -1398,127 +1353,107 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Looks for an extension with the specified type and uses the DataContractSerializer to parse it.
+        /// Looks for an extension with the specified type and uses the supplied decoder function to parse it.
         /// </summary>
         /// <typeparam name="T">The type of extension.</typeparam>
         /// <param name="extensions">The list of extensions to search.</param>
-        /// <param name="elementName">Name of the element (use type name if null).</param>
-        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
-        /// <returns>
-        /// The deserialized extension. Null if an error occurs.
-        /// </returns>
-        /// <exception cref="ArgumentException"><paramref name="elementName"/></exception>
+        /// <param name="elementName">Name of the element (required).</param>
+        /// <param name="telemetry">The telemetry context to use to create observability instruments.</param>
+        /// <param name="decoderFunc">A function that reads the value from an <see cref="IDecoder"/>.</param>
+        /// <returns>The deserialized extension, or the default value if not found.</returns>
+        /// <exception cref="ArgumentNullException"></exception>
+        [Experimental("UA_NETStandard_1")]
         public static T ParseExtension<T>(
             ArrayOf<XmlElement> extensions,
             XmlQualifiedName elementName,
-            ITelemetryContext telemetry)
+            ITelemetryContext telemetry,
+            Func<IDecoder, T> decoderFunc)
         {
-            // check if nothing to search for.
+            if (decoderFunc is null)
+            {
+                throw new ArgumentNullException(nameof(decoderFunc));
+            }
+
+            if (elementName is null)
+            {
+                throw new ArgumentNullException(nameof(elementName));
+            }
+
             if (extensions.IsEmpty)
             {
                 return default;
             }
 
-            // use the type name as the default.
-            if (elementName == null)
-            {
-                // get qualified name from the data contract attribute.
-                XmlQualifiedName qname = TypeInfo.GetXmlName(typeof(T));
-
-                elementName =
-                    qname ??
-                    throw new ArgumentException(
-                        "Type does not seem to support DataContract serialization");
-            }
-
             using IDisposable scope = AmbientMessageContext.SetScopedContext(telemetry);
 
-            // find the element.
             for (int ii = 0; ii < extensions.Count; ii++)
             {
                 System.Xml.XmlElement element = extensions[ii].AsXmlElement();
 
-                if (element.LocalName != elementName.Name ||
+                if (element == null ||
+                    element.LocalName != elementName.Name ||
                     element.NamespaceURI != elementName.Namespace)
                 {
                     continue;
                 }
 
-                // type found.
-                var reader = XmlReader.Create(
-                    new StringReader(element.OuterXml),
-                    DefaultXmlReaderSettings());
-
-                try
-                {
-                    DataContractSerializer serializer = CoreUtils.CreateDataContractSerializer<T>();
-                    return (T)serializer.ReadObject(reader);
-                }
-                finally
-                {
-                    reader.Dispose();
-                }
+                using var parser = new XmlParser(element, AmbientMessageContext.CurrentContext);
+                return decoderFunc(parser);
             }
 
             return default;
         }
 
         /// <summary>
-        /// Looks for an extension with the specified type and uses the DataContractSerializer to serializes its replacement.
+        /// Looks for an extension with the specified type and uses the supplied encoder function to serialize its replacement.
         /// </summary>
         /// <typeparam name="T">The type of the extension.</typeparam>
         /// <param name="extensions">The list of extensions to update.</param>
-        /// <param name="elementName">Name of the element (use type name if null).</param>
+        /// <param name="elementName">Name of the element (required).</param>
         /// <param name="value">The value.</param>
-        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
+        /// <param name="telemetry">The telemetry context to use to create observability instruments.</param>
+        /// <param name="encoderFunc">A function that writes the value to an <see cref="IEncoder"/>.</param>
         /// <remarks>
-        /// Adds a new extension if the it does not already exist.
+        /// Adds a new extension if it does not already exist.
         /// Deletes the extension if the value is null.
-        /// The containing element must use the name and namespace uri specified by the DataContractAttribute for the type.
         /// </remarks>
-        /// <exception cref="ArgumentException"><paramref name="elementName"/></exception>
+        /// <exception cref="ArgumentNullException"></exception>
+        [Experimental("UA_NETStandard_1")]
         public static void UpdateExtension<T>(
             ref ArrayOf<XmlElement> extensions,
             XmlQualifiedName elementName,
-            object value,
-            ITelemetryContext telemetry)
+            T value,
+            ITelemetryContext telemetry,
+            Action<IEncoder, T> encoderFunc)
         {
+            if (elementName is null)
+            {
+                throw new ArgumentNullException(nameof(elementName));
+            }
+
+            if (encoderFunc is null)
+            {
+                throw new ArgumentNullException(nameof(encoderFunc));
+            }
+
             var document = new XmlDocument();
 
-            // serialize value.
-            var buffer = new StringBuilder();
-            using (var writer = XmlWriter.Create(buffer, DefaultXmlWriterSettings()))
+            if (!EqualityComparer<T>.Default.Equals(value, default))
             {
-                if (value != null)
-                {
-                    try
-                    {
-                        using IDisposable scope = AmbientMessageContext.SetScopedContext(telemetry);
-                        DataContractSerializer serializer = CoreUtils.CreateDataContractSerializer<T>();
-                        serializer.WriteObject(writer, value);
-                    }
-                    finally
-                    {
-                        writer.Dispose();
-                    }
-
-                    document.LoadInnerXml(buffer.ToString());
-                }
+                using IDisposable scope = AmbientMessageContext.SetScopedContext(telemetry);
+                using var encoder = new XmlEncoder(AmbientMessageContext.CurrentContext);
+                encoder.Push(elementName.Name, elementName.Namespace);
+                encoderFunc(encoder, value);
+                encoder.Pop();
+                string xml = encoder.CloseAndReturnText();
+                document.LoadInnerXml(xml);
             }
 
-            // use the type name as the default.
-            if (elementName == null)
+            if (document.DocumentElement == null)
             {
-                // get qualified name from the data contract attribute.
-                XmlQualifiedName qname = TypeInfo.GetXmlName(typeof(T));
-
-                elementName =
-                    qname ??
-                    throw new ArgumentException(
-                        "Type does not seem to support DataContract serialization");
+                return;
             }
 
-            // replace existing element.
             var xmlElements = extensions.ToList();
             if (xmlElements.Count > 0)
             {
@@ -1529,8 +1464,7 @@ namespace Opc.Ua
                         element.LocalName == elementName.Name &&
                         element.NamespaceURI == elementName.Namespace)
                     {
-                        // remove the existing value if the value is null.
-                        if (value == null)
+                        if (EqualityComparer<T>.Default.Equals(value, default))
                         {
                             xmlElements.RemoveAt(ii);
                             extensions = xmlElements.ToArrayOf();
@@ -1544,12 +1478,154 @@ namespace Opc.Ua
                 }
             }
 
-            // add new element.
-            if (value != null)
+            if (!EqualityComparer<T>.Default.Equals(value, default))
             {
                 xmlElements.Add(XmlElement.From(document.DocumentElement));
                 extensions = xmlElements.ToArrayOf();
             }
+        }
+
+        /// <summary>
+        /// Looks for an extension with the specified type and decodes it
+        /// using the IEncodeable implementation.
+        /// </summary>
+        /// <typeparam name="T">The type of extension (must implement IEncodeable).</typeparam>
+        /// <param name="extensions">The list of extensions to search.</param>
+        /// <param name="elementName">Name of the element (null to derive from type name).</param>
+        /// <param name="telemetry">The telemetry context.</param>
+        /// <returns>The extension if found. Default otherwise.</returns>
+        public static T ParseExtension<T>(
+            ArrayOf<XmlElement> extensions,
+            XmlQualifiedName elementName,
+            ITelemetryContext telemetry)
+            where T : IEncodeable, new()
+        {
+            if (extensions.IsEmpty)
+            {
+                return default;
+            }
+
+            elementName ??= GetEncodeableXmlName(typeof(T));
+
+            using IDisposable scope = AmbientMessageContext.SetScopedContext(telemetry);
+
+            for (int ii = 0; ii < extensions.Count; ii++)
+            {
+                System.Xml.XmlElement element = extensions[ii].AsXmlElement();
+
+                if (element == null ||
+                    element.LocalName != elementName.Name ||
+                    element.NamespaceURI != elementName.Namespace)
+                {
+                    continue;
+                }
+
+                // Use null for systemType so PushWithSystemType reads the
+                // namespace directly from the XML document element, which
+                // matches the namespace used in the config file.
+                using var parser = new XmlParser(
+                    null, element.OuterXml, AmbientMessageContext.CurrentContext);
+                var result = new T();
+                result.Decode(parser);
+                return result;
+            }
+
+            return default;
+        }
+
+        /// <summary>
+        /// Updates or adds an extension using the IEncodeable implementation.
+        /// </summary>
+        /// <typeparam name="T">The type of extension (must implement IEncodeable).</typeparam>
+        /// <param name="extensions">The list of extensions to update.</param>
+        /// <param name="elementName">Name of the element (null to derive from type name).</param>
+        /// <param name="value">The value to encode.</param>
+        /// <param name="telemetry">The telemetry context.</param>
+        public static void UpdateExtension<T>(
+            ref ArrayOf<XmlElement> extensions,
+            XmlQualifiedName elementName,
+            T value,
+            ITelemetryContext telemetry)
+            where T : IEncodeable
+        {
+            elementName ??= GetEncodeableXmlName(typeof(T));
+
+            var document = new XmlDocument();
+
+            if (!EqualityComparer<T>.Default.Equals(value, default))
+            {
+                using IDisposable scope = AmbientMessageContext.SetScopedContext(telemetry);
+                using var encoder = new XmlEncoder(AmbientMessageContext.CurrentContext);
+                encoder.Push(elementName.Name, elementName.Namespace);
+                value.Encode(encoder);
+                encoder.Pop();
+                string xml = encoder.CloseAndReturnText();
+                document.LoadInnerXml(xml);
+            }
+
+            if (document.DocumentElement == null)
+            {
+                return;
+            }
+
+            var xmlElements = extensions.ToList();
+            if (xmlElements.Count > 0)
+            {
+                for (int ii = 0; ii < xmlElements.Count; ii++)
+                {
+                    System.Xml.XmlElement element = xmlElements[ii].AsXmlElement();
+                    if (element != null &&
+                        element.LocalName == elementName.Name &&
+                        element.NamespaceURI == elementName.Namespace)
+                    {
+                        if (EqualityComparer<T>.Default.Equals(value, default))
+                        {
+                            xmlElements.RemoveAt(ii);
+                            extensions = xmlElements.ToArrayOf();
+                            return;
+                        }
+
+                        xmlElements[ii] = XmlElement.From(document.DocumentElement);
+                        extensions = xmlElements.ToArrayOf();
+                        return;
+                    }
+                }
+            }
+
+            if (!EqualityComparer<T>.Default.Equals(value, default))
+            {
+                xmlElements.Add(XmlElement.From(document.DocumentElement));
+                extensions = xmlElements.ToArrayOf();
+            }
+        }
+
+        /// <summary>
+        /// Gets the XML qualified name for an IEncodeable type,
+        /// checking [DataContract] first, then [DataType] attribute.
+        /// </summary>
+        /// <exception cref="ArgumentException"></exception>
+        private static XmlQualifiedName GetEncodeableXmlName(Type type)
+        {
+            // Try [DataContract] attribute
+            XmlQualifiedName qname = TypeInfo.GetXmlName(type);
+            if (qname != null && qname.Namespace != Namespaces.OpcUaXsd)
+            {
+                return qname;
+            }
+
+            // Try [DataType] attribute
+            if (DataTypeAttribute.TryGetTypeIdsFromType(
+                type,
+                out ExpandedNodeId typeId,
+                out _, out _) &&
+                !typeId.IsNull)
+            {
+                return new XmlQualifiedName(type.Name, typeId.NamespaceUri);
+            }
+
+            return qname ??
+                throw new ArgumentException(
+                    "Cannot determine XML name for type " + type.Name);
         }
 
         private static readonly DateTime s_baseDateTime = new(
@@ -1574,6 +1650,8 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the linker timestamp for an assembly.
         /// </summary>
+        [UnconditionalSuppressMessage("SingleFile", "IL3000",
+            Justification = "Assembly.Location fallback returns empty string in single-file; caught and handled.")]
         public static DateTime GetAssemblyTimestamp()
         {
             try
@@ -1677,7 +1755,7 @@ namespace Opc.Ua
         /// Creates a X509 certificate object from the DER encoded bytes.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public static X509Certificate2 ParseCertificateBlob(
+        public static Certificate ParseCertificateBlob(
             ReadOnlyMemory<byte> certificateData,
             ITelemetryContext telemetry,
             bool useAsnParser = false)
@@ -1692,7 +1770,7 @@ namespace Opc.Ua
                     certificateData = AsnUtils.ParseX509Blob(certificateData);
                 }
 #endif
-                return CertificateFactory.Create(certificateData);
+                return Certificate.FromRawData(certificateData);
             }
             catch (Exception e)
             {
@@ -1710,17 +1788,17 @@ namespace Opc.Ua
         /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         /// <param name="useAsnParser">Whether the ASN.1 library should be used to decode certificate blobs.</param>
         /// <exception cref="ServiceResultException"></exception>
-        public static X509Certificate2Collection ParseCertificateChainBlob(
+        public static CertificateCollection ParseCertificateChainBlob(
             ReadOnlyMemory<byte> certificateData,
             ITelemetryContext telemetry,
             bool useAsnParser = false)
         {
-            var certificateChain = new X509Certificate2Collection();
+            var certificateChain = new CertificateCollection();
             int offset = 0;
             int length = certificateData.Length;
             while (offset < length)
             {
-                X509Certificate2 certificate;
+                Certificate certificate = null;
                 try
                 {
                     ReadOnlyMemory<byte> certBlob = certificateData[offset..];
@@ -1732,7 +1810,9 @@ namespace Opc.Ua
                         certBlob = AsnUtils.ParseX509Blob(certBlob);
                     }
 #endif
-                    certificate = CertificateFactory.Create(certBlob);
+                    certificate = Certificate.FromRawData(certBlob);
+                    certificateChain.Add(certificate);
+                    offset += certificate.RawData.Length;
                 }
                 catch (Exception e)
                 {
@@ -1741,12 +1821,26 @@ namespace Opc.Ua
                         "Could not parse DER encoded form of a X509 certificate.",
                         e);
                 }
-
-                certificateChain.Add(certificate);
-                offset += certificate.RawData.Length;
+                finally
+                {
+                    certificate?.Dispose();
+                }
             }
 
             return certificateChain;
+        }
+
+        /// <summary>
+        /// Creates a certificate collection from DER encoded chain blob
+        /// using the certificate factory.
+        /// </summary>
+        /// <param name="certificateData">The certificate data.</param>
+        /// <param name="factory">The certificate factory to use for parsing.</param>
+        public static CertificateCollection ParseCertificateChainBlob(
+            ReadOnlyMemory<byte> certificateData,
+            ICertificateFactory factory)
+        {
+            return factory.ParseChainBlob(certificateData);
         }
 
         /// <summary>
@@ -1756,7 +1850,7 @@ namespace Opc.Ua
         /// <returns>
         /// A DER blob containing zero or more certificates.
         /// </returns>
-        public static byte[] CreateCertificateChainBlob(X509Certificate2Collection certificates)
+        public static byte[] CreateCertificateChainBlob(CertificateCollection certificates)
         {
             if (certificates == null || certificates.Count == 0)
             {
@@ -1765,7 +1859,7 @@ namespace Opc.Ua
 
             int totalSize = 0;
 
-            foreach (X509Certificate2 cert in certificates)
+            foreach (Certificate cert in certificates)
             {
                 totalSize += cert.RawData.Length;
             }
@@ -1773,7 +1867,7 @@ namespace Opc.Ua
             byte[] blobData = new byte[totalSize];
             int offset = 0;
 
-            foreach (X509Certificate2 cert in certificates)
+            foreach (Certificate cert in certificates)
             {
                 Array.Copy(cert.RawData, 0, blobData, offset, cert.RawData.Length);
                 offset += cert.RawData.Length;
@@ -1985,7 +2079,7 @@ namespace Opc.Ua
         /// <param name="certificateType">The certificate type to check.</param>
         public static bool IsSupportedCertificateType(NodeId certificateType)
         {
-            if (!certificateType.TryGetIdentifier(out uint identifier))
+            if (!certificateType.TryGetValue(out uint identifier))
             {
                 return false;
             }

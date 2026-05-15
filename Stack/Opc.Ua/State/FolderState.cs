@@ -66,5 +66,11 @@ namespace Opc.Ua
         {
             return ObjectTypeIds.FolderType;
         }
+
+        /// <inheritdoc/>
+        protected override NodeState CreateCopy()
+        {
+            return new FolderState(Parent);
+        }
     }
 }

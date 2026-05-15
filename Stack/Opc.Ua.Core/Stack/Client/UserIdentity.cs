@@ -29,11 +29,11 @@
 
 using System;
 using System.Runtime.Serialization;
-using System.Security.Cryptography.X509Certificates;
 using System.Security.Principal;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua
 {
@@ -41,7 +41,7 @@ namespace Opc.Ua
     /// A generic user identity class.
     /// </summary>
     [DataContract(Namespace = Namespaces.OpcUaXsd)]
-    public class UserIdentity : IUserIdentity, IDisposable
+    public class UserIdentity : IUserIdentity
     {
         /// <summary>
         /// Initializes the object as an anonymous user.
@@ -69,27 +69,6 @@ namespace Opc.Ua
         public UserIdentity(string username, ReadOnlySpan<byte> password)
         {
             m_token = new UserNameIdentityTokenHandler(username, password);
-        }
-
-        /// <summary>
-        /// Initializes the object with an X509 certificate identifier
-        /// and a CertificatePasswordProvider
-        /// </summary>
-        [Obsolete("Use CreateAsync method instead.")]
-        public UserIdentity(
-            CertificateIdentifier certificateId,
-            CertificatePasswordProvider certificatePasswordProvider)
-            : this(certificateId.LoadPrivateKeyExAsync(
-                certificatePasswordProvider).GetAwaiter().GetResult())
-        {
-        }
-
-        /// <summary>
-        /// Initializes the object with an X509 certificate
-        /// </summary>
-        public UserIdentity(X509Certificate2 certificate)
-        {
-            m_token = new X509IdentityTokenHandler(certificate);
         }
 
         /// <summary>
@@ -126,51 +105,46 @@ namespace Opc.Ua
 
         /// <summary>
         /// Initializes the object with an X509 certificate identifier
-        /// and a CertificatePasswordProvider
+        /// resolved on demand through a centralised
+        /// <see cref="ICertificateProvider"/>. The handler does NOT
+        /// hold a live <see cref="Certificate"/> reference; the
+        /// provider materialises the cert (with private key) on each
+        /// signing operation.
         /// </summary>
-        /// <exception cref="ArgumentNullException">
-        /// <paramref name="certificateId"/> is <c>null</c>.
-        /// </exception>
-        /// <exception cref="ServiceResultException"></exception>
-        public static async Task<UserIdentity> CreateAsync(
+        /// <remarks>
+        /// This is the only cert-based factory; the historical
+        /// <c>UserIdentity(Certificate)</c> ctor and the legacy
+        /// <c>CreateAsync</c> overloads that pre-resolved a
+        /// <see cref="Certificate"/> have been removed. Long-lived
+        /// identities held by an OPC UA <c>ISession</c> resolve the
+        /// cert per signing operation through the provider's cache.
+        /// </remarks>
+        /// <exception cref="ArgumentNullException"/>
+        /// <exception cref="ServiceResultException"/>
+        public static Task<UserIdentity> CreateAsync(
             CertificateIdentifier certificateId,
-            CertificatePasswordProvider certificatePasswordProvider,
-            ITelemetryContext telemetry,
+            ICertificatePasswordProvider passwordProvider,
+            ICertificateProvider certificateProvider,
             CancellationToken ct = default)
         {
             if (certificateId == null)
             {
                 throw new ArgumentNullException(nameof(certificateId));
             }
-
-            X509Certificate2 certificate = await certificateId.LoadPrivateKeyExAsync(
-                certificatePasswordProvider,
-                applicationUri: null,
-                telemetry,
-                ct).ConfigureAwait(false);
-
-            if (certificate == null || !certificate.HasPrivateKey)
+            if (passwordProvider == null)
             {
-                throw new ServiceResultException(
-                    "Cannot create User Identity with CertificateIdentifier that does not contain a private key");
+                throw new ArgumentNullException(nameof(passwordProvider));
+            }
+            if (certificateProvider == null)
+            {
+                throw new ArgumentNullException(nameof(certificateProvider));
             }
 
-            return new UserIdentity(certificate);
-        }
-
-        /// <summary>
-        /// Initializes the object with an X509 certificate identifier
-        /// </summary>
-        public static Task<UserIdentity> CreateAsync(
-            CertificateIdentifier certificateId,
-            ITelemetryContext telemetry,
-            CancellationToken ct = default)
-        {
-            return CreateAsync(
+            var handler = new X509IdentityTokenHandler(
                 certificateId,
-                new CertificatePasswordProvider(),
-                telemetry,
-                ct);
+                passwordProvider,
+                certificateProvider);
+            return Task.FromResult(new UserIdentity(handler));
         }
 
         /// <summary>
@@ -240,7 +214,7 @@ namespace Opc.Ua
         public string DisplayName
         {
             get => field ?? m_token.DisplayName;
-            set => field = value;
+            set;
         }
 
         /// <inheritdoc/>
@@ -273,25 +247,6 @@ namespace Opc.Ua
                 IssuedTokenType,
                 DisplayName,
                 GrantedRoleIds);
-        }
-
-        /// <inheritdoc/>
-        public void Dispose()
-        {
-            Dispose(true);
-            GC.SuppressFinalize(this);
-        }
-
-        /// <summary>
-        /// Dispose the identity token.
-        /// </summary>
-        /// <param name="disposing"></param>
-        protected virtual void Dispose(bool disposing)
-        {
-            if (disposing)
-            {
-                Utils.SilentDispose(m_token);
-            }
         }
 
         private IUserIdentityTokenHandler m_token;

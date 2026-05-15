@@ -29,6 +29,8 @@
 
 using System;
 using System.Collections.Generic;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using NUnit.Framework;
 using Opc.Ua.Core.Tests.Types.Encoders;
 using Opc.Ua.Tests;
@@ -47,6 +49,11 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
     [Parallelizable]
     public class ComplexTypesEncoderTests : ComplexTypesCommon
     {
+        private static readonly JsonSerializerOptions s_ignoreCyclesOptions = new()
+        {
+            ReferenceHandler = ReferenceHandler.IgnoreCycles
+        };
+
         public IServiceMessageContext EncoderContext;
         public new ITelemetryContext Telemetry;
         public Dictionary<StructureType, (ExpandedNodeId, Type)> TypeDictionary;
@@ -55,7 +62,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         protected new void OneTimeSetUp()
         {
             Telemetry = NUnitTelemetryContext.Create();
-            EncoderContext = new ServiceMessageContext(Telemetry);
+            EncoderContext = ServiceMessageContext.Create(Telemetry);
             // add a few random namespaces
             EncoderContext.NamespaceUris.Append("urn:This:is:my:test:encoder");
             EncoderContext.NamespaceUris.Append("urn:This:is:another:namespace");
@@ -131,7 +138,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             (nodeId, complexType) = TypeDictionary[StructureType.StructureWithOptionalFields];
             object emittedType = Activator.CreateInstance(complexType);
             var baseType = emittedType as BaseComplexType;
-            BuiltInType builtInType = structureFieldParameter.BuiltInType;
+
+            _ = structureFieldParameter.BuiltInType;
             TestContext.Out.WriteLine(
                 $"Optional Field: {structureFieldParameter.BuiltInType} is the only value.");
             baseType[structureFieldParameter.Name] = DataGenerator.GetRandomVariant(structureFieldParameter.BuiltInType, false);
@@ -203,7 +211,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             (nodeId, complexType) = TypeDictionary[StructureType.Union];
             object emittedType = Activator.CreateInstance(complexType);
             var baseType = emittedType as BaseComplexType;
-            BuiltInType builtInType = structureFieldParameter.BuiltInType;
+
+            _ = structureFieldParameter.BuiltInType;
             TestContext.Out
                 .WriteLine($"Union Field: {structureFieldParameter.BuiltInType} is random.");
             baseType[structureFieldParameter.Name] = DataGenerator.GetRandomVariant(structureFieldParameter.BuiltInType, false);
@@ -257,19 +266,13 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             // Serialize/Encode an ExtensionObject succeeds with a context available
             using (AmbientMessageContext.SetScopedContext(localCtxt))
             {
-                _ = Newtonsoft.Json.JsonConvert.SerializeObject(extensionObject, new Newtonsoft.Json.JsonSerializerSettings
-                {
-                    ReferenceLoopHandling = Newtonsoft.Json.ReferenceLoopHandling.Ignore // Uses equality which does not work with Variant.
-                });
+                _ = JsonSerializer.Serialize(extensionObject, s_ignoreCyclesOptions);
             }
 
             // Serialize/Encode a Variant succeeds with a context available
             using (AmbientMessageContext.SetScopedContext(localCtxt))
             {
-                _ = Newtonsoft.Json.JsonConvert.SerializeObject(keyValuePair, new Newtonsoft.Json.JsonSerializerSettings
-                {
-                    ReferenceLoopHandling = Newtonsoft.Json.ReferenceLoopHandling.Ignore // Uses equality which does not work with Variant.
-                });
+                _ = JsonSerializer.Serialize(keyValuePair, s_ignoreCyclesOptions);
             }
         }
     }

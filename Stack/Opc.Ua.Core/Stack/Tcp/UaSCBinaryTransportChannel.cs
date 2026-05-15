@@ -89,6 +89,10 @@ namespace Opc.Ua.Bindings
                     m_connecting.Release();
                     m_connecting.Dispose();
                 }
+
+                m_settings?.ServerCertificate?.Dispose();
+                m_settings?.ClientCertificate?.Dispose();
+                m_settings?.ClientCertificateChain?.Dispose();
             }
         }
 
@@ -121,7 +125,16 @@ namespace Opc.Ua.Bindings
             => m_quotas?.MessageContext ?? throw BadNotConnected();
 
         /// <inheritdoc/>
-        public ChannelToken? CurrentToken => m_channel?.CurrentToken;
+        public ChannelToken CurrentToken => m_channel?.CurrentToken ?? new();
+
+        /// <inheritdoc/>
+        public byte[] ChannelThumbprint => m_channel?.ChannelThumbprint ?? [];
+
+        /// <inheritdoc/>
+        public byte[] ClientChannelCertificate => m_channel?.ClientChannelCertificate ?? [];
+
+        /// <inheritdoc/>
+        public byte[] ServerChannelCertificate => m_channel?.ServerChannelCertificate ?? [];
 
         /// <inheritdoc/>
         public int OperationTimeout { get; set; }
@@ -209,7 +222,7 @@ namespace Opc.Ua.Bindings
                             e,
                             "Exception while closing old channel during Reconnect.");
                     }
-                    Utils.SilentDispose(previousChannel);
+                    previousChannel.Dispose();
                 }
             }
         }
@@ -285,12 +298,8 @@ namespace Opc.Ua.Bindings
             try
             {
                 // Get under lock
-                channel = m_channel;
-                if (channel == null)
-                {
-                    // Channel was closed
-                    throw BadNotConnected();
-                }
+                // Channel was closed
+                channel = m_channel ?? throw BadNotConnected();
             }
             finally
             {
@@ -387,7 +396,7 @@ namespace Opc.Ua.Bindings
 
             // initialize the quotas.
             EndpointConfiguration configuration = m_settings.Configuration;
-            m_quotas = new ChannelQuotas(new ServiceMessageContext(m_telemetry)
+            m_quotas = new ChannelQuotas(new ServiceMessageContext(m_telemetry, m_settings.Factory)
             {
                 MaxArrayLength = configuration.MaxArrayLength,
                 MaxByteStringLength = configuration.MaxByteStringLength,
@@ -397,8 +406,7 @@ namespace Opc.Ua.Bindings
                 MaxEncodingNestingLevels = configuration.MaxEncodingNestingLevels,
                 MaxDecoderRecoveries = configuration.MaxDecoderRecoveries,
                 NamespaceUris = m_settings.NamespaceUris,
-                ServerUris = new StringTable(),
-                Factory = m_settings.Factory
+                ServerUris = new StringTable()
             })
             {
                 MaxBufferSize = configuration.MaxBufferSize,
@@ -437,17 +445,16 @@ namespace Opc.Ua.Bindings
             IMessageSocket? socket = null;
             if (connection != null)
             {
-                socket = connection.Handle as IMessageSocket;
-                if (socket == null)
-                {
-                    throw ServiceResultException.Unexpected(
+                socket = connection.Handle as IMessageSocket
+                    ?? throw ServiceResultException.Unexpected(
                         "Waiting Connection Handle is not of type IMessageSocket.");
-                }
             }
+
+            string id = Guid.NewGuid().ToString();
 
             // create the channel.
             var channel = new UaSCUaBinaryClientChannel(
-                Guid.NewGuid().ToString(),
+                id,
                 m_bufferManager,
                 m_messageSocketFactory,
                 m_quotas,

@@ -54,7 +54,11 @@ namespace Opc.Ua.Server.Tests
             namespaces.Append(Ua.Namespaces.OpcUa);
             var serverUris = new StringTable();
             var typeTree = new TypeTable(namespaces);
-            var messageContext = new ServiceMessageContext(telemetry) { NamespaceUris = namespaces, ServerUris = serverUris };
+            var messageContext = new ServiceMessageContext(telemetry, EncodeableFactory.Create())
+            {
+                NamespaceUris = namespaces,
+                ServerUris = serverUris
+            };
 
             m_coreNodeManagerMock = new Mock<ICoreNodeManager>();
             m_coreNodeManagerMock.Setup(m => m.ImportNodesAsync(
@@ -293,7 +297,8 @@ ObjectIds.Server,
             var reqHeader = new RequestHeader();
             var sessionMock = new Mock<ISession>();
             sessionMock.Setup(s => s.Id).Returns(new NodeId(1, 1));
-            sessionMock.Setup(s => s.EffectiveIdentity).Returns(new UserIdentity());
+            var userIdentity = new UserIdentity();
+            sessionMock.Setup(s => s.EffectiveIdentity).Returns(userIdentity);
 
             var opContext = new OperationContext(reqHeader, null, RequestType.Read, RequestLifetime.None, sessionMock.Object);
             var sysContext = new ServerSystemContext(m_serverMock.Object, opContext);
@@ -339,7 +344,8 @@ ObjectIds.Server,
             var reqHeader = new RequestHeader();
             var sessionMock = new Mock<ISession>();
             sessionMock.Setup(s => s.Id).Returns(new NodeId(1, 1));
-            sessionMock.Setup(s => s.EffectiveIdentity).Returns(new UserIdentity());
+            var userIdentity = new UserIdentity();
+            sessionMock.Setup(s => s.EffectiveIdentity).Returns(userIdentity);
 
             var opContext = new OperationContext(reqHeader, null, RequestType.Read, RequestLifetime.None, sessionMock.Object);
             var sysContext = new ServerSystemContext(m_serverMock.Object, opContext);
@@ -600,7 +606,7 @@ VariableIds.Server_ServerDiagnostics_SubscriptionDiagnosticsArray);
 
             static ServiceResult UpdateCallback(ISystemContext ctx, NodeState node, ref Variant value) => ServiceResult.Good;
 
-            // 1. Create server and session diagnostics 
+            // 1. Create server and session diagnostics
             await manager.CreateServerDiagnosticsAsync(
                 manager.SystemContext,
                 new ServerDiagnosticsSummaryDataType(),
@@ -636,7 +642,13 @@ VariableIds.Server_ServerDiagnostics_SubscriptionDiagnosticsArray);
             var roleIdentity = new RoleBasedIdentity(identity, roles, namespaces);
 
             var endpoint = new EndpointDescription { SecurityMode = MessageSecurityMode.SignAndEncrypt };
-            var channelContext = new SecureChannelContext("1", endpoint, RequestEncoding.Binary);
+            var channelContext = new SecureChannelContext(
+                "1",
+                endpoint,
+                RequestEncoding.Binary,
+                clientChannelCertificate: null,
+                serverChannelCertificate: null,
+                channelThumbprint: null);
             var reqHeader = new RequestHeader();
 
             var sessionMock = new Mock<ISession>();
@@ -784,7 +796,13 @@ VariableIds.Server_ServerDiagnostics_SubscriptionDiagnosticsArray);
             sessionMock.Setup(s => s.Id).Returns(new NodeId(9999, 1));
             sessionMock.Setup(s => s.EffectiveIdentity).Returns(roleIdentity);
             var endpoint = new EndpointDescription { SecurityMode = MessageSecurityMode.SignAndEncrypt };
-            var secureChannelContext = new SecureChannelContext("1", endpoint, RequestEncoding.Binary);
+            var secureChannelContext = new SecureChannelContext(
+                "1",
+                endpoint,
+                RequestEncoding.Binary,
+                clientChannelCertificate: null,
+                serverChannelCertificate: null,
+                channelThumbprint: null);
             var opContext = new OperationContext(
                 new RequestHeader(),
                 secureChannelContext,
@@ -799,9 +817,9 @@ VariableIds.Server_ServerDiagnostics_SessionsDiagnosticsSummary_SessionDiagnosti
             ServiceResult result = sessionArrayNode.OnSimpleReadValue(adminContext, sessionArrayNode, ref arrayValue);
 
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
-            Assert.That(arrayValue.TryGet(out ArrayOf<ExtensionObject> sessionArray), Is.True);
+            Assert.That(arrayValue.TryGetValue(out ArrayOf<ExtensionObject> sessionArray), Is.True);
             Assert.That(sessionArray.Count, Is.EqualTo(2));
-            sessionArray[0].TryGetEncodeable(out SessionDiagnosticsDataType sessionDiagObj);
+            sessionArray[0].TryGetValue(out SessionDiagnosticsDataType sessionDiagObj);
             Assert.That(sessionDiagObj.SessionName, Is.EqualTo("TestSession"));
 
             SessionSecurityDiagnosticsArrayState sessionSecurityArrayNode = manager.FindPredefinedNode<SessionSecurityDiagnosticsArrayState>(
@@ -810,9 +828,9 @@ VariableIds.Server_ServerDiagnostics_SessionsDiagnosticsSummary_SessionSecurityD
             result = sessionSecurityArrayNode.OnSimpleReadValue(adminContext, sessionSecurityArrayNode, ref arrayValue);
 
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
-            Assert.That(arrayValue.TryGet(out ArrayOf<ExtensionObject> sessionSecurityArray), Is.True);
+            Assert.That(arrayValue.TryGetValue(out ArrayOf<ExtensionObject> sessionSecurityArray), Is.True);
             Assert.That(sessionSecurityArray.Count, Is.EqualTo(2));
-            sessionSecurityArray[0].TryGetEncodeable(out SessionSecurityDiagnosticsDataType sessionSecDiagObj);
+            sessionSecurityArray[0].TryGetValue(out SessionSecurityDiagnosticsDataType sessionSecDiagObj);
             Assert.That(sessionSecDiagObj.SessionId, Is.EqualTo(sessionId));
 
             SubscriptionDiagnosticsArrayState subArrayNode = manager.FindPredefinedNode<SubscriptionDiagnosticsArrayState>(
@@ -822,9 +840,9 @@ VariableIds.Server_ServerDiagnostics_SubscriptionDiagnosticsArray);
             result = subArrayNode.OnSimpleReadValue(adminContext, subArrayNode, ref arrayValue);
 
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
-            Assert.That(arrayValue.TryGet(out ArrayOf<ExtensionObject> subArray), Is.True);
+            Assert.That(arrayValue.TryGetValue(out ArrayOf<ExtensionObject> subArray), Is.True);
             Assert.That(subArray.Count, Is.EqualTo(2));
-            subArray[0].TryGetEncodeable(out SubscriptionDiagnosticsDataType subDiagObj);
+            subArray[0].TryGetValue(out SubscriptionDiagnosticsDataType subDiagObj);
             Assert.That(subDiagObj.SubscriptionId, Is.EqualTo(100));
 
             // Test unauthorized non-admin user accessing their own session
@@ -847,9 +865,9 @@ VariableIds.Server_ServerDiagnostics_SubscriptionDiagnosticsArray);
             result = sessionArrayNode.OnSimpleReadValue(normalContext, sessionArrayNode, ref arrayValue);
 
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
-            Assert.That(arrayValue.TryGet(out ArrayOf<ExtensionObject> normalSessionArray), Is.True);
+            Assert.That(arrayValue.TryGetValue(out ArrayOf<ExtensionObject> normalSessionArray), Is.True);
             Assert.That(normalSessionArray.Count, Is.EqualTo(1));
-            normalSessionArray[0].TryGetEncodeable(out SessionDiagnosticsDataType normalSessionDiagObj);
+            normalSessionArray[0].TryGetValue(out SessionDiagnosticsDataType normalSessionDiagObj);
             Assert.That(normalSessionDiagObj.SessionName, Is.EqualTo("TestSession"));
 
             manager.ForceDiagnosticsScan();
@@ -858,9 +876,9 @@ VariableIds.Server_ServerDiagnostics_SubscriptionDiagnosticsArray);
             result = sessionSecurityArrayNode.OnSimpleReadValue(normalContext, sessionSecurityArrayNode, ref arrayValue);
 
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
-            Assert.That(arrayValue.TryGet(out ArrayOf<ExtensionObject> normalSessionSecArray), Is.True);
+            Assert.That(arrayValue.TryGetValue(out ArrayOf<ExtensionObject> normalSessionSecArray), Is.True);
             Assert.That(normalSessionSecArray.Count, Is.EqualTo(1));
-            normalSessionSecArray[0].TryGetEncodeable(out SessionSecurityDiagnosticsDataType normalSessionSecDiagObj);
+            normalSessionSecArray[0].TryGetValue(out SessionSecurityDiagnosticsDataType normalSessionSecDiagObj);
             Assert.That(normalSessionSecDiagObj.SessionId, Is.EqualTo(sessionId));
 
             manager.ForceDiagnosticsScan();
@@ -869,9 +887,9 @@ VariableIds.Server_ServerDiagnostics_SubscriptionDiagnosticsArray);
             result = subArrayNode.OnSimpleReadValue(normalContext, subArrayNode, ref arrayValue);
 
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
-            Assert.That(arrayValue.TryGet(out ArrayOf<ExtensionObject> normalSubArray), Is.True);
+            Assert.That(arrayValue.TryGetValue(out ArrayOf<ExtensionObject> normalSubArray), Is.True);
             Assert.That(normalSubArray.Count, Is.EqualTo(1));
-            normalSubArray[0].TryGetEncodeable(out SubscriptionDiagnosticsDataType normalSubDiagObj);
+            normalSubArray[0].TryGetValue(out SubscriptionDiagnosticsDataType normalSubDiagObj);
             Assert.That(normalSubDiagObj.SessionId, Is.EqualTo(sessionId));
 
             // Test if recently scanned just returns Good
@@ -891,15 +909,22 @@ VariableIds.Server_ServerDiagnostics_SubscriptionDiagnosticsArray);
             SetupServerMock();
 
             // Required for CreateMonitoredItemsAsync
+            using var queueFactory = new MonitoredItemQueueFactory(m_serverMock.Object.Telemetry);
             m_serverMock.Setup(s => s.MonitoredItemQueueFactory)
-                .Returns(new MonitoredItemQueueFactory(m_serverMock.Object.Telemetry));
+                .Returns(queueFactory);
 
             using var manager = new DiagnosticsNodeManager(m_serverMock.Object, config, NullLogger.Instance);
             var externalRefs = new Dictionary<NodeId, IList<IReference>>();
             await manager.CreateAddressSpaceAsync(externalRefs).ConfigureAwait(false);
 
             var endpoint = new EndpointDescription { SecurityMode = MessageSecurityMode.SignAndEncrypt };
-            var secureChannelContext = new SecureChannelContext("1", endpoint, RequestEncoding.Binary);
+            var secureChannelContext = new SecureChannelContext(
+                "1",
+                endpoint,
+                RequestEncoding.Binary,
+                clientChannelCertificate: null,
+                serverChannelCertificate: null,
+                channelThumbprint: null);
 
             var mockIdentity = new UserIdentity("admin", []);
             var mockRoleIdentity = new RoleBasedIdentity(mockIdentity, [Role.SecurityAdmin], m_serverMock.Object.NamespaceUris);

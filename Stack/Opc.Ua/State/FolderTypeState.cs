@@ -66,11 +66,9 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public override object Clone()
+        protected override NodeState CreateCopy()
         {
-            var state = new FolderTypeState();
-            CopyTo(state);
-            return state;
+            return new FolderTypeState();
         }
     }
 }

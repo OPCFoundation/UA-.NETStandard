@@ -32,7 +32,6 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
-using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Server
 {
@@ -66,14 +65,10 @@ namespace Opc.Ua.Server
         /// <param name="serverDescription">The server description.</param>
         /// <param name="configuration">The configuration.</param>
         /// <param name="messageContext">The message context.</param>
-        /// <param name="certificateValidator">The certificate validator.</param>
-        /// <param name="instanceCertificateProvider">The certificate type provider.</param>
         public ServerInternalData(
             ServerProperties serverDescription,
             ApplicationConfiguration configuration,
-            IServiceMessageContext messageContext,
-            CertificateValidator certificateValidator,
-            CertificateTypesProvider instanceCertificateProvider)
+            IServiceMessageContext messageContext)
         {
             m_serverDescription = serverDescription;
             m_configuration = configuration;
@@ -121,14 +116,14 @@ namespace Opc.Ua.Server
         {
             if (disposing)
             {
-                Utils.SilentDispose(ResourceManager);
-                Utils.SilentDispose(RequestManager);
-                Utils.SilentDispose(AggregateManager);
-                Utils.SilentDispose(ModellingRulesManager);
-                Utils.SilentDispose(NodeManager);
-                Utils.SilentDispose(SessionManager);
-                Utils.SilentDispose(SubscriptionManager);
-                Utils.SilentDispose(MonitoredItemQueueFactory);
+                ResourceManager?.Dispose();
+                RequestManager?.Dispose();
+                AggregateManager?.Dispose();
+                ModellingRulesManager?.Dispose();
+                (NodeManager as IDisposable)?.Dispose();
+                SessionManager?.Dispose();
+                SubscriptionManager?.Dispose();
+                MonitoredItemQueueFactory?.Dispose();
             }
         }
 

@@ -28,11 +28,11 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading;
-using Microsoft.Extensions.Logging;
 using System.Threading.Tasks;
-using System.Collections.Concurrent;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Server
 {
@@ -575,9 +575,9 @@ namespace Opc.Ua.Server
 
             public void Dispose()
             {
-                Utils.SilentDispose(m_cancellationTokenRegistration);
-                Utils.SilentDispose(m_cancellationTokenSource);
-                Utils.SilentDispose(m_cancellationTokenRegistration2);
+                m_cancellationTokenRegistration.Dispose();
+                m_cancellationTokenSource?.Dispose();
+                m_cancellationTokenRegistration2.Dispose();
             }
 
             public readonly string SecureChannelId;

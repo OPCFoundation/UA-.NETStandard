@@ -36,12 +36,13 @@ using Microsoft.Extensions.Logging;
 using Opc.Ua.Configuration;
 using Opc.Ua.Gds.Server;
 using Opc.Ua.Gds.Server.Database.Linq;
+using Opc.Ua.Security.Certificates;
 using Opc.Ua.Server;
 using Opc.Ua.Server.UserDatabase;
 
 namespace Opc.Ua.Gds.Tests
 {
-    public class GlobalDiscoveryTestServer
+    public class GlobalDiscoveryTestServer : IAsyncDisposable
     {
         public GlobalDiscoverySampleServer Server { get; private set; }
         public IApplicationInstance Application { get; private set; }
@@ -54,6 +55,20 @@ namespace Opc.Ua.Gds.Tests
             m_telemetry = telemetry;
             m_logger = telemetry.CreateLogger<GlobalDiscoveryTestServer>();
             m_maxTrustListSize = maxTrustListSize;
+        }
+
+        /// <summary>
+        /// Stop and dispose the server and its ApplicationInstance.
+        /// </summary>
+        public async ValueTask DisposeAsync()
+        {
+            await StopServerAsync().ConfigureAwait(false);
+            if (Application != null)
+            {
+                await Application.DisposeAsync().ConfigureAwait(false);
+                Application = null;
+            }
+            GC.SuppressFinalize(this);
         }
 
         public async Task StartServerAsync(
@@ -89,10 +104,14 @@ namespace Opc.Ua.Gds.Tests
                 string thumbprint = Config.SecurityConfiguration.ApplicationCertificate.Thumbprint;
                 if (thumbprint != null)
                 {
-                    using ICertificateStore store = Config.SecurityConfiguration
-                        .ApplicationCertificate
-                        .OpenStore(m_telemetry);
-                    await store.DeleteAsync(thumbprint).ConfigureAwait(false);
+                    using ICertificateStore store = CertificateIdentifierResolver
+                        .OpenStore(
+                            Config.SecurityConfiguration.ApplicationCertificate,
+                            m_telemetry);
+                    if (store != null)
+                    {
+                        await store.DeleteAsync(thumbprint).ConfigureAwait(false);
+                    }
                 }
 
                 // always start with clean cert store
@@ -121,11 +140,8 @@ namespace Opc.Ua.Gds.Tests
             {
                 GlobalDiscoveryServerConfiguration gdsConfig =
                     Config.ParseExtension<GlobalDiscoveryServerConfiguration>();
-                foreach (CertificateGroupConfiguration group in additionalCertGroups)
-                {
-                    gdsConfig.CertificateGroups.Add(group);
-                }
-                Config.UpdateExtension<GlobalDiscoveryServerConfiguration>(null, gdsConfig);
+                gdsConfig.CertificateGroups = gdsConfig.CertificateGroups.AddItems(additionalCertGroups);
+                Config.UpdateExtension(null, gdsConfig);
             }
 
             // check the application certificate.
@@ -137,11 +153,10 @@ namespace Opc.Ua.Gds.Tests
                 throw new InvalidOperationException("Application instance certificate invalid!");
             }
 
-            if (!Config.SecurityConfiguration.AutoAcceptUntrustedCertificates)
+            if (!Config.SecurityConfiguration.AutoAcceptUntrustedCertificates &&
+                Config.CertificateManager != null)
             {
-                Config.CertificateValidator.CertificateValidation
-                    += new CertificateValidationEventHandler(
-                    CertificateValidator_CertificateValidation);
+                Config.CertificateManager.AcceptError = AcceptCertificate;
             }
 
             // get the DatabaseStorePath configuration parameter.
@@ -207,22 +222,18 @@ namespace Opc.Ua.Gds.Tests
             }
         }
 
-        private void CertificateValidator_CertificateValidation(
-            CertificateValidator validator,
-            CertificateValidationEventArgs e)
+        private bool AcceptCertificate(Certificate certificate, ServiceResult error)
         {
-            if (e.Error.StatusCode == StatusCodes.BadCertificateUntrusted)
+            if (error.StatusCode == StatusCodes.BadCertificateUntrusted)
             {
-                e.Accept = s_autoAccept;
                 if (s_autoAccept)
                 {
-                    m_logger.LogInformation("Accepted Certificate: {Subject}", e.Certificate.Subject);
+                    m_logger.LogInformation("Accepted Certificate: {Subject}", certificate.Subject);
+                    return true;
                 }
-                else
-                {
-                    m_logger.LogInformation("Rejected Certificate: {Subject}", e.Certificate.Subject);
-                }
+                m_logger.LogInformation("Rejected Certificate: {Subject}", certificate.Subject);
             }
+            return false;
         }
 
         /// <summary>
@@ -297,7 +308,7 @@ namespace Opc.Ua.Gds.Tests
                 UsersDatabaseStorePath = Path.Combine(gdsRoot, "gdsusersdb.json")
             };
 
-            CertificateIdentifierCollection applicationCerts =
+            ArrayOf<CertificateIdentifier> applicationCerts =
                 ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
                     "CN=Global Discovery Test Client, O=OPC Foundation, DC=localhost",
                     CertificateStoreType.Directory,
@@ -323,7 +334,7 @@ namespace Opc.Ua.Gds.Tests
                 .SetRejectSHA1SignedCertificates(false)
                 .SetRejectUnknownRevocationStatus(true)
                 .SetMinimumCertificateKeySize(1024)
-                .AddExtension<GlobalDiscoveryServerConfiguration>(null, gdsConfig)
+                .AddExtension(null, gdsConfig)
                 .SetDeleteOnLoad(true)
                 .SetOutputFilePath(Path.Combine(root, "Logs", "Opc.Ua.Gds.Tests.log.txt"))
                 .SetTraceMasks(519)

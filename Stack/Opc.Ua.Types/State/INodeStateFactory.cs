@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Opc.Ua
 {
@@ -118,7 +119,8 @@ namespace Opc.Ua
         /// Creates the activator
         /// </summary>
         /// <param name="type"></param>
-        public ReflectionBasedNodeStateActivator(Type type)
+        public ReflectionBasedNodeStateActivator(
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] Type type)
         {
             m_type = type ?? throw new ArgumentNullException(nameof(type));
         }
@@ -130,6 +132,7 @@ namespace Opc.Ua
             return Activator.CreateInstance(m_type, parent) as NodeState;
         }
 
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)]
         private readonly Type m_type;
     }
 
@@ -155,7 +158,9 @@ namespace Opc.Ua
         /// definition that associates the registered node type with its´metadata.
         /// </param>
         /// <exception cref="ArgumentNullException"></exception>
-        public static INodeStateFactoryBuilder RegisterType<T>(
+        public static INodeStateFactoryBuilder RegisterType<
+            [DynamicallyAccessedMembers(
+                DynamicallyAccessedMemberTypes.PublicConstructors)] T>(
             this INodeStateFactoryBuilder builder,
             ExpandedNodeId typeDefinitionId)
             where T : NodeState
@@ -176,7 +181,8 @@ namespace Opc.Ua
         public static void RegisterType(
             this INodeStateFactoryBuilder builder,
             NodeId typeDefinitionId,
-            Type type)
+            [DynamicallyAccessedMembers(
+                DynamicallyAccessedMemberTypes.PublicConstructors)] Type type)
         {
             if (typeDefinitionId.IsNull)
             {

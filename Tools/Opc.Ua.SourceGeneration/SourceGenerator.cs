@@ -69,6 +69,56 @@ namespace Opc.Ua.SourceGeneration
             helpLinkUri: "www.opcfoundation.org",
             customTags: ["opcua"]);
 
+        public static readonly DiagnosticDescriptor ModelOverrideSkipped = new(
+            id: "MODELGEN013",
+            title: "Model already provided by referenced assembly",
+            messageFormat: (LocalizableString)("Model URI '{0}' is already provided by " +
+                "referenced assembly '{1}' under prefix '{2}'; skipping local generation"),
+            category: Name,
+            DiagnosticSeverity.Info,
+            isEnabledByDefault: true,
+            helpLinkUri: "www.opcfoundation.org",
+            customTags: ["opcua"]);
+
+        public static readonly DiagnosticDescriptor ModelDependencyTieBreak = new(
+            id: "MODELGEN012",
+            title: "Multiple referenced assemblies expose same model",
+            messageFormat: (LocalizableString)("Multiple referenced assemblies provide model " +
+                "URI '{0}'; selected '{1}' and ignored '{2}'"),
+            category: Name,
+            DiagnosticSeverity.Info,
+            isEnabledByDefault: true,
+            helpLinkUri: "www.opcfoundation.org",
+            customTags: ["opcua"]);
+
+        /// <summary>
+        /// A <c>[NodeManager]</c> attribute could not be bound to a model
+        /// design (no matching URI / Design selector).
+        /// </summary>
+        public static readonly DiagnosticDescriptor NodeManagerBindingError = new(
+            id: "MODELGEN010",
+            title: "[NodeManager] binding error",
+            messageFormat: (LocalizableString)"{0}",
+            category: Name,
+            DiagnosticSeverity.Warning,
+            isEnabledByDefault: true,
+            helpLinkUri: "www.opcfoundation.org",
+            customTags: ["opcua"]);
+
+        /// <summary>
+        /// A class annotated with <c>[NodeManager]</c> is not declared
+        /// <c>partial</c>.
+        /// </summary>
+        public static readonly DiagnosticDescriptor NodeManagerNotPartial = new(
+            id: "MODELGEN011",
+            title: "[NodeManager] class must be partial",
+            messageFormat: (LocalizableString)"Class '{0}' annotated with [NodeManager] must be declared as partial",
+            category: Name,
+            DiagnosticSeverity.Error,
+            isEnabledByDefault: true,
+            helpLinkUri: "www.opcfoundation.org",
+            customTags: ["opcua"]);
+
         /// <summary>
         /// Get diagnostic descriptor for event id
         /// </summary>

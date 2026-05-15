@@ -61,19 +61,19 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var extensionObject = new ExtensionObject(ExpandedNodeId.Null);
             Assert.That(extensionObject.TypeId, Is.EqualTo(ExpandedNodeId.Null));
             Assert.That(extensionObject.Encoding, Is.EqualTo(ExtensionObjectEncoding.None));
-            Assert.That(extensionObject.TryGetEncodeable(out IEncodeable enc), Is.False);
+            Assert.That(extensionObject.TryGetValue(out IEncodeable enc), Is.False);
             Assert.That(extensionObject.TryGetAsBinary(out ByteString _), Is.False);
             Assert.That(extensionObject.TryGetAsXml(out XmlElement _), Is.False);
             Assert.That(extensionObject.TryGetAsJson(out string _), Is.False);
             Assert.That(extensionObject.IsNull, Is.True);
             // static extensions
             Assert.That(ExtensionObject.ToEncodeable(default), Is.Null);
-            Assert.That(ExtensionObject.ToArray(null, typeof(object)), Is.Null);
-            Assert.That(ExtensionObject.ToList<object>(null), Is.Null);
             // constructor by ExpandedNodeId
             extensionObject = new ExtensionObject(ExpandedNodeId.Null);
             Assert.That(extensionObject.GetHashCode(), Is.Zero);
 #pragma warning disable CS0618 // Type or member is obsolete
+            Assert.That(ExtensionObject.ToArray(null, typeof(object)), Is.Null);
+            Assert.That(ExtensionObject.ToList<object>(null), Is.Null);
             Assert.Throws<ServiceResultException>(
                 () => new ExtensionObject(default, new object()));
             Assert.Throws<ServiceResultException>(

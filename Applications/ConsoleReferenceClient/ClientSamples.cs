@@ -31,14 +31,14 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Xml;
 using Microsoft.Extensions.Logging;
-using Newtonsoft.Json;
 using Opc.Ua;
 using Opc.Ua.Client;
 using Opc.Ua.Client.ComplexTypes;
@@ -1101,29 +1101,34 @@ namespace Quickstarts
         /// Outputs elapsed time information for perf testing and lists all
         /// types that were successfully added to the session encodeable type factory.
         /// </remarks>
-        public async Task<ComplexTypeSystem> LoadTypeSystemAsync(
-            ISession session,
-            CancellationToken ct = default)
+        /// <exception cref="ServiceResultException"></exception>
+        public async Task LoadTypeSystemAsync(ComplexTypeSystem complexTypeSystem, CancellationToken ct = default)
         {
             m_logger.LogInformation("Load the server type system.");
 
             var stopWatch = new Stopwatch();
             stopWatch.Start();
 
-            var complexTypeSystem = new ComplexTypeSystem(session, m_telemetry);
-            await complexTypeSystem.LoadAsync(throwOnError: true, ct: ct).ConfigureAwait(false);
+            bool loaded = await complexTypeSystem.LoadAsync(throwOnError: true, ct: ct).ConfigureAwait(false);
 
             stopWatch.Stop();
 
             m_logger.LogInformation(
                 "Loaded {Count} types took {Duration}ms.",
-                complexTypeSystem.GetDefinedTypes().Length,
+                complexTypeSystem.GetDefinedTypes().Count,
                 stopWatch.ElapsedMilliseconds);
+
+            if (!loaded)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadTypeMismatch,
+                    "ComplexTypeSystem.LoadAsync did not load all custom types.");
+            }
 
             if (m_verbose)
             {
                 m_logger.LogInformation("Custom types defined for this session:");
-                foreach (Type type in complexTypeSystem.GetDefinedTypes())
+                foreach (XmlQualifiedName type in complexTypeSystem.GetDefinedTypes())
                 {
                     m_logger.LogInformation("{Namespace}.{TypeName}", type.Namespace, type.Name);
                 }
@@ -1140,8 +1145,6 @@ namespace Quickstarts
                     }
                 }
             }
-
-            return complexTypeSystem;
         }
 
         /// <summary>
@@ -1368,26 +1371,16 @@ namespace Quickstarts
                 textbuffer = jsonEncoder.CloseAndReturnText();
             }
 
-            // prettify
-            using var stringWriter = new StringWriter();
-            try
+            using var doc = JsonDocument.Parse(textbuffer);
+            using var stream = new MemoryStream();
+            using (var writer = new Utf8JsonWriter(stream, new JsonWriterOptions
             {
-                using var stringReader = new StringReader(textbuffer);
-                var jsonReader = new JsonTextReader(stringReader);
-                var jsonWriter = new JsonTextWriter(stringWriter)
-                {
-                    Formatting = Formatting.Indented,
-                    Culture = CultureInfo.InvariantCulture
-                };
-                jsonWriter.WriteToken(jsonReader);
-            }
-            catch (Exception ex)
+                Indented = true
+            }))
             {
-                stringWriter.WriteLine("Failed to format the JSON output: {0}", ex.Message);
-                stringWriter.WriteLine(textbuffer);
-                throw;
+                doc.WriteTo(writer);
             }
-            return stringWriter.ToString();
+            return Encoding.UTF8.GetString(stream.ToArray());
         }
 
         /// <summary>
@@ -1535,7 +1528,7 @@ namespace Quickstarts
         /// <summary>
         /// Event handler to defer publish response sequence number acknowledge.
         /// </summary>
-        private void DeferSubscriptionAcknowledge(
+        private static void DeferSubscriptionAcknowledge(
             ISession session,
             PublishSequenceNumbersToAcknowledgeEventArgs e)
         {
@@ -1544,10 +1537,9 @@ namespace Quickstarts
             if (e.AcknowledgementsToSend.Count > 0)
             {
                 // defer latest sequence numbers
-                List<SubscriptionAcknowledgement> deferredItems = e
+                List<SubscriptionAcknowledgement> deferredItems = [.. e
                     .AcknowledgementsToSend.OrderByDescending(s => s.SequenceNumber)
-                    .Take(ackDelay)
-                    .ToList();
+                    .Take(ackDelay)];
                 e.DeferredAcknowledgementsToSend.AddRange(deferredItems);
                 foreach (SubscriptionAcknowledgement deferredItem in deferredItems)
                 {
@@ -1568,7 +1560,7 @@ namespace Quickstarts
             var browseDescriptionCollection = new List<BrowseDescription>();
             foreach (NodeId nodeId in nodeIdCollection)
             {
-                var browseDescription = (BrowseDescription)template.MemberwiseClone();
+                BrowseDescription browseDescription = CoreUtils.Clone(template);
                 browseDescription.NodeId = nodeId;
                 browseDescriptionCollection.Add(browseDescription);
             }
@@ -1608,11 +1600,20 @@ namespace Quickstarts
 
         /// <summary>
         /// Exports nodes to separate NodeSet2 XML files, one per namespace.
-        /// Excludes OPC Foundation companion specifications (namespaces starting with http://opcfoundation.org/UA/).
         /// </summary>
+        /// <remarks>
+        /// When <paramref name="targetNamespaces"/> is supplied and non-empty, only nodes whose
+        /// namespace URI is in the set are exported. Otherwise, all namespaces except the OPC UA
+        /// base namespace (<see cref="Namespaces.OpcUa"/>) are exported, which includes any
+        /// companion specifications hosted by the server.
+        /// </remarks>
         /// <param name="session">The session to use for exporting.</param>
         /// <param name="nodes">The list of nodes to export.</param>
         /// <param name="outputDirectory">The directory where NodeSet2 XML files will be saved.</param>
+        /// <param name="targetNamespaces">
+        /// Optional set of namespace URIs to include. When null or empty, all namespaces except
+        /// the OPC UA base namespace are exported.
+        /// </param>
         /// <param name="cancellationToken">Optional cancellation token.</param>
         /// <returns>A dictionary mapping namespace URI to the file path of the exported NodeSet2 file.</returns>
         /// <exception cref="ArgumentNullException">Thrown when session, nodes, or outputDirectory is null.</exception>
@@ -1621,6 +1622,7 @@ namespace Quickstarts
             ISession session,
             IList<INode> nodes,
             string outputDirectory,
+            IReadOnlyCollection<string> targetNamespaces = null,
             CancellationToken cancellationToken = default)
         {
             if (session == null)
@@ -1636,27 +1638,41 @@ namespace Quickstarts
                 throw new ArgumentException("Value cannot be null or whitespace.", nameof(outputDirectory));
             }
 
+            HashSet<string> targetSet = targetNamespaces is { Count: > 0 }
+                ? new HashSet<string>(targetNamespaces, StringComparer.OrdinalIgnoreCase)
+                : null;
+
             m_logger.LogInformation(
-                "Exporting {Count} nodes to separate NodeSet2 files per namespace in {Directory}...",
+                "Exporting {Count} nodes to separate NodeSet2 files per namespace in {Directory} (filter: {Filter})...",
                 nodes.Count,
-                outputDirectory);
+                outputDirectory,
+                targetSet != null ? string.Join(",", targetSet) : "all non-OPC-UA-base");
 
             var stopwatch = Stopwatch.StartNew();
 
             // Ensure output directory exists
             Directory.CreateDirectory(outputDirectory);
 
-            // Group nodes by namespace, excluding OPC Foundation companion specs
+            // Group nodes by namespace, applying the requested filter.
             var nodesByNamespace = nodes
                 .Where(node => node.NodeId.NamespaceIndex > 0) // Skip namespace 0 (OPC UA base)
                 .GroupBy(node => node.NodeId.NamespaceIndex)
                 .Where(group =>
                 {
                     string namespaceUri = session.NamespaceUris.GetString(group.Key);
-                    // Exclude OPC Foundation companion specifications
-                    return
-                        !string.IsNullOrEmpty(namespaceUri) &&
-                        !namespaceUri.StartsWith(Namespaces.OpcUa, StringComparison.OrdinalIgnoreCase);
+                    if (string.IsNullOrEmpty(namespaceUri))
+                    {
+                        return false;
+                    }
+
+                    if (targetSet != null)
+                    {
+                        // Caller asked for a specific set of namespaces.
+                        return targetSet.Contains(namespaceUri);
+                    }
+
+                    // Default: exclude only the OPC UA base namespace; include companion specs.
+                    return !string.Equals(namespaceUri, Namespaces.OpcUa, StringComparison.OrdinalIgnoreCase);
                 })
                 .ToDictionary(
                     group => group.Key,

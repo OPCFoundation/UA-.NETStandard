@@ -1,4 +1,5 @@
-using Newtonsoft.Json.Linq;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using NUnit.Framework;
 using Opc.Ua.Tests;
 
@@ -24,7 +25,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             var namespaceTable = new NamespaceTable([Namespaces.OpcUa, "http://bar", "http://foo"]);
             const string expectedServerUri = "http://foobar";
             var serverUris = new StringTable([Namespaces.OpcUa, expectedServerUri]);
-            var context = new ServiceMessageContext(telemetry)
+            var context = new ServiceMessageContext(telemetry, EncodeableFactory.Create())
             {
                 NamespaceUris = namespaceTable,
                 ServerUris = serverUris
@@ -46,15 +47,15 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
                 result = jsonEncoder.CloseAndReturnText();
             }
 
-            var jObject = JObject.Parse(result);
+            var jObject = JsonNode.Parse(result);
             Assert.That(jObject, Is.Not.Null);
-            uint version = jObject["UriVersion"].ToObject<uint>();
+            uint version = (uint)jObject["UriVersion"];
             Assert.That(version, Is.EqualTo(uriVersion));
-            JToken serverUrisToken = jObject["ServerUris"];
+            JsonNode serverUrisToken = jObject["ServerUris"];
             Assert.That(serverUrisToken, Is.Not.Null);
-            string[] serverUrisEncoded = serverUrisToken.ToObject<string[]>();
+            string[] serverUrisEncoded = JsonSerializer.Deserialize<string[]>(serverUrisToken.ToJsonString());
             Assert.That(serverUrisEncoded, Is.Not.Null);
-            Assert.That(serverUrisEncoded.Length, Is.EqualTo(1));
+            Assert.That(serverUrisEncoded, Has.Length.EqualTo(1));
             Assert.Contains(expectedServerUri, serverUrisEncoded);
         }
     }

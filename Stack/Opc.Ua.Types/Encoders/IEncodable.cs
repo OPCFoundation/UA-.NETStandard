@@ -75,16 +75,4 @@ namespace Opc.Ua
         /// </returns>
         bool IsEqual(IEncodeable encodeable);
     }
-
-    /// <summary>
-    /// Defines extensions to support the JSON encoding.
-    /// </summary>
-    public interface IJsonEncodeable
-    {
-        /// <summary>
-        /// Returns the NodeId for the default JSON encoding for the type.
-        /// </summary>
-        /// <value>The NodeId for the JSON encoding.</value>
-        ExpandedNodeId JsonEncodingId { get; }
-    }
 }

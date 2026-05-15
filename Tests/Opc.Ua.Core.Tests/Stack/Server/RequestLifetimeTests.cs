@@ -27,7 +27,9 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
+// CA2000: test code; many disposables are ownership-transferred to test fixtures or short-lived,
+// making CA2000 noisy without a real leak risk. Disabled file-level for the suite.
+#pragma warning disable CA2000
 using System.Threading;
 using NUnit.Framework;
 
@@ -56,7 +58,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             using var lifetime = new RequestLifetime(cts.Token);
 
             Assert.That(lifetime.CancellationToken.IsCancellationRequested, Is.False);
-            
+
             cts.Cancel();
 
             Assert.That(lifetime.CancellationToken.IsCancellationRequested, Is.True);

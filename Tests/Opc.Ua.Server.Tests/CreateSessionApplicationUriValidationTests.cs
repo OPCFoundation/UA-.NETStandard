@@ -27,12 +27,14 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+// CA2007: tests run without a SynchronizationContext; ConfigureAwait(false)
+// adds noise without a behavioural benefit. Disabled file-level for the suite.
+#pragma warning disable CA2007
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
-using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using NUnit.Framework;
@@ -124,7 +126,7 @@ namespace Opc.Ua.Server.Tests
             }
 
             // Create client certificate with matching ApplicationUri
-            X509Certificate2 clientCert = CreateCertificateWithMultipleUris(
+            using Certificate clientCert = CreateCertificateWithMultipleUris(
                 [kClientApplicationUri],
                 kClientSubjectName,
                 [Utils.GetHostName()],
@@ -159,7 +161,7 @@ namespace Opc.Ua.Server.Tests
 
             // Create client certificate with different ApplicationUri
             const string certUri = "urn:localhost:opcfoundation.org:WrongClient";
-            X509Certificate2 clientCert = CreateCertificateWithMultipleUris(
+            using Certificate clientCert = CreateCertificateWithMultipleUris(
                 [certUri],
                 kClientSubjectName,
                 [Utils.GetHostName()],
@@ -189,7 +191,7 @@ namespace Opc.Ua.Server.Tests
             const string uri2 = kClientApplicationUri; // This matches
             const string uri3 = "https://localhost:8080/OpcUaApp";
 
-            X509Certificate2 clientCert = CreateCertificateWithMultipleUris(
+            using Certificate clientCert = CreateCertificateWithMultipleUris(
                 [uri1, uri2, uri3],
                 kClientSubjectName,
                 [Utils.GetHostName()],
@@ -197,7 +199,7 @@ namespace Opc.Ua.Server.Tests
 
             // Verify certificate has multiple URIs
             IReadOnlyList<string> uris = X509Utils.GetApplicationUrisFromCertificate(clientCert);
-            Assert.That(uris.Count, Is.EqualTo(3));
+            Assert.That(uris, Has.Count.EqualTo(3));
             Assert.Contains(uri1, uris.ToList());
             Assert.Contains(uri2, uris.ToList());
             Assert.Contains(uri3, uris.ToList());
@@ -234,7 +236,7 @@ namespace Opc.Ua.Server.Tests
             const string uri2 = "urn:localhost:opcfoundation.org:App2";
             const string uri3 = "https://localhost:8080/OpcUaApp";
 
-            X509Certificate2 clientCert = CreateCertificateWithMultipleUris(
+            using Certificate clientCert = CreateCertificateWithMultipleUris(
                 [uri1, uri2, uri3],
                 kClientSubjectName,
                 [Utils.GetHostName()],
@@ -242,7 +244,7 @@ namespace Opc.Ua.Server.Tests
 
             // Verify certificate has multiple URIs
             IReadOnlyList<string> uris = X509Utils.GetApplicationUrisFromCertificate(clientCert);
-            Assert.That(uris.Count, Is.EqualTo(3));
+            Assert.That(uris, Has.Count.EqualTo(3));
             Assert.Contains(uri1, uris.ToList());
             Assert.Contains(uri2, uris.ToList());
             Assert.Contains(uri3, uris.ToList());
@@ -257,7 +259,7 @@ namespace Opc.Ua.Server.Tests
         /// Helper method to create a session with a custom client certificate.
         /// </summary>
         private async Task<Client.ISession> CreateSessionWithCustomCertificateAsync(
-            X509Certificate2 clientCertificate,
+            Certificate clientCertificate,
             string clientApplicationUri)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
@@ -279,15 +281,16 @@ namespace Opc.Ua.Server.Tests
                     await store.AddAsync(clientCertificate).ConfigureAwait(false);
                 }
 
-                // Create certificate identifier pointing to the stored certificate
-                // Setting the Certificate property will automatically set the CertificateType
+                // Create certificate identifier pointing to the stored
+                // certificate. The identifier is metadata-only — the
+                // resolver loads the cert from the store on demand.
                 var certIdentifier = new CertificateIdentifier
                 {
                     StoreType = CertificateStoreType.Directory,
                     StorePath = certStorePath,
                     SubjectName = clientCertificate.SubjectName.Name,
                     Thumbprint = clientCertificate.Thumbprint,
-                    Certificate = clientCertificate
+                    CertificateType = CertificateIdentifier.GetCertificateType(clientCertificate)
                 };
 
                 // Create client application configuration
@@ -296,64 +299,66 @@ namespace Opc.Ua.Server.Tests
                     ApplicationName = "TestClient",
                     ApplicationType = ApplicationType.Client
                 };
-
-                ApplicationConfiguration clientConfig = await clientApp
-                    .Build(clientApplicationUri, "uri:opcfoundation.org:TestClient")
-                    .AsClient()
-                    .AddSecurityConfiguration([certIdentifier], clientPkiRoot)
-                    .SetMinimumCertificateKeySize(256)
-                    .SetAutoAcceptUntrustedCertificates(true)
-                    .CreateAsync()
-                    .ConfigureAwait(false);
-
-                // Get server endpoint with RSA-compatible security policy
-                EndpointDescription endpoint = m_serverFixture.Server.GetEndpoints()
-                    .Find(e => e.SecurityMode == MessageSecurityMode.SignAndEncrypt &&
-                        e.SecurityPolicyUri == SecurityPolicies.Basic256Sha256);
-
-                Assert.That(endpoint, Is.Not.Null, "No suitable endpoint found");
-
-                var endpointConfiguration = EndpointConfiguration.Create(clientConfig);
-                endpointConfiguration.OperationTimeout = 10000;
-                var configuredEndpoint = new ConfiguredEndpoint(null, endpoint, endpointConfiguration);
-
-                // Create and open session with retry logic for transient errors
-                var sessionFactory = new DefaultSessionFactory(telemetry);
-                const int maxAttempts = 40;
-                const int delayMs = 5000;
-                for (int attempt = 0; ; attempt++)
+                await using (clientApp.ConfigureAwait(false))
                 {
-                    try
+                    ApplicationConfiguration clientConfig = await clientApp
+                        .Build(clientApplicationUri, "uri:opcfoundation.org:TestClient")
+                        .AsClient()
+                        .AddSecurityConfiguration([certIdentifier], clientPkiRoot)
+                        .SetMinimumCertificateKeySize(256)
+                        .SetAutoAcceptUntrustedCertificates(true)
+                        .CreateAsync()
+                        .ConfigureAwait(false);
+
+                    // Get server endpoint with RSA-compatible security policy
+                    EndpointDescription endpoint = m_serverFixture.Server.GetEndpoints()
+                        .Find(e => e.SecurityMode == MessageSecurityMode.SignAndEncrypt &&
+                            e.SecurityPolicyUri == SecurityPolicies.Basic256Sha256);
+
+                    Assert.That(endpoint, Is.Not.Null, "No suitable endpoint found");
+
+                    var endpointConfiguration = EndpointConfiguration.Create(clientConfig);
+                    endpointConfiguration.OperationTimeout = 10000;
+                    var configuredEndpoint = new ConfiguredEndpoint(null, endpoint, endpointConfiguration);
+
+                    // Create and open session with retry logic for transient errors
+                    var sessionFactory = new DefaultSessionFactory(telemetry);
+                    const int maxAttempts = 40;
+                    const int delayMs = 5000;
+                    for (int attempt = 0; ; attempt++)
                     {
-                        return await sessionFactory.CreateAsync(
-                            clientConfig,
-                            configuredEndpoint,
-                            false, // updateBeforeConnect
-                            false, // checkDomain
-                            "TestSession",
-                            60000, // sessionTimeout
-                            null, // userIdentity
-                            default) // preferredLocales
-                            .ConfigureAwait(false);
-                    }
-                    catch (ServiceResultException e) when (
-                    (
-                        e.StatusCode == StatusCodes.BadServerHalted ||
-                        e.StatusCode == StatusCodes.BadSecureChannelClosed ||
-                        e.StatusCode == StatusCodes.BadNoCommunication ||
-                        e.StatusCode == StatusCodes.BadNotConnected
-                    ) &&
-                    attempt < maxAttempts)
-                    {
-                        // Retry for transient connection errors (can happen on busy CI environments)
-                        logger.LogWarning(
-                            e,
-                            "Failed to create session (attempt {Attempt}/{MaxAttempts}). Retrying in {DelayMs}ms... Error: {StatusCode}",
-                            attempt + 1,
-                            maxAttempts,
-                            delayMs,
-                            e.Code);
-                        await Task.Delay(delayMs).ConfigureAwait(false);
+                        try
+                        {
+                            return await sessionFactory.CreateAsync(
+                                clientConfig,
+                                configuredEndpoint,
+                                false, // updateBeforeConnect
+                                false, // checkDomain
+                                "TestSession",
+                                60000, // sessionTimeout
+                                null, // userIdentity
+                                default) // preferredLocales
+                                .ConfigureAwait(false);
+                        }
+                        catch (ServiceResultException e) when (
+                        (
+                            e.StatusCode == StatusCodes.BadServerHalted ||
+                            e.StatusCode == StatusCodes.BadSecureChannelClosed ||
+                            e.StatusCode == StatusCodes.BadNoCommunication ||
+                            e.StatusCode == StatusCodes.BadNotConnected
+                        ) &&
+                        attempt < maxAttempts)
+                        {
+                            // Retry for transient connection errors (can happen on busy CI environments)
+                            logger.LogWarning(
+                                e,
+                                "Failed to create session (attempt {Attempt}/{MaxAttempts}). Retrying in {DelayMs}ms... Error: {StatusCode}",
+                                attempt + 1,
+                                maxAttempts,
+                                delayMs,
+                                e.Code);
+                            await Task.Delay(delayMs).ConfigureAwait(false);
+                        }
                     }
                 }
             }
@@ -377,7 +382,7 @@ namespace Opc.Ua.Server.Tests
         /// <summary>
         /// Creates a certificate with multiple application URIs in the SAN extension.
         /// </summary>
-        private static X509Certificate2 CreateCertificateWithMultipleUris(
+        private static Certificate CreateCertificateWithMultipleUris(
             IList<string> applicationUris,
             string subjectName,
             IList<string> domainNames,

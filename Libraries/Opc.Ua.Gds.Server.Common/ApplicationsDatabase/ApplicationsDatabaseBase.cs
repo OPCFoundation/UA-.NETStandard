@@ -330,7 +330,7 @@ namespace Opc.Ua.Gds.Server.Database
             }
 
             if (NamespaceIndex != nodeId.NamespaceIndex ||
-                !nodeId.TryGetIdentifier(out Guid id))
+                !nodeId.TryGetValue(out Guid id))
             {
                 throw new ServiceResultException(StatusCodes.BadNodeIdUnknown);
             }
@@ -350,7 +350,7 @@ namespace Opc.Ua.Gds.Server.Database
                 throw new ServiceResultException(StatusCodes.BadNodeIdUnknown);
             }
 
-            if (!nodeId.TryGetIdentifier(out string id))
+            if (!nodeId.TryGetValue(out string id))
             {
                 throw new ServiceResultException(StatusCodes.BadNodeIdUnknown);
             }

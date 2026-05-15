@@ -200,6 +200,22 @@ namespace Opc.Ua.SourceGeneration
         }
 
         /// <summary>
+        /// Escape string
+        /// </summary>
+        /// <param name="value"></param>
+        /// <returns></returns>
+        internal static string Escape(this string value)
+        {
+            if (value == null)
+            {
+                return string.Empty;
+            }
+            return value
+                .Replace("\\", "\\\\", StringComparison.Ordinal)
+                .Replace("\"", "\\\"", StringComparison.Ordinal);
+        }
+
+        /// <summary>
         /// Checks for a null qualified name.
         /// </summary>
         public static bool IsNull(this XmlQualifiedName qname)

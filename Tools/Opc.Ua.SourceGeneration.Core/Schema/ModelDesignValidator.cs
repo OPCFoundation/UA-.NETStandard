@@ -60,7 +60,7 @@ namespace Opc.Ua.Schema.Model
         {
             m_telemetry = telemetry;
             m_logger = telemetry.CreateLogger<ModelDesignValidator>();
-            m_context = new ServiceMessageContext(telemetry);
+            m_context = ServiceMessageContext.CreateEmpty(telemetry);
             m_startId = startId;
             m_exclusions = exclusions;
             m_standardVersion = standardVersion;
@@ -158,31 +158,57 @@ namespace Opc.Ua.Schema.Model
         }
 
         /// <summary>
-        /// Validate model designs
+        /// Validates the specified target design files and identifier file, using
+        /// the supplied <paramref name="dependencyFilePaths"/> solely for cross-model
+        /// reference resolution (dependencies are never code-generated).
         /// </summary>
         /// <exception cref="ArgumentException"></exception>
+        /// <param name="targetFilePaths">Design files to generate code for.
+        /// Must contain at least one entry; the first entry is the primary
+        /// model paired with <paramref name="identifierFilePath"/>.</param>
+        /// <param name="dependencyFilePaths">Design files providing namespace
+        /// resolution only (e.g. companion specs referenced by the targets).
+        /// May be empty or <c>null</c>.</param>
+        /// <param name="identifierFilePath">Optional CSV identifier file
+        /// associated with the primary target.</param>
         public void Validate(
-            IReadOnlyList<string> designFilePaths,
+            IReadOnlyList<string> targetFilePaths,
+            IReadOnlyList<string> dependencyFilePaths,
             string identifierFilePath)
         {
-            if (designFilePaths == null || designFilePaths.Count == 0)
+            if (targetFilePaths == null || targetFilePaths.Count == 0)
             {
                 throw new ArgumentException(
-                    "No design files specified",
-                    nameof(designFilePaths));
+                    "No target design files specified",
+                    nameof(targetFilePaths));
             }
 
-            if (designFilePaths.Count == 2 &&
-                designFilePaths[0] == BuiltInDesignFiles.StandardTypesXml &&
-                designFilePaths[1] == BuiltInDesignFiles.UACoreServicesXml &&
+            dependencyFilePaths ??= [];
+
+            // Stack generation fast path: StandardTypes + UACoreServices are
+            // the two halves of the core UA model; they are both generated
+            // from a combined target model.
+            if (targetFilePaths.Count == 2 &&
+                dependencyFilePaths.Count == 0 &&
+                targetFilePaths[0] == BuiltInDesignFiles.StandardTypesXml &&
+                targetFilePaths[1] == BuiltInDesignFiles.UACoreServicesXml &&
                 identifierFilePath == BuiltInDesignFiles.StandardTypesCsv)
             {
-                // Stack generation flow
-                ValidateCoreModel(designFilePaths, identifierFilePath);
+                ValidateCoreModel(targetFilePaths, identifierFilePath);
                 return;
             }
 
-            ValidateModel(designFilePaths, identifierFilePath);
+            // Internal representation keeps the primary target first, followed
+            // by remaining targets, followed by dependencies. This preserves
+            // existing ValidateModel/GetNamespaceList semantics: index 0 is the
+            // model that gets generated; everything else contributes to
+            // namespace/node resolution only.
+            var allFilePaths = new List<string>(
+                targetFilePaths.Count + dependencyFilePaths.Count);
+            allFilePaths.AddRange(targetFilePaths);
+            allFilePaths.AddRange(dependencyFilePaths);
+
+            ValidateModel(allFilePaths, identifierFilePath);
         }
 
         /// <summary>
@@ -305,7 +331,7 @@ namespace Opc.Ua.Schema.Model
         /// <param name="designFilePaths"></param>
         /// <param name="identifierFilePath"></param>
         private void ValidateModel(
-            IReadOnlyList<string> designFilePaths,
+            List<string> designFilePaths,
             string identifierFilePath)
         {
             string inputPath = designFilePaths[0];
@@ -325,9 +351,17 @@ namespace Opc.Ua.Schema.Model
             // load the design files.
             List<Namespace> namespaces = GetNamespaceList(designFilePaths);
 
-            for (int ii = namespaces.Count - 1; ii > 0; ii--)
+            // The primary target (designFilePaths[0]) is loaded separately
+            // below. It is identified by its FilePath, not by list index,
+            // because GetNamespaceList's reordering (which propagates target
+            // namespaces ahead of the namespaces they reference) is allowed
+            // to move a dependency that imports the primary target ahead of
+            // it. Skipping purely by "ii > 0" would then double-load the
+            // primary target as a dependency.
+            for (int ii = namespaces.Count - 1; ii >= 0; ii--)
             {
-                if (namespaces[ii].FilePath == null)
+                if (namespaces[ii].FilePath == null ||
+                    namespaces[ii].FilePath == inputPath)
                 {
                     continue;
                 }
@@ -335,7 +369,8 @@ namespace Opc.Ua.Schema.Model
                 ModelDesign dependency = LoadDesignFile(
                     namespaces,
                     namespaces[ii].FilePath,
-                    null);
+                    null,
+                    validateDictionary: false);
 
                 if (dependency.Namespaces != null)
                 {
@@ -654,7 +689,7 @@ namespace Opc.Ua.Schema.Model
             return model;
         }
 
-        private void LoadNodes(ModelDesign model)
+        private void LoadNodes(ModelDesign model, bool validateDictionary = true)
         {
             UpdateNamespaceTables(model);
 
@@ -671,8 +706,16 @@ namespace Opc.Ua.Schema.Model
 
             model.Items = [.. nodes];
 
-            // validate node in target dictionary.
-            ValidateDictionary(model);
+            // Validate node in target dictionary. Skipped when the model is
+            // being loaded only as a dependency (its nodes are registered in
+            // m_nodes so the primary target can resolve cross-model refs, but
+            // it was already validated when built as its own target, and
+            // re-validating here can fail if the dep imports types from
+            // another dep that has not yet been loaded).
+            if (validateDictionary)
+            {
+                ValidateDictionary(model);
+            }
 
             // build hierarchy.
             foreach (NodeDesign node in model.Items)
@@ -686,7 +729,8 @@ namespace Opc.Ua.Schema.Model
         /// </summary>
         private ModelDesign LoadModelDesign(
             string designFilePath,
-            string identifierFilePath)
+            string identifierFilePath,
+            bool validateDictionary = true)
         {
             ModelDesign model = LoadModelDesign(designFilePath);
 
@@ -705,7 +749,7 @@ namespace Opc.Ua.Schema.Model
                 model.TargetPublicationDateSpecified = true;
             }
 
-            LoadNodes(model);
+            LoadNodes(model, validateDictionary);
 
             // assigning identifiers.
             identifierFilePath ??= Path.Combine(
@@ -930,7 +974,7 @@ namespace Opc.Ua.Schema.Model
                     {
                         Category = serviceType.InterfaceType switch
                         {
-                            InterfaceType.Session => ServiceCategory.Session,
+                            InterfaceType.Session => GetSessionSubCategory(dataType.Name),
                             InterfaceType.SecureChannel => ServiceCategory.SecureChannel,
                             InterfaceType.Discovery => ServiceCategory.Discovery,
                             InterfaceType.Registration => ServiceCategory.Registration,
@@ -1189,15 +1233,6 @@ namespace Opc.Ua.Schema.Model
                     TargetNamespace,
                     EncodingType.Xml,
                     nodes);
-
-                if (m_standardVersion != SpecificationVersion.V103)
-                {
-                    AddDataTypeDictionary(
-                        dictionary,
-                        TargetNamespace,
-                        EncodingType.Json,
-                        nodes);
-                }
 
                 foreach (NodeDesign node in dictionary.Items)
                 {
@@ -1534,7 +1569,8 @@ namespace Opc.Ua.Schema.Model
         private ModelDesign LoadDesignFile(
             List<Namespace> namespaces,
             string designFilePath,
-            string identifierFilePath)
+            string identifierFilePath,
+            bool validateDictionary = true)
         {
             m_logger.LogInformation("Loading DesignFile: {File}", designFilePath);
 
@@ -1597,7 +1633,7 @@ namespace Opc.Ua.Schema.Model
             }
             else
             {
-                model = LoadModelDesign(fileToLoad, identifierFilePath);
+                model = LoadModelDesign(fileToLoad, identifierFilePath, validateDictionary);
 
                 Namespace ns = model.Namespaces
                     .FirstOrDefault(x => x.Value == model.TargetNamespace);
@@ -1623,9 +1659,12 @@ namespace Opc.Ua.Schema.Model
             {
                 if (namespaces[ii].Value == target.Value)
                 {
-                    if (namespaces[ii].FilePath == null)
+                    string existingFilePath = namespaces[ii].FilePath;
+
+                    if (existingFilePath == null)
                     {
                         namespaces[ii].FilePath = target.FilePath;
+                        existingFilePath = target.FilePath;
                     }
 
                     if (string.CompareOrdinal(
@@ -1633,6 +1672,17 @@ namespace Opc.Ua.Schema.Model
                         target.PublicationDate) < 0)
                     {
                         namespaces[ii] = target;
+
+                        // Preserve the authoritative FilePath: the previously
+                        // merged entry (or the newly-arrived target) may have
+                        // been the one actually produced from its own source
+                        // file. Replacing with a dependency's import-declared
+                        // namespace (FilePath == null) would otherwise lose
+                        // the ability to subsequently load that file.
+                        if (namespaces[ii].FilePath == null)
+                        {
+                            namespaces[ii].FilePath = existingFilePath;
+                        }
                     }
 
                     return;
@@ -2003,10 +2053,9 @@ namespace Opc.Ua.Schema.Model
             EncodingType encodingType,
             List<NodeDesign> nodesToAdd)
         {
-            DictionaryDesign dictionary = null;
             var descriptions = new List<InstanceDesign>();
 
-            if (encodingType != EncodingType.Json)
+            DictionaryDesign dictionary;
             {
                 dictionary = new DictionaryDesign();
 
@@ -2126,20 +2175,17 @@ namespace Opc.Ua.Schema.Model
                 }
             }
 
-            if (dictionary != null)
+            dictionary.Children = new ListOfChildren
             {
-                dictionary.Children = new ListOfChildren
-                {
-                    Items = [.. descriptions]
-                };
+                Items = [.. descriptions]
+            };
 
-                m_nodes[dictionary.SymbolicId] = dictionary;
-                m_logger.LogDebug(
-                    "Added {Type}: {Name}",
-                    dictionary.GetType().Name,
-                    dictionary.SymbolicId.Name);
-                nodesToAdd.Add(dictionary);
-            }
+            m_nodes[dictionary.SymbolicId] = dictionary;
+            m_logger.LogDebug(
+                "Added {Type}: {Name}",
+                dictionary.GetType().Name,
+                dictionary.SymbolicId.Name);
+            nodesToAdd.Add(dictionary);
         }
 
         private void AddProperty(
@@ -2230,7 +2276,7 @@ namespace Opc.Ua.Schema.Model
         {
             VariableDesign description = null;
 
-            if (encodingType != EncodingType.Json && !dataType.NotInAddressSpace)
+            if (!dataType.NotInAddressSpace)
             {
                 description = new VariableDesign
                 {
@@ -2322,8 +2368,7 @@ namespace Opc.Ua.Schema.Model
         private enum EncodingType
         {
             Binary = 0,
-            Xml = 1,
-            Json = 2
+            Xml = 1
         }
 
         private void AddDataTypeEncoding(
@@ -2345,14 +2390,6 @@ namespace Opc.Ua.Schema.Model
                     dataType.SymbolicId.Namespace);
                 encoding.SymbolicName = new XmlQualifiedName("DefaultXml", Ua.Types.Namespaces.OpcUa);
                 encoding.BrowseName = "Default XML";
-            }
-            else if (encodingType == EncodingType.Json)
-            {
-                encoding.SymbolicId = new XmlQualifiedName(
-                    dataType.SymbolicId.Name + "_Encoding_DefaultJson",
-                    dataType.SymbolicId.Namespace);
-                encoding.SymbolicName = new XmlQualifiedName("DefaultJson", Ua.Types.Namespaces.OpcUa);
-                encoding.BrowseName = "Default JSON";
             }
             else
             {
@@ -2520,11 +2557,11 @@ namespace Opc.Ua.Schema.Model
             {
                 if (m_symbolicIdToNodeId.TryGetValue(node.SymbolicId, out NodeId nodeId))
                 {
-                    if (nodeId.TryGetIdentifier(out uint numeric))
+                    if (nodeId.TryGetValue(out uint numeric))
                     {
                         id = numeric;
                     }
-                    else if (nodeId.TryGetIdentifier(out string stringId))
+                    else if (nodeId.TryGetValue(out string stringId))
                     {
                         id = stringId;
                     }
@@ -3679,6 +3716,44 @@ namespace Opc.Ua.Schema.Model
                 }
 
                 node.References = [.. references];
+
+                // Auto-set SupportsEvents when the node has forward HasEventSource
+                // or HasNotifier references. Per OPC UA Part 3, the EventNotifier
+                // attribute must be set on the source node of these references.
+                if (node is ObjectDesign objectNode &&
+                    !objectNode.SupportsEvents &&
+                    !objectNode.SupportsEventsSpecified)
+                {
+                    foreach (Reference reference in references)
+                    {
+                        if (!reference.IsInverse &&
+                            reference.ReferenceType != null &&
+                            (reference.ReferenceType.Name == "HasEventSource" ||
+                                reference.ReferenceType.Name == "HasNotifier"))
+                        {
+                            objectNode.SupportsEvents = true;
+                            objectNode.SupportsEventsSpecified = true;
+                            break;
+                        }
+                    }
+                }
+                else if (node is ObjectTypeDesign objectTypeNode &&
+                    !objectTypeNode.SupportsEvents &&
+                    !objectTypeNode.SupportsEventsSpecified)
+                {
+                    foreach (Reference reference in references)
+                    {
+                        if (!reference.IsInverse &&
+                            reference.ReferenceType != null &&
+                            (reference.ReferenceType.Name == "HasEventSource" ||
+                                reference.ReferenceType.Name == "HasNotifier"))
+                        {
+                            objectTypeNode.SupportsEvents = true;
+                            objectTypeNode.SupportsEventsSpecified = true;
+                            break;
+                        }
+                    }
+                }
             }
         }
 
@@ -3853,17 +3928,7 @@ namespace Opc.Ua.Schema.Model
                             dataType,
                             new XmlQualifiedName("DefaultBinary", Ua.Types.Namespaces.OpcUa));
 
-                        if (m_standardVersion != SpecificationVersion.V103)
-                        {
-                            EncodingDesign jsonEncoding = CreateEncoding(
-                                dataType,
-                                new XmlQualifiedName("DefaultJson", Ua.Types.Namespaces.OpcUa));
-                            dataType.Encodings = [xmlEncoding, binaryEncoding, jsonEncoding];
-                        }
-                        else
-                        {
-                            dataType.Encodings = [xmlEncoding, binaryEncoding];
-                        }
+                        dataType.Encodings = [xmlEncoding, binaryEncoding];
 
                         dataType.HasEncodings = true;
                     }
@@ -4404,6 +4469,9 @@ namespace Opc.Ua.Schema.Model
             mergedType.RolePermissions = type.RolePermissions;
             mergedType.AccessRestrictions = type.AccessRestrictions;
             mergedType.AccessRestrictionsSpecified = type.AccessRestrictionsSpecified;
+            mergedType.DefaultRolePermissions = type.DefaultRolePermissions;
+            mergedType.DefaultAccessRestrictions = type.DefaultAccessRestrictions;
+            mergedType.DefaultAccessRestrictionsSpecified = type.DefaultAccessRestrictionsSpecified;
             mergedType.WriteAccess = type.WriteAccess;
 
             if (type is VariableTypeDesign variableType)
@@ -4569,6 +4637,9 @@ namespace Opc.Ua.Schema.Model
                 Category = type.Category,
                 Purpose = type.Purpose,
                 ReleaseStatus = type.ReleaseStatus,
+                RolePermissions = type.RolePermissions,
+                AccessRestrictions = type.AccessRestrictions,
+                AccessRestrictionsSpecified = type.AccessRestrictionsSpecified,
                 DefaultRolePermissions = type.DefaultRolePermissions,
                 DefaultAccessRestrictions = type.DefaultAccessRestrictions,
                 DefaultAccessRestrictionsSpecified = type.DefaultAccessRestrictionsSpecified
@@ -4605,6 +4676,9 @@ namespace Opc.Ua.Schema.Model
                 Category = type.Category,
                 Purpose = type.Purpose,
                 ReleaseStatus = type.ReleaseStatus,
+                RolePermissions = type.RolePermissions,
+                AccessRestrictions = type.AccessRestrictions,
+                AccessRestrictionsSpecified = type.AccessRestrictionsSpecified,
                 DefaultRolePermissions = type.DefaultRolePermissions,
                 DefaultAccessRestrictions = type.DefaultAccessRestrictions,
                 DefaultAccessRestrictionsSpecified = type.DefaultAccessRestrictionsSpecified
@@ -5795,6 +5869,42 @@ namespace Opc.Ua.Schema.Model
 
         private static readonly XmlQualifiedName s_baseDataTypeQn =
             new("BaseDataType", Ua.Types.Namespaces.OpcUa);
+
+        /// <summary>
+        /// Maps a session service name to its OPC UA Part 4 sub-category.
+        /// </summary>
+        private static ServiceCategory GetSessionSubCategory(string serviceName)
+        {
+            return serviceName switch
+            {
+                "Read" or "Write" or "HistoryRead" or "HistoryUpdate"
+                    => ServiceCategory.Attribute,
+
+                "Browse" or "BrowseNext" or "TranslateBrowsePathsToNodeIds"
+                    or "RegisterNodes" or "UnregisterNodes"
+                    => ServiceCategory.View,
+
+                "Call"
+                    => ServiceCategory.Method,
+
+                "CreateMonitoredItems" or "ModifyMonitoredItems" or "SetMonitoringMode"
+                    or "SetTriggering" or "DeleteMonitoredItems"
+                    => ServiceCategory.MonitoredItem,
+
+                "CreateSubscription" or "ModifySubscription" or "SetPublishingMode"
+                    or "Publish" or "Republish" or "TransferSubscriptions" or "DeleteSubscriptions"
+                    => ServiceCategory.Subscription,
+
+                "AddNodes" or "AddReferences" or "DeleteNodes" or "DeleteReferences"
+                    => ServiceCategory.NodeManagement,
+
+                "QueryFirst" or "QueryNext"
+                    => ServiceCategory.Query,
+
+                // Session lifecycle: CreateSession, ActivateSession, CloseSession, Cancel
+                _ => ServiceCategory.Session
+            };
+        }
 
         private static readonly XmlQualifiedName s_structureQn =
             new("Structure", Ua.Types.Namespaces.OpcUa);

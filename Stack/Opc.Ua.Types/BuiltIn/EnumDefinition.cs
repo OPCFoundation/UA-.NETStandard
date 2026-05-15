@@ -64,10 +64,6 @@ namespace Opc.Ua
             => ObjectIds.EnumDefinition_Encoding_DefaultXml;
 
         /// <inheritdoc/>
-        public override ExpandedNodeId JsonEncodingId
-            => ObjectIds.EnumDefinition_Encoding_DefaultJson;
-
-        /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Namespaces.OpcUaXsd);

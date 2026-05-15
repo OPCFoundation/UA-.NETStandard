@@ -364,6 +364,366 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        [TestCase(BuiltInType.Double)]
+        [TestCase(BuiltInType.Float)]
+        [TestCase(BuiltInType.Int16)]
+        [TestCase(BuiltInType.UInt16)]
+        [TestCase(BuiltInType.Int32)]
+        [TestCase(BuiltInType.UInt32)]
+        [TestCase(BuiltInType.Int64)]
+        [TestCase(BuiltInType.UInt64)]
+        [TestCase(BuiltInType.Byte)]
+        [TestCase(BuiltInType.SByte)]
+        public void ValueChanged_DeadbandPercent(BuiltInType builtInType)
+        {
+            // Range = 100. Deadband = 10%. Threshold = 10.
+            var filter = new DataChangeFilter
+            {
+                Trigger = DataChangeTrigger.StatusValue,
+                DeadbandType = (uint)DeadbandType.Percent,
+                DeadbandValue = 10.0
+            };
+            const double range = 100.0;
+            DataValue lastValue;
+            DataValue valueInside;
+            DataValue valueOutside;
+
+            switch (builtInType)
+            {
+                case BuiltInType.Double:
+                    lastValue = new DataValue(new Variant(50.0));
+                    valueInside = new DataValue(new Variant(55.0));
+                    valueOutside = new DataValue(new Variant(61.0));
+                    break;
+                case BuiltInType.Float:
+                    lastValue = new DataValue(new Variant(50.0f));
+                    valueInside = new DataValue(new Variant(55.0f));
+                    valueOutside = new DataValue(new Variant(61.0f));
+                    break;
+                case BuiltInType.Int16:
+                    lastValue = new DataValue(new Variant((short)50));
+                    valueInside = new DataValue(new Variant((short)55));
+                    valueOutside = new DataValue(new Variant((short)61));
+                    break;
+                case BuiltInType.UInt16:
+                    lastValue = new DataValue(new Variant((ushort)50));
+                    valueInside = new DataValue(new Variant((ushort)55));
+                    valueOutside = new DataValue(new Variant((ushort)61));
+                    break;
+                case BuiltInType.Int32:
+                    lastValue = new DataValue(new Variant(50));
+                    valueInside = new DataValue(new Variant(55));
+                    valueOutside = new DataValue(new Variant(61));
+                    break;
+                case BuiltInType.UInt32:
+                    lastValue = new DataValue(new Variant((uint)50));
+                    valueInside = new DataValue(new Variant((uint)55));
+                    valueOutside = new DataValue(new Variant((uint)61));
+                    break;
+                case BuiltInType.Int64:
+                    lastValue = new DataValue(new Variant((long)50));
+                    valueInside = new DataValue(new Variant((long)55));
+                    valueOutside = new DataValue(new Variant((long)61));
+                    break;
+                case BuiltInType.UInt64:
+                    lastValue = new DataValue(new Variant((ulong)50));
+                    valueInside = new DataValue(new Variant((ulong)55));
+                    valueOutside = new DataValue(new Variant((ulong)61));
+                    break;
+                case BuiltInType.Byte:
+                    lastValue = new DataValue(new Variant((byte)50));
+                    valueInside = new DataValue(new Variant((byte)55));
+                    valueOutside = new DataValue(new Variant((byte)61));
+                    break;
+                case BuiltInType.SByte:
+                    lastValue = new DataValue(new Variant((sbyte)50));
+                    valueInside = new DataValue(new Variant((sbyte)55));
+                    valueOutside = new DataValue(new Variant((sbyte)61));
+                    break;
+                default:
+                    throw new NotImplementedException();
+            }
+
+            Assert.That(
+                MonitoredItem.ValueChanged(valueInside, null, lastValue, null, filter, range),
+                Is.False,
+                $"Inside percent deadband for {builtInType}");
+            Assert.That(
+                MonitoredItem.ValueChanged(valueOutside, null, lastValue, null, filter, range),
+                Is.True,
+                $"Outside percent deadband for {builtInType}");
+        }
+
+        [Test]
+        [TestCase(BuiltInType.Double)]
+        [TestCase(BuiltInType.Float)]
+        [TestCase(BuiltInType.Int16)]
+        [TestCase(BuiltInType.UInt16)]
+        [TestCase(BuiltInType.Int32)]
+        [TestCase(BuiltInType.UInt32)]
+        [TestCase(BuiltInType.Int64)]
+        [TestCase(BuiltInType.UInt64)]
+        [TestCase(BuiltInType.Variant)]
+        [TestCase(BuiltInType.Byte)]
+        [TestCase(BuiltInType.SByte)]
+        public void ValueChanged_Array_DeadbandPercent(BuiltInType builtInType)
+        {
+            // Range = 100. Deadband = 10%. Threshold = 10.
+            var filter = new DataChangeFilter
+            {
+                Trigger = DataChangeTrigger.StatusValue,
+                DeadbandType = (uint)DeadbandType.Percent,
+                DeadbandValue = 10.0
+            };
+            const double range = 100.0;
+            DataValue lastValue;
+            DataValue valueInside;
+            DataValue valueOutside;
+
+            switch (builtInType)
+            {
+                case BuiltInType.Double:
+                    lastValue = new DataValue(new Variant((double[])[50.0, 50.0]));
+                    valueInside = new DataValue(new Variant((double[])[55.0, 55.0]));
+                    valueOutside = new DataValue(new Variant((double[])[55.0, 61.0]));
+                    break;
+                case BuiltInType.Float:
+                    lastValue = new DataValue(new Variant((float[])[50.0f, 50.0f]));
+                    valueInside = new DataValue(new Variant((float[])[55.0f, 55.0f]));
+                    valueOutside = new DataValue(new Variant((float[])[55.0f, 61.0f]));
+                    break;
+                case BuiltInType.Int16:
+                    lastValue = new DataValue(new Variant((short[])[50, 50]));
+                    valueInside = new DataValue(new Variant((short[])[55, 55]));
+                    valueOutside = new DataValue(new Variant((short[])[55, 61]));
+                    break;
+                case BuiltInType.UInt16:
+                    lastValue = new DataValue(new Variant((ushort[])[50, 50]));
+                    valueInside = new DataValue(new Variant((ushort[])[55, 55]));
+                    valueOutside = new DataValue(new Variant((ushort[])[55, 61]));
+                    break;
+                case BuiltInType.Int32:
+                    lastValue = new DataValue(new Variant((int[])[50, 50]));
+                    valueInside = new DataValue(new Variant((int[])[55, 55]));
+                    valueOutside = new DataValue(new Variant((int[])[55, 61]));
+                    break;
+                case BuiltInType.UInt32:
+                    lastValue = new DataValue(new Variant((uint[])[50, 50]));
+                    valueInside = new DataValue(new Variant((uint[])[55, 55]));
+                    valueOutside = new DataValue(new Variant((uint[])[55, 61]));
+                    break;
+                case BuiltInType.Int64:
+                    lastValue = new DataValue(new Variant((long[])[50, 50]));
+                    valueInside = new DataValue(new Variant((long[])[55, 55]));
+                    valueOutside = new DataValue(new Variant((long[])[55, 61]));
+                    break;
+                case BuiltInType.UInt64:
+                    lastValue = new DataValue(new Variant((ulong[])[50, 50]));
+                    valueInside = new DataValue(new Variant((ulong[])[55, 55]));
+                    valueOutside = new DataValue(new Variant((ulong[])[55, 61]));
+                    break;
+                case BuiltInType.Variant:
+                    lastValue = new DataValue(new Variant((Variant[])[new Variant(50), new Variant(50)]));
+                    valueInside = new DataValue(new Variant((Variant[])[new Variant(55), new Variant(55)]));
+                    valueOutside = new DataValue(new Variant((Variant[])[new Variant(55), new Variant(61)]));
+                    break;
+                case BuiltInType.Byte:
+                    lastValue = new DataValue(new Variant((ArrayOf<byte>)(byte[])[50, 50]));
+                    valueInside = new DataValue(new Variant((ArrayOf<byte>)(byte[])[55, 55]));
+                    valueOutside = new DataValue(new Variant((ArrayOf<byte>)(byte[])[55, 61]));
+                    break;
+                case BuiltInType.SByte:
+                    lastValue = new DataValue(new Variant((ArrayOf<sbyte>)(sbyte[])[50, 50]));
+                    valueInside = new DataValue(new Variant((ArrayOf<sbyte>)(sbyte[])[55, 55]));
+                    valueOutside = new DataValue(new Variant((ArrayOf<sbyte>)(sbyte[])[55, 61]));
+                    break;
+                default:
+                    throw new NotImplementedException();
+            }
+
+            Assert.That(
+                MonitoredItem.ValueChanged(valueInside, null, lastValue, null, filter, range),
+                Is.False,
+                "Inside percent deadband");
+            Assert.That(
+                MonitoredItem.ValueChanged(valueOutside, null, lastValue, null, filter, range),
+                Is.True,
+                "Outside percent deadband");
+        }
+
+        [Test]
+        [TestCase(BuiltInType.Double)]
+        [TestCase(BuiltInType.Float)]
+        [TestCase(BuiltInType.Int16)]
+        [TestCase(BuiltInType.UInt16)]
+        [TestCase(BuiltInType.Int32)]
+        [TestCase(BuiltInType.UInt32)]
+        [TestCase(BuiltInType.Int64)]
+        [TestCase(BuiltInType.UInt64)]
+        [TestCase(BuiltInType.Byte)]
+        public void ValueChanged_DeadbandAbsolute(BuiltInType builtInType)
+        {
+            var filter = new DataChangeFilter
+            {
+                Trigger = DataChangeTrigger.StatusValue,
+                DeadbandType = (uint)DeadbandType.Absolute,
+                DeadbandValue = 10.0
+            };
+            DataValue lastValue;
+            DataValue valueInside;
+            DataValue valueOutside;
+
+            switch (builtInType)
+            {
+                case BuiltInType.Double:
+                    lastValue = new DataValue(new Variant(50.0));
+                    valueInside = new DataValue(new Variant(55.0));
+                    valueOutside = new DataValue(new Variant(61.0));
+                    break;
+                case BuiltInType.Float:
+                    lastValue = new DataValue(new Variant(50.0f));
+                    valueInside = new DataValue(new Variant(55.0f));
+                    valueOutside = new DataValue(new Variant(61.0f));
+                    break;
+                case BuiltInType.Int16:
+                    lastValue = new DataValue(new Variant((short)50));
+                    valueInside = new DataValue(new Variant((short)55));
+                    valueOutside = new DataValue(new Variant((short)61));
+                    break;
+                case BuiltInType.UInt16:
+                    lastValue = new DataValue(new Variant((ushort)50));
+                    valueInside = new DataValue(new Variant((ushort)55));
+                    valueOutside = new DataValue(new Variant((ushort)61));
+                    break;
+                case BuiltInType.Int32:
+                    lastValue = new DataValue(new Variant(50));
+                    valueInside = new DataValue(new Variant(55));
+                    valueOutside = new DataValue(new Variant(61));
+                    break;
+                case BuiltInType.UInt32:
+                    lastValue = new DataValue(new Variant((uint)50));
+                    valueInside = new DataValue(new Variant((uint)55));
+                    valueOutside = new DataValue(new Variant((uint)61));
+                    break;
+                case BuiltInType.Int64:
+                    lastValue = new DataValue(new Variant((long)50));
+                    valueInside = new DataValue(new Variant((long)55));
+                    valueOutside = new DataValue(new Variant((long)61));
+                    break;
+                case BuiltInType.UInt64:
+                    lastValue = new DataValue(new Variant((ulong)50));
+                    valueInside = new DataValue(new Variant((ulong)55));
+                    valueOutside = new DataValue(new Variant((ulong)61));
+                    break;
+                case BuiltInType.Byte:
+                    lastValue = new DataValue(new Variant((byte)50));
+                    valueInside = new DataValue(new Variant((byte)55));
+                    valueOutside = new DataValue(new Variant((byte)61));
+                    break;
+                default:
+                    throw new NotImplementedException();
+            }
+
+            Assert.That(
+                MonitoredItem.ValueChanged(valueInside, null, lastValue, null, filter, 0),
+                Is.False,
+                $"Inside absolute deadband for {builtInType}");
+            Assert.That(
+                MonitoredItem.ValueChanged(valueOutside, null, lastValue, null, filter, 0),
+                Is.True,
+                $"Outside absolute deadband for {builtInType}");
+        }
+
+        [Test]
+        [TestCase(BuiltInType.Double)]
+        [TestCase(BuiltInType.Float)]
+        [TestCase(BuiltInType.Int16)]
+        [TestCase(BuiltInType.UInt16)]
+        [TestCase(BuiltInType.Int32)]
+        [TestCase(BuiltInType.UInt32)]
+        [TestCase(BuiltInType.Int64)]
+        [TestCase(BuiltInType.UInt64)]
+        [TestCase(BuiltInType.Variant)]
+        [TestCase(BuiltInType.Byte)]
+        public void ValueChanged_Array_DeadbandAbsolute(BuiltInType builtInType)
+        {
+            var filter = new DataChangeFilter
+            {
+                Trigger = DataChangeTrigger.StatusValue,
+                DeadbandType = (uint)DeadbandType.Absolute,
+                DeadbandValue = 10.0
+            };
+            DataValue lastValue;
+            DataValue valueInside;
+            DataValue valueOutside;
+
+            switch (builtInType)
+            {
+                case BuiltInType.Double:
+                    lastValue = new DataValue(new Variant((double[])[50.0, 50.0]));
+                    valueInside = new DataValue(new Variant((double[])[55.0, 55.0]));
+                    valueOutside = new DataValue(new Variant((double[])[55.0, 61.0]));
+                    break;
+                case BuiltInType.Float:
+                    lastValue = new DataValue(new Variant((float[])[50.0f, 50.0f]));
+                    valueInside = new DataValue(new Variant((float[])[55.0f, 55.0f]));
+                    valueOutside = new DataValue(new Variant((float[])[55.0f, 61.0f]));
+                    break;
+                case BuiltInType.Int16:
+                    lastValue = new DataValue(new Variant((short[])[50, 50]));
+                    valueInside = new DataValue(new Variant((short[])[55, 55]));
+                    valueOutside = new DataValue(new Variant((short[])[55, 61]));
+                    break;
+                case BuiltInType.UInt16:
+                    lastValue = new DataValue(new Variant((ushort[])[50, 50]));
+                    valueInside = new DataValue(new Variant((ushort[])[55, 55]));
+                    valueOutside = new DataValue(new Variant((ushort[])[55, 61]));
+                    break;
+                case BuiltInType.Int32:
+                    lastValue = new DataValue(new Variant((int[])[50, 50]));
+                    valueInside = new DataValue(new Variant((int[])[55, 55]));
+                    valueOutside = new DataValue(new Variant((int[])[55, 61]));
+                    break;
+                case BuiltInType.UInt32:
+                    lastValue = new DataValue(new Variant((uint[])[50, 50]));
+                    valueInside = new DataValue(new Variant((uint[])[55, 55]));
+                    valueOutside = new DataValue(new Variant((uint[])[55, 61]));
+                    break;
+                case BuiltInType.Int64:
+                    lastValue = new DataValue(new Variant((long[])[50, 50]));
+                    valueInside = new DataValue(new Variant((long[])[55, 55]));
+                    valueOutside = new DataValue(new Variant((long[])[55, 61]));
+                    break;
+                case BuiltInType.UInt64:
+                    lastValue = new DataValue(new Variant((ulong[])[50, 50]));
+                    valueInside = new DataValue(new Variant((ulong[])[55, 55]));
+                    valueOutside = new DataValue(new Variant((ulong[])[55, 61]));
+                    break;
+                case BuiltInType.Variant:
+                    lastValue = new DataValue(new Variant((Variant[])[new Variant(50), new Variant(50)]));
+                    valueInside = new DataValue(new Variant((Variant[])[new Variant(55), new Variant(55)]));
+                    valueOutside = new DataValue(new Variant((Variant[])[new Variant(55), new Variant(61)]));
+                    break;
+                case BuiltInType.Byte:
+                    lastValue = new DataValue(new Variant((ArrayOf<byte>)(byte[])[50, 50]));
+                    valueInside = new DataValue(new Variant((ArrayOf<byte>)(byte[])[55, 55]));
+                    valueOutside = new DataValue(new Variant((ArrayOf<byte>)(byte[])[55, 61]));
+                    break;
+                default:
+                    throw new NotImplementedException();
+            }
+
+            Assert.That(
+                MonitoredItem.ValueChanged(valueInside, null, lastValue, null, filter, 0),
+                Is.False,
+                $"Inside absolute deadband for array of {builtInType}");
+            Assert.That(
+                MonitoredItem.ValueChanged(valueOutside, null, lastValue, null, filter, 0),
+                Is.True,
+                $"Outside absolute deadband for array of {builtInType}");
+        }
+
+        [Test]
         public void ValueChanged_FloatArray_Deadband()
         {
             var filter = new DataChangeFilter

@@ -7,7 +7,11 @@ namespace Opc.Ua.Server.Tests
 {
     [GroupBenchmarksBy(BenchmarkLogicalGroupRule.ByCategory)]
     [MemoryDiagnoser]
+    // CA1001: benchmark class; ownership/disposal is handled by BenchmarkDotNet's
+    // [GlobalSetup]/[GlobalCleanup] lifecycle.
+#pragma warning disable CA1001
     public class MonitoredItemBenchmarks
+#pragma warning restore CA1001
     {
         private DataValue m_valueDouble;
         private DataValue m_lastValueDouble;
@@ -17,6 +21,7 @@ namespace Opc.Ua.Server.Tests
         private DataValue m_lastValueArrayDouble;
         private DataChangeFilter m_filter;
         private MonitoredItem m_monitoredItem;
+        private MonitoredItemQueueFactory m_queueFactory;
         private BaseEventState m_event1;
         private BaseEventState m_event2;
         private readonly double m_range = 100.0;
@@ -117,7 +122,8 @@ namespace Opc.Ua.Server.Tests
             serverMock.Setup(s => s.Telemetry).Returns(telemetry);
             serverMock.Setup(s => s.NamespaceUris).Returns(new NamespaceTable());
             serverMock.Setup(s => s.TypeTree).Returns(new TypeTable(new NamespaceTable()));
-            serverMock.Setup(s => s.MonitoredItemQueueFactory).Returns(new MonitoredItemQueueFactory(telemetry));
+            m_queueFactory = new MonitoredItemQueueFactory(telemetry);
+            serverMock.Setup(s => s.MonitoredItemQueueFactory).Returns(m_queueFactory);
 
             var nodeManagerMock = new Mock<INodeManager>();
 
@@ -153,6 +159,13 @@ namespace Opc.Ua.Server.Tests
             m_event2.Initialize(systemContext, null, EventSeverity.High, new LocalizedText("Event 2"));
             m_event2.SetChildValue(systemContext, BrowseNames.SourceNode, ObjectIds.Server, false);
             m_event2.SetChildValue(systemContext, BrowseNames.SourceName, "Internal 2", false);
+        }
+
+        [GlobalCleanup]
+        public void Cleanup()
+        {
+            m_monitoredItem?.Dispose();
+            m_queueFactory?.Dispose();
         }
 
         [Benchmark]

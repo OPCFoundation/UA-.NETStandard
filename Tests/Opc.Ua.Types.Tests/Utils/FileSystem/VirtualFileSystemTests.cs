@@ -420,7 +420,7 @@ namespace Opc.Ua.Types.Tests.Utils.FileSystem
             // Assert
             Assert.That(vfs.Exists(filePath), Is.True);
             byte[] retrievedContent = vfs.Get(filePath);
-            Assert.That(retrievedContent.Length, Is.EqualTo(largeContent.Length));
+            Assert.That(retrievedContent, Has.Length.EqualTo(largeContent.Length));
             Assert.That(retrievedContent, Is.EqualTo(largeContent));
 
             // Test streaming
@@ -591,7 +591,7 @@ namespace Opc.Ua.Types.Tests.Utils.FileSystem
 
                 // Read and verify all bytes are preserved
                 byte[] retrievedContent = vfs.Get(filePath);
-                Assert.That(retrievedContent.Length, Is.EqualTo(256));
+                Assert.That(retrievedContent, Has.Length.EqualTo(256));
 
                 // Verify all bytes match
                 Assert.That(retrievedContent, Is.EqualTo(binaryContent));

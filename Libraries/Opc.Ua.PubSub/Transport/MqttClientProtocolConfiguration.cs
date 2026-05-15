@@ -29,21 +29,25 @@
 
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Security;
 using System.Security.Authentication;
-using System.Security.Cryptography.X509Certificates;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.PubSub.Transport
 {
     /// <summary>
     /// The certificates used by the tls/ssl layer
     /// </summary>
+    // CA1001: public class — adding IDisposable would be a binary breaking change.
+    // The owned Certificate fields are released via finalisation by the underlying
+    // X509Certificate2.
+#pragma warning disable CA1001
     public class MqttTlsCertificates
+#pragma warning restore CA1001
     {
-        private readonly X509Certificate2 m_caCertificate;
-        private readonly X509Certificate2 m_clientCertificate;
+        private readonly Certificate m_caCertificate;
+        private readonly Certificate m_clientCertificate;
 
         /// <summary>
         /// Constructor
@@ -59,12 +63,11 @@ namespace Opc.Ua.PubSub.Transport
 
             if (!string.IsNullOrEmpty(CaCertificatePath))
             {
-                m_caCertificate = X509CertificateLoader.LoadCertificateFromFile(
-                    CaCertificatePath);
+                m_caCertificate = new Certificate(CaCertificatePath);
             }
             if (!string.IsNullOrEmpty(clientCertificatePath))
             {
-                m_clientCertificate = X509CertificateLoader.LoadPkcs12FromFile(
+                m_clientCertificate = new Certificate(
                     clientCertificatePath,
                     ClientCertificatePassword);
             }
@@ -128,11 +131,11 @@ namespace Opc.Ua.PubSub.Transport
 
             if (!string.IsNullOrEmpty(CaCertificatePath))
             {
-                m_caCertificate = X509CertificateLoader.LoadCertificateFromFile(CaCertificatePath);
+                m_caCertificate = new Certificate(CaCertificatePath);
             }
             if (!string.IsNullOrEmpty(ClientCertificatePath))
             {
-                m_clientCertificate = X509CertificateLoader.LoadPkcs12FromFile(
+                m_clientCertificate = new Certificate(
                     ClientCertificatePath,
                     ClientCertificatePassword);
             }
@@ -144,11 +147,11 @@ namespace Opc.Ua.PubSub.Transport
 
         internal ArrayOf<KeyValuePair> KeyValuePairs { get; set; }
 
-        internal List<X509Certificate2> X509Certificates
+        internal List<Certificate> X509Certificates
         {
             get
             {
-                var values = new List<X509Certificate2>();
+                var values = new List<Certificate>();
                 if (m_caCertificate != null)
                 {
                     values.Add(m_caCertificate);
@@ -510,7 +513,7 @@ namespace Opc.Ua.PubSub.Transport
             if ((connectionProperties
                     .Find(kvp => kvp.Key.Name.Equals(qUserName.Name, StringComparison.Ordinal))?
                     .Value ??
-                default).TryGet(out string sUserName))
+                default).TryGetValue(out string sUserName))
             {
                 foreach (char c in sUserName)
                 {
@@ -524,7 +527,7 @@ namespace Opc.Ua.PubSub.Transport
             if ((connectionProperties
                     .Find(kvp => kvp.Key.Name.Equals(qPassword.Name, StringComparison.Ordinal))?
                     .Value ??
-                default).TryGet(out string sPassword))
+                default).TryGetValue(out string sPassword))
             {
                 foreach (char c in sPassword)
                 {

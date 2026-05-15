@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System.Threading;
 using Opc.Ua;
 
 namespace TestData
@@ -36,9 +37,9 @@ namespace TestData
         /// <summary>
         /// Initializes the object with structures.
         /// </summary>
-        protected override void OnAfterCreate(ISystemContext context, NodeState node)
+        protected override void OnAfterCreate(ISystemContext context, NodeState node, CancellationToken ct = default)
         {
-            base.OnAfterCreate(context, node);
+            base.OnAfterCreate(context, node, ct);
 
             InitializeVariable(
                 context,

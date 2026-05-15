@@ -31,6 +31,7 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\Tools\Opc.Ua.SourceGeneration\Opc.Ua.SourceGeneration.csproj" />
+    <ProjectReference Include="..\..\Tools\Opc.Ua.SourceGeneration.Core\Opc.Ua.SourceGeneration.Core.csproj" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="..\Opc.Ua.SourceGeneration.Core.Tests\Resources\*">

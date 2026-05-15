@@ -30,7 +30,6 @@
 using System;
 using NUnit.Framework;
 
-#pragma warning disable CS0618 // Type or member is obsolete
 #pragma warning disable NUnit2010
 
 namespace Opc.Ua.Types.Tests.BuiltIn
@@ -56,7 +55,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         }
 
         [Test]
-        public void CopyConstructorCopiesAllFields()
+        public void CopyCopiesAllFields()
         {
             var sourceTime = new DateTimeUtc(2024, 6, 15, 10, 30, 0);
             var serverTime = new DateTimeUtc(2024, 6, 15, 10, 30, 1);
@@ -66,7 +65,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 ServerPicoseconds = 200
             };
 
-            var copy = new DataValue(original);
+            DataValue copy = original.Copy();
 
             Assert.That(copy.WrappedValue, Is.EqualTo(original.WrappedValue));
             Assert.That(copy.StatusCode, Is.EqualTo(original.StatusCode));
@@ -77,17 +76,10 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         }
 
         [Test]
-        public void CopyConstructorThrowsOnNull()
-        {
-            Assert.That(() => new DataValue((DataValue)null),
-                Throws.TypeOf<ArgumentNullException>());
-        }
-
-        [Test]
         public void ConstructorWithStatusCodeAndServerTimestamp()
         {
             var serverTime = new DateTimeUtc(2024, 1, 1, 0, 0, 0);
-            var dv = new DataValue(StatusCodes.Bad, serverTime);
+            var dv = DataValue.FromStatusCode(StatusCodes.Bad, serverTime);
 
             Assert.That(dv.StatusCode, Is.EqualTo(StatusCodes.Bad));
             Assert.That(dv.ServerTimestamp, Is.EqualTo(serverTime));
@@ -121,10 +113,43 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ConstructorWithStatusCodeOnly()
         {
-            var dv = new DataValue(StatusCodes.BadUnexpectedError);
+            var dv = DataValue.FromStatusCode(StatusCodes.BadUnexpectedError);
 
             Assert.That(dv.StatusCode, Is.EqualTo(StatusCodes.BadUnexpectedError));
             Assert.That(dv.WrappedValue.IsNull, Is.True);
+        }
+
+        [Test]
+        public void ConstructorWithIntLiteralWrapsInVariant()
+        {
+            var dv = new DataValue(42);
+
+            Assert.That(dv.WrappedValue.IsNull, Is.False);
+            Assert.That(dv.WrappedValue, Is.EqualTo(new Variant(42)));
+            Assert.That(dv.StatusCode, Is.EqualTo(StatusCodes.Good));
+        }
+
+        [Test]
+        public void FromStatusCodeSetsStatusCodeOnly()
+        {
+            var dv = DataValue.FromStatusCode(StatusCodes.BadNodeIdUnknown);
+
+            Assert.That(dv.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+            Assert.That(dv.WrappedValue.IsNull, Is.True);
+            Assert.That(dv.SourceTimestamp, Is.EqualTo(DateTimeUtc.MinValue));
+            Assert.That(dv.ServerTimestamp, Is.EqualTo(DateTimeUtc.MinValue));
+        }
+
+        [Test]
+        public void FromStatusCodeWithTimestampSetsBothFields()
+        {
+            var serverTime = new DateTimeUtc(2024, 7, 1, 12, 0, 0);
+            var dv = DataValue.FromStatusCode(StatusCodes.Bad, serverTime);
+
+            Assert.That(dv.StatusCode, Is.EqualTo(StatusCodes.Bad));
+            Assert.That(dv.ServerTimestamp, Is.EqualTo(serverTime));
+            Assert.That(dv.WrappedValue.IsNull, Is.True);
+            Assert.That(dv.SourceTimestamp, Is.EqualTo(DateTimeUtc.MinValue));
         }
 
         [Test]
@@ -386,16 +411,20 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var dv = new DataValue(new Variant(42));
 
+#pragma warning disable CS0618 // Type or member is obsolete
             Assert.That(dv.Value, Is.EqualTo(42));
+#pragma warning restore CS0618 // Type or member is obsolete
         }
 
         [Test]
         public void ValueSetterSetsVariant()
         {
+#pragma warning disable CS0618 // Type or member is obsolete
             var dv = new DataValue
             {
                 Value = "hello"
             };
+#pragma warning restore CS0618 // Type or member is obsolete
 
             Assert.That(dv.WrappedValue, Is.EqualTo(new Variant("hello")));
         }
@@ -414,7 +443,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void IsGoodWithGoodDataValue()
         {
-            var dv = new DataValue(StatusCodes.Good);
+            var dv = DataValue.FromStatusCode(StatusCodes.Good);
 
             Assert.That(DataValue.IsGood(dv), Is.True);
         }
@@ -422,7 +451,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void IsGoodWithBadDataValue()
         {
-            var dv = new DataValue(StatusCodes.Bad);
+            var dv = DataValue.FromStatusCode(StatusCodes.Bad);
 
             Assert.That(DataValue.IsGood(dv), Is.False);
         }
@@ -436,7 +465,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void IsNotGoodWithBadDataValue()
         {
-            var dv = new DataValue(StatusCodes.Bad);
+            var dv = DataValue.FromStatusCode(StatusCodes.Bad);
 
             Assert.That(DataValue.IsNotGood(dv), Is.True);
         }
@@ -444,7 +473,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void IsNotGoodWithGoodDataValue()
         {
-            var dv = new DataValue(StatusCodes.Good);
+            var dv = DataValue.FromStatusCode(StatusCodes.Good);
 
             Assert.That(DataValue.IsNotGood(dv), Is.False);
         }
@@ -458,7 +487,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void IsUncertainWithUncertainDataValue()
         {
-            var dv = new DataValue(StatusCodes.Uncertain);
+            var dv = DataValue.FromStatusCode(StatusCodes.Uncertain);
 
             Assert.That(DataValue.IsUncertain(dv), Is.True);
         }
@@ -466,7 +495,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void IsUncertainWithGoodDataValue()
         {
-            var dv = new DataValue(StatusCodes.Good);
+            var dv = DataValue.FromStatusCode(StatusCodes.Good);
 
             Assert.That(DataValue.IsUncertain(dv), Is.False);
         }
@@ -480,7 +509,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void IsNotUncertainWithGoodDataValue()
         {
-            var dv = new DataValue(StatusCodes.Good);
+            var dv = DataValue.FromStatusCode(StatusCodes.Good);
 
             Assert.That(DataValue.IsNotUncertain(dv), Is.True);
         }
@@ -488,7 +517,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void IsNotUncertainWithUncertainDataValue()
         {
-            var dv = new DataValue(StatusCodes.Uncertain);
+            var dv = DataValue.FromStatusCode(StatusCodes.Uncertain);
 
             Assert.That(DataValue.IsNotUncertain(dv), Is.False);
         }
@@ -502,7 +531,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void IsBadWithBadDataValue()
         {
-            var dv = new DataValue(StatusCodes.Bad);
+            var dv = DataValue.FromStatusCode(StatusCodes.Bad);
 
             Assert.That(DataValue.IsBad(dv), Is.True);
         }
@@ -510,7 +539,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void IsBadWithGoodDataValue()
         {
-            var dv = new DataValue(StatusCodes.Good);
+            var dv = DataValue.FromStatusCode(StatusCodes.Good);
 
             Assert.That(DataValue.IsBad(dv), Is.False);
         }
@@ -524,7 +553,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void IsNotBadWithGoodDataValue()
         {
-            var dv = new DataValue(StatusCodes.Good);
+            var dv = DataValue.FromStatusCode(StatusCodes.Good);
 
             Assert.That(DataValue.IsNotBad(dv), Is.True);
         }
@@ -532,7 +561,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void IsNotBadWithBadDataValue()
         {
-            var dv = new DataValue(StatusCodes.Bad);
+            var dv = DataValue.FromStatusCode(StatusCodes.Bad);
 
             Assert.That(DataValue.IsNotBad(dv), Is.False);
         }
@@ -548,7 +577,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var dv = new DataValue(new Variant(42));
 
+#pragma warning disable CS0618 // Type or member is obsolete
             int result = dv.GetValueOrDefault<int>();
+#pragma warning restore CS0618 // Type or member is obsolete
 
             Assert.That(result, Is.EqualTo(42));
         }
@@ -558,7 +589,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var dv = new DataValue(new Variant(42), StatusCodes.Bad);
 
+#pragma warning disable CS0618 // Type or member is obsolete
             int result = dv.GetValueOrDefault<int>();
+#pragma warning restore CS0618 // Type or member is obsolete
 
             Assert.That(result, Is.Zero);
         }
@@ -568,7 +601,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var dv = new DataValue(new Variant("hello"), StatusCodes.Bad);
 
+#pragma warning disable CS0618 // Type or member is obsolete
             string result = dv.GetValueOrDefault<string>();
+#pragma warning restore CS0618 // Type or member is obsolete
 
             Assert.That(result, Is.Null);
         }
@@ -579,8 +614,10 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             // Use Argument (IEncodeable) as target type which cannot be cast from an int variant
             var dv = new DataValue(new Variant(42));
 
-            Assert.That(() => dv.GetValueOrDefault<Argument>(),
+#pragma warning disable CS0618 // Type or member is obsolete
+            Assert.That(dv.GetValueOrDefault<Argument>,
                 Throws.TypeOf<ServiceResultException>());
+#pragma warning restore CS0618 // Type or member is obsolete
         }
 
         [Test]
@@ -588,8 +625,10 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var dv = new DataValue();
 
-            Assert.That(() => dv.GetValueOrDefault<int>(),
+#pragma warning disable CS0618 // Type or member is obsolete
+            Assert.That(dv.GetValueOrDefault<int>,
                 Throws.TypeOf<ServiceResultException>());
+#pragma warning restore CS0618 // Type or member is obsolete
         }
 
         [Test]
@@ -597,7 +636,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var dv = new DataValue();
 
+#pragma warning disable CS0618 // Type or member is obsolete
             string result = dv.GetValueOrDefault<string>();
+#pragma warning restore CS0618 // Type or member is obsolete
 
             Assert.That(result, Is.Null);
         }
@@ -609,7 +650,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var ext = new ExtensionObject(arg);
             var dv = new DataValue(new Variant(ext));
 
+#pragma warning disable CS0618 // Type or member is obsolete
             Argument result = dv.GetValueOrDefault<Argument>();
+#pragma warning restore CS0618 // Type or member is obsolete
 
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Name, Is.EqualTo("test"));
@@ -764,7 +807,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var dv = new DataValue(new Variant(true));
 
+#pragma warning disable CS0618 // Type or member is obsolete
             bool result = dv.GetValueOrDefault<bool>();
+#pragma warning restore CS0618 // Type or member is obsolete
 
             Assert.That(result, Is.True);
         }
@@ -774,7 +819,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var dv = new DataValue(new Variant(3.14));
 
+#pragma warning disable CS0618 // Type or member is obsolete
             double result = dv.GetValueOrDefault<double>();
+#pragma warning restore CS0618 // Type or member is obsolete
 
             Assert.That(result, Is.EqualTo(3.14));
         }

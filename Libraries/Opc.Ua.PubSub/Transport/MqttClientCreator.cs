@@ -117,7 +117,16 @@ namespace Opc.Ua.PubSub.Transport
             // Setup reconnect handler
             mqttClient.DisconnectedAsync += async e =>
             {
-                await Task.Delay(TimeSpan.FromSeconds(reconnectInterval)).ConfigureAwait(false);
+                try
+                {
+                    await Task.Delay(TimeSpan.FromSeconds(reconnectInterval), ct).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException)
+                {
+                    // Reconnect was cancelled because the connection is being stopped intentionally.
+                    return;
+                }
+
                 try
                 {
                     logger.LogInformation(

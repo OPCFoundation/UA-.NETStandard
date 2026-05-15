@@ -6,14 +6,15 @@ trigger:
   batch: 'true'
   branches:
     include:
-    - '*'
+    - 'master'
+    - 'main'
+    - 'release/*'
   paths:
     include:
     - '*'
     exclude:
-    - 'Docs/*'
-    - 'README.md'
-
+    - 'Docs/**'
+    - '**/*.md'
 pr:
   autoCancel: 'true'
   branches:
@@ -49,6 +50,12 @@ stages:
     parameters:
       poolImage: 'windows-2025-vs2026'
       jobnamesuffix: win2025
+      # PR builds compile only UA.slnx; master/scheduled/manual/fork-PR builds
+      # discover every *.slnx in the repository automatically.
+      ${{ if eq(variables.FullBuild, 'False') }}:
+        solutions: 'UA.slnx'
+      ${{ else }}:
+        solutions: ''
 - stage: testrelease
   dependsOn: [build]
   displayName: 'Test Core and SDK Release'
@@ -67,6 +74,11 @@ stages:
       agents: '@{ windows = "windows-2025-vs2026"; linux="ubuntu-24.04"; mac = "macOS-15"}'
       jobnamesuffix: net100
       customtestarget: net10.0
+  - template: .azurepipelines/test-aot.yml
+    parameters:
+      configuration: Release
+      agents: '@{ windows = "windows-2025-vs2026"; linux="ubuntu-24.04"}'
+      jobnamesuffix: net100aot
 - stage: testreleasepr
   dependsOn: []
   displayName: 'Fast .NET 10.0 PR Test'
@@ -78,6 +90,11 @@ stages:
       framework: net10.0
       agents: '@{ windows = "windows-2025-vs2026"; linux="ubuntu-22.04"}'
       jobnamesuffix: net100pr
+  - template: .azurepipelines/test-aot.yml
+    parameters:
+      configuration: Release
+      agents: '@{ windows = "windows-2025-vs2026"; linux="ubuntu-22.04"}'
+      jobnamesuffix: net100praot
 - stage: testdebug
   dependsOn: [build]
   displayName: 'Test .NET 10.0 Debug'
@@ -118,6 +135,10 @@ stages:
       framework: net10.0
       configuration: Release
       jobnamesuffix: net100
+  - template: .azurepipelines/test-aot.yml
+    parameters:
+      configuration: Release
+      jobnamesuffix: net100aot
 - stage: testnet472
   dependsOn: [build]
   displayName: 'Test .NET 4.7.2'

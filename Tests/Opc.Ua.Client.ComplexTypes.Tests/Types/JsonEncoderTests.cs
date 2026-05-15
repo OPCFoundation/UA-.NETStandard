@@ -32,7 +32,8 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Text;
-using Newtonsoft.Json.Linq;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using NUnit.Framework;
 using Opc.Ua.Core.Tests.Types.Encoders;
 using Opc.Ua.Tests;
@@ -57,7 +58,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         protected new void OneTimeSetUp()
         {
             Telemetry = NUnitTelemetryContext.Create();
-            EncoderContext = new ServiceMessageContext(Telemetry);
+            EncoderContext = ServiceMessageContext.Create(Telemetry);
             EncoderContext.NamespaceUris.Append("urn:This:is:my:test:encoder");
             EncoderContext.NamespaceUris.Append("urn:This:is:another:namespace");
             EncoderContext.NamespaceUris.Append(Namespaces.OpcUaEncoderTests);
@@ -239,15 +240,12 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             {
                 result = Encoding.UTF8.GetString(buffer);
                 formattedResult = PrettifyAndValidateJson(result);
-                var jsonLoadSettings = new JsonLoadSettings
-                {
-                    CommentHandling = CommentHandling.Ignore,
-                    LineInfoHandling = LineInfoHandling.Ignore
-                };
-                var resultParsed = JObject.Parse(result, jsonLoadSettings);
-                var expectedParsed = JObject.Parse(expected, jsonLoadSettings);
-                bool areEqual = JToken.DeepEquals(expectedParsed, resultParsed);
-                Assert.That(areEqual, Is.True, encodeInfo);
+                var resultParsed = JsonNode.Parse(result,
+                    documentOptions: new JsonDocumentOptions { AllowTrailingCommas = true });
+                var expectedParsed = JsonNode.Parse(expected,
+                    documentOptions: new JsonDocumentOptions { AllowTrailingCommas = true });
+                bool areEqual = JsonNode.DeepEquals(expectedParsed, resultParsed);
+                Assert.IsTrue(areEqual, encodeInfo);
             }
             catch
             {
@@ -296,7 +294,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 
             if (!expectedIsEmpty || jsonEncoding == JsonEncodingType.Compact)
             {
-                if (data.TryGetEncodeable(out UnionComplexType union))
+                if (data.TryGetValue(out UnionComplexType union))
                 {
                     string json = $"{{\"{builtInType}\" :{{";
 
@@ -323,7 +321,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                     json += "}}";
                     expected = json;
                 }
-                else if (data.TryGetEncodeable(out OptionalFieldsComplexType optional))
+                else if (data.TryGetValue(out OptionalFieldsComplexType optional))
                 {
                     string json = $"{{\"{builtInType}\" :{{";
 
@@ -351,7 +349,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 
                     expected = json;
                 }
-                else if (data.TryGetEncodeable(out BaseComplexType structure))
+                else if (data.TryGetValue(out BaseComplexType structure))
                 {
                     string body = string.Empty;
                     bool commaNeeded = false;

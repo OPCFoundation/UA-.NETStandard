@@ -58,6 +58,8 @@ namespace Opc.Ua.SourceGeneration
             ImmutableArray<AdditionalText> identifierFiles,
             ModelCompilationOptions options,
             CompilationOptions compilationOptions,
+            ImmutableArray<ModelDependencyReference> referencedModels,
+            ImmutableArray<NodeManagerAttributeDiscovery> nodeManagerBindings,
             ILogger logger)
         {
             m_context = context;
@@ -65,6 +67,8 @@ namespace Opc.Ua.SourceGeneration
             m_identifierFiles = identifierFiles;
             m_options = options;
             m_compilationOptions = compilationOptions;
+            m_nodeManagerBindings = nodeManagerBindings;
+            m_referencedModels = referencedModels;
             m_telemetry = SourceGeneratorTelemetry.Create(logger, m_context);
         }
 
@@ -100,24 +104,78 @@ namespace Opc.Ua.SourceGeneration
                     UseUtf8StringLiterals =
                         m_compilationOptions.LanguageVersion >= LanguageVersion.CSharp11,
                     OptimizeForCompileSpeed =
-                        m_compilationOptions.OptimizationLevel == OptimizationLevel.Debug
+                        m_compilationOptions.OptimizationLevel == OptimizationLevel.Debug,
+                    OmitObjectTypeProxies = m_options.OmitObjectTypeProxies,
+                    ObjectTypeProxyNamespace =
+                        string.IsNullOrWhiteSpace(m_options.ObjectTypeProxyNamespace)
+                            ? null
+                            : m_options.ObjectTypeProxyNamespace
                 };
 
                 // Load all available nodeset files from the input
                 NodesetFileCollection nodesets = m_input.ToNodeSetFileCollection(
                     sourceFiles, // .WithFallback(vfs),
                     m_telemetry);
+
+                // Resolve [NodeManager] bindings: validate partial-ness and
+                // build the binding list to pass into both GenerateCode calls
+                // (nodeset-derived and design-file-derived).
+                var bindings = new System.Collections.Generic.List<NodeManagerAttributeBinding>();
+                var bindingByPayload =
+                    new System.Collections.Generic.Dictionary<NodeManagerAttributeBinding, NodeManagerAttributeDiscovery>();
+                foreach (NodeManagerAttributeDiscovery discovery in m_nodeManagerBindings)
+                {
+                    if (discovery == null)
+                    {
+                        continue;
+                    }
+                    if (!discovery.IsPartial)
+                    {
+                        m_context.ReportDiagnostic(
+                            Diagnostic.Create(
+                                SourceGenerator.NodeManagerNotPartial,
+                                discovery.Location,
+                                discovery.Binding.TargetNamespace +
+                                "." +
+                                discovery.Binding.TargetClassName));
+                        continue;
+                    }
+                    bindings.Add(discovery.Binding);
+                    bindingByPayload[discovery.Binding] = discovery;
+                }
+
+                void reportBinding(NodeManagerAttributeBinding binding, string message)
+                {
+                    Location loc = bindingByPayload.TryGetValue(binding, out NodeManagerAttributeDiscovery d) && d != null
+                        ? d.Location
+                        : Location.None;
+                    m_context.ReportDiagnostic(
+                        Diagnostic.Create(
+                            SourceGenerator.NodeManagerBindingError,
+                            loc,
+                            message));
+                }
+
+                // Reduce referenced model attributes to a single dictionary by
+                // model URI (with tie-break on highest version+publication date)
+                // so the downstream generators can apply override resolution.
+                System.Collections.Generic.IReadOnlyDictionary<string, ModelDependencyReference>
+                    referencedModels = BuildReferencedModelMap();
+
                 nodesets.GenerateCode(
                     sourceFiles.WithFallback(vfs),
                     string.Empty,
                     m_telemetry,
                     generatorOptions,
-                    m_options.UseAllowSubtypes);
+                    m_options.UseAllowSubtypes,
+                    referencedModels,
+                    bindings.Count > 0 ? bindings : null,
+                    bindings.Count > 0 ? reportBinding : null);
 
                 // Process any remaining design files
                 new DesignFileCollection
                 {
-                    DesignFiles = [.. m_input
+                    Targets = [.. m_input
                         .Where(f => !nodesets.Files.ContainsValue(f.Item1.Path))
                         .Select(f => f.Item1.Path)],
                     Options = m_options.Options
@@ -127,7 +185,10 @@ namespace Opc.Ua.SourceGeneration
                     m_telemetry,
                     generatorOptions,
                     m_options.UseAllowSubtypes,
-                    [.. m_identifierFiles.Select(i => i.Path)]);
+                    [.. m_identifierFiles.Select(i => i.Path)],
+                    referencedModels,
+                    bindings.Count > 0 ? bindings : null,
+                    bindings.Count > 0 ? reportBinding : null);
 
                 // Collect all generated cs files and produce them into the compilation
                 foreach (string file in vfs.CreatedFiles
@@ -166,11 +227,70 @@ namespace Opc.Ua.SourceGeneration
             return true;
         }
 
+        /// <summary>
+        /// Group the referenced-assembly attributes by model URI; when more
+        /// than one assembly contributes the same URI, prefer the entry with
+        /// the highest <c>(Version, PublicationDate)</c> lexicographic tuple
+        /// per the contract on <see cref="ModelDependencyAttribute"/>.
+        /// </summary>
+        private System.Collections.Generic.IReadOnlyDictionary<string, ModelDependencyReference>
+            BuildReferencedModelMap()
+        {
+            if (m_referencedModels.IsDefaultOrEmpty)
+            {
+                return ImmutableDictionary<string, ModelDependencyReference>.Empty;
+            }
+            var map = new System.Collections.Generic.Dictionary<string, ModelDependencyReference>(
+                StringComparer.Ordinal);
+            foreach (ModelDependencyReference candidate in m_referencedModels)
+            {
+                if (!candidate.IsValid)
+                {
+                    continue;
+                }
+                if (!map.TryGetValue(candidate.ModelUri, out ModelDependencyReference existing))
+                {
+                    map[candidate.ModelUri] = candidate;
+                    continue;
+                }
+                int cmp = string.CompareOrdinal(candidate.Version, existing.Version);
+                if (cmp == 0)
+                {
+                    cmp = string.CompareOrdinal(
+                        candidate.PublicationDate, existing.PublicationDate);
+                }
+                if (cmp > 0)
+                {
+                    m_context.ReportDiagnostic(
+                        Diagnostic.Create(
+                            SourceGenerator.ModelDependencyTieBreak,
+                            Location.None,
+                            candidate.ModelUri,
+                            candidate.AssemblyName,
+                            existing.AssemblyName));
+                    map[candidate.ModelUri] = candidate;
+                }
+                else if (cmp < 0)
+                {
+                    m_context.ReportDiagnostic(
+                        Diagnostic.Create(
+                            SourceGenerator.ModelDependencyTieBreak,
+                            Location.None,
+                            existing.ModelUri,
+                            existing.AssemblyName,
+                            candidate.AssemblyName));
+                }
+            }
+            return map;
+        }
+
         private readonly SourceProductionContext m_context;
         private readonly ImmutableArray<(AdditionalText, NodesetFileOptions)> m_input;
         private readonly ImmutableArray<AdditionalText> m_identifierFiles;
         private readonly ModelCompilationOptions m_options;
         private readonly CompilationOptions m_compilationOptions;
+        private readonly ImmutableArray<ModelDependencyReference> m_referencedModels;
+        private readonly ImmutableArray<NodeManagerAttributeDiscovery> m_nodeManagerBindings;
         private readonly SourceGeneratorTelemetry m_telemetry;
     }
 }

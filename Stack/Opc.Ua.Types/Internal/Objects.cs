@@ -152,55 +152,5 @@ namespace Opc.Ua.Types
         public const uint RelativePathElement_Encoding_DefaultXml = 538;
 
         public const uint RelativePath_Encoding_DefaultXml = 541;
-
-        public const uint RolePermissionType_Encoding_DefaultJson = 15062;
-
-        public const uint DataTypeDefinition_Encoding_DefaultJson = 15063;
-
-        public const uint StructureField_Encoding_DefaultJson = 15065;
-
-        public const uint StructureDefinition_Encoding_DefaultJson = 15066;
-
-        public const uint EnumDefinition_Encoding_DefaultJson = 15067;
-
-        public const uint Node_Encoding_DefaultJson = 15068;
-
-        public const uint InstanceNode_Encoding_DefaultJson = 15069;
-
-        public const uint TypeNode_Encoding_DefaultJson = 15070;
-
-        public const uint ObjectNode_Encoding_DefaultJson = 15071;
-
-        public const uint ObjectTypeNode_Encoding_DefaultJson = 15073;
-
-        public const uint VariableNode_Encoding_DefaultJson = 15074;
-
-        public const uint VariableTypeNode_Encoding_DefaultJson = 15075;
-
-        public const uint ReferenceTypeNode_Encoding_DefaultJson = 15076;
-
-        public const uint MethodNode_Encoding_DefaultJson = 15077;
-
-        public const uint ViewNode_Encoding_DefaultJson = 15078;
-
-        public const uint DataTypeNode_Encoding_DefaultJson = 15079;
-
-        public const uint ReferenceNode_Encoding_DefaultJson = 15080;
-
-        public const uint Argument_Encoding_DefaultJson = 15081;
-
-        public const uint EnumValueType_Encoding_DefaultJson = 15082;
-
-        public const uint EnumField_Encoding_DefaultJson = 15083;
-
-        public const uint ViewDescription_Encoding_DefaultJson = 15179;
-
-        public const uint BrowseDescription_Encoding_DefaultJson = 15180;
-
-        public const uint ReferenceDescription_Encoding_DefaultJson = 15182;
-
-        public const uint RelativePathElement_Encoding_DefaultJson = 15188;
-
-        public const uint RelativePath_Encoding_DefaultJson = 15189;
     }
 }

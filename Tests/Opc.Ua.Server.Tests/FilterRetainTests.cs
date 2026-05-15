@@ -2,6 +2,9 @@
 // Requires discussion with Part 9 Editor
 #define AddActiveState
 
+// CA2000: test code; many disposables are ownership-transferred to test fixtures or short-lived,
+// making CA2000 noisy without a real leak risk. Disabled file-level for the suite.
+#pragma warning disable CA2000
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Reflection;
@@ -52,7 +55,7 @@ namespace Opc.Ua.Server.Tests
             alarm.SetLimitState(systemContext, desiredState);
 
             EventFilter filter = GetHighOnlyEventFilter(addClauses: true, telemetry);
-            MonitoredItem monitoredItem = CreateMonitoredItem(filter, telemetry);
+            using MonitoredItem monitoredItem = CreateMonitoredItem(filter, telemetry);
             CanSendFilteredAlarm(monitoredItem, GetFilterContext(telemetry), filter, alarm, pass, telemetry);
         }
 
@@ -78,7 +81,7 @@ namespace Opc.Ua.Server.Tests
 
             EventFilter filter = GetHighOnlyEventFilter(addClauses: !pass, telemetry);
 
-            MonitoredItem monitoredItem = CreateMonitoredItem(filter, telemetry);
+            using MonitoredItem monitoredItem = CreateMonitoredItem(filter, telemetry);
             CanSendFilteredAlarm(monitoredItem, context, filter, alarm, pass, telemetry);
         }
 
@@ -94,7 +97,7 @@ namespace Opc.Ua.Server.Tests
             IFilterContext context = GetFilterContext(telemetry);
 
             EventFilter filter = GetHighOnlyEventFilter(addClauses: !pass, telemetry);
-            MonitoredItem monitoredItem = CreateMonitoredItem(filter, telemetry);
+            using MonitoredItem monitoredItem = CreateMonitoredItem(filter, telemetry);
             CanSendFilteredAlarm(monitoredItem, context, filter, certificateType, pass, telemetry);
         }
 
@@ -113,7 +116,7 @@ namespace Opc.Ua.Server.Tests
             alarm.SetLimitState(GetSystemContext(telemetry), LimitAlarmStates.Inactive);
 
             EventFilter filter = GetHighOnlyEventFilter(addClauses: true, telemetry);
-            MonitoredItem monitoredItem = CreateMonitoredItem(filter, telemetry);
+            using MonitoredItem monitoredItem = CreateMonitoredItem(filter, telemetry);
 
             CanSendFilteredAlarm(monitoredItem, GetFilterContext(telemetry), filter, alarm, expected: false, telemetry);
         }
@@ -133,7 +136,7 @@ namespace Opc.Ua.Server.Tests
             IFilterContext filterContext = GetFilterContext(telemetry);
 
             EventFilter filter = GetHighOnlyEventFilter(addClauses: true, telemetry);
-            MonitoredItem monitoredItem = CreateMonitoredItem(filter, telemetry);
+            using MonitoredItem monitoredItem = CreateMonitoredItem(filter, telemetry);
 
             SystemContext systemContext = GetSystemContext(telemetry);
             alarm.SetLimitState(systemContext, LimitAlarmStates.Inactive);
@@ -172,7 +175,7 @@ namespace Opc.Ua.Server.Tests
                 telemetry: telemetry);
 
             EventFilter filter = GetHighOnlyEventFilter(addClauses: true, telemetry);
-            MonitoredItem monitoredItem = CreateMonitoredItem(filter, telemetry);
+            using MonitoredItem monitoredItem = CreateMonitoredItem(filter, telemetry);
 
             SystemContext systemContext = GetSystemContext(telemetry);
             IFilterContext filterContext = GetFilterContext(telemetry);
@@ -208,7 +211,7 @@ namespace Opc.Ua.Server.Tests
                 telemetry: telemetry);
 
             EventFilter filter = GetHighOnlyEventFilter(addClauses: true, telemetry);
-            MonitoredItem monitoredItem = CreateMonitoredItem(filter, telemetry);
+            using MonitoredItem monitoredItem = CreateMonitoredItem(filter, telemetry);
 
             SystemContext systemContext = GetSystemContext(telemetry);
             IFilterContext filterContext = GetFilterContext(telemetry);
@@ -276,7 +279,7 @@ namespace Opc.Ua.Server.Tests
             };
             _ = filter.Validate(filterContext);
 
-            MonitoredItem monitoredItem = CreateMonitoredItem(filter, telemetry);
+            using MonitoredItem monitoredItem = CreateMonitoredItem(filter, telemetry);
 
             // 16 States in Table B.3
 
@@ -645,8 +648,9 @@ namespace Opc.Ua.Server.Tests
             serverMock.Setup(s => s.Telemetry).Returns(telemetry);
             serverMock.Setup(s => s.NamespaceUris).Returns(systemContext.NamespaceUris);
             serverMock.Setup(s => s.TypeTree).Returns((TypeTable)systemContext.TypeTable);
+            using var queueFactory = new MonitoredItemQueueFactory(telemetry);
             serverMock.Setup(s => s.MonitoredItemQueueFactory)
-                .Returns(new MonitoredItemQueueFactory(telemetry));
+                .Returns(queueFactory);
 
             var nodeMangerMock = new Mock<INodeManager>();
 

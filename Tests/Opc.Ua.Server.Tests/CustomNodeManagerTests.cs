@@ -33,7 +33,7 @@ namespace Opc.Ua.Server.Tests
                 StandardServer server = await fixture.StartAsync()
                     .ConfigureAwait(false);
 
-                var nodeManager = new TestableCustomNodeManger2(server.CurrentInstance, ns);
+                using var nodeManager = new TestableCustomNodeManger2(server.CurrentInstance, ns);
 
                 var baseObject = new BaseObjectState(null);
                 var nodeHandle = new NodeHandle(
@@ -77,7 +77,7 @@ namespace Opc.Ua.Server.Tests
                 StandardServer server = await fixture.StartAsync()
                     .ConfigureAwait(false);
 
-                var nodeManager = new TestableCustomNodeManger2(server.CurrentInstance, ns);
+                using var nodeManager = new TestableCustomNodeManger2(server.CurrentInstance, ns);
                 int index = server.CurrentInstance.NamespaceUris.GetIndex(ns);
 
                 var baseObject = new DataItemState(null);
@@ -189,7 +189,7 @@ namespace Opc.Ua.Server.Tests
             Func<Task> task,
             int iterations)
         {
-            var cancellationTokenSource = new CancellationTokenSource();
+            using var cancellationTokenSource = new CancellationTokenSource();
             Exception error = null;
             int tasksCompletedCount = 0;
             ParallelLoopResult result = Parallel.For(

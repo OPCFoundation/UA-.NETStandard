@@ -24,6 +24,7 @@ jobs:
       arguments: -FileName azure-pipelines.yml -AgentTable ${{ parameters.agents }}
 - job: buildall${{ parameters.jobnamesuffix }}
   displayName: Build
+  timeoutInMinutes: 90
   dependsOn: buildprep${{ parameters.jobnamesuffix }}
   strategy:
     matrix: $[dependencies.buildprep${{ parameters.jobnamesuffix }}.outputs['buildmatrix.jobMatrix'] ]

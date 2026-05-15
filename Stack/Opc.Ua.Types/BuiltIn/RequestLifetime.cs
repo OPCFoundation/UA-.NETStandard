@@ -54,7 +54,7 @@ namespace Opc.Ua
         /// <summary>
         /// Gets the token that will be cancelled when the request is aborted.
         /// </summary>
-        public CancellationToken CancellationToken => m_cancellationToken;
+        public CancellationToken CancellationToken { get; }
 
         /// <summary>
         /// Gets the derived UA StatusCode for the cancellation.
@@ -74,7 +74,7 @@ namespace Opc.Ua
             {
                 m_cts = new CancellationTokenSource();
             }
-            m_cancellationToken = m_cts.Token;
+            CancellationToken = m_cts.Token;
             m_statusCode = StatusCodes.Good;
         }
 
@@ -122,7 +122,6 @@ namespace Opc.Ua
         }
 
         private readonly CancellationTokenSource m_cts;
-        private readonly CancellationToken m_cancellationToken;
         private StatusCode m_statusCode;
         private bool m_disposed;
     }

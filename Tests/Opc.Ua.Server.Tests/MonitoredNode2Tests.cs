@@ -202,16 +202,14 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void NodeState_RolePermissionsPropertyChange_SetsRolePermissionsChangeMask()
         {
-            // Arrange
+            // Arrange & Act
             var node = new BaseDataVariableState(null)
             {
                 NodeId = new NodeId("testNode", 1),
                 BrowseName = new QualifiedName("testNode", 1),
-                DataType = DataTypeIds.Int32
+                DataType = DataTypeIds.Int32,
+                RolePermissions = []
             };
-
-            // Act
-            node.RolePermissions = [];
 
             // Assert – both NonValue and RolePermissions bits must be set
             Assert.That(node.ChangeMasks & NodeStateChangeMasks.NonValue, Is.Not.EqualTo(NodeStateChangeMasks.None));
@@ -230,11 +228,9 @@ namespace Opc.Ua.Server.Tests
             {
                 NodeId = new NodeId("testNode", 1),
                 BrowseName = new QualifiedName("testNode", 1),
-                DataType = DataTypeIds.Int32
+                DataType = DataTypeIds.Int32,
+                UserRolePermissions = [] // act
             };
-
-            // Act
-            node.UserRolePermissions = [];
 
             // Assert – both NonValue and RolePermissions bits must be set
             Assert.That(node.ChangeMasks & NodeStateChangeMasks.NonValue, Is.Not.EqualTo(NodeStateChangeMasks.None));
@@ -294,7 +290,7 @@ namespace Opc.Ua.Server.Tests
                     It.IsAny<PermissionType>()))
                 .Returns(ServiceResult.Good);
 
-            // Set up a ConfigurationNodeManager mock that exposes the DefaultPermissionsChanged event
+            // Set up a ConfigurationNodeManager mockthat exposes the DefaultPermissionsChanged event
             var configNodeManagerMock = new Mock<IConfigurationNodeManager>();
             EventHandler capturedHandler = null;
             configNodeManagerMock

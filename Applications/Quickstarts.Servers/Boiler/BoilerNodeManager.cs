@@ -70,10 +70,6 @@ namespace Boiler
             Server.NamespaceUris.GetIndexOrAppend(namespaceUris[0]);
             m_namespaceIndex = Server.NamespaceUris.GetIndexOrAppend(namespaceUris[1]);
 
-            AddEncodeableNodeManagerTypes(
-                typeof(BoilerNodeManager).Assembly,
-                typeof(BoilerNodeManager).Namespace);
-
             m_lastUsedId = 0;
             m_boilers = [];
         }
@@ -195,7 +191,7 @@ namespace Boiler
 
             NodeId typeId = passiveNode.TypeDefinitionId;
 
-            if (!IsNodeIdInNamespace(typeId) || !typeId.TryGetIdentifier(out uint typeIdNumeric))
+            if (!IsNodeIdInNamespace(typeId) || !typeId.TryGetValue(out uint typeIdNumeric))
             {
                 return predefinedNode;
             }

@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Reflection;
 using System.Threading;
 using Microsoft.Extensions.Logging;
@@ -79,13 +78,13 @@ namespace Opc.Ua.Sample
             {
                 lock (Lock)
                 {
-                    Utils.SilentDispose(m_samplingTimer);
+                    m_samplingTimer?.Dispose();
                     m_samplingTimer = null;
 
-                    foreach (NodeState node in PredefinedNodes.Values)
-                    {
-                        Utils.SilentDispose(node);
-                    }
+                    // foreach (NodeState node in PredefinedNodes.Values)
+                    // {
+                    //     node?.Delete();
+                    // }
                 }
             }
         }
@@ -259,18 +258,6 @@ namespace Opc.Ua.Sample
             }
 
             return found;
-        }
-
-        /// <summary>
-        /// Adds all encodeable types defined in a node manager to the server factory.
-        /// </summary>
-        /// <param name="assembly">The assembly which contains the encodeable types.</param>
-        /// <param name="filter">A filter with which the FullName of the type must start.</param>
-        protected void AddEncodeableNodeManagerTypes(Assembly assembly, string filter)
-        {
-            Server.Factory.AddEncodeableTypes(assembly
-                .GetExportedTypes()
-                .Where(t => t.FullName.StartsWith(filter, StringComparison.Ordinal)));
         }
 
         /// <summary>
@@ -721,6 +708,50 @@ namespace Opc.Ua.Sample
         }
 
         /// <summary>
+        /// Searches for a method in the ObjectType hierarchy of an instance node.
+        /// Per OPC UA spec Part 4 section 5.12.2.2, the ObjectType of the Object or a super type
+        /// of that ObjectType may be the source of a HasComponent reference to the method.
+        /// </summary>
+        /// <param name="context">The system context.</param>
+        /// <param name="typeDefinitionId">The TypeDefinitionId of the object instance.</param>
+        /// <param name="methodId">The NodeId of the method to find.</param>
+        /// <returns>The found method state, or null if not found.</returns>
+        private MethodState FindMethodInTypeHierarchy(ISystemContext context, NodeId typeDefinitionId, NodeId methodId)
+        {
+            // A limit to prevent infinite loops in case of a circular type hierarchy in malformed address spaces.
+            const int maxHierarchyDepth = 100;
+            int depth = 0;
+            NodeId typeId = typeDefinitionId;
+
+            while (!typeId.IsNull && depth++ < maxHierarchyDepth)
+            {
+                NodeState typeNode = FindPredefinedNode<NodeState>(typeId);
+                if (typeNode != null)
+                {
+                    MethodState method = typeNode.FindMethod(context, methodId);
+                    if (method != null)
+                    {
+                        return method;
+                    }
+
+                    // check for loose coupling via the type node.
+                    if (typeNode.ReferenceExists(ReferenceTypeIds.HasComponent, false, methodId))
+                    {
+                        method = FindPredefinedNode<MethodState>(methodId);
+                        if (method != null)
+                        {
+                            return method;
+                        }
+                    }
+                }
+
+                typeId = Server.TypeTree.FindSuperType(typeId);
+            }
+
+            return null;
+        }
+
+        /// <summary>
         /// Frees any resources allocated for the address space.
         /// </summary>
         public virtual void DeleteAddressSpace()
@@ -901,36 +932,36 @@ namespace Opc.Ua.Sample
                     DisplayName = target.DisplayName
                 };
 
-                if (values[0].TryGet(out uint writeMask) &&
-                    values[1].TryGet(out uint userWriteMask))
+                if (values[0].TryGetValue(out uint writeMask) &&
+                    values[1].TryGetValue(out uint userWriteMask))
                 {
                     metadata.WriteMask = (AttributeWriteMask)(writeMask & userWriteMask);
                 }
-                if (values[2].TryGet(out NodeId dataType))
+                if (values[2].TryGetValue(out NodeId dataType))
                 {
                     metadata.DataType = dataType;
                 }
-                if (values[3].TryGet(out int valueRank))
+                if (values[3].TryGetValue(out int valueRank))
                 {
                     metadata.ValueRank = valueRank;
                 }
-                if (values[4].TryGet(out ArrayOf<uint> arrayDimensions))
+                if (values[4].TryGetValue(out ArrayOf<uint> arrayDimensions))
                 {
                     metadata.ArrayDimensions = arrayDimensions;
                 }
-                if (values[5].TryGet(out byte accessLevel) &&
-                    values[6].TryGet(out byte userAccessLevel))
+                if (values[5].TryGetValue(out byte accessLevel) &&
+                    values[6].TryGetValue(out byte userAccessLevel))
                 {
                     metadata.AccessLevel = (byte)(accessLevel & userAccessLevel);
                 }
 
-                if (values[7].TryGet(out byte eventNotifier))
+                if (values[7].TryGetValue(out byte eventNotifier))
                 {
                     metadata.EventNotifier = eventNotifier;
                 }
 
-                if (values[8].TryGet(out bool executable) &&
-                    values[9].TryGet(out bool userExecutable))
+                if (values[8].TryGetValue(out bool executable) &&
+                    values[9].TryGetValue(out bool userExecutable))
                 {
                     metadata.Executable = executable && userExecutable;
                 }
@@ -1788,6 +1819,14 @@ namespace Opc.Ua.Sample
                             method = FindPredefinedNode<MethodState>(methodToCall.MethodId);
                         }
 
+                        // Per OPC UA spec Part 4 section 5.12.2.2: the ObjectType of the Object
+                        // or a super type of that ObjectType may also be the source of a HasComponent
+                        // reference to the method.
+                        if (method == null && source is BaseInstanceState instanceState)
+                        {
+                            method = FindMethodInTypeHierarchy(systemContext, instanceState.TypeDefinitionId, methodToCall.MethodId);
+                        }
+
                         if (method == null)
                         {
                             errors[ii] = StatusCodes.BadMethodInvalid;
@@ -2238,6 +2277,7 @@ namespace Opc.Ua.Sample
 
                     if (ServiceResult.IsBad(errors[ii]))
                     {
+                        monitoredItem?.Dispose();
                         continue;
                     }
 
@@ -2282,6 +2322,7 @@ namespace Opc.Ua.Sample
 
                     if (ServiceResult.IsBad(errors[operation.Index]))
                     {
+                        monitoredItem?.Dispose();
                         continue;
                     }
 
@@ -2364,6 +2405,7 @@ namespace Opc.Ua.Sample
 
                     if (!success)
                     {
+                        monitoredItem?.Dispose();
                         continue;
                     }
 
@@ -2398,6 +2440,7 @@ namespace Opc.Ua.Sample
 
                     if (!success)
                     {
+                        monitoredItem?.Dispose();
                         continue;
                     }
 
@@ -2461,7 +2504,7 @@ namespace Opc.Ua.Sample
             range = null;
 
             // check for valid filter type.
-            if (!requestedFilter.TryGetEncodeable(out filter))
+            if (!requestedFilter.TryGetValue(out filter))
             {
                 return StatusCodes.BadMonitoredItemFilterUnsupported;
             }

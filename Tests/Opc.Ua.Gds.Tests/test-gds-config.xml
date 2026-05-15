@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<GlobalDiscoveryServerConfiguration xmlns="http://opcfoundation.org/UA/GDS/Configuration.xsd"
+                                    xmlns:ua="http://opcfoundation.org/UA/2008/02/Types.xsd">
+  <AuthoritiesStorePath>%LocalApplicationData%/OPC/GDS/authorities</AuthoritiesStorePath>
+  <ApplicationCertificatesStorePath>%LocalApplicationData%/OPC/GDS/applications</ApplicationCertificatesStorePath>
+  <BaseCertificateGroupStorePath>%LocalApplicationData%/OPC/GDS/CA</BaseCertificateGroupStorePath>
+  <DefaultSubjectNameContext>O=OPC Foundation</DefaultSubjectNameContext>
+  <CertificateGroups>
+    <CertificateGroupConfiguration>
+      <Id>Default</Id>
+      <CertificateTypes>
+        <ua:String>RsaSha256ApplicationCertificateType</ua:String>
+        <ua:String>EccNistP256ApplicationCertificateType</ua:String>
+      </CertificateTypes>
+      <SubjectName>CN=GDS Test CA, O=OPC Foundation</SubjectName>
+      <BaseStorePath>%LocalApplicationData%/OPC/GDS/CA/default</BaseStorePath>
+      <DefaultCertificateLifetime>12</DefaultCertificateLifetime>
+      <DefaultCertificateKeySize>2048</DefaultCertificateKeySize>
+      <DefaultCertificateHashSize>256</DefaultCertificateHashSize>
+      <CACertificateLifetime>60</CACertificateLifetime>
+      <CACertificateKeySize>4096</CACertificateKeySize>
+      <CACertificateHashSize>512</CACertificateHashSize>
+    </CertificateGroupConfiguration>
+    <CertificateGroupConfiguration>
+      <Id>EccGroup</Id>
+      <CertificateTypes>
+        <ua:String>EccBrainpoolP256r1ApplicationCertificateType</ua:String>
+        <ua:String>EccBrainpoolP384r1ApplicationCertificateType</ua:String>
+      </CertificateTypes>
+      <SubjectName>CN=ECC Test CA, O=OPC Foundation</SubjectName>
+      <BaseStorePath>%LocalApplicationData%/OPC/GDS/CA/ecc</BaseStorePath>
+      <DefaultCertificateLifetime>24</DefaultCertificateLifetime>
+      <DefaultCertificateKeySize>256</DefaultCertificateKeySize>
+      <DefaultCertificateHashSize>256</DefaultCertificateHashSize>
+      <CACertificateLifetime>120</CACertificateLifetime>
+      <CACertificateKeySize>384</CACertificateKeySize>
+      <CACertificateHashSize>384</CACertificateHashSize>
+    </CertificateGroupConfiguration>
+  </CertificateGroups>
+  <KnownHostNames>
+    <ua:String>localhost</ua:String>
+    <ua:String>gds.opcfoundation.org</ua:String>
+  </KnownHostNames>
+  <DatabaseStorePath>%LocalApplicationData%/OPC/GDS/gdsdb.json</DatabaseStorePath>
+  <UsersDatabaseStorePath>%LocalApplicationData%/OPC/GDS/gdsusersdb.json</UsersDatabaseStorePath>
+</GlobalDiscoveryServerConfiguration>

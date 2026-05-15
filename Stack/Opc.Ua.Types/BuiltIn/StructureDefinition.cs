@@ -84,10 +84,6 @@ namespace Opc.Ua
             => ObjectIds.StructureDefinition_Encoding_DefaultXml;
 
         /// <inheritdoc/>
-        public override ExpandedNodeId JsonEncodingId
-            => ObjectIds.StructureDefinition_Encoding_DefaultJson;
-
-        /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Namespaces.OpcUaXsd);
@@ -218,12 +214,6 @@ namespace Opc.Ua
             if (context == null)
             {
                 throw new ArgumentNullException(nameof(context));
-            }
-
-            if (dataEncoding.Name == BrowseNames.DefaultJson)
-            {
-                DefaultEncodingId = ExpandedNodeId.ToNodeId(typeId, context.NamespaceUris);
-                return;
             }
 
             // note: custom types must be added to the encodeable factory by the node manager to be found

@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ApplicationConfiguration xmlns="http://opcfoundation.org/UA/SDK/Configuration.xsd"
+  xmlns:ua="http://opcfoundation.org/UA/2008/02/Types.xsd">
+  <ApplicationName>Client Test</ApplicationName>
+  <ApplicationUri>urn:localhost:clienttest</ApplicationUri>
+  <ProductUri>http://test.org/client</ProductUri>
+  <ApplicationType>Client_1</ApplicationType>
+  <SecurityConfiguration>
+    <ApplicationCertificate>
+      <StoreType>Directory</StoreType>
+      <StorePath>%LocalApplicationData%/OPC/client</StorePath>
+      <SubjectName>CN=Client Test, O=Test</SubjectName>
+    </ApplicationCertificate>
+    <TrustedIssuerCertificates>
+      <StoreType>Directory</StoreType>
+      <StorePath>%LocalApplicationData%/OPC/issuers</StorePath>
+    </TrustedIssuerCertificates>
+    <TrustedPeerCertificates>
+      <StoreType>Directory</StoreType>
+      <StorePath>%LocalApplicationData%/OPC/trusted</StorePath>
+    </TrustedPeerCertificates>
+  </SecurityConfiguration>
+  <ClientConfiguration>
+    <DefaultSessionTimeout>120000</DefaultSessionTimeout>
+    <WellKnownDiscoveryUrls>
+      <ua:String>opc.tcp://localhost:4840</ua:String>
+      <ua:String>https://localhost:4843</ua:String>
+    </WellKnownDiscoveryUrls>
+    <EndpointCacheFilePath>endpoints.xml</EndpointCacheFilePath>
+    <MinSubscriptionLifetime>20000</MinSubscriptionLifetime>
+    <ReverseConnect>
+      <ClientEndpoints>
+        <ReverseConnectClientEndpoint>
+          <EndpointUrl>opc.tcp://localhost:65300</EndpointUrl>
+        </ReverseConnectClientEndpoint>
+        <ReverseConnectClientEndpoint>
+          <EndpointUrl>opc.tcp://localhost:65301</EndpointUrl>
+        </ReverseConnectClientEndpoint>
+      </ClientEndpoints>
+      <HoldTime>30000</HoldTime>
+      <WaitTimeout>40000</WaitTimeout>
+    </ReverseConnect>
+    <OperationLimits>
+      <MaxNodesPerRead>1000</MaxNodesPerRead>
+      <MaxNodesPerWrite>500</MaxNodesPerWrite>
+      <MaxNodesPerBrowse>2000</MaxNodesPerBrowse>
+      <MaxNodesPerMethodCall>100</MaxNodesPerMethodCall>
+    </OperationLimits>
+  </ClientConfiguration>
+</ApplicationConfiguration>

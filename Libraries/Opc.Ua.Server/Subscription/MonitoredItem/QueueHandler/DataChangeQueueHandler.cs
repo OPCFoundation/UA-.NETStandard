@@ -404,7 +404,7 @@ namespace Opc.Ua.Server
         {
             if (disposing)
             {
-                Utils.SilentDispose(m_dataValueQueue);
+                m_dataValueQueue?.Dispose();
             }
         }
 

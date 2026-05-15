@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
@@ -227,7 +228,7 @@ namespace Opc.Ua.Configuration
 
         /// <inheritdoc cref="ServerConfiguration.AvailableSamplingRates"/>
         IApplicationConfigurationBuilderServerOptions SetAvailableSamplingRates(
-            SamplingRateGroupCollection availableSampleRates);
+            ArrayOf<SamplingRateGroup> availableSampleRates);
 
         /// <inheritdoc cref="ServerConfiguration.RegistrationEndpoint"/>
         IApplicationConfigurationBuilderServerOptions SetRegistrationEndpoint(
@@ -459,7 +460,7 @@ namespace Opc.Ua.Configuration
         /// <param name="appRoot">The path to the app cert store, if different than the pki root.</param>
         /// <param name="rejectedRoot">The path to the rejected certificate store.</param>
         [Obsolete(
-            "Use AddSecurityConfiguration(CertificateIdentifierCollection certIdList, string pkiRoot = null, string rejectedRoot = null) instead."
+            "Use AddSecurityConfiguration(ArrayOf<CertificateIdentifier> certIdList, string pkiRoot = null, string rejectedRoot = null) instead."
         )]
         IApplicationConfigurationBuilderSecurityOptions AddSecurityConfiguration(
             string subjectName,
@@ -479,7 +480,7 @@ namespace Opc.Ua.Configuration
         /// <param name="pkiRoot">The path to the pki root. By default all cert stores use the pki root.</param>
         /// <param name="rejectedRoot">The path to the rejected certificate store.</param>
         IApplicationConfigurationBuilderSecurityOptions AddSecurityConfiguration(
-            CertificateIdentifierCollection certIdList,
+            ArrayOf<CertificateIdentifier> certIdList,
             string pkiRoot = null,
             string rejectedRoot = null);
 
@@ -542,7 +543,7 @@ namespace Opc.Ua.Configuration
         /// </remarks>
         /// <param name="certIdList">A list of Certificate identifiers</param>
         IApplicationConfigurationBuilderSecurityOptions SetApplicationCertificates(
-            CertificateIdentifierCollection certIdList);
+            ArrayOf<CertificateIdentifier> certIdList);
 
         /// <summary>
         /// The number of rejected certificates to keep in the store.
@@ -633,14 +634,27 @@ namespace Opc.Ua.Configuration
     public interface IApplicationConfigurationBuilderExtension : IApplicationConfigurationBuilderTraceConfiguration
     {
         /// <summary>
-        /// Add an extension to the configuration.
+        /// Add an extension to the configuration using an encoder function (AOT-safe).
         /// </summary>
         /// <typeparam name="T">The type of the object to add as an extension.</typeparam>
-        /// <param name="elementName">The name of the extension, null to use the name.</param>
+        /// <param name="elementName">The name of the extension, null to use the type name.</param>
         /// <param name="value">The object to add and encode.</param>
+        /// <param name="encoderFunc">A function that writes the value to an <see cref="IEncoder"/>.</param>
+        [Experimental("UA_NETStandard_1")]
         IApplicationConfigurationBuilderExtension AddExtension<T>(
             XmlQualifiedName elementName,
-            object value);
+            T value,
+            Action<IEncoder, T> encoderFunc);
+
+        /// <summary>
+        /// Add an IEncodeable extension to the configuration (AOT-safe).
+        /// </summary>
+        /// <typeparam name="T">The type of the object to add as an extension (must implement IEncodeable).</typeparam>
+        /// <param name="elementName">The name of the extension, null to use the type name.</param>
+        /// <param name="value">The IEncodeable object to add and encode.</param>
+        IApplicationConfigurationBuilderExtension AddExtension<T>(
+            XmlQualifiedName elementName,
+            T value) where T : IEncodeable;
     }
 
     /// <summary>

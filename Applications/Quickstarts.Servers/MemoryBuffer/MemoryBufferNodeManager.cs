@@ -68,10 +68,6 @@ namespace MemoryBuffer
         {
             NamespaceUris = namespaceUris;
 
-            AddEncodeableNodeManagerTypes(
-                typeof(MemoryBufferNodeManager).Assembly,
-                typeof(MemoryBufferNodeManager).Namespace);
-
             // get the configuration for the node manager.
             m_configuration =
                 configuration.ParseExtension<MemoryBufferConfiguration>() ??
@@ -108,7 +104,7 @@ namespace MemoryBuffer
                 namespaceIndex = Server.NamespaceUris
                     .GetIndexOrAppend(Namespaces.MemoryBuffer + "/Instance");
 
-                if (m_configuration != null && m_configuration.Buffers != null)
+                if (m_configuration != null && !m_configuration.Buffers.IsNull)
                 {
                     for (int ii = 0; ii < m_configuration.Buffers.Count; ii++)
                     {
@@ -128,11 +124,11 @@ namespace MemoryBuffer
                         bufferNode.CreateBuffer(instance.DataType, instance.TagCount);
                         bufferNode.InitializeMonitoring(Server, this);
 
-                        // save the buffers for easy look up later.
-                        m_buffers[bufferNode.SymbolicName] = bufferNode;
-
                         // link to root.
                         root.AddChild(bufferNode);
+
+                        // save the buffers for easy look up later.
+                        m_buffers[bufferNode.SymbolicName] = bufferNode;
                     }
                 }
             }
@@ -177,7 +173,7 @@ namespace MemoryBuffer
                     return null;
                 }
 
-                if (nodeId.TryGetIdentifier(out string id))
+                if (nodeId.TryGetValue(out string id))
                 {
                     // check for a reference to the buffer.
 

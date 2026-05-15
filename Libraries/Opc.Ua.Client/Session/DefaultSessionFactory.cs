@@ -28,21 +28,27 @@
  * ======================================================================*/
 
 using System;
-using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Client
 {
     /// <summary>
-    /// Object that creates instances of an Opc.Ua.Client.Session object.
+    /// Session factory that creates raw <see cref="Session"/> instances
+    /// without automatic reconnection or failover.
     /// </summary>
+    /// <remarks>
+    /// Use <see cref="ManagedSessionFactory"/> instead to get
+    /// <see cref="ManagedSession"/> instances that handle reconnection
+    /// and failover automatically.
+    /// </remarks>
     public class DefaultSessionFactory : ISessionFactory
     {
         /// <summary>
         /// The default instance of the factory.
         /// </summary>
-        [Obsolete("Use new DefaultSessionFactory instead.")]
+        [Obsolete("Use new DefaultSessionFactory(ITelemetryContext) instead.")]
         public static readonly DefaultSessionFactory Instance = new(null!);
 
         /// <inheritdoc/>
@@ -50,6 +56,13 @@ namespace Opc.Ua.Client
 
         /// <inheritdoc/>
         public DiagnosticsMasks ReturnDiagnostics { get; set; }
+
+        /// <summary>
+        /// Optional subscription engine factory to use when constructing
+        /// a <see cref="Session"/>. When <c>null</c>, the session uses the
+        /// classic engine (<see cref="ClassicSubscriptionEngineFactory"/>).
+        /// </summary>
+        public ISubscriptionEngineFactory? SubscriptionEngineFactory { get; init; }
 
         /// <summary>
         /// Obsolete default constructor
@@ -61,7 +74,7 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Force use of the default instance.
+        /// Creates a new instance of the <see cref="DefaultSessionFactory"/>.
         /// </summary>
         public DefaultSessionFactory(ITelemetryContext telemetry)
         {
@@ -244,48 +257,66 @@ namespace Opc.Ua.Client
             // checks the domains in the certificate.
             if (checkDomain && endpoint.Description.ServerCertificate.Length > 0)
             {
-                configuration.CertificateValidator?.ValidateDomains(
-                    CertificateFactory.Create(endpoint.Description.ServerCertificate),
-                    endpoint);
+                using var certificate = Certificate.FromRawData(endpoint.Description.ServerCertificate);
+                ICertificateValidatorEx? validator = configuration.CertificateManager;
+                validator?.ValidateDomains(certificate, endpoint);
             }
 
-            X509Certificate2? clientCertificate = null;
-            X509Certificate2Collection? clientCertificateChain = null;
-            if (endpointDescription.SecurityPolicyUri is not null and not SecurityPolicies.None)
+            Certificate? clientCertificate = null;
+            CertificateCollection? clientCertificateChain = null;
+            try
             {
-                clientCertificate = await Session.LoadInstanceCertificateAsync(
-                    configuration,
-                    endpointDescription.SecurityPolicyUri,
-                    messageContext.Telemetry,
-                    ct).ConfigureAwait(false);
-                clientCertificateChain = await Session.LoadCertificateChainAsync(
-                    configuration,
-                    clientCertificate,
-                    ct).ConfigureAwait(false);
-            }
+                if (endpointDescription.SecurityPolicyUri is not null and not SecurityPolicies.None)
+                {
+                    clientCertificate = await Session.LoadInstanceCertificateAsync(
+                        configuration,
+                        endpointDescription.SecurityPolicyUri,
+                        messageContext.Telemetry,
+                        ct).ConfigureAwait(false);
+                    clientCertificateChain = await Session.LoadCertificateChainAsync(
+                        configuration,
+                        clientCertificate,
+                        ct).ConfigureAwait(false);
+                }
 
-            // initialize the channel which will be created with the server.
-            if (connection != null)
+                // initialize the channel which will be created with the server.
+                ITransportChannel channel;
+                if (connection != null)
+                {
+                    channel = await UaChannelBase.CreateUaBinaryChannelAsync(
+                        configuration,
+                        connection,
+                        endpointDescription,
+                        endpointConfiguration,
+                        clientCertificate,
+                        clientCertificateChain,
+                        messageContext,
+                        ct).ConfigureAwait(false);
+                }
+                else
+                {
+                    channel = await UaChannelBase.CreateUaBinaryChannelAsync(
+                        configuration,
+                        endpointDescription,
+                        endpointConfiguration,
+                        clientCertificate,
+                        clientCertificateChain,
+                        messageContext,
+                        ct).ConfigureAwait(false);
+                }
+
+                // Ownership of the cert and chain has been transferred to the
+                // channel's TransportChannelSettings; the channel disposes
+                // them when it is disposed, so we must not dispose here.
+                clientCertificate = null;
+                clientCertificateChain = null;
+                return channel;
+            }
+            finally
             {
-                return await UaChannelBase.CreateUaBinaryChannelAsync(
-                    configuration,
-                    connection,
-                    endpointDescription,
-                    endpointConfiguration,
-                    clientCertificate,
-                    clientCertificateChain,
-                    messageContext,
-                    ct).ConfigureAwait(false);
+                clientCertificateChain?.Dispose();
+                clientCertificate?.Dispose();
             }
-
-            return await UaChannelBase.CreateUaBinaryChannelAsync(
-                configuration,
-                endpointDescription,
-                endpointConfiguration,
-                clientCertificate,
-                clientCertificateChain,
-                messageContext,
-                ct).ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
@@ -346,8 +377,8 @@ namespace Opc.Ua.Client
             ITransportChannel channel,
             ApplicationConfiguration configuration,
             ConfiguredEndpoint endpoint,
-            X509Certificate2? clientCertificate = null,
-            X509Certificate2Collection? clientCertificateChain = null,
+            Certificate? clientCertificate = null,
+            CertificateCollection? clientCertificateChain = null,
             ArrayOf<EndpointDescription> availableEndpoints = default,
             ArrayOf<string> discoveryProfileUris = default)
         {
@@ -358,7 +389,8 @@ namespace Opc.Ua.Client
                 clientCertificate,
                 clientCertificateChain,
                 availableEndpoints,
-                discoveryProfileUris)
+                discoveryProfileUris,
+                SubscriptionEngineFactory)
             {
                 ReturnDiagnostics = ReturnDiagnostics
             };
@@ -409,17 +441,19 @@ namespace Opc.Ua.Client
             session.ReturnDiagnostics = returnDiagnostics;
 
             // create the session.
+            UserIdentity? tempIdentity = identity == null ? new UserIdentity() : null;
             try
             {
                 await session
                     .OpenAsync(
                         sessionName,
                         sessionTimeout,
-                        identity ?? new UserIdentity(),
+                        identity ?? tempIdentity!,
                         preferredLocales,
                         checkDomain,
                         ct)
                     .ConfigureAwait(false);
+                tempIdentity = null; // ownership transferred to session
             }
             catch (Exception)
             {

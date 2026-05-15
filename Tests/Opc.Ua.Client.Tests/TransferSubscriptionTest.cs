@@ -210,8 +210,8 @@ namespace Opc.Ua.Client.Tests
             }
             finally
             {
-                Utils.SilentDispose(originSession);
-                Utils.SilentDispose(targetSession);
+                originSession?.Dispose();
+                targetSession?.Dispose();
             }
         }
 
@@ -239,7 +239,7 @@ namespace Opc.Ua.Client.Tests
             int[] targetSubscriptionCounters = new int[kTestSubscriptions];
             int[] targetSubscriptionFastDataCounters = new int[kTestSubscriptions];
             int[] originSubscriptionTransferred = new int[kTestSubscriptions];
-            var subscriptionTemplate = new TestableSubscription(originSession.DefaultSubscription)
+            using var subscriptionTemplate = new TestableSubscription(originSession.DefaultSubscription)
             {
                 PublishingInterval = 1_000,
                 LifetimeCount = 30,
@@ -445,7 +445,7 @@ namespace Opc.Ua.Client.Tests
             if (transferType == TransferType.DisconnectedRepublishDelayedAck && sendInitialValues)
             {
                 uint expectedCount0 = 2u * transferSubscriptions[0].MonitoredItemCount;
-                var deadline = DateTime.UtcNow.AddSeconds(10);
+                DateTime deadline = DateTime.UtcNow.AddSeconds(10);
                 while ((uint)targetSubscriptionCounters[0] < expectedCount0 &&
                     DateTime.UtcNow < deadline)
                 {

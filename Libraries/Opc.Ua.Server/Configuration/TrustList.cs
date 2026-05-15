@@ -31,7 +31,6 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -223,11 +222,10 @@ namespace Opc.Ua.Server
 
                     if (((int)masks & (int)TrustListMasks.TrustedCertificates) != 0)
                     {
-                        X509Certificate2Collection certificates = await store.EnumerateAsync(cancellationToken)
+                        using CertificateCollection certificates = await store.EnumerateAsync(cancellationToken)
                             .ConfigureAwait(false);
                         trustList.TrustedCertificates = trustList.TrustedCertificates.AddItems(
                             certificates
-                                .Cast<X509Certificate2>()
                                 .Select(certificate => certificate.RawData.ToByteString()));
                     }
 
@@ -255,10 +253,9 @@ namespace Opc.Ua.Server
 
                     if (((int)masks & (int)TrustListMasks.IssuerCertificates) != 0)
                     {
-                        X509Certificate2Collection certificates = await store.EnumerateAsync(cancellationToken)
+                        using CertificateCollection certificates = await store.EnumerateAsync(cancellationToken)
                             .ConfigureAwait(false);
                         trustList.IssuerCertificates = trustList.IssuerCertificates.AddItems(certificates
-                            .Cast<X509Certificate2>()
                             .Select(certificate => certificate.RawData.ToByteString()));
                     }
 
@@ -290,6 +287,7 @@ namespace Opc.Ua.Server
                     {
                         // to avoid deadlocks, last open always wins
                         m_sessionId = default;
+                        m_strm?.Dispose();
                         m_strm = null;
                         m_node.OpenCount.Value = 0;
                     }
@@ -510,6 +508,7 @@ namespace Opc.Ua.Server
                 }
 
                 m_sessionId = default;
+                m_strm?.Dispose();
                 m_strm = null;
                 m_node.OpenCount.Value = 0;
             }
@@ -582,14 +581,14 @@ namespace Opc.Ua.Server
                 strm = m_strm;
             }
 
+            CertificateCollection issuerCertificates = null;
+            CertificateCollection trustedCertificates = null;
             try
             {
                 TrustListDataType trustList = DecodeTrustListData(context, strm);
                 int masks = (int)trustList.SpecifiedLists;
 
-                X509Certificate2Collection issuerCertificates = null;
                 X509CRLCollection issuerCrls = null;
-                X509Certificate2Collection trustedCertificates = null;
                 X509CRLCollection trustedCrls = null;
 
                 // test integrity of all CRLs
@@ -598,7 +597,7 @@ namespace Opc.Ua.Server
                     issuerCertificates = [];
                     foreach (ByteString cert in trustList.IssuerCertificates)
                     {
-                        issuerCertificates.Add(X509CertificateLoader.LoadCertificate(cert.ToArray()));
+                        issuerCertificates.Add(Certificate.FromRawData(cert));
                     }
                 }
                 if ((masks & (int)TrustListMasks.IssuerCrls) != 0)
@@ -614,7 +613,7 @@ namespace Opc.Ua.Server
                     trustedCertificates = [];
                     foreach (ByteString cert in trustList.TrustedCertificates)
                     {
-                        trustedCertificates.Add(CertificateFactory.Create(cert));
+                        trustedCertificates.Add(Certificate.FromRawData(cert));
                     }
                 }
                 if ((masks & (int)TrustListMasks.TrustedCrls) != 0)
@@ -662,9 +661,13 @@ namespace Opc.Ua.Server
             }
             finally
             {
+                issuerCertificates?.Dispose();
+                trustedCertificates?.Dispose();
+
                 lock (m_lock)
                 {
                     m_sessionId = default;
+                    m_strm?.Dispose();
                     m_strm = null;
                     m_node.LastUpdateTime.Value = DateTime.UtcNow;
                     m_node.OpenCount.Value = 0;
@@ -741,10 +744,10 @@ namespace Opc.Ua.Server
             }
             else
             {
-                X509Certificate2 cert = null;
+                Certificate cert = null;
                 try
                 {
-                    cert = CertificateFactory.Create(certificate);
+                    cert = Certificate.FromRawData(certificate);
                 }
                 catch
                 {
@@ -860,7 +863,7 @@ namespace Opc.Ua.Server
                             "Failed to open certificate store.");
                     }
 
-                    X509Certificate2Collection certCollection = await store
+                    using CertificateCollection certCollection = await store
                         .FindByThumbprintAsync(thumbprint, cancellationToken)
                         .ConfigureAwait(false);
 
@@ -876,7 +879,7 @@ namespace Opc.Ua.Server
                             .ConfigureAwait(false);
                         foreach (X509CRL crl in crls)
                         {
-                            foreach (X509Certificate2 cert in certCollection)
+                            foreach (Certificate cert in certCollection)
                             {
                                 if (X509Utils.CompareDistinguishedName(
                                         cert.SubjectName,
@@ -937,12 +940,12 @@ namespace Opc.Ua.Server
             ISystemContext context,
             TrustListDataType trustList)
         {
-            IServiceMessageContext messageContext = new ServiceMessageContext(context.Telemetry)
-            {
-                NamespaceUris = context.NamespaceUris,
-                ServerUris = context.ServerUris,
-                Factory = context.EncodeableFactory
-            };
+            IServiceMessageContext messageContext =
+                new ServiceMessageContext(context.Telemetry, context.EncodeableFactory)
+                {
+                    NamespaceUris = context.NamespaceUris,
+                    ServerUris = context.ServerUris
+                };
             var strm = new MemoryStream();
             using (var encoder = new BinaryEncoder(strm, messageContext, true))
             {
@@ -957,12 +960,12 @@ namespace Opc.Ua.Server
             MemoryStream strm)
         {
             var trustList = new TrustListDataType();
-            IServiceMessageContext messageContext = new ServiceMessageContext(context.Telemetry)
-            {
-                NamespaceUris = context.NamespaceUris,
-                ServerUris = context.ServerUris,
-                Factory = context.EncodeableFactory
-            };
+            IServiceMessageContext messageContext =
+                new ServiceMessageContext(context.Telemetry, context.EncodeableFactory)
+                {
+                    NamespaceUris = context.NamespaceUris,
+                    ServerUris = context.ServerUris
+                };
             strm.Position = 0;
             using (var decoder = new BinaryDecoder(strm, messageContext))
             {
@@ -1017,7 +1020,7 @@ namespace Opc.Ua.Server
 
         private async Task<bool> UpdateStoreCertificatesAsync(
             CertificateStoreIdentifier storeIdentifier,
-            X509Certificate2Collection updatedCerts,
+            CertificateCollection updatedCerts,
             CancellationToken cancellationToken = default)
         {
             bool result = true;
@@ -1032,23 +1035,17 @@ namespace Opc.Ua.Server
                             "Failed to open certificate store.");
                     }
 
-                    X509Certificate2Collection storeCerts = await store.EnumerateAsync(cancellationToken)
+                    using CertificateCollection storeCerts = await store.EnumerateAsync(cancellationToken)
                         .ConfigureAwait(false);
-                    foreach (X509Certificate2 cert in storeCerts)
+                    foreach (Certificate cert in storeCerts)
                     {
-                        if (!updatedCerts.Contains(cert))
+                        if (!updatedCerts.Remove(cert) &&
+                            !await store.DeleteAsync(cert.Thumbprint, cancellationToken).ConfigureAwait(false))
                         {
-                            if (!await store.DeleteAsync(cert.Thumbprint, cancellationToken).ConfigureAwait(false))
-                            {
-                                result = false;
-                            }
-                        }
-                        else
-                        {
-                            updatedCerts.Remove(cert);
+                            result = false;
                         }
                     }
-                    foreach (X509Certificate2 cert in updatedCerts)
+                    foreach (Certificate cert in updatedCerts)
                     {
                         await store.AddAsync(cert, null, cancellationToken).ConfigureAwait(false);
                     }

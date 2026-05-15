@@ -98,12 +98,12 @@ namespace Opc.Ua.Server
 
                 foreach (SamplingGroup samplingGroup in samplingGroups)
                 {
-                    Utils.SilentDispose(samplingGroup);
+                    samplingGroup?.Dispose();
                 }
 
                 foreach (ISampledDataChangeMonitoredItem monitoredItem in monitoredItems)
                 {
-                    Utils.SilentDispose(monitoredItem);
+                    monitoredItem?.Dispose();
                 }
             }
         }
@@ -119,7 +119,7 @@ namespace Opc.Ua.Server
                 foreach (SamplingGroup samplingGroup in m_samplingGroups)
                 {
                     samplingGroup.Shutdown();
-                    Utils.SilentDispose(samplingGroup);
+                    samplingGroup?.Dispose();
                 }
 
                 m_samplingGroups.Clear();
@@ -164,7 +164,7 @@ namespace Opc.Ua.Server
                 m_maxDurableQueueSize);
 
             // get filter.
-            if (itemToCreate.RequestedParameters.Filter.TryGetEncodeable(
+            if (itemToCreate.RequestedParameters.Filter.TryGetValue(
                 out MonitoringFilter filter) &&
                 filter is EventFilter)
             {
@@ -338,7 +338,7 @@ namespace Opc.Ua.Server
             }
 
             // get filter.
-            if (itemToModify.RequestedParameters.Filter.TryGetEncodeable(out MonitoringFilter filter) &&
+            if (itemToModify.RequestedParameters.Filter.TryGetValue(out MonitoringFilter filter) &&
                 filter is EventFilter)
             {
                 // update limits for event filters.
@@ -403,18 +403,27 @@ namespace Opc.Ua.Server
                 }
 
                 // create a new sampling group.
-                var samplingGroup2 = new SamplingGroup(
-                    m_server,
-                    m_nodeManager,
-                    m_samplingRates,
-                    context,
-                    monitoredItem.SamplingInterval,
-                    savedOwnerIdentity);
+                SamplingGroup tempSamplingGroup = null;
+                try
+                {
+                    tempSamplingGroup = new SamplingGroup(
+                        m_server,
+                        m_nodeManager,
+                        m_samplingRates,
+                        context,
+                        monitoredItem.SamplingInterval,
+                        savedOwnerIdentity);
 
-                samplingGroup2.StartMonitoring(context, monitoredItem, savedOwnerIdentity);
+                    tempSamplingGroup.StartMonitoring(context, monitoredItem, savedOwnerIdentity);
 
-                m_samplingGroups.Add(samplingGroup2);
-                m_sampledItems.Add(monitoredItem, samplingGroup2);
+                    m_samplingGroups.Add(tempSamplingGroup);
+                    m_sampledItems.Add(monitoredItem, tempSamplingGroup);
+                    tempSamplingGroup = null; // ownership transferred to collection
+                }
+                finally
+                {
+                    tempSamplingGroup?.Dispose();
+                }
             }
         }
 
@@ -495,7 +504,7 @@ namespace Opc.Ua.Server
                 foreach (SamplingGroup samplingGroup in unusedGroups)
                 {
                     m_samplingGroups.Remove(samplingGroup);
-                    Utils.SilentDispose(samplingGroup);
+                    samplingGroup?.Dispose();
                 }
             }
         }

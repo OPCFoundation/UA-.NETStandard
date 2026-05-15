@@ -29,8 +29,8 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
-using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Bindings
 {
@@ -87,6 +87,8 @@ namespace Opc.Ua.Bindings
         /// Add all bindings with interface exported from a assembly.
         /// </summary>
         /// <param name="assembly">The assembly with the bindings.</param>
+        [RequiresUnreferencedCode(
+            "Scans assembly types via reflection.")]
         IEnumerable<Type> AddBindings(Assembly assembly);
 
         /// <summary>
@@ -110,15 +112,22 @@ namespace Opc.Ua.Bindings
         /// <param name="baseAddresses">The base addreses for the service host.</param>
         /// <param name="serverDescription">The server description.</param>
         /// <param name="securityPolicies">The list of supported security policies.</param>
-        /// <param name="instanceCertificateTypesProvider">The provider for application certificates.</param>
+        /// <param name="serverCertificates">
+        /// The registry that exposes the server's instance certificates.
+        /// </param>
+        /// <param name="clientCertificateValidator">
+        /// The validator used by the listener to validate inbound client
+        /// certificates.
+        /// </param>
         List<EndpointDescription> CreateServiceHost(
             ServerBase serverBase,
             IDictionary<string, ServiceHost> hosts,
             ApplicationConfiguration configuration,
             ArrayOf<string> baseAddresses,
             ApplicationDescription serverDescription,
-            List<ServerSecurityPolicy> securityPolicies,
-            CertificateTypesProvider instanceCertificateTypesProvider);
+            ArrayOf<ServerSecurityPolicy> securityPolicies,
+            ICertificateRegistry serverCertificates,
+            ICertificateValidatorEx clientCertificateValidator);
     }
 
     /// <summary>

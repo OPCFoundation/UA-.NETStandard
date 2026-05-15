@@ -58,7 +58,7 @@ namespace Opc.Ua.Types.Tests.State
         protected void OneTimeSetUp()
         {
             Telemetry = NUnitTelemetryContext.Create();
-            Context = new ServiceMessageContext(Telemetry);
+            Context = ServiceMessageContext.CreateEmpty(Telemetry);
             NamespaceTable nameSpaceUris = Context.NamespaceUris;
             // namespace index 1 must be the ApplicationUri
             nameSpaceUris.GetIndexOrAppend(ApplicationUri);
@@ -68,7 +68,7 @@ namespace Opc.Ua.Types.Tests.State
         [OneTimeTearDown]
         protected void OneTimeTearDown()
         {
-            CoreUtils.SilentDispose(Context);
+            (Context as IDisposable)?.Dispose();
         }
 
         /// <summary>
@@ -84,7 +84,6 @@ namespace Opc.Ua.Types.Tests.State
             var context = new SystemContext(telemetry) { NamespaceUris = Context.NamespaceUris };
             Assert.That(context.NamespaceUris.GetIndexOrAppend(OpcUa), Is.Zero);
             testObject.Create(context, new NodeId(1000), QualifiedName.From("Name"), LocalizedText.From("DisplayName"), true);
-            testObject.Dispose();
         }
 
         /// <summary>

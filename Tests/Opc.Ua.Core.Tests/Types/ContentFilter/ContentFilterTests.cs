@@ -88,6 +88,30 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
         }
 
         [Test]
+        [Category("ContentFilter")]
+        public void InvalidWhereClauseElementWithoutOperandResultsConvertsToEventFilterResult()
+        {
+            var filter = new EventFilter { WhereClause = new Ua.ContentFilter() };
+            filter.AddSelectClause(ObjectTypeIds.BaseEventType, new QualifiedName(BrowseNames.EventId));
+            filter.WhereClause.Elements = new[]
+            {
+                new ContentFilterElement { FilterOperator = FilterOperator.IsNull }
+            };
+
+            EventFilter.Result validationResult = filter.Validate(FilterContext);
+
+            Assert.That(
+                validationResult.WhereClauseResult.ElementResults[0].Status.StatusCode,
+                Is.EqualTo(StatusCodes.BadEventFilterInvalid));
+            Assert.That(
+                () => validationResult.ToEventFilterResult(
+                    DiagnosticsMasks.None,
+                    new StringTable(),
+                    Telemetry.CreateLogger<ContentFilterTests>()),
+                Throws.Nothing);
+        }
+
+        [Test]
         [TestCaseSource(nameof(BetweenTestCases))]
         [Category("ContentFilter")]
         public void Between(

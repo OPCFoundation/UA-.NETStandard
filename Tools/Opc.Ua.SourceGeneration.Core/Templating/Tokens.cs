@@ -33,6 +33,7 @@ namespace Opc.Ua.SourceGeneration
     {
         public static string ArrayDimensions => nameof(ArrayDimensions);
         public static string BaseClassName => nameof(BaseClassName);
+        public static string BaseInterfaces => nameof(BaseInterfaces);
         public static string BaseType => nameof(BaseType);
         public static string BaseTypeNamespacePrefix => nameof(BaseTypeNamespacePrefix);
         public static string BaseTypeNamespaceUri => nameof(BaseTypeNamespaceUri);
@@ -44,6 +45,8 @@ namespace Opc.Ua.SourceGeneration
         public static string SymbolicNameSymbol => nameof(SymbolicNameSymbol);
         public static string BuiltInTypes => nameof(BuiltInTypes);
         public static string ChildDataType => nameof(ChildDataType);
+        public static string ValueWrite => nameof(ValueWrite);
+        public static string ValueComparison => nameof(ValueComparison);
         public static string ChildName => nameof(ChildName);
         public static string ChildPath => nameof(ChildPath);
         public static string ClassName => nameof(ClassName);
@@ -62,6 +65,7 @@ namespace Opc.Ua.SourceGeneration
         public static string DictionaryUri => nameof(DictionaryUri);
         public static string Documentation => nameof(Documentation);
         public static string EmitDefaultValue => nameof(EmitDefaultValue);
+        public static string EncodingMaskModifier => nameof(EncodingMaskModifier);
         public static string EnumerationName => nameof(EnumerationName);
         public static string EventNotifier => nameof(EventNotifier);
         public static string FieldIndex => nameof(FieldIndex);
@@ -125,6 +129,8 @@ namespace Opc.Ua.SourceGeneration
         public static string Namespace => nameof(Namespace);
         public static string NamespacePrefix => nameof(NamespacePrefix);
         public static string NamespaceUri => nameof(NamespaceUri);
+        public static string NodeManagerClassName => nameof(NodeManagerClassName);
+        public static string NodeManagerFactoryClassName => nameof(NodeManagerFactoryClassName);
         public static string Nillable => nameof(Nillable);
         public static string NodeClass => nameof(NodeClass);
         public static string OnCallAsyncDeclaration => nameof(OnCallAsyncDeclaration);
@@ -162,7 +168,7 @@ namespace Opc.Ua.SourceGeneration
         public static string BaseT => nameof(BaseT);
         public static string XsRestrictionBaseType => nameof(XsRestrictionBaseType);
         public static string AccessorSymbol => nameof(AccessorSymbol);
-        public static string JsonEncodingId => nameof(JsonEncodingId);
+
         public static string ServerMethodAsync => nameof(ServerMethodAsync);
         public static string ClientMethodAsync => nameof(ClientMethodAsync);
         public static string ClientMethodSync => nameof(ClientMethodSync);
@@ -174,6 +180,9 @@ namespace Opc.Ua.SourceGeneration
         public static string Resource => nameof(Resource);
         public static string ListOfResourceGroups => nameof(ListOfResourceGroups);
         public static string ListOfResourceDeclarations => nameof(ListOfResourceDeclarations);
+        public static string ListOfModelDependencies => nameof(ListOfModelDependencies);
+        public static string ModelVersion => nameof(ModelVersion);
+        public static string ModelPublicationDate => nameof(ModelPublicationDate);
         public static string AccessModifier => nameof(AccessModifier);
         public static string IdentifierReflection => nameof(IdentifierReflection);
         public static string ListOfNodeStateInitializers => nameof(ListOfNodeStateInitializers);
@@ -213,5 +222,6 @@ namespace Opc.Ua.SourceGeneration
         public static string HistorizingValue => nameof(HistorizingValue);
         public static string AccessLevelValue => nameof(AccessLevelValue);
         public static string UserAccessLevelValue => nameof(UserAccessLevelValue);
+        public static string ListOfInitOnlyBackingFields => nameof(ListOfInitOnlyBackingFields);
     }
 }

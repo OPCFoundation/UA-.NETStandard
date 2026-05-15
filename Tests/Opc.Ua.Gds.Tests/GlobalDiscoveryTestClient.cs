@@ -30,14 +30,13 @@
 using System;
 using System.IO;
 using System.Runtime.InteropServices;
-using System.Runtime.Serialization;
-using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Configuration;
 using Opc.Ua.Gds.Client;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Gds.Tests
 {
@@ -67,6 +66,8 @@ namespace Opc.Ua.Gds.Tests
         public void Dispose()
         {
             GDSClient?.Dispose();
+            m_application?.DisposeAsync().AsTask().GetAwaiter().GetResult();
+            m_application = null;
         }
 
         public async Task LoadClientConfigurationAsync(int port = -1, bool clean = true)
@@ -84,6 +85,11 @@ namespace Opc.Ua.Gds.Tests
                 configSectionName = "Opc.Ua.GlobalDiscoveryTestClientX509Stores";
             }
 
+            if (m_application != null)
+            {
+                await m_application.DisposeAsync().ConfigureAwait(false);
+                m_application = null;
+            }
             m_application = new ApplicationInstance(m_telemetry)
             {
                 ApplicationName = "Global Discovery Client",
@@ -107,7 +113,7 @@ namespace Opc.Ua.Gds.Tests
                 AdminPassword = "demo"
             };
 
-            CertificateIdentifierCollection applicationCerts =
+            ArrayOf<CertificateIdentifier> applicationCerts =
                 ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
                     "CN=Global Discovery Test Client, O=OPC Foundation, DC=localhost",
                     CertificateStoreType.Directory,
@@ -126,7 +132,7 @@ namespace Opc.Ua.Gds.Tests
                 .SetRejectSHA1SignedCertificates(false)
                 .SetRejectUnknownRevocationStatus(true)
                 .SetMinimumCertificateKeySize(1024)
-                .AddExtension<GlobalDiscoveryTestClientConfiguration>(null, clientConfig)
+                .AddExtension(null, clientConfig)
                 .SetOutputFilePath(Path.Combine(root, "Logs", "Opc.Ua.Gds.Tests.log.txt"))
                 .SetTraceMasks(519)
                 .CreateAsync()
@@ -138,10 +144,14 @@ namespace Opc.Ua.Gds.Tests
                 string thumbprint = Configuration.SecurityConfiguration.ApplicationCertificate.Thumbprint;
                 if (thumbprint != null)
                 {
-                    using ICertificateStore store = Configuration.SecurityConfiguration
-                        .ApplicationCertificate
-                        .OpenStore(m_telemetry);
-                    await store.DeleteAsync(thumbprint).ConfigureAwait(false);
+                    using ICertificateStore store = CertificateIdentifierResolver
+                        .OpenStore(
+                            Configuration.SecurityConfiguration.ApplicationCertificate,
+                            m_telemetry);
+                    if (store != null)
+                    {
+                        await store.DeleteAsync(thumbprint).ConfigureAwait(false);
+                    }
                 }
 
                 // always start with clean cert store
@@ -172,9 +182,7 @@ namespace Opc.Ua.Gds.Tests
                 throw new InvalidOperationException("Application instance certificate invalid!");
             }
 
-            Configuration.CertificateValidator.CertificateValidation
-                += new CertificateValidationEventHandler(
-                CertificateValidator_CertificateValidation);
+            Configuration.CertificateManager.AcceptError = AcceptCertificate;
 
             GlobalDiscoveryTestClientConfiguration gdsClientConfiguration =
                 Configuration.ParseExtension<GlobalDiscoveryTestClientConfiguration>();
@@ -264,7 +272,7 @@ namespace Opc.Ua.Gds.Tests
                 }
                 finally
                 {
-                    gdsClient.Dispose();
+                    await gdsClient.DisposeAsync().ConfigureAwait(false);
                 }
             }
         }
@@ -279,24 +287,28 @@ namespace Opc.Ua.Gds.Tests
             ByteString certificate,
             ByteString privateKey)
         {
-            using X509Certificate2 x509 = CertificateFactory.Create(certificate.ToArray());
-            X509Certificate2 certWithPrivateKey = CertificateFactory
-                .CreateCertificateWithPEMPrivateKey(
+            using var x509 = Certificate.FromRawData(certificate.ToArray());
+            Certificate certWithPrivateKey = DefaultCertificateFactory.Instance.CreateWithPEMPrivateKey(
                     x509,
                     privateKey.ToArray());
-            GDSClient.Configuration.SecurityConfiguration.ApplicationCertificate
-                = new CertificateIdentifier(
-                certWithPrivateKey);
-            ICertificateStore store = GDSClient.Configuration.SecurityConfiguration
-                .ApplicationCertificate
-                .OpenStore(m_telemetry);
+            CertificateIdentifier oldId = GDSClient.Configuration.SecurityConfiguration.ApplicationCertificate;
+            var newId = new CertificateIdentifier
+            {
+                Thumbprint = certWithPrivateKey.Thumbprint,
+                SubjectName = certWithPrivateKey.Subject,
+                StoreType = oldId?.StoreType,
+                StorePath = oldId?.StorePath,
+                CertificateType = oldId?.CertificateType ?? CertificateIdentifier.GetCertificateType(certWithPrivateKey)
+            };
+            GDSClient.Configuration.SecurityConfiguration.ApplicationCertificate = newId;
+            using ICertificateStore store = CertificateIdentifierResolver.OpenStore(newId, m_telemetry);
             await store.AddAsync(certWithPrivateKey).ConfigureAwait(false);
         }
 
         private async Task<(ByteString certificate, ByteString privateKey)> FinishKeyPairAsync(
             ApplicationTestData ownApplicationTestData)
         {
-            GDSClient.ConnectAsync().GetAwaiter().GetResult();
+            await GDSClient.ConnectAsync().ConfigureAwait(false);
             //get cert
             (ByteString certificate, ByteString privateKey, _) = await GDSClient.FinishRequestAsync(
                 ownApplicationTestData.ApplicationRecord.ApplicationId,
@@ -331,22 +343,18 @@ namespace Opc.Ua.Gds.Tests
             return id;
         }
 
-        private void CertificateValidator_CertificateValidation(
-            CertificateValidator validator,
-            CertificateValidationEventArgs e)
+        private bool AcceptCertificate(Certificate certificate, ServiceResult error)
         {
-            if (e.Error.StatusCode == StatusCodes.BadCertificateUntrusted)
+            if (error.StatusCode == StatusCodes.BadCertificateUntrusted)
             {
-                e.Accept = AutoAccept;
                 if (AutoAccept)
                 {
-                    m_logger.LogInformation("Accepted Certificate: {Subject}", e.Certificate.Subject);
+                    m_logger.LogInformation("Accepted Certificate: {Subject}", certificate.Subject);
+                    return true;
                 }
-                else
-                {
-                    m_logger.LogInformation("Rejected Certificate: {Subject}", e.Certificate.Subject);
-                }
+                m_logger.LogInformation("Rejected Certificate: {Subject}", certificate.Subject);
             }
+            return false;
         }
 
         private ApplicationTestData GetOwnApplicationData()
@@ -415,22 +423,22 @@ namespace Opc.Ua.Gds.Tests
     /// <summary>
     /// Stores the configuration the data access node manager.
     /// </summary>
-    [DataContract(Namespace = Namespaces.OpcUaGds + "Configuration.xsd")]
-    public class GlobalDiscoveryTestClientConfiguration
+    [DataType(Namespace = Namespaces.OpcUaGds + "Configuration.xsd")]
+    public partial class GlobalDiscoveryTestClientConfiguration
     {
-        [DataMember(Order = 1)]
+        [DataTypeField(Order = 1)]
         public string GlobalDiscoveryServerUrl { get; set; }
 
-        [DataMember(Order = 2)]
+        [DataTypeField(Order = 2)]
         public string AppUserName { get; set; }
 
-        [DataMember(Order = 3)]
+        [DataTypeField(Order = 3)]
         public string AppPassword { get; set; }
 
-        [DataMember(Order = 4, IsRequired = true)]
+        [DataTypeField(Order = 4)]
         public string AdminUserName { get; set; }
 
-        [DataMember(Order = 5, IsRequired = true)]
+        [DataTypeField(Order = 5)]
         public string AdminPassword { get; set; }
     }
 }

@@ -31,8 +31,6 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.Contracts;
 using System.Globalization;
-using System.Linq;
-using System.Text.Json;
 using System.Text.Json.Serialization;
 using Opc.Ua.Types;
 
@@ -506,7 +504,7 @@ namespace Opc.Ua
             {
                 switch (value.TypeInfo.BuiltInType)
                 {
-                    case BuiltInType.ByteString when s.TryGet(out ByteString src):
+                    case BuiltInType.ByteString when s.TryGetValue(out ByteString src):
                         status = ApplyRange(ref src);
                         if (status == StatusCodes.Good)
                         {
@@ -514,7 +512,7 @@ namespace Opc.Ua
                             return status;
                         }
                         break;
-                    case BuiltInType.String when s.TryGet(out string src):
+                    case BuiltInType.String when s.TryGetValue(out string src):
                         status = ApplyRange(ref src);
                         if (status == StatusCodes.Good)
                         {
@@ -532,7 +530,7 @@ namespace Opc.Ua
                 switch (value.TypeInfo.BuiltInType)
                 {
                     case BuiltInType.Boolean
-                    when s.TryGet(out ArrayOf<bool> src):
+                    when s.TryGetValue(out ArrayOf<bool> src):
                         status = ApplyRange(ref src);
                         if (status == StatusCodes.Good)
                         {
@@ -541,7 +539,7 @@ namespace Opc.Ua
                         }
                         break;
                     case BuiltInType.SByte
-                    when s.TryGet(out ArrayOf<sbyte> src):
+                    when s.TryGetValue(out ArrayOf<sbyte> src):
                         status = ApplyRange(ref src);
                         if (status == StatusCodes.Good)
                         {
@@ -550,7 +548,7 @@ namespace Opc.Ua
                         }
                         break;
                     case BuiltInType.Byte
-                    when s.TryGet(out ArrayOf<byte> src):
+                    when s.TryGetValue(out ArrayOf<byte> src):
                         status = ApplyRange(ref src);
                         if (status == StatusCodes.Good)
                         {
@@ -559,7 +557,7 @@ namespace Opc.Ua
                         }
                         break;
                     case BuiltInType.Int16
-                    when s.TryGet(out ArrayOf<short> src):
+                    when s.TryGetValue(out ArrayOf<short> src):
                         status = ApplyRange(ref src);
                         if (status == StatusCodes.Good)
                         {
@@ -568,7 +566,7 @@ namespace Opc.Ua
                         }
                         break;
                     case BuiltInType.UInt16
-                    when s.TryGet(out ArrayOf<ushort> src):
+                    when s.TryGetValue(out ArrayOf<ushort> src):
                         status = ApplyRange(ref src);
                         if (status == StatusCodes.Good)
                         {
@@ -577,16 +575,16 @@ namespace Opc.Ua
                         }
                         break;
                     case BuiltInType.Enumeration
-                    when s.TryGet(out ArrayOf<int> src):
+                    when s.TryGetValue(out ArrayOf<EnumValue> src):
                         status = ApplyRange(ref src);
                         if (status == StatusCodes.Good)
                         {
-                            value = Variant.FromEnumeration(src);
+                            value = Variant.From(src);
                             return status;
                         }
                         break;
                     case BuiltInType.Int32
-                    when s.TryGet(out ArrayOf<int> src):
+                    when s.TryGetValue(out ArrayOf<int> src):
                         status = ApplyRange(ref src);
                         if (status == StatusCodes.Good)
                         {
@@ -595,7 +593,7 @@ namespace Opc.Ua
                         }
                         break;
                     case BuiltInType.UInt32
-                    when s.TryGet(out ArrayOf<uint> src):
+                    when s.TryGetValue(out ArrayOf<uint> src):
                         status = ApplyRange(ref src);
                         if (status == StatusCodes.Good)
                         {
@@ -604,7 +602,7 @@ namespace Opc.Ua
                         }
                         break;
                     case BuiltInType.Int64
-                    when s.TryGet(out ArrayOf<long> src):
+                    when s.TryGetValue(out ArrayOf<long> src):
                         status = ApplyRange(ref src);
                         if (status == StatusCodes.Good)
                         {
@@ -613,7 +611,7 @@ namespace Opc.Ua
                         }
                         break;
                     case BuiltInType.UInt64
-                    when s.TryGet(out ArrayOf<ulong> src):
+                    when s.TryGetValue(out ArrayOf<ulong> src):
                         status = ApplyRange(ref src);
                         if (status == StatusCodes.Good)
                         {
@@ -622,7 +620,7 @@ namespace Opc.Ua
                         }
                         break;
                     case BuiltInType.Float
-                    when s.TryGet(out ArrayOf<float> src):
+                    when s.TryGetValue(out ArrayOf<float> src):
                         status = ApplyRange(ref src);
                         if (status == StatusCodes.Good)
                         {
@@ -631,7 +629,7 @@ namespace Opc.Ua
                         }
                         break;
                     case BuiltInType.Double
-                    when s.TryGet(out ArrayOf<double> src):
+                    when s.TryGetValue(out ArrayOf<double> src):
                         status = ApplyRange(ref src);
                         if (status == StatusCodes.Good)
                         {
@@ -640,7 +638,7 @@ namespace Opc.Ua
                         }
                         break;
                     case BuiltInType.String
-                    when s.TryGet(out ArrayOf<string> src):
+                    when s.TryGetValue(out ArrayOf<string> src):
                         status = ApplyRange(ref src);
                         if (status == StatusCodes.Good)
                         {
@@ -649,7 +647,7 @@ namespace Opc.Ua
                         }
                         break;
                     case BuiltInType.DateTime
-                    when s.TryGet(out ArrayOf<DateTimeUtc> src):
+                    when s.TryGetValue(out ArrayOf<DateTimeUtc> src):
                         status = ApplyRange(ref src);
                         if (status == StatusCodes.Good)
                         {
@@ -658,7 +656,7 @@ namespace Opc.Ua
                         }
                         break;
                     case BuiltInType.Guid
-                    when s.TryGet(out ArrayOf<Uuid> src):
+                    when s.TryGetValue(out ArrayOf<Uuid> src):
                         status = ApplyRange(ref src);
                         if (status == StatusCodes.Good)
                         {
@@ -667,7 +665,7 @@ namespace Opc.Ua
                         }
                         break;
                     case BuiltInType.ByteString
-                    when s.TryGet(out ArrayOf<ByteString> src):
+                    when s.TryGetValue(out ArrayOf<ByteString> src):
                         status = ApplyRange(ref src);
                         if (status == StatusCodes.Good)
                         {
@@ -676,7 +674,7 @@ namespace Opc.Ua
                         }
                         break;
                     case BuiltInType.XmlElement
-                    when s.TryGet(out ArrayOf<XmlElement> src):
+                    when s.TryGetValue(out ArrayOf<XmlElement> src):
                         status = ApplyRange(ref src);
                         if (status == StatusCodes.Good)
                         {
@@ -685,7 +683,7 @@ namespace Opc.Ua
                         }
                         break;
                     case BuiltInType.NodeId
-                    when s.TryGet(out ArrayOf<NodeId> src):
+                    when s.TryGetValue(out ArrayOf<NodeId> src):
                         status = ApplyRange(ref src);
                         if (status == StatusCodes.Good)
                         {
@@ -694,7 +692,7 @@ namespace Opc.Ua
                         }
                         break;
                     case BuiltInType.ExpandedNodeId
-                    when s.TryGet(out ArrayOf<ExpandedNodeId> src):
+                    when s.TryGetValue(out ArrayOf<ExpandedNodeId> src):
                         status = ApplyRange(ref src);
                         if (status == StatusCodes.Good)
                         {
@@ -703,7 +701,7 @@ namespace Opc.Ua
                         }
                         break;
                     case BuiltInType.StatusCode
-                    when s.TryGet(out ArrayOf<StatusCode> src):
+                    when s.TryGetValue(out ArrayOf<StatusCode> src):
                         status = ApplyRange(ref src);
                         if (status == StatusCodes.Good)
                         {
@@ -712,7 +710,7 @@ namespace Opc.Ua
                         }
                         break;
                     case BuiltInType.QualifiedName
-                    when s.TryGet(out ArrayOf<QualifiedName> src):
+                    when s.TryGetValue(out ArrayOf<QualifiedName> src):
                         status = ApplyRange(ref src);
                         if (status == StatusCodes.Good)
                         {
@@ -721,7 +719,7 @@ namespace Opc.Ua
                         }
                         break;
                     case BuiltInType.LocalizedText
-                    when s.TryGet(out ArrayOf<LocalizedText> src):
+                    when s.TryGetValue(out ArrayOf<LocalizedText> src):
                         status = ApplyRange(ref src);
                         if (status == StatusCodes.Good)
                         {
@@ -730,7 +728,7 @@ namespace Opc.Ua
                         }
                         break;
                     case BuiltInType.ExtensionObject
-                    when s.TryGet(out ArrayOf<ExtensionObject> src):
+                    when s.TryGetValue(out ArrayOf<ExtensionObject> src):
                         status = ApplyRange(ref src);
                         if (status == StatusCodes.Good)
                         {
@@ -739,7 +737,7 @@ namespace Opc.Ua
                         }
                         break;
                     case BuiltInType.DataValue
-                    when s.TryGet(out ArrayOf<DataValue> src):
+                    when s.TryGetValue(out ArrayOf<DataValue> src):
                         status = ApplyRange(ref src);
                         if (status == StatusCodes.Good)
                         {
@@ -751,7 +749,7 @@ namespace Opc.Ua
                     case BuiltInType.Integer:
                     case BuiltInType.Number:
                     case BuiltInType.Variant:
-                        if (s.TryGet(out ArrayOf<Variant> variantValues))
+                        if (s.TryGetValue(out ArrayOf<Variant> variantValues))
                         {
                             status = ApplyRange(ref variantValues);
                             if (status == StatusCodes.Good)
@@ -771,7 +769,7 @@ namespace Opc.Ua
                 switch (value.TypeInfo.BuiltInType)
                 {
                     case BuiltInType.Boolean
-                    when s.TryGet(out MatrixOf<bool> src):
+                    when s.TryGetValue(out MatrixOf<bool> src):
                         status = ApplyRange(ref src);
                         if (status == StatusCodes.Good)
                         {
@@ -780,7 +778,7 @@ namespace Opc.Ua
                         }
                         break;
                     case BuiltInType.SByte
-                    when s.TryGet(out MatrixOf<sbyte> src):
+                    when s.TryGetValue(out MatrixOf<sbyte> src):
                         status = ApplyRange(ref src);
                         if (status == StatusCodes.Good)
                         {
@@ -789,7 +787,7 @@ namespace Opc.Ua
                         }
                         break;
                     case BuiltInType.Byte
-                    when s.TryGet(out MatrixOf<byte> src):
+                    when s.TryGetValue(out MatrixOf<byte> src):
                         status = ApplyRange(ref src);
                         if (status == StatusCodes.Good)
                         {
@@ -798,7 +796,7 @@ namespace Opc.Ua
                         }
                         break;
                     case BuiltInType.Int16
-                    when s.TryGet(out MatrixOf<short> src):
+                    when s.TryGetValue(out MatrixOf<short> src):
                         status = ApplyRange(ref src);
                         if (status == StatusCodes.Good)
                         {
@@ -807,7 +805,7 @@ namespace Opc.Ua
                         }
                         break;
                     case BuiltInType.UInt16
-                    when s.TryGet(out MatrixOf<ushort> src):
+                    when s.TryGetValue(out MatrixOf<ushort> src):
                         status = ApplyRange(ref src);
                         if (status == StatusCodes.Good)
                         {
@@ -816,16 +814,16 @@ namespace Opc.Ua
                         }
                         break;
                     case BuiltInType.Enumeration
-                    when s.TryGet(out MatrixOf<int> src):
+                    when s.TryGetValue(out MatrixOf<EnumValue> src):
                         status = ApplyRange(ref src);
                         if (status == StatusCodes.Good)
                         {
-                            value = Variant.FromEnumeration(src);
+                            value = Variant.From(src);
                             return status;
                         }
                         break;
                     case BuiltInType.Int32
-                    when s.TryGet(out MatrixOf<int> src):
+                    when s.TryGetValue(out MatrixOf<int> src):
                         status = ApplyRange(ref src);
                         if (status == StatusCodes.Good)
                         {
@@ -834,7 +832,7 @@ namespace Opc.Ua
                         }
                         break;
                     case BuiltInType.UInt32
-                    when s.TryGet(out MatrixOf<uint> src):
+                    when s.TryGetValue(out MatrixOf<uint> src):
                         status = ApplyRange(ref src);
                         if (status == StatusCodes.Good)
                         {
@@ -843,7 +841,7 @@ namespace Opc.Ua
                         }
                         break;
                     case BuiltInType.Int64
-                    when s.TryGet(out MatrixOf<long> src):
+                    when s.TryGetValue(out MatrixOf<long> src):
                         status = ApplyRange(ref src);
                         if (status == StatusCodes.Good)
                         {
@@ -852,7 +850,7 @@ namespace Opc.Ua
                         }
                         break;
                     case BuiltInType.UInt64
-                    when s.TryGet(out MatrixOf<ulong> src):
+                    when s.TryGetValue(out MatrixOf<ulong> src):
                         status = ApplyRange(ref src);
                         if (status == StatusCodes.Good)
                         {
@@ -861,7 +859,7 @@ namespace Opc.Ua
                         }
                         break;
                     case BuiltInType.Float
-                    when s.TryGet(out MatrixOf<float> src):
+                    when s.TryGetValue(out MatrixOf<float> src):
                         status = ApplyRange(ref src);
                         if (status == StatusCodes.Good)
                         {
@@ -870,7 +868,7 @@ namespace Opc.Ua
                         }
                         break;
                     case BuiltInType.Double
-                    when s.TryGet(out MatrixOf<double> src):
+                    when s.TryGetValue(out MatrixOf<double> src):
                         status = ApplyRange(ref src);
                         if (status == StatusCodes.Good)
                         {
@@ -879,7 +877,7 @@ namespace Opc.Ua
                         }
                         break;
                     case BuiltInType.String
-                    when s.TryGet(out MatrixOf<string> src):
+                    when s.TryGetValue(out MatrixOf<string> src):
                         status = ApplyRange(ref src);
                         if (status == StatusCodes.Good)
                         {
@@ -888,7 +886,7 @@ namespace Opc.Ua
                         }
                         break;
                     case BuiltInType.DateTime
-                    when s.TryGet(out MatrixOf<DateTimeUtc> src):
+                    when s.TryGetValue(out MatrixOf<DateTimeUtc> src):
                         status = ApplyRange(ref src);
                         if (status == StatusCodes.Good)
                         {
@@ -897,7 +895,7 @@ namespace Opc.Ua
                         }
                         break;
                     case BuiltInType.Guid
-                    when s.TryGet(out MatrixOf<Uuid> src):
+                    when s.TryGetValue(out MatrixOf<Uuid> src):
                         status = ApplyRange(ref src);
                         if (status == StatusCodes.Good)
                         {
@@ -906,7 +904,7 @@ namespace Opc.Ua
                         }
                         break;
                     case BuiltInType.ByteString
-                    when s.TryGet(out MatrixOf<ByteString> src):
+                    when s.TryGetValue(out MatrixOf<ByteString> src):
                         status = ApplyRange(ref src);
                         if (status == StatusCodes.Good)
                         {
@@ -915,7 +913,7 @@ namespace Opc.Ua
                         }
                         break;
                     case BuiltInType.XmlElement
-                    when s.TryGet(out MatrixOf<XmlElement> src):
+                    when s.TryGetValue(out MatrixOf<XmlElement> src):
                         status = ApplyRange(ref src);
                         if (status == StatusCodes.Good)
                         {
@@ -924,7 +922,7 @@ namespace Opc.Ua
                         }
                         break;
                     case BuiltInType.NodeId
-                    when s.TryGet(out MatrixOf<NodeId> src):
+                    when s.TryGetValue(out MatrixOf<NodeId> src):
                         status = ApplyRange(ref src);
                         if (status == StatusCodes.Good)
                         {
@@ -933,7 +931,7 @@ namespace Opc.Ua
                         }
                         break;
                     case BuiltInType.ExpandedNodeId
-                    when s.TryGet(out MatrixOf<ExpandedNodeId> src):
+                    when s.TryGetValue(out MatrixOf<ExpandedNodeId> src):
                         status = ApplyRange(ref src);
                         if (status == StatusCodes.Good)
                         {
@@ -942,7 +940,7 @@ namespace Opc.Ua
                         }
                         break;
                     case BuiltInType.StatusCode
-                    when s.TryGet(out MatrixOf<StatusCode> src):
+                    when s.TryGetValue(out MatrixOf<StatusCode> src):
                         status = ApplyRange(ref src);
                         if (status == StatusCodes.Good)
                         {
@@ -951,7 +949,7 @@ namespace Opc.Ua
                         }
                         break;
                     case BuiltInType.QualifiedName
-                    when s.TryGet(out MatrixOf<QualifiedName> src):
+                    when s.TryGetValue(out MatrixOf<QualifiedName> src):
                         status = ApplyRange(ref src);
                         if (status == StatusCodes.Good)
                         {
@@ -960,7 +958,7 @@ namespace Opc.Ua
                         }
                         break;
                     case BuiltInType.LocalizedText
-                    when s.TryGet(out MatrixOf<LocalizedText> src):
+                    when s.TryGetValue(out MatrixOf<LocalizedText> src):
                         status = ApplyRange(ref src);
                         if (status == StatusCodes.Good)
                         {
@@ -969,7 +967,7 @@ namespace Opc.Ua
                         }
                         break;
                     case BuiltInType.ExtensionObject
-                    when s.TryGet(out MatrixOf<ExtensionObject> src):
+                    when s.TryGetValue(out MatrixOf<ExtensionObject> src):
                         status = ApplyRange(ref src);
                         if (status == StatusCodes.Good)
                         {
@@ -978,7 +976,7 @@ namespace Opc.Ua
                         }
                         break;
                     case BuiltInType.DataValue
-                    when s.TryGet(out MatrixOf<DataValue> src):
+                    when s.TryGetValue(out MatrixOf<DataValue> src):
                         status = ApplyRange(ref src);
                         if (status == StatusCodes.Good)
                         {
@@ -990,7 +988,7 @@ namespace Opc.Ua
                     case BuiltInType.Integer:
                     case BuiltInType.Number:
                     case BuiltInType.Variant:
-                        if (s.TryGet(out MatrixOf<Variant> variantValues))
+                        if (s.TryGetValue(out MatrixOf<Variant> variantValues))
                         {
                             status = ApplyRange(ref variantValues);
                             if (status == StatusCodes.Good)
@@ -1039,8 +1037,8 @@ namespace Opc.Ua
                 switch (value.TypeInfo.BuiltInType)
                 {
                     case BuiltInType.ByteString
-                    when d.TryGet(out ByteString dst) &&
-                        s.TryGet(out ByteString src):
+                    when d.TryGetValue(out ByteString dst) &&
+                        s.TryGetValue(out ByteString src):
                         status = UpdateRange(ref dst, src);
                         if (status == StatusCodes.Good)
                         {
@@ -1049,8 +1047,8 @@ namespace Opc.Ua
                         }
                         break;
                     case BuiltInType.String
-                    when d.TryGet(out string dst) &&
-                        s.TryGet(out string src):
+                    when d.TryGetValue(out string dst) &&
+                        s.TryGetValue(out string src):
                         status = UpdateRange(ref dst, src);
                         if (status == StatusCodes.Good)
                         {
@@ -1068,8 +1066,8 @@ namespace Opc.Ua
                 switch (value.TypeInfo.BuiltInType)
                 {
                     case BuiltInType.Boolean
-                    when s.TryGet(out ArrayOf<bool> src) &&
-                        d.TryGet(out ArrayOf<bool> dst):
+                    when s.TryGetValue(out ArrayOf<bool> src) &&
+                        d.TryGetValue(out ArrayOf<bool> dst):
                         status = UpdateRange(ref dst, src);
                         if (status == StatusCodes.Good)
                         {
@@ -1078,8 +1076,8 @@ namespace Opc.Ua
                         }
                         break;
                     case BuiltInType.SByte
-                    when s.TryGet(out ArrayOf<sbyte> src) &&
-                        d.TryGet(out ArrayOf<sbyte> dst):
+                    when s.TryGetValue(out ArrayOf<sbyte> src) &&
+                        d.TryGetValue(out ArrayOf<sbyte> dst):
                         status = UpdateRange(ref dst, src);
                         if (status == StatusCodes.Good)
                         {
@@ -1088,8 +1086,8 @@ namespace Opc.Ua
                         }
                         break;
                     case BuiltInType.Byte
-                    when s.TryGet(out ArrayOf<byte> src) &&
-                        d.TryGet(out ArrayOf<byte> dst):
+                    when s.TryGetValue(out ArrayOf<byte> src) &&
+                        d.TryGetValue(out ArrayOf<byte> dst):
                         status = UpdateRange(ref dst, src);
                         if (status == StatusCodes.Good)
                         {
@@ -1098,8 +1096,8 @@ namespace Opc.Ua
                         }
                         break;
                     case BuiltInType.Int16
-                    when s.TryGet(out ArrayOf<short> src) &&
-                        d.TryGet(out ArrayOf<short> dst):
+                    when s.TryGetValue(out ArrayOf<short> src) &&
+                        d.TryGetValue(out ArrayOf<short> dst):
                         status = UpdateRange(ref dst, src);
                         if (status == StatusCodes.Good)
                         {
@@ -1108,8 +1106,8 @@ namespace Opc.Ua
                         }
                         break;
                     case BuiltInType.UInt16
-                    when s.TryGet(out ArrayOf<ushort> src) &&
-                        d.TryGet(out ArrayOf<ushort> dst):
+                    when s.TryGetValue(out ArrayOf<ushort> src) &&
+                        d.TryGetValue(out ArrayOf<ushort> dst):
                         status = UpdateRange(ref dst, src);
                         if (status == StatusCodes.Good)
                         {
@@ -1118,18 +1116,18 @@ namespace Opc.Ua
                         }
                         break;
                     case BuiltInType.Enumeration
-                    when s.TryGet(out ArrayOf<int> src) &&
-                        d.TryGet(out ArrayOf<int> dst):
+                    when s.TryGetValue(out ArrayOf<EnumValue> src) &&
+                        d.TryGetValue(out ArrayOf<EnumValue> dst):
                         status = UpdateRange(ref dst, src);
                         if (status == StatusCodes.Good)
                         {
-                            value = Variant.FromEnumeration(dst);
+                            value = Variant.From(dst);
                             return status;
                         }
                         break;
                     case BuiltInType.Int32
-                    when s.TryGet(out ArrayOf<int> src) &&
-                        d.TryGet(out ArrayOf<int> dst):
+                    when s.TryGetValue(out ArrayOf<int> src) &&
+                        d.TryGetValue(out ArrayOf<int> dst):
                         status = UpdateRange(ref dst, src);
                         if (status == StatusCodes.Good)
                         {
@@ -1138,8 +1136,8 @@ namespace Opc.Ua
                         }
                         break;
                     case BuiltInType.UInt32
-                    when s.TryGet(out ArrayOf<uint> src) &&
-                        d.TryGet(out ArrayOf<uint> dst):
+                    when s.TryGetValue(out ArrayOf<uint> src) &&
+                        d.TryGetValue(out ArrayOf<uint> dst):
                         status = UpdateRange(ref dst, src);
                         if (status == StatusCodes.Good)
                         {
@@ -1148,8 +1146,8 @@ namespace Opc.Ua
                         }
                         break;
                     case BuiltInType.Int64
-                    when s.TryGet(out ArrayOf<long> src) &&
-                        d.TryGet(out ArrayOf<long> dst):
+                    when s.TryGetValue(out ArrayOf<long> src) &&
+                        d.TryGetValue(out ArrayOf<long> dst):
                         status = UpdateRange(ref dst, src);
                         if (status == StatusCodes.Good)
                         {
@@ -1158,8 +1156,8 @@ namespace Opc.Ua
                         }
                         break;
                     case BuiltInType.UInt64
-                    when s.TryGet(out ArrayOf<ulong> src) &&
-                        d.TryGet(out ArrayOf<ulong> dst):
+                    when s.TryGetValue(out ArrayOf<ulong> src) &&
+                        d.TryGetValue(out ArrayOf<ulong> dst):
                         status = UpdateRange(ref dst, src);
                         if (status == StatusCodes.Good)
                         {
@@ -1168,8 +1166,8 @@ namespace Opc.Ua
                         }
                         break;
                     case BuiltInType.Float
-                    when s.TryGet(out ArrayOf<float> src) &&
-                        d.TryGet(out ArrayOf<float> dst):
+                    when s.TryGetValue(out ArrayOf<float> src) &&
+                        d.TryGetValue(out ArrayOf<float> dst):
                         status = UpdateRange(ref dst, src);
                         if (status == StatusCodes.Good)
                         {
@@ -1178,8 +1176,8 @@ namespace Opc.Ua
                         }
                         break;
                     case BuiltInType.Double
-                    when s.TryGet(out ArrayOf<double> src) &&
-                        d.TryGet(out ArrayOf<double> dst):
+                    when s.TryGetValue(out ArrayOf<double> src) &&
+                        d.TryGetValue(out ArrayOf<double> dst):
                         status = UpdateRange(ref dst, src);
                         if (status == StatusCodes.Good)
                         {
@@ -1188,8 +1186,8 @@ namespace Opc.Ua
                         }
                         break;
                     case BuiltInType.String
-                    when s.TryGet(out ArrayOf<string> src) &&
-                        d.TryGet(out ArrayOf<string> dst):
+                    when s.TryGetValue(out ArrayOf<string> src) &&
+                        d.TryGetValue(out ArrayOf<string> dst):
                         status = UpdateRange(ref dst, src);
                         if (status == StatusCodes.Good)
                         {
@@ -1198,8 +1196,8 @@ namespace Opc.Ua
                         }
                         break;
                     case BuiltInType.DateTime
-                    when s.TryGet(out ArrayOf<DateTimeUtc> src) &&
-                        d.TryGet(out ArrayOf<DateTimeUtc> dst):
+                    when s.TryGetValue(out ArrayOf<DateTimeUtc> src) &&
+                        d.TryGetValue(out ArrayOf<DateTimeUtc> dst):
                         status = UpdateRange(ref dst, src);
                         if (status == StatusCodes.Good)
                         {
@@ -1208,8 +1206,8 @@ namespace Opc.Ua
                         }
                         break;
                     case BuiltInType.Guid
-                    when s.TryGet(out ArrayOf<Uuid> src) &&
-                        d.TryGet(out ArrayOf<Uuid> dst):
+                    when s.TryGetValue(out ArrayOf<Uuid> src) &&
+                        d.TryGetValue(out ArrayOf<Uuid> dst):
                         status = UpdateRange(ref dst, src);
                         if (status == StatusCodes.Good)
                         {
@@ -1218,8 +1216,8 @@ namespace Opc.Ua
                         }
                         break;
                     case BuiltInType.ByteString
-                    when s.TryGet(out ArrayOf<ByteString> src) &&
-                        d.TryGet(out ArrayOf<ByteString> dst):
+                    when s.TryGetValue(out ArrayOf<ByteString> src) &&
+                        d.TryGetValue(out ArrayOf<ByteString> dst):
                         status = UpdateRange(ref dst, src);
                         if (status == StatusCodes.Good)
                         {
@@ -1228,8 +1226,8 @@ namespace Opc.Ua
                         }
                         break;
                     case BuiltInType.XmlElement
-                    when s.TryGet(out ArrayOf<XmlElement> src) &&
-                        d.TryGet(out ArrayOf<XmlElement> dst):
+                    when s.TryGetValue(out ArrayOf<XmlElement> src) &&
+                        d.TryGetValue(out ArrayOf<XmlElement> dst):
                         status = UpdateRange(ref dst, src);
                         if (status == StatusCodes.Good)
                         {
@@ -1238,8 +1236,8 @@ namespace Opc.Ua
                         }
                         break;
                     case BuiltInType.NodeId
-                    when s.TryGet(out ArrayOf<NodeId> src) &&
-                        d.TryGet(out ArrayOf<NodeId> dst):
+                    when s.TryGetValue(out ArrayOf<NodeId> src) &&
+                        d.TryGetValue(out ArrayOf<NodeId> dst):
                         status = UpdateRange(ref dst, src);
                         if (status == StatusCodes.Good)
                         {
@@ -1248,8 +1246,8 @@ namespace Opc.Ua
                         }
                         break;
                     case BuiltInType.ExpandedNodeId
-                    when s.TryGet(out ArrayOf<ExpandedNodeId> src) &&
-                        d.TryGet(out ArrayOf<ExpandedNodeId> dst):
+                    when s.TryGetValue(out ArrayOf<ExpandedNodeId> src) &&
+                        d.TryGetValue(out ArrayOf<ExpandedNodeId> dst):
                         status = UpdateRange(ref dst, src);
                         if (status == StatusCodes.Good)
                         {
@@ -1258,8 +1256,8 @@ namespace Opc.Ua
                         }
                         break;
                     case BuiltInType.StatusCode
-                    when s.TryGet(out ArrayOf<StatusCode> src) &&
-                        d.TryGet(out ArrayOf<StatusCode> dst):
+                    when s.TryGetValue(out ArrayOf<StatusCode> src) &&
+                        d.TryGetValue(out ArrayOf<StatusCode> dst):
                         status = UpdateRange(ref dst, src);
                         if (status == StatusCodes.Good)
                         {
@@ -1268,8 +1266,8 @@ namespace Opc.Ua
                         }
                         break;
                     case BuiltInType.QualifiedName
-                    when s.TryGet(out ArrayOf<QualifiedName> src) &&
-                        d.TryGet(out ArrayOf<QualifiedName> dst):
+                    when s.TryGetValue(out ArrayOf<QualifiedName> src) &&
+                        d.TryGetValue(out ArrayOf<QualifiedName> dst):
                         status = UpdateRange(ref dst, src);
                         if (status == StatusCodes.Good)
                         {
@@ -1278,8 +1276,8 @@ namespace Opc.Ua
                         }
                         break;
                     case BuiltInType.LocalizedText
-                    when s.TryGet(out ArrayOf<LocalizedText> src) &&
-                        d.TryGet(out ArrayOf<LocalizedText> dst):
+                    when s.TryGetValue(out ArrayOf<LocalizedText> src) &&
+                        d.TryGetValue(out ArrayOf<LocalizedText> dst):
                         status = UpdateRange(ref dst, src);
                         if (status == StatusCodes.Good)
                         {
@@ -1288,8 +1286,8 @@ namespace Opc.Ua
                         }
                         break;
                     case BuiltInType.ExtensionObject
-                    when s.TryGet(out ArrayOf<ExtensionObject> src) &&
-                        d.TryGet(out ArrayOf<ExtensionObject> dst):
+                    when s.TryGetValue(out ArrayOf<ExtensionObject> src) &&
+                        d.TryGetValue(out ArrayOf<ExtensionObject> dst):
                         status = UpdateRange(ref dst, src);
                         if (status == StatusCodes.Good)
                         {
@@ -1298,8 +1296,8 @@ namespace Opc.Ua
                         }
                         break;
                     case BuiltInType.DataValue
-                    when s.TryGet(out ArrayOf<DataValue> src) &&
-                        d.TryGet(out ArrayOf<DataValue> dst):
+                    when s.TryGetValue(out ArrayOf<DataValue> src) &&
+                        d.TryGetValue(out ArrayOf<DataValue> dst):
                         status = UpdateRange(ref dst, src);
                         if (status == StatusCodes.Good)
                         {
@@ -1311,8 +1309,8 @@ namespace Opc.Ua
                     case BuiltInType.Integer:
                     case BuiltInType.Number:
                     case BuiltInType.Variant:
-                        if (s.TryGet(out ArrayOf<Variant> vSrc) &&
-                            d.TryGet(out ArrayOf<Variant> vDst))
+                        if (s.TryGetValue(out ArrayOf<Variant> vSrc) &&
+                            d.TryGetValue(out ArrayOf<Variant> vDst))
                         {
                             status = UpdateRange(ref vDst, vSrc);
                             if (status == StatusCodes.Good)
@@ -1332,8 +1330,8 @@ namespace Opc.Ua
                 switch (value.TypeInfo.BuiltInType)
                 {
                     case BuiltInType.Boolean
-                    when s.TryGet(out MatrixOf<bool> src) &&
-                        d.TryGet(out MatrixOf<bool> dst):
+                    when s.TryGetValue(out MatrixOf<bool> src) &&
+                        d.TryGetValue(out MatrixOf<bool> dst):
                         status = UpdateRange(ref dst, src);
                         if (status == StatusCodes.Good)
                         {
@@ -1342,8 +1340,8 @@ namespace Opc.Ua
                         }
                         break;
                     case BuiltInType.SByte
-                    when s.TryGet(out MatrixOf<sbyte> src) &&
-                        d.TryGet(out MatrixOf<sbyte> dst):
+                    when s.TryGetValue(out MatrixOf<sbyte> src) &&
+                        d.TryGetValue(out MatrixOf<sbyte> dst):
                         status = UpdateRange(ref dst, src);
                         if (status == StatusCodes.Good)
                         {
@@ -1352,8 +1350,8 @@ namespace Opc.Ua
                         }
                         break;
                     case BuiltInType.Byte
-                    when s.TryGet(out MatrixOf<byte> src) &&
-                        d.TryGet(out MatrixOf<byte> dst):
+                    when s.TryGetValue(out MatrixOf<byte> src) &&
+                        d.TryGetValue(out MatrixOf<byte> dst):
                         status = UpdateRange(ref dst, src);
                         if (status == StatusCodes.Good)
                         {
@@ -1362,8 +1360,8 @@ namespace Opc.Ua
                         }
                         break;
                     case BuiltInType.Int16
-                    when s.TryGet(out MatrixOf<short> src) &&
-                        d.TryGet(out MatrixOf<short> dst):
+                    when s.TryGetValue(out MatrixOf<short> src) &&
+                        d.TryGetValue(out MatrixOf<short> dst):
                         status = UpdateRange(ref dst, src);
                         if (status == StatusCodes.Good)
                         {
@@ -1372,8 +1370,8 @@ namespace Opc.Ua
                         }
                         break;
                     case BuiltInType.UInt16
-                    when s.TryGet(out MatrixOf<ushort> src) &&
-                        d.TryGet(out MatrixOf<ushort> dst):
+                    when s.TryGetValue(out MatrixOf<ushort> src) &&
+                        d.TryGetValue(out MatrixOf<ushort> dst):
                         status = UpdateRange(ref dst, src);
                         if (status == StatusCodes.Good)
                         {
@@ -1382,18 +1380,18 @@ namespace Opc.Ua
                         }
                         break;
                     case BuiltInType.Enumeration
-                    when s.TryGet(out MatrixOf<int> src) &&
-                        d.TryGet(out MatrixOf<int> dst):
+                    when s.TryGetValue(out MatrixOf<EnumValue> src) &&
+                        d.TryGetValue(out MatrixOf<EnumValue> dst):
                         status = UpdateRange(ref dst, src);
                         if (status == StatusCodes.Good)
                         {
-                            value = Variant.FromEnumeration(dst);
+                            value = Variant.From(dst);
                             return status;
                         }
                         break;
                     case BuiltInType.Int32
-                    when s.TryGet(out MatrixOf<int> src) &&
-                        d.TryGet(out MatrixOf<int> dst):
+                    when s.TryGetValue(out MatrixOf<int> src) &&
+                        d.TryGetValue(out MatrixOf<int> dst):
                         status = UpdateRange(ref dst, src);
                         if (status == StatusCodes.Good)
                         {
@@ -1402,8 +1400,8 @@ namespace Opc.Ua
                         }
                         break;
                     case BuiltInType.UInt32
-                    when s.TryGet(out MatrixOf<uint> src) &&
-                        d.TryGet(out MatrixOf<uint> dst):
+                    when s.TryGetValue(out MatrixOf<uint> src) &&
+                        d.TryGetValue(out MatrixOf<uint> dst):
                         status = UpdateRange(ref dst, src);
                         if (status == StatusCodes.Good)
                         {
@@ -1412,8 +1410,8 @@ namespace Opc.Ua
                         }
                         break;
                     case BuiltInType.Int64
-                    when s.TryGet(out MatrixOf<long> src) &&
-                        d.TryGet(out MatrixOf<long> dst):
+                    when s.TryGetValue(out MatrixOf<long> src) &&
+                        d.TryGetValue(out MatrixOf<long> dst):
                         status = UpdateRange(ref dst, src);
                         if (status == StatusCodes.Good)
                         {
@@ -1422,8 +1420,8 @@ namespace Opc.Ua
                         }
                         break;
                     case BuiltInType.UInt64
-                    when s.TryGet(out MatrixOf<ulong> src) &&
-                        d.TryGet(out MatrixOf<ulong> dst):
+                    when s.TryGetValue(out MatrixOf<ulong> src) &&
+                        d.TryGetValue(out MatrixOf<ulong> dst):
                         status = UpdateRange(ref dst, src);
                         if (status == StatusCodes.Good)
                         {
@@ -1432,8 +1430,8 @@ namespace Opc.Ua
                         }
                         break;
                     case BuiltInType.Float
-                    when s.TryGet(out MatrixOf<float> src) &&
-                        d.TryGet(out MatrixOf<float> dst):
+                    when s.TryGetValue(out MatrixOf<float> src) &&
+                        d.TryGetValue(out MatrixOf<float> dst):
                         status = UpdateRange(ref dst, src);
                         if (status == StatusCodes.Good)
                         {
@@ -1442,8 +1440,8 @@ namespace Opc.Ua
                         }
                         break;
                     case BuiltInType.Double
-                    when s.TryGet(out MatrixOf<double> src) &&
-                        d.TryGet(out MatrixOf<double> dst):
+                    when s.TryGetValue(out MatrixOf<double> src) &&
+                        d.TryGetValue(out MatrixOf<double> dst):
                         status = UpdateRange(ref dst, src);
                         if (status == StatusCodes.Good)
                         {
@@ -1452,8 +1450,8 @@ namespace Opc.Ua
                         }
                         break;
                     case BuiltInType.String
-                    when s.TryGet(out MatrixOf<string> src) &&
-                        d.TryGet(out MatrixOf<string> dst):
+                    when s.TryGetValue(out MatrixOf<string> src) &&
+                        d.TryGetValue(out MatrixOf<string> dst):
                         status = UpdateRange(ref dst, src);
                         if (status == StatusCodes.Good)
                         {
@@ -1462,8 +1460,8 @@ namespace Opc.Ua
                         }
                         break;
                     case BuiltInType.DateTime
-                    when s.TryGet(out MatrixOf<DateTimeUtc> src) &&
-                        d.TryGet(out MatrixOf<DateTimeUtc> dst):
+                    when s.TryGetValue(out MatrixOf<DateTimeUtc> src) &&
+                        d.TryGetValue(out MatrixOf<DateTimeUtc> dst):
                         status = UpdateRange(ref dst, src);
                         if (status == StatusCodes.Good)
                         {
@@ -1472,8 +1470,8 @@ namespace Opc.Ua
                         }
                         break;
                     case BuiltInType.Guid
-                    when s.TryGet(out MatrixOf<Uuid> src) &&
-                        d.TryGet(out MatrixOf<Uuid> dst):
+                    when s.TryGetValue(out MatrixOf<Uuid> src) &&
+                        d.TryGetValue(out MatrixOf<Uuid> dst):
                         status = UpdateRange(ref dst, src);
                         if (status == StatusCodes.Good)
                         {
@@ -1482,8 +1480,8 @@ namespace Opc.Ua
                         }
                         break;
                     case BuiltInType.ByteString
-                    when s.TryGet(out MatrixOf<ByteString> src) &&
-                        d.TryGet(out MatrixOf<ByteString> dst):
+                    when s.TryGetValue(out MatrixOf<ByteString> src) &&
+                        d.TryGetValue(out MatrixOf<ByteString> dst):
                         status = UpdateRange(ref dst, src);
                         if (status == StatusCodes.Good)
                         {
@@ -1492,8 +1490,8 @@ namespace Opc.Ua
                         }
                         break;
                     case BuiltInType.XmlElement
-                    when s.TryGet(out MatrixOf<XmlElement> src) &&
-                        d.TryGet(out MatrixOf<XmlElement> dst):
+                    when s.TryGetValue(out MatrixOf<XmlElement> src) &&
+                        d.TryGetValue(out MatrixOf<XmlElement> dst):
                         status = UpdateRange(ref dst, src);
                         if (status == StatusCodes.Good)
                         {
@@ -1502,8 +1500,8 @@ namespace Opc.Ua
                         }
                         break;
                     case BuiltInType.NodeId
-                    when s.TryGet(out MatrixOf<NodeId> src) &&
-                        d.TryGet(out MatrixOf<NodeId> dst):
+                    when s.TryGetValue(out MatrixOf<NodeId> src) &&
+                        d.TryGetValue(out MatrixOf<NodeId> dst):
                         status = UpdateRange(ref dst, src);
                         if (status == StatusCodes.Good)
                         {
@@ -1512,8 +1510,8 @@ namespace Opc.Ua
                         }
                         break;
                     case BuiltInType.ExpandedNodeId
-                    when s.TryGet(out MatrixOf<ExpandedNodeId> src) &&
-                        d.TryGet(out MatrixOf<ExpandedNodeId> dst):
+                    when s.TryGetValue(out MatrixOf<ExpandedNodeId> src) &&
+                        d.TryGetValue(out MatrixOf<ExpandedNodeId> dst):
                         status = UpdateRange(ref dst, src);
                         if (status == StatusCodes.Good)
                         {
@@ -1522,8 +1520,8 @@ namespace Opc.Ua
                         }
                         break;
                     case BuiltInType.StatusCode
-                    when s.TryGet(out MatrixOf<StatusCode> src) &&
-                        d.TryGet(out MatrixOf<StatusCode> dst):
+                    when s.TryGetValue(out MatrixOf<StatusCode> src) &&
+                        d.TryGetValue(out MatrixOf<StatusCode> dst):
                         status = UpdateRange(ref dst, src);
                         if (status == StatusCodes.Good)
                         {
@@ -1532,8 +1530,8 @@ namespace Opc.Ua
                         }
                         break;
                     case BuiltInType.QualifiedName
-                    when s.TryGet(out MatrixOf<QualifiedName> src) &&
-                        d.TryGet(out MatrixOf<QualifiedName> dst):
+                    when s.TryGetValue(out MatrixOf<QualifiedName> src) &&
+                        d.TryGetValue(out MatrixOf<QualifiedName> dst):
                         status = UpdateRange(ref dst, src);
                         if (status == StatusCodes.Good)
                         {
@@ -1542,8 +1540,8 @@ namespace Opc.Ua
                         }
                         break;
                     case BuiltInType.LocalizedText
-                    when s.TryGet(out MatrixOf<LocalizedText> src) &&
-                        d.TryGet(out MatrixOf<LocalizedText> dst):
+                    when s.TryGetValue(out MatrixOf<LocalizedText> src) &&
+                        d.TryGetValue(out MatrixOf<LocalizedText> dst):
                         status = UpdateRange(ref dst, src);
                         if (status == StatusCodes.Good)
                         {
@@ -1552,8 +1550,8 @@ namespace Opc.Ua
                         }
                         break;
                     case BuiltInType.ExtensionObject
-                    when s.TryGet(out MatrixOf<ExtensionObject> src) &&
-                        d.TryGet(out MatrixOf<ExtensionObject> dst):
+                    when s.TryGetValue(out MatrixOf<ExtensionObject> src) &&
+                        d.TryGetValue(out MatrixOf<ExtensionObject> dst):
                         status = UpdateRange(ref dst, src);
                         if (status == StatusCodes.Good)
                         {
@@ -1562,8 +1560,8 @@ namespace Opc.Ua
                         }
                         break;
                     case BuiltInType.DataValue
-                    when s.TryGet(out MatrixOf<DataValue> src) &&
-                        d.TryGet(out MatrixOf<DataValue> dst):
+                    when s.TryGetValue(out MatrixOf<DataValue> src) &&
+                        d.TryGetValue(out MatrixOf<DataValue> dst):
                         status = UpdateRange(ref dst, src);
                         if (status == StatusCodes.Good)
                         {
@@ -1575,8 +1573,8 @@ namespace Opc.Ua
                     case BuiltInType.Integer:
                     case BuiltInType.Number:
                     case BuiltInType.Variant:
-                        if (s.TryGet(out MatrixOf<Variant> vSrc) &&
-                            d.TryGet(out MatrixOf<Variant> vDst))
+                        if (s.TryGetValue(out MatrixOf<Variant> vSrc) &&
+                            d.TryGetValue(out MatrixOf<Variant> vDst))
                         {
                             status = UpdateRange(ref vDst, vSrc);
                             if (status == StatusCodes.Good)

@@ -22,7 +22,7 @@ jobs:
     inputs:
       targetType: filePath
       filePath: ./.azurepipelines/get-matrix.ps1
-      arguments: -FileName *.Tests.csproj -AgentTable ${{ parameters.agents }}
+      arguments: -FileName *.Tests.csproj -ExcludeFileName Opc.Ua.Aot.Tests.csproj -AgentTable ${{ parameters.agents }}
 - job: testall${{ parameters.jobnamesuffix }}
   displayName: Tests (${{ parameters.framework }})
   dependsOn: testprep${{ parameters.jobnamesuffix }}

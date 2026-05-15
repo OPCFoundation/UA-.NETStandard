@@ -175,9 +175,9 @@ namespace Opc.Ua.Core.Tests.Types.Constants
             NodeId dataTypeId = TypeInfo.GetDataTypeId(typeof(EUInformation));
 
             Assert.That(dataTypeId.IsNull, Is.False);
-            Assert.That(dataTypeId.TryGetIdentifier(out uint n1) ? n1 : 0, Is.EqualTo(DataTypes.EUInformation));
+            Assert.That(dataTypeId.TryGetValue(out uint n1) ? n1 : 0, Is.EqualTo(DataTypes.EUInformation));
             Assert.That(dataTypeId.NamespaceIndex, Is.Zero);
-            Assert.That(dataTypeId.TryGetIdentifier(out uint n2) ? n2 : 0, Is.Not.EqualTo(DataTypes.Structure),
+            Assert.That(dataTypeId.TryGetValue(out uint n2) ? n2 : 0, Is.Not.EqualTo(DataTypes.Structure),
                 "Should return specific EUInformation DataTypeId (i=887), not generic Structure (i=22)");
         }
 
@@ -203,7 +203,7 @@ namespace Opc.Ua.Core.Tests.Types.Constants
                 NodeId dataTypeId = TypeInfo.GetDataTypeId(type);
 
                 Assert.That(dataTypeId.IsNull, Is.False, $"DataTypeId should not be null for {type.Name}");
-                Assert.That(dataTypeId.TryGetIdentifier(out uint n1) ? n1 : 0, Is.EqualTo(expectedId),
+                Assert.That(dataTypeId.TryGetValue(out uint n1) ? n1 : 0, Is.EqualTo(expectedId),
                     $"DataTypeId for {type.Name} should be i={expectedId}, not i={dataTypeId.IdentifierAsString}");
                 Assert.That(dataTypeId.NamespaceIndex, Is.Zero,
                     $"NamespaceIndex should be 0 for {type.Name}");

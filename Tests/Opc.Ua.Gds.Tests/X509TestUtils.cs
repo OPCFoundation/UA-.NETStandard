@@ -27,8 +27,12 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+// CA2000: test code; many disposables are ownership-transferred to test fixtures or short-lived,
+// making CA2000 noisy without a real leak risk. Disabled file-level for the suite.
+#pragma warning disable CA2000
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
@@ -48,9 +52,9 @@ namespace Opc.Ua.Gds.Tests
             byte[][] issuerCertificates,
             ITelemetryContext telemetry)
         {
-            X509Certificate2 newCert = CertificateFactory.Create(certificate);
+            using var newCert = Certificate.FromRawData(certificate);
             Assert.That(newCert, Is.Not.Null);
-            X509Certificate2 newPrivateKeyCert = null;
+            Certificate newPrivateKeyCert = null;
             if (privateKeyFormat == "PFX")
             {
                 newPrivateKeyCert = X509Utils.CreateCertificateFromPKCS12(
@@ -59,7 +63,7 @@ namespace Opc.Ua.Gds.Tests
             }
             else if (privateKeyFormat == "PEM")
             {
-                newPrivateKeyCert = CertificateFactory.CreateCertificateWithPEMPrivateKey(
+                newPrivateKeyCert = DefaultCertificateFactory.Instance.CreateWithPEMPrivateKey(
                     newCert,
                     privateKey,
                     privateKeyPassword);
@@ -72,26 +76,98 @@ namespace Opc.Ua.Gds.Tests
             // verify the public cert matches the private key
             Assert.That(X509Utils.VerifyKeyPair(newCert, newPrivateKeyCert, true), Is.True);
             Assert.That(X509Utils.VerifyKeyPair(newPrivateKeyCert, newPrivateKeyCert, true), Is.True);
-            var issuerCertIdCollection = new CertificateIdentifierCollection();
-            foreach (byte[] issuer in issuerCertificates)
-            {
-                X509Certificate2 issuerCert = CertificateFactory.Create(issuer);
-                Assert.That(issuerCert, Is.Not.Null);
-                issuerCertIdCollection.Add(new CertificateIdentifier(issuerCert));
-            }
 
-            // verify cert with issuer chain
-            var certValidator = new CertificateValidator(telemetry);
-            var issuerStore = new CertificateTrustList();
-            var trustedStore = new CertificateTrustList
+            // Build a temporary directory-backed PKI so we can exercise the
+            // modern CertificateManager validation path. The first
+            // configuration places the issuer certificates only in the
+            // "issuer" store and asserts that validation fails: the issuer
+            // chain can be assembled but does not terminate at a trusted
+            // peer/CA. The second configuration also places the issuer
+            // certificates in the "trusted" store, making the chain
+            // trusted; validation must then succeed.
+            string pkiRoot = Path.Combine(
+                Path.GetTempPath(),
+                "X509TestUtils-" + Guid.NewGuid().ToString("N"));
+            string trustedPath = Path.Combine(pkiRoot, "trusted");
+            string issuerPath = Path.Combine(pkiRoot, "issuer");
+            try
             {
-                TrustedCertificates = issuerCertIdCollection
-            };
-            certValidator.Update(trustedStore, issuerStore, null);
-            Assert.That(async () => await certValidator.ValidateAsync(newCert, CancellationToken.None).ConfigureAwait(false), Throws.Exception);
-            issuerStore.TrustedCertificates = issuerCertIdCollection;
-            certValidator.Update(issuerStore, trustedStore, null);
-            await certValidator.ValidateAsync(newCert, CancellationToken.None).ConfigureAwait(false);
+                Directory.CreateDirectory(trustedPath);
+                Directory.CreateDirectory(issuerPath);
+
+                // Phase 1: issuer certificates only in the issuer store.
+                using (var issuerStoreOnly = new DirectoryCertificateStore(telemetry))
+                {
+                    issuerStoreOnly.Open(issuerPath, true);
+                    foreach (byte[] issuer in issuerCertificates)
+                    {
+                        using var issuerCert = Certificate.FromRawData(issuer);
+                        await issuerStoreOnly.AddAsync(issuerCert).ConfigureAwait(false);
+                    }
+                }
+
+                var pkiConfig = new SecurityConfiguration
+                {
+                    TrustedPeerCertificates = new CertificateTrustList
+                    {
+                        StoreType = CertificateStoreType.Directory,
+                        StorePath = trustedPath
+                    },
+                    TrustedIssuerCertificates = new CertificateTrustList
+                    {
+                        StoreType = CertificateStoreType.Directory,
+                        StorePath = issuerPath
+                    }
+                };
+
+                using (CertificateManager firstManager = CertificateManagerFactory.Create(
+                    pkiConfig, telemetry))
+                {
+                    CertificateValidationResult firstResult = await firstManager
+                        .ValidateAsync(newCert, ct: CancellationToken.None)
+                        .ConfigureAwait(false);
+                    Assert.That(
+                        firstResult.IsValid,
+                        Is.False,
+                        "Expected validation to fail when no peer/CA in the trusted store.");
+                }
+
+                // Phase 2: also place the issuer certificates in the trusted
+                // store so the chain root is trusted.
+                using (var trustedStore = new DirectoryCertificateStore(telemetry))
+                {
+                    trustedStore.Open(trustedPath, true);
+                    foreach (byte[] issuer in issuerCertificates)
+                    {
+                        using var issuerCert = Certificate.FromRawData(issuer);
+                        await trustedStore.AddAsync(issuerCert).ConfigureAwait(false);
+                    }
+                }
+
+                using CertificateManager secondManager = CertificateManagerFactory.Create(
+                    pkiConfig, telemetry);
+                CertificateValidationResult secondResult = await secondManager
+                    .ValidateAsync(newCert, ct: CancellationToken.None)
+                    .ConfigureAwait(false);
+                Assert.That(
+                    secondResult.IsValid,
+                    Is.True,
+                    secondResult.StatusCode.ToString());
+            }
+            finally
+            {
+                try
+                {
+                    if (Directory.Exists(pkiRoot))
+                    {
+                        Directory.Delete(pkiRoot, true);
+                    }
+                }
+                catch (IOException)
+                {
+                    // best-effort cleanup
+                }
+            }
         }
 
         public static void VerifySignedApplicationCert(
@@ -99,8 +175,8 @@ namespace Opc.Ua.Gds.Tests
             byte[] rawSignedCert,
             byte[][] rawIssuerCerts)
         {
-            X509Certificate2 signedCert = CertificateFactory.Create(rawSignedCert);
-            X509Certificate2 issuerCert = CertificateFactory.Create(rawIssuerCerts[0]);
+            var signedCert = Certificate.FromRawData(rawSignedCert);
+            var issuerCert = Certificate.FromRawData(rawIssuerCerts[0]);
 
             TestContext.Out.WriteLine($"Signed cert: {signedCert}");
             TestContext.Out.WriteLine($"Issuer cert: {issuerCert}");
@@ -133,37 +209,35 @@ namespace Opc.Ua.Gds.Tests
             Assert.That(keyUsage, Is.Not.Null);
             TestContext.Out.WriteLine($"KeyUsage: {keyUsage.Format(true)}");
             Assert.That(keyUsage.Critical, Is.True);
-            Assert.That((keyUsage.KeyUsages & X509KeyUsageFlags.CrlSign) == 0, Is.True);
-            Assert.That((keyUsage.KeyUsages & X509KeyUsageFlags.DecipherOnly) == 0, Is.True);
+            Assert.That((int)keyUsage.KeyUsages & (int)X509KeyUsageFlags.CrlSign, Is.Zero);
+            Assert.That((int)keyUsage.KeyUsages & (int)X509KeyUsageFlags.DecipherOnly, Is.Zero);
             Assert.That(
-                (keyUsage.KeyUsages &
-                    X509KeyUsageFlags.DigitalSignature) == X509KeyUsageFlags.DigitalSignature,
-                Is.True);
-            Assert.That((keyUsage.KeyUsages & X509KeyUsageFlags.EncipherOnly) == 0, Is.True);
-            Assert.That((keyUsage.KeyUsages & X509KeyUsageFlags.KeyCertSign) == 0, Is.True);
-            Assert.That((keyUsage.KeyUsages &
-                X509KeyUsageFlags.NonRepudiation) == X509KeyUsageFlags.NonRepudiation, Is.True);
+                keyUsage.KeyUsages & X509KeyUsageFlags.DigitalSignature,
+                Is.EqualTo(X509KeyUsageFlags.DigitalSignature));
+            Assert.That((int)keyUsage.KeyUsages & (int)X509KeyUsageFlags.EncipherOnly, Is.Zero);
+            Assert.That((int)keyUsage.KeyUsages & (int)X509KeyUsageFlags.KeyCertSign, Is.Zero);
+            Assert.That(keyUsage.KeyUsages &
+                X509KeyUsageFlags.NonRepudiation, Is.EqualTo(X509KeyUsageFlags.NonRepudiation));
 
             //ECC
             if (X509PfxUtils.IsECDsaSignature(signedCert))
             {
-                Assert.That((keyUsage.KeyUsages & X509KeyUsageFlags.DataEncipherment) == 0, Is.True);
-                Assert.That((keyUsage.KeyUsages & X509KeyUsageFlags.KeyEncipherment) == 0, Is.True);
-                Assert.That((keyUsage.KeyUsages &
-                    X509KeyUsageFlags.KeyAgreement) == X509KeyUsageFlags.KeyAgreement, Is.True);
+                Assert.That((int)keyUsage.KeyUsages & (int)X509KeyUsageFlags.DataEncipherment, Is.Zero);
+                Assert.That((int)keyUsage.KeyUsages & (int)X509KeyUsageFlags.KeyEncipherment, Is.Zero);
+                Assert.That(
+                    keyUsage.KeyUsages & X509KeyUsageFlags.KeyAgreement,
+                    Is.EqualTo(X509KeyUsageFlags.KeyAgreement));
             }
             //RSA
             else
             {
                 Assert.That(
-                    (keyUsage.KeyUsages &
-                        X509KeyUsageFlags.DataEncipherment) == X509KeyUsageFlags.DataEncipherment,
-                    Is.True);
+                    keyUsage.KeyUsages & X509KeyUsageFlags.DataEncipherment,
+                    Is.EqualTo(X509KeyUsageFlags.DataEncipherment));
                 Assert.That(
-                    (keyUsage.KeyUsages &
-                        X509KeyUsageFlags.KeyEncipherment) == X509KeyUsageFlags.KeyEncipherment,
-                    Is.True);
-                Assert.That((keyUsage.KeyUsages & X509KeyUsageFlags.KeyAgreement) == 0, Is.True);
+                    keyUsage.KeyUsages & X509KeyUsageFlags.KeyEncipherment,
+                    Is.EqualTo(X509KeyUsageFlags.KeyEncipherment));
+                Assert.That((int)keyUsage.KeyUsages & (int)X509KeyUsageFlags.KeyAgreement, Is.Zero);
 
                 // enhanced key usage
                 X509EnhancedKeyUsageExtension enhancedKeyUsage =
@@ -202,10 +276,10 @@ namespace Opc.Ua.Gds.Tests
             {
                 Assert.That(domainNames.Contains(domainName, StringComparer.OrdinalIgnoreCase), Is.True);
             }
-            Assert.That(subjectAlternateName.Uris.Count == 1, Is.True);
+            Assert.That(subjectAlternateName.Uris, Has.Count.EqualTo(1));
             IReadOnlyList<string> applicationUris = X509Utils.GetApplicationUrisFromCertificate(signedCert);
             string applicationUri = applicationUris.Count > 0 ? applicationUris[0] : null;
-            Assert.That(testApp.ApplicationRecord.ApplicationUri == applicationUri, Is.True);
+            Assert.That(testApp.ApplicationRecord.ApplicationUri, Is.EqualTo(applicationUri));
         }
     }
 }

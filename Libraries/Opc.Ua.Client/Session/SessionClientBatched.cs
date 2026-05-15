@@ -445,7 +445,7 @@ namespace Opc.Ua
         {
             uint operationLimit = OperationLimits.MaxNodesPerHistoryReadData;
             if (historyReadDetails.TypeId == DataTypeIds.ReadEventDetails ||
-                historyReadDetails.TryGetEncodeable(out ReadEventDetails _))
+                historyReadDetails.TryGetValue(out ReadEventDetails _))
             {
                 operationLimit = OperationLimits.MaxNodesPerHistoryReadEvents;
             }
@@ -594,7 +594,7 @@ namespace Opc.Ua
             uint operationLimit = OperationLimits.MaxNodesPerHistoryUpdateData;
             if (historyUpdateDetails.Count > 0 &&
                 (historyUpdateDetails[0].TypeId == DataTypeIds.UpdateEventDetails ||
-                    historyUpdateDetails[0].TryGetEncodeable(out UpdateEventDetails _)))
+                    historyUpdateDetails[0].TryGetValue(out UpdateEventDetails _)))
             {
                 operationLimit = OperationLimits.MaxNodesPerHistoryUpdateEvents;
             }
@@ -1013,8 +1013,8 @@ namespace Opc.Ua
                     }
                     else if (batchLinksToAdd.Count < operationLimit)
                     {
-                        batchLinksToRemove = linksToRemove.Slice(0, (int)operationLimit - batchLinksToAdd.Count);
-                        linksToRemove = linksToRemove.Slice(batchLinksToRemove.Count);
+                        batchLinksToRemove = linksToRemove[..((int)operationLimit - batchLinksToAdd.Count)];
+                        linksToRemove = linksToRemove[batchLinksToRemove.Count..];
                     }
                     else
                     {

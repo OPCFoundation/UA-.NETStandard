@@ -142,7 +142,7 @@ namespace Opc.Ua
                         // Ignore exceptions during shutdown
                     }
 
-                    Utils.SilentDispose(m_cts);
+                    m_cts.Dispose();
                 }
             }
 

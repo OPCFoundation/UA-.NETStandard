@@ -20,7 +20,8 @@ namespace Opc.Ua.Server.Tests
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
             // Arrange
-            var resourceManager = new ResourceManager(new ApplicationConfiguration(telemetry));
+            var appConfig = new ApplicationConfiguration(telemetry);
+            using var resourceManager = new ResourceManager(appConfig);
             var defaultText = new LocalizedText("en-US", "Hello");
 
             //Act
@@ -36,7 +37,8 @@ namespace Opc.Ua.Server.Tests
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
             // Arrange
-            var resourceManager = new ResourceManager(new ApplicationConfiguration(telemetry));
+            var appConfig = new ApplicationConfiguration(telemetry);
+            using var resourceManager = new ResourceManager(appConfig);
             var defaultText = new LocalizedText("greeting", "en-US", "Hello");
 
             //Act
@@ -52,7 +54,8 @@ namespace Opc.Ua.Server.Tests
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
             // Arrange
-            var resourceManager = new ResourceManager(new ApplicationConfiguration(telemetry));
+            var appConfig = new ApplicationConfiguration(telemetry);
+            using var resourceManager = new ResourceManager(appConfig);
             resourceManager.Add("greeting", "en-US", "Hello {0}");
 
             //Act
@@ -73,7 +76,8 @@ namespace Opc.Ua.Server.Tests
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
             // Arrange
-            var resourceManager = new ResourceManager(new ApplicationConfiguration(telemetry));
+            var appConfig = new ApplicationConfiguration(telemetry);
+            using var resourceManager = new ResourceManager(appConfig);
             var translations = new Dictionary<string, string> {
                 { "en-US", "Hello" },
                 { "de-DE", "Hallo" } };
@@ -94,7 +98,8 @@ namespace Opc.Ua.Server.Tests
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
             // Arrange
-            var resourceManager = new ResourceManager(new ApplicationConfiguration(telemetry));
+            var appConfig = new ApplicationConfiguration(telemetry);
+            using var resourceManager = new ResourceManager(appConfig);
             var translations = new Dictionary<string, string>
             {
                 { "en-US", "Hello" },
@@ -109,9 +114,9 @@ namespace Opc.Ua.Server.Tests
                 defaultText);
 
             // Assert
-            Assert.That( /*lang=json,strict*/
+            Assert.That(
                 resultText.Text,
-                Is.EqualTo("{\"t\":[[\"de-DE\",\"Hallo\"],[\"en-US\",\"Hello\"]]}"));
+                Is.EqualTo(/*lang=json,strict*/ "{\"t\":[[\"de-DE\",\"Hallo\"],[\"en-US\",\"Hello\"]]}"));
             Assert.That(resultText.Locale, Is.EqualTo("mul"));
         }
 
@@ -121,7 +126,8 @@ namespace Opc.Ua.Server.Tests
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
             // Arrange
-            var resourceManager = new ResourceManager(new ApplicationConfiguration(telemetry));
+            var appConfig = new ApplicationConfiguration(telemetry);
+            using var resourceManager = new ResourceManager(appConfig);
             var defaultText = new LocalizedText("greeting", "en-US", "Hello");
 
             //Act
@@ -139,7 +145,8 @@ namespace Opc.Ua.Server.Tests
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
             // Arrange
-            var resourceManager = new ResourceManager(new ApplicationConfiguration(telemetry));
+            var appConfig = new ApplicationConfiguration(telemetry);
+            using var resourceManager = new ResourceManager(appConfig);
             var defaultText = new LocalizedText("greeting", "en-US", "Hello");
 
             //Act
@@ -155,7 +162,8 @@ namespace Opc.Ua.Server.Tests
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
             // Arrange
-            var resourceManager = new ResourceManager(new ApplicationConfiguration(telemetry));
+            var appConfig = new ApplicationConfiguration(telemetry);
+            using var resourceManager = new ResourceManager(appConfig);
             var defaultText = new LocalizedText("greeting", "en-US", "Hello");
             resourceManager.Add("greeting", "de-DE", "Hallo");
             resourceManager.Add("greeting", "fr-FR", "Bonjour");
@@ -166,9 +174,9 @@ namespace Opc.Ua.Server.Tests
                 defaultText);
 
             // Assert
-            Assert.That( /*lang=json,strict*/
+            Assert.That(
                 resultText.Text,
-                Is.EqualTo("{\"t\":[[\"de-DE\",\"Hallo\"],[\"en-US\",\"Hello\"]]}"));
+                Is.EqualTo(/*lang=json,strict*/ "{\"t\":[[\"de-DE\",\"Hallo\"],[\"en-US\",\"Hello\"]]}"));
             Assert.That(resultText.Locale, Is.EqualTo("mul"));
         }
 
@@ -178,7 +186,8 @@ namespace Opc.Ua.Server.Tests
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
             // Arrange
-            var resourceManager = new ResourceManager(new ApplicationConfiguration(telemetry));
+            var appConfig = new ApplicationConfiguration(telemetry);
+            using var resourceManager = new ResourceManager(appConfig);
             resourceManager.Add("greeting", "de-DE", "Hallo");
             resourceManager.Add("greeting", "en-US", "Hello");
 
@@ -189,9 +198,9 @@ namespace Opc.Ua.Server.Tests
                 null);
 
             // Assert
-            Assert.That( /*lang=json,strict*/
+            Assert.That(
                 resultText.Text,
-                Is.EqualTo("{\"t\":[[\"de-DE\",\"Hallo\"],[\"en-US\",\"Hello\"]]}"));
+                Is.EqualTo(/*lang=json,strict*/ "{\"t\":[[\"de-DE\",\"Hallo\"],[\"en-US\",\"Hello\"]]}"));
             Assert.That(resultText.Locale, Is.EqualTo("mul"));
         }
 
@@ -201,7 +210,8 @@ namespace Opc.Ua.Server.Tests
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
             // Arrange
-            var resourceManager = new ResourceManager(new ApplicationConfiguration(telemetry));
+            var appConfig = new ApplicationConfiguration(telemetry);
+            using var resourceManager = new ResourceManager(appConfig);
             resourceManager.Add("greeting", "de-DE", "Hallo");
             resourceManager.Add("greeting", "en-US", "Hello");
 
@@ -209,9 +219,9 @@ namespace Opc.Ua.Server.Tests
             LocalizedText resultText = resourceManager.Translate(["mul"], "greeting", null);
 
             // Assert
-            Assert.That( /*lang=json,strict*/
+            Assert.That(
                 resultText.Text,
-                Is.EqualTo("{\"t\":[[\"de-DE\",\"Hallo\"],[\"en-US\",\"Hello\"]]}"));
+                Is.EqualTo(/*lang=json,strict*/ "{\"t\":[[\"de-DE\",\"Hallo\"],[\"en-US\",\"Hello\"]]}"));
             Assert.That(resultText.Locale, Is.EqualTo("mul"));
         }
 
@@ -221,7 +231,8 @@ namespace Opc.Ua.Server.Tests
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
             // Arrange
-            var resourceManager = new ResourceManager(new ApplicationConfiguration(telemetry));
+            var appConfig = new ApplicationConfiguration(telemetry);
+            using var resourceManager = new ResourceManager(appConfig);
             resourceManager.Add("greeting", "de-DE", "Hallo {0}");
             resourceManager.Add("greeting", "en-US", "Hello {0}");
 

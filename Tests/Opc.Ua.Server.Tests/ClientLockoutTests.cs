@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Quickstarts.ReferenceServer;
@@ -66,10 +65,7 @@ namespace Opc.Ua.Server.Tests
             ArrayOf<EndpointDescription> endpoints = m_server.GetEndpoints();
             EndpointDescription endpoint = FindTcpEndpoint(endpoints);
 
-            var secureChannelContext = new SecureChannelContext(
-                sessionName,
-                endpoint,
-                RequestEncoding.Binary);
+            SecureChannelContext secureChannelContext = CreateSecureChannelContext(sessionName, endpoint);
             var requestHeader = new RequestHeader();
 
             CreateSessionResponse createResponse = await m_server.CreateSessionAsync(
@@ -130,10 +126,7 @@ namespace Opc.Ua.Server.Tests
             ArrayOf<EndpointDescription> endpoints = m_server.GetEndpoints();
             EndpointDescription endpoint = FindTcpEndpoint(endpoints);
 
-            var secureChannelContext = new SecureChannelContext(
-                sessionName,
-                endpoint,
-                RequestEncoding.Binary);
+            SecureChannelContext secureChannelContext = CreateSecureChannelContext(sessionName, endpoint);
             var requestHeader = new RequestHeader();
 
             CreateSessionResponse createResponse = await m_server.CreateSessionAsync(
@@ -228,10 +221,7 @@ namespace Opc.Ua.Server.Tests
             ArrayOf<EndpointDescription> endpoints = m_server.GetEndpoints();
             EndpointDescription endpoint = FindTcpEndpoint(endpoints);
 
-            var secureChannelContext = new SecureChannelContext(
-                sessionName,
-                endpoint,
-                RequestEncoding.Binary);
+            SecureChannelContext secureChannelContext = CreateSecureChannelContext(sessionName, endpoint);
             var requestHeader = new RequestHeader();
 
             CreateSessionResponse createResponse = await m_server.CreateSessionAsync(
@@ -255,6 +245,17 @@ namespace Opc.Ua.Server.Tests
                 UserName = "clearuser",
                 Password = System.Text.Encoding.UTF8.GetBytes("wrongpassword").ToByteString(),
                 PolicyId = "0"
+            };
+
+            // Only successful authentication with a real (non-anonymous) identity
+            // clears the failed authentication counter. Anonymous activations
+            // intentionally do not reset the counter to prevent attackers from
+            // interleaving anonymous logins to bypass the lockout.
+            var validToken = new UserNameIdentityToken
+            {
+                UserName = "user1",
+                Password = System.Text.Encoding.UTF8.GetBytes("password").ToByteString(),
+                PolicyId = "1"
             };
 
             for (int i = 0; i < 3; i++)
@@ -282,7 +283,7 @@ namespace Opc.Ua.Server.Tests
                 createResponse.ServerSignature,
                 [],
                 [],
-                ExtensionObject.Null,
+                new ExtensionObject(validToken),
                 null,
                 RequestLifetime.None).ConfigureAwait(false);
 
@@ -313,7 +314,7 @@ namespace Opc.Ua.Server.Tests
                 createResponse.ServerSignature,
                 [],
                 [],
-                ExtensionObject.Null,
+                new ExtensionObject(validToken),
                 null,
                 RequestLifetime.None).ConfigureAwait(false);
 
@@ -336,6 +337,17 @@ namespace Opc.Ua.Server.Tests
             endpoint.SecurityMode = MessageSecurityMode.None;
             endpoint.SecurityPolicyUri = SecurityPolicies.None;
             return endpoint;
+        }
+
+        private static SecureChannelContext CreateSecureChannelContext(string sessionName, EndpointDescription endpoint)
+        {
+            return new SecureChannelContext(
+                sessionName,
+                endpoint,
+                RequestEncoding.Binary,
+                clientChannelCertificate: null,
+                serverChannelCertificate: null,
+                channelThumbprint: null);
         }
     }
 }

@@ -35,8 +35,10 @@ using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua
 {
+#pragma warning disable CA1001 // Using timers that are disposed in OnAfterDelete
     public partial class AlarmConditionState
     {
+#pragma warning restore CA1001 // Using timers that are disposed in OnAfterDelete
         /// <summary>
         /// Create alarm condition
         /// </summary>
@@ -48,12 +50,10 @@ namespace Opc.Ua
             m_logger = telemetry.CreateLogger<AlarmConditionState>();
         }
 
-        /// <summary>
-        /// Called after a node is created.
-        /// </summary>
-        protected override void OnAfterCreate(ISystemContext context, NodeState node)
+        /// <inheritdoc/>
+        protected override void OnAfterCreate(ISystemContext context, NodeState node, CancellationToken ct = default)
         {
-            base.OnAfterCreate(context, node);
+            base.OnAfterCreate(context, node, ct);
 
             if (ShelvingState != null)
             {
@@ -77,20 +77,15 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary>
-        /// An overrideable version of the Dispose.
-        /// </summary>
-        protected override void Dispose(bool disposing)
+        /// <inheritdoc/>
+        protected override void OnAfterDelete(ISystemContext context)
         {
-            if (disposing)
-            {
-                m_unshelveTimer?.Dispose();
-                m_unshelveTimer = null;
-                m_updateUnshelveTimer?.Dispose();
-                m_updateUnshelveTimer = null;
-            }
+            base.OnAfterDelete(context);
 
-            base.Dispose(disposing);
+            m_unshelveTimer?.Dispose();
+            m_unshelveTimer = null;
+            m_updateUnshelveTimer?.Dispose();
+            m_updateUnshelveTimer = null;
         }
 
         /// <summary>

@@ -251,7 +251,7 @@ namespace Opc.Ua.Server
                 {
                     foreach (KeyValuePair<uint, LinkedListNode<IMonitoredItem>> monitoredItemKVP in m_monitoredItems)
                     {
-                        Utils.SilentDispose(monitoredItemKVP.Value?.Value);
+                        monitoredItemKVP.Value?.Value?.Dispose();
                     }
 
                     m_monitoredItems.Clear();
@@ -888,8 +888,8 @@ namespace Opc.Ua.Server
                     availableSequenceNumberList.Add(m_sentMessages[ii].SequenceNumber);
                 }
 
-                moreNotifications = m_waitingForPublish = m_lastSentMessage < m_sentMessages.Count -
-                    1;
+                moreNotifications = m_waitingForPublish = (m_lastSentMessage < m_sentMessages.Count - 1) ||
+                    m_itemsToPublish.Count > 0;
 
                 // TraceState(LogLevel.Trace, TraceStateId.Items, "PUBLISH QUEUED MESSAGE");
                 availableSequenceNumbers = availableSequenceNumberList;
@@ -1155,8 +1155,10 @@ namespace Opc.Ua.Server
                     eventList.Add(events.Dequeue());
                     notificationCount++;
                 }
-                var notification = new EventNotificationList();
-                notification.Events = eventList;
+                var notification = new EventNotificationList
+                {
+                    Events = eventList
+                };
                 message.NotificationData =
                     message.NotificationData.AddItem(new ExtensionObject(notification));
             }
@@ -1184,9 +1186,11 @@ namespace Opc.Ua.Server
                     notificationCount++;
                 }
 
-                var notification = new DataChangeNotification();
-                notification.MonitoredItems = dataChangeList;
-                notification.DiagnosticInfos = diagnosticsExist ? diagnosticInfos : default;
+                var notification = new DataChangeNotification
+                {
+                    MonitoredItems = dataChangeList,
+                    DiagnosticInfos = diagnosticsExist ? diagnosticInfos : default
+                };
 
                 message.NotificationData =
                     message.NotificationData.AddItem(new ExtensionObject(notification));

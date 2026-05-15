@@ -95,10 +95,10 @@ namespace Opc.Ua.Server
                 m_modifyAddressSpaceSemaphoreSlim.Wait(10);
                 try
                 {
-                    Utils.SilentDispose(m_diagnosticsScanTimer);
+                    m_diagnosticsScanTimer?.Dispose();
                     m_diagnosticsScanTimer = null;
 
-                    Utils.SilentDispose(m_samplingTimer);
+                    m_samplingTimer?.Dispose();
                     m_samplingTimer = null;
                 }
                 finally
@@ -107,6 +107,8 @@ namespace Opc.Ua.Server
                 }
 
                 m_modifyAddressSpaceSemaphoreSlim.Dispose();
+
+                m_historyCapabilities = null;
             }
 
             base.Dispose(disposing);
@@ -252,7 +254,7 @@ namespace Opc.Ua.Server
                 return StatusCodes.BadInvalidArgument;
             }
 
-            if (!inputArguments[0].TryGet(out uint subscriptionId))
+            if (!inputArguments[0].TryGetValue(out uint subscriptionId))
             {
                 return StatusCodes.BadInvalidArgument;
             }
@@ -293,7 +295,7 @@ namespace Opc.Ua.Server
                 return StatusCodes.BadInvalidArgument;
             }
 
-            if (!inputArguments[0].TryGet(out uint subscriptionId))
+            if (!inputArguments[0].TryGetValue(out uint subscriptionId))
             {
                 return StatusCodes.BadInvalidArgument;
             }
@@ -432,7 +434,7 @@ namespace Opc.Ua.Server
 
             NodeId typeId = passiveNode.TypeDefinitionId;
 
-            if (!IsNodeIdInNamespace(typeId) || !typeId.TryGetIdentifier(out uint numericId))
+            if (!IsNodeIdInNamespace(typeId) || !typeId.TryGetValue(out uint numericId))
             {
                 return predefinedNode;
             }
@@ -551,7 +553,7 @@ namespace Opc.Ua.Server
 
             if (typeId.IsNull ||
                 typeId.NamespaceIndex != 0 ||
-                typeId.TryGetIdentifier(out uint numericId))
+                typeId.TryGetValue(out uint numericId))
             {
                 return false;
             }
@@ -789,9 +791,11 @@ namespace Opc.Ua.Server
             NodeId nodeId = default;
 
             await m_modifyAddressSpaceSemaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
+            SessionDiagnosticsObjectState tempSessionNode = null;
             try
             {
-                var sessionNode = new SessionDiagnosticsObjectState(null);
+                tempSessionNode = new SessionDiagnosticsObjectState(null);
+                SessionDiagnosticsObjectState sessionNode = tempSessionNode;
 
                 // create a new instance and assign ids.
                 nodeId = await CreateNodeAsync(
@@ -801,6 +805,7 @@ namespace Opc.Ua.Server
                     QualifiedName.From(diagnostics.SessionName),
                     sessionNode,
                     cancellationToken).ConfigureAwait(false);
+                tempSessionNode = null; // ownership transferred to address space
 
                 diagnostics.SessionId = nodeId;
                 securityDiagnostics.SessionId = nodeId;
@@ -929,6 +934,7 @@ namespace Opc.Ua.Server
             NodeId nodeId = default;
 
             await m_modifyAddressSpaceSemaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
+            SubscriptionDiagnosticsState tempDiagnosticsNode = null;
             try
             {
                 // check if diagnostics have been enabled.
@@ -937,7 +943,8 @@ namespace Opc.Ua.Server
                     return default;
                 }
 
-                var diagnosticsNode = new SubscriptionDiagnosticsState(null);
+                tempDiagnosticsNode = new SubscriptionDiagnosticsState(null);
+                SubscriptionDiagnosticsState diagnosticsNode = tempDiagnosticsNode;
 
                 // create a new instance and assign ids.
                 nodeId = await CreateNodeAsync(
@@ -948,6 +955,7 @@ namespace Opc.Ua.Server
                         diagnostics.SubscriptionId.ToString(CultureInfo.InvariantCulture)),
                     diagnosticsNode,
                     cancellationToken).ConfigureAwait(false);
+                tempDiagnosticsNode = null; // ownership transferred to address space
 
                 // add reference to subscription array.
                 diagnosticsNode.AddReference(

@@ -102,7 +102,7 @@ namespace Alarms
         {
             if (node is BaseInstanceState instance &&
                 instance.Parent != null &&
-                instance.Parent.NodeId.TryGetIdentifier(out string id))
+                instance.Parent.NodeId.TryGetValue(out string id))
             {
                 return new NodeId(
                     id + "_" + instance.SymbolicName,
@@ -132,6 +132,10 @@ namespace Alarms
                     externalReferences[ObjectIds.ObjectsFolder] = references = [];
                 }
 
+                FolderState alarmsFolder = null;
+                MethodState startMethod = null;
+                MethodState startBranchMethod = null;
+                MethodState endMethod = null;
                 try
                 {
                     const string alarmsName = "Alarms";
@@ -143,7 +147,7 @@ namespace Alarms
 
                     int conditionTypeIndex = 0;
 
-                    FolderState alarmsFolder = CreateFolder(null, alarmsNodeName, alarmsName);
+                    alarmsFolder = CreateFolder(null, alarmsNodeName, alarmsName);
                     alarmsFolder.AddReference(
                         ReferenceTypeIds.Organizes,
                         true,
@@ -158,7 +162,7 @@ namespace Alarms
 
                     const string startMethodName = "Start";
                     const string startMethodNodeName = alarmsNodeName + "." + startMethodName;
-                    MethodState startMethod = AlarmHelpers.CreateMethod(
+                    startMethod = AlarmHelpers.CreateMethod(
                         alarmsFolder,
                         NamespaceIndex,
                         startMethodNodeName,
@@ -170,7 +174,7 @@ namespace Alarms
                     const string startBranchMethodNodeName = alarmsNodeName +
                         "." +
                         startBranchMethodName;
-                    MethodState startBranchMethod = AlarmHelpers.CreateMethod(
+                    startBranchMethod = AlarmHelpers.CreateMethod(
                         alarmsFolder,
                         NamespaceIndex,
                         startBranchMethodNodeName,
@@ -181,7 +185,7 @@ namespace Alarms
 
                     const string endMethodName = "End";
                     const string endMethodNodeName = alarmsNodeName + "." + endMethodName;
-                    MethodState endMethod = AlarmHelpers.CreateMethod(
+                    endMethod = AlarmHelpers.CreateMethod(
                         alarmsFolder,
                         NamespaceIndex,
                         endMethodNodeName,
@@ -229,6 +233,28 @@ namespace Alarms
                         booleanAlarmController);
                     m_triggerMap.Add("Boolean", booleanSourceController);
 
+                    const string setpointSourceName = "SetpointSource";
+                    const string setpointSourceNodeName =
+                        alarmsNodeName +
+                        "." +
+                        setpointSourceName;
+                    BaseDataVariableState setpointSource = AlarmHelpers.CreateVariable(
+                        alarmsFolder,
+                        NamespaceIndex,
+                        setpointSourceNodeName,
+                        setpointSourceName);
+
+                    const string discrepancyTargetSourceName = AlarmDefines.DISCREPANCY_TARGET_NAME;
+                    const string discrepancyTargetSourceNodeName =
+                        alarmsNodeName +
+                        "." +
+                        discrepancyTargetSourceName;
+                    BaseDataVariableState discrepancyTargetSource = AlarmHelpers.CreateVariable(
+                        alarmsFolder,
+                        NamespaceIndex,
+                        discrepancyTargetSourceNodeName,
+                        discrepancyTargetSourceName);
+
                     AlarmHolder mandatoryExclusiveLevel = new ExclusiveLevelHolder(
                         this,
                         alarmsFolder,
@@ -265,7 +291,140 @@ namespace Alarms
                         optional: false);
                     m_alarms.Add(offNormal.AlarmNodeName, offNormal);
 
+                    AlarmHolder alarmCondition = new AlarmConditionHolder(
+                        this,
+                        alarmsFolder,
+                        analogSourceController,
+                        intervalString,
+                        GetSupportedAlarmConditionType(ref conditionTypeIndex),
+                        alarmControllerType,
+                        interval,
+                        optional: false);
+                    m_alarms.Add(alarmCondition.AlarmNodeName, alarmCondition);
+
+                    AlarmHolder discrepancyAlarm = new DiscrepancyAlarmTypeHolder(
+                        this,
+                        alarmsFolder,
+                        analogSourceController,
+                        intervalString,
+                        GetSupportedAlarmConditionType(ref conditionTypeIndex),
+                        alarmControllerType,
+                        interval,
+                        discrepancyTargetSource.NodeId,
+                        optional: false);
+                    m_alarms.Add(discrepancyAlarm.AlarmNodeName, discrepancyAlarm);
+
+                    AlarmHolder limitAlarm = new LimitAlarmHolder(
+                        this,
+                        alarmsFolder,
+                        analogSourceController,
+                        intervalString,
+                        GetSupportedAlarmConditionType(ref conditionTypeIndex),
+                        alarmControllerType,
+                        interval,
+                        optional: false);
+                    m_alarms.Add(limitAlarm.AlarmNodeName, limitAlarm);
+
+                    AlarmHolder exclusiveLimitAlarm = new ExclusiveLimitAlarmHolder(
+                        this,
+                        alarmsFolder,
+                        analogSourceController,
+                        intervalString,
+                        GetSupportedAlarmConditionType(ref conditionTypeIndex),
+                        alarmControllerType,
+                        interval,
+                        optional: false);
+                    m_alarms.Add(exclusiveLimitAlarm.AlarmNodeName, exclusiveLimitAlarm);
+
+                    AlarmHolder exclusiveDeviationAlarm = new ExclusiveDeviationAlarmTypeHolder(
+                        this,
+                        alarmsFolder,
+                        analogSourceController,
+                        intervalString,
+                        GetSupportedAlarmConditionType(ref conditionTypeIndex),
+                        alarmControllerType,
+                        interval,
+                        setpointSource.NodeId,
+                        optional: false);
+                    m_alarms.Add(exclusiveDeviationAlarm.AlarmNodeName, exclusiveDeviationAlarm);
+
+                    AlarmHolder exclusiveRateOfChangeAlarm = new ExclusiveRateOfChangeAlarmTypeHolder(
+                        this,
+                        alarmsFolder,
+                        analogSourceController,
+                        intervalString,
+                        GetSupportedAlarmConditionType(ref conditionTypeIndex),
+                        alarmControllerType,
+                        interval,
+                        optional: false);
+                    m_alarms.Add(exclusiveRateOfChangeAlarm.AlarmNodeName, exclusiveRateOfChangeAlarm);
+
+                    AlarmHolder nonExclusiveLimitAlarm = new NonExclusiveLimitAlarmHolder(
+                        this,
+                        alarmsFolder,
+                        analogSourceController,
+                        intervalString,
+                        GetSupportedAlarmConditionType(ref conditionTypeIndex),
+                        alarmControllerType,
+                        interval,
+                        optional: false);
+                    m_alarms.Add(nonExclusiveLimitAlarm.AlarmNodeName, nonExclusiveLimitAlarm);
+
+                    AlarmHolder nonExclusiveDeviationAlarm = new NonExclusiveDeviationAlarmTypeHolder(
+                        this,
+                        alarmsFolder,
+                        analogSourceController,
+                        intervalString,
+                        GetSupportedAlarmConditionType(ref conditionTypeIndex),
+                        alarmControllerType,
+                        interval,
+                        setpointSource.NodeId,
+                        optional: false);
+                    m_alarms.Add(nonExclusiveDeviationAlarm.AlarmNodeName, nonExclusiveDeviationAlarm);
+
+                    AlarmHolder nonExclusiveRateOfChangeAlarm = new NonExclusiveRateOfChangeAlarmTypeHolder(
+                        this,
+                        alarmsFolder,
+                        analogSourceController,
+                        intervalString,
+                        GetSupportedAlarmConditionType(ref conditionTypeIndex),
+                        alarmControllerType,
+                        interval,
+                        optional: false);
+                    m_alarms.Add(
+                        nonExclusiveRateOfChangeAlarm.AlarmNodeName,
+                        nonExclusiveRateOfChangeAlarm);
+
+                    AlarmHolder discreteAlarm = new DiscreteAlarmHolder(
+                        this,
+                        alarmsFolder,
+                        booleanSourceController,
+                        intervalString,
+                        GetSupportedAlarmConditionType(ref conditionTypeIndex),
+                        alarmControllerType,
+                        interval,
+                        optional: false);
+                    m_alarms.Add(discreteAlarm.AlarmNodeName, discreteAlarm);
+
+                    AlarmHolder systemOffNormalAlarm = new SystemOffNormalAlarmTypeHolder(
+                        this,
+                        alarmsFolder,
+                        booleanSourceController,
+                        intervalString,
+                        GetSupportedAlarmConditionType(ref conditionTypeIndex),
+                        alarmControllerType,
+                        interval,
+                        optional: false);
+                    m_alarms.Add(systemOffNormalAlarm.AlarmNodeName, systemOffNormalAlarm);
+
                     AddPredefinedNode(SystemContext, alarmsFolder);
+
+                    // ownership transferred to predefined nodes
+                    alarmsFolder = null;
+                    startMethod = null;
+                    startBranchMethod = null;
+                    endMethod = null;
+
                     StartTimer();
                     m_allowEntry = true;
                 }
@@ -568,7 +727,7 @@ namespace Alarms
         {
             AlarmHolder alarmHolder = null;
 
-            if (node.TryGetIdentifier(out string unmodifiedName))
+            if (node.TryGetValue(out string unmodifiedName))
             {
                 // This is bad, but I'm not sure why the NodeName is being attached with an underscore, it messes with this lookup.
 #if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
@@ -619,7 +778,7 @@ namespace Alarms
         {
             string unit = string.Empty;
 
-            if (nodeId.TryGetIdentifier(out string nodeIdString))
+            if (nodeId.TryGetValue(out string nodeIdString))
             {
                 string[] splitString = nodeIdString.Split('.');
                 // Alarms.UnitName.MethodName
@@ -656,7 +815,7 @@ namespace Alarms
         {
             string sourceName = string.Empty;
 
-            if (nodeId.TryGetIdentifier(out string nodeIdString))
+            if (nodeId.TryGetValue(out string nodeIdString))
             {
                 string[] splitString = nodeIdString.Split('.');
                 // Alarms.UnitName.AnalogSource
@@ -953,7 +1112,7 @@ namespace Alarms
 
             // Bad magic Numbers hereStart
             if (request.InputArguments.Count == 2 &&
-                request.InputArguments[0].TryGet(out ByteString byteString))
+                request.InputArguments[0].TryGetValue(out ByteString byteString))
             {
                 eventId = byteString;
             }
@@ -967,7 +1126,7 @@ namespace Alarms
         {
             m_logger.LogInformation("Alarms: Starting simulation");
 
-            Utils.SilentDispose(m_simulationTimer);
+            m_simulationTimer?.Dispose();
             m_simulationTimer = new Timer(
                 DoSimulation,
                 null,
@@ -980,7 +1139,7 @@ namespace Alarms
         /// </summary>
         private void DisposeTimer()
         {
-            Utils.SilentDispose(m_simulationTimer);
+            m_simulationTimer?.Dispose();
             m_simulationTimer = null;
 
             m_logger.LogInformation("Alarms: Stopped simulation");

@@ -33,7 +33,6 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Xml;
-using Microsoft.Extensions.Logging;
 using Opc.Ua.Schema.Model;
 using Opc.Ua.Types;
 
@@ -47,8 +46,7 @@ namespace Opc.Ua.SourceGeneration
         public DataTypeGenerator(IGeneratorContext context)
         {
             m_context = context ?? throw new ArgumentNullException(nameof(context));
-            m_messageContext = new ServiceMessageContext(context.Telemetry);
-            m_logger = context.Telemetry.CreateLogger<DataTypeGenerator>();
+            m_messageContext = ServiceMessageContext.CreateEmpty(context.Telemetry);
         }
 
         /// <inheritdoc/>
@@ -121,11 +119,11 @@ namespace Opc.Ua.SourceGeneration
             {
                 return DataTypeTemplates.StructureActivatorClass;
             }
-            // if (datatype.BasicDataType == BasicDataType.Enumeration &&
-            //      datatype.IsEnumeration)
-            // {
-            //     // TODO
-            // }
+            if (datatype.BasicDataType == BasicDataType.Enumeration &&
+                datatype.IsEnumeration)
+            {
+                return DataTypeTemplates.EnumerationActivatorClass;
+            }
             return null;
         }
 
@@ -141,11 +139,11 @@ namespace Opc.Ua.SourceGeneration
             {
                 return DataTypeTemplates.StructureActivatorRegistration;
             }
-            // if (datatype.BasicDataType == BasicDataType.Enumeration &&
-            //      datatype.IsEnumeration)
-            // {
-            //     // TODO
-            // }
+            if (datatype.BasicDataType == BasicDataType.Enumeration &&
+                datatype.IsEnumeration)
+            {
+                return DataTypeTemplates.EnumerationActivatorRegistration;
+            }
             return null;
         }
 
@@ -171,11 +169,13 @@ namespace Opc.Ua.SourceGeneration
             {
                 return null;
             }
-            if (datatype.BasicDataType == BasicDataType.UserDefined && datatype.IsStructure)
+            if (datatype.BasicDataType == BasicDataType.UserDefined &&
+                datatype.IsStructure)
             {
                 return DataTypeTemplates.StructureDefinition;
             }
-            if (datatype.BasicDataType == BasicDataType.Enumeration && datatype.IsEnumeration)
+            if (datatype.BasicDataType == BasicDataType.Enumeration &&
+                datatype.IsEnumeration)
             {
                 return DataTypeTemplates.EnumDefinition;
             }
@@ -492,6 +492,7 @@ namespace Opc.Ua.SourceGeneration
                     dataType.BaseTypeNode.SymbolicId.Namespace));
 
             List<Parameter> completeListOfFields = null;
+            bool hasAncestorWithOptionalFields = false;
 
             if (dataType.IsStructure)
             {
@@ -503,6 +504,12 @@ namespace Opc.Ua.SourceGeneration
                     parentDataType.SymbolicId != new XmlQualifiedName("Union", Namespaces.OpcUa))
                 {
                     inheritanceTree.Add(parentDataType);
+                    if (parentDataType.HasFields &&
+                        parentDataType.Fields != null &&
+                        parentDataType.Fields.Any(f => f.IsOptional))
+                    {
+                        hasAncestorWithOptionalFields = true;
+                    }
                     parentDataType = parentDataType.BaseTypeNode as DataTypeDesign;
                 }
 
@@ -521,6 +528,10 @@ namespace Opc.Ua.SourceGeneration
                     }
                 }
             }
+
+            context.Template.AddReplacement(
+                Tokens.EncodingMaskModifier,
+                hasAncestorWithOptionalFields ? "new " : string.Empty);
 
             // TODO: context.Template.AddReplacement(
             // TODO:     Tokens.IsAbstract,
@@ -728,14 +739,14 @@ namespace Opc.Ua.SourceGeneration
 
             if (isUnion)
             {
-                context.Out.WriteLine($"case {dataType.ClassName}Fields.{field.Name}:");
+                context.Out.WriteLine($"case {dataType.SymbolicName.Name}Fields.{field.Name}:");
                 context.Out.WriteLine("{");
             }
 
             if (field.IsOptional)
             {
                 context.Out.WriteLine(
-                    $"if ((EncodingMask & (uint){dataType.ClassName}Fields.{field.Name}) != 0) ");
+                    $"if ((EncodingMask & (uint){dataType.SymbolicName.Name}Fields.{field.Name}) != 0) ");
             }
 
             string functionName = field.DataTypeNode.BasicDataType.ToString();
@@ -894,14 +905,14 @@ namespace Opc.Ua.SourceGeneration
             bool isUnion = dataType.IsUnion;
             if (isUnion)
             {
-                context.Out.WriteLine($"case {dataType.ClassName}Fields.{field.Name}:");
+                context.Out.WriteLine($"case {dataType.SymbolicName.Name}Fields.{field.Name}:");
                 context.Out.WriteLine("{");
             }
 
             if (field.IsOptional)
             {
                 context.Out.WriteLine(
-                    $"if ((EncodingMask & (uint){dataType.ClassName}Fields.{field.Name}) != 0) ");
+                    $"if ((EncodingMask & (uint){dataType.SymbolicName.Name}Fields.{field.Name}) != 0) ");
             }
 
             string valueName = field.Name;
@@ -984,10 +995,7 @@ namespace Opc.Ua.SourceGeneration
                     if (field.ValueRank == ValueRank.Array)
                     {
                         context.Out.WriteLine(
-                            $"({elementName}[])global::Opc.Ua.ExtensionObject.ToArray(");
-                        context.Out.WriteLine(
-                            $"    decoder.ReadExtensionObjectArray({fieldName}), typeof({elementName}));");
-
+                            $"decoder.ReadEncodeableArrayAsExtensionObjects<{elementName}>({fieldName});");
                         if (isUnion)
                         {
                             context.Out.WriteLine("break;");
@@ -1002,10 +1010,7 @@ namespace Opc.Ua.SourceGeneration
                     if (field.ValueRank == ValueRank.Scalar)
                     {
                         context.Out.WriteLine(
-                            $"({elementName})global::Opc.Ua.ExtensionObject.ToEncodeable(");
-                        context.Out.WriteLine(
-                            $"    decoder.ReadExtensionObject({fieldName}));");
-
+                            $"decoder.ReadEncodeableAsExtensionObject<{elementName}>({fieldName});");
                         if (isUnion)
                         {
                             context.Out.WriteLine("break;");
@@ -1046,14 +1051,14 @@ namespace Opc.Ua.SourceGeneration
             var dataType = (DataTypeDesign)field.Parent;
             if (dataType.IsUnion)
             {
-                context.Out.WriteLine($"case {dataType.ClassName}Fields.{field.Name}:");
+                context.Out.WriteLine($"case {dataType.SymbolicName.Name}Fields.{field.Name}:");
                 context.Out.WriteLine("{");
             }
 
             if (field.IsOptional)
             {
                 context.Out.WriteLine(
-                    $"if ((EncodingMask & (uint){dataType.ClassName}Fields.{field.Name}) != 0) ");
+                    $"if ((EncodingMask & (uint){dataType.SymbolicName.Name}Fields.{field.Name}) != 0) ");
             }
 
             if (!field.DataTypeNode.IsDotNetEqualityComparable(field.ValueRank))
@@ -1091,23 +1096,31 @@ namespace Opc.Ua.SourceGeneration
             var dataType = (DataTypeDesign)field.Parent;
             if (dataType.IsUnion)
             {
-                context.Out.WriteLine($"case {dataType.ClassName}Fields.{field.Name}:");
+                context.Out.WriteLine($"case {dataType.SymbolicName.Name}Fields.{field.Name}:");
                 context.Out.WriteLine("{");
             }
 
             if (field.IsOptional)
             {
                 context.Out.WriteLine(
-                    $"if ((EncodingMask & (uint){dataType.ClassName}Fields.{field.Name}) != 0) ");
+                    $"if ((EncodingMask & (uint){dataType.SymbolicName.Name}Fields.{field.Name}) != 0) ");
             }
 
-            context.Out.WriteLine("clone.{0} = ({1})global::Opc.Ua.CoreUtils.Clone(this.{0});",
-                field.GetChildFieldName(),
-                field.DataTypeNode.GetDotNetTypeName(
-                    field.ValueRank,
-                    m_context.ModelDesign.TargetNamespace.Value,
-                    m_context.ModelDesign.Namespaces,
-                    nullable: NullableAnnotation.NullableExceptDataTypes));
+            if (field.DataTypeNode.NeedsCloning())
+            {
+                context.Out.WriteLine("clone.{0} = ({1})global::Opc.Ua.CoreUtils.Clone(this.{0});",
+                    field.GetChildFieldName(),
+                    field.DataTypeNode.GetDotNetTypeName(
+                        field.ValueRank,
+                        m_context.ModelDesign.TargetNamespace.Value,
+                        m_context.ModelDesign.Namespaces,
+                        nullable: NullableAnnotation.NullableExceptDataTypes));
+            }
+            else
+            {
+                context.Out.WriteLine("clone.{0} = this.{0};",
+                    field.GetChildFieldName());
+            }
 
             if (dataType.IsUnion)
             {
@@ -1137,8 +1150,7 @@ namespace Opc.Ua.SourceGeneration
                     field,
                     field.ValueRank,
                     field.DataTypeNode,
-                    field.DefaultValue),
-                dataTypeQuirk: true);
+                    field.DefaultValue));
 
             context.Out.WriteLine("{0} = {1};", field.GetChildFieldName(), value);
             return null;
@@ -1224,8 +1236,7 @@ namespace Opc.Ua.SourceGeneration
                         field,
                         field.ValueRank,
                         field.DataTypeNode,
-                        field.DefaultValue),
-                    dataTypeQuirk: true));
+                        field.DefaultValue)));
             context.Template.AddReplacement(
                 Tokens.Identifier,
                 field.Identifier.ToString(CultureInfo.InvariantCulture));
@@ -1264,9 +1275,7 @@ namespace Opc.Ua.SourceGeneration
                 { Tokens.BinaryEncodingId,
                     CoreUtils.Format("{0}_Encoding_DefaultBinary", dataType.SymbolicName.Name) },
                 { Tokens.XmlEncodingId,
-                    CoreUtils.Format("{0}_Encoding_DefaultXml", dataType.SymbolicName.Name) },
-                { Tokens.JsonEncodingId,
-                    CoreUtils.Format("{0}_Encoding_DefaultJson", dataType.SymbolicName.Name) }
+                    CoreUtils.Format("{0}_Encoding_DefaultXml", dataType.SymbolicName.Name) }
             };
             foreach (KeyValuePair<string, string> kv in encodings)
             {
@@ -1399,6 +1408,5 @@ namespace Opc.Ua.SourceGeneration
         private readonly Dictionary<string, Resource> m_initializers = [];
         private readonly IServiceMessageContext m_messageContext;
         private readonly IGeneratorContext m_context;
-        private readonly ILogger m_logger;
     }
 }

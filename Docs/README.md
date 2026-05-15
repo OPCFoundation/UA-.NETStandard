@@ -5,15 +5,19 @@ Here is a list of available documentation for different topics:
 ## UA Core stack related
 
 * [OPC UA Profiles and Facets](Profiles.md) - Overview of supported OPC UA profiles, facets, security policies, and transport protocols.
+* [Migration Guide](MigrationGuide.md) - How to migrate from a previous version.
+* [Sessions, Reconnection, and Subscription Engines](Sessions.md) - Architectural overview of `Session`, `ManagedSession`, `SessionReconnectHandler`, and the classic / V2 subscription engines, including guidance on which to use.
 * About [.NET platform](PlatformBuild.md) support, Nuget packages and versioning.
 * How X.509 [Certificates](Certificates.md) are used in the certificate stores.
 * Using the [Reverse Connect](ReverseConnect.md) for the UA-TCP transport.
 * Support for the [TransferSubscriptions](TransferSubscription.md) service set.
-* Improved support for [Logging](Logging.md) with `ILogger` and `EventSource`.
+* [Observability](Observability.md) support in the stack.
 * Support for [WellKnownRoles & RoleBasedUserManagement](RoleBasedUserManagement.md).
 * Support for [ECC Certificates](EccProfiles.md).
 * Working with [ComplexTypes](ComplexTypes.md) - Custom structures and enumerations.
 * Client-based [NodeSet Export](NodeSetExport.md) - Export server address space to NodeSet2 XML.
+* Source generated [DataTypes] - How to annotate POCO classes and let the source generator generate the `IEncodeable` implementation.
+* Source generated [NodeManagers](SourceGeneratedNodeManagers.md) - Emit an `AsyncCustomNodeManager` from a model design XML and wire callbacks via the fluent `INodeManagerBuilder` API; supports NativeAOT single-file servers (sample: [MinimalBoilerServer](../Applications/MinimalBoilerServer)).
 
 ## Reference application related
 

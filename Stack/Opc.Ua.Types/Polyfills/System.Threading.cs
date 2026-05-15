@@ -29,10 +29,29 @@
 
 #if !NET9_0_OR_GREATER
 using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
 #endif
 
 namespace System.Threading
 {
+    /// <summary>
+    /// Polyfills for System.Threading methods that are not available in
+    /// .NET Standard 2.0 or .NET Framework.
+    /// </summary>
+    public static class Polyfills
+    {
+#if NETSTANDARD2_0_OR_GREATER || NETFRAMEWORK
+        /// <summary>
+        /// Cancel the cancellation token source and return a completed task.
+        /// </summary>
+        public static Task CancelAsync(this CancellationTokenSource source)
+        {
+            source.Cancel();
+            return Task.CompletedTask;
+        }
+#endif
+    }
+
 #if !NET9_0_OR_GREATER
     /// <summary>
     /// A backport of .NET 9.0+'s System.Threading.Lock.

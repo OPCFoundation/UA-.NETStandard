@@ -377,6 +377,38 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Creates a QualifiedName from a long-form text representation, resolving
+        /// the namespace URI against the supplied <see cref="NamespaceTable"/>.
+        /// Use this overload when you know the caller is starting with a long form.
+        /// </summary>
+        /// <remarks>
+        /// Accepted forms (matching the canonical QualifiedName representations):
+        /// <list type="bullet">
+        ///   <item><c>&lt;name&gt;</c> (equivalent to <c>0:&lt;name&gt;</c>)</item>
+        ///   <item><c>&lt;index&gt;:&lt;name&gt;</c> (numeric namespace index)</item>
+        ///   <item><c>nsu=&lt;escaped-uri&gt;;&lt;name&gt;</c> (URI resolved via
+        ///   <paramref name="namespaceTable"/>)</item>
+        /// </list>
+        /// </remarks>
+        /// <param name="text">The long-form QualifiedName text.</param>
+        /// <param name="namespaceTable">Namespace table used to resolve the URI to an
+        /// index.</param>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="namespaceTable"/> is null.</exception>
+        /// <exception cref="ServiceResultException">The URI is not in the namespace
+        /// table.</exception>
+        public static QualifiedName ParseLongForm(string text, NamespaceTable namespaceTable)
+        {
+            var context = ServiceMessageContext.CreateEmpty(null);
+            context.NamespaceUris = namespaceTable ?? throw new ArgumentNullException(nameof(namespaceTable));
+
+            // Parse(IServiceMessageContext, string, bool) is already strict on
+            // unresolved nsu= URIs (throws BadNodeIdInvalid). updateTables: false
+            // ensures the namespace table is not mutated by an unknown URI.
+            return Parse(context, text, updateTables: false);
+        }
+
+        /// <summary>
         /// Parses a string containing a QualifiedName with the syntax n:qname
         /// </summary>
         /// <param name="text">The QualifiedName value as a string.</param>

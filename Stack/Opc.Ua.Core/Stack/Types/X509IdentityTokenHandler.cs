@@ -14,6 +14,7 @@
  *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
  * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
  * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
@@ -28,71 +29,120 @@
  * ======================================================================*/
 
 using System;
-using System.Security.Cryptography.X509Certificates;
+using System.Threading;
+using System.Threading.Tasks;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua
 {
     /// <summary>
     /// The X509IdentityTokenHandler class.
     /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The handler holds no live <see cref="Certificate"/> reference.
+    /// The wire payload (public-key DER) is carried in the underlying
+    /// <see cref="X509IdentityToken.CertificateData"/>; the private-key
+    /// signing certificate is resolved on demand by
+    /// <see cref="ICertificateProvider"/> inside <see cref="SignAsync"/>.
+    /// </para>
+    /// <para>
+    /// Server-side construction (from a wire-format
+    /// <see cref="X509IdentityToken"/>) supports verification only —
+    /// <see cref="SignAsync"/> requires a configured provider and
+    /// <see cref="CertificateIdentifier"/>.
+    /// </para>
+    /// </remarks>
     public sealed class X509IdentityTokenHandler : IUserIdentityTokenHandler
     {
         /// <summary>
-        /// Create a new X509IdentityTokenHandler
+        /// Create a new X509IdentityTokenHandler from an inbound wire
+        /// payload. The handler can verify signatures using the public
+        /// key carried in <see cref="X509IdentityToken.CertificateData"/>
+        /// but cannot sign (no private key available).
         /// </summary>
         public X509IdentityTokenHandler(X509IdentityToken token)
         {
-            m_token = token;
+            m_token = token ?? throw new ArgumentNullException(nameof(token));
         }
 
         /// <summary>
-        /// Create a identity token from X509 certificate
+        /// Create an identity token handler from a
+        /// <see cref="CertificateIdentifier"/> + cache-aware
+        /// <see cref="ICertificateProvider"/> pair. The handler holds
+        /// no live certificate reference; the certificate is resolved
+        /// on demand inside <see cref="SignAsync"/> and disposed at the
+        /// end of the call.
         /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
-        /// <exception cref="ArgumentNullException">
-        /// <paramref name="certificate"/> is <c>null</c>.
-        /// </exception>
-        public X509IdentityTokenHandler(X509Certificate2 certificate)
+        /// <remarks>
+        /// The wire-format <see cref="X509IdentityToken.CertificateData"/>
+        /// payload (public-key DER) is loaded eagerly during
+        /// construction so it is ready for the
+        /// <c>ActivateSession</c> request without a registry round-trip.
+        /// </remarks>
+        /// <exception cref="ArgumentNullException"/>
+        /// <exception cref="ServiceResultException"/>
+        public X509IdentityTokenHandler(
+            CertificateIdentifier identifier,
+            ICertificatePasswordProvider passwordProvider,
+            ICertificateProvider certificateProvider)
         {
-            if (certificate == null)
-            {
-                throw new ArgumentNullException(nameof(certificate));
-            }
+            m_identifier = identifier ?? throw new ArgumentNullException(nameof(identifier));
+            m_passwordProvider = passwordProvider ?? throw new ArgumentNullException(nameof(passwordProvider));
+            m_provider = certificateProvider ?? throw new ArgumentNullException(nameof(certificateProvider));
 
-            if (!certificate.HasPrivateKey)
+            // Pre-load the public-key bytes for the wire payload. The
+            // resolved Certificate is disposed immediately; the handler
+            // never holds a live reference past this constructor.
+            using Certificate resolved = certificateProvider
+                .GetPrivateKeyCertificateAsync(identifier, passwordProvider)
+                .AsTask()
+                .GetAwaiter()
+                .GetResult();
+
+            if (resolved == null || !resolved.HasPrivateKey)
             {
                 throw new ServiceResultException(
-                    "Cannot create User Identity with Certificate that does not have a private key");
+                    StatusCodes.BadIdentityTokenInvalid,
+                    "Cannot resolve a private-key certificate from the supplied CertificateIdentifier.");
             }
 
-            Certificate = certificate;
             m_token = new X509IdentityToken
             {
-                CertificateData = certificate.RawData.ToByteString()
+                CertificateData = resolved.RawData.ToByteString()
             };
         }
 
         /// <summary>
-        /// The certificate associated with the token.
+        /// Private constructor for <see cref="Clone"/>. Both the
+        /// identifier-based and wire-payload paths copy the underlying
+        /// <see cref="X509IdentityToken"/> and propagate the provider
+        /// references; no live certificate reference is shared.
         /// </summary>
-        public X509Certificate2 Certificate
+        private X509IdentityTokenHandler(
+            X509IdentityToken token,
+            CertificateIdentifier identifier,
+            ICertificatePasswordProvider passwordProvider,
+            ICertificateProvider provider)
         {
-            get
-            {
-                if (m_certificate == null && !m_token.CertificateData.IsEmpty)
-                {
-                    m_certificate = CertificateFactory.Create(m_token.CertificateData);
-                }
-                return m_certificate;
-            }
-            set => m_certificate = value;
+            m_token = token;
+            m_identifier = identifier;
+            m_passwordProvider = passwordProvider;
+            m_provider = provider;
         }
 
         /// <inheritdoc/>
         public UserIdentityToken Token => m_token;
 
         /// <inheritdoc/>
-        public string DisplayName => Certificate.Subject;
+        public string DisplayName
+        {
+            get
+            {
+                using Certificate cert = MaterialiseTokenCertificate();
+                return cert?.Subject ?? string.Empty;
+            }
+        }
 
         /// <inheritdoc/>
         public UserTokenType TokenType => UserTokenType.Certificate;
@@ -104,71 +154,95 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public void Encrypt(
-            X509Certificate2 receiverCertificate,
+        public ValueTask EncryptAsync(
+            Certificate receiverCertificate,
             byte[] receiverNonce,
             string securityPolicyUri,
             IServiceMessageContext context,
             Nonce receiverEphemeralKey = null,
-            X509Certificate2 senderCertificate = null,
-            X509Certificate2Collection senderIssuerCertificates = null,
-            bool doNotEncodeSenderCertificate = false)
+            Certificate senderCertificate = null,
+            CertificateCollection senderIssuerCertificates = null,
+            bool doNotEncodeSenderCertificate = false,
+            CancellationToken ct = default)
         {
+            return default;
         }
 
         /// <inheritdoc/>
-        public void Decrypt(
-            X509Certificate2 certificate,
+        public ValueTask DecryptAsync(
+            Certificate certificate,
             Nonce receiverNonce,
             string securityPolicyUri,
             IServiceMessageContext context,
             Nonce ephemeralKey = null,
-            X509Certificate2 senderCertificate = null,
-            X509Certificate2Collection senderIssuerCertificates = null,
-            CertificateValidator validator = null)
+            Certificate senderCertificate = null,
+            CertificateCollection senderIssuerCertificates = null,
+            ICertificateValidatorEx validator = null,
+            CancellationToken ct = default)
         {
+            return default;
         }
 
         /// <inheritdoc/>
-        public SignatureData Sign(
+        public async ValueTask<SignatureData> SignAsync(
             byte[] dataToSign,
-            string securityPolicyUri)
+            string securityPolicyUri,
+            CancellationToken ct = default)
         {
-            X509Certificate2 certificate = Certificate ??
-                CertificateFactory.Create(m_token.CertificateData);
+            SecurityPolicyInfo info = SecurityPolicies.GetInfo(securityPolicyUri);
 
-            SignatureData signatureData = SecurityPolicies.Sign(
-                certificate,
-                securityPolicyUri,
-                dataToSign);
+            if (m_provider == null || m_identifier == null)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadIdentityTokenInvalid,
+                    "X509IdentityTokenHandler must be constructed with a CertificateIdentifier + ICertificateProvider to sign.");
+            }
 
-            m_token.CertificateData = certificate.RawData.ToByteString();
+            // Fast path: synchronous cache hit. The provider AddRef's;
+            // we own and dispose for the duration of the signing call.
+            Certificate cached = m_provider.TryGetPrivateKeyCertificate(m_identifier.Thumbprint);
+            if (cached != null)
+            {
+                using (cached)
+                {
+                    return SecurityPolicies.CreateSignatureData(info, cached, dataToSign);
+                }
+            }
 
-            return signatureData;
+            // Cold path: async load through the registry/store.
+            using Certificate loaded = await m_provider
+                .GetPrivateKeyCertificateAsync(m_identifier, m_passwordProvider, applicationUri: null, ct)
+                .ConfigureAwait(false) ??
+                throw new ServiceResultException(
+                    StatusCodes.BadIdentityTokenInvalid,
+                    "Cannot resolve private-key certificate for X509 identity token.");
+
+            return SecurityPolicies.CreateSignatureData(info, loaded, dataToSign);
         }
 
         /// <inheritdoc/>
-        public bool Verify(
+        public async ValueTask<bool> VerifyAsync(
             byte[] dataToVerify,
             SignatureData signatureData,
-            string securityPolicyUri)
+            string securityPolicyUri,
+            CancellationToken ct = default)
         {
+            await Task.CompletedTask.ConfigureAwait(false);
+
             try
             {
-                X509Certificate2 certificate = Certificate ??
-                    CertificateFactory.Create(m_token.CertificateData);
-
-                bool valid = SecurityPolicies.Verify(
-                    certificate,
-                    securityPolicyUri,
-                    dataToVerify,
-                    signatureData);
-
-                m_token.CertificateData = certificate.RawData.ToByteString();
-
-                return valid;
+                SecurityPolicyInfo info = SecurityPolicies.GetInfo(securityPolicyUri);
+                using Certificate cert = MaterialiseTokenCertificate() ??
+                    throw new ServiceResultException(
+                        StatusCodes.BadIdentityTokenInvalid,
+                        "X509IdentityToken has no certificate data to verify against.");
+                return SecurityPolicies.VerifySignatureData(
+                    signatureData,
+                    info,
+                    cert,
+                    dataToVerify);
             }
-            catch (Exception e)
+            catch (Exception e) when (e is not ServiceResultException)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadIdentityTokenInvalid,
@@ -178,19 +252,13 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public void Dispose()
-        {
-            // TODOL Utils.SilentDispose(m_certificate);
-            m_certificate = null;
-        }
-
-        /// <inheritdoc/>
         public object Clone()
         {
-            return new X509IdentityTokenHandler(CoreUtils.Clone(m_token))
-            {
-                // TODO: m_certificate = m_certificate
-            };
+            return new X509IdentityTokenHandler(
+                CoreUtils.Clone(m_token),
+                m_identifier,
+                m_passwordProvider,
+                m_provider);
         }
 
         /// <inheritdoc/>
@@ -203,7 +271,23 @@ namespace Opc.Ua
             return Utils.IsEqual(m_token.CertificateData, tokenHandler.m_token.CertificateData);
         }
 
+        /// <summary>
+        /// Materialises a public-key <see cref="Certificate"/> from the
+        /// wire-format <see cref="X509IdentityToken.CertificateData"/>
+        /// payload, or <c>null</c> when the payload is empty. The
+        /// returned reference is owned by the caller (callers must
+        /// dispose).
+        /// </summary>
+        private Certificate MaterialiseTokenCertificate()
+        {
+            return m_token.CertificateData.IsEmpty
+                ? null
+                : Certificate.FromRawData(m_token.CertificateData);
+        }
+
         private readonly X509IdentityToken m_token;
-        private X509Certificate2 m_certificate;
+        private readonly CertificateIdentifier m_identifier;
+        private readonly ICertificatePasswordProvider m_passwordProvider;
+        private readonly ICertificateProvider m_provider;
     }
 }

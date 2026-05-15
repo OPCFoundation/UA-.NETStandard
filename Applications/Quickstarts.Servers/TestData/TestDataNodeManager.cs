@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using Opc.Ua;
 using Opc.Ua.Server;
 
@@ -68,11 +67,7 @@ namespace TestData
             // update the namespaces.
             NamespaceUris = namespaceUris;
 
-            Server.Factory.AddEncodeableTypes(
-                typeof(TestDataNodeManager)
-                    .Assembly.GetExportedTypes()
-                    .Where(t => t.FullName
-                        .StartsWith(typeof(TestDataNodeManager).Namespace, StringComparison.Ordinal)));
+            Server.Factory.Builder.AddTestData().Commit();
 
             // get the configuration for the node manager.
             m_configuration =
@@ -96,20 +91,20 @@ namespace TestData
             if (disposing)
             {
 #if CONDITION_SAMPLES
-                Utils.SilentDispose(m_systemStatusTimer);
-                Utils.SilentDispose(m_systemStatusCondition);
-                Utils.SilentDispose(m_dialog);
+                m_systemStatusTimer?.Dispose();
+                m_systemStatusCondition?.Dispose();
+                m_dialog?.Dispose();
 
                 m_systemStatusTimer = null;
                 m_systemStatusCondition = null;
                 m_dialog = null;
 #endif
-                Utils.SilentDispose(m_dataStaticStructureScalarStructure);
-                Utils.SilentDispose(m_dataDynamicStructureScalarStructure);
-                Utils.SilentDispose(m_dataStaticStructureVectorStructure);
-                Utils.SilentDispose(m_dataDynamicStructureVectorStructure);
-                Utils.SilentDispose(m_dataStaticVectorScalarValue);
-                Utils.SilentDispose(m_dataDynamicVectorScalarValue);
+                (m_dataStaticStructureScalarStructure as IDisposable)?.Dispose();
+                (m_dataDynamicStructureScalarStructure as IDisposable)?.Dispose();
+                (m_dataStaticStructureVectorStructure as IDisposable)?.Dispose();
+                (m_dataDynamicStructureVectorStructure as IDisposable)?.Dispose();
+                (m_dataStaticVectorScalarValue as IDisposable)?.Dispose();
+                (m_dataDynamicVectorScalarValue as IDisposable)?.Dispose();
 
                 m_dataStaticStructureScalarStructure = null;
                 m_dataDynamicStructureScalarStructure = null;
@@ -194,7 +189,7 @@ namespace TestData
 
                 if (m_systemStatusCondition != null)
                 {
-                    Utils.SilentDispose(m_systemStatusTimer);
+                    m_systemStatusTimer?.Dispose();
                     m_systemStatusTimer = new Timer(OnCheckSystemStatus, null, 5000, 5000);
                     m_systemStatusCondition.Retain.Value = true;
                 }
@@ -296,7 +291,7 @@ namespace TestData
             {
                 NodeId typeId = passiveNode.TypeDefinitionId;
 
-                if (!IsNodeIdInNamespace(typeId) || !typeId.TryGetIdentifier(out uint typeIdNumeric))
+                if (!IsNodeIdInNamespace(typeId) || !typeId.TryGetValue(out uint typeIdNumeric))
                 {
                     return predefinedNode;
                 }
@@ -408,7 +403,7 @@ namespace TestData
             {
                 NodeId typeId = variableNode.TypeDefinitionId;
 
-                if (!IsNodeIdInNamespace(typeId) || !typeId.TryGetIdentifier(out uint typeIdNumeric))
+                if (!IsNodeIdInNamespace(typeId) || !typeId.TryGetValue(out uint typeIdNumeric))
                 {
                     return predefinedNode;
                 }
@@ -513,81 +508,87 @@ namespace TestData
             var serverContext = context as ServerSystemContext;
             List<DataValue> dataValues = [];
 
-            HistoryDataReader reader;
-            if (nodeToRead.ContinuationPoint.Length > 0)
+            HistoryDataReader reader = null;
+            try
             {
-                // restore the continuation point.
-                reader = RestoreDataReader(serverContext, nodeToRead.ContinuationPoint);
-
-                if (reader == null)
+                if (!nodeToRead.ContinuationPoint.IsEmpty)
                 {
-                    return StatusCodes.BadContinuationPointInvalid;
+                    // restore the continuation point.
+                    reader = RestoreDataReader(serverContext, nodeToRead.ContinuationPoint);
+
+                    if (reader == null)
+                    {
+                        return StatusCodes.BadContinuationPointInvalid;
+                    }
+
+                    // node id must match previous node id.
+                    if (reader.VariableId != nodeToRead.NodeId)
+                    {
+                        return StatusCodes.BadContinuationPointInvalid;
+                    }
+
+                    // check if releasing continuation points.
+                    if (releaseContinuationPoints)
+                    {
+                        return ServiceResult.Good;
+                    }
+                }
+                else
+                {
+                    // get the source for the variable.
+                    ServiceResult error = GetHistoryDataSource(
+                        serverContext,
+                        source,
+                        out IHistoryDataSource datasource);
+
+                    if (ServiceResult.IsBad(error))
+                    {
+                        return error;
+                    }
+
+                    // create a reader.
+                    reader = new HistoryDataReader(nodeToRead.NodeId, datasource);
+
+                    // start reading.
+                    reader.BeginReadRaw(
+                        serverContext,
+                        details,
+                        timestampsToReturn,
+                        nodeToRead.ParsedIndexRange,
+                        nodeToRead.DataEncoding,
+                        dataValues);
                 }
 
-                // node id must match previous node id.
-                if (reader.VariableId != nodeToRead.NodeId)
-                {
-                    Utils.SilentDispose(reader);
-                    return StatusCodes.BadContinuationPointInvalid;
-                }
-
-                // check if releasing continuation points.
-                if (releaseContinuationPoints)
-                {
-                    Utils.SilentDispose(reader);
-                    return ServiceResult.Good;
-                }
-            }
-            else
-            {
-                // get the source for the variable.
-                ServiceResult error = GetHistoryDataSource(
+                // continue reading data until done or max values reached.
+                bool complete = reader.NextReadRaw(
                     serverContext,
-                    source,
-                    out IHistoryDataSource datasource);
-
-                if (ServiceResult.IsBad(error))
-                {
-                    return error;
-                }
-
-                // create a reader.
-                reader = new HistoryDataReader(nodeToRead.NodeId, datasource);
-
-                // start reading.
-                reader.BeginReadRaw(
-                    serverContext,
-                    details,
                     timestampsToReturn,
                     nodeToRead.ParsedIndexRange,
                     nodeToRead.DataEncoding,
                     dataValues);
+
+                // save continuation point.
+                if (!complete)
+                {
+                    SaveDataReader(serverContext, reader);
+                    reader = null;
+                    result.StatusCode = StatusCodes.GoodMoreData;
+                }
+
+                var data = new HistoryData
+                {
+                    DataValues = dataValues
+                };
+
+                // return the dat.
+                result.HistoryData = new ExtensionObject(data);
+
+                return result.StatusCode;
             }
-
-            // continue reading data until done or max values reached.
-            bool complete = reader.NextReadRaw(
-                serverContext,
-                timestampsToReturn,
-                nodeToRead.ParsedIndexRange,
-                nodeToRead.DataEncoding,
-                dataValues);
-
-            // save continuation point.
-            if (!complete)
+            finally
             {
-                SaveDataReader(serverContext, reader);
-                result.StatusCode = StatusCodes.GoodMoreData;
+                reader?.Dispose();
             }
-
-            var data = new HistoryData
-            {
-                DataValues = dataValues
-            };
-
-            // return the dat.
-            result.HistoryData = new ExtensionObject(data);
-
-            return result.StatusCode;
         }
 
         /// <summary>

@@ -120,7 +120,7 @@ namespace MemoryBuffer
         /// </summary>
         private NodeStateReference NextChild()
         {
-            MemoryTagState tag;
+            MemoryTagState tag = null;
 
             // check if a specific browse name is requested.
             if (!BrowseName.IsNull)
@@ -176,7 +176,9 @@ namespace MemoryBuffer
                 }
             }
 
-            return new NodeStateReference(ReferenceTypeIds.HasComponent, false, tag);
+            var result = new NodeStateReference(ReferenceTypeIds.HasComponent, false, tag);
+            tag = null;
+            return result;
         }
 
         /// <summary>

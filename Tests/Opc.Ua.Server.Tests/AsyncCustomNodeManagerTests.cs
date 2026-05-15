@@ -27,6 +27,9 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+// CA2000: test code; many disposables are ownership-transferred to test fixtures or short-lived,
+// making CA2000 noisy without a real leak risk. Disabled file-level for the suite.
+#pragma warning disable CA2000
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -46,7 +49,11 @@ namespace Opc.Ua.Server.Tests
     [SetUICulture("en-us")]
     [Parallelizable(ParallelScope.All)]
     [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
+    // CA1001: NUnit test fixture: per-test instance lifecycle is managed by NUnit;
+    // ApplicationConfiguration disposal is handled by the configuration manager pipeline.
+#pragma warning disable CA1001
     public class AsyncCustomNodeManagerTests
+#pragma warning restore CA1001
     {
         private Mock<IServerInternal> m_mockServer;
         private ApplicationConfiguration m_configuration;
@@ -59,6 +66,7 @@ namespace Opc.Ua.Server.Tests
         private readonly bool m_useSamplingGroups;
         private static readonly ArrayOf<double> s_value = [10.0, 200.0, 30.0];
         private static readonly ArrayOf<double> s_expected = [10.0, 20.0, 30.0];
+        private MonitoredItemQueueFactory m_monitoredItemQueueFactory;
 
         public enum AsyncCustomNodeManagerType
         {
@@ -97,7 +105,8 @@ namespace Opc.Ua.Server.Tests
             var mockTelemetry = new Mock<ITelemetryContext>();
             m_mockServer.Setup(s => s.Telemetry).Returns(mockTelemetry.Object);
 
-            m_mockServer.Setup(s => s.MonitoredItemQueueFactory).Returns(new MonitoredItemQueueFactory(mockTelemetry.Object));
+            m_monitoredItemQueueFactory = new MonitoredItemQueueFactory(mockTelemetry.Object);
+            m_mockServer.Setup(s => s.MonitoredItemQueueFactory).Returns(m_monitoredItemQueueFactory);
 
             // Setup DefaultSystemContext
             m_serverSystemContext = new ServerSystemContext(m_mockServer.Object);
@@ -111,6 +120,12 @@ namespace Opc.Ua.Server.Tests
                     MaxDurableNotificationQueueSize = 200
                 }
             };
+        }
+
+        [TearDown]
+        public void TearDown()
+        {
+            m_monitoredItemQueueFactory?.Dispose();
         }
 
         [Test]
@@ -785,6 +800,14 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(notification.Value.StatusCode.SemanticsChanged, Is.True);
                 Assert.That(diagnostics, Has.Count.EqualTo(2));
             }
+
+            Assert.That(hadMore, Is.False);
+
+            // Verify a semantic change event was correctly reported and queued
+            m_mockServer.Verify(
+                s => s.ReportEvent(It.Is<IFilterTarget>(e => e is SemanticChangeEventState)),
+                Times.Once);
+
             Assert.That(monitoredItem.IsReadyToPublish, Is.False);
         }
 
@@ -1186,6 +1209,199 @@ namespace Opc.Ua.Server.Tests
             syncManager.Call(operationContext, syncRequests, syncResults, syncErrors);
 
             Assert.That(ServiceResult.IsGood(syncErrors[0]), Is.True);
+        }
+
+        [Test]
+        public async Task CallAsync_InvokesMethodFromObjectTypeAsync()
+        {
+            // Arrange: set up ObjectType with a method, and an Object instance with that TypeDefinitionId
+            using TestableAsyncCustomNodeManager manager = CreateManager();
+            ServerSystemContext context = manager.SystemContext;
+            ushort nsIdx = manager.NamespaceIndexes[0];
+
+            // Create the ObjectType node
+            var objectType = new BaseObjectTypeState
+            {
+                NodeId = new NodeId("MyObjectType", nsIdx),
+                BrowseName = new QualifiedName("MyObjectType", nsIdx),
+                SuperTypeId = NodeId.Null
+            };
+            objectType.CreateAsPredefinedNode(context);
+
+            // Create a method on the ObjectType
+            var typeMethod = new MethodState(objectType)
+            {
+                NodeId = new NodeId("TypeMethod", nsIdx),
+                BrowseName = new QualifiedName("TypeMethod", nsIdx)
+            };
+            typeMethod.InputArguments = new PropertyState<ArrayOf<Argument>>.Implementation<StructureBuilder<Argument>>(typeMethod)
+            {
+                Value = []
+            };
+            typeMethod.OutputArguments = new PropertyState<ArrayOf<Argument>>.Implementation<StructureBuilder<Argument>>(typeMethod)
+            {
+                Value =
+                [
+                    new Argument { Name = "Result", DataType = DataTypeIds.Int32, ValueRank = ValueRanks.Scalar }
+                ]
+            };
+            typeMethod.OnCallMethod = (systemContext, _, _, outputs) =>
+            {
+                outputs[0] = new Variant(42);
+                return ServiceResult.Good;
+            };
+            objectType.AddChild(typeMethod);
+
+            // Create an Object instance whose TypeDefinitionId points to the ObjectType
+            var instance = new BaseObjectState(null)
+            {
+                NodeId = new NodeId("MyInstance", nsIdx),
+                BrowseName = new QualifiedName("MyInstance", nsIdx),
+                TypeDefinitionId = objectType.NodeId
+            };
+            instance.CreateAsPredefinedNode(context);
+
+            // Register the ObjectType via AddPredefinedNodeAsync (not AddNodeAsync, which requires BaseInstanceState)
+            await manager.AddPredefinedNodePublicAsync(context, objectType).ConfigureAwait(false);
+            await manager.AddNodeAsync(context, default, instance).ConfigureAwait(false);
+
+            // Register the ObjectType in the TypeTree so FindSuperType works
+            m_mockServer.Object.TypeTree.AddSubtype(objectType.NodeId, NodeId.Null);
+
+            var request = new CallMethodRequest
+            {
+                ObjectId = instance.NodeId,
+                MethodId = typeMethod.NodeId,
+                InputArguments = []
+            };
+
+            var requests = new List<CallMethodRequest> { request };
+            var results = new List<CallMethodResult> { null };
+            var errors = new List<ServiceResult> { null };
+            var operationContext = new OperationContext(new RequestHeader(), null, RequestType.Call, RequestLifetime.None);
+
+            // Act
+            await manager.CallAsync(operationContext, requests, results, errors).ConfigureAwait(false);
+
+            // Assert: method from ObjectType should be invoked successfully
+            Assert.That(ServiceResult.IsGood(errors[0]), Is.True);
+            Assert.That(results[0].OutputArguments.Count, Is.EqualTo(1));
+            Assert.That(results[0].OutputArguments[0].GetInt32(), Is.EqualTo(42));
+
+            // Also verify the sync path works
+            var syncManager = (INodeManager3)manager.SyncNodeManager;
+            var syncRequests = new List<CallMethodRequest>
+            {
+                new() { ObjectId = instance.NodeId, MethodId = typeMethod.NodeId, InputArguments = [] }
+            };
+            var syncResults = new List<CallMethodResult> { null };
+            var syncErrors = new List<ServiceResult> { null };
+            syncManager.Call(operationContext, syncRequests, syncResults, syncErrors);
+
+            Assert.That(ServiceResult.IsGood(syncErrors[0]), Is.True);
+            Assert.That(syncResults[0].OutputArguments[0].GetInt32(), Is.EqualTo(42));
+        }
+
+        [Test]
+        public async Task CallAsync_InvokesMethodFromSuperTypeOfObjectTypeAsync()
+        {
+            // Arrange: set up a type hierarchy: BaseType -> DerivedType, method on BaseType
+            // Object instance has TypeDefinitionId = DerivedType
+            using TestableAsyncCustomNodeManager manager = CreateManager();
+            ServerSystemContext context = manager.SystemContext;
+            ushort nsIdx = manager.NamespaceIndexes[0];
+
+            // Create the base ObjectType with the method
+            var baseType = new BaseObjectTypeState
+            {
+                NodeId = new NodeId("BaseType", nsIdx),
+                BrowseName = new QualifiedName("BaseType", nsIdx),
+                SuperTypeId = NodeId.Null
+            };
+            baseType.CreateAsPredefinedNode(context);
+
+            var baseMethod = new MethodState(baseType)
+            {
+                NodeId = new NodeId("BaseTypeMethod", nsIdx),
+                BrowseName = new QualifiedName("BaseTypeMethod", nsIdx)
+            };
+            baseMethod.InputArguments = new PropertyState<ArrayOf<Argument>>.Implementation<StructureBuilder<Argument>>(baseMethod)
+            {
+                Value = []
+            };
+            baseMethod.OutputArguments = new PropertyState<ArrayOf<Argument>>.Implementation<StructureBuilder<Argument>>(baseMethod)
+            {
+                Value =
+                [
+                    new Argument { Name = "Result", DataType = DataTypeIds.Int32, ValueRank = ValueRanks.Scalar }
+                ]
+            };
+            baseMethod.OnCallMethod = (systemContext, _, _, outputs) =>
+            {
+                outputs[0] = new Variant(99);
+                return ServiceResult.Good;
+            };
+            baseType.AddChild(baseMethod);
+
+            // Create a derived ObjectType that doesn't declare its own method
+            var derivedType = new BaseObjectTypeState
+            {
+                NodeId = new NodeId("DerivedType", nsIdx),
+                BrowseName = new QualifiedName("DerivedType", nsIdx),
+                SuperTypeId = baseType.NodeId
+            };
+            derivedType.CreateAsPredefinedNode(context);
+
+            // Create an Object instance whose TypeDefinitionId points to the DerivedType
+            var instance = new BaseObjectState(null)
+            {
+                NodeId = new NodeId("DerivedInstance", nsIdx),
+                BrowseName = new QualifiedName("DerivedInstance", nsIdx),
+                TypeDefinitionId = derivedType.NodeId
+            };
+            instance.CreateAsPredefinedNode(context);
+
+            // Register the ObjectType nodes via AddPredefinedNodeAsync (not AddNodeAsync, which requires BaseInstanceState)
+            await manager.AddPredefinedNodePublicAsync(context, baseType).ConfigureAwait(false);
+            await manager.AddPredefinedNodePublicAsync(context, derivedType).ConfigureAwait(false);
+            await manager.AddNodeAsync(context, default, instance).ConfigureAwait(false);
+
+            // Register the type hierarchy in the TypeTree
+            m_mockServer.Object.TypeTree.AddSubtype(baseType.NodeId, NodeId.Null);
+            m_mockServer.Object.TypeTree.AddSubtype(derivedType.NodeId, baseType.NodeId);
+
+            var request = new CallMethodRequest
+            {
+                ObjectId = instance.NodeId,
+                MethodId = baseMethod.NodeId,
+                InputArguments = []
+            };
+
+            var requests = new List<CallMethodRequest> { request };
+            var results = new List<CallMethodResult> { null };
+            var errors = new List<ServiceResult> { null };
+            var operationContext = new OperationContext(new RequestHeader(), null, RequestType.Call, RequestLifetime.None);
+
+            // Act
+            await manager.CallAsync(operationContext, requests, results, errors).ConfigureAwait(false);
+
+            // Assert: method from the super type should be resolved and invoked
+            Assert.That(ServiceResult.IsGood(errors[0]), Is.True);
+            Assert.That(results[0].OutputArguments.Count, Is.EqualTo(1));
+            Assert.That(results[0].OutputArguments[0].GetInt32(), Is.EqualTo(99));
+
+            // Verify the sync path too
+            var syncManager = (INodeManager3)manager.SyncNodeManager;
+            var syncRequests = new List<CallMethodRequest>
+            {
+                new() { ObjectId = instance.NodeId, MethodId = baseMethod.NodeId, InputArguments = [] }
+            };
+            var syncResults = new List<CallMethodResult> { null };
+            var syncErrors = new List<ServiceResult> { null };
+            syncManager.Call(operationContext, syncRequests, syncResults, syncErrors);
+
+            Assert.That(ServiceResult.IsGood(syncErrors[0]), Is.True);
+            Assert.That(syncResults[0].OutputArguments[0].GetInt32(), Is.EqualTo(99));
         }
 
         [Test]
@@ -2450,7 +2666,8 @@ namespace Opc.Ua.Server.Tests
             manager.SetNamespacesPublic(newNs);
             ushort newIdx = manager.NamespaceIndexes[0];
 
-            NodeId generated = manager.New(manager.SystemContext, new BaseObjectState(null));
+            var tempNode = new BaseObjectState(null);
+            NodeId generated = manager.New(manager.SystemContext, tempNode);
 
             Assert.That(generated.NamespaceIndex, Is.EqualTo(newIdx));
         }
@@ -2735,9 +2952,10 @@ namespace Opc.Ua.Server.Tests
         {
             using TestableAsyncCustomNodeManager manager = CreateManager();
 
+            var varState = new BaseDataVariableState(null);
             AsyncCustomNodeManager.ValidateMonitoringFilterResult result = await manager.ValidateMonitoringFilterPublicAsync(
                 manager.SystemContext,
-                new NodeHandle(new NodeId("N", manager.NamespaceIndexes[0]), new BaseDataVariableState(null)),
+                new NodeHandle(new NodeId("N", manager.NamespaceIndexes[0]), varState),
                 Attributes.Value,
                 100,
                 10,
@@ -2773,7 +2991,8 @@ namespace Opc.Ua.Server.Tests
         {
             using TestableAsyncCustomNodeManager manager = CreateManager();
             ushort nsIdx = manager.NamespaceIndexes[0];
-            var handle = new NodeHandle(new NodeId("V", nsIdx), new BaseDataVariableState(null));
+            var varState = new BaseDataVariableState(null);
+            var handle = new NodeHandle(new NodeId("V", nsIdx), varState);
             var filter = new ExtensionObject(new AggregateFilter
             {
                 AggregateType = ObjectIds.Server,
@@ -2799,8 +3018,9 @@ namespace Opc.Ua.Server.Tests
             using TestableAsyncCustomNodeManager manager = CreateManager();
             ushort nsIdx = manager.NamespaceIndexes[0];
             var unsupportedAggregateId = new NodeId("UnsupportedAggregate", nsIdx);
-            CreateAndSetupAggregateManager();
-            var handle = new NodeHandle(new NodeId("V", nsIdx), new BaseDataVariableState(null));
+            using AggregateManager aggregateManager = CreateAndSetupAggregateManager();
+            var varState = new BaseDataVariableState(null);
+            var handle = new NodeHandle(new NodeId("V", nsIdx), varState);
             var filter = new ExtensionObject(new AggregateFilter
             {
                 AggregateType = unsupportedAggregateId,
@@ -2826,8 +3046,9 @@ namespace Opc.Ua.Server.Tests
             using TestableAsyncCustomNodeManager manager = CreateManager();
             ushort nsIdx = manager.NamespaceIndexes[0];
             var supportedAggregateId = new NodeId("SupportedAggregate", nsIdx);
-            CreateAndSetupAggregateManager(supportedAggregateId);
-            var handle = new NodeHandle(new NodeId("V", nsIdx), new BaseDataVariableState(null));
+            using AggregateManager aggregateManager = CreateAndSetupAggregateManager(supportedAggregateId);
+            var varState = new BaseDataVariableState(null);
+            var handle = new NodeHandle(new NodeId("V", nsIdx), varState);
             var filter = new ExtensionObject(new AggregateFilter
             {
                 AggregateType = supportedAggregateId,
@@ -2856,8 +3077,9 @@ namespace Opc.Ua.Server.Tests
             using TestableAsyncCustomNodeManager manager = CreateManager();
             ushort nsIdx = manager.NamespaceIndexes[0];
             var supportedAggregateId = new NodeId("SupportedAggregate", nsIdx);
-            CreateAndSetupAggregateManager(supportedAggregateId, minimumProcessingInterval: 50);
-            var handle = new NodeHandle(new NodeId("V", nsIdx), new BaseDataVariableState(null));
+            using AggregateManager aggregateManager = CreateAndSetupAggregateManager(supportedAggregateId, minimumProcessingInterval: 50);
+            var varState = new BaseDataVariableState(null);
+            var handle = new NodeHandle(new NodeId("V", nsIdx), varState);
             var filter = new ExtensionObject(new AggregateFilter
             {
                 AggregateType = supportedAggregateId,
@@ -2886,8 +3108,9 @@ namespace Opc.Ua.Server.Tests
             ushort nsIdx = manager.NamespaceIndexes[0];
             var supportedAggregateId = new NodeId("SupportedAggregate", nsIdx);
             const double minimumProcessingInterval = 500;
-            CreateAndSetupAggregateManager(supportedAggregateId, minimumProcessingInterval);
-            var handle = new NodeHandle(new NodeId("V", nsIdx), new BaseDataVariableState(null));
+            using AggregateManager aggregateManager = CreateAndSetupAggregateManager(supportedAggregateId, minimumProcessingInterval);
+            var varState = new BaseDataVariableState(null);
+            var handle = new NodeHandle(new NodeId("V", nsIdx), varState);
             var filter = new ExtensionObject(new AggregateFilter
             {
                 AggregateType = supportedAggregateId,
@@ -2915,8 +3138,9 @@ namespace Opc.Ua.Server.Tests
             using TestableAsyncCustomNodeManager manager = CreateManager();
             ushort nsIdx = manager.NamespaceIndexes[0];
             var supportedAggregateId = new NodeId("SupportedAggregate", nsIdx);
-            CreateAndSetupAggregateManager(supportedAggregateId);
-            var handle = new NodeHandle(new NodeId("V", nsIdx), new BaseDataVariableState(null));
+            using AggregateManager aggregateManager = CreateAndSetupAggregateManager(supportedAggregateId);
+            var varState = new BaseDataVariableState(null);
+            var handle = new NodeHandle(new NodeId("V", nsIdx), varState);
             var filter = new ExtensionObject(new AggregateFilter
             {
                 AggregateType = supportedAggregateId,
@@ -2981,7 +3205,7 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public async Task ValidateMonitoringFilterAsyncDataChangeFilterDeadbandNoneOnNumericVariableReturnsBadFilterNotAllowedAsync()
+        public async Task ValidateMonitoringFilterAsyncDataChangeFilterDeadbandNoneOnNumericVariableReturnsSuccessAsync()
         {
             using TestableAsyncCustomNodeManager manager = CreateManager();
             SetupNumericTypeTree();
@@ -2998,7 +3222,7 @@ namespace Opc.Ua.Server.Tests
                 10,
                 filter).ConfigureAwait(false);
 
-            Assert.That((uint)result.StatusCode, Is.EqualTo(StatusCodes.BadFilterNotAllowed));
+            Assert.That((uint)result.StatusCode, Is.EqualTo(StatusCodes.Good));
         }
 
         [Test]

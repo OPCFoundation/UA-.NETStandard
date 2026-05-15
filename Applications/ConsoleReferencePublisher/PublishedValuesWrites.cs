@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Threading;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
@@ -37,7 +36,7 @@ using Opc.Ua.PubSub;
 
 namespace Quickstarts.ConsoleReferencePublisher
 {
-    internal sealed class PublishedValuesWrites
+    internal sealed class PublishedValuesWrites : IDisposable
     {
         /// <summary>
         /// It should match the namespace index from configuration file
@@ -433,7 +432,7 @@ namespace Quickstarts.ConsoleReferencePublisher
                     }
                     else if (variable.ValueRank == ValueRanks.OneDimension)
                     {
-                        if (dataValue.WrappedValue.TryGet(out ArrayOf<uint> values))
+                        if (dataValue.WrappedValue.TryGetValue(out ArrayOf<uint> values))
                         {
                             var valuesList = values.ToList();
                             for (int i = 0; i < values.Count; i++)

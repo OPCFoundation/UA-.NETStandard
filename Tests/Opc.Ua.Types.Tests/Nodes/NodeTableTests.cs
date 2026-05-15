@@ -58,7 +58,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             m_nodeTable = new NodeTable(m_namespaceTable, m_serverTable, m_typeTable);
         }
 
-        private Node CreateNode(uint id, string name = null)
+        private static Node CreateNode(uint id, string name = null)
         {
             name ??= $"Node{id}";
             return new Node

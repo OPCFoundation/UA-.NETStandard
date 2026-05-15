@@ -61,9 +61,11 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                     { 17, 18, 19 }
                 }
             };
+#pragma warning disable CS0618 // Type or member is obsolete
             var matrix = new Matrix(
                 testArray,
                 TypeInfo.GetBuiltInType(new NodeId((int)BuiltInType.Int32)));
+#pragma warning restore CS0618 // Type or member is obsolete
             var toArray = matrix.ToArray();
             Assert.That(toArray, Is.EqualTo(testArray));
             Assert.That(CoreUtils.IsEqual(testArray, toArray), Is.True);

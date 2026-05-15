@@ -59,7 +59,7 @@ namespace Opc.Ua.Server.Tests
                         MaxDurableNotificationQueueSize = 100
                     }
                 };
-                var nodeManager = new CoreNodeManager(server.CurrentInstance, config);
+                using var nodeManager = new CoreNodeManager(server.CurrentInstance, config);
                 await nodeManager.CreateAddressSpaceAsync(new Dictionary<NodeId, IList<IReference>>()).ConfigureAwait(false);
 
                 // Create a node in Namespace 0 that also exists in DiagnosticsNodeManager (e.g. Server Object)

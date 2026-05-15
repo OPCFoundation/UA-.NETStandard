@@ -35,7 +35,7 @@ namespace Opc.Ua
     /// <summary>
     /// Permission type
     /// </summary>
-    [DataContract(Namespace = Namespaces.OpcUaXsd)]
+    [DataContract(Namespace = Types.Namespaces.OpcUaXsd)]
     [Flags]
     public enum PermissionType : uint
     {

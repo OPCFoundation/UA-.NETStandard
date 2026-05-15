@@ -51,12 +51,23 @@ namespace Opc.Ua.Security.Certificates.Tests
     {
         public const string Subject = "CN=Test Cert Subject, O=OPC Foundation";
 
+        /// <summary>
+        /// Note: these are intentionally backed by lazy fields so that
+        /// referencing the type from another assembly (e.g.
+        /// Opc.Ua.Core.Tests.Security.Certificates.CertificateValidatorTest
+        /// accesses GetECCurveHashPairs) does not trigger Certificate
+        /// allocations whose disposal depends on this fixture's
+        /// OneTimeTearDown — that teardown only fires when this fixture
+        /// is the one being executed.
+        /// </summary>
+        private static readonly Lazy<CertificateAsset[]> s_certificateTestCases
+            = new(() => [
+                .. AssetCollection<CertificateAsset>.CreateFromFiles(
+                    TestUtils.EnumerateTestAssets("*.?er"))
+            ]);
+
         [DatapointSource]
-        public static readonly CertificateAsset[] CertificateTestCases =
-        [
-            .. AssetCollection<CertificateAsset>.CreateFromFiles(
-                TestUtils.EnumerateTestAssets("*.?er"))
-        ];
+        public static CertificateAsset[] CertificateTestCases => s_certificateTestCases.Value;
 
         [DatapointSource]
         public static readonly ECCurveHashPair[] ECCurveHashPairs = GetECCurveHashPairs();
@@ -81,6 +92,13 @@ namespace Opc.Ua.Security.Certificates.Tests
         [OneTimeTearDown]
         protected void OneTimeTearDown()
         {
+            if (s_certificateTestCases.IsValueCreated)
+            {
+                foreach (CertificateAsset asset in s_certificateTestCases.Value)
+                {
+                    asset?.Dispose();
+                }
+            }
         }
 
         /// <summary>
@@ -103,7 +121,7 @@ namespace Opc.Ua.Security.Certificates.Tests
                     continue;
                 }
 
-                using X509Certificate2 cert = builder
+                using Certificate cert = builder
                     .SetHashAlgorithm(eCCurveHash.HashAlgorithmName)
                     .SetECCurve(eCCurveHash.Curve)
                     .CreateForECDsa();
@@ -130,7 +148,7 @@ namespace Opc.Ua.Security.Certificates.Tests
         public void CreateSelfSignedForECDsaDefaultTest(ECCurveHashPair eccurveHashPair)
         {
             // default cert
-            X509Certificate2 cert = CertificateBuilder
+            using Certificate cert = CertificateBuilder
                 .Create(Subject)
                 .SetECCurve(eccurveHashPair.Curve)
                 .CreateForECDsa();
@@ -169,7 +187,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             // set dates and extension
             const string applicationUri = "urn:opcfoundation.org:mypc";
             string[] domains = ["mypc", "mypc.opcfoundation.org", "192.168.1.100"];
-            X509Certificate2 cert = CertificateBuilder
+            using Certificate cert = CertificateBuilder
                 .Create(Subject)
                 .SetNotBefore(DateTime.Today.AddYears(-1))
                 .SetNotAfter(DateTime.Today.AddYears(25))
@@ -207,7 +225,7 @@ namespace Opc.Ua.Security.Certificates.Tests
         public void CreateCACertForECDsa(ECCurveHashPair ecCurveHashPair)
         {
             // create a CA cert
-            X509Certificate2 cert = CertificateBuilder
+            using Certificate cert = CertificateBuilder
                 .Create(Subject)
                 .SetCAConstraint()
                 .SetHashAlgorithm(ecCurveHashPair.HashAlgorithmName)
@@ -250,8 +268,8 @@ namespace Opc.Ua.Security.Certificates.Tests
                 .SetECCurve(eccurve);
 
             // ensure every cert has a different serial number
-            X509Certificate2 cert1 = builder.CreateForECDsa();
-            X509Certificate2 cert2 = builder.CreateForECDsa();
+            using Certificate cert1 = builder.CreateForECDsa();
+            using Certificate cert2 = builder.CreateForECDsa();
             WriteCertificate(cert1, "Cert1 with max length serial number");
             WriteCertificate(cert2, "Cert2 with max length serial number");
             Assert.That(
@@ -288,16 +306,16 @@ namespace Opc.Ua.Security.Certificates.Tests
 
             serial[^1] &= 0x7f;
             Assert.That(builder.GetSerialNumber(), Is.EqualTo(serial));
-            X509Certificate2 cert1 = builder.SetECCurve(eccurve).CreateForECDsa();
+            using Certificate cert1 = builder.SetECCurve(eccurve).CreateForECDsa();
             WriteCertificate(cert1, "Cert1 with max length serial number");
             TestContext.Out.WriteLine($"Serial: {serial.ToHexString(true)}");
             Assert.That(cert1.GetSerialNumber(), Is.EqualTo(serial));
-            Assert.That(cert1.GetSerialNumber().Length, Is.EqualTo(X509Defaults.SerialNumberLengthMax));
+            Assert.That(cert1.GetSerialNumber(), Has.Length.EqualTo(X509Defaults.SerialNumberLengthMax));
 
             // clear sign bit
             builder.SetSerialNumberLength(X509Defaults.SerialNumberLengthMax);
 
-            X509Certificate2 cert2 = builder.SetECCurve(eccurve).CreateForECDsa();
+            using Certificate cert2 = builder.SetECCurve(eccurve).CreateForECDsa();
             WriteCertificate(cert2, "Cert2 with max length serial number");
             TestContext.Out.WriteLine($"Serial: {cert2.SerialNumber}");
             Assert.That(
@@ -310,7 +328,7 @@ namespace Opc.Ua.Security.Certificates.Tests
         public void CreateForECDsaWithGeneratorTest(ECCurveHashPair ecCurveHashPair)
         {
             // default signing cert with custom key
-            X509Certificate2 signingCert = CertificateBuilder
+            using Certificate signingCert = CertificateBuilder
                 .Create(Subject)
                 .SetCAConstraint()
                 .SetHashAlgorithm(HashAlgorithmName.SHA512)
@@ -324,9 +342,10 @@ namespace Opc.Ua.Security.Certificates.Tests
             using (ECDsa ecdsaPrivateKey = signingCert.GetECDsaPrivateKey())
             {
                 var generator = X509SignatureGenerator.CreateForECDsa(ecdsaPrivateKey);
-                X509Certificate2 cert = CertificateBuilder
+                using var issuer = Certificate.FromRawData(signingCert.RawData);
+                using Certificate cert = CertificateBuilder
                     .Create("CN=App Cert")
-                    .SetIssuer(CertificateFactory.Create(signingCert.RawData))
+                    .SetIssuer(issuer)
                     .CreateForRSA(generator);
                 Assert.That(cert, Is.Not.Null);
                 WriteCertificate(cert, "Default signed ECDsa cert");
@@ -336,10 +355,11 @@ namespace Opc.Ua.Security.Certificates.Tests
             using (ECDsa ecdsaPublicKey = signingCert.GetECDsaPublicKey())
             {
                 var generator = X509SignatureGenerator.CreateForECDsa(ecdsaPrivateKey);
-                X509Certificate2 cert = CertificateBuilder
+                using var issuer = Certificate.FromRawData(signingCert.RawData);
+                using Certificate cert = CertificateBuilder
                     .Create("CN=App Cert")
                     .SetHashAlgorithm(ecCurveHashPair.HashAlgorithmName)
-                    .SetIssuer(CertificateFactory.Create(signingCert.RawData))
+                    .SetIssuer(issuer)
                     .SetECDsaPublicKey(ecdsaPublicKey)
                     .CreateForECDsa(generator);
                 Assert.That(cert, Is.Not.Null);
@@ -349,10 +369,11 @@ namespace Opc.Ua.Security.Certificates.Tests
             using (ECDsa ecdsaPrivateKey = signingCert.GetECDsaPrivateKey())
             {
                 var generator = X509SignatureGenerator.CreateForECDsa(ecdsaPrivateKey);
-                X509Certificate2 cert = CertificateBuilder
+                using var issuer = Certificate.FromRawData(signingCert.RawData);
+                using Certificate cert = CertificateBuilder
                     .Create("CN=App Cert")
                     .SetHashAlgorithm(ecCurveHashPair.HashAlgorithmName)
-                    .SetIssuer(CertificateFactory.Create(signingCert.RawData))
+                    .SetIssuer(issuer)
                     .SetECCurve(ecCurveHashPair.Curve)
                     .CreateForECDsa(generator);
                 Assert.That(cert, Is.Not.Null);
@@ -365,7 +386,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             {
                 using ECDsa ecdsaPrivateKey = signingCert.GetECDsaPrivateKey();
                 var generator = X509SignatureGenerator.CreateForECDsa(ecdsaPrivateKey);
-                X509Certificate2 cert = CertificateBuilder
+                using Certificate cert = CertificateBuilder
                     .Create("CN=App Cert")
                     .SetHashAlgorithm(ecCurveHashPair.HashAlgorithmName)
                     .SetECCurve(ecCurveHashPair.Curve)
@@ -377,7 +398,7 @@ namespace Opc.Ua.Security.Certificates.Tests
         public void SetECDsaPublicKeyByteArray(ECCurveHashPair ecCurveHashPair)
         {
             // default signing cert with custom key
-            X509Certificate2 signingCert = CertificateBuilder
+            using Certificate signingCert = CertificateBuilder
                 .Create(Subject)
                 .SetCAConstraint()
                 .SetHashAlgorithm(HashAlgorithmName.SHA512)
@@ -393,17 +414,18 @@ namespace Opc.Ua.Security.Certificates.Tests
             byte[] pubKeyBytes = GetPublicKey(ecdsaPublicKey);
 
             var generator = X509SignatureGenerator.CreateForECDsa(ecdsaPrivateKey);
-            X509Certificate2 cert = CertificateBuilder
+            using var issuer = Certificate.FromRawData(signingCert.RawData);
+            using Certificate cert = CertificateBuilder
                 .Create("CN=App Cert")
                 .SetHashAlgorithm(ecCurveHashPair.HashAlgorithmName)
-                .SetIssuer(CertificateFactory.Create(signingCert.RawData))
+                .SetIssuer(issuer)
                 .SetECDsaPublicKey(pubKeyBytes)
                 .CreateForECDsa(generator);
             Assert.That(cert, Is.Not.Null);
             WriteCertificate(cert, "Default signed ECDsa cert with Public Key");
         }
 
-        private static void WriteCertificate(X509Certificate2 cert, string message)
+        private static void WriteCertificate(Certificate cert, string message)
         {
             TestContext.Out.WriteLine(message);
             TestContext.Out.WriteLine(cert);
@@ -414,7 +436,7 @@ namespace Opc.Ua.Security.Certificates.Tests
         }
 
         private static void CheckPEMWriterReader(
-            X509Certificate2 certificate,
+            Certificate certificate,
             ReadOnlySpan<char> password = default)
         {
             PEMWriter.ExportCertificateAsPEM(certificate);
@@ -478,7 +500,7 @@ namespace Opc.Ua.Security.Certificates.Tests
                 }
                 finally
                 {
-                    Utils.SilentDispose(key);
+                    key?.Dispose();
                 }
                 i++;
             }

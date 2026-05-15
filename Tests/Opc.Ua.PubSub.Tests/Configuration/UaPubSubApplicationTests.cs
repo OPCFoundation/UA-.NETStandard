@@ -80,7 +80,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             // Arrange
-            UaPubSubApplication uaPubSubApplication = UaPubSubApplication.Create(m_pubSubConfiguration, telemetry);
+            using var uaPubSubApplication = UaPubSubApplication.Create(m_pubSubConfiguration, telemetry);
 
             // Assert
             Assert.That(
@@ -92,8 +92,8 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                 Is.EqualTo(3),
                 "uaPubSubApplication.PubSubConnections count");
             var connection = uaPubSubApplication.PubSubConnections[0] as UaPubSubConnection;
-            Assert.That(connection.Publishers, Is.Not.EqualTo(null), "connection.Publishers is null");
-            Assert.That(connection.Publishers.Count, Is.EqualTo(1), "connection.Publishers count is not 2");
+            Assert.That(connection.Publishers, Is.Not.Null, "connection.Publishers is null");
+            Assert.That(connection.Publishers, Has.Count.EqualTo(1), "connection.Publishers count is not 2");
             int index = 0;
             foreach (IUaPublisher publisher in connection.Publishers)
             {

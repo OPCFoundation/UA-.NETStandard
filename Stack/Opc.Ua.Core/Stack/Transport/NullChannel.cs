@@ -29,10 +29,10 @@
 
 #nullable enable
 
-using Opc.Ua.Bindings;
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua.Bindings;
 
 namespace Opc.Ua
 {
@@ -41,6 +41,10 @@ namespace Opc.Ua
     /// </summary>
     internal sealed class NullChannel : ITransportChannel, ISecureChannel
     {
+        /// <inheritdoc/>
+        public ChannelToken CurrentToken
+           => throw Unexpected(nameof(CurrentToken));
+
         /// <inheritdoc/>
         public TransportChannelFeatures SupportedFeatures
             => throw Unexpected(nameof(SupportedFeatures));
@@ -58,8 +62,16 @@ namespace Opc.Ua
             => throw Unexpected(nameof(MessageContext));
 
         /// <inheritdoc/>
-        public ChannelToken CurrentToken
-            => throw Unexpected(nameof(CurrentToken));
+        public byte[] ChannelThumbprint
+            => throw Unexpected(nameof(ChannelThumbprint));
+
+        /// <inheritdoc/>
+        public byte[] ClientChannelCertificate
+            => throw Unexpected(nameof(ClientChannelCertificate));
+
+        /// <inheritdoc/>
+        public byte[] ServerChannelCertificate
+            => throw Unexpected(nameof(ServerChannelCertificate));
 
         /// <inheritdoc/>
         public int OperationTimeout { get; set; }

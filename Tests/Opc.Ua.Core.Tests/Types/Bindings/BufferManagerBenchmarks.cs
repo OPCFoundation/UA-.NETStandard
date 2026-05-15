@@ -221,7 +221,7 @@ namespace Opc.Ua.Core.Tests.Stack.Bindings
         /// Set up some variables for benchmarks.
         /// </summary>
         [GlobalSetup]
-        private void GlobalSetup()
+        public void GlobalSetup()
         {
             m_bufferArray = new byte[Allocations][];
             m_arrayPoolTooSmall = ArrayPool<byte>.Create(BufferSize, BucketSize);
@@ -235,7 +235,7 @@ namespace Opc.Ua.Core.Tests.Stack.Bindings
         /// Tear down benchmark variables.
         /// </summary>
         [GlobalCleanup]
-        private void GlobalCleanup()
+        public void GlobalCleanup()
         {
             m_arrayPoolTooSmall = null;
             m_arrayPool = null;

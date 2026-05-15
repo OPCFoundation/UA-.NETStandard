@@ -32,7 +32,9 @@
 namespace Opc.Ua
 {
     /// <summary>
-    /// Type is nullable
+    /// Type is nullable in the OPC UA type system. This is used
+    /// to support null values for value types and to represent
+    /// the logical absence of a value.
     /// </summary>
     public interface INullable
     {

@@ -34,12 +34,12 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Security;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Bindings
 {
@@ -56,9 +56,9 @@ namespace Opc.Ua.Bindings
             BufferManager bufferManager,
             IMessageSocketFactory socketFactory,
             ChannelQuotas quotas,
-            X509Certificate2 clientCertificate,
-            X509Certificate2Collection clientCertificateChain,
-            X509Certificate2 serverCertificate,
+            Certificate clientCertificate,
+            CertificateCollection clientCertificateChain,
+            Certificate serverCertificate,
             EndpointDescription endpoint,
             ITelemetryContext telemetry)
             : base(
@@ -125,11 +125,12 @@ namespace Opc.Ua.Bindings
             {
                 OnTokenActivated = null;
 
-                Utils.SilentDispose(m_handshakeTimer);
+                m_handshakeTimer?.Dispose();
                 m_handshakeTimer = null;
-                Utils.SilentDispose(m_requestedToken);
+                m_requestedToken?.Dispose();
                 m_requestedToken = null;
                 m_requests?.Clear();
+                m_handshakeOperation?.Dispose();
                 m_handshakeOperation = null;
             }
 
@@ -551,6 +552,11 @@ namespace Opc.Ua.Bindings
             ChannelToken token = CreateToken();
             token.ClientNonce = CreateNonce(ClientCertificate);
 
+            if (renew)
+            {
+                token.PreviousSecret = CurrentToken?.Secret;
+            }
+
             // construct the request.
             var request = new OpenSecureChannelRequest();
             request.RequestHeader.Timestamp = DateTime.UtcNow;
@@ -565,6 +571,11 @@ namespace Opc.Ua.Bindings
             // encode the request.
             byte[] buffer = BinaryEncoder.EncodeMessage(request, Quotas.MessageContext);
 
+            ClientChannelCertificate = ClientCertificate?.RawData;
+            ServerChannelCertificate = ServerCertificate?.RawData;
+
+            m_oscRequestSignature = null;
+
             // write the asymmetric message.
             BufferCollection? chunksToSend = WriteAsymmetricMessage(
                 TcpMessageType.Open,
@@ -572,7 +583,12 @@ namespace Opc.Ua.Bindings
                 ClientCertificate,
                 ClientCertificateChain,
                 ServerCertificate,
-                new ArraySegment<byte>(buffer, 0, buffer.Length));
+                new ArraySegment<byte>(buffer, 0, buffer.Length),
+                m_oscRequestSignature,
+                out byte[] signature);
+
+            // don't keep signature if secure channel enhancements are not used.
+            m_oscRequestSignature = SecurityPolicy.SecureChannelEnhancements ? signature : null;
 
             // save token.
             m_requestedToken = token;
@@ -620,10 +636,8 @@ namespace Opc.Ua.Bindings
             // parse the security header.
             uint channelId;
 
-            X509Certificate2 serverCertificate;
-
+            Certificate? serverCertificate = null;
             uint requestId;
-
             uint sequenceNumber;
             try
             {
@@ -633,10 +647,23 @@ namespace Opc.Ua.Bindings
                     out channelId,
                     out serverCertificate,
                     out requestId,
-                    out sequenceNumber);
+                    out sequenceNumber,
+                    State == TcpChannelState.Opening ? m_oscRequestSignature : null,
+                    out byte[] signature);
+
+                if (State == TcpChannelState.Opening)
+                {
+                    ChannelThumbprint = signature;
+                }
             }
             catch (Exception e)
             {
+                // CA1508: serverCertificate is assigned via out param before this catch — the analyzer's
+                // null-flow does not track that path. Defensive null check kept on purpose.
+#pragma warning disable CA1508
+                serverCertificate?.Dispose();
+#pragma warning restore CA1508
+
                 m_logger.LogDebug(e,
                    "ChannelId {ChannelId}: Could not verify security on OpenSecureChannel response",
                    ChannelId);
@@ -748,6 +775,11 @@ namespace Opc.Ua.Bindings
             }
             finally
             {
+                // CA1508: serverCertificate is assigned via out param earlier — the analyzer's
+                // null-flow does not track that path. Defensive null check kept on purpose.
+#pragma warning disable CA1508
+                serverCertificate?.Dispose();
+#pragma warning restore CA1508
                 chunksToProcess?.Release(BufferManager, "ProcessOpenSecureChannelResponse");
             }
 
@@ -922,7 +954,7 @@ namespace Opc.Ua.Bindings
                 }
                 catch (Exception ex)
                 {
-                    ServiceResult fault = ServiceResult.Create(
+                    var fault = ServiceResult.Create(
                         ex,
                         StatusCodes.BadTcpInternalError,
                         "An unexpected error occurred while connecting to the server.");
@@ -996,7 +1028,7 @@ namespace Opc.Ua.Bindings
                     State = TcpChannelState.Closed;
 
                     // Discard the current handshake timer
-                    Utils.SilentDispose(m_handshakeTimer);
+                    m_handshakeTimer?.Dispose();
                     m_handshakeTimer = null;
 
                     // dispose of the tokens.
@@ -1201,16 +1233,13 @@ namespace Opc.Ua.Bindings
         /// <exception cref="ServiceResultException"></exception>
         private IServiceResponse ParseResponse(BufferCollection chunksToProcess)
         {
-            IServiceResponse response = BinaryDecoder.DecodeMessage<IServiceResponse>(
-                new ArraySegmentStream(chunksToProcess),
-                Quotas.MessageContext);
-            if (response == null)
-            {
+            using var responseStream = new ArraySegmentStream(chunksToProcess);
+            return BinaryDecoder.DecodeMessage<IServiceResponse>(
+                responseStream,
+                Quotas.MessageContext) ??
                 throw ServiceResultException.Create(
                     StatusCodes.BadStructureMissing,
                     "Could not parse response body.");
-            }
-            return response;
         }
 
         /// <summary>
@@ -1263,7 +1292,7 @@ namespace Opc.Ua.Bindings
 
                 // clear the handshake state.
                 m_handshakeOperation = null;
-                Utils.SilentDispose(m_requestedToken);
+                m_requestedToken?.Dispose();
                 m_requestedToken = null;
                 m_reconnecting = false;
 
@@ -1324,15 +1353,12 @@ namespace Opc.Ua.Bindings
                 SaveIntermediateChunk(0, new ArraySegment<byte>(), false);
 
                 // halt any scheduled tasks.
-                if (m_handshakeTimer != null)
-                {
-                    Utils.SilentDispose(m_handshakeTimer);
-                    m_handshakeTimer = null;
-                }
+                m_handshakeTimer?.Dispose();
+                m_handshakeTimer = null;
 
                 // clear the handshake state.
                 m_handshakeOperation = null;
-                Utils.SilentDispose(m_requestedToken);
+                m_requestedToken?.Dispose();
                 m_requestedToken = null;
                 m_reconnecting = true;
 
@@ -1380,11 +1406,8 @@ namespace Opc.Ua.Bindings
             }
 
             // cancel any outstanding renew operations.
-            if (m_handshakeTimer != null)
-            {
-                Utils.SilentDispose(m_handshakeTimer);
-                m_handshakeTimer = null;
-            }
+            m_handshakeTimer?.Dispose();
+            m_handshakeTimer = null;
 
             // calculate renewal timing based on token lifetime + jitter. Do not rely on the server time!
             int jitterResolution = (int)Math.Round(
@@ -1752,5 +1775,6 @@ namespace Opc.Ua.Bindings
         private List<QueuedOperation>? m_queuedOperations;
         private readonly ILogger m_logger;
         private readonly ITelemetryContext m_telemetry;
+        private byte[]? m_oscRequestSignature;
     }
 }

@@ -71,26 +71,49 @@ namespace Opc.Ua.SourceGeneration
             IncrementalValueProvider<CompilationOptions> settings =
                 context.CompilationProvider
                     .Select((c, _) => CompilationOptions.From(c));
+            IncrementalValueProvider<ImmutableArray<ModelDependencyReference>> referencedModels =
+                context.CompilationProvider
+                    .Select((c, _) => ReferencedModelDependencyScanner.Scan(c));
+
+            IncrementalValueProvider<ImmutableArray<NodeManagerAttributeDiscovery>> nodeManagerBindings =
+                context.SyntaxProvider.ForAttributeWithMetadataName(
+                    "Opc.Ua.Server.Fluent.NodeManagerAttribute",
+                    static (node, ct) => NodeManagerAttributeDiscovery.Handles(node, ct),
+                    static (ctx, ct) => NodeManagerAttributeDiscovery.Create(ctx, ct))
+                .Where(static m => m is not null)
+                .Collect();
 
             context.RegisterSourceOutput(
                 inputFiles
                     .Combine(identiferFile)
                     .Combine(options)
-                    .Combine(settings),
+                    .Combine(settings)
+                    .Combine(referencedModels)
+                    .Combine(nodeManagerBindings),
                 (context, combination) => new ModelCompilation(
                     context,
-                    combination.Left.Left.Left,
+                    combination.Left.Left.Left.Left.Left,
+                    combination.Left.Left.Left.Left.Right,
+                    combination.Left.Left.Left.Right,
                     combination.Left.Left.Right,
                     combination.Left.Right,
                     combination.Right,
                     Logger).Emit(context.CancellationToken));
 
+            IncrementalValueProvider<bool> publicDataTypeExtensions =
+                context.AnalyzerConfigOptionsProvider
+                    .Select((p, _) => p.GlobalOptions.GetBool(
+                        "PublicDataTypeExtensions"));
+
             context.RegisterSourceOutput(context.SyntaxProvider.ForAttributeWithMetadataName(
                     "Opc.Ua.DataTypeAttribute",
                     static (node, ct) => DataTypeCompilation.Handles(node, ct),
                     static (context, ct) => new DataTypeCompilation(context, ct))
-                .Where(static m => m is not null),
-                static (spc, source) => source.Emit(spc));
+                .Where(static m => m is not null)
+                .Collect()
+                .Combine(publicDataTypeExtensions),
+                static (spc, pair) => DataTypeCompilation.EmitBatch(
+                    spc, pair.Left, pair.Right));
         }
     }
 }

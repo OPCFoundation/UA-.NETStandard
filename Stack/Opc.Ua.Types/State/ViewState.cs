@@ -86,14 +86,6 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public override object Clone()
-        {
-            var clone = (ViewState)Activator.CreateInstance(GetType());
-            CopyTo(clone);
-            return clone;
-        }
-
-        /// <inheritdoc/>
         public override bool DeepEquals(NodeState node)
         {
             if (node is not ViewState state)
@@ -125,6 +117,12 @@ namespace Opc.Ua
                 state.ContainsNoLoops = ContainsNoLoops;
             }
             base.CopyTo(target);
+        }
+
+        /// <inheritdoc/>
+        protected override NodeState CreateCopy()
+        {
+            return new ViewState();
         }
 
         /// <summary>
@@ -377,7 +375,7 @@ namespace Opc.Ua
             switch (attributeId)
             {
                 case Attributes.EventNotifier:
-                    if (!value.TryGet(out byte eventNotifier))
+                    if (!value.TryGetValue(out byte eventNotifier))
                     {
                         return StatusCodes.BadTypeMismatch;
                     }
@@ -401,7 +399,7 @@ namespace Opc.Ua
 
                     return result;
                 case Attributes.ContainsNoLoops:
-                    if (!value.TryGet(out bool containsNoLoops))
+                    if (!value.TryGetValue(out bool containsNoLoops))
                     {
                         return StatusCodes.BadTypeMismatch;
                     }

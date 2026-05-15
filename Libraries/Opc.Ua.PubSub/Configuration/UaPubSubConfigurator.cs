@@ -146,6 +146,7 @@ namespace Opc.Ua.PubSub.Configuration
 
             PubSubConfiguration = new PubSubConfigurationDataType
             {
+                Enabled = true,
                 Connections = [],
                 PublishedDataSets = []
             };

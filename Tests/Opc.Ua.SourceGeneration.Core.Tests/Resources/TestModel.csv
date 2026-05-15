@@ -353,3 +353,6 @@ SampleUnionAllowSubtypes_Encoding_DefaultJson,352,Object
 SampleStructureAllowSubtypes_Encoding_DefaultJson,353,Object
 Person_Encoding_DefaultJson,354,Object
 Student_Encoding_DefaultJson,355,Object
+RestrictedMethodType,356,Method
+RestrictedMethodType_InputArguments,357,Variable
+RestrictedMethodType_OutputArguments,358,Variable

@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -74,6 +75,8 @@ namespace Opc.Ua
         /// <summary>
         /// Writes the collection to a stream using the NodeSet schema.
         /// </summary>
+        [RequiresUnreferencedCode("Uses DataContractSerializer which might need unreferenced code.")]
+        [RequiresDynamicCode("Uses DataContractSerializer which might need unreferenced code.")]
         public void SaveAsNodeSet(ISystemContext context, Stream ostrm)
         {
             var nodeTable = new NodeTable(context.NamespaceUris, context.ServerUris, null);
@@ -92,7 +95,9 @@ namespace Opc.Ua
 
             XmlWriterSettings settings = CoreUtils.DefaultXmlWriterSettings();
             settings.CloseOutput = true;
+#pragma warning disable CS0618 // Type or member is obsolete
             DataContractSerializer serializer = CoreUtils.CreateDataContractSerializer<NodeSet>();
+#pragma warning restore CS0618 // Type or member is obsolete
             using var writer = XmlWriter.Create(ostrm, settings);
             serializer.WriteObject(writer, nodeSet);
         }
@@ -190,6 +195,49 @@ namespace Opc.Ua
             for (int ii = 0; ii < Count; ii++)
             {
                 nodeSet.Export(context, this[ii], true);
+            }
+
+            // Emit a <Models> block with one <Model> per user namespace referenced by the
+            // exported nodes. The source generator (and other consumers) require the Models
+            // element to identify the namespace(s) declared by the NodeSet file.
+            if (nodeSet.NamespaceUris != null && nodeSet.NamespaceUris.Length > 0)
+            {
+                DateTime publicationDate = lastModified?.ToUniversalTime() ?? DateTime.UtcNow;
+                string modelVersion = string.IsNullOrEmpty(version) ? "1.0.0" : version;
+
+                // Each user namespace declares the OPC UA base namespace as a required
+                // model and any other user namespaces that are referenced by this export.
+                var models = new Export.ModelTableEntry[nodeSet.NamespaceUris.Length];
+                for (int ii = 0; ii < nodeSet.NamespaceUris.Length; ii++)
+                {
+                    string modelUri = nodeSet.NamespaceUris[ii];
+                    var requiredModels = new List<Export.ModelTableEntry>
+                    {
+                        new() { ModelUri = Namespaces.OpcUa }
+                    };
+
+                    for (int jj = 0; jj < nodeSet.NamespaceUris.Length; jj++)
+                    {
+                        if (jj != ii)
+                        {
+                            requiredModels.Add(new Export.ModelTableEntry
+                            {
+                                ModelUri = nodeSet.NamespaceUris[jj]
+                            });
+                        }
+                    }
+
+                    models[ii] = new Export.ModelTableEntry
+                    {
+                        ModelUri = modelUri,
+                        Version = modelVersion,
+                        PublicationDate = publicationDate,
+                        PublicationDateSpecified = true,
+                        RequiredModel = [.. requiredModels]
+                    };
+                }
+
+                nodeSet.Models = models;
             }
 
             nodeSet.Write(ostrm);
@@ -461,14 +509,11 @@ namespace Opc.Ua
             {
                 // try to load from app directory
                 var file = new FileInfo(resourcePath);
-                istrm = file.OpenRead();
-                if (istrm == null)
-                {
+                istrm = file.OpenRead() ??
                     throw ServiceResultException.Create(
                         StatusCodes.BadDecodingError,
                         "Could not load nodes from resource: {0}",
                         resourcePath);
-                }
             }
 
             LoadFromXml(context, istrm, updateTables);
@@ -504,14 +549,11 @@ namespace Opc.Ua
             {
                 // try to load from app directory
                 var file = new FileInfo(resourcePath);
-                istrm = file.OpenRead();
-                if (istrm == null)
-                {
+                istrm = file.OpenRead() ??
                     throw ServiceResultException.Create(
                         StatusCodes.BadDecodingError,
                         "Could not load nodes from resource: {0}",
                         resourcePath);
-                }
             }
 
             LoadFromBinary(context, istrm, updateTables);

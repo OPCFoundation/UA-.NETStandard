@@ -83,14 +83,6 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public override object Clone()
-        {
-            var clone = (ReferenceTypeState)Activator.CreateInstance(GetType());
-            CopyTo(clone);
-            return clone;
-        }
-
-        /// <inheritdoc/>
         public override bool DeepEquals(NodeState node)
         {
             if (node is not ReferenceTypeState state)
@@ -122,6 +114,12 @@ namespace Opc.Ua
                 state.Symmetric = Symmetric;
             }
             base.CopyTo(target);
+        }
+
+        /// <inheritdoc/>
+        protected override NodeState CreateCopy()
+        {
+            return new ReferenceTypeState();
         }
 
         /// <summary>
@@ -382,7 +380,7 @@ namespace Opc.Ua
             {
                 case Attributes.InverseName:
 
-                    if (!value.TryGet(out LocalizedText inverseName))
+                    if (!value.TryGetValue(out LocalizedText inverseName))
                     {
                         if (!value.IsNull)
                         {
@@ -411,7 +409,7 @@ namespace Opc.Ua
 
                     return result;
                 case Attributes.Symmetric:
-                    if (!value.TryGet(out bool symmetric))
+                    if (!value.TryGetValue(out bool symmetric))
                     {
                         return StatusCodes.BadTypeMismatch;
                     }

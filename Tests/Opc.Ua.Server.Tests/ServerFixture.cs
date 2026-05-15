@@ -30,6 +30,7 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Configuration;
@@ -42,7 +43,11 @@ namespace Opc.Ua.Server.Tests
     /// Server fixture for testing.
     /// </summary>
     /// <typeparam name="T">A server class T used for testing.</typeparam>
+    // CA1001: test fixture; lifecycle is handled via async StopAsync
+    // (Application.DisposeAsync at line 445), not the IDisposable pattern.
+#pragma warning disable CA1001
     public class ServerFixture<T>
+#pragma warning restore CA1001
         where T : ServerBase
     {
         public IApplicationInstance Application { get; private set; }
@@ -124,14 +129,109 @@ namespace Opc.Ua.Server.Tests
             {
                 // add deprecated policies for opc.tcp tests
                 serverConfig
-                    .AddPolicy(MessageSecurityMode.Sign, SecurityPolicies.Basic128Rsa15)
-                    .AddPolicy(MessageSecurityMode.Sign, SecurityPolicies.Basic256)
-                    .AddPolicy(MessageSecurityMode.SignAndEncrypt, SecurityPolicies.Basic128Rsa15)
-                    .AddPolicy(MessageSecurityMode.SignAndEncrypt, SecurityPolicies.Basic256)
                     .AddSignPolicies()
                     .AddSignAndEncryptPolicies()
                     .AddEccSignPolicies()
                     .AddEccSignAndEncryptPolicies();
+
+                AddPolicyIfSupported(
+                    serverConfig,
+                    MessageSecurityMode.Sign,
+                    SecurityPolicies.Basic128Rsa15);
+                AddPolicyIfSupported(
+                    serverConfig,
+                    MessageSecurityMode.SignAndEncrypt,
+                    SecurityPolicies.Basic128Rsa15);
+                AddPolicyIfSupported(
+                    serverConfig,
+                    MessageSecurityMode.Sign,
+                    SecurityPolicies.Basic256);
+                AddPolicyIfSupported(
+                    serverConfig,
+                    MessageSecurityMode.SignAndEncrypt,
+                    SecurityPolicies.Basic256);
+
+                AddPolicyIfSupported(
+                    serverConfig,
+                    MessageSecurityMode.Sign,
+                    SecurityPolicies.RSA_DH_AesGcm);
+                AddPolicyIfSupported(
+                    serverConfig,
+                    MessageSecurityMode.SignAndEncrypt,
+                    SecurityPolicies.RSA_DH_AesGcm);
+                AddPolicyIfSupported(
+                    serverConfig,
+                    MessageSecurityMode.Sign,
+                    SecurityPolicies.RSA_DH_ChaChaPoly);
+                AddPolicyIfSupported(
+                    serverConfig,
+                    MessageSecurityMode.SignAndEncrypt,
+                    SecurityPolicies.RSA_DH_ChaChaPoly);
+
+                AddPolicyIfSupported(
+                    serverConfig,
+                    MessageSecurityMode.Sign,
+                    SecurityPolicies.ECC_nistP256_AesGcm);
+                AddPolicyIfSupported(
+                    serverConfig,
+                    MessageSecurityMode.SignAndEncrypt,
+                    SecurityPolicies.ECC_nistP256_AesGcm);
+                AddPolicyIfSupported(
+                    serverConfig,
+                    MessageSecurityMode.Sign,
+                    SecurityPolicies.ECC_nistP256_ChaChaPoly);
+                AddPolicyIfSupported(
+                    serverConfig,
+                    MessageSecurityMode.SignAndEncrypt,
+                    SecurityPolicies.ECC_nistP256_ChaChaPoly);
+                AddPolicyIfSupported(
+                    serverConfig,
+                    MessageSecurityMode.Sign,
+                    SecurityPolicies.ECC_nistP384_AesGcm);
+                AddPolicyIfSupported(
+                    serverConfig,
+                    MessageSecurityMode.SignAndEncrypt,
+                    SecurityPolicies.ECC_nistP384_AesGcm);
+                AddPolicyIfSupported(
+                    serverConfig,
+                    MessageSecurityMode.Sign,
+                    SecurityPolicies.ECC_nistP384_ChaChaPoly);
+                AddPolicyIfSupported(
+                    serverConfig,
+                    MessageSecurityMode.SignAndEncrypt,
+                    SecurityPolicies.ECC_nistP384_ChaChaPoly);
+                AddPolicyIfSupported(
+                    serverConfig,
+                    MessageSecurityMode.Sign,
+                    SecurityPolicies.ECC_brainpoolP256r1_AesGcm);
+                AddPolicyIfSupported(
+                    serverConfig,
+                    MessageSecurityMode.SignAndEncrypt,
+                    SecurityPolicies.ECC_brainpoolP256r1_AesGcm);
+                AddPolicyIfSupported(
+                    serverConfig,
+                    MessageSecurityMode.Sign,
+                    SecurityPolicies.ECC_brainpoolP256r1_ChaChaPoly);
+                AddPolicyIfSupported(
+                    serverConfig,
+                    MessageSecurityMode.SignAndEncrypt,
+                    SecurityPolicies.ECC_brainpoolP256r1_ChaChaPoly);
+                AddPolicyIfSupported(
+                    serverConfig,
+                    MessageSecurityMode.Sign,
+                    SecurityPolicies.ECC_brainpoolP384r1_AesGcm);
+                AddPolicyIfSupported(
+                    serverConfig,
+                    MessageSecurityMode.SignAndEncrypt,
+                    SecurityPolicies.ECC_brainpoolP384r1_AesGcm);
+                AddPolicyIfSupported(
+                    serverConfig,
+                    MessageSecurityMode.Sign,
+                    SecurityPolicies.ECC_brainpoolP384r1_ChaChaPoly);
+                AddPolicyIfSupported(
+                    serverConfig,
+                    MessageSecurityMode.SignAndEncrypt,
+                    SecurityPolicies.ECC_brainpoolP384r1_ChaChaPoly);
             }
 
             if (OperationLimits)
@@ -171,7 +271,7 @@ namespace Opc.Ua.Server.Tests
                     });
             }
 
-            CertificateIdentifierCollection applicationCerts =
+            ArrayOf<CertificateIdentifier> applicationCerts =
                 ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
                     "CN=" + typeof(T).Name + ", C=US, S=Arizona, O=OPC Foundation, DC=localhost",
                     CertificateStoreType.Directory,
@@ -206,7 +306,6 @@ namespace Opc.Ua.Server.Tests
         /// </summary>
         public async Task<T> StartAsync(string pkiRoot, int port = 0)
         {
-            bool retryStartServer = false;
             int testPort = port;
             int serverStartRetries = 1;
 
@@ -221,6 +320,7 @@ namespace Opc.Ua.Server.Tests
                 serverStartRetries = 25;
             }
 
+            bool retryStartServer;
             do
             {
                 retryStartServer = false;
@@ -279,7 +379,8 @@ namespace Opc.Ua.Server.Tests
             {
                 Quickstarts.Servers.Utils.EnableProvisioningMode(provisioningReferenceServer);
             }
-            await Application.StartAsync(server).ConfigureAwait(false);
+            m_startupCts = new CancellationTokenSource();
+            await Application.StartAsync(server, m_startupCts.Token).ConfigureAwait(false);
             Server = server;
             Port = port;
         }
@@ -333,17 +434,39 @@ namespace Opc.Ua.Server.Tests
         /// </summary>
         public async Task StopAsync()
         {
+            // Cancel any in-progress startup (e.g., address space creation)
+            m_startupCts?.Dispose();
+            m_startupCts = null;
+
             if (Server != null)
             {
                 await Server.StopAsync().ConfigureAwait(false);
                 Server.Dispose();
                 Server = null;
             }
+            if (Application != null)
+            {
+                await Application.DisposeAsync().ConfigureAwait(false);
+                Application = null;
+            }
+            Config = null;
             ActivityListener?.Dispose();
             ActivityListener = null;
             await Task.Delay(100).ConfigureAwait(false);
         }
 
+        private static void AddPolicyIfSupported(
+            IApplicationConfigurationBuilderServerSelected serverConfig,
+            MessageSecurityMode securityMode,
+            string securityPolicyUri)
+        {
+            if (SecurityPolicies.GetInfo(securityPolicyUri) != null)
+            {
+                serverConfig.AddPolicy(securityMode, securityPolicyUri);
+            }
+        }
+
+        private CancellationTokenSource m_startupCts;
         private readonly Func<ITelemetryContext, T> m_factory;
         private readonly ITelemetryContext m_telemetry;
         private readonly ILogger m_logger;

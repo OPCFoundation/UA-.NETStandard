@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.Contracts;
 using System.Globalization;
 using System.Linq;
@@ -766,14 +767,17 @@ namespace Opc.Ua
                 // No need to encode as mul locale if only one entry
                 return new LocalizedText(t[0][0], t[0][1], this);
             }
-            return new LocalizedText(kMulLocale, JsonSerializer.Serialize(
-                new Dictionary<string, List<string[]>> { { kMulLocaleDictionaryKey, t } }), this);
+            return new LocalizedText(kMulLocale, Serialize(t), this);
         }
 
         /// <summary>
         /// Encodes the translations to a JSON string according to the format specified
         /// in https://reference.opcfoundation.org/Core/Part3/v105/docs/8.5
         /// </summary>
+        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2026",
+            Justification = "JSON deserialization uses only primitive dictionary types.")]
+        [UnconditionalSuppressMessage("AOT", "IL3050",
+            Justification = "JSON deserialization uses only primitive dictionary types.")]
         public static LocalizedText EncodeAsMulLocale(LocalizedText localizedText)
         {
             if (localizedText.IsMultiLanguage)
@@ -784,8 +788,7 @@ namespace Opc.Ua
             {
                 new string[] { localizedText.Locale ?? "en-US", localizedText.Text ?? string.Empty }
             };
-            return new LocalizedText(kMulLocale, JsonSerializer.Serialize(
-                new Dictionary<string, List<string[]>> { { kMulLocaleDictionaryKey, t } }));
+            return new LocalizedText(kMulLocale, Serialize(t));
         }
 
         /// <summary>
@@ -804,8 +807,7 @@ namespace Opc.Ua
             var result = new Dictionary<string, string>();
             try
             {
-                Dictionary<string, List<string[]>> json =
-                    JsonSerializer.Deserialize<Dictionary<string, List<string[]>>>(encodedText);
+                Dictionary<string, List<string[]>> json = Deserialize(encodedText);
                 if (json.TryGetValue(kMulLocaleDictionaryKey, out List<string[]> tValue))
                 {
                     foreach (string[] pair in tValue)
@@ -831,6 +833,25 @@ namespace Opc.Ua
                 return null; // Return null if parsing fails
             }
             return new ReadOnlyDictionary<string, string>(result);
+        }
+
+        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2026",
+            Justification = "JSON deserialization uses only primitive dictionary types.")]
+        [UnconditionalSuppressMessage("AOT", "IL3050",
+            Justification = "JSON deserialization uses only primitive dictionary types.")]
+        private static Dictionary<string, List<string[]>> Deserialize(string encodedText)
+        {
+            return JsonSerializer.Deserialize<Dictionary<string, List<string[]>>>(encodedText);
+        }
+
+        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2026",
+            Justification = "JSON deserialization uses only primitive dictionary types.")]
+        [UnconditionalSuppressMessage("AOT", "IL3050",
+            Justification = "JSON deserialization uses only primitive dictionary types.")]
+        private static string Serialize(List<string[]> t)
+        {
+            return JsonSerializer.Serialize(
+                new Dictionary<string, List<string[]>> { { kMulLocaleDictionaryKey, t } });
         }
 
         private const string kMulLocale = "mul";

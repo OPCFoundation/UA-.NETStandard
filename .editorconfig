@@ -254,7 +254,7 @@ dotnet_naming_style.constant_style.capitalization                             = 
 # Non-private readonly fields are PascalCase
 dotnet_naming_rule.non_private_readonly_fields_should_be_pascal_case.severity = warning
 dotnet_naming_rule.non_private_readonly_fields_should_be_pascal_case.symbols  = non_private_readonly_fields
-dotnet_naming_rule.non_private_readonly_fields_should_be_pascal_case.style = non_private_static_field_style
+dotnet_naming_rule.non_private_readonly_fields_should_be_pascal_case.style    = non_private_static_field_style
 
 dotnet_naming_symbols.non_private_readonly_fields.applicable_kinds            = field
 dotnet_naming_symbols.non_private_readonly_fields.applicable_accessibilities  = public, protected, internal, protected_internal, private_protected
@@ -326,9 +326,9 @@ dotnet_naming_symbols.local_functions.applicable_kinds                        = 
 dotnet_naming_style.local_function_style.capitalization                       = pascal_case
 
 # By default, name items with PascalCase
-dotnet_naming_rule.members_should_be_pascal_case.severity = warning
+dotnet_naming_rule.members_should_be_pascal_case.severity                     = warning
 dotnet_naming_rule.members_should_be_pascal_case.symbols                      = all_members
-dotnet_naming_rule.members_should_be_pascal_case.style = non_private_static_field_style
+dotnet_naming_rule.members_should_be_pascal_case.style                        = non_private_static_field_style
 
 dotnet_naming_symbols.all_members.applicable_kinds                            = *
 dotnet_naming_style.pascal_case_style.capitalization                          = pascal_case
@@ -384,6 +384,17 @@ dotnet_diagnostic.CA1511.severity                                             = 
 dotnet_diagnostic.CA1512.severity                                             = none
 dotnet_diagnostic.CA1513.severity                                             = none
 
+# CA2213: Disposable fields should be disposed
+dotnet_diagnostic.CA2213.severity                                             = error
+# CA2000: Dispose objects before losing scope
+dotnet_diagnostic.CA2000.severity                                             = error
+# CA1001: Types that own disposable fields should be disposable
+dotnet_diagnostic.CA1001.severity                                             = warning
+# CA1849: Call async methods when in an async method
+dotnet_diagnostic.CA1849.severity                                             = suggestion
+# CA2225: Operator overloads have named alternates
+dotnet_diagnostic.CA2225.severity                                             = suggestion
+
 #
 # https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/style-rules/language-rules
 #
@@ -409,6 +420,22 @@ dotnet_diagnostic.IDE1005.severity                                            = 
 dotnet_diagnostic.IDE0046.severity                                            = silent
 # IDE0130: Namespace does not match folder structure
 dotnet_diagnostic.IDE0130.severity                                            = none
+# IDE0032: Use auto property — explicit backing fields are intentional in many sites
+# (state-machine wrappers, NodeState subclasses); auto-fixer cannot tell the difference.
+dotnet_diagnostic.IDE0032.severity                                            = silent
+# IDE0360: Use primary constructor — explicitly disabled (project policy: no primary constructors)
+dotnet_diagnostic.IDE0360.severity                                            = none
+# IDE0060: Remove unused parameter — most sites are OPC UA framework / NodeManager
+# callbacks where the parameter is required by the contract. Per-site fixes are
+# not practical at the current volume.
+dotnet_diagnostic.IDE0060.severity                                            = silent
+# IDE1006: Naming rule violation — repo convention is 'm_' prefix for private/internal
+# fields (long-standing). Public-API symbols also follow OPC UA spec terms that the
+# rule flags as violations; renaming the public surface would break consumers.
+dotnet_diagnostic.IDE1006.severity                                            = silent
+# IDE0370: 'Suppression is unnecessary' — auto-fixer cannot safely apply (some analyzer
+# configurations make these suppressions necessary on TFMs the fixer cannot evaluate).
+dotnet_diagnostic.IDE0370.severity                                            = silent
 
 #
 # Introduced in .net 10 as part of all analysis configuration
@@ -433,34 +460,8 @@ dotnet_diagnostic.CA1716.severity                                             = 
 # CA1724: The type conflicts in whole or in part with a namespace name
 dotnet_diagnostic.CA1724.severity                                             = none
 
-# TODO Fix as P0:
-
-# CA2326: Deserializing JSON when using a TypeNameHandling value other than None can be insecure.
-dotnet_diagnostic.CA2326.severity = none
-dotnet_diagnostic.CA2327.severity = none
-
-dotnet_diagnostic.CA5390.severity = none
-dotnet_diagnostic.CA5403.severity = none
-dotnet_code_quality.CA5390.excluded_symbol_names = Initializers
-dotnet_code_quality.CA5403.excluded_symbol_names = Initializers
-
-# TODO Fix as P1:
-
-# CA2213: Disposable fields should be disposed
-dotnet_diagnostic.CA2213.severity = none
-# CA2000: Dispose objects before losing scope
-dotnet_diagnostic.CA2000.severity = none
-# CA1001: Types that own disposable fields should be disposable
-dotnet_diagnostic.CA1001.severity = none
-# IDE0032: Use auto property
-dotnet_diagnostic.IDE0032.severity = none
-# CA1849: Call async methods when in an async method
-dotnet_diagnostic.CA1849.severity = none
-
 # TODO: Fix as P2:
 
-# CA2225: Operator overloads have named alternates
-dotnet_diagnostic.CA2225.severity = none
 # CA1848: Use the LoggerMessage delegates
 dotnet_diagnostic.CA1848.severity = none
 # CA1873: Avoid potentially expensive logging

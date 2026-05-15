@@ -124,7 +124,7 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
             Assert.That(publisherConfiguration, Is.Not.Null, "publisherConfiguration should not be null");
 
             // Create publisher application for multiple datasets
-            UaPubSubApplication publisherApplication = UaPubSubApplication.Create(publisherConfiguration, telemetry);
+            using var publisherApplication = UaPubSubApplication.Create(publisherConfiguration, telemetry);
             MessagesHelper.LoadData(publisherApplication, kNamespaceIndexAllTypes);
 
             IUaPubSubConnection publisherConnection = publisherApplication.PubSubConnections[0];
@@ -433,6 +433,7 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
             // Arrange - create a simple DataSetWriter with specified KeyFrameCount
             var writer = new DataSetWriterDataType
             {
+                Enabled = true,
                 DataSetWriterId = 1,
                 KeyFrameCount = (uint)keyFrameCount
             };

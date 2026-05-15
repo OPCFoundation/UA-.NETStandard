@@ -200,20 +200,22 @@ namespace Opc.Ua.Server
         /// </summary>
         protected virtual void Dispose(bool disposing)
         {
-            if (disposing)
+            if (disposing && !m_disposed)
             {
-                Utils.SilentDispose(m_namespaceManagersSemaphoreSlim);
+                m_disposed = true;
+
+                m_namespaceManagersSemaphoreSlim.Dispose();
 
                 m_startupShutdownSemaphoreSlim.Wait();
 
                 List<IAsyncNodeManager> nodeManagers = [.. m_nodeManagers];
                 m_nodeManagers.Clear();
 
-                Utils.SilentDispose(m_startupShutdownSemaphoreSlim);
+                m_startupShutdownSemaphoreSlim.Dispose();
 
                 foreach (IAsyncNodeManager nodeManager in nodeManagers)
                 {
-                    Utils.SilentDispose(nodeManager);
+                    (nodeManager as IDisposable)?.Dispose();
                 }
             }
         }
@@ -1249,7 +1251,7 @@ namespace Opc.Ua.Server
                     // release all allocated continuation points.
                     foreach (BrowseResult current in results)
                     {
-                        if (current != null && current.ContinuationPoint.Length > 0)
+                        if (current != null && !current.ContinuationPoint.IsEmpty)
                         {
                             ContinuationPoint cp = context.Session
                                 .RestoreContinuationPoint(current.ContinuationPoint);
@@ -1289,7 +1291,7 @@ namespace Opc.Ua.Server
                 }
 
                 // check for continuation point.
-                if (result.ContinuationPoint.Length > 0)
+                if (!result.ContinuationPoint.IsEmpty)
                 {
                     continuationPointsAssigned++;
                 }
@@ -1402,7 +1404,7 @@ namespace Opc.Ua.Server
                     // release all allocated continuation points.
                     foreach (BrowseResult current in results)
                     {
-                        if (current != null && current.ContinuationPoint.Length > 0)
+                        if (current != null && !current.ContinuationPoint.IsEmpty)
                         {
                             cp = context.Session
                                 .RestoreContinuationPoint(current.ContinuationPoint);
@@ -1485,7 +1487,7 @@ namespace Opc.Ua.Server
                     }
 
                     // check for continuation point.
-                    if (result.ContinuationPoint.Length > 0)
+                    if (!result.ContinuationPoint.IsEmpty)
                     {
                         continuationPointsAssigned++;
                     }
@@ -1577,52 +1579,62 @@ namespace Opc.Ua.Server
             }
 
             // create a continuation point.
-            var cp = new ContinuationPoint
+            ContinuationPoint tempCp = null;
+            try
             {
-                Manager = nodeManager,
-                View = view,
-                NodeToBrowse = handle,
-                MaxResultsToReturn = maxReferencesPerNode,
-                BrowseDirection = nodeToBrowse.BrowseDirection,
-                ReferenceTypeId = nodeToBrowse.ReferenceTypeId,
-                IncludeSubtypes = nodeToBrowse.IncludeSubtypes,
-                NodeClassMask = nodeToBrowse.NodeClassMask,
-                ResultMask = (BrowseResultMask)nodeToBrowse.ResultMask,
-                Index = 0,
-                Data = null
-            };
+                tempCp = new ContinuationPoint
+                {
+                    Manager = nodeManager,
+                    View = view,
+                    NodeToBrowse = handle,
+                    MaxResultsToReturn = maxReferencesPerNode,
+                    BrowseDirection = nodeToBrowse.BrowseDirection,
+                    ReferenceTypeId = nodeToBrowse.ReferenceTypeId,
+                    IncludeSubtypes = nodeToBrowse.IncludeSubtypes,
+                    NodeClassMask = nodeToBrowse.NodeClassMask,
+                    ResultMask = (BrowseResultMask)nodeToBrowse.ResultMask,
+                    Index = 0,
+                    Data = null
+                };
+                ContinuationPoint cp = tempCp;
 
-            // check if reference type left unspecified.
-            if (cp.ReferenceTypeId.IsNull)
-            {
-                cp.ReferenceTypeId = ReferenceTypeIds.References;
-                cp.IncludeSubtypes = true;
+                // check if reference type left unspecified.
+                if (cp.ReferenceTypeId.IsNull)
+                {
+                    cp.ReferenceTypeId = ReferenceTypeIds.References;
+                    cp.IncludeSubtypes = true;
+                }
+
+                // loop until browse is complete or max results.
+                ArrayOf<ReferenceDescription> references = result.References;
+
+                ServiceResult error;
+
+                (error, cp, references) = await FetchReferencesAsync(
+                   context,
+                   assignContinuationPoint,
+                   cp,
+                   references,
+                   cancellationToken)
+                   .ConfigureAwait(false);
+                tempCp = null; // ownership transferred to FetchReferencesAsync
+
+                result.References = references;
+
+                // save continuation point.
+                if (cp != null)
+                {
+                    result.StatusCode = StatusCodes.Good;
+                    result.ContinuationPoint = cp.Id.ToByteArray().ToByteString();
+                }
+
+                // all is good.
+                return error;
             }
-
-            // loop until browse is complete or max results.
-            ArrayOf<ReferenceDescription> references = result.References;
-
-            ServiceResult error;
-
-            (error, cp, references) = await FetchReferencesAsync(
-               context,
-               assignContinuationPoint,
-               cp,
-               references,
-               cancellationToken)
-               .ConfigureAwait(false);
-
-            result.References = references;
-
-            // save continuation point.
-            if (cp != null)
+            finally
             {
-                result.StatusCode = StatusCodes.Good;
-                result.ContinuationPoint = cp.Id.ToByteArray().ToByteString();
+                tempCp?.Dispose();
             }
-
-            // all is good.
-            return error;
         }
 
         /// <summary>
@@ -1885,7 +1897,7 @@ namespace Opc.Ua.Server
                 // set an error code for nodes that were not handled by any node manager.
                 if (!nodesToRead[ii].Processed)
                 {
-                    value = values[ii] = new DataValue(
+                    value = values[ii] = DataValue.FromStatusCode(
                         StatusCodes.BadNodeIdUnknown,
                         DateTime.UtcNow);
                     errors[ii] = new ServiceResult(values[ii].StatusCode);
@@ -1894,7 +1906,7 @@ namespace Opc.Ua.Server
                 // update the diagnostic info and ensure the status code in the data value is the same as the error code.
                 if (errors[ii] != null && errors[ii].Code != StatusCodes.Good)
                 {
-                    value ??= values[ii] = new DataValue(errors[ii].Code, DateTime.UtcNow);
+                    value ??= values[ii] = DataValue.FromStatusCode(errors[ii].Code, DateTime.UtcNow);
 
                     value.StatusCode = errors[ii].Code;
 
@@ -1942,7 +1954,7 @@ namespace Opc.Ua.Server
                 throw new ServiceResultException(StatusCodes.BadHistoryOperationInvalid);
             }
 
-            if (!historyReadDetails.TryGetEncodeable(out HistoryReadDetails details))
+            if (!historyReadDetails.TryGetValue(out HistoryReadDetails details))
             {
                 throw new ServiceResultException(StatusCodes.BadHistoryOperationInvalid);
             }
@@ -2176,7 +2188,7 @@ namespace Opc.Ua.Server
                 {
                     continue;
                 }
-                if (!details.TryGetEncodeable(out HistoryUpdateDetails historyUpdateDetail))
+                if (!details.TryGetValue(out HistoryUpdateDetails historyUpdateDetail))
                 {
                     nodesToUpdate.Add(null); // Retain old behavior
                     continue;
@@ -2587,7 +2599,7 @@ namespace Opc.Ua.Server
                 if (!itemToCreate.Processed)
                 {
                     // all event subscriptions required an event filter.
-                    if (!itemToCreate.RequestedParameters.Filter.TryGetEncodeable(out EventFilter filter))
+                    if (!itemToCreate.RequestedParameters.Filter.TryGetValue(out EventFilter filter))
                     {
                         continue;
                     }
@@ -2999,7 +3011,7 @@ namespace Opc.Ua.Server
 
                 // all event subscriptions required an event filter.
 
-                if (!itemToModify.RequestedParameters.Filter.TryGetEncodeable(out EventFilter filter))
+                if (!itemToModify.RequestedParameters.Filter.TryGetValue(out EventFilter filter))
                 {
                     errors[ii] = StatusCodes.BadEventFilterInvalid;
                     continue;
@@ -3374,7 +3386,7 @@ namespace Opc.Ua.Server
 
             // If a filter was specified, it needs to be a known filter structure.
             if (!attributes.Filter.IsNull &&
-                !attributes.Filter.TryGetEncodeable(out MonitoringFilter _))
+                !attributes.Filter.TryGetValue(out MonitoringFilter _))
             {
                 return new ServiceResult(StatusCodes.BadMonitoredItemFilterInvalid);
             }
@@ -3392,7 +3404,7 @@ namespace Opc.Ua.Server
             if (!filter.IsNull)
             {
                 // validate data change filter.
-                if (filter.TryGetEncodeable(out DataChangeFilter datachangeFilter))
+                if (filter.TryGetValue(out DataChangeFilter datachangeFilter))
                 {
                     ServiceResult error = datachangeFilter.Validate();
 
@@ -3780,6 +3792,14 @@ namespace Opc.Ua.Server
             NodeMetadata nodeMetadata)
         {
             ServiceResult serviceResult = StatusCodes.Good;
+
+            // Type hierarchy nodes (ObjectType/VariableType and their children)
+            // are universally accessible regardless of AccessRestrictions.
+            if (nodeMetadata.IsPartOfTypeHierarchy)
+            {
+                return serviceResult;
+            }
+
             AccessRestrictionType restrictions = AccessRestrictionType.None;
 
             if (nodeMetadata.AccessRestrictions != AccessRestrictionType.None)
@@ -3856,6 +3876,13 @@ namespace Opc.Ua.Server
                 return StatusCodes.Good;
             }
 
+            // Type hierarchy nodes (ObjectType/VariableType and their children)
+            // are universally accessible regardless of RolePermissions.
+            if (nodeMetadata.IsPartOfTypeHierarchy)
+            {
+                return StatusCodes.Good;
+            }
+
             // get the intersection of user role permissions and role permissions
             ArrayOf<RolePermissionType> userRolePermissions = default;
             if (!nodeMetadata.UserRolePermissions.IsEmpty)
@@ -3877,7 +3904,7 @@ namespace Opc.Ua.Server
                 rolePermissions = nodeMetadata.DefaultRolePermissions;
             }
 
-            if ((userRolePermissions.IsEmpty) && (rolePermissions.IsEmpty))
+            if (userRolePermissions.IsEmpty && rolePermissions.IsEmpty)
             {
                 // there is no restriction from role permissions
                 return StatusCodes.Good;
@@ -3990,6 +4017,7 @@ namespace Opc.Ua.Server
         private readonly MonitoredItemIdFactory m_monitoredItemIdFactory = new();
         private readonly uint m_maxContinuationPointsPerBrowse;
         private readonly SemaphoreSlim m_namespaceManagersSemaphoreSlim = new(1, 1);
+        private bool m_disposed;
     }
 
     /// <summary>

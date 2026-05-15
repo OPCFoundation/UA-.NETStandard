@@ -38,7 +38,7 @@ namespace Opc.Ua
     /// Argument
     /// </summary>
     [DataContract(Namespace = Namespaces.OpcUaXsd)]
-    public class Argument : IEncodeable, IJsonEncodeable, IEquatable<Argument>
+    public class Argument : IEncodeable, IEquatable<Argument>
     {
         /// <summary>
         /// Initializes an instance of the argument.
@@ -100,9 +100,6 @@ namespace Opc.Ua
 
         /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.Argument_Encoding_DefaultXml;
-
-        /// <inheritdoc/>
-        public virtual ExpandedNodeId JsonEncodingId => ObjectIds.Argument_Encoding_DefaultJson;
 
         /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
@@ -211,21 +208,14 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public virtual object Clone()
         {
-            return (Argument)MemberwiseClone();
-        }
-
-        /// <inheritdoc/>
-        public new object MemberwiseClone()
-        {
-            var clone = (Argument)base.MemberwiseClone();
-
-            clone.Name = CoreUtils.Clone(Name);
-            clone.DataType = DataType;
-            clone.ValueRank = ValueRank;
-            clone.ArrayDimensions = CoreUtils.Clone(ArrayDimensions);
-            clone.Description = CoreUtils.Clone(Description);
-
-            return clone;
+            return new Argument
+            {
+                Name = Name,
+                DataType = DataType,
+                ValueRank = ValueRank,
+                ArrayDimensions = ArrayDimensions,
+                Description = Description
+            };
         }
     }
 }

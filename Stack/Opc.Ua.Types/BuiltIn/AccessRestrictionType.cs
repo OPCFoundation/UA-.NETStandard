@@ -35,7 +35,7 @@ namespace Opc.Ua
     /// <summary>
     /// Access restrictions
     /// </summary>
-    [DataContract(Namespace = Namespaces.OpcUaXsd)]
+    [DataContract(Namespace = Types.Namespaces.OpcUaXsd)]
     [Flags]
     public enum AccessRestrictionType : ushort
     {

@@ -27,9 +27,13 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
+// CA2007: tests run without a SynchronizationContext; ConfigureAwait(false)
+// adds noise without a behavioural benefit. Disabled file-level for the suite.
+#pragma warning disable CA2007
 using System;
 using System.IO;
-using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -73,63 +77,65 @@ namespace Opc.Ua.Configuration.Tests
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
             var application = new ApplicationInstance(telemetry) { ApplicationName = "Application" };
+            await using (application.ConfigureAwait(false))
+            {
+                string appStorePath = m_tempPath + Path.DirectorySeparatorChar + "own";
+                string trustedStorePath = m_tempPath + Path.DirectorySeparatorChar + "trusted";
+                string issuerStorePath = m_tempPath + Path.DirectorySeparatorChar + "issuer";
+                string trustedUserStorePath = m_tempPath + Path.DirectorySeparatorChar + "trustedUser";
+                string issuerUserStorePath = m_tempPath + Path.DirectorySeparatorChar + "userIssuer";
 
-            string appStorePath = m_tempPath + Path.DirectorySeparatorChar + "own";
-            string trustedStorePath = m_tempPath + Path.DirectorySeparatorChar + "trusted";
-            string issuerStorePath = m_tempPath + Path.DirectorySeparatorChar + "issuer";
-            string trustedUserStorePath = m_tempPath + Path.DirectorySeparatorChar + "trustedUser";
-            string issuerUserStorePath = m_tempPath + Path.DirectorySeparatorChar + "userIssuer";
+                IApplicationConfigurationBuilderSecurityOptionStores appConfigBuilder = application
+                    .Build(
+                        applicationUri: "urn:localhost:CertStoreTypeTest",
+                        productUri: "uri:opcfoundation.org:Tests:CertStoreTypeTest")
+                    .AsClient()
+                    .AddSecurityConfigurationStores(
+                        subjectName: "CN=CertStoreTypeTest, O=OPC Foundation",
+                        appRoot: TestCertStore.StoreTypePrefix + appStorePath,
+                        trustedRoot: TestCertStore.StoreTypePrefix + trustedStorePath,
+                        issuerRoot: TestCertStore.StoreTypePrefix + issuerStorePath)
+                    .AddSecurityConfigurationUserStore(
+                        trustedRoot: TestCertStore.StoreTypePrefix + trustedUserStorePath,
+                        issuerRoot: TestCertStore.StoreTypePrefix + issuerUserStorePath);
 
-            IApplicationConfigurationBuilderSecurityOptionStores appConfigBuilder = application
-                .Build(
-                    applicationUri: "urn:localhost:CertStoreTypeTest",
-                    productUri: "uri:opcfoundation.org:Tests:CertStoreTypeTest")
-                .AsClient()
-                .AddSecurityConfigurationStores(
-                    subjectName: "CN=CertStoreTypeTest, O=OPC Foundation",
-                    appRoot: TestCertStore.StoreTypePrefix + appStorePath,
-                    trustedRoot: TestCertStore.StoreTypePrefix + trustedStorePath,
-                    issuerRoot: TestCertStore.StoreTypePrefix + issuerStorePath)
-                .AddSecurityConfigurationUserStore(
-                    trustedRoot: TestCertStore.StoreTypePrefix + trustedUserStorePath,
-                    issuerRoot: TestCertStore.StoreTypePrefix + issuerUserStorePath);
+                // patch custom stores before creating the config
+                ApplicationConfiguration appConfig = await appConfigBuilder.CreateAsync()
+                    .ConfigureAwait(false);
 
-            // patch custom stores before creating the config
-            ApplicationConfiguration appConfig = await appConfigBuilder.CreateAsync()
-                .ConfigureAwait(false);
+                bool certOK = await application.CheckApplicationInstanceCertificatesAsync(true)
+                    .ConfigureAwait(false);
+                Assert.That(certOK, Is.True);
 
-            bool certOK = await application.CheckApplicationInstanceCertificatesAsync(true)
-                .ConfigureAwait(false);
-            Assert.That(certOK, Is.True);
+                int instancesCreatedWhileLoadingConfig = TestCertStore.InstancesCreated;
+                Assert.That(instancesCreatedWhileLoadingConfig, Is.GreaterThan(0));
 
-            int instancesCreatedWhileLoadingConfig = TestCertStore.InstancesCreated;
-            Assert.That(instancesCreatedWhileLoadingConfig, Is.GreaterThan(0));
+                await OpenCertStoreAsync(appConfig.SecurityConfiguration.TrustedIssuerCertificates, telemetry)
+                    .ConfigureAwait(false);
+                await OpenCertStoreAsync(appConfig.SecurityConfiguration.TrustedPeerCertificates, telemetry)
+                    .ConfigureAwait(false);
+                await OpenCertStoreAsync(appConfig.SecurityConfiguration.UserIssuerCertificates, telemetry)
+                    .ConfigureAwait(false);
+                await OpenCertStoreAsync(appConfig.SecurityConfiguration.TrustedUserCertificates, telemetry)
+                    .ConfigureAwait(false);
 
-            await OpenCertStoreAsync(appConfig.SecurityConfiguration.TrustedIssuerCertificates, telemetry)
-                .ConfigureAwait(false);
-            await OpenCertStoreAsync(appConfig.SecurityConfiguration.TrustedPeerCertificates, telemetry)
-                .ConfigureAwait(false);
-            await OpenCertStoreAsync(appConfig.SecurityConfiguration.UserIssuerCertificates, telemetry)
-                .ConfigureAwait(false);
-            await OpenCertStoreAsync(appConfig.SecurityConfiguration.TrustedUserCertificates, telemetry)
-                .ConfigureAwait(false);
-
-            int instancesCreatedWhileOpeningAuthRootStore = TestCertStore.InstancesCreated;
-            Assert.That(
-                instancesCreatedWhileLoadingConfig < instancesCreatedWhileOpeningAuthRootStore,
-                Is.True);
-            var certificateStoreIdentifier = new CertificateStoreIdentifier(
-                TestCertStore.StoreTypePrefix + trustedUserStorePath);
-            using ICertificateStore store = certificateStoreIdentifier.OpenStore(telemetry);
-            Assert.That(
-                instancesCreatedWhileOpeningAuthRootStore < TestCertStore.InstancesCreated,
-                Is.True);
+                int instancesCreatedWhileOpeningAuthRootStore = TestCertStore.InstancesCreated;
+                Assert.That(
+                    instancesCreatedWhileLoadingConfig,
+                    Is.LessThan(instancesCreatedWhileOpeningAuthRootStore));
+                var certificateStoreIdentifier = new CertificateStoreIdentifier(
+                    TestCertStore.StoreTypePrefix + trustedUserStorePath);
+                using ICertificateStore store = certificateStoreIdentifier.OpenStore(telemetry);
+                Assert.That(
+                    instancesCreatedWhileOpeningAuthRootStore,
+                    Is.LessThan(TestCertStore.InstancesCreated));
+            }
         }
 
         private static async Task OpenCertStoreAsync(CertificateTrustList trustList, ITelemetryContext telemetry)
         {
             using ICertificateStore trustListStore = trustList.OpenStore(telemetry);
-            X509Certificate2Collection certs = await trustListStore.EnumerateAsync()
+            using CertificateCollection certs = await trustListStore.EnumerateAsync()
                 .ConfigureAwait(false);
             X509CRLCollection crls = await trustListStore.EnumerateCRLsAsync()
                 .ConfigureAwait(false);
@@ -201,8 +207,8 @@ namespace Opc.Ua.Configuration.Tests
 
         /// <inheritdoc/>
         public Task AddAsync(
-            X509Certificate2 certificate,
-            char[] password = null,
+            Certificate certificate,
+            char[]? password = null,
             CancellationToken ct = default)
         {
             return m_innerStore.AddAsync(certificate, password, ct);
@@ -215,13 +221,13 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         /// <inheritdoc/>
-        public Task<X509Certificate2Collection> EnumerateAsync(CancellationToken ct = default)
+        public Task<CertificateCollection> EnumerateAsync(CancellationToken ct = default)
         {
             return m_innerStore.EnumerateAsync(ct);
         }
 
         /// <inheritdoc/>
-        public Task<X509Certificate2Collection> FindByThumbprintAsync(
+        public Task<CertificateCollection> FindByThumbprintAsync(
             string thumbprint,
             CancellationToken ct = default)
         {
@@ -257,7 +263,7 @@ namespace Opc.Ua.Configuration.Tests
 
         /// <inheritdoc/>
         public Task<X509CRLCollection> EnumerateCRLsAsync(
-            X509Certificate2 issuer,
+            Certificate issuer,
             bool validateUpdateTime = true,
             CancellationToken ct = default)
         {
@@ -266,8 +272,8 @@ namespace Opc.Ua.Configuration.Tests
 
         /// <inheritdoc/>
         public Task<StatusCode> IsRevokedAsync(
-            X509Certificate2 issuer,
-            X509Certificate2 certificate,
+            Certificate issuer,
+            Certificate certificate,
             CancellationToken ct = default)
         {
             return m_innerStore.IsRevokedAsync(issuer, certificate, ct);
@@ -277,12 +283,12 @@ namespace Opc.Ua.Configuration.Tests
         public bool SupportsLoadPrivateKey => m_innerStore.SupportsLoadPrivateKey;
 
         /// <inheritdoc/>
-        public Task<X509Certificate2> LoadPrivateKeyAsync(
+        public Task<Certificate?> LoadPrivateKeyAsync(
             string thumbprint,
             string subjectName,
             string applicationUri,
             NodeId certificateType,
-            char[] password,
+            char[]? password,
             CancellationToken ct = default)
         {
             return m_innerStore.LoadPrivateKeyAsync(
@@ -296,7 +302,7 @@ namespace Opc.Ua.Configuration.Tests
 
         /// <inheritdoc/>
         public Task AddRejectedAsync(
-            X509Certificate2Collection certificates,
+            CertificateCollection certificates,
             int maxCertificates,
             CancellationToken ct = default)
         {
@@ -304,7 +310,6 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         public static int InstancesCreated { get; set; }
-
         private readonly DirectoryCertificateStore m_innerStore;
     }
 }

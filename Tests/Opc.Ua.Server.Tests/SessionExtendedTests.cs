@@ -70,7 +70,6 @@ namespace Opc.Ua.Server.Tests
             return (requestHeader, secureChannelContext, session);
         }
 
-
         [Test]
         public async Task HasExpiredReturnsFalseForFreshlyActivatedSessionAsync()
         {
@@ -79,8 +78,6 @@ namespace Opc.Ua.Server.Tests
             Assert.That(session.HasExpired, Is.False,
                 "A session that was just activated should not be expired.");
         }
-
-
 
         [Test]
         public async Task IsSecureChannelValidReturnsTrueForCurrentChannelIdAsync()
@@ -109,8 +106,6 @@ namespace Opc.Ua.Server.Tests
             Assert.That(session.IsSecureChannelValid(string.Empty), Is.False);
         }
 
-
-
         [Test]
         public async Task ActivatedIsTrueAfterCreateAndActivateSessionAsync()
         {
@@ -119,8 +114,6 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(session.Activated, Is.True);
         }
-
-
 
         [Test]
         public async Task UpdateLocaleIdsReturnsTrueWhenLocalesChangeAsync()
@@ -172,15 +165,13 @@ namespace Opc.Ua.Server.Tests
             Assert.That(changed, Is.True);
         }
 
-
-
         [Test]
         public async Task SaveAndRestoreContinuationPointPreservesThePointAsync()
         {
             (_, _, ISession session) =
                 await CreateAndActivateAsync("SaveRestoreContinuation").ConfigureAwait(false);
 
-            var continuationPoint = new ContinuationPoint
+            using var continuationPoint = new ContinuationPoint
             {
                 Id = Guid.NewGuid()
             };
@@ -225,7 +216,7 @@ namespace Opc.Ua.Server.Tests
             (_, _, ISession session) =
                 await CreateAndActivateAsync("RestoreRemovesContinuation").ConfigureAwait(false);
 
-            var cp = new ContinuationPoint { Id = Guid.NewGuid() };
+            using var cp = new ContinuationPoint { Id = Guid.NewGuid() };
             session.SaveContinuationPoint(cp);
             byte[] idBytes = cp.Id.ToByteArray();
 
@@ -249,16 +240,14 @@ namespace Opc.Ua.Server.Tests
                 Throws.TypeOf<ArgumentNullException>());
         }
 
-
-
         [Test]
         public async Task SaveAndRestoreHistoryContinuationPointPreservesValueAsync()
         {
             (_, _, ISession session) =
                 await CreateAndActivateAsync("SaveRestoreHistory").ConfigureAwait(false);
 
-            Guid id = Guid.NewGuid();
-            var value = new object();
+            var id = Guid.NewGuid();
+            object value = new();
             session.SaveHistoryContinuationPoint(id, value);
 
             byte[] idBytes = id.ToByteArray();
@@ -298,7 +287,7 @@ namespace Opc.Ua.Server.Tests
             (_, _, ISession session) =
                 await CreateAndActivateAsync("RestoreRemovesHistory").ConfigureAwait(false);
 
-            Guid id = Guid.NewGuid();
+            var id = Guid.NewGuid();
             session.SaveHistoryContinuationPoint(id, new object());
             byte[] idBytes = id.ToByteArray();
 
@@ -322,8 +311,6 @@ namespace Opc.Ua.Server.Tests
                 Throws.TypeOf<ArgumentNullException>());
         }
 
-
-
         [Test]
         public async Task LastContactTickCountIsPopulatedAfterActivationAsync()
         {
@@ -346,8 +333,6 @@ namespace Opc.Ua.Server.Tests
             Assert.That(session.ClientLastContactTime, Is.GreaterThan(before));
             Assert.That(session.ClientLastContactTime, Is.LessThan(after));
         }
-
-
 
         [Test]
         public async Task ValidateRequestThrowsBadSecureChannelIdInvalidForWrongChannelAsync()
@@ -434,8 +419,6 @@ namespace Opc.Ua.Server.Tests
                 Is.EqualTo(before + 1));
         }
 
-
-
         [Test]
         public async Task SessionDiagnosticsSessionNameMatchesProvidedNameAsync()
         {
@@ -453,6 +436,5 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(session.SessionDiagnostics.ActualSessionTimeout, Is.GreaterThan(0.0));
         }
-
     }
 }

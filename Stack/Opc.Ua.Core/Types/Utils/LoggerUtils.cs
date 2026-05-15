@@ -104,10 +104,17 @@ namespace Opc.Ua
         /// </summary>
         internal class TraceLoggerTelemetry : TelemetryContextBase
         {
+#pragma warning disable CA2000 // Ownership of ILoggerFactory transfers to TelemetryContextBase
             public TraceLoggerTelemetry()
-                : base(Microsoft.Extensions.Logging.LoggerFactory.Create(
-                    builder => builder.AddProvider(LoggerProvider)))
+                : base(CreateLoggerFactory())
             {
+            }
+#pragma warning restore CA2000
+
+            private static ILoggerFactory CreateLoggerFactory()
+            {
+                return Microsoft.Extensions.Logging.LoggerFactory.Create(
+                    builder => builder.AddProvider(LoggerProvider));
             }
         }
 
@@ -203,6 +210,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="certificate"></param>
         /// <returns></returns>
+        [Obsolete("Use Certificate.ToString() instead.")]
         public static string AsLogSafeString(this X509Certificate2 certificate)
         {
             if (certificate == null)

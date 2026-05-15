@@ -33,9 +33,9 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
-using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Client
 {
@@ -209,7 +209,7 @@ namespace Opc.Ua.Client
             (ArrayOf<DataValue> dataValues, ArrayOf<ServiceResult> errorValues) =
                 await session.ReadValuesAsync(variableIds, ct).ConfigureAwait(false);
 
-            ServiceResult[] errors = new ServiceResult[errorValues.Count];
+            var errors = new ServiceResult[errorValues.Count];
             object[] values = new object[dataValues.Count];
             for (int ii = 0; ii < variableIds.Count; ii++)
             {
@@ -217,7 +217,7 @@ namespace Opc.Ua.Client
 
                 // extract the body from extension objects.
                 if (value is ExtensionObject extension &&
-                    extension.TryGetEncodeable(out IEncodeable encodeable))
+                    extension.TryGetValue(out IEncodeable encodeable))
                 {
                     value = encodeable;
                 }
@@ -253,8 +253,8 @@ namespace Opc.Ua.Client
 
             if (expectedType != null)
             {
-                if (dataValue.WrappedValue.TryGet(out ExtensionObject extension) &&
-                    extension.TryGetEncodeable(out IEncodeable encodeable))
+                if (dataValue.WrappedValue.TryGetValue(out ExtensionObject extension) &&
+                    extension.TryGetValue(out IEncodeable encodeable))
                 {
                     value = encodeable;
                 }
@@ -459,8 +459,8 @@ namespace Opc.Ua.Client
                 object value = dataValues[ii].Value;
 
                 // extract the body from extension objects.
-                if (dataValues[ii].WrappedValue.TryGet(out ExtensionObject extension) &&
-                    extension.TryGetEncodeable(out IEncodeable encodeable))
+                if (dataValues[ii].WrappedValue.TryGetValue(out ExtensionObject extension) &&
+                    extension.TryGetValue(out IEncodeable encodeable))
                 {
                     value = encodeable;
                 }
@@ -858,7 +858,7 @@ namespace Opc.Ua.Client
             ApplicationConfiguration configuration,
             ITransportChannel channel,
             ConfiguredEndpoint endpoint,
-            X509Certificate2 clientCertificate,
+            Certificate clientCertificate,
             ArrayOf<EndpointDescription> availableEndpoints = default,
             ArrayOf<string> discoveryProfileUris = default)
         {
@@ -1095,7 +1095,7 @@ namespace Opc.Ua.Client
             ApplicationConfiguration configuration,
             ITransportChannel channel,
             ConfiguredEndpoint endpoint,
-            X509Certificate2 clientCertificate,
+            Certificate clientCertificate,
             ArrayOf<EndpointDescription> availableEndpoints = default,
             ArrayOf<string> discoveryProfileUris = default)
         {
@@ -1273,7 +1273,7 @@ namespace Opc.Ua.Client
             ITransportChannel channel,
             ApplicationConfiguration configuration,
             ConfiguredEndpoint endpoint,
-            X509Certificate2 clientCertificate,
+            Certificate clientCertificate,
             ArrayOf<EndpointDescription> availableEndpoints = default,
             ArrayOf<string> discoveryProfileUris = default)
             : base(
@@ -1328,7 +1328,7 @@ namespace Opc.Ua.Client
             ApplicationConfiguration configuration,
             ITransportChannel channel,
             ConfiguredEndpoint endpoint,
-            X509Certificate2 clientCertificate,
+            Certificate clientCertificate,
             ArrayOf<EndpointDescription> availableEndpoints = default,
             ArrayOf<string> discoveryProfileUris = default)
         {

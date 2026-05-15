@@ -31,8 +31,6 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
-using System.Security.Cryptography;
-using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Security.Certificates;
@@ -68,12 +66,12 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// The certificate for the server.
         /// </summary>
-        protected X509Certificate2 ServerCertificate { get; private set; }
+        internal Certificate ServerCertificate { get; private set; }
 
         /// <summary>
         /// The server certificate chain.
         /// </summary>
-        protected X509Certificate2Collection ServerCertificateChain { get; set; }
+        protected CertificateCollection ServerCertificateChain { get; set; }
 
         /// <summary>
         /// The security mode used with the channel.
@@ -83,7 +81,16 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// The security policy used with the channel.
         /// </summary>
-        protected string SecurityPolicyUri { get; private set; }
+        protected string SecurityPolicyUri
+        {
+            get => SecurityPolicy.Uri;
+            private set => SecurityPolicy = SecurityPolicies.GetInfo(value);
+        }
+
+        /// <summary>
+        /// The security policy used with the channel.
+        /// </summary>
+        protected SecurityPolicyInfo SecurityPolicy { get; private set; }
 
         /// <summary>
         /// Whether the channel is restricted to discovery operations.
@@ -93,12 +100,12 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// The certificate for the client.
         /// </summary>
-        protected X509Certificate2 ClientCertificate { get; set; }
+        internal Certificate ClientCertificate { get; set; }
 
         /// <summary>
         /// The client certificate chain.
         /// </summary>
-        internal X509Certificate2Collection ClientCertificateChain { get; set; }
+        internal CertificateCollection ClientCertificateChain { get; set; }
 
         /// <summary>
         /// Returns the thumbprint as a uppercase string.
@@ -140,8 +147,8 @@ namespace Opc.Ua.Bindings
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
         protected static void CompareCertificates(
-            X509Certificate2 expected,
-            X509Certificate2 actual,
+            Certificate expected,
+            Certificate actual,
             bool allowNull)
         {
             bool equal = true;
@@ -180,41 +187,36 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Validates the nonce.
         /// </summary>
-        protected byte[] CreateNonce(X509Certificate2 certificate)
+        protected byte[] CreateNonce(Certificate certificate)
         {
-            switch (SecurityPolicyUri)
+            switch (SecurityPolicy.CertificateKeyFamily)
             {
-                case SecurityPolicies.Basic128Rsa15:
-                case SecurityPolicies.Basic256:
-                case SecurityPolicies.Basic256Sha256:
-                case SecurityPolicies.Aes128_Sha256_RsaOaep:
-                case SecurityPolicies.Aes256_Sha256_RsaPss:
-                    uint length = Nonce.GetNonceLength(SecurityPolicyUri);
-
-                    if (length > 0)
+                case CertificateKeyFamily.RSA:
+                    if (SecurityPolicy.EphemeralKeyAlgorithm == CertificateKeyAlgorithm.RSADH)
                     {
-                        return Nonce.CreateRandomNonceData(length);
+                        m_localNonce = Nonce.CreateNonce(SecurityPolicy);
+                        return m_localNonce.Data;
                     }
-                    break;
-                case SecurityPolicies.ECC_nistP256:
-                case SecurityPolicies.ECC_nistP384:
-                case SecurityPolicies.ECC_brainpoolP256r1:
-                case SecurityPolicies.ECC_brainpoolP384r1:
-                case SecurityPolicies.ECC_curve25519:
-                case SecurityPolicies.ECC_curve448:
-                    m_localNonce = Nonce.CreateNonce(SecurityPolicyUri);
+                    // Basic128Rsa15 is the only RSA based security policy that allows nonces
+                    // with a length less than 32 bytes for compatibility reasons.
+                    bool enforceMinimumLength = !SecurityPolicy.Uri.Equals(
+                        SecurityPolicies.Basic128Rsa15,
+                        StringComparison.Ordinal);
+                    return Nonce.CreateRandomNonceData(
+                        SecurityPolicy.SecureChannelNonceLength,
+                        enforceMinimumLength);
+                case CertificateKeyFamily.ECC:
+                    m_localNonce = Nonce.CreateNonce(SecurityPolicy);
                     return m_localNonce.Data;
                 default:
                     return null;
             }
-
-            return null;
         }
 
         /// <summary>
         /// Validates the nonce.
         /// </summary>
-        protected bool ValidateNonce(X509Certificate2 certificate, byte[] nonce)
+        protected bool ValidateNonce(Certificate certificate, byte[] nonce)
         {
             // no nonce needed for no security.
             if (SecurityMode == MessageSecurityMode.None)
@@ -223,18 +225,20 @@ namespace Opc.Ua.Bindings
             }
 
             // check the length.
-            if (nonce == null || nonce.Length != Nonce.GetNonceLength(SecurityPolicyUri))
+            if (nonce == null || nonce.Length != SecurityPolicy.SecureChannelNonceLength)
             {
                 return false;
             }
 
-            switch (SecurityPolicyUri)
+            switch (SecurityPolicy.CertificateKeyFamily)
             {
-                case SecurityPolicies.Basic128Rsa15:
-                case SecurityPolicies.Basic256:
-                case SecurityPolicies.Basic256Sha256:
-                case SecurityPolicies.Aes128_Sha256_RsaOaep:
-                case SecurityPolicies.Aes256_Sha256_RsaPss:
+                case CertificateKeyFamily.RSA:
+                    if (SecurityPolicy.EphemeralKeyAlgorithm == CertificateKeyAlgorithm.RSADH)
+                    {
+                        m_remoteNonce = Nonce.CreateNonce(SecurityPolicy, nonce);
+                        return true;
+                    }
+
                     // try to catch programming errors by rejecting nonces with all zeros.
                     for (int ii = 0; ii < nonce.Length; ii++)
                     {
@@ -243,39 +247,37 @@ namespace Opc.Ua.Bindings
                             return true;
                         }
                     }
-
-                    return false;
-                case SecurityPolicies.ECC_nistP256:
-                case SecurityPolicies.ECC_nistP384:
-                case SecurityPolicies.ECC_brainpoolP256r1:
-                case SecurityPolicies.ECC_brainpoolP384r1:
-                case SecurityPolicies.ECC_curve25519:
-                case SecurityPolicies.ECC_curve448:
-                    m_remoteNonce = Nonce.CreateNonce(SecurityPolicyUri, nonce);
+                    break;
+                case CertificateKeyFamily.ECC:
+                    m_remoteNonce = Nonce.CreateNonce(SecurityPolicy, nonce);
                     return true;
-                default:
-                    return false;
             }
+
+            return false;
         }
 
         /// <summary>
         /// Returns the plain text block size for key in the specified certificate.
         /// </summary>
-        protected int GetPlainTextBlockSize(X509Certificate2 receiverCertificate)
+        protected int GetPlainTextBlockSize(Certificate receiverCertificate)
         {
-            switch (SecurityPolicyUri)
+            if (SecurityPolicy.AsymmetricSignatureAlgorithm == AsymmetricSignatureAlgorithm.None ||
+                SecurityPolicy.EphemeralKeyAlgorithm != CertificateKeyAlgorithm.None)
             {
-                case SecurityPolicies.Basic256:
-                case SecurityPolicies.Basic256Sha256:
-                case SecurityPolicies.Aes128_Sha256_RsaOaep:
+                return 1;
+            }
+
+            switch (SecurityPolicy.AsymmetricEncryptionAlgorithm)
+            {
+                case AsymmetricEncryptionAlgorithm.RsaOaepSha1:
                     return RsaUtils.GetPlainTextBlockSize(
                         receiverCertificate,
                         RsaUtils.Padding.OaepSHA1);
-                case SecurityPolicies.Aes256_Sha256_RsaPss:
+                case AsymmetricEncryptionAlgorithm.RsaOaepSha256:
                     return RsaUtils.GetPlainTextBlockSize(
                         receiverCertificate,
                         RsaUtils.Padding.OaepSHA256);
-                case SecurityPolicies.Basic128Rsa15:
+                case AsymmetricEncryptionAlgorithm.RsaPkcs15Sha1:
                     return RsaUtils.GetPlainTextBlockSize(
                         receiverCertificate,
                         RsaUtils.Padding.Pkcs1);
@@ -287,15 +289,19 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Returns the cipher text block size for key in the specified certificate.
         /// </summary>
-        protected int GetCipherTextBlockSize(X509Certificate2 receiverCertificate)
+        protected int GetCipherTextBlockSize(Certificate receiverCertificate)
         {
-            switch (SecurityPolicyUri)
+            if (SecurityPolicy.AsymmetricSignatureAlgorithm == AsymmetricSignatureAlgorithm.None ||
+                SecurityPolicy.EphemeralKeyAlgorithm != CertificateKeyAlgorithm.None)
             {
-                case SecurityPolicies.Basic256:
-                case SecurityPolicies.Basic256Sha256:
-                case SecurityPolicies.Aes128_Sha256_RsaOaep:
-                case SecurityPolicies.Aes256_Sha256_RsaPss:
-                case SecurityPolicies.Basic128Rsa15:
+                return 1;
+            }
+
+            switch (SecurityPolicy.AsymmetricEncryptionAlgorithm)
+            {
+                case AsymmetricEncryptionAlgorithm.RsaOaepSha1:
+                case AsymmetricEncryptionAlgorithm.RsaOaepSha256:
+                case AsymmetricEncryptionAlgorithm.RsaPkcs15Sha1:
                     return RsaUtils.GetCipherTextBlockSize(receiverCertificate);
                 default:
                     return 1;
@@ -308,7 +314,7 @@ namespace Opc.Ua.Bindings
         /// <exception cref="ServiceResultException"></exception>
         protected int GetAsymmetricHeaderSize(
             string securityPolicyUri,
-            X509Certificate2 senderCertificate)
+            Certificate senderCertificate)
         {
             int headerSize = 0;
 
@@ -351,7 +357,7 @@ namespace Opc.Ua.Bindings
         /// <exception cref="ServiceResultException"></exception>
         protected int GetAsymmetricHeaderSize(
             string securityPolicyUri,
-            X509Certificate2 senderCertificate,
+            Certificate senderCertificate,
             int senderCertificateSize)
         {
             int headerSize = 0;
@@ -392,23 +398,19 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Calculates the size of the footer with an asymmetric signature.
         /// </summary>
-        protected int GetAsymmetricSignatureSize(X509Certificate2 senderCertificate)
+        protected int GetAsymmetricSignatureSize(Certificate senderCertificate)
         {
-            switch (SecurityPolicyUri)
+            switch (SecurityPolicy.AsymmetricSignatureAlgorithm)
             {
-                case SecurityPolicies.Basic128Rsa15:
-                case SecurityPolicies.Basic256:
-                case SecurityPolicies.Basic256Sha256:
-                case SecurityPolicies.Aes128_Sha256_RsaOaep:
-                case SecurityPolicies.Aes256_Sha256_RsaPss:
+                case AsymmetricSignatureAlgorithm.RsaPkcs15Sha1:
+                case AsymmetricSignatureAlgorithm.RsaPkcs15Sha256:
+                case AsymmetricSignatureAlgorithm.RsaPssSha256:
                     return RsaUtils.GetSignatureLength(senderCertificate);
-                case SecurityPolicies.ECC_nistP256:
-                case SecurityPolicies.ECC_nistP384:
-                case SecurityPolicies.ECC_brainpoolP256r1:
-                case SecurityPolicies.ECC_brainpoolP384r1:
-                case SecurityPolicies.ECC_curve25519:
-                case SecurityPolicies.ECC_curve448:
-                    return EccUtils.GetSignatureLength(senderCertificate);
+                case AsymmetricSignatureAlgorithm.EcdsaSha256:
+                case AsymmetricSignatureAlgorithm.EcdsaSha384:
+                case AsymmetricSignatureAlgorithm.EcdsaPure25519:
+                case AsymmetricSignatureAlgorithm.EcdsaPure448:
+                    return CryptoUtils.GetSignatureLength(senderCertificate);
                 default:
                     return 0;
             }
@@ -422,8 +424,8 @@ namespace Opc.Ua.Bindings
             uint messageType,
             uint secureChannelId,
             string securityPolicyUri,
-            X509Certificate2 senderCertificate,
-            X509Certificate2 receiverCertificate)
+            Certificate senderCertificate,
+            Certificate receiverCertificate)
         {
             WriteAsymmetricMessageHeader(
                 encoder,
@@ -445,9 +447,9 @@ namespace Opc.Ua.Bindings
             uint messageType,
             uint secureChannelId,
             string securityPolicyUri,
-            X509Certificate2 senderCertificate,
-            X509Certificate2Collection senderCertificateChain,
-            X509Certificate2 receiverCertificate,
+            Certificate senderCertificate,
+            CertificateCollection senderCertificateChain,
+            Certificate receiverCertificate,
             out int senderCertificateSize)
         {
             int start = encoder.Position;
@@ -462,7 +464,7 @@ namespace Opc.Ua.Bindings
             {
                 if (senderCertificateChain != null && senderCertificateChain.Count > 0)
                 {
-                    X509Certificate2 currentCertificate = senderCertificateChain[0];
+                    Certificate currentCertificate = senderCertificateChain[0];
                     int maxSenderCertificateSize = GetMaxSenderCertificateSize(
                         currentCertificate,
                         securityPolicyUri);
@@ -511,7 +513,7 @@ namespace Opc.Ua.Bindings
         }
 
         private int GetMaxSenderCertificateSize(
-            X509Certificate2 senderCertificate,
+            Certificate senderCertificate,
             string securityPolicyUri)
         {
             int occupiedSize =
@@ -542,8 +544,8 @@ namespace Opc.Ua.Bindings
         protected BufferCollection WriteAsymmetricMessage(
             uint messageType,
             uint requestId,
-            X509Certificate2 senderCertificate,
-            X509Certificate2 receiverCertificate,
+            Certificate senderCertificate,
+            Certificate receiverCertificate,
             ArraySegment<byte> messageBody)
         {
             return WriteAsymmetricMessage(
@@ -552,22 +554,36 @@ namespace Opc.Ua.Bindings
                 senderCertificate,
                 null,
                 receiverCertificate,
-                messageBody);
+                messageBody,
+                null,
+                out _);
         }
 
         /// <summary>
         /// Sends a OpenSecureChannel request.
         /// </summary>
+        /// <param name="messageType">The UA TCP message type (for example, Open or OpenFinal).</param>
+        /// <param name="requestId">The request identifier used in the sequence header.</param>
+        /// <param name="senderCertificate">The certificate used to sign the asymmetric message.</param>
+        /// <param name="senderCertificateChain">The optional sender certificate chain to include in the message header.</param>
+        /// <param name="receiverCertificate">The receiver certificate used for asymmetric encryption.</param>
+        /// <param name="messageBody">The encoded message body to send.</param>
+        /// <param name="oscRequestSignature">The signature from the OpenSecureChannel request.</param>
+        /// <param name="signature">Returns the signature generated for the message being written.</param>
         /// <exception cref="InvalidDataException"></exception>
         /// <exception cref="ServiceResultException"></exception>
         protected BufferCollection WriteAsymmetricMessage(
             uint messageType,
             uint requestId,
-            X509Certificate2 senderCertificate,
-            X509Certificate2Collection senderCertificateChain,
-            X509Certificate2 receiverCertificate,
-            ArraySegment<byte> messageBody)
+            Certificate senderCertificate,
+            CertificateCollection senderCertificateChain,
+            Certificate receiverCertificate,
+            ArraySegment<byte> messageBody,
+            byte[] oscRequestSignature,
+            out byte[] signature)
         {
+            signature = null;
+
             bool success = false;
             var chunksToSend = new BufferCollection();
 
@@ -658,7 +674,8 @@ namespace Opc.Ua.Bindings
 
                     if (SecurityMode != MessageSecurityMode.None)
                     {
-                        if (receiverCertificate.GetRSAPublicKey() != null)
+                        if (SecurityPolicy.EphemeralKeyAlgorithm == CertificateKeyAlgorithm.None &&
+                            receiverCertificate.GetRSAPublicKey() != null)
                         {
                             if (X509Utils.GetRSAPublicKeySize(receiverCertificate) <=
                                 TcpMessageLimits.KeySizeExtraPadding)
@@ -716,10 +733,30 @@ namespace Opc.Ua.Bindings
                     // put the message size after encryption into the header.
                     UpdateMessageSize(buffer, 0, cipherTextSize + headerSize);
 
+                    ArraySegment<byte> dataToSign;
+
+                    if (oscRequestSignature != null && SecurityPolicy.SecureChannelEnhancements)
+                    {
+                        // copy OpenSecureChannel request signature if provided before verifying.
+                        dataToSign = new ArraySegment<byte>(
+                            buffer,
+                            0,
+                            encoder.Position + oscRequestSignature.Length);
+
+                        Array.Copy(
+                            oscRequestSignature,
+                            0,
+                            buffer,
+                            encoder.Position,
+                            oscRequestSignature.Length);
+                    }
+                    else
+                    {
+                        dataToSign = new ArraySegment<byte>(buffer, 0, encoder.Position);
+                    }
+
                     // write the signature.
-                    byte[] signature = Sign(
-                        new ArraySegment<byte>(buffer, 0, encoder.Position),
-                        senderCertificate);
+                    signature = Sign(dataToSign, senderCertificate);
 
                     if (signature != null)
                     {
@@ -750,7 +787,7 @@ namespace Opc.Ua.Bindings
                     // reset the encoder to write the plaintext for the next chunk into the same buffer.
                     if (bytesToWrite > 0)
                     {
-                        Utils.SilentDispose(encoder);
+                        encoder.Dispose();
                         // ostrm is disposed by the encoder.
                         var ostrm = new MemoryStream(buffer, 0, SendBufferSize);
                         ostrm.Seek(header.Count, SeekOrigin.Current);
@@ -760,6 +797,7 @@ namespace Opc.Ua.Bindings
 
                 // ensure the buffers don't get clean up on exit.
                 success = true;
+
                 return chunksToSend;
             }
             catch (Exception ex)
@@ -768,7 +806,7 @@ namespace Opc.Ua.Bindings
             }
             finally
             {
-                Utils.SilentDispose(encoder);
+                encoder?.Dispose();
 
                 BufferManager.ReturnBuffer(buffer, "WriteAsymmetricMessage");
 
@@ -785,9 +823,9 @@ namespace Opc.Ua.Bindings
         /// <exception cref="ServiceResultException"></exception>
         protected void ReadAsymmetricMessageHeader(
             BinaryDecoder decoder,
-            ref X509Certificate2 receiverCertificate,
+            ref Certificate receiverCertificate,
             out uint secureChannelId,
-            out X509Certificate2Collection senderCertificateChain,
+            out CertificateCollection senderCertificateChain,
             out string securityPolicyUri)
         {
             senderCertificateChain = null;
@@ -852,10 +890,11 @@ namespace Opc.Ua.Bindings
             {
                 bool loadChain = false;
                 // TODO: client should use the proider too!
-                if (m_serverCertificateTypesProvider != null)
+                if (m_serverCertificates != null)
                 {
-                    receiverCertificate = m_serverCertificateTypesProvider.GetInstanceCertificate(
-                        securityPolicyUri);
+                    receiverCertificate =
+                        m_serverCertificates.GetInstanceCertificate(
+                            securityPolicyUri)?.Certificate;
                     ServerCertificate = receiverCertificate;
                     loadChain = true;
                 }
@@ -878,8 +917,10 @@ namespace Opc.Ua.Bindings
 
                 if (loadChain)
                 {
-                    ServerCertificateChain = m_serverCertificateTypesProvider?.LoadCertificateChain(
-                        receiverCertificate);
+                    ServerCertificateChain?.Dispose();
+                    ServerCertificateChain =
+                        m_serverCertificates?.LoadCertificateChain(
+                            receiverCertificate);
                 }
             }
             else if (securityPolicyUri != SecurityPolicies.None)
@@ -910,12 +951,15 @@ namespace Opc.Ua.Bindings
                         {
                             SecurityMode = endpoint.SecurityMode;
                             m_selectedEndpoint = endpoint;
-                            ServerCertificate = m_serverCertificateTypesProvider
-                                .GetInstanceCertificate(
-                                    SecurityPolicyUri);
-                            ServerCertificateChain = m_serverCertificateTypesProvider
-                                .LoadCertificateChain(
-                                    ServerCertificate);
+                            ServerCertificate =
+                                m_serverCertificates
+                                    .GetInstanceCertificate(
+                                        SecurityPolicyUri)?.Certificate;
+                            ServerCertificateChain?.Dispose();
+                            ServerCertificateChain =
+                                m_serverCertificates
+                                    .LoadCertificateChain(
+                                        ServerCertificate);
                             supported = true;
                             break;
                         }
@@ -959,12 +1003,12 @@ namespace Opc.Ua.Bindings
 
                 SecurityMode = endpoint.SecurityMode;
                 SecurityPolicyUri = endpoint.SecurityPolicyUri;
-                ServerCertificate = m_serverCertificateTypesProvider.GetInstanceCertificate(
-                    SecurityPolicyUri);
-                ServerCertificateChain = m_serverCertificateTypesProvider
-                    .LoadCertificateChainAsync(ServerCertificate)
-                    .GetAwaiter()
-                    .GetResult();
+                ServerCertificate =
+                    m_serverCertificates.GetInstanceCertificate(
+                        SecurityPolicyUri)?.Certificate;
+                ServerCertificateChain?.Dispose();
+                ServerCertificateChain =
+                    m_serverCertificates.LoadCertificateChain(ServerCertificate);
                 m_selectedEndpoint = endpoint;
                 return true;
             }
@@ -978,12 +1022,16 @@ namespace Opc.Ua.Bindings
         /// <exception cref="ServiceResultException"></exception>
         protected ArraySegment<byte> ReadAsymmetricMessage(
             ArraySegment<byte> buffer,
-            X509Certificate2 receiverCertificate,
+            Certificate receiverCertificate,
             out uint channelId,
-            out X509Certificate2 senderCertificate,
+            out Certificate senderCertificate,
             out uint requestId,
-            out uint sequenceNumber)
+            out uint sequenceNumber,
+            byte[] oscRequestSignature,
+            out byte[] signature)
         {
+            signature = null;
+
             int headerSize;
             using (var decoder = new BinaryDecoder(buffer, Quotas.MessageContext))
             {
@@ -992,30 +1040,35 @@ namespace Opc.Ua.Bindings
                     decoder,
                     ref receiverCertificate,
                     out channelId,
-                    out X509Certificate2Collection senderCertificateChain,
+                    out CertificateCollection senderCertificateChain,
                     out string securityPolicyUri);
 
-                if (senderCertificateChain != null && senderCertificateChain.Count > 0)
+                using (senderCertificateChain)
                 {
-                    senderCertificate = senderCertificateChain[0];
-                }
-                else
-                {
-                    senderCertificate = null;
-                }
-
-                // validate the sender certificate.
-                if (senderCertificate != null &&
-                    Quotas.CertificateValidator != null &&
-                    securityPolicyUri != SecurityPolicies.None)
-                {
-                    if (Quotas.CertificateValidator is CertificateValidator certificateValidator)
+                    if (senderCertificateChain != null && senderCertificateChain.Count > 0)
                     {
-                        certificateValidator.ValidateAsync(senderCertificateChain, default).GetAwaiter().GetResult();
+                        senderCertificate = senderCertificateChain[0].AddRef();
                     }
                     else
                     {
-                        Quotas.CertificateValidator.ValidateAsync(senderCertificate, default).GetAwaiter().GetResult();
+                        senderCertificate = null;
+                    }
+
+                    // validate the sender certificate.
+                    if (senderCertificate != null &&
+                        Quotas.CertificateValidator != null &&
+                        securityPolicyUri != SecurityPolicies.None)
+                    {
+#pragma warning disable CA2025 // Do not pass 'IDisposable' instances into unawaited tasks
+                        CertificateValidationResult validationResult = Quotas.CertificateValidator
+                            .ValidateAsync(senderCertificateChain, ct: default)
+                            .GetAwaiter()
+                            .GetResult();
+#pragma warning restore CA2025 // Do not pass 'IDisposable' instances into unawaited tasks
+                        if (!validationResult.IsValid)
+                        {
+                            throw new ServiceResultException(validationResult.StatusCode);
+                        }
                     }
                 }
 
@@ -1090,23 +1143,43 @@ namespace Opc.Ua.Bindings
             // extract signature.
             int signatureSize = GetAsymmetricSignatureSize(senderCertificate);
 
-            byte[] signature = new byte[signatureSize];
+            signature = new byte[signatureSize];
 
             for (int ii = 0; ii < signatureSize; ii++)
             {
-                signature[ii] = plainText.Array[
-                    plainText.Offset + plainText.Count - signatureSize + ii];
+                signature[ii] = plainText.Array[plainText.Offset + plainText.Count - signatureSize + ii];
+            }
+
+            ArraySegment<byte> dataToVerify;
+
+            if (oscRequestSignature != null && SecurityPolicy.SecureChannelEnhancements)
+            {
+                // copy OpenSecureChannel request signature if provided before verifying.
+                dataToVerify = new ArraySegment<byte>(
+                    plainText.Array,
+                    plainText.Offset,
+                    plainText.Count - signatureSize + oscRequestSignature.Length);
+
+                Array.Copy(
+                    oscRequestSignature,
+                    dataToVerify.Offset,
+                    dataToVerify.Array,
+                    dataToVerify.Count - oscRequestSignature.Length,
+                    oscRequestSignature.Length);
+            }
+            else
+            {
+                dataToVerify = new ArraySegment<byte>(
+                    plainText.Array,
+                    plainText.Offset,
+                    plainText.Count - signatureSize);
             }
 
             // verify the signature.
-            var dataToVerify = new ArraySegment<byte>(
-                plainText.Array,
-                plainText.Offset,
-                plainText.Count - signatureSize);
-
             if (!Verify(dataToVerify, signature, senderCertificate))
             {
                 m_logger.LogWarning("Could not verify signature on message.");
+
                 throw ServiceResultException.Create(
                     StatusCodes.BadSecurityChecksFailed,
                     "Could not verify the signature on the message.");
@@ -1116,6 +1189,7 @@ namespace Opc.Ua.Bindings
             int paddingCount = 0;
 
             if (SecurityMode != MessageSecurityMode.None &&
+                SecurityPolicy.EphemeralKeyAlgorithm == CertificateKeyAlgorithm.None &&
                 receiverCertificate.GetRSAPublicKey() != null)
             {
                 int paddingEnd;
@@ -1170,7 +1244,7 @@ namespace Opc.Ua.Bindings
             }
 
             m_logger.LogInformation("Security Policy: {SecurityPolicyUri}", SecurityPolicyUri);
-            m_logger.LogInformation("Sender Certificate {Certificate}", senderCertificate.AsLogSafeString());
+            m_logger.LogInformation("Sender Certificate {Certificate}", senderCertificate);
 
             // return the body.
             return new ArraySegment<byte>(
@@ -1186,41 +1260,9 @@ namespace Opc.Ua.Bindings
         /// Start and count specify the block of data to be signed.
         /// The padding and signature must be written to the stream wrapped by the encoder.
         /// </remarks>
-        protected byte[] Sign(ArraySegment<byte> dataToSign, X509Certificate2 senderCertificate)
+        protected byte[] Sign(ArraySegment<byte> dataToSign, Certificate senderCertificate)
         {
-            switch (SecurityPolicyUri)
-            {
-                case SecurityPolicies.Basic256:
-                case SecurityPolicies.Basic128Rsa15:
-                    return Rsa_Sign(
-                        dataToSign,
-                        senderCertificate,
-                        HashAlgorithmName.SHA1,
-                        RSASignaturePadding.Pkcs1);
-                case SecurityPolicies.Aes128_Sha256_RsaOaep:
-                case SecurityPolicies.Basic256Sha256:
-                    return Rsa_Sign(
-                        dataToSign,
-                        senderCertificate,
-                        HashAlgorithmName.SHA256,
-                        RSASignaturePadding.Pkcs1);
-                case SecurityPolicies.Aes256_Sha256_RsaPss:
-                    return Rsa_Sign(
-                        dataToSign,
-                        senderCertificate,
-                        HashAlgorithmName.SHA256,
-                        RSASignaturePadding.Pss);
-                case SecurityPolicies.ECC_nistP256:
-                case SecurityPolicies.ECC_brainpoolP256r1:
-                case SecurityPolicies.ECC_curve25519:
-                case SecurityPolicies.ECC_curve448:
-                    return EccUtils.Sign(dataToSign, senderCertificate, HashAlgorithmName.SHA256);
-                case SecurityPolicies.ECC_nistP384:
-                case SecurityPolicies.ECC_brainpoolP384r1:
-                    return EccUtils.Sign(dataToSign, senderCertificate, HashAlgorithmName.SHA384);
-                default:
-                    return null;
-            }
+            return CryptoUtils.Sign(dataToSign, senderCertificate, SecurityPolicyUri);
         }
 
         /// <summary>
@@ -1234,55 +1276,13 @@ namespace Opc.Ua.Bindings
         protected bool Verify(
             ArraySegment<byte> dataToVerify,
             byte[] signature,
-            X509Certificate2 senderCertificate)
+            Certificate senderCertificate)
         {
-            // verify signature.
-            switch (SecurityPolicyUri)
-            {
-                case SecurityPolicies.None:
-                    return true;
-                case SecurityPolicies.Basic128Rsa15:
-                case SecurityPolicies.Basic256:
-                    return Rsa_Verify(
-                        dataToVerify,
-                        signature,
-                        senderCertificate,
-                        HashAlgorithmName.SHA1,
-                        RSASignaturePadding.Pkcs1);
-                case SecurityPolicies.Aes128_Sha256_RsaOaep:
-                case SecurityPolicies.Basic256Sha256:
-                    return Rsa_Verify(
-                        dataToVerify,
-                        signature,
-                        senderCertificate,
-                        HashAlgorithmName.SHA256,
-                        RSASignaturePadding.Pkcs1);
-                case SecurityPolicies.Aes256_Sha256_RsaPss:
-                    return Rsa_Verify(
-                        dataToVerify,
-                        signature,
-                        senderCertificate,
-                        HashAlgorithmName.SHA256,
-                        RSASignaturePadding.Pss);
-                case SecurityPolicies.ECC_nistP256:
-                case SecurityPolicies.ECC_brainpoolP256r1:
-                case SecurityPolicies.ECC_curve25519:
-                case SecurityPolicies.ECC_curve448:
-                    return EccUtils.Verify(
-                        dataToVerify,
-                        signature,
-                        senderCertificate,
-                        HashAlgorithmName.SHA256);
-                case SecurityPolicies.ECC_nistP384:
-                case SecurityPolicies.ECC_brainpoolP384r1:
-                    return EccUtils.Verify(
-                        dataToVerify,
-                        signature,
-                        senderCertificate,
-                        HashAlgorithmName.SHA384);
-                default:
-                    return false;
-            }
+            return CryptoUtils.Verify(
+                dataToVerify,
+                signature,
+                senderCertificate,
+                SecurityPolicyUri);
         }
 
         /// <summary>
@@ -1296,50 +1296,52 @@ namespace Opc.Ua.Bindings
         protected ArraySegment<byte> Encrypt(
             ArraySegment<byte> dataToEncrypt,
             ArraySegment<byte> headerToCopy,
-            X509Certificate2 receiverCertificate)
+            Certificate receiverCertificate)
         {
-            switch (SecurityPolicyUri)
+            if (SecurityPolicy.AsymmetricSignatureAlgorithm == AsymmetricSignatureAlgorithm.None ||
+                SecurityPolicy.EphemeralKeyAlgorithm != CertificateKeyAlgorithm.None)
             {
-                case SecurityPolicies.Basic256:
-                case SecurityPolicies.Aes128_Sha256_RsaOaep:
-                case SecurityPolicies.Basic256Sha256:
+                byte[] encryptedBuffer = BufferManager.TakeBuffer(SendBufferSize, "Encrypt");
+
+                Array.Copy(
+                    headerToCopy.Array,
+                    headerToCopy.Offset,
+                    encryptedBuffer,
+                    0,
+                    headerToCopy.Count);
+                Array.Copy(
+                    dataToEncrypt.Array,
+                    dataToEncrypt.Offset,
+                    encryptedBuffer,
+                    headerToCopy.Count,
+                    dataToEncrypt.Count);
+
+                return new ArraySegment<byte>(
+                    encryptedBuffer,
+                    0,
+                    dataToEncrypt.Count + headerToCopy.Count);
+            }
+
+            switch (SecurityPolicy.AsymmetricEncryptionAlgorithm)
+            {
+                case AsymmetricEncryptionAlgorithm.RsaOaepSha1:
                     return Rsa_Encrypt(
                         dataToEncrypt,
                         headerToCopy,
                         receiverCertificate,
                         RsaUtils.Padding.OaepSHA1);
-                case SecurityPolicies.Aes256_Sha256_RsaPss:
+                case AsymmetricEncryptionAlgorithm.RsaOaepSha256:
                     return Rsa_Encrypt(
                         dataToEncrypt,
                         headerToCopy,
                         receiverCertificate,
                         RsaUtils.Padding.OaepSHA256);
-                case SecurityPolicies.Basic128Rsa15:
+                default:
                     return Rsa_Encrypt(
                         dataToEncrypt,
                         headerToCopy,
                         receiverCertificate,
                         RsaUtils.Padding.Pkcs1);
-                default:
-                    byte[] encryptedBuffer = BufferManager.TakeBuffer(SendBufferSize, "Encrypt");
-
-                    Array.Copy(
-                        headerToCopy.Array,
-                        headerToCopy.Offset,
-                        encryptedBuffer,
-                        0,
-                        headerToCopy.Count);
-                    Array.Copy(
-                        dataToEncrypt.Array,
-                        dataToEncrypt.Offset,
-                        encryptedBuffer,
-                        headerToCopy.Count,
-                        dataToEncrypt.Count);
-
-                    return new ArraySegment<byte>(
-                        encryptedBuffer,
-                        0,
-                        dataToEncrypt.Count + headerToCopy.Count);
             }
         }
 
@@ -1353,8 +1355,32 @@ namespace Opc.Ua.Bindings
         protected ArraySegment<byte> Decrypt(
             ArraySegment<byte> dataToDecrypt,
             ArraySegment<byte> headerToCopy,
-            X509Certificate2 receiverCertificate)
+            Certificate receiverCertificate)
         {
+            if (SecurityPolicy.AsymmetricSignatureAlgorithm == AsymmetricSignatureAlgorithm.None ||
+                SecurityPolicy.EphemeralKeyAlgorithm != CertificateKeyAlgorithm.None)
+            {
+                byte[] decryptedBuffer = BufferManager.TakeBuffer(SendBufferSize, "Decrypt");
+
+                Array.Copy(
+                    headerToCopy.Array,
+                    headerToCopy.Offset,
+                    decryptedBuffer,
+                    0,
+                    headerToCopy.Count);
+                Array.Copy(
+                    dataToDecrypt.Array,
+                    dataToDecrypt.Offset,
+                    decryptedBuffer,
+                    headerToCopy.Count,
+                    dataToDecrypt.Count);
+
+                return new ArraySegment<byte>(
+                    decryptedBuffer,
+                    0,
+                    dataToDecrypt.Count + headerToCopy.Count);
+            }
+
             switch (SecurityPolicyUri)
             {
                 case SecurityPolicies.Basic256:
@@ -1365,12 +1391,6 @@ namespace Opc.Ua.Bindings
                         headerToCopy,
                         receiverCertificate,
                         RsaUtils.Padding.OaepSHA1);
-                case SecurityPolicies.Aes256_Sha256_RsaPss:
-                    return Rsa_Decrypt(
-                        dataToDecrypt,
-                        headerToCopy,
-                        receiverCertificate,
-                        RsaUtils.Padding.OaepSHA256);
                 case SecurityPolicies.Basic128Rsa15:
                     return Rsa_Decrypt(
                         dataToDecrypt,
@@ -1378,31 +1398,17 @@ namespace Opc.Ua.Bindings
                         receiverCertificate,
                         RsaUtils.Padding.Pkcs1);
                 default:
-                    byte[] decryptedBuffer = BufferManager.TakeBuffer(SendBufferSize, "Decrypt");
-
-                    Array.Copy(
-                        headerToCopy.Array,
-                        headerToCopy.Offset,
-                        decryptedBuffer,
-                        0,
-                        headerToCopy.Count);
-                    Array.Copy(
-                        dataToDecrypt.Array,
-                        dataToDecrypt.Offset,
-                        decryptedBuffer,
-                        headerToCopy.Count,
-                        dataToDecrypt.Count);
-
-                    return new ArraySegment<byte>(
-                        decryptedBuffer,
-                        0,
-                        dataToDecrypt.Count + headerToCopy.Count);
+                    return Rsa_Decrypt(
+                        dataToDecrypt,
+                        headerToCopy,
+                        receiverCertificate,
+                        RsaUtils.Padding.OaepSHA256);
             }
         }
 
         private readonly List<EndpointDescription> m_endpoints;
         private EndpointDescription m_selectedEndpoint;
-        private readonly CertificateTypesProvider m_serverCertificateTypesProvider;
+        private readonly ICertificateRegistry m_serverCertificates;
         private bool m_uninitialized;
         private Nonce m_localNonce;
         private Nonce m_remoteNonce;

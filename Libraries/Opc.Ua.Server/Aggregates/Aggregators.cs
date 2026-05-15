@@ -57,8 +57,17 @@ namespace Opc.Ua.Server
 
             public QualifiedName AggregateName { get; set; }
 
-            public Type Calculator { get; set; }
+            public CreateInstance Calculator { get; set; }
         }
+
+        private delegate IAggregateCalculator CreateInstance(
+            NodeId aggregateId,
+            DateTimeUtc startTime,
+            DateTimeUtc endTime,
+            double processingInterval,
+            bool stepped,
+            AggregateConfiguration configuration,
+            ITelemetryContext telemetry);
 
         /// <summary>
         /// Mapping for all of the standard aggregates.
@@ -69,223 +78,223 @@ namespace Opc.Ua.Server
             {
                 AggregateId = ObjectIds.AggregateFunction_Interpolative,
                 AggregateName = QualifiedName.From(BrowseNames.AggregateFunction_Interpolative),
-                Calculator = typeof(AggregateCalculator)
+                Calculator = (a, s, e, p, b, c, t) => new AggregateCalculator(a, s, e, p, b, c, t)
             },
             new FactoryMapping
             {
                 AggregateId = ObjectIds.AggregateFunction_Average,
                 AggregateName = QualifiedName.From(BrowseNames.AggregateFunction_Average),
-                Calculator = typeof(AverageAggregateCalculator)
+                Calculator = (a, s, e, p, b, c, t) => new AverageAggregateCalculator(a, s, e, p, b, c, t)
             },
             new FactoryMapping
             {
                 AggregateId = ObjectIds.AggregateFunction_TimeAverage,
                 AggregateName = QualifiedName.From(BrowseNames.AggregateFunction_TimeAverage),
-                Calculator = typeof(AverageAggregateCalculator)
+                Calculator = (a, s, e, p, b, c, t) => new AverageAggregateCalculator(a, s, e, p, b, c, t)
             },
             new FactoryMapping
             {
                 AggregateId = ObjectIds.AggregateFunction_TimeAverage2,
                 AggregateName = QualifiedName.From(BrowseNames.AggregateFunction_TimeAverage2),
-                Calculator = typeof(AverageAggregateCalculator)
+                Calculator = (a, s, e, p, b, c, t) => new AverageAggregateCalculator(a, s, e, p, b, c, t)
             },
             new FactoryMapping
             {
                 AggregateId = ObjectIds.AggregateFunction_Total,
                 AggregateName = QualifiedName.From(BrowseNames.AggregateFunction_Total),
-                Calculator = typeof(AverageAggregateCalculator)
+                Calculator = (a, s, e, p, b, c, t) => new AverageAggregateCalculator(a, s, e, p, b, c, t)
             },
             new FactoryMapping
             {
                 AggregateId = ObjectIds.AggregateFunction_Total2,
                 AggregateName = QualifiedName.From(BrowseNames.AggregateFunction_Total2),
-                Calculator = typeof(AverageAggregateCalculator)
+                Calculator = (a, s, e, p, b, c, t) => new AverageAggregateCalculator(a, s, e, p, b, c, t)
             },
             new FactoryMapping
             {
                 AggregateId = ObjectIds.AggregateFunction_Minimum,
                 AggregateName = QualifiedName.From(BrowseNames.AggregateFunction_Minimum),
-                Calculator = typeof(MinMaxAggregateCalculator)
+                Calculator = (a, s, e, p, b, c, t) => new MinMaxAggregateCalculator(a, s, e, p, b, c, t)
             },
             new FactoryMapping
             {
                 AggregateId = ObjectIds.AggregateFunction_Maximum,
                 AggregateName = QualifiedName.From(BrowseNames.AggregateFunction_Maximum),
-                Calculator = typeof(MinMaxAggregateCalculator)
+                Calculator = (a, s, e, p, b, c, t) => new MinMaxAggregateCalculator(a, s, e, p, b, c, t)
             },
             new FactoryMapping
             {
                 AggregateId = ObjectIds.AggregateFunction_MinimumActualTime,
                 AggregateName = QualifiedName.From(BrowseNames.AggregateFunction_MinimumActualTime),
-                Calculator = typeof(MinMaxAggregateCalculator)
+                Calculator = (a, s, e, p, b, c, t) => new MinMaxAggregateCalculator(a, s, e, p, b, c, t)
             },
             new FactoryMapping
             {
                 AggregateId = ObjectIds.AggregateFunction_MaximumActualTime,
                 AggregateName = QualifiedName.From(BrowseNames.AggregateFunction_MaximumActualTime),
-                Calculator = typeof(MinMaxAggregateCalculator)
+                Calculator = (a, s, e, p, b, c, t) => new MinMaxAggregateCalculator(a, s, e, p, b, c, t)
             },
             new FactoryMapping
             {
                 AggregateId = ObjectIds.AggregateFunction_Range,
                 AggregateName = QualifiedName.From(BrowseNames.AggregateFunction_Range),
-                Calculator = typeof(MinMaxAggregateCalculator)
+                Calculator = (a, s, e, p, b, c, t) => new MinMaxAggregateCalculator(a, s, e, p, b, c, t)
             },
             new FactoryMapping
             {
                 AggregateId = ObjectIds.AggregateFunction_Minimum2,
                 AggregateName = QualifiedName.From(BrowseNames.AggregateFunction_Minimum2),
-                Calculator = typeof(MinMaxAggregateCalculator)
+                Calculator = (a, s, e, p, b, c, t) => new MinMaxAggregateCalculator(a, s, e, p, b, c, t)
             },
             new FactoryMapping
             {
                 AggregateId = ObjectIds.AggregateFunction_Maximum2,
                 AggregateName = QualifiedName.From(BrowseNames.AggregateFunction_Maximum2),
-                Calculator = typeof(MinMaxAggregateCalculator)
+                Calculator = (a, s, e, p, b, c, t) => new MinMaxAggregateCalculator(a, s, e, p, b, c, t)
             },
             new FactoryMapping
             {
                 AggregateId = ObjectIds.AggregateFunction_MinimumActualTime2,
                 AggregateName = QualifiedName.From(BrowseNames.AggregateFunction_MinimumActualTime2),
-                Calculator = typeof(MinMaxAggregateCalculator)
+                Calculator = (a, s, e, p, b, c, t) => new MinMaxAggregateCalculator(a, s, e, p, b, c, t)
             },
             new FactoryMapping
             {
                 AggregateId = ObjectIds.AggregateFunction_MaximumActualTime2,
                 AggregateName = QualifiedName.From(BrowseNames.AggregateFunction_MaximumActualTime2),
-                Calculator = typeof(MinMaxAggregateCalculator)
+                Calculator = (a, s, e, p, b, c, t) => new MinMaxAggregateCalculator(a, s, e, p, b, c, t)
             },
             new FactoryMapping
             {
                 AggregateId = ObjectIds.AggregateFunction_Range2,
                 AggregateName = QualifiedName.From(BrowseNames.AggregateFunction_Range2),
-                Calculator = typeof(MinMaxAggregateCalculator)
+                Calculator = (a, s, e, p, b, c, t) => new MinMaxAggregateCalculator(a, s, e, p, b, c, t)
             },
             new FactoryMapping
             {
                 AggregateId = ObjectIds.AggregateFunction_Count,
                 AggregateName = QualifiedName.From(BrowseNames.AggregateFunction_Count),
-                Calculator = typeof(CountAggregateCalculator)
+                Calculator = (a, s, e, p, b, c, t) => new CountAggregateCalculator(a, s, e, p, b, c, t)
             },
             new FactoryMapping
             {
                 AggregateId = ObjectIds.AggregateFunction_AnnotationCount,
                 AggregateName = QualifiedName.From(BrowseNames.AggregateFunction_AnnotationCount),
-                Calculator = typeof(CountAggregateCalculator)
+                Calculator = (a, s, e, p, b, c, t) => new CountAggregateCalculator(a, s, e, p, b, c, t)
             },
             new FactoryMapping
             {
                 AggregateId = ObjectIds.AggregateFunction_DurationInStateZero,
                 AggregateName = QualifiedName.From(BrowseNames.AggregateFunction_DurationInStateZero),
-                Calculator = typeof(CountAggregateCalculator)
+                Calculator = (a, s, e, p, b, c, t) => new CountAggregateCalculator(a, s, e, p, b, c, t)
             },
             new FactoryMapping
             {
                 AggregateId = ObjectIds.AggregateFunction_DurationInStateNonZero,
                 AggregateName = QualifiedName.From(BrowseNames.AggregateFunction_DurationInStateNonZero),
-                Calculator = typeof(CountAggregateCalculator)
+                Calculator = (a, s, e, p, b, c, t) => new CountAggregateCalculator(a, s, e, p, b, c, t)
             },
             new FactoryMapping
             {
                 AggregateId = ObjectIds.AggregateFunction_NumberOfTransitions,
                 AggregateName = QualifiedName.From(BrowseNames.AggregateFunction_NumberOfTransitions),
-                Calculator = typeof(CountAggregateCalculator)
+                Calculator = (a, s, e, p, b, c, t) => new CountAggregateCalculator(a, s, e, p, b, c, t)
             },
             new FactoryMapping
             {
                 AggregateId = ObjectIds.AggregateFunction_Start,
                 AggregateName = QualifiedName.From(BrowseNames.AggregateFunction_Start),
-                Calculator = typeof(StartEndAggregateCalculator)
+                Calculator = (a, s, e, p, b, c, t) => new StartEndAggregateCalculator(a, s, e, p, b, c, t)
             },
             new FactoryMapping
             {
                 AggregateId = ObjectIds.AggregateFunction_End,
                 AggregateName = QualifiedName.From(BrowseNames.AggregateFunction_End),
-                Calculator = typeof(StartEndAggregateCalculator)
+                Calculator = (a, s, e, p, b, c, t) => new StartEndAggregateCalculator(a, s, e, p, b, c, t)
             },
             new FactoryMapping
             {
                 AggregateId = ObjectIds.AggregateFunction_Delta,
                 AggregateName = QualifiedName.From(BrowseNames.AggregateFunction_Delta),
-                Calculator = typeof(StartEndAggregateCalculator)
+                Calculator = (a, s, e, p, b, c, t) => new StartEndAggregateCalculator(a, s, e, p, b, c, t)
             },
             new FactoryMapping
             {
                 AggregateId = ObjectIds.AggregateFunction_StartBound,
                 AggregateName = QualifiedName.From(BrowseNames.AggregateFunction_StartBound),
-                Calculator = typeof(StartEndAggregateCalculator)
+                Calculator = (a, s, e, p, b, c, t) => new StartEndAggregateCalculator(a, s, e, p, b, c, t)
             },
             new FactoryMapping
             {
                 AggregateId = ObjectIds.AggregateFunction_EndBound,
                 AggregateName = QualifiedName.From(BrowseNames.AggregateFunction_EndBound),
-                Calculator = typeof(StartEndAggregateCalculator)
+                Calculator = (a, s, e, p, b, c, t) => new StartEndAggregateCalculator(a, s, e, p, b, c, t)
             },
             new FactoryMapping
             {
                 AggregateId = ObjectIds.AggregateFunction_DeltaBounds,
                 AggregateName = QualifiedName.From(BrowseNames.AggregateFunction_DeltaBounds),
-                Calculator = typeof(StartEndAggregateCalculator)
+                Calculator = (a, s, e, p, b, c, t) => new StartEndAggregateCalculator(a, s, e, p, b, c, t)
             },
             new FactoryMapping
             {
                 AggregateId = ObjectIds.AggregateFunction_DurationGood,
                 AggregateName = QualifiedName.From(BrowseNames.AggregateFunction_DurationGood),
-                Calculator = typeof(StatusAggregateCalculator)
+                Calculator = (a, s, e, p, b, c, t) => new StatusAggregateCalculator(a, s, e, p, b, c, t)
             },
             new FactoryMapping
             {
                 AggregateId = ObjectIds.AggregateFunction_DurationBad,
                 AggregateName = QualifiedName.From(BrowseNames.AggregateFunction_DurationBad),
-                Calculator = typeof(StatusAggregateCalculator)
+                Calculator = (a, s, e, p, b, c, t) => new StatusAggregateCalculator(a, s, e, p, b, c, t)
             },
             new FactoryMapping
             {
                 AggregateId = ObjectIds.AggregateFunction_PercentGood,
                 AggregateName = QualifiedName.From(BrowseNames.AggregateFunction_PercentGood),
-                Calculator = typeof(StatusAggregateCalculator)
+                Calculator = (a, s, e, p, b, c, t) => new StatusAggregateCalculator(a, s, e, p, b, c, t)
             },
             new FactoryMapping
             {
                 AggregateId = ObjectIds.AggregateFunction_PercentBad,
                 AggregateName = QualifiedName.From(BrowseNames.AggregateFunction_PercentBad),
-                Calculator = typeof(StatusAggregateCalculator)
+                Calculator = (a, s, e, p, b, c, t) => new StatusAggregateCalculator(a, s, e, p, b, c, t)
             },
             new FactoryMapping
             {
                 AggregateId = ObjectIds.AggregateFunction_WorstQuality,
                 AggregateName = QualifiedName.From(BrowseNames.AggregateFunction_WorstQuality),
-                Calculator = typeof(StatusAggregateCalculator)
+                Calculator = (a, s, e, p, b, c, t) => new StatusAggregateCalculator(a, s, e, p, b, c, t)
             },
             new FactoryMapping
             {
                 AggregateId = ObjectIds.AggregateFunction_WorstQuality2,
                 AggregateName = QualifiedName.From(BrowseNames.AggregateFunction_WorstQuality2),
-                Calculator = typeof(StatusAggregateCalculator)
+                Calculator = (a, s, e, p, b, c, t) => new StatusAggregateCalculator(a, s, e, p, b, c, t)
             },
             new FactoryMapping
             {
                 AggregateId = ObjectIds.AggregateFunction_StandardDeviationPopulation,
                 AggregateName = QualifiedName.From(BrowseNames.AggregateFunction_StandardDeviationPopulation),
-                Calculator = typeof(StdDevAggregateCalculator)
+                Calculator = (a, s, e, p, b, c, t) => new StdDevAggregateCalculator(a, s, e, p, b, c, t)
             },
             new FactoryMapping
             {
                 AggregateId = ObjectIds.AggregateFunction_VariancePopulation,
                 AggregateName = QualifiedName.From(BrowseNames.AggregateFunction_VariancePopulation),
-                Calculator = typeof(StdDevAggregateCalculator)
+                Calculator = (a, s, e, p, b, c, t) => new StdDevAggregateCalculator(a, s, e, p, b, c, t)
             },
             new FactoryMapping
             {
                 AggregateId = ObjectIds.AggregateFunction_StandardDeviationSample,
                 AggregateName = QualifiedName.From(BrowseNames.AggregateFunction_StandardDeviationSample),
-                Calculator = typeof(StdDevAggregateCalculator)
+                Calculator = (a, s, e, p, b, c, t) => new StdDevAggregateCalculator(a, s, e, p, b, c, t)
             },
             new FactoryMapping
             {
                 AggregateId = ObjectIds.AggregateFunction_VarianceSample,
                 AggregateName = QualifiedName.From(BrowseNames.AggregateFunction_VarianceSample),
-                Calculator = typeof(StdDevAggregateCalculator)
+                Calculator = (a, s, e, p, b, c, t) => new StdDevAggregateCalculator(a, s, e, p, b, c, t)
             }
         ];
 
@@ -359,16 +368,14 @@ namespace Opc.Ua.Server
             {
                 if (s_mappings[ii].AggregateId == aggregateId)
                 {
-                    return (IAggregateCalculator)
-                        Activator.CreateInstance(
-                            s_mappings[ii].Calculator,
-                            aggregateId,
-                            startTime,
-                            endTime,
-                            processingInterval,
-                            stepped,
-                            configuration,
-                            telemetry);
+                    return s_mappings[ii].Calculator(
+                        aggregateId,
+                        startTime,
+                        endTime,
+                        processingInterval,
+                        stepped,
+                        configuration,
+                        telemetry);
                 }
             }
 

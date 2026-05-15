@@ -53,7 +53,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             // Arrange
             var designFiles = new DesignFileCollection
             {
-                DesignFiles = []
+                Targets = []
             };
             var mockFileSystem = new Mock<IFileSystem>(MockBehavior.Strict);
             var mockTelemetry = new Mock<ITelemetryContext>(MockBehavior.Strict);
@@ -90,7 +90,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 mockTelemetry.Object);
 
             // Assert
-            Assert.That(nodesets.Files.Count, Is.Zero);
+            Assert.That(nodesets.Files, Is.Empty);
         }
 
         /// <summary>

@@ -212,7 +212,7 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
             // validate collected values
             Assert.That(
                 collectedDataSet.Fields[0].Value.WrappedValue.GetBoolean(),
-                Is.EqualTo(false),
+                Is.False,
                 "collectedDataSet.Fields[0].Value does not match.");
             Assert.That(
                 collectedDataSet.Fields[1].Value.WrappedValue.GetInt32(),
@@ -316,7 +316,7 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
 #pragma warning disable CS0618 // Type or member is obsolete
             Assert.That(
                 collectedDataSet.Fields[0].Value.Value,
-                Is.EqualTo(true),
+                Is.True,
                 "collectedDataSet.Fields[0].Value.Value does not match.");
 #pragma warning restore CS0618 // Type or member is obsolete
 #pragma warning disable CS0618 // Type or member is obsolete

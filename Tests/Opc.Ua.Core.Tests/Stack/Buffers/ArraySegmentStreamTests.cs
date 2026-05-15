@@ -73,7 +73,7 @@ namespace Opc.Ua.Types.Buffers.Tests
             Assert.That(stream.ReadByte(), Is.EqualTo(-1));
             Assert.That(stream.Read(buffer, 0, 1), Is.Zero);
 #if NET5_0_OR_GREATER && !NET_STANDARD_TESTS
-            Assert.That(stream.Read(buffer.AsSpan(0, 1)), Is.EqualTo(0));
+            Assert.That(stream.Read(buffer.AsSpan(0, 1)), Is.Zero);
 #endif
             stream.Position = 0;
             Assert.That(stream.Position, Is.Zero);
@@ -112,11 +112,11 @@ namespace Opc.Ua.Types.Buffers.Tests
             Assert.That(stream.ReadByte(), Is.EqualTo(-1));
             Assert.That(stream.Read(buffer, 0, 1), Is.Zero);
 #if NET5_0_OR_GREATER && !NET_STANDARD_TESTS
-            Assert.That(stream.Read(buffer.AsSpan(0, 1)), Is.EqualTo(0));
+            Assert.That(stream.Read(buffer.AsSpan(0, 1)), Is.Zero);
 #endif
 
             byte[] array = stream.ToArray();
-            Assert.That(array.Length, Is.EqualTo(3));
+            Assert.That(array, Has.Length.EqualTo(3));
             Assert.That(array[0], Is.EqualTo(0xaa));
             Assert.That(array[1], Is.EqualTo(0x55));
             Assert.That(array[2], Is.EqualTo(0x55));
@@ -251,7 +251,7 @@ namespace Opc.Ua.Types.Buffers.Tests
             buffer = sequence.ToArray();
 
             // Assert sequence properties
-            Assert.That(buffer.Length, Is.EqualTo(length));
+            Assert.That(buffer, Has.Length.EqualTo(length));
             Assert.That(sequence.Length, Is.EqualTo(length));
 
             for (int i = 0; i < buffer.Length; i++)

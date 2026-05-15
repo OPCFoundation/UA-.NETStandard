@@ -180,7 +180,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     Assert.That(memoryStream.Position, Is.EqualTo(length));
                     byte[] result = memoryStream.ToArray();
                     Assert.That(result, Is.Not.Null);
-                    Assert.That(result.Length, Is.EqualTo(length));
+                    Assert.That(result, Has.Length.EqualTo(length));
                 }
                 else
                 {

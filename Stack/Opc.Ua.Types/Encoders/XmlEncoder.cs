@@ -126,6 +126,7 @@ namespace Opc.Ua
                 m_writer.WriteAttributeString("xmlns", "uax", null, Namespaces.OpcUaXsd);
             }
 
+            m_prefixesInitialized = true;
             PushNamespace(namespaceUri);
         }
 
@@ -250,6 +251,9 @@ namespace Opc.Ua
         /// The type of encoding being used.
         /// </summary>
         public EncodingType EncodingType => EncodingType.Xml;
+
+        /// <inheritdoc/>
+        public bool CanOmitFields => true;
 
         /// <summary>
         /// The message context associated with the encoder.
@@ -824,7 +828,7 @@ namespace Opc.Ua
                 // write the type id.
                 ExpandedNodeId typeId = value.TypeId;
 
-                if (value.TryGetEncodeable(out IEncodeable encodeable))
+                if (value.TryGetValue(out IEncodeable encodeable))
                 {
                     typeId = encodeable.XmlEncodingId;
                 }
@@ -901,6 +905,30 @@ namespace Opc.Ua
                     m_writer.WriteString(CoreUtils.Format("{0}_{1}",
                         value.ToString(),
                         int32Value));
+                }
+
+                EndField(fieldName);
+            }
+        }
+
+        /// <inheritdoc/>
+        public void WriteEnumerated(string fieldName, EnumValue value)
+        {
+            if (BeginField(fieldName, value.Value == 0, true))
+            {
+                if (value.Value != 0)
+                {
+                    if (!string.IsNullOrEmpty(value.Symbol))
+                    {
+                        m_writer.WriteString(CoreUtils.Format("{0}_{1}",
+                            value.Symbol,
+                            value.Value));
+                    }
+                    else
+                    {
+                        m_writer.WriteString(CoreUtils.Format("{0}",
+                            value.Value));
+                    }
                 }
 
                 EndField(fieldName);
@@ -1654,7 +1682,8 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public void WriteEnumeratedArray<T>(string fieldName, ArrayOf<T> values) where T : struct, Enum
+        public void WriteEnumeratedArray<T>(string fieldName, ArrayOf<T> values)
+            where T : struct, Enum
         {
             if (BeginField(fieldName, values.IsNull, true, true))
             {
@@ -1681,6 +1710,35 @@ namespace Opc.Ua
                 }
 
                 PopNamespace();
+
+                EndField(fieldName);
+            }
+        }
+
+        /// <inheritdoc/>
+        public void WriteEnumeratedArray(string fieldName, ArrayOf<EnumValue> values)
+        {
+            if (BeginField(fieldName, values.IsNull, true, true))
+            {
+                // check the length.
+                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadEncodingLimitsExceeded,
+                        "Enumerated Array length={0}",
+                        values.Count);
+                }
+
+                // encode each element in the array.
+                foreach (EnumValue value in values)
+                {
+                    XmlQualifiedName xmlName = value.XmlName
+                        ?? new XmlQualifiedName("Enumerated", Namespaces.OpcUaXsd);
+
+                    PushNamespace(xmlName.Namespace);
+                    WriteEnumerated(xmlName.Name, value);
+                    PopNamespace();
+                }
 
                 EndField(fieldName);
             }
@@ -1730,7 +1788,7 @@ namespace Opc.Ua
                         CoreUtils.DefaultXmlReaderSettings());
                     m_writer.WriteNode(reader, false);
                 }
-                else if (extensionObject.TryGetEncodeable(out IEncodeable encodeable))
+                else if (extensionObject.TryGetValue(out IEncodeable encodeable))
                 {
                     // encode extension object in xml.
                     XmlQualifiedName xmlName = TypeInfo.GetXmlName(encodeable, Context);
@@ -1765,7 +1823,7 @@ namespace Opc.Ua
                 // check for null.
                 if (value.IsNull)
                 {
-                    m_writer.WriteAttributeString("nil", Namespaces.XmlSchemaInstance, "true");
+                    m_writer.WriteAttributeString("xsi", "nil", Namespaces.XmlSchemaInstance, "true");
                     return;
                 }
                 try
@@ -1792,6 +1850,8 @@ namespace Opc.Ua
                             case BuiltInType.UInt16:
                                 WriteUInt16("UInt16", value.GetUInt16());
                                 return;
+                            // case BuiltInType.Enumeration when writeRawValue:
+                            //     WriteEnumerated("Enumeration", value.GetEnumeration());
                             case BuiltInType.Int32:
                             case BuiltInType.Enumeration:
                                 WriteInt32("Int32", value.GetInt32());
@@ -1883,6 +1943,8 @@ namespace Opc.Ua
                             case BuiltInType.UInt16:
                                 WriteUInt16Array("ListOfUInt16", value.GetUInt16Array());
                                 return;
+                            // case BuiltInType.Enumeration when writeRawValue:
+                            //     WriteEnumerated("ListOfEnumeration", value.GetEnumerationArray());
                             case BuiltInType.Int32:
                             case BuiltInType.Enumeration:
                                 WriteInt32Array("ListOfInt32", value.GetInt32Array());
@@ -1968,9 +2030,7 @@ namespace Opc.Ua
                         {
                             const string elements = "Elements";
                             void WriteDimensions<T>(MatrixOf<T> matrix)
-                            {
-                                WriteInt32Array("Dimensions", matrix.Dimensions);
-                            }
+                                => WriteInt32Array("Dimensions", matrix.Dimensions);
 
                             PushNamespace(Namespaces.OpcUaXsd);
                             if (!value.IsNull)
@@ -2012,6 +2072,13 @@ namespace Opc.Ua
                                         WriteUInt16Array(elements, matrix.ToArrayOf());
                                         break;
                                     }
+                                    // case BuiltInType.Enumeration when writeRawValue:
+                                    // {
+                                    //     MatrixOf<int> matrix = value.GetEnumerationMatrix();
+                                    //     WriteDimensions(matrix);
+                                    //     WriteEnumeratedArray(elements, matrix.ToArrayOf());
+                                    //     break;
+                                    // }
                                     case BuiltInType.Int32:
                                     case BuiltInType.Enumeration:
                                     {
@@ -2219,11 +2286,23 @@ namespace Opc.Ua
 
                 m_writer.WriteStartElement(fieldName, m_namespaces.Peek());
 
+                // On the first element this encoder writes, declare the xsi prefix so
+                // subsequent xsi:nil attributes inherit it instead of each site emitting
+                // its own xmlns declaration under a synthesized prefix (e.g. p5).
+                if (!m_prefixesInitialized)
+                {
+                    m_prefixesInitialized = true;
+                    if (m_writer.LookupPrefix(Namespaces.XmlSchemaInstance) == null)
+                    {
+                        m_writer.WriteAttributeString("xmlns", "xsi", null, Namespaces.XmlSchemaInstance);
+                    }
+                }
+
                 if (isDefault)
                 {
                     if (isNillable)
                     {
-                        m_writer.WriteAttributeString("nil", Namespaces.XmlSchemaInstance, "true");
+                        m_writer.WriteAttributeString("xsi", "nil", Namespaces.XmlSchemaInstance, "true");
                     }
 
                     m_writer.WriteEndElement();
@@ -2270,5 +2349,6 @@ namespace Opc.Ua
         private ushort[] m_serverMappings;
         private uint m_nestingLevel;
         private bool m_disposed;
+        private bool m_prefixesInitialized;
     }
 }

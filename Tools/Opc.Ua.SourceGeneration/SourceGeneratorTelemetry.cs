@@ -28,19 +28,19 @@
  * ======================================================================*/
 
 using System;
+using System.Diagnostics;
 using Microsoft.CodeAnalysis;
 using Microsoft.Extensions.Logging;
-using IExternalLogger = SGF.Diagnostics.ILogger;
 using ExternalLogLevel = SGF.Diagnostics.LogLevel;
+using IExternalLogger = SGF.Diagnostics.ILogger;
 using SourceProductionContext = SGF.SgfSourceProductionContext;
-using System.Diagnostics;
 
 namespace Opc.Ua.SourceGeneration
 {
     /// <summary>
     /// Source generation telemetry context
     /// </summary>
-    internal sealed class SourceGeneratorTelemetry : TelemetryContextBase
+    internal sealed class SourceGeneratorTelemetry : TelemetryContextBase, IDisposable
     {
         /// <summary>
         /// Private constructor
@@ -48,6 +48,15 @@ namespace Opc.Ua.SourceGeneration
         private SourceGeneratorTelemetry(ILoggerFactory factory)
             : base(factory)
         {
+            m_ownedFactory = factory;
+        }
+
+        /// <summary>
+        /// Dispose the owned logger factory.
+        /// </summary>
+        public void Dispose()
+        {
+            m_ownedFactory?.Dispose();
         }
 
         /// <summary>
@@ -58,8 +67,18 @@ namespace Opc.Ua.SourceGeneration
             IExternalLogger logger,
             SourceProductionContext context)
         {
-            var factory = new LoggerFactoryAdapter(logger, context);
-            return new SourceGeneratorTelemetry(factory);
+            ILoggerFactory factory = null;
+            try
+            {
+                factory = new LoggerFactoryAdapter(logger, context);
+                var result = new SourceGeneratorTelemetry(factory);
+                factory = null;
+                return result;
+            }
+            finally
+            {
+                factory?.Dispose();
+            }
         }
 
         /// <summary>
@@ -187,5 +206,7 @@ namespace Opc.Ua.SourceGeneration
             private readonly IExternalLogger m_logger;
             private readonly SourceProductionContext m_context;
         }
+
+        private readonly ILoggerFactory m_ownedFactory;
     }
 }

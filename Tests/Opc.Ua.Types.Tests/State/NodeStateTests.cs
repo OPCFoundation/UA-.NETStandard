@@ -51,7 +51,7 @@ namespace Opc.Ua.Types.Tests.State
         public void OneTimeSetUp()
         {
             m_telemetry = NUnitTelemetryContext.Create();
-            m_messageContext = new ServiceMessageContext(m_telemetry);
+            m_messageContext = ServiceMessageContext.CreateEmpty(m_telemetry);
             m_context = new SystemContext(m_telemetry)
             {
                 NamespaceUris = m_messageContext.NamespaceUris,
@@ -62,7 +62,7 @@ namespace Opc.Ua.Types.Tests.State
         [OneTimeTearDown]
         public void OneTimeTearDown()
         {
-            CoreUtils.SilentDispose(m_messageContext);
+            (m_messageContext as IDisposable)?.Dispose();
         }
 
         private static BaseObjectState CreateObjectNode(
@@ -94,44 +94,36 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void ConstructorSetsNodeClass()
         {
-            using var node = new BaseObjectState(null);
+            var node = new BaseObjectState(null);
             Assert.That(node.NodeClass, Is.EqualTo(NodeClass.Object));
         }
 
         [Test]
         public void ConstructorWithParentSetsReferenceType()
         {
-            using BaseObjectState parent = CreateObjectNode();
-            using var child = new BaseObjectState(parent);
+            BaseObjectState parent = CreateObjectNode();
+            var child = new BaseObjectState(parent);
             Assert.That(child.ReferenceTypeId, Is.EqualTo(ReferenceTypeIds.HasComponent));
-        }
-
-        [Test]
-        public void DisposeCanBeCalledMultipleTimes()
-        {
-            BaseObjectState node = CreateObjectNode();
-            node.Dispose();
-            Assert.DoesNotThrow(() => node.Dispose());
         }
 
         [Test]
         public void ViewStateConstructorSetsViewNodeClass()
         {
-            using var view = new ViewState();
+            var view = new ViewState();
             Assert.That(view.NodeClass, Is.EqualTo(NodeClass.View));
         }
 
         [Test]
         public void BaseObjectTypeStateConstructorSetsObjectTypeNodeClass()
         {
-            using var objectType = new BaseObjectTypeState();
+            var objectType = new BaseObjectTypeState();
             Assert.That(objectType.NodeClass, Is.EqualTo(NodeClass.ObjectType));
         }
 
         [Test]
         public void NodeIdSetterUpdatesChangeMask()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             node.ClearChangeMasks(m_context, false);
             node.NodeId = new NodeId(9999, 0);
             Assert.That(node.ChangeMasks, Is.Not.EqualTo(NodeStateChangeMasks.None));
@@ -141,7 +133,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void NodeIdSetterSameValueDoesNotChangeChangeMask()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             NodeId originalId = node.NodeId;
             node.ClearChangeMasks(m_context, false);
             node.NodeId = originalId;
@@ -151,7 +143,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void BrowseNameSetterUpdatesChangeMask()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             node.ClearChangeMasks(m_context, false);
             node.BrowseName = QualifiedName.From("NewName");
             Assert.That(node.ChangeMasks.HasFlag(NodeStateChangeMasks.NonValue), Is.True);
@@ -160,7 +152,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void DisplayNameSetterUpdatesChangeMask()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             node.ClearChangeMasks(m_context, false);
             node.DisplayName = LocalizedText.From("New Display");
             Assert.That(node.ChangeMasks.HasFlag(NodeStateChangeMasks.NonValue), Is.True);
@@ -169,7 +161,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void DescriptionSetterUpdatesChangeMask()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             node.ClearChangeMasks(m_context, false);
             node.Description = LocalizedText.From("A description");
             Assert.That(node.ChangeMasks.HasFlag(NodeStateChangeMasks.NonValue), Is.True);
@@ -178,7 +170,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void WriteMaskSetterUpdatesChangeMask()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             node.ClearChangeMasks(m_context, false);
             node.WriteMask = AttributeWriteMask.DisplayName;
             Assert.That(node.ChangeMasks.HasFlag(NodeStateChangeMasks.NonValue), Is.True);
@@ -187,7 +179,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void UserWriteMaskSetterUpdatesChangeMask()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             node.ClearChangeMasks(m_context, false);
             node.UserWriteMask = AttributeWriteMask.Description;
             Assert.That(node.ChangeMasks.HasFlag(NodeStateChangeMasks.NonValue), Is.True);
@@ -196,7 +188,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void RolePermissionsSetterUpdatesChangeMask()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             // Set an initial non-default value so the next set is a change
             node.RolePermissions =
             [
@@ -221,7 +213,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void UserRolePermissionsSetterUpdatesChangeMask()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             node.UserRolePermissions =
             [
                 new RolePermissionType
@@ -245,7 +237,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void AccessRestrictionsSetterUpdatesChangeMask()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             node.ClearChangeMasks(m_context, false);
             node.AccessRestrictions = AccessRestrictionType.SigningRequired;
             Assert.That(node.ChangeMasks.HasFlag(NodeStateChangeMasks.NonValue), Is.True);
@@ -254,7 +246,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void HandlePropertyRoundTrips()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             object handle = new();
             node.Handle = handle;
             Assert.That(node.Handle, Is.SameAs(handle));
@@ -263,7 +255,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void SymbolicNamePropertyRoundTrips()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             node.SymbolicName = "MySymbolic";
             Assert.That(node.SymbolicName, Is.EqualTo("MySymbolic"));
         }
@@ -271,7 +263,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void InitializedPropertyRoundTrips()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             Assert.That(node.Initialized, Is.False);
             node.Initialized = true;
             Assert.That(node.Initialized, Is.True);
@@ -280,16 +272,16 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void ExtensionsPropertyRoundTrips()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             Assert.That(node.Extensions, Is.Null);
-            node.Extensions = Array.Empty<XmlElement>();
+            node.Extensions = [];
             Assert.That(node.Extensions, Is.Not.Null);
         }
 
         [Test]
         public void CategoriesPropertyRoundTrips()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             node.Categories = ["Cat1", "Cat2"];
             Assert.That(node.Categories, Has.Count.EqualTo(2));
         }
@@ -297,7 +289,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void SpecificationPropertyRoundTrips()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             node.Specification = "OPC 10000-5";
             Assert.That(node.Specification, Is.EqualTo("OPC 10000-5"));
         }
@@ -305,7 +297,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void NodeSetDocumentationPropertyRoundTrips()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             node.NodeSetDocumentation = "Some docs";
             Assert.That(node.NodeSetDocumentation, Is.EqualTo("Some docs"));
         }
@@ -313,7 +305,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void DesignToolOnlyPropertyRoundTrips()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             node.DesignToolOnly = true;
             Assert.That(node.DesignToolOnly, Is.True);
         }
@@ -321,7 +313,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void ReleaseStatusPropertyRoundTrips()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             node.ReleaseStatus = Export.ReleaseStatus.Released;
             Assert.That(node.ReleaseStatus, Is.EqualTo(Export.ReleaseStatus.Released));
         }
@@ -329,7 +321,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void ToStringWithBrowseNameReturnsNodeClassAndDisplayName()
         {
-            using BaseObjectState node = CreateObjectNode(name: "MyObj");
+            BaseObjectState node = CreateObjectNode(name: "MyObj");
             string result = node.ToString();
             Assert.That(result, Does.Contain("Object"));
             Assert.That(result, Does.Contain("MyObj"));
@@ -338,8 +330,10 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void ToStringWithoutBrowseNameReturnsNodeClassAndNodeId()
         {
-            using var node = new BaseObjectState(null);
-            node.NodeId = new NodeId(42, 0);
+            var node = new BaseObjectState(null)
+            {
+                NodeId = new NodeId(42, 0)
+            };
             string result = node.ToString();
             Assert.That(result, Does.Contain("Object"));
             Assert.That(result, Does.Contain("42"));
@@ -348,14 +342,14 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void ToStringWithFormatThrowsFormatException()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             Assert.Throws<FormatException>(() => node.ToString("G", null));
         }
 
         [Test]
         public void ToStringWithNullFormatSucceeds()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             string result = node.ToString(null, null);
             Assert.That(result, Is.Not.Null.And.Not.Empty);
         }
@@ -363,7 +357,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void AddChildSetsParentAndAddsToChildren()
         {
-            using BaseObjectState parent = CreateObjectNode();
+            BaseObjectState parent = CreateObjectNode();
             PropertyState child = CreatePropertyChild(parent, "Child1");
             parent.AddChild(child);
 
@@ -376,7 +370,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void AddChildSetsDefaultReferenceTypeIfNull()
         {
-            using BaseObjectState parent = CreateObjectNode();
+            BaseObjectState parent = CreateObjectNode();
             var child = new BaseObjectState(null)
             {
                 BrowseName = QualifiedName.From("OrphanChild"),
@@ -389,7 +383,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void AddChildUpdatesChangeMasks()
         {
-            using BaseObjectState parent = CreateObjectNode();
+            BaseObjectState parent = CreateObjectNode();
             parent.ClearChangeMasks(m_context, false);
             PropertyState child = CreatePropertyChild(parent, "Child1");
             parent.AddChild(child);
@@ -399,7 +393,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void RemoveChildRemovesFromParent()
         {
-            using BaseObjectState parent = CreateObjectNode();
+            BaseObjectState parent = CreateObjectNode();
             PropertyState child = CreatePropertyChild(parent, "Child1");
             parent.AddChild(child);
 
@@ -413,7 +407,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void RemoveChildSetsParentToNull()
         {
-            using BaseObjectState parent = CreateObjectNode();
+            BaseObjectState parent = CreateObjectNode();
             PropertyState child = CreatePropertyChild(parent, "Child1");
             parent.AddChild(child);
 
@@ -424,7 +418,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void RemoveChildUpdatesChangeMasks()
         {
-            using BaseObjectState parent = CreateObjectNode();
+            BaseObjectState parent = CreateObjectNode();
             PropertyState child = CreatePropertyChild(parent, "Child1");
             parent.AddChild(child);
             parent.ClearChangeMasks(m_context, false);
@@ -436,7 +430,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void RemoveChildThatDoesNotExistIsNoOp()
         {
-            using BaseObjectState parent = CreateObjectNode();
+            BaseObjectState parent = CreateObjectNode();
             PropertyState child = CreatePropertyChild(parent, "NotAdded");
             Assert.DoesNotThrow(() => parent.RemoveChild(child));
         }
@@ -444,7 +438,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void GetChildrenReturnsEmptyListWhenNoChildren()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             var children = new List<BaseInstanceState>();
             node.GetChildren(m_context, children);
             Assert.That(children, Is.Empty);
@@ -453,7 +447,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void GetChildrenReturnsAllAddedChildren()
         {
-            using BaseObjectState parent = CreateObjectNode();
+            BaseObjectState parent = CreateObjectNode();
             PropertyState child1 = CreatePropertyChild(parent, "P1");
             child1.NodeId = new NodeId(2001, 0);
             PropertyState child2 = CreatePropertyChild(parent, "P2");
@@ -469,7 +463,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void FindChildByBrowseNameFindsExistingChild()
         {
-            using BaseObjectState parent = CreateObjectNode();
+            BaseObjectState parent = CreateObjectNode();
             PropertyState child = CreatePropertyChild(parent, "MyProp");
             parent.AddChild(child);
 
@@ -481,7 +475,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void FindChildByBrowseNameReturnsNullForMissing()
         {
-            using BaseObjectState parent = CreateObjectNode();
+            BaseObjectState parent = CreateObjectNode();
             BaseInstanceState found = parent.FindChild(m_context, QualifiedName.From("NonExistent"));
             Assert.That(found, Is.Null);
         }
@@ -489,7 +483,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void FindChildByBrowsePathReturnsCorrectChild()
         {
-            using BaseObjectState root = CreateObjectNode();
+            BaseObjectState root = CreateObjectNode();
             PropertyState child = CreatePropertyChild(root, "Level1");
             root.AddChild(child);
 
@@ -502,7 +496,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void FindChildByBrowsePathReturnsNullWhenNotFound()
         {
-            using BaseObjectState root = CreateObjectNode();
+            BaseObjectState root = CreateObjectNode();
             var path = new List<QualifiedName> { QualifiedName.From("Missing") };
             BaseInstanceState found = root.FindChild(m_context, path, 0);
             Assert.That(found, Is.Null);
@@ -511,7 +505,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void FindChildByBrowsePathThrowsForNegativeIndex()
         {
-            using BaseObjectState root = CreateObjectNode();
+            BaseObjectState root = CreateObjectNode();
             var path = new List<QualifiedName> { QualifiedName.From("X") };
             Assert.Throws<ArgumentOutOfRangeException>(() => root.FindChild(m_context, path, -1));
         }
@@ -519,7 +513,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void FindChildBySymbolicNameFindsChild()
         {
-            using BaseObjectState parent = CreateObjectNode();
+            BaseObjectState parent = CreateObjectNode();
             PropertyState child = CreatePropertyChild(parent, "SymChild");
             child.SymbolicName = "SymChild";
             parent.AddChild(child);
@@ -532,7 +526,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void FindChildBySymbolicNameReturnsNullForEmpty()
         {
-            using BaseObjectState parent = CreateObjectNode();
+            BaseObjectState parent = CreateObjectNode();
             BaseInstanceState found = parent.FindChildBySymbolicName(m_context, string.Empty);
             Assert.That(found, Is.Null);
         }
@@ -540,7 +534,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void FindChildBySymbolicNameReturnsNullForNull()
         {
-            using BaseObjectState parent = CreateObjectNode();
+            BaseObjectState parent = CreateObjectNode();
             BaseInstanceState found = parent.FindChildBySymbolicName(m_context, null);
             Assert.That(found, Is.Null);
         }
@@ -548,7 +542,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void FindChildBySymbolicNameStripsLeadingSlashes()
         {
-            using BaseObjectState parent = CreateObjectNode();
+            BaseObjectState parent = CreateObjectNode();
             PropertyState child = CreatePropertyChild(parent, "Child1");
             child.SymbolicName = "Child1";
             parent.AddChild(child);
@@ -560,7 +554,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void FindChildBySymbolicNameReturnsNullForOnlySlashes()
         {
-            using BaseObjectState parent = CreateObjectNode();
+            BaseObjectState parent = CreateObjectNode();
             BaseInstanceState found = parent.FindChildBySymbolicName(m_context, "///");
             Assert.That(found, Is.Null);
         }
@@ -568,7 +562,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void FindChildBySymbolicNameNavigatesNestedPath()
         {
-            using BaseObjectState root = CreateObjectNode();
+            BaseObjectState root = CreateObjectNode();
             var intermediate = new BaseObjectState(root)
             {
                 NodeId = new NodeId(5001, 0),
@@ -589,7 +583,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void FindChildBySymbolicNameReturnsNullForNonExistent()
         {
-            using BaseObjectState parent = CreateObjectNode();
+            BaseObjectState parent = CreateObjectNode();
             BaseInstanceState found = parent.FindChildBySymbolicName(m_context, "DoesNotExist");
             Assert.That(found, Is.Null);
         }
@@ -597,7 +591,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void ReplaceChildReplacesExistingChild()
         {
-            using BaseObjectState parent = CreateObjectNode();
+            BaseObjectState parent = CreateObjectNode();
             PropertyState original = CreatePropertyChild(parent, "Prop");
             parent.AddChild(original);
 
@@ -615,14 +609,14 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void ReplaceChildThrowsForNullChild()
         {
-            using BaseObjectState parent = CreateObjectNode();
+            BaseObjectState parent = CreateObjectNode();
             Assert.Throws<ArgumentException>(() => parent.ReplaceChild(m_context, null));
         }
 
         [Test]
         public void ReplaceChildThrowsForChildWithNullBrowseName()
         {
-            using BaseObjectState parent = CreateObjectNode();
+            BaseObjectState parent = CreateObjectNode();
             var child = new BaseObjectState(parent);
             Assert.Throws<ArgumentException>(() => parent.ReplaceChild(m_context, child));
         }
@@ -630,7 +624,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void CreateChildWithNullBrowseNameReturnsNull()
         {
-            using BaseObjectState parent = CreateObjectNode();
+            BaseObjectState parent = CreateObjectNode();
             BaseInstanceState result = parent.CreateChild(m_context, QualifiedName.Null);
             Assert.That(result, Is.Null);
         }
@@ -638,7 +632,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void AddReferenceAddsAndCanBeFound()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             var targetId = new NodeId(500, 0);
             node.AddReference(ReferenceTypeIds.Organizes, false, targetId);
             Assert.That(node.ReferenceExists(ReferenceTypeIds.Organizes, false, targetId), Is.True);
@@ -647,7 +641,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void AddReferenceUpdatesChangeMask()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             node.ClearChangeMasks(m_context, false);
             node.AddReference(ReferenceTypeIds.Organizes, false, new NodeId(500, 0));
             Assert.That(node.ChangeMasks.HasFlag(NodeStateChangeMasks.References), Is.True);
@@ -656,7 +650,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void AddReferenceThrowsForNullReferenceType()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             Assert.Throws<ArgumentNullException>(
                 () => node.AddReference(NodeId.Null, false, new NodeId(1)));
         }
@@ -664,7 +658,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void AddReferenceThrowsForNullTarget()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             Assert.Throws<ArgumentNullException>(
                 () => node.AddReference(ReferenceTypeIds.Organizes, false, ExpandedNodeId.Null));
         }
@@ -672,7 +666,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void RemoveReferenceRemovesExistingReference()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             var targetId = new NodeId(500, 0);
             node.AddReference(ReferenceTypeIds.Organizes, false, targetId);
 
@@ -686,7 +680,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void RemoveReferenceReturnsFalseWhenNotFound()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             node.AddReference(ReferenceTypeIds.Organizes, false, new NodeId(500, 0));
             bool removed = node.RemoveReference(
                 ReferenceTypeIds.Organizes, false, new NodeId(999, 0));
@@ -696,7 +690,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void RemoveReferenceThrowsForNullReferenceType()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             Assert.Throws<ArgumentNullException>(
                 () => node.RemoveReference(NodeId.Null, false, new NodeId(1)));
         }
@@ -704,7 +698,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void RemoveReferenceThrowsForNullTarget()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             Assert.Throws<ArgumentNullException>(
                 () => node.RemoveReference(ReferenceTypeIds.Organizes, false, ExpandedNodeId.Null));
         }
@@ -712,7 +706,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void ReferenceExistsReturnsFalseWhenNoReferences()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             Assert.That(
                 node.ReferenceExists(ReferenceTypeIds.Organizes, false, new NodeId(1)),
                 Is.False);
@@ -721,7 +715,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void ReferenceExistsReturnsFalseForNullRefType()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             Assert.That(
                 node.ReferenceExists(NodeId.Null, false, new NodeId(1)),
                 Is.False);
@@ -730,7 +724,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void ReferenceExistsReturnsFalseForNullTarget()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             Assert.That(
                 node.ReferenceExists(ReferenceTypeIds.Organizes, false, ExpandedNodeId.Null),
                 Is.False);
@@ -739,7 +733,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void GetReferencesReturnsAllAddedReferences()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             node.AddReference(ReferenceTypeIds.Organizes, false, new NodeId(1));
             node.AddReference(ReferenceTypeIds.HasComponent, false, new NodeId(2));
 
@@ -751,7 +745,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void GetReferencesReturnsEmptyWhenNoReferences()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             var references = new List<IReference>();
             node.GetReferences(m_context, references);
             Assert.That(references, Is.Empty);
@@ -760,7 +754,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void GetReferencesFiltersByTypeAndDirection()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             node.AddReference(ReferenceTypeIds.Organizes, false, new NodeId(1));
             node.AddReference(ReferenceTypeIds.HasComponent, false, new NodeId(2));
             node.AddReference(ReferenceTypeIds.Organizes, true, new NodeId(3));
@@ -777,7 +771,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void AddReferencesIgnoresDuplicates()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             var refs = new List<IReference>
             {
                 new NodeStateReference(ReferenceTypeIds.Organizes, false, new NodeId(1)),
@@ -794,14 +788,14 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void AddReferencesThrowsForNull()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             Assert.Throws<ArgumentNullException>(() => node.AddReferences(null));
         }
 
         [Test]
         public void RemoveReferencesRemovesAllOfTypeAndDirection()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             node.AddReference(ReferenceTypeIds.Organizes, false, new NodeId(1));
             node.AddReference(ReferenceTypeIds.Organizes, false, new NodeId(2));
             node.AddReference(ReferenceTypeIds.HasComponent, false, new NodeId(3));
@@ -818,7 +812,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void RemoveReferencesReturnsFalseWhenNoneExist()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             bool removed = node.RemoveReferences(ReferenceTypeIds.Organizes, false);
             Assert.That(removed, Is.False);
         }
@@ -826,7 +820,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void RemoveReferencesThrowsForNullType()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             Assert.Throws<ArgumentNullException>(
                 () => node.RemoveReferences(NodeId.Null, false));
         }
@@ -834,7 +828,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void OnReferenceAddedCallbackInvoked()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             bool invoked = false;
             node.OnReferenceAdded = (n, refType, isInverse, target) => invoked = true;
             node.AddReference(ReferenceTypeIds.Organizes, false, new NodeId(1));
@@ -844,7 +838,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void OnReferenceRemovedCallbackInvoked()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             bool invoked = false;
             node.OnReferenceRemoved = (n, refType, isInverse, target) => invoked = true;
             node.AddReference(ReferenceTypeIds.Organizes, false, new NodeId(1));
@@ -855,7 +849,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void OnReferenceAddedInvokedByAddReferences()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             int count = 0;
             node.OnReferenceAdded = (n, refType, isInverse, target) => count++;
             var refs = new List<IReference>
@@ -870,7 +864,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void UpdateChangeMasksOrsWithExistingValue()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             node.ClearChangeMasks(m_context, false);
             node.UpdateChangeMasks(NodeStateChangeMasks.Value);
             node.UpdateChangeMasks(NodeStateChangeMasks.Children);
@@ -881,7 +875,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void ClearChangeMasksResetsToNone()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             node.UpdateChangeMasks(NodeStateChangeMasks.Value);
             node.ClearChangeMasks(m_context, false);
             Assert.That(node.ChangeMasks, Is.EqualTo(NodeStateChangeMasks.None));
@@ -890,7 +884,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void ClearChangeMasksRecursivelyClearsChildren()
         {
-            using BaseObjectState parent = CreateObjectNode();
+            BaseObjectState parent = CreateObjectNode();
             PropertyState child = CreatePropertyChild(parent, "Child");
             parent.AddChild(child);
             child.UpdateChangeMasks(NodeStateChangeMasks.NonValue);
@@ -902,7 +896,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void ClearChangeMasksInvokesOnStateChangedHandler()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             node.ClearChangeMasks(m_context, false);
             node.UpdateChangeMasks(NodeStateChangeMasks.Value);
 
@@ -915,7 +909,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void ClearChangeMasksInvokesStateChangedEvent()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             node.ClearChangeMasks(m_context, false);
             node.UpdateChangeMasks(NodeStateChangeMasks.References);
 
@@ -928,7 +922,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void ClearChangeMasksDoesNotInvokeHandlerWhenNoChanges()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             node.ClearChangeMasks(m_context, false);
 
             bool invoked = false;
@@ -940,14 +934,14 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void DeepEqualsSameReferenceReturnsTrue()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             Assert.That(node.DeepEquals(node), Is.True);
         }
 
         [Test]
         public void DeepEqualsNullReturnsFalse()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             Assert.That(node.DeepEquals(null), Is.False);
         }
 
@@ -955,12 +949,14 @@ namespace Opc.Ua.Types.Tests.State
         public void DeepEqualsCloneReturnsTrueForSimpleNode()
         {
             // DeepEquals tests basic property equality between original and clone
-            using var original = new ViewState();
-            original.NodeId = new NodeId(100, 0);
-            original.BrowseName = QualifiedName.From("View1");
-            original.SymbolicName = "Sym1";
+            var original = new ViewState
+            {
+                NodeId = new NodeId(100, 0),
+                BrowseName = QualifiedName.From("View1"),
+                SymbolicName = "Sym1"
+            };
 
-            using var clone = (ViewState)original.Clone();
+            var clone = (ViewState)original.Clone();
 
             // Verify key properties were copied
             Assert.That(clone.NodeId, Is.EqualTo(original.NodeId));
@@ -972,8 +968,8 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void DeepEqualsDifferentBrowseNameReturnsFalse()
         {
-            using BaseObjectState node1 = CreateObjectNode(name: "A");
-            using BaseObjectState node2 = CreateObjectNode(name: "B");
+            BaseObjectState node1 = CreateObjectNode(name: "A");
+            BaseObjectState node2 = CreateObjectNode(name: "B");
             node1.NodeId = node2.NodeId;
             Assert.That(node1.DeepEquals(node2), Is.False);
         }
@@ -981,19 +977,21 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void DeepGetHashCodeDoesNotThrow()
         {
-            using var node = new ViewState();
-            node.NodeId = new NodeId(100, 0);
-            node.BrowseName = QualifiedName.From("TestSym");
-            node.SymbolicName = "TestSym";
+            var node = new ViewState
+            {
+                NodeId = new NodeId(100, 0),
+                BrowseName = QualifiedName.From("TestSym"),
+                SymbolicName = "TestSym"
+            };
             Assert.DoesNotThrow(() => node.DeepGetHashCode());
         }
 
         [Test]
         public void DeepGetHashCodeDiffersForDifferentNodes()
         {
-            using BaseObjectState node1 = CreateObjectNode(name: "A");
+            BaseObjectState node1 = CreateObjectNode(name: "A");
             node1.SymbolicName = "A";
-            using BaseObjectState node2 = CreateObjectNode(name: "B");
+            BaseObjectState node2 = CreateObjectNode(name: "B");
             node2.SymbolicName = "B";
             Assert.DoesNotThrow(() => node1.DeepGetHashCode());
             Assert.DoesNotThrow(() => node2.DeepGetHashCode());
@@ -1002,15 +1000,19 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void DeepEqualsWithReferences()
         {
-            using var node1 = new ViewState();
-            node1.NodeId = new NodeId(100, 0);
-            node1.BrowseName = QualifiedName.From("View1");
+            var node1 = new ViewState
+            {
+                NodeId = new NodeId(100, 0),
+                BrowseName = QualifiedName.From("View1")
+            };
             node1.AddReference(ReferenceTypeIds.Organizes, false, new NodeId(200));
 
             // A different node with different references should not be equal
-            using var node2 = new ViewState();
-            node2.NodeId = new NodeId(100, 0);
-            node2.BrowseName = QualifiedName.From("View1");
+            var node2 = new ViewState
+            {
+                NodeId = new NodeId(100, 0),
+                BrowseName = QualifiedName.From("View1")
+            };
             node2.AddReference(ReferenceTypeIds.Organizes, false, new NodeId(300));
 
             Assert.That(node1.DeepEquals(node2), Is.False);
@@ -1019,10 +1021,10 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void DeepEqualsReturnsFalseForDifferentReferences()
         {
-            using BaseObjectState node1 = CreateObjectNode();
+            BaseObjectState node1 = CreateObjectNode();
             node1.AddReference(ReferenceTypeIds.Organizes, false, new NodeId(100));
 
-            using BaseObjectState node2 = CreateObjectNode();
+            BaseObjectState node2 = CreateObjectNode();
             node2.AddReference(ReferenceTypeIds.Organizes, false, new NodeId(200));
 
             Assert.That(node1.DeepEquals(node2), Is.False);
@@ -1031,7 +1033,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void CloneCopiesAllBaseProperties()
         {
-            using BaseObjectState original = CreateObjectNode();
+            BaseObjectState original = CreateObjectNode();
             original.Description = LocalizedText.From("Desc");
             original.WriteMask = AttributeWriteMask.Description;
             original.SymbolicName = "TestSym";
@@ -1042,7 +1044,7 @@ namespace Opc.Ua.Types.Tests.State
             original.Categories = ["C1"];
             original.ReleaseStatus = Export.ReleaseStatus.Released;
 
-            using var clone = (BaseObjectState)original.Clone();
+            var clone = (BaseObjectState)original.Clone();
             Assert.That(clone.NodeId, Is.EqualTo(original.NodeId));
             Assert.That(clone.BrowseName, Is.EqualTo(original.BrowseName));
             Assert.That(clone.DisplayName, Is.EqualTo(original.DisplayName));
@@ -1060,11 +1062,11 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void CloneCopiesChildren()
         {
-            using BaseObjectState original = CreateObjectNode();
+            BaseObjectState original = CreateObjectNode();
             PropertyState child = CreatePropertyChild(original, "P1");
             original.AddChild(child);
 
-            using var clone = (BaseObjectState)original.Clone();
+            var clone = (BaseObjectState)original.Clone();
             var cloneChildren = new List<BaseInstanceState>();
             clone.GetChildren(m_context, cloneChildren);
             Assert.That(cloneChildren, Has.Count.EqualTo(1));
@@ -1074,10 +1076,10 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void CloneCopiesReferences()
         {
-            using BaseObjectState original = CreateObjectNode();
+            BaseObjectState original = CreateObjectNode();
             original.AddReference(ReferenceTypeIds.Organizes, false, new NodeId(100));
 
-            using var clone = (BaseObjectState)original.Clone();
+            var clone = (BaseObjectState)original.Clone();
             Assert.That(
                 clone.ReferenceExists(ReferenceTypeIds.Organizes, false, new NodeId(100)),
                 Is.True);
@@ -1086,11 +1088,11 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void CloneChildrenAreIndependentOfOriginal()
         {
-            using BaseObjectState original = CreateObjectNode();
+            BaseObjectState original = CreateObjectNode();
             PropertyState child = CreatePropertyChild(original, "Child1");
             original.AddChild(child);
 
-            using var clone = (BaseObjectState)original.Clone();
+            var clone = (BaseObjectState)original.Clone();
             original.RemoveChild(child);
 
             var cloneChildren = new List<BaseInstanceState>();
@@ -1101,7 +1103,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void GetHierarchyRootReturnsRootForNestedChild()
         {
-            using BaseObjectState root = CreateObjectNode();
+            BaseObjectState root = CreateObjectNode();
             var mid = new BaseObjectState(root)
             {
                 NodeId = new NodeId(5001, 0),
@@ -1119,28 +1121,28 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void GetHierarchyRootReturnsSelfWhenNoParent()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             Assert.That(node.GetHierarchyRoot(), Is.SameAs(node));
         }
 
         [Test]
         public void GetHierarchyRootReturnsSelfForNonInstanceNode()
         {
-            using var typeNode = new BaseObjectTypeState();
+            var typeNode = new BaseObjectTypeState();
             Assert.That(typeNode.GetHierarchyRoot(), Is.SameAs(typeNode));
         }
 
         [Test]
         public void AreEventsMonitoredDefaultsFalse()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             Assert.That(node.AreEventsMonitored, Is.False);
         }
 
         [Test]
         public void SetAreEventsMonitoredSetsFlag()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             node.SetAreEventsMonitored(m_context, true, false);
             Assert.That(node.AreEventsMonitored, Is.True);
         }
@@ -1148,7 +1150,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void SetAreEventsMonitoredUnsetsFlag()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             node.SetAreEventsMonitored(m_context, true, false);
             node.SetAreEventsMonitored(m_context, false, false);
             Assert.That(node.AreEventsMonitored, Is.False);
@@ -1157,7 +1159,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void SetAreEventsMonitoredDecrementsCorrectly()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             node.SetAreEventsMonitored(m_context, true, false);
             node.SetAreEventsMonitored(m_context, true, false);
             node.SetAreEventsMonitored(m_context, false, false);
@@ -1167,7 +1169,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void SetAreEventsMonitoredDoesNotGoBelowZero()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             node.SetAreEventsMonitored(m_context, false, false);
             Assert.That(node.AreEventsMonitored, Is.False);
         }
@@ -1175,7 +1177,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void SetAreEventsMonitoredPropagatesIncludeChildren()
         {
-            using BaseObjectState parent = CreateObjectNode();
+            BaseObjectState parent = CreateObjectNode();
             PropertyState child = CreatePropertyChild(parent, "C1");
             parent.AddChild(child);
 
@@ -1186,14 +1188,14 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void ValidateReturnsTrueByDefault()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             Assert.That(node.Validate(m_context), Is.True);
         }
 
         [Test]
         public void ValidateCallsOnValidateHandler()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             node.OnValidate = (ctx, n) => false;
             Assert.That(node.Validate(m_context), Is.False);
         }
@@ -1201,14 +1203,14 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void ValidationRequiredReturnsFalseByDefault()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             Assert.That(node.ValidationRequired, Is.False);
         }
 
         [Test]
         public void ValidationRequiredReturnsTrueWhenHandlerSet()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             node.OnValidate = (ctx, n) => true;
             Assert.That(node.ValidationRequired, Is.True);
         }
@@ -1216,7 +1218,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void CreateSetsNodeIdBrowseNameDisplayName()
         {
-            using var node = new BaseObjectState(null);
+            var node = new BaseObjectState(null);
             node.Create(
                 m_context,
                 new NodeId(7777, 0),
@@ -1232,7 +1234,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void CreateWithNullNodeIdDoesNotOverride()
         {
-            using var node = new BaseObjectState(null);
+            var node = new BaseObjectState(null);
             node.Create(
                 m_context,
                 NodeId.Null,
@@ -1246,7 +1248,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void CreateSetsSymbolicName()
         {
-            using var node = new BaseObjectState(null);
+            var node = new BaseObjectState(null);
             node.Create(
                 m_context,
                 new NodeId(1, 0),
@@ -1259,11 +1261,11 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void CreateFromSourceCopiesProperties()
         {
-            using BaseObjectState source = CreateObjectNode(name: "Source");
+            BaseObjectState source = CreateObjectNode(name: "Source");
             source.Description = LocalizedText.From("Source Desc");
             source.AddReference(ReferenceTypeIds.Organizes, false, new NodeId(100));
 
-            using var target = new BaseObjectState(null);
+            var target = new BaseObjectState(null);
             target.Create(m_context, source);
 
             Assert.That(target.BrowseName, Is.EqualTo(source.BrowseName));
@@ -1275,7 +1277,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void DeleteSetsDeletedChangeMask()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             NodeStateChangeMasks captured = NodeStateChangeMasks.None;
             node.OnStateChanged = (ctx, n, changes) => captured = changes;
             node.Delete(m_context);
@@ -1285,7 +1287,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void DeleteRecursivelyDeletesChildren()
         {
-            using BaseObjectState parent = CreateObjectNode();
+            BaseObjectState parent = CreateObjectNode();
             PropertyState child = CreatePropertyChild(parent, "Child1");
             parent.AddChild(child);
 
@@ -1298,7 +1300,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void ReadAttributeReturnsBadForNullDataValue()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             ServiceResult result = node.ReadAttribute(
                 m_context, Attributes.NodeId, default, default, null);
             Assert.That(StatusCode.IsBad(result.StatusCode), Is.True);
@@ -1307,7 +1309,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void ReadNodeIdAttribute()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             var dataValue = new DataValue();
             ServiceResult result = node.ReadAttribute(
                 m_context, Attributes.NodeId, default, default, dataValue);
@@ -1318,7 +1320,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void ReadNodeClassAttribute()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             var dataValue = new DataValue();
             ServiceResult result = node.ReadAttribute(
                 m_context, Attributes.NodeClass, default, default, dataValue);
@@ -1328,7 +1330,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void ReadBrowseNameAttribute()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             var dataValue = new DataValue();
             ServiceResult result = node.ReadAttribute(
                 m_context, Attributes.BrowseName, default, default, dataValue);
@@ -1339,7 +1341,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void ReadDisplayNameAttribute()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             var dataValue = new DataValue();
             ServiceResult result = node.ReadAttribute(
                 m_context, Attributes.DisplayName, default, default, dataValue);
@@ -1349,7 +1351,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void ReadDescriptionAttribute()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             node.Description = LocalizedText.From("My desc");
             var dataValue = new DataValue();
             ServiceResult result = node.ReadAttribute(
@@ -1360,7 +1362,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void ReadWriteMaskAttribute()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             node.WriteMask = AttributeWriteMask.DisplayName;
             var dataValue = new DataValue();
             ServiceResult result = node.ReadAttribute(
@@ -1372,7 +1374,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void ReadUserWriteMaskAttribute()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             node.UserWriteMask = AttributeWriteMask.Description;
             var dataValue = new DataValue();
             ServiceResult result = node.ReadAttribute(
@@ -1384,7 +1386,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void ReadRolePermissionsAttributeWhenSet()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             node.RolePermissions =
             [
                 new RolePermissionType
@@ -1402,7 +1404,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void ReadAccessRestrictionsAttributeWhenSet()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             node.AccessRestrictions = AccessRestrictionType.SigningRequired;
             var dataValue = new DataValue();
             ServiceResult result = node.ReadAttribute(
@@ -1413,7 +1415,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void ReadInvalidAttributeIdReturnsBad()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             var dataValue = new DataValue();
             ServiceResult result = node.ReadAttribute(
                 m_context, 99999, default, default, dataValue);
@@ -1423,7 +1425,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void ReadValueAttributeOnBaseObjectReturnsBad()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             var dataValue = new DataValue();
             ServiceResult result = node.ReadAttribute(
                 m_context, Attributes.Value, default, default, dataValue);
@@ -1433,7 +1435,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void ReadAttributesReturnsMultipleValues()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             ArrayOf<Variant> values = node.ReadAttributes(
                 m_context,
                 Attributes.NodeId,
@@ -1445,7 +1447,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void ReadAttributesWithNullReturnsEmpty()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             ArrayOf<Variant> values = node.ReadAttributes(m_context, null);
             Assert.That(values.Count, Is.Zero);
         }
@@ -1453,7 +1455,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void ReadAttributesWithInvalidIdReturnsStatusCode()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             ArrayOf<Variant> values = node.ReadAttributes(m_context, 99999u);
             Assert.That(values.Count, Is.EqualTo(1));
         }
@@ -1461,7 +1463,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void OnReadNodeIdHandlerInvoked()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             var overrideId = new NodeId(8888, 0);
             node.OnReadNodeId = (ctx, n, ref value) =>
             {
@@ -1478,7 +1480,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void OnReadBrowseNameHandlerInvoked()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             var overrideName = QualifiedName.From("Override");
             node.OnReadBrowseName = (ctx, n, ref value) =>
             {
@@ -1495,7 +1497,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void OnReadDisplayNameHandlerInvoked()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             var overrideText = LocalizedText.From("Override");
             node.OnReadDisplayName = (ctx, n, ref value) =>
             {
@@ -1512,7 +1514,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void OnReadDescriptionHandlerInvoked()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             var overrideDesc = LocalizedText.From("Override Desc");
             node.OnReadDescription = (ctx, n, ref value) =>
             {
@@ -1529,7 +1531,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void OnReadWriteMaskHandlerInvoked()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             node.OnReadWriteMask = (ctx, n, ref value) =>
             {
                 value = AttributeWriteMask.BrowseName;
@@ -1547,7 +1549,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void OnReadUserWriteMaskHandlerInvoked()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             node.OnReadUserWriteMask =
                 (ctx, n, ref value) =>
             {
@@ -1566,7 +1568,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void OnReadNodeClassHandlerInvoked()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             node.OnReadNodeClass = (ctx, n, ref value) =>
             {
                 value = NodeClass.Variable;
@@ -1581,7 +1583,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void OnReadAccessRestrictionsHandlerInvoked()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             node.OnReadAccessRestrictions =
                 (ctx, n, ref value) =>
             {
@@ -1598,7 +1600,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void WriteAttributeReturnsBadForNullDataValue()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             ServiceResult result = node.WriteAttribute(
                 m_context, Attributes.BrowseName, default, null);
             Assert.That(StatusCode.IsBad(result.StatusCode), Is.True);
@@ -1607,7 +1609,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void WriteNodeIdAttributeSucceeds()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             node.WriteMask = AttributeWriteMask.NodeId;
             var newId = new NodeId(5555, 0);
             var dv = new DataValue(new Variant(newId));
@@ -1620,7 +1622,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void WriteNodeIdAttributeFailsWhenNotWritable()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             node.WriteMask = AttributeWriteMask.None;
             var dv = new DataValue(new Variant(new NodeId(1)));
             ServiceResult result = node.WriteAttribute(
@@ -1631,7 +1633,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void WriteNodeIdAttributeFailsForTypeMismatch()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             node.WriteMask = AttributeWriteMask.NodeId;
             var dv = new DataValue(new Variant("not a NodeId"));
             ServiceResult result = node.WriteAttribute(
@@ -1642,7 +1644,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void WriteBrowseNameAttributeSucceeds()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             node.WriteMask = AttributeWriteMask.BrowseName;
             var newName = QualifiedName.From("NewBrowse");
             var dv = new DataValue(new Variant(newName));
@@ -1654,7 +1656,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void WriteDisplayNameAttributeSucceeds()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             node.WriteMask = AttributeWriteMask.DisplayName;
             var dv = new DataValue(new Variant(LocalizedText.From("NewDisplay")));
             ServiceResult result = node.WriteAttribute(
@@ -1665,7 +1667,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void WriteDescriptionAttributeSucceeds()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             node.WriteMask = AttributeWriteMask.Description;
             var dv = new DataValue(new Variant(LocalizedText.From("NewDesc")));
             ServiceResult result = node.WriteAttribute(
@@ -1676,7 +1678,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void WriteDescriptionAttributeAcceptsNullValue()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             node.WriteMask = AttributeWriteMask.Description;
             var dv = new DataValue(Variant.Null);
             ServiceResult result = node.WriteAttribute(
@@ -1687,7 +1689,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void WriteWriteMaskAttributeSucceeds()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             node.WriteMask = AttributeWriteMask.WriteMask;
             var dv = new DataValue(new Variant((uint)AttributeWriteMask.DisplayName));
             ServiceResult result = node.WriteAttribute(
@@ -1699,7 +1701,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void WriteUserWriteMaskAttributeSucceeds()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             node.WriteMask = AttributeWriteMask.UserWriteMask;
             var dv = new DataValue(new Variant((uint)AttributeWriteMask.Description));
             ServiceResult result = node.WriteAttribute(
@@ -1710,7 +1712,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void WriteNodeClassAttributeSucceeds()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             node.WriteMask = AttributeWriteMask.NodeClass;
             var dv = new DataValue(Variant.From(NodeClass.Variable));
             ServiceResult result = node.WriteAttribute(
@@ -1721,7 +1723,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void WriteValueAttributeRejectsServerTimestamp()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             var dv = new DataValue
             {
                 WrappedValue = new Variant(42),
@@ -1735,7 +1737,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void WriteNonValueAttributeRejectsStatusCode()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             node.WriteMask = AttributeWriteMask.BrowseName;
             var dv = new DataValue
             {
@@ -1750,7 +1752,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void WriteNonValueAttributeRejectsIndexRange()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             node.WriteMask = AttributeWriteMask.BrowseName;
             var dv = new DataValue(new Variant(QualifiedName.From("Test")));
             var indexRange = NumericRange.Parse("0:1");
@@ -1762,7 +1764,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void WriteInvalidAttributeIdReturnsBad()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             var dv = new DataValue(new Variant(42));
             ServiceResult result = node.WriteAttribute(m_context, 99999, default, dv);
             Assert.That(StatusCode.IsBad(result.StatusCode), Is.True);
@@ -1771,7 +1773,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void WriteAccessRestrictionsAsUInt16Succeeds()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             node.WriteMask = AttributeWriteMask.AccessRestrictions;
             var dv = new DataValue(new Variant((ushort)AccessRestrictionType.SigningRequired));
             ServiceResult result = node.WriteAttribute(
@@ -1782,7 +1784,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void WriteAccessRestrictionsAsUInt32Succeeds()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             node.WriteMask = AttributeWriteMask.AccessRestrictions;
             var dv = new DataValue(new Variant((uint)AccessRestrictionType.EncryptionRequired));
             ServiceResult result = node.WriteAttribute(
@@ -1793,7 +1795,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void WriteAccessRestrictionsNullValueSucceeds()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             node.WriteMask = AttributeWriteMask.AccessRestrictions;
             var dv = new DataValue(Variant.Null);
             ServiceResult result = node.WriteAttribute(
@@ -1804,7 +1806,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void WriteAccessRestrictionsTypeMismatchReturnsBad()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             node.WriteMask = AttributeWriteMask.AccessRestrictions;
             var dv = new DataValue(new Variant("not a number"));
             ServiceResult result = node.WriteAttribute(
@@ -1815,7 +1817,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void OnWriteNodeIdHandlerInvoked()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             node.WriteMask = AttributeWriteMask.NodeId;
             bool invoked = false;
             node.OnWriteNodeId = (ctx, n, ref value) =>
@@ -1832,7 +1834,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void OnWriteBrowseNameHandlerInvoked()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             node.WriteMask = AttributeWriteMask.BrowseName;
             bool invoked = false;
             node.OnWriteBrowseName =
@@ -1850,7 +1852,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void OnWriteDisplayNameHandlerInvoked()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             node.WriteMask = AttributeWriteMask.DisplayName;
             bool invoked = false;
             node.OnWriteDisplayName =
@@ -1868,7 +1870,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void OnWriteDescriptionHandlerInvoked()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             node.WriteMask = AttributeWriteMask.Description;
             bool invoked = false;
             node.OnWriteDescription =
@@ -1886,7 +1888,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void OnWriteWriteMaskHandlerInvoked()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             node.WriteMask = AttributeWriteMask.WriteMask;
             bool invoked = false;
             node.OnWriteWriteMask = (ctx, n, ref value) =>
@@ -1903,7 +1905,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void OnWriteUserWriteMaskHandlerInvoked()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             node.WriteMask = AttributeWriteMask.UserWriteMask;
             bool invoked = false;
             node.OnWriteUserWriteMask =
@@ -1922,7 +1924,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void OnWriteNodeClassHandlerInvoked()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             node.WriteMask = AttributeWriteMask.NodeClass;
             bool invoked = false;
             node.OnWriteNodeClass = (ctx, n, ref value) =>
@@ -1939,7 +1941,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void OnWriteAccessRestrictionsHandlerInvoked()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             node.WriteMask = AttributeWriteMask.AccessRestrictions;
             bool invoked = false;
             node.OnWriteAccessRestrictions =
@@ -1958,7 +1960,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void ExportToNodeTableCreatesObjectNode()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             node.AddReference(ReferenceTypeIds.Organizes, false, new NodeId(100));
             var table = new NodeTable(
                 m_context.NamespaceUris,
@@ -1972,10 +1974,12 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void ExportObjectTypeToNodeTableSucceeds()
         {
-            using var typeNode = new BaseObjectTypeState();
-            typeNode.NodeId = new NodeId(6000, 0);
-            typeNode.BrowseName = QualifiedName.From("MyType");
-            typeNode.DisplayName = LocalizedText.From("MyType");
+            var typeNode = new BaseObjectTypeState
+            {
+                NodeId = new NodeId(6000, 0),
+                BrowseName = QualifiedName.From("MyType"),
+                DisplayName = LocalizedText.From("MyType")
+            };
 
             var table = new NodeTable(
                 m_context.NamespaceUris,
@@ -1989,10 +1993,12 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void ExportViewToNodeTableSucceeds()
         {
-            using var view = new ViewState();
-            view.NodeId = new NodeId(7000, 0);
-            view.BrowseName = QualifiedName.From("MyView");
-            view.DisplayName = LocalizedText.From("MyView");
+            var view = new ViewState
+            {
+                NodeId = new NodeId(7000, 0),
+                BrowseName = QualifiedName.From("MyView"),
+                DisplayName = LocalizedText.From("MyView")
+            };
 
             var table = new NodeTable(
                 m_context.NamespaceUris,
@@ -2006,7 +2012,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void ExportWithChildrenIncludesChildrenInTable()
         {
-            using BaseObjectState parent = CreateObjectNode();
+            BaseObjectState parent = CreateObjectNode();
             PropertyState child = CreatePropertyChild(parent, "ExportChild");
             parent.AddChild(child);
 
@@ -2023,15 +2029,15 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void SaveAndLoadAsBinaryRoundTrips()
         {
-            using BaseObjectState original = CreateObjectNode();
+            BaseObjectState original = CreateObjectNode();
             original.Description = LocalizedText.From("Binary test");
             original.WriteMask = AttributeWriteMask.DisplayName;
 
-            using var stream = new MemoryStream();
+            var stream = new MemoryStream();
             original.SaveAsBinary(m_context, stream);
             stream.Position = 0;
 
-            using var loaded = new BaseObjectState(null);
+            var loaded = new BaseObjectState(null);
             loaded.LoadAsBinary(m_context, stream);
 
             Assert.That(loaded.NodeId, Is.EqualTo(original.NodeId));
@@ -2042,15 +2048,15 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void SaveAndLoadAsBinaryWithChildrenRoundTrips()
         {
-            using BaseObjectState original = CreateObjectNode();
+            BaseObjectState original = CreateObjectNode();
             PropertyState child = CreatePropertyChild(original, "BinChild");
             original.AddChild(child);
 
-            using var stream = new MemoryStream();
+            var stream = new MemoryStream();
             original.SaveAsBinary(m_context, stream);
             stream.Position = 0;
 
-            using var loaded = new BaseObjectState(null);
+            var loaded = new BaseObjectState(null);
             loaded.LoadAsBinary(m_context, stream);
 
             var loadedChildren = new List<BaseInstanceState>();
@@ -2061,14 +2067,14 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void SaveAndLoadAsBinaryWithReferencesRoundTrips()
         {
-            using BaseObjectState original = CreateObjectNode();
+            BaseObjectState original = CreateObjectNode();
             original.AddReference(ReferenceTypeIds.Organizes, false, new NodeId(100));
 
-            using var stream = new MemoryStream();
+            var stream = new MemoryStream();
             original.SaveAsBinary(m_context, stream);
             stream.Position = 0;
 
-            using var loaded = new BaseObjectState(null);
+            var loaded = new BaseObjectState(null);
             loaded.LoadAsBinary(m_context, stream);
 
             var refs = new List<IReference>();
@@ -2079,7 +2085,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void SaveAndLoadAsXmlRoundTrips()
         {
-            using BaseObjectState original = CreateObjectNode();
+            BaseObjectState original = CreateObjectNode();
             original.Description = LocalizedText.From("XML test");
             original.SymbolicName = "XmlNode";
 
@@ -2090,8 +2096,8 @@ namespace Opc.Ua.Types.Tests.State
                 xmlBytes = stream.ToArray();
             }
 
-            using var loadStream = new MemoryStream(xmlBytes);
-            using var loaded = new BaseObjectState(null);
+            var loadStream = new MemoryStream(xmlBytes);
+            var loaded = new BaseObjectState(null);
             loaded.LoadFromXml(m_context, loadStream);
 
             Assert.That(loaded.NodeId, Is.EqualTo(original.NodeId));
@@ -2101,9 +2107,9 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void AddNotifierAddsRelationship()
         {
-            using BaseObjectState source = CreateObjectNode(name: "Source");
+            BaseObjectState source = CreateObjectNode(name: "Source");
             source.NodeId = new NodeId(1001, 0);
-            using BaseObjectState target = CreateObjectNode(name: "Target");
+            BaseObjectState target = CreateObjectNode(name: "Target");
             target.NodeId = new NodeId(1002, 0);
 
             source.AddNotifier(m_context, ReferenceTypeIds.HasEventSource, false, target);
@@ -2117,9 +2123,9 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void AddNotifierWithNullRefTypeUsesHasEventSource()
         {
-            using BaseObjectState source = CreateObjectNode(name: "Source");
+            BaseObjectState source = CreateObjectNode(name: "Source");
             source.NodeId = new NodeId(1001, 0);
-            using BaseObjectState target = CreateObjectNode(name: "Target");
+            BaseObjectState target = CreateObjectNode(name: "Target");
             target.NodeId = new NodeId(1002, 0);
 
             source.AddNotifier(m_context, NodeId.Null, false, target);
@@ -2133,9 +2139,9 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void AddNotifierUpdatesExistingEntry()
         {
-            using BaseObjectState source = CreateObjectNode(name: "Source");
+            BaseObjectState source = CreateObjectNode(name: "Source");
             source.NodeId = new NodeId(1001, 0);
-            using BaseObjectState target = CreateObjectNode(name: "Target");
+            BaseObjectState target = CreateObjectNode(name: "Target");
             target.NodeId = new NodeId(1002, 0);
 
             source.AddNotifier(m_context, ReferenceTypeIds.HasEventSource, false, target);
@@ -2151,9 +2157,9 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void RemoveNotifierRemovesRelationship()
         {
-            using BaseObjectState source = CreateObjectNode(name: "Source");
+            BaseObjectState source = CreateObjectNode(name: "Source");
             source.NodeId = new NodeId(1001, 0);
-            using BaseObjectState target = CreateObjectNode(name: "Target");
+            BaseObjectState target = CreateObjectNode(name: "Target");
             target.NodeId = new NodeId(1002, 0);
 
             source.AddNotifier(m_context, ReferenceTypeIds.HasEventSource, false, target);
@@ -2167,9 +2173,9 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void RemoveNotifierBidirectionalRemovesBothSides()
         {
-            using BaseObjectState source = CreateObjectNode(name: "Source");
+            BaseObjectState source = CreateObjectNode(name: "Source");
             source.NodeId = new NodeId(1001, 0);
-            using BaseObjectState target = CreateObjectNode(name: "Target");
+            BaseObjectState target = CreateObjectNode(name: "Target");
             target.NodeId = new NodeId(1002, 0);
 
             source.AddNotifier(m_context, ReferenceTypeIds.HasEventSource, false, target);
@@ -2189,19 +2195,19 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void RemoveNotifierNonExistentIsNoOp()
         {
-            using BaseObjectState source = CreateObjectNode(name: "Source");
-            using BaseObjectState target = CreateObjectNode(name: "Target");
+            BaseObjectState source = CreateObjectNode(name: "Source");
+            BaseObjectState target = CreateObjectNode(name: "Target");
             Assert.DoesNotThrow(() => source.RemoveNotifier(m_context, target, false));
         }
 
         [Test]
         public void GetNotifiersFiltersByTypeAndDirection()
         {
-            using BaseObjectState source = CreateObjectNode(name: "Source");
+            BaseObjectState source = CreateObjectNode(name: "Source");
             source.NodeId = new NodeId(1001, 0);
-            using BaseObjectState target1 = CreateObjectNode(name: "T1");
+            BaseObjectState target1 = CreateObjectNode(name: "T1");
             target1.NodeId = new NodeId(1002, 0);
-            using BaseObjectState target2 = CreateObjectNode(name: "T2");
+            BaseObjectState target2 = CreateObjectNode(name: "T2");
             target2.NodeId = new NodeId(1003, 0);
 
             source.AddNotifier(m_context, ReferenceTypeIds.HasEventSource, false, target1);
@@ -2221,7 +2227,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void GetNotifiersReturnsEmptyForNoNotifiers()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             var notifiers = new List<NodeState.Notifier>();
             node.GetNotifiers(m_context, notifiers);
             Assert.That(notifiers, Is.Empty);
@@ -2230,7 +2236,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void ReportEventInvokesOnReportEventHandler()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             bool invoked = false;
             node.OnReportEvent = (ctx, n, e) => invoked = true;
             node.ReportEvent(m_context, null);
@@ -2240,9 +2246,9 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void ReportEventPropagatesViaInverseNotifiers()
         {
-            using BaseObjectState source = CreateObjectNode(name: "Source");
+            BaseObjectState source = CreateObjectNode(name: "Source");
             source.NodeId = new NodeId(1001, 0);
-            using BaseObjectState parent = CreateObjectNode(name: "Parent");
+            BaseObjectState parent = CreateObjectNode(name: "Parent");
             parent.NodeId = new NodeId(1002, 0);
 
             // source has inverse notifier to parent (source reports events to parent)
@@ -2258,7 +2264,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void ConditionRefreshInvokesHandler()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             bool invoked = false;
             node.OnConditionRefresh = (ctx, n, events) => invoked = true;
 
@@ -2270,7 +2276,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void ConditionRefreshRecursesIntoChildren()
         {
-            using BaseObjectState parent = CreateObjectNode();
+            BaseObjectState parent = CreateObjectNode();
             PropertyState child = CreatePropertyChild(parent, "C1");
             parent.AddChild(child);
 
@@ -2285,7 +2291,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void FindMethodReturnsNullWhenNoMethods()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             MethodState result = node.FindMethod(m_context, new NodeId(999));
             Assert.That(result, Is.Null);
         }
@@ -2293,7 +2299,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void FindMethodReturnsMethodByNodeId()
         {
-            using BaseObjectState parent = CreateObjectNode();
+            BaseObjectState parent = CreateObjectNode();
             var method = new MethodState(parent)
             {
                 NodeId = new NodeId(3001, 0),
@@ -2309,7 +2315,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void FindMethodReturnsNullForNonMatchingId()
         {
-            using BaseObjectState parent = CreateObjectNode();
+            BaseObjectState parent = CreateObjectNode();
             var method = new MethodState(parent)
             {
                 NodeId = new NodeId(3001, 0),
@@ -2324,7 +2330,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void ReadChildAttributeReadsCurrentNodeWhenAtEnd()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             var relativePath = new List<QualifiedName>();
             var dataValue = new DataValue();
 
@@ -2337,7 +2343,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void ReadChildAttributeReturnsNotFoundForMissingChild()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             var relativePath = new List<QualifiedName> { QualifiedName.From("Missing") };
             var dataValue = new DataValue();
 
@@ -2349,7 +2355,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void ReadChildAttributeReadsNestedChild()
         {
-            using BaseObjectState root = CreateObjectNode();
+            BaseObjectState root = CreateObjectNode();
             PropertyState child = CreatePropertyChild(root, "ChildProp");
             root.AddChild(child);
 
@@ -2365,7 +2371,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void GetInstanceHierarchyBuildsPathForChildren()
         {
-            using BaseObjectState root = CreateObjectNode();
+            BaseObjectState root = CreateObjectNode();
             PropertyState child = CreatePropertyChild(root, "Child1");
             child.SymbolicName = "Child1";
             child.NodeId = new NodeId(2001, 0);
@@ -2381,7 +2387,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void GetInstanceHierarchyBuildsNestedPaths()
         {
-            using BaseObjectState root = CreateObjectNode();
+            BaseObjectState root = CreateObjectNode();
             var mid = new BaseObjectState(root)
             {
                 NodeId = new NodeId(5001, 0),
@@ -2407,7 +2413,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void SetStatusCodePropagatesRecursivelyToChildren()
         {
-            using BaseObjectState parent = CreateObjectNode();
+            BaseObjectState parent = CreateObjectNode();
             Assert.DoesNotThrow(
                 () => parent.SetStatusCode(
                     m_context,
@@ -2418,7 +2424,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void GetHierarchyReferencesCollectsReferences()
         {
-            using BaseObjectState root = CreateObjectNode();
+            BaseObjectState root = CreateObjectNode();
             root.AddReference(ReferenceTypeIds.Organizes, false, new NodeId(500));
 
             var hierarchy = new Dictionary<NodeId, string>
@@ -2434,7 +2440,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void UpdateReferenceTargetsRemapsNodeIds()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             var oldTarget = new NodeId(100, 0);
             var newTarget = new NodeId(200, 0);
             node.AddReference(ReferenceTypeIds.Organizes, false, oldTarget);
@@ -2455,7 +2461,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void UpdateReferenceTargetsIgnoresUnmappedTargets()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             node.AddReference(ReferenceTypeIds.Organizes, false, new NodeId(100));
             var mapping = new Dictionary<NodeId, NodeId>();
             node.UpdateReferenceTargets(m_context, mapping);
@@ -2468,7 +2474,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void CreateBrowserReturnsNonNull()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             INodeBrowser browser = node.CreateBrowser(
                 m_context,
                 default,
@@ -2484,7 +2490,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void OnPopulateBrowserHandlerInvoked()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             bool invoked = false;
             node.OnPopulateBrowser = (ctx, n, browser) => invoked = true;
 
@@ -2496,7 +2502,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void AssignNodeIdsWithNoFactoryIsNoOp()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             NodeId originalId = node.NodeId;
             var context = new SystemContext(m_telemetry)
             {
@@ -2511,7 +2517,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void MultipleChildrenWithSameBrowseNameFindReturnsFirst()
         {
-            using BaseObjectState parent = CreateObjectNode();
+            BaseObjectState parent = CreateObjectNode();
             PropertyState child1 = CreatePropertyChild(parent, "Dup");
             child1.NodeId = new NodeId(3001, 0);
             PropertyState child2 = CreatePropertyChild(parent, "Dup");
@@ -2527,7 +2533,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void LargeNumberOfReferencesHandledCorrectly()
         {
-            using BaseObjectState node = CreateObjectNode();
+            BaseObjectState node = CreateObjectNode();
             for (uint i = 0; i < 100; i++)
             {
                 node.AddReference(ReferenceTypeIds.Organizes, false, new NodeId(i + 1000));
@@ -2541,17 +2547,19 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void CreateAsPredefinedNodeSucceeds()
         {
-            using var node = new BaseObjectState(null);
-            node.NodeId = new NodeId(100, 0);
-            node.BrowseName = QualifiedName.From("Predefined");
-            node.DisplayName = LocalizedText.From("Predefined");
+            var node = new BaseObjectState(null)
+            {
+                NodeId = new NodeId(100, 0),
+                BrowseName = QualifiedName.From("Predefined"),
+                DisplayName = LocalizedText.From("Predefined")
+            };
             Assert.DoesNotThrow(() => node.CreateAsPredefinedNode(m_context));
         }
 
         [Test]
         public void ReplaceChildAddsChildIfBrowseNameNotFound()
         {
-            using BaseObjectState parent = CreateObjectNode();
+            BaseObjectState parent = CreateObjectNode();
             PropertyState child = CreatePropertyChild(parent, "NewChild");
             parent.ReplaceChild(m_context, child);
 
@@ -2563,7 +2571,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void FindChildBrowsePathNavigatesMultipleLevels()
         {
-            using BaseObjectState root = CreateObjectNode();
+            BaseObjectState root = CreateObjectNode();
             var mid = new BaseObjectState(root)
             {
                 NodeId = new NodeId(5001, 0),

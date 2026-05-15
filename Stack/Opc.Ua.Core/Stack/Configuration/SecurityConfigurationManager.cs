@@ -29,7 +29,6 @@
 
 using System;
 using System.IO;
-using System.Runtime.Serialization;
 using System.Text;
 using System.Xml;
 using Microsoft.Extensions.Logging;
@@ -146,10 +145,13 @@ namespace Opc.Ua.Security
                     // find the SecuredApplication element in the file.
                     if (Encoding.UTF8.GetString(data).Contains("SecuredApplication", StringComparison.Ordinal))
                     {
+                        iStrm.Position = 0;
                         using IDisposable scope = AmbientMessageContext.SetScopedContext(m_telemetry);
-                        DataContractSerializer serializer = CoreUtils.CreateDataContractSerializer<SecuredApplication>();
-                        using var reader = XmlReader.Create(iStrm, Utils.DefaultXmlReaderSettings());
-                        application = serializer.ReadObject(reader) as SecuredApplication;
+                        IServiceMessageContext ctx = AmbientMessageContext.CurrentContext ??
+                            ServiceMessageContext.CreateEmpty(m_telemetry);
+                        using var parser = new XmlParser(typeof(SecuredApplication), iStrm, ctx);
+                        application = new SecuredApplication();
+                        SecuredApplicationEncoding.DecodeContents(parser, application);
 
                         application.ConfigurationFile = configFilePath;
                         application.ExecutableFile = exeFilePath;
@@ -164,10 +166,13 @@ namespace Opc.Ua.Security
                             FileAccess.Read,
                             FileShare.Read);
                         using IDisposable scope = AmbientMessageContext.SetScopedContext(m_telemetry);
-                        DataContractSerializer serializer = CoreUtils.CreateDataContractSerializer<ApplicationConfiguration>();
-                        using var reader = XmlReader.Create(iStrm, Utils.DefaultXmlReaderSettings());
-                        applicationConfiguration = serializer.ReadObject(reader) as ApplicationConfiguration;
-                        applicationConfiguration.Initialize(m_telemetry);
+                        IServiceMessageContext ctx = AmbientMessageContext.CurrentContext ??
+                            ServiceMessageContext.CreateEmpty(m_telemetry);
+                        using var parser = new XmlParser(typeof(ApplicationConfiguration), iStrm, ctx);
+                        applicationConfiguration = new ApplicationConfiguration(m_telemetry);
+                        applicationConfiguration.Decode(parser);
+                        applicationConfiguration.ServerConfiguration?.ValidateSecurityPolicies();
+                        applicationConfiguration.DiscoveryServerConfiguration?.ValidateSecurityPolicies();
                     }
                 }
                 finally
@@ -225,9 +230,9 @@ namespace Opc.Ua.Security
                             applicationConfiguration.SecurityConfiguration
                                 .TrustedIssuerCertificates);
 
-                    if (applicationConfiguration.SecurityConfiguration.TrustedIssuerCertificates
-                            .TrustedCertificates !=
-                        null)
+                    if (!applicationConfiguration.SecurityConfiguration.TrustedIssuerCertificates
+                            .TrustedCertificates
+                            .IsNull)
                     {
                         application.IssuerCertificates = SecuredApplication.ToCertificateList(
                             applicationConfiguration.SecurityConfiguration.TrustedIssuerCertificates
@@ -241,9 +246,9 @@ namespace Opc.Ua.Security
                         .ToCertificateStoreIdentifier(
                             applicationConfiguration.SecurityConfiguration.TrustedPeerCertificates);
 
-                    if (applicationConfiguration.SecurityConfiguration.TrustedPeerCertificates
-                            .TrustedCertificates !=
-                        null)
+                    if (!applicationConfiguration.SecurityConfiguration.TrustedPeerCertificates
+                            .TrustedCertificates
+                            .IsNull)
                     {
                         application.TrustedCertificates = SecuredApplication.ToCertificateList(
                             applicationConfiguration.SecurityConfiguration.TrustedPeerCertificates
@@ -291,11 +296,18 @@ namespace Opc.Ua.Security
         /// <param name="namespaceUri">The namespace URI.</param>
         private static System.Xml.XmlElement Find(XmlNode parent, string localName, string namespaceUri)
         {
+            if (parent is System.Xml.XmlElement parentElement &&
+                parent.LocalName == localName &&
+                parent.NamespaceURI == namespaceUri)
+            {
+                return parentElement;
+            }
+
             for (XmlNode ii = parent.FirstChild; ii != null; ii = ii.NextSibling)
             {
                 if (ii is System.Xml.XmlElement xml &&
-                    ii.LocalName == "SecuredApplication" &&
-                    ii.NamespaceURI == Namespaces.OpcUaSecurity)
+                    ii.LocalName == localName &&
+                    ii.NamespaceURI == namespaceUri)
                 {
                     return xml;
                 }
@@ -350,7 +362,10 @@ namespace Opc.Ua.Security
             if (element != null)
             {
                 configuration.LastExportTime = DateTime.UtcNow;
-                element.InnerXml = SetObject(typeof(SecuredApplication), configuration);
+                element.InnerXml = EncodeToInnerXml(
+                    typeof(SecuredApplication),
+                    Namespaces.OpcUaSecurity,
+                    encoder => SecuredApplicationEncoding.EncodeContents(encoder, configuration));
             }
             // update application configuration.
             else
@@ -440,7 +455,10 @@ namespace Opc.Ua.Security
                         .FromCertificateStoreIdentifier(
                             application.RejectedCertificatesStore);
 
-                    node.InnerXml = SetObject(typeof(SecurityConfiguration), security);
+                    node.InnerXml = EncodeToInnerXml(
+                        typeof(SecurityConfiguration),
+                        Namespaces.OpcUaConfig,
+                        security.Encode);
                     continue;
                 }
 
@@ -457,7 +475,10 @@ namespace Opc.Ua.Security
                     configuration.SecurityPolicies = SecuredApplication.FromListOfSecurityProfiles(
                         application.SecurityProfiles);
 
-                    node.InnerXml = SetObject(typeof(ServerConfiguration), configuration);
+                    node.InnerXml = EncodeToInnerXml(
+                        typeof(ServerConfiguration),
+                        Namespaces.OpcUaConfig,
+                        configuration.Encode);
                 }
                 else if (node.Name == "DiscoveryServerConfiguration" &&
                     node.NamespaceURI == Namespaces.OpcUaConfig)
@@ -472,7 +493,10 @@ namespace Opc.Ua.Security
                     configuration.SecurityPolicies = SecuredApplication.FromListOfSecurityProfiles(
                         application.SecurityProfiles);
 
-                    node.InnerXml = SetObject(typeof(DiscoveryServerConfiguration), configuration);
+                    node.InnerXml = EncodeToInnerXml(
+                        typeof(DiscoveryServerConfiguration),
+                        Namespaces.OpcUaConfig,
+                        configuration.Encode);
                     continue;
                 }
             }
@@ -481,34 +505,64 @@ namespace Opc.Ua.Security
         /// <summary>
         /// Reads an object from the body of an XML element.
         /// </summary>
+        /// <exception cref="NotSupportedException"></exception>
         private object GetObject(Type type, XmlNode element)
         {
-            using var memoryStream = new MemoryStream(Encoding.UTF8.GetBytes(element.InnerXml));
-            var txtReader = XmlDictionaryReader.CreateTextReader(
-                memoryStream,
-                Encoding.UTF8,
-                new XmlDictionaryReaderQuotas(),
-                null);
             using IDisposable scope = AmbientMessageContext.SetScopedContext(m_telemetry);
-            DataContractSerializer serializer =
-                CoreUtils.CreateDataContractSerializer(type);
-            using var reader = XmlReader.Create(txtReader, Utils.DefaultXmlReaderSettings());
-            return serializer.ReadObject(reader);
+            IServiceMessageContext context = AmbientMessageContext.CurrentContext ??
+                ServiceMessageContext.CreateEmpty(m_telemetry);
+            // Use element.OuterXml so the XmlParser sees the root element (e.g. <SecurityConfiguration>).
+            if (type == typeof(SecurityConfiguration))
+            {
+                using var parser = new XmlParser(type, element.OuterXml, context);
+                var sec = new SecurityConfiguration();
+                sec.Decode(parser);
+                return sec;
+            }
+
+            if (type == typeof(ServerConfiguration))
+            {
+                using var parser = new XmlParser(type, element.OuterXml, context);
+                var srv = new ServerConfiguration();
+                srv.Decode(parser);
+                srv.ValidateSecurityPolicies();
+                return srv;
+            }
+
+            if (type == typeof(DiscoveryServerConfiguration))
+            {
+                using var parser = new XmlParser(type, element.OuterXml, context);
+                var disc = new DiscoveryServerConfiguration();
+                disc.Decode(parser);
+                disc.ValidateSecurityPolicies();
+                return disc;
+            }
+
+            throw new NotSupportedException(Utils.Format("Unsupported type for GetObject: {0}", type.FullName));
         }
 
         /// <summary>
-        /// Reads an object from the body of an XML element.
+        /// Encodes an object to XML using XmlEncoder and returns the inner XML content.
         /// </summary>
-        private string SetObject(Type type, object value)
+        private string EncodeToInnerXml(
+            Type systemType,
+            string namespaceUri,
+            Action<XmlEncoder> encodeAction)
         {
-            using var memoryStream = new MemoryStream();
             using IDisposable scope = AmbientMessageContext.SetScopedContext(m_telemetry);
-            DataContractSerializer serializer =
-                CoreUtils.CreateDataContractSerializer(value?.GetType() ?? type);
-            using var writer = XmlWriter.Create(memoryStream, Utils.DefaultXmlWriterSettings());
-            serializer.WriteObject(writer, value);
+            IServiceMessageContext ctx = AmbientMessageContext.CurrentContext ??
+                ServiceMessageContext.CreateEmpty(m_telemetry);
+            using var memoryStream = new MemoryStream();
+            XmlWriterSettings writerSettings = Utils.DefaultXmlWriterSettings();
+            writerSettings.Encoding = new UTF8Encoding(false);
+            using var writer = XmlWriter.Create(memoryStream, writerSettings);
+            using var encoder = new XmlEncoder(
+                new XmlQualifiedName(systemType.Name, namespaceUri),
+                writer,
+                ctx);
+            encodeAction(encoder);
+            encoder.Close();
 
-            // must extract the inner xml.
             var document = new XmlDocument();
             document.LoadInnerXml(Encoding.UTF8.GetString(memoryStream.ToArray()));
             return document.DocumentElement.InnerXml;

@@ -249,7 +249,7 @@ namespace Opc.Ua.Schema.Model.Tests
 
             // Assert
             Assert.That(result, Is.EqualTo(longPath));
-            Assert.That(result.Length, Is.EqualTo(10000));
+            Assert.That(result, Has.Length.EqualTo(10000));
         }
 
         /// <summary>
@@ -482,7 +482,7 @@ namespace Opc.Ua.Schema.Model.Tests
 
             // Assert
             Assert.That(result, Is.EqualTo(longPath));
-            Assert.That(result.Length, Is.EqualTo(10000));
+            Assert.That(result, Has.Length.EqualTo(10000));
         }
 
         /// <summary>
@@ -702,31 +702,6 @@ namespace Opc.Ua.Schema.Model.Tests
 
             // Assert
             Assert.That(result, Is.EqualTo("Path=Name_With-Special.Chars"));
-        }
-
-        /// <summary>
-        /// Tests that ToString with different formatProvider cultures produces correct result.
-        /// </summary>
-        [TestCase("en-US")]
-        [TestCase("de-DE")]
-        [TestCase("ja-JP")]
-        public void ToString_WithDifferentCultures_ReturnsFormattedString(string cultureName)
-        {
-            // Arrange
-            var hierarchyNode = new HierarchyNode
-            {
-                RelativePath = "TestPath",
-                Instance = new ObjectDesign
-                {
-                    SymbolicId = new XmlQualifiedName("TestName", "http://test.com")
-                }
-            };
-
-            // Act
-            string result = hierarchyNode.ToString();
-
-            // Assert
-            Assert.That(result, Is.EqualTo("TestPath=TestName"));
         }
 
         /// <summary>
@@ -1084,7 +1059,7 @@ namespace Opc.Ua.Schema.Model.Tests
 
             // Assert
             Assert.That(result, Is.EqualTo($"{relativePath}={symbolicIdName}"));
-            Assert.That(result.Length, Is.EqualTo(20001)); // 10000 + 1 ('=') + 10000
+            Assert.That(result, Has.Length.EqualTo(20001)); // 10000 + 1 ('=') + 10000
         }
 
         /// <summary>

@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.PubSub.PublishedData;
 
@@ -499,7 +498,7 @@ namespace Opc.Ua.PubSub.Encoding
 
             // Only treat an actual StatusCode value equal to Good as null to avoid misencoding
             if (valueToEncode.TypeInfo.BuiltInType == BuiltInType.StatusCode &&
-                valueToEncode.TryGet(out StatusCode statusCode) &&
+                valueToEncode.TryGetValue(out StatusCode statusCode) &&
                 statusCode == StatusCodes.Good &&
                 m_fieldTypeEncoding != FieldTypeEncodingMask.Variant)
             {

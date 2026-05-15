@@ -30,7 +30,6 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Linq;
 using System.Reflection;
 using System.Threading;
@@ -193,12 +192,7 @@ namespace Opc.Ua.Server
             {
                 lock (Lock)
                 {
-                    Utils.SilentDispose(m_monitoredItemManager);
-                    foreach (NodeState node in PredefinedNodes.Values)
-                    {
-                        Utils.SilentDispose(node);
-                    }
-
+                    m_monitoredItemManager?.Dispose();
                     PredefinedNodes.Clear();
                 }
             }
@@ -611,6 +605,12 @@ namespace Opc.Ua.Server
 
             for (int ii = 0; ii < children.Count; ii++)
             {
+                // Propagate type hierarchy flag from parent to children
+                if (activeNode.IsPartOfTypeHierarchy)
+                {
+                    children[ii].IsPartOfTypeHierarchy = true;
+                }
+
                 AddPredefinedNode(context, children[ii]);
             }
         }
@@ -883,17 +883,60 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Searches for a method in the ObjectType hierarchy of an instance node.
+        /// Per OPC UA spec Part 4 section 5.12.2.2, the ObjectType of the Object or a super type
+        /// of that ObjectType may be the source of a HasComponent reference to the method.
+        /// </summary>
+        /// <param name="context">The system context.</param>
+        /// <param name="typeDefinitionId">The TypeDefinitionId of the object instance.</param>
+        /// <param name="methodId">The NodeId of the method to find.</param>
+        /// <returns>The found method state, or null if not found.</returns>
+        private MethodState FindMethodInTypeHierarchy(ISystemContext context, NodeId typeDefinitionId, NodeId methodId)
+        {
+            // A limit to prevent infinite loops in case of a circular type hierarchy in malformed address spaces.
+            const int maxHierarchyDepth = 100;
+            int depth = 0;
+            NodeId typeId = typeDefinitionId;
+
+            while (!typeId.IsNull && depth++ < maxHierarchyDepth)
+            {
+                NodeState typeNode = FindPredefinedNode<NodeState>(typeId);
+                if (typeNode != null)
+                {
+                    MethodState method = typeNode.FindMethod(context, methodId);
+                    if (method != null)
+                    {
+                        return method;
+                    }
+
+                    // check for loose coupling via the type node.
+                    if (typeNode.ReferenceExists(ReferenceTypeIds.HasComponent, false, methodId))
+                    {
+                        method = FindPredefinedNode<MethodState>(methodId);
+                        if (method != null)
+                        {
+                            return method;
+                        }
+                    }
+                }
+
+                typeId = Server.TypeTree.FindSuperType(typeId);
+            }
+
+            return null;
+        }
+
+        /// <summary>
         /// Frees any resources allocated for the address space.
         /// </summary>
         public virtual void DeleteAddressSpace()
         {
-            NodeState[] nodes = [.. PredefinedNodes.Values];
+            // NodeState[] nodes = [.. PredefinedNodes.Values];
             PredefinedNodes.Clear();
-
-            foreach (NodeState node in nodes)
-            {
-                Utils.SilentDispose(node);
-            }
+            // foreach (var node in nodes)
+            // {
+            //     node.Delete(null);
+            // }
         }
 
         /// <summary>
@@ -1079,41 +1122,41 @@ namespace Opc.Ua.Server
                     DisplayName = target.DisplayName
                 };
 
-                if (values[0].TryGet(out uint writeMask) &&
-                    values[1].TryGet(out uint userWriteMask))
+                if (values[0].TryGetValue(out uint writeMask) &&
+                    values[1].TryGetValue(out uint userWriteMask))
                 {
                     metadata.WriteMask = (AttributeWriteMask)(writeMask & userWriteMask);
                 }
-                if (values[2].TryGet(out NodeId dataType))
+                if (values[2].TryGetValue(out NodeId dataType))
                 {
                     metadata.DataType = dataType;
                 }
-                if (values[3].TryGet(out int valueRank))
+                if (values[3].TryGetValue(out int valueRank))
                 {
                     metadata.ValueRank = valueRank;
                 }
-                if (values[4].TryGet(out ArrayOf<uint> arrayDimensions))
+                if (values[4].TryGetValue(out ArrayOf<uint> arrayDimensions))
                 {
                     metadata.ArrayDimensions = arrayDimensions;
                 }
-                if (values[5].TryGet(out byte accessLevel) &&
-                    values[6].TryGet(out byte userAccessLevel))
+                if (values[5].TryGetValue(out byte accessLevel) &&
+                    values[6].TryGetValue(out byte userAccessLevel))
                 {
                     metadata.AccessLevel = (byte)(accessLevel & userAccessLevel);
                 }
 
-                if (values[7].TryGet(out byte eventNotifier))
+                if (values[7].TryGetValue(out byte eventNotifier))
                 {
                     metadata.EventNotifier = eventNotifier;
                 }
 
-                if (values[8].TryGet(out bool executable) &&
-                    values[9].TryGet(out bool userExecutable))
+                if (values[8].TryGetValue(out bool executable) &&
+                    values[9].TryGetValue(out bool userExecutable))
                 {
                     metadata.Executable = executable && userExecutable;
                 }
 
-                if (values[10].TryGet(out ushort accessRestriction))
+                if (values[10].TryGetValue(out ushort accessRestriction))
                 {
                     metadata.AccessRestrictions = (AccessRestrictionType)accessRestriction;
                 }
@@ -1149,7 +1192,7 @@ namespace Opc.Ua.Server
         /// </summary>
         private static void SetAccessAndRolePermissions(ArrayOf<Variant> values, NodeMetadata metadata)
         {
-            if (values[0].TryGet(out ushort accessRestrictions))
+            if (values[0].TryGetValue(out ushort accessRestrictions))
             {
                 metadata.AccessRestrictions = (AccessRestrictionType)accessRestrictions;
             }
@@ -2154,9 +2197,46 @@ namespace Opc.Ua.Server
                             value);
 
                         monitoredItem.QueueValue(value, ServiceResult.Good, true);
+
+                        RaiseSemanticChangeEvent(systemContext, node, property);
                     }
                 }
             }
+        }
+
+        /// <summary>
+        /// Raises a semantic change event to notify clients that the structure or meaning of a node has changed.
+        /// </summary>
+        protected void RaiseSemanticChangeEvent(ISystemContext systemContext, NodeState node, PropertyState property)
+        {
+            var e = new SemanticChangeEventState(null);
+
+            var message = new TranslationInfo(
+                "SemanticChangeEvent",
+                "en-US",
+                "SemanticChangeEvent.");
+
+            e.Initialize(systemContext, null, EventSeverity.Min, new LocalizedText(message));
+
+            e.SetChildValue(
+                systemContext,
+                BrowseNames.SourceNode,
+                ObjectIds.Server,
+                false);
+            e.SetChildValue(systemContext, BrowseNames.SourceName, "Server", false);
+
+            e.CreateOrReplaceChanges(systemContext, null);
+
+            e.Changes.Value = new[]
+                            {
+                                new SemanticChangeStructureDataType
+                                {
+                                    Affected = node.NodeId,
+                                    AffectedType = property.TypeDefinitionId
+                                }
+                            }.ToArrayOf();
+
+            Server.ReportEvent(e);
         }
 
         /// <summary>
@@ -3054,6 +3134,14 @@ namespace Opc.Ua.Server
                                 methodToCall.MethodId);
                         }
 
+                        // Per OPC UA spec Part 4 section 5.12.2.2: the ObjectType of the Object
+                        // or a super type of that ObjectType may also be the source of a HasComponent
+                        // reference to the method.
+                        if (method == null && source is BaseInstanceState instanceState)
+                        {
+                            method = FindMethodInTypeHierarchy(systemContext, instanceState.TypeDefinitionId, methodToCall.MethodId);
+                        }
+
                         if (method == null)
                         {
                             errors[ii] = StatusCodes.BadMethodInvalid;
@@ -3079,7 +3167,9 @@ namespace Opc.Ua.Server
 
                 if (sync)
                 {
+#pragma warning disable CA1849 // Call async methods when in an async method
                     errors[ii] = Call(systemContext, methodToCall, method, result);
+#pragma warning restore CA1849 // Call async methods when in an async method
                 }
                 else
                 {
@@ -3606,34 +3696,42 @@ namespace Opc.Ua.Server
                 bool success = false;
                 IMonitoredItem monitoredItem = null;
 
-                lock (Lock)
+                try
                 {
-                    // validate node.
-                    NodeState source = ValidateNode(systemContext, handle, operationCache);
+                    lock (Lock)
+                    {
+                        // validate node.
+                        NodeState source = ValidateNode(systemContext, handle, operationCache);
 
-                    if (source == null)
+                        if (source == null)
+                        {
+                            continue;
+                        }
+
+                        IStoredMonitoredItem itemToCreate = itemsToRestore[handle.Index];
+
+                        // create monitored item.
+                        success = RestoreMonitoredItem(
+                            systemContext,
+                            handle,
+                            itemToCreate,
+                            savedOwnerIdentity,
+                            out monitoredItem);
+                    }
+
+                    if (!success)
                     {
                         continue;
                     }
 
-                    IStoredMonitoredItem itemToCreate = itemsToRestore[handle.Index];
-
-                    // create monitored item.
-                    success = RestoreMonitoredItem(
-                        systemContext,
-                        handle,
-                        itemToCreate,
-                        savedOwnerIdentity,
-                        out monitoredItem);
+                    // save the monitored item.
+                    monitoredItems[handle.Index] = monitoredItem;
+                    monitoredItem = null; // ownership transferred
                 }
-
-                if (!success)
+                finally
                 {
-                    continue;
+                    (monitoredItem as IDisposable)?.Dispose();
                 }
-
-                // save the monitored item.
-                monitoredItems[handle.Index] = monitoredItem;
             }
 
             lock (Lock)
@@ -3759,44 +3857,52 @@ namespace Opc.Ua.Server
                 MonitoringFilterResult filterResult = null;
                 IMonitoredItem monitoredItem = null;
 
-                lock (Lock)
+                try
                 {
-                    // validate node.
-                    NodeState source = ValidateNode(systemContext, handle, operationCache);
+                    lock (Lock)
+                    {
+                        // validate node.
+                        NodeState source = ValidateNode(systemContext, handle, operationCache);
 
-                    if (source == null)
+                        if (source == null)
+                        {
+                            continue;
+                        }
+
+                        MonitoredItemCreateRequest itemToCreate = itemsToCreate[handle.Index];
+
+                        // create monitored item.
+                        errors[handle.Index] = CreateMonitoredItem(
+                            systemContext,
+                            handle,
+                            subscriptionId,
+                            publishingInterval,
+                            context.DiagnosticsMask,
+                            timestampsToReturn,
+                            itemToCreate,
+                            createDurable,
+                            monitoredItemIdFactory,
+                            out filterResult,
+                            out monitoredItem);
+                    }
+
+                    // save any filter error details.
+                    filterErrors[handle.Index] = filterResult;
+
+                    if (ServiceResult.IsBad(errors[handle.Index]))
                     {
                         continue;
                     }
 
-                    MonitoredItemCreateRequest itemToCreate = itemsToCreate[handle.Index];
-
-                    // create monitored item.
-                    errors[handle.Index] = CreateMonitoredItem(
-                        systemContext,
-                        handle,
-                        subscriptionId,
-                        publishingInterval,
-                        context.DiagnosticsMask,
-                        timestampsToReturn,
-                        itemToCreate,
-                        createDurable,
-                        monitoredItemIdFactory,
-                        out filterResult,
-                        out monitoredItem);
+                    // save the monitored item.
+                    monitoredItems[handle.Index] = monitoredItem;
+                    createdItems.Add(monitoredItem);
+                    monitoredItem = null; // ownership transferred
                 }
-
-                // save any filter error details.
-                filterErrors[handle.Index] = filterResult;
-
-                if (ServiceResult.IsBad(errors[handle.Index]))
+                finally
                 {
-                    continue;
+                    (monitoredItem as IDisposable)?.Dispose();
                 }
-
-                // save the monitored item.
-                monitoredItems[handle.Index] = monitoredItem;
-                createdItems.Add(monitoredItem);
             }
 
             lock (Lock)
@@ -4800,7 +4906,10 @@ namespace Opc.Ua.Server
                 ArrayOf<Variant> values = default;
 
                 // construct the meta-data object.
-                var metadata = new NodeMetadata(target, target.NodeId);
+                var metadata = new NodeMetadata(target, target.NodeId)
+                {
+                    IsPartOfTypeHierarchy = target.IsPartOfTypeHierarchy
+                };
 
                 // Treat the case of calls originating from the optimized services that use the cache (Read, Browse and Call services)
                 if (uniqueNodesServiceAttributesCache != null)
@@ -4868,7 +4977,7 @@ namespace Opc.Ua.Server
                     namespaceMetadataValues = namespaceMetadataState.DefaultAccessRestrictions
                         .ReadAttributes(systemContext, Attributes.Value);
 
-                    if (namespaceMetadataValues[0].TryGet(out AccessRestrictionType accessRestrictions))
+                    if (namespaceMetadataValues[0].TryGetValue(out AccessRestrictionType accessRestrictions))
                     {
                         metadata.DefaultAccessRestrictions = accessRestrictions;
                     }

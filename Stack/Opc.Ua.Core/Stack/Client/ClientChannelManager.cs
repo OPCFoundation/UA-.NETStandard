@@ -30,12 +30,12 @@
 #nullable enable
 
 using System;
-using Opc.Ua.Bindings;
-using System.Net.Sockets;
 using System.Net;
-using System.Security.Cryptography.X509Certificates;
-using System.Threading.Tasks;
+using System.Net.Sockets;
 using System.Threading;
+using System.Threading.Tasks;
+using Opc.Ua.Bindings;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua
 {
@@ -68,8 +68,8 @@ namespace Opc.Ua
         public async ValueTask<ITransportChannel> CreateChannelAsync(
             ConfiguredEndpoint endpoint,
             IServiceMessageContext context,
-            X509Certificate2? clientCertificate,
-            X509Certificate2Collection? clientCertificateChain = null,
+            Certificate? clientCertificate,
+            CertificateCollection? clientCertificateChain = null,
             ITransportWaitingConnection? connection = null,
             CancellationToken ct = default)
         {
@@ -130,8 +130,8 @@ namespace Opc.Ua
             ITransportWaitingConnection connection,
             EndpointDescription description,
             EndpointConfiguration endpointConfiguration,
-            X509Certificate2? clientCertificate,
-            X509Certificate2Collection? clientCertificateChain,
+            Certificate? clientCertificate,
+            CertificateCollection? clientCertificateChain,
             IServiceMessageContext messageContext,
             ITransportChannelBindings? transportChannelBindings = null,
             CancellationToken ct = default)
@@ -163,23 +163,33 @@ namespace Opc.Ua
                 ClientCertificateChain = clientCertificateChain
             };
 
-            if (description.ServerCertificate.Length > 0)
+            try
             {
-                settings.ServerCertificate = Utils.ParseCertificateBlob(
-                    description.ServerCertificate,
-                    messageContext.Telemetry);
-            }
+                if (description.ServerCertificate.Length > 0)
+                {
+                    settings.ServerCertificate = Utils.ParseCertificateBlob(
+                        description.ServerCertificate,
+                        messageContext.Telemetry);
+                }
 
-            if (configuration != null)
+                if (configuration != null)
+                {
+                    settings.CertificateValidator = configuration.CertificateManager;
+                }
+
+                settings.NamespaceUris = messageContext.NamespaceUris;
+                settings.Factory = messageContext.Factory;
+
+                await secureChannel.OpenAsync(connection, settings, ct).ConfigureAwait(false);
+            }
+            catch
             {
-                settings.CertificateValidator = configuration.CertificateValidator
-                    .GetChannelValidator();
+                // settings.ServerCertificate is allocated above; dispose on
+                // failure since the channel never assumed ownership.
+                settings.ServerCertificate?.Dispose();
+                channel.Dispose();
+                throw;
             }
-
-            settings.NamespaceUris = messageContext.NamespaceUris;
-            settings.Factory = messageContext.Factory;
-
-            await secureChannel.OpenAsync(connection, settings, ct).ConfigureAwait(false);
 
             return channel;
         }
@@ -201,8 +211,8 @@ namespace Opc.Ua
             ApplicationConfiguration configuration,
             EndpointDescription description,
             EndpointConfiguration endpointConfiguration,
-            X509Certificate2? clientCertificate,
-            X509Certificate2Collection? clientCertificateChain,
+            Certificate? clientCertificate,
+            CertificateCollection? clientCertificateChain,
             IServiceMessageContext messageContext,
             ITransportChannelBindings? transportChannelBindings = null,
             CancellationToken ct = default)
@@ -242,23 +252,33 @@ namespace Opc.Ua
                 ClientCertificateChain = clientCertificateChain
             };
 
-            if (description.ServerCertificate.Length > 0)
+            try
             {
-                settings.ServerCertificate = Utils.ParseCertificateBlob(
-                    description.ServerCertificate,
-                    messageContext.Telemetry);
-            }
+                if (description.ServerCertificate.Length > 0)
+                {
+                    settings.ServerCertificate = Utils.ParseCertificateBlob(
+                        description.ServerCertificate,
+                        messageContext.Telemetry);
+                }
 
-            if (configuration != null)
+                if (configuration != null)
+                {
+                    settings.CertificateValidator = configuration.CertificateManager;
+                }
+
+                settings.NamespaceUris = messageContext.NamespaceUris;
+                settings.Factory = messageContext.Factory;
+
+                await secureChannel.OpenAsync(endpointUrl, settings, ct).ConfigureAwait(false);
+            }
+            catch
             {
-                settings.CertificateValidator = configuration.CertificateValidator
-                    .GetChannelValidator();
+                // settings.ServerCertificate is allocated above; dispose on
+                // failure since the channel never assumed ownership.
+                settings.ServerCertificate?.Dispose();
+                channel.Dispose();
+                throw;
             }
-
-            settings.NamespaceUris = messageContext.NamespaceUris;
-            settings.Factory = messageContext.Factory;
-
-            await secureChannel.OpenAsync(endpointUrl, settings, ct).ConfigureAwait(false);
             return channel;
         }
 
@@ -379,6 +399,15 @@ namespace Opc.Ua
 
             /// <inheritdoc/>
             public IServiceMessageContext MessageContext => m_channel.MessageContext;
+
+            /// <inheritdoc/>
+            public byte[] ChannelThumbprint => m_channel?.ChannelThumbprint ?? [];
+
+            /// <inheritdoc/>
+            public byte[] ClientChannelCertificate => m_channel?.ClientChannelCertificate ?? [];
+
+            /// <inheritdoc/>
+            public byte[] ServerChannelCertificate => m_channel?.ServerChannelCertificate ?? [];
 
             /// <inheritdoc/>
             public int OperationTimeout

@@ -721,7 +721,37 @@ namespace Opc.Ua.Schema.Model
                 case BasicDataType.LocalizedText:
                 case BasicDataType.StatusCode:
                 case BasicDataType.Structure: // Extension object
+                case BasicDataType.Number:
+                case BasicDataType.Integer:
+                case BasicDataType.UInteger:
                 case BasicDataType.BaseDataType: // Variant
+                case BasicDataType.Enumeration when !dataType.IsOptionSet:
+                case BasicDataType.UserDefined when dataType.IsEnumeration:
+                case BasicDataType.ByteString:
+                case BasicDataType.XmlElement:
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
+        /// <summary>
+        /// If the type needs to be cloned
+        /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
+        public static bool NeedsCloning(this DataTypeDesign dataType)
+        {
+            if (dataType is null)
+            {
+                throw new ArgumentNullException(nameof(dataType));
+            }
+            switch (dataType.BasicDataType)
+            {
+                case BasicDataType.DataValue:
+                case BasicDataType.Structure: // Extension object
+                case BasicDataType.BaseDataType: // Variant
+                case BasicDataType.UserDefined when !dataType.IsEnumeration:
+                case BasicDataType.Enumeration when dataType.IsOptionSet:
                     return true;
                 default:
                     return false;
@@ -740,8 +770,7 @@ namespace Opc.Ua.Schema.Model
             string targetNamespace,
             Namespace[] namespaces,
             IServiceMessageContext context,
-            Func<string> onUnknownElement = null,
-            bool dataTypeQuirk = false)
+            Func<string> onUnknownElement = null)
         {
             TypeInfo decodedValueType = default;
             string defaultString = valueAsVariant ?
@@ -782,8 +811,7 @@ namespace Opc.Ua.Schema.Model
                     valueAsVariant,
                     targetNamespace,
                     namespaces,
-                    onUnknownElement,
-                    dataTypeQuirk)
+                    onUnknownElement)
                     ?? defaultString;
             }
 
@@ -801,8 +829,7 @@ namespace Opc.Ua.Schema.Model
             bool valueAsVariant,
             string targetNamespace,
             Namespace[] namespaces,
-            Func<string> onUnknownElement = null,
-            bool dataTypeQuirk = false)
+            Func<string> onUnknownElement = null)
         {
             // Note that we return a typed value since we initialize a object/variant
             switch (dataType.BasicDataType)
@@ -811,21 +838,6 @@ namespace Opc.Ua.Schema.Model
                     if (decodedValue is not bool boolValue)
                     {
                         boolValue = false;
-                    }
-
-                    // If decoded value was passed, but no type info, set to concrete
-                    // type so that we correctly handle the default value below.
-                    // Otherwise fall to the back compat path that inverts the value.
-                    else if (decodedValueType.IsUnknown)
-                    {
-                        decodedValueType = TypeInfo.Scalars.Boolean;
-                    }
-                    if (dataTypeQuirk &&
-                        (defaultValue == null || decodedValueType != TypeInfo.Scalars.Boolean))
-                    {
-                        // this is technically a bug but the potential for side effects is
-                        // so large that it is better to leave as is.
-                        return MakeReturnType(boolValue ? "false" : "true");
                     }
 
                     return MakeReturnType(boolValue ? "true" : "false");

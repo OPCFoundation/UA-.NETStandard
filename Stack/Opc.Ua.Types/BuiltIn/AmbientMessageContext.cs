@@ -71,7 +71,9 @@ namespace Opc.Ua
                     // This root context will not have telemetry context
                     // associated with it. All loggers etc will use the
                     // default telemetry context
+#pragma warning disable CS0618 // Type or member is obsolete
                     var messageContext = new ServiceMessageContext(null);
+#pragma warning restore CS0618 // Type or member is obsolete
                     s_current.Value = new AmbientMessageContext(messageContext);
                     return messageContext;
                 }
@@ -105,10 +107,12 @@ namespace Opc.Ua
         {
             AmbientMessageContext previousContext = s_current.Value;
 
+#pragma warning disable CS0618 // Type or member is obsolete
             s_current.Value = new AmbientMessageContext(
                 previousContext == null ?
                     new ServiceMessageContext(telemetry) :
                     new ServiceMessageContext(previousContext.MessageContext, telemetry));
+#pragma warning restore CS0618 // Type or member is obsolete
 
             return new Restore(previousContext);
         }

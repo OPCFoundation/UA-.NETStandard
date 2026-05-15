@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Reflection;
 using System.Reflection.Emit;
@@ -44,6 +45,8 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary>
         /// Get the return type of an item in a collection.
         /// </summary>
+        [RequiresUnreferencedCode(
+            "Uses reflection to access collection item type.")]
         public static Type GetItemType(this Type collectionType)
         {
             return collectionType.GetMethod("get_Item").ReturnType;
@@ -261,7 +264,7 @@ namespace Opc.Ua.Client.ComplexTypes
         {
             if (datatypeId.IsNull ||
                 datatypeId.NamespaceIndex != 0 ||
-                !datatypeId.TryGetIdentifier(out uint numericId))
+                !datatypeId.TryGetValue(out uint numericId))
             {
                 return BuiltInType.Null;
             }

@@ -1013,7 +1013,7 @@ namespace Opc.Ua.Server
                 // check for an exact match.
                 if (CompareTimestamps(timestamp, ii) == 0)
                 {
-                    return new DataValue(ii.Value);
+                    return ii.Value.Copy();
                 }
 
                 // looking for an end bound.

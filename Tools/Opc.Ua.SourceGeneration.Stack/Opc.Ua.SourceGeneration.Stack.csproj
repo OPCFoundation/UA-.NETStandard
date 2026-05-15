@@ -5,6 +5,9 @@
     <AssemblyName>$(AssemblyPrefix).SourceGeneration.Stack</AssemblyName>
     <RootNamespace>Opc.Ua.SourceGeneration</RootNamespace>
     <Description>OPC UA source generation Library</Description>
+    <!-- Suppress CS8002: SourceGenerator.Foundations.Contracts is not strong-named.
+         Source generators are packaged as analyzers and not referenced at runtime. -->
+    <NoWarn>$(NoWarn);CS8002</NoWarn>
   </PropertyGroup>
   <!-- Package as source generator -->
   <PropertyGroup>

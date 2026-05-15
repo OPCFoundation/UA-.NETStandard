@@ -29,10 +29,13 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
+using System.Text;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
+using Opc.Ua.Gds.Server;
+using Opc.Ua.Security.Certificates;
 using Opc.Ua.Server;
+using Opc.Ua.Server.UserDatabase;
 
 namespace Quickstarts.ReferenceServer
 {
@@ -58,6 +61,28 @@ namespace Quickstarts.ReferenceServer
         public ReferenceServer(ITelemetryContext telemetry)
             : base(telemetry)
         {
+            m_userDatabase = new LinqUserDatabase();
+            m_userDatabase.CreateUser("sysadmin", "demo"u8, [Role.SecurityAdmin, Role.AuthenticatedUser]);
+            m_userDatabase.CreateUser("user1", "password"u8, [Role.AuthenticatedUser]);
+            m_userDatabase.CreateUser("user2", "password1"u8, [Role.AuthenticatedUser]);
+            m_userDatabase.CreateUser(
+                   "SystemAdmin",
+                   Encoding.UTF8.GetBytes("demo"),
+                   [GdsRole.CertificateAuthorityAdmin, GdsRole.DiscoveryAdmin, Role.SecurityAdmin,
+                       Role.ConfigureAdmin, Role.AuthenticatedUser]);
+            m_userDatabase.CreateUser(
+                "AppAdmin",
+                Encoding.UTF8.GetBytes("demo"),
+                [Role.AuthenticatedUser, GdsRole.CertificateAuthorityAdmin,
+                    GdsRole.DiscoveryAdmin, Role.AuthenticatedUser]);
+            m_userDatabase.CreateUser(
+                "DiscoveryAdmin",
+                Encoding.UTF8.GetBytes("demo"),
+                [Role.AuthenticatedUser, GdsRole.DiscoveryAdmin, Role.AuthenticatedUser]);
+            m_userDatabase.CreateUser(
+                "CertificateAuthorityAdmin",
+                Encoding.UTF8.GetBytes("demo"),
+                [Role.AuthenticatedUser, GdsRole.CertificateAuthorityAdmin, Role.AuthenticatedUser]);
         }
 
         /// <summary>
@@ -105,14 +130,26 @@ namespace Quickstarts.ReferenceServer
             }
             else
             {
-                asyncNodeManagers =
-                [
-                    // create the custom node manager.
-                    new ReferenceNodeManager(
+                ReferenceNodeManager referenceNodeManager = null;
+                try
+                {
+                    // CA2000: ownership-transfer pattern — nulled after handoff to asyncNodeManagers.
+#pragma warning disable CA2000
+                    referenceNodeManager = new ReferenceNodeManager(
                         server,
                         configuration,
-                        UseSamplingGroupsInReferenceNodeManager)
-                ];
+                        UseSamplingGroupsInReferenceNodeManager);
+#pragma warning restore CA2000
+                    asyncNodeManagers = [referenceNodeManager];
+                    referenceNodeManager = null;
+                }
+                finally
+                {
+                    // CA1508: only non-null on the exceptional path (try block clears it on success).
+#pragma warning disable CA1508
+                    referenceNodeManager?.Dispose();
+#pragma warning restore CA1508
+                }
 
                 foreach (INodeManagerFactory nodeManagerFactory in NodeManagerFactories)
                 {
@@ -134,7 +171,7 @@ namespace Quickstarts.ReferenceServer
         {
             if (configuration?.ServerConfiguration?.DurableSubscriptionsEnabled == true)
             {
-                return new Servers.DurableMonitoredItemQueueFactory(server.Telemetry);
+                return new Servers.DurableMonitoredItemQueueFactory(server.Telemetry, server.MessageContext);
             }
             return new MonitoredItemQueueFactory(server.Telemetry);
         }
@@ -288,16 +325,12 @@ namespace Quickstarts.ReferenceServer
                     if (configuration.SecurityConfiguration.TrustedUserCertificates != null &&
                         configuration.SecurityConfiguration.UserIssuerCertificates != null)
                     {
-                        var certificateValidator = new CertificateValidator(MessageContext.Telemetry);
-                        certificateValidator.UpdateAsync(configuration.SecurityConfiguration)
-                            .Wait();
-                        certificateValidator.Update(
-                            configuration.SecurityConfiguration.UserIssuerCertificates,
-                            configuration.SecurityConfiguration.TrustedUserCertificates,
-                            configuration.SecurityConfiguration.RejectedCertificateStore);
-
-                        // set custom validator for user certificates.
-                        m_userCertificateValidator = certificateValidator.GetChannelValidator();
+                        // The server's CertificateManager already maps
+                        // TrustedUserCertificates / UserIssuerCertificates to the
+                        // Users trust list during MapFromSecurityConfiguration().
+                        // Use the CertificateManager directly and validate against
+                        // the Users trust list per call.
+                        m_userCertificateValidator = CertificateManager;
                     }
                 }
             }
@@ -355,8 +388,9 @@ namespace Quickstarts.ReferenceServer
             if (args.UserIdentityTokenHandler is AnonymousIdentityTokenHandler or null)
             {
                 // allow anonymous authentication and set Anonymous role for this authentication
+                var identity = new UserIdentity();
                 args.Identity = new RoleBasedIdentity(
-                    new UserIdentity(),
+                    identity,
                     [Role.Anonymous],
                     ServerInternal.MessageContext.NamespaceUris);
                 return;
@@ -373,7 +407,7 @@ namespace Quickstarts.ReferenceServer
         /// Validates the password for a username token.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        private IUserIdentity VerifyPassword(UserNameIdentityTokenHandler userTokenHandler)
+        private RoleBasedIdentity VerifyPassword(UserNameIdentityTokenHandler userTokenHandler)
         {
             string userName = userTokenHandler.UserName;
             byte[] password = userTokenHandler.DecryptedPassword;
@@ -393,35 +427,29 @@ namespace Quickstarts.ReferenceServer
                     "Security token is not a valid username token. An empty password is not accepted.");
             }
 
-            // User with permission to configure server
-            if (userName == "sysadmin" && Utils.IsEqual(password, "demo"u8))
+            if (m_userDatabase.CheckCredentials(userName, password))
             {
-                return new SystemConfigurationIdentity(
-                    new UserIdentity(userTokenHandler));
+                var userIdentity = new UserIdentity(userTokenHandler);
+                ICollection<Role> roles = m_userDatabase.GetUserRoles(userName);
+                return new RoleBasedIdentity(
+                    userIdentity,
+                    roles,
+                    ServerInternal.MessageContext.NamespaceUris);
             }
 
-            // standard users for CTT verification
-            if (!((userName == "user1" && Utils.IsEqual(password, "password"u8)) ||
-                (userName == "user2" && Utils.IsEqual(password, "password1"u8))))
-            {
-                // construct translation object with default text.
-                var info = new TranslationInfo(
-                    "InvalidPassword",
-                    "en-US",
-                    "Invalid username or password.",
-                    userName);
+            // construct translation object with default text.
+            var info = new TranslationInfo(
+                "InvalidPassword",
+                "en-US",
+                "Invalid username or password.",
+                userName);
 
-                // create an exception with a vendor defined sub-code.
-                throw new ServiceResultException(
-                    new ServiceResult(
-                        LoadServerProperties().ProductUri,
-                        new StatusCode(StatusCodes.BadUserAccessDenied.Code, "InvalidPassword"),
-                        new LocalizedText(info)));
-            }
-            return new RoleBasedIdentity(
-                new UserIdentity(userTokenHandler),
-                [Role.AuthenticatedUser],
-                ServerInternal.MessageContext.NamespaceUris);
+            // create an exception with a vendor defined sub-code.
+            throw new ServiceResultException(
+                new ServiceResult(
+                    LoadServerProperties().ProductUri,
+                    new StatusCode(StatusCodes.BadUserAccessDenied.Code, "InvalidPassword"),
+                    new LocalizedText(info)));
         }
 
         /// <summary>
@@ -430,19 +458,47 @@ namespace Quickstarts.ReferenceServer
         /// <exception cref="ServiceResultException"></exception>
         private void VerifyX509IdentityToken(X509IdentityTokenHandler x509TokenHandler)
         {
+            var wireToken = (X509IdentityToken)x509TokenHandler.Token;
+            using Certificate userCertificate = wireToken.CertificateData.IsEmpty
+                ? null
+                : Certificate.FromRawData(wireToken.CertificateData);
             try
             {
                 if (m_userCertificateValidator != null)
                 {
-                    m_userCertificateValidator.ValidateAsync(
-                        x509TokenHandler.Certificate,
-                        default).GetAwaiter().GetResult();
+                    // CA2025: task awaited via GetAwaiter().GetResult(); the disposable's
+                    // using scope extends past the await.
+#pragma warning disable CA2025
+                    Opc.Ua.CertificateValidationResult userCertResult = m_userCertificateValidator
+                        .ValidateAsync(
+                            userCertificate,
+                            TrustListIdentifier.Users,
+                            default)
+                        .GetAwaiter()
+                        .GetResult();
+#pragma warning restore CA2025
+                    if (!userCertResult.IsValid)
+                    {
+                        throw new ServiceResultException(userCertResult.StatusCode);
+                    }
                 }
                 else
                 {
-                    CertificateValidator.ValidateAsync(
-                        x509TokenHandler.Certificate,
-                        default).GetAwaiter().GetResult();
+                    // CA2025: task awaited via GetAwaiter().GetResult(); the disposable's
+                    // using scope extends past the await.
+#pragma warning disable CA2025
+                    Opc.Ua.CertificateValidationResult fallbackCertResult = CertificateManager
+                        .ValidateAsync(
+                            userCertificate,
+                            TrustListIdentifier.Users,
+                            default)
+                        .GetAwaiter()
+                        .GetResult();
+#pragma warning restore CA2025
+                    if (!fallbackCertResult.IsValid)
+                    {
+                        throw new ServiceResultException(fallbackCertResult.StatusCode);
+                    }
                 }
             }
             catch (Exception e)
@@ -456,7 +512,7 @@ namespace Quickstarts.ReferenceServer
                         "InvalidCertificate",
                         "en-US",
                         "'{0}' is an invalid user certificate.",
-                        x509TokenHandler.Certificate.Subject);
+                        userCertificate?.Subject ?? string.Empty);
 
                     result = StatusCodes.BadIdentityTokenInvalid;
                 }
@@ -467,7 +523,7 @@ namespace Quickstarts.ReferenceServer
                         "UntrustedCertificate",
                         "en-US",
                         "'{0}' is not a trusted user certificate.",
-                        x509TokenHandler.Certificate.Subject);
+                        userCertificate?.Subject ?? string.Empty);
                 }
 
                 // create an exception with a vendor defined sub-code.
@@ -530,6 +586,7 @@ namespace Quickstarts.ReferenceServer
             }
         }
 
-        private ICertificateValidator m_userCertificateValidator;
+        private CertificateManager m_userCertificateValidator;
+        private readonly LinqUserDatabase m_userDatabase;
     }
 }

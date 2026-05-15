@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System.Collections.Generic;
 using Opc.Ua.Schema.Model;
 
 namespace Opc.Ua.SourceGeneration
@@ -60,5 +61,14 @@ namespace Opc.Ua.SourceGeneration
         /// Generator options.
         /// </summary>
         GeneratorOptions Options { get; }
+
+        /// <summary>
+        /// Models that referenced assemblies have already generated, keyed
+        /// by model URI. Used to skip locally generating models a referenced
+        /// assembly already provides and to satisfy transitive nodeset
+        /// dependencies without requiring the consumer to re-add every
+        /// upstream <c>&lt;AdditionalFiles&gt;</c> entry.
+        /// </summary>
+        IReadOnlyDictionary<string, ModelDependencyReference> ReferencedModels { get; }
     }
 }

@@ -49,9 +49,9 @@
     <When Condition="'$(CustomTestTarget)' == 'netstandard2.1'">
       <PropertyGroup>
         <NetStandardTests>true</NetStandardTests>
-        <AppTargetFrameworks>net8.0</AppTargetFrameworks>
-        <AppTargetFramework>net8.0</AppTargetFramework>
-        <TestsTargetFrameworks>net8.0</TestsTargetFrameworks>
+        <AppTargetFrameworks>net10.0</AppTargetFrameworks>
+        <AppTargetFramework>net10.0</AppTargetFramework>
+        <TestsTargetFrameworks>net10.0</TestsTargetFrameworks>
         <LibTargetFrameworks>netstandard2.1</LibTargetFrameworks>
         <LibCoreTargetFrameworks>netstandard2.1</LibCoreTargetFrameworks>
         <LibxTargetFrameworks>netstandard2.1</LibxTargetFrameworks>

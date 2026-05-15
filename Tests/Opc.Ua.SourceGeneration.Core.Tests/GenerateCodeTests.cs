@@ -205,7 +205,7 @@ namespace Opc.Ua.SourceGeneration.Api.Tests
             using var fileSystem = new VirtualFileSystem();
             Generators.GenerateCode(new DesignFileCollection
             {
-                DesignFiles = [Path.Combine(
+                Targets = [Path.Combine(
                     Directory.GetCurrentDirectory(),
                     "Resources",
                     modelDesignFile)],
@@ -231,7 +231,7 @@ namespace Opc.Ua.SourceGeneration.Api.Tests
             return generatedText;
         }
 
-        private void AddPredefinedNodeLoader(Dictionary<string, string> generated)
+        private static void AddPredefinedNodeLoader(Dictionary<string, string> generated)
         {
             generated.Add("Test.cs",
                 """

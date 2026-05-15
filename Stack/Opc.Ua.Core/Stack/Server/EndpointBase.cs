@@ -30,10 +30,10 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua
 {
@@ -134,7 +134,7 @@ namespace Opc.Ua
             string globalChannelId,
             EndpointDescription endpointDescription,
             OpenSecureChannelRequest request,
-            X509Certificate2 clientCertificate,
+            Certificate clientCertificate,
             Exception exception)
         {
             // trigger the reporting of AuditOpenSecureChannelEventType
@@ -155,7 +155,7 @@ namespace Opc.Ua
 
         /// <inheritdoc/>
         public void ReportAuditCertificateEvent(
-            X509Certificate2 clientCertificate,
+            Certificate clientCertificate,
             Exception exception)
         {
             // trigger the reporting of OpenSecureChannelAuditEvent

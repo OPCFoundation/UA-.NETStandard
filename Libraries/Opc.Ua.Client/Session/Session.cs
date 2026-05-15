@@ -33,13 +33,10 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
-using System.Runtime.Serialization;
-using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Xml;
 using Microsoft.Extensions.Logging;
-using Opc.Ua.Bindings;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Client
 {
@@ -50,11 +47,6 @@ namespace Opc.Ua.Client
         ISnapshotRestore<SessionState>, ISnapshotRestore<SessionConfiguration>
     {
         private const int kReconnectTimeout = 15000;
-        private const int kMinPublishRequestCountMax = 100;
-        private const int kMaxPublishRequestCountMax = ushort.MaxValue;
-        private const int kDefaultPublishRequestCount = 1;
-        private const int kPublishRequestSequenceNumberOutOfOrderThreshold = 10;
-        private const int kPublishRequestSequenceNumberOutdatedThreshold = 100;
 
         /// <summary>
         /// Constructs a new instance of the <see cref="Session"/> class.
@@ -72,7 +64,8 @@ namespace Opc.Ua.Client
                     transportChannel :
                     throw new ArgumentException("not a transport channel"),
                   configuration,
-                  endpoint)
+                  endpoint,
+                  engineFactory: null)
         {
         }
 
@@ -89,6 +82,9 @@ namespace Opc.Ua.Client
         /// by server in GetEndpoints() response.</param>
         /// <param name="discoveryProfileUris">The value of profileUris used in
         /// GetEndpoints() request.</param>
+        /// <param name="engineFactory">Optional subscription engine factory. When
+        /// <c>null</c> the session uses <see cref="ClassicSubscriptionEngineFactory"/>
+        /// by default.</param>
         /// <remarks>
         /// The application configuration is used to look up the certificate if none
         /// is provided. The clientCertificate must have the private key. This will
@@ -102,15 +98,17 @@ namespace Opc.Ua.Client
             ITransportChannel channel,
             ApplicationConfiguration configuration,
             ConfiguredEndpoint endpoint,
-            X509Certificate2? clientCertificate = null,
-            X509Certificate2Collection? clientCertificateChain = null,
+            Certificate? clientCertificate = null,
+            CertificateCollection? clientCertificateChain = null,
             ArrayOf<EndpointDescription> availableEndpoints = default,
-            ArrayOf<string> discoveryProfileUris = default)
+            ArrayOf<string> discoveryProfileUris = default,
+            ISubscriptionEngineFactory? engineFactory = null)
             : this(
                   channel,
                   configuration,
                   endpoint,
-                  channel.MessageContext ?? configuration.CreateMessageContext())
+                  channel.MessageContext ?? configuration.CreateMessageContext(),
+                  engineFactory)
         {
             m_instanceCertificate = clientCertificate;
             m_instanceCertificateChain = clientCertificateChain;
@@ -129,10 +127,14 @@ namespace Opc.Ua.Client
                   channel,
                   template.m_configuration,
                   template.ConfiguredEndpoint,
-                  channel.MessageContext ?? template.m_configuration.CreateMessageContext())
+                  channel.MessageContext ?? template.m_configuration.CreateMessageContext(),
+                  template.SubscriptionEngineFactory)
         {
-            m_instanceCertificate = template.m_instanceCertificate;
-            m_instanceCertificateChain = template.m_instanceCertificateChain;
+            // AddRef so the clone has its own reference; the template
+            // retains its existing one. Both Sessions independently
+            // dispose their respective references in Dispose.
+            m_instanceCertificate = template.m_instanceCertificate?.AddRef();
+            m_instanceCertificateChain = template.m_instanceCertificateChain?.AddRef();
             m_effectiveEndpoint = template.m_effectiveEndpoint;
             SessionFactory = template.SessionFactory;
             m_defaultSubscription = template.m_defaultSubscription;
@@ -141,8 +143,8 @@ namespace Opc.Ua.Client
             PublishRequestCancelDelayOnCloseSession = template.PublishRequestCancelDelayOnCloseSession;
             m_sessionTimeout = template.m_sessionTimeout;
             m_maxRequestMessageSize = template.m_maxRequestMessageSize;
-            m_minPublishRequestCount = template.m_minPublishRequestCount;
-            m_maxPublishRequestCount = template.m_maxPublishRequestCount;
+            m_engine.MinPublishRequestCount = template.m_engine.MinPublishRequestCount;
+            m_engine.MaxPublishRequestCount = template.m_engine.MaxPublishRequestCount;
             m_preferredLocales = template.PreferredLocales;
             m_sessionName = template.SessionName;
             Handle = template.Handle;
@@ -186,7 +188,8 @@ namespace Opc.Ua.Client
             ITransportChannel channel,
             ApplicationConfiguration configuration,
             ConfiguredEndpoint endpoint,
-            IServiceMessageContext messageContext)
+            IServiceMessageContext messageContext,
+            ISubscriptionEngineFactory? engineFactory = null)
             : base(channel, messageContext.Telemetry)
         {
             if (messageContext == null)
@@ -206,8 +209,6 @@ namespace Opc.Ua.Client
             ServerUris = new StringTable();
             Factory = EncodeableFactory.Create();
             m_keepAliveInterval = 5000;
-            m_minPublishRequestCount = kDefaultPublishRequestCount;
-            m_maxPublishRequestCount = kMaxPublishRequestCountMax;
             m_sessionName = string.Empty;
             DeleteSubscriptionsOnClose = true;
             PublishRequestCancelDelayOnCloseSession = 5000; // 5 seconds default
@@ -252,6 +253,11 @@ namespace Opc.Ua.Client
             // Create timer for keep alive event triggering but in off state
             m_keepAliveTimer = new Timer(_ => m_keepAliveEvent.Set(), this, Timeout.Infinite, Timeout.Infinite);
 
+            // Create the subscription engine.
+            SubscriptionEngineFactory = engineFactory
+                ?? ClassicSubscriptionEngineFactory.Instance;
+            m_engine = SubscriptionEngineFactory.Create(new SessionEngineContext(this));
+
             // set the default preferred locales.
             m_preferredLocales = [CultureInfo.CurrentCulture.Name];
 
@@ -289,10 +295,6 @@ namespace Opc.Ua.Client
             {
                 configurationField = "SecurityConfiguration";
             }
-            else if (configuration.CertificateValidator == null)
-            {
-                configurationField = "CertificateValidator";
-            }
             else
             {
                 return;
@@ -327,7 +329,7 @@ namespace Opc.Ua.Client
                 if (!Nonce.ValidateNonce(
                     serverNonce.ToArray(),
                     MessageSecurityMode.SignAndEncrypt,
-                    (uint)m_configuration.SecurityConfiguration.NonceLength))
+                    m_configuration.SecurityConfiguration.NonceLength))
                 {
                     if (channelSecurityMode == MessageSecurityMode.SignAndEncrypt ||
                         m_configuration.SecurityConfiguration.SuppressNonceValidationErrors)
@@ -369,19 +371,68 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Closes the session and the underlying channel.
         /// </summary>
+#pragma warning disable CA2215 // Dispose methods should call base class dispose
         protected override void Dispose(bool disposing)
+#pragma warning restore CA2215 // Dispose methods should call base class dispose
         {
-            if (Disposed && disposing)
+            if (!m_disposeAsyncCalled)
+            {
+                DisposeAsyncCore(disposing).AsTask().GetAwaiter().GetResult();
+            }
+        }
+
+        /// <inheritdoc/>
+        public async ValueTask DisposeAsync()
+        {
+            GC.SuppressFinalize(this);
+            await DisposeAsyncCore(true).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Core async dispose logic for the session.
+        /// </summary>
+        /// <param name="disposing">True if called from dispose, false otherwise.</param>
+#pragma warning disable IDE1006 // Standard IAsyncDisposable pattern name
+        protected virtual async ValueTask DisposeAsyncCore(bool disposing)
+#pragma warning restore IDE1006
+        {
+            if (m_disposeAsyncCalled)
             {
                 return;
             }
+            m_disposeAsyncCalled = true;
 
             if (disposing)
             {
-                StopKeepAliveTimerAsync().AsTask().GetAwaiter().GetResult();
+                if (Disposed)
+                {
+                    return;
+                }
 
-                Utils.SilentDispose(m_defaultSubscription);
-                Utils.SilentDispose(m_nodeCache);
+                try
+                {
+                    await StopKeepAliveTimerAsync().ConfigureAwait(false);
+                }
+                catch (Exception ex) when (ex is not OutOfMemoryException)
+                {
+                    m_logger.LogDebug(ex, "Error stopping keep alive timer during dispose.");
+                }
+
+                try
+                {
+                    if (Connected)
+                    {
+                        await WaitForOrCancelOutstandingPublishRequestsAsync(default).ConfigureAwait(false);
+                        await base.CloseSessionAsync(null, DeleteSubscriptionsOnClose, default).ConfigureAwait(false);
+                    }
+                }
+                catch (Exception ex) when (ex is not OutOfMemoryException)
+                {
+                    m_logger.LogDebug(ex, "Error closing session during dispose.");
+                }
+
+                m_defaultSubscription?.Dispose();
+                m_nodeCache?.Dispose();
 
                 List<Subscription>? subscriptions;
                 lock (m_lock)
@@ -392,9 +443,22 @@ namespace Opc.Ua.Client
 
                 foreach (Subscription subscription in subscriptions)
                 {
-                    Utils.SilentDispose(subscription);
+                    subscription?.Dispose();
                 }
                 subscriptions.Clear();
+
+                m_reconnectLock.Dispose();
+                m_eccServerEphemeralKey?.Dispose();
+                m_eccServerEphemeralKey = null;
+                m_instanceCertificate?.Dispose();
+                m_instanceCertificate = null;
+                m_instanceCertificateChain?.Dispose();
+                m_instanceCertificateChain = null;
+                m_serverCertificate?.Dispose();
+                m_serverCertificate = null;
+                m_keepAliveCancellation?.Dispose();
+                m_keepAliveCancellation = null;
+                m_engine?.Dispose();
             }
 
             base.Dispose(disposing);
@@ -496,6 +560,18 @@ namespace Opc.Ua.Client
         /// A session factory that was used to create the session.
         /// </summary>
         public ISessionFactory SessionFactory { get; set; }
+
+        /// <summary>
+        /// Gets the subscription engine factory used by this session.
+        /// </summary>
+        public ISubscriptionEngineFactory SubscriptionEngineFactory { get; }
+
+        /// <summary>
+        /// Gets the active subscription engine. Internal — exposes the
+        /// engine for adapter scenarios such as <see cref="ManagedSession"/>
+        /// surfacing the new V2 <c>ISubscriptionManager</c>.
+        /// </summary>
+        internal ISubscriptionEngine SubscriptionEngine => m_engine;
 
         /// <summary>
         /// Gets the endpoint used to connect to the server.
@@ -651,7 +727,7 @@ namespace Opc.Ua.Client
             });
             set
             {
-                Utils.SilentDispose(m_defaultSubscription);
+                m_defaultSubscription?.Dispose();
                 m_defaultSubscription = value;
             }
         }
@@ -794,23 +870,8 @@ namespace Opc.Ua.Client
         /// <exception cref="ArgumentOutOfRangeException"></exception>
         public int MinPublishRequestCount
         {
-            get => m_minPublishRequestCount;
-            set
-            {
-                lock (m_lock)
-                {
-                    if (value is >= kDefaultPublishRequestCount and <= kMinPublishRequestCountMax)
-                    {
-                        m_minPublishRequestCount = value;
-                    }
-                    else
-                    {
-                        throw new ArgumentOutOfRangeException(
-                            nameof(MinPublishRequestCount),
-                            $"Minimum publish request count must be between {kDefaultPublishRequestCount} and {kMinPublishRequestCountMax}.");
-                    }
-                }
-            }
+            get => m_engine.MinPublishRequestCount;
+            set => m_engine.MinPublishRequestCount = value;
         }
 
         /// <summary>
@@ -819,23 +880,8 @@ namespace Opc.Ua.Client
         /// <exception cref="ArgumentOutOfRangeException"></exception>
         public int MaxPublishRequestCount
         {
-            get => Math.Max(m_minPublishRequestCount, m_maxPublishRequestCount);
-            set
-            {
-                lock (m_lock)
-                {
-                    if (value is >= kDefaultPublishRequestCount and <= kMaxPublishRequestCountMax)
-                    {
-                        m_maxPublishRequestCount = value;
-                    }
-                    else
-                    {
-                        throw new ArgumentOutOfRangeException(
-                            nameof(MaxPublishRequestCount),
-                            $"Maximum publish request count must be between {kDefaultPublishRequestCount} and {kMaxPublishRequestCountMax}.");
-                    }
-                }
-            }
+            get => m_engine.MaxPublishRequestCount;
+            set => m_engine.MaxPublishRequestCount = value;
         }
 
         /// <inheritdoc/>
@@ -858,15 +904,15 @@ namespace Opc.Ua.Client
             Snapshot(out SessionConfiguration configuration);
 
             // Snapshot subscription state
-            var subscriptionStateCollection = new SubscriptionStateCollection(SubscriptionCount);
+            var subscriptionStates = new List<SubscriptionState>(SubscriptionCount);
             foreach (Subscription subscription in Subscriptions)
             {
                 subscription.Snapshot(out SubscriptionState subscriptionState);
-                subscriptionStateCollection.Add(subscriptionState);
+                subscriptionStates.Add(subscriptionState);
             }
             state = new SessionState(configuration)
             {
-                Subscriptions = subscriptionStateCollection
+                Subscriptions = subscriptionStates
             };
         }
 
@@ -876,7 +922,7 @@ namespace Opc.Ua.Client
             using Activity? activity = m_telemetry.StartActivity();
             ThrowIfDisposed();
             Restore((SessionConfiguration)state);
-            if (state.Subscriptions == null)
+            if (state.Subscriptions.IsEmpty)
             {
                 return;
             }
@@ -892,9 +938,11 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public void Snapshot(out SessionConfiguration sessionConfiguration)
         {
-            Nonce serverNonce = Nonce.CreateNonce(
-                m_endpoint.Description?.SecurityPolicyUri,
-                m_serverNonce.ToArray());
+            ByteString serverNonce = !m_serverNonce.IsEmpty ? m_serverNonce : default;
+            ByteString clientNonce = m_clientNonce != null ? ByteString.From(m_clientNonce) : default;
+            ByteString serverEccEphemeralKey = m_eccServerEphemeralKey?.Data != null
+                ? ByteString.From([.. m_eccServerEphemeralKey.Data])
+                : default;
             sessionConfiguration = new SessionConfiguration
             {
                 SessionName = SessionName,
@@ -904,7 +952,8 @@ namespace Opc.Ua.Client
                 ConfiguredEndpoint = ConfiguredEndpoint,
                 CheckDomain = CheckDomain,
                 ServerNonce = serverNonce,
-                ServerEccEphemeralKey = m_eccServerEphemeralKey,
+                ClientNonce = clientNonce,
+                ServerEccEphemeralKey = serverEccEphemeralKey,
                 UserIdentityTokenPolicy = m_userTokenSecurityPolicyUri
             };
         }
@@ -915,15 +964,32 @@ namespace Opc.Ua.Client
             ThrowIfDisposed();
             ByteString serverCertificate = m_endpoint.Description?.ServerCertificate ?? default;
             m_sessionName = sessionConfiguration.SessionName ?? "SessionName";
+            m_serverCertificate?.Dispose();
             m_serverCertificate =
                 !serverCertificate.IsEmpty
-                    ? CertificateFactory.Create(serverCertificate)
+                    ? Certificate.FromRawData(serverCertificate)
                     : null;
             m_identity = sessionConfiguration.Identity ?? new UserIdentity();
             m_checkDomain = sessionConfiguration.CheckDomain;
-            m_serverNonce = ByteString.From(sessionConfiguration.ServerNonce?.Data);
+            m_serverNonce = sessionConfiguration.ServerNonce;
+            m_clientNonce = !sessionConfiguration.ClientNonce.IsNull
+                ? sessionConfiguration.ClientNonce.ToArray()
+                : null;
             m_userTokenSecurityPolicyUri = sessionConfiguration.UserIdentityTokenPolicy;
-            m_eccServerEphemeralKey = sessionConfiguration.ServerEccEphemeralKey;
+            if (sessionConfiguration.ServerEccEphemeralKey.Length > 0)
+            {
+                string? ephemeralKeyPolicyUri = !string.IsNullOrEmpty(m_userTokenSecurityPolicyUri)
+                    ? m_userTokenSecurityPolicyUri
+                    : m_endpoint.Description?.SecurityPolicyUri ?? SecurityPolicies.None;
+                SecurityPolicyInfo ephemeralKeyPolicy = SecurityPolicies.GetInfo(ephemeralKeyPolicyUri);
+                m_eccServerEphemeralKey = Nonce.CreateNonce(
+                    ephemeralKeyPolicy,
+                    sessionConfiguration.ServerEccEphemeralKey.ToArray());
+            }
+            else
+            {
+                m_eccServerEphemeralKey = null;
+            }
 
             lock (m_lock)
             {
@@ -951,11 +1017,15 @@ namespace Opc.Ua.Client
             Snapshot(out SessionConfiguration sessionConfiguration);
             if (stream != null)
             {
-                DataContractSerializer serializer =
-                    CoreUtils.CreateDataContractSerializer<SessionConfiguration>(MessageContext);
-                using IDisposable scope = AmbientMessageContext.SetScopedContext(MessageContext);
-                using var writer = XmlWriter.Create(stream, Utils.DefaultXmlWriterSettings());
-                serializer.WriteObject(writer, sessionConfiguration);
+                IServiceMessageContext context = MessageContext
+                    ?? throw new InvalidOperationException("Missing service message context");
+                using var encoder = new BinaryEncoder(
+                    stream, context, true);
+                encoder.WriteStringArray(
+                    null, context.NamespaceUris.ToArrayOf());
+                encoder.WriteStringArray(
+                    null, context.ServerUris.ToArrayOf());
+                sessionConfiguration.Encode(encoder);
             }
             return sessionConfiguration;
         }
@@ -968,20 +1038,26 @@ namespace Opc.Ua.Client
         {
             using Activity? activity = m_telemetry.StartActivity();
             // Snapshot subscription state
-            var subscriptionStateCollection = new SubscriptionStateCollection();
+            var subscriptionStates = new List<SubscriptionState>();
             foreach (Subscription subscription in subscriptions)
             {
                 subscription.Snapshot(out SubscriptionState state);
-                subscriptionStateCollection.Add(state);
+                subscriptionStates.Add(state);
             }
 
-            DataContractSerializer serializer =
-                CoreUtils.CreateDataContractSerializer<SubscriptionStateCollection>(
-                    MessageContext,
-                    knownTypes);
-            using IDisposable scope = AmbientMessageContext.SetScopedContext(MessageContext);
-            using var writer = XmlWriter.Create(stream, Utils.DefaultXmlWriterSettings());
-            serializer.WriteObject(writer, subscriptionStateCollection);
+            IServiceMessageContext context = MessageContext
+                ?? throw new InvalidOperationException("Missing service message context");
+            using var encoder = new BinaryEncoder(
+                stream, context, true);
+            encoder.WriteStringArray(
+                null, context.NamespaceUris.ToArrayOf());
+            encoder.WriteStringArray(
+                null, context.ServerUris.ToArrayOf());
+            encoder.WriteInt32(null, subscriptionStates.Count);
+            foreach (SubscriptionState state in subscriptionStates)
+            {
+                state.Encode(encoder);
+            }
         }
 
         /// <inheritdoc/>
@@ -991,24 +1067,28 @@ namespace Opc.Ua.Client
             IEnumerable<Type>? knownTypes = null)
         {
             using Activity? activity = m_telemetry.StartActivity();
-            // secure settings
 
-            DataContractSerializer serializer =
-                CoreUtils.CreateDataContractSerializer<SubscriptionStateCollection>(
-                    MessageContext,
-                    knownTypes);
-            using IDisposable scope = AmbientMessageContext.SetScopedContext(MessageContext);
-            XmlReaderSettings settings = Utils.DefaultXmlReaderSettings();
-            settings.CloseInput = true;
-            using var reader = XmlReader.Create(stream, settings);
-            var stateCollection = (SubscriptionStateCollection?)serializer.ReadObject(reader);
-            if (stateCollection == null)
+            IServiceMessageContext context = MessageContext
+                ?? throw new InvalidOperationException("Missing service message context");
+            using var decoder = new BinaryDecoder(
+                stream, context, true);
+            ArrayOf<string> nsUris = decoder.ReadStringArray(null);
+            ArrayOf<string> serverUris = decoder.ReadStringArray(null);
+            decoder.SetMappingTables(
+                new NamespaceTable(nsUris.Memory.ToArray()),
+                new StringTable(serverUris.Memory.ToArray()));
+
+            int count = decoder.ReadInt32(null);
+            if (count <= 0)
             {
                 return [];
             }
-            var subscriptions = new SubscriptionCollection(stateCollection.Count);
-            foreach (SubscriptionState state in stateCollection)
+
+            var subscriptions = new SubscriptionCollection(count);
+            for (int i = 0; i < count; i++)
             {
+                var state = new SubscriptionState();
+                state.Decode(decoder);
                 // Restore subscription from state
                 Subscription subscription = CreateSubscription(state);
                 subscription.Restore(state);
@@ -1100,37 +1180,35 @@ namespace Opc.Ua.Client
                 out bool requireEncryption);
 
             // validate the server certificate /certificate chain.
-            IUserIdentityTokenHandler identityToken = identity.TokenHandler;
-            X509Certificate2? serverCertificate = null;
+            IUserIdentityTokenHandler identityToken = identity.TokenHandler.Copy();
+            Certificate? serverCertificate = null;
             ByteString certificateData = m_endpoint.Description.ServerCertificate;
 
             if (certificateData.Length > 0)
             {
-                X509Certificate2Collection serverCertificateChain = Utils.ParseCertificateChainBlob(
+                using CertificateCollection serverCertificateChain = Utils.ParseCertificateChainBlob(
                     certificateData,
                     m_telemetry);
 
                 if (serverCertificateChain.Count > 0)
                 {
-                    serverCertificate = serverCertificateChain[0];
+                    serverCertificate = serverCertificateChain[0].AddRef();
                 }
 
                 if (requireEncryption)
                 {
-                    if (checkDomain)
+                    ICertificateValidatorEx validator = m_configuration.CertificateManager;
+                    CertificateValidationResult result = await validator
+                        .ValidateAsync(serverCertificateChain, ct: ct)
+                        .ConfigureAwait(false);
+                    if (!result.IsValid)
                     {
-                        await m_configuration
-                            .CertificateValidator.ValidateAsync(
-                                serverCertificateChain,
-                                m_endpoint,
-                                ct)
-                            .ConfigureAwait(false);
+                        throw new ServiceResultException(result.StatusCode);
                     }
-                    else
+
+                    if (checkDomain && serverCertificateChain.Count > 0)
                     {
-                        await m_configuration
-                            .CertificateValidator.ValidateAsync(serverCertificateChain, ct)
-                            .ConfigureAwait(false);
+                        validator.ValidateDomains(serverCertificateChain[0], m_endpoint);
                     }
                     // save for reconnect
                     m_checkDomain = checkDomain;
@@ -1138,8 +1216,9 @@ namespace Opc.Ua.Client
             }
 
             // create a nonce.
-            uint length = (uint)m_configuration.SecurityConfiguration.NonceLength;
-            ByteString clientNonce = ByteString.From(Nonce.CreateRandomNonceData(length));
+            int length = m_configuration.SecurityConfiguration.NonceLength;
+            m_clientNonce = Nonce.CreateRandomNonceData(length);
+            var clientNonce = ByteString.From(m_clientNonce);
 
             // send the application instance certificate for the client.
             BuildCertificateData(
@@ -1161,16 +1240,15 @@ namespace Opc.Ua.Client
 
             // select the security policy for the user token.
             RequestHeader requestHeader = CreateRequestHeaderPerUserTokenPolicy(
-                identityPolicy.SecurityPolicyUri,
-                m_endpoint.Description.SecurityPolicyUri);
+                identityPolicy.SecurityPolicyUri);
 
             bool successCreateSession = false;
             CreateSessionResponse? response = null;
 
-            //if security none, first try to connect without certificate
+            // if security none, first try to connect without certificate
             if (m_endpoint.Description.SecurityPolicyUri == SecurityPolicies.None)
             {
-                //first try to connect with client certificate NULL
+                // first try to connect with client certificate NULL
                 try
                 {
                     response = await base.CreateSessionAsync(
@@ -1253,55 +1331,78 @@ namespace Opc.Ua.Client
                     serverSignature,
                     clientCertificateData,
                     clientCertificateChainData,
-                    clientNonce);
+                    m_clientNonce,
+                    serverNonce);
 
                 //  process additional header
                 ProcessResponseAdditionalHeader(response.ResponseHeader, serverCertificate);
 
                 // create the client signature.
-                ByteString dataToSign = ByteString.Combine(
-                    ByteString.From(serverCertificate?.RawData), serverNonce);
-                SignatureData clientSignature = SecurityPolicies.Sign(
-                    m_instanceCertificate,
+                SecurityPolicyInfo securityPolicy = SecurityPolicies.GetInfo(securityPolicyUri);
+
+                // create the client signature.
+                byte[] dataToSign = securityPolicy.GetClientSignatureData(
+                    TransportChannel.ChannelThumbprint,
+                    serverNonce.ToArray(),
+                    serverCertificate?.RawData,
+                    TransportChannel.ServerChannelCertificate,
+                    TransportChannel.ClientChannelCertificate,
+                    m_clientNonce ?? []);
+
+                SignatureData clientSignature = SecurityPolicies.CreateSignatureData(
                     securityPolicyUri,
-                    dataToSign.ToArray());
+                    m_instanceCertificate,
+                    dataToSign);
 
                 // select the security policy for the user token.
-                string? tokenSecurityPolicyUri = identityPolicy.SecurityPolicyUri;
-
-                if (string.IsNullOrEmpty(tokenSecurityPolicyUri))
-                {
-                    tokenSecurityPolicyUri = m_endpoint.Description.SecurityPolicyUri;
-                }
-
-                // save previous nonce
-                byte[]? previousServerNonce = GetCurrentTokenServerNonce();
+                string? tokenSecurityPolicyUri = string.IsNullOrEmpty(identityPolicy.SecurityPolicyUri)
+                    ? m_endpoint.Description.SecurityPolicyUri ?? SecurityPolicies.None
+                    : identityPolicy.SecurityPolicyUri;
 
                 // validate server nonce and security parameters for user identity.
                 ValidateServerNonce(
                     identity,
                     serverNonce,
                     tokenSecurityPolicyUri,
-                    previousServerNonce.ToByteString(),
+                    m_previousServerNonce,
                     m_endpoint.Description.SecurityMode);
 
+                // remember the policy actually used to encrypt the user token
                 m_userTokenSecurityPolicyUri = tokenSecurityPolicyUri;
 
-                // sign data with user token.
-                SignatureData userTokenSignature = identityToken.Sign(
-                    dataToSign.ToArray(),
-                    tokenSecurityPolicyUri);
+                SignatureData? userTokenSignature = null;
 
-                // encrypt token.
-                identityToken.Encrypt(
-                    serverCertificate,
-                    serverNonce.ToArray(),
-                    m_userTokenSecurityPolicyUri,
-                    MessageContext,
-                    m_eccServerEphemeralKey,
-                    m_instanceCertificate,
-                    m_instanceCertificateChain,
-                    m_endpoint.Description.SecurityMode != MessageSecurityMode.None);
+                if (identityToken.Token is X509IdentityToken)
+                {
+                    // sign data with user token.
+                    dataToSign = securityPolicy.GetUserTokenSignatureData(
+                        TransportChannel.ChannelThumbprint,
+                        serverNonce.ToArray(),
+                        serverCertificate?.RawData,
+                        TransportChannel.ServerChannelCertificate,
+                        m_instanceCertificate?.RawData,
+                        TransportChannel.ClientChannelCertificate,
+                        m_clientNonce ?? []);
+
+                    userTokenSignature = await identityToken.SignAsync(
+                        dataToSign,
+                        tokenSecurityPolicyUri,
+                        ct).ConfigureAwait(false);
+                }
+                else
+                {
+                    // encrypt token.
+                    await identityToken.EncryptAsync(
+                        serverCertificate,
+                        serverNonce.ToArray(),
+                        tokenSecurityPolicyUri,
+                        MessageContext,
+                        m_eccServerEphemeralKey,
+                        m_instanceCertificate,
+                        m_instanceCertificateChain,
+                        m_endpoint.Description.SecurityMode != MessageSecurityMode.None,
+                        ct).ConfigureAwait(false);
+                }
 
                 // copy the preferred locales if provided.
                 if (preferredLocales.Count > 0)
@@ -1309,15 +1410,18 @@ namespace Opc.Ua.Client
                     m_preferredLocales = preferredLocales;
                 }
 
+                RequestHeader? header = CreateRequestHeaderForActivateSession(tokenSecurityPolicyUri!);
+
                 // activate session.
                 ActivateSessionResponse activateResponse = await ActivateSessionAsync(
-                    null,
+                    header,
                     clientSignature,
                     [],
                     m_preferredLocales,
                     new ExtensionObject(identityToken.Token),
                     userTokenSignature,
-                    ct).ConfigureAwait(false);
+                    ct)
+                .ConfigureAwait(false);
 
                 //  process additional header
                 ProcessResponseAdditionalHeader(activateResponse.ResponseHeader, serverCertificate);
@@ -1342,8 +1446,9 @@ namespace Opc.Ua.Client
                     // save nonces.
                     m_sessionName = sessionName;
                     m_identity = identity;
-                    m_previousServerNonce = previousServerNonce.ToByteString();
+                    m_previousServerNonce = m_serverNonce;
                     m_serverNonce = serverNonce;
+                    m_serverCertificate?.Dispose();
                     m_serverCertificate = serverCertificate;
 
                     // update system context.
@@ -1387,6 +1492,7 @@ namespace Opc.Ua.Client
                 {
                     await CloseChannelAsync(CancellationToken.None).ConfigureAwait(false);
                 }
+                serverCertificate?.Dispose();
                 throw;
             }
         }
@@ -1429,14 +1535,21 @@ namespace Opc.Ua.Client
             // get the identity token.
             string securityPolicyUri =
                 m_endpoint.Description.SecurityPolicyUri ?? SecurityPolicies.None;
+            SecurityPolicyInfo securityPolicy = SecurityPolicies.GetInfo(securityPolicyUri);
 
             // create the client signature.
-            ByteString dataToSign = ByteString.Combine(
-                ByteString.From(m_serverCertificate?.RawData), serverNonce);
-            SignatureData clientSignature = SecurityPolicies.Sign(
-                m_instanceCertificate,
+            byte[] dataToSign = securityPolicy.GetClientSignatureData(
+                TransportChannel.ChannelThumbprint,
+                serverNonce.ToArray(),
+                m_serverCertificate?.RawData,
+                TransportChannel.ServerChannelCertificate,
+                TransportChannel.ClientChannelCertificate,
+                m_clientNonce ?? []);
+
+            SignatureData clientSignature = SecurityPolicies.CreateSignatureData(
                 securityPolicyUri,
-                dataToSign.ToArray());
+                m_instanceCertificate,
+                dataToSign);
 
             // choose a default token.
             identity ??= new UserIdentity();
@@ -1444,19 +1557,20 @@ namespace Opc.Ua.Client
             // check that the user identity is supported by the endpoint.
             UserTokenPolicy identityPolicy =
                 m_endpoint.Description.FindUserTokenPolicy(
+                    identity.TokenHandler.Token.PolicyId,
+                    securityPolicyUri) ??
+                m_endpoint.Description.FindUserTokenPolicy(
                     identity.TokenType,
                     identity.IssuedTokenType,
                     securityPolicyUri)
-                ?? throw ServiceResultException.Create(
+                    ?? throw ServiceResultException.Create(
                     StatusCodes.BadIdentityTokenInvalid,
                     "Endpoint does not support the user identity type provided.");
 
             // select the security policy for the user token.
-            string? tokenSecurityPolicyUri = identityPolicy.SecurityPolicyUri;
-            if (string.IsNullOrEmpty(tokenSecurityPolicyUri))
-            {
-                tokenSecurityPolicyUri = securityPolicyUri;
-            }
+            string? tokenSecurityPolicyUri = string.IsNullOrEmpty(identityPolicy.SecurityPolicyUri)
+                ? securityPolicyUri
+                : identityPolicy.SecurityPolicyUri;
 
             bool requireEncryption = tokenSecurityPolicyUri != SecurityPolicies.None;
 
@@ -1465,9 +1579,14 @@ namespace Opc.Ua.Client
                 requireEncryption &&
                 identity.TokenType != UserTokenType.Anonymous)
             {
-                await m_configuration.CertificateValidator.ValidateAsync(
-                    m_serverCertificate,
-                    ct).ConfigureAwait(false);
+                ICertificateValidatorEx validator = m_configuration.CertificateManager;
+                CertificateValidationResult result = await validator
+                    .ValidateAsync(m_serverCertificate, ct: ct)
+                    .ConfigureAwait(false);
+                if (!result.IsValid)
+                {
+                    throw new ServiceResultException(result.StatusCode);
+                }
             }
 
             // validate server nonce and security parameters for user identity.
@@ -1478,28 +1597,50 @@ namespace Opc.Ua.Client
                 m_previousServerNonce,
                 m_endpoint.Description.SecurityMode);
 
-            // sign data with user token.
-            using var identityToken = (IUserIdentityTokenHandler)identity.TokenHandler.Clone();
+            // sign/encrypt with a disposable token handler copy to avoid mutating stored credentials.
+            IUserIdentityTokenHandler identityToken = identity.TokenHandler.Copy();
             identityToken.UpdatePolicy(identityPolicy);
-            SignatureData userTokenSignature = identityToken.Sign(
-                dataToSign.ToArray(),
-                tokenSecurityPolicyUri);
+
+            SignatureData? userTokenSignature = null;
+
+            if (identityToken.Token is X509IdentityToken)
+            {
+                dataToSign = securityPolicy.GetUserTokenSignatureData(
+                    TransportChannel.ChannelThumbprint,
+                    serverNonce.ToArray(),
+                    m_serverCertificate?.RawData,
+                    TransportChannel.ServerChannelCertificate,
+                    m_instanceCertificate?.RawData,
+                    TransportChannel.ClientChannelCertificate,
+                    m_clientNonce ?? []);
+
+                userTokenSignature = await identityToken.SignAsync(
+                    dataToSign,
+                    tokenSecurityPolicyUri,
+                    ct).ConfigureAwait(false);
+            }
+            else
+            {
+                // encrypt token.
+                await identityToken.EncryptAsync(
+                    m_serverCertificate,
+                    serverNonce.ToArray(),
+                    tokenSecurityPolicyUri,
+                    MessageContext,
+                    m_eccServerEphemeralKey,
+                    m_instanceCertificate,
+                    m_instanceCertificateChain,
+                    m_endpoint.Description.SecurityMode != MessageSecurityMode.None,
+                    ct).ConfigureAwait(false);
+            }
 
             m_userTokenSecurityPolicyUri = tokenSecurityPolicyUri;
 
-            // encrypt token.
-            identityToken.Encrypt(
-                m_serverCertificate,
-                serverNonce.ToArray(),
-                m_userTokenSecurityPolicyUri,
-                MessageContext,
-                m_eccServerEphemeralKey,
-                m_instanceCertificate,
-                m_instanceCertificateChain,
-                m_endpoint.Description.SecurityMode != MessageSecurityMode.None);
+            RequestHeader? requestHeader = CreateRequestHeaderForActivateSession(
+                tokenSecurityPolicyUri!);
 
             ActivateSessionResponse response = await ActivateSessionAsync(
-                null,
+                requestHeader,
                 clientSignature,
                 [],
                 preferredLocales,
@@ -1722,14 +1863,13 @@ namespace Opc.Ua.Client
                                     ct)
                                 .ConfigureAwait(false))
                             {
-                                lock (m_acknowledgementsToSendLock)
+                                // create ack for available sequence numbers
+                                foreach (uint sequenceNumber in results[ii]
+                                    .AvailableSequenceNumbers)
                                 {
-                                    // create ack for available sequence numbers
-                                    foreach (uint sequenceNumber in results[ii]
-                                        .AvailableSequenceNumbers)
+                                    if (m_engine is ClassicSubscriptionEngine classicEngine)
                                     {
-                                        AddAcknowledgementToSend(
-                                            m_acknowledgementsToSend,
+                                        classicEngine.AddPendingAcknowledgement(
                                             subscriptionIds[ii],
                                             sequenceNumber);
                                     }
@@ -2002,18 +2142,20 @@ namespace Opc.Ua.Client
             CancellationToken ct = default)
         {
             ServiceMessageContext messageContext = m_configuration
-                .CreateMessageContext();
-            messageContext.Factory = Factory;
+                .CreateMessageContext(Factory);
 
+            // The channel takes ownership of the cert and chain. AddRef so the
+            // original Session retains its references for its own lifetime.
+            CertificateCollection? channelChain = m_configuration.SecurityConfiguration.SendCertificateChain
+                ? m_instanceCertificateChain?.AddRef()
+                : null;
             // create the channel object used to connect to the server.
             ITransportChannel channel = await UaChannelBase.CreateUaBinaryChannelAsync(
                 m_configuration,
                 ConfiguredEndpoint.Description,
                 ConfiguredEndpoint.Configuration,
-                m_instanceCertificate,
-                m_configuration.SecurityConfiguration.SendCertificateChain
-                    ? m_instanceCertificateChain
-                    : null,
+                m_instanceCertificate?.AddRef(),
+                channelChain,
                 messageContext,
                 ct).ConfigureAwait(false);
 
@@ -2023,12 +2165,13 @@ namespace Opc.Ua.Client
             try
             {
                 session.RecreateRenewUserIdentity();
+                UserIdentity? tempIdentity = session.Identity == null ? new UserIdentity() : null;
                 // open the session.
                 await session
                     .OpenAsync(
                         SessionName,
                         (uint)SessionTimeout,
-                        session.Identity ?? new UserIdentity(),
+                        session.Identity ?? tempIdentity!,
                         PreferredLocales,
                         m_checkDomain,
                         ct)
@@ -2058,19 +2201,21 @@ namespace Opc.Ua.Client
             CancellationToken ct = default)
         {
             ServiceMessageContext messageContext = m_configuration
-                .CreateMessageContext();
-            messageContext.Factory = Factory;
+                .CreateMessageContext(Factory);
 
+            // The channel takes ownership of the cert and chain. AddRef so the
+            // original Session retains its references for its own lifetime.
+            CertificateCollection? channelChain = m_configuration.SecurityConfiguration.SendCertificateChain
+                ? m_instanceCertificateChain?.AddRef()
+                : null;
             // create the channel object used to connect to the server.
             ITransportChannel channel = await UaChannelBase.CreateUaBinaryChannelAsync(
                 m_configuration,
                 connection,
                 ConfiguredEndpoint.Description,
                 ConfiguredEndpoint.Configuration,
-                m_instanceCertificate,
-                m_configuration.SecurityConfiguration.SendCertificateChain
-                    ? m_instanceCertificateChain
-                    : null,
+                m_instanceCertificate?.AddRef(),
+                channelChain,
                 messageContext,
                 ct).ConfigureAwait(false);
 
@@ -2080,12 +2225,13 @@ namespace Opc.Ua.Client
             try
             {
                 session.RecreateRenewUserIdentity();
+                UserIdentity? tempIdentity = session.Identity == null ? new UserIdentity() : null;
                 // open the session.
                 await session
                     .OpenAsync(
                         SessionName,
                         (uint)SessionTimeout,
-                        session.Identity ?? new UserIdentity(),
+                        session.Identity ?? tempIdentity!,
                         PreferredLocales,
                         CheckDomain,
                         ct)
@@ -2151,6 +2297,235 @@ namespace Opc.Ua.Client
             }
 
             return session;
+        }
+
+        /// <summary>
+        /// Re-establishes the session in place on the same
+        /// <see cref="Session"/> instance instead of allocating a new one.
+        /// Tears down the current channel, optionally switches to a new
+        /// <paramref name="endpoint"/>, and re-runs the
+        /// <c>CreateSession</c>/<c>ActivateSession</c> sequence so the
+        /// server assigns a fresh session id. The
+        /// in-memory subscription engine (<see cref="m_engine"/>),
+        /// subscription manager, and per-subscription contexts continue
+        /// to reference <c>this</c>; once the new session is activated
+        /// the V2 engine is given a chance to drive transfer-or-recreate
+        /// against the new session id, and the
+        /// classic template-based recreate runs for V1 subscriptions
+        /// owned by <see cref="Subscriptions"/>.
+        /// </summary>
+        /// <remarks>
+        /// Designed to be the production wiring used by
+        /// <c>ManagedSession.HandleFailoverAsync</c> so that the inner
+        /// <see cref="Session"/> reference stays stable across a
+        /// failover. Differs from <see cref="ReconnectAsync"/> by
+        /// performing a full <c>CreateSession</c> against the server
+        /// (new server-side session id) instead of just re-activating
+        /// the existing one. Differs from
+        /// <see cref="RecreateAsync(CancellationToken)"/> overloads in
+        /// that the receiver is reused rather than cloned into a new
+        /// <see cref="Session"/> instance.
+        /// </remarks>
+        /// <param name="endpoint">Optional replacement endpoint. When
+        /// non-null and not the same instance as the current
+        /// <see cref="ConfiguredEndpoint"/> the new endpoint is adopted
+        /// before the channel is rebuilt.</param>
+        /// <param name="connection">Optional waiting reverse
+        /// connection. Mutually exclusive with
+        /// <paramref name="channel"/>.</param>
+        /// <param name="channel">Optional pre-built transport channel.
+        /// Mutually exclusive with <paramref name="connection"/>. When
+        /// neither is supplied a new outbound channel is built against
+        /// <see cref="ConfiguredEndpoint"/>.</param>
+        /// <param name="ct">Cancellation token.</param>
+        /// <exception cref="ServiceResultException"></exception>
+        protected internal async Task RecreateInPlaceAsync(
+            ConfiguredEndpoint? endpoint = null,
+            ITransportWaitingConnection? connection = null,
+            ITransportChannel? channel = null,
+            CancellationToken ct = default)
+        {
+            ThrowIfDisposed();
+            using Activity? activity = m_telemetry.StartActivity();
+
+            NodeId previousSessionId = SessionId;
+
+            // Quiesce the V2 engine outside the reconnect lock so
+            // workers can complete their current cycle without
+            // contending with the reset path. The classic engine has
+            // different publish semantics and does not need a drain.
+#if OPCUA_V1_CLIENT
+            if (m_engine is not ClassicSubscriptionEngine)
+#endif
+            {
+                m_engine.PausePublishing();
+                if (m_engine is DefaultSubscriptionEngine v2Engine &&
+                    v2Engine.SubscriptionManager
+                        is Subscriptions.SubscriptionManager v2Manager)
+                {
+                    await v2Manager.DrainAsync(ct).ConfigureAwait(false);
+                }
+            }
+
+            bool resetReconnect = false;
+            await m_reconnectLock.WaitAsync(ct).ConfigureAwait(false);
+            try
+            {
+                if (Reconnecting)
+                {
+                    m_reconnectLock.Release();
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadInvalidState,
+                        "Session is already attempting to reconnect.");
+                }
+
+                Reconnecting = true;
+                resetReconnect = true;
+                m_reconnectLock.Release();
+
+                m_logger.LogInformation(
+                    "Session RECREATE-IN-PLACE {SessionId} starting...",
+                    previousSessionId);
+
+                await StopKeepAliveTimerAsync().ConfigureAwait(false);
+
+                // need to refresh the identity (reprompt for password,
+                // refresh token).
+                RecreateRenewUserIdentity();
+
+                // Switch endpoint before the channel is built.
+                if (endpoint != null && !ReferenceEquals(endpoint, m_endpoint))
+                {
+                    m_endpoint = endpoint;
+                    m_effectiveEndpoint = endpoint;
+                }
+
+                // Build / install the new transport channel.
+                ITransportChannel newChannel;
+                if (channel != null)
+                {
+                    newChannel = channel;
+                }
+                else
+                {
+                    ServiceMessageContext messageContext = m_configuration
+                        .CreateMessageContext(Factory);
+
+                    if (connection != null)
+                    {
+                        newChannel = await UaChannelBase
+                            .CreateUaBinaryChannelAsync(
+                                m_configuration,
+                                connection,
+                                m_endpoint.Description,
+                                m_endpoint.Configuration,
+                                m_instanceCertificate?.AddRef(),
+                                m_configuration.SecurityConfiguration
+                                        .SendCertificateChain
+                                    ? m_instanceCertificateChain?.AddRef()
+                                    : null,
+                                messageContext,
+                                ct)
+                            .ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        newChannel = await UaChannelBase
+                            .CreateUaBinaryChannelAsync(
+                                m_configuration,
+                                m_endpoint.Description,
+                                m_endpoint.Configuration,
+                                m_instanceCertificate?.AddRef(),
+                                m_configuration.SecurityConfiguration
+                                        .SendCertificateChain
+                                    ? m_instanceCertificateChain?.AddRef()
+                                    : null,
+                                messageContext,
+                                ct)
+                            .ConfigureAwait(false);
+                    }
+                }
+
+                TransportChannel = newChannel;
+
+                // Clear server-assigned identity so OpenAsync below
+                // performs a full CreateSession rather than a re-
+                // activation of the (now invalid) prior session id.
+                lock (m_lock)
+                {
+                    SessionCreated(default, default);
+                }
+
+                // Reset the reconnecting flag so OpenAsync (which
+                // checks/raises its own state) can proceed.
+                await m_reconnectLock.WaitAsync(ct).ConfigureAwait(false);
+                Reconnecting = false;
+                resetReconnect = false;
+                m_reconnectLock.Release();
+
+                UserIdentity? tempIdentity = m_identity == null
+                    ? new UserIdentity()
+                    : null;
+                await OpenAsync(
+                        m_sessionName,
+                        (uint)m_sessionTimeout,
+                        m_identity ?? tempIdentity!,
+                        m_preferredLocales,
+                        m_checkDomain,
+                        true,
+                        ct)
+                    .ConfigureAwait(false);
+
+#if OPCUA_V1_CLIENT
+                // V1: drive the classic template-based recreate using
+                // the subscriptions still attached to this Session.
+                await RecreateSubscriptionsAsync(
+                        TransferSubscriptionsOnReconnect,
+                        Subscriptions,
+                        ct)
+                    .ConfigureAwait(false);
+#endif
+
+                // V2: hand the previous session id to the engine so
+                // configured subscriptions can attempt transfer or
+                // fall back to recreate against the new session id.
+                await m_engine.RecreateSubscriptionsAsync(
+                        previousSessionId,
+                        ct)
+                    .ConfigureAwait(false);
+
+                m_logger.LogInformation(
+                    "Session RECREATE-IN-PLACE completed: " +
+                    "{OldSessionId} -> {NewSessionId}",
+                    previousSessionId,
+                    SessionId);
+            }
+            catch (Exception ex)
+            {
+                m_logger.LogError(
+                    ex,
+                    "Session RECREATE-IN-PLACE {SessionId} failed.",
+                    previousSessionId);
+                throw;
+            }
+            finally
+            {
+                if (resetReconnect)
+                {
+                    await m_reconnectLock
+                        .WaitAsync(CancellationToken.None)
+                        .ConfigureAwait(false);
+                    Reconnecting = false;
+                    m_reconnectLock.Release();
+                }
+
+#if OPCUA_V1_CLIENT
+                if (m_engine is not ClassicSubscriptionEngine)
+#endif
+                {
+                    m_engine.ResumePublishing();
+                }
+            }
         }
 
         /// <inheritdoc/>
@@ -2274,6 +2649,7 @@ namespace Opc.Ua.Client
             try
             {
                 // Force reload
+                m_instanceCertificate?.Dispose();
                 m_instanceCertificate = null;
                 await LoadInstanceCertificateAsync(false, ct).ConfigureAwait(false);
             }
@@ -2325,14 +2701,9 @@ namespace Opc.Ua.Client
                 //
                 await LoadInstanceCertificateAsync(true, ct).ConfigureAwait(false);
 
-                // create the client signature.
-                ByteString dataToSign = ByteString.Combine(
-                    ByteString.From(m_serverCertificate?.RawData), m_serverNonce);
+                string securityPolicyUri = m_endpoint.Description.SecurityPolicyUri ?? SecurityPolicies.None;
+                SecurityPolicyInfo securityPolicy = SecurityPolicies.GetInfo(securityPolicyUri);
                 EndpointDescription endpoint = m_endpoint.Description;
-                SignatureData clientSignature = SecurityPolicies.Sign(
-                    m_instanceCertificate,
-                    endpoint.SecurityPolicyUri,
-                    dataToSign.ToArray());
 
                 // check that the user identity is supported by the endpoint.
                 UserTokenPolicy identityPolicy = endpoint.FindUserTokenPolicy(
@@ -2351,14 +2722,17 @@ namespace Opc.Ua.Client
                 }
 
                 // select the security policy for the user token.
+                string? tokenSecurityPolicyUri = string.IsNullOrEmpty(identityPolicy.SecurityPolicyUri)
+                    ? endpoint.SecurityPolicyUri ?? SecurityPolicies.None
+                    : identityPolicy.SecurityPolicyUri;
+
                 if (m_userTokenSecurityPolicyUri == null)
                 {
-                    string? tokenSecurityPolicyUri = identityPolicy.SecurityPolicyUri;
-                    if (string.IsNullOrEmpty(tokenSecurityPolicyUri))
-                    {
-                        tokenSecurityPolicyUri = endpoint.SecurityPolicyUri;
-                    }
                     m_userTokenSecurityPolicyUri = tokenSecurityPolicyUri;
+                }
+                else
+                {
+                    tokenSecurityPolicyUri = m_userTokenSecurityPolicyUri;
                 }
 
                 // validate server nonce and security parameters for user identity.
@@ -2369,23 +2743,9 @@ namespace Opc.Ua.Client
                     m_previousServerNonce,
                     m_endpoint.Description.SecurityMode);
 
-                // sign data with user token.
-                using var identityToken = (IUserIdentityTokenHandler)m_identity.TokenHandler.Clone();
+                // sign/encrypt with a disposable token handler copy to avoid mutating stored credentials.
+                IUserIdentityTokenHandler identityToken = m_identity.TokenHandler.Copy();
                 identityToken.UpdatePolicy(identityPolicy);
-                SignatureData userTokenSignature = identityToken.Sign(
-                    dataToSign.ToArray(),
-                    m_userTokenSecurityPolicyUri);
-
-                // encrypt token.
-                identityToken.Encrypt(
-                    m_serverCertificate,
-                    m_serverNonce.ToArray(),
-                    m_userTokenSecurityPolicyUri,
-                    MessageContext,
-                    m_eccServerEphemeralKey,
-                    m_instanceCertificate,
-                    m_instanceCertificateChain,
-                    m_endpoint.Description.SecurityMode != MessageSecurityMode.None);
 
                 m_logger.LogInformation("Session REPLACING channel for {SessionId}.", SessionId);
 
@@ -2407,9 +2767,9 @@ namespace Opc.Ua.Client
                             connection,
                             m_endpoint.Description,
                             m_endpoint.Configuration,
-                            m_instanceCertificate,
+                            m_instanceCertificate?.AddRef(),
                             m_configuration.SecurityConfiguration.SendCertificateChain
-                                ? m_instanceCertificateChain
+                                ? m_instanceCertificateChain?.AddRef()
                                 : null,
                             MessageContext,
                             ct).ConfigureAwait(false);
@@ -2439,9 +2799,9 @@ namespace Opc.Ua.Client
                             m_configuration,
                             m_endpoint.Description,
                             m_endpoint.Configuration,
-                            m_instanceCertificate,
+                            m_instanceCertificate?.AddRef(),
                             m_configuration.SecurityConfiguration.SendCertificateChain
-                                ? m_instanceCertificateChain
+                                ? m_instanceCertificateChain?.AddRef()
                                 : null,
                             MessageContext,
                             ct).ConfigureAwait(false);
@@ -2451,9 +2811,80 @@ namespace Opc.Ua.Client
                     }
                 }
 
+                ITransportChannel activeChannel = TransportChannel;
+
+                byte[] channelThumbprint = activeChannel.ChannelThumbprint;
+                byte[] serverChannelCertificate = activeChannel.ServerChannelCertificate;
+                byte[] clientChannelCertificate = activeChannel.ClientChannelCertificate;
+
+                // HTTPS channels populate the server TLS certificate lazily after the first request.
+                // Reconnect signs before that, so use the server certificate from the session state.
+                if ((serverChannelCertificate == null || serverChannelCertificate.Length == 0) &&
+                    m_serverCertificate != null)
+                {
+                    serverChannelCertificate = m_serverCertificate.RawData;
+                }
+
+                if ((clientChannelCertificate == null || clientChannelCertificate.Length == 0) &&
+                    m_instanceCertificate != null)
+                {
+                    clientChannelCertificate = m_instanceCertificate.RawData;
+                }
+
+                // create the client signature.
+                byte[] dataToSign = securityPolicy.GetClientSignatureData(
+                    channelThumbprint,
+                    m_serverNonce.ToArray(),
+                    m_serverCertificate?.RawData,
+                    serverChannelCertificate,
+                    clientChannelCertificate,
+                    m_clientNonce ?? []);
+
+                SignatureData clientSignature = SecurityPolicies.CreateSignatureData(
+                    endpoint.SecurityPolicyUri,
+                    m_instanceCertificate,
+                    dataToSign);
+
+                dataToSign = securityPolicy.GetUserTokenSignatureData(
+                    channelThumbprint,
+                    m_serverNonce.ToArray(),
+                    m_serverCertificate?.RawData,
+                    serverChannelCertificate,
+                    m_instanceCertificate?.RawData,
+                    clientChannelCertificate,
+                    m_clientNonce ?? []);
+
+                SignatureData? userTokenSignature = null;
+
+                if (identityToken.Token is X509IdentityToken)
+                {
+                    userTokenSignature = await identityToken.SignAsync(
+                        dataToSign,
+                        tokenSecurityPolicyUri,
+                        ct).ConfigureAwait(false);
+                }
+                else
+                {
+                    // encrypt token.
+                    await identityToken.EncryptAsync(
+                        m_serverCertificate,
+                        m_serverNonce.ToArray(),
+                        tokenSecurityPolicyUri,
+                        MessageContext,
+                        m_eccServerEphemeralKey,
+                        m_instanceCertificate,
+                        m_instanceCertificateChain,
+                        m_endpoint.Description.SecurityMode != MessageSecurityMode.None,
+                        ct).ConfigureAwait(false);
+                }
+
                 m_logger.LogInformation("Session RE-ACTIVATING {SessionId}.", SessionId);
 
-                var header = new RequestHeader { TimeoutHint = kReconnectTimeout };
+                RequestHeader? header = CreateRequestHeaderForActivateSession(
+                    tokenSecurityPolicyUri!) ??
+                    new RequestHeader();
+
+                header.TimeoutHint = kReconnectTimeout;
 
                 using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
                 timeout.CancelAfter(TimeSpan.FromMilliseconds(kReconnectTimeout / 2));
@@ -2495,7 +2926,7 @@ namespace Opc.Ua.Client
                 catch (OperationCanceledException)
                     when (timeout.IsCancellationRequested && !ct.IsCancellationRequested)
                 {
-                    ServiceResult error = ServiceResult.Create(
+                    var error = ServiceResult.Create(
                         StatusCodes.BadRequestTimeout,
                         "ACTIVATE SESSION timed out. {0}/{1}",
                         GoodPublishRequestCount,
@@ -2519,6 +2950,7 @@ namespace Opc.Ua.Client
             }
         }
 
+#if OPCUA_V1_CLIENT
         /// <inheritdoc/>
         public async Task<(bool, ServiceResult)> RepublishAsync(
             uint subscriptionId,
@@ -2526,12 +2958,23 @@ namespace Opc.Ua.Client
             CancellationToken ct)
         {
             using Activity? activity = m_telemetry.StartActivity();
+
+            // Republish is part of the classic publish flow. With the V2
+            // subscription engine, the SubscriptionManager handles republish
+            // internally and this method is not used.
+            if (m_engine is not ClassicSubscriptionEngine classicEngine)
+            {
+                throw new InvalidOperationException(
+                    "RepublishAsync is only supported when the session uses the classic " +
+                    "subscription engine. The V2 engine handles republish internally.");
+            }
+
             // send republish request.
             var requestHeader = new RequestHeader
             {
                 TimeoutHint = (uint)OperationTimeout,
                 ReturnDiagnostics = (uint)(int)ReturnDiagnostics,
-                RequestHandle = Utils.IncrementIdentifier(ref m_publishCounter)
+                RequestHandle = Utils.IncrementIdentifier(ref classicEngine.PublishCounter)
             };
 
             try
@@ -2558,7 +3001,7 @@ namespace Opc.Ua.Client
                     responseHeader.ServiceResult);
 
                 // process response.
-                ProcessPublishResponse(
+                classicEngine.ProcessPublishResponse(
                     responseHeader,
                     subscriptionId,
                     default,
@@ -2569,9 +3012,10 @@ namespace Opc.Ua.Client
             }
             catch (Exception e)
             {
-                return ProcessRepublishResponseError(e, subscriptionId, sequenceNumber);
+                return classicEngine.ProcessRepublishResponseError(e, subscriptionId, sequenceNumber);
             }
         }
+#endif
 
         /// <summary>
         /// Recreate the subscriptions in a recreated session.
@@ -2743,6 +3187,23 @@ namespace Opc.Ua.Client
             }
         }
 
+        /// <inheritdoc/>
+        protected override void RequestCompleted(
+            IServiceRequest request,
+            IServiceResponse response,
+            string serviceName)
+        {
+            StatusCode? sr = response?.ResponseHeader?.ServiceResult;
+            if (sr != null && StatusCode.IsGood(sr.Value))
+            {
+                // Any successful response proves the server is alive —
+                // reset keep-alive so we don't send a redundant read.
+                ResetKeepAliveTimer();
+            }
+
+            base.RequestCompleted(request, response!, serviceName);
+        }
+
         /// <summary>
         /// Reset the timer used to send keep alive messages.
         /// </summary>
@@ -2786,7 +3247,7 @@ namespace Opc.Ua.Client
             Debug.Assert(keepAliveCancellation != null);
             try
             {
-                keepAliveCancellation!.Cancel();
+                await keepAliveCancellation!.CancelAsync().ConfigureAwait(false);
                 if (!m_inKeepAliveCallback)
                 {
                     // Make sure no circular loops
@@ -3120,7 +3581,7 @@ namespace Opc.Ua.Client
                     }
 
                     // send notification that keep alive completed.
-                    if (!values[0].WrappedValue.TryGet(out ServerState serverState))
+                    if (!values[0].WrappedValue.TryGetValue(out ServerState serverState))
                     {
                         serverState = ServerState.Unknown;
                     }
@@ -3320,7 +3781,7 @@ namespace Opc.Ua.Client
                     "Cannot read NamespaceArray node. Validation of returned value failed.");
             }
 
-            if (!values[0].WrappedValue.TryGet(out ArrayOf<string> namespaceArray) ||
+            if (!values[0].WrappedValue.TryGetValue(out ArrayOf<string> namespaceArray) ||
                 namespaceArray.IsEmpty)
             {
                 throw ServiceResultException.Unexpected(
@@ -3356,364 +3817,34 @@ namespace Opc.Ua.Client
                     "Cannot read ServerArray node. Validation of returned value failed.");
             }
 
-            if (values[1].WrappedValue.TryGet(out ArrayOf<string> serverArray))
+            if (values[1].WrappedValue.TryGetValue(out ArrayOf<string> serverArray))
             {
                 ServerUris.Update(serverArray.ToArray());
             }
         }
 
+#if OPCUA_V1_CLIENT
         /// <summary>
         /// Sends an additional publish request.
+        /// Only valid when using the classic subscription engine; the V2
+        /// engine drives publishing through its own worker pool.
         /// </summary>
         public bool BeginPublish(int timeout)
         {
-            // do not publish if reconnecting or the session is in closed state.
-            if (!Connected)
+            if (m_engine is ClassicSubscriptionEngine classicEngine)
             {
-                m_logger.LogWarning("Publish skipped due to session not connected");
-                return false;
+                return classicEngine.BeginPublish(timeout);
             }
-
-            if (Reconnecting)
-            {
-                m_logger.LogWarning("Publish skipped due to session reconnect");
-                return false;
-            }
-
-            if (Closing)
-            {
-                m_logger.LogWarning("Publish cancelled due to session closed");
-                return false;
-            }
-
-            // get event handler to modify ack list
-            PublishSequenceNumbersToAcknowledgeEventHandler? callback
-                = m_PublishSequenceNumbersToAcknowledge;
-
-            // collect the current set if acknowledgements.
-            List<SubscriptionAcknowledgement>? acknowledgementsToSend = null;
-            lock (m_acknowledgementsToSendLock)
-            {
-                if (callback != null)
-                {
-                    try
-                    {
-                        var deferredAcknowledgementsToSend
-                            = new List<SubscriptionAcknowledgement>();
-                        callback(
-                            this,
-                            new PublishSequenceNumbersToAcknowledgeEventArgs(
-                                m_acknowledgementsToSend,
-                                deferredAcknowledgementsToSend));
-                        acknowledgementsToSend = m_acknowledgementsToSend;
-                        m_acknowledgementsToSend = deferredAcknowledgementsToSend;
-                    }
-                    catch (Exception e2)
-                    {
-                        m_logger.LogError(
-                            e2,
-                            "Session: Unexpected error invoking PublishSequenceNumbersToAcknowledgeEventArgs.");
-                    }
-                }
-
-                if (acknowledgementsToSend == null)
-                {
-                    // send all ack values, clear list
-                    acknowledgementsToSend = m_acknowledgementsToSend;
-                    m_acknowledgementsToSend = [];
-                }
-#if DEBUG_SEQUENTIALPUBLISHING
-                foreach (var toSend in acknowledgementsToSend)
-                {
-                    m_latestAcknowledgementsSent[toSend.SubscriptionId] = toSend.SequenceNumber;
-                }
-#endif
-            }
-
-            uint timeoutHint = timeout > 0 ? (uint)timeout : uint.MaxValue;
-            timeoutHint = Math.Min((uint)(OperationTimeout / 2), timeoutHint);
-
-            // send publish request.
-            var requestHeader = new RequestHeader
-            {
-                // ensure the publish request is discarded before the timeout occurs to ensure the channel is dropped.
-                TimeoutHint = timeoutHint,
-                ReturnDiagnostics = (uint)(int)ReturnDiagnostics,
-                RequestHandle = Utils.IncrementIdentifier(ref m_publishCounter)
-            };
-
-            m_logger.LogTrace("PUBLISH #{RequestHandle} SENT", requestHeader.RequestHandle);
-            CoreClientUtils.EventLog.PublishStart((int)requestHeader.RequestHandle);
-
-            try
-            {
-                Activity? activity = m_telemetry.StartActivity();
-                Task<PublishResponse> task = PublishAsync(
-                    requestHeader,
-                    acknowledgementsToSend,
-                    default).AsTask(); // TODO: Need a session scoped cancellation token.
-                AsyncRequestStarted(task, activity, requestHeader.RequestHandle, DataTypes.PublishRequest);
-                task.ConfigureAwait(false)
-                    .GetAwaiter()
-                    .OnCompleted(() => OnPublishComplete(
-                        task,
-                        SessionId,
-                        acknowledgementsToSend,
-                        requestHeader));
-                return true;
-            }
-            catch (Exception e)
-            {
-                m_logger.LogError(e, "Unexpected error sending publish request.");
-                return false;
-            }
+            return false;
         }
+#endif
 
         /// <summary>
         /// Create the publish requests for the active subscriptions.
         /// </summary>
         public void StartPublishing(int timeout, bool fullQueue)
         {
-            int publishCount = GetDesiredPublishRequestCount(true);
-
-            // refill pipeline. Send at least one publish request if subscriptions are active.
-            if (publishCount > 0 && BeginPublish(timeout))
-            {
-                int startCount = fullQueue ? 1 : GoodPublishRequestCount + 1;
-                for (int ii = startCount; ii < publishCount; ii++)
-                {
-                    if (!BeginPublish(timeout))
-                    {
-                        break;
-                    }
-                }
-            }
-        }
-
-        /// <summary>
-        /// Completes an asynchronous publish operation.
-        /// </summary>
-        private void OnPublishComplete(
-            Task<PublishResponse> task,
-            NodeId sessionId,
-            List<SubscriptionAcknowledgement>? acknowledgementsToSend,
-            RequestHeader requestHeader)
-        {
-            // extract state information.
-            uint subscriptionId = 0;
-
-            AsyncRequestCompleted(task, requestHeader.RequestHandle, DataTypes.PublishRequest);
-
-            m_logger.LogTrace("PUBLISH #{RequestHandle} RECEIVED", requestHeader.RequestHandle);
-            CoreClientUtils.EventLog.PublishStop((int)requestHeader.RequestHandle);
-
-            try
-            {
-                // gate entry if transfer/reactivate is busy
-                m_reconnectLock.Wait();
-                bool reconnecting = Reconnecting;
-                m_reconnectLock.Release();
-
-                // complete publish.
-                PublishResponse response = task.Result;
-                ResponseHeader responseHeader = response.ResponseHeader;
-                subscriptionId = response.SubscriptionId;
-                ArrayOf<uint> availableSequenceNumbers = response.AvailableSequenceNumbers;
-                bool moreNotifications = response.MoreNotifications;
-                NotificationMessage notificationMessage = response.NotificationMessage;
-                ArrayOf<StatusCode> acknowledgeResults = response.Results;
-                ArrayOf<DiagnosticInfo> acknowledgeDiagnosticInfos = response.DiagnosticInfos;
-
-                LogLevel logLevel = LogLevel.Warning;
-                foreach (StatusCode code in acknowledgeResults)
-                {
-                    if (StatusCode.IsBad(code) && code != StatusCodes.BadSequenceNumberUnknown)
-                    {
-                        m_logger.Log(
-                            logLevel,
-                            "Publish Ack Response. ResultCode={StatusCode}; SubscriptionId={SubscriptionId}",
-                            code,
-                            subscriptionId);
-                        // only show the first error as warning
-                        logLevel = LogLevel.Trace;
-                    }
-                }
-
-                // nothing more to do if we were never connected
-                if (sessionId.IsNull)
-                {
-                    return;
-                }
-
-                // nothing more to do if session changed.
-                if (sessionId != SessionId)
-                {
-                    m_logger.LogWarning(
-                        "Publish response discarded because session id changed: Old {PreviousSessionId} != New {SessionId}",
-                        sessionId,
-                        SessionId);
-                    return;
-                }
-
-                m_logger.LogTrace(
-                    "NOTIFICATION RECEIVED: SubId={SubscriptionId}, SeqNo={SequenceNumber}",
-                    subscriptionId,
-                    notificationMessage.SequenceNumber);
-                CoreClientUtils.EventLog.NotificationReceived(
-                    (int)subscriptionId,
-                    (int)notificationMessage.SequenceNumber);
-
-                // process response.
-                ProcessPublishResponse(
-                    responseHeader,
-                    subscriptionId,
-                    availableSequenceNumbers,
-                    moreNotifications,
-                    notificationMessage);
-
-                // nothing more to do if reconnecting.
-                if (reconnecting)
-                {
-                    m_logger.LogWarning("No new publish sent because of reconnect in progress.");
-                    return;
-                }
-            }
-            catch (Exception e)
-            {
-                if (m_subscriptions.Count == 0)
-                {
-                    // Publish responses with error should occur after deleting the last subscription.
-                    m_logger.LogWarning(
-                        "Publish #{RequestHandle}, Subscription count = 0, Error: {Message}",
-                        requestHeader.RequestHandle,
-                        e.Message);
-                }
-                else
-                {
-                    m_logger.LogError(
-                        "Publish #{RequestHandle}, Reconnecting={Reconnecting}, Error: {Message}",
-                        requestHeader.RequestHandle,
-                        Reconnecting,
-                        e.Message);
-                }
-
-                // raise an error event.
-                var error = new ServiceResult(e);
-
-                // raise publish error even for BadNoSubscription if there are active subscriptions.
-                if (error.Code != StatusCodes.BadNoSubscription || m_subscriptions.Any(s => s.Created))
-                {
-                    PublishErrorEventHandler? callback = m_PublishError;
-
-                    if (callback != null)
-                    {
-                        try
-                        {
-                            callback(this, new PublishErrorEventArgs(error, subscriptionId, 0));
-                        }
-                        catch (Exception e2)
-                        {
-                            m_logger.LogError(
-                                e2,
-                                "Session: Unexpected error invoking PublishErrorCallback.");
-                        }
-                    }
-                }
-
-                // ignore errors if reconnecting
-                if (Reconnecting)
-                {
-                    m_logger.LogInformation(
-                        "Publish abandoned after error {Message} due to session {SessionId} reconnecting",
-                        e.Message,
-                        sessionId);
-                    return;
-                }
-
-                // nothing more to do if session changed.
-                if (sessionId != SessionId)
-                {
-                    if (Connected)
-                    {
-                        m_logger.LogError(
-                            "Publish abandoned after error {Message} because session id changed: Old {PreviousSessionId} != New {SessionId}",
-                            e.Message,
-                            sessionId,
-                            SessionId);
-                    }
-                    else
-                    {
-                        m_logger.LogInformation(
-                            "Publish abandoned after error {Message} because session {SessionId} was closed.",
-                            e.Message,
-                            sessionId);
-                    }
-                    return;
-                }
-
-                // try to acknowledge the notifications again in the next publish.
-                if (acknowledgementsToSend != null)
-                {
-                    lock (m_acknowledgementsToSendLock)
-                    {
-                        m_acknowledgementsToSend.AddRange(acknowledgementsToSend);
-                    }
-                }
-
-                // don't send another publish for these errors,
-                // or throttle to avoid server overload.
-                if (error.StatusCode == StatusCodes.BadTooManyPublishRequests)
-                {
-                    int tooManyPublishRequests = GoodPublishRequestCount;
-                    if (BelowPublishRequestLimit(tooManyPublishRequests))
-                    {
-                        m_tooManyPublishRequests = tooManyPublishRequests;
-                        m_logger.LogInformation(
-                            "PUBLISH - Too many requests, set limit to GoodPublishRequestCount={GoodRequestCount}.",
-                            m_tooManyPublishRequests);
-                    }
-                    return;
-                }
-                if (error.StatusCode == StatusCodes.BadNoSubscription ||
-                    error.StatusCode == StatusCodes.BadSessionClosed ||
-                    error.StatusCode == StatusCodes.BadSecurityChecksFailed ||
-                    error.StatusCode == StatusCodes.BadCertificateInvalid ||
-                    error.StatusCode == StatusCodes.BadServerHalted)
-                {
-                    return;
-                }
-                if (error.StatusCode == StatusCodes.BadSessionIdInvalid ||
-                    error.StatusCode == StatusCodes.BadSecureChannelIdInvalid ||
-                    error.StatusCode == StatusCodes.BadSecureChannelClosed)
-                {
-                    OnKeepAliveError(error);
-                    return;
-                }
-                // Servers may return this error when overloaded
-                if (error.StatusCode != StatusCodes.BadTimeout &&
-                    error.StatusCode != StatusCodes.BadRequestTimeout)
-                {
-                    if (error.StatusCode != StatusCodes.BadTooManyOperations &&
-                        error.StatusCode != StatusCodes.BadTcpServerTooBusy &&
-                        error.StatusCode != StatusCodes.BadServerTooBusy)
-                    {
-                        m_logger.LogError(
-                            e,
-                            "PUBLISH #{RequestHandle} - Unhandled error {StatusCode} during Publish.",
-                            requestHeader.RequestHandle,
-                            error.StatusCode);
-                    }
-                    // throttle the next publish to reduce server load
-                    _ = Task.Run(async () =>
-                    {
-                        await Task.Delay(100).ConfigureAwait(false);
-                        QueueBeginPublish();
-                    });
-                    return;
-                }
-            }
-
-            QueueBeginPublish();
+            m_engine.StartPublishing(timeout, fullQueue);
         }
 
         /// <summary>
@@ -3723,7 +3854,8 @@ namespace Opc.Ua.Client
         {
             if (m_RenewUserIdentity != null)
             {
-                m_identity = m_RenewUserIdentity(this, m_identity) ?? new UserIdentity();
+                IUserIdentity renewed = m_RenewUserIdentity(this, m_identity);
+                m_identity = renewed ?? new UserIdentity();
             }
         }
 
@@ -3739,29 +3871,6 @@ namespace Opc.Ua.Client
                 "Could not recreate session {0}:{1}",
                 sessionName,
                 e.Message);
-        }
-
-        /// <summary>
-        /// Queues a publish request if there are not enough outstanding requests.
-        /// </summary>
-        private void QueueBeginPublish()
-        {
-            int requestCount = GoodPublishRequestCount;
-
-            int minPublishRequestCount = GetDesiredPublishRequestCount(false);
-
-            if (requestCount < minPublishRequestCount)
-            {
-                BeginPublish(OperationTimeout);
-            }
-            else
-            {
-                m_logger.LogDebug(
-                    "PUBLISH - Did not send another publish request. " +
-                    "GoodPublishRequestCount={GoodRequestCount}, MinPublishRequestCount={MinRequestCount}",
-                    requestCount,
-                    minPublishRequestCount);
-            }
         }
 
         /// <summary>
@@ -3862,7 +3971,7 @@ namespace Opc.Ua.Client
                 try
                 {
                     // verify for certificate chain in endpoint.
-                    X509Certificate2Collection serverCertificateChain =
+                    using CertificateCollection serverCertificateChain =
                         Utils.ParseCertificateChainBlob(
                             m_endpoint.Description.ServerCertificate,
                             m_telemetry);
@@ -3889,40 +3998,52 @@ namespace Opc.Ua.Client
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
         private void ValidateServerSignature(
-            X509Certificate2? serverCertificate,
+            Certificate? serverCertificate,
             SignatureData serverSignature,
             ByteString clientCertificateData,
             ByteString clientCertificateChainData,
-            ByteString clientNonce)
+            byte[]? clientNonce,
+            ByteString serverNonce)
         {
             if (serverSignature == null || serverSignature.Signature.IsEmpty)
             {
                 m_logger.LogInformation("Server signature is null or empty.");
-
-                //throw ServiceResultException.Create(
-                //    StatusCodes.BadSecurityChecksFailed,
-                //    "Server signature is null or empty.");
+                return;
             }
 
             // validate the server's signature.
-            ByteString dataToSign = ByteString.Combine(clientCertificateData, clientNonce);
+            SecurityPolicyInfo securityPolicy = SecurityPolicies.GetInfo(m_endpoint.Description.SecurityPolicyUri);
 
-            if (!SecurityPolicies.Verify(
+            byte[] dataToSign = securityPolicy.GetServerSignatureData(
+                TransportChannel.ChannelThumbprint,
+                clientNonce,
+                TransportChannel.ServerChannelCertificate,
+                clientCertificateData.ToArray(),
+                TransportChannel.ClientChannelCertificate,
+                serverNonce.ToArray());
+
+            if (!SecurityPolicies.VerifySignatureData(
+                    serverSignature,
+                    securityPolicy,
                     serverCertificate,
-                    m_endpoint.Description.SecurityPolicyUri,
-                    dataToSign.ToArray(),
-                    serverSignature))
+                    dataToSign))
             {
                 // validate the signature with complete chain if the check with leaf certificate failed.
                 if (!clientCertificateChainData.IsEmpty)
                 {
-                    dataToSign = ByteString.Combine(clientCertificateChainData, clientNonce);
+                    dataToSign = securityPolicy.GetServerSignatureData(
+                        TransportChannel.ChannelThumbprint,
+                        clientNonce,
+                        TransportChannel.ServerChannelCertificate,
+                        clientCertificateChainData.ToArray(),
+                        TransportChannel.ClientChannelCertificate,
+                        serverNonce.ToArray());
 
-                    if (!SecurityPolicies.Verify(
-                        serverCertificate,
-                        m_endpoint.Description.SecurityPolicyUri,
-                        dataToSign.ToArray(),
-                        serverSignature))
+                    if (!SecurityPolicies.VerifySignatureData(
+                            serverSignature,
+                            securityPolicy,
+                            serverCertificate,
+                            dataToSign))
                     {
                         throw ServiceResultException.Create(
                             StatusCodes.BadApplicationSignatureInvalid,
@@ -3945,12 +4066,13 @@ namespace Opc.Ua.Client
         /// with the applicationUri of the server description before the validation.
         /// </summary>
         private void ValidateServerCertificateApplicationUri(
-            X509Certificate2? serverCertificate,
+            Certificate? serverCertificate,
             ConfiguredEndpoint endpoint)
         {
             if (serverCertificate != null)
             {
-                m_configuration.CertificateValidator.ValidateApplicationUri(serverCertificate, endpoint);
+                ICertificateValidatorEx validator = m_configuration.CertificateManager;
+                validator.ValidateApplicationUri(serverCertificate, endpoint);
             }
         }
 
@@ -4113,341 +4235,6 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Process Republish error response.
-        /// </summary>
-        /// <param name="e">The exception that occurred during the republish operation.</param>
-        /// <param name="subscriptionId">The subscription Id for which the republish was requested. </param>
-        /// <param name="sequenceNumber">The sequencenumber for which the republish was requested.</param>
-        private (bool, ServiceResult) ProcessRepublishResponseError(
-            Exception e,
-            uint subscriptionId,
-            uint sequenceNumber)
-        {
-            var error = new ServiceResult(e);
-
-            bool result = true;
-            if (error.StatusCode == StatusCodes.BadSubscriptionIdInvalid ||
-                error.StatusCode == StatusCodes.BadMessageNotAvailable)
-            {
-                m_logger.LogWarning(
-                    "Message {SubscriptionId}-{SequenceNumber} no longer available.",
-                    subscriptionId,
-                    sequenceNumber);
-            }
-            else if (error.StatusCode == StatusCodes.BadEncodingLimitsExceeded)
-            {
-                // if encoding limits are exceeded, the issue is logged and
-                // the published data is acknowledged to prevent the endless republish loop.
-                m_logger.LogError(
-                    e,
-                    "Message {SubscriptionId}-{SequenceNumber} exceeded size limits, ignored.",
-                    subscriptionId,
-                    sequenceNumber);
-                lock (m_acknowledgementsToSendLock)
-                {
-                    AddAcknowledgementToSend(
-                        m_acknowledgementsToSend,
-                        subscriptionId,
-                        sequenceNumber);
-                }
-            }
-            else
-            {
-                result = false;
-                m_logger.LogError(e, "Unexpected error sending republish request.");
-            }
-
-            PublishErrorEventHandler? callback = m_PublishError;
-
-            // raise an error event.
-            if (callback != null)
-            {
-                try
-                {
-                    var args = new PublishErrorEventArgs(error, subscriptionId, sequenceNumber);
-
-                    callback(this, args);
-                }
-                catch (Exception e2)
-                {
-                    m_logger.LogError(e2, "Session: Unexpected error invoking PublishErrorCallback.");
-                }
-            }
-
-            return (result, error);
-        }
-
-        /// <summary>
-        /// If available, returns the current nonce or null.
-        /// </summary>
-        private byte[]? GetCurrentTokenServerNonce()
-        {
-            ChannelToken? currentToken = (NullableTransportChannel as ISecureChannel)?.CurrentToken;
-            return currentToken?.ServerNonce;
-        }
-
-        /// <summary>
-        /// Processes the response from a publish request.
-        /// </summary>
-        private void ProcessPublishResponse(
-            ResponseHeader responseHeader,
-            uint subscriptionId,
-            ArrayOf<uint> availableSequenceNumbers,
-            bool moreNotifications,
-            NotificationMessage notificationMessage)
-        {
-            Subscription? subscription = null;
-            var availableSequenceNumberList = availableSequenceNumbers.ToList();
-
-            // send notification that the server is alive.
-            OnKeepAlive(m_serverState, (DateTime)responseHeader.Timestamp);
-
-            // collect the current set of acknowledgements.
-            lock (m_acknowledgementsToSendLock)
-            {
-                // clear out acknowledgements for messages that the server does not have any more.
-                var acknowledgementsToSend = new List<SubscriptionAcknowledgement>();
-
-                uint latestSequenceNumberToSend = 0;
-
-                // create an acknowledgement to be sent back to the server.
-                if (notificationMessage.NotificationData.Count > 0)
-                {
-                    AddAcknowledgementToSend(
-                        acknowledgementsToSend,
-                        subscriptionId,
-                        notificationMessage.SequenceNumber);
-                    UpdateLatestSequenceNumberToSend(
-                        ref latestSequenceNumberToSend,
-                        notificationMessage.SequenceNumber);
-
-                    availableSequenceNumberList.Remove(notificationMessage.SequenceNumber);
-                }
-
-                // match an acknowledgement to be sent back to the server.
-                for (int ii = 0; ii < m_acknowledgementsToSend.Count; ii++)
-                {
-                    SubscriptionAcknowledgement acknowledgement = m_acknowledgementsToSend[ii];
-
-                    if (acknowledgement.SubscriptionId != subscriptionId)
-                    {
-                        acknowledgementsToSend.Add(acknowledgement);
-                    }
-                    else if (availableSequenceNumberList.Remove(acknowledgement.SequenceNumber))
-                    {
-                        acknowledgementsToSend.Add(acknowledgement);
-                        UpdateLatestSequenceNumberToSend(
-                            ref latestSequenceNumberToSend,
-                            acknowledgement.SequenceNumber);
-                    }
-                    // a publish response may by processed out of order,
-                    // allow for a tolerance until the sequence number is removed.
-                    else if (Math.Abs(
-                            (int)(acknowledgement.SequenceNumber - latestSequenceNumberToSend)) <
-                        kPublishRequestSequenceNumberOutOfOrderThreshold)
-                    {
-                        acknowledgementsToSend.Add(acknowledgement);
-                    }
-                    else
-                    {
-                        m_logger.LogWarning(
-                            "SessionId {SessionId}, SubscriptionId {SubscriptionId}, Sequence number={SequenceNumber} was not received in the available sequence numbers.",
-                            SessionId,
-                            subscriptionId,
-                            acknowledgement.SequenceNumber);
-                    }
-                }
-
-                // Check for outdated sequence numbers. May have been not acked due to a network glitch.
-                if (latestSequenceNumberToSend != 0 && availableSequenceNumberList.Count > 0)
-                {
-                    foreach (uint sequenceNumber in availableSequenceNumberList)
-                    {
-                        if ((int)(latestSequenceNumberToSend - sequenceNumber) >
-                            kPublishRequestSequenceNumberOutdatedThreshold)
-                        {
-                            AddAcknowledgementToSend(
-                                acknowledgementsToSend,
-                                subscriptionId,
-                                sequenceNumber);
-                            m_logger.LogWarning(
-                                "SessionId {SessionId}, SubscriptionId {SubscriptionId}, Sequence number={SequenceNumber} was outdated, acknowledged.",
-                                SessionId,
-                                subscriptionId,
-                                sequenceNumber);
-                        }
-                    }
-                }
-
-#if DEBUG_SEQUENTIALPUBLISHING
-                // Checks for debug info only.
-                // Once more than a single publish request is queued, the checks are invalid
-                // because a publish response may not include the latest ack information yet.
-
-                uint lastSentSequenceNumber = 0;
-                if (availableSequenceNumberList != null)
-                {
-                    foreach (uint availableSequenceNumber in availableSequenceNumberList)
-                    {
-                        if (m_latestAcknowledgementsSent.ContainsKey(subscriptionId))
-                        {
-                            lastSentSequenceNumber = m_latestAcknowledgementsSent[subscriptionId];
-                            // If the last sent sequence number is uint.Max do not display the warning;
-                            // the counter rolled over
-                            // If the last sent sequence number is greater or equal to the available
-                            // sequence number (returned by the publish), a warning must be logged.
-                            if ((
-                                    (lastSentSequenceNumber >= availableSequenceNumber)
-                                    && (lastSentSequenceNumber != uint.MaxValue))
-                                || (lastSentSequenceNumber == availableSequenceNumber)
-                                    && (lastSentSequenceNumber == uint.MaxValue))
-                            {
-                                m_logger.LogWarning(
-                                    "Received sequence number which was already acknowledged={0}",
-                                    availableSequenceNumber);
-                            }
-                        }
-                    }
-                }
-
-                if (m_latestAcknowledgementsSent.ContainsKey(subscriptionId))
-                {
-                    lastSentSequenceNumber = m_latestAcknowledgementsSent[subscriptionId];
-
-                    // If the last sent sequence number is uint.Max do not display the warning;
-                    // the counter rolled over
-                    // If the last sent sequence number is greater or equal to the notificationMessage's
-                    // sequence number (returned by the publish) a warning must be logged.
-                    if ((
-                            (lastSentSequenceNumber >= notificationMessage.SequenceNumber)
-                            && (lastSentSequenceNumber != uint.MaxValue))
-                        || (lastSentSequenceNumber == notificationMessage.SequenceNumber)
-                            && (lastSentSequenceNumber == uint.MaxValue))
-                    {
-                        m_logger.LogWarning(
-                            "Received sequence number which was already acknowledged={0}",
-                            notificationMessage.SequenceNumber);
-                    }
-                }
-#endif
-
-                m_acknowledgementsToSend = acknowledgementsToSend;
-
-                if (notificationMessage.IsEmpty)
-                {
-                    m_logger.LogTrace(
-                        "Empty notification message received for SessionId {SessionId} with PublishTime {PublishTime}",
-                        SessionId,
-                        notificationMessage.PublishTime.ToDateTime().ToLocalTime());
-                }
-            }
-
-            bool subscriptionCreationInProgress = false;
-
-            lock (m_lock)
-            {
-                // find the subscription.
-                foreach (Subscription current in m_subscriptions)
-                {
-                    if (current.Id == subscriptionId)
-                    {
-                        subscription = current;
-                        break;
-                    }
-                    if (current.Id == default)
-                    {
-                        // Subscription is being created, disable cleanup mechanism
-                        subscriptionCreationInProgress = true;
-                    }
-                }
-            }
-
-            // ignore messages with a subscription that has been deleted.
-            if (subscription != null)
-            {
-#if DEBUG
-                // Validate publish time and reject old values.
-                if (notificationMessage.PublishTime.AddMilliseconds(
-                        subscription.CurrentPublishingInterval * subscription.CurrentLifetimeCount
-                    ) < DateTimeUtc.Now)
-                {
-                    m_logger.LogTrace(
-                        "PublishTime {PublishTime} in publish response is too old for SubscriptionId {SubscriptionId}.",
-                        notificationMessage.PublishTime.ToLocalTime(),
-                        subscription.Id);
-                }
-
-                // Validate publish time and reject old values.
-                if (notificationMessage.PublishTime >
-                    DateTimeUtc.Now.AddMilliseconds(
-                        subscription.CurrentPublishingInterval * subscription.CurrentLifetimeCount))
-                {
-                    m_logger.LogTrace(
-                        "PublishTime {PublishTime} in publish response is newer than actual time for SubscriptionId {SubscriptionId}.",
-                        notificationMessage.PublishTime.ToLocalTime(),
-                        subscription.Id);
-                }
-#endif
-                // save the information that more notifications are expected
-                notificationMessage.MoreNotifications = moreNotifications;
-
-                // save the string table that came with the notification.
-                notificationMessage.StringTable = responseHeader.StringTable;
-
-                // update subscription cache.
-                subscription.SaveMessageInCache(availableSequenceNumberList, notificationMessage);
-
-                // raise the notification.
-                NotificationEventHandler? publishEventHandler = m_Publish;
-                if (publishEventHandler != null)
-                {
-                    var args = new NotificationEventArgs(
-                        subscription,
-                        notificationMessage,
-                        responseHeader.StringTable);
-
-                    _ = Task.Run(() => OnRaisePublishNotification(publishEventHandler, args));
-                }
-            }
-            else if (DeleteSubscriptionsOnClose && !Reconnecting && !subscriptionCreationInProgress)
-            {
-                // Delete abandoned subscription from server.
-                m_logger.LogWarning(
-                    "Received Publish Response for Unknown SubscriptionId={SubscriptionId}. Deleting abandoned subscription from server.",
-                    subscriptionId);
-
-                _ = Task.Run(() => DeleteSubscriptionAsync(subscriptionId));
-            }
-            else
-            {
-                // Do not delete publish requests of stale subscriptions
-                m_logger.LogWarning(
-                    "Received Publish Response for Unknown SubscriptionId={SubscriptionId}. Ignored.",
-                    subscriptionId);
-            }
-        }
-
-        /// <summary>
-        /// Raises an event indicating that publish has returned a notification.
-        /// </summary>
-        private void OnRaisePublishNotification(
-            NotificationEventHandler callback,
-            NotificationEventArgs args)
-        {
-            try
-            {
-                if (callback != null && args.Subscription.Id != 0)
-                {
-                    callback(this, args);
-                }
-            }
-            catch (Exception e)
-            {
-                m_logger.LogError(e, "Session: Unexpected error while raising Notification event.");
-            }
-        }
-
-        /// <summary>
         /// Invokes a DeleteSubscriptions call for the specified subscriptionId.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
@@ -4520,23 +4307,25 @@ namespace Opc.Ua.Client
                         "Configuration was changed for an active session.");
                 }
                 // If the configured endpoint was updated while we are closed we reload.
+                m_instanceCertificate.Dispose();
                 m_instanceCertificate = null;
             }
 
             if (m_instanceCertificate == null || !m_instanceCertificate.HasPrivateKey)
             {
+                // Dispose any previously loaded certificate that lacked a
+                // private key before overwriting it with the newly loaded one.
+                m_instanceCertificate?.Dispose();
                 m_instanceCertificate = await LoadInstanceCertificateAsync(
                     m_configuration,
                     m_endpoint.Description.SecurityPolicyUri,
                     m_telemetry,
                     ct)
-                    .ConfigureAwait(false);
-                if (m_instanceCertificate == null)
-                {
+                    .ConfigureAwait(false) ??
                     throw ServiceResultException.ConfigurationError(
                         "The client configuration does not specify an application instance certificate.");
-                }
                 m_effectiveEndpoint = m_endpoint;
+                m_instanceCertificateChain?.Dispose();
                 m_instanceCertificateChain = null; // Reload the chain too
             }
 
@@ -4559,7 +4348,7 @@ namespace Opc.Ua.Client
         /// Load certificate for connection.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        internal static async Task<X509Certificate2> LoadInstanceCertificateAsync(
+        internal static async Task<Certificate> LoadInstanceCertificateAsync(
             ApplicationConfiguration configuration,
             string securityProfile,
             ITelemetryContext telemetry,
@@ -4578,126 +4367,47 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Load certificate chain for connection.
         /// </summary>
-        internal static async Task<X509Certificate2Collection?> LoadCertificateChainAsync(
+        internal static async Task<CertificateCollection?> LoadCertificateChainAsync(
             ApplicationConfiguration configuration,
-            X509Certificate2 clientCertificate,
+            Certificate clientCertificate,
             CancellationToken ct = default)
         {
-            X509Certificate2Collection? clientCertificateChain = null;
+            CertificateCollection? clientCertificateChain = null;
             // load certificate chain.
             if (configuration.SecurityConfiguration.SendCertificateChain)
             {
-                clientCertificateChain = new X509Certificate2Collection(clientCertificate);
-                List<CertificateIdentifier> issuers = [];
-                await configuration
-                    .CertificateValidator.GetIssuersAsync(clientCertificate, issuers, ct)
-                    .ConfigureAwait(false);
-
-                for (int i = 0; i < issuers.Count; i++)
+                clientCertificateChain = [clientCertificate];
+                var issuers = new List<CertificateIssuerReference>();
+                try
                 {
-                    clientCertificateChain.Add(issuers[i].Certificate);
+                    if (configuration.CertificateManager != null)
+                    {
+                        await configuration.CertificateManager
+                            .GetIssuersAsync(clientCertificate, issuers, ct)
+                            .ConfigureAwait(false);
+                    }
+
+                    for (int i = 0; i < issuers.Count; i++)
+                    {
+                        clientCertificateChain.Add(issuers[i].Certificate);
+                    }
+                }
+                catch
+                {
+                    clientCertificateChain.Dispose();
+                    throw;
+                }
+                finally
+                {
+                    // GetIssuersAsync returns caller-owned references; the
+                    // chain AddRefs each one above, so we must dispose ours.
+                    for (int i = 0; i < issuers.Count; i++)
+                    {
+                        issuers[i].Certificate?.Dispose();
+                    }
                 }
             }
             return clientCertificateChain;
-        }
-
-        private void AddAcknowledgementToSend(
-            List<SubscriptionAcknowledgement> acknowledgementsToSend,
-            uint subscriptionId,
-            uint sequenceNumber)
-        {
-            if (acknowledgementsToSend == null)
-            {
-                throw new ArgumentNullException(nameof(acknowledgementsToSend));
-            }
-
-            Debug.Assert(Monitor.IsEntered(m_acknowledgementsToSendLock));
-
-            var acknowledgement = new SubscriptionAcknowledgement
-            {
-                SubscriptionId = subscriptionId,
-                SequenceNumber = sequenceNumber
-            };
-
-            acknowledgementsToSend.Add(acknowledgement);
-        }
-
-        /// <summary>
-        /// Returns true if the Bad_TooManyPublishRequests limit
-        /// has not been reached.
-        /// </summary>
-        /// <param name="requestCount">The actual number of publish requests.</param>
-        /// <returns>If the publish request limit was reached.</returns>
-        private bool BelowPublishRequestLimit(int requestCount)
-        {
-            return (m_tooManyPublishRequests == 0) || (requestCount < m_tooManyPublishRequests);
-        }
-
-        /// <summary>
-        /// Returns the desired number of active publish request that should be used.
-        /// </summary>
-        /// <remarks>
-        /// Returns 0 if there are no subscriptions.
-        /// </remarks>
-        /// <param name="createdOnly">False if call when re-queuing.</param>
-        /// <returns>The number of desired publish requests for the session.</returns>
-        protected virtual int GetDesiredPublishRequestCount(bool createdOnly)
-        {
-            lock (m_lock)
-            {
-                if (m_subscriptions.Count == 0)
-                {
-                    return 0;
-                }
-
-                int publishCount;
-
-                if (createdOnly)
-                {
-                    int count = 0;
-                    foreach (Subscription subscription in m_subscriptions)
-                    {
-                        if (subscription.Created)
-                        {
-                            count++;
-                        }
-                    }
-
-                    if (count == 0)
-                    {
-                        return 0;
-                    }
-                    publishCount = count;
-                }
-                else
-                {
-                    publishCount = m_subscriptions.Count;
-                }
-
-                //
-                // If a dynamic limit was set because of badTooManyPublishRequest error.
-                // limit the number of publish requests to this value.
-                //
-                if (m_tooManyPublishRequests > 0 && publishCount > m_tooManyPublishRequests)
-                {
-                    publishCount = m_tooManyPublishRequests;
-                }
-
-                //
-                // Limit resulting to a number between min and max request count.
-                // If max is below min, we honor the min publish request count.
-                // See return from MinPublishRequestCount property which the max of both.
-                //
-                if (publishCount > m_maxPublishRequestCount)
-                {
-                    publishCount = m_maxPublishRequestCount;
-                }
-                if (publishCount < m_minPublishRequestCount)
-                {
-                    publishCount = m_minPublishRequestCount;
-                }
-                return publishCount;
-            }
         }
 
         /// <summary>
@@ -4753,52 +4463,75 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Helper to update the latest sequence number to send.
-        /// Handles wrap around of sequence numbers.
-        /// </summary>
-        private static void UpdateLatestSequenceNumberToSend(
-            ref uint latestSequenceNumberToSend,
-            uint sequenceNumber)
-        {
-            // Handle wrap around with subtraction and test result is int.
-            // Assume sequence numbers to ack do not differ by more than uint.Max / 2
-            if (latestSequenceNumberToSend == 0 ||
-                ((int)(sequenceNumber - latestSequenceNumberToSend)) > 0)
-            {
-                latestSequenceNumberToSend = sequenceNumber;
-            }
-        }
-
-        /// <summary>
         /// Creates a request header with additional parameters
         /// for the ecc user token security policy, if needed.
         /// </summary>
         private RequestHeader CreateRequestHeaderPerUserTokenPolicy(
-            string? identityTokenSecurityPolicyUri,
-            string? endpointSecurityPolicyUri)
+            string? identityTokenSecurityPolicyUri)
         {
             var requestHeader = new RequestHeader();
-            string? userTokenSecurityPolicyUri = identityTokenSecurityPolicyUri;
+            string userTokenSecurityPolicyUri = identityTokenSecurityPolicyUri ?? string.Empty;
             if (string.IsNullOrEmpty(userTokenSecurityPolicyUri))
             {
-                userTokenSecurityPolicyUri = m_endpoint.Description.SecurityPolicyUri;
+                userTokenSecurityPolicyUri = m_endpoint.Description.SecurityPolicyUri ?? SecurityPolicies.None;
             }
+
             m_userTokenSecurityPolicyUri = userTokenSecurityPolicyUri;
 
-            if (EccUtils.IsEccPolicy(userTokenSecurityPolicyUri))
+            SecurityPolicyInfo securityPolicy = SecurityPolicies.GetInfo(userTokenSecurityPolicyUri);
+
+            if (securityPolicy.EphemeralKeyAlgorithm != CertificateKeyAlgorithm.None)
             {
-                var parameters = new AdditionalParametersType();
-                parameters.Parameters =
-                [
-                    new KeyValuePair
-                    {
-                        Key = QualifiedName.From("ECDHPolicyUri"),
-                        Value = userTokenSecurityPolicyUri
-                    }
-                ];
+                var parameters = new AdditionalParametersType
+                {
+                    Parameters =
+                    [
+                        new KeyValuePair
+                        {
+                            Key = QualifiedName.From(AdditionalParameterNames.ECDHPolicyUri),
+                            Value = userTokenSecurityPolicyUri
+                        }
+                    ]
+                };
                 requestHeader.AdditionalHeader = new ExtensionObject(parameters);
+
+                m_logger.LogWarning("Request EphemeralKey for {Policy}.", userTokenSecurityPolicyUri);
             }
 
+            return requestHeader;
+        }
+
+        private RequestHeader? CreateRequestHeaderForActivateSession(
+            string userTokenSecurityPolicyUri)
+        {
+            var requestHeader = new RequestHeader();
+            var parameters = new AdditionalParametersType();
+
+            if (!string.IsNullOrEmpty(userTokenSecurityPolicyUri))
+            {
+                SecurityPolicyInfo userTokenSecurityPolicy = SecurityPolicies.GetInfo(userTokenSecurityPolicyUri);
+
+                if (userTokenSecurityPolicy.EphemeralKeyAlgorithm != CertificateKeyAlgorithm.None)
+                {
+                    parameters.Parameters =
+                    [
+                        new KeyValuePair
+                        {
+                            Key = QualifiedName.From(AdditionalParameterNames.ECDHPolicyUri),
+                            Value = userTokenSecurityPolicyUri
+                        }
+                    ];
+
+                    m_logger.LogWarning("Requesting new EphmeralKey using {SecurityPolicyUri}.", userTokenSecurityPolicyUri);
+                }
+            }
+
+            if (parameters.Parameters.Count == 0)
+            {
+                return null;
+            }
+
+            requestHeader.AdditionalHeader = new ExtensionObject(parameters);
             return requestHeader;
         }
 
@@ -4816,15 +4549,38 @@ namespace Opc.Ua.Client
         /// <exception cref="ServiceResultException"></exception>
         protected virtual void ProcessResponseAdditionalHeader(
             ResponseHeader responseHeader,
-            X509Certificate2? serverCertificate)
+            Certificate? serverCertificate)
         {
             if (responseHeader != null &&
-                responseHeader.AdditionalHeader.TryGetEncodeable(out IEncodeable e) &&
+                responseHeader.AdditionalHeader.TryGetValue(out IEncodeable e) &&
                 e is AdditionalParametersType parameters)
             {
                 foreach (KeyValuePair ii in parameters.Parameters)
                 {
-                    if (ii.Key == "ECDHKey")
+                    if (ii.Key == AdditionalParameterNames.Padding)
+                    {
+                        ByteString padding = ii.Value.GetByteString(default);
+
+                        if (ii.Value.TypeInfo != TypeInfo.Scalars.ByteString || padding.IsEmpty)
+                        {
+                            m_logger.LogWarning(
+                                "Server returned invalid message padding. Ignored.");
+                        }
+                        else if (padding.Length > 128)
+                        {
+                            m_logger.LogWarning(
+                                "Server returned a {Size}byte message padding that is too long. Ignored.",
+                                padding.Length);
+                        }
+                        else
+                        {
+                            m_logger.LogWarning("Ignoring Padding with {Length} Bytes", padding.Length);
+                        }
+
+                        continue;
+                    }
+
+                    if (ii.Key == AdditionalParameterNames.ECDHKey)
                     {
                         if (ii.Value.TypeInfo == TypeInfo.Scalars.StatusCode)
                         {
@@ -4840,7 +4596,21 @@ namespace Opc.Ua.Client
                                 "Server did not provide a valid ECDHKey. User authentication not possible.");
                         }
 
-                        if (!EccUtils.Verify(
+                        if (key.PublicKey.IsEmpty || key.Signature.IsEmpty)
+                        {
+                            throw new ServiceResultException(
+                                StatusCodes.BadDecodingError,
+                                "Server did not provide a valid ECDHKey. User authentication not possible.");
+                        }
+
+                        if (serverCertificate == null || m_userTokenSecurityPolicyUri == null)
+                        {
+                            throw new ServiceResultException(
+                                StatusCodes.BadDecodingError,
+                                "Server certificate or security policy URI is not available. User authentication not possible.");
+                        }
+
+                        if (!CryptoUtils.Verify(
                                 new ArraySegment<byte>(key.PublicKey.ToArray()),
                                 key.Signature.ToArray(),
                                 serverCertificate,
@@ -4852,8 +4622,10 @@ namespace Opc.Ua.Client
                         }
 
                         m_eccServerEphemeralKey = Nonce.CreateNonce(
-                            m_userTokenSecurityPolicyUri,
+                            SecurityPolicies.GetInfo(m_userTokenSecurityPolicyUri),
                             key.PublicKey.ToArray());
+
+                        m_logger.LogWarning("Updating ServerEphemeralKey: {Key} bytes", m_eccServerEphemeralKey.Data?.Length ?? 0);
                     }
                 }
             }
@@ -4887,12 +4659,12 @@ namespace Opc.Ua.Client
         /// <summary>
         /// The Instance Certificate.
         /// </summary>
-        protected X509Certificate2? m_instanceCertificate;
+        protected Certificate? m_instanceCertificate;
 
         /// <summary>
         /// The Instance Certificate Chain.
         /// </summary>
-        protected X509Certificate2Collection? m_instanceCertificateChain;
+        protected CertificateCollection? m_instanceCertificateChain;
 
         /// <summary>
         /// The session telemetry context
@@ -4923,42 +4695,49 @@ namespace Opc.Ua.Client
         /// Time in milliseconds added to <see cref="m_keepAliveInterval"/> before <see cref="KeepAliveStopped"/> is set to true
         /// </summary>
         protected int m_keepAliveGuardBand = 1000;
-        private List<SubscriptionAcknowledgement> m_acknowledgementsToSend = [];
-        private readonly object m_acknowledgementsToSendLock = new();
-#if DEBUG_SEQUENTIALPUBLISHING
-        private Dictionary<uint, uint> m_latestAcknowledgementsSent = [];
-#endif
+
         private readonly Lock m_lock = new();
         private readonly List<Subscription> m_subscriptions = [];
         private uint m_maxRequestMessageSize;
         private readonly SessionSystemContext m_systemContext;
+#pragma warning disable CA2213 // Disposed in DisposeAsyncCore/Dispose
         private readonly NodeCache m_nodeCache;
+#pragma warning restore CA2213
         private readonly List<IUserIdentity> m_identityHistory = [];
+        private byte[]? m_clientNonce;
         private ByteString m_serverNonce;
         private ByteString m_previousServerNonce;
-        private X509Certificate2? m_serverCertificate;
-        private uint m_publishCounter;
-        private int m_tooManyPublishRequests;
+#pragma warning disable CA2213 // Disposed in Dispose method (m_serverCertificate?.Dispose() in cleanup path)
+        private Certificate? m_serverCertificate;
+#pragma warning restore CA2213
         private long m_lastKeepAliveTime;
         private StatusCode m_lastKeepAliveErrorStatusCode;
         private ServerState m_serverState;
         private int m_keepAliveInterval;
+#pragma warning disable CA2213 // Disposed in DisposeAsyncCore/Dispose
         private readonly Timer m_keepAliveTimer;
+#pragma warning restore CA2213
         private readonly AsyncAutoResetEvent m_keepAliveEvent = new();
         private uint m_keepAliveCounter;
         private Task? m_keepAliveWorker;
         private bool m_inKeepAliveCallback;
+#pragma warning disable CA2213 // Disposed in DisposeAsyncCore/Dispose
         private CancellationTokenSource? m_keepAliveCancellation;
         private readonly SemaphoreSlim m_reconnectLock = new(1, 1);
-        private int m_minPublishRequestCount;
-        private int m_maxPublishRequestCount;
+#pragma warning restore CA2213
         private readonly LinkedList<AsyncRequestState> m_outstandingRequests = [];
         private string? m_userTokenSecurityPolicyUri;
+#pragma warning disable CA2213 // Disposed in DisposeAsyncCore/Dispose
         private Nonce? m_eccServerEphemeralKey;
+#pragma warning restore CA2213
         private Subscription? m_defaultSubscription;
+        private bool m_disposeAsyncCalled;
         private readonly ArrayOf<EndpointDescription> m_discoveryServerEndpoints;
         private readonly ArrayOf<string> m_discoveryProfileUris;
         private new readonly ILogger m_logger;
+#pragma warning disable CA2213 // Disposed in DisposeAsyncCore/Dispose
+        private readonly ISubscriptionEngine m_engine;
+#pragma warning restore CA2213
 
         private sealed class AsyncRequestState : IDisposable
         {

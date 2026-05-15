@@ -91,9 +91,16 @@ namespace Opc.Ua.Gds.Tests
             }
             if (m_server != null)
             {
-                await m_server.StopServerAsync().ConfigureAwait(false);
+                await m_server.DisposeAsync().ConfigureAwait(false);
                 m_server = null;
             }
+        }
+
+        [Test]
+        public void ServerRegistersGdsEncodeableTypesOnStartup()
+        {
+            Assert.That(m_server.Server.MessageContext.Factory.ContainsEncodeableType(
+                DataTypeIds.ApplicationRecordDataType), Is.True);
         }
 
         [Test]
@@ -162,7 +169,7 @@ namespace Opc.Ua.Gds.Tests
 
                 // The default application group has a well-known NodeId (predefined in the GDS NodeSet)
                 // The custom group has a dynamically generated NodeId outside that namespace
-                NodeId defaultGroupId = ExpandedNodeId.ToNodeId(
+                var defaultGroupId = ExpandedNodeId.ToNodeId(
                     ObjectIds.Directory_CertificateGroups_DefaultApplicationGroup,
                     m_gdsClient.GDSClient.Session.NamespaceUris);
 

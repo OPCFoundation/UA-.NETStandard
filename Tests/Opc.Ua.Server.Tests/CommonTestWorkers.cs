@@ -249,7 +249,7 @@ namespace Opc.Ua.Server.Tests
                         requestHeader,
                         null,
                         0,
-                        ArrayOf<BrowseDescription>.Empty).ConfigureAwait(false));
+                        []).ConfigureAwait(false));
                 Assert.That(sre.StatusCode, Is.EqualTo(StatusCodes.BadNothingToDo));
             }
 
@@ -592,7 +592,7 @@ namespace Opc.Ua.Server.Tests
                 publishResponse.ResponseHeader.StringTable,
                 services.Logger);
             Assert.That(publishResponse.SubscriptionId, Is.EqualTo(id));
-            Assert.That(publishResponse.AvailableSequenceNumbers.Count, Is.EqualTo(0));
+            Assert.That(publishResponse.AvailableSequenceNumbers.Count, Is.Zero);
 
             // enable publishing
             enabled = true;
@@ -634,9 +634,9 @@ namespace Opc.Ua.Server.Tests
                 else
                 {
                     DataChangeNotification dataChangeNotification = publishResponse.NotificationMessage.NotificationData[0]
-                        .TryGetEncodeable(out DataChangeNotification d) ? d : default;
+                        .TryGetValue(out DataChangeNotification d) ? d : default;
                     EventNotificationList eventNotification = publishResponse.NotificationMessage.NotificationData[0]
-                        .TryGetEncodeable(out EventNotificationList e) ? e : default;
+                        .TryGetValue(out EventNotificationList e) ? e : default;
                     TestContext.Out.WriteLine(
                         "Notification: {0} {1}",
                         publishResponse.NotificationMessage.SequenceNumber,
@@ -834,7 +834,7 @@ namespace Opc.Ua.Server.Tests
             if (sendInitialData)
             {
                 ExtensionObject items = publishResponse.NotificationMessage.NotificationData[0];
-                Assert.That(items.TryGetEncodeable(out DataChangeNotification dataChangeNotification), Is.True);
+                Assert.That(items.TryGetValue(out DataChangeNotification dataChangeNotification), Is.True);
                 ArrayOf<MonitoredItemNotification> monitoredItemsCollection = dataChangeNotification.MonitoredItems;
                 Assert.That(monitoredItemsCollection.IsEmpty, Is.False);
             }
@@ -872,14 +872,15 @@ namespace Opc.Ua.Server.Tests
                 publishResponse.ResponseHeader.StringTable,
                 services.Logger);
             Assert.That(publishResponse.MoreNotifications, Is.False);
-            Assert.That(subscriptionIds.ToArray().Contains(publishResponse.SubscriptionId), Is.True);
+            Assert.That(subscriptionIds.ToArray(), Does.Contain(publishResponse.SubscriptionId));
             Assert.That(publishResponse.NotificationMessage.NotificationData.Count, Is.EqualTo(1));
             string statusMessage = publishResponse.NotificationMessage.NotificationData[0].ToString();
             // Should contain GoodSubscriptionTransferred status code
-            Assert.That(statusMessage, Is.EqualTo("{GoodSubscriptionTransferred [0x002D0000] | }"));
+            Assert.That(statusMessage, Does.StartWith("StatusChangeNotification"));
+            Assert.That(statusMessage, Does.Contain("Status=GoodSubscriptionTransferred"));
 
             // static node, do not acknowledge
-            Assert.That(publishResponse.AvailableSequenceNumbers.Count, Is.EqualTo(0));
+            Assert.That(publishResponse.AvailableSequenceNumbers.Count, Is.Zero);
 
             if (deleteSubscriptions)
             {

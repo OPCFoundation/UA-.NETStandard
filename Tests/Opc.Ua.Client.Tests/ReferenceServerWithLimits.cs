@@ -29,10 +29,10 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Security.Cryptography.X509Certificates;
-using Microsoft.Extensions.Logging;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
+using Opc.Ua.Security.Certificates;
 using Opc.Ua.Server;
 using Quickstarts.ReferenceServer;
 
@@ -110,17 +110,15 @@ namespace Opc.Ua.Client.Tests
                 Utils.TraceMasks.StartStop,
                 "Creating the Reference Server Node Manager.");
 
-            var asyncNodeManagers = new List<IAsyncNodeManager>();
             var nodeManagers = new List<INodeManager>();
 
-            asyncNodeManagers =
-                [
-                    // create the custom node manager.
-                    new ReferenceNodeManager(
-                        server,
-                        configuration
-                        )
-                ];
+            // create the custom node manager (ownership transfers to MasterNodeManager).
+#pragma warning disable CA2000 // Dispose objects before losing scope - ownership transfers to MasterNodeManagerWithLimits
+            var referenceNodeManager = new ReferenceNodeManager(
+                server,
+                configuration);
+#pragma warning restore CA2000
+            List<IAsyncNodeManager> asyncNodeManagers = [referenceNodeManager];
 
             foreach (INodeManagerFactory nodeManagerFactory in NodeManagerFactories)
             {
@@ -155,15 +153,15 @@ namespace Opc.Ua.Client.Tests
         public ServerSessionWithLimits(
             OperationContext context,
             IServerInternal server,
-            X509Certificate2 serverCertificate,
+            Certificate serverCertificate,
             NodeId authenticationToken,
             ByteString clientNonce,
             Nonce serverNonce,
             string sessionName,
             ApplicationDescription clientDescription,
             string endpointUrl,
-            X509Certificate2 clientCertificate,
-            X509Certificate2Collection clientCertificateChain,
+            Certificate clientCertificate,
+            CertificateCollection clientCertificateChain,
             double sessionTimeout,
             uint maxResponseMessageSize,
             double maxRequestAge,
@@ -222,15 +220,15 @@ namespace Opc.Ua.Client.Tests
         protected override Server.ISession CreateSession(
             OperationContext context,
             IServerInternal server,
-            X509Certificate2 serverCertificate,
+            Certificate serverCertificate,
             NodeId sessionCookie,
             ByteString clientNonce,
             Nonce serverNonce,
             string sessionName,
             ApplicationDescription clientDescription,
             string endpointUrl,
-            X509Certificate2 clientCertificate,
-            X509Certificate2Collection clientCertificateChain,
+            Certificate clientCertificate,
+            CertificateCollection clientCertificateChain,
             double sessionTimeout,
             uint maxResponseMessageSize,
             int maxRequestAge, // TBD - Remove unused parameter.
@@ -346,7 +344,7 @@ namespace Opc.Ua.Client.Tests
                     // release all allocated continuation points.
                     foreach (BrowseResult current in results)
                     {
-                        if (current != null && current.ContinuationPoint.Length > 0)
+                        if (current != null && !current.ContinuationPoint.IsEmpty)
                         {
                             ContinuationPoint cp = context.Session
                                 .RestoreContinuationPoint(current.ContinuationPoint);
@@ -387,7 +385,7 @@ namespace Opc.Ua.Client.Tests
                 }
 
                 // check for continuation point.
-                if (result.ContinuationPoint.Length > 0)
+                if (!result.ContinuationPoint.IsEmpty)
                 {
                     continuationPointsAssigned++;
                 }

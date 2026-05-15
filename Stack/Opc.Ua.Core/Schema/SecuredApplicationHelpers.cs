@@ -29,10 +29,10 @@
 
 using System;
 using System.Collections.Generic;
-using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Security
 {
@@ -178,11 +178,11 @@ namespace Opc.Ua.Security
         /// <summary>
         /// Creates a CertificateList object.
         /// </summary>
-        public static CertificateList ToCertificateList(CertificateIdentifierCollection input)
+        public static CertificateList ToCertificateList(ArrayOf<Ua.CertificateIdentifier> input)
         {
             var output = new CertificateList();
 
-            if (input != null)
+            if (!input.IsEmpty)
             {
                 output.ValidationOptions = 0;
                 output.Certificates = [];
@@ -197,11 +197,11 @@ namespace Opc.Ua.Security
         }
 
         /// <summary>
-        /// Creates a CertificateIdentifierCollection object.
+        /// Creates an ArrayOf&lt;CertificateIdentifier&gt; object.
         /// </summary>
-        public static CertificateIdentifierCollection FromCertificateList(CertificateList input)
+        public static ArrayOf<Ua.CertificateIdentifier> FromCertificateList(CertificateList input)
         {
-            var output = new CertificateIdentifierCollection();
+            var output = new List<Ua.CertificateIdentifier>();
 
             if (input != null && input.Certificates != null)
             {
@@ -211,7 +211,7 @@ namespace Opc.Ua.Security
                 }
             }
 
-            return output;
+            return output.ToArrayOf();
         }
 
         /// <summary>
@@ -284,7 +284,7 @@ namespace Opc.Ua.Security
         /// Creates a ListOfSecurityProfiles object.
         /// </summary>
         public static ListOfSecurityProfiles ToListOfSecurityProfiles(
-            ServerSecurityPolicyCollection policies)
+            ArrayOf<ServerSecurityPolicy> policies)
         {
             var profiles = new ListOfSecurityProfiles
             {
@@ -296,7 +296,7 @@ namespace Opc.Ua.Security
                 CreateProfile(SecurityPolicies.Aes256_Sha256_RsaPss)
             };
 
-            if (policies != null)
+            if (!policies.IsEmpty)
             {
                 for (int ii = 0; ii < policies.Count; ii++)
                 {
@@ -314,12 +314,12 @@ namespace Opc.Ua.Security
         }
 
         /// <summary>
-        /// Creates a ServerSecurityPolicyCollection object.
+        /// Creates an ArrayOf&lt;ServerSecurityPolicy&gt; object.
         /// </summary>
-        public static ServerSecurityPolicyCollection FromListOfSecurityProfiles(
+        public static ArrayOf<ServerSecurityPolicy> FromListOfSecurityProfiles(
             ListOfSecurityProfiles profiles)
         {
-            var policies = new ServerSecurityPolicyCollection();
+            var policies = new List<ServerSecurityPolicy>();
 
             if (profiles != null)
             {
@@ -337,7 +337,7 @@ namespace Opc.Ua.Security
                 policies.Add(CreatePolicy(SecurityPolicies.None));
             }
 
-            return policies;
+            return policies.ToArrayOf();
         }
 
         /// <summary>
@@ -378,7 +378,21 @@ namespace Opc.Ua.Security
                     break;
                 case SecurityPolicies.Basic256:
                     logger.LogWarning(
-                        "Deprecated Security Policy Basic256 requested - Not rcommended.");
+                        "Deprecated Security Policy Basic256 requested - Not recommended.");
+                    result = 4;
+                    break;
+                case SecurityPolicies.ECC_nistP256:
+                case SecurityPolicies.ECC_nistP384:
+                    logger.LogWarning(
+                        "Deprecated Security Policy {PolicyUri} requested - Use ECC_nistP[256/384]_AES.",
+                        policyUri);
+                    result = 4;
+                    break;
+                case SecurityPolicies.ECC_brainpoolP256r1:
+                case SecurityPolicies.ECC_brainpoolP384r1:
+                    logger.LogWarning(
+                        "Deprecated Security Policy {PolicyUri} requested - Use ECC_brainpoolP[256/384]r1_AES.",
+                        policyUri);
                     result = 4;
                     break;
                 case SecurityPolicies.Basic256Sha256:
@@ -390,16 +404,18 @@ namespace Opc.Ua.Security
                 case SecurityPolicies.Aes256_Sha256_RsaPss:
                     result = 10;
                     break;
-                case SecurityPolicies.ECC_brainpoolP256r1:
-                    result = 11;
-                    break;
-                case SecurityPolicies.ECC_nistP256:
+                case SecurityPolicies.RSA_DH_AesGcm:
+                case SecurityPolicies.RSA_DH_ChaChaPoly:
+                case SecurityPolicies.ECC_brainpoolP256r1_AesGcm:
+                case SecurityPolicies.ECC_brainpoolP256r1_ChaChaPoly:
+                case SecurityPolicies.ECC_nistP256_AesGcm:
+                case SecurityPolicies.ECC_nistP256_ChaChaPoly:
                     result = 12;
                     break;
-                case SecurityPolicies.ECC_brainpoolP384r1:
-                    result = 13;
-                    break;
-                case SecurityPolicies.ECC_nistP384:
+                case SecurityPolicies.ECC_nistP384_AesGcm:
+                case SecurityPolicies.ECC_nistP384_ChaChaPoly:
+                case SecurityPolicies.ECC_brainpoolP384r1_AesGcm:
+                case SecurityPolicies.ECC_brainpoolP384r1_ChaChaPoly:
                     result = 14;
                     break;
                 case SecurityPolicies.None:
@@ -458,7 +474,7 @@ namespace Opc.Ua.Security
         /// Gets the certificate associated with the identifier.
         /// </summary>
         [Obsolete("Use FindAsync()")]
-        public Task<X509Certificate2> Find()
+        public Task<Certificate> Find()
         {
             return FindAsync(null);
         }
@@ -466,19 +482,25 @@ namespace Opc.Ua.Security
         /// <summary>
         /// Gets the certificate associated with the identifier.
         /// </summary>
-        public Task<X509Certificate2> FindAsync(
+        public Task<Certificate> FindAsync(
             ITelemetryContext telemetry,
             CancellationToken ct = default)
         {
             Ua.CertificateIdentifier output = SecuredApplication.FromCertificateIdentifier(this);
-            return output.FindAsync(false, telemetry: telemetry, ct: ct);
+            return CertificateIdentifierResolver.ResolveAsync(
+                output,
+                registry: null,
+                needPrivateKey: false,
+                applicationUri: null,
+                telemetry,
+                ct);
         }
 
         /// <summary>
         /// Gets the certificate associated with the identifier.
         /// </summary>
         [Obsolete("Use FindAsync(needPrivateKey)")]
-        public Task<X509Certificate2> Find(bool needPrivateKey)
+        public Task<Certificate> Find(bool needPrivateKey)
         {
             return FindAsync(needPrivateKey, null);
         }
@@ -486,13 +508,19 @@ namespace Opc.Ua.Security
         /// <summary>
         /// Gets the certificate associated with the identifier.
         /// </summary>
-        public Task<X509Certificate2> FindAsync(
+        public Task<Certificate> FindAsync(
             bool needPrivateKey,
             ITelemetryContext telemetry,
             CancellationToken ct = default)
         {
             Ua.CertificateIdentifier output = SecuredApplication.FromCertificateIdentifier(this);
-            return output.FindAsync(needPrivateKey, telemetry: telemetry, ct: ct);
+            return CertificateIdentifierResolver.ResolveAsync(
+                output,
+                registry: null,
+                needPrivateKey,
+                applicationUri: null,
+                telemetry,
+                ct);
         }
 
         /// <summary>
@@ -501,7 +529,7 @@ namespace Opc.Ua.Security
         public ICertificateStore OpenStore(ITelemetryContext telemetry)
         {
             Ua.CertificateIdentifier output = SecuredApplication.FromCertificateIdentifier(this);
-            return output.OpenStore(telemetry);
+            return CertificateIdentifierResolver.OpenStore(output, telemetry);
         }
     }
 

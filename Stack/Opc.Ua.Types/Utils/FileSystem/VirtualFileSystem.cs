@@ -391,9 +391,13 @@ namespace Opc.Ua
                 /// <inheritdoc/>
                 protected override void Dispose(bool disposing)
                 {
-                    if (disposing && CanWrite)
+                    if (disposing)
                     {
-                        m_file.Length = m_stream.Position;
+                        if (CanWrite)
+                        {
+                            m_file.Length = m_stream.Position;
+                        }
+                        m_stream?.Dispose();
                     }
                     base.Dispose(disposing);
                 }
@@ -477,7 +481,10 @@ namespace Opc.Ua
                     m_file.LastWrite = DateTime.UtcNow;
                 }
 
+                // m_file is not owned by this stream; it is owned by VirtualFileSystem
+#pragma warning disable CA2213
                 private readonly VirtualFile m_file;
+#pragma warning restore CA2213
                 private readonly Stream m_stream;
             }
         }

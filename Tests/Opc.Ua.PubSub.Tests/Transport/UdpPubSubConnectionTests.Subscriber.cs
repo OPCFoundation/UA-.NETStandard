@@ -27,6 +27,9 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+// CA2000: test code; many disposables are ownership-transferred to test fixtures or short-lived,
+// making CA2000 noisy without a real leak risk. Disabled file-level for the suite.
+#pragma warning disable CA2000
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -77,7 +80,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                     localhost.Address.ToString())
             };
             subscriberConfiguration.Connections[0].Address = new ExtensionObject(subscriberAddress);
-            UaPubSubApplication subscriberApplication = UaPubSubApplication.Create(
+            using var subscriberApplication = UaPubSubApplication.Create(
                 subscriberConfiguration,
                 m_messageContext.Telemetry);
             Assert.That(subscriberApplication, Is.Not.Null, "subscriberApplication is null");
@@ -105,7 +108,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                     localhost.Address.ToString())
             };
             publisherConfiguration.Connections[0].Address = new ExtensionObject(publisherAddress);
-            UaPubSubApplication publisherApplication = UaPubSubApplication.Create(
+            using var publisherApplication = UaPubSubApplication.Create(
                 publisherConfiguration,
                 m_messageContext.Telemetry);
             Assert.That(publisherApplication, Is.Not.Null, "publisherApplication is null");
@@ -134,8 +137,8 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 m_sentBytes.Length,
                 remoteEndPoint);
             Assert.That(
-                m_sentBytes.Length,
-                Is.EqualTo(sentBytesLen),
+                m_sentBytes,
+                Has.Length.EqualTo(sentBytesLen),
                 "Sent bytes size not equal to published bytes size!");
 
             Thread.Sleep(kEstimatedPublishingTime);
@@ -181,7 +184,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                     localhost.Address.ToString())
             };
             subscriberConfiguration.Connections[0].Address = new ExtensionObject(subscriberAddress);
-            UaPubSubApplication subscriberApplication = UaPubSubApplication.Create(
+            using var subscriberApplication = UaPubSubApplication.Create(
                 subscriberConfiguration,
                 m_messageContext.Telemetry);
             Assert.That(subscriberApplication, Is.Not.Null, "subscriberApplication is null");
@@ -212,7 +215,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                     broadcastIPAddress.ToString())
             };
             publisherConfiguration.Connections[0].Address = new ExtensionObject(publisherAddress);
-            UaPubSubApplication publisherApplication = UaPubSubApplication.Create(
+            using var publisherApplication = UaPubSubApplication.Create(
                 publisherConfiguration,
                 m_messageContext.Telemetry);
             Assert.That(publisherApplication, Is.Not.Null, "publisherApplication is null");
@@ -239,8 +242,8 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 m_sentBytes.Length,
                 remoteEndPoint);
             Assert.That(
-                m_sentBytes.Length,
-                Is.EqualTo(sentBytesLen),
+                m_sentBytes,
+                Has.Length.EqualTo(sentBytesLen),
                 "Sent bytes size not equal to published bytes size!");
 
             Thread.Sleep(kEstimatedPublishingTime);
@@ -291,7 +294,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                     multicastIPAddress.ToString())
             };
             subscriberConfiguration.Connections[0].Address = new ExtensionObject(subscriberAddress);
-            UaPubSubApplication subscriberApplication = UaPubSubApplication.Create(
+            using var subscriberApplication = UaPubSubApplication.Create(
                 subscriberConfiguration,
                 m_messageContext.Telemetry);
             Assert.That(subscriberApplication, Is.Not.Null, "subscriberApplication is null");
@@ -319,7 +322,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                     multicastIPAddress.ToString())
             };
             publisherConfiguration.Connections[0].Address = new ExtensionObject(publisherAddress);
-            UaPubSubApplication publisherApplication = UaPubSubApplication.Create(
+            using var publisherApplication = UaPubSubApplication.Create(
                 publisherConfiguration,
                 m_messageContext.Telemetry);
             Assert.That(publisherApplication, Is.Not.Null, "publisherApplication is null");
@@ -346,8 +349,8 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 m_sentBytes.Length,
                 remoteEndPoint);
             Assert.That(
-                m_sentBytes.Length,
-                Is.EqualTo(sentBytesLen),
+                m_sentBytes,
+                Has.Length.EqualTo(sentBytesLen),
                 "Sent bytes size not equal to published bytes size!");
 
             Thread.Sleep(kEstimatedPublishingTime);
@@ -403,7 +406,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                     multicastIPAddress.ToString())
             };
             subscriberConfiguration.Connections[0].Address = new ExtensionObject(subscriberAddress);
-            UaPubSubApplication subscriberApplication = UaPubSubApplication.Create(
+            using var subscriberApplication = UaPubSubApplication.Create(
                 subscriberConfiguration,
                 m_messageContext.Telemetry);
             Assert.That(subscriberApplication, Is.Not.Null, "subscriberApplication is null");
@@ -435,7 +438,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                     multicastIPAddress.ToString())
             };
             publisherConfiguration.Connections[0].Address = new ExtensionObject(publisherAddress);
-            UaPubSubApplication publisherApplication = UaPubSubApplication.Create(
+            using var publisherApplication = UaPubSubApplication.Create(
                 publisherConfiguration,
                 m_messageContext.Telemetry);
             Assert.That(publisherApplication, Is.Not.Null, "publisherApplication is null");
@@ -493,8 +496,8 @@ namespace Opc.Ua.PubSub.Tests.Transport
             subscriberApplication.RaiseMetaDataReceivedEvent(subscribedDataEventArgs);
 
             Assert.That(
-                m_sentBytes.Length,
-                Is.EqualTo(sentBytesLen),
+                m_sentBytes,
+                Has.Length.EqualTo(sentBytesLen),
                 "Sent bytes size not equal to published bytes size!");
 
             Thread.Sleep(kEstimatedPublishingTime);
@@ -549,7 +552,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                     multicastIPAddress.ToString())
             };
             subscriberConfiguration.Connections[0].Address = new ExtensionObject(subscriberAddress);
-            UaPubSubApplication subscriberApplication = UaPubSubApplication.Create(
+            using var subscriberApplication = UaPubSubApplication.Create(
                 subscriberConfiguration,
                 m_messageContext.Telemetry);
             Assert.That(subscriberApplication, Is.Not.Null, "subscriberApplication is null");
@@ -581,7 +584,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                     multicastIPAddress.ToString())
             };
             publisherConfiguration.Connections[0].Address = new ExtensionObject(publisherAddress);
-            UaPubSubApplication publisherApplication = UaPubSubApplication.Create(
+            using var publisherApplication = UaPubSubApplication.Create(
                 publisherConfiguration,
                 m_messageContext.Telemetry);
             Assert.That(publisherApplication, Is.Not.Null, "publisherApplication is null");
@@ -610,8 +613,8 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 remoteEndPoint);
 
             Assert.That(
-                m_sentBytes.Length,
-                Is.EqualTo(sentBytesLen),
+                m_sentBytes,
+                Has.Length.EqualTo(sentBytesLen),
                 "Sent bytes size not equal to published bytes size!");
 
             Thread.Sleep(kEstimatedPublishingTime);
@@ -667,7 +670,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                     multicastIPAddress.ToString())
             };
             subscriberConfiguration.Connections[0].Address = new ExtensionObject(subscriberAddress);
-            UaPubSubApplication subscriberApplication = UaPubSubApplication.Create(
+            using var subscriberApplication = UaPubSubApplication.Create(
                 subscriberConfiguration,
                 m_messageContext.Telemetry);
             Assert.That(subscriberApplication, Is.Not.Null, "subscriberApplication is null");
@@ -696,7 +699,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                     multicastIPAddress.ToString())
             };
             publisherConfiguration.Connections[0].Address = new ExtensionObject(publisherAddress);
-            UaPubSubApplication publisherApplication = UaPubSubApplication.Create(
+            using var publisherApplication = UaPubSubApplication.Create(
                 publisherConfiguration,
                 m_messageContext.Telemetry);
             Assert.That(publisherApplication, Is.Not.Null, "publisherApplication is null");
@@ -774,7 +777,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                     multicastIPAddress.ToString())
             };
             subscriberConfiguration.Connections[0].Address = new ExtensionObject(subscriberAddress);
-            UaPubSubApplication subscriberApplication = UaPubSubApplication.Create(
+            using var subscriberApplication = UaPubSubApplication.Create(
                 subscriberConfiguration,
                 m_messageContext.Telemetry);
             Assert.That(subscriberApplication, Is.Not.Null, "subscriberApplication is null");
@@ -802,7 +805,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                     multicastIPAddress.ToString())
             };
             publisherConfiguration.Connections[0].Address = new ExtensionObject(publisherAddress);
-            UaPubSubApplication publisherApplication = UaPubSubApplication.Create(
+            using var publisherApplication = UaPubSubApplication.Create(
                 publisherConfiguration,
                 m_messageContext.Telemetry);
             Assert.That(publisherApplication, Is.Not.Null, "publisherApplication is null");
@@ -878,7 +881,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                     multicastIPAddress.ToString())
             };
             subscriberConfiguration.Connections[0].Address = new ExtensionObject(subscriberAddress);
-            UaPubSubApplication subscriberApplication = UaPubSubApplication.Create(
+            using var subscriberApplication = UaPubSubApplication.Create(
                 subscriberConfiguration,
                 m_messageContext.Telemetry);
             Assert.That(subscriberApplication, Is.Not.Null, "subscriberApplication is null");
@@ -906,7 +909,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                     multicastIPAddress.ToString())
             };
             publisherConfiguration.Connections[0].Address = new ExtensionObject(publisherAddress);
-            UaPubSubApplication publisherApplication = UaPubSubApplication.Create(
+            using var publisherApplication = UaPubSubApplication.Create(
                 publisherConfiguration,
                 m_messageContext.Telemetry);
             Assert.That(publisherApplication, Is.Not.Null, "publisherApplication is null");
@@ -939,8 +942,8 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 m_sentBytes.Length,
                 remoteEndPoint);
             Assert.That(
-                m_sentBytes.Length,
-                Is.EqualTo(sentBytesLen),
+                m_sentBytes,
+                Has.Length.EqualTo(sentBytesLen),
                 "Sent bytes size not equal to published bytes size!");
 
             Thread.Sleep(kEstimatedPublishingTime);
@@ -978,8 +981,8 @@ namespace Opc.Ua.PubSub.Tests.Transport
 
                 byte[] bytes = e.Message;
                 Assert.That(
-                    bytes.Length,
-                    Is.EqualTo(m_sentBytes.Length),
+                    bytes,
+                    Has.Length.EqualTo(m_sentBytes.Length),
                     $"Sent bytes size: {m_sentBytes.Length} does not match received bytes size: {bytes.Length}");
 
                 string sentBytesStr = BitConverter.ToString(m_sentBytes);
@@ -1019,8 +1022,8 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 if (bytes.Length > 12)
                 {
                     Assert.That(
-                        bytes.Length,
-                        Is.EqualTo(m_sentBytes.Length),
+                        bytes,
+                        Has.Length.EqualTo(m_sentBytes.Length),
                         $"Sent bytes size: {m_sentBytes.Length} does not match received bytes size: {bytes.Length}");
 
                     string sentBytesStr = BitConverter.ToString(m_sentBytes);
@@ -1130,8 +1133,8 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 Assert.That(networkMessages, Is.Not.Null, "CreateNetworkMessages returned null");
 
                 Assert.That(
-                    networkMessages.Count,
-                    Is.GreaterThan(networkMessageIndex),
+                    networkMessages,
+                    Has.Count.GreaterThan(networkMessageIndex),
                     "networkMessageIndex is outside of bounds");
 
                 UaNetworkMessage message = networkMessages[networkMessageIndex];

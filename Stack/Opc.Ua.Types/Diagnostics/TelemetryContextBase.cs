@@ -29,6 +29,7 @@
 
 #nullable enable
 
+using System;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Diagnostics.Metrics;
@@ -71,7 +72,16 @@ namespace Opc.Ua
 
         private static (string, string) GetAssemblyInfo()
         {
-            return s_cache.GetOrAdd(Assembly.GetCallingAssembly(), GetAssemblyInfoCore);
+            Assembly assembly;
+            try
+            {
+                assembly = Assembly.GetCallingAssembly();
+            }
+            catch (PlatformNotSupportedException)
+            {
+                assembly = typeof(TelemetryContextBase).Assembly;
+            }
+            return s_cache.GetOrAdd(assembly, GetAssemblyInfoCore);
             static (string, string) GetAssemblyInfoCore(Assembly assembly)
             {
                 string version = assembly

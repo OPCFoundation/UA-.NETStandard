@@ -61,8 +61,6 @@ namespace Opc.Ua.Types
 
         public const string DefaultInstanceBrowseName = "DefaultInstanceBrowseName";
 
-        public const string DefaultJson = "Default JSON";
-
         public const string DefaultXml = "Default XML";
 
         public const string Double = "Double";

@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ApplicationConfiguration xmlns="http://opcfoundation.org/UA/SDK/Configuration.xsd">
+  <ApplicationName>Modern Test</ApplicationName>
+  <ApplicationUri>urn:localhost:moderntest</ApplicationUri>
+  <ProductUri>http://test.org/modern</ProductUri>
+  <ApplicationType>Server_0</ApplicationType>
+  <SecurityConfiguration>
+    <ApplicationCertificates>
+      <CertificateIdentifier>
+        <StoreType>Directory</StoreType>
+        <StorePath>%LocalApplicationData%/OPC/modern</StorePath>
+        <SubjectName>CN=Modern RSA, O=Test</SubjectName>
+        <CertificateTypeString>RsaSha256</CertificateTypeString>
+      </CertificateIdentifier>
+      <CertificateIdentifier>
+        <StoreType>Directory</StoreType>
+        <StorePath>%LocalApplicationData%/OPC/modern</StorePath>
+        <SubjectName>CN=Modern ECC, O=Test</SubjectName>
+        <CertificateTypeString>NistP256</CertificateTypeString>
+      </CertificateIdentifier>
+    </ApplicationCertificates>
+    <TrustedIssuerCertificates>
+      <StoreType>Directory</StoreType>
+      <StorePath>%LocalApplicationData%/OPC/issuers</StorePath>
+    </TrustedIssuerCertificates>
+    <TrustedPeerCertificates>
+      <StoreType>Directory</StoreType>
+      <StorePath>%LocalApplicationData%/OPC/trusted</StorePath>
+      <TrustedCertificates>
+        <CertificateIdentifier>
+          <StoreType>Directory</StoreType>
+          <StorePath>%LocalApplicationData%/OPC/trusted/certs</StorePath>
+          <SubjectName>CN=Trusted Peer, O=Test</SubjectName>
+        </CertificateIdentifier>
+      </TrustedCertificates>
+    </TrustedPeerCertificates>
+    <UserIssuerCertificates>
+      <StoreType>Directory</StoreType>
+      <StorePath>%LocalApplicationData%/OPC/user-issuers</StorePath>
+    </UserIssuerCertificates>
+    <TrustedUserCertificates>
+      <StoreType>Directory</StoreType>
+      <StorePath>%LocalApplicationData%/OPC/user-trusted</StorePath>
+    </TrustedUserCertificates>
+    <HttpsIssuerCertificates>
+      <StoreType>Directory</StoreType>
+      <StorePath>%LocalApplicationData%/OPC/https-issuers</StorePath>
+    </HttpsIssuerCertificates>
+    <TrustedHttpsCertificates>
+      <StoreType>Directory</StoreType>
+      <StorePath>%LocalApplicationData%/OPC/https-trusted</StorePath>
+    </TrustedHttpsCertificates>
+    <NonceLength>32</NonceLength>
+    <AutoAcceptUntrustedCertificates>false</AutoAcceptUntrustedCertificates>
+    <RejectSHA1SignedCertificates>true</RejectSHA1SignedCertificates>
+    <RejectUnknownRevocationStatus>true</RejectUnknownRevocationStatus>
+    <MinimumCertificateKeySize>2048</MinimumCertificateKeySize>
+    <SendCertificateChain>true</SendCertificateChain>
+    <AddAppCertToTrustedStore>false</AddAppCertToTrustedStore>
+    <SuppressNonceValidationErrors>false</SuppressNonceValidationErrors>
+  </SecurityConfiguration>
+</ApplicationConfiguration>

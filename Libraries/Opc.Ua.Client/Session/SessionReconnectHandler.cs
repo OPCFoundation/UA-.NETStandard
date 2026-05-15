@@ -36,8 +36,29 @@ using Opc.Ua.Redaction;
 namespace Opc.Ua.Client
 {
     /// <summary>
-    /// Attempts to reconnect to the server.
+    /// Attempts to reconnect to the server using the legacy reconnect
+    /// flow. Operates against a raw <see cref="Session"/> (or a derived
+    /// type) by driving its <c>ReconnectAsync</c> /
+    /// <see cref="ISessionFactory.RecreateAsync(ISession, CancellationToken)"/>
+    /// pipeline directly.
     /// </summary>
+    /// <remarks>
+    /// <para>
+    /// New code should prefer <see cref="ManagedSession"/> (created via
+    /// <see cref="ManagedSessionFactory"/> or <see cref="ManagedSessionBuilder"/>),
+    /// which encapsulates connection lifecycle, reconnect, and server
+    /// redundancy failover behind an <see cref="ISession"/> facade.
+    /// </para>
+    /// <para>
+    /// <see cref="SessionReconnectHandler"/> is intentionally retained as
+    /// a supported legacy entry point for callers that already manage
+    /// <see cref="Session"/> instances directly. It does <b>not</b>
+    /// support the <see cref="ManagedSession"/> facade — passing one to
+    /// <see cref="BeginReconnect(ISession,int,EventHandler)"/> throws
+    /// <see cref="NotSupportedException"/> because the managed session
+    /// already runs its own reconnect state machine.
+    /// </para>
+    /// </remarks>
     public class SessionReconnectHandler : IDisposable
     {
         /// <summary>
@@ -216,13 +237,40 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Begins the reconnect process using a reverse connection.
         /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
+        /// <exception cref="ServiceResultException">if the handler is
+        /// already disposed.</exception>
+        /// <exception cref="NotSupportedException">if <paramref name="session"/>
+        /// is not <see langword="null"/> and is not a <see cref="Session"/>
+        /// (or a type derived from it). <see cref="ManagedSession"/> and
+        /// other facade implementations of <see cref="ISession"/> drive
+        /// their own reconnect state machine and must not be passed
+        /// here.</exception>
         public ReconnectState BeginReconnect(
             ISession session,
             ReverseConnectManager? reverseConnectManager,
             int reconnectPeriod,
             EventHandler callback)
         {
+            // The reconnect handler drives Session.ReconnectAsync /
+            // ISessionFactory.RecreateAsync directly and assumes it owns
+            // the session lifecycle. Facade sessions (e.g. ManagedSession)
+            // already run their own reconnect / failover state machine,
+            // so mixing them here would be incorrect. Allow null
+            // (cancellation) and require Session-derived instances
+            // otherwise.
+            // (Use the fully qualified type to disambiguate from the
+            // local Session property.)
+            if (session is not null and
+                not Client.Session)
+            {
+                throw new NotSupportedException(
+                    "SessionReconnectHandler only supports the legacy " +
+                    "Session class (or types derived from it). " +
+                    "ManagedSession and other ISession facades manage " +
+                    "their own reconnection — use ManagedSession / " +
+                    "ManagedSessionFactory instead.");
+            }
+
             lock (m_lock)
             {
                 if (m_reconnectTimer == null)
@@ -527,15 +575,9 @@ namespace Opc.Ua.Client
 
                         if (m_updateFromServer)
                         {
-                            ConfiguredEndpoint endpoint = current.ConfiguredEndpoint;
-                            await endpoint
-                                .UpdateFromServerAsync(
-                                    endpoint.EndpointUrl,
-                                    connection,
-                                    endpoint.Description.SecurityMode,
-                                    endpoint.Description.SecurityPolicyUri,
-                                    m_telemetry)
-                                .ConfigureAwait(false);
+                            await UpdateEndpointFromServerAsync(
+                                current.ConfiguredEndpoint,
+                                connection).ConfigureAwait(false);
                             m_updateFromServer = false;
                             connection = null;
                         }
@@ -548,14 +590,8 @@ namespace Opc.Ua.Client
                 {
                     if (m_updateFromServer)
                     {
-                        ConfiguredEndpoint endpoint = current.ConfiguredEndpoint;
-                        await endpoint
-                            .UpdateFromServerAsync(
-                                endpoint.EndpointUrl,
-                                endpoint.Description.SecurityMode,
-                                endpoint.Description.SecurityPolicyUri,
-                                m_telemetry)
-                            .ConfigureAwait(false);
+                        await UpdateEndpointFromServerAsync(
+                            current.ConfiguredEndpoint).ConfigureAwait(false);
                         m_updateFromServer = false;
                     }
                     session = transportChannel == null
@@ -600,6 +636,74 @@ namespace Opc.Ua.Client
             {
                 m_logger.LogError("Could not reconnect the Session. {ErrorMessage}", Redact.Create(exception));
                 return false;
+            }
+        }
+
+        /// <summary>
+        /// Updates the configured endpoint from the server discovery endpoint.
+        /// Falls back to the best available endpoint if the original security
+        /// configuration is no longer supported by the server.
+        /// </summary>
+        /// <param name="endpoint">The configured endpoint to update.</param>
+        /// <param name="connection">The optional transport connection for reverse connect.</param>
+        protected virtual async Task UpdateEndpointFromServerAsync(
+            ConfiguredEndpoint endpoint,
+            ITransportWaitingConnection? connection = null)
+        {
+            try
+            {
+                if (connection != null)
+                {
+                    await endpoint
+                        .UpdateFromServerAsync(
+                            endpoint.EndpointUrl,
+                            connection,
+                            endpoint.Description.SecurityMode,
+                            endpoint.Description.SecurityPolicyUri,
+                            m_telemetry)
+                        .ConfigureAwait(false);
+                }
+                else
+                {
+                    await endpoint
+                        .UpdateFromServerAsync(
+                            endpoint.EndpointUrl,
+                            endpoint.Description.SecurityMode,
+                            endpoint.Description.SecurityPolicyUri,
+                            m_telemetry)
+                        .ConfigureAwait(false);
+                }
+            }
+            catch (ServiceResultException sre) when (
+                sre.StatusCode == StatusCodes.BadSecurityPolicyRejected ||
+                sre.StatusCode == StatusCodes.BadSecurityModeRejected)
+            {
+                // The original endpoint security configuration is no longer available on the server.
+                // Fall back to the best available endpoint without security constraints.
+                m_logger.LogWarning(
+                    "Original endpoint security configuration not available on server, falling back to best available endpoint. {Message}",
+                    sre.Message);
+                if (connection != null)
+                {
+                    await endpoint
+                        .UpdateFromServerAsync(
+                            endpoint.EndpointUrl,
+                            connection,
+                            MessageSecurityMode.Invalid,
+                            null,
+                            m_telemetry)
+                        .ConfigureAwait(false);
+                }
+                else
+                {
+                    await endpoint
+                        .UpdateFromServerAsync(
+                            endpoint.EndpointUrl,
+                            MessageSecurityMode.Invalid,
+                            null,
+                            m_telemetry)
+                        .ConfigureAwait(false);
+                }
             }
         }
 

@@ -64,6 +64,46 @@ namespace Opc.Ua.SourceGeneration
         /// -rc
         /// </summary>
         public bool ReleaseCandidate { get; init; } = true;
+
+        /// <summary>
+        /// When <c>true</c>, also emits a <c>{Namespace}NodeManager</c>
+        /// (a <c>partial class</c> deriving from
+        /// <c>Opc.Ua.Server.AsyncCustomNodeManager</c>) and a matching
+        /// <c>{Namespace}NodeManagerFactory</c> implementing
+        /// <c>Opc.Ua.Server.INodeManagerFactory</c>.
+        /// <para>
+        /// The generated manager exposes a
+        /// <c>partial void Configure(INodeManagerBuilder builder)</c>
+        /// extensibility hook that user code can implement in a sibling
+        /// partial to wire callbacks via the fluent
+        /// <c>Opc.Ua.Server.Fluent</c> API.
+        /// </para>
+        /// </summary>
+        public bool GenerateNodeManager { get; init; }
+
+        /// <summary>
+        /// Optional override for the namespace of the generated
+        /// <c>NodeManager</c> partial. When set, the generator emits
+        /// <c>partial class {NodeManagerClassName}</c> in this namespace
+        /// instead of using the design file <c>Prefix</c>. Used by the
+        /// <c>[NodeManager]</c> attribute discovery path.
+        /// </summary>
+        public string NodeManagerNamespace { get; init; }
+
+        /// <summary>
+        /// Optional override for the class name of the generated
+        /// <c>NodeManager</c> partial. Defaults to
+        /// <c>{Prefix}NodeManager</c>. Used by the <c>[NodeManager]</c>
+        /// attribute discovery path.
+        /// </summary>
+        public string NodeManagerClassName { get; init; }
+
+        /// <summary>
+        /// Whether to also emit the <c>{ClassName}Factory</c>. Defaults
+        /// to <c>true</c>. Set to <c>false</c> when the consumer wants
+        /// to author the factory by hand.
+        /// </summary>
+        public bool EmitNodeManagerFactory { get; init; } = true;
     }
 
     /// <summary>
@@ -72,9 +112,16 @@ namespace Opc.Ua.SourceGeneration
     public sealed record class DesignFileCollection
     {
         /// <summary>
-        /// Design file location
+        /// Design files to generate code for. Typically a single file.
         /// </summary>
-        public IReadOnlyList<string> DesignFiles { get; init; }
+        public IReadOnlyList<string> Targets { get; init; } = [];
+
+        /// <summary>
+        /// Design files referenced by <see cref="Targets"/> but not
+        /// generated. They provide node resolution only (e.g. when a
+        /// target imports types from another companion specification).
+        /// </summary>
+        public IReadOnlyList<string> Dependencies { get; init; } = [];
 
         /// <summary>
         /// Optional identifier file if not same name and side
@@ -95,7 +142,9 @@ namespace Opc.Ua.SourceGeneration
     {
         /// <summary>
         /// Get design file groups for processing. A group is a set of design files
-        /// in the same common folder with an optional csv file included.
+        /// in the same common folder with an optional csv file included. Each group
+        /// carries the same <see cref="DesignFileCollection.Dependencies"/> so that
+        /// cross-model references resolve for every target.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="collection"/>
         /// is <c>null</c>.</exception>
@@ -121,11 +170,13 @@ namespace Opc.Ua.SourceGeneration
                     value.Add(idFile);
                 }
             }
-            return collection.DesignFiles
+            IReadOnlyList<string> dependencies = collection.Dependencies ?? [];
+            return collection.Targets
                 .GroupBy(Path.GetDirectoryName)
                 .Select(g => new DesignFileCollection
                 {
-                    DesignFiles = [.. g],
+                    Targets = [.. g],
+                    Dependencies = dependencies,
                     IdentifierFilePath = idFiles.TryGetValue(g.Key, out List<string> files) ?
                         files.FirstOrDefault() : collection.IdentifierFilePath,
                     Options = collection.Options
@@ -157,7 +208,10 @@ namespace Opc.Ua.SourceGeneration
             };
 
             string identifierFilePath = designFiles.IdentifierFilePath;
-            validator.Validate(designFiles.DesignFiles, identifierFilePath);
+            validator.Validate(
+                designFiles.Targets,
+                designFiles.Dependencies ?? [],
+                identifierFilePath);
             return validator;
         }
     }
