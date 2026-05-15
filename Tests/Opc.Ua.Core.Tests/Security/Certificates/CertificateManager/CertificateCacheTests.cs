@@ -56,8 +56,6 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             (m_telemetry as IDisposable)?.Dispose();
         }
 
-#if NET6_0_OR_GREATER
-
         [Test]
         public void SetAndTryGetPublicKeyCert()
         {
@@ -261,24 +259,5 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             stillCached.Dispose();
             cert.Dispose();
         }
-
-#else
-
-        [Test]
-        public void NoOpOnOlderPlatforms()
-        {
-            using var cache = new CertificateCache(m_telemetry);
-            using Certificate cert = CertificateBuilder
-                .Create("CN=NoOpTest")
-                .SetRSAKeySize(2048)
-                .CreateForRSA();
-
-            // On older TFMs, Set is a no-op and TryGet always returns null
-            cache.Set(cert.Thumbprint, cert);
-            Certificate result = cache.TryGet(cert.Thumbprint);
-            Assert.That(result, Is.Null);
-        }
-
-#endif
     }
 }

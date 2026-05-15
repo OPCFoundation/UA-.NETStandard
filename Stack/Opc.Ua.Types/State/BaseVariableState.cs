@@ -33,6 +33,8 @@ using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Runtime.Serialization;
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Types;
 
@@ -560,6 +562,45 @@ namespace Opc.Ua
         /// Raised when the Value attribute is written.
         /// </summary>
         public NodeValueEventHandler OnWriteValue;
+
+        /// <summary>
+        /// Asynchronous sibling of <see cref="OnReadValue"/>. When set, the
+        /// async path through
+        /// <see cref="ReadAttributeAsync(ISystemContext, uint, NumericRange, QualifiedName, DataValue, CancellationToken)"/>
+        /// invokes this delegate without holding the <c>lock(this)</c>
+        /// taken by the synchronous fallback — the handler owns its own
+        /// thread-safety. Has the same "I am the read source"
+        /// semantics as <see cref="OnReadValue"/>: the framework does
+        /// <em>not</em> apply post-processing such as
+        /// <see cref="ApplyIndexRangeAndDataEncoding"/> on the returned
+        /// value.
+        /// </summary>
+        public NodeValueEventHandlerAsync OnReadValueAsync;
+
+        /// <summary>
+        /// Asynchronous sibling of <see cref="OnSimpleReadValue"/>. The
+        /// returned value is post-processed by the framework
+        /// (<see cref="ApplyIndexRangeAndDataEncoding"/> and copy policy)
+        /// just like the synchronous path.
+        /// </summary>
+        public NodeValueSimpleEventHandlerAsync OnSimpleReadValueAsync;
+
+        /// <summary>
+        /// Asynchronous sibling of <see cref="OnWriteValue"/>. When set,
+        /// the async path through
+        /// <see cref="WriteAttributeAsync(ISystemContext, uint, NumericRange, DataValue, CancellationToken)"/>
+        /// invokes this delegate without holding <c>lock(this)</c>; on
+        /// success the framework updates the cached value, status code
+        /// and timestamp.
+        /// </summary>
+        public NodeValueWriteEventHandlerAsync OnWriteValueAsync;
+
+        /// <summary>
+        /// Asynchronous sibling of <see cref="OnSimpleWriteValue"/>. Index
+        /// range writes are not supported through this hook (just like
+        /// the synchronous one).
+        /// </summary>
+        public NodeValueSimpleWriteEventHandlerAsync OnSimpleWriteValueAsync;
 
         /// <summary>
         /// Raised when the DataType attribute is read.
@@ -1735,6 +1776,315 @@ namespace Opc.Ua
             ChangeMasks |= NodeStateChangeMasks.Value;
 
             return ServiceResult.Good;
+        }
+
+        /// <summary>
+        /// Asynchronous override of
+        /// <see cref="NodeState.ReadAttributeAsync(ISystemContext, uint, NumericRange, QualifiedName, DataValue, CancellationToken)"/>.
+        /// Dispatches to <see cref="OnReadValueAsync"/> or
+        /// <see cref="OnSimpleReadValueAsync"/> when set; otherwise falls
+        /// through to the synchronous read flow under <c>lock(this)</c>
+        /// (preserving today's locking semantics for code that has not
+        /// opted into async hooks).
+        /// </summary>
+        public override async ValueTask<ServiceResult> ReadAttributeAsync(
+            ISystemContext context,
+            uint attributeId,
+            NumericRange indexRange,
+            QualifiedName dataEncoding,
+            DataValue value,
+            CancellationToken cancellationToken = default)
+        {
+            NodeValueEventHandlerAsync onReadValueAsync = OnReadValueAsync;
+            NodeValueSimpleEventHandlerAsync onSimpleReadValueAsync = OnSimpleReadValueAsync;
+
+            if (attributeId != Attributes.Value ||
+                (onReadValueAsync == null && onSimpleReadValueAsync == null))
+            {
+                return await base.ReadAttributeAsync(
+                    context, attributeId, indexRange, dataEncoding, value, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+
+            if (value == null)
+            {
+                return ServiceResult.Create(
+                    StatusCodes.BadStructureMissing,
+                    "DataValue missing");
+            }
+
+            ServiceResult result;
+            Variant valueToRead;
+            DateTimeUtc sourceTimestamp;
+
+            try
+            {
+                // snapshot access levels / timestamp / status code under the lock.
+                uint accessLevel;
+                byte userAccessLevel;
+                StatusCode cachedStatusCode;
+                DateTimeUtc cachedTimestamp;
+                // TODO: introduce a dedicated private lock object on NodeState
+                // — today's sync flow synchronises through `lock(source)` taken
+                // by external callers (e.g. CustomNodeManager2.Read), so the
+                // async path must lock on the same instance to preserve
+                // mutual exclusion. Switching to a private lock object
+                // requires updating every external `lock(source)` site.
+#pragma warning disable CA2002 // Do not lock on objects with weak identity
+                lock (this)
+#pragma warning restore CA2002
+                {
+                    accessLevel = m_accessLevel;
+                    userAccessLevel = m_userAccessLevel;
+                    cachedStatusCode = m_statusCode;
+                    cachedTimestamp = m_timestamp;
+                }
+
+                if ((accessLevel & AccessLevels.CurrentRead) == 0)
+                {
+                    result = StatusCodes.BadNotReadable;
+                    valueToRead = Variant.Null;
+                    sourceTimestamp = DateTimeUtc.MinValue;
+                }
+                else
+                {
+                    OnReadUserAccessLevel?.Invoke(context, this, ref userAccessLevel);
+
+                    if ((userAccessLevel & AccessLevels.CurrentRead) == 0)
+                    {
+                        result = StatusCodes.BadUserAccessDenied;
+                        valueToRead = Variant.Null;
+                        sourceTimestamp = DateTimeUtc.MinValue;
+                    }
+                    else if (onReadValueAsync != null)
+                    {
+                        // full async read — user owns timestamp / status code.
+                        AttributeReadResult readResult = await onReadValueAsync(
+                            context, this, indexRange, dataEncoding, cancellationToken)
+                            .ConfigureAwait(false);
+
+                        result = readResult.Result;
+                        valueToRead = readResult.Value;
+                        sourceTimestamp = readResult.SourceTimestamp == DateTimeUtc.MinValue
+                            ? DateTimeUtc.Now
+                            : readResult.SourceTimestamp;
+
+                        // mirror sync OnReadValue status-code fixup.
+                        if (ServiceResult.IsGood(result) &&
+                            readResult.StatusCode != StatusCodes.Good)
+                        {
+                            result = readResult.StatusCode;
+                        }
+                    }
+                    else
+                    {
+                        // simple async read — framework owns post-processing.
+                        AttributeSimpleReadResult simpleResult = await onSimpleReadValueAsync(
+                            context, this, cancellationToken)
+                            .ConfigureAwait(false);
+
+                        result = simpleResult.Result;
+                        valueToRead = simpleResult.Value;
+                        sourceTimestamp = cachedTimestamp == DateTimeUtc.MinValue
+                            ? DateTimeUtc.Now
+                            : cachedTimestamp;
+
+                        if (ServiceResult.IsGood(result))
+                        {
+                            ServiceResult rangeResult = ApplyIndexRangeAndDataEncoding(
+                                context, indexRange, dataEncoding, ref valueToRead);
+
+                            if (ServiceResult.IsBad(rangeResult))
+                            {
+                                result = rangeResult;
+                            }
+                            else
+                            {
+                                if (CopyPolicy is VariableCopyPolicy.CopyOnRead or VariableCopyPolicy.Always)
+                                {
+                                    valueToRead = CoreUtils.Clone(valueToRead);
+                                }
+
+                                if (cachedStatusCode != StatusCodes.Good)
+                                {
+                                    result = cachedStatusCode;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                result = ServiceResult.Create(
+                    e,
+                    StatusCodes.BadUnexpectedError,
+                    "Failed to read value attribute from node.");
+                valueToRead = Variant.Null;
+                sourceTimestamp = DateTimeUtc.MinValue;
+            }
+
+            // commit to the supplied DataValue, mirroring NodeState.ReadAttribute(DataValue).
+            value.SourceTimestamp = sourceTimestamp;
+            value.SourcePicoseconds = 0;
+
+            if (result != null && result != ServiceResult.Good)
+            {
+                value.StatusCode = result.StatusCode;
+            }
+            else
+            {
+                value.StatusCode = StatusCodes.Good;
+            }
+
+            value.WrappedValue = StatusCode.IsBad(value.StatusCode) ? Variant.Null : valueToRead;
+
+            return result;
+        }
+
+        /// <summary>
+        /// Asynchronous override of
+        /// <see cref="NodeState.WriteAttributeAsync(ISystemContext, uint, NumericRange, DataValue, CancellationToken)"/>.
+        /// Dispatches to <see cref="OnWriteValueAsync"/> or
+        /// <see cref="OnSimpleWriteValueAsync"/> when set; otherwise falls
+        /// through to the synchronous write flow under <c>lock(this)</c>.
+        /// </summary>
+        public override async ValueTask<ServiceResult> WriteAttributeAsync(
+            ISystemContext context,
+            uint attributeId,
+            NumericRange indexRange,
+            DataValue value,
+            CancellationToken cancellationToken = default)
+        {
+            NodeValueWriteEventHandlerAsync onWriteValueAsync = OnWriteValueAsync;
+            NodeValueSimpleWriteEventHandlerAsync onSimpleWriteValueAsync = OnSimpleWriteValueAsync;
+
+            if (attributeId != Attributes.Value ||
+                (onWriteValueAsync == null && onSimpleWriteValueAsync == null))
+            {
+                return await base.WriteAttributeAsync(
+                    context, attributeId, indexRange, value, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+
+            if (value == null)
+            {
+                return ServiceResult.Create(
+                    StatusCodes.BadStructureMissing,
+                    "DataValue missing");
+            }
+
+            if (value.ServerTimestamp != DateTimeUtc.MinValue)
+            {
+                return ServiceResult.Create(
+                    StatusCodes.BadWriteNotSupported,
+                    "Cannot write to server timestamp");
+            }
+
+            try
+            {
+                // snapshot access levels under the lock.
+                uint accessLevel;
+                byte userAccessLevel;
+                // TODO: introduce a dedicated private lock object on NodeState
+                // — see the sibling note in ReadAttributeAsync for the rationale.
+#pragma warning disable CA2002 // Do not lock on objects with weak identity
+                lock (this)
+#pragma warning restore CA2002
+                {
+                    accessLevel = m_accessLevel;
+                    userAccessLevel = m_userAccessLevel;
+                }
+
+                if ((accessLevel & AccessLevels.CurrentWrite) == 0)
+                {
+                    return StatusCodes.BadNotWritable;
+                }
+
+                OnReadUserAccessLevel?.Invoke(context, this, ref userAccessLevel);
+
+                if ((userAccessLevel & AccessLevels.CurrentWrite) == 0)
+                {
+                    return StatusCodes.BadUserAccessDenied;
+                }
+
+                Variant valueToWrite = value.WrappedValue;
+                StatusCode statusCode = value.StatusCode;
+                DateTimeUtc sourceTimestamp = value.SourceTimestamp;
+
+                if (onWriteValueAsync != null)
+                {
+                    AttributeWriteResult writeResult = await onWriteValueAsync(
+                        context, this, indexRange, valueToWrite, cancellationToken)
+                        .ConfigureAwait(false);
+
+                    if (ServiceResult.IsBad(writeResult.Result))
+                    {
+                        return writeResult.Result;
+                    }
+
+                    DateTimeUtc effectiveTimestamp = sourceTimestamp == DateTimeUtc.MinValue
+                        ? DateTimeUtc.Now
+                        : sourceTimestamp;
+
+#pragma warning disable CA2002 // Do not lock on objects with weak identity
+                    lock (this)
+#pragma warning restore CA2002
+                    {
+                        m_value = valueToWrite;
+                        m_statusCode = statusCode;
+                        m_timestamp = effectiveTimestamp;
+                        ChangeMasks |= NodeStateChangeMasks.Value;
+                    }
+
+                    return writeResult.Result;
+                }
+
+                // simple async write path mirrors OnSimpleWriteValue:
+                // index-range writes are not supported through this hook.
+                if (!indexRange.IsNull)
+                {
+                    return StatusCodes.BadIndexRangeInvalid;
+                }
+
+                if (sourceTimestamp == DateTimeUtc.MinValue)
+                {
+                    sourceTimestamp = DateTimeUtc.Now;
+                }
+
+                if (CopyPolicy is VariableCopyPolicy.CopyOnWrite or VariableCopyPolicy.Always)
+                {
+                    valueToWrite = CoreUtils.Clone(valueToWrite);
+                }
+
+                AttributeWriteResult simpleResult = await onSimpleWriteValueAsync(
+                    context, this, valueToWrite, cancellationToken)
+                    .ConfigureAwait(false);
+
+                if (ServiceResult.IsBad(simpleResult.Result))
+                {
+                    return simpleResult.Result;
+                }
+
+#pragma warning disable CA2002 // Do not lock on objects with weak identity
+                lock (this)
+#pragma warning restore CA2002
+                {
+                    m_value = valueToWrite;
+                    m_statusCode = statusCode;
+                    m_timestamp = sourceTimestamp;
+                    ChangeMasks |= NodeStateChangeMasks.Value;
+                }
+
+                return simpleResult.Result;
+            }
+            catch (Exception e)
+            {
+                return ServiceResult.Create(
+                    e,
+                    StatusCodes.BadUnexpectedError,
+                    "Failed to write value attribute.");
+            }
         }
 
         private Variant m_value;

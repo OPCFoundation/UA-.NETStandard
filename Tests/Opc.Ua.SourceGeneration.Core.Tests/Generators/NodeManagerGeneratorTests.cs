@@ -78,7 +78,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             string mgr = files.Single(kv => kv.Key.EndsWith(".NodeManager.g.cs", StringComparison.Ordinal)).Value;
 
             // Inheritance and partial — required so users can extend.
-            Assert.That(mgr, Does.Contain(": global::Opc.Ua.Server.AsyncCustomNodeManager"));
+            Assert.That(mgr, Does.Contain(": global::Opc.Ua.Server.Fluent.FluentNodeManagerBase"));
             Assert.That(mgr, Does.Match(@"public\s+partial\s+class\s+\w+NodeManager"));
 
             // Lifecycle overrides that wire the runtime fluent dispatcher.

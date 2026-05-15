@@ -577,5 +577,78 @@ namespace Opc.Ua.Server.Tests.Fluent
                 () => b.NodeFromTypeId<MethodState>(typeId));
             Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadTypeMismatch));
         }
+
+        [Test]
+        public void ChildResolvesByBrowseName()
+        {
+            (NodeManagerBuilder b, BaseObjectState root, BaseDataVariableState v, _) = CreateBuilderWithGraph();
+
+            INodeBuilder rb = b.Node(root.NodeId);
+            INodeBuilder cb = rb.Child(v.BrowseName);
+
+            Assert.That(cb.Node, Is.SameAs(v));
+            Assert.That(cb.Builder, Is.SameAs(b));
+        }
+
+        [Test]
+        public void ChildTypedReturnsTypedBuilder()
+        {
+            (NodeManagerBuilder b, BaseObjectState root, BaseDataVariableState v, _) = CreateBuilderWithGraph();
+
+            INodeBuilder<BaseDataVariableState> cb =
+                b.Node(root.NodeId).Child<BaseDataVariableState>(v.BrowseName);
+
+            Assert.That(cb.Node, Is.SameAs(v));
+        }
+
+        [Test]
+        public void ChildTypedThrowsBadTypeMismatchForWrongType()
+        {
+            (NodeManagerBuilder b, BaseObjectState root, BaseDataVariableState v, _) = CreateBuilderWithGraph();
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => b.Node(root.NodeId).Child<MethodState>(v.BrowseName));
+            Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadTypeMismatch));
+        }
+
+        [Test]
+        public void ChildThrowsBadNodeIdUnknownForMissingBrowseName()
+        {
+            (NodeManagerBuilder b, BaseObjectState root, _, _) = CreateBuilderWithGraph();
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => b.Node(root.NodeId).Child(new QualifiedName("Missing", kNs)));
+            Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadNodeIdUnknown));
+        }
+
+        [Test]
+        public void ChildThrowsBadBrowseNameInvalidForNullBrowseName()
+        {
+            (NodeManagerBuilder b, BaseObjectState root, _, _) = CreateBuilderWithGraph();
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => b.Node(root.NodeId).Child(QualifiedName.Null));
+            Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadBrowseNameInvalid));
+        }
+
+        [Test]
+        public void VariableByBrowseNameReturnsTypedVariableBuilder()
+        {
+            (NodeManagerBuilder b, BaseObjectState root, BaseDataVariableState v, _) = CreateBuilderWithGraph();
+
+            IVariableBuilder<int> vb = b.Node(root.NodeId).Variable<int>(v.BrowseName);
+
+            Assert.That(vb.Node, Is.SameAs(v));
+        }
+
+        [Test]
+        public void VariableByBrowseNameThrowsBadTypeMismatchOnNonVariable()
+        {
+            (NodeManagerBuilder b, BaseObjectState root, _, MethodState m) = CreateBuilderWithGraph();
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => b.Node(root.NodeId).Variable<int>(m.BrowseName));
+            Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadTypeMismatch));
+        }
     }
 }
