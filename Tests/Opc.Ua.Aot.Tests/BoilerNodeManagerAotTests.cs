@@ -96,6 +96,57 @@ namespace Opc.Ua.Aot.Tests
             await Assert.That(value).IsBetween(75.0 - 1e-9, 125.0 + 1e-9);
         }
 
+        [Test]
+        public async Task TypedBuilderWiredLevelMeasurementProducesValueInRange()
+        {
+            // Wired via Configure(IBoilerNodeManagerBuilder) using
+            // builder.Boilers.Boiler__1.LCX001.Measurement.OnRead(...) —
+            // exercises the source-generated typed traversal end-to-end
+            // through the AOT-compiled binary.
+            NodeId measurement = await ResolveBoilerVariableAsync(
+                "LCX001", "Measurement").ConfigureAwait(false);
+
+            DataValue dv = await fixture.Session.ReadValueAsync(
+                measurement, CancellationToken.None).ConfigureAwait(false);
+
+            await Assert.That(StatusCode.IsGood(dv.StatusCode)).IsTrue();
+            double value = dv.GetValue(double.NaN);
+            // Configure-wired typed OnRead returns 50 + 10*cos(t*0.05).
+            await Assert.That(value).IsBetween(40.0 - 1e-9, 60.0 + 1e-9);
+        }
+
+        [Test]
+        public async Task TypedBuilderWiredHaltMethodCanBeCalled()
+        {
+            // Wired via Configure(IBoilerNodeManagerBuilder) using
+            // builder.Boilers.Boiler__1.Simulation.Halt.OnCall(async ct =>
+            // ...) — exercises the typed-traversal async OnCall overload
+            // end-to-end through AsyncCustomNodeManager.CallAsync.
+            NodeId simulationObject = await ResolveBoilerObjectAsync(
+                "Simulation").ConfigureAwait(false);
+            NodeId haltMethod = await ResolveBoilerObjectAsync(
+                "Simulation", "Halt").ConfigureAwait(false);
+
+            // CallAsync (extension on ISessionClient) throws on a bad
+            // status, so a successful return is itself the assertion that
+            // the typed async OnCall thunk ran. The Halt method declares
+            // no input or output arguments.
+            ArrayOf<Variant> outputs = await fixture.Session.CallAsync(
+                simulationObject,
+                haltMethod,
+                CancellationToken.None).ConfigureAwait(false);
+
+            await Assert.That(outputs.Count).IsEqualTo(0);
+        }
+
+        /// <summary>
+        /// Resolves an arbitrary node (object or method) under
+        /// <c>Boilers/Boiler #1</c> using the same browse-path technique as
+        /// <see cref="ResolveBoilerVariableAsync"/>.
+        /// </summary>
+        private Task<NodeId> ResolveBoilerObjectAsync(params string[] tail)
+            => ResolveBoilerVariableAsync(tail);
+
         /// <summary>
         /// Walks the boiler instance tree starting from the well-known
         /// <c>Boilers/Boiler #1</c> root (in the boiler namespace) using

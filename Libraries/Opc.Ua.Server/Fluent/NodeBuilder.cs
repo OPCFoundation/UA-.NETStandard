@@ -105,6 +105,42 @@ namespace Opc.Ua.Server.Fluent
         }
 
         /// <inheritdoc/>
+        public INodeBuilder OnRead(NodeValueEventHandlerAsync handler)
+        {
+            BaseVariableState v = RequireVariable("OnReadAsync");
+            ThrowIfSlotOccupied(v.OnReadValueAsync, "OnReadAsync");
+            v.OnReadValueAsync = handler ?? throw new ArgumentNullException(nameof(handler));
+            return this;
+        }
+
+        /// <inheritdoc/>
+        public INodeBuilder OnRead(NodeValueSimpleEventHandlerAsync handler)
+        {
+            BaseVariableState v = RequireVariable("OnSimpleReadAsync");
+            ThrowIfSlotOccupied(v.OnSimpleReadValueAsync, "OnSimpleReadAsync");
+            v.OnSimpleReadValueAsync = handler ?? throw new ArgumentNullException(nameof(handler));
+            return this;
+        }
+
+        /// <inheritdoc/>
+        public INodeBuilder OnWrite(NodeValueWriteEventHandlerAsync handler)
+        {
+            BaseVariableState v = RequireVariable("OnWriteAsync");
+            ThrowIfSlotOccupied(v.OnWriteValueAsync, "OnWriteAsync");
+            v.OnWriteValueAsync = handler ?? throw new ArgumentNullException(nameof(handler));
+            return this;
+        }
+
+        /// <inheritdoc/>
+        public INodeBuilder OnWrite(NodeValueSimpleWriteEventHandlerAsync handler)
+        {
+            BaseVariableState v = RequireVariable("OnSimpleWriteAsync");
+            ThrowIfSlotOccupied(v.OnSimpleWriteValueAsync, "OnSimpleWriteAsync");
+            v.OnSimpleWriteValueAsync = handler ?? throw new ArgumentNullException(nameof(handler));
+            return this;
+        }
+
+        /// <inheritdoc/>
         public INodeBuilder OnCall(GenericMethodCalledEventHandler2 handler)
         {
             MethodState m = RequireMethod("OnCall");
@@ -204,6 +240,57 @@ namespace Opc.Ua.Server.Fluent
             return this;
         }
 
+        /// <inheritdoc/>
+        public INodeBuilder Child(QualifiedName browseName)
+        {
+            NodeState child = ResolveChild(browseName);
+            return new NodeBuilder(m_parent, child);
+        }
+
+        /// <inheritdoc/>
+        public INodeBuilder<TState> Child<TState>(QualifiedName browseName)
+            where TState : NodeState
+        {
+            NodeState child = ResolveChild(browseName);
+            if (child is not TState typed)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadTypeMismatch,
+                    "Child '{0}' under '{1}' is of type {2}, which is not assignable to {3}.",
+                    browseName,
+                    Node.BrowseName,
+                    child.GetType().Name,
+                    typeof(TState).Name);
+            }
+            return new NodeBuilder<TState>(m_parent, typed);
+        }
+
+        /// <inheritdoc/>
+        public IVariableBuilder<TValue> Variable<TValue>(QualifiedName browseName)
+        {
+            NodeState child = ResolveChild(browseName);
+            return m_parent.ToVariableBuilder<TValue>(
+                child,
+                CoreUtils.Format("{0}/{1}", Node.BrowseName, browseName));
+        }
+
+        private BaseInstanceState ResolveChild(QualifiedName browseName)
+        {
+            if (browseName.IsNull)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadBrowseNameInvalid,
+                    "Browse name is null or empty.");
+            }
+            return Node.FindChild(m_parent.Context, browseName) ??
+                throw ServiceResultException.Create(
+                    StatusCodes.BadNodeIdUnknown,
+                    "Child '{0}' not found under '{1}' (id '{2}').",
+                    browseName,
+                    Node.BrowseName,
+                    Node.NodeId);
+        }
+
         private BaseVariableState RequireVariable(string what)
         {
             if (Node is not BaseVariableState v)
@@ -257,7 +344,7 @@ namespace Opc.Ua.Server.Fluent
     /// <see cref="Node"/> property.
     /// </summary>
     /// <typeparam name="TState"></typeparam>
-    internal sealed class NodeBuilder<TState> : NodeBuilder, INodeBuilder<TState>
+    internal class NodeBuilder<TState> : NodeBuilder, INodeBuilder<TState>
         where TState : NodeState
     {
         public NodeBuilder(NodeManagerBuilder parent, TState node)
