@@ -89,12 +89,12 @@ namespace Opc.Ua
             }
         }
 
-        
         /// <summary>
         /// Create extension object from encodeable object
         /// </summary>
         /// <param name="typeId">Alternative type id</param>
         /// <param name="body">Encodeable body</param>
+        /// <param name="copy">Clone the encodeable</param>
         public ExtensionObject(ExpandedNodeId typeId, IEncodeable body, bool copy = false)
         {
             if (body != null)
