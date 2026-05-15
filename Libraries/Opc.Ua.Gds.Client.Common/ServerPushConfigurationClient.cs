@@ -1164,7 +1164,7 @@ namespace Opc.Ua.Gds.Client
                 ct).ConfigureAwait(false);
         }
 
-        private async Task<IUserIdentity> ElevatePermissionsAsync(
+        protected async Task<IUserIdentity> ElevatePermissionsAsync(
             ISession session,
             CancellationToken ct = default)
         {
@@ -1209,7 +1209,7 @@ namespace Opc.Ua.Gds.Client
             return oldUser;
         }
 
-        private async Task RevertPermissionsAsync(
+        protected async Task RevertPermissionsAsync(
             ISession session,
             IUserIdentity oldUser,
             CancellationToken ct = default)
@@ -1339,7 +1339,7 @@ namespace Opc.Ua.Gds.Client
         /// </summary>
         /// <param name="ct"></param>
         /// <returns></returns>
-        private async Task<ISession> ConnectIfNeededAsync(CancellationToken ct)
+        protected async Task<ISession> ConnectIfNeededAsync(CancellationToken ct)
         {
             // Either connect or ct will throw or Session will be valid
             while (true)
@@ -1362,7 +1362,7 @@ namespace Opc.Ua.Gds.Client
             }
         }
 
-        private Task<NodeId> BrowseTrustListMethodIdAsync(
+        protected Task<NodeId> BrowseTrustListMethodIdAsync(
             NodeId trustListNodeId,
             NodeId methodTypeId,
             CancellationToken ct = default)
@@ -1382,7 +1382,7 @@ namespace Opc.Ua.Gds.Client
             return BrowseNodeIdAsync(trustListNodeId, methodTypeId, ReferenceTypeIds.HasComponent, ct);
         }
 
-        private async Task<NodeId> BrowseNodeIdAsync(
+        protected async Task<NodeId> BrowseNodeIdAsync(
             NodeId rootNode,
             NodeId searchNodeId,
             NodeId referenceTypeId,
@@ -1428,7 +1428,7 @@ namespace Opc.Ua.Gds.Client
                 $"Could not find declaration id {searchNodeId} under {rootNode} with reference type {referenceTypeId}");
         }
 
-        private Task<NodeId> GetRelatedTrustListIdByCertificateGroupIdAsync(
+        protected Task<NodeId> GetRelatedTrustListIdByCertificateGroupIdAsync(
             NodeId certificateGroupId,
             CancellationToken ct = default)
         {
@@ -1460,7 +1460,7 @@ namespace Opc.Ua.Gds.Client
                 ct);
         }
 
-        private async Task<NodeId> FindChildByTypeDefinitionAsync(
+        protected async Task<NodeId> FindChildByTypeDefinitionAsync(
             NodeId parentNodeId,
             NodeId targetTypeDefinitionId,
             CancellationToken ct = default)
