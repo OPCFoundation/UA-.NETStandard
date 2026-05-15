@@ -228,30 +228,9 @@ namespace Opc.Ua.Gds.Client
         /// <summary>
         /// Connects using the default endpoint.
         /// </summary>
-        [Obsolete("Use ConnectAsync instead.")]
-        public void Connect()
-        {
-            ConnectAsync(m_endpoint).Wait();
-        }
-
-        /// <summary>
-        /// Connects using the default endpoint.
-        /// </summary>
         public Task ConnectAsync(CancellationToken ct = default)
         {
             return ConnectAsync(m_endpoint, ct);
-        }
-
-        /// <summary>
-        /// Connects the specified endpoint URL.
-        /// </summary>
-        /// <param name="endpointUrl">The endpoint URL.</param>
-        /// <exception cref="ArgumentNullException">endpointUrl</exception>
-        /// <exception cref="ArgumentException">endpointUrl</exception>
-        [Obsolete("Use ConnectAsync instead.")]
-        public Task Connect(string endpointUrl)
-        {
-            return ConnectAsync(endpointUrl);
         }
 
         /// <summary>
@@ -314,16 +293,6 @@ namespace Opc.Ua.Gds.Client
         /// Connects the specified endpoint.
         /// </summary>
         /// <param name="endpoint">The endpoint.</param>
-        [Obsolete("Use ConnectAsync instead.")]
-        public Task Connect(ConfiguredEndpoint endpoint)
-        {
-            return ConnectAsync(endpoint);
-        }
-
-        /// <summary>
-        /// Connects the specified endpoint.
-        /// </summary>
-        /// <param name="endpoint">The endpoint.</param>
         /// <param name="ct">The cancellationToken</param>
         /// <exception cref="ArgumentNullException"><paramref name="endpoint"/> is <c>null</c>.</exception>
         public async Task ConnectAsync(ConfiguredEndpoint endpoint, CancellationToken ct = default)
@@ -370,15 +339,6 @@ namespace Opc.Ua.Gds.Client
         /// <summary>
         /// Disconnect the client connection.
         /// </summary>
-        [Obsolete("Use DisconnectAsync instead.")]
-        public void Disconnect()
-        {
-            DisconnectAsync().GetAwaiter().GetResult();
-        }
-
-        /// <summary>
-        /// Disconnect the client connection.
-        /// </summary>
         public async Task DisconnectAsync(CancellationToken ct = default)
         {
             await m_lock.WaitAsync(ct).ConfigureAwait(false);
@@ -406,16 +366,6 @@ namespace Opc.Ua.Gds.Client
             {
                 m_lock.Release();
             }
-        }
-
-        /// <summary>
-        /// Gets the supported key formats.
-        /// </summary>
-        /// <exception cref="InvalidOperationException">Connection to server is not active.</exception>
-        [Obsolete("Use GetSupportedKeyFormatsAsync instead.")]
-        public ArrayOf<string> GetSupportedKeyFormats()
-        {
-            return GetSupportedKeyFormatsAsync().GetAwaiter().GetResult();
         }
 
         /// <summary>
@@ -461,15 +411,6 @@ namespace Opc.Ua.Gds.Client
             {
                 await RevertPermissionsAsync(session, oldUser, ct).ConfigureAwait(false);
             }
-        }
-
-        /// <summary>
-        /// Reads the trust list.
-        /// </summary>
-        [Obsolete("Use ReadTrustListAsync instead.")]
-        public TrustListDataType ReadTrustList(TrustListMasks masks = TrustListMasks.All)
-        {
-            return ReadTrustListAsync(masks).GetAwaiter().GetResult();
         }
 
         /// <summary>
@@ -612,15 +553,6 @@ namespace Opc.Ua.Gds.Client
             {
                 await RevertPermissionsAsync(session, oldUser, ct).ConfigureAwait(false);
             }
-        }
-
-        /// <summary>
-        /// Updates the trust list.
-        /// </summary>
-        [Obsolete("Use UpdateTrustListAsync instead.")]
-        public bool UpdateTrustList(TrustListDataType trustList)
-        {
-            return UpdateTrustListAsync(trustList).GetAwaiter().GetResult();
         }
 
         /// <summary>
@@ -772,15 +704,6 @@ namespace Opc.Ua.Gds.Client
         /// <summary>
         /// Add certificate.
         /// </summary>
-        [Obsolete("Use AddCertificateAsync instead.")]
-        public void AddCertificate(X509Certificate2 certificate, bool isTrustedCertificate)
-        {
-            AddCertificateAsync(certificate, isTrustedCertificate).GetAwaiter().GetResult();
-        }
-
-        /// <summary>
-        /// Add certificate.
-        /// </summary>
         public Task AddCertificateAsync(X509Certificate2 certificate, bool isTrustedCertificate,
             CancellationToken ct = default)
         {
@@ -820,15 +743,6 @@ namespace Opc.Ua.Gds.Client
             {
                 await RevertPermissionsAsync(session, oldUser, ct).ConfigureAwait(false);
             }
-        }
-
-        /// <summary>
-        /// Remove certificate.
-        /// </summary>
-        [Obsolete("Use RemoveCertificateAsync instead.")]
-        public void RemoveCertificate(string thumbprint, bool isTrustedCertificate)
-        {
-            RemoveCertificateAsync(thumbprint, isTrustedCertificate).GetAwaiter().GetResult();
         }
 
         /// <summary>
@@ -879,27 +793,6 @@ namespace Opc.Ua.Gds.Client
         /// returns the Certificates assigned to CertificateTypes associated with a CertificateGroup.
         /// </summary>
         /// <param name="certificateGroupId">The identifier for the CertificateGroup.</param>
-        /// <param name="certificateTypeIds">The CertificateTypes that currently have a Certificate assigned.
-        ///The length of this list is the same as the length as certificates list.
-        ///An empty list if the CertificateGroup does not have any CertificateTypes.</param>
-        /// <param name="certificates">A list of DER encoded Certificates assigned to CertificateGroup.
-        ///The certificateType for the Certificate is specified by the corresponding element in the certificateTypes parameter.</param>
-        [Obsolete("Use GetCertificatesAsync instead.")]
-        public void GetCertificates(
-            NodeId certificateGroupId,
-            out ArrayOf<NodeId> certificateTypeIds,
-            out ArrayOf<ByteString> certificates)
-        {
-            (certificateTypeIds, certificates) = GetCertificatesAsync(
-                    certificateGroupId,
-                    CancellationToken.None)
-                .GetAwaiter().GetResult();
-        }
-
-        /// <summary>
-        /// returns the Certificates assigned to CertificateTypes associated with a CertificateGroup.
-        /// </summary>
-        /// <param name="certificateGroupId">The identifier for the CertificateGroup.</param>
         /// <param name="ct"> The cancellationToken.</param>
         /// <returns>The CertificateTypes that currently have a Certificate assigned.
         ///The length of this list is the same as the length as certificates list.
@@ -940,31 +833,6 @@ namespace Opc.Ua.Gds.Client
             }
 
             return (certificateTypeIds, certificates);
-        }
-
-        /// <summary>
-        /// Creates the CSR.
-        /// </summary>
-        /// <param name="certificateGroupId">The certificate group identifier.</param>
-        /// <param name="certificateTypeId">The certificate type identifier.</param>
-        /// <param name="subjectName">Name of the subject.</param>
-        /// <param name="regeneratePrivateKey">if set to <c>true</c> [regenerate private key].</param>
-        /// <param name="nonce">The nonce.</param>
-        [Obsolete("Use CreateSigningRequestAsync instead.")]
-        public ByteString CreateSigningRequest(
-            NodeId certificateGroupId,
-            NodeId certificateTypeId,
-            string subjectName,
-            bool regeneratePrivateKey,
-            ByteString nonce)
-        {
-            return CreateSigningRequestAsync(
-                certificateGroupId,
-                certificateTypeId,
-                subjectName,
-                regeneratePrivateKey,
-                nonce,
-                CancellationToken.None).GetAwaiter().GetResult();
         }
 
         /// <summary>
@@ -1026,33 +894,6 @@ namespace Opc.Ua.Gds.Client
         /// <param name="privateKeyFormat">The format of the private key, PFX or PEM.</param>
         /// <param name="privateKey">The private ky.</param>
         /// <param name="issuerCertificates">An array containing the chain of issuer certificates.</param>
-        [Obsolete("Use UpdateCertificateAsync instead.")]
-        public bool UpdateCertificate(
-            NodeId certificateGroupId,
-            NodeId certificateTypeId,
-            ByteString certificate,
-            string privateKeyFormat,
-            ByteString privateKey,
-            ArrayOf<ByteString> issuerCertificates)
-        {
-            return UpdateCertificateAsync(
-                certificateGroupId,
-                certificateTypeId,
-                certificate,
-                privateKeyFormat,
-                privateKey,
-                issuerCertificates).GetAwaiter().GetResult();
-        }
-
-        /// <summary>
-        /// Updates the certificate.
-        /// </summary>
-        /// <param name="certificateGroupId">The group of the trust list.</param>
-        /// <param name="certificateTypeId">The type of the trust list.</param>
-        /// <param name="certificate">The certificate.</param>
-        /// <param name="privateKeyFormat">The format of the private key, PFX or PEM.</param>
-        /// <param name="privateKey">The private ky.</param>
-        /// <param name="issuerCertificates">An array containing the chain of issuer certificates.</param>
         /// <param name="ct">The cancellationToken</param>
         public async Task<bool> UpdateCertificateAsync(
             NodeId certificateGroupId,
@@ -1099,15 +940,6 @@ namespace Opc.Ua.Gds.Client
         /// <summary>
         /// Reads the rejected  list.
         /// </summary>
-        [Obsolete("Use GetRejectedListAsync instead.")]
-        public X509Certificate2Collection GetRejectedList()
-        {
-            return GetRejectedListAsync().GetAwaiter().GetResult();
-        }
-
-        /// <summary>
-        /// Reads the rejected  list.
-        /// </summary>
         public async Task<X509Certificate2Collection> GetRejectedListAsync(CancellationToken ct = default)
         {
             ISession session = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
@@ -1137,15 +969,6 @@ namespace Opc.Ua.Gds.Client
             {
                 await RevertPermissionsAsync(session, oldUser, ct).ConfigureAwait(false);
             }
-        }
-
-        /// <summary>
-        /// Restarts this instance.
-        /// </summary>
-        [Obsolete("Use ApplyChangesAsync instead.")]
-        public void ApplyChanges()
-        {
-            ApplyChangesAsync().GetAwaiter().GetResult();
         }
 
         /// <summary>
