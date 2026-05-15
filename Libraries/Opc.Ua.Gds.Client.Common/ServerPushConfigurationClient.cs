@@ -488,17 +488,6 @@ namespace Opc.Ua.Gds.Client
         }
 
         /// <summary>
-        /// Returns a <see cref="TrustListTypeClient"/> for the
-        /// DefaultApplicationGroup trust list on the connected server.
-        /// </summary>
-        private ValueTask<TrustListTypeClient> GetDefaultApplicationGroupTrustListClientAsync(
-            ISession session, CancellationToken ct = default)
-        {
-            return GetApplicationGroupTrustListClientAsync(session,
-                Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup, ct);
-        }
-
-        /// <summary>
         /// Returns a <see cref="TrustListTypeClient"/> for the specified certificate group on the connected server.
         /// </summary>
         private async ValueTask<TrustListTypeClient> GetApplicationGroupTrustListClientAsync(
