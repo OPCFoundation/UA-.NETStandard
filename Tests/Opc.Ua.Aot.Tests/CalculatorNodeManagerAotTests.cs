@@ -27,7 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-extern alias boilersample;
+extern alias calcsample;
 
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Client;
@@ -38,23 +38,26 @@ namespace Opc.Ua.Aot.Tests
 {
     /// <summary>
     /// AOT smoke tests that verify the source-generated
-    /// <c>Boiler.BoilerNodeManagerFactory</c> emitted by the
-    /// <c>[NodeManager]</c> attribute on <see cref="Boiler.BoilerNodeManager"/>
-    /// (in the MinimalBoilerServer sample) actually loads the boiler
-    /// address space, registers its namespace, and dispatches the
-    /// fluent <c>OnRead</c> callback wired in
-    /// <c>BoilerNodeManager.Configure.cs</c>. This protects the
-    /// end-to-end pipeline (generator + fluent builder + factory)
-    /// against AOT regressions.
+    /// <c>Calc.CalcNodeManagerFactory</c> emitted by the
+    /// <c>[NodeManager]</c> attribute on
+    /// <see cref="Calc.CalcNodeManager"/> (in the MinimalCalcServer
+    /// sample) loads the calculator address space, registers its
+    /// namespace, and dispatches each of the three typed fluent
+    /// <c>OnCall(...)</c> overloads — sync int+int→int, async
+    /// double+double→double, and sync string+string→string — wired in
+    /// <c>CalcNodeManager.Configure.cs</c>. Together these tests cover
+    /// the generator's typed input-unpack (Variant.TryGetValue&lt;T&gt;),
+    /// output-box (Variant.From&lt;T&gt;), and async dispatch paths
+    /// against the AOT-compiled binary.
     /// </summary>
-    [ClassDataSource<BoilerAotFixture>(Shared = SharedType.PerTestSession)]
-    public class BoilerNodeManagerAotTests(BoilerAotFixture fixture)
+    [ClassDataSource<CalculatorAotFixture>(Shared = SharedType.PerTestSession)]
+    public class CalculatorNodeManagerAotTests(CalculatorAotFixture fixture)
     {
-        private const string kBoilerNamespaceUri =
-            "http://opcfoundation.org/UA/Boiler/";
+        private const string kCalcNamespaceUri =
+            "http://opcfoundation.org/UA/Calc/";
 
         [Test]
-        public async Task BoilerNamespaceIsRegistered()
+        public async Task CalcNamespaceIsRegistered()
         {
             DataValue nsArray = await fixture.Session.ReadValueAsync(
                 VariableIds.Server_NamespaceArray,
@@ -63,101 +66,102 @@ namespace Opc.Ua.Aot.Tests
             await Assert.That(StatusCode.IsGood(nsArray.StatusCode)).IsTrue();
             string[] uris = nsArray.GetValue<string[]>(null);
             await Assert.That(uris).IsNotNull();
-            await Assert.That(uris).Contains(kBoilerNamespaceUri);
+            await Assert.That(uris).Contains(kCalcNamespaceUri);
         }
 
         [Test]
-        public async Task DrumLevelOnReadCallbackProducesValueInRange()
+        public async Task AddMethodReturnsSum()
         {
-            NodeId drumLevel = await ResolveBoilerVariableAsync(
-                "DrumX001", "LIX001", "Output").ConfigureAwait(false);
+            // Wired via Configure(ICalcNodeManagerBuilder) using
+            // builder.Calculator.Add.OnCall((int a, int b) => a + b) —
+            // exercises the typed sync OnCall overload end-to-end with
+            // primitive value-type inputs and output.
+            NodeId calculator = await ResolveCalculatorNodeAsync()
+                .ConfigureAwait(false);
+            NodeId addMethod = await ResolveCalculatorNodeAsync("Add")
+                .ConfigureAwait(false);
 
-            DataValue dv = await fixture.Session.ReadValueAsync(
-                drumLevel, CancellationToken.None).ConfigureAwait(false);
-
-            await Assert.That(StatusCode.IsGood(dv.StatusCode)).IsTrue();
-            double value = dv.GetValue(double.NaN);
-            // Configure-wired OnRead returns 50 + 10*sin(t*0.05).
-            await Assert.That(value).IsBetween(40.0 - 1e-9, 60.0 + 1e-9);
-        }
-
-        [Test]
-        public async Task PipeFlowOnReadCallbackProducesValueInRange()
-        {
-            NodeId pipeFlow = await ResolveBoilerVariableAsync(
-                "PipeX001", "FTX001", "Output").ConfigureAwait(false);
-
-            DataValue dv = await fixture.Session.ReadValueAsync(
-                pipeFlow, CancellationToken.None).ConfigureAwait(false);
-
-            await Assert.That(StatusCode.IsGood(dv.StatusCode)).IsTrue();
-            double value = dv.GetValue(double.NaN);
-            // Configure-wired OnRead returns 100 + 25*cos(t*0.07).
-            await Assert.That(value).IsBetween(75.0 - 1e-9, 125.0 + 1e-9);
-        }
-
-        [Test]
-        public async Task TypedBuilderWiredLevelMeasurementProducesValueInRange()
-        {
-            // Wired via Configure(IBoilerNodeManagerBuilder) using
-            // builder.Boilers.Boiler__1.LCX001.Measurement.OnRead(...) —
-            // exercises the source-generated typed traversal end-to-end
-            // through the AOT-compiled binary.
-            NodeId measurement = await ResolveBoilerVariableAsync(
-                "LCX001", "Measurement").ConfigureAwait(false);
-
-            DataValue dv = await fixture.Session.ReadValueAsync(
-                measurement, CancellationToken.None).ConfigureAwait(false);
-
-            await Assert.That(StatusCode.IsGood(dv.StatusCode)).IsTrue();
-            double value = dv.GetValue(double.NaN);
-            // Configure-wired typed OnRead returns 50 + 10*cos(t*0.05).
-            await Assert.That(value).IsBetween(40.0 - 1e-9, 60.0 + 1e-9);
-        }
-
-        [Test]
-        public async Task TypedBuilderWiredHaltMethodCanBeCalled()
-        {
-            // Wired via Configure(IBoilerNodeManagerBuilder) using
-            // builder.Boilers.Boiler__1.Simulation.Halt.OnCall(async ct =>
-            // ...) — exercises the typed-traversal async OnCall overload
-            // end-to-end through AsyncCustomNodeManager.CallAsync.
-            NodeId simulationObject = await ResolveBoilerObjectAsync(
-                "Simulation").ConfigureAwait(false);
-            NodeId haltMethod = await ResolveBoilerObjectAsync(
-                "Simulation", "Halt").ConfigureAwait(false);
-
-            // CallAsync (extension on ISessionClient) throws on a bad
-            // status, so a successful return is itself the assertion that
-            // the typed async OnCall thunk ran. The Halt method declares
-            // no input or output arguments.
             ArrayOf<Variant> outputs = await fixture.Session.CallAsync(
-                simulationObject,
-                haltMethod,
-                CancellationToken.None).ConfigureAwait(false);
+                calculator,
+                addMethod,
+                CancellationToken.None,
+                new Variant(2),
+                new Variant(3)).ConfigureAwait(false);
 
-            await Assert.That(outputs.Count).IsEqualTo(0);
+            await Assert.That(outputs.Count).IsEqualTo(1);
+            Variant single = outputs.ToList()[0];
+            await Assert.That(single.TypeInfo.BuiltInType)
+                .IsEqualTo(BuiltInType.Int32);
+            await Assert.That(single.TryGetValue(out int sum)).IsTrue();
+            await Assert.That(sum).IsEqualTo(5);
+        }
+
+        [Test]
+        public async Task MultiplyMethodReturnsProductAsync()
+        {
+            // Wired via Configure(ICalcNodeManagerBuilder) using
+            // builder.Calculator.Multiply.OnCall(async (double, double,
+            // CancellationToken) => ...) — exercises the typed async
+            // OnCall overload end-to-end through
+            // AsyncCustomNodeManager.CallAsync.
+            NodeId calculator = await ResolveCalculatorNodeAsync()
+                .ConfigureAwait(false);
+            NodeId multiplyMethod = await ResolveCalculatorNodeAsync("Multiply")
+                .ConfigureAwait(false);
+
+            ArrayOf<Variant> outputs = await fixture.Session.CallAsync(
+                calculator,
+                multiplyMethod,
+                CancellationToken.None,
+                new Variant(0.5),
+                new Variant(4.0)).ConfigureAwait(false);
+
+            await Assert.That(outputs.Count).IsEqualTo(1);
+            Variant single = outputs.ToList()[0];
+            await Assert.That(single.TypeInfo.BuiltInType)
+                .IsEqualTo(BuiltInType.Double);
+            await Assert.That(single.TryGetValue(out double product)).IsTrue();
+            await Assert.That(product).IsEqualTo(2.0);
+        }
+
+        [Test]
+        public async Task ConcatMethodReturnsConcatenation()
+        {
+            // Wired via Configure(ICalcNodeManagerBuilder) using
+            // builder.Calculator.Concat.OnCall((string l, string r) =>
+            // ...) — exercises typed reference-type marshalling on both
+            // input arguments and the return value.
+            NodeId calculator = await ResolveCalculatorNodeAsync()
+                .ConfigureAwait(false);
+            NodeId concatMethod = await ResolveCalculatorNodeAsync("Concat")
+                .ConfigureAwait(false);
+
+            ArrayOf<Variant> outputs = await fixture.Session.CallAsync(
+                calculator,
+                concatMethod,
+                CancellationToken.None,
+                new Variant("foo"),
+                new Variant("bar")).ConfigureAwait(false);
+
+            await Assert.That(outputs.Count).IsEqualTo(1);
+            Variant single = outputs.ToList()[0];
+            await Assert.That(single.TypeInfo.BuiltInType)
+                .IsEqualTo(BuiltInType.String);
+            await Assert.That(single.TryGetValue(out string concatenated)).IsTrue();
+            await Assert.That(concatenated).IsEqualTo("foobar");
         }
 
         /// <summary>
-        /// Resolves an arbitrary node (object or method) under
-        /// <c>Boilers/Boiler #1</c> using the same browse-path technique as
-        /// <see cref="ResolveBoilerVariableAsync"/>.
+        /// Walks the calculator instance tree starting from the
+        /// well-known <c>Calculator</c> root (in the calc namespace)
+        /// using TranslateBrowsePathsToNodeIds so the tests do not
+        /// hard-code any generated NodeId.
         /// </summary>
-        private Task<NodeId> ResolveBoilerObjectAsync(params string[] tail)
-            => ResolveBoilerVariableAsync(tail);
-
-        /// <summary>
-        /// Walks the boiler instance tree starting from the well-known
-        /// <c>Boilers/Boiler #1</c> root (in the boiler namespace) using
-        /// TranslateBrowsePathsToNodeIds so the test does not hard-code
-        /// any generated NodeId.
-        /// </summary>
-        private async Task<NodeId> ResolveBoilerVariableAsync(
+        private async Task<NodeId> ResolveCalculatorNodeAsync(
             params string[] tail)
         {
             ushort nsIndex = (ushort)fixture.Session.NamespaceUris
-                .GetIndex(kBoilerNamespaceUri);
+                .GetIndex(kCalcNamespaceUri);
             await Assert.That(nsIndex).IsGreaterThan((ushort)0);
 
             var elements = new List<RelativePathElement>
@@ -167,14 +171,7 @@ namespace Opc.Ua.Aot.Tests
                     ReferenceTypeId = ReferenceTypeIds.HierarchicalReferences,
                     IsInverse = false,
                     IncludeSubtypes = true,
-                    TargetName = new QualifiedName("Boilers", nsIndex)
-                },
-                new()
-                {
-                    ReferenceTypeId = ReferenceTypeIds.HierarchicalReferences,
-                    IsInverse = false,
-                    IncludeSubtypes = true,
-                    TargetName = new QualifiedName("Boiler #1", nsIndex)
+                    TargetName = new QualifiedName("Calculator", nsIndex)
                 }
             };
             foreach (string segment in tail)
@@ -218,12 +215,12 @@ namespace Opc.Ua.Aot.Tests
 
     /// <summary>
     /// Per-test-session fixture that boots a NativeAOT-friendly server
-    /// hosting the source-generated <c>BoilerNodeManagerFactory</c> and
+    /// hosting the source-generated <c>CalcNodeManagerFactory</c> and
     /// connects an anonymous client session to it.
     /// </summary>
-    public sealed class BoilerAotFixture : IAsyncInitializer, IAsyncDisposable
+    public sealed class CalculatorAotFixture : IAsyncInitializer, IAsyncDisposable
     {
-        public AotServerFixture<BoilerTestServer> ServerFixture { get; private set; }
+        public AotServerFixture<CalculatorTestServer> ServerFixture { get; private set; }
         public Client.ISession Session { get; private set; }
         public string ServerUrl { get; private set; }
         public ITelemetryContext Telemetry { get; private set; }
@@ -233,27 +230,27 @@ namespace Opc.Ua.Aot.Tests
             Telemetry = DefaultTelemetry.Create(builder =>
                 builder.SetMinimumLevel(LogLevel.Warning));
 
-            ServerFixture = new AotServerFixture<BoilerTestServer>(
-                t => new BoilerTestServer(t), Telemetry)
+            ServerFixture = new AotServerFixture<CalculatorTestServer>(
+                t => new CalculatorTestServer(t), Telemetry)
             {
                 AutoAccept = true,
                 SecurityNone = true
             };
             await ServerFixture.LoadConfigurationAsync(
-                Path.Combine(Directory.GetCurrentDirectory(), "boiler-pki"))
+                Path.Combine(Directory.GetCurrentDirectory(), "calc-pki"))
                 .ConfigureAwait(false);
             await ServerFixture.StartAsync().ConfigureAwait(false);
 
             ServerUrl = $"opc.tcp://localhost:{ServerFixture.Port}/" +
-                nameof(BoilerTestServer);
+                nameof(CalculatorTestServer);
 
             m_pkiRoot = Path.Combine(
-                Path.GetTempPath(), "OpcUaAotTests", "boiler-client-pki");
+                Path.GetTempPath(), "OpcUaAotTests", "calc-client-pki");
 
             m_clientConfiguration = new ApplicationConfiguration(Telemetry)
             {
-                ApplicationName = "BoilerAotTestClient",
-                ApplicationUri = "urn:localhost:OPCFoundation:BoilerAotTestClient",
+                ApplicationName = "CalculatorAotTestClient",
+                ApplicationUri = "urn:localhost:OPCFoundation:CalculatorAotTestClient",
                 ApplicationType = ApplicationType.Client,
                 SecurityConfiguration = new SecurityConfiguration
                 {
@@ -261,7 +258,7 @@ namespace Opc.Ua.Aot.Tests
                     {
                         StoreType = CertificateStoreType.Directory,
                         StorePath = Path.Combine(m_pkiRoot, "own"),
-                        SubjectName = "CN=BoilerAotTestClient, O=OPC Foundation"
+                        SubjectName = "CN=CalculatorAotTestClient, O=OPC Foundation"
                     },
                     TrustedIssuerCertificates = new CertificateTrustList
                     {
@@ -307,7 +304,7 @@ namespace Opc.Ua.Aot.Tests
                 m_clientConfiguration,
                 configuredEndpoint,
                 updateBeforeConnect: false,
-                sessionName: "BoilerAotTest",
+                sessionName: "CalculatorAotTest",
                 sessionTimeout: 60000,
                 identity: new UserIdentity(new AnonymousIdentityToken()),
                 preferredLocales: default,
@@ -343,14 +340,14 @@ namespace Opc.Ua.Aot.Tests
 
     /// <summary>
     /// Public <see cref="StandardServer"/> subclass that registers the
-    /// source-generated <see cref="Boiler.BoilerNodeManagerFactory"/>.
-    /// Mirrors the internal <c>BoilerStandardServer</c> in
-    /// MinimalBoilerServer's <c>Program.cs</c> but is exposed as
+    /// source-generated <see cref="Calc.CalcNodeManagerFactory"/>.
+    /// Mirrors the implicit hosting that <c>AddNodeManager</c> sets up
+    /// in MinimalCalcServer's <c>Program.cs</c> but is exposed as
     /// <c>public</c> so <see cref="AotServerFixture{T}"/> can host it.
     /// </summary>
-    public sealed class BoilerTestServer : StandardServer
+    public sealed class CalculatorTestServer : StandardServer
     {
-        public BoilerTestServer(ITelemetryContext telemetry)
+        public CalculatorTestServer(ITelemetryContext telemetry)
             : base(telemetry)
         {
         }
@@ -358,7 +355,7 @@ namespace Opc.Ua.Aot.Tests
         protected override void OnServerStarting(ApplicationConfiguration configuration)
         {
             base.OnServerStarting(configuration);
-            AddNodeManager(new boilersample::Boiler.BoilerNodeManagerFactory());
+            AddNodeManager(new calcsample::Calc.CalcNodeManagerFactory());
         }
     }
 }
