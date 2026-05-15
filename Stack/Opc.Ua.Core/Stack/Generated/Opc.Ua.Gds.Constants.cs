@@ -564,6 +564,8 @@ namespace Opc.Ua.Gds
         public const uint ApplicationRecordDataType_Encoding_DefaultBinary = 134;
 
         public const uint ApplicationRecordDataType_Encoding_DefaultXml = 127;
+
+        public const uint ApplicationRecordDataType_Encoding_DefaultJson = 8001;
     }
     #endregion
 
@@ -3070,6 +3072,8 @@ namespace Opc.Ua.Gds
         public static readonly ExpandedNodeId ApplicationRecordDataType_Encoding_DefaultBinary = new ExpandedNodeId(Opc.Ua.Gds.Objects.ApplicationRecordDataType_Encoding_DefaultBinary, Opc.Ua.Gds.Namespaces.OpcUaGds);
 
         public static readonly ExpandedNodeId ApplicationRecordDataType_Encoding_DefaultXml = new ExpandedNodeId(Opc.Ua.Gds.Objects.ApplicationRecordDataType_Encoding_DefaultXml, Opc.Ua.Gds.Namespaces.OpcUaGds);
+
+        public static readonly ExpandedNodeId ApplicationRecordDataType_Encoding_DefaultJson = new ExpandedNodeId(Opc.Ua.Gds.Objects.ApplicationRecordDataType_Encoding_DefaultJson, Opc.Ua.Gds.Namespaces.OpcUaGds);
     }
     #endregion
 
