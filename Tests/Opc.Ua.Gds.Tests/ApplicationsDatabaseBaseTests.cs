@@ -147,6 +147,7 @@ namespace Opc.Ua.Gds.Tests
         [TestCase("alpha", "%en%", false)]
         [TestCase("would", "_ould", true)]
         [TestCase("could", "_ould", true)]
+        [TestCase("xould", "_ould", true)]
         [TestCase("mould", "_ould", true)]
         [TestCase("moulder", "_ould", false)]
         [TestCase("5%", "5[%]", true)]
@@ -159,6 +160,7 @@ namespace Opc.Ua.Gds.Tests
         [TestCase("abc8", "abc[13-68]", true)]
         [TestCase("abc2", "abc[13-68]", false)]
         [TestCase("abc7", "abc[13-68]", false)]
+        [TestCase("abc-", "abc[13-68]", false)]
         [TestCase("xyzc", "xyz[c-f]", true)]
         [TestCase("xyzf", "xyz[c-f]", true)]
         [TestCase("xyzg", "xyz[c-f]", false)]
@@ -169,6 +171,8 @@ namespace Opc.Ua.Gds.Tests
         [TestCase("ABC1", "ABC[^13-5]", false)]
         [TestCase("ABC3", "ABC[^13-5]", false)]
         [TestCase("ABC4", "ABC[^13-5]", false)]
+        [TestCase("ABC0", "ABC[^1-5]", true)]
+        [TestCase("ABC3", "ABC[^1-5]", false)]
         [TestCase("xyza", "xyz[^dgh]", true)]
         [TestCase("xyzd", "xyz[^dgh]", false)]
         [TestCase("xyzg", "xyz[^dgh]", false)]
@@ -176,6 +180,8 @@ namespace Opc.Ua.Gds.Tests
         [TestCase("5%", "5\\%", true)]
         [TestCase("5_", "5\\_", true)]
         [TestCase("\\", "\\\\", true)]
+        [TestCase("[", "\\[", true)]
+        [TestCase("]", "\\]", true)]
         [TestCase("5a", "5\\%", false)]
         public void MatchImplementsUaWildcardSpecification(
             string target,

@@ -617,7 +617,9 @@ namespace Opc.Ua.Gds.Server.Database
                 return SkipToNext(target, targetIndex, tokens, ref tokenIndex);
             }
 
-            if (token.StartsWith('['))
+            if (token.StartsWith('[') &&
+                token.EndsWith(']') &&
+                token.Length > 1)
             {
                 bool inverse = false;
                 bool match = false;
