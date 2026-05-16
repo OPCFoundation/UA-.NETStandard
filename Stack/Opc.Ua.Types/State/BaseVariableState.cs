@@ -575,7 +575,7 @@ namespace Opc.Ua
         /// <see cref="ApplyIndexRangeAndDataEncoding"/> on the returned
         /// value.
         /// </summary>
-        public NodeValueEventHandlerAsync OnReadValueAsync;
+        public NodeValueEventHandlerAsync? OnReadValueAsync;
 
         /// <summary>
         /// Asynchronous sibling of <see cref="OnSimpleReadValue"/>. The
@@ -583,7 +583,7 @@ namespace Opc.Ua
         /// (<see cref="ApplyIndexRangeAndDataEncoding"/> and copy policy)
         /// just like the synchronous path.
         /// </summary>
-        public NodeValueSimpleEventHandlerAsync OnSimpleReadValueAsync;
+        public NodeValueSimpleEventHandlerAsync? OnSimpleReadValueAsync;
 
         /// <summary>
         /// Asynchronous sibling of <see cref="OnWriteValue"/>. When set,
@@ -593,14 +593,14 @@ namespace Opc.Ua
         /// success the framework updates the cached value, status code
         /// and timestamp.
         /// </summary>
-        public NodeValueWriteEventHandlerAsync OnWriteValueAsync;
+        public NodeValueWriteEventHandlerAsync? OnWriteValueAsync;
 
         /// <summary>
         /// Asynchronous sibling of <see cref="OnSimpleWriteValue"/>. Index
         /// range writes are not supported through this hook (just like
         /// the synchronous one).
         /// </summary>
-        public NodeValueSimpleWriteEventHandlerAsync OnSimpleWriteValueAsync;
+        public NodeValueSimpleWriteEventHandlerAsync? OnSimpleWriteValueAsync;
 
         /// <summary>
         /// Raised when the DataType attribute is read.
@@ -1795,8 +1795,8 @@ namespace Opc.Ua
             DataValue value,
             CancellationToken cancellationToken = default)
         {
-            NodeValueEventHandlerAsync onReadValueAsync = OnReadValueAsync;
-            NodeValueSimpleEventHandlerAsync onSimpleReadValueAsync = OnSimpleReadValueAsync;
+            NodeValueEventHandlerAsync? onReadValueAsync = OnReadValueAsync;
+            NodeValueSimpleEventHandlerAsync? onSimpleReadValueAsync = OnSimpleReadValueAsync;
 
             if (attributeId != Attributes.Value ||
                 (onReadValueAsync == null && onSimpleReadValueAsync == null))
@@ -1879,7 +1879,7 @@ namespace Opc.Ua
                     else
                     {
                         // simple async read — framework owns post-processing.
-                        AttributeSimpleReadResult simpleResult = await onSimpleReadValueAsync(
+                        AttributeSimpleReadResult simpleResult = await onSimpleReadValueAsync!(
                             context, this, cancellationToken)
                             .ConfigureAwait(false);
 
@@ -1939,7 +1939,7 @@ namespace Opc.Ua
 
             value.WrappedValue = StatusCode.IsBad(value.StatusCode) ? Variant.Null : valueToRead;
 
-            return result;
+            return result!;
         }
 
         /// <summary>
@@ -1956,8 +1956,8 @@ namespace Opc.Ua
             DataValue value,
             CancellationToken cancellationToken = default)
         {
-            NodeValueWriteEventHandlerAsync onWriteValueAsync = OnWriteValueAsync;
-            NodeValueSimpleWriteEventHandlerAsync onSimpleWriteValueAsync = OnSimpleWriteValueAsync;
+            NodeValueWriteEventHandlerAsync? onWriteValueAsync = OnWriteValueAsync;
+            NodeValueSimpleWriteEventHandlerAsync? onSimpleWriteValueAsync = OnSimpleWriteValueAsync;
 
             if (attributeId != Attributes.Value ||
                 (onWriteValueAsync == null && onSimpleWriteValueAsync == null))
@@ -2057,7 +2057,7 @@ namespace Opc.Ua
                     valueToWrite = CoreUtils.Clone(valueToWrite);
                 }
 
-                AttributeWriteResult simpleResult = await onSimpleWriteValueAsync(
+                AttributeWriteResult simpleResult = await onSimpleWriteValueAsync!(
                     context, this, valueToWrite, cancellationToken)
                     .ConfigureAwait(false);
 

@@ -321,7 +321,7 @@ namespace Opc.Ua.Server.Fluent
             return m;
         }
 
-        private void ThrowIfSlotOccupied(Delegate existing, string what)
+        private void ThrowIfSlotOccupied(Delegate? existing, string what)
         {
             if (existing != null)
             {

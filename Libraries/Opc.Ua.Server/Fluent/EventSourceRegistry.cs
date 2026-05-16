@@ -93,7 +93,7 @@ namespace Opc.Ua.Server.Fluent
         public void Register(
             BaseObjectState notifier,
             Func<NodeState, ISystemContext, CancellationToken, System.Collections.Generic.IAsyncEnumerable<BaseEventState>> factory,
-            EventPublishOptions options)
+            EventPublishOptions? options)
         {
             if (notifier == null)
             {
@@ -373,8 +373,8 @@ namespace Opc.Ua.Server.Fluent
 
         private void DeactivateSource(SourceEntry entry, bool force)
         {
-            CancellationTokenSource cts = entry.WorkerCts;
-            Task worker = entry.WorkerTask;
+            CancellationTokenSource? cts = entry.WorkerCts;
+            Task? worker = entry.WorkerTask;
             entry.WorkerCts = null;
             entry.WorkerTask = null;
 
@@ -576,7 +576,7 @@ namespace Opc.Ua.Server.Fluent
             {
                 e.SourceName = PropertyState<string>.With<VariantBuilder>(
                     e,
-                    notifier.BrowseName.Name);
+                    notifier.BrowseName.Name ?? string.Empty);
             }
 
             if (e.Time == null || e.Time.Value.IsNull)
@@ -629,8 +629,8 @@ namespace Opc.Ua.Server.Fluent
             public BaseObjectState Notifier { get; }
             public Func<NodeState, ISystemContext, CancellationToken, System.Collections.Generic.IAsyncEnumerable<BaseEventState>> Factory { get; }
             public EventPublishOptions Options { get; }
-            public CancellationTokenSource WorkerCts;
-            public Task WorkerTask;
+            public CancellationTokenSource? WorkerCts;
+            public Task? WorkerTask;
             public int LeakedFaulted;
         }
 

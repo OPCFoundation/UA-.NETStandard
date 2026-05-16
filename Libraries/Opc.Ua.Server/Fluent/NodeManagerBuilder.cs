@@ -261,7 +261,7 @@ namespace Opc.Ua.Server.Fluent
         public IVariableBuilder<TValue> VariableFromTypeId<TValue>(NodeId typeDefinitionId)
         {
             ThrowIfSealed();
-            NodeState node = ResolveByTypeDefinition(typeDefinitionId, (QualifiedName)null);
+            NodeState node = ResolveByTypeDefinition(typeDefinitionId, (QualifiedName)null!);
             return ToVariableBuilder<TValue>(node, FormatNodeId(typeDefinitionId));
         }
 
@@ -304,7 +304,7 @@ namespace Opc.Ua.Server.Fluent
         /// <c>null</c>; the <c>Publish</c> extensions surface a
         /// targeted error in that case.
         /// </remarks>
-        internal EventSourceRegistry EventSources { get; private set; }
+        internal EventSourceRegistry? EventSources { get; private set; }
 
         /// <summary>
         /// Wires the supplied registry into this builder so the
