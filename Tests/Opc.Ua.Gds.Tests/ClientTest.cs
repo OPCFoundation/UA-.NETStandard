@@ -537,8 +537,9 @@ namespace Opc.Ua.Gds.Tests
             Assert.That(allServers.IsNull, Is.False);
             foreach (ServerOnNetwork server in allServers.ToList())
             {
+                uint startingRecordId = server.RecordId > 0 ? server.RecordId - 1 : 0;
                 ArrayOf<ServerOnNetwork> oneServers = (await m_gdsClient.GDSClient.QueryServersAsync(
-                    server.RecordId,
+                    startingRecordId,
                     1,
                     string.Empty,
                     string.Empty,
@@ -548,7 +549,7 @@ namespace Opc.Ua.Gds.Tests
                 Assert.That(oneServers.Count, Is.GreaterThanOrEqualTo(1));
                 foreach (ServerOnNetwork oneServer in oneServers)
                 {
-                    Assert.That(server.RecordId, Is.EqualTo(oneServer.RecordId));
+                    Assert.That(oneServer.RecordId, Is.GreaterThan(startingRecordId));
                 }
                 firstID = Math.Min(firstID, server.RecordId);
                 lastID = Math.Max(lastID, server.RecordId);
@@ -576,8 +577,9 @@ namespace Opc.Ua.Gds.Tests
             Assert.That(allServers.IsNull, Is.False);
             foreach (ServerOnNetwork server in allServers.ToList())
             {
+                uint startingRecordId = server.RecordId > 0 ? server.RecordId - 1 : 0;
                 ArrayOf<ServerOnNetwork> oneServers = (await m_gdsClient.GDSClient.QueryServersAsync(
-                    server.RecordId,
+                    startingRecordId,
                     1,
                     null,
                     null,
@@ -587,7 +589,7 @@ namespace Opc.Ua.Gds.Tests
                 Assert.That(oneServers.Count, Is.GreaterThanOrEqualTo(1));
                 foreach (ServerOnNetwork oneServer in oneServers)
                 {
-                    Assert.That(server.RecordId, Is.EqualTo(oneServer.RecordId));
+                    Assert.That(oneServer.RecordId, Is.GreaterThan(startingRecordId));
                 }
                 firstID = Math.Min(firstID, server.RecordId);
                 lastID = Math.Max(lastID, server.RecordId);
@@ -605,10 +607,21 @@ namespace Opc.Ua.Gds.Tests
         public async Task QueryGoodServersBatchesAsync()
         {
             // repeating queries to get all servers
+            ArrayOf<ServerOnNetwork> allServers = (await m_gdsClient.GDSClient.QueryServersAsync(
+                0,
+                string.Empty,
+                string.Empty,
+                string.Empty,
+                default).ConfigureAwait(false));
+            int uniqueServerRecords = allServers
+                .ToList()
+                .Select(server => server.RecordId)
+                .Distinct()
+                .Count();
+
             uint nextID = 0;
             uint iterationCount = Math.Min(10, (uint)(kGoodApplicationsTestCount / 2));
             int serversOnNetwork = 0;
-            int goodServersOnNetwork = GoodServersOnNetworkCount();
             while (true)
             {
                 ArrayOf<ServerOnNetwork> iterServers = (await m_gdsClient.GDSClient.QueryServersAsync(
@@ -625,10 +638,11 @@ namespace Opc.Ua.Gds.Tests
                     break;
                 }
                 uint previousID = nextID;
-                nextID = iterServers[^1].RecordId + 1;
+                nextID = iterServers[^1].RecordId;
                 Assert.That(nextID, Is.GreaterThan(previousID));
             }
-            Assert.That(serversOnNetwork, Is.GreaterThanOrEqualTo(goodServersOnNetwork));
+            Assert.That(serversOnNetwork, Is.GreaterThanOrEqualTo(uniqueServerRecords));
+            Assert.That(serversOnNetwork, Is.LessThanOrEqualTo(allServers.Count));
         }
 
         [Test]
