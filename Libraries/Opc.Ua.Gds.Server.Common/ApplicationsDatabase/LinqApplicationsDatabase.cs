@@ -109,13 +109,10 @@ namespace Opc.Ua.Gds.Server.Database.Linq
 
         public override NodeId RegisterApplication(ApplicationRecordDataType application)
         {
-            bool isNewEntry = application.ApplicationId.IsNull;
-            NodeId appNodeId = base.RegisterApplication(application);
-            if (appNodeId.IsNull)
-            {
-                appNodeId = new NodeId(Guid.NewGuid(), NamespaceIndex);
-            }
-            Guid applicationId = GetNodeIdGuid(appNodeId);
+            base.RegisterApplication(application);
+
+            var applicationId = Guid.NewGuid();
+
             string capabilities = ServerCapabilities(application);
 
             lock (Lock)
@@ -126,75 +123,112 @@ namespace Opc.Ua.Gds.Server.Database.Linq
                     select ii
                 ).Any();
 
-                if (existingApplication && isNewEntry)
+                if (existingApplication)
                 {
                     throw new ServiceResultException(
                         StatusCodes.BadEntryExists,
                         "An application with the same application URI is already registered.");
                 }
 
-                Application record = null;
-
-                if (applicationId != Guid.Empty)
+                Application record = new Application
                 {
-                    record =
-                        (from ii in Applications
-                        where ii.ApplicationId == applicationId
-                        select ii).SingleOrDefault();
+                    ApplicationId = applicationId,
+                    ID = 0,
+                    ApplicationUri = application.ApplicationUri,
+                    ApplicationName = application.ApplicationNames[0].Text,
+                    ApplicationType = (int)application.ApplicationType,
+                    ProductUri = application.ProductUri,
+                    ServerCapabilities = capabilities
+                };
 
-                    if (record != null)
+                Applications.Add(record);
+
+                SaveChanges();
+
+                foreach (string discoveryUrl in application.DiscoveryUrls)
+                {
+                    ServerEndpoints.Add(
+                        new ServerEndpoint
+                        {
+                            ApplicationId = record.ApplicationId,
+                            DiscoveryUrl = discoveryUrl
+                        });
+                }
+
+                if (!application.ApplicationNames.IsEmpty)
+                {
+                    foreach (LocalizedText applicationName in application.ApplicationNames)
                     {
-                        if (record.ApplicationUri != application.ApplicationUri)
-                        {
-                            throw new ServiceResultException(
-                                StatusCodes.BadWriteNotSupported);
-                        }
-
-                        var endpoints = (
-                            from ii in ServerEndpoints
-                            where ii.ApplicationId == record.ApplicationId
-                            select ii
-                        ).ToList();
-
-                        foreach (ServerEndpoint endpoint in endpoints)
-                        {
-                            ServerEndpoints.Remove(endpoint);
-                        }
-
-                        var names = (
-                            from ii in ApplicationNames
-                            where ii.ApplicationId == record.ApplicationId
-                            select ii
-                        ).ToList();
-
-                        foreach (ApplicationName name in names)
-                        {
-                            ApplicationNames.Remove(name);
-                        }
-
-                        SaveChanges();
+                        ApplicationNames.Add(
+                            new ApplicationName
+                            {
+                                ApplicationId = record.ApplicationId,
+                                Locale = applicationName.Locale,
+                                Text = applicationName.Text
+                            });
                     }
                 }
 
-                bool isNew = false;
+                SaveChanges();
+
+                return new NodeId(applicationId, NamespaceIndex);
+            }
+        }
+
+        public override NodeId UpdateApplication(ApplicationRecordDataType application)
+        {
+            base.UpdateApplication(application);
+
+            Guid applicationId = GetNodeIdGuid(application.ApplicationId);
+            string capabilities = ServerCapabilities(application);
+
+            lock (Lock)
+            {
+                Application record =
+                        (from ii in Applications
+                         where ii.ApplicationId == applicationId
+                         select ii).SingleOrDefault();
 
                 if (record == null)
                 {
-                    applicationId = Guid.NewGuid();
-                    record = new Application { ApplicationId = applicationId, ID = 0 };
-                    isNew = true;
+                    throw new ServiceResultException(StatusCodes.BadNotFound);
                 }
+
+                if (record.ApplicationUri != application.ApplicationUri)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadWriteNotSupported);
+                }
+
+                var endpoints = (
+                    from ii in ServerEndpoints
+                    where ii.ApplicationId == record.ApplicationId
+                    select ii
+                ).ToList();
+
+                foreach (ServerEndpoint endpoint in endpoints)
+                {
+                    ServerEndpoints.Remove(endpoint);
+                }
+
+                var names = (
+                    from ii in ApplicationNames
+                    where ii.ApplicationId == record.ApplicationId
+                    select ii
+                ).ToList();
+
+                foreach (ApplicationName name in names)
+                {
+                    ApplicationNames.Remove(name);
+                }
+
+                SaveChanges();
 
                 record.ApplicationUri = application.ApplicationUri;
                 record.ApplicationName = application.ApplicationNames[0].Text;
                 record.ApplicationType = (int)application.ApplicationType;
                 record.ProductUri = application.ProductUri;
                 record.ServerCapabilities = capabilities;
-
-                if (isNew)
-                {
-                    Applications.Add(record);
-                }
 
                 SaveChanges();
 
@@ -426,7 +460,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
             {
                 IEnumerable<Application> results =
                     from x in Applications
-                    where (int)startingRecordId == 0 || (int)startingRecordId <= x.ID
+                    where (int)startingRecordId == 0 || (int)startingRecordId < x.ID
                     select x;
 
                 lastCounterResetTime = QueryCounterResetTime;
@@ -566,7 +600,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
                 var results =
                     from x in ServerEndpoints
                     join y in Applications on x.ApplicationId equals y.ApplicationId
-                    where y.ID >= startingRecordId
+                    where y.ID > startingRecordId
                     orderby y.ID
                     select new
                     {
@@ -628,7 +662,6 @@ namespace Opc.Ua.Gds.Server.Database.Linq
 
                     if (lastID != 0 &&
                         maxRecordsToReturn != 0 &&
-                        lastID != result.ID &&
                         records.Count >= maxRecordsToReturn)
                     {
                         break;

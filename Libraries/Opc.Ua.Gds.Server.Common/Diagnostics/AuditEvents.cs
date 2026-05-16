@@ -67,7 +67,7 @@ namespace Opc.Ua.Gds.Server.Diagnostics
                 e.SetChildValue(
                     systemContext,
                     Ua.BrowseNames.SourceName,
-                    "Method/FinishRequest",
+                    "Attribute/Call",
                     false);
                 e.SetChildValue(
                     systemContext,
@@ -148,7 +148,7 @@ namespace Opc.Ua.Gds.Server.Diagnostics
                 e.SetChildValue(
                     systemContext,
                     Ua.BrowseNames.SourceName,
-                    "Method/StartNewKeyPairRequest",
+                    "Attribute/Call",
                     false);
                 e.SetChildValue(
                     systemContext,
@@ -216,19 +216,13 @@ namespace Opc.Ua.Gds.Server.Diagnostics
                 e.SetChildValue(
                     systemContext,
                     Ua.BrowseNames.SourceName,
-                    "Method/RegisterApplication",
+                    "Attribute/Call",
                     false);
 
                 e.SetChildValue(
                     systemContext,
                     Ua.BrowseNames.LocalTime,
                     TimeZoneDataType.Local,
-                    false);
-
-                e.SetChildValue(
-                    systemContext,
-                    Ua.BrowseNames.ActionTimeStamp,
-                    DateTimeUtc.Now,
                     false);
 
                 e.SetChildValue(systemContext, Ua.BrowseNames.MethodId, method?.NodeId ?? default, false);

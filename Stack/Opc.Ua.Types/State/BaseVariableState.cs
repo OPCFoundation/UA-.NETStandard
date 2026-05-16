@@ -1737,6 +1737,17 @@ namespace Opc.Ua
             return ServiceResult.Good;
         }
 
+        /// <summary>
+        /// Returns a string representation of the node.
+        /// </summary>
+        /// <returns>
+        /// A <see cref="string"/> that represents the current <see cref="object"/>.
+        /// </returns>
+        public override string ToString()
+        {
+            return Value.ToString();
+        }
+
         private Variant m_value;
         private DateTimeUtc m_timestamp;
         private bool m_valueTouched;

@@ -37,6 +37,7 @@ namespace Opc.Ua.Gds.Server.Database
         void Initialize();
         ushort NamespaceIndex { get; set; }
         NodeId RegisterApplication(ApplicationRecordDataType application);
+        NodeId UpdateApplication(ApplicationRecordDataType application);
         void UnregisterApplication(NodeId applicationId);
         ApplicationRecordDataType GetApplication(NodeId applicationId);
         ApplicationRecordDataType[] FindApplications(string applicationUri);

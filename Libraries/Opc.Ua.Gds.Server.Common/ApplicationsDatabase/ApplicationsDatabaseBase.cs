@@ -44,7 +44,17 @@ namespace Opc.Ua.Gds.Server.Database
 
         public ushort NamespaceIndex { get; set; }
 
+        public virtual NodeId UpdateApplication(ApplicationRecordDataType application)
+        {
+            return ValidateApplication(application);
+        }
+
         public virtual NodeId RegisterApplication(ApplicationRecordDataType application)
+        {
+            return ValidateApplication(application);
+        }
+
+        private static NodeId ValidateApplication(ApplicationRecordDataType application)
         {
             if (application == null)
             {
@@ -129,27 +139,7 @@ namespace Opc.Ua.Gds.Server.Database
                     nameof(application));
             }
 
-            if (application.ApplicationId.IsNull)
-            {
-                return default;
-            }
-
-            // verify node integrity
-            switch (application.ApplicationId.IdType)
-            {
-                case IdType.String:
-                case IdType.Guid:
-                    return application.ApplicationId.WithNamespaceIndex(NamespaceIndex);
-                case IdType.Numeric:
-                case IdType.Opaque:
-                    throw new ArgumentException(
-                        "The ApplicationId has invalid type {0}",
-                        nameof(application));
-                default:
-                    throw new ArgumentException(
-                        "The ApplicationId has unexpected type {0}",
-                        nameof(application));
-            }
+            return default;
         }
 
         public virtual void UnregisterApplication(NodeId applicationId)
@@ -183,6 +173,14 @@ namespace Opc.Ua.Gds.Server.Database
             out DateTimeUtc lastCounterResetTime)
         {
             lastCounterResetTime = DateTimeUtc.MinValue;
+
+            if (serverCapabilities.Contains("NA", StringComparer.OrdinalIgnoreCase) &&
+                serverCapabilities.Count > 1)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadInvalidArgument);
+            }
+
             return null;
         }
 
@@ -349,7 +347,7 @@ namespace Opc.Ua.Gds.Server.Database
         {
             if (nodeId.IsNull)
             {
-                throw new ArgumentNullException(nameof(nodeId));
+                throw new ServiceResultException(StatusCodes.BadNotFound);
             }
 
             if (NamespaceIndex != nodeId.NamespaceIndex ||
@@ -384,7 +382,7 @@ namespace Opc.Ua.Gds.Server.Database
         {
             if (nodeId.IsNull)
             {
-                throw new ArgumentNullException(nameof(nodeId));
+                throw new ServiceResultException(StatusCodes.BadNotFound);
             }
 
             if ((nodeId.IdType != IdType.Guid && nodeId.IdType != IdType.String) ||
@@ -505,155 +503,155 @@ namespace Opc.Ua.Gds.Server.Database
         }
 
         private static int SkipToNext(
-            string target,
-            int targetIndex,
-            IList<string> tokens,
-            ref int tokenIndex)
+    string target,
+    int targetIndex,
+    IList<string> tokens,
+    ref int tokenIndex)
+{
+    if (targetIndex >= target.Length - 1)
+    {
+        return targetIndex + 1;
+    }
+
+    if (tokenIndex >= tokens.Count - 1)
+    {
+        return target.Length + 1;
+    }
+
+    if (!tokens[tokenIndex + 1].StartsWith("[^", StringComparison.Ordinal))
+    {
+        int nextTokenIndex = tokenIndex + 1;
+
+        // skip over unmatched chars.
+        while (targetIndex < target.Length &&
+            Match(target, targetIndex, tokens, ref nextTokenIndex) < 0)
         {
-            if (targetIndex >= target.Length - 1)
-            {
-                return targetIndex + 1;
-            }
-
-            if (tokenIndex >= tokens.Count - 1)
-            {
-                return target.Length + 1;
-            }
-
-            if (!tokens[tokenIndex + 1].StartsWith("[^", StringComparison.Ordinal))
-            {
-                int nextTokenIndex = tokenIndex + 1;
-
-                // skip over unmatched chars.
-                while (targetIndex < target.Length &&
-                    Match(target, targetIndex, tokens, ref nextTokenIndex) < 0)
-                {
-                    targetIndex++;
-                    nextTokenIndex = tokenIndex + 1;
-                }
-
-                nextTokenIndex = tokenIndex + 1;
-
-                // skip over duplicate matches.
-                while (targetIndex < target.Length &&
-                    Match(target, targetIndex, tokens, ref nextTokenIndex) >= 0)
-                {
-                    targetIndex++;
-                    nextTokenIndex = tokenIndex + 1;
-                }
-
-                // return last match.
-                if (targetIndex <= target.Length)
-                {
-                    return targetIndex - 1;
-                }
-            }
-            else
-            {
-                int start = targetIndex;
-                int nextTokenIndex = tokenIndex + 1;
-
-                // skip over matches.
-                while (targetIndex < target.Length &&
-                    Match(target, targetIndex, tokens, ref nextTokenIndex) >= 0)
-                {
-                    targetIndex++;
-                    nextTokenIndex = tokenIndex + 1;
-                }
-
-                // no match in string.
-                if (targetIndex < target.Length)
-                {
-                    return -1;
-                }
-
-                // try the next token.
-                if (tokenIndex >= tokens.Count - 2)
-                {
-                    return target.Length + 1;
-                }
-
-                tokenIndex++;
-
-                return SkipToNext(target, start, tokens, ref tokenIndex);
-            }
-
-            return -1;
+            targetIndex++;
+            nextTokenIndex = tokenIndex + 1;
         }
 
-        private static int Match(
-            string target,
-            int targetIndex,
-            IList<string> tokens,
-            ref int tokenIndex)
+        nextTokenIndex = tokenIndex + 1;
+
+        // skip over duplicate matches.
+        while (targetIndex < target.Length &&
+            Match(target, targetIndex, tokens, ref nextTokenIndex) >= 0)
         {
-            if (tokens == null || tokenIndex < 0 || tokenIndex >= tokens.Count)
-            {
-                return -1;
-            }
+            targetIndex++;
+            nextTokenIndex = tokenIndex + 1;
+        }
 
-            if (target == null || targetIndex < 0 || targetIndex >= target.Length)
-            {
-                if (tokens[tokenIndex] == "%" && tokenIndex == tokens.Count - 1)
-                {
-                    return targetIndex;
-                }
-
-                return -1;
-            }
-
-            string token = tokens[tokenIndex];
-
-            if (token == "_")
-            {
-                if (targetIndex >= target.Length)
-                {
-                    return -1;
-                }
-
-                return targetIndex + 1;
-            }
-
-            if (token == "%")
-            {
-                return SkipToNext(target, targetIndex, tokens, ref tokenIndex);
-            }
-
-            if (token.StartsWith('['))
-            {
-                bool inverse = false;
-                bool match = false;
-
-                for (int ii = 1; ii < token.Length - 1; ii++)
-                {
-                    if (token[ii] == '^')
-                    {
-                        inverse = true;
-                        continue;
-                    }
-
-                    if (!inverse && target[targetIndex] == token[ii])
-                    {
-                        return targetIndex + 1;
-                    }
-
-                    match |= inverse && target[targetIndex] == token[ii];
-                }
-
-                if (inverse && !match)
-                {
-                    return targetIndex + 1;
-                }
-
-                return -1;
-            }
-
-            if (target[targetIndex..].StartsWith(token, StringComparison.Ordinal))
-            {
-                return targetIndex + token.Length;
-            }
-
-            return -1;
+        // return last match.
+        if (targetIndex <= target.Length)
+        {
+            return targetIndex - 1;
         }
     }
+    else
+    {
+        int start = targetIndex;
+        int nextTokenIndex = tokenIndex + 1;
+
+        // skip over matches.
+        while (targetIndex < target.Length &&
+            Match(target, targetIndex, tokens, ref nextTokenIndex) >= 0)
+        {
+            targetIndex++;
+            nextTokenIndex = tokenIndex + 1;
+        }
+
+        // no match in string.
+        if (targetIndex < target.Length)
+        {
+            return -1;
+        }
+
+        // try the next token.
+        if (tokenIndex >= tokens.Count - 2)
+        {
+            return target.Length + 1;
+        }
+
+        tokenIndex++;
+
+        return SkipToNext(target, start, tokens, ref tokenIndex);
+    }
+
+    return -1;
+}
+
+private static int Match(
+    string target,
+    int targetIndex,
+    IList<string> tokens,
+    ref int tokenIndex)
+{
+    if (tokens == null || tokenIndex < 0 || tokenIndex >= tokens.Count)
+    {
+        return -1;
+    }
+
+    if (target == null || targetIndex < 0 || targetIndex >= target.Length)
+    {
+        if (tokens[tokenIndex] == "%" && tokenIndex == tokens.Count - 1)
+        {
+            return targetIndex;
+        }
+
+        return -1;
+    }
+
+    string token = tokens[tokenIndex];
+
+    if (token == "_")
+    {
+        if (targetIndex >= target.Length)
+        {
+            return -1;
+        }
+
+        return targetIndex + 1;
+    }
+
+    if (token == "%")
+    {
+        return SkipToNext(target, targetIndex, tokens, ref tokenIndex);
+    }
+
+    if (token.StartsWith('['))
+    {
+        bool inverse = false;
+        bool match = false;
+
+        for (int ii = 1; ii < token.Length - 1; ii++)
+        {
+            if (token[ii] == '^')
+            {
+                inverse = true;
+                continue;
+            }
+
+            if (!inverse && target[targetIndex] == token[ii])
+            {
+                return targetIndex + 1;
+            }
+
+            match |= inverse && target[targetIndex] == token[ii];
+        }
+
+        if (inverse && !match)
+        {
+            return targetIndex + 1;
+        }
+
+        return -1;
+    }
+
+    if (target[targetIndex..].StartsWith(token, StringComparison.Ordinal))
+    {
+        return targetIndex + token.Length;
+    }
+
+    return -1;
+}
+}
 }

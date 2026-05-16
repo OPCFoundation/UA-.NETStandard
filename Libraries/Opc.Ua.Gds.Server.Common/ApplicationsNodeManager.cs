@@ -696,7 +696,7 @@ namespace Opc.Ua.Gds.Server
 
             try
             {
-                m_database.RegisterApplication(application);
+                m_database.UpdateApplication(application);
             }
             catch (ArgumentException ex)
             {
@@ -726,6 +726,16 @@ namespace Opc.Ua.Gds.Server
 
             m_logger.LogInformation("OnUnregisterApplication: {ApplicationId}", applicationId.ToString());
 
+            if (m_database.GetApplication(applicationId) == null)
+            {
+                return new UnregisterApplicationMethodStateResult
+                {
+                    ServiceResult = new ServiceResult(
+                        StatusCodes.BadNotFound,
+                        LocalizedText.From("The application id does not exist."))
+                };
+            }
+
             foreach (KeyValuePair<NodeId, string> certType in m_certTypeMap)
             {
                 try
@@ -739,9 +749,9 @@ namespace Opc.Ua.Gds.Server
                         await RevokeCertificateAsync(certificate).ConfigureAwait(false);
                     }
                 }
-                catch
+                catch (Exception ex)
                 {
-                    m_logger.LogError("Failed to revoke: {CertificateType}", certType.Value);
+                    m_logger.LogWarning(ex, "Failed to revoke: {CertificateType}", certType.Value);
                 }
             }
 
