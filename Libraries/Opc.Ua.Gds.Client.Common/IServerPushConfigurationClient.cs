@@ -109,6 +109,14 @@ namespace Opc.Ua.Gds.Client
         /// <remarks>Reads the <c>SupportedPrivateKeyFormats</c> property of <c>ServerConfigurationType</c> (OPC 10000-12 §7.10.2).</remarks>
         ValueTask<ArrayOf<string>> GetSupportedKeyFormatsAsync(CancellationToken ct = default);
 
+        /// <summary>Reads the trust list of the specified certificate group.</summary>
+        /// <remarks>Reads the trust list via the file transfer methods of <c>TrustListType</c> (OPC 10000-12 §7.8).</remarks>
+        ValueTask<TrustListDataType> ReadTrustListAsync(
+            NodeId certificateGroupId,
+            TrustListMasks masks = TrustListMasks.All,
+            long maxTrustListSize = 0,
+            CancellationToken ct = default);
+
         /// <summary>Reads the default-application-group trust list.</summary>
         /// <remarks>Reads the trust list via the file transfer methods of <c>TrustListType</c> (OPC 10000-12 §7.8).</remarks>
         ValueTask<TrustListDataType> ReadTrustListAsync(
@@ -129,6 +137,14 @@ namespace Opc.Ua.Gds.Client
             long maxTrustListSize,
             CancellationToken ct = default);
 
+        /// <summary>Updates the trust list of the specified certificate group.</summary>
+        /// <remarks>Writes the trust list via the file transfer methods of <c>TrustListType</c> (OPC 10000-12 §7.8).</remarks>
+        ValueTask<bool> UpdateTrustListAsync(
+            NodeId certificateGroupId,
+            TrustListDataType trustList,
+            long maxTrustListSize,
+            CancellationToken ct = default);
+
         /// <summary>Adds a certificate to the trust list.</summary>
         /// <remarks>Calls the <c>AddCertificate</c> method on <c>TrustListType</c> (OPC 10000-12 §7.8.7).</remarks>
         ValueTask AddCertificateAsync(
@@ -136,9 +152,25 @@ namespace Opc.Ua.Gds.Client
             bool isTrustedCertificate,
             CancellationToken ct = default);
 
+        /// <summary>Adds a certificate to the trust list.</summary>
+        /// <remarks>Calls the <c>AddCertificate</c> method on <c>TrustListType</c> (OPC 10000-12 §7.8.7).</remarks>
+        ValueTask AddCertificateAsync(
+            NodeId certificateGroupId,
+            Certificate certificate,
+            bool isTrustedCertificate,
+            CancellationToken ct = default);
+
         /// <summary>Removes a certificate from the trust list.</summary>
         /// <remarks>Calls the <c>RemoveCertificate</c> method on <c>TrustListType</c> (OPC 10000-12 §7.8.8).</remarks>
         ValueTask RemoveCertificateAsync(
+            string thumbprint,
+            bool isTrustedCertificate,
+            CancellationToken ct = default);
+
+        /// <summary>Removes a certificate from the trust list.</summary>
+        /// <remarks>Calls the <c>RemoveCertificate</c> method on <c>TrustListType</c> (OPC 10000-12 §7.8.8).</remarks>
+        ValueTask RemoveCertificateAsync(
+            NodeId certificateGroupId,
             string thumbprint,
             bool isTrustedCertificate,
             CancellationToken ct = default);
