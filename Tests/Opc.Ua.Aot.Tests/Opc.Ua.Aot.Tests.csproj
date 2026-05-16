@@ -24,6 +24,9 @@
     <ProjectReference Include="..\..\Applications\MinimalBoilerServer\MinimalBoilerServer.csproj">
       <Aliases>boilersample</Aliases>
     </ProjectReference>
+    <ProjectReference Include="..\..\Applications\MinimalCalcServer\MinimalCalcServer.csproj">
+      <Aliases>calcsample</Aliases>
+    </ProjectReference>
   </ItemGroup>
   <ItemGroup>
     <None Update="Quickstarts.ReferenceServer.Config.xml">

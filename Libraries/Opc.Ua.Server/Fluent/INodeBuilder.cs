@@ -94,6 +94,31 @@ namespace Opc.Ua.Server.Fluent
         INodeBuilder OnWrite(NodeValueSimpleEventHandler handler);
 
         /// <summary>
+        /// Wires <see cref="BaseVariableState.OnReadValueAsync"/>. Use this
+        /// overload when the read source performs I/O — the handler runs
+        /// without holding <c>lock(this)</c>, so the call can <c>await</c>
+        /// freely.
+        /// </summary>
+        INodeBuilder OnRead(NodeValueEventHandlerAsync handler);
+
+        /// <summary>
+        /// Wires <see cref="BaseVariableState.OnSimpleReadValueAsync"/>.
+        /// The framework still applies index-range / data-encoding /
+        /// copy-policy post-processing to the returned value.
+        /// </summary>
+        INodeBuilder OnRead(NodeValueSimpleEventHandlerAsync handler);
+
+        /// <summary>
+        /// Wires <see cref="BaseVariableState.OnWriteValueAsync"/>.
+        /// </summary>
+        INodeBuilder OnWrite(NodeValueWriteEventHandlerAsync handler);
+
+        /// <summary>
+        /// Wires <see cref="BaseVariableState.OnSimpleWriteValueAsync"/>.
+        /// </summary>
+        INodeBuilder OnWrite(NodeValueSimpleWriteEventHandlerAsync handler);
+
+        /// <summary>
         /// Wires <see cref="MethodState.OnCallMethod2"/>.
         /// </summary>
         INodeBuilder OnCall(GenericMethodCalledEventHandler2 handler);
@@ -146,6 +171,41 @@ namespace Opc.Ua.Server.Fluent
         /// hook to forward events to <paramref name="handler"/>.
         /// </summary>
         INodeBuilder OnEvent(EventNotificationHandler handler);
+
+        /// <summary>
+        /// Resolves a child of the current node by browse name. Used by
+        /// source-generated typed traversal wrappers to walk one segment
+        /// at a time without re-resolving from the root.
+        /// </summary>
+        /// <param name="browseName">Browse name of the immediate child.</param>
+        /// <exception cref="ServiceResultException">
+        /// Thrown when the child cannot be found.
+        /// </exception>
+        INodeBuilder Child(QualifiedName browseName);
+
+        /// <summary>
+        /// Strongly-typed sibling of <see cref="Child(QualifiedName)"/>.
+        /// </summary>
+        /// <typeparam name="TState">
+        /// CLR <see cref="NodeState"/> type the resolved child must be
+        /// assignable to.
+        /// </typeparam>
+        INodeBuilder<TState> Child<TState>(QualifiedName browseName)
+            where TState : NodeState;
+
+        /// <summary>
+        /// Resolves a variable child of the current node and returns a
+        /// typed <see cref="IVariableBuilder{TValue}"/> view.
+        /// </summary>
+        /// <typeparam name="TValue">
+        /// CLR type carried by the child variable's <c>Value</c> attribute.
+        /// </typeparam>
+        /// <param name="browseName">Browse name of the immediate child.</param>
+        /// <exception cref="ServiceResultException">
+        /// Thrown when the child cannot be found, or when it is not a
+        /// <see cref="BaseVariableState"/>.
+        /// </exception>
+        IVariableBuilder<TValue> Variable<TValue>(QualifiedName browseName);
     }
 
     /// <summary>
