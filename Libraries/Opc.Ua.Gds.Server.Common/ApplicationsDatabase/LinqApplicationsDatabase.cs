@@ -130,7 +130,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
                         "An application with the same application URI is already registered.");
                 }
 
-                Application record = new Application
+                var record = new Application
                 {
                     ApplicationId = applicationId,
                     ID = 0,
@@ -452,15 +452,27 @@ namespace Opc.Ua.Gds.Server.Database.Linq
             out DateTimeUtc lastCounterResetTime,
             out uint nextRecordId)
         {
+            base.QueryApplications(
+                startingRecordId,
+                maxRecordsToReturn,
+                applicationName,
+                applicationUri,
+                applicationType,
+                productUri,
+                serverCapabilities,
+                out lastCounterResetTime,
+                out nextRecordId);
+
             lastCounterResetTime = DateTimeUtc.MinValue;
             nextRecordId = 0;
             var records = new List<ApplicationDescription>();
 
             lock (Lock)
             {
-                IEnumerable<Application> results =
+                IOrderedEnumerable<Application> results =
                     from x in Applications
                     where (int)startingRecordId == 0 || (int)startingRecordId < x.ID
+                    orderby x.ID
                     select x;
 
                 lastCounterResetTime = QueryCounterResetTime;
@@ -593,6 +605,15 @@ namespace Opc.Ua.Gds.Server.Database.Linq
             ArrayOf<string> serverCapabilities,
             out DateTimeUtc lastCounterResetTime)
         {
+            base.QueryServers(
+                startingRecordId,
+                maxRecordsToReturn,
+                applicationName,
+                applicationUri,
+                productUri,
+                serverCapabilities,
+                out lastCounterResetTime);
+
             lock (Lock)
             {
                 lastCounterResetTime = QueryCounterResetTime;
