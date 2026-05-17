@@ -351,7 +351,7 @@ namespace Opc.Ua.Server.Tests
         /// causing <c>ValidateRolePermissions</c> to be called again on the next value change.
         /// </summary>
         [Test]
-        public void InvalidatePermissionCacheForSession_ClearsPermissionCacheForMatchingSession()
+        public void InvalidatePermissionCacheForSessionClearsPermissionCacheForMatchingSession()
         {
             // Arrange
             var sessionId = new NodeId("session1", 1);
@@ -405,7 +405,7 @@ namespace Opc.Ua.Server.Tests
         /// clear the permission cache for monitored items belonging to a different session.
         /// </summary>
         [Test]
-        public void InvalidatePermissionCacheForSession_DoesNotClearCacheForOtherSession()
+        public void InvalidatePermissionCacheForSessionDoesNotClearCacheForOtherSession()
         {
             // Arrange
             var sessionId = new NodeId("session1", 1);

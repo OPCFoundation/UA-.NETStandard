@@ -5035,7 +5035,7 @@ namespace Opc.Ua.Server
             CancellationToken cancellationToken = default)
         {
             // overridden by the sub-class.
-            return new ValueTask();
+            return default;
         }
 
         /// <summary>
