@@ -44,9 +44,9 @@ namespace Opc.Ua.PubSub
         private class DataSetState
         {
             public uint MessageCount;
-            public DataSet LastDataSet;
+            public DataSet? LastDataSet;
 
-            public ConfigurationVersionDataType ConfigurationVersion;
+            public ConfigurationVersionDataType? ConfigurationVersion;
             public DateTime LastMetaDataUpdate;
         }
 
@@ -106,7 +106,7 @@ namespace Opc.Ua.PubSub
             {
                 DataSetState state = GetState(writer);
 
-                ConfigurationVersionDataType version = state.ConfigurationVersion;
+                ConfigurationVersionDataType? version = state.ConfigurationVersion;
                 // no matter what the TransportSettings.MetaDataUpdateTime is the ConfigurationVersion is checked
                 if (version == null)
                 {
@@ -134,13 +134,13 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// Checks if the DataSet has changed and null
         /// </summary>
-        public DataSet ExcludeUnchangedFields(DataSetWriterDataType writer, DataSet dataset)
+        public DataSet? ExcludeUnchangedFields(DataSetWriterDataType writer, DataSet dataset)
         {
             lock (m_dataSetStates)
             {
                 DataSetState state = GetState(writer);
 
-                DataSet lastDataSet = state.LastDataSet;
+                DataSet? lastDataSet = state.LastDataSet;
 
                 if (lastDataSet == null)
                 {
@@ -150,7 +150,7 @@ namespace Opc.Ua.PubSub
 
                 bool changed = false;
 
-                for (int ii = 0; ii < dataset.Fields.Length && ii < lastDataSet.Fields.Length; ii++)
+                for (int ii = 0; ii < dataset.Fields!.Length && ii < lastDataSet.Fields!.Length; ii++)
                 {
                     Field field1 = dataset.Fields[ii];
                     Field field2 = lastDataSet.Fields[ii];
@@ -161,7 +161,7 @@ namespace Opc.Ua.PubSub
                         continue;
                     }
 
-                    if (field1.Value.StatusCode != field2.Value.StatusCode)
+                    if (field1.Value!.StatusCode != field2.Value!.StatusCode)
                     {
                         changed = true;
                         continue;
@@ -173,7 +173,7 @@ namespace Opc.Ua.PubSub
                         continue;
                     }
 
-                    dataset.Fields[ii] = null;
+                    dataset.Fields[ii] = null!;
                 }
 
                 if (!changed)
@@ -197,7 +197,7 @@ namespace Opc.Ua.PubSub
                 if (writer.KeyFrameCount > 1)
                 {
                     state.ConfigurationVersion =
-                        dataset.DataSetMetaData.ConfigurationVersion
+                        dataset.DataSetMetaData!.ConfigurationVersion
                             .Clone() as ConfigurationVersionDataType;
 
                     if (state.LastDataSet == null)
@@ -207,14 +207,14 @@ namespace Opc.Ua.PubSub
                     }
 
                     for (int ii = 0;
-                        ii < dataset.Fields.Length && ii < state.LastDataSet.Fields.Length;
+                        ii < dataset.Fields!.Length && ii < state.LastDataSet.Fields!.Length;
                         ii++)
                     {
                         Field field = dataset.Fields[ii];
 
                         if (field != null)
                         {
-                            state.LastDataSet.Fields[ii] = CoreUtils.Clone(field);
+                            state.LastDataSet.Fields[ii] = CoreUtils.Clone(field)!;
                         }
                     }
                 }
@@ -223,7 +223,7 @@ namespace Opc.Ua.PubSub
 
         private DataSetState GetState(DataSetWriterDataType writer)
         {
-            if (!m_dataSetStates.TryGetValue(writer.DataSetWriterId, out DataSetState state))
+            if (!m_dataSetStates.TryGetValue(writer.DataSetWriterId, out DataSetState? state))
             {
                 m_dataSetStates[writer.DataSetWriterId] = state = new DataSetState();
             }

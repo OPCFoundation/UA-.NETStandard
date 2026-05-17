@@ -128,7 +128,7 @@ namespace Opc.Ua.Server.Fluent
             ((INodeBuilder)this).OnWrite(
                 (ISystemContext context, NodeState _, ref Variant value) =>
                 {
-                    setter(context, FromVariant(value));
+                    setter(context, FromVariant(value)!);
                     return ServiceResult.Good;
                 });
             return this;
@@ -156,8 +156,8 @@ namespace Opc.Ua.Server.Fluent
             ((INodeBuilder)this).OnWrite(
                 async (ISystemContext context, NodeState _, Variant value, CancellationToken ct) =>
                 {
-                    TValue typed = FromVariant(value);
-                    await setter(context, typed, ct).ConfigureAwait(false);
+                    TValue? typed = FromVariant(value);
+                    await setter(context, typed!, ct).ConfigureAwait(false);
                     return new AttributeWriteResult(ServiceResult.Good);
                 });
             return this;
@@ -169,9 +169,9 @@ namespace Opc.Ua.Server.Fluent
         /// the variant is null so a typed lambda never has to defend
         /// against an empty variable.
         /// </summary>
-        private static TValue FromVariant(Variant value)
+        private static TValue? FromVariant(Variant value)
         {
-            object boxed = value.AsBoxedObject(Variant.BoxingBehavior.Legacy);
+            object? boxed = value.AsBoxedObject(Variant.BoxingBehavior.Legacy);
             if (boxed is null)
             {
                 return default;

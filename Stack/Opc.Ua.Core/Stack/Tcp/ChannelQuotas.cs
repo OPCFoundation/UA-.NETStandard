@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -54,7 +54,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Validator to use when handling certificates.
         /// </summary>
-        public ICertificateValidatorEx CertificateValidator { get; set; }
+        public ICertificateValidatorEx? CertificateValidator { get; set; }
 
         /// <summary>
         /// The maximum size for a message sent or received.

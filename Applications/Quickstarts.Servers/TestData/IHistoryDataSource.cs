@@ -44,7 +44,7 @@ namespace TestData
         /// <param name="isReadModified">Whether to return modified data.</param>
         /// <param name="position">A index that must be passed to the NextRaw call. </param>
         /// <returns>The DataValue.</returns>
-        DataValue FirstRaw(
+        DataValue? FirstRaw(
             DateTimeUtc startTime,
             bool isForward,
             bool isReadModified,
@@ -58,6 +58,6 @@ namespace TestData
         /// <param name="isReadModified">Whether to return modified data.</param>
         /// <param name="position">A index previously returned by the reader.</param>
         /// <returns>The DataValue.</returns>
-        DataValue NextRaw(DateTimeUtc lastTime, bool isForward, bool isReadModified, ref int position);
+        DataValue? NextRaw(DateTimeUtc lastTime, bool isForward, bool isReadModified, ref int position);
     }
 }

@@ -113,7 +113,7 @@ namespace Opc.Ua.Gds.Server.Diagnostics
             NodeId certificateGroupId,
             NodeId certificateTypeId,
             ILogger logger,
-            Exception exception = null)
+            Exception? exception = null)
         {
             try
             {

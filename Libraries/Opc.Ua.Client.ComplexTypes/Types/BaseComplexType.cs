@@ -65,6 +65,12 @@ namespace Opc.Ua.Client.ComplexTypes
         public BaseComplexType(ExpandedNodeId typeId)
         {
             TypeId = typeId;
+            // TODO: This ctor does not call InitializePropertyAttributes; m_propertyList /
+            // m_propertyDict remain null until a derived ctor or external initializer fills
+            // them. Existing callers rely on this behaviour, so the migration only annotates
+            // the late-init pattern instead of changing it.
+            m_propertyList = null!;
+            m_propertyDict = null!;
         }
 
         /// <summary>
@@ -93,7 +99,9 @@ namespace Opc.Ua.Client.ComplexTypes
         public new object MemberwiseClone()
         {
             Type thisType = GetType();
-            var clone = Activator.CreateInstance(thisType) as BaseComplexType;
+            // Activator.CreateInstance returns a non-null instance for a non-abstract reference type
+            // because thisType is the concrete type of this instance.
+            var clone = (BaseComplexType)Activator.CreateInstance(thisType)!;
 
             clone.TypeId = TypeId;
             clone.BinaryEncodingId = BinaryEncodingId;
@@ -147,7 +155,7 @@ namespace Opc.Ua.Client.ComplexTypes
         }
 
         /// <inheritdoc/>
-        public virtual bool IsEqual(IEncodeable encodeable)
+        public virtual bool IsEqual(IEncodeable? encodeable)
         {
             if (ReferenceEquals(this, encodeable))
             {
@@ -191,7 +199,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// A <see cref="string"/> containing the value of the current embedded instance in the specified format.
         /// </returns>
         /// <exception cref="FormatException">Thrown if the <i>format</i> parameter is not null</exception>
-        public virtual string ToString(string format, IFormatProvider formatProvider)
+        public virtual string ToString(string? format, IFormatProvider? formatProvider)
         {
             if (format == null)
             {
@@ -398,24 +406,29 @@ namespace Opc.Ua.Client.ComplexTypes
         /// </summary>
         [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2075",
             Justification = "Complex types are dynamically built with known properties preserved.")]
+        [MemberNotNull(nameof(m_propertyList), nameof(m_propertyDict))]
         protected virtual void InitializePropertyAttributes()
         {
-            StructureDefinitionAttribute definitionAttribute = GetType()
+            StructureDefinitionAttribute? definitionAttribute = GetType()
                 .GetCustomAttribute<StructureDefinitionAttribute>();
 
-            StructureTypeIdAttribute typeAttribute = GetType()
+            StructureTypeIdAttribute? typeAttribute = GetType()
                 .GetCustomAttribute<StructureTypeIdAttribute>();
             if (typeAttribute != null)
             {
-                TypeId = ExpandedNodeId.Parse(typeAttribute.ComplexTypeId);
-                BinaryEncodingId = ExpandedNodeId.Parse(typeAttribute.BinaryEncodingId);
-                XmlEncodingId = ExpandedNodeId.Parse(typeAttribute.XmlEncodingId);
+                // The encoding id strings are populated unconditionally by
+                // AttributeExtensions.StructureTypeIdAttribute when the dynamic type is
+                // built; ExpandedNodeId.Parse(null) would throw, matching the original
+                // unannotated behaviour.
+                TypeId = ExpandedNodeId.Parse(typeAttribute.ComplexTypeId!);
+                BinaryEncodingId = ExpandedNodeId.Parse(typeAttribute.BinaryEncodingId!);
+                XmlEncodingId = ExpandedNodeId.Parse(typeAttribute.XmlEncodingId!);
             }
 
             m_propertyList = [];
             foreach (PropertyInfo property in GetType().GetProperties())
             {
-                StructureFieldAttribute fieldAttribute = property
+                StructureFieldAttribute? fieldAttribute = property
                     .GetCustomAttribute<StructureFieldAttribute>();
 
                 if (fieldAttribute == null)
@@ -423,13 +436,17 @@ namespace Opc.Ua.Client.ComplexTypes
                     continue;
                 }
 
-                DataMemberAttribute dataAttribute = property
+                DataMemberAttribute? dataAttribute = property
                     .GetCustomAttribute<DataMemberAttribute>();
 
+                // DataMember attribute is emitted alongside StructureField for every generated
+                // property; reaching this point with a null dataAttribute would indicate the
+                // type was not produced by ComplexTypeFieldBuilder. Suppress the null check to
+                // preserve the original NRE-on-misuse behaviour.
                 var newProperty = new ComplexTypePropertyInfo(
                     property,
                     fieldAttribute,
-                    dataAttribute);
+                    dataAttribute!);
 
                 m_propertyList.Add(newProperty);
             }
@@ -444,10 +461,7 @@ namespace Opc.Ua.Client.ComplexTypes
         {
             get
             {
-                if (m_xmlName == null)
-                {
-                    m_xmlName = TypeInfo.GetXmlName(GetType());
-                }
+                m_xmlName ??= TypeInfo.GetXmlName(GetType());
 
                 return m_xmlName != null ? m_xmlName.Namespace : string.Empty;
             }
@@ -463,6 +477,6 @@ namespace Opc.Ua.Client.ComplexTypes
         /// </summary>
         protected Dictionary<string, ComplexTypePropertyInfo> m_propertyDict;
 
-        private XmlQualifiedName m_xmlName;
+        private XmlQualifiedName? m_xmlName;
     }
 }

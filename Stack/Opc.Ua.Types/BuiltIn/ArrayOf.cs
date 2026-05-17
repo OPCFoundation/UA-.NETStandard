@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -26,8 +26,6 @@
  * The complete license agreement can be found here:
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
-
-#nullable enable
 
 using System;
 using System.Collections.Generic;
@@ -532,7 +530,7 @@ namespace Opc.Ua
         [Pure]
         public ArrayOf<T> AddItem(T value)
         {
-            var buffer = new T[Count + 1];
+            T[] buffer = new T[Count + 1];
             Span<T> dest = buffer.AsSpan();
             Span.CopyTo(dest);
             dest[Count] = value;
@@ -557,7 +555,7 @@ namespace Opc.Ua
             {
                 return AddItem(value);
             }
-            var buffer = new T[Count + 1];
+            T[] buffer = new T[Count + 1];
             Span<T> target = buffer.AsSpan();
             if (index == 0)
             {
@@ -586,7 +584,7 @@ namespace Opc.Ua
             {
                 throw new ArgumentOutOfRangeException(nameof(index));
             }
-            var buffer = new T[Count];
+            T[] buffer = new T[Count];
             Span.CopyTo(buffer);
             buffer[index] = value;
             return buffer.ToArrayOf();
@@ -604,7 +602,7 @@ namespace Opc.Ua
             {
                 throw new ArgumentOutOfRangeException(nameof(index));
             }
-            var buffer = new T[Count];
+            T[] buffer = new T[Count];
             Span.CopyTo(buffer);
             value.Span.CopyTo(buffer.AsSpan(index));
             return buffer.ToArrayOf();
@@ -928,7 +926,7 @@ namespace Opc.Ua
             {
                 if (count == 0)
                 {
-                    return [];
+                    return ArrayOf<T>.Empty;
                 }
                 var copy = new T[count];
                 int index = 0;
@@ -1059,7 +1057,7 @@ namespace Opc.Ua
             {
                 return [];
             }
-            var buffer = new T[length];
+            T[] buffer = new T[length];
             Span<T> dest = buffer.AsSpan();
             foreach (ArrayOf<T> item in arrays)
             {

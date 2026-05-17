@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -30,6 +30,7 @@
 using System;
 using System.Diagnostics.Contracts;
 using System.Globalization;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json.Serialization;
 using Opc.Ua.Types;
@@ -242,7 +243,7 @@ namespace Opc.Ua
         /// qualifies the node</param>
         [Obsolete("Use concrete constructor with typed identifier values instead.")]
         [JsonConstructor]
-        public NodeId(object value, ushort namespaceIndex)
+        public NodeId(object? value, ushort namespaceIndex)
         {
             switch (value)
             {
@@ -250,7 +251,7 @@ namespace Opc.Ua
                     this = SetIdentifier(IdType.Numeric, value);
                     break;
                 case null or string:
-                    this = SetIdentifier(IdType.String, value);
+                    this = SetIdentifier(IdType.String, value!);
                     break;
                 case Guid:
                     this = SetIdentifier(IdType.Guid, value);
@@ -294,8 +295,13 @@ namespace Opc.Ua
             string text,
             NamespaceTable namespaceTable)
         {
-            var context = ServiceMessageContext.CreateEmpty(null);
-            context.NamespaceUris = namespaceTable ?? throw new ArgumentNullException(nameof(namespaceTable));
+            if (namespaceTable == null)
+            {
+                throw new ArgumentNullException(nameof(namespaceTable));
+            }
+
+            ServiceMessageContext context = ServiceMessageContext.CreateEmpty(null!);
+            context.NamespaceUris = namespaceTable;
 
             return Parse(
                 context,
@@ -315,7 +321,7 @@ namespace Opc.Ua
         public static NodeId Parse(
             IServiceMessageContext context,
             string text,
-            NodeIdParsingOptions options = null)
+            NodeIdParsingOptions? options = null)
         {
             if (!InternalTryParseWithContext(
                 context,
@@ -345,7 +351,7 @@ namespace Opc.Ua
         internal static bool InternalTryParseWithContext(
             IServiceMessageContext context,
             string text,
-            NodeIdParsingOptions options,
+            NodeIdParsingOptions? options,
             out NodeId value,
             out NodeIdParseError error)
         {
@@ -502,12 +508,12 @@ namespace Opc.Ua
             {
                 if (useNamespaceUri)
                 {
-                    string namespaceUri = context.NamespaceUris.GetString(NamespaceIndex);
+                    string? namespaceUri = context.NamespaceUris.GetString(NamespaceIndex);
 
                     if (!string.IsNullOrEmpty(namespaceUri))
                     {
                         buffer.Append("nsu=")
-                            .Append(CoreUtils.EscapeUri(namespaceUri))
+                            .Append(CoreUtils.EscapeUri(namespaceUri!))
                             .Append(';');
                     }
                     else
@@ -876,7 +882,7 @@ namespace Opc.Ua
                 {
                     try
                     {
-                        var bytes = ByteString.FromBase64(text[2..]);
+                        ByteString bytes = ByteString.FromBase64(text[2..]);
                         value = new NodeId(bytes, namespaceIndex);
                         return true;
                     }
@@ -927,7 +933,7 @@ namespace Opc.Ua
         /// ns=1;s=hello123
         /// <br/></para>
         /// </summary>
-        internal string Format(IFormatProvider formatProvider)
+        internal string Format(IFormatProvider? formatProvider)
         {
             var buffer = new StringBuilder();
             Format(formatProvider, buffer);
@@ -937,7 +943,7 @@ namespace Opc.Ua
         /// <summary>
         /// Formats the NodeId as a string and appends it to the buffer.
         /// </summary>
-        private void Format(IFormatProvider formatProvider, StringBuilder buffer)
+        private void Format(IFormatProvider? formatProvider, StringBuilder buffer)
         {
             Format(formatProvider, buffer, IdentifierAsString, IdType, NamespaceIndex);
         }
@@ -957,7 +963,7 @@ namespace Opc.Ua
         /// Formats the NodeId as a string and appends it to the buffer.
         /// </summary>
         public static void Format(
-            IFormatProvider formatProvider,
+            IFormatProvider? formatProvider,
             StringBuilder buffer,
             NodeId nodeId)
         {
@@ -991,7 +997,7 @@ namespace Opc.Ua
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
         public static void Format(
-            IFormatProvider formatProvider,
+            IFormatProvider? formatProvider,
             StringBuilder buffer,
             string identifierAsString,
             IdType identifierType,
@@ -1064,7 +1070,7 @@ namespace Opc.Ua
 
             if (nodeId.NamespaceIndex > 0)
             {
-                string uri = namespaceTable.GetString(nodeId.NamespaceIndex);
+                string? uri = namespaceTable.GetString(nodeId.NamespaceIndex);
 
                 if (uri != null)
                 {
@@ -1207,7 +1213,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public int CompareTo(string obj)
+        public int CompareTo(string? obj)
         {
             if (IsNull)
             {
@@ -1263,7 +1269,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public int CompareTo(object obj)
+        public int CompareTo(object? obj)
         {
             // Needed for filter operators - do not remove
             return obj switch
@@ -1308,7 +1314,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public string ToString(string format, IFormatProvider formatProvider)
+        public string ToString(string? format, IFormatProvider? formatProvider)
         {
             if (format == null)
             {
@@ -1319,7 +1325,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return obj switch
             {
@@ -1412,7 +1418,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public bool Equals(string other)
+        public bool Equals(string? other)
         {
             if (NamespaceIndex != 0 || IdType != IdType.String)
             {
@@ -1562,7 +1568,7 @@ namespace Opc.Ua
         /// Identifier as string
         /// </summary>
         internal string StringIdentifier =>
-            (string)m_identifier ?? string.Empty;
+            (string?)m_identifier ?? string.Empty;
 
         /// <summary>
         /// Identifier as numberic
@@ -1647,7 +1653,7 @@ namespace Opc.Ua
                 identifier = StringIdentifier;
                 return true;
             }
-            identifier = default;
+            identifier = string.Empty;
             return false;
         }
 
@@ -1720,7 +1726,7 @@ namespace Opc.Ua
         }
 
 #pragma warning disable IDE0032 // Use auto property
-        private readonly object m_identifier;
+        private readonly object? m_identifier;
         private readonly Inner m_inner;
 #pragma warning restore IDE0032 // Use auto property
     }
@@ -1738,12 +1744,12 @@ namespace Opc.Ua
         /// <summary>
         /// The mapping from serialized namespace indexes to the indexes used in the context.
         /// </summary>
-        public ushort[] NamespaceMappings { get; set; }
+        public ushort[]? NamespaceMappings { get; set; }
 
         /// <summary>
         /// The mapping from serialized server indexes to the indexes used in the context.
         /// </summary>
-        public ushort[] ServerMappings { get; set; }
+        public ushort[]? ServerMappings { get; set; }
 
         /// <summary>
         /// When TRUE, an <c>nsu=</c> or <c>svu=</c> URI that cannot be resolved

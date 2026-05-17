@@ -82,13 +82,13 @@ namespace Quickstarts.ConsoleReferenceSubscriber
             {
                 bool useMqttUadp = parseResult.GetValue(mqttUadpOption);
                 bool useUdpUadp = parseResult.GetValue(udpUadpOption);
-                string subscriberUrl = parseResult.GetValue(subscriberUrlOption);
+                string? subscriberUrl = parseResult.GetValue(subscriberUrlOption);
 
                 try
                 {
                     var telemetry = new ConsoleTelemetry();
 
-                    PubSubConfigurationDataType pubSubConfiguration = null;
+                    PubSubConfigurationDataType? pubSubConfiguration = null;
                     if (useUdpUadp)
                     {
                         // set default UDP Subscriber Url to local multicast if not sent in args.
@@ -97,8 +97,11 @@ namespace Quickstarts.ConsoleReferenceSubscriber
                             subscriberUrl = "opc.udp://239.0.0.1:4840";
                         }
 
-                        // Create configuration using UDP protocol and UADP Encoding
-                        pubSubConfiguration = CreateSubscriberConfiguration_UdpUadp(subscriberUrl);
+                        // Create configuration using UDP protocol and UADP Encoding.
+                        // ! is required on net48 because string.IsNullOrEmpty lacks
+                        // [NotNullWhen(false)] in .NET Framework's BCL; the value is
+                        // provably non-null after the guard above.
+                        pubSubConfiguration = CreateSubscriberConfiguration_UdpUadp(subscriberUrl!);
                         Console.WriteLine(
                             "The Pubsub Connection was initialized using UDP & UADP Profile.");
                     }
@@ -113,14 +116,14 @@ namespace Quickstarts.ConsoleReferenceSubscriber
                         if (useMqttUadp)
                         {
                             // Create configuration using MQTT protocol and UADP Encoding
-                            pubSubConfiguration = CreateSubscriberConfiguration_MqttUadp(subscriberUrl);
+                            pubSubConfiguration = CreateSubscriberConfiguration_MqttUadp(subscriberUrl!);
                             Console.WriteLine(
                                 "The PubSub Connection was initialized using MQTT & UADP Profile.");
                         }
                         else
                         {
                             // Create configuration using MQTT protocol and JSON Encoding
-                            pubSubConfiguration = CreateSubscriberConfiguration_MqttJson(subscriberUrl);
+                            pubSubConfiguration = CreateSubscriberConfiguration_MqttJson(subscriberUrl!);
                             Console.WriteLine(
                                 "The PubSub Connection was initialized using MQTT & JSON Profile.");
                         }
@@ -184,7 +187,7 @@ namespace Quickstarts.ConsoleReferenceSubscriber
         /// <param name="sender"></param>
         /// <param name="e"></param>
         private static void UaPubSubApplication_RawDataReceived(
-            object sender,
+            object? sender,
             RawDataReceivedEventArgs e)
         {
             lock (s_lock)
@@ -207,7 +210,7 @@ namespace Quickstarts.ConsoleReferenceSubscriber
         /// <param name="sender"></param>
         /// <param name="e"></param>
         private static void UaPubSubApplication_DataReceived(
-            object sender,
+            object? sender,
             SubscribedDataEventArgs e)
         {
             lock (s_lock)
@@ -243,13 +246,13 @@ namespace Quickstarts.ConsoleReferenceSubscriber
                         dataSetMessage.SequenceNumber
                     );
 
-                    for (int i = 0; i < dataSet.Fields.Length; i++)
+                    for (int i = 0; i < dataSet.Fields!.Length; i++)
                     {
                         Console.WriteLine(
                             "\t\tTargetNodeId:{0}, Attribute:{1}, Value:{2}",
                             dataSet.Fields[i].TargetNodeId,
                             dataSet.Fields[i].TargetAttribute,
-                            dataSetMessage.DataSet.Fields[i].Value
+                            dataSetMessage.DataSet!.Fields![i].Value
                         );
                     }
                 }
@@ -263,7 +266,7 @@ namespace Quickstarts.ConsoleReferenceSubscriber
         /// <param name="sender"></param>
         /// <param name="e"></param>
         private static void UaPubSubApplication_MetaDataDataReceived(
-            object sender,
+            object? sender,
             SubscribedDataEventArgs e)
         {
             lock (s_lock)
@@ -276,7 +279,7 @@ namespace Quickstarts.ConsoleReferenceSubscriber
                         e.Source,
                         jsonMessage.PublisherId,
                         jsonMessage.DataSetWriterId,
-                        e.NetworkMessage.DataSetMetaData.Fields.Count
+                        e.NetworkMessage.DataSetMetaData!.Fields.Count
                     );
                 }
                 if (e.NetworkMessage is Encoding.UadpNetworkMessage uapdMessage)
@@ -286,13 +289,13 @@ namespace Quickstarts.ConsoleReferenceSubscriber
                         e.Source,
                         uapdMessage.PublisherId,
                         uapdMessage.DataSetWriterId,
-                        e.NetworkMessage.DataSetMetaData.Fields.Count
+                        e.NetworkMessage.DataSetMetaData!.Fields.Count
                     );
                 }
 
                 Console.WriteLine(
                     "\tMetaData.Name={0}, MajorVersion={1} MinorVersion={2}",
-                    e.NetworkMessage.DataSetMetaData.Name,
+                    e.NetworkMessage.DataSetMetaData!.Name,
                     e.NetworkMessage.DataSetMetaData.ConfigurationVersion.MajorVersion,
                     e.NetworkMessage.DataSetMetaData.ConfigurationVersion.MinorVersion
                 );
@@ -316,7 +319,7 @@ namespace Quickstarts.ConsoleReferenceSubscriber
         /// <param name="sender"></param>
         /// <param name="e"></param>
         private static void UaPubSubApplication_ConfigurationUpdating(
-            object sender,
+            object? sender,
             ConfigurationUpdatingEventArgs e)
         {
             Console.WriteLine(
@@ -408,11 +411,12 @@ namespace Quickstarts.ConsoleReferenceSubscriber
             var subscribedDataSet = new TargetVariablesDataType { TargetVariables = [] };
             foreach (FieldMetaData fieldMetaData in simpleMetaData.Fields)
             {
+                // Name is always set to a non-null literal in CreateDataSetMetaDataSimple/AllTypes.
                 subscribedDataSet.TargetVariables = subscribedDataSet.TargetVariables.AddItem(
                     new FieldTargetDataType
                     {
                         DataSetFieldId = fieldMetaData.DataSetFieldId,
-                        TargetNodeId = new NodeId(fieldMetaData.Name, NamespaceIndexSimple),
+                        TargetNodeId = new NodeId(fieldMetaData.Name!, NamespaceIndexSimple),
                         AttributeId = Attributes.Value,
                         OverrideValueHandling = OverrideValueHandling.OverrideValue,
                         OverrideValue = TypeInfo.GetDefaultVariantValue(fieldMetaData.DataType, ValueRanks.Scalar)
@@ -464,7 +468,7 @@ namespace Quickstarts.ConsoleReferenceSubscriber
                     new FieldTargetDataType
                     {
                         DataSetFieldId = fieldMetaData.DataSetFieldId,
-                        TargetNodeId = new NodeId(fieldMetaData.Name, NamespaceIndexAllTypes),
+                        TargetNodeId = new NodeId(fieldMetaData.Name!, NamespaceIndexAllTypes),
                         AttributeId = Attributes.Value,
                         OverrideValueHandling = OverrideValueHandling.OverrideValue,
                         OverrideValue = TypeInfo.GetDefaultVariantValue(fieldMetaData.DataType, ValueRanks.Scalar)
@@ -570,7 +574,7 @@ namespace Quickstarts.ConsoleReferenceSubscriber
                     new FieldTargetDataType
                     {
                         DataSetFieldId = fieldMetaData.DataSetFieldId,
-                        TargetNodeId = new NodeId(fieldMetaData.Name, NamespaceIndexSimple),
+                        TargetNodeId = new NodeId(fieldMetaData.Name!, NamespaceIndexSimple),
                         AttributeId = Attributes.Value,
                         OverrideValueHandling = OverrideValueHandling.OverrideValue,
                         OverrideValue = TypeInfo.GetDefaultVariantValue(fieldMetaData.DataType, ValueRanks.Scalar)
@@ -631,7 +635,7 @@ namespace Quickstarts.ConsoleReferenceSubscriber
                     new FieldTargetDataType
                     {
                         DataSetFieldId = fieldMetaData.DataSetFieldId,
-                        TargetNodeId = new NodeId(fieldMetaData.Name, NamespaceIndexAllTypes),
+                        TargetNodeId = new NodeId(fieldMetaData.Name!, NamespaceIndexAllTypes),
                         AttributeId = Attributes.Value,
                         OverrideValueHandling = OverrideValueHandling.OverrideValue,
                         OverrideValue = TypeInfo.GetDefaultVariantValue(fieldMetaData.DataType, ValueRanks.Scalar)
@@ -737,7 +741,7 @@ namespace Quickstarts.ConsoleReferenceSubscriber
                     new FieldTargetDataType
                     {
                         DataSetFieldId = fieldMetaData.DataSetFieldId,
-                        TargetNodeId = new NodeId(fieldMetaData.Name, NamespaceIndexSimple),
+                        TargetNodeId = new NodeId(fieldMetaData.Name!, NamespaceIndexSimple),
                         AttributeId = Attributes.Value,
                         OverrideValueHandling = OverrideValueHandling.OverrideValue,
                         OverrideValue = TypeInfo.GetDefaultVariantValue(fieldMetaData.DataType, ValueRanks.Scalar)
@@ -793,7 +797,7 @@ namespace Quickstarts.ConsoleReferenceSubscriber
                     new FieldTargetDataType
                     {
                         DataSetFieldId = fieldMetaData.DataSetFieldId,
-                        TargetNodeId = new NodeId(fieldMetaData.Name, NamespaceIndexAllTypes),
+                        TargetNodeId = new NodeId(fieldMetaData.Name!, NamespaceIndexAllTypes),
                         AttributeId = Attributes.Value,
                         OverrideValueHandling = OverrideValueHandling.OverrideValue,
                         OverrideValue = TypeInfo.GetDefaultVariantValue(fieldMetaData.DataType, ValueRanks.Scalar)

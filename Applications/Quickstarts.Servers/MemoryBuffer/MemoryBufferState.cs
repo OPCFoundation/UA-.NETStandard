@@ -45,7 +45,7 @@ namespace MemoryBuffer
         /// </summary>
         public MemoryBufferState(
             ISystemContext context,
-            MemoryBufferInstance configuration)
+            MemoryBufferInstance? configuration)
             : base(null)
         {
             m_logger = context.Telemetry.CreateLogger<MemoryBufferState>();
@@ -81,12 +81,12 @@ namespace MemoryBuffer
         /// <summary>
         /// The server that the buffer belongs to.
         /// </summary>
-        public IServerInternal Server { get; private set; }
+        public IServerInternal Server { get; private set; } = null!;
 
         /// <summary>
         /// The node manager that the buffer belongs to.
         /// </summary>
-        public INodeManager NodeManager { get; private set; }
+        public INodeManager NodeManager { get; private set; } = null!;
 
         /// <summary>
         /// The built-in type for the values stored in the buffer.
@@ -158,7 +158,7 @@ namespace MemoryBuffer
                 MaximumScanRate = 1000;
 
                 m_buffer = new byte[m_elementSize * noOfElements];
-                SizeInBytes.Value = (uint)m_buffer.Length;
+                SizeInBytes!.Value = (uint)m_buffer.Length;
             }
         }
 
@@ -167,22 +167,22 @@ namespace MemoryBuffer
         /// </summary>
         public override INodeBrowser CreateBrowser(
             ISystemContext context,
-            ViewDescription view,
+            ViewDescription? view,
             NodeId referenceType,
             bool includeSubtypes,
             BrowseDirection browseDirection,
             QualifiedName browseName,
-            IEnumerable<IReference> additionalReferences,
+            IEnumerable<IReference>? additionalReferences,
             bool internalOnly)
         {
             NodeBrowser browser = new MemoryBufferBrowser(
                 context,
-                view,
+                view!,
                 referenceType,
                 includeSubtypes,
                 browseDirection,
                 browseName,
-                additionalReferences,
+                additionalReferences!,
                 internalOnly,
                 this);
 
@@ -294,7 +294,7 @@ namespace MemoryBuffer
                     return StatusCodes.BadOutOfService;
                 }
 
-                byte[] bytes = null;
+                byte[] bytes;
 
                 switch (ElementType)
                 {
@@ -485,11 +485,11 @@ namespace MemoryBuffer
         {
             if (monitoredItem.AttributeId != Attributes.Value)
             {
-                m_nonValueMonitoredItems.Add(monitoredItem.Id, monitoredItem);
+                m_nonValueMonitoredItems!.Add(monitoredItem.Id, monitoredItem);
                 return;
             }
 
-            int elementCount = (int)(SizeInBytes.Value / ElementSize);
+            int elementCount = (int)(SizeInBytes!.Value / ElementSize);
 
             if (m_monitoringTable == null)
             {
@@ -500,7 +500,7 @@ namespace MemoryBuffer
 
             int elementOffet = (int)(tag.Offset / ElementSize);
 
-            MemoryBufferMonitoredItem[] monitoredItems = m_monitoringTable[elementOffet];
+            MemoryBufferMonitoredItem[]? monitoredItems = m_monitoringTable![elementOffet];
 
             if (monitoredItems == null)
             {
@@ -509,7 +509,7 @@ namespace MemoryBuffer
             else
             {
                 monitoredItems = new MemoryBufferMonitoredItem[monitoredItems.Length + 1];
-                m_monitoringTable[elementOffet].CopyTo(monitoredItems, 0);
+                m_monitoringTable[elementOffet]!.CopyTo(monitoredItems, 0);
             }
 
             monitoredItems[^1] = monitoredItem;
@@ -520,7 +520,7 @@ namespace MemoryBuffer
         /// <summary>
         /// Scans the buffer and updates every other element.
         /// </summary>
-        private void DoScan(object state)
+        private void DoScan(object? state)
         {
             DateTimeUtc start1 = DateTimeUtc.Now;
 
@@ -556,7 +556,7 @@ namespace MemoryBuffer
             {
                 if (monitoredItem.AttributeId != Attributes.Value)
                 {
-                    m_nonValueMonitoredItems.Remove(monitoredItem.Id);
+                    m_nonValueMonitoredItems!.Remove(monitoredItem.Id);
                     return;
                 }
 
@@ -564,7 +564,7 @@ namespace MemoryBuffer
                 {
                     int elementOffet = (int)(monitoredItem.Offset / ElementSize);
 
-                    MemoryBufferMonitoredItem[] monitoredItems = m_monitoringTable[elementOffet];
+                    MemoryBufferMonitoredItem[]? monitoredItems = m_monitoringTable[elementOffet];
 
                     if (monitoredItems != null)
                     {
@@ -594,13 +594,13 @@ namespace MemoryBuffer
                                     1];
 
                                 Array.Copy(
-                                    m_monitoringTable[elementOffet],
+                                    m_monitoringTable[elementOffet]!,
                                     0,
                                     monitoredItems,
                                     0,
                                     index);
                                 Array.Copy(
-                                    m_monitoringTable[elementOffet],
+                                    m_monitoringTable[elementOffet]!,
                                     index + 1,
                                     monitoredItems,
                                     index,
@@ -625,7 +625,7 @@ namespace MemoryBuffer
                 {
                     int elementOffet = (int)(offset / ElementSize);
 
-                    MemoryBufferMonitoredItem[] monitoredItems = m_monitoringTable[elementOffet];
+                    MemoryBufferMonitoredItem[]? monitoredItems = m_monitoringTable[elementOffet];
 
                     if (monitoredItems != null)
                     {
@@ -649,7 +649,7 @@ namespace MemoryBuffer
 
         private void ScanTimer_Tick(object sender, EventArgs e)
         {
-            DoScan(null);
+            DoScan(null!);
         }
 
         private void PublishTimer_Tick(object sender, EventArgs e)
@@ -685,12 +685,12 @@ namespace MemoryBuffer
 
         private readonly ILogger m_logger;
         private readonly Lock m_dataLock = new();
-        private MemoryBufferMonitoredItem[][] m_monitoringTable;
-        private Dictionary<uint, MemoryBufferMonitoredItem> m_nonValueMonitoredItems;
+        private MemoryBufferMonitoredItem[]?[]? m_monitoringTable;
+        private Dictionary<uint, MemoryBufferMonitoredItem>? m_nonValueMonitoredItems;
         private int m_elementSize;
         private DateTimeUtc m_lastScanTime;
-        private byte[] m_buffer;
-        private Timer m_scanTimer;
+        private byte[] m_buffer = null!;
+        private Timer? m_scanTimer;
         private int m_updateCount;
         private int m_itemCount;
     }

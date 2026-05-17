@@ -102,7 +102,7 @@ namespace Opc.Ua.Server
         protected DataValue ComputeMinMax(TimeSlice slice, int valueType, bool returnActualTime)
         {
             // get the values in the slice.
-            List<DataValue> values = GetValues(slice);
+            List<DataValue>? values = GetValues(slice);
 
             // check for empty slice.
             if (values == null || values.Count == 0)
@@ -286,7 +286,7 @@ namespace Opc.Ua.Server
         protected DataValue ComputeMinMax2(TimeSlice slice, int valueType, bool returnActualTime)
         {
             // get the values in the slice.
-            List<DataValue> values = GetValuesWithSimpleBounds(slice);
+            List<DataValue>? values = GetValuesWithSimpleBounds(slice);
 
             // check for empty slice.
             if (values == null || values.Count == 0)

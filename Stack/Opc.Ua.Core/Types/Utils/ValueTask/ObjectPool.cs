@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -60,7 +60,7 @@ namespace Opc.Ua
         /// <returns>An object from the pool or a new one if the pool is empty.</returns>
         public T Get()
         {
-            if (m_objects.TryTake(out T item))
+            if (m_objects.TryTake(out T? item))
             {
                 return item;
             }

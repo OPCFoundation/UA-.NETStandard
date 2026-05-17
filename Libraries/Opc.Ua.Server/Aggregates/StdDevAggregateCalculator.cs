@@ -96,7 +96,7 @@ namespace Opc.Ua.Server
         protected DataValue ComputeRegression(TimeSlice slice, int valueType)
         {
             // get the values in the slice.
-            List<DataValue> values = GetValuesWithSimpleBounds(slice);
+            List<DataValue>? values = GetValuesWithSimpleBounds(slice);
 
             // check for empty slice.
             if (values == null || values.Count == 0)
@@ -105,7 +105,7 @@ namespace Opc.Ua.Server
             }
 
             // get the regions.
-            List<SubRegion> regions = GetRegionsInValueSet(values, false, true);
+            List<SubRegion>? regions = GetRegionsInValueSet(values, false, true);
 
             var xData = new List<double>();
             var yData = new List<double>();
@@ -113,7 +113,7 @@ namespace Opc.Ua.Server
             double duration = 0;
             bool nonGoodDataExists = false;
 
-            for (int ii = 0; ii < regions.Count; ii++)
+            for (int ii = 0; ii < regions!.Count; ii++)
             {
                 if (StatusCode.IsGood(regions[ii].StatusCode))
                 {
@@ -232,7 +232,7 @@ namespace Opc.Ua.Server
         protected DataValue ComputeStdDev(TimeSlice slice, bool includeBounds, int valueType)
         {
             // get the values in the slice.
-            List<DataValue> values;
+            List<DataValue>? values;
             if (includeBounds)
             {
                 values = GetValuesWithSimpleBounds(slice);
@@ -249,13 +249,13 @@ namespace Opc.Ua.Server
             }
 
             // get the regions.
-            List<SubRegion> regions = GetRegionsInValueSet(values, false, true);
+            List<SubRegion>? regions = GetRegionsInValueSet(values, false, true);
 
             var xData = new List<double>();
             double average = 0;
             bool nonGoodDataExists = false;
 
-            for (int ii = 0; ii < regions.Count; ii++)
+            for (int ii = 0; ii < regions!.Count; ii++)
             {
                 if (StatusCode.IsGood(regions[ii].StatusCode))
                 {

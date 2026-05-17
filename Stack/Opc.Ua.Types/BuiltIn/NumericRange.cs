@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -54,7 +54,7 @@ namespace Opc.Ua
         public NumericRange(
             int begin,
             int end = -1,
-            NumericRange[] subRanges = null)
+            NumericRange[]? subRanges = null)
         {
             if (begin < 0)
             {
@@ -106,7 +106,7 @@ namespace Opc.Ua
         /// Gets the sub ranges for multidimensional ranges.
         /// </summary>
 #pragma warning disable RCS1085 // Use auto-implemented property
-        public NumericRange[] SubRanges => m_subRanges;
+        public NumericRange[]? SubRanges => m_subRanges;
 #pragma warning restore RCS1085 // Use auto-implemented property
 
         /// <summary>
@@ -255,7 +255,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             if (obj is NumericRange numericRange)
             {
@@ -342,7 +342,7 @@ namespace Opc.Ua
             return HashCode.Combine(
                 m_begin,
                 m_end,
-                ArrayEqualityComparer<NumericRange>.Default.GetHashCode(SubRanges));
+                SubRanges == null ? 0 : ArrayEqualityComparer<NumericRange>.Default.GetHashCode(SubRanges));
         }
 
         /// <inheritdoc/>
@@ -352,7 +352,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public string ToString(string format, IFormatProvider formatProvider)
+        public string ToString(string? format, IFormatProvider? formatProvider)
         {
             if (format == null)
             {
@@ -2336,7 +2336,7 @@ namespace Opc.Ua
             for (int i = 0; i < value.Count; i++)
             {
                 ByteString src = value[i];
-                statusCode = SubRanges[1].ApplyRange(ref src);
+                statusCode = SubRanges![1].ApplyRange(ref src);
                 if (statusCode != StatusCodes.Good)
                 {
                     value = default;
@@ -2381,13 +2381,13 @@ namespace Opc.Ua
                 value = default;
                 return statusCode;
             }
-            ByteString[] dst = value.ToArray();
+            ByteString[] dst = value.ToArray()!;
             for (int j = 0, i = start; i < start + length; i++, j++)
             {
                 // Slice the strings using the final subrange
                 ByteString d = value[i];
                 ByteString s = slice[j];
-                statusCode = SubRanges[1].UpdateRange(ref d, s);
+                statusCode = SubRanges![1].UpdateRange(ref d, s);
                 if (statusCode != StatusCodes.Good)
                 {
                     value = default;
@@ -2423,7 +2423,7 @@ namespace Opc.Ua
             for (int i = 0; i < value.Count; i++)
             {
                 string src = value[i];
-                statusCode = SubRanges[1].ApplyRange(ref src);
+                statusCode = SubRanges![1].ApplyRange(ref src);
                 if (statusCode != StatusCodes.Good)
                 {
                     value = default;
@@ -2468,13 +2468,13 @@ namespace Opc.Ua
                 value = default;
                 return statusCode;
             }
-            string[] dst = value.ToArray();
+            string[] dst = value.ToArray()!;
             for (int j = 0, i = start; i < start + length; i++, j++)
             {
                 // Slice the strings using the final subrange
                 string d = value[i];
                 string s = slice[j];
-                statusCode = SubRanges[1].UpdateRange(ref d, s);
+                statusCode = SubRanges![1].UpdateRange(ref d, s);
                 if (statusCode != StatusCodes.Good)
                 {
                     value = default;
@@ -2618,7 +2618,7 @@ namespace Opc.Ua
                 out int length,
                 out StatusCode statusCode))
             {
-                value = default;
+                value = null!;
                 return statusCode;
             }
 
@@ -2652,7 +2652,7 @@ namespace Opc.Ua
                 out int length,
                 out StatusCode statusCode))
             {
-                value = default;
+                value = null!;
                 return statusCode;
             }
 
@@ -2813,7 +2813,7 @@ namespace Opc.Ua
 
         private readonly int m_begin;
         private readonly int m_end;
-        private readonly NumericRange[] m_subRanges;
+        private readonly NumericRange[]? m_subRanges;
         private readonly byte m_valid;
     }
 }

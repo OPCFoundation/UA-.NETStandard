@@ -46,10 +46,19 @@ namespace Opc.Ua.SourceGeneration
 
             #nullable enable
 
+            // Suppress CS8600 for the generated TryGetStructure calls.
+            // TryGetStructure uses [MaybeNullWhen(false)] but the analyzer still
+            // flags assignment of the maybe-null out parameter to a non-nullable
+            // local; the generated code always checks the bool and throws when
+            // the call returns false, so the local is non-null after the if.
+            #pragma warning disable CS8600
+
             namespace {{Tokens.Namespace}}
             {
                 {{Tokens.ListOfTypes}}
             }
+
+            #pragma warning restore CS8600
 
             """);
 

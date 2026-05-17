@@ -522,6 +522,7 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
+        /// <inheritdoc/>
         public async ValueTask<INode?> FindAsync(
             ExpandedNodeId sourceId,
             NodeId referenceTypeId,

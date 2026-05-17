@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -44,7 +44,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Initializes the object with a callback
         /// </summary>
-        public ChannelAsyncOperation(int timeout, AsyncCallback callback, object asyncState, ILogger logger)
+        public ChannelAsyncOperation(int timeout, AsyncCallback? callback, object? asyncState, ILogger logger)
         {
             m_callback = callback;
             m_asyncState = asyncState;
@@ -191,7 +191,7 @@ namespace Opc.Ua.Bindings
             {
                 try
                 {
-                    if (!m_event.WaitOne(timeout) && throwOnError)
+                    if (!m_event!.WaitOne(timeout) && throwOnError)
                     {
                         throw new ServiceResultException(StatusCodes.BadRequestInterrupted);
                     }
@@ -215,7 +215,7 @@ namespace Opc.Ua.Bindings
                     throw new ServiceResultException(m_error);
                 }
 
-                return m_response;
+                return m_response!;
             }
         }
 
@@ -248,7 +248,7 @@ namespace Opc.Ua.Bindings
                 bool badRequestInterrupted = false;
                 try
                 {
-                    Task<bool> awaitableTask = m_tcs.Task;
+                    Task<bool> awaitableTask = m_tcs!.Task;
                     if (timeout != int.MaxValue)
                     {
                         awaitableTask = m_tcs.Task
@@ -293,7 +293,7 @@ namespace Opc.Ua.Bindings
                     throw new ServiceResultException(m_error);
                 }
 
-                return m_response;
+                return m_response!;
             }
         }
 
@@ -319,7 +319,7 @@ namespace Opc.Ua.Bindings
         public ServiceResult Error => m_error ?? ServiceResult.Good;
 
         /// <inheritdoc/>
-        public object AsyncState
+        public object? AsyncState
         {
             get
             {
@@ -371,7 +371,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Called when the operation times out.
         /// </summary>
-        private void OnTimeout(object state)
+        private void OnTimeout(object? state)
         {
             if (m_timer != null)
             {
@@ -382,7 +382,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Called when an asynchronous operation completes.
         /// </summary>
-        protected virtual bool InternalComplete(bool doNotBlock, object result)
+        protected virtual bool InternalComplete(bool doNotBlock, object? result)
         {
             lock (m_lock)
             {
@@ -411,7 +411,7 @@ namespace Opc.Ua.Bindings
                 m_tcs?.TrySetResult(true);
             }
 
-            AsyncCallback callback = m_callback;
+            AsyncCallback? callback = m_callback;
             if (callback != null)
             {
                 if (doNotBlock)
@@ -437,16 +437,16 @@ namespace Opc.Ua.Bindings
         }
 
         private readonly Lock m_lock = new();
-        private readonly AsyncCallback m_callback;
-        private readonly object m_asyncState;
+        private readonly AsyncCallback? m_callback;
+        private readonly object? m_asyncState;
         private readonly bool m_synchronous;
         private readonly ILogger m_logger;
         private bool m_completed;
-        private ManualResetEvent m_event;
-        private TaskCompletionSource<bool> m_tcs;
-        private T m_response;
-        private ServiceResult m_error;
-        private Timer m_timer;
-        private Dictionary<string, object> m_properties;
+        private ManualResetEvent? m_event;
+        private TaskCompletionSource<bool>? m_tcs;
+        private T? m_response;
+        private ServiceResult? m_error;
+        private Timer? m_timer;
+        private Dictionary<string, object>? m_properties;
     }
 }

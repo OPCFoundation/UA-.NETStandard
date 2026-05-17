@@ -79,8 +79,8 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public virtual LocalizedText Translate(
             ArrayOf<string> preferredLocales,
-            string key,
-            string text,
+            string? key,
+            string? text,
             params object[] args)
         {
             return Translate(
@@ -102,14 +102,14 @@ namespace Opc.Ua.Server
         {
             if (result == null)
             {
-                return null;
+                return null!;
             }
             // translate localized text.
             LocalizedText translatedText;
             if (result.LocalizedText.IsNullOrEmpty)
             {
                 // extract any additional arguments from the translation info.
-                object[] args = null;
+                object[]? args = null;
 
                 if (!result.LocalizedText.TranslationInfo.IsNull)
                 {
@@ -125,13 +125,13 @@ namespace Opc.Ua.Server
                 {
                     translatedText = TranslateSymbolicId(
                         preferredLocales,
-                        result.SymbolicId,
-                        result.NamespaceUri,
-                        args);
+                        result.SymbolicId!,
+                        result.NamespaceUri!,
+                        args!);
                 }
                 else
                 {
-                    translatedText = TranslateStatusCode(preferredLocales, result.StatusCode, args);
+                    translatedText = TranslateStatusCode(preferredLocales, result.StatusCode, args!);
                 }
             }
             else
@@ -150,7 +150,7 @@ namespace Opc.Ua.Server
                 result.StatusCode,
                 translatedText,
                 result.AdditionalInfo,
-                Translate(preferredLocales, result.InnerResult));
+                Translate(preferredLocales, result.InnerResult!));
         }
 
         /// <summary>
@@ -164,7 +164,7 @@ namespace Opc.Ua.Server
 
                 for (int ii = 0; ii < m_translationTables.Count; ii++)
                 {
-                    availableLocales[ii] = m_translationTables[ii].Locale.Name;
+                    availableLocales[ii] = m_translationTables![ii].Locale!.Name;
                 }
 
                 return availableLocales;
@@ -204,8 +204,8 @@ namespace Opc.Ua.Server
 
             lock (m_lock)
             {
-                TranslationTable table = GetTable(culture.Name);
-                table.Translations[key] = text;
+                TranslationTable? table = GetTable(culture.Name);
+                table!.Translations[key] = text;
             }
         }
 
@@ -237,11 +237,11 @@ namespace Opc.Ua.Server
 
             lock (m_lock)
             {
-                TranslationTable table = GetTable(culture.Name);
+                TranslationTable? table = GetTable(culture.Name);
 
                 foreach (KeyValuePair<string, string> translation in translations)
                 {
-                    table.Translations[translation.Key] = translation.Value;
+                    table!.Translations[translation.Key] = translation.Value;
                 }
             }
         }
@@ -296,7 +296,7 @@ namespace Opc.Ua.Server
         {
             foreach (StatusCode id in StatusCode.InternedStatusCodes)
             {
-                Add(id, "en-US", id.SymbolicId);
+                Add(id, "en-US", id.SymbolicId!);
             }
         }
 
@@ -366,9 +366,9 @@ namespace Opc.Ua.Server
                         foreach (TranslationTable table in m_translationTables)
                         {
                             if (table.Translations
-                                .TryGetValue(info.Key ?? info.Text, out string translation))
+                                .TryGetValue((info.Key ?? info.Text)!, out string? translation))
                             {
-                                translations[table.Locale.Name] = translation;
+                                translations[table!.Locale!.Name] = translation!;
                             }
                         }
                     }
@@ -380,9 +380,9 @@ namespace Opc.Ua.Server
                     {
                         for (int i = 1; i < preferredLocales.Count; i++)
                         {
-                            string translation = FindBestTranslation(
+                            string? translation = FindBestTranslation(
                                 preferredLocales.Slice(i, 1),
-                                info.Key ?? info.Text,
+                                (info.Key ?? info.Text)!,
                                 out CultureInfo culture);
                             if (translation != null)
                             {
@@ -400,14 +400,14 @@ namespace Opc.Ua.Server
             else
             {
                 // find the best translation.
-                string translatedText = info.Text;
+                string? translatedText = info.Text;
                 CultureInfo culture = CultureInfo.InvariantCulture;
 
                 lock (m_lock)
                 {
                     translatedText = FindBestTranslation(
                         preferredLocales,
-                        info.Key ?? info.Text,
+                        (info.Key ?? info.Text)!,
                         out culture);
 
                     // use the default if no translation available.
@@ -427,14 +427,14 @@ namespace Opc.Ua.Server
         /// </summary>
         private class TranslationTable
         {
-            public CultureInfo Locale;
+            public CultureInfo? Locale;
             public SortedDictionary<string, string> Translations = [];
         }
 
         /// <summary>
         /// Finds the translation table for the locale. Creates a new table if it does not exist.
         /// </summary>
-        private TranslationTable GetTable(string locale)
+        private TranslationTable? GetTable(string locale)
         {
             lock (m_lock)
             {
@@ -443,7 +443,7 @@ namespace Opc.Ua.Server
                 {
                     TranslationTable translationTable = m_translationTables[ii];
 
-                    if (translationTable.Locale.Name == locale)
+                    if (translationTable!.Locale!.Name == locale)
                     {
                         return translationTable;
                     }
@@ -460,13 +460,13 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Finds the best translation for the requested locales.
         /// </summary>
-        private string FindBestTranslation(
+        private string? FindBestTranslation(
             ArrayOf<string> preferredLocales,
             string key,
             out CultureInfo culture)
         {
-            culture = null;
-            TranslationTable match = null;
+            culture = null!;
+            TranslationTable? match = null;
 
             if (preferredLocales.Count == 0)
             {
@@ -491,14 +491,14 @@ namespace Opc.Ua.Server
                 }
 
                 // search for translation.
-                string translatedText = null;
+                string? translatedText = null;
 
                 for (int ii = 0; ii < m_translationTables.Count; ii++)
                 {
                     TranslationTable translationTable = m_translationTables[ii];
 
                     // all done if exact match found.
-                    if (translationTable.Locale.Name == preferredLocales[jj] &&
+                    if (translationTable!.Locale!.Name == preferredLocales[jj] &&
                         translationTable.Translations.TryGetValue(key, out translatedText))
                     {
                         culture = translationTable.Locale;
@@ -583,7 +583,7 @@ namespace Opc.Ua.Server
 
         private readonly Lock m_lock = new();
         private readonly List<TranslationTable> m_translationTables;
-        private Dictionary<StatusCode, TranslationInfo> m_statusCodeMapping;
-        private Dictionary<XmlQualifiedName, TranslationInfo> m_symbolicIdMapping;
+        private Dictionary<StatusCode, TranslationInfo>? m_statusCodeMapping;
+        private Dictionary<XmlQualifiedName, TranslationInfo>? m_symbolicIdMapping;
     }
 }

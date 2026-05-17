@@ -191,8 +191,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         /// <inheritdoc/>
         public Task<Certificate?> LoadPrivateKeyAsync(
             string thumbprint,
-            string subjectName,
-            string applicationUri,
+            string? subjectName,
+            string? applicationUri,
             NodeId certificateType,
             char[]? password,
             CancellationToken ct = default)

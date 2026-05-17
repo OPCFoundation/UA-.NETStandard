@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -59,9 +59,9 @@ namespace Opc.Ua.Schema
         /// </param>
         /// <param name="importFiles">Additional in memory files</param>
         public SchemaValidator(
-            IFileSystem fileSystem,
-            IDictionary<string, string> namespaceUriToLocationMapping = null,
-            IReadOnlyDictionary<string, byte[]> importFiles = null)
+            IFileSystem? fileSystem,
+            IDictionary<string, string>? namespaceUriToLocationMapping = null,
+            IReadOnlyDictionary<string, byte[]>? importFiles = null)
         {
             FileSystem = fileSystem ?? LocalFileSystem.Instance;
             m_namespaceUriToLocationMapping = namespaceUriToLocationMapping ??
@@ -73,7 +73,7 @@ namespace Opc.Ua.Schema
         /// <summary>
         /// The file that is being validated.
         /// </summary>
-        public string FilePath { get; private set; }
+        public string? FilePath { get; private set; }
 
         /// <summary>
         /// The file system the validator should use
@@ -122,26 +122,26 @@ namespace Opc.Ua.Schema
         /// <exception cref="FileNotFoundException"></exception>
         [RequiresUnreferencedCode("Uses XmlSerializer which requires unreferenced code.")]
         [RequiresDynamicCode("Uses XmlSerializer which requires unreferenced code.")]
-        protected T Load<T>(string path, string namespaceUri)
+        protected T Load<T>(string? path, string? namespaceUri)
         {
             if (namespaceUri != null)
             {
                 // check if already loaded.
-                if (LoadedFiles.TryGetValue(namespaceUri, out object value) &&
+                if (LoadedFiles.TryGetValue(namespaceUri, out object? value) &&
                     value is T result)
                 {
                     return result;
                 }
 
                 // check if namespace specified in the import table.
-                if (m_importFiles.TryGetValue(namespaceUri, out byte[] schema))
+                if (m_importFiles.TryGetValue(namespaceUri, out byte[]? schema))
                 {
                     using Stream memoryStream = new MemoryStream(schema);
                     return LoadInternal<T>(memoryStream);
                 }
 
                 // check if path specified in the file table.
-                if (m_namespaceUriToLocationMapping.TryGetValue(namespaceUri, out string location) &&
+                if (m_namespaceUriToLocationMapping.TryGetValue(namespaceUri, out string? location) &&
                     FileSystem.Exists(location))
                 {
                     return LoadInternal<T>(location);
@@ -151,10 +151,10 @@ namespace Opc.Ua.Schema
             {
                 throw Exception(
                     "Cannot import namespace '{0}' from '{1}'.",
-                    namespaceUri,
-                    path);
+                    namespaceUri!,
+                    path!);
             }
-            return Load<T>(path);
+            return Load<T>(path!);
         }
 
         /// <summary>
@@ -176,20 +176,20 @@ namespace Opc.Ua.Schema
         /// </summary>
         /// <returns></returns>
         /// <exception cref="FileNotFoundException"></exception>
-        protected XmlSchema Load(string path, string namespaceUri, ValidationEventHandler handler)
+        protected XmlSchema Load(string? path, string? namespaceUri, ValidationEventHandler handler)
         {
             // check if path specified in the file table.
             if (namespaceUri != null)
             {
                 // check if path specified in the file table.
-                if (m_namespaceUriToLocationMapping.TryGetValue(namespaceUri, out string location))
+                if (m_namespaceUriToLocationMapping.TryGetValue(namespaceUri, out string? location))
                 {
                     path = location;
                 }
 
                 if (path == null)
                 {
-                    if (m_importFiles.TryGetValue(namespaceUri, out byte[] schemaBuffer))
+                    if (m_importFiles.TryGetValue(namespaceUri, out byte[]? schemaBuffer))
                     {
                         using var istrm = new MemoryStream(schemaBuffer);
                         return Load(istrm, handler);
@@ -199,7 +199,7 @@ namespace Opc.Ua.Schema
                 }
             }
 
-            return Load(path, handler);
+            return Load(path!, handler);
         }
 
         /// <summary>
@@ -216,7 +216,7 @@ namespace Opc.Ua.Schema
         /// <summary>
         /// Adds the embedded resources to the file table.
         /// </summary>
-        protected void AddWellKnownFiles(IReadOnlyDictionary<string, string> resources)
+        protected void AddWellKnownFiles(IReadOnlyDictionary<string, string>? resources)
         {
             if (resources != null)
             {
@@ -230,7 +230,7 @@ namespace Opc.Ua.Schema
         /// <summary>
         /// Returns the schema for the specified type (returns the entire schema if null).
         /// </summary>
-        public virtual string GetSchema(string typeName)
+        public virtual string? GetSchema(string? typeName)
         {
             return null;
         }
@@ -238,7 +238,7 @@ namespace Opc.Ua.Schema
         /// <summary>
         /// Returns true if the QName is null.
         /// </summary>
-        protected static bool IsNull([NotNullWhen(false)] XmlQualifiedName name)
+        protected static bool IsNull([NotNullWhen(false)] XmlQualifiedName? name)
         {
             return name == null || string.IsNullOrEmpty(name.Name);
         }
@@ -246,25 +246,25 @@ namespace Opc.Ua.Schema
         /// <summary>
         /// Formats a string and throws an exception.
         /// </summary>
-        protected static Exception Exception(string format, object arg1)
+        protected static Exception Exception(string format, object? arg1)
         {
-            return new InvalidOperationException(CoreUtils.Format(format, arg1));
+            return new InvalidOperationException(CoreUtils.Format(format, arg1!));
         }
 
         /// <summary>
         /// Formats a string and throws an exception.
         /// </summary>
-        protected static Exception Exception(string format, object arg1, object arg2)
+        protected static Exception Exception(string format, object? arg1, object? arg2)
         {
-            return new InvalidOperationException(CoreUtils.Format(format, arg1, arg2));
+            return new InvalidOperationException(CoreUtils.Format(format, arg1!, arg2!));
         }
 
         /// <summary>
         /// Formats a string and throws an exception.
         /// </summary>
-        protected static Exception Exception(string format, object arg1, object arg2, object arg3)
+        protected static Exception Exception(string format, object? arg1, object? arg2, object? arg3)
         {
-            return new InvalidOperationException(CoreUtils.Format(format, arg1, arg2, arg3));
+            return new InvalidOperationException(CoreUtils.Format(format, arg1!, arg2!, arg3!));
         }
 
         /// <summary>
@@ -323,7 +323,7 @@ namespace Opc.Ua.Schema
             {
                 using var reader = new StreamReader(stream);
                 using var xmlReader = XmlReader.Create(reader, CoreUtils.DefaultXmlReaderSettings());
-                return XmlSchema.Read(xmlReader, handler);
+                return XmlSchema.Read(xmlReader, handler)!;
             }
             catch (Exception e)
             {
@@ -354,7 +354,7 @@ namespace Opc.Ua.Schema
             using var reader = new StreamReader(stream);
             using var xmlReader = XmlReader.Create(reader, CoreUtils.DefaultXmlReaderSettings());
             var serializer = new XmlSerializer(typeof(T));
-            return (T)serializer.Deserialize(xmlReader);
+            return (T)serializer.Deserialize(xmlReader)!;
         }
 
         private readonly IDictionary<string, string> m_namespaceUriToLocationMapping;

@@ -83,6 +83,6 @@ namespace Quickstarts.Servers
         /// <summary>
         /// Cancel this token to stop the persisting of the batch
         /// </summary>
-        public CancellationTokenSource CancelBatchPersist { get; set; }
+        public CancellationTokenSource? CancelBatchPersist { get; set; }
     }
 }

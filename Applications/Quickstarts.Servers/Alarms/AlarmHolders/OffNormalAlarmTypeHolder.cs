@@ -75,7 +75,7 @@ namespace Alarms
 
             base.Initialize(alarmTypeIdentifier, name, maxTimeShelved);
 
-            alarm.NormalState.Value = new NodeId();
+            alarm.NormalState!.Value = new NodeId();
         }
 
         private OffNormalAlarmState GetAlarm()

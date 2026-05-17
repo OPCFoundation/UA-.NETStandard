@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -47,8 +47,10 @@ namespace Opc.Ua
                 return;
             }
 
+            ExclusiveLimitStateMachineState limitState = LimitState!; // ExclusiveLimit alarms are always created with a LimitState
+
             // check if the level state machine needs an initial state.
-            if (!LimitState.CurrentState.Id.Value.IsNull)
+            if (!limitState.CurrentState!.Id!.Value.IsNull) // CurrentState/Id are populated by the state machine constructor
             {
                 base.SetActiveState(context, true);
                 return;
@@ -73,29 +75,31 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException"></exception>
         public virtual void SetLimitState(ISystemContext context, LimitAlarmStates limit)
         {
+            ExclusiveLimitStateMachineState limitState = LimitState!; // ExclusiveLimit alarms are always created with a LimitState
+
             switch (limit)
             {
                 case LimitAlarmStates.HighHigh:
-                    LimitState.SetState(context, Objects.ExclusiveLimitStateMachineType_HighHigh);
+                    limitState.SetState(context, Objects.ExclusiveLimitStateMachineType_HighHigh);
                     break;
                 case LimitAlarmStates.High:
-                    LimitState.SetState(context, Objects.ExclusiveLimitStateMachineType_High);
+                    limitState.SetState(context, Objects.ExclusiveLimitStateMachineType_High);
                     break;
                 case LimitAlarmStates.Low:
-                    LimitState.SetState(context, Objects.ExclusiveLimitStateMachineType_Low);
+                    limitState.SetState(context, Objects.ExclusiveLimitStateMachineType_Low);
                     break;
                 case LimitAlarmStates.LowLow:
-                    LimitState.SetState(context, Objects.ExclusiveLimitStateMachineType_LowLow);
+                    limitState.SetState(context, Objects.ExclusiveLimitStateMachineType_LowLow);
                     break;
                 case LimitAlarmStates.Inactive:
-                    LimitState.SetState(context, 0);
+                    limitState.SetState(context, 0);
                     break;
                 default:
                     throw new ServiceResultException(StatusCodes.BadInvalidArgument,
                         $"Invalid limit state {limit} specified.");
             }
 
-            SetActiveEffectiveSubState(context, LimitState.CurrentState.Value, DateTime.UtcNow);
+            SetActiveEffectiveSubState(context, limitState.CurrentState!.Value, DateTime.UtcNow);
             base.SetActiveState(context, limit != LimitAlarmStates.Inactive);
         }
     }

@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -54,7 +54,7 @@ namespace Opc.Ua
         /// Returns an ambient telemetry context associated with the
         /// current operation context.
         /// </summary>
-        public static ITelemetryContext Telemetry => s_current.Value?.MessageContext?.Telemetry;
+        public static ITelemetryContext? Telemetry => s_current.Value?.MessageContext?.Telemetry;
 
         /// <summary>
         /// Returns the message context associated with the current operation context.
@@ -63,7 +63,7 @@ namespace Opc.Ua
         {
             get
             {
-                AmbientMessageContext extension = s_current.Value;
+                AmbientMessageContext? extension = s_current.Value;
 
                 if (extension == null)
                 {
@@ -72,7 +72,7 @@ namespace Opc.Ua
                     // associated with it. All loggers etc will use the
                     // default telemetry context
 #pragma warning disable CS0618 // Type or member is obsolete
-                    var messageContext = new ServiceMessageContext(null);
+                    var messageContext = new ServiceMessageContext(null!);
 #pragma warning restore CS0618 // Type or member is obsolete
                     s_current.Value = new AmbientMessageContext(messageContext);
                     return messageContext;
@@ -92,7 +92,7 @@ namespace Opc.Ua
         /// </summary>
         public static IDisposable SetScopedContext(IServiceMessageContext messageContext)
         {
-            AmbientMessageContext previousContext = s_current.Value;
+            AmbientMessageContext? previousContext = s_current.Value;
 
             s_current.Value = new AmbientMessageContext(messageContext);
 
@@ -105,7 +105,7 @@ namespace Opc.Ua
         /// </summary>
         public static IDisposable SetScopedContext(ITelemetryContext telemetry)
         {
-            AmbientMessageContext previousContext = s_current.Value;
+            AmbientMessageContext? previousContext = s_current.Value;
 
 #pragma warning disable CS0618 // Type or member is obsolete
             s_current.Value = new AmbientMessageContext(
@@ -123,9 +123,9 @@ namespace Opc.Ua
         /// </summary>
         private sealed class Restore : IDisposable
         {
-            private readonly AmbientMessageContext m_context;
+            private readonly AmbientMessageContext? m_context;
 
-            public Restore(AmbientMessageContext context)
+            public Restore(AmbientMessageContext? context)
             {
                 m_context = context;
             }

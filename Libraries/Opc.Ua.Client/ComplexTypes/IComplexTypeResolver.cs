@@ -130,7 +130,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <param name="nodeId">The node identifier.</param>
         /// <param name="ct">Cancellation token to cancel operation with</param>
         /// <returns>Returns null if the node does not exist.</returns>
-        Task<INode> FindAsync(
+        Task<INode?> FindAsync(
             ExpandedNodeId nodeId,
             CancellationToken ct = default);
 

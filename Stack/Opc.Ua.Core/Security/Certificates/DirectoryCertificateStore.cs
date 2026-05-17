@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -129,7 +129,7 @@ namespace Opc.Ua
             m_lock.Wait();
             try
             {
-                string trimmedLocation = Utils.ReplaceSpecialFolderNames(location);
+                string? trimmedLocation = Utils.ReplaceSpecialFolderNames(location);
                 DirectoryInfo? directory = !string.IsNullOrEmpty(trimmedLocation)
                     ? new DirectoryInfo(trimmedLocation)
                     : null;
@@ -599,8 +599,8 @@ namespace Opc.Ua
         /// </summary>
         public async Task<Certificate?> LoadPrivateKeyAsync(
             string thumbprint,
-            string subjectName,
-            string applicationUri,
+            string? subjectName,
+            string? applicationUri,
             NodeId certificateType,
             char[]? password,
             CancellationToken ct = default)
@@ -667,10 +667,10 @@ namespace Opc.Ua
 
                                 if (!string.IsNullOrEmpty(subjectName) &&
                                     !X509Utils.CompareDistinguishedName(
-                                        subjectName,
+                                        subjectName!,
                                         certificate.Subject))
                                 {
-                                    if (subjectName.Contains('=', StringComparison.Ordinal))
+                                    if (subjectName!.Contains('=', StringComparison.Ordinal))
                                     {
                                         continue;
                                     }
@@ -687,7 +687,7 @@ namespace Opc.Ua
 
                                 if (!string.IsNullOrEmpty(applicationUri) &&
                                     !X509Utils.CompareApplicationUriWithCertificate(
-                                        certificate, applicationUri))
+                                        certificate, applicationUri!))
                                 {
                                     continue;
                                 }
@@ -1202,8 +1202,8 @@ namespace Opc.Ua
                         {
                             Certificate = certificate,
                             CertificateFile = file,
-                            PrivateKeyFile = null,
-                            CertificateWithPrivateKey = null,
+                            PrivateKeyFile = null!,
+                            CertificateWithPrivateKey = null!,
                             LastWriteTimeUtc = file.LastWriteTimeUtc
                         };
 
@@ -1392,7 +1392,7 @@ namespace Opc.Ua
                 if (m_privateKeySubdir == null)
                 {
                     // nothing to do
-                    return null;
+                    return null!;
                 }
                 filePath.Append(m_privateKeySubdir.FullName);
             }

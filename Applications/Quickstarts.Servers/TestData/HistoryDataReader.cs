@@ -112,7 +112,7 @@ namespace TestData
             // get first bound.
             if (m_request.ReturnBounds)
             {
-                DataValue value = m_source.FirstRaw(
+                DataValue? value = m_source.FirstRaw(
                     m_startTime,
                     !m_isForward,
                     m_request.IsReadModified,
@@ -149,7 +149,7 @@ namespace TestData
                     return false;
                 }
 
-                DataValue value = m_source.NextRaw(
+                DataValue? value = m_source.NextRaw(
                     m_lastTime,
                     m_isForward,
                     m_request.IsReadModified,
@@ -241,7 +241,7 @@ namespace TestData
         }
 
         private readonly IHistoryDataSource m_source;
-        private ReadRawModifiedDetails m_request;
+        private ReadRawModifiedDetails m_request = null!;
         private DateTimeUtc m_startTime;
         private DateTimeUtc m_endTime;
         private bool m_isForward;

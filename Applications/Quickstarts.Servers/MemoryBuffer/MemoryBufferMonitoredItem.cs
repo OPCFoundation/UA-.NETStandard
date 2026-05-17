@@ -52,9 +52,9 @@ namespace MemoryBuffer
             TimestampsToReturn timestampsToReturn,
             MonitoringMode monitoringMode,
             uint clientHandle,
-            MonitoringFilter originalFilter,
-            MonitoringFilter filterToUse,
-            Range range,
+            MonitoringFilter? originalFilter,
+            MonitoringFilter? filterToUse,
+            Range? range,
             double samplingInterval,
             uint queueSize,
             bool discardOldest,
@@ -115,7 +115,7 @@ namespace MemoryBuffer
                 null,
                 samplingInterval,
                 0,
-                false);
+                false)!;
         }
 
         /// <summary>

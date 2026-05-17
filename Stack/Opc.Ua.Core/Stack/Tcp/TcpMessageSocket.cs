@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -26,8 +26,6 @@
  * The complete license agreement can be found here:
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
-
-#nullable enable
 
 using System;
 using System.Diagnostics;
@@ -605,7 +603,7 @@ namespace Opc.Ua.Bindings
                 }
             }
 
-            BufferManager.LockBuffer(m_receiveBuffer);
+            BufferManager.LockBuffer(m_receiveBuffer!);
 
             SocketAsyncEventArgs? args = null;
             try
@@ -634,12 +632,12 @@ namespace Opc.Ua.Bindings
             }
             catch (ServiceResultException)
             {
-                BufferManager.UnlockBuffer(m_receiveBuffer);
+                BufferManager.UnlockBuffer(m_receiveBuffer!);
                 throw;
             }
             catch (Exception ex)
             {
-                BufferManager.UnlockBuffer(m_receiveBuffer);
+                BufferManager.UnlockBuffer(m_receiveBuffer!);
                 throw ServiceResultException.Create(
                     StatusCodes.BadTcpInternalError,
                     ex,

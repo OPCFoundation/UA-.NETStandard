@@ -116,8 +116,8 @@ namespace Opc.Ua.Sample
             double samplingInterval,
             uint queueSize,
             bool discardOldest,
-            DataChangeFilter filter,
-            Range range,
+            DataChangeFilter? filter,
+            Range? range,
             bool alwaysReportUpdates)
         {
             var monitoredItem = new DataChangeMonitoredItem(
@@ -190,8 +190,8 @@ namespace Opc.Ua.Sample
                 samplingInterval,
                 0,
                 false,
-                null,
-                null,
+                filter: null,
+                range: null,
                 alwaysReportUpdates);
         }
 
@@ -257,7 +257,7 @@ namespace Opc.Ua.Sample
                     // check if the node has been deleted.
                     if ((masks & NodeStateChangeMasks.Deleted) != 0)
                     {
-                        monitoredItem.QueueValue(null, StatusCodes.BadNodeIdUnknown, false);
+                        monitoredItem.QueueValue(null!, StatusCodes.BadNodeIdUnknown, false);
                         continue;
                     }
 
@@ -374,7 +374,7 @@ namespace Opc.Ua.Sample
             }
         }
 
-        private List<IEventMonitoredItem> m_eventSubscriptions;
-        private List<DataChangeMonitoredItem> m_monitoredItems;
+        private List<IEventMonitoredItem>? m_eventSubscriptions;
+        private List<DataChangeMonitoredItem>? m_monitoredItems;
     }
 }

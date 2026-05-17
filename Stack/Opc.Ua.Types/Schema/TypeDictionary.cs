@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -41,7 +41,7 @@ namespace Opc.Ua.Schema.Types
         /// The qualifed name for the data type.
         /// </summary>
         [XmlIgnore]
-        public XmlQualifiedName QName { get; set; }
+        public XmlQualifiedName? QName { get; set; }
 
         /// <inheritdoc/>
         public override string ToString()
@@ -51,7 +51,7 @@ namespace Opc.Ua.Schema.Types
                 return QName.Name;
             }
 
-            return base.ToString();
+            return base.ToString() ?? string.Empty;
         }
     }
 }

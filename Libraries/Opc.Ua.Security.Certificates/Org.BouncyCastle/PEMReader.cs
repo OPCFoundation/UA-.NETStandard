@@ -268,7 +268,7 @@ namespace Opc.Ua.Security.Certificates
 
             public char[]? GetPassword()
             {
-                return m_password;
+                return m_password!;
             }
 
             public void Dispose()

@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -40,7 +40,7 @@ namespace Opc.Ua
         /// Gets or sets a handled associated with the snapshot.
         /// </summary>
         /// <value>The handle.</value>
-        public object Handle { get; set; }
+        public object? Handle { get; set; }
 
         /// <summary>
         /// Initializes the snapshot from an instance.
@@ -126,7 +126,7 @@ namespace Opc.Ua
             public NodeClass NodeClass { get; set; }
             public QualifiedName BrowseName { get; set; }
             public Variant Value { get; set; }
-            public List<ChildNode> Children { get; set; }
+            public List<ChildNode>? Children { get; set; }
         }
 
         /// <summary>
@@ -142,7 +142,7 @@ namespace Opc.Ua
             NodeClass nodeClass,
             Variant value)
         {
-            ChildNode child = null;
+            ChildNode? child = null;
 
             if (node.Children != null)
             {
@@ -262,13 +262,13 @@ namespace Opc.Ua
 
                 if (attributeId == Attributes.BrowseName)
                 {
-                    return node.BrowseName;
+                    return new Variant(node.BrowseName);
                 }
 
                 return Variant.Null;
             }
 
-            for (int ii = 0; ii < node.Children.Count; ii++)
+            for (int ii = 0; ii < node.Children!.Count; ii++) // intermediate nodes always have Children populated when path traversal continues
             {
                 if (node.Children[ii].BrowseName == relativePath[index])
                 {
@@ -284,6 +284,6 @@ namespace Opc.Ua
         }
 
         private NodeId m_typeDefinitionId;
-        private ChildNode m_snapshot;
+        private ChildNode m_snapshot = null!;
     }
 }

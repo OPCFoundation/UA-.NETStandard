@@ -40,7 +40,7 @@ namespace TestData
         protected override void OnAfterCreate(ISystemContext context, NodeState node, CancellationToken ct = default)
         {
             base.OnAfterCreate(context, node, ct);
-            MonitoredNodeCount.OnSimpleReadValue = OnReadMonitoredNodeCount;
+            MonitoredNodeCount!.OnSimpleReadValue = OnReadMonitoredNodeCount;
         }
 
         /// <summary>

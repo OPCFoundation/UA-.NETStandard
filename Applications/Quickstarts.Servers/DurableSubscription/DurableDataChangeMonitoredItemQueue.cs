@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Opc.Ua;
 using Opc.Ua.Server;
 
@@ -43,7 +44,7 @@ namespace Quickstarts.Servers
         /// <summary>
         /// Invoked when the queue is disposed
         /// </summary>
-        public event EventHandler Disposed;
+        public event EventHandler? Disposed;
 
         /// <summary>
         /// Creates an empty queue.
@@ -74,11 +75,12 @@ namespace Quickstarts.Servers
             m_batchPersistor = batchPersistor;
             MonitoredItemId = queue.MonitoredItemId;
             IsDurable = queue.IsDurable;
-            m_enqueueBatch = queue.EnqueueBatch;
-            m_dequeueBatch = queue.DequeueBatch;
+            m_enqueueBatch = queue.EnqueueBatch!;
+            m_dequeueBatch = queue.DequeueBatch!;
             m_dataChangeBatches = queue.DataChangeBatches;
             QueueSize = queue.QueueSize;
             ItemsInQueue = queue.ItemsInQueue;
+            m_logger = NullLogger<DurableDataChangeMonitoredItemQueue>.Instance;
         }
 
         /// <inheritdoc/>
@@ -215,7 +217,7 @@ namespace Quickstarts.Servers
         }
 
         /// <inheritdoc/>
-        public DataValue PeekLastValue()
+        public DataValue? PeekLastValue()
         {
             if (ItemsInQueue == 0)
             {
@@ -240,8 +242,8 @@ namespace Quickstarts.Servers
         /// <inheritdoc/>
         public bool Dequeue(out DataValue value, out ServiceResult error)
         {
-            value = null;
-            error = null;
+            value = null!;
+            error = null!;
 
             // check for empty queue.
             if (ItemsInQueue == 0)
@@ -266,7 +268,8 @@ namespace Quickstarts.Servers
                 }
             }
 
-            (value, error) = m_dequeueBatch.Values[0];
+            (value, ServiceResult? sr) = m_dequeueBatch.Values[0];
+            error = sr!;
             m_dequeueBatch.Values.RemoveAt(0);
             ItemsInQueue--;
             HandleDequeBatching();
@@ -307,7 +310,7 @@ namespace Quickstarts.Servers
         }
 
         /// <inheritdoc/>
-        public DataValue PeekOldestValue()
+        public DataValue? PeekOldestValue()
         {
             // check for empty queue.
             if (ItemsInQueue == 0)
@@ -350,7 +353,7 @@ namespace Quickstarts.Servers
     public class DataChangeBatch : BatchBase
     {
         public DataChangeBatch(
-            List<(DataValue, ServiceResult)> values,
+            List<(DataValue, ServiceResult?)> values,
             uint batchSize,
             uint monitoredItemId)
             : base(batchSize, monitoredItemId)
@@ -358,18 +361,18 @@ namespace Quickstarts.Servers
             Values = values;
         }
 
-        public List<(DataValue, ServiceResult)> Values { get; set; }
+        public List<(DataValue, ServiceResult?)> Values { get; set; }
 
         public override void SetPersisted()
         {
-            Values = null;
+            Values = null!;
             IsPersisted = true;
             PersistingInProgress = false;
         }
 
-        public void Restore(List<(DataValue, ServiceResult)> values)
+        public void Restore(List<(DataValue, ServiceResult?)>? values)
         {
-            Values = values;
+            Values = values ?? new List<(DataValue, ServiceResult?)>();
             IsPersisted = false;
             RestoreInProgress = false;
         }
@@ -385,10 +388,10 @@ namespace Quickstarts.Servers
 
         public uint QueueSize { get; set; }
 
-        public DataChangeBatch EnqueueBatch { get; set; }
+        public DataChangeBatch? EnqueueBatch { get; set; }
 
-        public List<DataChangeBatch> DataChangeBatches { get; set; }
+        public List<DataChangeBatch> DataChangeBatches { get; set; } = null!;
 
-        public DataChangeBatch DequeueBatch { get; set; }
+        public DataChangeBatch? DequeueBatch { get; set; }
     }
 }

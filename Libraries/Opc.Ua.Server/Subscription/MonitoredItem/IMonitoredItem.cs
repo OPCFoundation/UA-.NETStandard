@@ -191,7 +191,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// The filter used by the monitored item.
         /// </summary>
-        EventFilter EventFilter { get; }
+        EventFilter? EventFilter { get; }
 
         /// <summary>
         /// Publishes all available event notifications.
@@ -205,7 +205,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Modifies the attributes for monitored item.
         /// </summary>
-        ServiceResult ModifyAttributes(
+        ServiceResult? ModifyAttributes(
             DiagnosticsMasks diagnosticsMasks,
             TimestampsToReturn timestampsToReturn,
             uint clientHandle,
@@ -225,12 +225,12 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Updates the queue with a data value or an error.
         /// </summary>
-        void QueueValue(DataValue value, ServiceResult error);
+        void QueueValue(DataValue value, ServiceResult? error);
 
         /// <summary>
         /// The filter used by the monitored item.
         /// </summary>
-        DataChangeFilter DataChangeFilter { get; }
+        DataChangeFilter? DataChangeFilter { get; }
 
         /// <summary>
         /// Publishes all available data change notifications.
@@ -288,7 +288,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Updates the queue with a data value or an error.
         /// </summary>
-        void QueueValue(DataValue value, ServiceResult error, bool ignoreFilters);
+        void QueueValue(DataValue value, ServiceResult? error, bool ignoreFilters);
     }
 
     /// <summary>
@@ -329,7 +329,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Modifies the attributes for monitored item.
         /// </summary>
-        ServiceResult ModifyAttributes(
+        ServiceResult? ModifyAttributes(
             DiagnosticsMasks diagnosticsMasks,
             TimestampsToReturn timestampsToReturn,
             uint clientHandle,

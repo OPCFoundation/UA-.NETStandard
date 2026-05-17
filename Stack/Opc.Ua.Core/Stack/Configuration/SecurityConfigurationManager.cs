@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -45,7 +45,7 @@ namespace Opc.Ua.Security
         /// </summary>
         [Obsolete("Use SecurityConfigurationManager(ITelemetryContext) instead.")]
         public SecurityConfigurationManager()
-            : this(null)
+            : this(null!)
         {
         }
 
@@ -74,7 +74,7 @@ namespace Opc.Ua.Security
             }
 
             string configFilePath = filePath;
-            string exeFilePath = null;
+            string? exeFilePath = null;
 
             // check for valid file.
             if (!File.Exists(filePath))
@@ -118,8 +118,8 @@ namespace Opc.Ua.Security
                 }
             }
 
-            SecuredApplication application = null;
-            ApplicationConfiguration applicationConfiguration = null;
+            SecuredApplication? application = null;
+            ApplicationConfiguration? applicationConfiguration = null;
 
             try
             {
@@ -198,7 +198,7 @@ namespace Opc.Ua.Security
             application = new SecuredApplication
             {
                 // copy application info.
-                ApplicationName = applicationConfiguration.ApplicationName,
+                ApplicationName = applicationConfiguration!.ApplicationName,
                 ApplicationUri = applicationConfiguration.ApplicationUri,
                 ProductName = applicationConfiguration.ProductUri,
                 ApplicationType = (ApplicationType)(int)applicationConfiguration.ApplicationType,
@@ -214,7 +214,7 @@ namespace Opc.Ua.Security
                 if (applicationConfiguration.SecurityConfiguration.IsDeprecatedConfiguration)
                 {
                     application.ApplicationCertificate = SecuredApplication.ToCertificateIdentifier(
-                        applicationConfiguration.SecurityConfiguration.ApplicationCertificate);
+                        applicationConfiguration.SecurityConfiguration.ApplicationCertificate!);
                 }
                 else
                 {
@@ -265,7 +265,7 @@ namespace Opc.Ua.Security
                 }
             }
 
-            ServerBaseConfiguration serverConfiguration = null;
+            ServerBaseConfiguration? serverConfiguration = null;
 
             if (applicationConfiguration.ServerConfiguration != null)
             {
@@ -294,7 +294,7 @@ namespace Opc.Ua.Security
         /// <param name="parent">The parent.</param>
         /// <param name="localName">Name of the local.</param>
         /// <param name="namespaceUri">The namespace URI.</param>
-        private static System.Xml.XmlElement Find(XmlNode parent, string localName, string namespaceUri)
+        private static System.Xml.XmlElement? Find(XmlNode parent, string localName, string namespaceUri)
         {
             if (parent is System.Xml.XmlElement parentElement &&
                 parent.LocalName == localName &&
@@ -303,7 +303,7 @@ namespace Opc.Ua.Security
                 return parentElement;
             }
 
-            for (XmlNode ii = parent.FirstChild; ii != null; ii = ii.NextSibling)
+            for (XmlNode? ii = parent.FirstChild; ii != null; ii = ii.NextSibling)
             {
                 if (ii is System.Xml.XmlElement xml &&
                     ii.LocalName == localName &&
@@ -312,7 +312,7 @@ namespace Opc.Ua.Security
                     return xml;
                 }
 
-                System.Xml.XmlElement child = Find(ii, localName, namespaceUri);
+                System.Xml.XmlElement? child = Find(ii, localName, namespaceUri);
 
                 if (child != null)
                 {
@@ -320,7 +320,7 @@ namespace Opc.Ua.Security
                 }
             }
 
-            return null;
+            return null!;
         }
 
         /// <summary>
@@ -343,7 +343,7 @@ namespace Opc.Ua.Security
                 throw ServiceResultException.Create(
                     StatusCodes.BadNotReadable,
                     "Cannot find the configuration file: {0}",
-                    configuration.ConfigurationFile);
+                    configuration.ConfigurationFile ?? "null");
             }
 
             // load from file.
@@ -353,8 +353,8 @@ namespace Opc.Ua.Security
             {
                 document.Load(xmlReader);
             }
-            System.Xml.XmlElement element = Find(
-                document.DocumentElement,
+            System.Xml.XmlElement? element = Find(
+                document.DocumentElement!,
                 "SecuredApplication",
                 Namespaces.OpcUaSecurity);
 
@@ -370,7 +370,7 @@ namespace Opc.Ua.Security
             // update application configuration.
             else
             {
-                UpdateDocument(document.DocumentElement, configuration);
+                UpdateDocument(document.DocumentElement!, configuration);
             }
 
             try
@@ -395,7 +395,7 @@ namespace Opc.Ua.Security
                     StatusCodes.BadNotWritable,
                     e,
                     "Cannot update the configuration file: {0}",
-                    configuration.ConfigurationFile);
+                    configuration.ConfigurationFile ?? "null");
             }
         }
 
@@ -404,17 +404,17 @@ namespace Opc.Ua.Security
         /// </summary>
         private void UpdateDocument(System.Xml.XmlElement element, SecuredApplication application)
         {
-            for (XmlNode node = element.FirstChild; node != null; node = node.NextSibling)
+            for (XmlNode? node = element.FirstChild; node != null; node = node.NextSibling)
             {
                 if (node.Name == "ApplicationName" && node.NamespaceURI == Namespaces.OpcUaConfig)
                 {
-                    node.InnerText = application.ApplicationName;
+                    node.InnerText = application.ApplicationName ?? string.Empty;
                     continue;
                 }
 
                 if (node.Name == "ApplicationUri" && node.NamespaceURI == Namespaces.OpcUaConfig)
                 {
-                    node.InnerText = application.ApplicationUri;
+                    node.InnerText = application.ApplicationUri ?? string.Empty;
                     continue;
                 }
 
@@ -538,7 +538,7 @@ namespace Opc.Ua.Security
                 return disc;
             }
 
-            throw new NotSupportedException(Utils.Format("Unsupported type for GetObject: {0}", type.FullName));
+            throw new NotSupportedException(Utils.Format("Unsupported type for GetObject: {0}", type.FullName ?? "null"));
         }
 
         /// <summary>
@@ -565,7 +565,7 @@ namespace Opc.Ua.Security
 
             var document = new XmlDocument();
             document.LoadInnerXml(Encoding.UTF8.GetString(memoryStream.ToArray()));
-            return document.DocumentElement.InnerXml;
+            return document.DocumentElement!.InnerXml;
         }
 
         private readonly ILogger m_logger;

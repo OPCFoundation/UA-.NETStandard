@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -64,7 +64,7 @@ namespace System.Diagnostics.CodeAnalysis
         /// Gets or sets an optional URL with more information
         /// about the method.
         /// </summary>
-        public string Url { get; set; }
+        public string? Url { get; set; }
     }
 
     /// <summary>
@@ -102,22 +102,22 @@ namespace System.Diagnostics.CodeAnalysis
         /// Gets or sets the justification for suppressing the
         /// code analysis message.
         /// </summary>
-        public string Justification { get; set; }
+        public string? Justification { get; set; }
 
         /// <summary>
         /// Gets or sets the scope.
         /// </summary>
-        public string Scope { get; set; }
+        public string? Scope { get; set; }
 
         /// <summary>
         /// Gets or sets the target.
         /// </summary>
-        public string Target { get; set; }
+        public string? Target { get; set; }
 
         /// <summary>
         /// Gets or sets the message id.
         /// </summary>
-        public string MessageId { get; set; }
+        public string? MessageId { get; set; }
     }
 
     /// <summary>
@@ -273,7 +273,7 @@ namespace System.Diagnostics.CodeAnalysis
         /// Gets or sets an optional URL with more information
         /// about the method.
         /// </summary>
-        public string Url { get; set; }
+        public string? Url { get; set; }
     }
 }
 

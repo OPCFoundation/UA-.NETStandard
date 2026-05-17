@@ -39,10 +39,10 @@ namespace Opc.Ua.Gds.Server.Database
         NodeId RegisterApplication(ApplicationRecordDataType application);
         NodeId UpdateApplication(ApplicationRecordDataType application);
         void UnregisterApplication(NodeId applicationId);
-        ApplicationRecordDataType GetApplication(NodeId applicationId);
-        ApplicationRecordDataType[] FindApplications(string applicationUri);
+        ApplicationRecordDataType? GetApplication(NodeId applicationId);
+        ApplicationRecordDataType[]? FindApplications(string applicationUri);
 
-        ServerOnNetwork[] QueryServers(
+        ServerOnNetwork[]? QueryServers(
             uint startingRecordId,
             uint maxRecordsToReturn,
             string applicationName,
@@ -69,9 +69,9 @@ namespace Opc.Ua.Gds.Server.Database
         bool GetApplicationTrustLists(
             NodeId applicationId,
             string certificateTypeId,
-            out string trustListId);
+            out string? trustListId);
 
-        ApplicationDescription[] QueryApplications(
+        ApplicationDescription[]? QueryApplications(
             uint startingRecordId,
             uint maxRecordsToReturn,
             string applicationName,

@@ -51,7 +51,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// The identifier for the root of the NodeId.
         /// </summary>
-        public string RootId { get; set; }
+        public string RootId { get; set; } = null!;
 
         /// <summary>
         /// The type of root node.
@@ -61,14 +61,14 @@ namespace Opc.Ua.Server
         /// <summary>
         /// The relative path to the component identified by the NodeId.
         /// </summary>
-        public string ComponentPath { get; set; }
+        public string ComponentPath { get; set; } = null!;
 
         /// <summary>
         /// Parses the specified node identifier.
         /// </summary>
         /// <param name="nodeId">The node identifier.</param>
         /// <returns>The parsed node identifier. Null if the identifier cannot be parsed.</returns>
-        public static ParsedNodeId Parse(NodeId nodeId)
+        public static ParsedNodeId? Parse(NodeId nodeId)
         {
             // can only parse non-null string node identifiers.
             if (nodeId.IsNull)
@@ -140,7 +140,7 @@ namespace Opc.Ua.Server
 
             // extract any component.
             parsedNodeId.RootId = buffer.ToString();
-            parsedNodeId.ComponentPath = null;
+            parsedNodeId.ComponentPath = null!;
 
             if (end < identifier.Length)
             {
@@ -183,7 +183,7 @@ namespace Opc.Ua.Server
                 pnd.ComponentPath = path.ToString();
             }
 
-            return pnd.Construct(null);
+            return pnd.Construct(null!);
         }
 
         /// <summary>
@@ -192,7 +192,7 @@ namespace Opc.Ua.Server
         /// <returns>The node identifier.</returns>
         public NodeId Construct()
         {
-            return Construct(null);
+            return Construct(null!);
         }
 
         /// <summary>
