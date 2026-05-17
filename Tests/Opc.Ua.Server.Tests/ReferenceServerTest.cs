@@ -2114,22 +2114,9 @@ namespace Opc.Ua.Server.Tests
                             : []).ConfigureAwait(false);
                     ServerFixtureUtils.ValidateResponse(publishB1.ResponseHeader);
 
-                    bool hasInitialNotification = false;
-                    foreach (ExtensionObject extObj in publishB1.NotificationMessage.NotificationData)
-                    {
-                        if (extObj.TryGetValue(out DataChangeNotification dcn))
-                        {
-                            foreach (MonitoredItemNotification item in dcn.MonitoredItems)
-                            {
-                                if (item.ClientHandle == 1)
-                                {
-                                    hasInitialNotification = true;
-                                }
-                            }
-                        }
-                    }
-
-                    Assert.That(hasInitialNotification, Is.True,
+                    Assert.That(
+                        HasDataChangeNotificationForClientHandle(publishB1.NotificationMessage, 1),
+                        Is.True,
                         "Session B (user1) must receive the initial data notification for the restricted node.");
 
                     // Re-activate session B with anonymous identity.
@@ -2183,22 +2170,9 @@ namespace Opc.Ua.Server.Tests
                         }]).ConfigureAwait(false);
                     ServerFixtureUtils.ValidateResponse(publishB2.ResponseHeader);
 
-                    bool hasNotificationForRestrictedNode = false;
-                    foreach (ExtensionObject extObj in publishB2.NotificationMessage.NotificationData)
-                    {
-                        if (extObj.TryGetValue(out DataChangeNotification dcn))
-                        {
-                            foreach (MonitoredItemNotification item in dcn.MonitoredItems)
-                            {
-                                if (item.ClientHandle == 1)
-                                {
-                                    hasNotificationForRestrictedNode = true;
-                                }
-                            }
-                        }
-                    }
-
-                    Assert.That(hasNotificationForRestrictedNode, Is.False,
+                    Assert.That(
+                        HasDataChangeNotificationForClientHandle(publishB2.NotificationMessage, 1),
+                        Is.False,
                         "After re-activation as anonymous, session B must NOT receive notifications " +
                         "for the AuthenticatedUser-restricted node.");
 
@@ -2232,6 +2206,31 @@ namespace Opc.Ua.Server.Tests
                     headerA,
                     CancellationToken.None).ConfigureAwait(false);
             }
+        }
+        /// <summary>
+        /// Returns <c>true</c> if any <see cref="DataChangeNotification"/> in the given
+        /// <paramref name="message"/> contains a <see cref="MonitoredItemNotification"/>
+        /// with the specified <paramref name="clientHandle"/>.
+        /// </summary>
+        private static bool HasDataChangeNotificationForClientHandle(
+            NotificationMessage message,
+            uint clientHandle)
+        {
+            foreach (ExtensionObject extObj in message.NotificationData)
+            {
+                if (extObj.TryGetValue(out DataChangeNotification dcn))
+                {
+                    foreach (MonitoredItemNotification item in dcn.MonitoredItems)
+                    {
+                        if (item.ClientHandle == clientHandle)
+                        {
+                            return true;
+                        }
+                    }
+                }
+            }
+
+            return false;
         }
     }
 }
