@@ -28,19 +28,12 @@
  * ======================================================================*/
 
 using System;
+using Opc.Ua;
 
-namespace Opc.Ua.Server
+namespace TestData
 {
     /// <summary>
-    /// Extensibility surface for OPC UA Part 11 historical data access. A
-    /// node manager that wants to expose history for a variable returns an
-    /// <see cref="IHistoryDataSource"/> from its history-read / history-update
-    /// callbacks; the framework then drives reads and updates through this
-    /// interface. The default in-process implementation backing the
-    /// <c>Quickstarts.Servers</c> reference server is <c>HistoryFile</c> in
-    /// the <c>TestData</c> namespace; integrators can plug their own historian
-    /// (database, time-series store, on-disk archive, …) by implementing this
-    /// interface and returning an instance from their node manager.
+    /// An interface to an object which can access historical data for a variable.
     /// </summary>
     public interface IHistoryDataSource
     {
@@ -50,9 +43,9 @@ namespace Opc.Ua.Server
         /// <param name="startTime">The starting time for the search.</param>
         /// <param name="isForward">Whether to search forward in time.</param>
         /// <param name="isReadModified">Whether to return modified data.</param>
-        /// <param name="position">A index that must be passed to the NextRaw call.</param>
+        /// <param name="position">A index that must be passed to the NextRaw call. </param>
         /// <returns>The DataValue.</returns>
-        DataValue FirstRaw(
+        DataValue? FirstRaw(
             DateTimeUtc startTime,
             bool isForward,
             bool isReadModified,
@@ -66,28 +59,31 @@ namespace Opc.Ua.Server
         /// <param name="isReadModified">Whether to return modified data.</param>
         /// <param name="position">A index previously returned by the reader.</param>
         /// <returns>The DataValue.</returns>
-        DataValue NextRaw(DateTimeUtc lastTime, bool isForward, bool isReadModified, ref int position);
+        DataValue? NextRaw(DateTimeUtc lastTime, bool isForward, bool isReadModified, ref int position);
 
         /// <summary>
         /// Inserts a new value at the value's source timestamp; returns
-        /// BadEntryExists if a non-modified entry already occupies that slot.
+        /// <see cref="StatusCodes.BadEntryExists"/> if a non-modified entry
+        /// already occupies that slot.
         /// </summary>
         StatusCode InsertRaw(DataValue value);
 
         /// <summary>
         /// Replaces an existing value at the source timestamp; returns
-        /// BadNoEntryExists when nothing matches.
+        /// <see cref="StatusCodes.BadNoEntryExists"/> when nothing matches.
         /// </summary>
         StatusCode ReplaceRaw(DataValue value);
 
         /// <summary>
         /// Inserts the value when no entry exists at the timestamp;
-        /// otherwise replaces it. Mirrors PerformUpdateType.Update.
+        /// otherwise replaces it. Mirrors
+        /// <see cref="PerformUpdateType.Update"/>.
         /// </summary>
         StatusCode UpsertRaw(DataValue value);
 
         /// <summary>
-        /// Deletes raw entries whose source timestamp is in [startTime, endTime).
+        /// Deletes raw entries whose source timestamp falls in
+        /// <c>[startTime, endTime)</c>.
         /// </summary>
         StatusCode DeleteRaw(DateTime startTime, DateTime endTime);
 

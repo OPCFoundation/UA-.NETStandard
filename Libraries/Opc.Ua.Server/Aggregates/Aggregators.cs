@@ -34,7 +34,7 @@ namespace Opc.Ua.Server
     /// <summary>
     /// Creates a new instance of an aggregate factory.
     /// </summary>
-    public delegate IAggregateCalculator AggregatorFactory(
+    public delegate IAggregateCalculator? AggregatorFactory(
         NodeId aggregateId,
         DateTimeUtc startTime,
         DateTimeUtc endTime,
@@ -57,7 +57,7 @@ namespace Opc.Ua.Server
 
             public QualifiedName AggregateName { get; set; }
 
-            public CreateInstance Calculator { get; set; }
+            public CreateInstance Calculator { get; set; } = null!;
         }
 
         private delegate IAggregateCalculator CreateInstance(
@@ -349,13 +349,13 @@ namespace Opc.Ua.Server
                 processingInterval,
                 stepped,
                 configuration,
-                null);
+                null!)!;
         }
 
         /// <summary>
         /// Creates a calculator for one of the standard aggregates.
         /// </summary>
-        public static IAggregateCalculator CreateStandardCalculator(
+        public static IAggregateCalculator? CreateStandardCalculator(
             NodeId aggregateId,
             DateTimeUtc startTime,
             DateTimeUtc endTime,

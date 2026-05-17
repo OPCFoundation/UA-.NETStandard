@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -65,6 +65,7 @@ namespace Opc.Ua
         {
             m_ecdh = null;
             m_rsadh = null;
+            Data = default!;
         }
 
         /// <summary>
@@ -74,7 +75,7 @@ namespace Opc.Ua
 
         internal byte[]? GenerateSecret(
             Nonce remoteNonce,
-            byte[] previousSecret)
+            byte[]? previousSecret)
         {
             byte[]? ikm = null;
 #if NET8_0_OR_GREATER
@@ -184,8 +185,8 @@ namespace Opc.Ua
         /// </summary>
         public static Nonce CreateNonce(string securityPolicyUri)
         {
-            SecurityPolicyInfo info = SecurityPolicies.GetInfo(securityPolicyUri);
-            return CreateNonce(info);
+            SecurityPolicyInfo? info = SecurityPolicies.GetInfo(securityPolicyUri);
+            return CreateNonce(info!);
         }
 
         /// <summary>
@@ -250,8 +251,8 @@ namespace Opc.Ua
         /// </summary>
         public static Nonce CreateNonce(string securityPolicyUri, byte[] nonceData)
         {
-            SecurityPolicyInfo info = SecurityPolicies.GetInfo(securityPolicyUri);
-            return CreateNonce(info, nonceData);
+            SecurityPolicyInfo? info = SecurityPolicies.GetInfo(securityPolicyUri);
+            return CreateNonce(info!, nonceData);
         }
 
         /// <summary>

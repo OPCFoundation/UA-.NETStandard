@@ -41,25 +41,31 @@ namespace Boiler
         {
             base.OnAfterCreate(context, node, ct);
 
-            Start.OnCallMethod = OnStart;
-            Start.OnReadExecutable = IsStartExecutable;
-            Start.OnReadUserExecutable = IsStartUserExecutable;
+            var start = Start!;
+            var suspend = Suspend!;
+            var resume = Resume!;
+            var halt = Halt!;
+            var reset = Reset!;
 
-            Suspend.OnCallMethod = OnSuspend;
-            Suspend.OnReadExecutable = IsSuspendExecutable;
-            Suspend.OnReadUserExecutable = IsSuspendUserExecutable;
+            start.OnCallMethod = OnStart;
+            start.OnReadExecutable = IsStartExecutable;
+            start.OnReadUserExecutable = IsStartUserExecutable;
 
-            Resume.OnCallMethod = OnResume;
-            Resume.OnReadExecutable = IsResumeExecutable;
-            Resume.OnReadUserExecutable = IsResumeUserExecutable;
+            suspend.OnCallMethod = OnSuspend;
+            suspend.OnReadExecutable = IsSuspendExecutable;
+            suspend.OnReadUserExecutable = IsSuspendUserExecutable;
 
-            Halt.OnCallMethod = OnHalt;
-            Halt.OnReadExecutable = IsHaltExecutable;
-            Halt.OnReadUserExecutable = IsHaltUserExecutable;
+            resume.OnCallMethod = OnResume;
+            resume.OnReadExecutable = IsResumeExecutable;
+            resume.OnReadUserExecutable = IsResumeUserExecutable;
 
-            Reset.OnCallMethod = OnReset;
-            Reset.OnReadExecutable = IsResetExecutable;
-            Reset.OnReadUserExecutable = IsResetUserExecutable;
+            halt.OnCallMethod = OnHalt;
+            halt.OnReadExecutable = IsHaltExecutable;
+            halt.OnReadUserExecutable = IsHaltUserExecutable;
+
+            reset.OnCallMethod = OnReset;
+            reset.OnReadExecutable = IsResetExecutable;
+            reset.OnReadUserExecutable = IsResetUserExecutable;
         }
     }
 }

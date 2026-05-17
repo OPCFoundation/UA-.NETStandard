@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -62,7 +62,7 @@ namespace Opc.Ua
         /// <see cref="EndpointBase"/> immediately after the service has
         /// produced the response and before the response is dispatched.
         /// </summary>
-        IServiceResponseMutator ResponseMutator { get; }
+        IServiceResponseMutator? ResponseMutator { get; }
 
         /// <summary>
         /// Returns the endpoints supported by the server.
@@ -149,7 +149,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="response">The response. May be null if an error is provided.</param>
         /// <param name="error">An error to result as a fault.</param>
-        void OperationCompleted(IServiceResponse response, ServiceResult error);
+        void OperationCompleted(IServiceResponse? response, ServiceResult error);
     }
 
     /// <summary>

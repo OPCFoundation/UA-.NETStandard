@@ -136,8 +136,8 @@ namespace Opc.Ua.Gds.Server
         CertificateRequestState FinishRequest(
             NodeId applicationId,
             NodeId requestId,
-            out string certificateGroupId,
-            out string certificateTypeId,
+            out string? certificateGroupId,
+            out string? certificateTypeId,
             out ByteString signedCertificate,
             out ByteString privateKey);
 
@@ -156,12 +156,12 @@ namespace Opc.Ua.Gds.Server
         CertificateRequestState ReadRequest(
             NodeId applicationId,
             NodeId requestId,
-            out string certificateGroupId,
-            out string certificateTypeId,
+            out string? certificateGroupId,
+            out string? certificateTypeId,
             out ByteString certificateRequest,
-            out string subjectName,
-            out string[] domainNames,
-            out string privateKeyFormat,
+            out string? subjectName,
+            out string[]? domainNames,
+            out string? privateKeyFormat,
             out ReadOnlySpan<char> privateKeyPassword);
     }
 }

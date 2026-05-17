@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -37,7 +37,7 @@ namespace Opc.Ua
     /// <summary>
     /// Enum value
     /// </summary>
-    [DataContract(Namespace = Namespaces.OpcUaXsd)]
+    [DataContract(Namespace = Types.Namespaces.OpcUaXsd)]
     public class EnumValueType : IEncodeable, IEquatable<EnumValueType>
     {
         /// <summary>
@@ -92,7 +92,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public virtual bool IsEqual(IEncodeable encodeable)
+        public virtual bool IsEqual(IEncodeable? encodeable)
         {
             if (ReferenceEquals(this, encodeable))
             {
@@ -123,7 +123,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return IsEqual(obj as IEncodeable);
         }
@@ -138,19 +138,23 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public bool Equals(EnumValueType other)
+        public bool Equals(EnumValueType? other)
         {
-            return IsEqual(other);
+            return IsEqual(other)!;
         }
 
         /// <inheritdoc/>
-        public static bool operator ==(EnumValueType left, EnumValueType right)
+        public static bool operator ==(EnumValueType? left, EnumValueType? right)
         {
-            return EqualityComparer<EnumValueType>.Default.Equals(left, right);
+            if (left is null)
+            {
+                return right is null;
+            }
+            return left.Equals(right);
         }
 
         /// <inheritdoc/>
-        public static bool operator !=(EnumValueType left, EnumValueType right)
+        public static bool operator !=(EnumValueType? left, EnumValueType? right)
         {
             return !(left == right);
         }

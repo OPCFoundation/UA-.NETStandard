@@ -33,6 +33,7 @@ using System;
 using System.IO;
 using System.Text;
 #if NETSTANDARD2_1 || NET5_0_OR_GREATER
+using System.Diagnostics.CodeAnalysis;
 using System.Security.Cryptography.X509Certificates;
 using System.Security.Cryptography;
 #endif
@@ -152,6 +153,7 @@ namespace Opc.Ua.Security.Certificates
                 }
             }
 
+            // TODO: returns null content if neither RSA nor ECDsa private key is present.
             return EncodeAsPEM(
                 exportedPkcs8PrivateKey ?? throw new CryptographicException("No private key found."),
                 password.IsEmpty || password.IsWhiteSpace() ? "PRIVATE KEY" : "ENCRYPTED PRIVATE KEY");
@@ -163,7 +165,7 @@ namespace Opc.Ua.Security.Certificates
         public static bool TryRemovePublicKeyFromPEM(
             string thumbprint,
             ReadOnlySpan<byte> pemDataBlob,
-            out byte[]? modifiedPemDataBlob)
+            [NotNullWhen(true)] out byte[]? modifiedPemDataBlob)
         {
             modifiedPemDataBlob = null;
             const string label = "CERTIFICATE";

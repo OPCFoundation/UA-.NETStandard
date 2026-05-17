@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
+
 namespace Opc.Ua.Server
 {
     /// <summary>
@@ -41,7 +43,7 @@ namespace Opc.Ua.Server
         public ServerSystemContext(IServerInternal server)
             : base(server.Telemetry)
         {
-            OperationContext = null;
+            OperationContext = null!;
             NamespaceUris = server.NamespaceUris;
             ServerUris = server.ServerUris;
             TypeTable = server.TypeTree;
@@ -71,7 +73,7 @@ namespace Opc.Ua.Server
         public ServerSystemContext(IServerInternal server, ISession session)
              : base(server.Telemetry)
         {
-            OperationContext = null;
+            OperationContext = null!;
             SessionId = session.Id;
             UserIdentity = session.Identity;
             PreferredLocales = session.PreferredLocales;
@@ -85,7 +87,12 @@ namespace Opc.Ua.Server
         /// The operation context associated with system context.
         /// </summary>
         /// <value>The operation context.</value>
-        public new OperationContext OperationContext
+        /// <remarks>
+        /// May return <c>null</c> if the underlying base context's operation context
+        /// has not been set or is not an <see cref="OperationContext"/> instance
+        /// (e.g. during NodeManager startup before any operation has begun).
+        /// </remarks>
+        public new OperationContext? OperationContext
         {
             get => base.OperationContext as OperationContext;
             set => base.OperationContext = value;
@@ -130,7 +137,7 @@ namespace Opc.Ua.Server
         {
             var copy = (ServerSystemContext)MemberwiseClone();
 
-            copy.OperationContext = null;
+            copy.OperationContext = null!;
 
             if (session != null)
             {

@@ -274,7 +274,7 @@ namespace Opc.Ua.Client.FileSystem
                         $"Cannot create '{UaPath.FormatSegment(segment)}': leaf segments must not include a namespace prefix; the server picks the BrowseName namespace.",
                         nameof(path));
                 }
-                current = await CreateDirectoryInAsync(current, segment.Name, ct)
+                current = await CreateDirectoryInAsync(current, segment.Name!, ct)
                     .ConfigureAwait(false);
             }
             return current;
@@ -321,7 +321,7 @@ namespace Opc.Ua.Client.FileSystem
                     $"Cannot create file '{UaPath.FormatSegment(leaf)}': leaf segments must not include a namespace prefix; the server picks the BrowseName namespace.",
                     nameof(path));
             }
-            return await CreateFileInAsync(parent, leaf.Name, ct).ConfigureAwait(false);
+            return await CreateFileInAsync(parent, leaf.Name!, ct).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -706,7 +706,7 @@ namespace Opc.Ua.Client.FileSystem
                 string parentPath = UaPath.Format(segments.Take(segments.Length - 1).ToArray());
                 destDir = await GetDirectoryAsync(parentPath, ct).ConfigureAwait(false);
             }
-            return await MoveOrCopyAsync(source, destDir, segments[^1].Name, copy, ct)
+            return await MoveOrCopyAsync(source, destDir, segments[^1].Name!, copy, ct)
                 .ConfigureAwait(false);
         }
 

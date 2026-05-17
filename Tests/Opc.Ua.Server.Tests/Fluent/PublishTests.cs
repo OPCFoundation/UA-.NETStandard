@@ -701,7 +701,13 @@ namespace Opc.Ua.Server.Tests.Fluent
                 DisplayName = new LocalizedText(browseName),
                 EventNotifier = eventNotifier
             };
-            manager.AddPublic(notifier);
+            // CA2012: AddPublic is a synchronous test helper that completes immediately;
+            // calling AsTask/.GetAwaiter().GetResult() in test setup is intentional.
+            ValueTask<NodeId> addTask = manager.AddPublic(notifier);
+            if (!addTask.IsCompletedSuccessfully)
+            {
+                _ = addTask.AsTask().GetAwaiter().GetResult();
+            }
             return notifier;
         }
 
@@ -794,7 +800,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                 }
             }
 
-            public Task WaitAsync() => m_done.Task;
+            public Task<bool> WaitAsync() => m_done.Task;
         }
 
         private static class AsyncEnumerable

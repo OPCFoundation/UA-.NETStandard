@@ -76,7 +76,7 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// Create the network messages built from the provided writerGroupConfiguration
         /// </summary>
-        IList<UaNetworkMessage> CreateNetworkMessages(
+        IList<UaNetworkMessage>? CreateNetworkMessages(
             WriterGroupDataType writerGroupConfiguration,
             WriterGroupPublishState state);
 

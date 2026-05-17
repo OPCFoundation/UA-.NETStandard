@@ -72,17 +72,17 @@ namespace Opc.Ua.Server
         /// <summary>
         /// The node manager that created the continuation point.
         /// </summary>
-        public IAsyncNodeManager Manager { get; set; }
+        public IAsyncNodeManager Manager { get; set; } = null!;
 
         /// <summary>
         /// The view being browsed.
         /// </summary>
-        public ViewDescription View { get; set; }
+        public ViewDescription? View { get; set; }
 
         /// <summary>
         /// The node being browsed.
         /// </summary>
-        public object NodeToBrowse { get; set; }
+        public object NodeToBrowse { get; set; } = null!;
 
         /// <summary>
         /// The maximum number of results to return.
@@ -128,7 +128,7 @@ namespace Opc.Ua.Server
         /// interface. This will ensure the unmanaged resources are freed if the continuation
         /// point expires.
         /// </remarks>
-        public object Data { get; set; }
+        public object? Data { get; set; }
 
         /// <summary>
         /// Whether the ReferenceTypeId should be returned in the result.

@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
@@ -76,9 +77,9 @@ namespace Opc.Ua.Server
 
             m_endpointAddresses = [];
 
-            foreach (string baseAddresses in m_configuration.ServerConfiguration.BaseAddresses)
+            foreach (string baseAddresses in m_configuration.ServerConfiguration!.BaseAddresses)
             {
-                Uri url = Utils.ParseUri(baseAddresses);
+                Uri? url = Utils.ParseUri(baseAddresses);
 
                 if (url != null)
                 {
@@ -93,7 +94,7 @@ namespace Opc.Ua.Server
             TypeTree = new TypeTable(NamespaceUris);
 
             // add the server uri to the server table.
-            ServerUris.Append(m_configuration.ApplicationUri);
+            ServerUris.Append(m_configuration.ApplicationUri!);
 
             // create the default system context.
             DefaultSystemContext = new ServerSystemContext(this);
@@ -131,7 +132,7 @@ namespace Opc.Ua.Server
         /// The session manager to use with the server.
         /// </summary>
         /// <value>The session manager.</value>
-        public ISessionManager SessionManager { get; private set; }
+        public ISessionManager SessionManager { get; private set; } = null!;
 
         /// <inheritdoc/>
         public IRoleManager RoleManager { get; private set; } = new RoleManager();
@@ -140,24 +141,30 @@ namespace Opc.Ua.Server
         /// The subscription manager to use with the server.
         /// </summary>
         /// <value>The subscription manager.</value>
-        public ISubscriptionManager SubscriptionManager { get; private set; }
+        public ISubscriptionManager SubscriptionManager { get; private set; } = null!;
 
         /// <summary>
         /// Stores the MasterNodeManager, the DiagnosticsNodeManager and the CoreNodeManager
         /// </summary>
         /// <param name="nodeManager">The node manager.</param>
+        [MemberNotNull(
+            nameof(NodeManager),
+            nameof(DiagnosticsNodeManager),
+            nameof(ConfigurationNodeManager),
+            nameof(CoreNodeManager))]
         public void SetNodeManager(IMasterNodeManager nodeManager)
         {
             NodeManager = nodeManager;
-            DiagnosticsNodeManager = nodeManager.DiagnosticsNodeManager;
-            ConfigurationNodeManager = nodeManager.ConfigurationNodeManager;
-            CoreNodeManager = nodeManager.CoreNodeManager;
+            DiagnosticsNodeManager = nodeManager.DiagnosticsNodeManager!;
+            ConfigurationNodeManager = nodeManager.ConfigurationNodeManager!;
+            CoreNodeManager = nodeManager.CoreNodeManager!;
         }
 
         /// <summary>
         /// Stores the MainNodeManagerFactory
         /// </summary>
         /// <param name="mainNodeManagerFactory">The main node manager factory.</param>
+        [MemberNotNull(nameof(MainNodeManagerFactory))]
         public void SetMainNodeManagerFactory(IMainNodeManagerFactory mainNodeManagerFactory)
         {
             MainNodeManagerFactory = mainNodeManagerFactory;
@@ -170,6 +177,13 @@ namespace Opc.Ua.Server
         /// <param name="resourceManager">The resource manager.</param>
         /// <param name="requestManager">The request manager.</param>
         /// <param name="cancellationToken">The cancellation token.</param>
+        [MemberNotNull(
+            nameof(EventManager),
+            nameof(ResourceManager),
+            nameof(RequestManager),
+            nameof(ServerObject),
+            nameof(NonThreadSafeStatus),
+            nameof(ServerDiagnostics))]
         public async ValueTask CreateServerObjectAsync(
             EventManager eventManager,
             ResourceManager resourceManager,
@@ -189,6 +203,7 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="sessionManager">The session manager.</param>
         /// <param name="subscriptionManager">The subscription manager.</param>
+        [MemberNotNull(nameof(SessionManager), nameof(SubscriptionManager))]
         public void SetSessionManager(
             ISessionManager sessionManager,
             ISubscriptionManager subscriptionManager)
@@ -201,6 +216,7 @@ namespace Opc.Ua.Server
         /// Stores the MonitoredItemQueueFactory in the datastore.
         /// </summary>
         /// <param name="monitoredItemQueueFactory">The MonitoredItemQueueFactory.</param>
+        [MemberNotNull(nameof(MonitoredItemQueueFactory))]
         public void SetMonitoredItemQueueFactory(
             IMonitoredItemQueueFactory monitoredItemQueueFactory)
         {
@@ -211,6 +227,7 @@ namespace Opc.Ua.Server
         /// Stores the Subscriptionstore in the datastore.
         /// </summary>
         /// <param name="subscriptionStore">The subscriptionstore.</param>
+        [MemberNotNull(nameof(SubscriptionStore))]
         public void SetSubscriptionStore(ISubscriptionStore subscriptionStore)
         {
             SubscriptionStore = subscriptionStore;
@@ -227,6 +244,7 @@ namespace Opc.Ua.Server
         /// Stores the AggregateManager in the datastore.
         /// </summary>
         /// <param name="aggregateManager">The AggregateManager.</param>
+        [MemberNotNull(nameof(AggregateManager))]
         public void SetAggregateManager(AggregateManager aggregateManager)
         {
             AggregateManager = aggregateManager;
@@ -236,6 +254,7 @@ namespace Opc.Ua.Server
         /// Stores the ModellingRulesManager in the datastore.
         /// </summary>
         /// <param name="modellingRulesManager">The ModellingRulesManager.</param>
+        [MemberNotNull(nameof(ModellingRulesManager))]
         public void SetModellingRulesManager(ModellingRulesManager modellingRulesManager)
         {
             ModellingRulesManager = modellingRulesManager;
@@ -292,55 +311,55 @@ namespace Opc.Ua.Server
         /// The master node manager for the server.
         /// </summary>
         /// <value>The node manager.</value>
-        public IMasterNodeManager NodeManager { get; private set; }
+        public IMasterNodeManager NodeManager { get; private set; } = null!;
 
         /// <inheritdoc/>
-        public IMainNodeManagerFactory MainNodeManagerFactory { get; private set; }
+        public IMainNodeManagerFactory MainNodeManagerFactory { get; private set; } = null!;
 
         /// <summary>
         /// The internal node manager for the servers.
         /// </summary>
         /// <value>The core node manager.</value>
-        public ICoreNodeManager CoreNodeManager { get; private set; }
+        public ICoreNodeManager CoreNodeManager { get; private set; } = null!;
 
         /// <summary>
         /// Returns the node manager that managers the server diagnostics.
         /// </summary>
         /// <value>The diagnostics node manager.</value>
-        public IDiagnosticsNodeManager DiagnosticsNodeManager { get; private set; }
+        public IDiagnosticsNodeManager DiagnosticsNodeManager { get; private set; } = null!;
 
         /// <inheritdoc/>
-        public IConfigurationNodeManager ConfigurationNodeManager { get; private set; }
+        public IConfigurationNodeManager ConfigurationNodeManager { get; private set; } = null!;
 
         /// <summary>
         /// The manager for events that all components use to queue events that occur.
         /// </summary>
         /// <value>The event manager.</value>
-        public EventManager EventManager { get; private set; }
+        public EventManager EventManager { get; private set; } = null!;
 
         /// <summary>
         /// A manager for localized resources that components can use to localize text.
         /// </summary>
         /// <value>The resource manager.</value>
-        public ResourceManager ResourceManager { get; private set; }
+        public ResourceManager ResourceManager { get; private set; } = null!;
 
         /// <summary>
         /// A manager for outstanding requests that allows components to receive notifications if the timeout or are cancelled.
         /// </summary>
         /// <value>The request manager.</value>
-        public RequestManager RequestManager { get; private set; }
+        public RequestManager RequestManager { get; private set; } = null!;
 
         /// <summary>
         /// A manager for aggregate calculators supported by the server.
         /// </summary>
         /// <value>The aggregate manager.</value>
-        public AggregateManager AggregateManager { get; private set; }
+        public AggregateManager AggregateManager { get; private set; } = null!;
 
         /// <summary>
         /// A manager for modelling rules supported by the server.
         /// </summary>
         /// <value>The modelling rules manager.</value>
-        public ModellingRulesManager ModellingRulesManager { get; private set; }
+        public ModellingRulesManager ModellingRulesManager { get; private set; } = null!;
 
         /// <summary>
         /// The manager for active sessions.
@@ -356,12 +375,12 @@ namespace Opc.Ua.Server
         /// <summary>
         /// The factory for durable monitored item queues
         /// </summary>
-        public IMonitoredItemQueueFactory MonitoredItemQueueFactory { get; private set; }
+        public IMonitoredItemQueueFactory MonitoredItemQueueFactory { get; private set; } = null!;
 
         /// <summary>
         /// The store to persist and retrieve subscriptions
         /// </summary>
-        public ISubscriptionStore SubscriptionStore { get; private set; }
+        public ISubscriptionStore SubscriptionStore { get; private set; } = null!;
 
         /// <inheritdoc/>
         public ITelemetryContext Telemetry => MessageContext.Telemetry;
@@ -399,7 +418,7 @@ namespace Opc.Ua.Server
         /// Returns the Server object node
         /// </summary>
         /// <value>The Server object node.</value>
-        public ServerObjectState ServerObject { get; private set; }
+        public ServerObjectState ServerObject { get; private set; } = null!;
 
         /// <summary>
         /// Used to synchronize access to the server diagnostics.
@@ -426,7 +445,7 @@ namespace Opc.Ua.Server
         /// Returns the diagnostics structure for the server.
         /// </summary>
         /// <value>The server diagnostics.</value>
-        public ServerDiagnosticsSummaryDataType ServerDiagnostics { get; private set; }
+        public ServerDiagnosticsSummaryDataType ServerDiagnostics { get; private set; } = null!;
 
         /// <summary>
         /// Whether the server is currently running.
@@ -485,7 +504,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Status but non thread safe - internal so not part of public api
         /// </summary>
-        internal ServerStatusValue NonThreadSafeStatus { get; private set; }
+        internal ServerStatusValue NonThreadSafeStatus { get; private set; } = null!;
 
         /// <summary>
         /// Closes the specified session.
@@ -529,7 +548,7 @@ namespace Opc.Ua.Server
         /// <param name="cancellationToken">The cancellation token</param>
         public async ValueTask DeleteSubscriptionAsync(uint subscriptionId, CancellationToken cancellationToken = default)
         {
-            await SubscriptionManager.DeleteSubscriptionAsync(null, subscriptionId, cancellationToken).ConfigureAwait(false);
+            await SubscriptionManager.DeleteSubscriptionAsync(null!, subscriptionId, cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -620,6 +639,10 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Creates the ServerObject and attaches it to the NodeManager.
         /// </summary>
+        [MemberNotNull(
+            nameof(ServerObject),
+            nameof(NonThreadSafeStatus),
+            nameof(ServerDiagnostics))]
         private async ValueTask CreateServerObjectAsync(CancellationToken cancellationToken = default)
         {
             // get the server object.
@@ -627,29 +650,30 @@ namespace Opc.Ua.Server
                 DiagnosticsNodeManager.FindPredefinedNode<ServerObjectState>(ObjectIds.Server);
 
             // update server capabilities.
-            serverObject.ServiceLevel.Value = 255;
-            serverObject.ServerCapabilities.LocaleIdArray.Value = ResourceManager
+            ServerCapabilitiesState serverCapabilities = serverObject.ServerCapabilities!;
+            serverObject.ServiceLevel!.Value = 255;
+            serverCapabilities.LocaleIdArray!.Value = ResourceManager
                 .GetAvailableLocales();
-            serverObject.ServerCapabilities.ServerProfileArray.Value =
+            serverCapabilities.ServerProfileArray!.Value =
             [
-                .. m_configuration.ServerConfiguration.ServerProfileArray
+                .. m_configuration.ServerConfiguration!.ServerProfileArray
             ];
-            serverObject.ServerCapabilities.MinSupportedSampleRate.Value = 0;
-            serverObject.ServerCapabilities.MaxBrowseContinuationPoints.Value = (ushort)
+            serverCapabilities.MinSupportedSampleRate!.Value = 0;
+            serverCapabilities.MaxBrowseContinuationPoints!.Value = (ushort)
                 m_configuration.ServerConfiguration.MaxBrowseContinuationPoints;
-            serverObject.ServerCapabilities.MaxQueryContinuationPoints.Value = (ushort)
+            serverCapabilities.MaxQueryContinuationPoints!.Value = (ushort)
                 m_configuration.ServerConfiguration.MaxQueryContinuationPoints;
-            serverObject.ServerCapabilities.MaxHistoryContinuationPoints.Value = (ushort)
+            serverCapabilities.MaxHistoryContinuationPoints!.Value = (ushort)
                 m_configuration.ServerConfiguration.MaxHistoryContinuationPoints;
-            serverObject.ServerCapabilities.MaxArrayLength.Value = (uint)
-                m_configuration.TransportQuotas.MaxArrayLength;
-            serverObject.ServerCapabilities.MaxStringLength.Value = (uint)
+            serverCapabilities.MaxArrayLength!.Value = (uint)
+                m_configuration.TransportQuotas!.MaxArrayLength;
+            serverCapabilities.MaxStringLength!.Value = (uint)
                 m_configuration.TransportQuotas.MaxStringLength;
-            serverObject.ServerCapabilities.MaxByteStringLength.Value = (uint)
+            serverCapabilities.MaxByteStringLength!.Value = (uint)
                 m_configuration.TransportQuotas.MaxByteStringLength;
-            serverObject.ServerCapabilities.MaxSessions.Value = (uint)
+            serverCapabilities.MaxSessions!.Value = (uint)
                 m_configuration.ServerConfiguration.MaxSessionCount;
-            serverObject.ServerCapabilities.MaxSubscriptions.Value = (uint)
+            serverCapabilities.MaxSubscriptions!.Value = (uint)
                 m_configuration.ServerConfiguration.MaxSubscriptionCount;
 
             // Expose MaxSubscriptionsPerSession (optional property
@@ -666,52 +690,51 @@ namespace Opc.Ua.Server
                 m_configuration.ServerConfiguration.MaxSubscriptionCount);
 
             // Any operational limits Property that is provided shall have a non zero value.
-            OperationLimitsState operationLimits = serverObject.ServerCapabilities
-                .OperationLimits;
+            OperationLimitsState? operationLimits = serverCapabilities.OperationLimits;
             OperationLimits configOperationLimits = m_configuration.ServerConfiguration
                 .OperationLimits;
             if (configOperationLimits != null)
             {
-                operationLimits.MaxNodesPerRead = SetPropertyValue(
-                    operationLimits.MaxNodesPerRead,
+                operationLimits!.MaxNodesPerRead = SetPropertyValue(
+                    operationLimits.MaxNodesPerRead!,
                     configOperationLimits.MaxNodesPerRead);
                 operationLimits.MaxNodesPerHistoryReadData = SetPropertyValue(
-                    operationLimits.MaxNodesPerHistoryReadData,
+                    operationLimits.MaxNodesPerHistoryReadData!,
                     configOperationLimits.MaxNodesPerHistoryReadData);
                 operationLimits.MaxNodesPerHistoryReadEvents = SetPropertyValue(
-                    operationLimits.MaxNodesPerHistoryReadEvents,
+                    operationLimits.MaxNodesPerHistoryReadEvents!,
                     configOperationLimits.MaxNodesPerHistoryReadEvents);
                 operationLimits.MaxNodesPerWrite = SetPropertyValue(
-                    operationLimits.MaxNodesPerWrite,
+                    operationLimits.MaxNodesPerWrite!,
                     configOperationLimits.MaxNodesPerWrite);
                 operationLimits.MaxNodesPerHistoryUpdateData = SetPropertyValue(
-                    operationLimits.MaxNodesPerHistoryUpdateData,
+                    operationLimits.MaxNodesPerHistoryUpdateData!,
                     configOperationLimits.MaxNodesPerHistoryUpdateData);
                 operationLimits.MaxNodesPerHistoryUpdateEvents = SetPropertyValue(
-                    operationLimits.MaxNodesPerHistoryUpdateEvents,
+                    operationLimits.MaxNodesPerHistoryUpdateEvents!,
                     configOperationLimits.MaxNodesPerHistoryUpdateEvents);
                 operationLimits.MaxNodesPerMethodCall = SetPropertyValue(
-                    operationLimits.MaxNodesPerMethodCall,
+                    operationLimits.MaxNodesPerMethodCall!,
                     configOperationLimits.MaxNodesPerMethodCall);
                 operationLimits.MaxNodesPerBrowse = SetPropertyValue(
-                    operationLimits.MaxNodesPerBrowse,
+                    operationLimits.MaxNodesPerBrowse!,
                     configOperationLimits.MaxNodesPerBrowse);
                 operationLimits.MaxNodesPerRegisterNodes = SetPropertyValue(
-                    operationLimits.MaxNodesPerRegisterNodes,
+                    operationLimits.MaxNodesPerRegisterNodes!,
                     configOperationLimits.MaxNodesPerRegisterNodes);
                 operationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds = SetPropertyValue(
-                    operationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds,
+                    operationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds!,
                     configOperationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds);
                 operationLimits.MaxNodesPerNodeManagement = SetPropertyValue(
-                    operationLimits.MaxNodesPerNodeManagement,
+                    operationLimits.MaxNodesPerNodeManagement!,
                     configOperationLimits.MaxNodesPerNodeManagement);
                 operationLimits.MaxMonitoredItemsPerCall = SetPropertyValue(
-                    operationLimits.MaxMonitoredItemsPerCall,
+                    operationLimits.MaxMonitoredItemsPerCall!,
                     configOperationLimits.MaxMonitoredItemsPerCall);
             }
             else
             {
-                operationLimits.MaxNodesPerRead =
+                operationLimits!.MaxNodesPerRead =
                     operationLimits.MaxNodesPerHistoryReadData =
                     operationLimits.MaxNodesPerHistoryReadEvents =
                     operationLimits.MaxNodesPerWrite =
@@ -741,14 +764,14 @@ namespace Opc.Ua.Server
             default_SupportedTransportProfiles.Value = "uadp";
 
             // setup callbacks for dynamic values.
-            serverObject.NamespaceArray.OnSimpleReadValue = OnReadNamespaceArray;
+            serverObject.NamespaceArray!.OnSimpleReadValue = OnReadNamespaceArray;
             serverObject.NamespaceArray.MinimumSamplingInterval = 1000;
 
-            serverObject.ServerArray.OnSimpleReadValue = OnReadServerArray;
+            serverObject.ServerArray!.OnSimpleReadValue = OnReadServerArray;
             serverObject.ServerArray.MinimumSamplingInterval = 1000;
 
             // dynamic change of enabledFlag is disabled to pass CTT
-            serverObject.ServerDiagnostics.EnabledFlag.AccessLevel = AccessLevels.CurrentRead;
+            serverObject.ServerDiagnostics!.EnabledFlag!.AccessLevel = AccessLevels.CurrentRead;
             serverObject.ServerDiagnostics.EnabledFlag.UserAccessLevel = AccessLevels
                 .CurrentRead;
             serverObject.ServerDiagnostics.EnabledFlag.OnSimpleReadValue
@@ -780,11 +803,11 @@ namespace Opc.Ua.Server
             var buildInfoVariable = new BuildInfoVariableValue(
                 buildInfoVariableState,
                 buildInfo,
-                null);
+                null!);
             serverStatus.BuildInfo = buildInfoVariable.Value;
 
-            serverObject.ServerStatus.MinimumSamplingInterval = 1000;
-            serverObject.ServerStatus.CurrentTime.MinimumSamplingInterval = 1000;
+            serverObject.ServerStatus!.MinimumSamplingInterval = 1000;
+            serverObject.ServerStatus.CurrentTime!.MinimumSamplingInterval = 1000;
 
             NonThreadSafeStatus = new ServerStatusValue(
                 serverObject.ServerStatus,
@@ -834,8 +857,8 @@ namespace Opc.Ua.Server
                 .ConfigureAwait(false);
 
             Auditing = m_configuration.ServerConfiguration.AuditingEnabled;
-            PropertyState<bool> auditing = serverObject.Auditing;
-            auditing.OnSimpleWriteValue += OnWriteAuditing;
+            PropertyState<bool>? auditing = serverObject.Auditing;
+            auditing!.OnSimpleWriteValue += OnWriteAuditing;
             auditing.OnSimpleReadValue += OnReadAuditing;
             auditing.Value = Auditing;
             auditing.AccessLevel = AccessLevels.CurrentRead;
@@ -870,8 +893,8 @@ namespace Opc.Ua.Server
                     serverStatusValue.Variable is ServerStatusState serverStatusState)
                 {
                     serverStatusState.Timestamp = now;
-                    serverStatusState.CurrentTime.Timestamp = now;
-                    serverStatusState.State.Timestamp = now;
+                    serverStatusState.CurrentTime!.Timestamp = now;
+                    serverStatusState.State!.Timestamp = now;
                 }
             }
         }
@@ -981,7 +1004,7 @@ namespace Opc.Ua.Server
             }
             else
             {
-                property = null;
+                property = null!;
             }
             return property;
         }

@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -209,7 +209,7 @@ namespace Opc.Ua
         /// <summary>
         /// Cast from enum array
         /// </summary>
-        public static ArrayOf<int> EnumArrayToInt32Array(Array values)
+        public static ArrayOf<int> EnumArrayToInt32Array(Array? values)
         {
             if (values == null)
             {
@@ -225,7 +225,7 @@ namespace Opc.Ua
             // Convert array of enum values to array of int values
             for (int i = 0; i < values.Length; i++)
             {
-                array[i] = (int)values.GetValue(i);
+                array[i] = (int)values.GetValue(i)!;
             }
             return array;
         }
@@ -233,7 +233,7 @@ namespace Opc.Ua
         /// <summary>
         /// Cast from enum matrix
         /// </summary>
-        public static MatrixOf<int> EnumArrayToInt32Matrix(Array values)
+        public static MatrixOf<int> EnumArrayToInt32Matrix(Array? values)
         {
             if (values == null)
             {
@@ -265,7 +265,7 @@ namespace Opc.Ua
         /// <summary>
         /// Cast to enum
         /// </summary>
-        public static object Int32ToEnum(int value, Type type)
+        public static object? Int32ToEnum(int value, Type type)
         {
             if (type == typeof(int))
             {
@@ -321,7 +321,7 @@ namespace Opc.Ua
             "Array.CreateInstance is used with potentially unknown enum types.")]
         [RequiresDynamicCode(
             "Array.CreateInstance is used with potentially unknown enum types.")]
-        public static Array Int32ArrayToEnumArray(ArrayOf<int> values, Type type)
+        public static Array? Int32ArrayToEnumArray(ArrayOf<int> values, Type type)
         {
             if (values.IsNull)
             {
@@ -331,7 +331,7 @@ namespace Opc.Ua
             {
                 return values.ToArray();
             }
-            var array = Array.CreateInstance(type, values.Count);
+            Array array = Array.CreateInstance(type, values.Count);
             // Convert array of int values to array of enum values
             for (int i = 0; i < values.Count; i++)
             {
@@ -347,7 +347,7 @@ namespace Opc.Ua
             "Array.CreateInstance is used with potentially unknown enum types.")]
         [RequiresDynamicCode(
             "Array.CreateInstance is used with potentially unknown enum types.")]
-        public static Array Int32MatrixToEnumArray(MatrixOf<int> values, Type type)
+        public static Array? Int32MatrixToEnumArray(MatrixOf<int> values, Type type)
         {
             if (values.IsNull)
             {
@@ -358,7 +358,7 @@ namespace Opc.Ua
                 return values.CreateArrayInstance();
             }
             int[] dim = values.Dimensions;
-            var array = Array.CreateInstance(type, dim);
+            Array array = Array.CreateInstance(type, dim);
             // Convert the matrix with dimensions into an multi dimensional Array of enum values
             int[] indexes = new int[dim.Length];
             foreach (int element in values.Span)

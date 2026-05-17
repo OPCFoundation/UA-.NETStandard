@@ -55,7 +55,7 @@ namespace Opc.Ua.Gds.Server
         public CertificateGroupConfiguration Configuration { get; }
 
         /// <inheritdoc/>
-        public ConcurrentDictionary<NodeId, Certificate> Certificates { get; }
+        public ConcurrentDictionary<NodeId, Certificate?> Certificates { get; }
 
         /// <inheritdoc/>
         public TrustListState DefaultTrustList { get; set; }
@@ -67,19 +67,19 @@ namespace Opc.Ua.Gds.Server
         public CertificateStoreIdentifier AuthoritiesStore { get; }
 
         /// <inheritdoc/>
-        public CertificateStoreIdentifier IssuerCertificatesStore { get; }
+        public CertificateStoreIdentifier? IssuerCertificatesStore { get; }
 
         /// <summary>
         /// Gets or sets the certificate issuer service.
         /// When set, certificate signing and CRL operations use this interface.
         /// </summary>
-        public ICertificateIssuer CertificateIssuer { get; set; }
+        public ICertificateIssuer? CertificateIssuer { get; set; }
 
         protected string SubjectName { get; }
 
         [Obsolete("Use CertificateGroup(TelemetryContext) instead")]
         public CertificateGroup()
-            : this(null)
+            : this(null!)
         {
         }
 
@@ -88,16 +88,25 @@ namespace Opc.Ua.Gds.Server
             m_telemetry = telemetry;
             m_logger = telemetry.CreateLogger<CertificateGroup>();
             UpdateRequired = false;
+            // Configuration/SubjectName/AuthoritiesStore/Certificates are populated by the
+            // protected constructor used by Create(); the parameterless ctor is a factory shim.
+            Configuration = null!;
+            SubjectName = null!;
+            AuthoritiesStore = null!;
+            Certificates = new ConcurrentDictionary<NodeId, Certificate?>();
+            DefaultTrustList = null!;
         }
 
         protected CertificateGroup(
             string authoritiesStorePath,
             CertificateGroupConfiguration certificateGroupConfiguration,
             ITelemetryContext telemetry,
-            [Optional] string trustedIssuerCertificatesStorePath)
+            [Optional] string? trustedIssuerCertificatesStorePath)
         {
             m_telemetry = telemetry;
             m_logger = telemetry.CreateLogger<CertificateGroup>();
+            // DefaultTrustList is assigned by the consumer (ApplicationsNodeManager.SetCertificateGroupNodes).
+            DefaultTrustList = null!;
 
             AuthoritiesStore = new CertificateStoreIdentifier(authoritiesStorePath, false);
             Configuration = certificateGroupConfiguration;
@@ -106,11 +115,11 @@ namespace Opc.Ua.Gds.Server
                 IssuerCertificatesStore = new CertificateStoreIdentifier(
                     trustedIssuerCertificatesStorePath);
             }
-            SubjectName = Configuration.SubjectName
+            SubjectName = Configuration.SubjectName!
                 .Replace("localhost", Utils.GetHostName(), StringComparison.Ordinal);
             CertificateTypes = [];
 
-            Certificates = new ConcurrentDictionary<NodeId, Certificate>();
+            Certificates = new ConcurrentDictionary<NodeId, Certificate?>();
 
             foreach (string certificateTypeString in Configuration.CertificateTypes)
             {
@@ -170,7 +179,7 @@ namespace Opc.Ua.Gds.Server
                             {
                                 // always use latest issued cert in store
                                 if (certificate.NotBefore > DateTime.UtcNow ||
-                                    Certificates[certificateType].NotBefore > certificate.NotBefore)
+                                    Certificates[certificateType]!.NotBefore > certificate.NotBefore)
                                 {
                                     continue;
                                 }
@@ -185,9 +194,9 @@ namespace Opc.Ua.Gds.Server
                 store?.Close();
             }
 
-            foreach (KeyValuePair<NodeId, Certificate> keyValuePair in Certificates)
+            foreach (KeyValuePair<NodeId, Certificate?> keyValuePair in Certificates)
             {
-                Certificate certificate = keyValuePair.Value;
+                Certificate? certificate = keyValuePair.Value;
                 NodeId certificateType = keyValuePair.Key;
 
                 if (certificate == null)
@@ -213,7 +222,7 @@ namespace Opc.Ua.Gds.Server
         public virtual ICertificateGroup Create(
             string authoritiesStorePath,
             CertificateGroupConfiguration certificateGroupConfiguration,
-            [Optional] string issuerCertificatesStorePath)
+            [Optional] string? issuerCertificatesStorePath)
         {
             return new CertificateGroup(
                 authoritiesStorePath,
@@ -254,7 +263,7 @@ namespace Opc.Ua.Gds.Server
             }
 
             using Certificate signingKey = await LoadSigningKeyAsync(
-                Certificates[certificateType],
+                Certificates[certificateType]!,
                 null,
                 m_telemetry,
                 ct)
@@ -264,7 +273,7 @@ namespace Opc.Ua.Gds.Server
                 .CreateApplicationCertificate(
                     application.ApplicationUri,
                     application.ApplicationNames.Count > 0
-                        ? application.ApplicationNames[0].Text
+                        ? application.ApplicationNames[0].Text!
                         : "ApplicationName",
                     subjectName,
                     domainNames)
@@ -329,7 +338,7 @@ namespace Opc.Ua.Gds.Server
             }
 
             // return crl
-            return crl;
+            return crl!;
         }
 
         public virtual Task VerifySigningRequestAsync(
@@ -348,7 +357,7 @@ namespace Opc.Ua.Gds.Server
                         "CSR signature invalid.");
                 }
 
-                X509SubjectAltNameExtension altNameExtension =
+                X509SubjectAltNameExtension? altNameExtension =
                     Pkcs10Utils.GetSubjectAltNameExtension(pkcs10CertificationRequest.Attributes);
                 if (altNameExtension != null &&
                     altNameExtension.Uris.Count > 0 &&
@@ -384,7 +393,7 @@ namespace Opc.Ua.Gds.Server
                         "CSR signature invalid.");
                 }
 
-                X509SubjectAltNameExtension altNameExtension =
+                X509SubjectAltNameExtension? altNameExtension =
                     Pkcs10Utils.GetSubjectAltNameExtension(pkcs10CertificationRequest.Attributes);
                 if (altNameExtension != null)
                 {
@@ -417,7 +426,7 @@ namespace Opc.Ua.Gds.Server
 
                 DateTime yesterday = DateTime.Today.AddDays(-1);
                 using Certificate signingKey = await LoadSigningKeyAsync(
-                    Certificates[certificateType],
+                    Certificates[certificateType]!,
                     null,
                     m_telemetry,
                     ct)
@@ -427,7 +436,7 @@ namespace Opc.Ua.Gds.Server
                 ICertificateBuilder builder = CertificateBuilder
                     .Create(subjectName)
                     .AddExtension(
-                        new X509SubjectAltNameExtension(application.ApplicationUri, domainNames))
+                        new X509SubjectAltNameExtension(application.ApplicationUri!, domainNames))
                     .SetNotBefore(yesterday)
                     .SetLifeTime(Configuration.DefaultCertificateLifetime);
 
@@ -515,7 +524,7 @@ namespace Opc.Ua.Gds.Server
                     .ConfigureAwait(false);
             }
 
-            return Certificates[certificateType];
+            return Certificates[certificateType]!;
         }
 
         /// <summary>
@@ -524,8 +533,8 @@ namespace Opc.Ua.Gds.Server
         /// <exception cref="ServiceResultException"></exception>
         public virtual async Task<Certificate> LoadSigningKeyAsync(
             Certificate signingCertificate,
-            char[] signingKeyPassword,
-            ITelemetryContext telemetry = null,
+            char[]? signingKeyPassword,
+            ITelemetryContext? telemetry = null,
             CancellationToken ct = default)
         {
             // Build a metadata identifier that points the resolver at the
@@ -599,7 +608,7 @@ namespace Opc.Ua.Gds.Server
         public static async Task<X509CRL> LoadCrlCreateEmptyIfNonExistantAsync(
             Certificate caCertificate,
             CertificateStoreIdentifier storeIdentifier,
-            ITelemetryContext telemetry = null,
+            ITelemetryContext? telemetry = null,
             DateTime? thisUpdate = null,
             DateTime? nextUpdate = null,
             CancellationToken ct = default)
@@ -609,12 +618,14 @@ namespace Opc.Ua.Gds.Server
             {
                 throw new ArgumentException("Cannot create an empty Crl for non-CA certificate!");
             }
-            ICertificateStore store = storeIdentifier.OpenStore(telemetry) ?? throw new ArgumentException("Invalid store path/type");
+            // telemetry may be null on legacy callers; OpenStore's signature is non-nullable but
+            // implementations tolerate null. Forward as-is to preserve existing behavior.
+            ICertificateStore store = storeIdentifier.OpenStore(telemetry!) ?? throw new ArgumentException("Invalid store path/type");
             try
             {
                 X509CRLCollection certCACrl = await store.EnumerateCRLsAsync(caCertificate, false, ct)
                     .ConfigureAwait(false);
-                X509CRL result = null;
+                X509CRL? result = null;
                 if (certCACrl == null || certCACrl.Count == 0)
                 {
                     result = await CreateEmptyCrlAsync(caCertificate, thisUpdate, nextUpdate).ConfigureAwait(false);
@@ -651,8 +662,8 @@ namespace Opc.Ua.Gds.Server
         public static Task<X509CRL> RevokeCertificateAsync(
             CertificateStoreIdentifier storeIdentifier,
             Certificate certificate,
-            char[] issuerKeyFilePassword = null,
-            ITelemetryContext telemetry = null,
+            char[]? issuerKeyFilePassword = null,
+            ITelemetryContext? telemetry = null,
             CancellationToken ct = default)
         {
             return RevokeCertificateAsync(
@@ -671,17 +682,17 @@ namespace Opc.Ua.Gds.Server
         public static async Task<X509CRL> RevokeCertificateAsync(
             CertificateStoreIdentifier storeIdentifier,
             Certificate certificate,
-            char[] issuerKeyFilePassword,
-            ITelemetryContext telemetry,
-            ICertificateIssuer certificateIssuer,
+            char[]? issuerKeyFilePassword,
+            ITelemetryContext? telemetry,
+            ICertificateIssuer? certificateIssuer,
             CancellationToken ct = default)
         {
-            X509CRL updatedCRL = null;
+            X509CRL? updatedCRL = null;
 
             _ = X509Utils.IsCertificateAuthority(certificate);
 
             // find the authority key identifier.
-            X509AuthorityKeyIdentifierExtension authority =
+            X509AuthorityKeyIdentifierExtension? authority =
                 certificate.FindExtension<X509AuthorityKeyIdentifierExtension>();
             string serialNumber;
             string keyIdentifier;
@@ -702,7 +713,7 @@ namespace Opc.Ua.Gds.Server
                     "Cannot revoke self signed (root) certificates");
             }
 
-            ICertificateStore store = storeIdentifier.OpenStore(telemetry);
+            ICertificateStore store = storeIdentifier.OpenStore(telemetry!);
             try
             {
                 if (store == null)
@@ -778,7 +789,7 @@ namespace Opc.Ua.Gds.Server
             {
                 store.Close();
             }
-            return updatedCRL;
+            return updatedCRL!;
         }
 
         /// <summary>

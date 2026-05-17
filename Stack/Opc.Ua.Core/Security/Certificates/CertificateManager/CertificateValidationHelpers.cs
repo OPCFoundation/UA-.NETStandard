@@ -225,7 +225,7 @@ namespace Opc.Ua
                 return ServiceResult.Create(
                     StatusCodes.BadCertificateUriInvalid,
                     "The Application in the EndpointDescription ({0}) is not in the Server Certificate ({1}).",
-                    applicationUri, serverCertificate.Subject);
+                    applicationUri!, serverCertificate.Subject);
             }
 
             return ServiceResult.Good;

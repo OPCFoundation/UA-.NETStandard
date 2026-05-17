@@ -41,10 +41,10 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Creates the signature returned by CreateSession.
         /// </summary>
-        public static SignatureData CreateServerSignature(
+        public static SignatureData? CreateServerSignature(
             OperationContext context,
             Certificate instanceCertificate,
-            Certificate parsedClientCertificate,
+            Certificate? parsedClientCertificate,
             ByteString clientNonce,
             ByteString serverNonce)
         {
@@ -53,14 +53,17 @@ namespace Opc.Ua.Server
                 return null;
             }
 
-            SecurityPolicyInfo securityPolicy = SecurityPolicies.GetInfo(context.SecurityPolicyUri);
+            SecurityPolicyInfo? securityPolicy = SecurityPolicies.GetInfo(context.SecurityPolicyUri);
 
-            byte[] dataToSign = securityPolicy.GetServerSignatureData(
-                context.ChannelContext.ChannelThumbprint,
+            // CreateServerSignature is invoked only when a secure channel is bound.
+            SecureChannelContext channelContext = context.ChannelContext!;
+
+            byte[] dataToSign = securityPolicy!.GetServerSignatureData(
+                channelContext.ChannelThumbprint,
                 clientNonce.ToArray(),
-                context.ChannelContext.ServerChannelCertificate,
+                channelContext.ServerChannelCertificate,
                 parsedClientCertificate.RawData,
-                context.ChannelContext.ClientChannelCertificate,
+                channelContext.ClientChannelCertificate,
                 serverNonce.ToArray());
 
             return SecurityPolicies.CreateSignatureData(
@@ -72,7 +75,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Processes additional request parameters during CreateSession.
         /// </summary>
-        public static AdditionalParametersType ProcessCreateSessionAdditionalParameters(
+        public static AdditionalParametersType? ProcessCreateSessionAdditionalParameters(
             ISession session,
             AdditionalParametersType parameters,
             ILogger logger)
@@ -96,17 +99,17 @@ namespace Opc.Ua.Server
                     "Received request for new EphmeralKey using {SecurityPolicyUri}.",
                     policyUri);
 
-                SecurityPolicyInfo securityPolicy = SecurityPolicies.GetInfo(policyUri);
+                SecurityPolicyInfo? securityPolicy = SecurityPolicies.GetInfo(policyUri);
 
                 if (securityPolicy != null &&
                     securityPolicy.EphemeralKeyAlgorithm != CertificateKeyAlgorithm.None)
                 {
                     session.SetUserTokenSecurityPolicy(policyUri);
-                    EphemeralKeyType key = session.GetNewEphemeralKey();
+                    EphemeralKeyType? key = session.GetNewEphemeralKey();
                     responseParameters.Add(new KeyValuePair
                     {
                         Key = QualifiedName.From(AdditionalParameterNames.ECDHKey),
-                        Value = new ExtensionObject(key)
+                        Value = new ExtensionObject(key!)
                     });
                     continue;
                 }
@@ -134,7 +137,7 @@ namespace Opc.Ua.Server
             ISession session,
             AdditionalParametersType parameters)
         {
-            EphemeralKeyType key = session.GetNewEphemeralKey();
+            EphemeralKeyType? key = session.GetNewEphemeralKey();
 
             if (key == null)
             {

@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -26,8 +26,6 @@
  * The complete license agreement can be found here:
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
-
-#nullable enable
 
 using System;
 using System.Collections.Generic;
@@ -108,7 +106,7 @@ namespace Opc.Ua.Encoders
 
             // the encoder may return an override for the field name
             // e.g. to support reversible JSON encoding
-            encoder.WriteSwitchField(SwitchField, out string fieldName);
+            encoder.WriteSwitchField(SwitchField, out string? fieldName);
 
             if (SwitchField != 0)
             {
@@ -127,7 +125,7 @@ namespace Opc.Ua.Encoders
                 if (unionProperty != null)
                 {
                     fieldName ??= unionProperty.Name;
-                    EncodeProperty(encoder, fieldName, unionProperty);
+                    EncodeProperty(encoder, fieldName!, unionProperty);
                 }
             }
 
@@ -139,7 +137,7 @@ namespace Opc.Ua.Encoders
         {
             decoder.PushNamespace(XmlNamespace);
 
-            uint unionSelector = decoder.ReadSwitchField(null, out _);
+            uint unionSelector = decoder.ReadSwitchField(null!, out _);
 
             bool isJsonDecoder = decoder.EncodingType == EncodingType.Json;
             if (unionSelector == 0 && isJsonDecoder)
@@ -149,7 +147,7 @@ namespace Opc.Ua.Encoders
                 {
                     if (property.IsOptional)
                     {
-                        fields.Add(property.Name);
+                        fields.Add(property.Name!);
                     }
                 }
 
@@ -163,7 +161,7 @@ namespace Opc.Ua.Encoders
                 {
                     if (--unionSelector == 0)
                     {
-                        DecodeProperty(decoder, property.Name, property);
+                        DecodeProperty(decoder, property.Name!, property);
                         break;
                     }
                 }
@@ -173,7 +171,7 @@ namespace Opc.Ua.Encoders
         }
 
         /// <inheritdoc/>
-        public override bool IsEqual(IEncodeable encodeable)
+        public override bool IsEqual(IEncodeable? encodeable)
         {
             if (ReferenceEquals(this, encodeable))
             {

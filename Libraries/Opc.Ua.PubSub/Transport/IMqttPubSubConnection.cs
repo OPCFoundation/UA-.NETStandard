@@ -44,7 +44,7 @@ namespace Opc.Ua.PubSub.Transport
         /// <summary>
         /// Create and return the DataSetMetaData message for a DataSetWriter
         /// </summary>
-        UaNetworkMessage CreateDataSetMetaDataNetworkMessage(
+        UaNetworkMessage? CreateDataSetMetaDataNetworkMessage(
             WriterGroupDataType writerGroup,
             DataSetWriterDataType dataSetWriter);
     }

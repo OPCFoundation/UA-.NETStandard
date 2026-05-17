@@ -63,17 +63,17 @@ namespace Opc.Ua.Gds.Server
     {
         NodeId Id { get; set; }
         ArrayOf<NodeId> CertificateTypes { get; set; }
-        ConcurrentDictionary<NodeId, Certificate> Certificates { get; }
+        ConcurrentDictionary<NodeId, Certificate?> Certificates { get; }
         CertificateGroupConfiguration Configuration { get; }
         CertificateStoreIdentifier AuthoritiesStore { get; }
-        CertificateStoreIdentifier IssuerCertificatesStore { get; }
+        CertificateStoreIdentifier? IssuerCertificatesStore { get; }
         TrustListState DefaultTrustList { get; set; }
         bool UpdateRequired { get; set; }
 
         ICertificateGroup Create(
             string authoritiesStorePath,
             CertificateGroupConfiguration certificateGroupConfiguration,
-            [Optional] string issuerCertificatesStorePath);
+            [Optional] string? issuerCertificatesStorePath);
 
         Task InitAsync(CancellationToken ct = default);
 

@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -43,7 +43,7 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the instance with its default attribute values.
         /// </summary>
-        public BaseDataVariableState(NodeState parent)
+        public BaseDataVariableState(NodeState? parent)
             : base(parent)
         {
             if (parent != null)
@@ -136,7 +136,7 @@ namespace Opc.Ua
         /// <summary>
         /// The strings that describe the values for an enumeration.
         /// </summary>
-        public PropertyState<ArrayOf<LocalizedText>> EnumStrings
+        public PropertyState<ArrayOf<LocalizedText>>? EnumStrings
         {
             get => m_enumStrings;
             set
@@ -168,18 +168,18 @@ namespace Opc.Ua
         /// <summary>
         /// Finds the child with the specified browse name.
         /// </summary>
-        protected override BaseInstanceState FindChild(
+        protected override BaseInstanceState? FindChild(
             ISystemContext context,
             QualifiedName browseName,
             bool createOrReplace,
-            BaseInstanceState replacement)
+            BaseInstanceState? replacement)
         {
             if (browseName.IsNull)
             {
                 return null;
             }
 
-            BaseInstanceState instance = null;
+            BaseInstanceState? instance = null;
             switch (browseName.Name)
             {
                 case BrowseNames.EnumStrings:
@@ -195,7 +195,7 @@ namespace Opc.Ua
         /// </summary>
         public PropertyState<ArrayOf<LocalizedText>> CreateOrReplaceEnumStrings(
             ISystemContext context,
-            BaseInstanceState replacement)
+            BaseInstanceState? replacement)
         {
             if (EnumStrings == null)
             {
@@ -212,7 +212,7 @@ namespace Opc.Ua
             return EnumStrings;
         }
 
-        private PropertyState<ArrayOf<LocalizedText>> m_enumStrings;
+        private PropertyState<ArrayOf<LocalizedText>>? m_enumStrings;
     }
 
     /// <summary>
@@ -225,7 +225,7 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the instance with its default attribute values.
         /// </summary>
-        protected BaseDataVariableState(NodeState parent)
+        protected BaseDataVariableState(NodeState? parent)
             : base(parent)
         {
         }
@@ -265,10 +265,10 @@ namespace Opc.Ua
             where TBuilder : struct, IVariantBuilder<T>
         {
             /// <inheritdoc/>
-            public Implementation(NodeState parent)
+            public Implementation(NodeState? parent)
                 : base(parent)
             {
-                Value = default;
+                Value = default!;
             }
 
             /// <inheritdoc/>

@@ -257,32 +257,32 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void Int32ToEnumWithIntTypeReturnsInt()
         {
-            object result = EnumHelper.Int32ToEnum(42, typeof(int));
+            object? result = EnumHelper.Int32ToEnum(42, typeof(int));
             Assert.That(result, Is.TypeOf<int>());
-            Assert.That((int)result, Is.EqualTo(42));
+            Assert.That((int)result!, Is.EqualTo(42));
         }
 
         [Test]
         public void Int32ToEnumWithNonEnumTypeReturnsNull()
         {
-            object result = EnumHelper.Int32ToEnum(42, typeof(string));
+            object? result = EnumHelper.Int32ToEnum(42, typeof(string));
             Assert.That(result, Is.Null);
         }
 
         [Test]
         public void Int32ToEnumWithEnumTypeReturnsEnumValue()
         {
-            object result = EnumHelper.Int32ToEnum(1, typeof(NodeClass));
+            object? result = EnumHelper.Int32ToEnum(1, typeof(NodeClass));
             Assert.That(result, Is.TypeOf<NodeClass>());
-            Assert.That((NodeClass)result, Is.EqualTo(NodeClass.Object));
+            Assert.That((NodeClass)result!, Is.EqualTo(NodeClass.Object));
         }
 
         [Test]
         public void Int32ToEnumWithBrowseDirectionReturnsCorrectValue()
         {
-            object result = EnumHelper.Int32ToEnum(2, typeof(BrowseDirection));
+            object? result = EnumHelper.Int32ToEnum(2, typeof(BrowseDirection));
             Assert.That(result, Is.TypeOf<BrowseDirection>());
-            Assert.That((BrowseDirection)result, Is.EqualTo(BrowseDirection.Both));
+            Assert.That((BrowseDirection)result!, Is.EqualTo(BrowseDirection.Both));
         }
 
         [Test]
@@ -297,7 +297,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void Int32ArrayToEnumArrayWithIntTypeFastPath()
         {
             ArrayOf<int> source = new int[] { 1, 2, 4 };
-            Array result = EnumHelper.Int32ArrayToEnumArray(source, typeof(int));
+            Array? result = EnumHelper.Int32ArrayToEnumArray(source, typeof(int));
             Assert.That(result, Is.TypeOf<int[]>());
             Assert.That(result, Has.Length.EqualTo(3));
         }
@@ -306,9 +306,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void Int32ArrayToEnumArrayWithEnumType()
         {
             ArrayOf<int> source = new int[] { 1, 2 };
-            Array result = EnumHelper.Int32ArrayToEnumArray(source, typeof(NodeClass));
+            Array? result = EnumHelper.Int32ArrayToEnumArray(source, typeof(NodeClass));
             Assert.That(result, Is.TypeOf<NodeClass[]>());
-            var enumArray = (NodeClass[])result;
+            var enumArray = (NodeClass[])result!;
             Assert.That(enumArray[0], Is.EqualTo(NodeClass.Object));
             Assert.That(enumArray[1], Is.EqualTo(NodeClass.Variable));
         }

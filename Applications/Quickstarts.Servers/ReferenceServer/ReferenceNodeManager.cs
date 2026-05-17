@@ -42,7 +42,7 @@ using Opc.Ua.Test;
 using Range = Opc.Ua.Range;
 using HistoryArchive = TestData.HistoryArchive;
 using HistoryDataReader = TestData.HistoryDataReader;
-using IHistoryDataSource = Opc.Ua.Server.IHistoryDataSource;
+using IHistoryDataSource = TestData.IHistoryDataSource;
 
 namespace Quickstarts.ReferenceServer
 {
@@ -237,7 +237,7 @@ namespace Quickstarts.ReferenceServer
             {
                 if (!externalReferences.TryGetValue(
                     ObjectIds.ObjectsFolder,
-                    out IList<IReference> references))
+                    out IList<IReference>? references))
                 {
                     externalReferences[ObjectIds.ObjectsFolder] = references = [];
                 }
@@ -586,7 +586,7 @@ namespace Quickstarts.ReferenceServer
                         DataTypeIds.Double,
                         ValueRanks.OneDimension);
                     // Set the first elements of the array to a smaller value.
-                    double[] doubleArrayVal = ((ArrayOf<double>)doubleArrayVar.Value).ToArray();
+                    double[] doubleArrayVal = ((ArrayOf<double>)doubleArrayVar.Value).ToArray()!;
                     doubleArrayVal[0] %= 10E+10;
                     doubleArrayVal[1] %= 10E+10;
                     doubleArrayVal[2] %= 10E+10;
@@ -609,7 +609,7 @@ namespace Quickstarts.ReferenceServer
                         DataTypeIds.Float,
                         ValueRanks.OneDimension);
                     // Set the first elements of the array to a smaller value.
-                    float[] floatArrayVal = ((ArrayOf<float>)floatArrayVar.Value).ToArray();
+                    float[] floatArrayVal = ((ArrayOf<float>)floatArrayVar.Value).ToArray()!;
                     floatArrayVal[0] %= 0xf10E + 4;
                     floatArrayVal[1] %= 0xf10E + 4;
                     floatArrayVal[2] %= 0xf10E + 4;
@@ -1949,7 +1949,7 @@ namespace Quickstarts.ReferenceServer
                             }
                             else if (builtInType == BuiltInType.Float)
                             {
-                                item.EURange.Value.High = 0;
+                                item.EURange!.Value.High = 0;
                                 item.EURange.Value.Low = 0;
                             }
 
@@ -2284,7 +2284,7 @@ namespace Quickstarts.ReferenceServer
                         variables[0].NodeId);
                     variables.Add(hasInverseReference);
 
-                    BaseDataVariableState has3InverseReference = null;
+                    BaseDataVariableState? has3InverseReference = null;
                     for (int i = 1; i <= 5; i++)
                     {
                         string referenceString = "Has3ForwardReferences";
@@ -2339,7 +2339,7 @@ namespace Quickstarts.ReferenceServer
                         "HasForwardAndInverseReference",
                         hasForwardReference,
                         hasInverseReference,
-                        has3InverseReference,
+                        has3InverseReference!,
                         has3InverseReferences,
                         variables[0]);
                     variables.Add(hasForwardAndInverseReferences);
@@ -2778,7 +2778,7 @@ namespace Quickstarts.ReferenceServer
                         NodeId = new NodeId(addMethod.BrowseName.Name + "InArgs", NamespaceIndex),
                         BrowseName = QualifiedName.From(BrowseNames.InputArguments)
                     };
-                    addMethod.InputArguments.DisplayName = LocalizedText.From(addMethod.InputArguments.BrowseName.Name);
+                    addMethod.InputArguments.DisplayName = LocalizedText.From(addMethod.InputArguments.BrowseName.Name!);
                     addMethod.InputArguments.TypeDefinitionId = VariableTypeIds.PropertyType;
                     addMethod.InputArguments.ReferenceTypeId = ReferenceTypeIds.HasProperty;
                     addMethod.InputArguments.DataType = DataTypeIds.Argument;
@@ -2808,7 +2808,7 @@ namespace Quickstarts.ReferenceServer
                         NodeId = new NodeId(addMethod.BrowseName.Name + "OutArgs", NamespaceIndex),
                         BrowseName = QualifiedName.From(BrowseNames.OutputArguments)
                     };
-                    addMethod.OutputArguments.DisplayName = LocalizedText.From(addMethod.OutputArguments.BrowseName.Name);
+                    addMethod.OutputArguments.DisplayName = LocalizedText.From(addMethod.OutputArguments.BrowseName.Name!);
                     addMethod.OutputArguments.TypeDefinitionId = VariableTypeIds.PropertyType;
                     addMethod.OutputArguments.ReferenceTypeId = ReferenceTypeIds.HasProperty;
                     addMethod.OutputArguments.DataType = DataTypeIds.Argument;
@@ -2840,7 +2840,7 @@ namespace Quickstarts.ReferenceServer
                         BrowseName = QualifiedName.From(BrowseNames.InputArguments)
                     };
                     multiplyMethod.InputArguments.DisplayName = LocalizedText.From(
-                        multiplyMethod.InputArguments.BrowseName.Name);
+                        multiplyMethod.InputArguments.BrowseName.Name!);
                     multiplyMethod.InputArguments.TypeDefinitionId = VariableTypeIds.PropertyType;
                     multiplyMethod.InputArguments.ReferenceTypeId = ReferenceTypeIds.HasProperty;
                     multiplyMethod.InputArguments.DataType = DataTypeIds.Argument;
@@ -2873,7 +2873,7 @@ namespace Quickstarts.ReferenceServer
                         BrowseName = QualifiedName.From(BrowseNames.OutputArguments)
                     };
                     multiplyMethod.OutputArguments.DisplayName = LocalizedText.From(
-                        multiplyMethod.OutputArguments.BrowseName.Name);
+                        multiplyMethod.OutputArguments.BrowseName.Name!);
                     multiplyMethod.OutputArguments.TypeDefinitionId = VariableTypeIds.PropertyType;
                     multiplyMethod.OutputArguments.ReferenceTypeId = ReferenceTypeIds.HasProperty;
                     multiplyMethod.OutputArguments.DataType = DataTypeIds.Argument;
@@ -2906,7 +2906,7 @@ namespace Quickstarts.ReferenceServer
                         BrowseName = QualifiedName.From(BrowseNames.InputArguments)
                     };
                     divideMethod.InputArguments.DisplayName = LocalizedText.From(
-                        divideMethod.InputArguments.BrowseName.Name);
+                        divideMethod.InputArguments.BrowseName.Name!);
                     divideMethod.InputArguments.TypeDefinitionId = VariableTypeIds.PropertyType;
                     divideMethod.InputArguments.ReferenceTypeId = ReferenceTypeIds.HasProperty;
                     divideMethod.InputArguments.DataType = DataTypeIds.Argument;
@@ -2939,7 +2939,7 @@ namespace Quickstarts.ReferenceServer
                         BrowseName = QualifiedName.From(BrowseNames.OutputArguments)
                     };
                     divideMethod.OutputArguments.DisplayName = LocalizedText.From(
-                        divideMethod.OutputArguments.BrowseName.Name);
+                        divideMethod.OutputArguments.BrowseName.Name!);
                     divideMethod.OutputArguments.TypeDefinitionId = VariableTypeIds.PropertyType;
                     divideMethod.OutputArguments.ReferenceTypeId = ReferenceTypeIds.HasProperty;
                     divideMethod.OutputArguments.DataType = DataTypeIds.Argument;
@@ -2971,7 +2971,7 @@ namespace Quickstarts.ReferenceServer
                         BrowseName = QualifiedName.From(BrowseNames.InputArguments)
                     };
                     substractMethod.InputArguments.DisplayName = LocalizedText.From(
-                        substractMethod.InputArguments.BrowseName.Name);
+                        substractMethod.InputArguments.BrowseName.Name!);
                     substractMethod.InputArguments.TypeDefinitionId = VariableTypeIds.PropertyType;
                     substractMethod.InputArguments.ReferenceTypeId = ReferenceTypeIds.HasProperty;
                     substractMethod.InputArguments.DataType = DataTypeIds.Argument;
@@ -3004,7 +3004,7 @@ namespace Quickstarts.ReferenceServer
                         BrowseName = QualifiedName.From(BrowseNames.OutputArguments)
                     };
                     substractMethod.OutputArguments.DisplayName = LocalizedText.From(
-                        substractMethod.OutputArguments.BrowseName.Name);
+                        substractMethod.OutputArguments.BrowseName.Name!);
                     substractMethod.OutputArguments.TypeDefinitionId = VariableTypeIds.PropertyType;
                     substractMethod.OutputArguments.ReferenceTypeId = ReferenceTypeIds.HasProperty;
                     substractMethod.OutputArguments.DataType = DataTypeIds.Argument;
@@ -3035,7 +3035,7 @@ namespace Quickstarts.ReferenceServer
                         BrowseName = QualifiedName.From(BrowseNames.InputArguments)
                     };
                     helloMethod.InputArguments.DisplayName = LocalizedText.From(
-                        helloMethod.InputArguments.BrowseName.Name);
+                        helloMethod.InputArguments.BrowseName.Name!);
                     helloMethod.InputArguments.TypeDefinitionId = VariableTypeIds.PropertyType;
                     helloMethod.InputArguments.ReferenceTypeId = ReferenceTypeIds.HasProperty;
                     helloMethod.InputArguments.DataType = DataTypeIds.Argument;
@@ -3061,7 +3061,7 @@ namespace Quickstarts.ReferenceServer
                         BrowseName = QualifiedName.From(BrowseNames.OutputArguments)
                     };
                     helloMethod.OutputArguments.DisplayName = LocalizedText.From(
-                        helloMethod.OutputArguments.BrowseName.Name);
+                        helloMethod.OutputArguments.BrowseName.Name!);
                     helloMethod.OutputArguments.TypeDefinitionId = VariableTypeIds.PropertyType;
                     helloMethod.OutputArguments.ReferenceTypeId = ReferenceTypeIds.HasProperty;
                     helloMethod.OutputArguments.DataType = DataTypeIds.Argument;
@@ -3091,7 +3091,7 @@ namespace Quickstarts.ReferenceServer
                         BrowseName = QualifiedName.From(BrowseNames.InputArguments)
                     };
                     inputMethod.InputArguments.DisplayName = LocalizedText.From(
-                        inputMethod.InputArguments.BrowseName.Name);
+                        inputMethod.InputArguments.BrowseName.Name!);
                     inputMethod.InputArguments.TypeDefinitionId = VariableTypeIds.PropertyType;
                     inputMethod.InputArguments.ReferenceTypeId = ReferenceTypeIds.HasProperty;
                     inputMethod.InputArguments.DataType = DataTypeIds.Argument;
@@ -3124,7 +3124,7 @@ namespace Quickstarts.ReferenceServer
                         BrowseName = QualifiedName.From(BrowseNames.OutputArguments)
                     };
                     outputMethod.OutputArguments.DisplayName = LocalizedText.From(
-                        outputMethod.OutputArguments.BrowseName.Name);
+                        outputMethod.OutputArguments.BrowseName.Name!);
                     outputMethod.OutputArguments.TypeDefinitionId = VariableTypeIds.PropertyType;
                     outputMethod.OutputArguments.ReferenceTypeId = ReferenceTypeIds.HasProperty;
                     outputMethod.OutputArguments.DataType = DataTypeIds.Argument;
@@ -3933,7 +3933,7 @@ namespace Quickstarts.ReferenceServer
 
                 if (m_simulationEnabled)
                 {
-                    m_simulationTimer.Change(100, m_simulationInterval);
+                    m_simulationTimer!.Change(100, m_simulationInterval);
                 }
 
                 return ServiceResult.Good;
@@ -3956,11 +3956,11 @@ namespace Quickstarts.ReferenceServer
 
                 if (m_simulationEnabled)
                 {
-                    m_simulationTimer.Change(100, m_simulationInterval);
+                    m_simulationTimer!.Change(100, m_simulationInterval);
                 }
                 else
                 {
-                    m_simulationTimer.Change(100, 0);
+                    m_simulationTimer!.Change(100, 0);
                 }
 
                 return ServiceResult.Good;
@@ -3975,7 +3975,7 @@ namespace Quickstarts.ReferenceServer
         /// <summary>
         /// Creates a new folder.
         /// </summary>
-        private FolderState CreateFolder(NodeState parent, string path, string name)
+        private FolderState CreateFolder(NodeState? parent, string path, string name)
         {
             var folder = new FolderState(parent)
             {
@@ -4113,7 +4113,7 @@ namespace Quickstarts.ReferenceServer
             BuiltInType dataType,
             int valueRank,
             Variant initialValues,
-            Range customRange)
+            Range? customRange)
         {
             return CreateAnalogItemVariable(
                 parent,
@@ -4132,7 +4132,7 @@ namespace Quickstarts.ReferenceServer
             NodeId dataType,
             int valueRank,
             Variant initialValues,
-            Range customRange)
+            Range? customRange)
         {
             var variable = new AnalogItemState(parent)
             {
@@ -4183,7 +4183,7 @@ namespace Quickstarts.ReferenceServer
             newRange.Low = Math.Max(newRange.Low, -10);
             variable.InstrumentRange.Value = newRange;
 
-            variable.EURange.Value = customRange ?? new Range(100, 0);
+            variable.EURange!.Value = customRange ?? new Range(100, 0);
 
             variable.Value = initialValues;
             if (variable.Value.IsNull)
@@ -4248,11 +4248,11 @@ namespace Quickstarts.ReferenceServer
             variable.Value = (bool)GetNewValue(variable);
             variable.StatusCode = StatusCodes.Good;
 
-            variable.TrueState.Value = LocalizedText.From(trueState);
+            variable.TrueState!.Value = LocalizedText.From(trueState);
             variable.TrueState.AccessLevel = AccessLevels.CurrentReadOrWrite;
             variable.TrueState.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
 
-            variable.FalseState.Value = LocalizedText.From(falseState);
+            variable.FalseState!.Value = LocalizedText.From(falseState);
             variable.FalseState.AccessLevel = AccessLevels.CurrentReadOrWrite;
             variable.FalseState.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
 
@@ -4298,7 +4298,7 @@ namespace Quickstarts.ReferenceServer
                 strings[ii] = LocalizedText.From(values[ii]);
             }
 
-            variable.EnumStrings.Value = strings;
+            variable.EnumStrings!.Value = strings;
             variable.EnumStrings.AccessLevel = AccessLevels.CurrentReadOrWrite;
             variable.EnumStrings.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
 
@@ -4372,10 +4372,10 @@ namespace Quickstarts.ReferenceServer
                     DisplayName = strings[ii]
                 };
             }
-            variable.EnumValues.Value = values;
+            variable.EnumValues!.Value = values;
             variable.EnumValues.AccessLevel = AccessLevels.CurrentReadOrWrite;
             variable.EnumValues.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
-            variable.ValueAsText.Value = variable.EnumValues.Value[0].DisplayName;
+            variable.ValueAsText!.Value = variable.EnumValues.Value[0].DisplayName;
 
             parent?.AddChild(variable);
             return variable;
@@ -4395,7 +4395,7 @@ namespace Quickstarts.ReferenceServer
             // verify data type.
             var typeInfo = TypeInfo.IsInstanceOfDataType(
                 value,
-                variable.DataType,
+                variable!.DataType,
                 variable.ValueRank,
                 context.NamespaceUris,
                 context.TypeTable);
@@ -4412,7 +4412,7 @@ namespace Quickstarts.ReferenceServer
 
             double number = value.GetDouble();
 
-            if (number >= variable.EnumStrings.Value.Count || number < 0)
+            if (number >= variable.EnumStrings!.Value.Count || number < 0)
             {
                 return StatusCodes.BadOutOfRange;
             }
@@ -4444,7 +4444,7 @@ namespace Quickstarts.ReferenceServer
             }
 
             int number = (int)value.GetUInt32();
-            if (number >= variable.EnumValues.Value.Count || number < 0)
+            if (number >= variable.EnumValues!.Value.Count || number < 0)
             {
                 return StatusCodes.BadOutOfRange;
             }
@@ -4478,7 +4478,7 @@ namespace Quickstarts.ReferenceServer
             // verify data type.
             var typeInfo = TypeInfo.IsInstanceOfDataType(
                 value,
-                variable.DataType,
+                variable!.DataType,
                 variable.ValueRank,
                 context.NamespaceUris,
                 context.TypeTable);
@@ -4542,7 +4542,7 @@ namespace Quickstarts.ReferenceServer
             {
                 return StatusCodes.BadTypeMismatch;
             }
-            if (!extensionObject.TryGetValue(out Range newRange) ||
+            if (!extensionObject.TryGetValue(out Range? newRange) ||
                 variable.Parent is not AnalogItemState parent)
             {
                 return StatusCodes.BadTypeMismatch;
@@ -5102,14 +5102,14 @@ namespace Quickstarts.ReferenceServer
                 NodeId = new NodeId(path, NamespaceIndex),
                 BrowseName = new QualifiedName(name, NamespaceIndex)
             };
-            type.DisplayName = LocalizedText.From(type.BrowseName.Name);
+            type.DisplayName = LocalizedText.From(type.BrowseName.Name!);
             type.WriteMask = AttributeWriteMask.None;
             type.UserWriteMask = AttributeWriteMask.None;
             type.ContainsNoLoops = true;
 
             if (!externalReferences.TryGetValue(
                 ObjectIds.ViewsFolder,
-                out IList<IReference> references))
+                out IList<IReference>? references))
             {
                 externalReferences[ObjectIds.ViewsFolder] = references = [];
             }
@@ -5342,7 +5342,7 @@ namespace Quickstarts.ReferenceServer
             Variant value = default;
             for (int retryCount = 0; value.IsNull && retryCount < 10; retryCount++)
             {
-                value = m_generator.GetRandom(
+                value = m_generator!.GetRandom(
                     variable.DataType,
                     variable.ValueRank,
                     [10],
@@ -5351,7 +5351,7 @@ namespace Quickstarts.ReferenceServer
             return value;
         }
 
-        private void DoSimulation(object state)
+        private void DoSimulation(object? state)
         {
             if (!m_simulationEnabled)
             {
@@ -5419,7 +5419,7 @@ namespace Quickstarts.ReferenceServer
                 return default;
             }
 
-            if (!PredefinedNodes.TryGetValue(nodeId, out NodeState node))
+            if (!PredefinedNodes.TryGetValue(nodeId, out NodeState? node))
             {
                 return default;
             }
@@ -5444,7 +5444,7 @@ namespace Quickstarts.ReferenceServer
             // not valid if no root.
             if (handle == null)
             {
-                return new ValueTask<NodeState>(result: null);
+                return default;
             }
 
             // check if previously validated.
@@ -5455,13 +5455,13 @@ namespace Quickstarts.ReferenceServer
 
             // TBD
 
-            return new ValueTask<NodeState>(result: null);
+            return default;
         }
 
         private readonly SemaphoreSlim m_semaphore = new(1, 1);
-        private RandomSource m_randomSource;
-        private DataGenerator m_generator;
-        private Timer m_simulationTimer;
+        private RandomSource m_randomSource = null!;
+        private DataGenerator m_generator = null!;
+        private Timer? m_simulationTimer;
         private ushort m_simulationInterval = 1000;
         private bool m_simulationEnabled = true;
         private int m_simulationsRunning;

@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -91,7 +90,7 @@ namespace Quickstarts.ReferenceServer
         /// <summary>
         /// Token validator
         /// </summary>
-        public ITokenValidator TokenValidator { get; set; }
+        public ITokenValidator? TokenValidator { get; set; }
 
         /// <summary>
         /// If true the ReferenceNodeManager is set to work with a sampling group mechanism
@@ -157,7 +156,7 @@ namespace Quickstarts.ReferenceServer
             }
             else
             {
-                ReferenceNodeManager referenceNodeManager = null;
+                ReferenceNodeManager? referenceNodeManager = null;
                 try
                 {
                     // CA2000: ownership-transfer pattern — nulled after handoff to asyncNodeManagers.
@@ -257,7 +256,7 @@ namespace Quickstarts.ReferenceServer
         /// <param name="server">The server.</param>
         /// <param name="configuration">The configuration.</param>
         /// <returns>Returns a subscriptionStore for a server, the return type is <seealso cref="ISubscriptionStore"/>.</returns>
-        protected override ISubscriptionStore CreateSubscriptionStore(
+        protected override ISubscriptionStore? CreateSubscriptionStore(
             IServerInternal server,
             ApplicationConfiguration configuration)
         {
@@ -298,7 +297,10 @@ namespace Quickstarts.ReferenceServer
 
             foreach (StatusCode id in StatusCode.InternedStatusCodes)
             {
-                resourceManager.Add(id.SymbolicId, "en-US", id.SymbolicId);
+                if (id.SymbolicId is { } symbolicId)
+                {
+                    resourceManager.Add(symbolicId, "en-US", symbolicId);
+                }
             }
 
             return resourceManager;
@@ -316,8 +318,6 @@ namespace Quickstarts.ReferenceServer
             base.OnServerStarting(configuration);
 
             m_logger.LogInformation(Utils.TraceMasks.StartStop, "The server is starting.");
-
-            InitializeUserDatabase();
 
             // it is up to the application to decide how to validate user identity tokens.
             // this function creates validator for X509 identity tokens.
@@ -340,7 +340,7 @@ namespace Quickstarts.ReferenceServer
                 ServerInternal.UpdateServerStatus(
                     status =>
                         // allow a faster sampling interval for CurrentTime node.
-                        status.Variable.CurrentTime.MinimumSamplingInterval = 250);
+                        status.Variable!.CurrentTime!.MinimumSamplingInterval = 250);
             }
             catch
             {
@@ -391,9 +391,10 @@ namespace Quickstarts.ReferenceServer
         /// </summary>
         private void CreateUserIdentityValidators(ApplicationConfiguration configuration)
         {
-            for (int ii = 0; ii < configuration.ServerConfiguration.UserTokenPolicies.Count; ii++)
+            ServerConfiguration serverConfiguration = configuration.ServerConfiguration!;
+            for (int ii = 0; ii < serverConfiguration.UserTokenPolicies.Count; ii++)
             {
-                UserTokenPolicy policy = configuration.ServerConfiguration.UserTokenPolicies[ii];
+                UserTokenPolicy policy = serverConfiguration.UserTokenPolicies[ii];
 
                 // create a validator for a certificate token policy.
                 if (policy.TokenType == UserTokenType.Certificate)
@@ -455,7 +456,7 @@ namespace Quickstarts.ReferenceServer
             if (args.UserIdentityTokenHandler is IssuedIdentityTokenHandler issuedToken)
             {
                 // set AuthenticatedUser role for accepted identity token
-                args.Identity = new RoleBasedIdentity(VerifyIssuedToken(issuedToken),
+                args.Identity = new RoleBasedIdentity(VerifyIssuedToken(issuedToken)!,
                     [Role.AuthenticatedUser],
                     ServerInternal.MessageContext.NamespaceUris);
                 return;
@@ -487,7 +488,7 @@ namespace Quickstarts.ReferenceServer
         private RoleBasedIdentity VerifyPassword(UserNameIdentityTokenHandler userTokenHandler)
         {
             string userName = userTokenHandler.UserName;
-            byte[] password = userTokenHandler.DecryptedPassword;
+            byte[]? password = userTokenHandler.DecryptedPassword;
             if (string.IsNullOrEmpty(userName))
             {
                 // an empty username is not accepted.
@@ -549,7 +550,7 @@ namespace Quickstarts.ReferenceServer
         private void VerifyX509IdentityToken(X509IdentityTokenHandler x509TokenHandler)
         {
             var wireToken = (X509IdentityToken)x509TokenHandler.Token;
-            using Certificate userCertificate = wireToken.CertificateData.IsEmpty
+            using Certificate? userCertificate = wireToken.CertificateData.IsEmpty
                 ? null
                 : Certificate.FromRawData(wireToken.CertificateData);
             try
@@ -561,7 +562,7 @@ namespace Quickstarts.ReferenceServer
 #pragma warning disable CA2025
                     Opc.Ua.CertificateValidationResult userCertResult = m_userCertificateValidator
                         .ValidateAsync(
-                            userCertificate,
+                            userCertificate!,
                             TrustListIdentifier.Users,
                             default)
                         .GetAwaiter()
@@ -577,9 +578,9 @@ namespace Quickstarts.ReferenceServer
                     // CA2025: task awaited via GetAwaiter().GetResult(); the disposable's
                     // using scope extends past the await.
 #pragma warning disable CA2025
-                    Opc.Ua.CertificateValidationResult fallbackCertResult = CertificateManager
+                    Opc.Ua.CertificateValidationResult fallbackCertResult = CertificateManager!
                         .ValidateAsync(
-                            userCertificate,
+                            userCertificate!,
                             TrustListIdentifier.Users,
                             default)
                         .GetAwaiter()
@@ -625,7 +626,7 @@ namespace Quickstarts.ReferenceServer
             }
         }
 
-        private IUserIdentity VerifyIssuedToken(IssuedIdentityTokenHandler issuedTokenHandler)
+        private IUserIdentity? VerifyIssuedToken(IssuedIdentityTokenHandler issuedTokenHandler)
         {
             if (TokenValidator == null)
             {
@@ -676,34 +677,8 @@ namespace Quickstarts.ReferenceServer
             }
         }
 
-        /// <summary>
-        /// Initializes the user database with the default demo users.
-        /// </summary>
-        private void InitializeUserDatabase()
-        {
-            m_userDatabase = new LinqUserDatabase();
-
-            // User with permission to configure server
-            m_userDatabase.CreateUser(
-                "sysadmin",
-                Encoding.UTF8.GetBytes("demo"),
-                [Role.SecurityAdmin, Role.ConfigureAdmin, Role.AuthenticatedUser]);
-
-            // Standard users for CTT verification
-            m_userDatabase.CreateUser(
-                "user1",
-                Encoding.UTF8.GetBytes("password"),
-                [Role.AuthenticatedUser]);
-
-            m_userDatabase.CreateUser(
-                "user2",
-                Encoding.UTF8.GetBytes("password1"),
-                [Role.AuthenticatedUser]);
-        }
-
-
-        private CertificateManager m_userCertificateValidator;
-        private LinqUserDatabase m_userDatabase;
-        private ReferenceNodeManager m_referenceNodeManager;
+        private CertificateManager? m_userCertificateValidator;
+        private readonly LinqUserDatabase m_userDatabase;
+        private ReferenceNodeManager? m_referenceNodeManager;
     }
 }

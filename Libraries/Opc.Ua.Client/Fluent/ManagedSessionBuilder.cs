@@ -105,7 +105,7 @@ namespace Opc.Ua.Client
                 SecurityMode = securityMode,
                 SecurityPolicyUri = securityPolicyUri
             };
-            return UseEndpoint(new ConfiguredEndpoint(null, endpointDescription));
+            return UseEndpoint(new ConfiguredEndpoint(null, endpointDescription, null));
         }
 
         /// <summary>

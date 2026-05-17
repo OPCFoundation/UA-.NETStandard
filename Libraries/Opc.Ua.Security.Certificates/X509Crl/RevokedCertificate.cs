@@ -106,6 +106,7 @@ namespace Opc.Ua.Security.Certificates
         {
             RevocationDate = DateTime.UtcNow;
             CrlEntryExtensions = [];
+            UserCertificate = null!;
         }
 
         /// <summary>

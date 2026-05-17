@@ -67,16 +67,16 @@ namespace Alarms
 
                 BaseEventState alarm = GetAlarm();
 
-                alarm.EventId.Value = Uuid.NewUuid().ToByteString();
-                alarm.EventType.Value = new NodeId(
+                alarm.EventId!.Value = Uuid.NewUuid().ToByteString();
+                alarm.EventType!.Value = new NodeId(
                     alarmTypeIdentifier,
                     GetNameSpaceIndex(alarmTypeIdentifier));
-                alarm.SourceNode.Value = m_trigger.NodeId;
-                alarm.SourceName.Value = m_trigger.SymbolicName;
-                alarm.Time.Value = DateTimeUtc.Now;
-                alarm.ReceiveTime.Value = alarm.Time.Value;
-                alarm.Message.Value = LocalizedText.From(name + " Initialized");
-                alarm.Severity.Value = AlarmDefines.INACTIVE_SEVERITY;
+                alarm.SourceNode!.Value = m_trigger.NodeId;
+                alarm.SourceName!.Value = m_trigger.SymbolicName;
+                alarm.Time!.Value = DateTimeUtc.Now;
+                alarm.ReceiveTime!.Value = alarm.Time.Value;
+                alarm.Message!.Value = LocalizedText.From(name + " Initialized");
+                alarm.Severity!.Value = AlarmDefines.INACTIVE_SEVERITY;
 
                 // TODO Implement for Optionals - Needs to go to all places where Time is set.
                 alarm.LocalTime = null;
@@ -87,7 +87,7 @@ namespace Alarms
         {
         }
 
-        private BaseEventState GetAlarm(BaseEventState alarm = null)
+        private BaseEventState GetAlarm(BaseEventState? alarm = null)
         {
             alarm ??= m_alarm;
             return alarm;
@@ -96,7 +96,7 @@ namespace Alarms
         protected bool IsEvent(ByteString eventId)
         {
             bool isEvent = false;
-            if (GetAlarm().EventId.Value == eventId)
+            if (GetAlarm().EventId!.Value == eventId)
             {
                 isEvent = true;
             }

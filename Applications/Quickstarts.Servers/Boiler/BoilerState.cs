@@ -50,7 +50,7 @@ namespace Boiler
         {
             base.OnAfterCreate(context, node, ct);
 
-            Simulation.OnAfterTransition = OnControlSimulation;
+            Simulation!.OnAfterTransition = OnControlSimulation;
         }
 
         /// <inheritdoc/>
@@ -71,7 +71,7 @@ namespace Boiler
             uint transitionId,
             uint causeId,
             ArrayOf<Variant> inputArguments,
-            List<Variant> outputArguments)
+            List<Variant>? outputArguments)
         {
             switch (causeId)
             {
@@ -79,12 +79,12 @@ namespace Boiler
                     m_simulationTimer?.Dispose();
                     m_simulationTimer = null;
 
-                    uint updateRate = Simulation.UpdateRate.Value;
+                    uint updateRate = Simulation!.UpdateRate!.Value;
 
                     if (updateRate < 100)
                     {
                         updateRate = 100;
-                        Simulation.UpdateRate.Value = updateRate;
+                        Simulation!.UpdateRate!.Value = updateRate;
                     }
 
                     m_simulationContext = context;
@@ -147,7 +147,7 @@ namespace Boiler
         /// <summary>
         /// Moves the value towards the target.
         /// </summary>
-        private static double Adjust(double value, double target, double step, Opc.Ua.Range range)
+        private static double Adjust(double value, double target, double step, Opc.Ua.Range? range)
         {
             // convert percentage step to an absolute step if range is specified.
             if (range != null)
@@ -185,7 +185,7 @@ namespace Boiler
         private static double GetPercentage(AnalogItemState<double> value)
         {
             double percentage = value.Value;
-            Opc.Ua.Range range = value.EURange.Value;
+            Opc.Ua.Range? range = value.EURange?.Value;
 
             if (range != null)
             {
@@ -203,7 +203,7 @@ namespace Boiler
         /// <summary>
         /// Returns the value as a percentage of the range.
         /// </summary>
-        private static double GetValue(double value, Opc.Ua.Range range)
+        private static double GetValue(double value, Opc.Ua.Range? range)
         {
             if (range != null)
             {
@@ -216,61 +216,74 @@ namespace Boiler
         /// <summary>
         /// Updates the values for the simulation.
         /// </summary>
-        private void DoSimulation(object state)
+        private void DoSimulation(object? state)
         {
             try
             {
+                var drumLevelOutput = m_drum!.LevelIndicator!.Output!;
+                var drumLevelEURange = drumLevelOutput.EURange?.Value;
+                var levelController = m_levelController!;
+                var levelSetPoint = levelController.SetPoint!;
+                var customController = m_customController!;
+                var customInput1 = customController.Input1!;
+                var customInput2 = customController.Input2!;
+                var customInput3 = customController.Input3!;
+                var customControlOut = customController.ControlOut!;
+                var flowController = m_flowController!;
+                var flowSetPoint = flowController.SetPoint!;
+                var inputPipe = m_inputPipe!;
+                var inputFlow = inputPipe.FlowTransmitter1!.Output!;
+                var inputFlowEURange = inputFlow.EURange?.Value;
+                var inputValve = inputPipe.Valve!.Input!;
+                var outputFlow = m_outputPipe!.FlowTransmitter2!.Output!;
+
                 // adjust level.
-                m_drum.LevelIndicator.Output.Value = Adjust(
-                    m_drum.LevelIndicator.Output.Value,
-                    m_levelController.SetPoint.Value,
+                drumLevelOutput.Value = Adjust(
+                    drumLevelOutput.Value,
+                    levelSetPoint.Value,
                     0.1,
-                    m_drum.LevelIndicator.Output.EURange.Value);
+                    drumLevelEURange);
 
                 // calculate inputs for custom controller.
-                m_customController.Input1.Value = m_levelController.UpdateMeasurement(
-                    m_drum.LevelIndicator.Output);
-                m_customController.Input2.Value
-                    = GetPercentage(m_inputPipe.FlowTransmitter1.Output);
-                m_customController.Input3.Value
-                    = GetPercentage(m_outputPipe.FlowTransmitter2.Output);
+                customInput1.Value = levelController.UpdateMeasurement(drumLevelOutput);
+                customInput2.Value = GetPercentage(inputFlow);
+                customInput3.Value = GetPercentage(outputFlow);
 
                 // calculate output for custom controller.
-                m_customController.ControlOut.Value =
+                customControlOut.Value =
                     (
-                        m_customController.Input1.Value +
-                        m_customController.Input3.Value -
-                        m_customController.Input2.Value
+                        customInput1.Value +
+                        customInput3.Value -
+                        customInput2.Value
                     ) /
                     2;
 
                 // update flow controller set point.
-                m_flowController.SetPoint.Value = GetValue(
-                    (m_customController.ControlOut.Value + 1) / 2,
-                    m_inputPipe.FlowTransmitter1.Output.EURange.Value);
+                flowSetPoint.Value = GetValue(
+                    (customControlOut.Value + 1) / 2,
+                    inputFlowEURange);
 
-                double error = m_flowController.UpdateMeasurement(
-                    m_inputPipe.FlowTransmitter1.Output);
+                double error = flowController.UpdateMeasurement(inputFlow);
 
                 // adjust the input valve.
-                m_inputPipe.Valve.Input.Value
-                    = Adjust(m_inputPipe.Valve.Input.Value, error > 0 ? 100 : 0, 10, null);
+                inputValve.Value
+                    = Adjust(inputValve.Value, error > 0 ? 100 : 0, 10, null);
 
                 // adjust the input flow.
-                m_inputPipe.FlowTransmitter1.Output.Value = Adjust(
-                    m_inputPipe.FlowTransmitter1.Output.Value,
-                    m_flowController.SetPoint.Value,
+                inputFlow.Value = Adjust(
+                    inputFlow.Value,
+                    flowSetPoint.Value,
                     0.6,
-                    m_inputPipe.FlowTransmitter1.Output.EURange.Value);
+                    inputFlowEURange);
 
                 // add pertubations.
-                m_drum.LevelIndicator.Output.Value
-                    = RoundAndPerturb(m_drum.LevelIndicator.Output.Value, 3);
-                m_inputPipe.FlowTransmitter1.Output.Value = RoundAndPerturb(
-                    m_inputPipe.FlowTransmitter1.Output.Value,
+                drumLevelOutput.Value
+                    = RoundAndPerturb(drumLevelOutput.Value, 3);
+                inputFlow.Value = RoundAndPerturb(
+                    inputFlow.Value,
                     3);
-                m_outputPipe.FlowTransmitter2.Output.Value = RoundAndPerturb(
-                    m_outputPipe.FlowTransmitter2.Output.Value,
+                outputFlow.Value = RoundAndPerturb(
+                    outputFlow.Value,
                     3);
 
                 ClearChangeMasks(m_simulationContext, true);
@@ -281,8 +294,8 @@ namespace Boiler
             }
         }
 
-        private ILogger m_logger;
-        private ISystemContext m_simulationContext;
-        private Timer m_simulationTimer;
+        private ILogger m_logger = null!;
+        private ISystemContext m_simulationContext = null!;
+        private Timer? m_simulationTimer;
     }
 }

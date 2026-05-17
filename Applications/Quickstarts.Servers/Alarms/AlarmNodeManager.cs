@@ -45,7 +45,7 @@ namespace Alarms
         /// <inheritdoc/>
         public INodeManager Create(IServerInternal server, ApplicationConfiguration configuration)
         {
-            return new AlarmNodeManager(server, configuration, NamespacesUris.ToArray());
+            return new AlarmNodeManager(server, configuration, NamespacesUris.ToArray()!);
         }
 
         /// <inheritdoc/>
@@ -127,21 +127,23 @@ namespace Alarms
             {
                 if (!externalReferences.TryGetValue(
                     ObjectIds.ObjectsFolder,
-                    out IList<IReference> references))
+                    out IList<IReference>? references))
                 {
                     externalReferences[ObjectIds.ObjectsFolder] = references = [];
                 }
 
-                FolderState alarmsFolder = null;
-                MethodState startMethod = null;
-                MethodState startBranchMethod = null;
-                MethodState endMethod = null;
+                FolderState? alarmsFolder = null;
+                MethodState? startMethod = null;
+                MethodState? startBranchMethod = null;
+                MethodState? endMethod = null;
                 try
                 {
                     const string alarmsName = "Alarms";
                     const string alarmsNodeName = alarmsName;
 
-                    var alarmControllerType = Type.GetType("Alarms.AlarmController");
+                    Type alarmControllerType = Type.GetType("Alarms.AlarmController") ??
+                        throw new InvalidOperationException(
+                            "Alarms.AlarmController type not found.");
                     const int interval = 1000;
                     string intervalString = interval.ToString(CultureInfo.InvariantCulture);
 
@@ -206,7 +208,7 @@ namespace Alarms
                             analogTrigger,
                             interval,
                             false,
-                            Server.Telemetry);
+                            Server.Telemetry)!;
                     var analogSourceController = new SourceController(
                         analogTrigger,
                         analogAlarmController);
@@ -227,7 +229,7 @@ namespace Alarms
                             booleanTrigger,
                             interval,
                             true,
-                            Server.Telemetry);
+                            Server.Telemetry)!;
                     var booleanSourceController = new SourceController(
                         booleanTrigger,
                         booleanAlarmController);
@@ -438,7 +440,7 @@ namespace Alarms
         /// <summary>
         /// Creates a new folder.
         /// </summary>
-        private FolderState CreateFolder(NodeState parent, string path, string name)
+        private FolderState CreateFolder(NodeState? parent, string path, string name)
         {
             var folder = new FolderState(parent)
             {
@@ -458,7 +460,7 @@ namespace Alarms
             return folder;
         }
 
-        private void DoSimulation(object state)
+        private void DoSimulation(object? state)
         {
             if (m_allowEntry)
             {
@@ -482,7 +484,7 @@ namespace Alarms
                             foreach (IReference reference in references)
                             {
                                 string identifier = reference.TargetId.ToString();
-                                if (m_alarms.TryGetValue(identifier, out AlarmHolder holder))
+                                if (m_alarms.TryGetValue(identifier, out AlarmHolder? holder))
                                 {
                                     holder.Update(updated);
                                 }
@@ -525,44 +527,34 @@ namespace Alarms
                 return new ServiceResult(StatusCodes.BadInvalidArgument);
             }
 
-            ServiceResult result = ServiceResult.Good;
-
             Dictionary<string, SourceController> sourceControllers = GetUnitAlarms(node);
-            if (sourceControllers == null)
-            {
-                result = StatusCodes.BadNodeIdUnknown;
-            }
+            m_logger.LogInformation("Starting up alarm group {NodeId}", GetUnitFromNodeId(node.NodeId));
 
-            if (sourceControllers != null)
+            lock (m_alarms)
             {
-                m_logger.LogInformation("Starting up alarm group {NodeId}", GetUnitFromNodeId(node.NodeId));
-
-                lock (m_alarms)
+                foreach (SourceController sourceController in sourceControllers.Values)
                 {
-                    foreach (SourceController sourceController in sourceControllers.Values)
+                    IList<IReference> references = [];
+                    sourceController.Source.GetReferences(
+                        SystemContext,
+                        references,
+                        ReferenceTypeIds.HasCondition,
+                        false);
+                    foreach (IReference reference in references)
                     {
-                        IList<IReference> references = [];
-                        sourceController.Source.GetReferences(
-                            SystemContext,
-                            references,
-                            ReferenceTypeIds.HasCondition,
-                            false);
-                        foreach (IReference reference in references)
+                        string identifier = reference.TargetId.ToString();
+                        if (m_alarms.TryGetValue(identifier, out AlarmHolder? holder))
                         {
-                            string identifier = reference.TargetId.ToString();
-                            if (m_alarms.TryGetValue(identifier, out AlarmHolder holder))
-                            {
-                                holder.SetBranching(false);
-                                holder.Start(seconds);
-                                bool updated = holder.Controller.Update(SystemContext);
-                                holder.Update(updated);
-                            }
+                            holder.SetBranching(false);
+                            holder.Start(seconds);
+                            bool updated = holder.Controller.Update(SystemContext);
+                            holder.Update(updated);
                         }
                     }
                 }
             }
 
-            return result;
+            return ServiceResult.Good;
         }
 
         public ServiceResult OnStartBranch(
@@ -587,46 +579,36 @@ namespace Alarms
                 return new ServiceResult(StatusCodes.BadInvalidArgument);
             }
 
-            ServiceResult result = ServiceResult.Good;
-
             Dictionary<string, SourceController> sourceControllers = GetUnitAlarms(node);
-            if (sourceControllers == null)
-            {
-                result = StatusCodes.BadNodeIdUnknown;
-            }
+            m_logger.LogInformation(
+                "Starting up Branch for alarm group {Name}",
+                GetUnitFromNodeId(node.NodeId));
 
-            if (sourceControllers != null)
+            lock (m_alarms)
             {
-                m_logger.LogInformation(
-                    "Starting up Branch for alarm group {Name}",
-                    GetUnitFromNodeId(node.NodeId));
-
-                lock (m_alarms)
+                foreach (SourceController sourceController in sourceControllers.Values)
                 {
-                    foreach (SourceController sourceController in sourceControllers.Values)
+                    IList<IReference> references = [];
+                    sourceController.Source.GetReferences(
+                        SystemContext,
+                        references,
+                        ReferenceTypeIds.HasCondition,
+                        false);
+                    foreach (IReference reference in references)
                     {
-                        IList<IReference> references = [];
-                        sourceController.Source.GetReferences(
-                            SystemContext,
-                            references,
-                            ReferenceTypeIds.HasCondition,
-                            false);
-                        foreach (IReference reference in references)
+                        string identifier = reference.TargetId.ToString();
+                        if (m_alarms.TryGetValue(identifier, out AlarmHolder? holder))
                         {
-                            string identifier = reference.TargetId.ToString();
-                            if (m_alarms.TryGetValue(identifier, out AlarmHolder holder))
-                            {
-                                holder.SetBranching(true);
-                                holder.Start(seconds);
-                                bool updated = holder.Controller.Update(SystemContext);
-                                holder.Update(updated);
-                            }
+                            holder.SetBranching(true);
+                            holder.Start(seconds);
+                            bool updated = holder.Controller.Update(SystemContext);
+                            holder.Update(updated);
                         }
                     }
                 }
             }
 
-            return result;
+            return ServiceResult.Good;
         }
 
         public ServiceResult OnEnd(
@@ -635,43 +617,33 @@ namespace Alarms
             ArrayOf<Variant> inputArguments,
             List<Variant> outputArguments)
         {
-            ServiceResult result = ServiceResult.Good;
-
             Dictionary<string, SourceController> sourceControllers = GetUnitAlarms(node);
-            if (sourceControllers == null)
-            {
-                result = StatusCodes.BadNodeIdUnknown;
-            }
+            m_logger.LogInformation("Stopping alarm group {Name}", GetUnitFromNodeId(node.NodeId));
 
-            if (sourceControllers != null)
+            lock (m_alarms)
             {
-                m_logger.LogInformation("Stopping alarm group {Name}", GetUnitFromNodeId(node.NodeId));
-
-                lock (m_alarms)
+                foreach (SourceController sourceController in sourceControllers.Values)
                 {
-                    foreach (SourceController sourceController in sourceControllers.Values)
+                    IList<IReference> references = [];
+                    sourceController.Source.GetReferences(
+                        SystemContext,
+                        references,
+                        ReferenceTypeIds.HasCondition,
+                        false);
+                    foreach (IReference reference in references)
                     {
-                        IList<IReference> references = [];
-                        sourceController.Source.GetReferences(
-                            SystemContext,
-                            references,
-                            ReferenceTypeIds.HasCondition,
-                            false);
-                        foreach (IReference reference in references)
+                        string identifier = reference.TargetId.ToString();
+                        if (m_alarms.TryGetValue(identifier, out AlarmHolder? holder))
                         {
-                            string identifier = reference.TargetId.ToString();
-                            if (m_alarms.TryGetValue(identifier, out AlarmHolder holder))
-                            {
-                                holder.ClearBranches();
-                            }
+                            holder.ClearBranches();
                         }
-
-                        sourceController.Controller.Stop();
                     }
+
+                    sourceController.Controller.Stop();
                 }
             }
 
-            return result;
+            return ServiceResult.Good;
         }
 
         public ServiceResult OnWriteAlarmTrigger(
@@ -684,11 +656,7 @@ namespace Alarms
             ref DateTimeUtc timestamp)
         {
             Dictionary<string, SourceController> sourceControllers = GetUnitAlarms(node);
-            if (sourceControllers == null)
-            {
-                return StatusCodes.BadNodeIdUnknown;
-            }
-            SourceController sourceController = GetSourceControllerFromNodeState(
+            SourceController? sourceController = GetSourceControllerFromNodeState(
                 node,
                 sourceControllers);
 
@@ -713,7 +681,7 @@ namespace Alarms
                 foreach (IReference reference in references)
                 {
                     string identifier = reference.TargetId.ToString();
-                    if (m_alarms.TryGetValue(identifier, out AlarmHolder holder))
+                    if (m_alarms.TryGetValue(identifier, out AlarmHolder? holder))
                     {
                         holder.Update(true);
                     }
@@ -723,9 +691,9 @@ namespace Alarms
             return StatusCodes.Good;
         }
 
-        private AlarmHolder GetAlarmHolder(NodeId node)
+        private AlarmHolder? GetAlarmHolder(NodeId node)
         {
-            AlarmHolder alarmHolder = null;
+            AlarmHolder? alarmHolder = null;
 
             if (node.TryGetValue(out string unmodifiedName))
             {
@@ -747,7 +715,7 @@ namespace Alarms
                     mapName = name[..lastDot];
                 }
 
-                if (m_alarms.TryGetValue(mapName, out AlarmHolder value))
+                if (m_alarms.TryGetValue(mapName, out AlarmHolder? value))
                 {
                     alarmHolder = value;
                 }
@@ -791,14 +759,14 @@ namespace Alarms
             return unit;
         }
 
-        public SourceController GetSourceControllerFromNodeState(
+        public SourceController? GetSourceControllerFromNodeState(
             NodeState nodeState,
             Dictionary<string, SourceController> map)
         {
-            SourceController sourceController = null;
+            SourceController? sourceController = null;
 
             string name = GetSourceNameFromNodeState(nodeState);
-            if (map.TryGetValue(name, out SourceController value))
+            if (map.TryGetValue(name, out SourceController? value))
             {
                 sourceController = value;
             }
@@ -915,12 +883,12 @@ namespace Alarms
                     continue;
                 }
 
-                MethodState method = null;
+                MethodState? method = null;
 
                 lock (Lock)
                 {
                     // check for valid handle.
-                    NodeHandle initialHandle = GetManagerHandle(
+                    NodeHandle? initialHandle = GetManagerHandle(
                         systemContext,
                         methodToCall.ObjectId,
                         operationCache);
@@ -947,7 +915,7 @@ namespace Alarms
                         methodToCall);
 
                     // validate the source node.
-                    NodeState source = ValidateNode(systemContext, handle, operationCache);
+                    NodeState? source = ValidateNode(systemContext, handle, operationCache);
 
                     if (source == null)
                     {
@@ -1060,7 +1028,7 @@ namespace Alarms
 
             if (IsAckConfirm(methodToCall.MethodId))
             {
-                AlarmHolder holder = GetAlarmHolder(methodToCall.ObjectId);
+                AlarmHolder? holder = GetAlarmHolder(methodToCall.ObjectId);
 
                 if (holder != null && holder.HasBranches())
                 {
@@ -1068,7 +1036,7 @@ namespace Alarms
 
                     if (!eventId.IsEmpty)
                     {
-                        BaseEventState state = holder.GetBranch(eventId);
+                        BaseEventState? state = holder.GetBranch(eventId);
 
                         if (state != null)
                         {
@@ -1170,6 +1138,6 @@ namespace Alarms
         ];
 
         private const ushort kSimulationInterval = 100;
-        private Timer m_simulationTimer;
+        private Timer? m_simulationTimer;
     }
 }

@@ -42,7 +42,7 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the instance with its default attribute values.
         /// </summary>
-        protected BaseInstanceState(NodeClass nodeClass, NodeState parent)
+        protected BaseInstanceState(NodeClass nodeClass, NodeState? parent)
             : base(nodeClass)
         {
             Parent = parent;
@@ -123,7 +123,7 @@ namespace Opc.Ua
         /// <summary>
         /// The parent node.
         /// </summary>
-        public NodeState Parent { get; internal set; }
+        public NodeState? Parent { get; internal set; }
 
         /// <summary>
         /// Returns the id of the default type definition node for the instance.
@@ -157,7 +157,7 @@ namespace Opc.Ua
         {
             string name = GetNonNullText(this);
 
-            NodeState stateParent = Parent;
+            NodeState? stateParent = Parent;
 
             if (stateParent == null)
             {
@@ -168,7 +168,7 @@ namespace Opc.Ua
 
             if (maxLength > 2)
             {
-                NodeState parent = stateParent;
+                NodeState? parent = stateParent;
                 var names = new List<string>();
 
                 while (parent != null)
@@ -206,7 +206,7 @@ namespace Opc.Ua
         /// <summary>
         /// Returns non-null text for the node.
         /// </summary>
-        private static string GetNonNullText(NodeState node)
+        private static string GetNonNullText(NodeState? node)
         {
             if (node == null)
             {
@@ -217,13 +217,13 @@ namespace Opc.Ua
             {
                 if (!node.BrowseName.IsNull)
                 {
-                    return node.BrowseName.Name;
+                    return node.BrowseName.Name!;
                 }
 
                 return node.NodeClass.ToString();
             }
 
-            return node.DisplayName.Text;
+            return node.DisplayName.Text!;
         }
 
         /// <summary>
@@ -314,9 +314,9 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < children.Count; ii++)
             {
-                variable = children[ii] as BaseVariableState;
+                BaseVariableState? childVariable = children[ii] as BaseVariableState;
 
-                variable?.MinimumSamplingInterval = minimumSamplingInterval;
+                childVariable?.MinimumSamplingInterval = minimumSamplingInterval;
 
                 children[ii].SetMinimumSamplingInterval(context, minimumSamplingInterval);
             }
@@ -349,7 +349,7 @@ namespace Opc.Ua
             var dataValue = new DataValue();
 
             ServiceResult result = ReadChildAttribute(
-                null,
+                null!,
                 relativePath,
                 0,
                 attributeId,
@@ -604,7 +604,7 @@ namespace Opc.Ua
                 browser.Add(ReferenceTypeIds.HasModellingRule, false, modellingRuleId);
             }
 
-            NodeState parent = Parent;
+            NodeState? parent = Parent;
 
             if (parent != null)
             {

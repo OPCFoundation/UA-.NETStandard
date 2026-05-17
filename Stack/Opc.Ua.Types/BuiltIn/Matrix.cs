@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -40,7 +40,7 @@ namespace Opc.Ua
     /// <summary>
     /// Wraps a multi-dimensional array for use within a Variant.
     /// </summary>
-    [DataContract(Namespace = Namespaces.OpcUaXsd)]
+    [DataContract(Namespace = Types.Namespaces.OpcUaXsd)]
     public class Matrix : ICloneable, IFormattable
     {
         /// <summary>
@@ -118,7 +118,10 @@ namespace Opc.Ua
         {
             try
             {
-                var array = Array.CreateInstance(Elements.GetType().GetElementType(), Dimensions);
+                var array = Array.CreateInstance(
+                    Elements.GetType().GetElementType()
+                        ?? throw new InvalidOperationException("Elements is not an array type."),
+                    Dimensions);
 
                 int[] indexes = new int[Dimensions.Length];
 
@@ -154,7 +157,7 @@ namespace Opc.Ua
         /// <remarks>
         /// Determines if the specified object is equal to the object.
         /// </remarks>
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             if (ReferenceEquals(this, obj))
             {
@@ -210,7 +213,7 @@ namespace Opc.Ua
         /// Returns the string representation of the object.
         /// </remarks>
         /// <exception cref="FormatException">Thrown when the 'format' argument is NOT null.</exception>
-        public string ToString(string format, IFormatProvider formatProvider)
+        public string ToString(string? format, IFormatProvider? formatProvider)
         {
             if (format == null)
             {
@@ -219,7 +222,8 @@ namespace Opc.Ua
                 buffer.AppendFormat(
                     formatProvider,
                     "{0}[",
-                    Elements.GetType().GetElementType().Name);
+                    (Elements.GetType().GetElementType()
+                        ?? throw new InvalidOperationException("Elements is not an array type.")).Name);
 
                 for (int ii = 0; ii < Dimensions.Length; ii++)
                 {
@@ -254,7 +258,7 @@ namespace Opc.Ua
         public new object MemberwiseClone()
         {
 #pragma warning disable CS0618 // Type or member is obsolete
-            return new Matrix(CoreUtils.Clone(Elements), TypeInfo.BuiltInType, CoreUtils.Clone(Dimensions));
+            return new Matrix(CoreUtils.Clone(Elements)!, TypeInfo.BuiltInType, CoreUtils.Clone(Dimensions)!);
 #pragma warning restore CS0618 // Type or member is obsolete
         }
 
@@ -267,9 +271,7 @@ namespace Opc.Ua
         private static void SanityCheckArrayElements(Array elements, BuiltInType builtInType)
         {
 #if DEBUG
-#pragma warning disable IDE0004 // Remove Unnecessary Cast
-            var sanityCheck = TypeInfo.Construct((object)elements);
-#pragma warning restore IDE0004 // Remove Unnecessary Cast
+            var sanityCheck = TypeInfo.Construct(elements);
             Debug.Assert(
                 sanityCheck.BuiltInType == builtInType ||
                 builtInType == BuiltInType.Enumeration ||
@@ -407,7 +409,7 @@ namespace Opc.Ua
         private static (bool valid, int flatLength) ValidateDimensions(
             int[] dimensions,
             int maxArrayLength,
-            ValidateDimensionsFunction customValidation)
+            ValidateDimensionsFunction? customValidation)
         {
             (bool valid, int flatLength) = (false, 1);
             try
@@ -458,7 +460,10 @@ namespace Opc.Ua
             Justification = "Array.CreateInstance is used with known OPC UA element types.")]
         private static Array FlattenArray(Array array)
         {
-            var flatArray = Array.CreateInstance(array.GetType().GetElementType(), array.Length);
+            var flatArray = Array.CreateInstance(
+                array.GetType().GetElementType()
+                    ?? throw new InvalidOperationException("Argument is not an array type."),
+                array.Length);
 
             int[] indexes = new int[array.Rank];
             int[] dimensions = new int[array.Rank];
