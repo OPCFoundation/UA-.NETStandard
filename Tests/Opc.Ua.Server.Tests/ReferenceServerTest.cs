@@ -1957,7 +1957,7 @@ namespace Opc.Ua.Server.Tests
         /// <summary>
         /// Verifies that after transferring a subscription to a new session and re-activating
         /// that session (which changes the identity context, e.g. simulating a switch from a
-        /// Sign &amp; Encrypt session to a Sign-only session), the permission caches for the
+        /// Sign and Encrypt session to a Sign-only session), the permission caches for the
         /// transferred monitored items are invalidated and permissions are re-evaluated
         /// correctly on subsequent notifications.
         /// </summary>
@@ -2055,7 +2055,7 @@ namespace Opc.Ua.Server.Tests
                     // IMasterNodeManager.SessionActivatedAsync. That in turn calls
                     // MonitoredNode2.InvalidatePermissionCacheForSession for the transferred items,
                     // ensuring permissions are re-evaluated on the next notification — the same
-                    // effect as switching from a Sign & Encrypt session to a Sign-only session.
+                    // effect as switching from a Sign and Encrypt session to a Sign-only session.
                     headerB.Timestamp = DateTimeUtc.Now;
                     ActivateSessionResponse reactivateResp = await m_server.ActivateSessionAsync(
                         channelB,
