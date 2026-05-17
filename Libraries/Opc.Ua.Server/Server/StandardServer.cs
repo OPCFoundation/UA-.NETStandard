@@ -697,7 +697,7 @@ namespace Opc.Ua.Server
 
                 if (identityChanged)
                 {
-                    ISession activatedSession = ServerInternal.SessionManager
+                    ISession? activatedSession = ServerInternal.SessionManager
                         .GetSession(requestHeader.AuthenticationToken);
 
                     if (activatedSession != null)
