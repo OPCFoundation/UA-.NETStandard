@@ -113,8 +113,8 @@ namespace Quickstarts.Servers
                     using FileStream stream = File.OpenRead(filePath);
                     using var decoder = new BinaryDecoder(stream, context, true);
 
-                    ArrayOf<string> nsUris = decoder.ReadStringArray(null);
-                    ArrayOf<string> srvUris = decoder.ReadStringArray(null);
+                    ArrayOf<string> nsUris = decoder.ReadStringArray(null)!;
+                    ArrayOf<string> srvUris = decoder.ReadStringArray(null)!;
                     decoder.SetMappingTables(
                         new NamespaceTable(nsUris.Memory.ToArray()),
                         new StringTable(srvUris.Memory.ToArray()));
@@ -123,13 +123,13 @@ namespace Quickstarts.Servers
                     {
                         if (batch is DataChangeBatch dataChangeBatch)
                         {
-                            DataChangeBatch restored =
+                            DataChangeBatch? restored =
                                 DurableMonitoredItemQueueFactory.DecodeDataChangeBatch(decoder);
                             dataChangeBatch.Restore(restored?.Values);
                         }
                         else if (batch is EventBatch eventBatch)
                         {
-                            EventBatch restored =
+                            EventBatch? restored =
                                 DurableMonitoredItemQueueFactory.DecodeEventBatch(decoder);
                             eventBatch.Restore(restored?.Events);
                         }
@@ -259,7 +259,8 @@ namespace Quickstarts.Servers
 
                     foreach (FileInfo file in directory.GetFiles())
                     {
-                        if (!regex.IsMatch(file.Name))
+                        // Delete files matching this batch (a batch persists to a single file).
+                        if (regex.IsMatch(file.Name))
                         {
                             file.Delete();
                             return;

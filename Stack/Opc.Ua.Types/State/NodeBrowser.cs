@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -40,7 +40,7 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the next reference.
         /// </summary>
-        IReference Next();
+        IReference? Next();
 
         /// <summary>
         /// Pushes a previously returned reference back into the browser.
@@ -58,12 +58,12 @@ namespace Opc.Ua
         /// </summary>
         public NodeBrowser(
             ISystemContext context,
-            ViewDescription view,
+            ViewDescription? view,
             NodeId referenceType,
             bool includeSubtypes,
             BrowseDirection browseDirection,
             QualifiedName browseName,
-            IEnumerable<IReference> additionalReferences,
+            IEnumerable<IReference>? additionalReferences,
             bool internalOnly,
             bool allowDuplicateReferences = false)
         {
@@ -112,7 +112,7 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the next reference. Null if no more references.
         /// </summary>
-        public virtual IReference Next()
+        public virtual IReference? Next()
         {
             lock (DataLock)
             {
@@ -249,7 +249,7 @@ namespace Opc.Ua
         /// <summary>
         /// The view being browsed.
         /// </summary>
-        public ViewDescription View { get; }
+        public ViewDescription? View { get; }
 
         /// <summary>
         /// The type of reference to return.
@@ -292,9 +292,9 @@ namespace Opc.Ua
             }
         }
 
-        private IReference m_pushBack;
+        private IReference? m_pushBack;
         private readonly List<IReference> m_references;
-        private readonly HashSet<IReference> m_seenReferences;
+        private readonly HashSet<IReference>? m_seenReferences;
         private int m_index;
     }
 
@@ -328,7 +328,7 @@ namespace Opc.Ua
         /// <summary>
         /// The internal target of the reference.
         /// </summary>
-        public NodeState Target { get; }
+        public NodeState? Target { get; }
 
         /// <inheritdoc/>
         public NodeId ReferenceTypeId { get; }

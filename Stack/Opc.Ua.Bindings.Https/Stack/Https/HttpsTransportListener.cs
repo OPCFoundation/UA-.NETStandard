@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -180,9 +180,9 @@ namespace Opc.Ua.Bindings
         public string UriScheme { get; }
 
         /// <inheritdoc/>
-        public string ListenerId { get; private set; }
+        public string ListenerId { get; private set; } = default!;
 
-        internal byte[] ServerChannelCertificate { get; set; }
+        internal byte[] ServerChannelCertificate { get; set; } = [];
 
         /// <summary>
         /// Opens the listener and starts accepting connection.
@@ -201,11 +201,11 @@ namespace Opc.Ua.Bindings
             ListenerId = Guid.NewGuid().ToString();
 
             EndpointUrl = baseAddress;
-            m_descriptions = settings.Descriptions;
-            EndpointConfiguration configuration = settings.Configuration;
+            m_descriptions = settings.Descriptions!;
+            EndpointConfiguration configuration = settings.Configuration!;
 
             // initialize the quotas.
-            m_quotas = new ChannelQuotas(new ServiceMessageContext(m_telemetry, settings.Factory)
+            m_quotas = new ChannelQuotas(new ServiceMessageContext(m_telemetry, settings.Factory!)
             {
                 MaxArrayLength = configuration.MaxArrayLength,
                 MaxByteStringLength = configuration.MaxByteStringLength,
@@ -213,7 +213,7 @@ namespace Opc.Ua.Bindings
                 MaxStringLength = configuration.MaxStringLength,
                 MaxEncodingNestingLevels = configuration.MaxEncodingNestingLevels,
                 MaxDecoderRecoveries = configuration.MaxDecoderRecoveries,
-                NamespaceUris = settings.NamespaceUris,
+                NamespaceUris = settings.NamespaceUris!,
                 ServerUris = new StringTable()
             })
             {
@@ -225,9 +225,9 @@ namespace Opc.Ua.Bindings
             };
 
             // save the callback to the server.
-            m_callback = callback;
+            m_callback = callback!;
 
-            m_serverCertProvider = settings.ServerCertificates;
+            m_serverCertProvider = settings.ServerCertificates!;
 
             m_mutualTlsEnabled = settings.HttpsMutualTls;
             // start the listener
@@ -247,12 +247,12 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Raised when a new connection is waiting for a client.
         /// </summary>
-        public event ConnectionWaitingHandlerAsync ConnectionWaiting;
+        public event ConnectionWaitingHandlerAsync? ConnectionWaiting;
 
         /// <summary>
         /// Raised when a monitored connection's status changed.
         /// </summary>
-        public event EventHandler<ConnectionStatusEventArgs> ConnectionStatusChanged;
+        public event EventHandler<ConnectionStatusEventArgs>? ConnectionStatusChanged;
 #pragma warning restore CS0414
 
         /// <inheritdoc/>
@@ -274,7 +274,7 @@ namespace Opc.Ua.Bindings
         /// Gets the URL for the listener's endpoint.
         /// </summary>
         /// <value>The URL for the listener's endpoint.</value>
-        public Uri EndpointUrl { get; private set; }
+        public Uri EndpointUrl { get; private set; } = null!;
 
         /// <summary>
         /// Starts listening at the specified port.
@@ -308,7 +308,7 @@ namespace Opc.Ua.Bindings
             // listener owns the cert independent of the registry's lifetime
             // (the registry may dispose its snapshot during cert hot-update,
             // which would otherwise free the OS handle Kestrel still holds).
-            Certificate serverCertificate = m_serverCertProvider.GetInstanceCertificate(
+            Certificate? serverCertificate = m_serverCertProvider.GetInstanceCertificate(
                 SecurityPolicies.Https)?.Certificate?.AddRef();
 #if NETSTANDARD2_1 || NET472_OR_GREATER || NET5_0_OR_GREATER
             try
@@ -317,10 +317,10 @@ namespace Opc.Ua.Bindings
                 // which default to the ephemeral KeySet. Also a new certificate must be reloaded.
                 // If the key fails to copy, its probably a non exportable key from the X509Store.
                 // Then we can use the original certificate, the private key is already in the key store.
-                using Certificate copy = X509Utils.CreateCopyWithPrivateKey(serverCertificate, false);
+                using Certificate copy = X509Utils.CreateCopyWithPrivateKey(serverCertificate!, false);
                 if (!ReferenceEquals(copy, serverCertificate))
                 {
-                    serverCertificate.Dispose();
+                    serverCertificate!.Dispose();
                     serverCertificate = copy;
                     serverCertificate.AddRef();
                 }
@@ -337,10 +337,10 @@ namespace Opc.Ua.Bindings
             m_pinnedServerCert?.Dispose();
             m_pinnedServerCert = serverCertificate;
             m_pinnedServerCertX509?.Dispose();
-            m_pinnedServerCertX509 = serverCertificate.AsX509Certificate2();
+            m_pinnedServerCertX509 = serverCertificate!.AsX509Certificate2();
 
             // save the server certificate so it can be used in the secure channel context.
-            ServerChannelCertificate = serverCertificate.RawData;
+            ServerChannelCertificate = serverCertificate!.RawData;
 
             var httpsOptions = new HttpsConnectionAdapterOptions
             {
@@ -416,7 +416,7 @@ namespace Opc.Ua.Bindings
                     return;
                 }
 
-                int length = (int)context.Request.ContentLength;
+                int length = (int)(context.Request.ContentLength ?? 0);
                 byte[] buffer = await ReadBodyAsync(context.Request).ConfigureAwait(false);
 
                 if (buffer.Length != length)
@@ -461,9 +461,9 @@ namespace Opc.Ua.Bindings
                         kAuthorizationKey,
                         out Microsoft.Extensions.Primitives.StringValues keys))
                 {
-                    foreach (string value in keys)
+                    foreach (string? value in keys)
                     {
-                        if (value.StartsWith(kBearerKey, StringComparison.OrdinalIgnoreCase))
+                        if (value != null && value.StartsWith(kBearerKey, StringComparison.OrdinalIgnoreCase))
                         {
                             // note: use NodeId(string, uint) to avoid the NodeId.Parse call.
                             input.RequestHeader.AuthenticationToken = new NodeId(
@@ -480,10 +480,10 @@ namespace Opc.Ua.Bindings
                     header = SecurityPolicies.None;
                 }
 
-                EndpointDescription endpoint = null;
+                EndpointDescription? endpoint = null;
                 foreach (EndpointDescription ep in m_descriptions)
                 {
-                    if (Utils.IsUriHttpsScheme(ep.EndpointUrl))
+                    if (Utils.IsUriHttpsScheme(ep.EndpointUrl!))
                     {
                         if (!string.IsNullOrEmpty(header) &&
                             !string.Equals(ep.SecurityPolicyUri, header, StringComparison.Ordinal))
@@ -498,7 +498,7 @@ namespace Opc.Ua.Bindings
 
                 if (endpoint == null)
                 {
-                    ServiceResultException serviceResultException = null;
+                    ServiceResultException? serviceResultException = null;
                     if (input.TypeId != DataTypeIds.GetEndpointsRequest &&
                         input.TypeId != DataTypeIds.FindServersRequest &&
                         input.TypeId != DataTypeIds.FindServersOnNetworkRequest)
@@ -628,8 +628,8 @@ namespace Opc.Ua.Bindings
         /// <param name="chain">Certificate chain</param>
         /// <param name="sslPolicyErrors">SSl policy errors</param>
         private bool ValidateClientCertificate(
-            X509Certificate2 clientCertificate,
-            X509Chain chain,
+            X509Certificate2? clientCertificate,
+            X509Chain? chain,
             SslPolicyErrors sslPolicyErrors)
         {
             if (sslPolicyErrors == SslPolicyErrors.None)
@@ -640,9 +640,9 @@ namespace Opc.Ua.Bindings
 
             try
             {
-                using var cert = Certificate.FromRawData(clientCertificate.RawData);
+                using var cert = Certificate.FromRawData(clientCertificate!.RawData);
 #pragma warning disable CA2025
-                CertificateValidationResult result = m_quotas.CertificateValidator
+                CertificateValidationResult result = m_quotas.CertificateValidator!
                     .ValidateAsync(cert, ct: default)
                     .GetAwaiter()
                     .GetResult();
@@ -660,17 +660,17 @@ namespace Opc.Ua.Bindings
             return true;
         }
 
-        private List<EndpointDescription> m_descriptions;
-        private ChannelQuotas m_quotas;
-        private ITransportListenerCallback m_callback;
+        private List<EndpointDescription> m_descriptions = null!;
+        private ChannelQuotas m_quotas = null!;
+        private ITransportListenerCallback? m_callback;
 #if NET8_0_OR_GREATER
-        private IHost m_host;
+        private IHost? m_host;
 #else
-        private IWebHost m_host;
+        private IWebHost? m_host;
 #endif
-        private ICertificateRegistry m_serverCertProvider;
-        private Certificate m_pinnedServerCert;
-        private X509Certificate2 m_pinnedServerCertX509;
+        private ICertificateRegistry m_serverCertProvider = null!;
+        private Certificate? m_pinnedServerCert;
+        private X509Certificate2? m_pinnedServerCertX509;
         private bool m_mutualTlsEnabled;
         private readonly ILogger m_logger;
         private readonly ITelemetryContext m_telemetry;

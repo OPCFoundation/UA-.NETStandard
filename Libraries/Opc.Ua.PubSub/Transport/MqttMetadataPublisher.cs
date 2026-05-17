@@ -112,7 +112,7 @@ namespace Opc.Ua.PubSub.Transport
         {
             try
             {
-                UaNetworkMessage metaDataNetworkMessage = m_parentConnection
+                UaNetworkMessage? metaDataNetworkMessage = m_parentConnection
                     .CreateDataSetMetaDataNetworkMessage(
                         m_writerGroup,
                         m_dataSetWriter);
@@ -160,7 +160,7 @@ namespace Opc.Ua.PubSub.Transport
             /// <summary>
             /// Holds the last metadata that was sent
             /// </summary>
-            public DataSetMetaDataType LastMetaData { get; set; }
+            public DataSetMetaDataType? LastMetaData { get; set; }
 
             /// <summary>
             /// Holds the Utc DateTime for the last metadata sent

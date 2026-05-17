@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -340,7 +340,7 @@ namespace Opc.Ua
                         return PickBestCertificate(matchesOnCriteria);
                     }
 
-                    bool hasCommonName = subjectName.Contains("CN=", StringComparison.OrdinalIgnoreCase);
+                    bool hasCommonName = subjectName!.Contains("CN=", StringComparison.OrdinalIgnoreCase);
 
                     // If parsedSubjectName did not match the certificate distinguished name
                     // If "CN=" exists in the subject name than an exact match on CN is required
@@ -485,7 +485,7 @@ namespace Opc.Ua
                     {
                         return false;
                     }
-                    else if (certType == certificateType)
+                    else if (Utils.IsEqual(certType, certificateType))
                     {
                         return true;
                     }
@@ -853,8 +853,8 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public Task<Certificate?> LoadPrivateKeyAsync(
             string thumbprint,
-            string subjectName,
-            string applicationUri,
+            string? subjectName,
+            string? applicationUri,
             NodeId certificateType,
             char[]? password,
             CancellationToken ct = default)

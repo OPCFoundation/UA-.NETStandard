@@ -506,7 +506,7 @@ namespace Opc.Ua.Client.Subscriptions
                 return;
             }
             if (notificationData.Value.TryGetValue(
-                out DataChangeNotification datachange))
+                out DataChangeNotification? datachange))
             {
                 await OnDataChangeNotificationAsync(
                     message.SequenceNumber,
@@ -516,7 +516,7 @@ namespace Opc.Ua.Client.Subscriptions
                     message.StringTable.ToArray() ?? []).ConfigureAwait(false);
             }
             else if (notificationData.Value.TryGetValue(
-                out EventNotificationList events))
+                out EventNotificationList? events))
             {
                 await OnEventDataNotificationAsync(
                     message.SequenceNumber,
@@ -526,7 +526,7 @@ namespace Opc.Ua.Client.Subscriptions
                     message.StringTable.ToArray() ?? []).ConfigureAwait(false);
             }
             else if (notificationData.Value.TryGetValue(
-                out StatusChangeNotification statusChanged))
+                out StatusChangeNotification? statusChanged))
             {
                 PublishState mask = publishStateMask;
                 if (statusChanged.Status == StatusCodes.GoodSubscriptionTransferred)

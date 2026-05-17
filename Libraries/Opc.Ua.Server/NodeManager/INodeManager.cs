@@ -96,7 +96,7 @@ namespace Opc.Ua.Server
         /// underlying system then it must check to see if it recognizes the syntax of the node id.
         /// The handle in this case may simply be a partially parsed version of the node id.
         /// </remarks>
-        object GetManagerHandle(NodeId nodeId);
+        object? GetManagerHandle(NodeId nodeId);
 
         /// <summary>
         /// Adds references to the node manager.
@@ -122,7 +122,7 @@ namespace Opc.Ua.Server
         /// <remarks>
         /// Returns null if the node does not exist.
         /// </remarks>
-        NodeMetadata GetNodeMetadata(
+        NodeMetadata? GetNodeMetadata(
             OperationContext context,
             object targetHandle,
             BrowseResultMask resultMask);
@@ -366,7 +366,7 @@ namespace Opc.Ua.Server
         /// Returns null if the node does not exist.
         /// It should return null in case the implementation wishes to handover the task to the parent INodeManager.GetNodeMetadata
         /// </remarks>
-        NodeMetadata GetPermissionMetadata(
+        NodeMetadata? GetPermissionMetadata(
             OperationContext context,
             object targetHandle,
             BrowseResultMask resultMask,
@@ -576,7 +576,7 @@ namespace Opc.Ua.Server
         /// <returns>The continuation point that stores the state of the Browse operation or null if there are no more references to return.</returns>
         /// <exception cref="ArgumentNullException">Thrown if the context, continuationPoint or references parameters are null.</exception>
         /// <exception cref="ServiceResultException">Thrown if an error occurs during processing.</exception>
-        ValueTask<ContinuationPoint> BrowseAsync(
+        ValueTask<ContinuationPoint?> BrowseAsync(
             OperationContext context,
             ContinuationPoint continuationPoint,
             IList<ReferenceDescription> references,
@@ -838,7 +838,7 @@ namespace Opc.Ua.Server
         /// Returns null if the node does not exist.
         /// It should return null in case the implementation wishes to handover the task to the parent INodeManager.GetNodeMetadata
         /// </remarks>
-        ValueTask<NodeMetadata> GetPermissionMetadataAsync(
+        ValueTask<NodeMetadata?> GetPermissionMetadataAsync(
             OperationContext context,
             object targetHandle,
             BrowseResultMask resultMask,

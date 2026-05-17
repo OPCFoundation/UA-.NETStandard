@@ -52,7 +52,7 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="returnPartial">If true a partial interval should be processed.</param>
         /// <returns>The processed value. Null if nothing available and returnPartial is false.</returns>
-        DataValue GetProcessedValue(bool returnPartial);
+        DataValue? GetProcessedValue(bool returnPartial);
 
         /// <summary>
         /// Returns true if the specified time is later than the end of the current interval.

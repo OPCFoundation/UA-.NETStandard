@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -49,10 +49,10 @@ namespace Opc.Ua.Bindings
             string contextId,
             BufferManager bufferManager,
             ChannelQuotas quotas,
-            Certificate serverCertificate,
-            List<EndpointDescription> endpoints,
+            Certificate? serverCertificate,
+            List<EndpointDescription>? endpoints,
             MessageSecurityMode securityMode,
-            string securityPolicyUri,
+            string? securityPolicyUri,
             ITelemetryContext telemetry)
             : this(
                 contextId,
@@ -74,10 +74,10 @@ namespace Opc.Ua.Bindings
             string contextId,
             BufferManager bufferManager,
             ChannelQuotas quotas,
-            ICertificateRegistry serverCertificates,
-            List<EndpointDescription> endpoints,
+            ICertificateRegistry? serverCertificates,
+            List<EndpointDescription>? endpoints,
             MessageSecurityMode securityMode,
-            string securityPolicyUri,
+            string? securityPolicyUri,
             ITelemetryContext telemetry)
             : this(
                 contextId,
@@ -99,11 +99,11 @@ namespace Opc.Ua.Bindings
             string contextId,
             BufferManager bufferManager,
             ChannelQuotas quotas,
-            ICertificateRegistry serverCertificates,
-            Certificate serverCertificate,
-            List<EndpointDescription> endpoints,
+            ICertificateRegistry? serverCertificates,
+            Certificate? serverCertificate,
+            List<EndpointDescription>? endpoints,
             MessageSecurityMode securityMode,
-            string securityPolicyUri,
+            string? securityPolicyUri,
             ITelemetryContext telemetry)
         {
             // create a unique contex if none provided.
@@ -117,12 +117,12 @@ namespace Opc.Ua.Bindings
             }
 
             // secuirty turned off if message security mode is set to none.
-            if (securityMode == MessageSecurityMode.None)
+            if (securityMode == MessageSecurityMode.None || securityPolicyUri == null)
             {
                 securityPolicyUri = SecurityPolicies.None;
             }
 
-            CertificateCollection serverCertificateChain = null;
+            CertificateCollection? serverCertificateChain = null;
             if (serverCertificates != null && securityMode != MessageSecurityMode.None)
             {
                 serverCertificate =
@@ -158,7 +158,7 @@ namespace Opc.Ua.Bindings
             m_serverCertificates = serverCertificates;
             ServerCertificate = serverCertificate;
             ServerCertificateChain = serverCertificateChain;
-            m_endpoints = endpoints;
+            m_endpoints = endpoints ?? [];
             SecurityMode = securityMode;
             SecurityPolicyUri = securityPolicyUri;
             DiscoveryOnly = false;
@@ -246,16 +246,16 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// The globally unique identifier assigned to the channel by the server.
         /// </summary>
-        public string GlobalChannelId { get; private set; }
+        public string GlobalChannelId { get; private set; } = string.Empty;
 
         /// <inheritdoc/>
-        internal byte[] ChannelThumbprint { get; set; }
+        internal byte[]? ChannelThumbprint { get; set; }
 
         /// <inheritdoc/>
-        public byte[] ClientChannelCertificate { get; protected set; }
+        public byte[]? ClientChannelCertificate { get; protected set; }
 
         /// <inheritdoc/>
-        public byte[] ServerChannelCertificate { get; protected set; }
+        public byte[]? ServerChannelCertificate { get; protected set; }
 
         /// <summary>
         /// Raised when the state of the channel changes.
@@ -278,7 +278,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected void ChannelStateChanged(TcpChannelState state, ServiceResult reason)
         {
-            TcpChannelStateEventHandler stateChanged = m_stateChanged;
+            TcpChannelStateEventHandler? stateChanged = m_stateChanged;
             if (stateChanged != null)
             {
                 _ = Task.Run(() => stateChanged?.Invoke(this, state, reason));
@@ -290,7 +290,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected uint GetNewSequenceNumber()
         {
-            bool isLegacy = SecurityPolicy.LegacySequenceNumbers;
+            bool isLegacy = SecurityPolicy!.LegacySequenceNumbers;
 
             long newSeqNumber = Interlocked.Increment(ref m_sequenceNumber);
             bool maxValueOverflow = isLegacy
@@ -435,7 +435,7 @@ namespace Opc.Ua.Bindings
             bool isServerContext)
         {
             SaveIntermediateChunk(requestId, chunk, isServerContext);
-            BufferCollection savedChunks = m_partialMessageChunks;
+            BufferCollection savedChunks = m_partialMessageChunks!;
             m_partialMessageChunks = null;
             return savedChunks;
         }
@@ -466,11 +466,11 @@ namespace Opc.Ua.Bindings
         {
             try
             {
-                uint messageType = BitConverter.ToUInt32(message.Array, message.Offset);
+                uint messageType = BitConverter.ToUInt32(message.GetArray(), message.Offset);
 
                 if (!HandleIncomingMessage(messageType, message))
                 {
-                    BufferManager.ReturnBuffer(message.Array, "OnMessageReceived");
+                    BufferManager.ReturnBuffer(message.GetArray(), "OnMessageReceived");
                 }
             }
             catch (Exception e)
@@ -543,7 +543,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Handles a write complete event.
         /// </summary>
-        protected virtual void OnWriteComplete(object sender, IMessageSocketAsyncEventArgs e)
+        protected virtual void OnWriteComplete(object? sender, IMessageSocketAsyncEventArgs e)
         {
             ServiceResult error = ServiceResult.Good;
             try
@@ -581,7 +581,7 @@ namespace Opc.Ua.Bindings
         /// Queues a write request.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        protected void BeginWriteMessage(ArraySegment<byte> buffer, object state)
+        protected void BeginWriteMessage(ArraySegment<byte> buffer, object? state)
         {
             ServiceResult error = ServiceResult.Good;
             IMessageSocketAsyncEventArgs args =
@@ -593,7 +593,7 @@ namespace Opc.Ua.Bindings
             try
             {
                 Interlocked.Increment(ref m_activeWriteRequests);
-                args.SetBuffer(buffer.Array, buffer.Offset, buffer.Count);
+                args.SetBuffer(buffer.GetArray(), buffer.Offset, buffer.Count);
                 args.Completed += OnWriteComplete;
                 args.UserToken = state;
                 if (!Socket.Send(args))
@@ -629,10 +629,10 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Queues a write request.
         /// </summary>
-        protected void BeginWriteMessage(BufferCollection buffers, object state)
+        protected void BeginWriteMessage(BufferCollection buffers, object? state)
         {
             ServiceResult error = ServiceResult.Good;
-            IMessageSocketAsyncEventArgs args = Socket.MessageSocketEventArgs();
+            IMessageSocketAsyncEventArgs args = Socket!.MessageSocketEventArgs();
 
             try
             {
@@ -642,7 +642,7 @@ namespace Opc.Ua.Bindings
                 args.BufferList = buffers;
                 args.Completed += OnWriteComplete;
                 args.UserToken = state;
-                IMessageSocket socket = Socket;
+                IMessageSocket? socket = Socket;
                 if (socket == null || !socket.Send(args))
                 {
                     // I/O completed synchronously
@@ -675,8 +675,8 @@ namespace Opc.Ua.Bindings
         /// Called after a write operation completes.
         /// </summary>
         protected virtual void HandleWriteComplete(
-            BufferCollection buffers,
-            object state,
+            BufferCollection? buffers,
+            object? state,
             int bytesWritten,
             ServiceResult result)
         {
@@ -692,7 +692,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected static void WriteErrorMessageBody(BinaryEncoder encoder, ServiceResult error)
         {
-            string reason = error.LocalizedText.Text;
+            string? reason = error.LocalizedText.Text;
 
             // check that length is not exceeded.
             if (reason != null &&
@@ -714,7 +714,7 @@ namespace Opc.Ua.Bindings
             // read the status code.
             uint statusCode = decoder.ReadUInt32(null);
 
-            string reason = null;
+            string? reason = null;
 
             // ensure the reason does not exceed the limits in the protocol.
             int reasonLength = decoder.ReadInt32(null);
@@ -807,7 +807,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// The socket for the channel.
         /// </summary>
-        protected internal IMessageSocket Socket { get; set; }
+        protected internal IMessageSocket? Socket { get; set; }
 
         /// <summary>
         /// Whether the client channel uses a reverse hello socket.
@@ -890,7 +890,7 @@ namespace Opc.Ua.Bindings
             /// <summary>
             /// Initializes the object with a callback
             /// </summary>
-            public WriteOperation(int timeout, AsyncCallback callback, object asyncState, ILogger logger)
+            public WriteOperation(int timeout, AsyncCallback? callback, object? asyncState, ILogger logger)
                 : base(timeout, callback, asyncState, logger)
             {
             }
@@ -903,7 +903,7 @@ namespace Opc.Ua.Bindings
             /// <summary>
             /// The body of the request or response associated with the operation.
             /// </summary>
-            public IEncodeable MessageBody { get; set; }
+            public IEncodeable? MessageBody { get; set; }
         }
 
         /// <summary>
@@ -979,9 +979,9 @@ namespace Opc.Ua.Bindings
         private bool m_sequenceRollover;
         private bool m_firstReceivedSequenceNumber = true;
         private uint m_partialRequestId;
-        private BufferCollection m_partialMessageChunks;
+        private BufferCollection? m_partialMessageChunks;
 
-        private TcpChannelStateEventHandler m_stateChanged;
+        private TcpChannelStateEventHandler? m_stateChanged;
         private const uint kMaxValueLegacyTrue = TcpMessageLimits.MinSequenceNumber;
         private const uint kMaxValueLegacyFalse = uint.MaxValue;
     }

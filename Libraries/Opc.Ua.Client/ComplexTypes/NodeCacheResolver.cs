@@ -460,9 +460,9 @@ namespace Opc.Ua.Client.ComplexTypes
         }
 
         /// <inheritdoc/>
-        public Task<INode> FindAsync(ExpandedNodeId nodeId, CancellationToken ct = default)
+        public async Task<INode?> FindAsync(ExpandedNodeId nodeId, CancellationToken ct = default)
         {
-            return GetNodeAsync(nodeId, ct).AsTask();
+            return await GetNodeAsync(nodeId, ct).ConfigureAwait(false);
         }
 
         /// <summary>

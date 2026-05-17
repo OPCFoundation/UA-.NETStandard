@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -37,7 +37,7 @@ namespace Opc.Ua
     /// <summary>
     /// Relative path
     /// </summary>
-    [DataContract(Namespace = Namespaces.OpcUaXsd)]
+    [DataContract(Namespace = Types.Namespaces.OpcUaXsd)]
     public class RelativePath :
         IEncodeable,
         IEquatable<RelativePath>
@@ -122,7 +122,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public virtual bool IsEqual(IEncodeable encodeable)
+        public virtual bool IsEqual(IEncodeable? encodeable)
         {
             if (ReferenceEquals(this, encodeable))
             {
@@ -143,9 +143,9 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public bool Equals(RelativePath other)
+        public bool Equals(RelativePath? other)
         {
-            return IsEqual(other);
+            return IsEqual(other)!;
         }
 
         /// <inheritdoc/>
@@ -155,7 +155,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return IsEqual(obj as IEncodeable);
         }
@@ -192,7 +192,7 @@ namespace Opc.Ua
         /// <summary>
         /// Returns true if the relative path does not specify any elements.
         /// </summary>
-        public static bool IsEmpty(RelativePath relativePath)
+        public static bool IsEmpty(RelativePath? relativePath)
         {
             if (relativePath != null)
             {
@@ -206,7 +206,7 @@ namespace Opc.Ua
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="typeTree"/> is <c>null</c>.</exception>
         /// <exception cref="ServiceResultException"></exception>
-        public static RelativePath Parse(string browsePath, ITypeTable typeTree)
+        public static RelativePath Parse(string browsePath, ITypeTable? typeTree)
         {
             if (typeTree == null)
             {
@@ -274,13 +274,18 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException"></exception>
         public static RelativePath Parse(
             string browsePath,
-            ITypeTable typeTree,
+            ITypeTable? typeTree,
             NamespaceTable currentTable,
             NamespaceTable targetTable)
         {
             // parse the string.
             var formatter = RelativePathFormatter.Parse(browsePath, currentTable, targetTable);
             var elements = new List<RelativePathElement>();
+
+            if (formatter == null)
+            {
+                return new RelativePath { Elements = elements.ToArrayOf() };
+            }
 
             foreach (RelativePathFormatter.Element element in formatter.Elements)
             {

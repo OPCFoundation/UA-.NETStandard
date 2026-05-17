@@ -39,17 +39,17 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// Get the ids of the DataSetWriters
         /// </summary>
-        public ushort[] DataSetWriterIds { get; internal set; }
+        public ushort[] DataSetWriterIds { get; internal set; } = null!;
 
         /// <summary>
         /// Get the received configuration.
         /// </summary>
-        public WriterGroupDataType DataSetWriterConfiguration { get; internal set; }
+        public WriterGroupDataType DataSetWriterConfiguration { get; internal set; } = null!;
 
         /// <summary>
         /// Get the source information
         /// </summary>
-        public string Source { get; internal set; }
+        public string Source { get; internal set; } = null!;
 
         /// <summary>
         /// Get the publisher Id
@@ -59,6 +59,6 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// Get the statuses code of the DataSetWriter
         /// </summary>
-        public StatusCode[] StatusCodes { get; internal set; }
+        public StatusCode[] StatusCodes { get; internal set; } = null!;
     }
 }

@@ -59,7 +59,7 @@ namespace Opc.Ua
         /// A <see cref="string"/> containing the value of the current instance in the specified format.
         /// </returns>
         /// <exception cref="FormatException"></exception>
-        public string ToString(string format, IFormatProvider formatProvider)
+        public string ToString(string? format, IFormatProvider? formatProvider)
         {
             if (format == null)
             {
@@ -83,7 +83,7 @@ namespace Opc.Ua
         /// <returns>The result of validation.</returns>
         public Result Validate(IFilterContext context)
         {
-            var result = new Result(null);
+            var result = new Result(ServiceResult.Good);
 
             // check for empty filter.
             if (m_elements.IsEmpty)
@@ -122,7 +122,7 @@ namespace Opc.Ua
                     continue;
                 }
 
-                result.ElementResults.Add(null);
+                result.ElementResults.Add(null!); // intentional null sentinel: list cleared if no errors, otherwise non-null entries indicate failures
             }
 
             // ensure the global error code.
@@ -161,6 +161,8 @@ namespace Opc.Ua
             {
                 // check if a FilterOperand was provided.
 
+                // TryGetStructure uses MaybeNullWhen(false); we check the bool.
+#pragma warning disable CS8600 // Converting null literal or possible null value to non-nullable type.
                 if (operands[ii].TryGetStructure(out FilterOperand filterOperand))
                 {
                     element.FilterOperands =
@@ -170,6 +172,7 @@ namespace Opc.Ua
                 {
                     // check for reference to another ContentFilterElement.
                     int index = FindElementIndex(existingElement);
+#pragma warning restore CS8600
 
                     if (index == -1)
                     {
@@ -200,7 +203,7 @@ namespace Opc.Ua
             {
                 foreach (ExtensionObject extension in m_elements[ii].FilterOperands)
                 {
-                    if (extension.TryGetValue(out ElementOperand operand))
+                    if (extension.TryGetValue(out ElementOperand? operand) && operand != null)
                     {
                         operand.Index++;
                     }
@@ -287,7 +290,7 @@ namespace Opc.Ua
 
                 foreach (ElementResult elementResult in m_elementResults)
                 {
-                    ContentFilterElementResult elementResult2 = null;
+                    ContentFilterElementResult? elementResult2 = null;
 
                     if (elementResult == null || ServiceResult.IsGood(elementResult.Status))
                     {
@@ -297,7 +300,7 @@ namespace Opc.Ua
                         };
 
                         result.ElementResults = result.ElementResults.AddItem(elementResult2);
-                        result.ElementDiagnosticInfos = result.ElementDiagnosticInfos.AddItem(null);
+                        result.ElementDiagnosticInfos = result.ElementDiagnosticInfos.AddItem(null!); // intentional null sentinel for "no diagnostic"
                         continue;
                     }
 
@@ -326,7 +329,7 @@ namespace Opc.Ua
                 return result;
             }
 
-            private List<ElementResult> m_elementResults;
+            private List<ElementResult>? m_elementResults;
         }
 
         /// <summary>
@@ -396,7 +399,7 @@ namespace Opc.Ua
                     if (ServiceResult.IsGood(operandResult))
                     {
                         result.OperandStatusCodes = result.OperandStatusCodes.AddItem(StatusCodes.Good);
-                        result.OperandDiagnosticInfos = result.OperandDiagnosticInfos.AddItem(null);
+                        result.OperandDiagnosticInfos = result.OperandDiagnosticInfos.AddItem(null!); // intentional null sentinel for "no diagnostic"
                     }
                     else
                     {
@@ -414,7 +417,7 @@ namespace Opc.Ua
                 return result;
             }
 
-            private List<ServiceResult> m_operandResults;
+            private List<ServiceResult>? m_operandResults;
         }
     }
 
@@ -433,7 +436,7 @@ namespace Opc.Ua
         /// A <see cref="string"/> containing the value of the current instance in the specified format.
         /// </returns>
         /// <exception cref="FormatException"></exception>
-        public string ToString(string format, IFormatProvider formatProvider)
+        public string ToString(string? format, IFormatProvider? formatProvider)
         {
             if (format == null)
             {
@@ -476,7 +479,7 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException"></exception>
         public virtual ContentFilter.ElementResult Validate(IFilterContext context, int index)
         {
-            var result = new ContentFilter.ElementResult(null);
+            var result = new ContentFilter.ElementResult(ServiceResult.Good);
 
             // check the number of operands.
             int operandCount;
@@ -562,7 +565,8 @@ namespace Opc.Ua
 
                 // check that the extension object contains a filter operand.
 
-                if (!operand.TryGetValue(out FilterOperand filterOperand))
+                if (!operand.TryGetValue(out FilterOperand? filterOperand) ||
+                    filterOperand == null)
                 {
                     operandResult = ServiceResult.Create(
                         StatusCodes.BadEventFilterInvalid,
@@ -585,7 +589,7 @@ namespace Opc.Ua
                     continue;
                 }
 
-                result.OperandResults.Add(null);
+                result.OperandResults.Add(null!); // intentional null sentinel: list cleared if no errors, otherwise non-null entries indicate failures
             }
 
             // ensure the global error code.
@@ -611,7 +615,7 @@ namespace Opc.Ua
 
             foreach (ExtensionObject extension in FilterOperands)
             {
-                if (extension.TryGetValue(out FilterOperand operand))
+                if (extension.TryGetValue(out FilterOperand? operand) && operand != null)
                 {
                     operands.Add(operand);
                 }
@@ -649,9 +653,9 @@ namespace Opc.Ua
         {
             List<FilterOperand> operands = GetOperands();
 
-            string operand1 = operands.Count > 0 ? operands[0].ToString(nodeTable) : null;
-            string operand2 = operands.Count > 1 ? operands[1].ToString(nodeTable) : null;
-            string operand3 = operands.Count > 2 ? operands[2].ToString(nodeTable) : null;
+            string? operand1 = operands.Count > 0 ? operands[0].ToString(nodeTable) : null;
+            string? operand2 = operands.Count > 1 ? operands[1].ToString(nodeTable) : null;
+            string? operand3 = operands.Count > 2 ? operands[2].ToString(nodeTable) : null;
 
             var buffer = new StringBuilder();
 
@@ -720,7 +724,7 @@ namespace Opc.Ua
                 case FilterOperator.RelatedTo:
                     buffer.AppendFormat(CultureInfo.InvariantCulture, "'{0}' ", operand1);
 
-                    string referenceType = operand2;
+                    string? referenceType = operand2;
 
                     if (operands.Count > 1 && operands[1] is LiteralOperand literalOperand)
                     {
@@ -728,7 +732,7 @@ namespace Opc.Ua
                         {
                             nodeIdValue = default;
                         }
-                        INode node = nodeTable.Find(nodeIdValue);
+                        INode? node = nodeTable.Find(nodeIdValue);
                         if (node != null)
                         {
                             referenceType = CoreUtils.Format("{0}", node);
@@ -893,7 +897,7 @@ namespace Opc.Ua
         /// A <see cref="string"/> containing the value of the current instance in the specified format.
         /// </returns>
         /// <exception cref="FormatException"></exception>
-        public string ToString(string format, IFormatProvider formatProvider)
+        public string ToString(string? format, IFormatProvider? formatProvider)
         {
             if (format == null)
             {
@@ -967,7 +971,9 @@ namespace Opc.Ua
             {
                 try
                 {
-                    m_parsedIndexRange = NumericRange.Parse(m_indexRange);
+                    // m_indexRange is non-empty (and thus non-null) here; legacy BCL targets
+                    // lack [NotNullWhen(false)] on string.IsNullOrEmpty.
+                    m_parsedIndexRange = NumericRange.Parse(m_indexRange!);
                 }
                 catch (Exception e)
                 {
@@ -975,7 +981,7 @@ namespace Opc.Ua
                         e,
                         StatusCodes.BadIndexRangeInvalid,
                         "AttributeOperand does not specify a valid BrowsePath ({0}).",
-                        m_indexRange);
+                        m_indexRange!);
                 }
 
                 if (m_attributeId != Attributes.Value)
@@ -1001,7 +1007,7 @@ namespace Opc.Ua
         {
             var buffer = new StringBuilder();
 
-            INode node = nodeTable.Find(m_nodeId);
+            INode? node = nodeTable.Find(m_nodeId);
 
             if (node != null)
             {
@@ -1025,7 +1031,7 @@ namespace Opc.Ua
                 buffer.AppendFormat(
                     CultureInfo.InvariantCulture,
                     "[{0}]",
-                    NumericRange.Parse(IndexRange));
+                    NumericRange.Parse(IndexRange!)); // IndexRange property re-read; non-null per IsNullOrEmpty
             }
 
             if (!string.IsNullOrEmpty(Alias))
@@ -1063,7 +1069,7 @@ namespace Opc.Ua
         /// A <see cref="string"/> containing the value of the current instance in the specified format.
         /// </returns>
         /// <exception cref="FormatException"></exception>
-        public string ToString(string format, IFormatProvider formatProvider)
+        public string ToString(string? format, IFormatProvider? formatProvider)
         {
             if (format == null)
             {
@@ -1143,7 +1149,7 @@ namespace Opc.Ua
         /// A <see cref="string"/> containing the value of the current instance in the specified format.
         /// </returns>
         /// <exception cref="FormatException"></exception>
-        public string ToString(string format, IFormatProvider formatProvider)
+        public string ToString(string? format, IFormatProvider? formatProvider)
         {
             if (format == null)
             {
@@ -1192,7 +1198,7 @@ namespace Opc.Ua
 
             if (!nodeId.IsNull)
             {
-                INode node = nodeTable.Find(nodeId);
+                INode? node = nodeTable.Find(nodeId);
 
                 if (node != null)
                 {

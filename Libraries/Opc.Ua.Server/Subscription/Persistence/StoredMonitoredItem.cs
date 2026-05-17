@@ -51,7 +51,7 @@ namespace Opc.Ua.Server
         public uint AttributeId { get; set; }
 
         /// <inheritdoc/>
-        public string IndexRange { get; set; }
+        public string IndexRange { get; set; } = null!;
 
         /// <inheritdoc/>
         public QualifiedName Encoding { get; set; }
@@ -69,10 +69,10 @@ namespace Opc.Ua.Server
         public MonitoringMode MonitoringMode { get; set; }
 
         /// <inheritdoc/>
-        public MonitoringFilter OriginalFilter { get; set; }
+        public MonitoringFilter OriginalFilter { get; set; } = null!;
 
         /// <inheritdoc/>
-        public MonitoringFilter FilterToUse { get; set; }
+        public MonitoringFilter FilterToUse { get; set; } = null!;
 
         /// <inheritdoc/>
         public double Range { get; set; }
@@ -96,10 +96,10 @@ namespace Opc.Ua.Server
         public bool IsDurable { get; set; }
 
         /// <inheritdoc/>
-        public DataValue LastValue { get; set; }
+        public DataValue LastValue { get; set; } = null!;
 
         /// <inheritdoc/>
-        public ServiceResult LastError { get; set; }
+        public ServiceResult LastError { get; set; } = null!;
 
         /// <inheritdoc/>
         public NumericRange ParsedIndexRange { get; set; }

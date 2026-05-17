@@ -44,14 +44,14 @@ namespace Opc.Ua.PubSub
         void WritePublishedDataItem(
             NodeId nodeId,
             uint attributeId = Attributes.Value,
-            DataValue dataValue = null);
+            DataValue? dataValue = null);
 
         /// <summary>
         /// Read the DataValue stored for a specific NodeId and Attribute.
         /// </summary>
         /// <param name="nodeId">NodeId identifier of node</param>
         /// <param name="attributeId">Default value is <see cref="Attributes.Value"/></param>
-        DataValue ReadPublishedDataItem(NodeId nodeId, uint attributeId = Attributes.Value);
+        DataValue? ReadPublishedDataItem(NodeId nodeId, uint attributeId = Attributes.Value);
 
         /// <summary>
         /// Updates the metadata if it has changed from when the DataStore was created.

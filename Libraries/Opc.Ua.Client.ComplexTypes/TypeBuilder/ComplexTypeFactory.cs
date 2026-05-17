@@ -46,7 +46,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary>
         /// Factory creates types in the assembly module.
         /// </summary>
-        public ComplexTypeBuilderFactory(string assemblyName = null)
+        public ComplexTypeBuilderFactory(string? assemblyName = null)
         {
             m_moduleFactory = new AssemblyModule(assemblyName);
         }
@@ -57,7 +57,7 @@ namespace Opc.Ua.Client.ComplexTypes
         public IComplexTypeBuilder Create(
             string targetNamespace,
             int targetNamespaceIndex,
-            string moduleName = null)
+            string? moduleName = null)
         {
             return new ComplexTypeBuilder(
                 m_moduleFactory,
@@ -86,7 +86,9 @@ namespace Opc.Ua.Client.ComplexTypes
         private sealed record class GeneratedType(Type Type) : IType
         {
             /// <inheritdoc/>
-            public XmlQualifiedName XmlName => TypeInfo.GetXmlName(Type);
+            // The dynamically generated complex type carries a DataContractAttribute,
+            // so TypeInfo.GetXmlName always returns a non-null value here.
+            public XmlQualifiedName XmlName => TypeInfo.GetXmlName(Type)!;
         }
     }
 }

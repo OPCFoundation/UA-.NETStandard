@@ -43,7 +43,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
                     Endpoint = new ConfiguredEndpoint(null, new EndpointDescription
                     {
                         EndpointUrl = "opc.tcp://localhost:4840"
-                    })
+                    }, configuration: null)
                 };
             });
 

@@ -210,11 +210,10 @@ namespace Opc.Ua.Server
                     }
 
                     // enqueue event
-                    if (context is ISessionSystemContext session &&
-                        !session.SessionId.IsNull &&
-                        monitoredItem?.Session != null &&
-                        !monitoredItem.Session.Id.IsNull &&
-                        !monitoredItem.Session.Id.Equals(session.SessionId))
+                    if (context is ISessionSystemContext sessionContext &&
+                        sessionContext.SessionId is { IsNull: false } contextSessionId &&
+                        monitoredItem?.Session?.Id is { IsNull: false } monitoredItemSessionId &&
+                        !monitoredItemSessionId.Equals(contextSessionId))
                     {
                         // skip if the event does not belong to the same session as the monitored item
                         continue;
@@ -260,7 +259,7 @@ namespace Opc.Ua.Server
                     if (context is ServerSystemContext serverContext)
                     {
                         ServerSystemContext serverSystemContextToUse = GetOrCreateContext(serverContext, monitoredItem);
-                        operationContext = serverSystemContextToUse.OperationContext;
+                        operationContext = serverSystemContextToUse.OperationContext!;
                         contextToUse = serverSystemContextToUse;
                     }
                     else
@@ -275,7 +274,7 @@ namespace Opc.Ua.Server
                         // Use cached permission result to avoid validating on every value change.
                         // The cache is invalidated when RolePermissions/UserRolePermissions change
                         // or when the user identity of the monitored item changes.
-                        if (!m_permissionCache.TryGetValue(monitoredItem.Id, out ServiceResult validationResult))
+                        if (!m_permissionCache.TryGetValue(monitoredItem.Id, out ServiceResult? validationResult))
                         {
                             validationResult = NodeManager.ValidateRolePermissions(
                                 operationContext,
@@ -330,7 +329,7 @@ namespace Opc.Ua.Server
                 value = null;
             }
 
-            monitoredItem.QueueValue(value, error);
+            monitoredItem.QueueValue(value!, error);
         }
 
         /// <summary>
@@ -356,7 +355,7 @@ namespace Opc.Ua.Server
                 // or if the cache entry has expired.
                 // Note: identity-based invalidation is handled proactively by
                 // InvalidatePermissionCacheForSession when ActivateSession changes the identity.
-                if (cachedEntry.Context.OperationContext.Session != monitoredItem.Session ||
+                if (cachedEntry.Context.OperationContext!.Session != monitoredItem.Session ||
                     (currentTicks - cachedEntry.CreatedAtTicks) > m_cacheLifetimeTicks)
                 {
                     operationContext = new OperationContext(monitoredItem);
@@ -408,7 +407,7 @@ namespace Opc.Ua.Server
         /// <c>DefaultUserRolePermissions</c>) change. Invalidates the entire permission cache
         /// so that all entries are re-validated on the next value change.
         /// </summary>
-        private void OnDefaultPermissionsChanged(object sender, EventArgs e)
+        private void OnDefaultPermissionsChanged(object? sender, EventArgs e)
         {
             m_permissionCache.Clear();
         }

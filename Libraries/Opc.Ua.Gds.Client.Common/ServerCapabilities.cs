@@ -79,14 +79,14 @@ namespace Opc.Ua.Gds.Client
         /// </summary>
         /// <param name="id">The identifier.</param>
         /// <returns>The server capability, if found. NULL if it does not exist.</returns>
-        public ServerCapabilityInfo Find(string id)
+        public ServerCapabilityInfo? Find(string? id)
         {
             if (id == null || m_lookup == null)
             {
                 return null;
             }
 
-            return m_lookup.TryGetValue(id, out ServerCapabilityInfo capability) ? capability : null;
+            return m_lookup.TryGetValue(id, out ServerCapabilityInfo? capability) ? capability : null;
         }
 
         private readonly ImmutableArray<ServerCapabilityInfo> m_capabilities;
@@ -101,12 +101,12 @@ namespace Opc.Ua.Gds.Client
         /// <summary>
         /// Gets or sets the identifier.
         /// </summary>
-        public string Id { get; set; }
+        public string? Id { get; set; }
 
         /// <summary>
         /// Gets or sets the description.
         /// </summary>
-        public string Description { get; set; }
+        public string? Description { get; set; }
 
         /// <inheritdoc/>
         public override string ToString()
@@ -120,7 +120,7 @@ namespace Opc.Ua.Gds.Client
         /// <param name="format">The format. Must be null.</param>
         /// <param name="formatProvider">The format provider.</param>
         /// <exception cref="FormatException"></exception>
-        public string ToString(string format, IFormatProvider formatProvider)
+        public string ToString(string? format, IFormatProvider? formatProvider)
         {
             if (format != null)
             {

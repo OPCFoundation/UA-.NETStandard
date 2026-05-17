@@ -44,7 +44,7 @@ namespace Opc.Ua.PubSub.Transport
         private const string kDefaultDiscoveryUrl = "opc.udp://224.0.2.14:4840";
 
         protected UdpPubSubConnection m_udpConnection;
-        protected List<UdpClient> m_discoveryUdpClients;
+        protected List<UdpClient>? m_discoveryUdpClients;
 
         /// <summary>
         /// Create new instance of <see cref="UdpDiscovery"/>
@@ -61,17 +61,17 @@ namespace Opc.Ua.PubSub.Transport
         /// <summary>
         /// Get the Discovery <see cref="IPEndPoint"/> from <see cref="PubSubConnectionDataType"/>.TransportSettings.
         /// </summary>
-        public IPEndPoint DiscoveryNetworkAddressEndPoint { get; private set; }
+        public IPEndPoint? DiscoveryNetworkAddressEndPoint { get; private set; }
 
         /// <summary>
         /// Get the discovery NetworkInterface name from <see cref="PubSubConnectionDataType"/>.TransportSettings.
         /// </summary>
-        public string DiscoveryNetworkInterfaceName { get; set; }
+        public string? DiscoveryNetworkInterfaceName { get; set; }
 
         /// <summary>
         /// Get the corresponding <see cref="IServiceMessageContext"/>
         /// </summary>
-        public IServiceMessageContext MessageContext { get; private set; }
+        public IServiceMessageContext? MessageContext { get; private set; }
         protected Lock Lock { get; } = new();
         protected ITelemetryContext Telemetry { get; }
 
@@ -90,8 +90,8 @@ namespace Opc.Ua.PubSub.Transport
                         // initialize Discovery channels
                         m_discoveryUdpClients = UdpClientCreator.GetUdpClients(
                             UsedInContext.Discovery,
-                            DiscoveryNetworkInterfaceName,
-                            DiscoveryNetworkAddressEndPoint,
+                            DiscoveryNetworkInterfaceName!,
+                            DiscoveryNetworkAddressEndPoint!,
                             Telemetry,
                             m_logger);
                     }
@@ -140,7 +140,7 @@ namespace Opc.Ua.PubSub.Transport
 
                 DiscoveryNetworkInterfaceName = discoveryNetworkAddressUrlState.NetworkInterface;
                 DiscoveryNetworkAddressEndPoint = UdpClientCreator.GetEndPoint(
-                    discoveryNetworkAddressUrlState.Url,
+                    discoveryNetworkAddressUrlState.Url!,
                     m_logger);
             }
 

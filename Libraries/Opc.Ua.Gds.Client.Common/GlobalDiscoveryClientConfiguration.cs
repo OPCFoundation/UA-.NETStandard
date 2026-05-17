@@ -38,9 +38,9 @@ namespace Opc.Ua.Gds.Client
     public class GlobalDiscoveryClientConfiguration
     {
         [DataMember(Order = 1)]
-        public string GlobalDiscoveryServerUrl { get; set; }
+        public string? GlobalDiscoveryServerUrl { get; set; }
 
         [DataMember(Order = 2)]
-        public string ExternalEditor { get; set; }
+        public string? ExternalEditor { get; set; }
     }
 }

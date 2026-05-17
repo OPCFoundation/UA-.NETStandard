@@ -58,7 +58,12 @@ namespace Opc.Ua.PubSub.Tests
             app.RawDataReceived += (_, _) => throw new InvalidOperationException("test");
 
             Assert.DoesNotThrow(() =>
-                app.RaiseRawDataReceivedEvent(new RawDataReceivedEventArgs()));
+                app.RaiseRawDataReceivedEvent(new RawDataReceivedEventArgs
+                {
+                    Message = [],
+                    Source = string.Empty,
+                    PubSubConnectionConfiguration = new PubSubConnectionDataType()
+                }));
         }
 
         /// <summary>
@@ -124,7 +129,11 @@ namespace Opc.Ua.PubSub.Tests
             app.ConfigurationUpdating += (_, _) => throw new InvalidOperationException("test");
 
             Assert.DoesNotThrow(() =>
-                app.RaiseConfigurationUpdatingEvent(new ConfigurationUpdatingEventArgs()));
+                app.RaiseConfigurationUpdatingEvent(new ConfigurationUpdatingEventArgs
+                {
+                    Parent = new object(),
+                    NewValue = new object()
+                }));
         }
 
         /// <summary>
@@ -137,7 +146,12 @@ namespace Opc.Ua.PubSub.Tests
             bool fired = false;
             app.RawDataReceived += (_, _) => fired = true;
 
-            app.RaiseRawDataReceivedEvent(new RawDataReceivedEventArgs());
+            app.RaiseRawDataReceivedEvent(new RawDataReceivedEventArgs
+            {
+                Message = [],
+                Source = string.Empty,
+                PubSubConnectionConfiguration = new PubSubConnectionDataType()
+            });
             Assert.That(fired, Is.True);
         }
 
@@ -179,7 +193,11 @@ namespace Opc.Ua.PubSub.Tests
             bool fired = false;
             app.ConfigurationUpdating += (_, _) => fired = true;
 
-            app.RaiseConfigurationUpdatingEvent(new ConfigurationUpdatingEventArgs());
+            app.RaiseConfigurationUpdatingEvent(new ConfigurationUpdatingEventArgs
+            {
+                Parent = new object(),
+                NewValue = new object()
+            });
             Assert.That(fired, Is.True);
         }
 

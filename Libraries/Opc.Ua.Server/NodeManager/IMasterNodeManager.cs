@@ -47,17 +47,17 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Returns the configuration node manager.
         /// </summary>
-        IConfigurationNodeManager ConfigurationNodeManager { get; }
+        IConfigurationNodeManager? ConfigurationNodeManager { get; }
 
         /// <summary>
         /// Returns the core node manager.
         /// </summary>
-        ICoreNodeManager CoreNodeManager { get; }
+        ICoreNodeManager? CoreNodeManager { get; }
 
         /// <summary>
         /// Returns the diagnostics node manager.
         /// </summary>
-        IDiagnosticsNodeManager DiagnosticsNodeManager { get; }
+        IDiagnosticsNodeManager? DiagnosticsNodeManager { get; }
 
         /// <summary>
         /// The node managers being managed.
@@ -145,23 +145,23 @@ namespace Opc.Ua.Server
         /// Searches the node id in all node managers,
         /// returns the node state if found (and node Manager supports it), otherwise returns null.
         /// </summary>
-        ValueTask<NodeState> FindNodeInAddressSpaceAsync(NodeId nodeId);
+        ValueTask<NodeState?> FindNodeInAddressSpaceAsync(NodeId nodeId);
 
         /// <summary>
         /// Returns node handle and its node manager.
         /// </summary>
         [Obsolete("Use GetManagerHandleAsync instead.")]
-        object GetManagerHandle(NodeId nodeId, out IAsyncNodeManager nodeManager);
+        object? GetManagerHandle(NodeId nodeId, out IAsyncNodeManager? nodeManager);
 
         /// <summary>
         /// Returns node handle and its node manager.
         /// </summary>
-        object GetManagerHandle(NodeId nodeId, out INodeManager nodeManager);
+        object? GetManagerHandle(NodeId nodeId, out INodeManager? nodeManager);
 
         /// <summary>
         /// Returns node handle and its node manager.
         /// </summary>
-        ValueTask<(object handle, IAsyncNodeManager nodeManager)> GetManagerHandleAsync(NodeId nodeId, CancellationToken cancellationToken = default);
+        ValueTask<(object? handle, IAsyncNodeManager? nodeManager)> GetManagerHandleAsync(NodeId nodeId, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Reads the history of a set of items.

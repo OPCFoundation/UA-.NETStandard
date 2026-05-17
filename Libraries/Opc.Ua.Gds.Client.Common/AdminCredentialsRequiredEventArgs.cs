@@ -46,7 +46,7 @@ namespace Opc.Ua.Gds.Client
         /// <summary>
         /// Gets or sets the credentials.
         /// </summary>
-        public UserIdentity Credentials { get; set; }
+        public UserIdentity? Credentials { get; set; }
 
         /// <summary>
         /// Gets or sets a flag indicating the credentials should be cached.

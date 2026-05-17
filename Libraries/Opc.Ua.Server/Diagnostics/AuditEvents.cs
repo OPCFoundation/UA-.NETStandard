@@ -71,7 +71,7 @@ namespace Opc.Ua.Server
         /// <param name="serviceResultException">The service exception that includes also a status code</param>
         /// <param name="logger">A contextual logger to log to</param>
         public static void ReportAuditEvent(
-            this IAuditEventServer server,
+            this IAuditEventServer? server,
             OperationContext operationContext,
             string methodName,
             ServiceResultException serviceResultException,
@@ -118,12 +118,12 @@ namespace Opc.Ua.Server
                 e.SetChildValue(
                     systemContext,
                     BrowseNames.ClientUserId,
-                    operationContext?.UserIdentity?.DisplayName,
+                    operationContext?.UserIdentity?.DisplayName!,
                     false);
                 e.SetChildValue(
                     systemContext,
                     BrowseNames.ClientAuditEntryId,
-                    operationContext?.AuditEntryId,
+                    operationContext?.AuditEntryId!,
                     false);
 
                 server.ReportAuditEvent(systemContext, e);
@@ -144,7 +144,7 @@ namespace Opc.Ua.Server
         /// <param name="statusCode">The resulted status code.</param>
         /// <param name="logger">A contextual logger to log to</param>
         public static void ReportAuditWriteUpdateEvent(
-            this IAuditEventServer server,
+            this IAuditEventServer? server,
             ISystemContext systemContext,
             WriteValue writeValue,
             Variant oldValue,
@@ -197,7 +197,7 @@ namespace Opc.Ua.Server
                 e.SetChildValue(
                     systemContext,
                     BrowseNames.ClientAuditEntryId,
-                    systemContext?.AuditEntryId,
+                    systemContext.AuditEntryId!,
                     false);
 
                 e.SetChildValue(
@@ -208,7 +208,7 @@ namespace Opc.Ua.Server
                 e.SetChildValue(
                     systemContext,
                     BrowseNames.IndexRange,
-                    writeValue.IndexRange,
+                    writeValue.IndexRange!,
                     false);
 
                 Variant newValue;
@@ -245,7 +245,7 @@ namespace Opc.Ua.Server
         /// <param name="statusCode">The resulting status code</param>
         /// <param name="logger">A contextual logger to log to</param>
         public static void ReportAuditHistoryValueUpdateEvent(
-            this IAuditEventServer server,
+            this IAuditEventServer? server,
             ISystemContext systemContext,
             UpdateDataDetails updateDataDetails,
             DataValue[] oldValues,
@@ -304,7 +304,7 @@ namespace Opc.Ua.Server
         /// <param name="statusCode">The resulting status code</param>
         /// <param name="logger">A contextual logger to log to</param>
         public static void ReportAuditHistoryAnnotationUpdateEvent(
-            this IAuditEventServer server,
+            this IAuditEventServer? server,
             ISystemContext systemContext,
             UpdateStructureDataDetails updateStructureDataDetails,
             ArrayOf<DataValue> oldValues,
@@ -358,7 +358,7 @@ namespace Opc.Ua.Server
         /// <param name="statusCode">The resulting status code</param>
         /// <param name="logger">A contextual logger to log to</param>
         public static void ReportAuditHistoryEventUpdateEvent(
-            this IAuditEventServer server,
+            this IAuditEventServer? server,
             ISystemContext systemContext,
             UpdateEventDetails updateEventDetails,
             ArrayOf<HistoryEventFieldList> oldValues,
@@ -422,7 +422,7 @@ namespace Opc.Ua.Server
         /// <param name="statusCode">The resulting status code</param>
         /// <param name="logger">A contextual logger to log to</param>
         public static void ReportAuditHistoryRawModifyDeleteEvent(
-            this IAuditEventServer server,
+            this IAuditEventServer? server,
             ISystemContext systemContext,
             DeleteRawModifiedDetails deleteRawModifiedDetails,
             ArrayOf<DataValue> oldValues,
@@ -487,7 +487,7 @@ namespace Opc.Ua.Server
         /// <param name="statusCode">The resulting status code</param>
         /// <param name="logger">A contextual logger to log to</param>
         public static void ReportAuditHistoryAtTimeDeleteEvent(
-            this IAuditEventServer server,
+            this IAuditEventServer? server,
             ISystemContext systemContext,
             DeleteAtTimeDetails deleteAtTimeDetails,
             DataValue[] oldValues,
@@ -542,7 +542,7 @@ namespace Opc.Ua.Server
         /// <param name="statusCode">The resulting status code</param>
         /// <param name="logger">A contextual logger to log to</param>
         public static void ReportAuditHistoryEventDeleteEvent(
-            this IAuditEventServer server,
+            this IAuditEventServer? server,
             ISystemContext systemContext,
             DeleteEventDetails deleteEventDetails,
             DataValue[] oldValues,
@@ -596,9 +596,9 @@ namespace Opc.Ua.Server
         /// <param name="exception">The Exception that triggers a certificate audit event.</param>
         /// <param name="logger">A contextual logger to log to</param>
         public static void ReportAuditCertificateEvent(
-            this IAuditEventServer server,
+            this IAuditEventServer? server,
             Certificate clientCertificate,
-            Exception exception,
+            Exception? exception,
             ILogger logger)
         {
             if (exception == null)
@@ -647,7 +647,7 @@ namespace Opc.Ua.Server
         {
             try
             {
-                if (StatusCode.IsBad(sre.InnerResult.Code))
+                if (StatusCode.IsBad(sre!.InnerResult!.Code))
                 {
                     AuditCertificateEventState auditCertificateEventState;
                     if (sre.StatusCode == StatusCodes.BadCertificateTimeInvalid ||
@@ -743,10 +743,10 @@ namespace Opc.Ua.Server
         /// <param name="statusCode">The status code.</param>
         /// <param name="logger">A contextual logger to log to</param>
         public static void ReportAuditCertificateDataMismatchEvent(
-            this IAuditEventServer server,
+            this IAuditEventServer? server,
             Certificate clientCertificate,
-            string invalidHostName,
-            string invalidUri,
+            string? invalidHostName,
+            string? invalidUri,
             StatusCode statusCode,
             ILogger logger)
         {
@@ -793,8 +793,8 @@ namespace Opc.Ua.Server
                     Variant.From(ByteString.From(clientCertificate?.RawData)),
                     false);
                 // set AuditCertificateDataMismatchEventState fields
-                e.SetChildValue(systemContext, BrowseNames.InvalidUri, invalidUri, false);
-                e.SetChildValue(systemContext, BrowseNames.InvalidHostname, invalidHostName, false);
+                e.SetChildValue(systemContext, BrowseNames.InvalidUri, invalidUri!, false);
+                e.SetChildValue(systemContext, BrowseNames.InvalidHostname, invalidHostName!, false);
 
                 server.ReportAuditEvent(systemContext, e);
             }
@@ -815,7 +815,7 @@ namespace Opc.Ua.Server
         /// <param name="statusCode">The resulted status code of cancel request.</param>
         /// <param name="logger">A contextual logger to log to</param>
         public static void ReportAuditCancelEvent(
-            this IAuditEventServer server,
+            this IAuditEventServer? server,
             NodeId sessionId,
             uint requestHandle,
             StatusCode statusCode,
@@ -877,7 +877,7 @@ namespace Opc.Ua.Server
         /// <param name="status">Status of call</param>
         /// <param name="logger">A contextual logger to log to</param>
         public static void ReportAuditRoleMappingRuleChangedEvent(
-            this IAuditEventServer server,
+            this IAuditEventServer? server,
             ISystemContext systemContext,
             NodeId roleStateObjectId,
             MethodState method,
@@ -937,12 +937,12 @@ namespace Opc.Ua.Server
         /// <param name="logger">A contextual logger to log to</param>
         /// <param name="exception">The exception received during create session request</param>
         public static void ReportAuditCreateSessionEvent(
-            this IAuditEventServer server,
+            this IAuditEventServer? server,
             string auditEntryId,
             ISession session,
             double revisedSessionTimeout,
             ILogger logger,
-            Exception exception = null)
+            Exception? exception = null)
         {
             if (server?.Auditing != true)
             {
@@ -978,7 +978,7 @@ namespace Opc.Ua.Server
                     e,
                     message,
                     exception == null,
-                    session,
+                    session!,
                     auditEntryId);
 
                 e.SetChildValue(
@@ -1001,7 +1001,7 @@ namespace Opc.Ua.Server
                 e.SetChildValue(
                     systemContext,
                     BrowseNames.ClientCertificateThumbprint,
-                    session?.ClientCertificate?.Thumbprint,
+                    session?.ClientCertificate?.Thumbprint!,
                     false);
                 e.SetChildValue(
                     systemContext,
@@ -1029,11 +1029,11 @@ namespace Opc.Ua.Server
         /// <param name="session">The session that is activated.</param>
         /// <param name="exception">The exception received during activate session request</param>
         public static void ReportAuditActivateSessionEvent(
-            this IAuditEventServer server,
+            this IAuditEventServer? server,
             ILogger logger,
             string auditEntryId,
             ISession session,
-            Exception exception = null)
+            Exception? exception = null)
         {
             if (server?.Auditing != true)
             {
@@ -1068,7 +1068,7 @@ namespace Opc.Ua.Server
                     e,
                     message,
                     exception == null,
-                    session,
+                    session!,
                     auditEntryId);
 
                 e.SetChildValue(
@@ -1076,10 +1076,10 @@ namespace Opc.Ua.Server
                     BrowseNames.SourceName,
                     "Session/ActivateSession",
                     false);
-                e.SetChildValue(
+                e.SetChildValue<UserIdentityToken>(
                     systemContext,
                     BrowseNames.UserIdentityToken,
-                    CoreUtils.Clone(session?.IdentityToken?.Token),
+                    CoreUtils.Clone<UserIdentityToken>(session?.IdentityToken?.Token)!,
                     false);
 
                 server.ReportAuditEvent(systemContext, e);
@@ -1103,7 +1103,7 @@ namespace Opc.Ua.Server
         /// <param name="endpointUrl">The invalid endpoint url</param>
         /// <param name="logger">A contextual logger to log to</param>
         public static void ReportAuditUrlMismatchEvent(
-            this IAuditEventServer server,
+            this IAuditEventServer? server,
             string auditEntryId,
             ISession session,
             double revisedSessionTimeout,
@@ -1155,7 +1155,7 @@ namespace Opc.Ua.Server
                 e.SetChildValue(
                     systemContext,
                     BrowseNames.ClientCertificateThumbprint,
-                    session?.ClientCertificate?.Thumbprint,
+                    session?.ClientCertificate?.Thumbprint!,
                     false);
                 e.SetChildValue(
                     systemContext,
@@ -1188,7 +1188,7 @@ namespace Opc.Ua.Server
         /// “Session/Timeout” for a Session timeout
         /// “Session/Terminated” for all other cases.</param>
         public static void ReportAuditCloseSessionEvent(
-            this IAuditEventServer server,
+            this IAuditEventServer? server,
             string auditEntryId,
             ISession session,
             ILogger logger,
@@ -1212,7 +1212,7 @@ namespace Opc.Ua.Server
                     "en-US",
                     $"Session with ID:{session?.Id} was closed.");
 
-                InitializeAuditSessionEvent(systemContext, e, message, true, session, auditEntryId);
+                InitializeAuditSessionEvent(systemContext, e, message, true, session!, auditEntryId);
 
                 e.SetChildValue(systemContext, BrowseNames.SourceName, sourceName, false);
 
@@ -1236,7 +1236,7 @@ namespace Opc.Ua.Server
         /// <param name="statusCode">The status code resulting .</param>
         /// <param name="logger">A contextual logger to log to</param>
         public static void ReportAuditTransferSubscriptionEvent(
-            this IAuditEventServer server,
+            this IAuditEventServer? server,
             string auditEntryId,
             ISession session,
             StatusCode statusCode,
@@ -1265,10 +1265,10 @@ namespace Opc.Ua.Server
                     e,
                     message,
                     StatusCode.IsGood(statusCode),
-                    session,
+                    session!,
                     auditEntryId);
 
-                e.SetChildValue(systemContext, BrowseNames.SourceNode, session.Id, false);
+                e.SetChildValue(systemContext, BrowseNames.SourceNode, session!.Id, false);
                 e.SetChildValue(
                     systemContext,
                     BrowseNames.SourceName,
@@ -1299,7 +1299,7 @@ namespace Opc.Ua.Server
         /// <param name="logger">A contextual logger to log to</param>
         /// <param name="exception">The exception resulted after executing the UpdateCertificate method. If null, the operation was successfull.</param>
         public static void ReportCertificateUpdatedAuditEvent(
-            this IAuditEventServer server,
+            this IAuditEventServer? server,
             ISystemContext systemContext,
             NodeId objectId,
             MethodState method,
@@ -1307,7 +1307,7 @@ namespace Opc.Ua.Server
             NodeId certificateGroupId,
             NodeId certificateTypeId,
             ILogger logger,
-            Exception exception = null)
+            Exception? exception = null)
         {
             try
             {
@@ -1364,7 +1364,7 @@ namespace Opc.Ua.Server
                     certificateTypeId,
                     false);
 
-                server.ReportAuditEvent(systemContext, e);
+                server!.ReportAuditEvent(systemContext, e);
             }
             catch (Exception ex)
             {
@@ -1384,7 +1384,7 @@ namespace Opc.Ua.Server
         /// <param name="inputArguments">The input arguments used to call the method that triggered the audit event.</param>
         /// <param name="logger">A contextual logger to log to</param>
         public static void ReportCertificateUpdateRequestedAuditEvent(
-            this IAuditEventServer server,
+            this IAuditEventServer? server,
             ISystemContext systemContext,
             NodeId objectId,
             MethodState method,
@@ -1437,7 +1437,7 @@ namespace Opc.Ua.Server
         /// <param name="statusCode">The resulting status code.</param>
         /// <param name="logger">A contextual logger to log to</param>
         public static void ReportAuditAddNodesEvent(
-            this IAuditEventServer server,
+            this IAuditEventServer? server,
             ISystemContext systemContext,
             ArrayOf<AddNodesItem> addNodesItems,
             string customMessage,
@@ -1500,7 +1500,7 @@ namespace Opc.Ua.Server
         /// <param name="statusCode">The resulting status code.</param>
         /// <param name="logger">A contextual logger to log to</param>
         public static void ReportAuditDeleteNodesEvent(
-            this IAuditEventServer server,
+            this IAuditEventServer? server,
             ISystemContext systemContext,
             ArrayOf<DeleteNodesItem> nodesToDelete,
             string customMessage,
@@ -1564,12 +1564,12 @@ namespace Opc.Ua.Server
         /// <param name="exception">The exception resulted from the open secure channel request.</param>
         /// <param name="logger">A contextual logger to log to</param>
         public static void ReportAuditOpenSecureChannelEvent(
-            this IAuditEventServer server,
+            this IAuditEventServer? server,
             string globalChannelId,
             EndpointDescription endpointDescription,
             OpenSecureChannelRequest request,
             Certificate clientCertificate,
-            Exception exception,
+            Exception? exception,
             ILogger logger)
         {
             if (server?.Auditing != true)
@@ -1636,7 +1636,7 @@ namespace Opc.Ua.Server
                 e.SetChildValue(
                     systemContext,
                     BrowseNames.ClientAuditEntryId,
-                    request?.RequestHeader?.AuditEntryId,
+                    request?.RequestHeader?.AuditEntryId!,
                     false);
 
                 e.SetChildValue(
@@ -1681,7 +1681,7 @@ namespace Opc.Ua.Server
                     e.SetChildValue(
                         systemContext,
                         BrowseNames.SecurityPolicyUri,
-                        endpointDescription.SecurityPolicyUri,
+                        endpointDescription.SecurityPolicyUri!,
                         false);
                     e.SetChildValue(
                         systemContext,
@@ -1716,9 +1716,9 @@ namespace Opc.Ua.Server
         /// <param name="exception">The exception resulted from the open secure channel request.</param>
         /// <param name="logger">A contextual logger to log to</param>
         public static void ReportAuditCloseSecureChannelEvent(
-            this IAuditEventServer server,
+            this IAuditEventServer? server,
             string globalChannelId,
-            Exception exception,
+            Exception? exception,
             ILogger logger)
         {
             if (server?.Auditing != true)
@@ -1812,7 +1812,7 @@ namespace Opc.Ua.Server
         /// <param name="statusCode">The resulting status code.</param>
         /// <param name="logger">A contextual logger to log to</param>
         public static void ReportAuditUpdateMethodEvent(
-            this IAuditEventServer server,
+            this IAuditEventServer? server,
             ISystemContext systemContext,
             NodeId objectId,
             NodeId methodId,
@@ -1855,12 +1855,12 @@ namespace Opc.Ua.Server
                 e.SetChildValue(
                     systemContext,
                     BrowseNames.ClientUserId,
-                    (systemContext as ISessionSystemContext)?.UserIdentity?.DisplayName,
+                    (systemContext as ISessionSystemContext)?.UserIdentity?.DisplayName!,
                     false);
                 e.SetChildValue(
                     systemContext,
                     BrowseNames.ClientAuditEntryId,
-                    systemContext?.AuditEntryId,
+                    systemContext.AuditEntryId!,
                     false);
 
                 e.SetChildValue(systemContext, BrowseNames.MethodId, methodId, false);
@@ -2025,12 +2025,12 @@ namespace Opc.Ua.Server
             e.SetChildValue(
                 systemContext,
                 BrowseNames.ClientUserId,
-                (systemContext as ISessionSystemContext)?.UserIdentity?.DisplayName,
+                (systemContext as ISessionSystemContext)?.UserIdentity?.DisplayName!,
                 false);
             e.SetChildValue(
                 systemContext,
                 BrowseNames.ClientAuditEntryId,
-                systemContext?.AuditEntryId,
+                systemContext.AuditEntryId!,
                 false);
 
             e.SetChildValue(
@@ -2068,7 +2068,7 @@ namespace Opc.Ua.Server
                 e.SetChildValue(
                     systemContext,
                     BrowseNames.ClientUserId,
-                    session.Identity?.DisplayName,
+                    session.Identity?.DisplayName!,
                     false);
                 // set AuditCreateSessionEventType & AuditActivateSessionsEventType properties
                 e.SetChildValue(

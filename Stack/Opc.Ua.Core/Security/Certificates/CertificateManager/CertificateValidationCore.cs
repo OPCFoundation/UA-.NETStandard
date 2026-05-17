@@ -287,7 +287,7 @@ namespace Opc.Ua
             m_trustedCertificateList = default;
             if (trustedStore != null)
             {
-                m_trustedCertificateStore = new CertificateStoreIdentifier(trustedStore.StorePath)
+                m_trustedCertificateStore = new CertificateStoreIdentifier(trustedStore.StorePath!)
                 {
                     ValidationOptions = trustedStore.ValidationOptions
                 };
@@ -302,7 +302,7 @@ namespace Opc.Ua
             m_issuerCertificateList = default;
             if (issuerStore != null)
             {
-                m_issuerCertificateStore = new CertificateStoreIdentifier(issuerStore.StorePath)
+                m_issuerCertificateStore = new CertificateStoreIdentifier(issuerStore.StorePath!)
                 {
                     ValidationOptions = issuerStore.ValidationOptions
                 };
@@ -863,7 +863,7 @@ namespace Opc.Ua
                                     ii != 0);
                                 if (ServiceResult.IsBad(result))
                                 {
-                                    sresult = new ServiceResult(result, sresult);
+                                    sresult = new ServiceResult(result!, sresult);
                                 }
                             }
                         }
@@ -1094,7 +1094,7 @@ namespace Opc.Ua
 
             // invoke callback per inner-error.
             bool accept = false;
-            ServiceResult serviceResult = se.Result;
+            ServiceResult? serviceResult = se.Result;
             do
             {
                 accept = false;
@@ -1102,7 +1102,7 @@ namespace Opc.Ua
                 {
                     try
                     {
-                        accept = acceptError(certificate, serviceResult);
+                        accept = acceptError(certificate, serviceResult!);
                     }
                     catch (Exception ex)
                     {
@@ -1113,7 +1113,7 @@ namespace Opc.Ua
                     }
                 }
                 else if (m_autoAcceptUntrustedCertificates &&
-                    serviceResult.StatusCode == StatusCodes.BadCertificateUntrusted)
+                    serviceResult!.StatusCode == StatusCodes.BadCertificateUntrusted)
                 {
                     accept = true;
                     m_logger.LogInformation("Auto accepted certificate {Certificate}", Redact.Create(certificate));
@@ -1121,12 +1121,12 @@ namespace Opc.Ua
 
                 if (accept)
                 {
-                    serviceResult = serviceResult.InnerResult;
+                    serviceResult = serviceResult!.InnerResult;
                 }
                 else
                 {
                     // report the rejected service result
-                    se = new ServiceResultException(serviceResult);
+                    se = new ServiceResultException(serviceResult!);
                 }
             } while (accept && serviceResult != null);
 
@@ -1159,7 +1159,7 @@ namespace Opc.Ua
         /// Recursively checks whether any of the service results or inner service results
         /// of the input sr must not be suppressed.
         /// </summary>
-        private static bool ContainsUnsuppressibleSC(ServiceResult sr)
+        private static bool ContainsUnsuppressibleSC(ServiceResult? sr)
         {
             while (sr != null)
             {
@@ -1175,7 +1175,7 @@ namespace Opc.Ua
         /// <summary>
         /// List all reasons for failing cert validation.
         /// </summary>
-        private void LogInnerServiceResults(LogLevel logLevel, ServiceResult result)
+        private void LogInnerServiceResults(LogLevel logLevel, ServiceResult? result)
         {
             while (result != null)
             {

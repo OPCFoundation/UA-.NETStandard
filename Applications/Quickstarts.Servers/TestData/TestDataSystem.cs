@@ -143,7 +143,7 @@ namespace TestData
         /// <summary>
         /// Returns the history file for the variable.
         /// </summary>
-        public IHistoryDataSource GetHistoryFile(BaseVariableState variable)
+        public IHistoryDataSource? GetHistoryFile(BaseVariableState variable)
         {
             if (variable == null)
             {
@@ -788,7 +788,7 @@ namespace TestData
             }
         }
 
-        private void DoSample(object state)
+        private void DoSample(object? state)
         {
             m_logger.LogTrace(
                 "DoSample HiRes={HiRes:ss.ffff} Now={CurrentTime:ss.ffff}",
@@ -817,9 +817,9 @@ namespace TestData
                     {
                         generateValues.Add(variable);
                     }
-                    else if (variable.Parent is ITestDataSystemValuesGenerator)
+                    else if (variable.Parent is ITestDataSystemValuesGenerator and BaseVariableState parentVariable)
                     {
-                        generateValues.Add(variable.Parent as BaseVariableState);
+                        generateValues.Add(parentVariable);
                     }
                     else
                     {
@@ -877,7 +877,7 @@ namespace TestData
 
         private sealed class Sample
         {
-            public BaseVariableState Variable;
+            public BaseVariableState Variable = null!;
             public Variant Value;
             public StatusCode StatusCode;
             public DateTime Timestamp;
@@ -887,9 +887,9 @@ namespace TestData
         private readonly ITestDataSystemCallback m_callback;
         private readonly ILogger m_logger;
         private int m_minimumSamplingInterval;
-        private Dictionary<uint, BaseVariableState> m_monitoredNodes;
-        private IList<BaseVariableState> m_samplingNodes;
-        private Timer m_timer;
+        private Dictionary<uint, BaseVariableState>? m_monitoredNodes;
+        private IList<BaseVariableState>? m_samplingNodes;
+        private Timer? m_timer;
         private StatusCode m_systemStatus;
         private readonly HistoryArchive m_historyArchive;
     }

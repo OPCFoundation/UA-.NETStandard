@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -152,7 +152,7 @@ namespace Opc.Ua
 
             // create the signature.
             return rsa.SignData(
-                dataToSign.Array!,
+                dataToSign.GetArray(),
                 dataToSign.Offset,
                 dataToSign.Count,
                 hashAlgorithm,
@@ -179,7 +179,7 @@ namespace Opc.Ua
 
             // verify signature.
             return rsa.VerifyData(
-                dataToVerify.Array!,
+                dataToVerify.GetArray(),
                 dataToVerify.Offset,
                 dataToVerify.Count,
                 signature,
@@ -254,11 +254,11 @@ namespace Opc.Ua
                     inputBlockSize);
             }
 
-            byte[] encryptedBuffer = outputBuffer.Array!;
+            byte[]? encryptedBuffer = outputBuffer.Array;
             RSAEncryptionPadding rsaPadding = GetRSAEncryptionPadding(padding);
 
             using (var ostrm = new MemoryStream(
-                encryptedBuffer,
+                encryptedBuffer!,
                 outputBuffer.Offset,
                 outputBuffer.Count))
             {
@@ -269,7 +269,7 @@ namespace Opc.Ua
                     ii < dataToEncrypt.Offset + dataToEncrypt.Count;
                     ii += inputBlockSize)
                 {
-                    Array.Copy(dataToEncrypt.Array!, ii, input, 0, input.Length);
+                    Array.Copy(dataToEncrypt.GetArray(), ii, input, 0, input.Length);
                     byte[] cipherText = rsa.Encrypt(input, rsaPadding);
                     ostrm.Write(cipherText, 0, cipherText.Length);
                 }
@@ -277,7 +277,7 @@ namespace Opc.Ua
 
             // return buffer
             return new ArraySegment<byte>(
-                encryptedBuffer,
+                encryptedBuffer!,
                 outputBuffer.Offset,
                 dataToEncrypt.Count / inputBlockSize * outputBlockSize);
         }
@@ -312,11 +312,12 @@ namespace Opc.Ua
 
             // decode length.
             int length = 0;
+            byte[] plainTextArray = plainText.GetArray();
 
-            length += plainText.Array![plainText.Offset + 0];
-            length += plainText.Array![plainText.Offset + 1] << 8;
-            length += plainText.Array![plainText.Offset + 2] << 16;
-            length += plainText.Array![plainText.Offset + 3] << 24;
+            length += plainTextArray[plainText.Offset + 0];
+            length += plainTextArray[plainText.Offset + 1] << 8;
+            length += plainTextArray[plainText.Offset + 2] << 16;
+            length += plainTextArray[plainText.Offset + 3] << 24;
 
             if (length > (plainText.Count - plainText.Offset - 4))
             {
@@ -326,7 +327,7 @@ namespace Opc.Ua
             }
 
             byte[] decryptedData = new byte[length];
-            Array.Copy(plainText.Array, plainText.Offset + 4, decryptedData, 0, length);
+            Array.Copy(plainTextArray, plainText.Offset + 4, decryptedData, 0, length);
             Array.Clear(buffer, 0, buffer.Length);
 
             return decryptedData;
@@ -354,11 +355,11 @@ namespace Opc.Ua
                     inputBlockSize);
             }
 
-            byte[] decryptedBuffer = outputBuffer.Array!;
+            byte[]? decryptedBuffer = outputBuffer.Array;
             RSAEncryptionPadding rsaPadding = GetRSAEncryptionPadding(padding);
 
             using (var ostrm = new MemoryStream(
-                decryptedBuffer,
+                decryptedBuffer!,
                 outputBuffer.Offset,
                 outputBuffer.Count))
             {
@@ -368,7 +369,7 @@ namespace Opc.Ua
                     ii < dataToDecrypt.Offset + dataToDecrypt.Count;
                     ii += inputBlockSize)
                 {
-                    Array.Copy(dataToDecrypt.Array!, ii, input, 0, input.Length);
+                    Array.Copy(dataToDecrypt.GetArray(), ii, input, 0, input.Length);
                     byte[] plainText = rsa.Decrypt(input, rsaPadding);
                     ostrm.Write(plainText, 0, plainText.Length);
                 }
@@ -376,7 +377,7 @@ namespace Opc.Ua
 
             // return buffers.
             return new ArraySegment<byte>(
-                decryptedBuffer,
+                decryptedBuffer!,
                 outputBuffer.Offset,
                 dataToDecrypt.Count / inputBlockSize * outputBlockSize);
         }

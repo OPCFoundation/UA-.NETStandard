@@ -79,8 +79,8 @@ namespace Opc.Ua.Server.UserDatabase
                 {
                     byte[] utf8Json = File.ReadAllBytes(fileName);
                     var utf8JsonReader = new Utf8JsonReader(utf8Json, s_allowTrailingCommasInJsonReader);
-                    JsonUserDatabase db = JsonSerializer.Deserialize<JsonUserDatabase>(ref utf8JsonReader, s_exchangeJsonSerializerOptions);
-                    db.FileName = fileName;
+                    JsonUserDatabase? db = JsonSerializer.Deserialize<JsonUserDatabase>(ref utf8JsonReader, s_exchangeJsonSerializerOptions);
+                    db!.FileName = fileName;
                     return db;
                 }
             }
@@ -150,15 +150,15 @@ namespace Opc.Ua.Server.UserDatabase
                 {
                     jsonTypeInfo.Properties.Clear();
 
-                    foreach ((PropertyInfo propertyInfo, DataMemberAttribute attr) in type
+                    foreach ((PropertyInfo propertyInfo, DataMemberAttribute? attr) in type!
                         .GetProperties(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
                         .Select((prop) => (prop, prop.GetCustomAttribute<DataMemberAttribute>()))
                         .Where((x) => x.Item2 != null)
-                        .OrderBy((x) => x.Item2.Order))
+                        .OrderBy((x) => x!.Item2!.Order))
                     {
                         JsonPropertyInfo jsonPropertyInfo = jsonTypeInfo.CreateJsonPropertyInfo(
                             propertyInfo.PropertyType,
-                            attr.Name ?? propertyInfo.Name);
+                            attr!.Name ?? propertyInfo.Name);
                         jsonPropertyInfo.Get =
                             propertyInfo.CanRead
                             ? propertyInfo.GetValue

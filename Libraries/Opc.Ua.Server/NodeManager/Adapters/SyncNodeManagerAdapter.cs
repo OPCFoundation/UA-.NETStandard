@@ -114,7 +114,7 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public void Browse(OperationContext context, ref ContinuationPoint continuationPoint, IList<ReferenceDescription> references)
         {
-            continuationPoint = m_nodeManager.BrowseAsync(context, continuationPoint, references).AsTask().GetAwaiter().GetResult();
+            continuationPoint = m_nodeManager.BrowseAsync(context, continuationPoint, references).AsTask().GetAwaiter().GetResult()!;
         }
 
         /// <inheritdoc/>
@@ -283,7 +283,7 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public NodeMetadata GetPermissionMetadata(
+        public NodeMetadata? GetPermissionMetadata(
             OperationContext context,
             object targetHandle,
             BrowseResultMask resultMask,

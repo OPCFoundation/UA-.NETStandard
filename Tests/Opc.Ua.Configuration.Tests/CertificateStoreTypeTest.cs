@@ -114,9 +114,9 @@ namespace Opc.Ua.Configuration.Tests
                     .ConfigureAwait(false);
                 await OpenCertStoreAsync(appConfig.SecurityConfiguration.TrustedPeerCertificates, telemetry)
                     .ConfigureAwait(false);
-                await OpenCertStoreAsync(appConfig.SecurityConfiguration.UserIssuerCertificates, telemetry)
+                await OpenCertStoreAsync(appConfig.SecurityConfiguration.UserIssuerCertificates!, telemetry)
                     .ConfigureAwait(false);
-                await OpenCertStoreAsync(appConfig.SecurityConfiguration.TrustedUserCertificates, telemetry)
+                await OpenCertStoreAsync(appConfig.SecurityConfiguration.TrustedUserCertificates!, telemetry)
                     .ConfigureAwait(false);
 
                 int instancesCreatedWhileOpeningAuthRootStore = TestCertStore.InstancesCreated;
@@ -285,8 +285,8 @@ namespace Opc.Ua.Configuration.Tests
         /// <inheritdoc/>
         public Task<Certificate?> LoadPrivateKeyAsync(
             string thumbprint,
-            string subjectName,
-            string applicationUri,
+            string? subjectName,
+            string? applicationUri,
             NodeId certificateType,
             char[]? password,
             CancellationToken ct = default)

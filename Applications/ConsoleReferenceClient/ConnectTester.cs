@@ -50,7 +50,7 @@ namespace Quickstarts
     {
         public ConnectTester(
             ITelemetryContext telemetry,
-            ManualResetEvent quitEvent = null)
+            ManualResetEvent? quitEvent = null)
         {
             m_quitEvent = quitEvent;
             m_telemetry = telemetry;
@@ -61,7 +61,7 @@ namespace Quickstarts
         public async ValueTask DisposeAsync()
         {
             m_reconnectHandler?.Dispose();
-            ISession session = m_wrapper?.Session;
+            ISession? session = m_wrapper?.Session;
             if (session != null)
             {
                 await session.DisposeAsync().ConfigureAwait(false);
@@ -131,16 +131,17 @@ namespace Quickstarts
                 var sessionFactory = new DefaultSessionFactory(m_telemetry);
                 var userNameidentity = new UserIdentity(kUserName, new UTF8Encoding(false).GetBytes(kPassword));
 
-                foreach (EndpointDescription ii in endpoints.ToArray())
+                foreach (EndpointDescription ii in endpoints.ToArray()!)
                 {
-                    string userCertificateFile = GetUserCertificateFile(ii.SecurityPolicyUri);
+                    string securityPolicyUri = ii.SecurityPolicyUri!;
+                    string userCertificateFile = GetUserCertificateFile(securityPolicyUri);
 
                     X509Certificate2 x509 = X509CertificateLoader.LoadPkcs12FromFile(
                         Path.Combine("..\\..\\pki\\trustedUser\\private",
                         userCertificateFile),
                         "password");
 
-                    string thumbprint = x509.Thumbprint;
+                    string thumbprint = x509.Thumbprint!;
 
                     UserIdentity certificateIdentity = await LoadUserCertificateAsync(
                         thumbprint,
@@ -169,7 +170,7 @@ namespace Quickstarts
 
                             m_logger.LogWarning(
                                 "SECURITY-POLICY={SecurityPolicyUri} {SecurityMode}",
-                                SecurityPolicies.GetDisplayName(ii.SecurityPolicyUri),
+                                SecurityPolicies.GetDisplayName(securityPolicyUri),
                                 ii.SecurityMode);
 
                             m_logger.LogWarning(
@@ -220,7 +221,7 @@ namespace Quickstarts
 
                             m_logger.LogWarning(
                                 "SECURITY-POLICY={SecurityPolicyUri} {SecurityMode}",
-                                SecurityPolicies.GetDisplayName(ii.SecurityPolicyUri),
+                                SecurityPolicies.GetDisplayName(securityPolicyUri),
                                 ii.SecurityMode);
 
                             m_logger.LogWarning(
@@ -233,7 +234,7 @@ namespace Quickstarts
 
                         m_logger.LogWarning(
                             "TEST COMPLETE: {SecurityPolicyUri} {SecurityMode}",
-                            SecurityPolicies.GetDisplayName(ii.SecurityPolicyUri),
+                            SecurityPolicies.GetDisplayName(securityPolicyUri),
                             ii.SecurityMode);
 
                         m_logger.LogWarning("{Line}", new string('=', 80));
@@ -241,7 +242,7 @@ namespace Quickstarts
                 }
 
                 Console.WriteLine("Ctrl-C to stop.");
-                m_quitEvent.WaitOne();
+                m_quitEvent!.WaitOne();
             }
             catch (Exception e)
             {
@@ -269,7 +270,7 @@ namespace Quickstarts
                     endpoint,
                     false,
                     false,
-                    m_configuration.ApplicationName,
+                    m_configuration.ApplicationName!,
                     600000,
                     //new UserIdentity(),
                     endpointDescription.SecurityMode != MessageSecurityMode.None ? identity : new UserIdentity(),
@@ -315,13 +316,14 @@ namespace Quickstarts
             string password,
             CancellationToken ct)
         {
-            CertificateTrustList store = m_configuration.SecurityConfiguration.TrustedUserCertificates;
+            CertificateTrustList store = m_configuration.SecurityConfiguration.TrustedUserCertificates!;
+#if NET8_0_OR_GREATER
             // get user certificate with matching thumbprint
             using CertificateCollection certificates =
                 await store.GetCertificatesAsync(m_telemetry, ct).ConfigureAwait(false);
             using Certificate hit = certificates
                 .Find(X509FindType.FindByThumbprint, thumbprint, false)
-                .FirstOrDefault();
+                .FirstOrDefault()!;
 
             // create Certificate Identifier
             var cid = new CertificateIdentifier
@@ -337,6 +339,9 @@ namespace Quickstarts
                 new CertificatePasswordProvider(new UTF8Encoding(false).GetBytes(password)),
                 m_configuration.CertificateManager.CertificateProvider,
                 ct).ConfigureAwait(false);
+#else
+            throw new NotSupportedException("User certificate identity requires net8.0 or greater.");
+#endif
         }
 
         private static async ValueTask<ArrayOf<EndpointDescription>> GetEndpointsAsync(
@@ -396,7 +401,7 @@ namespace Quickstarts
                 // start reconnect sequence on communication error.
                 if (ServiceResult.IsBad(e.Status))
                 {
-                    SessionReconnectHandler.ReconnectState state = m_reconnectHandler
+                    SessionReconnectHandler.ReconnectState state = m_reconnectHandler!
                         .BeginReconnect(
                             m_wrapper.Session,
                             null,
@@ -430,7 +435,7 @@ namespace Quickstarts
             }
         }
 
-        private void Client_ReconnectComplete(object sender, EventArgs e)
+        private void Client_ReconnectComplete(object? sender, EventArgs e)
         {
             // ignore callbacks from discarded objects.
             if (!ReferenceEquals(sender, m_reconnectHandler))
@@ -441,11 +446,11 @@ namespace Quickstarts
             lock (m_lock)
             {
                 // if session recovered, Session property is null
-                if (m_reconnectHandler.Session != null)
+                if (m_reconnectHandler!.Session != null)
                 {
                     // ensure only a new instance is disposed
                     // after reactivate, the same session instance may be returned
-                    if (!ReferenceEquals(m_wrapper.Session, m_reconnectHandler.Session))
+                    if (!ReferenceEquals(m_wrapper!.Session, m_reconnectHandler.Session))
                     {
                         m_logger.LogInformation(
                             "--- RECONNECTED TO NEW SESSION --- {SessionId}",
@@ -471,7 +476,8 @@ namespace Quickstarts
 
         private static string GetUserCertificateFile(string securityPolicyUri)
         {
-            SecurityPolicyInfo securityPolicy = SecurityPolicies.GetInfo(securityPolicyUri);
+            // GetInfo returns null only for null/empty URI; caller passes a non-empty value.
+            SecurityPolicyInfo securityPolicy = SecurityPolicies.GetInfo(securityPolicyUri)!;
 
             switch (securityPolicy.CertificateKeyAlgorithm)
             {
@@ -490,16 +496,16 @@ namespace Quickstarts
 
         internal sealed class SessionWrapper : IUAClient
         {
-            public ISession Session { get; init; }
+            public required ISession Session { get; init; }
         }
 
         private readonly Lock m_lock = new();
-        private SessionReconnectHandler m_reconnectHandler;
-        private ApplicationConfiguration m_configuration;
-        private SessionWrapper m_wrapper;
+        private SessionReconnectHandler? m_reconnectHandler;
+        private ApplicationConfiguration m_configuration = null!;
+        private SessionWrapper? m_wrapper;
         private readonly ILogger m_logger;
         private readonly ITelemetryContext m_telemetry;
-        private readonly ManualResetEvent m_quitEvent;
+        private readonly ManualResetEvent? m_quitEvent;
 
         private const string kServerUrl = "opc.tcp://localhost:62541";
         private const string kUserName = "sysadmin";

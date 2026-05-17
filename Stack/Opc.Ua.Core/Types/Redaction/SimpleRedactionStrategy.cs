@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -99,7 +99,7 @@ namespace Opc.Ua.Types.Redaction
                 return RedactException(exception);
             }
 
-            string valueString = value.ToString();
+            string valueString = value.ToString() ?? string.Empty;
 
             if (valueString.Length < m_minLength)
             {

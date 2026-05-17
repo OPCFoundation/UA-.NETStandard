@@ -78,8 +78,8 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public override async ValueTask<FindServersResponse> FindServersAsync(
             SecureChannelContext secureChannelContext,
-            RequestHeader requestHeader,
-            string endpointUrl,
+            RequestHeader? requestHeader,
+            string? endpointUrl,
             ArrayOf<string> localeIds,
             ArrayOf<string> serverUris,
             RequestLifetime requestLifetime)
@@ -94,7 +94,7 @@ namespace Opc.Ua.Server
                 // parse the url provided by the client.
                 IList<BaseAddress> baseAddresses = BaseAddresses;
 
-                Uri parsedEndpointUrl = Utils.ParseUri(endpointUrl);
+                Uri? parsedEndpointUrl = Utils.ParseUri(endpointUrl);
 
                 if (parsedEndpointUrl != null)
                 {
@@ -119,7 +119,7 @@ namespace Opc.Ua.Server
                     ApplicationDescription server = description.Server;
 
                     // skip servers that have been processed.
-                    if (uniqueServers.ContainsKey(server.ApplicationUri))
+                    if (uniqueServers.ContainsKey(server.ApplicationUri!))
                     {
                         continue;
                     }
@@ -136,18 +136,18 @@ namespace Opc.Ua.Server
 
                     if (localeIds.Count > 0)
                     {
-                        applicationName = m_serverInternal.ResourceManager
+                        applicationName = ServerInternal.ResourceManager
                             .Translate(localeIds, applicationName);
                     }
 
                     // get the application description.
                     ApplicationDescription application = TranslateApplicationDescription(
-                        parsedEndpointUrl,
+                        parsedEndpointUrl!,
                         server,
                         baseAddresses,
                         applicationName);
 
-                    uniqueServers.Add(server.ApplicationUri, application);
+                    uniqueServers.Add(server.ApplicationUri!, application);
 
                     // add to list of servers to return.
                     servers.Add(application);
@@ -168,8 +168,8 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public override async ValueTask<GetEndpointsResponse> GetEndpointsAsync(
             SecureChannelContext secureChannelContext,
-            RequestHeader requestHeader,
-            string endpointUrl,
+            RequestHeader? requestHeader,
+            string? endpointUrl,
             ArrayOf<string> localeIds,
             ArrayOf<string> profileUris,
             RequestLifetime requestLifetime)
@@ -203,14 +203,14 @@ namespace Opc.Ua.Server
         /// Returns the endpoints that match the base address and endpoint url.
         /// </summary>
         protected ArrayOf<EndpointDescription> GetEndpointDescriptions(
-            string endpointUrl,
+            string? endpointUrl,
             IList<BaseAddress> baseAddresses,
             ArrayOf<string> localeIds)
         {
             ArrayOf<EndpointDescription> endpoints = default;
 
             // parse the url provided by the client.
-            Uri parsedEndpointUrl = Utils.ParseUri(endpointUrl);
+            Uri? parsedEndpointUrl = Utils.ParseUri(endpointUrl);
 
             if (parsedEndpointUrl != null)
             {
@@ -221,24 +221,24 @@ namespace Opc.Ua.Server
             if (baseAddresses.Count != 0)
             {
                 // localize the application name if requested.
-                LocalizedText applicationName = ServerDescription.ApplicationName;
+                LocalizedText applicationName = ServerDescription!.ApplicationName;
 
                 if (localeIds.Count > 0)
                 {
-                    applicationName = m_serverInternal.ResourceManager
+                    applicationName = ServerInternal.ResourceManager
                         .Translate(localeIds, applicationName);
                 }
 
                 // translate the application description.
                 ApplicationDescription application = TranslateApplicationDescription(
-                    parsedEndpointUrl,
+                    parsedEndpointUrl!,
                     ServerDescription,
                     baseAddresses,
                     applicationName);
 
                 // translate the endpoint descriptions.
                 endpoints = TranslateEndpointDescriptions(
-                    parsedEndpointUrl,
+                    parsedEndpointUrl!,
                     baseAddresses,
                     Endpoints,
                     application);
@@ -283,11 +283,11 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public override async ValueTask<CreateSessionResponse> CreateSessionAsync(
             SecureChannelContext secureChannelContext,
-            RequestHeader requestHeader,
-            ApplicationDescription clientDescription,
-            string serverUri,
-            string endpointUrl,
-            string sessionName,
+            RequestHeader? requestHeader,
+            ApplicationDescription? clientDescription,
+            string? serverUri,
+            string? endpointUrl,
+            string? sessionName,
             ByteString clientNonce,
             ByteString clientCertificate,
             double requestedSessionTimeout,
@@ -300,7 +300,7 @@ namespace Opc.Ua.Server
             ByteString serverNonce;
             ByteString serverCertificate = default;
             ArrayOf<EndpointDescription> serverEndpoints = default;
-            SignatureData serverSignature = null;
+            SignatureData? serverSignature = null;
             uint maxRequestMessageSize = (uint)MessageContext.MaxMessageSize;
 
             OperationContext context = await ValidateRequestAsync(
@@ -308,27 +308,27 @@ namespace Opc.Ua.Server
                 requestHeader,
                 RequestType.CreateSession,
                 requestLifetime).ConfigureAwait(false);
-            ISession session = null;
+            ISession? session = null;
             try
             {
                 // check the server uri.
-                if (!string.IsNullOrEmpty(serverUri) && serverUri != Configuration.ApplicationUri)
+                if (!string.IsNullOrEmpty(serverUri) && serverUri != Configuration!.ApplicationUri)
                 {
                     throw new ServiceResultException(StatusCodes.BadServerUriInvalid);
                 }
 
                 bool requireEncryption = RequireEncryption(
-                    context?.ChannelContext?.EndpointDescription);
+                    context.ChannelContext!.EndpointDescription!);
 
                 if (!requireEncryption && !clientCertificate.IsEmpty)
                 {
                     requireEncryption = true;
                 }
 
-                CertificateCollection clientIssuerCertificates = null;
+                CertificateCollection? clientIssuerCertificates = null;
 
                 // validate client application instance certificate.
-                Certificate parsedClientCertificate = null;
+                Certificate? parsedClientCertificate = null;
 
                 if (requireEncryption && clientCertificate.Length > 0)
                 {
@@ -337,7 +337,7 @@ namespace Opc.Ua.Server
                         using CertificateCollection clientCertificateChain
                             = Utils.ParseCertificateChainBlob(
                                 clientCertificate,
-                                m_serverInternal.Telemetry);
+                                ServerInternal.Telemetry);
                         parsedClientCertificate = clientCertificateChain[0].AddRef();
 
                         if (clientCertificateChain.Count > 1)
@@ -352,9 +352,9 @@ namespace Opc.Ua.Server
                         if (context.SecurityPolicyUri != SecurityPolicies.None)
                         {
                             // verify if applicationUri from ApplicationDescription matches the applicationUris in the client certificate.
-                            if (!string.IsNullOrEmpty(clientDescription.ApplicationUri))
+                            if (!string.IsNullOrEmpty(clientDescription?.ApplicationUri))
                             {
-                                if (!X509Utils.CompareApplicationUriWithCertificate(parsedClientCertificate, clientDescription.ApplicationUri))
+                                if (!X509Utils.CompareApplicationUriWithCertificate(parsedClientCertificate!, clientDescription!.ApplicationUri!))
                                 {
                                     // report the AuditCertificateDataMismatch event for invalid uri
                                     ServerInternal?.ReportAuditCertificateDataMismatchEvent(
@@ -367,10 +367,10 @@ namespace Opc.Ua.Server
                                     throw ServiceResultException.Create(
                                         StatusCodes.BadCertificateUriInvalid,
                                         "The URI specified in the ApplicationDescription {0} does not match the URIs in the Certificate.",
-                                        clientDescription.ApplicationUri);
+                                        clientDescription.ApplicationUri!);
                                 }
 
-                                CertificateValidationResult clientCertResult = await CertificateManager
+                                CertificateValidationResult clientCertResult = await CertificateManager!
                                     .ValidateAsync(
                                         clientCertificateChain,
                                         TrustListIdentifier.Peers,
@@ -387,7 +387,7 @@ namespace Opc.Ua.Server
                     catch (Exception e)
                     {
                         // report audit event for client certificate
-                        ReportAuditCertificateEvent(parsedClientCertificate, e);
+                        ReportAuditCertificateEvent(parsedClientCertificate!, e);
 
                         OnApplicationCertificateError(clientCertificate, new ServiceResult(e));
                     }
@@ -409,9 +409,9 @@ namespace Opc.Ua.Server
                 }
 
                 // load the certificate for the security profile
-                Certificate instanceCertificate = CertificateManager
+                Certificate instanceCertificate = CertificateManager!
                     .GetInstanceCertificate(
-                        context.SecurityPolicyUri)?.Certificate;
+                        context.SecurityPolicyUri)?.Certificate!;
 
                 // create the session.
                 CreateSessionResult result = await ServerInternal.SessionManager.CreateSessionAsync(
@@ -456,7 +456,7 @@ namespace Opc.Ua.Server
                             "Server - Client connects with an endpointUrl [{EndpointUrl}] which does not match Server hostnames.",
                             endpointUrl);
                         ServerInternal.ReportAuditUrlMismatchEvent(
-                            context?.AuditEntryId,
+                            context.AuditEntryId!,
                             session,
                             revisedSessionTimeout,
                             endpointUrl,
@@ -464,7 +464,7 @@ namespace Opc.Ua.Server
                     }
                 }
 
-                AdditionalParametersType parameters = CreateSessionProcessAdditionalParameters(
+                AdditionalParametersType? parameters = CreateSessionProcessAdditionalParameters(
                     session,
                     requestHeader.AdditionalHeader);
 
@@ -512,7 +512,7 @@ namespace Opc.Ua.Server
 
                 // report audit for successful create session
                 ServerInternal.ReportAuditCreateSessionEvent(
-                    context?.AuditEntryId,
+                    context.AuditEntryId!,
                     session,
                     revisedSessionTimeout,
                     m_logger);
@@ -533,7 +533,7 @@ namespace Opc.Ua.Server
                     ServerNonce = serverNonce,
                     ServerCertificate = serverCertificate,
                     ServerEndpoints = serverEndpoints,
-                    ServerSignature = serverSignature,
+                    ServerSignature = serverSignature!,
                     MaxRequestMessageSize = maxRequestMessageSize
                 };
             }
@@ -543,8 +543,8 @@ namespace Opc.Ua.Server
 
                 // report the failed AuditCreateSessionEvent
                 ServerInternal.ReportAuditCreateSessionEvent(
-                    context?.AuditEntryId,
-                    session,
+                    context.AuditEntryId!,
+                    session!,
                     revisedSessionTimeout,
                     m_logger,
                     e);
@@ -566,7 +566,7 @@ namespace Opc.Ua.Server
                     }
                 }
 
-                throw TranslateException((DiagnosticsMasks)requestHeader.ReturnDiagnostics, [], e);
+                throw TranslateException((DiagnosticsMasks)requestHeader.ReturnDiagnostics, [], e)!;
             }
             finally
             {
@@ -583,10 +583,10 @@ namespace Opc.Ua.Server
         /// <param name="clientNonce">The client nonce supplied in the request.</param>
         /// <param name="serverNonce">The server nonce generated for the response.</param>
         /// <returns>The server signature or <c>null</c> when signing is not required.</returns>
-        protected virtual SignatureData CreateSessionServerSignature(
+        protected virtual SignatureData? CreateSessionServerSignature(
             OperationContext context,
             Certificate instanceCertificate,
-            Certificate parsedClientCertificate,
+            Certificate? parsedClientCertificate,
             ByteString clientNonce,
             ByteString serverNonce)
         {
@@ -604,11 +604,11 @@ namespace Opc.Ua.Server
         /// <param name="session">The session.</param>
         /// <param name="additionalHeader">The additional request header.</param>
         /// <returns>An AdditionalParametersType object containing the processed parameters.</returns>
-        protected virtual AdditionalParametersType CreateSessionProcessAdditionalParameters(
+        protected virtual AdditionalParametersType? CreateSessionProcessAdditionalParameters(
             ISession session,
             ExtensionObject additionalHeader)
         {
-            if (additionalHeader.TryGetValue(out AdditionalParametersType parameters))
+            if (additionalHeader.TryGetValue(out AdditionalParametersType? parameters))
             {
                 parameters = CreateSessionProcessAdditionalParameters(session, parameters);
             }
@@ -628,7 +628,7 @@ namespace Opc.Ua.Server
             return SessionSecurityPolicyHelper.ProcessCreateSessionAdditionalParameters(
                 session,
                 parameters,
-                m_logger);
+                m_logger)!;
         }
 
         /// <summary>
@@ -637,11 +637,11 @@ namespace Opc.Ua.Server
         /// <param name="session">The session.</param>
         /// <param name="additionalHeader">The additional request header.</param>
         /// <returns>An AdditionalParametersType object containing the processed parameters.</returns>
-        protected virtual AdditionalParametersType ActivateSessionProcessAdditionalParameters(
+        protected virtual AdditionalParametersType? ActivateSessionProcessAdditionalParameters(
             ISession session,
             ExtensionObject additionalHeader)
         {
-            if (additionalHeader.TryGetValue(out AdditionalParametersType parameters))
+            if (additionalHeader.TryGetValue(out AdditionalParametersType? parameters))
             {
                 parameters = ActivateSessionProcessAdditionalParameters(session, parameters);
             }
@@ -666,12 +666,12 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public override async ValueTask<ActivateSessionResponse> ActivateSessionAsync(
             SecureChannelContext secureChannelContext,
-            RequestHeader requestHeader,
-            SignatureData clientSignature,
+            RequestHeader? requestHeader,
+            SignatureData? clientSignature,
             ArrayOf<SignedSoftwareCertificate> clientSoftwareCertificates,
             ArrayOf<string> localeIds,
             ExtensionObject userIdentityToken,
-            SignatureData userTokenSignature,
+            SignatureData? userTokenSignature,
             RequestLifetime requestLifetime)
         {
             ByteString serverNonce;
@@ -709,11 +709,11 @@ namespace Opc.Ua.Server
                     }
                 }
 
-                ISession session = ServerInternal.SessionManager
+                ISession? session = ServerInternal.SessionManager
                     .GetSession(requestHeader.AuthenticationToken);
 
-                AdditionalParametersType parameters = ActivateSessionProcessAdditionalParameters(
-                    session,
+                AdditionalParametersType? parameters = ActivateSessionProcessAdditionalParameters(
+                    session!,
                     requestHeader.AdditionalHeader);
 
                 m_logger.LogInformation("Server - SESSION ACTIVATED.");
@@ -721,8 +721,8 @@ namespace Opc.Ua.Server
                 // report the audit event for session activate
                 ServerInternal.ReportAuditActivateSessionEvent(
                     m_logger,
-                    context?.AuditEntryId,
-                    session);
+                    context.AuditEntryId!,
+                    session!);
 
                 ResponseHeader responseHeader = CreateResponse(requestHeader, StatusCodes.Good);
 
@@ -743,12 +743,12 @@ namespace Opc.Ua.Server
                 m_logger.LogInformation("Server - SESSION ACTIVATE failed. {ErrorMessage}", e.Message);
 
                 // report the audit event for failed session activate
-                ISession session = ServerInternal.SessionManager
+                ISession? session = ServerInternal.SessionManager
                     .GetSession(requestHeader.AuthenticationToken);
                 ServerInternal.ReportAuditActivateSessionEvent(
                     m_logger,
-                    context?.AuditEntryId,
-                    session,
+                    context.AuditEntryId!,
+                    session!,
                     e);
 
                 lock (ServerInternal.DiagnosticsWriteLock)
@@ -766,7 +766,7 @@ namespace Opc.Ua.Server
                 throw TranslateException(
                     (DiagnosticsMasks)requestHeader.ReturnDiagnostics,
                     localeIds,
-                    e);
+                    e)!;
             }
             finally
             {
@@ -818,7 +818,7 @@ namespace Opc.Ua.Server
         /// <param name="exception">The exception used to create DiagnosticInfo assigned to the ServiceDiagnostics.</param>
         /// <returns>Returns a description for the ResponseHeader DataType. </returns>
         protected ResponseHeader CreateResponse(
-            RequestHeader requestHeader,
+            RequestHeader? requestHeader,
             ServiceResultException exception)
         {
             var responseHeader = new ResponseHeader
@@ -826,7 +826,7 @@ namespace Opc.Ua.Server
                 ServiceResult = exception.StatusCode,
 
                 Timestamp = DateTime.UtcNow,
-                RequestHandle = requestHeader.RequestHandle
+                RequestHandle = requestHeader!.RequestHandle
             };
 
             var stringTable = new StringTable();
@@ -844,7 +844,7 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public override async ValueTask<CloseSessionResponse> CloseSessionAsync(
             SecureChannelContext secureChannelContext,
-            RequestHeader requestHeader,
+            RequestHeader? requestHeader,
             bool deleteSubscriptions,
             RequestLifetime requestLifetime)
         {
@@ -855,7 +855,7 @@ namespace Opc.Ua.Server
                 requestLifetime).ConfigureAwait(false);
             try
             {
-                ISession session = ServerInternal.SessionManager
+                ISession? session = ServerInternal.SessionManager
                     .GetSession(requestHeader.AuthenticationToken);
 
                 await ServerInternal.CloseSessionAsync(context, context.Session.Id, deleteSubscriptions, requestLifetime.CancellationToken)
@@ -863,8 +863,8 @@ namespace Opc.Ua.Server
 
                 // report the audit event for close session
                 ServerInternal.ReportAuditCloseSessionEvent(
-                    context.AuditEntryId,
-                    session,
+                    context.AuditEntryId!,
+                    session!,
                     m_logger,
                     "Session/CloseSession");
 
@@ -894,7 +894,7 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public override async ValueTask<CancelResponse> CancelAsync(
             SecureChannelContext secureChannelContext,
-            RequestHeader requestHeader,
+            RequestHeader? requestHeader,
             uint requestHandle,
             RequestLifetime requestLifetime)
         {
@@ -906,7 +906,7 @@ namespace Opc.Ua.Server
             CancelResponse response;
             try
             {
-                m_serverInternal.RequestManager.CancelRequests(requestHandle, out uint cancelCount);
+                ServerInternal.RequestManager.CancelRequests(requestHandle, out uint cancelCount);
 
                 response = new CancelResponse
                 {
@@ -938,8 +938,8 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public override async ValueTask<BrowseResponse> BrowseAsync(
             SecureChannelContext secureChannelContext,
-            RequestHeader requestHeader,
-            ViewDescription view,
+            RequestHeader? requestHeader,
+            ViewDescription? view,
             uint requestedMaxReferencesPerNode,
             ArrayOf<BrowseDescription> nodesToBrowse,
             RequestLifetime requestLifetime)
@@ -955,9 +955,9 @@ namespace Opc.Ua.Server
                 ValidateOperationLimits(nodesToBrowse, OperationLimits.MaxNodesPerBrowse);
 
                 (ArrayOf<BrowseResult> results, ArrayOf<DiagnosticInfo> diagnosticInfos) =
-                    await m_serverInternal.NodeManager.BrowseAsync(
+                    await ServerInternal.NodeManager.BrowseAsync(
                         context,
-                        view,
+                        view!,
                         requestedMaxReferencesPerNode,
                         nodesToBrowse,
                         requestLifetime.CancellationToken)
@@ -993,7 +993,7 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public override async ValueTask<BrowseNextResponse> BrowseNextAsync(
             SecureChannelContext secureChannelContext,
-            RequestHeader requestHeader,
+            RequestHeader? requestHeader,
             bool releaseContinuationPoints,
             ArrayOf<ByteString> continuationPoints,
             RequestLifetime requestLifetime)
@@ -1009,7 +1009,7 @@ namespace Opc.Ua.Server
                 ValidateOperationLimits(continuationPoints, OperationLimits.MaxNodesPerBrowse);
 
                 (ArrayOf<BrowseResult> results, ArrayOf<DiagnosticInfo> diagnosticInfos) =
-                    await m_serverInternal.NodeManager.BrowseNextAsync(
+                    await ServerInternal.NodeManager.BrowseNextAsync(
                         context,
                         releaseContinuationPoints,
                         continuationPoints,
@@ -1046,7 +1046,7 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public override async ValueTask<RegisterNodesResponse> RegisterNodesAsync(
             SecureChannelContext secureChannelContext,
-            RequestHeader requestHeader,
+            RequestHeader? requestHeader,
             ArrayOf<NodeId> nodesToRegister,
             RequestLifetime requestLifetime)
         {
@@ -1060,7 +1060,7 @@ namespace Opc.Ua.Server
             {
                 ValidateOperationLimits(nodesToRegister, OperationLimits.MaxNodesPerRegisterNodes);
 
-                m_serverInternal.NodeManager
+                ServerInternal.NodeManager
                     .RegisterNodes(context, nodesToRegister, out ArrayOf<NodeId> registeredNodeIds);
 
                 response = new RegisterNodesResponse
@@ -1093,7 +1093,7 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public override async ValueTask<UnregisterNodesResponse> UnregisterNodesAsync(
             SecureChannelContext secureChannelContext,
-            RequestHeader requestHeader,
+            RequestHeader? requestHeader,
             ArrayOf<NodeId> nodesToUnregister,
             RequestLifetime requestLifetime)
         {
@@ -1110,7 +1110,7 @@ namespace Opc.Ua.Server
                     nodesToUnregister,
                     OperationLimits.MaxNodesPerRegisterNodes);
 
-                m_serverInternal.NodeManager.UnregisterNodes(context, nodesToUnregister);
+                ServerInternal.NodeManager.UnregisterNodes(context, nodesToUnregister);
 
                 response = new UnregisterNodesResponse
                 {
@@ -1141,7 +1141,7 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public override async ValueTask<TranslateBrowsePathsToNodeIdsResponse> TranslateBrowsePathsToNodeIdsAsync(
             SecureChannelContext secureChannelContext,
-            RequestHeader requestHeader,
+            RequestHeader? requestHeader,
             ArrayOf<BrowsePath> browsePaths,
             RequestLifetime requestLifetime)
         {
@@ -1165,7 +1165,7 @@ namespace Opc.Ua.Server
                 }
 
                 (ArrayOf<BrowsePathResult> results, ArrayOf<DiagnosticInfo> diagnosticInfos) =
-                    await m_serverInternal.NodeManager.TranslateBrowsePathsToNodeIdsAsync(
+                    await ServerInternal.NodeManager.TranslateBrowsePathsToNodeIdsAsync(
                         context,
                         browsePaths,
                         requestLifetime.CancellationToken)
@@ -1201,7 +1201,7 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public override async ValueTask<ReadResponse> ReadAsync(
             SecureChannelContext secureChannelContext,
-            RequestHeader requestHeader,
+            RequestHeader? requestHeader,
             double maxAge,
             TimestampsToReturn timestampsToReturn,
             ArrayOf<ReadValueId> nodesToRead,
@@ -1218,7 +1218,7 @@ namespace Opc.Ua.Server
                 ValidateOperationLimits(nodesToRead, OperationLimits.MaxNodesPerRead);
 
                 (ArrayOf<DataValue> results, ArrayOf<DiagnosticInfo> diagnosticInfos) =
-                    await m_serverInternal.NodeManager.ReadAsync(
+                    await ServerInternal.NodeManager.ReadAsync(
                         context,
                         maxAge,
                         timestampsToReturn,
@@ -1257,7 +1257,7 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public override async ValueTask<HistoryReadResponse> HistoryReadAsync(
             SecureChannelContext secureChannelContext,
-            RequestHeader requestHeader,
+            RequestHeader? requestHeader,
             ExtensionObject historyReadDetails,
             TimestampsToReturn timestampsToReturn,
             bool releaseContinuationPoints,
@@ -1272,7 +1272,7 @@ namespace Opc.Ua.Server
 
             try
             {
-                if (historyReadDetails.TryGetValue(out ReadEventDetails _))
+                if (historyReadDetails.TryGetValue(out ReadEventDetails? _))
                 {
                     ValidateOperationLimits(
                         nodesToRead,
@@ -1286,7 +1286,7 @@ namespace Opc.Ua.Server
                 }
 
                 (ArrayOf<HistoryReadResult> results, ArrayOf<DiagnosticInfo> diagnosticInfos) =
-                    await m_serverInternal.NodeManager.HistoryReadAsync(
+                    await ServerInternal.NodeManager.HistoryReadAsync(
                         context,
                         historyReadDetails,
                         timestampsToReturn,
@@ -1327,7 +1327,7 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public override async ValueTask<WriteResponse> WriteAsync(
             SecureChannelContext secureChannelContext,
-            RequestHeader requestHeader,
+            RequestHeader? requestHeader,
             ArrayOf<WriteValue> nodesToWrite,
             RequestLifetime requestLifetime)
         {
@@ -1342,7 +1342,7 @@ namespace Opc.Ua.Server
                 ValidateOperationLimits(nodesToWrite, OperationLimits.MaxNodesPerWrite);
 
                 (ArrayOf<StatusCode> results, ArrayOf<DiagnosticInfo> diagnosticInfos) =
-                    await m_serverInternal.NodeManager
+                    await ServerInternal.NodeManager
                         .WriteAsync(context, nodesToWrite, requestLifetime.CancellationToken)
                         .ConfigureAwait(false);
 
@@ -1376,7 +1376,7 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public override async ValueTask<HistoryUpdateResponse> HistoryUpdateAsync(
             SecureChannelContext secureChannelContext,
-            RequestHeader requestHeader,
+            RequestHeader? requestHeader,
             ArrayOf<ExtensionObject> historyUpdateDetails,
             RequestLifetime requestLifetime)
         {
@@ -1394,7 +1394,7 @@ namespace Opc.Ua.Server
                 ValidateOperationLimits(historyUpdateDetails);
 
                 (ArrayOf<HistoryUpdateResult> results, ArrayOf<DiagnosticInfo> diagnosticInfos) =
-                    await m_serverInternal.NodeManager.HistoryUpdateAsync(
+                    await ServerInternal.NodeManager.HistoryUpdateAsync(
                         context,
                         historyUpdateDetails,
                         requestLifetime.CancellationToken).ConfigureAwait(false);
@@ -1429,7 +1429,7 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public override async ValueTask<CreateSubscriptionResponse> CreateSubscriptionAsync(
             SecureChannelContext secureChannelContext,
-            RequestHeader requestHeader,
+            RequestHeader? requestHeader,
             double requestedPublishingInterval,
             uint requestedLifetimeCount,
             uint requestedMaxKeepAliveCount,
@@ -1483,7 +1483,7 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public override async ValueTask<TransferSubscriptionsResponse> TransferSubscriptionsAsync(
             SecureChannelContext secureChannelContext,
-            RequestHeader requestHeader,
+            RequestHeader? requestHeader,
             ArrayOf<uint> subscriptionIds,
             bool sendInitialValues,
             RequestLifetime requestLifetime)
@@ -1531,7 +1531,7 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public override async ValueTask<DeleteSubscriptionsResponse> DeleteSubscriptionsAsync(
             SecureChannelContext secureChannelContext,
-            RequestHeader requestHeader,
+            RequestHeader? requestHeader,
             ArrayOf<uint> subscriptionIds,
             RequestLifetime requestLifetime)
         {
@@ -1577,7 +1577,7 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public override async ValueTask<PublishResponse> PublishAsync(
             SecureChannelContext secureChannelContext,
-            RequestHeader requestHeader,
+            RequestHeader? requestHeader,
             ArrayOf<SubscriptionAcknowledgement> subscriptionAcknowledgements,
             RequestLifetime requestLifetime)
         {
@@ -1649,7 +1649,7 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public override async ValueTask<RepublishResponse> RepublishAsync(
             SecureChannelContext secureChannelContext,
-            RequestHeader requestHeader,
+            RequestHeader? requestHeader,
             uint subscriptionId,
             uint retransmitSequenceNumber,
             RequestLifetime requestLifetime)
@@ -1697,7 +1697,7 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public override async ValueTask<ModifySubscriptionResponse> ModifySubscriptionAsync(
             SecureChannelContext secureChannelContext,
-            RequestHeader requestHeader,
+            RequestHeader? requestHeader,
             uint subscriptionId,
             double requestedPublishingInterval,
             uint requestedLifetimeCount,
@@ -1759,7 +1759,7 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public override async ValueTask<SetPublishingModeResponse> SetPublishingModeAsync(
             SecureChannelContext secureChannelContext,
-            RequestHeader requestHeader,
+            RequestHeader? requestHeader,
             bool publishingEnabled,
             ArrayOf<uint> subscriptionIds,
             RequestLifetime requestLifetime)
@@ -1813,7 +1813,7 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public override async ValueTask<SetTriggeringResponse> SetTriggeringAsync(
             SecureChannelContext secureChannelContext,
-            RequestHeader requestHeader,
+            RequestHeader? requestHeader,
             uint subscriptionId,
             uint triggeringItemId,
             ArrayOf<uint> linksToAdd,
@@ -1884,7 +1884,7 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public override async ValueTask<CreateMonitoredItemsResponse> CreateMonitoredItemsAsync(
             SecureChannelContext secureChannelContext,
-            RequestHeader requestHeader,
+            RequestHeader? requestHeader,
             uint subscriptionId,
             TimestampsToReturn timestampsToReturn,
             ArrayOf<MonitoredItemCreateRequest> itemsToCreate,
@@ -1934,7 +1934,7 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public override async ValueTask<ModifyMonitoredItemsResponse> ModifyMonitoredItemsAsync(
             SecureChannelContext secureChannelContext,
-            RequestHeader requestHeader,
+            RequestHeader? requestHeader,
             uint subscriptionId,
             TimestampsToReturn timestampsToReturn,
             ArrayOf<MonitoredItemModifyRequest> itemsToModify,
@@ -1984,7 +1984,7 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public override async ValueTask<DeleteMonitoredItemsResponse> DeleteMonitoredItemsAsync(
             SecureChannelContext secureChannelContext,
-            RequestHeader requestHeader,
+            RequestHeader? requestHeader,
             uint subscriptionId,
             ArrayOf<uint> monitoredItemIds,
             RequestLifetime requestLifetime)
@@ -2032,7 +2032,7 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public override async ValueTask<SetMonitoringModeResponse> SetMonitoringModeAsync(
             SecureChannelContext secureChannelContext,
-            RequestHeader requestHeader,
+            RequestHeader? requestHeader,
             uint subscriptionId,
             MonitoringMode monitoringMode,
             ArrayOf<uint> monitoredItemIds,
@@ -2087,7 +2087,7 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public override async ValueTask<CallResponse> CallAsync(
             SecureChannelContext secureChannelContext,
-            RequestHeader requestHeader,
+            RequestHeader? requestHeader,
             ArrayOf<CallMethodRequest> methodsToCall,
             RequestLifetime requestLifetime)
         {
@@ -2102,7 +2102,7 @@ namespace Opc.Ua.Server
                 ValidateOperationLimits(methodsToCall, OperationLimits.MaxNodesPerMethodCall);
 
                 (ArrayOf<CallMethodResult> results, ArrayOf<DiagnosticInfo> diagnosticInfos) =
-                    await m_serverInternal.NodeManager.CallAsync(context, methodsToCall, requestLifetime.CancellationToken)
+                    await ServerInternal.NodeManager.CallAsync(context, methodsToCall, requestLifetime.CancellationToken)
                         .ConfigureAwait(false);
 
                 return new CallResponse
@@ -2163,18 +2163,18 @@ namespace Opc.Ua.Server
         )]
         public ServerStatusDataType GetStatus()
         {
-            lock (Lock)
+            lock (Lock!)
             {
                 if (m_serverInternal == null)
                 {
                     throw new ServiceResultException(StatusCodes.BadServerHalted);
                 }
-                return m_serverInternal.Status.Value;
+                return ServerInternal.Status.Value;
             }
         }
 
         /// <inheritdoc/>
-        public ServerState CurrentState => m_serverInternal.CurrentState;
+        public ServerState CurrentState => ServerInternal.CurrentState;
 
         /// <summary>
         /// Registers the server with the discovery server.
@@ -2189,12 +2189,12 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public async ValueTask<bool> RegisterWithDiscoveryServerAsync(CancellationToken ct = default)
         {
-            var configuration = new ApplicationConfiguration(Configuration)
+            var configuration = new ApplicationConfiguration(Configuration!)
             {
                 // share the server's CertificateManager so the registration channel uses
                 // the same trust list, rejected store, and cached validation results.
                 // The base copy ctor already propagates the legacy CertificateValidator.
-                CertificateManager = CertificateManager
+                CertificateManager = CertificateManager!
             };
 
             // try each endpoint.
@@ -2202,7 +2202,7 @@ namespace Opc.Ua.Server
             {
                 foreach (ConfiguredEndpoint endpoint in m_registrationEndpoints.Endpoints)
                 {
-                    RegistrationClient client = null;
+                    RegistrationClient? client = null;
                     int i = 0;
 
                     while (i++ < 2)
@@ -2233,15 +2233,15 @@ namespace Opc.Ua.Server
                             };
 
                             // create the client.
-                            Certificate instanceCertificate =
-                                CertificateManager.GetInstanceCertificate(
+                            Certificate? instanceCertificate =
+                                CertificateManager!.GetInstanceCertificate(
                                     endpoint.Description?.SecurityPolicyUri ??
                                     SecurityPolicies.None)?.Certificate;
                             client = await RegistrationClient.CreateAsync(
                                 configuration,
-                                endpoint.Description,
-                                endpoint.Configuration,
-                                instanceCertificate,
+                                endpoint.Description!,
+                                endpoint.Configuration!,
+                                instanceCertificate!,
                                 ct: ct).ConfigureAwait(false);
 
                             client.OperationTimeout = 10000;
@@ -2251,7 +2251,7 @@ namespace Opc.Ua.Server
                             {
                                 var mdnsDiscoveryConfig = new MdnsDiscoveryConfiguration
                                 {
-                                    ServerCapabilities = configuration.ServerConfiguration
+                                    ServerCapabilities = configuration.ServerConfiguration!
                                         .ServerCapabilities,
                                     MdnsServerName = Utils.GetHostName()
                                 };
@@ -2272,7 +2272,7 @@ namespace Opc.Ua.Server
                                     .ConfigureAwait(false);
                             }
 
-                            m_registeredWithDiscoveryServer = m_registrationInfo.IsOnline;
+                            m_registeredWithDiscoveryServer = m_registrationInfo!.IsOnline;
                             return true;
                         }
                         catch (Exception e)
@@ -2315,7 +2315,7 @@ namespace Opc.Ua.Server
         /// Registers the server endpoints with the LDS.
         /// </summary>
         /// <param name="state">The state.</param>
-        private async void OnRegisterServerAsync(object state)
+        private async void OnRegisterServerAsync(object? state)
         {
             try
             {
@@ -2384,7 +2384,7 @@ namespace Opc.Ua.Server
         /// The synchronization object.
         /// </summary>
         [Obsolete("Use your own synchronization mechanism.")]
-        protected object Lock => null;
+        protected object? Lock => null;
 
         /// <summary>
         /// The state object associated with the server.
@@ -2399,7 +2399,7 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="requestHeader">The request header.</param>
         /// <exception cref="ServiceResultException"></exception>
-        protected override void ValidateRequest(RequestHeader requestHeader)
+        protected override void ValidateRequest([NotNull] RequestHeader? requestHeader)
         {
             // check for server error.
             ServiceResult error = ServerError;
@@ -2410,7 +2410,7 @@ namespace Opc.Ua.Server
             }
 
             // check server state.
-            IServerInternal serverInternal = m_serverInternal;
+            ServerInternalData? serverInternal = m_serverInternal;
 
             if (serverInternal == null || !serverInternal.IsRunning)
             {
@@ -2442,7 +2442,7 @@ namespace Opc.Ua.Server
 
                 m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - Enter {State} state.", state);
 
-                m_serverInternal.CurrentState = state;
+                ServerInternal.CurrentState = state;
             }
             finally
             {
@@ -2503,7 +2503,7 @@ namespace Opc.Ua.Server
         /// <exception cref="ServiceResultException"></exception>
         protected virtual async ValueTask<OperationContext> ValidateRequestAsync(
             SecureChannelContext secureChannelContext,
-            RequestHeader requestHeader,
+            [NotNull] RequestHeader? requestHeader,
             RequestType requestType,
             RequestLifetime requestLifetime)
         {
@@ -2519,12 +2519,12 @@ namespace Opc.Ua.Server
 
             if (ServerUtils.EventLog.IsEnabled())
             {
-                string requestTypeString = Enum.GetName(
+                string? requestTypeString = Enum.GetName(
 #if !NET8_0_OR_GREATER
                    typeof(RequestType),
 #endif
                    context.RequestType);
-                ServerUtils.EventLog.ServerCall(requestTypeString, context.RequestId);
+                ServerUtils.EventLog.ServerCall(requestTypeString!, context.RequestId);
             }
             m_logger.LogTrace("Server Call={RequestType}, Id={RequestId}", context.RequestType, context.RequestId);
 
@@ -2544,7 +2544,7 @@ namespace Opc.Ua.Server
         /// <exception cref="ServiceResultException">BadTooManyOperations if list is larger than operation limit property.</exception>
         protected void ValidateOperationLimits<T>(
             ArrayOf<T> operation,
-            PropertyState<uint> operationLimit = null)
+            PropertyState<uint>? operationLimit = null)
         {
             if (operation.IsEmpty)
             {
@@ -2559,7 +2559,7 @@ namespace Opc.Ua.Server
         /// <param name="count">A count of operations.</param>
         /// <param name="operationLimit">The operation limit property.</param>
         /// <exception cref="ServiceResultException">BadTooManyOperations if count is larger than operation limit property.</exception>
-        protected void ValidateOperationLimits(int count, PropertyState<uint> operationLimit)
+        protected void ValidateOperationLimits(int count, PropertyState<uint>? operationLimit)
         {
             uint operationLimitValue = operationLimit != null ? operationLimit.Value : 0;
             if (operationLimitValue > 0 && count > operationLimitValue)
@@ -2585,7 +2585,7 @@ namespace Opc.Ua.Server
                 preferredLocales = context.Session.PreferredLocales;
             }
 
-            return TranslateException(context.DiagnosticsMask, preferredLocales, e);
+            return TranslateException(context!.DiagnosticsMask, preferredLocales, e);
         }
 
         /// <summary>
@@ -2602,11 +2602,11 @@ namespace Opc.Ua.Server
         {
             if (e == null)
             {
-                return null;
+                throw new ArgumentNullException(nameof(e));
             }
 
             // check if inner result required.
-            ServiceResult innerResult = null;
+            ServiceResult? innerResult = null;
 
             if ((
                     diagnosticsMasks &
@@ -2634,7 +2634,7 @@ namespace Opc.Ua.Server
                 innerResult);
 
             // translate result.
-            result = m_serverInternal.ResourceManager.Translate(preferredLocales, result);
+            result = ServerInternal.ResourceManager.Translate(preferredLocales, result)!;
             return new ServiceResultException(result);
         }
 
@@ -2645,7 +2645,7 @@ namespace Opc.Ua.Server
         /// <param name="preferredLocales">The preferred locales.</param>
         /// <param name="result">The result.</param>
         /// <returns>Returns a class that combines the status code and diagnostic info structures.</returns>
-        protected virtual ServiceResult TranslateResult(
+        protected virtual ServiceResult? TranslateResult(
             DiagnosticsMasks diagnosticsMasks,
             ArrayOf<string> preferredLocales,
             ServiceResult result)
@@ -2655,7 +2655,7 @@ namespace Opc.Ua.Server
                 return null;
             }
 
-            return m_serverInternal.ResourceManager.Translate(preferredLocales, result);
+            return ServerInternal.ResourceManager.Translate(preferredLocales, result);
         }
 
         /// <summary>
@@ -2673,7 +2673,7 @@ namespace Opc.Ua.Server
                     throw new ServiceResultException(StatusCodes.BadServerHalted);
                 }
 
-                m_serverInternal.RequestManager.RequestCompleted(context);
+                ServerInternal.RequestManager.RequestCompleted(context);
             }
             finally
             {
@@ -2689,7 +2689,7 @@ namespace Opc.Ua.Server
         [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2072",
             Justification = "Configuration.GetType() returns a concrete type whose constructor is preserved at the call site.")]
         protected virtual async void OnConfigurationChangedAsync(
-            object sender,
+            object? sender,
             ConfigurationWatcherEventArgs args)
         {
             try
@@ -2697,8 +2697,8 @@ namespace Opc.Ua.Server
                 ApplicationConfiguration configuration = await ApplicationConfiguration
                     .LoadAsync(
                         new FileInfo(args.FilePath),
-                        Configuration.ApplicationType,
-                        Configuration.GetType(),
+                        Configuration!.ApplicationType,
+                        Configuration!.GetType(),
                         MessageContext.Telemetry)
                     .ConfigureAwait(false);
 
@@ -2722,31 +2722,35 @@ namespace Opc.Ua.Server
                 // update security configuration.
                 configuration.SecurityConfiguration.Validate(MessageContext.Telemetry);
 
-                Configuration.SecurityConfiguration.TrustedIssuerCertificates = configuration
+                ApplicationConfiguration currentConfiguration = Configuration!;
+                SecurityConfiguration currentSecurityConfiguration = currentConfiguration
+                    .SecurityConfiguration;
+
+                currentSecurityConfiguration.TrustedIssuerCertificates = configuration
                     .SecurityConfiguration
                     .TrustedIssuerCertificates;
-                Configuration.SecurityConfiguration.TrustedPeerCertificates = configuration
+                currentSecurityConfiguration.TrustedPeerCertificates = configuration
                     .SecurityConfiguration
                     .TrustedPeerCertificates;
-                Configuration.SecurityConfiguration.RejectedCertificateStore = configuration
+                currentSecurityConfiguration.RejectedCertificateStore = configuration
                     .SecurityConfiguration
                     .RejectedCertificateStore;
 
                 if (CertificateManager != null)
                 {
                     await CertificateManager.UpdateAsync(
-                            Configuration.SecurityConfiguration,
+                            Configuration!.SecurityConfiguration,
                             Configuration.ApplicationUri,
                             cancellationToken)
                         .ConfigureAwait(false);
                 }
 
                 // update trace configuration.
-                Configuration.TraceConfiguration = configuration.TraceConfiguration ??
+                currentConfiguration.TraceConfiguration = configuration.TraceConfiguration ??
                     new TraceConfiguration();
 
 #pragma warning disable CS0618 // Type or member is obsolete
-                Configuration.TraceConfiguration.ApplySettings();
+                currentConfiguration.TraceConfiguration.ApplySettings();
 #pragma warning restore CS0618 // Type or member is obsolete
             }
             catch (Exception e)
@@ -2801,7 +2805,7 @@ namespace Opc.Ua.Server
             var hosts = new Dictionary<string, ServiceHost>();
 
             // ensure at least one security policy exists.
-            if (configuration.ServerConfiguration.SecurityPolicies.IsEmpty)
+            if (configuration.ServerConfiguration!.SecurityPolicies.IsEmpty)
             {
                 configuration.ServerConfiguration.SecurityPolicies =
                     configuration.ServerConfiguration.SecurityPolicies.AddItem(new ServerSecurityPolicy());
@@ -2832,7 +2836,7 @@ namespace Opc.Ua.Server
                 string scheme in Utils.DefaultUriSchemes.Where(scheme =>
                     baseAddresses.Contains(a => a.StartsWith(scheme, StringComparison.Ordinal))))
             {
-                ITransportListenerFactory binding = bindingFactory.GetBinding(scheme, MessageContext.Telemetry);
+                ITransportListenerFactory? binding = bindingFactory.GetBinding(scheme, MessageContext.Telemetry);
                 if (binding != null)
                 {
                     List<EndpointDescription> endpointsForHost = binding.CreateServiceHost(
@@ -2842,8 +2846,8 @@ namespace Opc.Ua.Server
                         configuration.ServerConfiguration.BaseAddresses,
                         serverDescription,
                         configuration.ServerConfiguration.SecurityPolicies,
-                        CertificateManager,
-                        configuration.CertificateManager);
+                        CertificateManager!,
+                        configuration.CertificateManager!);
                     endpointsList.AddRange(endpointsForHost);
                 }
             }
@@ -2885,7 +2889,7 @@ namespace Opc.Ua.Server
 
                 // create the datastore for the instance.
                 m_serverInternal = new ServerInternalData(
-                    ServerProperties,
+                    ServerProperties!,
                     configuration,
                     MessageContext);
 
@@ -2904,7 +2908,7 @@ namespace Opc.Ua.Server
                 //create the main node manager factory
                 IMainNodeManagerFactory mainNodeManagerFactory = CreateMainNodeManagerFactory(m_serverInternal, configuration);
 
-                m_serverInternal.SetMainNodeManagerFactory(mainNodeManagerFactory);
+                ServerInternal.SetMainNodeManagerFactory(mainNodeManagerFactory);
 
                 // create the master node manager.
                 m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - CreateMasterNodeManager.");
@@ -2913,7 +2917,7 @@ namespace Opc.Ua.Server
                     configuration);
 
                 // add the node manager to the datastore.
-                m_serverInternal.SetNodeManager(masterNodeManager);
+                ServerInternal.SetNodeManager(masterNodeManager);
 
                 // put the node manager into a state that allows it to be used by other objects.
                 await masterNodeManager.StartupAsync(cancellationToken)
@@ -2924,7 +2928,7 @@ namespace Opc.Ua.Server
                 EventManager eventManager = CreateEventManager(m_serverInternal, configuration);
 
                 // creates the server object.
-                await m_serverInternal.CreateServerObjectAsync(
+                await ServerInternal.CreateServerObjectAsync(
                     eventManager,
                     resourceManager,
                     requestManager,
@@ -2935,12 +2939,12 @@ namespace Opc.Ua.Server
 
                 // create the manager responsible for aggregates.
                 m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - CreateAggregateManager.");
-                m_serverInternal.SetAggregateManager(
+                ServerInternal.SetAggregateManager(
                     await CreateAggregateManagerAsync(m_serverInternal, configuration, cancellationToken).ConfigureAwait(false));
 
                 // create the manager responsible for modelling rules.
                 m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - CreateModellingRulesManager.");
-                m_serverInternal.SetModellingRulesManager(
+                ServerInternal.SetModellingRulesManager(
                     await CreateModellingRulesManagerAsync(m_serverInternal, configuration, cancellationToken).ConfigureAwait(false));
 
                 // start the session manager.
@@ -2955,21 +2959,21 @@ namespace Opc.Ua.Server
                 sessionManager.SessionChannelKeepAlive += SessionChannelKeepAliveEvent;
 
                 //create the MonitoredItemQueueFactory
-                IMonitoredItemQueueFactory monitoredItemQueueFactory
+                IMonitoredItemQueueFactory? monitoredItemQueueFactory
                     = CreateMonitoredItemQueueFactory(
                     m_serverInternal,
                     configuration);
 
                 //add the MonitoredItemQueueFactory to the datastore.
-                m_serverInternal.SetMonitoredItemQueueFactory(monitoredItemQueueFactory);
+                ServerInternal.SetMonitoredItemQueueFactory(monitoredItemQueueFactory!);
 
                 //create the SubscriptionStore
-                ISubscriptionStore subscriptionStore = CreateSubscriptionStore(
+                ISubscriptionStore? subscriptionStore = CreateSubscriptionStore(
                     m_serverInternal,
                     configuration);
 
                 //add the SubscriptionStore to the datastore
-                m_serverInternal.SetSubscriptionStore(subscriptionStore);
+                ServerInternal.SetSubscriptionStore(subscriptionStore!);
 
                 // start the subscription manager.
                 m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - CreateSubscriptionManager.");
@@ -2980,21 +2984,21 @@ namespace Opc.Ua.Server
                     .ConfigureAwait(false);
 
                 // add the session manager to the datastore.
-                m_serverInternal.SetSessionManager(sessionManager, subscriptionManager);
+                ServerInternal.SetSessionManager(sessionManager, subscriptionManager);
 
-                ServerError = null;
+                ServerError = null!;
 
                 // setup registration information.
                 lock (m_registrationLock)
                 {
-                    m_maxRegistrationInterval = configuration.ServerConfiguration
+                    m_maxRegistrationInterval = configuration.ServerConfiguration!
                         .MaxRegistrationInterval;
 
-                    ApplicationDescription serverDescription = ServerDescription;
+                    ApplicationDescription serverDescription = ServerDescription!;
 
                     m_registrationInfo = new RegisteredServer
                     {
-                        ServerUri = serverDescription.ApplicationUri
+                        ServerUri = serverDescription.ApplicationUri!
                     };
                     m_registrationInfo.ServerNames += serverDescription.ApplicationName;
                     m_registrationInfo.ProductUri = serverDescription.ProductUri;
@@ -3009,7 +3013,7 @@ namespace Opc.Ua.Server
                     var discoveryUrls = new List<string>();
                     for (int ii = 0; ii < BaseAddresses.Count; ii++)
                     {
-                        var uri = new UriBuilder(BaseAddresses[ii].DiscoveryUrl);
+                        var uri = new UriBuilder(BaseAddresses[ii].DiscoveryUrl!);
 
                         if (string.Equals(
                             uri.Host,
@@ -3026,7 +3030,7 @@ namespace Opc.Ua.Server
                     // build list of registration endpoints.
                     m_registrationEndpoints = new ConfiguredEndpointCollection(configuration);
 
-                    EndpointDescription endpoint = configuration.ServerConfiguration
+                    EndpointDescription? endpoint = configuration.ServerConfiguration
                         .RegistrationEndpoint;
 
                     if (endpoint == null)
@@ -3092,7 +3096,7 @@ namespace Opc.Ua.Server
             {
                 m_logger.LogInformation(Utils.TraceMasks.StartStop, "Server - Configuration watcher started.");
                 m_configurationWatcher = new ConfigurationWatcher(configuration, MessageContext.Telemetry);
-                m_configurationWatcher.Changed += OnConfigurationChangedAsync;
+                m_configurationWatcher!.Changed += OnConfigurationChangedAsync;
             }
 
             // Log availability of the new CertificateManager
@@ -3130,7 +3134,7 @@ namespace Opc.Ua.Server
                 if (m_maxRegistrationInterval > 0 && m_registeredWithDiscoveryServer)
                 {
                     // unregister from Discovery Server if registered before
-                    m_registrationInfo.IsOnline = false;
+                    m_registrationInfo!.IsOnline = false;
                     await RegisterWithDiscoveryServerAsync(cancellationToken).ConfigureAwait(false);
                 }
 
@@ -3139,11 +3143,11 @@ namespace Opc.Ua.Server
                 {
                     if (m_serverInternal != null)
                     {
-                        m_serverInternal.SessionManager.SessionChannelKeepAlive
+                        ServerInternal.SessionManager.SessionChannelKeepAlive
                             -= SessionChannelKeepAliveEvent;
-                        await m_serverInternal.SubscriptionManager.ShutdownAsync(cancellationToken).ConfigureAwait(false);
-                        m_serverInternal.SessionManager.Shutdown();
-                        await m_serverInternal.NodeManager.ShutdownAsync(cancellationToken).ConfigureAwait(false);
+                        await ServerInternal.SubscriptionManager.ShutdownAsync(cancellationToken).ConfigureAwait(false);
+                        ServerInternal.SessionManager.Shutdown();
+                        await ServerInternal.NodeManager.ShutdownAsync(cancellationToken).ConfigureAwait(false);
                     }
                 }
                 finally
@@ -3175,7 +3179,7 @@ namespace Opc.Ua.Server
             NodeId authenticationToken,
             out uint channelId)
         {
-            ISession session = ServerInternal.SessionManager.GetSession(authenticationToken);
+            ISession? session = ServerInternal.SessionManager.GetSession(authenticationToken);
 
             if (session == null)
             {
@@ -3206,12 +3210,13 @@ namespace Opc.Ua.Server
                             status.Value.ShutdownReason = new LocalizedText(
                                 "en-US",
                                 "Application is shutting down.");
-                            status.Variable.ShutdownReason.Value = new LocalizedText(
+                            ServerStatusState statusVariable = status!.Variable!;
+                            statusVariable.ShutdownReason!.Value = new LocalizedText(
                                 "en-US",
                                 "Application is shutting down.");
                             status.Value.State = ServerState.Shutdown;
-                            status.Variable.State.Value = ServerState.Shutdown;
-                            status.Variable
+                            statusVariable.State!.Value = ServerState.Shutdown;
+                            statusVariable
                                 .ClearChangeMasks(ServerInternal.DefaultSystemContext, true);
                         });
 
@@ -3219,13 +3224,13 @@ namespace Opc.Ua.Server
                     {
                         // raise close session audit event
                         ServerInternal.ReportAuditCloseSessionEvent(
-                            null,
+                            null!,
                             session,
                             m_logger,
                             "Session/Terminated");
                     }
 
-                    for (int timeTillShutdown = Configuration.ServerConfiguration.ShutdownDelay;
+                    for (int timeTillShutdown = Configuration!.ServerConfiguration!.ShutdownDelay;
                         timeTillShutdown > 0;
                         timeTillShutdown--)
                     {
@@ -3233,7 +3238,7 @@ namespace Opc.Ua.Server
                             (status) =>
                             {
                                 status.Value.SecondsTillShutdown = (uint)timeTillShutdown;
-                                status.Variable.SecondsTillShutdown.Value = (uint)timeTillShutdown;
+                                status!.Variable!.SecondsTillShutdown!.Value = (uint)timeTillShutdown;
                                 status.Variable
                                     .ClearChangeMasks(ServerInternal.DefaultSystemContext, true);
                             });
@@ -3557,7 +3562,7 @@ namespace Opc.Ua.Server
                 asyncNodeManagers.Add(nodeManagerFactory.CreateAsync(server, configuration).AsTask().GetAwaiter().GetResult());
             }
 
-            return new MasterNodeManager(server, configuration, null, asyncNodeManagers, nodeManagers);
+            return new MasterNodeManager(server, configuration, null!, asyncNodeManagers, nodeManagers);
         }
 
         /// <summary>
@@ -3585,7 +3590,7 @@ namespace Opc.Ua.Server
         {
             return new EventManager(
                 server,
-                (uint)configuration.ServerConfiguration.MaxEventQueueSize,
+                (uint)configuration.ServerConfiguration!.MaxEventQueueSize,
                 (uint)configuration.ServerConfiguration.MaxDurableEventQueueSize);
         }
 
@@ -3621,7 +3626,7 @@ namespace Opc.Ua.Server
         /// <param name="server">The server.</param>
         /// <param name="configuration">The configuration.</param>
         /// <returns>Returns a (durable) monitored item queue factory for a server, the return type is <seealso cref="IMonitoredItemQueueFactory"/>.</returns>
-        protected virtual IMonitoredItemQueueFactory CreateMonitoredItemQueueFactory(
+        protected virtual IMonitoredItemQueueFactory? CreateMonitoredItemQueueFactory(
             IServerInternal server,
             ApplicationConfiguration configuration)
         {
@@ -3634,7 +3639,7 @@ namespace Opc.Ua.Server
         /// <param name="server">The server.</param>
         /// <param name="configuration">The configuration.</param>
         /// <returns>Returns a subscriptionStore for a server, the return type is <seealso cref="ISubscriptionStore"/>.</returns>
-        protected virtual ISubscriptionStore CreateSubscriptionStore(
+        protected virtual ISubscriptionStore? CreateSubscriptionStore(
             IServerInternal server,
             ApplicationConfiguration configuration)
         {
@@ -3698,25 +3703,25 @@ namespace Opc.Ua.Server
         {
             Debug.Assert(reason == SessionEventReason.ChannelKeepAlive);
 
-            string secureChannelId = session?.SecureChannelId;
+            string? secureChannelId = session?.SecureChannelId;
             if (!string.IsNullOrEmpty(secureChannelId))
             {
-                ITransportListener transportListener = TransportListeners.FirstOrDefault(tl =>
-                    secureChannelId.StartsWith(tl.ListenerId, StringComparison.Ordinal));
-                transportListener?.UpdateChannelLastActiveTime(secureChannelId);
+                ITransportListener? transportListener = TransportListeners.FirstOrDefault(tl =>
+                    secureChannelId!.StartsWith(tl.ListenerId, StringComparison.Ordinal));
+                transportListener?.UpdateChannelLastActiveTime(secureChannelId!);
             }
         }
 
         private OperationLimitsState OperationLimits
-            => ServerInternal.ServerObject.ServerCapabilities.OperationLimits;
+            => ServerInternal.ServerObject.ServerCapabilities!.OperationLimits!;
 
         private readonly Lock m_registrationLock = new();
         private readonly SemaphoreSlim m_semaphoreSlim = new(1, 1);
-        private IServerInternal m_serverInternal;
-        private ConfigurationWatcher m_configurationWatcher;
-        private ConfiguredEndpointCollection m_registrationEndpoints;
-        private RegisteredServer m_registrationInfo;
-        private Timer m_registrationTimer;
+        private ServerInternalData? m_serverInternal;
+        private ConfigurationWatcher? m_configurationWatcher;
+        private ConfiguredEndpointCollection? m_registrationEndpoints;
+        private RegisteredServer? m_registrationInfo;
+        private Timer? m_registrationTimer;
         private int m_minRegistrationInterval;
         private int m_maxRegistrationInterval;
         private int m_lastRegistrationInterval;
@@ -3725,7 +3730,7 @@ namespace Opc.Ua.Server
         private bool m_useRegisterServer2;
         private readonly List<INodeManagerFactory> m_nodeManagerFactories = [];
         private readonly List<IAsyncNodeManagerFactory> m_asyncNodeManagerFactories = [];
-        private IDisposable m_certManagerSubscription;
+        private IDisposable? m_certManagerSubscription;
 
         private sealed class CertificateManagerChangeObserver : IObserver<CertificateChangeEvent>
         {
@@ -3753,9 +3758,9 @@ namespace Opc.Ua.Server
                     // fired, so we only need to refresh downstream consumers.
                     try
                     {
-                        ICertificateValidatorEx validator = _server.CertificateManager;
+                        ICertificateValidatorEx validator = _server.CertificateManager!;
                         var args = new CertificateUpdateEventArgs(
-                            _server.Configuration?.SecurityConfiguration,
+                            _server.Configuration?.SecurityConfiguration!,
                             validator);
                         _server.OnCertificateUpdateAsync(_server, args);
                     }
