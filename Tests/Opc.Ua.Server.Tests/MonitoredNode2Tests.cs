@@ -344,5 +344,134 @@ namespace Opc.Ua.Server.Tests
 
             return monitoredItemMock;
         }
+
+        /// <summary>
+        /// Verifies that <see cref="MonitoredNode2.InvalidatePermissionCacheForSession"/> clears
+        /// the cached permission result for all monitored items belonging to the specified session,
+        /// causing <c>ValidateRolePermissions</c> to be called again on the next value change.
+        /// </summary>
+        [Test]
+        public void InvalidatePermissionCacheForSession_ClearsPermissionCacheForMatchingSession()
+        {
+            // Arrange
+            var sessionId = new NodeId("session1", 1);
+            var nodeId = new NodeId("testNode", 1);
+            var node = new BaseDataVariableState(null)
+            {
+                NodeId = nodeId,
+                BrowseName = new QualifiedName("testNode", 1),
+                DataType = DataTypeIds.Int32
+            };
+
+            var nodeManagerMock = new Mock<INodeManager3>();
+            nodeManagerMock
+                .Setup(m => m.ValidateRolePermissions(
+                    It.IsAny<OperationContext>(),
+                    It.IsAny<NodeId>(),
+                    It.IsAny<PermissionType>()))
+                .Returns(ServiceResult.Good);
+
+            var serverMock = new Mock<IServerInternal>();
+            serverMock.Setup(s => s.Auditing).Returns(false);
+
+            Mock<IDataChangeMonitoredItem2> monitoredItemMock =
+                CreateDataChangeMonitoredItemMockWithSession(1u, Attributes.Value, sessionId);
+
+            var monitoredNode = new MonitoredNode2(nodeManagerMock.Object, serverMock.Object, node);
+            monitoredNode.Add(monitoredItemMock.Object);
+
+            ISystemContext context = new Mock<ISystemContext>().Object;
+
+            // Populate the permission cache with the first value change
+            monitoredNode.OnMonitoredNodeChanged(context, node, NodeStateChangeMasks.Value);
+            nodeManagerMock.Verify(
+                m => m.ValidateRolePermissions(It.IsAny<OperationContext>(), nodeId, PermissionType.Read),
+                Times.Once);
+
+            // Act – invalidate permission cache for the session (simulates identity change)
+            monitoredNode.InvalidatePermissionCacheForSession(sessionId);
+
+            // Next value change should trigger re-validation
+            monitoredNode.OnMonitoredNodeChanged(context, node, NodeStateChangeMasks.Value);
+
+            // Assert – called twice: once before and once after cache invalidation
+            nodeManagerMock.Verify(
+                m => m.ValidateRolePermissions(It.IsAny<OperationContext>(), nodeId, PermissionType.Read),
+                Times.Exactly(2));
+        }
+
+        /// <summary>
+        /// Verifies that <see cref="MonitoredNode2.InvalidatePermissionCacheForSession"/> does NOT
+        /// clear the permission cache for monitored items belonging to a different session.
+        /// </summary>
+        [Test]
+        public void InvalidatePermissionCacheForSession_DoesNotClearCacheForOtherSession()
+        {
+            // Arrange
+            var sessionId = new NodeId("session1", 1);
+            var otherSessionId = new NodeId("session2", 1);
+            var nodeId = new NodeId("testNode", 1);
+            var node = new BaseDataVariableState(null)
+            {
+                NodeId = nodeId,
+                BrowseName = new QualifiedName("testNode", 1),
+                DataType = DataTypeIds.Int32
+            };
+
+            var nodeManagerMock = new Mock<INodeManager3>();
+            nodeManagerMock
+                .Setup(m => m.ValidateRolePermissions(
+                    It.IsAny<OperationContext>(),
+                    It.IsAny<NodeId>(),
+                    It.IsAny<PermissionType>()))
+                .Returns(ServiceResult.Good);
+
+            var serverMock = new Mock<IServerInternal>();
+            serverMock.Setup(s => s.Auditing).Returns(false);
+
+            // Monitored item belongs to sessionId, not otherSessionId
+            Mock<IDataChangeMonitoredItem2> monitoredItemMock =
+                CreateDataChangeMonitoredItemMockWithSession(1u, Attributes.Value, sessionId);
+
+            var monitoredNode = new MonitoredNode2(nodeManagerMock.Object, serverMock.Object, node);
+            monitoredNode.Add(monitoredItemMock.Object);
+
+            ISystemContext context = new Mock<ISystemContext>().Object;
+
+            // Populate the cache
+            monitoredNode.OnMonitoredNodeChanged(context, node, NodeStateChangeMasks.Value);
+
+            // Act – invalidate for a DIFFERENT session
+            monitoredNode.InvalidatePermissionCacheForSession(otherSessionId);
+
+            // Next value change should still use the cached result
+            monitoredNode.OnMonitoredNodeChanged(context, node, NodeStateChangeMasks.Value);
+
+            // Assert – ValidateRolePermissions still called only once (cache was not cleared)
+            nodeManagerMock.Verify(
+                m => m.ValidateRolePermissions(It.IsAny<OperationContext>(), nodeId, PermissionType.Read),
+                Times.Once);
+        }
+
+        private static Mock<IDataChangeMonitoredItem2> CreateDataChangeMonitoredItemMockWithSession(
+            uint id,
+            uint attributeId,
+            NodeId sessionId)
+        {
+            var sessionMock = new Mock<ISession>();
+            var identityMock = new Mock<IUserIdentity>();
+            sessionMock.Setup(s => s.EffectiveIdentity).Returns(identityMock.Object);
+            sessionMock.Setup(s => s.Id).Returns(sessionId);
+
+            var monitoredItemMock = new Mock<IDataChangeMonitoredItem2>();
+            monitoredItemMock.Setup(m => m.Id).Returns(id);
+            monitoredItemMock.Setup(m => m.AttributeId).Returns(attributeId);
+            monitoredItemMock.Setup(m => m.IndexRange).Returns(NumericRange.Null);
+            monitoredItemMock.Setup(m => m.DataEncoding).Returns(QualifiedName.Null);
+            monitoredItemMock.Setup(m => m.Session).Returns(sessionMock.Object);
+            monitoredItemMock.Setup(m => m.EffectiveIdentity).Returns(identityMock.Object);
+
+            return monitoredItemMock;
+        }
     }
 }

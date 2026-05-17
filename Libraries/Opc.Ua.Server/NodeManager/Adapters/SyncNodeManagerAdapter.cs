@@ -271,6 +271,12 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
+        public void SessionActivated(OperationContext context, NodeId sessionId)
+        {
+            m_nodeManager.SessionActivatedAsync(context, sessionId).AsTask().GetAwaiter().GetResult();
+        }
+
+        /// <inheritdoc/>
         public bool IsNodeInView(OperationContext context, NodeId viewId, object nodeHandle)
         {
             return m_nodeManager.IsNodeInViewAsync(context, viewId, nodeHandle).AsTask().GetAwaiter().GetResult();

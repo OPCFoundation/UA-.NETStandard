@@ -393,6 +393,13 @@ namespace Opc.Ua.Server
            OperationContext operationContext,
            NodeId nodeId,
            PermissionType requestedPermission);
+
+        /// <summary>
+        /// Called when a session is activated and the user identity has changed.
+        /// Implementations should invalidate any cached role permissions for monitored items
+        /// belonging to the session so that permissions are re-evaluated on the next data change.
+        /// </summary>
+        void SessionActivated(OperationContext context, NodeId sessionId);
     }
 
     /// <summary>
@@ -802,6 +809,16 @@ namespace Opc.Ua.Server
             OperationContext context,
             NodeId sessionId,
             bool deleteSubscriptions,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Called when a session is activated and the user identity has changed.
+        /// Implementations should invalidate any cached role permissions for monitored items
+        /// belonging to the session so that permissions are re-evaluated on the next data change.
+        /// </summary>
+        ValueTask SessionActivatedAsync(
+            OperationContext context,
+            NodeId sessionId,
             CancellationToken cancellationToken = default);
 
         /// <summary>

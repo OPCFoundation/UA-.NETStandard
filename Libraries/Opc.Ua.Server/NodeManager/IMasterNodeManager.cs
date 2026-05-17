@@ -282,6 +282,11 @@ namespace Opc.Ua.Server
         ValueTask SessionClosingAsync(OperationContext context, NodeId sessionId, bool deleteSubscriptions, CancellationToken cancellationToken = default);
 
         /// <summary>
+        /// Signals that a session has been activated with a changed user identity.
+        /// </summary>
+        ValueTask SessionActivatedAsync(OperationContext context, NodeId sessionId, CancellationToken cancellationToken = default);
+
+        /// <summary>
         /// Changes the monitoring mode for a set of items.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>

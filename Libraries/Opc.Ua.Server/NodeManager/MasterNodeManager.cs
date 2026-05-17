@@ -403,6 +403,37 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
+        public virtual async ValueTask SessionActivatedAsync(
+            OperationContext context,
+            NodeId sessionId,
+            CancellationToken cancellationToken = default)
+        {
+            await m_startupShutdownSemaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                foreach (IAsyncNodeManager nodeManager in m_nodeManagers)
+                {
+                    try
+                    {
+                        await nodeManager.SessionActivatedAsync(context, sessionId, cancellationToken)
+                            .ConfigureAwait(false);
+                    }
+                    catch (Exception e)
+                    {
+                        m_logger.LogError(
+                            e,
+                            "Unexpected error notifying node manager of session activation for NodeManager={NodeManager}.",
+                            nodeManager);
+                    }
+                }
+            }
+            finally
+            {
+                m_startupShutdownSemaphoreSlim.Release();
+            }
+        }
+
+        /// <inheritdoc/>
         public virtual async ValueTask ShutdownAsync(CancellationToken cancellationToken = default)
         {
             await m_startupShutdownSemaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);

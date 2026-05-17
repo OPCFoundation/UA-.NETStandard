@@ -5025,6 +5025,20 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Called when a session is activated and the user identity has changed.
+        /// Implementations should invalidate any cached role permissions for monitored items
+        /// belonging to the session so that permissions are re-evaluated on the next data change.
+        /// </summary>
+        public virtual ValueTask SessionActivatedAsync(
+            OperationContext context,
+            NodeId sessionId,
+            CancellationToken cancellationToken = default)
+        {
+            // overridden by the sub-class.
+            return new ValueTask();
+        }
+
+        /// <summary>
         /// Returns true if a node is in a view.
         /// </summary>
         public virtual async ValueTask<bool> IsNodeInViewAsync(

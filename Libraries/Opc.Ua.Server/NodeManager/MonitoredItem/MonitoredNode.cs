@@ -382,6 +382,27 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Invalidates the permission and context caches for all monitored items belonging
+        /// to the specified session. Call this when the session's user identity changes so
+        /// that role permissions are re-evaluated on the next data change notification.
+        /// </summary>
+        /// <param name="sessionId">The NodeId of the session whose identity has changed.</param>
+        public void InvalidatePermissionCacheForSession(NodeId sessionId)
+        {
+            foreach (KeyValuePair<uint, IDataChangeMonitoredItem2> kvp in DataChangeMonitoredItems)
+            {
+                IDataChangeMonitoredItem2 monitoredItem = kvp.Value;
+
+                if (monitoredItem?.Session?.Id.Equals(sessionId) == true)
+                {
+                    uint id = monitoredItem.Id;
+                    m_permissionCache.TryRemove(id, out _);
+                    m_contextCache.TryRemove(id, out _);
+                }
+            }
+        }
+
+        /// <summary>
         /// Called when the namespace default permissions (<c>DefaultRolePermissions</c> or
         /// <c>DefaultUserRolePermissions</c>) change. Invalidates the entire permission cache
         /// so that all entries are re-validated on the next value change.
