@@ -1,0 +1,193 @@
+<!-- ========================================================================
+   Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+
+   OPC Foundation MIT License 1.00
+
+   Permission is hereby granted, free of charge, to any person
+   obtaining a copy of this software and associated documentation
+   files (the "Software"), to deal in the Software without
+   restriction, including without limitation the rights to use,
+   copy, modify, merge, publish, distribute, sublicense, and/or sell
+   copies of the Software, and to permit persons to whom the
+   Software is furnished to do so, subject to the following
+   conditions:
+
+   The above copyright notice and this permission notice shall be
+   included in all copies or substantial portions of the Software.
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+   EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+   OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+   NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+   HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+   WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+   FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+   OTHER DEALINGS IN THE SOFTWARE.
+
+   The complete license agreement can be found here:
+   http://opcfoundation.org/License/MIT/1.00/
+======================================================================== -->
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:UaLens.Plugins.FileSystem"
+             x:Class="UaLens.Plugins.FileSystem.FileSystemView"
+             x:DataType="vm:FileSystemPlugin"
+             Background="#121A2C" Foreground="#E2E8F0">
+  <UserControl.Resources>
+    <SolidColorBrush x:Key="PanelBg"     Color="#0B1220" />
+    <SolidColorBrush x:Key="PanelBorder" Color="#1E293B" />
+    <SolidColorBrush x:Key="LabelDim"    Color="#94A3B8" />
+  </UserControl.Resources>
+
+  <UserControl.Styles>
+    <Style Selector="Border.panel">
+      <Setter Property="BorderBrush" Value="{StaticResource PanelBorder}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="4" />
+      <Setter Property="Background" Value="{StaticResource PanelBg}" />
+    </Style>
+    <Style Selector="Button.tonal">
+      <Setter Property="Background" Value="#1E293B" />
+      <Setter Property="Foreground" Value="#E2E8F0" />
+      <Setter Property="Padding" Value="10,5" />
+      <Setter Property="MinWidth" Value="92" />
+    </Style>
+    <Style Selector="Button.primary">
+      <Setter Property="Background" Value="#0EA5E9" />
+      <Setter Property="Foreground" Value="#0F172A" />
+      <Setter Property="Padding" Value="10,5" />
+      <Setter Property="MinWidth" Value="92" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+    <Style Selector="Button.danger">
+      <Setter Property="Background" Value="#EF4444" />
+      <Setter Property="Foreground" Value="#0F172A" />
+      <Setter Property="Padding" Value="10,5" />
+      <Setter Property="MinWidth" Value="92" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+    <Style Selector="TextBlock.h">
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Foreground" Value="#94A3B8" />
+    </Style>
+    <Style Selector="TextBlock.row">
+      <Setter Property="FontFamily" Value="Cascadia Mono, Consolas, monospace" />
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+      <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+    </Style>
+  </UserControl.Styles>
+
+  <DockPanel LastChildFill="True">
+
+    <!-- Toolbar -->
+    <Border DockPanel.Dock="Top" Classes="panel" Margin="8,8,8,4" Padding="8,6">
+      <DockPanel LastChildFill="False">
+        <TextBlock VerticalAlignment="Center"
+                   Foreground="{StaticResource LabelDim}"
+                   FontSize="12" Margin="0,0,12,0"
+                   Text="📁 File System" />
+        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+          <Button Classes="primary" Content="Pick Root…"
+                  Command="{CompiledBinding PickRootCommand}" />
+          <Button Classes="tonal"   Content="Filter…"
+                  Command="{CompiledBinding EditFilterCommand}" />
+          <Border Width="1" Background="#1E293B" Margin="2,4" />
+          <Button Classes="tonal"   Content="Add File…"
+                  Command="{CompiledBinding AddFileCommand}" />
+          <Button Classes="tonal"   Content="Export File…"
+                  Command="{CompiledBinding ExportFileCommand}" />
+          <Border Width="1" Background="#1E293B" Margin="2,4" />
+          <Button Classes="tonal"   Content="New Folder…"
+                  Command="{CompiledBinding NewFolderCommand}" />
+          <Button Classes="tonal"   Content="Rename…"
+                  Command="{CompiledBinding RenameCommand}" />
+          <Button Classes="danger"  Content="Delete"
+                  Command="{CompiledBinding DeleteCommand}" />
+          <Border Width="1" Background="#1E293B" Margin="2,4" />
+          <Button Classes="tonal"   Content="↻ Refresh"
+                  Command="{CompiledBinding RefreshCommand}" />
+        </StackPanel>
+      </DockPanel>
+    </Border>
+
+    <!-- Body: TreeView (left) + details ListBox (right) -->
+    <Border Classes="panel" Margin="8,4,8,8">
+      <Grid ColumnDefinitions="*,5,2*">
+
+        <!-- Left: tree -->
+        <Grid Grid.Column="0" RowDefinitions="Auto,*">
+          <Border Grid.Row="0" Background="#1E293B">
+            <TextBlock Margin="8,4" Classes="h" Text="ROOTS" />
+          </Border>
+          <TreeView Grid.Row="1"
+                    x:Name="Tree"
+                    ItemsSource="{CompiledBinding Roots}"
+                    SelectedItem="{CompiledBinding SelectedNode, Mode=TwoWay}"
+                    Background="#0B1220" Foreground="#E2E8F0"
+                    BorderThickness="0">
+            <TreeView.Styles>
+              <Style Selector="TreeViewItem" x:DataType="vm:FsNode">
+                <Setter Property="IsExpanded" Value="{CompiledBinding IsExpanded, Mode=TwoWay}" />
+                <Setter Property="Padding"    Value="4,2" />
+              </Style>
+            </TreeView.Styles>
+            <TreeView.ItemTemplate>
+              <TreeDataTemplate DataType="vm:FsNode" ItemsSource="{CompiledBinding Children}">
+                <StackPanel Orientation="Horizontal" Spacing="6"
+                            PointerPressed="OnTreeRowPointerPressed">
+                  <TextBlock Text="{CompiledBinding Glyph}"
+                             FontFamily="Cascadia Mono, Consolas, monospace"
+                             FontSize="12"
+                             VerticalAlignment="Center" />
+                  <TextBlock Text="{CompiledBinding Name}"
+                             FontFamily="Cascadia Mono, Consolas, monospace"
+                             FontSize="12"
+                             VerticalAlignment="Center"
+                             TextTrimming="CharacterEllipsis" />
+                </StackPanel>
+              </TreeDataTemplate>
+            </TreeView.ItemTemplate>
+          </TreeView>
+        </Grid>
+
+        <GridSplitter Grid.Column="1" Width="5"
+                      ResizeDirection="Columns"
+                      ResizeBehavior="PreviousAndNext"
+                      Background="#1E293B" />
+
+        <!-- Right: details list -->
+        <Grid Grid.Column="2" RowDefinitions="Auto,*">
+          <Grid Grid.Row="0" Background="#1E293B"
+                ColumnDefinitions="*,120,180">
+            <TextBlock Grid.Column="0" Margin="8,4" Classes="h" Text="NAME" />
+            <TextBlock Grid.Column="1" Margin="8,4" Classes="h" Text="SIZE"     TextAlignment="Right" />
+            <TextBlock Grid.Column="2" Margin="8,4" Classes="h" Text="MODIFIED" />
+          </Grid>
+          <ListBox Grid.Row="1"
+                   x:Name="DetailsList"
+                   ItemsSource="{CompiledBinding SelectedChildren}"
+                   Background="#0B1220" Foreground="#E2E8F0"
+                   BorderThickness="0">
+            <ListBox.ItemTemplate>
+              <DataTemplate DataType="vm:FsNode">
+                <Grid ColumnDefinitions="*,120,180" PointerPressed="OnDetailsRowPointerPressed">
+                  <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6">
+                    <TextBlock Text="{CompiledBinding Glyph}" Classes="row" />
+                    <TextBlock Text="{CompiledBinding Name}"  Classes="row" />
+                  </StackPanel>
+                  <TextBlock Grid.Column="1"
+                             Text="{CompiledBinding DisplaySize}"
+                             Classes="row" TextAlignment="Right" />
+                  <TextBlock Grid.Column="2"
+                             Text="{CompiledBinding DisplayLastModified}"
+                             Classes="row" />
+                </Grid>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+        </Grid>
+      </Grid>
+    </Border>
+  </DockPanel>
+</UserControl>
