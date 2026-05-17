@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -149,8 +149,8 @@ namespace Opc.Ua
         /// <returns>The matching certificate with private key</returns>
         Task<Certificate?> LoadPrivateKeyAsync(
             string thumbprint,
-            string subjectName,
-            string applicationUri,
+            string? subjectName,
+            string? applicationUri,
             NodeId certificateType,
             char[]? password,
             CancellationToken ct = default);

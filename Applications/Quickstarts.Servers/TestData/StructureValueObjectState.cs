@@ -43,11 +43,11 @@ namespace TestData
 
             InitializeVariable(
                 context,
-                ScalarStructure,
+                ScalarStructure!,
                 Variables.StructureValueObjectType_ScalarStructure);
             InitializeVariable(
                 context,
-                VectorStructure,
+                VectorStructure!,
                 Variables.StructureValueObjectType_VectorStructure);
         }
 
@@ -65,8 +65,8 @@ namespace TestData
                 return StatusCodes.BadOutOfService;
             }
 
-            ScalarStructure.OnGenerateValues(context);
-            VectorStructure.OnGenerateValues(context);
+            ScalarStructure!.OnGenerateValues(context);
+            VectorStructure!.OnGenerateValues(context);
 
             return base.OnGenerateValues(context, method, objectId, count);
         }

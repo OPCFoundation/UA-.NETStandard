@@ -60,7 +60,7 @@ namespace Quickstarts.ConsoleReferencePublisher
         private readonly ILogger m_logger;
         private readonly ArrayOf<PublishedDataSetDataType> m_publishedDataSets;
         private readonly IUaPubSubDataStore m_dataStore;
-        private Timer m_updateValuesTimer;
+        private Timer m_updateValuesTimer = null!;
 
         private readonly string[] m_aviationAlphabet =
         [
@@ -282,7 +282,7 @@ namespace Quickstarts.ConsoleReferencePublisher
         /// Simulate value changes in dynamic nodes
         /// </summary>
         /// <param name="state"></param>
-        private void UpdateValues(object state)
+        private void UpdateValues(object? state)
         {
             try
             {
@@ -349,11 +349,11 @@ namespace Quickstarts.ConsoleReferencePublisher
         )
         {
             // Read value to be incremented
-            DataValue dataValue = m_dataStore.ReadPublishedDataItem(
-                new NodeId(variable.Name, namespaceIndex),
+            DataValue? dataValue = m_dataStore.ReadPublishedDataItem(
+                new NodeId(variable.Name!, namespaceIndex),
                 Attributes.Value
             );
-            if (dataValue.WrappedValue.IsNull)
+            if (dataValue == null || dataValue.WrappedValue.IsNull)
             {
                 return;
             }
@@ -506,7 +506,7 @@ namespace Quickstarts.ConsoleReferencePublisher
             if (valueUpdated)
             {
                 // Save new updated value to data store
-                WriteFieldData(variable.Name, namespaceIndex, dataValue);
+                WriteFieldData(variable.Name!, namespaceIndex, dataValue);
             }
         }
     }

@@ -46,9 +46,9 @@ namespace Opc.Ua.Server
             m_samplingGroupManager = new SamplingGroupManager(
                 server,
                 nodeManager,
-                (uint)configuration.ServerConfiguration.MaxNotificationQueueSize,
+                (uint)configuration.ServerConfiguration!.MaxNotificationQueueSize,
                 (uint)configuration.ServerConfiguration.MaxDurableNotificationQueueSize,
-                configuration.ServerConfiguration.AvailableSamplingRates.ToArray());
+                configuration.ServerConfiguration.AvailableSamplingRates.ToArray()!);
 
             m_nodeManager = nodeManager;
             m_server = server;
@@ -92,7 +92,7 @@ namespace Opc.Ua.Server
             // create monitored item.
             ISampledDataChangeMonitoredItem monitoredItem =
                 m_samplingGroupManager.CreateMonitoredItem(
-                    context.OperationContext,
+                    context.OperationContext!,
                     subscriptionId,
                     publishingInterval,
                     timestampsToReturn,
@@ -146,7 +146,7 @@ namespace Opc.Ua.Server
             // validate monitored item.
             if (!MonitoredItems.TryGetValue(
                 monitoredItem.Id,
-                out IMonitoredItem existingMonitoredItem))
+                out IMonitoredItem? existingMonitoredItem))
             {
                 return StatusCodes.BadMonitoredItemIdInvalid;
             }
@@ -167,7 +167,7 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public ServiceResult ModifyMonitoredItem(
+        public ServiceResult? ModifyMonitoredItem(
             ServerSystemContext context,
             DiagnosticsMasks diagnosticsMasks,
             TimestampsToReturn timestampsToReturn,
@@ -181,7 +181,7 @@ namespace Opc.Ua.Server
             // validate monitored item.
             if (!MonitoredItems.TryGetValue(
                 monitoredItem.Id,
-                out IMonitoredItem existingMonitoredItem))
+                out IMonitoredItem? existingMonitoredItem))
             {
                 return StatusCodes.BadMonitoredItemIdInvalid;
             }
@@ -192,7 +192,7 @@ namespace Opc.Ua.Server
             }
 
             return m_samplingGroupManager.ModifyMonitoredItem(
-                context.OperationContext,
+                context.OperationContext!,
                 timestampsToReturn,
                 monitoredItem,
                 itemToModify,
@@ -208,7 +208,7 @@ namespace Opc.Ua.Server
         {
             if (!MonitoredItems.TryGetValue(
                 monitoredItem.Id,
-                out IMonitoredItem existingMonitoredItem))
+                out IMonitoredItem? existingMonitoredItem))
             {
                 return (StatusCodes.BadMonitoredItemIdInvalid, null);
             }
@@ -247,7 +247,7 @@ namespace Opc.Ua.Server
                     }
                 }
 
-                monitoredItem.QueueValue(initialValue, null);
+                monitoredItem.QueueValue(initialValue, null!);
             }
 
             return (StatusCodes.Good, previousMode);
@@ -277,13 +277,13 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public (MonitoredNode2, ServiceResult) SubscribeToEvents(
+        public (MonitoredNode2?, ServiceResult) SubscribeToEvents(
             ServerSystemContext context,
             NodeState source,
             IEventMonitoredItem monitoredItem,
             bool unsubscribe)
         {
-            MonitoredNode2 monitoredNode;
+            MonitoredNode2? monitoredNode;
             // handle unsubscribe.
             if (unsubscribe)
             {

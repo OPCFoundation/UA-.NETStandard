@@ -348,7 +348,7 @@ internal sealed partial class NodeAttributesViewModel : ObservableObject, IDispo
             var parsed = new List<RolePermissionType>(eos.Length);
             foreach (ExtensionObject eo in eos)
             {
-                if (eo.TryGetValue(out RolePermissionType rpt))
+                if (eo.TryGetValue(out RolePermissionType? rpt) && rpt is not null)
                 {
                     parsed.Add(rpt);
                 }

@@ -228,8 +228,8 @@ internal sealed class BrowserViewModel : ObservableObject
                     continue;
                 }
                 string name = !r.DisplayName.IsNull
-                    ? r.DisplayName.Text
-                    : (!r.BrowseName.IsNull ? r.BrowseName.Name : child.ToString());
+                    ? r.DisplayName.Text ?? string.Empty
+                    : (!r.BrowseName.IsNull ? r.BrowseName.Name ?? string.Empty : (child.ToString() ?? string.Empty));
                 children.Add(new NodeViewModel(this, node.NodeId, child, $"{Glyph(r.NodeClass)} {name}", r.NodeClass));
             }
 
@@ -317,8 +317,8 @@ internal sealed class BrowserViewModel : ObservableObject
                     continue;
                 }
                 string name = !r.DisplayName.IsNull
-                    ? r.DisplayName.Text
-                    : (!r.BrowseName.IsNull ? r.BrowseName.Name : child.ToString());
+                    ? r.DisplayName.Text ?? string.Empty
+                    : (!r.BrowseName.IsNull ? r.BrowseName.Name ?? string.Empty : (child.ToString() ?? string.Empty));
                 list.Add((child, name));
             }
             return list;

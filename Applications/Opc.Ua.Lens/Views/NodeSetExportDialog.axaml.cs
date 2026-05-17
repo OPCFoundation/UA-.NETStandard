@@ -57,7 +57,7 @@ internal sealed partial class NodeSetExportDialog : Window
         // Skip ns=0 (OPC UA base) — its schema ships with the SDK.
         for (ushort i = 1; i < namespaceTable.Count; i++)
         {
-            string uri = namespaceTable.GetString(i);
+            string? uri = namespaceTable.GetString(i);
             if (string.IsNullOrEmpty(uri))
             {
                 continue;

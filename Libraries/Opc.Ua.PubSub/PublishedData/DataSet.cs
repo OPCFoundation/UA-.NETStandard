@@ -39,7 +39,7 @@ namespace Opc.Ua.PubSub.PublishedData
         /// <summary>
         /// Create new instance of <see cref="DataSet"/>
         /// </summary>
-        public DataSet(string name = null)
+        public DataSet(string? name = null)
         {
             Name = name;
         }
@@ -47,7 +47,7 @@ namespace Opc.Ua.PubSub.PublishedData
         /// <summary>
         /// Get/Set data set name
         /// </summary>
-        public string Name { get; set; }
+        public string? Name { get; set; }
 
         /// <summary>
         /// Get/Set flag that indicates if DataSet is delta frame
@@ -67,12 +67,12 @@ namespace Opc.Ua.PubSub.PublishedData
         /// <summary>
         /// Gets DataSetMetaData for this DataSet
         /// </summary>
-        public DataSetMetaDataType DataSetMetaData { get; set; }
+        public DataSetMetaDataType? DataSetMetaData { get; set; }
 
         /// <summary>
         /// Get/Set data set fields for this data set
         /// </summary>
-        public Field[] Fields { get; set; }
+        public Field[]? Fields { get; set; }
 
         /// <inheritdoc/>
         public virtual object Clone()
@@ -96,10 +96,11 @@ namespace Opc.Ua.PubSub.PublishedData
                 copy.Fields = new Field[Fields.Length];
                 for (int i = 0; i < Fields.Length; i++)
                 {
-                    copy.Fields[i] = CoreUtils.Clone(Fields[i]);
+                    copy.Fields[i] = CoreUtils.Clone(Fields[i])!;
                 }
             }
-            return copy;
+            // base.MemberwiseClone() always returns a non-null DataSet instance.
+            return copy!;
         }
     }
 }

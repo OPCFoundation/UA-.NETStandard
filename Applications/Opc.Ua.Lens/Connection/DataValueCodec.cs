@@ -72,13 +72,17 @@ internal static class DataValueCodec
             {
                 using var enc = new BinaryEncoder(ctx);
                 enc.WriteDataValue(FieldName, dv);
-                return enc.CloseAndReturnBuffer();
+                // ctor without an external stream uses an internal
+                // MemoryStream → CloseAndReturnBuffer is never null.
+                return enc.CloseAndReturnBuffer()!;
             }
             case EncodingFormat.Xml:
             {
                 using var enc = new XmlEncoder(ctx);
                 enc.WriteDataValue(FieldName, dv);
-                return Encoding.UTF8.GetBytes(enc.CloseAndReturnText());
+                // ctor without an external destination uses an internal
+                // StringBuilder → CloseAndReturnText is never null.
+                return Encoding.UTF8.GetBytes(enc.CloseAndReturnText()!);
             }
             case EncodingFormat.Json:
             {
@@ -103,13 +107,17 @@ internal static class DataValueCodec
             {
                 using var enc = new BinaryEncoder(ctx);
                 enc.WriteVariant(FieldName, v);
-                return enc.CloseAndReturnBuffer();
+                // ctor without an external stream uses an internal
+                // MemoryStream → CloseAndReturnBuffer is never null.
+                return enc.CloseAndReturnBuffer()!;
             }
             case EncodingFormat.Xml:
             {
                 using var enc = new XmlEncoder(ctx);
                 enc.WriteVariant(FieldName, v);
-                return Encoding.UTF8.GetBytes(enc.CloseAndReturnText());
+                // ctor without an external destination uses an internal
+                // StringBuilder → CloseAndReturnText is never null.
+                return Encoding.UTF8.GetBytes(enc.CloseAndReturnText()!);
             }
             case EncodingFormat.Json:
             {
@@ -134,14 +142,14 @@ internal static class DataValueCodec
             case EncodingFormat.Binary:
             {
                 using var dec = new BinaryDecoder(data, ctx);
-                return dec.ReadDataValue(FieldName);
+                return dec.ReadDataValue(FieldName) ?? new DataValue();
             }
             case EncodingFormat.Xml:
             {
                 using var stream = new MemoryStream(data);
                 using var reader = XmlReader.Create(stream);
                 using var dec = new XmlDecoder(reader, ctx);
-                return dec.ReadDataValue(FieldName);
+                return dec.ReadDataValue(FieldName) ?? new DataValue();
             }
             case EncodingFormat.Json:
             {

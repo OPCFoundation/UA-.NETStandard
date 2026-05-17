@@ -48,6 +48,8 @@ namespace Opc.Ua.Client
         /// <summary>
         /// The default instance of the factory.
         /// </summary>
+        // Telemetry is required by the modern ctor; this obsolete singleton forwards null!
+        // to preserve the pre-nullable static-instance pattern.
         [Obsolete("Use new DefaultSessionFactory(ITelemetryContext) instead.")]
         public static readonly DefaultSessionFactory Instance = new(null!);
 
@@ -69,6 +71,8 @@ namespace Opc.Ua.Client
         /// </summary>
         [Obsolete("Use DefaultSessionFactory(ITelemetryContext) instead.")]
         public DefaultSessionFactory()
+            // Telemetry is required by the modern ctor; this obsolete bridge forwards null!
+            // to preserve the parameterless instantiation pattern.
             : this(null!)
         {
         }
@@ -187,9 +191,11 @@ namespace Opc.Ua.Client
             ITransportWaitingConnection? connection;
             do
             {
+                // Reverse-connect endpoints always carry an EndpointUrl and SecurityPolicyUri
+                // populated when the configured endpoint was loaded; the bangs reflect that.
                 connection = await reverseConnectManager
                     .WaitForConnectionAsync(
-                        endpoint.EndpointUrl,
+                        endpoint.EndpointUrl!,
                         endpoint.ReverseConnect?.ServerUri,
                         ct)
                     .ConfigureAwait(false);
@@ -197,10 +203,10 @@ namespace Opc.Ua.Client
                 if (updateBeforeConnect)
                 {
                     await endpoint.UpdateFromServerAsync(
-                        endpoint.EndpointUrl,
+                        endpoint.EndpointUrl!,
                         connection,
                         endpoint.Description.SecurityMode,
-                        endpoint.Description.SecurityPolicyUri,
+                        endpoint.Description.SecurityPolicyUri!,
                         Telemetry,
                         ct).ConfigureAwait(false);
                     updateBeforeConnect = false;
@@ -235,7 +241,7 @@ namespace Opc.Ua.Client
             EndpointDescription endpointDescription = endpoint.Description;
 
             // create the endpoint configuration (use the application configuration to provide default values).
-            EndpointConfiguration endpointConfiguration = endpoint.Configuration;
+            EndpointConfiguration? endpointConfiguration = endpoint.Configuration;
 
             if (endpointConfiguration == null)
             {
@@ -251,7 +257,9 @@ namespace Opc.Ua.Client
             {
                 await endpoint.UpdateFromServerAsync(messageContext.Telemetry, ct).ConfigureAwait(false);
                 endpointDescription = endpoint.Description;
-                endpointConfiguration = endpoint.Configuration;
+                // UpdateFromServerAsync re-reads Configuration from the discovery response;
+                // it is set whenever the description was updated successfully.
+                endpointConfiguration = endpoint.Configuration!;
             }
 
             // checks the domains in the certificate.
@@ -448,6 +456,8 @@ namespace Opc.Ua.Client
                     .OpenAsync(
                         sessionName,
                         sessionTimeout,
+                        // tempIdentity is set when identity is null (line above), so the
+                        // coalesce always yields a non-null IUserIdentity at runtime.
                         identity ?? tempIdentity!,
                         preferredLocales,
                         checkDomain,

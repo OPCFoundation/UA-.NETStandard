@@ -39,11 +39,11 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// Get the received NetworkMessage.
         /// </summary>
-        public UaNetworkMessage NetworkMessage { get; internal set; }
+        public UaNetworkMessage NetworkMessage { get; internal set; } = null!;
 
         /// <summary>
         /// Get the source information
         /// </summary>
-        public string Source { get; internal set; }
+        public string Source { get; internal set; } = null!;
     }
 }

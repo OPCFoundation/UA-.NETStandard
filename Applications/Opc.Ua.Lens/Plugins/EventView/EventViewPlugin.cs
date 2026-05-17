@@ -709,7 +709,14 @@ internal sealed partial class EventViewPlugin : ObservableObject, IPlugin
         {
             return session.MessageContext.Telemetry;
         }
-        return AmbientMessageContext.Telemetry;
+        // The ambient context is null only when there is no active
+        // scoped context at all — never the case for monitored-item
+        // construction which is gated by a live subscription. The `!`
+        // matches the pre-nullable signature; in the dispose-time
+        // window when both session and ambient context are null, this
+        // method is not reached because AddSourceCoreAsync exits early
+        // on a null m_subscription.
+        return AmbientMessageContext.Telemetry!;
     }
 
     private void RefreshStatus()

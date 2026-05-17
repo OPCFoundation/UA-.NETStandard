@@ -66,10 +66,13 @@ namespace Opc.Ua.Gds.Server.Database.Linq
                 if (File.Exists(fileName))
                 {
                     string json = File.ReadAllText(fileName);
-                    JsonApplicationsDatabase db =
+                    JsonApplicationsDatabase? db =
                         JsonSerializer.Deserialize(json, GdsApplicationsDatabaseJsonContext.Default.JsonApplicationsDatabase);
-                    db.FileName = fileName;
-                    return db;
+                    if (db != null)
+                    {
+                        db.FileName = fileName;
+                        return db;
+                    }
                 }
             }
             catch

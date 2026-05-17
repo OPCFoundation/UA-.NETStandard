@@ -49,7 +49,7 @@ namespace Quickstarts
         public UAClient(
             ApplicationConfiguration configuration,
             ITelemetryContext telemetry,
-            Action<IList, IList> validateResponse)
+            Action<IList, IList>? validateResponse)
             : this(
                 configuration,
                 null,
@@ -63,9 +63,9 @@ namespace Quickstarts
         /// </summary>
         public UAClient(
             ApplicationConfiguration configuration,
-            ReverseConnectManager reverseConnectManager,
+            ReverseConnectManager? reverseConnectManager,
             ITelemetryContext telemetry,
-            Action<IList, IList> validateResponse)
+            Action<IList, IList>? validateResponse)
         {
             ValidateResponse = validateResponse;
             m_logger = telemetry.CreateLogger<UAClient>();
@@ -106,12 +106,18 @@ namespace Quickstarts
         /// <summary>
         /// Action used
         /// </summary>
-        internal Action<IList, IList> ValidateResponse { get; }
+        internal Action<IList, IList>? ValidateResponse { get; }
 
         /// <summary>
         /// Gets the client session.
         /// </summary>
-        public ISession Session { get; private set; }
+        /// <remarks>
+        /// Initialized to <c>null!</c> as late-init: the value is assigned by
+        /// <see cref="ConnectAsync"/> before any caller observes it, and is
+        /// transiently set to <c>null!</c> during reconnect/dispose. The
+        /// non-nullable type matches the <see cref="IUAClient"/> contract.
+        /// </remarks>
+        public ISession Session { get; private set; } = null!;
 
         /// <summary>
         /// The session keepalive interval to be used in ms.
@@ -146,7 +152,7 @@ namespace Quickstarts
         /// <summary>
         /// The file to use for log output.
         /// </summary>
-        public string LogFile { get; set; }
+        public string? LogFile { get; set; }
 
         /// <summary>
         /// Do a Durable Subscription Transfer
@@ -158,7 +164,8 @@ namespace Quickstarts
         {
             bool success = false;
             SubscriptionCollection subscriptions = [.. Session.Subscriptions];
-            Session = null;
+            // Transiently null between sessions; ConnectAsync rehydrates.
+            Session = null!;
             if (await ConnectAsync(serverUrl, useSecurity, ct).ConfigureAwait(false) &&
                 subscriptions != null &&
                 Session != null)
@@ -206,8 +213,8 @@ namespace Quickstarts
                 }
                 else
                 {
-                    ITransportWaitingConnection connection = null;
-                    EndpointDescription endpointDescription = null;
+                    ITransportWaitingConnection? connection = null;
+                    EndpointDescription? endpointDescription = null;
                     if (m_reverseConnectManager != null)
                     {
                         Console.WriteLine($"Waiting for reverse connection to.... {serverUrl}");
@@ -253,7 +260,7 @@ namespace Quickstarts
                     var endpointConfiguration = EndpointConfiguration.Create(m_configuration);
                     var endpoint = new ConfiguredEndpoint(
                         null,
-                        endpointDescription,
+                        endpointDescription!,
                         endpointConfiguration);
 
                     // Create the session factory. - we could take it as parameter or as member
@@ -263,11 +270,11 @@ namespace Quickstarts
                     ISession session = await sessionFactory
                         .CreateAsync(
                             m_configuration,
-                            connection,
+                            connection!,
                             endpoint,
                             connection == null,
                             false,
-                            m_configuration.ApplicationName,
+                            m_configuration.ApplicationName!,
                             SessionLifeTime,
                             UserIdentity,
                             default,
@@ -294,10 +301,10 @@ namespace Quickstarts
                             m_telemetry,
                             true,
                             ReconnectPeriodExponentialBackoff);
-                    }
 
-                    // Session created successfully.
-                    Console.WriteLine($"New Session Created with SessionName = {Session.SessionName}");
+                        // Session created successfully.
+                        Console.WriteLine($"New Session Created with SessionName = {Session.SessionName}");
+                    }
                 }
 
                 return true;
@@ -337,7 +344,8 @@ namespace Quickstarts
                         Session.DetachChannel();
                     }
                     Session.Dispose();
-                    Session = null;
+                    // Transiently null after dispose; matches pre-NRT behavior.
+                    Session = null!;
 
                     // Log Session Disconnected event
                     Console.WriteLine("Session Disconnected.");
@@ -378,7 +386,7 @@ namespace Quickstarts
                         return;
                     }
 
-                    SessionReconnectHandler.ReconnectState state = m_reconnectHandler
+                    SessionReconnectHandler.ReconnectState state = m_reconnectHandler!
                         .BeginReconnect(
                             Session,
                             m_reverseConnectManager,
@@ -415,7 +423,7 @@ namespace Quickstarts
         /// <summary>
         /// Called when the reconnect attempt was successful.
         /// </summary>
-        private void Client_ReconnectComplete(object sender, EventArgs e)
+        private void Client_ReconnectComplete(object? sender, EventArgs e)
         {
             // ignore callbacks from discarded objects.
             if (!ReferenceEquals(sender, m_reconnectHandler))
@@ -426,7 +434,7 @@ namespace Quickstarts
             lock (m_lock)
             {
                 // if session recovered, Session property is null
-                if (m_reconnectHandler.Session != null)
+                if (m_reconnectHandler!.Session != null)
                 {
                     // ensure only a new instance is disposed
                     // after reactivate, the same session instance may be returned
@@ -489,9 +497,9 @@ namespace Quickstarts
         }
 
         private readonly Lock m_lock = new();
-        private readonly ReverseConnectManager m_reverseConnectManager;
+        private readonly ReverseConnectManager? m_reverseConnectManager;
         private readonly ApplicationConfiguration m_configuration;
-        private SessionReconnectHandler m_reconnectHandler;
+        private SessionReconnectHandler? m_reconnectHandler;
         private readonly ILogger m_logger;
         private readonly ITelemetryContext m_telemetry;
         private bool m_disposed;

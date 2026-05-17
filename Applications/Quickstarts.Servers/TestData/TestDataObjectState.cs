@@ -45,7 +45,7 @@ namespace TestData
         {
             base.OnAfterCreate(context, node, ct);
 
-            GenerateValues.OnCall = OnGenerateValues;
+            GenerateValues!.OnCall = OnGenerateValues;
         }
 
         /// <summary>
@@ -59,7 +59,7 @@ namespace TestData
             variable.NumericId = numericId;
 
             // provide an implementation that produces a random value on each read.
-            if (SimulationActive.Value)
+            if (SimulationActive!.Value)
             {
                 variable.OnReadValue = DoDeviceRead;
                 // Skip expensive initial value generation for simulated variables.
@@ -145,7 +145,8 @@ namespace TestData
                     return ServiceResult.Good;
                 }
 
-                if (!euRange.Value.TryGetStructure(out Range range))
+                Range? range;
+                if (!euRange.Value.TryGetStructure<Range>(out range!))
                 {
                     return ServiceResult.Good;
                 }
@@ -154,11 +155,11 @@ namespace TestData
                 {
                     for (int ii = 0; ii < array.Length; ii++)
                     {
-                        object element = array.GetValue(ii);
+                        object? element = array.GetValue(ii);
 
                         if (typeof(Variant).IsInstanceOfType(element))
                         {
-                            element = ((Variant)element).AsBoxedObject();
+                            element = ((Variant)element!).AsBoxedObject();
                         }
 
                         double elementNumber = Convert.ToDouble(
@@ -253,7 +254,7 @@ namespace TestData
                 return ServiceResult.Good;
             }
 
-            if (!SimulationActive.Value)
+            if (!SimulationActive!.Value)
             {
                 return ServiceResult.Good;
             }

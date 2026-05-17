@@ -56,7 +56,7 @@ namespace Opc.Ua.Server
             m_server = server ?? throw new ArgumentNullException(nameof(server));
             m_logger = server.Telemetry.CreateLogger<SessionManager>();
 
-            m_minSessionTimeout = configuration.ServerConfiguration.MinSessionTimeout;
+            m_minSessionTimeout = configuration.ServerConfiguration!.MinSessionTimeout;
             m_maxSessionTimeout = configuration.ServerConfiguration.MaxSessionTimeout;
             m_maxSessionCount = configuration.ServerConfiguration.MaxSessionCount;
             m_maxRequestAge = configuration.ServerConfiguration.MaxRequestAge;
@@ -153,12 +153,12 @@ namespace Opc.Ua.Server
         public virtual async ValueTask<CreateSessionResult> CreateSessionAsync(
             OperationContext context,
             Certificate serverCertificate,
-            string sessionName,
+            string? sessionName,
             ByteString clientNonce,
-            ApplicationDescription clientDescription,
-            string endpointUrl,
-            Certificate clientCertificate,
-            CertificateCollection clientCertificateChain,
+            ApplicationDescription? clientDescription,
+            string? endpointUrl,
+            Certificate? clientCertificate,
+            CertificateCollection? clientCertificateChain,
             double requestedSessionTimeout,
             uint maxResponseMessageSize,
             CancellationToken cancellationToken = default)
@@ -169,7 +169,7 @@ namespace Opc.Ua.Server
             double revisedSessionTimeout = requestedSessionTimeout;
 
             ISession session;
-            Nonce tempNonce = null;
+            Nonce? tempNonce = null;
 
             await m_semaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
@@ -197,8 +197,10 @@ namespace Opc.Ua.Server
 
                 // can assign a simple identifier if secured.
                 authenticationToken = default;
-                if (!string.IsNullOrEmpty(context.ChannelContext.SecureChannelId) &&
-                    context.ChannelContext.EndpointDescription
+                // CreateSession is reached only after a secure channel is bound.
+                SecureChannelContext channelContext = context.ChannelContext!;
+                if (!string.IsNullOrEmpty(channelContext.SecureChannelId) &&
+                    channelContext.EndpointDescription!
                         .SecurityMode != MessageSecurityMode.None)
                 {
                     authenticationToken = new NodeId(
@@ -225,7 +227,7 @@ namespace Opc.Ua.Server
 
                 // create server nonce.
                 tempNonce = Nonce.CreateNonce(
-                    context.ChannelContext.EndpointDescription.SecurityPolicyUri);
+                    channelContext.EndpointDescription!.SecurityPolicyUri!);
                 Nonce serverNonceObject = tempNonce;
 
                 // assign client name.
@@ -242,11 +244,11 @@ namespace Opc.Ua.Server
                     authenticationToken,
                     clientNonce,
                     serverNonceObject,
-                    sessionName,
-                    clientDescription,
-                    endpointUrl,
-                    clientCertificate,
-                    clientCertificateChain,
+                    sessionName!,
+                    clientDescription!,
+                    endpointUrl!,
+                    clientCertificate!,
+                    clientCertificateChain!,
                     revisedSessionTimeout,
                     maxResponseMessageSize,
                     m_maxRequestAge,
@@ -290,25 +292,25 @@ namespace Opc.Ua.Server
         public virtual async ValueTask<(bool IdentityContextChanged, ByteString ServerNonce)> ActivateSessionAsync(
             OperationContext context,
             NodeId authenticationToken,
-            SignatureData clientSignature,
+            SignatureData? clientSignature,
             ExtensionObject userIdentityToken,
-            SignatureData userTokenSignature,
+            SignatureData? userTokenSignature,
             ArrayOf<string> localeIds,
             CancellationToken cancellationToken = default)
         {
             ByteString serverNonce = default;
 
-            ISession session = null;
-            IUserIdentityTokenHandler newIdentity = null;
-            UserTokenPolicy userTokenPolicy = null;
-            string clientKey = null;
+            ISession? session = null;
+            IUserIdentityTokenHandler? newIdentity = null;
+            UserTokenPolicy? userTokenPolicy = null;
+            string? clientKey = null;
 
             // fast path no lock
             if (!m_sessions.TryGetValue(authenticationToken, out _))
             {
                 throw new ServiceResultException(StatusCodes.BadSessionIdInvalid);
             }
-            Nonce serverNonceObject = null;
+            Nonce? serverNonceObject = null;
             try
             {
                 await m_semaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -340,23 +342,23 @@ namespace Opc.Ua.Server
                     if (session.HasExpired)
                     {
                         // raise audit event for session closed because of timeout
-                        m_server.ReportAuditCloseSessionEvent(null, session, m_logger, "Session/Timeout");
+                        m_server.ReportAuditCloseSessionEvent(null!, session, m_logger, "Session/Timeout");
 
-                        await m_server.CloseSessionAsync(null, session.Id, false, default).ConfigureAwait(false);
+                        await m_server.CloseSessionAsync(null!, session.Id, false, default).ConfigureAwait(false);
 
                         throw new ServiceResultException(StatusCodes.BadSessionClosed);
                     }
 
                     // create new server nonce.
                     serverNonceObject = Nonce.CreateNonce(
-                        context.ChannelContext.EndpointDescription.SecurityPolicyUri);
+                        context.ChannelContext!.EndpointDescription!.SecurityPolicyUri!);
 
                     // validate before activation.
                     session.ValidateBeforeActivate(
                         context,
-                        clientSignature,
+                        clientSignature!,
                         userIdentityToken,
-                        userTokenSignature,
+                        userTokenSignature!,
                         out newIdentity,
                         out userTokenPolicy);
 
@@ -364,17 +366,17 @@ namespace Opc.Ua.Server
                 }
                 catch (ServiceResultException)
                 {
-                    RecordFailedAuthentication(clientKey);
+                    RecordFailedAuthentication(clientKey!);
                     throw;
                 }
                 finally
                 {
                     m_semaphoreSlim.Release();
                 }
-                IUserIdentity identity = null;
-                IUserIdentity effectiveIdentity = null;
-                ServiceResult error = null;
-                UserIdentity tempIdentity = null;
+                IUserIdentity? identity = null;
+                IUserIdentity? effectiveIdentity = null;
+                ServiceResult? error = null;
+                UserIdentity? tempIdentity = null;
 
                 try
                 {
@@ -423,7 +425,7 @@ namespace Opc.Ua.Server
                         StatusCodes.BadIdentityTokenInvalid,
                         e,
                         "Could not validate user identity token: {0}",
-                        newIdentity);
+                        newIdentity!);
                     }
                     throw;
                 }
@@ -432,7 +434,7 @@ namespace Opc.Ua.Server
                 if (ServiceResult.IsBad(error))
                 {
                     RecordFailedAuthentication(clientKey);
-                    throw new ServiceResultException(error);
+                    throw new ServiceResultException(error!);
                 }
 
                 // Clear failed authentication attempts on successful activation,
@@ -452,7 +454,7 @@ namespace Opc.Ua.Server
 
                 bool contextChanged = session.Activate(
                     context,
-                    newIdentity,
+                    newIdentity!,
                     identity,
                     effectiveIdentity,
                     localeIds,
@@ -483,7 +485,7 @@ namespace Opc.Ua.Server
         /// </remarks>
         public virtual async ValueTask CloseSessionAsync(NodeId sessionId, CancellationToken cancellationToken = default)
         {
-            ISession session = null;
+            ISession? session = null;
 
             // thread safe search for the session.
             foreach (KeyValuePair<NodeId, ISession> current in m_sessions)
@@ -536,7 +538,7 @@ namespace Opc.Ua.Server
         /// <exception cref="ArgumentNullException"><paramref name="requestHeader"/> is <c>null</c>.</exception>
         /// <exception cref="ServiceResultException"></exception>
         public virtual async ValueTask<OperationContext> ValidateRequestAsync(
-            RequestHeader requestHeader,
+            RequestHeader? requestHeader,
             SecureChannelContext secureChannelContext,
             RequestType requestType,
             RequestLifetime requestLifetime)
@@ -546,7 +548,7 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(requestHeader));
             }
 
-            ISession session = null;
+            ISession? session = null;
 
             try
             {
@@ -559,7 +561,7 @@ namespace Opc.Ua.Server
                 // find session.
                 if (!m_sessions.TryGetValue(requestHeader.AuthenticationToken, out session))
                 {
-                    EventHandler<ValidateSessionLessRequestEventArgs> handler = m_ValidateSessionLessRequest;
+                    EventHandler<ValidateSessionLessRequestEventArgs>? handler = m_ValidateSessionLessRequest;
 
                     if (handler != null)
                     {
@@ -580,7 +582,7 @@ namespace Opc.Ua.Server
                 }
 
                 // validate request header.
-                session.ValidateRequest(requestHeader, secureChannelContext, requestType);
+                session!.ValidateRequest(requestHeader, secureChannelContext, requestType);
 
                 // validate user has permissions for additional info
                 session.ValidateDiagnosticInfo(requestHeader);
@@ -694,7 +696,7 @@ namespace Opc.Ua.Server
         {
             lock (m_eventLock)
             {
-                SessionEventHandler handler = null;
+                SessionEventHandler? handler = null;
 
                 switch (reason)
                 {
@@ -760,9 +762,9 @@ namespace Opc.Ua.Server
                             }
 
                             // raise audit event for session closed because of timeout
-                            m_server.ReportAuditCloseSessionEvent(null, session, m_logger, "Session/Timeout");
+                            m_server.ReportAuditCloseSessionEvent(null!, session, m_logger, "Session/Timeout");
 
-                            await m_server.CloseSessionAsync(null, session.Id, false)
+                            await m_server.CloseSessionAsync(null!, session.Id, false)
                                 .ConfigureAwait(false);
                         }
                         // if a session had no activity for the last m_minSessionTimeout milliseconds, send a keep alive event.
@@ -807,13 +809,13 @@ namespace Opc.Ua.Server
         private static readonly long s_failureExpirationTicks = HiResClock.Frequency * 1 * 60;
 
         private readonly Lock m_eventLock = new();
-        private event SessionEventHandler m_SessionCreated;
-        private event SessionEventHandler m_SessionActivated;
-        private event SessionEventHandler m_SessionClosing;
-        private event SessionEventHandler m_SessionDiagnosticsChanged;
-        private event SessionEventHandler m_SessionChannelKeepAlive;
-        private event ImpersonateEventHandler m_ImpersonateUser;
-        private event EventHandler<ValidateSessionLessRequestEventArgs> m_ValidateSessionLessRequest;
+        private event SessionEventHandler? m_SessionCreated;
+        private event SessionEventHandler? m_SessionActivated;
+        private event SessionEventHandler? m_SessionClosing;
+        private event SessionEventHandler? m_SessionDiagnosticsChanged;
+        private event SessionEventHandler? m_SessionChannelKeepAlive;
+        private event ImpersonateEventHandler? m_ImpersonateUser;
+        private event EventHandler<ValidateSessionLessRequestEventArgs>? m_ValidateSessionLessRequest;
 
         /// <inheritdoc/>
         public event SessionEventHandler SessionCreated
@@ -955,10 +957,10 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public ISession GetSession(NodeId authenticationToken)
+        public ISession? GetSession(NodeId authenticationToken)
         {
             // find session.
-            if (m_sessions.TryGetValue(authenticationToken, out ISession session))
+            if (m_sessions.TryGetValue(authenticationToken, out ISession? session))
             {
                 return session;
             }
@@ -975,10 +977,10 @@ namespace Opc.Ua.Server
                 return session.ClientCertificate.Thumbprint;
             }
 
-            string applicationUri = session?.SessionDiagnostics?.ClientDescription?.ApplicationUri;
+            string? applicationUri = session?.SessionDiagnostics?.ClientDescription?.ApplicationUri;
             if (!string.IsNullOrEmpty(applicationUri))
             {
-                return applicationUri;
+                return applicationUri!;
             }
 
             return session?.SecureChannelId ?? string.Empty;
@@ -996,7 +998,7 @@ namespace Opc.Ua.Server
                 return false;
             }
 
-            if (m_clientLockouts.TryGetValue(clientKey, out ClientLockoutInfo lockoutInfo))
+            if (m_clientLockouts.TryGetValue(clientKey, out ClientLockoutInfo? lockoutInfo))
             {
                 long currentTicks = HiResClock.Ticks;
                 if (lockoutInfo.IsLockedOut(currentTicks))

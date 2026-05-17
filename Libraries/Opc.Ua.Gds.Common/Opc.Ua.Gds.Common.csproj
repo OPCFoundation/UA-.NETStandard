@@ -5,6 +5,7 @@
     <PackageId>$(PackagePrefix).Opc.Ua.Gds.Common</PackageId>
     <RootNamespace>Opc.Ua.Gds</RootNamespace>
     <NoWarn>$(NoWarn);CS1591</NoWarn>
+    <Nullable>enable</Nullable>
     <Description>OPC UA GDS Class Library</Description>
     <IsPackable>true</IsPackable>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>

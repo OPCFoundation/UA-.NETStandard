@@ -78,7 +78,7 @@ namespace Opc.Ua.PubSub
                     SourceTimestamp = timestamp ?? DateTimeUtc.Now
                 };
 
-                if (!m_store.TryGetValue(nodeId, out Dictionary<uint, DataValue> dictionary))
+                if (!m_store.TryGetValue(nodeId, out Dictionary<uint, DataValue>? dictionary))
                 {
                     dictionary = [];
                     m_store.Add(nodeId, dictionary);
@@ -99,7 +99,7 @@ namespace Opc.Ua.PubSub
         public void WritePublishedDataItem(
             NodeId nodeId,
             uint attributeId = Attributes.Value,
-            DataValue dataValue = null)
+            DataValue? dataValue = null)
         {
             if (nodeId.IsNull)
             {
@@ -115,13 +115,13 @@ namespace Opc.Ua.PubSub
             }
             lock (m_lock)
             {
-                if (m_store.TryGetValue(nodeId, out Dictionary<uint, DataValue> value))
+                if (m_store.TryGetValue(nodeId, out Dictionary<uint, DataValue>? value))
                 {
-                    value[attributeId] = dataValue;
+                    value[attributeId] = dataValue!;
                 }
                 else
                 {
-                    var dictionary = new Dictionary<uint, DataValue> { { attributeId, dataValue } };
+                    var dictionary = new Dictionary<uint, DataValue> { { attributeId, dataValue! } };
                     m_store.Add(nodeId, dictionary);
                 }
             }
@@ -133,7 +133,7 @@ namespace Opc.Ua.PubSub
         /// <param name="nodeId">NodeId identifier of node</param>
         /// <param name="attributeId">Default value is <see cref="Attributes.Value"/></param>
         /// <exception cref="ArgumentException"><paramref name="nodeId"/></exception>
-        public DataValue ReadPublishedDataItem(NodeId nodeId, uint attributeId = Attributes.Value)
+        public DataValue? ReadPublishedDataItem(NodeId nodeId, uint attributeId = Attributes.Value)
         {
             // todo find out why the deltaFrame parameter is not used
             if (nodeId.IsNull)
@@ -150,8 +150,8 @@ namespace Opc.Ua.PubSub
             }
             lock (m_lock)
             {
-                if (m_store.TryGetValue(nodeId, out Dictionary<uint, DataValue> dictionary) &&
-                    dictionary.TryGetValue(attributeId, out DataValue value))
+                if (m_store.TryGetValue(nodeId, out Dictionary<uint, DataValue>? dictionary) &&
+                    dictionary.TryGetValue(attributeId, out DataValue? value))
                 {
                     return value;
                 }

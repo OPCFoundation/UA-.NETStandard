@@ -48,9 +48,9 @@ namespace Opc.Ua.PubSub.Transport
         /// Parse the url into an IPaddress and port number
         /// </summary>
         /// <returns>A new instance of <see cref="IPEndPoint"/> or null if invalid URL.</returns>
-        internal static IPEndPoint GetEndPoint(string url, ILogger logger)
+        internal static IPEndPoint? GetEndPoint(string url, ILogger logger)
         {
-            if (url != null && Uri.TryCreate(url, UriKind.Absolute, out Uri connectionUri))
+            if (url != null && Uri.TryCreate(url, UriKind.Absolute, out Uri? connectionUri))
             {
                 if (connectionUri.Scheme != Utils.UriSchemeOpcUdp)
                 {
@@ -70,7 +70,7 @@ namespace Opc.Ua.PubSub.Transport
                     hostName = "127.0.0.1";
                 }
 
-                if (IPAddress.TryParse(hostName, out IPAddress ipAddress))
+                if (IPAddress.TryParse(hostName, out IPAddress? ipAddress))
                 {
                     return new IPEndPoint(ipAddress, connectionUri.Port);
                 }
@@ -166,7 +166,7 @@ namespace Opc.Ua.PubSub.Transport
                     continue;
                 }
 
-                UdpClient udpClient = CreateUdpClientForNetworkInterface(
+                UdpClient? udpClient = CreateUdpClientForNetworkInterface(
                     pubSubContext,
                     nic,
                     configuredEndpoint,
@@ -196,14 +196,14 @@ namespace Opc.Ua.PubSub.Transport
         /// <param name="configuredEndpoint">The configured IP endpoint to use</param>
         /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         /// <param name="logger">A contextual logger to log to</param>
-        private static UdpClient CreateUdpClientForNetworkInterface(
+        private static UdpClient? CreateUdpClientForNetworkInterface(
             UsedInContext pubSubContext,
             NetworkInterface networkInterface,
             IPEndPoint configuredEndpoint,
             ITelemetryContext telemetry,
             ILogger logger)
         {
-            UdpClient udpClient = null;
+            UdpClient? udpClient = null;
             IPInterfaceProperties ipProps = networkInterface.GetIPProperties();
             IPAddress localAddress = IPAddress.Any;
 

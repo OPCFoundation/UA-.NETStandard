@@ -107,7 +107,7 @@ namespace Opc.Ua.Client.ComplexTypes
         {
             decoder.PushNamespace(XmlNamespace);
 
-            EncodingMask = decoder.ReadEncodingMask(null);
+            EncodingMask = decoder.ReadEncodingMask(null!);
 
             // try again if the mask is implicitly defined by the JSON keys
             if (EncodingMask == 0 && decoder is JsonDecoder)
@@ -138,7 +138,7 @@ namespace Opc.Ua.Client.ComplexTypes
         }
 
         /// <inheritdoc/>
-        public override bool IsEqual(IEncodeable encodeable)
+        public override bool IsEqual(IEncodeable? encodeable)
         {
             if (ReferenceEquals(this, encodeable))
             {
@@ -178,7 +178,7 @@ namespace Opc.Ua.Client.ComplexTypes
         }
 
         /// <inheritdoc/>
-        public override string ToString(string format, IFormatProvider formatProvider)
+        public override string ToString(string? format, IFormatProvider? formatProvider)
         {
             if (format == null)
             {
@@ -247,7 +247,7 @@ namespace Opc.Ua.Client.ComplexTypes
         {
             get
             {
-                if (m_propertyDict.TryGetValue(name, out ComplexTypePropertyInfo property))
+                if (m_propertyDict.TryGetValue(name, out ComplexTypePropertyInfo? property))
                 {
                     if (property.IsOptional && (property.OptionalFieldMask & EncodingMask) == 0)
                     {
@@ -259,7 +259,7 @@ namespace Opc.Ua.Client.ComplexTypes
             }
             set
             {
-                if (m_propertyDict.TryGetValue(name, out ComplexTypePropertyInfo property))
+                if (m_propertyDict.TryGetValue(name, out ComplexTypePropertyInfo? property))
                 {
                     property.SetValue(this, value);
                     if (value.IsNull)

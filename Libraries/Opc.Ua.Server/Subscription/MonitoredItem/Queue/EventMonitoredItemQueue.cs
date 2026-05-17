@@ -74,7 +74,7 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public bool Dequeue(out EventFieldList value)
         {
-            value = null;
+            value = null!;
             if (m_events.Count != 0)
             {
                 value = m_events[0];

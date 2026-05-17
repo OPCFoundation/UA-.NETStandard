@@ -67,7 +67,8 @@ namespace Opc.Ua
             for (int jj = 0; jj < m_notificationData.Count; jj++)
             {
                 ExtensionObject extension = m_notificationData[jj];
-                if (!extension.TryGetValue(out DataChangeNotification notification))
+                if (!extension.TryGetValue(out DataChangeNotification? notification) ||
+                    notification == null)
                 {
                     continue;
                 }
@@ -112,7 +113,8 @@ namespace Opc.Ua
 
             foreach (ExtensionObject extension in m_notificationData)
             {
-                if (!extension.TryGetValue(out EventNotificationList notification))
+                if (!extension.TryGetValue(out EventNotificationList? notification) ||
+                    notification == null)
                 {
                     continue;
                 }

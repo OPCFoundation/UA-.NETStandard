@@ -78,7 +78,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Modify a monitored item
         /// </summary>
-        ServiceResult ModifyMonitoredItem(
+        ServiceResult? ModifyMonitoredItem(
             ServerSystemContext context,
             DiagnosticsMasks diagnosticsMasks,
             TimestampsToReturn timestampsToReturn,
@@ -122,7 +122,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Subscribe to events of the specified node.
         /// </summary>
-        (MonitoredNode2, ServiceResult) SubscribeToEvents(
+        (MonitoredNode2?, ServiceResult) SubscribeToEvents(
             ServerSystemContext context,
             NodeState source,
             IEventMonitoredItem monitoredItem,

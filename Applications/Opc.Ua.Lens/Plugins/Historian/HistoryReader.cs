@@ -160,7 +160,7 @@ internal sealed class HistoryReader
                         $"HistoryRead returned {result.StatusCode}.");
                 }
 
-                if (result.HistoryData.TryGetValue(out HistoryData hd) && hd is not null)
+                if (result.HistoryData.TryGetValue(out HistoryData? hd) && hd is not null)
                 {
                     foreach (DataValue dv in hd.DataValues)
                     {
@@ -176,7 +176,7 @@ internal sealed class HistoryReader
                             dv.StatusCode));
                     }
                 }
-                else if (result.HistoryData.TryGetValue(out HistoryModifiedData hmd) && hmd is not null)
+                else if (result.HistoryData.TryGetValue(out HistoryModifiedData? hmd) && hmd is not null)
                 {
                     foreach (DataValue dv in hmd.DataValues)
                     {

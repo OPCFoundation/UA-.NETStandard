@@ -41,16 +41,16 @@ namespace TestData
         {
             base.OnAfterCreate(context, node, ct);
 
-            ScalarMethod1.OnCall = OnScalarValue1;
-            ScalarMethod2.OnCall = OnScalarValue2;
-            ScalarMethod3.OnCall = OnScalarValue3;
-            ArrayMethod1.OnCall = OnArrayValue1;
-            ArrayMethod2.OnCall = OnArrayValue2;
-            ArrayMethod3.OnCall = OnArrayValue3;
-            UserScalarMethod1.OnCall = OnUserScalarValue1;
-            UserScalarMethod2.OnCall = OnUserScalarValue2;
-            UserArrayMethod1.OnCall = OnUserArrayValue1;
-            UserArrayMethod2.OnCall = OnUserArrayValue2;
+            ScalarMethod1!.OnCall = OnScalarValue1;
+            ScalarMethod2!.OnCall = OnScalarValue2;
+            ScalarMethod3!.OnCall = OnScalarValue3;
+            ArrayMethod1!.OnCall = OnArrayValue1;
+            ArrayMethod2!.OnCall = OnArrayValue2;
+            ArrayMethod3!.OnCall = OnArrayValue3;
+            UserScalarMethod1!.OnCall = OnUserScalarValue1;
+            UserScalarMethod2!.OnCall = OnUserScalarValue2;
+            UserArrayMethod1!.OnCall = OnUserArrayValue1;
+            UserArrayMethod2!.OnCall = OnUserArrayValue2;
         }
 
         private ServiceResult OnScalarValue1(

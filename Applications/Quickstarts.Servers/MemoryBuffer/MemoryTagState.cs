@@ -49,7 +49,7 @@ namespace MemoryBuffer
             BrowseName = new QualifiedName(
                 Utils.Format("{1:X8}", parent.SymbolicName, offet),
                 parent.TypeDefinitionId.NamespaceIndex);
-            DisplayName = LocalizedText.From(BrowseName.Name);
+            DisplayName = LocalizedText.From(BrowseName.Name!);
             Description = default;
             WriteMask = AttributeWriteMask.None;
             UserWriteMask = AttributeWriteMask.None;

@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -124,6 +124,11 @@ namespace Opc.Ua
             NodeId authenticationToken,
             out uint channelId)
         {
+            if (m_server == null)
+            {
+                channelId = 0;
+                return false;
+            }
             return m_server.TryGetSecureChannelIdForAuthenticationToken(
                 authenticationToken,
                 out channelId);
@@ -181,7 +186,12 @@ namespace Opc.Ua
                 {
                     continue;
                 }
+                // CS8600: Variant.TryGetStructure<T> uses [MaybeNullWhen(false)] on a non-nullable
+                // T : IEncodeable out parameter. The value is only read inside the if-block where
+                // the bool guarantees it was assigned a non-null value. Single-line suppression.
+#pragma warning disable CS8600
                 if (item.Value.TryGetStructure(out SpanContextDataType spanContext))
+#pragma warning restore CS8600
                 {
 #if NET8_0_OR_GREATER
                     Span<byte> spanIdBytes = stackalloc byte[8];
@@ -223,7 +233,8 @@ namespace Opc.Ua
                 SetRequestContext(RequestEncoding.Binary);
 
                 // find service.
-                if (!SupportedServices.TryGetValue(incoming.TypeId, out ServiceDefinition service))
+                if (!SupportedServices.TryGetValue(incoming.TypeId, out ServiceDefinition? service) ||
+                    service == null)
                 {
                     throw new ServiceResultException(StatusCodes.BadServiceUnsupported, Utils
                         .Format("'{0}' is an unrecognized service identifier.", incoming.TypeId));
@@ -260,6 +271,11 @@ namespace Opc.Ua
                 SetRequestContext(RequestEncoding.Binary);
 
                 // decoding incoming message.
+                if (request.InvokeServiceRequest == null)
+                {
+                    throw new ServiceResultException(StatusCodes.BadInvalidArgument);
+                }
+
                 IServiceRequest serviceRequest = BinaryDecoder.DecodeMessage<IServiceRequest>(
                     request.InvokeServiceRequest,
                     MessageContext);
@@ -339,7 +355,7 @@ namespace Opc.Ua
         /// <summary>
         /// Find the endpoint description for the endpoint.
         /// </summary>
-        protected EndpointDescription GetEndpointDescription()
+        protected EndpointDescription? GetEndpointDescription()
         {
             return null;
         }
@@ -350,7 +366,8 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException"></exception>
         protected ServiceDefinition FindService(ExpandedNodeId requestTypeId)
         {
-            if (!SupportedServices.TryGetValue(requestTypeId, out ServiceDefinition service))
+            if (!SupportedServices.TryGetValue(requestTypeId, out ServiceDefinition? service) ||
+                service == null)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadServiceUnsupported,
@@ -367,7 +384,7 @@ namespace Opc.Ua
         /// <param name="request"></param>
         /// <param name="exception"></param>
         /// <returns></returns>
-        protected ServiceFault CreateFault(IServiceRequest request, Exception exception)
+        protected ServiceFault CreateFault(IServiceRequest? request, Exception exception)
         {
             return CreateFault(m_logger, request, exception);
         }
@@ -379,7 +396,7 @@ namespace Opc.Ua
         /// <param name="request">The request.</param>
         /// <param name="exception">The exception.</param>
         /// <returns>A fault message.</returns>
-        public static ServiceFault CreateFault(ILogger logger, IServiceRequest request, Exception exception)
+        public static ServiceFault CreateFault(ILogger logger, IServiceRequest? request, Exception exception)
         {
             DiagnosticsMasks diagnosticsMask = DiagnosticsMasks.ServiceNoInnerStatus;
 
@@ -454,19 +471,19 @@ namespace Opc.Ua
         /// Returns the message context used by the server associated with the endpoint.
         /// </summary>
         /// <value>The message context.</value>
-        protected IServiceMessageContext MessageContext => m_server.MessageContext;
+        protected IServiceMessageContext MessageContext => m_server!.MessageContext;
 
         /// <summary>
         /// Returns the description for the endpoint
         /// </summary>
         /// <value>The endpoint description.</value>
-        protected EndpointDescription EndpointDescription { get; set; }
+        protected EndpointDescription? EndpointDescription { get; set; }
 
         /// <summary>
         /// Returns the error of the server.
         /// </summary>
         /// <value>The server error.</value>
-        protected ServiceResult ServerError { get; set; }
+        protected ServiceResult? ServerError { get; set; }
 
         /// <summary>
         /// The types of services known to the server.
@@ -520,7 +537,7 @@ namespace Opc.Ua
         protected ILogger m_logger { get; } = LoggerUtils.Null.Logger;
 #pragma warning restore IDE1006 // Naming Styles
 
-        private IServiceHostBase m_host;
-        private IServerBase m_server;
+        private IServiceHostBase? m_host;
+        private IServerBase? m_server;
     }
 }

@@ -195,7 +195,7 @@ namespace TestData
                 }
 #endif
                 // link all conditions to the conditions folder.
-                NodeState conditionsFolder = FindPredefinedNode<NodeState>(
+                NodeState? conditionsFolder = FindPredefinedNode<NodeState>(
                     new NodeId(Objects.Data_Conditions, m_typeNamespaceIndex));
 
                 foreach (NodeState node in PredefinedNodes.Values)
@@ -204,70 +204,71 @@ namespace TestData
                         !ReferenceEquals(condition.Parent, conditionsFolder))
                     {
                         condition.AddNotifier(SystemContext, default, true, conditionsFolder);
-                        conditionsFolder.AddNotifier(SystemContext, default, false, condition);
+                        conditionsFolder!.AddNotifier(SystemContext, default, false, condition);
                     }
                 }
 
                 // enable history for all numeric scalar values.
-                ScalarValueObjectState scalarValues = FindPredefinedNode<ScalarValueObjectState>(
+                ScalarValueObjectState? scalarValues = FindPredefinedNode<ScalarValueObjectState>(
                     new NodeId(Objects.Data_Dynamic_Scalar, m_typeNamespaceIndex));
 
-                scalarValues.Int32Value.Historizing = true;
-                scalarValues.Int32Value.AccessLevel = (byte)(
-                    scalarValues.Int32Value.AccessLevel | AccessLevels.HistoryRead);
+                BaseDataVariableState<int> int32Value = scalarValues!.Int32Value!;
+                int32Value.Historizing = true;
+                int32Value.AccessLevel = (byte)(
+                    int32Value.AccessLevel | AccessLevels.HistoryRead);
 
-                m_system.EnableHistoryArchiving(scalarValues.Int32Value);
+                m_system.EnableHistoryArchiving(int32Value);
 
                 // Initialize Root Variable for structures with variables
                 {
                     ScalarStructureVariableState variable
                         = FindTypeState<ScalarStructureVariableState>(
-                        Variables.Data_Static_Structure_ScalarStructure);
+                        Variables.Data_Static_Structure_ScalarStructure)!;
                     m_dataStaticStructureScalarStructure = new ScalarStructureVariableValue(
                         variable,
                         m_system.GetRandomScalarStructureDataType(),
-                        null);
+                        null!);
                 }
                 {
                     ScalarStructureVariableState variable
                         = FindTypeState<ScalarStructureVariableState>(
-                        Variables.Data_Dynamic_Structure_ScalarStructure);
+                        Variables.Data_Dynamic_Structure_ScalarStructure)!;
                     m_dataDynamicStructureScalarStructure = new ScalarStructureVariableValue(
                         variable,
                         m_system.GetRandomScalarStructureDataType(),
-                        null);
+                        null!);
                 }
                 {
                     VectorVariableState variable = FindTypeState<VectorVariableState>(
-                        Variables.Data_Static_Structure_VectorStructure);
+                        Variables.Data_Static_Structure_VectorStructure)!;
                     m_dataStaticStructureVectorStructure = new VectorVariableValue(
                         variable,
                         m_system.GetRandomVector(),
-                        null);
+                        null!);
                 }
                 {
                     VectorVariableState variable = FindTypeState<VectorVariableState>(
-                        Variables.Data_Dynamic_Structure_VectorStructure);
+                        Variables.Data_Dynamic_Structure_VectorStructure)!;
                     m_dataDynamicStructureVectorStructure = new VectorVariableValue(
                         variable,
                         m_system.GetRandomVector(),
-                        null);
+                        null!);
                 }
                 {
                     VectorVariableState variable = FindTypeState<VectorVariableState>(
-                        Variables.Data_Static_Scalar_VectorValue);
+                        Variables.Data_Static_Scalar_VectorValue)!;
                     m_dataStaticVectorScalarValue = new VectorVariableValue(
                         variable,
                         m_system.GetRandomVector(),
-                        null);
+                        null!);
                 }
                 {
                     VectorVariableState variable = FindTypeState<VectorVariableState>(
-                        Variables.Data_Dynamic_Scalar_VectorValue);
+                        Variables.Data_Dynamic_Scalar_VectorValue)!;
                     m_dataDynamicVectorScalarValue = new VectorVariableValue(
                         variable,
                         m_system.GetRandomVector(),
-                        null);
+                        null!);
                 }
             }
         }
@@ -440,7 +441,7 @@ namespace TestData
         /// <summary>
         /// Restores a previously cached history reader.
         /// </summary>
-        protected virtual HistoryDataReader RestoreDataReader(
+        protected virtual HistoryDataReader? RestoreDataReader(
             ServerSystemContext context,
             ByteString continuationPoint)
         {
@@ -481,7 +482,7 @@ namespace TestData
         protected virtual ServiceResult GetHistoryDataSource(
             ServerSystemContext context,
             BaseVariableState variable,
-            out IHistoryDataSource datasource)
+            out IHistoryDataSource? datasource)
         {
             datasource = m_system.GetHistoryFile(variable);
 
@@ -499,7 +500,7 @@ namespace TestData
         protected ServiceResult HistoryReadRaw(
             ISystemContext context,
             BaseVariableState source,
-            ReadRawModifiedDetails details,
+            ReadRawModifiedDetails? details,
             TimestampsToReturn timestampsToReturn,
             bool releaseContinuationPoints,
             HistoryReadValueId nodeToRead,
@@ -508,13 +509,13 @@ namespace TestData
             var serverContext = context as ServerSystemContext;
             List<DataValue> dataValues = [];
 
-            HistoryDataReader reader = null;
+            HistoryDataReader? reader = null;
             try
             {
                 if (!nodeToRead.ContinuationPoint.IsEmpty)
                 {
                     // restore the continuation point.
-                    reader = RestoreDataReader(serverContext, nodeToRead.ContinuationPoint);
+                    reader = RestoreDataReader(serverContext!, nodeToRead.ContinuationPoint);
 
                     if (reader == null)
                     {
@@ -537,9 +538,9 @@ namespace TestData
                 {
                     // get the source for the variable.
                     ServiceResult error = GetHistoryDataSource(
-                        serverContext,
+                        serverContext!,
                         source,
-                        out IHistoryDataSource datasource);
+                        out IHistoryDataSource? datasource);
 
                     if (ServiceResult.IsBad(error))
                     {
@@ -547,12 +548,12 @@ namespace TestData
                     }
 
                     // create a reader.
-                    reader = new HistoryDataReader(nodeToRead.NodeId, datasource);
+                    reader = new HistoryDataReader(nodeToRead.NodeId, datasource!);
 
                     // start reading.
                     reader.BeginReadRaw(
-                        serverContext,
-                        details,
+                        serverContext!,
+                        details!,
                         timestampsToReturn,
                         nodeToRead.ParsedIndexRange,
                         nodeToRead.DataEncoding,
@@ -561,7 +562,7 @@ namespace TestData
 
                 // continue reading data until done or max values reached.
                 bool complete = reader.NextReadRaw(
-                    serverContext,
+                    serverContext!,
                     timestampsToReturn,
                     nodeToRead.ParsedIndexRange,
                     nodeToRead.DataEncoding,
@@ -570,7 +571,7 @@ namespace TestData
                 // save continuation point.
                 if (!complete)
                 {
-                    SaveDataReader(serverContext, reader);
+                    SaveDataReader(serverContext!, reader);
                     reader = null;
                     result.StatusCode = StatusCodes.GoodMoreData;
                 }
@@ -609,7 +610,7 @@ namespace TestData
                 NodeHandle handle = nodesToProcess[ii];
 
                 // validate node.
-                NodeState source = ValidateNode(context, handle, cache);
+                NodeState? source = ValidateNode(context, handle, cache);
 
                 if (source == null)
                 {
@@ -650,7 +651,7 @@ namespace TestData
                 NodeHandle handle = nodesToProcess[ii];
 
                 // validate node.
-                NodeState source = ValidateNode(context, handle, cache);
+                NodeState? source = ValidateNode(context, handle, cache);
 
                 if (source == null)
                 {
@@ -698,14 +699,14 @@ namespace TestData
             // check for variables that need to be scanned.
             if (monitoredItem.AttributeId == Attributes.Value)
             {
-                if (source.Parent is TestDataObjectState test && test.SimulationActive.Value)
+                if (source.Parent is TestDataObjectState test && test.SimulationActive!.Value)
                 {
                     return true;
                 }
 
                 var sourcesource = source.Parent as BaseVariableState;
                 if (sourcesource?.Parent is TestDataObjectState testtest &&
-                    testtest.SimulationActive.Value)
+                    testtest.SimulationActive!.Value)
                 {
                     return true;
                 }
@@ -726,12 +727,13 @@ namespace TestData
             ISampledDataChangeMonitoredItem monitoredItem)
         {
             if (SystemScanRequired(handle.MonitoredNode, monitoredItem) &&
-                monitoredItem.MonitoringMode != MonitoringMode.Disabled)
+                monitoredItem.MonitoringMode != MonitoringMode.Disabled &&
+                handle.Node is BaseVariableState variable)
             {
                 m_system.StartMonitoringValue(
                     monitoredItem.Id,
                     monitoredItem.SamplingInterval,
-                    handle.Node as BaseVariableState);
+                    variable);
             }
         }
 
@@ -754,7 +756,7 @@ namespace TestData
                 m_system.StartMonitoringValue(
                     monitoredItem.Id,
                     monitoredItem.SamplingInterval,
-                    source);
+                    source!);
             }
         }
 
@@ -807,12 +809,12 @@ namespace TestData
                     m_system.StartMonitoringValue(
                         monitoredItem.Id,
                         monitoredItem.SamplingInterval,
-                        source);
+                        source!);
                 }
             }
         }
 
-        private TS FindTypeState<TS>(uint nodeId)
+        private TS? FindTypeState<TS>(uint nodeId)
             where TS : NodeState
         {
             var expandedNodeId = new ExpandedNodeId(nodeId, Namespaces.TestData);
@@ -918,11 +920,11 @@ namespace TestData
         private TestSystemConditionState m_systemStatusCondition;
         private DialogConditionState m_dialog;
 #endif
-        private ScalarStructureVariableValue m_dataStaticStructureScalarStructure;
-        private ScalarStructureVariableValue m_dataDynamicStructureScalarStructure;
-        private VectorVariableValue m_dataStaticStructureVectorStructure;
-        private VectorVariableValue m_dataDynamicStructureVectorStructure;
-        private VectorVariableValue m_dataStaticVectorScalarValue;
-        private VectorVariableValue m_dataDynamicVectorScalarValue;
+        private ScalarStructureVariableValue? m_dataStaticStructureScalarStructure;
+        private ScalarStructureVariableValue? m_dataDynamicStructureScalarStructure;
+        private VectorVariableValue? m_dataStaticStructureVectorStructure;
+        private VectorVariableValue? m_dataDynamicStructureVectorStructure;
+        private VectorVariableValue? m_dataStaticVectorScalarValue;
+        private VectorVariableValue? m_dataDynamicVectorScalarValue;
     }
 }

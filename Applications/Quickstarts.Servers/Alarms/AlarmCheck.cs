@@ -39,17 +39,17 @@ namespace Alarms
         /// <summary>
         /// Alarm name
         /// </summary>
-        public string AlarmName { get; set; }
+        public string AlarmName { get; set; } = null!;
 
         /// <summary>
         /// MethodName
         /// </summary>
-        public string MethodName { get; set; }
+        public string MethodName { get; set; } = null!;
 
         /// <summary>
         /// ModellingRule
         /// </summary>
-        public NodeId MethodDeclarationId { get; set; }
+        public NodeId MethodDeclarationId { get; set; } = NodeId.Null;
 
         /// <summary>
         /// ModellingRule Exists
