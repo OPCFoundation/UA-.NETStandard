@@ -198,6 +198,7 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
 
             var oid = new DerObjectIdentifier(oidValue);
 
+            // TODO: validate non-null curve before dereferencing.
             var namedDomainParameters = new ECNamedDomainParameters(
                 oid,
                 curve!.Curve,
@@ -384,6 +385,7 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
         {
             AsymmetricKeyParameter asymmetricKeyParameter = PublicKeyFactory.CreateKey(publicKey);
             var rsaKeyParameters = asymmetricKeyParameter as RsaKeyParameters;
+            // TODO: validate non-null cast result before dereferencing.
             var parameters = new RSAParameters
             {
                 Exponent = rsaKeyParameters!.Exponent.ToByteArrayUnsigned(),

@@ -42,9 +42,9 @@ namespace TestData
         {
             base.OnAfterCreate(context, node, ct);
 
-            InitializeVariable(context, X);
-            InitializeVariable(context, Y);
-            InitializeVariable(context, Z);
+            InitializeVariable(context, X!);
+            InitializeVariable(context, Y!);
+            InitializeVariable(context, Z!);
         }
 
         /// <summary>

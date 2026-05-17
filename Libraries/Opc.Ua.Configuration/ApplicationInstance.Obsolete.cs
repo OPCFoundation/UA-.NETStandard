@@ -92,14 +92,14 @@ namespace Opc.Ua.Configuration
         /// Load application configuration
         /// </summary>
         [Obsolete("Use LoadAppConfigAsync instead.")]
-        public static Task<ApplicationConfiguration> LoadAppConfig(
+        public static Task<ApplicationConfiguration?> LoadAppConfig(
             this ApplicationInstance application,
             bool silent,
             string filePath,
             ApplicationType applicationType,
             [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] Type configurationType,
             bool applyTraceSettings,
-            ICertificatePasswordProvider certificatePasswordProvider = null)
+            ICertificatePasswordProvider? certificatePasswordProvider = null)
         {
             return application.LoadAppConfigAsync(
                     silent,
@@ -115,14 +115,14 @@ namespace Opc.Ua.Configuration
         /// Loads the configuration.
         /// </summary>
         [Obsolete("Use LoadAppConfigAsync instead.")]
-        public static Task<ApplicationConfiguration> LoadAppConfig(
+        public static Task<ApplicationConfiguration?> LoadAppConfig(
             this ApplicationInstance application,
             bool silent,
             Stream stream,
             ApplicationType applicationType,
             [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] Type configurationType,
             bool applyTraceSettings,
-            ICertificatePasswordProvider certificatePasswordProvider = null)
+            ICertificatePasswordProvider? certificatePasswordProvider = null)
         {
             return application.LoadAppConfigAsync(
                     silent,
@@ -197,7 +197,7 @@ namespace Opc.Ua.Configuration
         [Obsolete("Use DeleteApplicationInstanceCertificateAsync instead.")]
         public static Task DeleteApplicationInstanceCertificate(
             this ApplicationInstance application,
-            string[] profileIds = null,
+            string[]? profileIds = null,
             CancellationToken ct = default)
         {
             return application.DeleteApplicationInstanceCertificateAsync(profileIds, ct).AsTask();

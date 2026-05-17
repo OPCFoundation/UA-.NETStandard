@@ -148,7 +148,7 @@ namespace Opc.Ua.PubSub
         {
             try
             {
-                IList<UaNetworkMessage> networkMessages = PubSubConnection.CreateNetworkMessages(
+                IList<UaNetworkMessage>? networkMessages = PubSubConnection.CreateNetworkMessages(
                     WriterGroupConfiguration,
                     m_writerGroupPublishState);
                 if (networkMessages != null)

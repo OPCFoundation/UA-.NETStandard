@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -124,7 +124,7 @@ namespace Opc.Ua
         /// <summary>
         /// Token profile uri. Set from the token policy on the server.
         /// </summary>
-        public string IssuedTokenTypeProfileUri { get; set; }
+        public string? IssuedTokenTypeProfileUri { get; set; }
 
         /// <inheritdoc/>
         public UserIdentityToken Token => m_token;
@@ -143,7 +143,7 @@ namespace Opc.Ua
         /// Internally always creates a deep copy on get and set, so that the user
         /// can clear the token data after using or setting it.
         /// </remarks>
-        public byte[] DecryptedTokenData
+        public byte[]? DecryptedTokenData
         {
             get
             {
@@ -176,9 +176,9 @@ namespace Opc.Ua
             byte[] receiverNonce,
             string securityPolicyUri,
             IServiceMessageContext context,
-            Nonce receiverEphemeralKey = null,
-            Certificate senderCertificate = null,
-            CertificateCollection senderIssuerCertificates = null,
+            Nonce? receiverEphemeralKey = null,
+            Certificate? senderCertificate = null,
+            CertificateCollection? senderIssuerCertificates = null,
             bool doNotEncodeSenderCertificate = false,
             CancellationToken ct = default)
         {
@@ -213,10 +213,10 @@ namespace Opc.Ua
             Nonce receiverNonce,
             string securityPolicyUri,
             IServiceMessageContext context,
-            Nonce ephemeralKey = null,
-            Certificate senderCertificate = null,
-            CertificateCollection senderIssuerCertificates = null,
-            ICertificateValidatorEx validator = null,
+            Nonce? ephemeralKey = null,
+            Certificate? senderCertificate = null,
+            CertificateCollection? senderIssuerCertificates = null,
+            ICertificateValidatorEx? validator = null,
             CancellationToken ct = default)
         {
             // handle no encryption.
@@ -234,18 +234,18 @@ namespace Opc.Ua
             };
 
             ILogger logger = context.Telemetry.CreateLogger<IssuedIdentityTokenHandler>();
-            byte[] decryptedTokenData = SecurityPolicies.Decrypt(
+            byte[]? decryptedTokenData = SecurityPolicies.Decrypt(
                 certificate,
                 securityPolicyUri,
                 encryptedData,
                 logger);
 
             // verify the sender's nonce.
-            int startOfNonce = decryptedTokenData.Length;
+            int startOfNonce = decryptedTokenData!.Length;
 
             if (receiverNonce != null)
             {
-                startOfNonce -= receiverNonce.Data.Length;
+                startOfNonce -= receiverNonce.Data!.Length;
 
                 for (int ii = 0; ii < receiverNonce.Data.Length; ii++)
                 {
@@ -269,7 +269,7 @@ namespace Opc.Ua
             string securityPolicyUri,
             CancellationToken ct = default)
         {
-            return new ValueTask<SignatureData>((SignatureData)null);
+            return new ValueTask<SignatureData>((SignatureData)null!);
         }
 
         /// <inheritdoc/>
@@ -293,7 +293,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public bool Equals(IUserIdentityTokenHandler other)
+        public bool Equals(IUserIdentityTokenHandler? other)
         {
             if (other is not IssuedIdentityTokenHandler tokenHandler)
             {
@@ -307,7 +307,7 @@ namespace Opc.Ua
             return Utils.IsEqual(m_token.TokenData, tokenHandler.m_token.TokenData);
         }
 
-        private byte[] m_decryptedTokenData;
+        private byte[]? m_decryptedTokenData;
         private readonly IssuedIdentityToken m_token;
     }
 }

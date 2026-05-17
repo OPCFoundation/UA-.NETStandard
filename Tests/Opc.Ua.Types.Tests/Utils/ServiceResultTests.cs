@@ -168,7 +168,7 @@ namespace Opc.Ua.Types.Tests.Utils
 #pragma warning disable IDE0004 // Remove Unnecessary Cast
             var result = new ServiceResult(
                 StatusCodes.BadUnexpectedError,
-                (XmlQualifiedName?)null,
+                (XmlQualifiedName?)null!,
                 text);
 #pragma warning restore IDE0004 // Remove Unnecessary Cast
 
@@ -974,15 +974,15 @@ namespace Opc.Ua.Types.Tests.Utils
         {
             // Verify the obsolete wrapper returns same result as the StatusCode method
             uint code = StatusCodes.BadUnexpectedError.Code;
-            string fromServiceResult = ServiceResult.LookupSymbolicId(code);
-            string fromStatusCode = StatusCode.LookupSymbolicId(code);
+            string? fromServiceResult = ServiceResult.LookupSymbolicId(code);
+            string? fromStatusCode = StatusCode.LookupSymbolicId(code);
             Assert.That(fromServiceResult, Is.EqualTo(fromStatusCode));
         }
 
         [Test]
         public void LookupSymbolicIdForUnknownCodeReturnsNull()
         {
-            string symbolicId = ServiceResult.LookupSymbolicId(0xDEAD0000);
+            string? symbolicId = ServiceResult.LookupSymbolicId(0xDEAD0000);
             Assert.That(symbolicId, Is.Null);
         }
 

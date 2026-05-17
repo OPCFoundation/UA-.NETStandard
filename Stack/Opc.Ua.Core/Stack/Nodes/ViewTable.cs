@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -86,7 +86,7 @@ namespace Opc.Ua
 
             lock (m_lock)
             {
-                if (m_views.TryGetValue(description.ViewId, out ViewNode view))
+                if (m_views.TryGetValue(description.ViewId, out ViewNode? view))
                 {
                     throw new ServiceResultException(StatusCodes.BadViewIdUnknown);
                 }
@@ -114,7 +114,7 @@ namespace Opc.Ua
 
             lock (m_lock)
             {
-                if (m_views.TryGetValue(description.ViewId, out ViewNode view))
+                if (m_views.TryGetValue(description.ViewId, out ViewNode? view))
                 {
                     throw new ServiceResultException(StatusCodes.BadViewIdUnknown);
                 }
@@ -175,7 +175,7 @@ namespace Opc.Ua
             {
                 // find view.
 
-                if (!m_views.TryGetValue(viewId, out ViewNode view))
+                if (!m_views.TryGetValue(viewId, out ViewNode? view))
                 {
                     throw new ServiceResultException(
                         StatusCodes.BadViewIdUnknown,

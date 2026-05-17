@@ -234,7 +234,12 @@ namespace Opc.Ua.PubSub.Tests
             using var app = UaPubSubApplication.Create(telemetry);
             bool raised = false;
             app.RawDataReceived += (sender, args) => raised = true;
-            app.RaiseRawDataReceivedEvent(new RawDataReceivedEventArgs());
+            app.RaiseRawDataReceivedEvent(new RawDataReceivedEventArgs
+            {
+                Message = [],
+                Source = string.Empty,
+                PubSubConnectionConfiguration = new PubSubConnectionDataType()
+            });
             Assert.That(raised, Is.True);
         }
 
@@ -246,7 +251,11 @@ namespace Opc.Ua.PubSub.Tests
             bool raised = false;
             app.ConfigurationUpdating += (sender, args) => raised = true;
             app.RaiseConfigurationUpdatingEvent(
-                new ConfigurationUpdatingEventArgs());
+                new ConfigurationUpdatingEventArgs
+                {
+                    Parent = new object(),
+                    NewValue = new object()
+                });
             Assert.That(raised, Is.True);
         }
     }

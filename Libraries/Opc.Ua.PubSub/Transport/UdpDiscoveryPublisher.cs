@@ -105,7 +105,7 @@ namespace Opc.Ua.PubSub.Transport
             // get the actual message and fill out the source:
             try
             {
-                byte[] message = socket.EndReceive(result, ref source);
+                byte[] message = socket.EndReceive(result, ref source!);
 
                 if (message != null)
                 {
@@ -123,7 +123,7 @@ namespace Opc.Ua.PubSub.Transport
             }
             catch (Exception ex)
             {
-                m_logger.LogError(ex, "OnUadpDiscoveryReceive from {Address}", source.Address);
+                m_logger.LogError(ex, "OnUadpDiscoveryReceive from {Address}", source!.Address);
             }
 
             try
@@ -155,7 +155,7 @@ namespace Opc.Ua.PubSub.Transport
 
             var networkMessage = new UadpNetworkMessage(m_logger);
             // decode the received message
-            networkMessage.Decode(MessageContext, messageBytes, null);
+            networkMessage.Decode(MessageContext!, messageBytes, null!);
 
             if (networkMessage.UADPNetworkMessageType == UADPNetworkMessageType.DiscoveryRequest &&
                 networkMessage
@@ -290,7 +290,7 @@ namespace Opc.Ua.PubSub.Transport
                 }
             }
 
-            UaNetworkMessage message = m_udpConnection.CreatePublisherEndpointsNetworkMessage(
+            UaNetworkMessage? message = m_udpConnection.CreatePublisherEndpointsNetworkMessage(
                 [.. publisherEndpointsToSend],
                 publisherEndpointsToSend.Count > 0 ? StatusCodes.Good : StatusCodes.BadNotFound,
                 m_udpConnection.PubSubConnectionConfiguration.PublisherId);
@@ -298,7 +298,7 @@ namespace Opc.Ua.PubSub.Transport
             m_logger.LogInformation(
                 "UdpDiscoveryPublisher.SendResponsePublisherEndpoints before sending message for PublisherEndpoints.");
 
-            await m_udpConnection.PublishNetworkMessageAsync(message).ConfigureAwait(false);
+            await m_udpConnection.PublishNetworkMessageAsync(message!).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -307,7 +307,7 @@ namespace Opc.Ua.PubSub.Transport
         /// <param name="socket">The socket which should be reinitialized</param>
         private void Renew(UdpClient socket)
         {
-            UdpClient newsocket = null;
+            UdpClient? newsocket = null;
 
             if (socket is UdpClientMulticast mcastSocket)
             {
@@ -332,8 +332,8 @@ namespace Opc.Ua.PubSub.Transport
                     ucastSocket.Port,
                     Telemetry);
             }
-            m_discoveryUdpClients.Remove(socket);
-            m_discoveryUdpClients.Add(newsocket);
+            m_discoveryUdpClients!.Remove(socket);
+            m_discoveryUdpClients.Add(newsocket!);
             socket.Close();
             socket.Dispose();
 
@@ -343,11 +343,11 @@ namespace Opc.Ua.PubSub.Transport
         /// <summary>
         /// The GetPublisherEndpoints event callback reference to store the EndpointDescription[] to be set as PublisherEndpoints Response message
         /// </summary>
-        public GetPublisherEndpointsEventHandler GetPublisherEndpoints { get; set; }
+        public GetPublisherEndpointsEventHandler? GetPublisherEndpoints { get; set; }
 
         /// <summary>
         ///  The GetDataSetWriterIds event callback reference to store the DataSetWriter ids to be set as PublisherEndpoints Response message
         /// </summary>
-        public GetDataSetWriterIdsEventHandler GetDataSetWriterIds { get; set; }
+        public GetDataSetWriterIdsEventHandler? GetDataSetWriterIds { get; set; }
     }
 }

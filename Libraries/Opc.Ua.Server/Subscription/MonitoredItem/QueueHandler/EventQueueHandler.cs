@@ -220,9 +220,12 @@ namespace Opc.Ua.Server
             {
                 foreach (Variant field in fields.EventFields)
                 {
-                    if (field.TryGetStructure(out StatusResult statusResult))
+                    StatusResult tmpStatus;
+                    bool gotStatus = field.TryGetStructure(out tmpStatus!);
+                    StatusResult? statusResult = gotStatus ? tmpStatus : null;
+                    if (statusResult is { } status)
                     {
-                        statusResult.ApplyDiagnosticMasks(
+                        status.ApplyDiagnosticMasks(
                             context.DiagnosticsMask,
                             context.StringTable,
                             m_logger);

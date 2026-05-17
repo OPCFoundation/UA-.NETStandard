@@ -420,7 +420,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public EndpointConfiguration EndpointConfiguration
             => m_session?.EndpointConfiguration
-                ?? ConfiguredEndpoint.Configuration;
+                ?? ConfiguredEndpoint.Configuration!;
 
         /// <inheritdoc/>
         public IServiceMessageContext MessageContext

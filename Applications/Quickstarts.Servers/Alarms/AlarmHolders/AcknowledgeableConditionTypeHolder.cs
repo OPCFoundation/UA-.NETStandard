@@ -83,7 +83,7 @@ namespace Alarms
             alarm.SetConfirmedState(SystemContext, confirmed: true);
             alarm.OnConfirm = OnConfirm;
 
-            alarm.Retain.Value = GetRetainState();
+            alarm.Retain!.Value = GetRetainState();
             alarm.AutoReportStateChanges = true;
         }
 
@@ -109,11 +109,11 @@ namespace Alarms
                 {
                     Log("AcknowledgeableConditionTypeHolder", "Setting Acked State to false");
                     alarm.SetAcknowledgedState(SystemContext, acknowledged: false);
-                    alarm.Retain.Value = true;
+                    alarm.Retain!.Value = true;
                 }
                 else
                 {
-                    alarm.Retain.Value = GetRetainState();
+                    alarm.Retain!.Value = GetRetainState();
                 }
             }
 
@@ -128,7 +128,7 @@ namespace Alarms
             AcknowledgeableConditionState alarm = GetAlarm();
 
             bool retainState = true;
-            if (alarm.AckedState.Id.Value && alarm.ConfirmedState.Id.Value)
+            if (alarm.AckedState!.Id!.Value && alarm.ConfirmedState!.Id!.Value)
             {
                 retainState = false;
             }
@@ -136,18 +136,18 @@ namespace Alarms
             return retainState;
         }
 
-        private AcknowledgeableConditionState GetAlarm(BaseEventState alarm = null)
+        private AcknowledgeableConditionState GetAlarm(BaseEventState? alarm = null)
         {
             alarm ??= m_alarm;
             return (AcknowledgeableConditionState)alarm;
         }
 
-        private AcknowledgeableConditionState GetAlarmOrBranch(ByteString eventId)
+        private AcknowledgeableConditionState? GetAlarmOrBranch(ByteString eventId)
         {
-            AcknowledgeableConditionState alarmOrBranch = null;
+            AcknowledgeableConditionState? alarmOrBranch = null;
 
             AcknowledgeableConditionState alarm = GetAlarm();
-            ConditionState alarmOrBranchConditionState = alarm.GetEventByEventId(eventId);
+            ConditionState? alarmOrBranchConditionState = alarm.GetEventByEventId(eventId);
             if (alarmOrBranchConditionState != null)
             {
                 alarmOrBranch = (AcknowledgeableConditionState)alarmOrBranchConditionState;
@@ -169,7 +169,7 @@ namespace Alarms
                 return StatusCodes.BadConditionBranchAlreadyAcked;
             }
 
-            AcknowledgeableConditionState alarm = GetAlarmOrBranch(eventId);
+            AcknowledgeableConditionState? alarm = GetAlarmOrBranch(eventId);
 
             if (alarm == null)
             {
@@ -179,7 +179,7 @@ namespace Alarms
 
             m_acked.Add(eventIdString);
 
-            if (alarm.AckedState.Id.Value)
+            if (alarm.AckedState!.Id!.Value)
             {
                 return StatusCodes.BadConditionBranchAlreadyAcked;
             }
@@ -192,7 +192,7 @@ namespace Alarms
             }
             else
             {
-                alarm.Message.Value = LocalizedText.From("User Acknowledged Event " + DateTime.Now.ToShortTimeString());
+                alarm.Message!.Value = LocalizedText.From("User Acknowledged Event " + DateTime.Now.ToShortTimeString());
                 Log("OnAcknowledge", "Setting Confirmed State to False");
                 alarm.SetConfirmedState(SystemContext, confirmed: false);
             }
@@ -200,7 +200,7 @@ namespace Alarms
             m_alarmController.OnAcknowledge();
 
             // TODO This will need to go away
-            alarm.Retain.Value = GetRetainState();
+            alarm.Retain!.Value = GetRetainState();
 
             return ServiceResult.Good;
         }
@@ -223,7 +223,7 @@ namespace Alarms
                 return StatusCodes.BadConditionBranchAlreadyConfirmed;
             }
 
-            AcknowledgeableConditionState alarm = GetAlarmOrBranch(eventId);
+            AcknowledgeableConditionState? alarm = GetAlarmOrBranch(eventId);
 
             if (alarm == null)
             {
@@ -234,12 +234,12 @@ namespace Alarms
 
             m_confirmed.Add(eventIdString);
 
-            alarm.Message.Value = LocalizedText.From("User Confirmed Event " + DateTime.Now.ToShortTimeString());
+            alarm.Message!.Value = LocalizedText.From("User Confirmed Event " + DateTime.Now.ToShortTimeString());
 
             m_alarmController.OnAcknowledge();
 
             // TODO Go Away?
-            alarm.Retain.Value = GetRetainState();
+            alarm.Retain!.Value = GetRetainState();
 
             return ServiceResult.Good;
         }

@@ -176,11 +176,11 @@ namespace Opc.Ua.Server
 
             if (last < 0)
             {
-                last = m_values.Length - 1;
+                last = m_values!.Length - 1;
             }
 
             // replace last value and error.
-            m_values[last] = value;
+            m_values![last] = value;
 
             m_errors?[last] = error;
         }
@@ -192,7 +192,7 @@ namespace Opc.Ua.Server
 
             // create new queue.
             var values = new DataValue[length];
-            ServiceResult[] errors = null;
+            ServiceResult[]? errors = null;
 
             if (queueErrors)
             {
@@ -206,7 +206,7 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public DataValue PeekLastValue()
+        public DataValue? PeekLastValue()
         {
             if (m_start < 0)
             {
@@ -217,17 +217,17 @@ namespace Opc.Ua.Server
 
             if (last < 0)
             {
-                last = m_values.Length - 1;
+                last = m_values!.Length - 1;
             }
 
-            return m_values[last];
+            return m_values![last];
         }
 
         /// <inheritdoc/>
         public bool Dequeue(out DataValue value, out ServiceResult error)
         {
-            value = null;
-            error = null;
+            value = null!;
+            error = null!;
 
             // check for empty queue.
             if (m_start < 0)
@@ -235,13 +235,13 @@ namespace Opc.Ua.Server
                 return false;
             }
 
-            value = m_values[m_start];
-            m_values[m_start] = null;
+            value = m_values![m_start];
+            m_values[m_start] = null!;
 
             if (m_errors != null)
             {
                 error = m_errors[m_start];
-                m_errors[m_start] = null;
+                m_errors[m_start] = null!;
             }
 
             m_start++;
@@ -262,7 +262,7 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public DataValue PeekOldestValue()
+        public DataValue? PeekOldestValue()
         {
             // check for empty queue.
             if (m_start < 0)
@@ -270,18 +270,18 @@ namespace Opc.Ua.Server
                 return null;
             }
 
-            return m_values[m_start];
+            return m_values![m_start];
         }
 
         /// <summary>
         /// the stored data values
         /// </summary>
-        protected DataValue[] m_values;
+        protected DataValue[]? m_values;
 
         /// <summary>
         /// the stored errors
         /// </summary>
-        protected ServiceResult[] m_errors;
+        protected ServiceResult[]? m_errors;
 
         /// <summary>
         /// the start of the buffer

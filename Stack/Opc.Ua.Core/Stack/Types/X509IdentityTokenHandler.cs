@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -94,7 +94,7 @@ namespace Opc.Ua
             // Pre-load the public-key bytes for the wire payload. The
             // resolved Certificate is disposed immediately; the handler
             // never holds a live reference past this constructor.
-            using Certificate resolved = certificateProvider
+            using Certificate? resolved = certificateProvider
                 .GetPrivateKeyCertificateAsync(identifier, passwordProvider)
                 .AsTask()
                 .GetAwaiter()
@@ -121,9 +121,9 @@ namespace Opc.Ua
         /// </summary>
         private X509IdentityTokenHandler(
             X509IdentityToken token,
-            CertificateIdentifier identifier,
-            ICertificatePasswordProvider passwordProvider,
-            ICertificateProvider provider)
+            CertificateIdentifier? identifier,
+            ICertificatePasswordProvider? passwordProvider,
+            ICertificateProvider? provider)
         {
             m_token = token;
             m_identifier = identifier;
@@ -139,7 +139,7 @@ namespace Opc.Ua
         {
             get
             {
-                using Certificate cert = MaterialiseTokenCertificate();
+                using Certificate? cert = MaterialiseTokenCertificate();
                 return cert?.Subject ?? string.Empty;
             }
         }
@@ -159,9 +159,9 @@ namespace Opc.Ua
             byte[] receiverNonce,
             string securityPolicyUri,
             IServiceMessageContext context,
-            Nonce receiverEphemeralKey = null,
-            Certificate senderCertificate = null,
-            CertificateCollection senderIssuerCertificates = null,
+            Nonce? receiverEphemeralKey = null,
+            Certificate? senderCertificate = null,
+            CertificateCollection? senderIssuerCertificates = null,
             bool doNotEncodeSenderCertificate = false,
             CancellationToken ct = default)
         {
@@ -174,10 +174,10 @@ namespace Opc.Ua
             Nonce receiverNonce,
             string securityPolicyUri,
             IServiceMessageContext context,
-            Nonce ephemeralKey = null,
-            Certificate senderCertificate = null,
-            CertificateCollection senderIssuerCertificates = null,
-            ICertificateValidatorEx validator = null,
+            Nonce? ephemeralKey = null,
+            Certificate? senderCertificate = null,
+            CertificateCollection? senderIssuerCertificates = null,
+            ICertificateValidatorEx? validator = null,
             CancellationToken ct = default)
         {
             return default;
@@ -189,7 +189,11 @@ namespace Opc.Ua
             string securityPolicyUri,
             CancellationToken ct = default)
         {
-            SecurityPolicyInfo info = SecurityPolicies.GetInfo(securityPolicyUri);
+            SecurityPolicyInfo info = SecurityPolicies.GetInfo(securityPolicyUri) ??
+                throw ServiceResultException.Create(
+                    StatusCodes.BadSecurityPolicyRejected,
+                    "Unsupported security policy: {0}",
+                    securityPolicyUri);
 
             if (m_provider == null || m_identifier == null)
             {
@@ -200,7 +204,7 @@ namespace Opc.Ua
 
             // Fast path: synchronous cache hit. The provider AddRef's;
             // we own and dispose for the duration of the signing call.
-            Certificate cached = m_provider.TryGetPrivateKeyCertificate(m_identifier.Thumbprint);
+            Certificate? cached = m_provider.TryGetPrivateKeyCertificate(m_identifier.Thumbprint!);
             if (cached != null)
             {
                 using (cached)
@@ -211,7 +215,7 @@ namespace Opc.Ua
 
             // Cold path: async load through the registry/store.
             using Certificate loaded = await m_provider
-                .GetPrivateKeyCertificateAsync(m_identifier, m_passwordProvider, applicationUri: null, ct)
+                .GetPrivateKeyCertificateAsync(m_identifier, m_passwordProvider!, applicationUri: null, ct)
                 .ConfigureAwait(false) ??
                 throw new ServiceResultException(
                     StatusCodes.BadIdentityTokenInvalid,
@@ -231,7 +235,11 @@ namespace Opc.Ua
 
             try
             {
-                SecurityPolicyInfo info = SecurityPolicies.GetInfo(securityPolicyUri);
+                SecurityPolicyInfo info = SecurityPolicies.GetInfo(securityPolicyUri) ??
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadSecurityPolicyRejected,
+                        "Unsupported security policy: {0}",
+                        securityPolicyUri);
                 using Certificate cert = MaterialiseTokenCertificate() ??
                     throw new ServiceResultException(
                         StatusCodes.BadIdentityTokenInvalid,
@@ -255,14 +263,14 @@ namespace Opc.Ua
         public object Clone()
         {
             return new X509IdentityTokenHandler(
-                CoreUtils.Clone(m_token),
+                CoreUtils.Clone(m_token)!,
                 m_identifier,
                 m_passwordProvider,
                 m_provider);
         }
 
         /// <inheritdoc/>
-        public bool Equals(IUserIdentityTokenHandler other)
+        public bool Equals(IUserIdentityTokenHandler? other)
         {
             if (other is not X509IdentityTokenHandler tokenHandler)
             {
@@ -278,7 +286,7 @@ namespace Opc.Ua
         /// returned reference is owned by the caller (callers must
         /// dispose).
         /// </summary>
-        private Certificate MaterialiseTokenCertificate()
+        private Certificate? MaterialiseTokenCertificate()
         {
             return m_token.CertificateData.IsEmpty
                 ? null
@@ -286,8 +294,8 @@ namespace Opc.Ua
         }
 
         private readonly X509IdentityToken m_token;
-        private readonly CertificateIdentifier m_identifier;
-        private readonly ICertificatePasswordProvider m_passwordProvider;
-        private readonly ICertificateProvider m_provider;
+        private readonly CertificateIdentifier? m_identifier;
+        private readonly ICertificatePasswordProvider? m_passwordProvider;
+        private readonly ICertificateProvider? m_provider;
     }
 }

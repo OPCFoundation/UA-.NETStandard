@@ -66,7 +66,7 @@ namespace Opc.Ua
         /// </summary>
         public static bool IsEccPolicy(string securityPolicyUri)
         {
-            SecurityPolicyInfo info = SecurityPolicies.GetInfo(securityPolicyUri);
+            SecurityPolicyInfo? info = SecurityPolicies.GetInfo(securityPolicyUri);
 
             if (info != null)
             {
@@ -171,7 +171,7 @@ namespace Opc.Ua
                 // New values can be determined by running the dotted-decimal OID value
                 // through BitConverter.ToString(CryptoConfig.EncodeOID(dottedDecimal));
 
-                switch (BitConverter.ToString(encodedPublicKey.EncodedParameters.RawData))
+                switch (BitConverter.ToString(encodedPublicKey.EncodedParameters!.RawData!))
                 {
                     case NistP256KeyParameters:
                         return NistP256;
@@ -247,7 +247,7 @@ namespace Opc.Ua
             }
 
             string keyParameters = BitConverter.ToString(
-                encodedPublicKey.EncodedParameters.RawData);
+                encodedPublicKey.EncodedParameters!.RawData!);
             byte[] keyValue = encodedPublicKey.EncodedKeyValue.RawData;
 
             var ecParameters = default(ECParameters);
@@ -331,7 +331,10 @@ namespace Opc.Ua
             Certificate signingCertificate,
             string securityPolicyUri)
         {
-            SecurityPolicyInfo info = SecurityPolicies.GetInfo(securityPolicyUri);
+            SecurityPolicyInfo info = SecurityPolicies.GetInfo(securityPolicyUri)
+                ?? throw new ArgumentException(
+                    $"Cannot resolve SecurityPolicy '{securityPolicyUri}'.",
+                    nameof(securityPolicyUri));
             return Sign(dataToSign, signingCertificate, info.AsymmetricSignatureAlgorithm);
         }
 
@@ -636,8 +639,6 @@ namespace Opc.Ua
 #endif
             }
 
-            byte[] dataArray = data.Array ?? throw new ArgumentNullException(nameof(data));
-
             int hashLength = 0;
 
             if (signingKey != null)
@@ -654,6 +655,9 @@ namespace Opc.Ua
             {
                 data = AddPadding(data, iv.Length, hashLength);
             }
+
+            // The buffer originates from BufferManager so the backing array is non-null.
+            byte[] dataArray = data.GetArray();
 
             if (signingKey != null)
             {
@@ -735,10 +739,10 @@ namespace Opc.Ua
                 throw new ArgumentException("ChaCha20-Poly1305 requires a 96-bit (12-byte) nonce.", nameof(iv));
             }
 
-            byte[] dataArray = data.Array ?? throw new ArgumentNullException(nameof(data));
-
             byte[] ciphertext = new byte[signOnly ? 0 : data.Count];
             byte[] tag = new byte[kChaChaPolyTagLength]; // ChaCha20-Poly1305/AES-GCM uses 128-bit authentication tag
+            // Buffer originates from BufferManager so the backing array is non-null.
+            byte[] dataArray = data.GetArray();
 
             var extraData = new ReadOnlySpan<byte>(
                 dataArray,
@@ -799,9 +803,9 @@ namespace Opc.Ua
                     nameof(data));
             }
 
-            byte[] dataArray = data.Array ?? throw new ArgumentNullException(nameof(data));
-
             byte[] plaintext = new byte[data.Count - kChaChaPolyTagLength];
+            // Buffer originates from BufferManager so the backing array is non-null.
+            byte[] dataArray = data.GetArray();
 
             var encryptedData = new ArraySegment<byte>(
                 dataArray,
@@ -859,10 +863,10 @@ namespace Opc.Ua
                 throw new ArgumentException("AES-GCM requires a 96-bit (12-byte) IV/nonce.", nameof(iv));
             }
 
-            byte[] dataArray = data.Array ?? throw new ArgumentNullException(nameof(data));
-
             byte[] ciphertext = new byte[signOnly ? 0 : data.Count];
             byte[] tag = new byte[kAesGcmTagLength]; // AES-GCM uses 128-bit authentication tag
+            // Buffer originates from BufferManager so the backing array is non-null.
+            byte[] dataArray = data.GetArray();
 
             var extraData = new ReadOnlySpan<byte>(
                 dataArray,
@@ -921,9 +925,9 @@ namespace Opc.Ua
                     nameof(data));
             }
 
-            byte[] dataArray = data.Array ?? throw new ArgumentNullException(nameof(data));
-
             byte[] plaintext = new byte[data.Count - kAesGcmTagLength];
+            // Buffer originates from BufferManager so the backing array is non-null.
+            byte[] dataArray = data.GetArray();
 
             var encryptedData = new ArraySegment<byte>(
                 dataArray,
@@ -1008,7 +1012,8 @@ namespace Opc.Ua
 #endif
             }
 
-            byte[] dataArray = data.Array ?? throw new ArgumentNullException(nameof(data));
+            // The buffer originates from BufferManager so the backing array is non-null.
+            byte[] dataArray = data.GetArray();
 
             if (!signOnly)
             {
@@ -1033,7 +1038,10 @@ namespace Opc.Ua
 
             if (signingKey != null)
             {
-                using HMAC hmac = securityPolicy.CreateSignatureHmac(signingKey);
+                using HMAC hmac = securityPolicy.CreateSignatureHmac(signingKey) ??
+                    throw new ServiceResultException(
+                        StatusCodes.BadSecurityChecksFailed,
+                        "Could not create signature HMAC.");
                 byte[] hash = hmac.ComputeHash(dataArray, 0, data.Offset + data.Count - (hmac.HashSize / 8));
                 for (int ii = 0; ii < hash.Length; ii++)
                 {

@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -148,7 +148,7 @@ namespace Opc.Ua.Bindings
                 }
             }
 
-            hosts[hostName] = serverBase.CreateServiceHost(serverBase, [.. uris]);
+            hosts[hostName] = serverBase.CreateServiceHost(serverBase, [.. uris])!;
             return endpoints;
         }
     }

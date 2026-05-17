@@ -38,7 +38,7 @@ namespace TestData
     public class NodeStateComparer : IEqualityComparer<NodeState>
     {
         /// <inheritdoc/>
-        public bool Equals(NodeState x, NodeState y)
+        public bool Equals(NodeState? x, NodeState? y)
         {
             if (ReferenceEquals(x, y))
             {

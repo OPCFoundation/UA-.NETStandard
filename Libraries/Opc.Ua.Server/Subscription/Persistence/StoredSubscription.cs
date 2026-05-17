@@ -59,7 +59,7 @@ namespace Opc.Ua.Server
         public byte Priority { get; set; }
 
         /// <inheritdoc/>
-        public UserIdentityToken UserIdentityToken { get; set; }
+        public UserIdentityToken? UserIdentityToken { get; set; } = null!;
 
         /// <inheritdoc/>
         public int LastSentMessage { get; set; }
@@ -71,9 +71,9 @@ namespace Opc.Ua.Server
         public uint SequenceNumber { get; set; }
 
         /// <inheritdoc/>
-        public List<NotificationMessage> SentMessages { get; set; }
+        public List<NotificationMessage> SentMessages { get; set; } = null!;
 
         /// <inheritdoc/>
-        public IEnumerable<IStoredMonitoredItem> MonitoredItems { get; set; }
+        public IEnumerable<IStoredMonitoredItem> MonitoredItems { get; set; } = null!;
     }
 }

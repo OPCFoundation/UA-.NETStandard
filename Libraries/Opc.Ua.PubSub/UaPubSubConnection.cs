@@ -219,7 +219,7 @@ namespace Opc.Ua.PubSub
         /// <param name="writerGroupConfiguration">The writer group configuration </param>
         /// <param name="state">The publish state for the writer group.</param>
         /// <returns>A list of the <see cref="UaNetworkMessage"/> created from the provided writerGroupConfiguration.</returns>
-        public abstract IList<UaNetworkMessage> CreateNetworkMessages(
+        public abstract IList<UaNetworkMessage>? CreateNetworkMessages(
             WriterGroupDataType writerGroupConfiguration,
             WriterGroupPublishState state);
 
@@ -300,7 +300,7 @@ namespace Opc.Ua.PubSub
                                 reader.DataSetMetaData == null ||
                                 !Utils.IsEqual(
                                     reader.DataSetMetaData.ConfigurationVersion,
-                                    networkMessage.DataSetMetaData.ConfigurationVersion)))
+                                    networkMessage.DataSetMetaData!.ConfigurationVersion)))
                         {
                             raiseChangedEvent = true;
                         }
@@ -313,7 +313,7 @@ namespace Opc.Ua.PubSub
                         {
                             ChangedProperty = ConfigurationProperty.DataSetMetaData,
                             Parent = reader,
-                            NewValue = networkMessage.DataSetMetaData,
+                            NewValue = networkMessage.DataSetMetaData!,
                             Cancel = false
                         };
 
@@ -331,7 +331,7 @@ namespace Opc.Ua.PubSub
 
                             lock (Lock)
                             {
-                                reader.DataSetMetaData = networkMessage.DataSetMetaData;
+                                reader.DataSetMetaData = networkMessage.DataSetMetaData!;
                             }
                         }
                     }
@@ -378,12 +378,12 @@ namespace Opc.Ua.PubSub
                     {
                         var eventArgs = new DataSetWriterConfigurationEventArgs
                         {
-                            DataSetWriterIds = uadpNetworkMessage.DataSetWriterIds,
+                            DataSetWriterIds = uadpNetworkMessage.DataSetWriterIds!,
                             Source = source,
                             DataSetWriterConfiguration = uadpNetworkMessage
-                                .DataSetWriterConfiguration,
+                                .DataSetWriterConfiguration!,
                             PublisherId = uadpNetworkMessage.PublisherId,
-                            StatusCodes = uadpNetworkMessage.MessageStatusCodes
+                            StatusCodes = uadpNetworkMessage.MessageStatusCodes!
                         };
 
                         //trigger notification for received configuration
@@ -391,7 +391,7 @@ namespace Opc.Ua.PubSub
 
                         m_logger.LogInformation(
                             "Connection '{Source}' - RaiseDataSetWriterConfigurationReceivedEvent() from source={Source}, with {Count} DataSetWriterConfiguration",
-                            source, source, eventArgs.DataSetWriterIds.Length);
+                            source, source, eventArgs.DataSetWriterIds!.Length);
                     }
                     else if (uadpNetworkMessage.UADPDiscoveryType ==
                         UADPNetworkMessageDiscoveryType.PublisherEndpoint &&
@@ -462,24 +462,28 @@ namespace Opc.Ua.PubSub
 
             foreach (ushort dataSetWriterId in dataSetWriterIds)
             {
-                var response = new DataSetWriterConfigurationResponse();
+                DataSetWriterConfigurationResponse response;
 
                 if (!writerGroupsIds.Contains(dataSetWriterId))
                 {
-                    response.DataSetWriterIds = [dataSetWriterId];
-
-                    response.StatusCodes = [StatusCodes.BadNotFound];
+                    response = new DataSetWriterConfigurationResponse
+                    {
+                        DataSetWriterIds = [dataSetWriterId],
+                        StatusCodes = [StatusCodes.BadNotFound]
+                    };
                 }
                 else
                 {
+                    response = new DataSetWriterConfigurationResponse
+                    {
+                        DataSetWriterIds = [dataSetWriterId],
+                        StatusCodes = [StatusCodes.Good]
+                    };
+
                     response.DataSetWriterConfig = PubSubConnectionConfiguration.WriterGroups.ToList()
                         .First(group =>
                             group.DataSetWriters.ToList()
                             .First(writer => writer.DataSetWriterId == dataSetWriterId) != null);
-
-                    response.DataSetWriterIds = [dataSetWriterId];
-
-                    response.StatusCodes = [StatusCodes.Good];
                 }
 
                 responses.Add(response);
@@ -507,17 +511,18 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// Create and return the current DataSet for the provided dataSetWriter according to current WriterGroupPublishState
         /// </summary>
-        protected DataSet CreateDataSet(
+        protected DataSet? CreateDataSet(
             DataSetWriterDataType dataSetWriter,
             WriterGroupPublishState state)
         {
-            DataSet dataSet = null;
+            DataSet? dataSet = null;
             //check if dataSetWriter enabled
             if (dataSetWriter.Enabled)
             {
                 bool isDeltaFrame = state.IsDeltaFrame(dataSetWriter, out uint sequenceNumber);
 
-                dataSet = Application.DataCollector.CollectData(dataSetWriter.DataSetName);
+                // CollectData throws ArgumentException on null; existing behavior preserved.
+                dataSet = Application.DataCollector.CollectData(dataSetWriter.DataSetName!);
 
                 if (dataSet != null)
                 {
@@ -537,7 +542,7 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// Handler for <see cref="UaPubSubConfigurator.WriterGroupAdded"/> event.
         /// </summary>
-        private void UaPubSubConfigurator_WriterGroupAdded(object sender, WriterGroupEventArgs e)
+        private void UaPubSubConfigurator_WriterGroupAdded(object? sender, WriterGroupEventArgs e)
         {
             var pubSubConnectionDataType =
                 Application.UaPubSubConfigurator

@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -197,7 +197,7 @@ namespace Opc.Ua.Security
             app.ApplicationName = decoder.ReadString("ApplicationName");
             app.ApplicationUri = decoder.ReadString("ApplicationUri");
 
-            string appTypeStr = decoder.ReadString("ApplicationType");
+            string? appTypeStr = decoder.ReadString("ApplicationType");
             if (appTypeStr != null)
             {
                 app.ApplicationType = ParseEnum<ApplicationType>(appTypeStr);
@@ -534,7 +534,7 @@ namespace Opc.Ua.Security
             var list = new ListOfBaseAddresses();
             while (decoder.Peek("BaseAddress"))
             {
-                list.Add(decoder.ReadString("BaseAddress"));
+                list.Add(decoder.ReadString("BaseAddress")!);
             }
 
             return list;

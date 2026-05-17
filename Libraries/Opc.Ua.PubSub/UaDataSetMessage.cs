@@ -67,7 +67,7 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// Get DataSet
         /// </summary>
-        public DataSet DataSet { get; internal set; }
+        public DataSet DataSet { get; internal set; } = null!;
 
         /// <summary>
         /// Get and Set corresponding DataSetWriterId

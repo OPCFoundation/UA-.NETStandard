@@ -86,7 +86,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary>
         /// The default encoding Id.
         /// </summary>
-        public string DefaultEncodingId { get; set; }
+        public string? DefaultEncodingId { get; set; }
 
         /// <summary>
         /// The base DataType.

@@ -66,7 +66,7 @@ namespace Opc.Ua.Server
         {
             if (disposing)
             {
-                List<OperationContext> operations = null;
+                List<OperationContext>? operations = null;
 
                 lock (m_requestsLock)
                 {
@@ -202,7 +202,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Checks for any expired requests and changes their status.
         /// </summary>
-        private void OnTimerExpired(object state)
+        private void OnTimerExpired(object? state)
         {
             var expiredRequests = new List<uint>();
 
@@ -258,8 +258,8 @@ namespace Opc.Ua.Server
         private readonly IServerInternal m_server;
         private readonly Dictionary<uint, OperationContext> m_requests;
         private readonly Lock m_requestsLock = new();
-        private Timer m_requestTimer;
-        private event RequestCancelledEventHandler m_RequestCancelled;
+        private Timer? m_requestTimer;
+        private event RequestCancelledEventHandler? m_RequestCancelled;
     }
 
     /// <summary>

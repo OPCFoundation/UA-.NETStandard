@@ -44,7 +44,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// </summary>
         [UnconditionalSuppressMessage("AOT", "IL3050",
             Justification = "Dynamic assembly creation is fundamental to ComplexTypes.")]
-        public AssemblyModule(string assemblyName = null)
+        public AssemblyModule(string? assemblyName = null)
         {
             m_assemblyBuilder = AssemblyBuilder.DefineDynamicAssembly(
                 new AssemblyName(assemblyName ?? Guid.NewGuid().ToString()),
