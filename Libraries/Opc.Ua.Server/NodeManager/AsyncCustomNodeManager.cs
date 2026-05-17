@@ -5026,15 +5026,19 @@ namespace Opc.Ua.Server
 
         /// <summary>
         /// Called when a session is activated and the user identity has changed.
-        /// Implementations should invalidate any cached role permissions for monitored items
-        /// belonging to the session so that permissions are re-evaluated on the next data change.
+        /// Invalidates cached role permissions for all monitored items belonging to the session
+        /// so that permissions are re-evaluated on the next data change notification.
         /// </summary>
         public virtual ValueTask SessionActivatedAsync(
             OperationContext context,
             NodeId sessionId,
             CancellationToken cancellationToken = default)
         {
-            // Override in derived classes to handle session activation with changed identity.
+            foreach (MonitoredNode2 monitoredNode in MonitoredNodes.Values)
+            {
+                monitoredNode.InvalidatePermissionCacheForSession(sessionId);
+            }
+
             return default;
         }
 

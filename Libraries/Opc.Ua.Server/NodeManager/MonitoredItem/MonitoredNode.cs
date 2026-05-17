@@ -352,10 +352,11 @@ namespace Opc.Ua.Server
                     monitoredItemId,
                     out (ServerSystemContext Context, int CreatedAtTicks) cachedEntry))
             {
-                // Check if the session or user identity has changed or the entry has expired
+                // Refresh context if the owning session changed (e.g. after subscription transfer)
+                // or if the cache entry has expired.
+                // Note: identity-based invalidation is handled proactively by
+                // InvalidatePermissionCacheForSession when ActivateSession changes the identity.
                 if (cachedEntry.Context.OperationContext.Session != monitoredItem.Session ||
-                    cachedEntry.Context.OperationContext.UserIdentity != monitoredItem
-                        .EffectiveIdentity ||
                     (currentTicks - cachedEntry.CreatedAtTicks) > m_cacheLifetimeTicks)
                 {
                     operationContext = new OperationContext(monitoredItem);
@@ -364,7 +365,7 @@ namespace Opc.Ua.Server
                         operationContext);
                     m_contextCache[monitoredItemId] = (updatedContext, currentTicks);
 
-                    // Invalidate the permission cache since the user identity may have changed.
+                    // Invalidate the permission cache since the session context has changed.
                     m_permissionCache.TryRemove(monitoredItemId, out _);
 
                     return updatedContext;

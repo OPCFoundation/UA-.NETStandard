@@ -408,28 +408,20 @@ namespace Opc.Ua.Server
             NodeId sessionId,
             CancellationToken cancellationToken = default)
         {
-            await m_startupShutdownSemaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
-            try
+            foreach (IAsyncNodeManager nodeManager in m_nodeManagers)
             {
-                foreach (IAsyncNodeManager nodeManager in m_nodeManagers)
+                try
                 {
-                    try
-                    {
-                        await nodeManager.SessionActivatedAsync(context, sessionId, cancellationToken)
-                            .ConfigureAwait(false);
-                    }
-                    catch (Exception e)
-                    {
-                        m_logger.LogError(
-                            e,
-                            "Unexpected error notifying node manager of session activation for NodeManager={NodeManager}.",
-                            nodeManager);
-                    }
+                    await nodeManager.SessionActivatedAsync(context, sessionId, cancellationToken)
+                        .ConfigureAwait(false);
                 }
-            }
-            finally
-            {
-                m_startupShutdownSemaphoreSlim.Release();
+                catch (Exception e)
+                {
+                    m_logger.LogError(
+                        e,
+                        "Unexpected error notifying node manager of session activation for NodeManager={NodeManager}.",
+                        nodeManager);
+                }
             }
         }
 
