@@ -1955,21 +1955,52 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
-        /// Verifies that after transferring a subscription to a new session and re-activating
-        /// that session (which changes the identity context, e.g. simulating a switch from a
-        /// Sign and Encrypt session to a Sign-only session), the permission caches for the
-        /// transferred monitored items are invalidated and permissions are re-evaluated
-        /// correctly on subsequent notifications.
+        /// Verifies that after transferring a subscription to a session that then switches its
+        /// identity to one that lacks access to the monitored node, permission caches are
+        /// invalidated and subsequent value-change notifications for that node are suppressed.
         /// </summary>
+        /// <remarks>
+        /// Scenario:
+        /// 1. Session A authenticates as user1 (AuthenticatedUser role) and creates a
+        ///    subscription monitoring <c>AccessRights_RolePermissions_AuthenticatedUser</c>
+        ///    (a node whose RolePermissions allow only the AuthenticatedUser role to read it).
+        /// 2. Session B also authenticates as user1 so that TransferSubscriptions accepts the
+        ///    transfer (identity check: same username).
+        /// 3. The subscription is transferred to session B with sendInitialValues=true; session B
+        ///    publishes and receives the initial value — confirming the node is accessible.
+        /// 4. Session B re-activates with anonymous identity. This triggers
+        ///    <c>SessionActivatedAsync</c> → <c>InvalidatePermissionCacheForSession</c>,
+        ///    clearing the cached permission for the transferred item.
+        /// 5. Session A (still user1) writes a new value to the restricted node, triggering
+        ///    <c>ValidateItemDataChange</c> for session B's item. With the cache cleared, the
+        ///    permission is re-evaluated for the anonymous identity → BadUserAccessDenied →
+        ///    the notification is suppressed.
+        /// 6. Session B publishes: no DataChangeNotification for the restricted node should
+        ///    be present, proving that permissions were correctly re-evaluated.
+        /// </remarks>
         [Test]
         public async Task PermissionsRevalidatedAfterTransferSubscriptionsAndReactivationAsync()
         {
-            // Session A uses Sign security mode. Anonymous identity with a secure channel
-            // satisfies the identity check required by TransferSubscriptions.
+            // The ReferenceServer registers its nodes under namespace index 2.
+            // "AccessRights_RolePermissions_AuthenticatedUser" allows Browse/Read/Write only
+            // for WellKnownRole_AuthenticatedUser; anonymous sessions cannot read it.
+            var restrictedNodeId = new NodeId("AccessRights_RolePermissions_AuthenticatedUser", 2);
+
+            // Username token for user1 (AuthenticatedUser role). PolicyId "1" is the first
+            // user-token policy registered by the ReferenceServer (username with Basic256Sha256).
+            var usernameToken = new UserNameIdentityToken
+            {
+                UserName = "user1",
+                Password = System.Text.Encoding.UTF8.GetBytes("password").ToByteString(),
+                PolicyId = "1"
+            };
+
+            // Session A: authenticate as user1.
             (RequestHeader headerA, SecureChannelContext channelA) =
                 await m_server.CreateAndActivateSessionAsync(
                     "TransferTest_SessionA",
-                    useSecurity: true).ConfigureAwait(false);
+                    useSecurity: false,
+                    identityToken: usernameToken).ConfigureAwait(false);
             headerA.Timestamp = DateTimeUtc.Now;
 
             uint subscriptionId = 0;
@@ -1981,29 +2012,30 @@ namespace Opc.Ua.Server.Tests
                 CreateSubscriptionResponse subResp = await servicesA.CreateSubscriptionAsync(
                     headerA,
                     requestedPublishingInterval: 100,
-                    requestedLifetimeCount: 10,
-                    requestedMaxKeepAliveCount: 5,
+                    requestedLifetimeCount: 20,
+                    requestedMaxKeepAliveCount: 10,
                     maxNotificationsPerPublish: 0,
                     publishingEnabled: true,
                     priority: 0).ConfigureAwait(false);
                 ServerFixtureUtils.ValidateResponse(subResp.ResponseHeader);
                 subscriptionId = subResp.SubscriptionId;
 
-                // Monitor a variable node that is accessible to all sessions.
+                // Monitor the restricted node. Session A (user1 / AuthenticatedUser role)
+                // has Read permission, so creation should succeed.
                 ArrayOf<MonitoredItemCreateRequest> monitoredItems =
                 [
                     new MonitoredItemCreateRequest
                     {
                         ItemToMonitor = new ReadValueId
                         {
-                            NodeId = VariableIds.Server_ServerStatus_CurrentTime,
+                            NodeId = restrictedNodeId,
                             AttributeId = Attributes.Value
                         },
                         MonitoringMode = MonitoringMode.Reporting,
                         RequestedParameters = new MonitoringParameters
                         {
                             ClientHandle = 1,
-                            SamplingInterval = 0,
+                            SamplingInterval = -1,
                             QueueSize = 10,
                             DiscardOldest = true
                         }
@@ -2017,22 +2049,38 @@ namespace Opc.Ua.Server.Tests
                     monitoredItems).ConfigureAwait(false);
                 ServerFixtureUtils.ValidateResponse(itemsResp.ResponseHeader, itemsResp.Results, monitoredItems);
                 Assert.That(StatusCode.IsGood(itemsResp.Results[0].StatusCode), Is.True,
-                    "Monitored item creation should succeed.");
+                    "Monitored item creation on restricted node should succeed for AuthenticatedUser.");
 
-                // Allow time for the initial notification to be queued and populate the permission cache.
-                await Task.Delay(300).ConfigureAwait(false);
-
+                // Write an initial value so the node has a known, non-default value.
+                // This also pre-populates the monitored item's last-value cache.
                 headerA.Timestamp = DateTimeUtc.Now;
-                PublishResponse publishRespA = await servicesA.PublishAsync(
+                WriteResponse writeResp0 = await m_server.WriteAsync(
+                    channelA,
                     headerA,
-                    []).ConfigureAwait(false);
-                ServerFixtureUtils.ValidateResponse(publishRespA.ResponseHeader);
+                    [new WriteValue
+                    {
+                        NodeId = restrictedNodeId,
+                        AttributeId = Attributes.Value,
+                        Value = new DataValue(new Variant((short)10))
+                    }],
+                    RequestLifetime.None).ConfigureAwait(false);
+                ServerFixtureUtils.ValidateResponse(writeResp0.ResponseHeader);
+                Assert.That(StatusCode.IsGood(writeResp0.Results[0]), Is.True,
+                    "Initial write from user1 should succeed.");
 
-                // Session B: also Sign security mode (required for anonymous-identity transfer).
+                // Consume any initial notifications queued in session A.
+                await Task.Delay(300).ConfigureAwait(false);
+                headerA.Timestamp = DateTimeUtc.Now;
+                PublishResponse publishA = await servicesA.PublishAsync(headerA, []).ConfigureAwait(false);
+                ServerFixtureUtils.ValidateResponse(publishA.ResponseHeader);
+
+                // Session B: authenticate as user1 as well.
+                // TransferSubscriptions requires the same username for the identity check to pass.
                 (RequestHeader headerB, SecureChannelContext channelB) =
                     await m_server.CreateAndActivateSessionAsync(
                         "TransferTest_SessionB",
-                        useSecurity: true).ConfigureAwait(false);
+                        useSecurity: false,
+                        identityToken: usernameToken).ConfigureAwait(false);
                 headerB.Timestamp = DateTimeUtc.Now;
 
                 try
@@ -2040,6 +2088,8 @@ namespace Opc.Ua.Server.Tests
                     var servicesB = new ServerTestServices(m_server, channelB);
 
                     // Transfer the subscription from session A to session B.
+                    // sendInitialValues=true causes the server to re-queue the last known value
+                    // for all monitored items immediately after transfer.
                     TransferSubscriptionsResponse transferResp =
                         await servicesB.TransferSubscriptionsAsync(
                             headerB,
@@ -2047,45 +2097,114 @@ namespace Opc.Ua.Server.Tests
                             sendInitialValues: true).ConfigureAwait(false);
                     ServerFixtureUtils.ValidateResponse(transferResp.ResponseHeader);
                     Assert.That(StatusCode.IsGood(transferResp.Results[0].StatusCode), Is.True,
-                        "Subscription transfer to session B should succeed.");
+                        "Subscription transfer should succeed: both sessions use user1 identity.");
 
-                    // Re-activate session B with different locale IDs.
-                    // Changing the locale causes Session.Activate to return changed=true, which
-                    // triggers StandardServer.ActivateSessionAsync to call
-                    // IMasterNodeManager.SessionActivatedAsync. That in turn calls
-                    // MonitoredNode2.InvalidatePermissionCacheForSession for the transferred items,
-                    // ensuring permissions are re-evaluated on the next notification — the same
-                    // effect as switching from a Sign and Encrypt session to a Sign-only session.
+                    // Publish from session B to receive the initial-values notification.
+                    // At this point session B is still user1 so the read is permitted.
+                    await Task.Delay(200).ConfigureAwait(false);
+                    headerB.Timestamp = DateTimeUtc.Now;
+                    PublishResponse publishB1 = await servicesB.PublishAsync(
+                        headerB,
+                        publishA.NotificationMessage.SequenceNumber > 0
+                            ? [new SubscriptionAcknowledgement
+                            {
+                                SubscriptionId = subscriptionId,
+                                SequenceNumber = publishA.NotificationMessage.SequenceNumber
+                            }]
+                            : []).ConfigureAwait(false);
+                    ServerFixtureUtils.ValidateResponse(publishB1.ResponseHeader);
+
+                    bool hasInitialNotification = false;
+                    foreach (ExtensionObject extObj in publishB1.NotificationMessage.NotificationData)
+                    {
+                        if (extObj.TryGetValue(out DataChangeNotification dcn))
+                        {
+                            foreach (MonitoredItemNotification item in dcn.MonitoredItems)
+                            {
+                                if (item.ClientHandle == 1)
+                                {
+                                    hasInitialNotification = true;
+                                }
+                            }
+                        }
+                    }
+
+                    Assert.That(hasInitialNotification, Is.True,
+                        "Session B (user1) must receive the initial data notification for the restricted node.");
+
+                    // Re-activate session B with anonymous identity.
+                    // The identity change triggers SessionActivatedAsync →
+                    // InvalidatePermissionCacheForSession, clearing the cached permission for
+                    // the transferred monitored item.
                     headerB.Timestamp = DateTimeUtc.Now;
                     ActivateSessionResponse reactivateResp = await m_server.ActivateSessionAsync(
                         channelB,
                         headerB,
                         default,
                         [],
-                        ["fr-FR"],
+                        [],
                         default,
                         null,
                         RequestLifetime.None).ConfigureAwait(false);
                     ServerFixtureUtils.ValidateResponse(reactivateResp.ResponseHeader);
 
-                    // Allow time for a new notification with the re-evaluated permissions.
+                    // Write a new value from session A (user1 still has Write permission).
+                    // This triggers ValidateItemDataChange for session B's monitored item.
+                    // With the permission cache cleared, anonymous cannot read the restricted
+                    // node → notification is suppressed.
+                    headerA.Timestamp = DateTimeUtc.Now;
+                    WriteResponse writeResp = await m_server.WriteAsync(
+                        channelA,
+                        headerA,
+                        [new WriteValue
+                        {
+                            NodeId = restrictedNodeId,
+                            AttributeId = Attributes.Value,
+                            Value = new DataValue(new Variant((short)99))
+                        }],
+                        RequestLifetime.None).ConfigureAwait(false);
+                    ServerFixtureUtils.ValidateResponse(writeResp.ResponseHeader);
+                    Assert.That(StatusCode.IsGood(writeResp.Results[0]), Is.True,
+                        "Session A (user1) should still be able to write to the restricted node.");
+
+                    // Allow time for the value change to be processed.
                     await Task.Delay(300).ConfigureAwait(false);
 
-                    // Publish from session B. With correct cache invalidation, permissions are
-                    // re-evaluated and the subscription delivers notifications without error.
+                    // Publish from session B. Because the anonymous identity cannot read the
+                    // restricted node, no DataChangeNotification for client handle 1 should
+                    // appear in the response.
                     headerB.Timestamp = DateTimeUtc.Now;
-                    PublishResponse publishRespB = await servicesB.PublishAsync(
+                    PublishResponse publishB2 = await servicesB.PublishAsync(
                         headerB,
-                        []).ConfigureAwait(false);
-                    ServerFixtureUtils.ValidateResponse(publishRespB.ResponseHeader);
-                    Assert.That(publishRespB.SubscriptionId, Is.EqualTo(subscriptionId),
-                        "Subscription should still be associated with session B after re-activation.");
+                        [new SubscriptionAcknowledgement
+                        {
+                            SubscriptionId = subscriptionId,
+                            SequenceNumber = publishB1.NotificationMessage.SequenceNumber
+                        }]).ConfigureAwait(false);
+                    ServerFixtureUtils.ValidateResponse(publishB2.ResponseHeader);
 
-                    // Clean up subscription via session B.
+                    bool hasNotificationForRestrictedNode = false;
+                    foreach (ExtensionObject extObj in publishB2.NotificationMessage.NotificationData)
+                    {
+                        if (extObj.TryGetValue(out DataChangeNotification dcn))
+                        {
+                            foreach (MonitoredItemNotification item in dcn.MonitoredItems)
+                            {
+                                if (item.ClientHandle == 1)
+                                {
+                                    hasNotificationForRestrictedNode = true;
+                                }
+                            }
+                        }
+                    }
+
+                    Assert.That(hasNotificationForRestrictedNode, Is.False,
+                        "After re-activation as anonymous, session B must NOT receive notifications " +
+                        "for the AuthenticatedUser-restricted node.");
+
+                    // Clean up.
                     headerB.Timestamp = DateTimeUtc.Now;
-                    await servicesB.DeleteSubscriptionsAsync(
-                        headerB,
-                        [subscriptionId]).ConfigureAwait(false);
+                    await servicesB.DeleteSubscriptionsAsync(headerB, [subscriptionId]).ConfigureAwait(false);
                     subscriptionId = 0;
                 }
                 finally
