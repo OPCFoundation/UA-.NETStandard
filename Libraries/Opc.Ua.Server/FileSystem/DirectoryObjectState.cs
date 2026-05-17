@@ -109,17 +109,17 @@ namespace Opc.Ua.Server.FileSystem
         }
 
         public override INodeBrowser CreateBrowser(
-            ISystemContext context, ViewDescription view, NodeId referenceType,
+            ISystemContext context, ViewDescription? view, NodeId referenceType,
             bool includeSubtypes, BrowseDirection browseDirection,
-            QualifiedName browseName, IEnumerable<IReference> additionalReferences,
+            QualifiedName browseName, IEnumerable<IReference>? additionalReferences,
             bool internalOnly)
         {
-            FileSystemNodeManager manager = context?.SystemHandle as FileSystemNodeManager;
+            FileSystemNodeManager? manager = context?.SystemHandle as FileSystemNodeManager;
             var browser = new DirectoryBrowser(
-                context, view, referenceType, includeSubtypes,
+                context!, view, referenceType, includeSubtypes,
                 browseDirection, browseName, additionalReferences,
-                internalOnly, manager, this);
-            PopulateBrowser(context, browser);
+                internalOnly, manager!, this);
+            PopulateBrowser(context!, browser);
             return browser;
         }
 
@@ -127,7 +127,7 @@ namespace Opc.Ua.Server.FileSystem
         {
             base.PopulateBrowser(context, browser);
 
-            FileSystemNodeManager manager = context?.SystemHandle as FileSystemNodeManager;
+            FileSystemNodeManager? manager = context?.SystemHandle as FileSystemNodeManager;
             if (manager == null)
             {
                 return;
@@ -157,7 +157,7 @@ namespace Opc.Ua.Server.FileSystem
         private ServiceResult OnCreateDirectory(ISystemContext context, MethodState method,
             NodeId objectId, string directoryName, ref NodeId directoryNodeId)
         {
-            FileSystemNodeManager manager = context?.SystemHandle as FileSystemNodeManager;
+            FileSystemNodeManager? manager = context?.SystemHandle as FileSystemNodeManager;
             if (manager == null)
             {
                 return ServiceResult.Create(StatusCodes.BadInvalidState,
@@ -192,7 +192,7 @@ namespace Opc.Ua.Server.FileSystem
             NodeId objectId, string fileName, bool requestFileOpen,
             ref NodeId fileNodeId, ref uint fileHandle)
         {
-            FileSystemNodeManager manager = context?.SystemHandle as FileSystemNodeManager;
+            FileSystemNodeManager? manager = context?.SystemHandle as FileSystemNodeManager;
             if (manager == null)
             {
                 return ServiceResult.Create(StatusCodes.BadInvalidState,
@@ -216,7 +216,7 @@ namespace Opc.Ua.Server.FileSystem
                 }
 
                 fileNodeId = FileSystemNodeId.BuildFile(newPath, manager.NamespaceIndex);
-                FileHandle handle = manager.GetOrCreateHandle(fileNodeId, newPath);
+                FileHandle? handle = manager.GetOrCreateHandle(fileNodeId, newPath);
                 if (handle == null)
                 {
                     return ServiceResult.Create(StatusCodes.BadInvalidState,
@@ -241,7 +241,7 @@ namespace Opc.Ua.Server.FileSystem
         private ServiceResult OnDeleteFileSystemObject(ISystemContext context, MethodState method,
             NodeId objectId, NodeId objectToDelete)
         {
-            FileSystemNodeManager manager = context?.SystemHandle as FileSystemNodeManager;
+            FileSystemNodeManager? manager = context?.SystemHandle as FileSystemNodeManager;
             if (manager == null)
             {
                 return ServiceResult.Create(StatusCodes.BadInvalidState,
@@ -290,7 +290,7 @@ namespace Opc.Ua.Server.FileSystem
             NodeId objectId, NodeId objectToMoveOrCopy, NodeId targetDirectory,
             bool createCopy, string newName, ref NodeId newNodeId)
         {
-            FileSystemNodeManager manager = context?.SystemHandle as FileSystemNodeManager;
+            FileSystemNodeManager? manager = context?.SystemHandle as FileSystemNodeManager;
             if (manager == null)
             {
                 return ServiceResult.Create(StatusCodes.BadInvalidState,

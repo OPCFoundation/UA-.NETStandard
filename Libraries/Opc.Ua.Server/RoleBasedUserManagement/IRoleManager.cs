@@ -126,8 +126,8 @@ namespace Opc.Ua.Server
         /// </summary>
         IList<NodeId> ResolveGrantedRoles(
             IUserIdentity identity,
-            Certificate clientCertificate,
-            EndpointDescription endpoint);
+            Certificate? clientCertificate,
+            EndpointDescription? endpoint);
 
         /// <summary>
         /// Namespace index used to issue NodeIds for dynamically created

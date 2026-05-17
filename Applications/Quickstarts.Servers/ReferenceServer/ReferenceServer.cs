@@ -121,7 +121,7 @@ namespace Quickstarts.ReferenceServer
         /// <see cref="Opc.Ua.Server.FileSystem.PhysicalFileSystemProvider"/>
         /// rooted at <c>%TEMP%/OpcUaReferenceServerFs</c>.
         /// </summary>
-        public Opc.Ua.Server.FileSystem.IFileSystemProvider FileSystemProvider { get; set; }
+        public Opc.Ua.Server.FileSystem.IFileSystemProvider? FileSystemProvider { get; set; }
 
         /// <summary>
         /// The user database used for credential verification and user management.

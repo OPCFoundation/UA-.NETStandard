@@ -79,7 +79,7 @@ namespace Opc.Ua.Server.FileSystem
         /// </param>
         public PhysicalFileSystemProvider(
             string rootDirectory,
-            string mountName = null,
+            string? mountName = null,
             bool isWritable = true)
         {
             if (string.IsNullOrEmpty(rootDirectory))
@@ -107,9 +107,10 @@ namespace Opc.Ua.Server.FileSystem
                 Directory.CreateDirectory(m_rootDirectory);
             }
 
-            MountName = !string.IsNullOrEmpty(mountName)
-                ? mountName
+            string resolvedMount = !string.IsNullOrEmpty(mountName)
+                ? mountName!
                 : new DirectoryInfo(m_rootDirectory).Name;
+            MountName = resolvedMount;
             IsWritable = isWritable;
         }
 

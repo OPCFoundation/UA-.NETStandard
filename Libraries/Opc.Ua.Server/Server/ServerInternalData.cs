@@ -682,11 +682,11 @@ namespace Opc.Ua.Server
             // missing-attribute response. Use the configured global
             // MaxSubscriptionCount as the per-session ceiling — the SDK
             // doesn't track per-session limits separately at this layer.
-            if (serverObject.ServerCapabilities.MaxSubscriptionsPerSession == null)
+            if (serverCapabilities.MaxSubscriptionsPerSession == null)
             {
-                serverObject.ServerCapabilities.AddMaxSubscriptionsPerSession(DefaultSystemContext);
+                serverCapabilities.AddMaxSubscriptionsPerSession(DefaultSystemContext);
             }
-            serverObject.ServerCapabilities.MaxSubscriptionsPerSession.Value = (uint)Math.Max(1,
+            serverCapabilities.MaxSubscriptionsPerSession!.Value = (uint)Math.Max(1,
                 m_configuration.ServerConfiguration.MaxSubscriptionCount);
 
             // Any operational limits Property that is provided shall have a non zero value.

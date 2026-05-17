@@ -5466,7 +5466,7 @@ namespace Quickstarts.ReferenceServer
         private bool m_simulationEnabled = true;
         private int m_simulationsRunning;
         private readonly List<BaseDataVariableState> m_dynamicNodes = [];
-        private HistoryArchive m_historyArchive;
+        private HistoryArchive? m_historyArchive;
 
         #region Historical Access
 
@@ -5491,7 +5491,7 @@ namespace Quickstarts.ReferenceServer
             {
                 var nodeId = new NodeId(name, NamespaceIndex);
 
-                if (!PredefinedNodes.TryGetValue(nodeId, out NodeState node))
+                if (!PredefinedNodes.TryGetValue(nodeId, out NodeState? node))
                 {
                     continue;
                 }
@@ -5513,7 +5513,7 @@ namespace Quickstarts.ReferenceServer
         /// <summary>
         /// Returns the history data source for a node.
         /// </summary>
-        private IHistoryDataSource GetHistoryDataSource(NodeId nodeId)
+        private IHistoryDataSource? GetHistoryDataSource(NodeId nodeId)
         {
             return m_historyArchive?.GetHistoryFile(nodeId);
         }
@@ -5521,7 +5521,7 @@ namespace Quickstarts.ReferenceServer
         /// <summary>
         /// Restores a previously cached history reader.
         /// </summary>
-        private static HistoryDataReader RestoreDataReader(
+        private static HistoryDataReader? RestoreDataReader(
             ServerSystemContext context,
             ByteString continuationPoint)
         {
@@ -5548,8 +5548,8 @@ namespace Quickstarts.ReferenceServer
         /// </summary>
         private static ServiceResult HistoryReadRaw(
             ServerSystemContext context,
-            IHistoryDataSource datasource,
-            ReadRawModifiedDetails details,
+            IHistoryDataSource? datasource,
+            ReadRawModifiedDetails? details,
             TimestampsToReturn timestampsToReturn,
             bool releaseContinuationPoints,
             HistoryReadValueId nodeToRead,
@@ -5557,7 +5557,7 @@ namespace Quickstarts.ReferenceServer
         {
             List<DataValue> dataValues = [];
 
-            HistoryDataReader reader;
+            HistoryDataReader? reader;
             if (!nodeToRead.ContinuationPoint.IsEmpty)
             {
                 reader = RestoreDataReader(context, nodeToRead.ContinuationPoint);
@@ -5581,7 +5581,7 @@ namespace Quickstarts.ReferenceServer
             }
             else
             {
-                if (datasource == null)
+                if (datasource == null || details == null)
                 {
                     return StatusCodes.BadNotReadable;
                 }
@@ -5653,7 +5653,7 @@ namespace Quickstarts.ReferenceServer
                     continue;
                 }
 
-                IHistoryDataSource datasource = GetHistoryDataSource(handle.NodeId);
+                IHistoryDataSource? datasource = GetHistoryDataSource(handle.NodeId);
 
                 if (datasource == null)
                 {
@@ -5704,7 +5704,7 @@ namespace Quickstarts.ReferenceServer
                     continue;
                 }
 
-                IHistoryDataSource datasource = GetHistoryDataSource(handle.NodeId);
+                IHistoryDataSource? datasource = GetHistoryDataSource(handle.NodeId);
 
                 if (datasource == null)
                 {
@@ -5727,7 +5727,7 @@ namespace Quickstarts.ReferenceServer
                     configuration = Server.AggregateManager.GetDefaultConfiguration(handle.NodeId);
                 }
 
-                IAggregateCalculator calculator = Server.AggregateManager.CreateCalculator(
+                IAggregateCalculator? calculator = Server.AggregateManager.CreateCalculator(
                     aggregateId,
                     details.StartTime,
                     details.EndTime,
@@ -5778,7 +5778,7 @@ namespace Quickstarts.ReferenceServer
                     if (!calculator.QueueRawValue(rawValue))
                     {
                         // Collect any computed values.
-                        DataValue computed = calculator.GetProcessedValue(false);
+                        DataValue? computed = calculator.GetProcessedValue(false);
                         while (computed != null)
                         {
                             processedValues.Add(computed);
@@ -5788,7 +5788,7 @@ namespace Quickstarts.ReferenceServer
                 }
 
                 // Flush remaining.
-                DataValue final1 = calculator.GetProcessedValue(true);
+                DataValue? final1 = calculator.GetProcessedValue(true);
                 while (final1 != null)
                 {
                     processedValues.Add(final1);

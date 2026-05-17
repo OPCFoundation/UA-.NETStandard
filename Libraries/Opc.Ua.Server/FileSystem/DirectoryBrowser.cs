@@ -40,9 +40,9 @@ namespace Opc.Ua.Server.FileSystem
     internal sealed class DirectoryBrowser : NodeBrowser
     {
         public DirectoryBrowser(
-            ISystemContext context, ViewDescription view,
+            ISystemContext context, ViewDescription? view,
             NodeId referenceType, bool includeSubtypes, BrowseDirection browseDirection,
-            QualifiedName browseName, IEnumerable<IReference> additionalReferences,
+            QualifiedName browseName, IEnumerable<IReference>? additionalReferences,
             bool internalOnly,
             FileSystemNodeManager manager,
             DirectoryObjectState source)
@@ -54,11 +54,11 @@ namespace Opc.Ua.Server.FileSystem
             m_stage = Stage.Begin;
         }
 
-        public override IReference Next()
+        public override IReference? Next()
         {
             lock (DataLock)
             {
-                IReference reference = base.Next();
+                IReference? reference = base.Next();
                 if (reference != null)
                 {
                     return reference;
@@ -121,7 +121,7 @@ namespace Opc.Ua.Server.FileSystem
             return list;
         }
 
-        private NodeStateReference NextChild()
+        private NodeStateReference? NextChild()
         {
             if (m_pending == null)
             {
@@ -174,7 +174,7 @@ namespace Opc.Ua.Server.FileSystem
 
         private readonly FileSystemNodeManager m_manager;
         private readonly DirectoryObjectState m_source;
-        private List<FileSystemEntry> m_pending;
+        private List<FileSystemEntry>? m_pending;
         private Stage m_stage;
     }
 }

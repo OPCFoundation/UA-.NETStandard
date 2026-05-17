@@ -156,32 +156,32 @@ namespace Opc.Ua.Server
                 manager.EnsureRole(roleId);
 
                 BindMethodHandler(nodeManager, ids.AddIdentity, (input, output) =>
-                    TryGetRule(input, out IdentityMappingRuleType rule)
+                    TryGetRule(input, out IdentityMappingRuleType? rule)
                         ? manager.AddIdentity(roleId, rule)
                         : new ServiceResult(StatusCodes.BadInvalidArgument));
 
                 BindMethodHandler(nodeManager, ids.RemoveIdentity, (input, output) =>
-                    TryGetRule(input, out IdentityMappingRuleType rule)
+                    TryGetRule(input, out IdentityMappingRuleType? rule)
                         ? manager.RemoveIdentity(roleId, rule)
                         : new ServiceResult(StatusCodes.BadInvalidArgument));
 
                 BindMethodHandler(nodeManager, ids.AddApplication, (input, output) =>
-                    TryGetString(input, out string uri)
+                    TryGetString(input, out string? uri)
                         ? manager.AddApplication(roleId, uri)
                         : new ServiceResult(StatusCodes.BadInvalidArgument));
 
                 BindMethodHandler(nodeManager, ids.RemoveApplication, (input, output) =>
-                    TryGetString(input, out string uri)
+                    TryGetString(input, out string? uri)
                         ? manager.RemoveApplication(roleId, uri)
                         : new ServiceResult(StatusCodes.BadInvalidArgument));
 
                 BindMethodHandler(nodeManager, ids.AddEndpoint, (input, output) =>
-                    TryGetEndpoint(input, out EndpointType ep)
+                    TryGetEndpoint(input, out EndpointType? ep)
                         ? manager.AddEndpoint(roleId, ep)
                         : new ServiceResult(StatusCodes.BadInvalidArgument));
 
                 BindMethodHandler(nodeManager, ids.RemoveEndpoint, (input, output) =>
-                    TryGetEndpoint(input, out EndpointType ep)
+                    TryGetEndpoint(input, out EndpointType? ep)
                         ? manager.RemoveEndpoint(roleId, ep)
                         : new ServiceResult(StatusCodes.BadInvalidArgument));
 
@@ -205,10 +205,10 @@ namespace Opc.Ua.Server
         private static void BindRoleSetMethods(AsyncCustomNodeManager nm, IRoleManager manager)
         {
             ushort nsIndex = 0;
-            string firstOwned = nm.NamespaceUris?.FirstOrDefault();
+            string? firstOwned = nm.NamespaceUris?.FirstOrDefault();
             if (!string.IsNullOrEmpty(firstOwned))
             {
-                nsIndex = (ushort)nm.SystemContext.NamespaceUris.GetIndex(firstOwned);
+                nsIndex = (ushort)nm.SystemContext.NamespaceUris.GetIndex(firstOwned!);
                 if (nsIndex == ushort.MaxValue)
                 {
                     nsIndex = 0;
@@ -342,7 +342,7 @@ namespace Opc.Ua.Server
             };
         }
 
-        private static bool TryGetRule(ArrayOf<Variant> args, out IdentityMappingRuleType rule)
+        private static bool TryGetRule(ArrayOf<Variant> args, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out IdentityMappingRuleType? rule)
         {
             rule = null;
             if (args.Count == 0)
@@ -350,22 +350,22 @@ namespace Opc.Ua.Server
                 return false;
             }
             if (args[0].TryGetValue(out ExtensionObject ext)
-                && ext.TryGetValue(out IdentityMappingRuleType r))
+                && ext.TryGetValue(out IdentityMappingRuleType? r))
             {
                 rule = r;
-                return true;
+                return r != null;
             }
             return false;
         }
 
-        private static bool TryGetString(ArrayOf<Variant> args, out string value)
+        private static bool TryGetString(ArrayOf<Variant> args, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out string? value)
         {
             value = null;
             if (args.Count == 0)
             {
                 return false;
             }
-            if (args[0].TryGetValue(out string s))
+            if (args[0].TryGetValue(out string? s))
             {
                 value = s;
                 return true;
@@ -373,7 +373,7 @@ namespace Opc.Ua.Server
             return false;
         }
 
-        private static bool TryGetEndpoint(ArrayOf<Variant> args, out EndpointType endpoint)
+        private static bool TryGetEndpoint(ArrayOf<Variant> args, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out EndpointType? endpoint)
         {
             endpoint = null;
             if (args.Count == 0)
@@ -381,10 +381,10 @@ namespace Opc.Ua.Server
                 return false;
             }
             if (args[0].TryGetValue(out ExtensionObject ext)
-                && ext.TryGetValue(out EndpointType e))
+                && ext.TryGetValue(out EndpointType? e))
             {
                 endpoint = e;
-                return true;
+                return e != null;
             }
             return false;
         }

@@ -115,7 +115,7 @@ namespace Opc.Ua.Server.FileSystem
             }
         }
 
-        public Stream GetStream(uint fileHandle)
+        public Stream? GetStream(uint fileHandle)
         {
             lock (m_lock)
             {
@@ -123,7 +123,7 @@ namespace Opc.Ua.Server.FileSystem
                 {
                     return m_write;
                 }
-                if (m_reads.TryGetValue(fileHandle, out Stream stream))
+                if (m_reads.TryGetValue(fileHandle, out Stream? stream))
                 {
                     return stream;
                 }
@@ -241,7 +241,7 @@ namespace Opc.Ua.Server.FileSystem
                     m_write = null;
                     return true;
                 }
-                if (m_reads.TryGetValue(fileHandle, out Stream stream))
+                if (m_reads.TryGetValue(fileHandle, out Stream? stream))
                 {
                     stream.Dispose();
                     m_reads.Remove(fileHandle);
@@ -269,6 +269,6 @@ namespace Opc.Ua.Server.FileSystem
         private readonly Dictionary<uint, Stream> m_reads = new();
         private readonly IFileSystemProvider m_provider;
         private uint m_nextHandle = 1;
-        private Stream m_write;
+        private Stream? m_write;
     }
 }

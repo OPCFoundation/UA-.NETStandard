@@ -103,7 +103,7 @@ namespace Opc.Ua.Server.FileSystem
             lock (Lock)
             {
                 if (!externalReferences.TryGetValue(ObjectIds.FileSystem,
-                    out IList<IReference> references))
+                    out IList<IReference>? references))
                 {
                     externalReferences[ObjectIds.FileSystem] = references = new List<IReference>();
                 }
@@ -114,8 +114,8 @@ namespace Opc.Ua.Server.FileSystem
         }
 
         /// <inheritdoc/>
-        protected override NodeHandle GetManagerHandle(ServerSystemContext context, NodeId nodeId,
-            IDictionary<NodeId, NodeState> cache)
+        protected override NodeHandle? GetManagerHandle(ServerSystemContext context, NodeId nodeId,
+            IDictionary<NodeId, NodeState>? cache)
         {
             lock (Lock)
             {
@@ -125,7 +125,7 @@ namespace Opc.Ua.Server.FileSystem
                 }
 
                 if (nodeId.IdType != IdType.String &&
-                    PredefinedNodes.TryGetValue(nodeId, out NodeState node))
+                    PredefinedNodes.TryGetValue(nodeId, out NodeState? node))
                 {
                     return new NodeHandle
                     {
@@ -141,7 +141,6 @@ namespace Opc.Ua.Server.FileSystem
                     {
                         NodeId = nodeId,
                         Validated = false,
-                        Node = null,
                         ParsedNodeId = new ParsedFileSystemNodeId(parsed)
                     };
                 }
@@ -181,8 +180,8 @@ namespace Opc.Ua.Server.FileSystem
         }
 
         /// <inheritdoc/>
-        protected override NodeState ValidateNode(ServerSystemContext context, NodeHandle handle,
-            IDictionary<NodeId, NodeState> cache)
+        protected override NodeState? ValidateNode(ServerSystemContext context, NodeHandle handle,
+            IDictionary<NodeId, NodeState>? cache)
         {
             if (handle == null)
             {
@@ -193,7 +192,7 @@ namespace Opc.Ua.Server.FileSystem
                 return handle.Node;
             }
 
-            NodeState target = null;
+            NodeState? target = null;
             if (cache != null && cache.TryGetValue(handle.NodeId, out target))
             {
                 if (target == null)
@@ -220,7 +219,7 @@ namespace Opc.Ua.Server.FileSystem
                     return null;
                 }
 
-                NodeState root = parsed.Value.RootType switch
+                NodeState? root = parsed.Value.RootType switch
                 {
                     FileSystemNodeId.Root => new DirectoryObjectState(
                         context,
@@ -232,13 +231,13 @@ namespace Opc.Ua.Server.FileSystem
                         context,
                         FileSystemNodeId.BuildDirectory(parsed.Value.ProviderPath, NamespaceIndex),
                         parsed.Value.ProviderPath,
-                        entry.Value.Name,
+                        entry!.Value.Name,
                         isRoot: false),
                     FileSystemNodeId.File => new FileObjectState(
                         context,
                         FileSystemNodeId.BuildFile(parsed.Value.ProviderPath, NamespaceIndex),
                         parsed.Value.ProviderPath,
-                        entry.Value.Name),
+                        entry!.Value.Name),
                     _ => null
                 };
                 if (root == null)
@@ -253,8 +252,8 @@ namespace Opc.Ua.Server.FileSystem
                     return target;
                 }
 
-                NodeState component = root.FindChildBySymbolicName(
-                    context, parsed.Value.ComponentPath);
+                NodeState? component = root.FindChildBySymbolicName(
+                    context, parsed.Value.ComponentPath!);
                 if (component == null)
                 {
                     return null;
@@ -265,7 +264,7 @@ namespace Opc.Ua.Server.FileSystem
             }
             finally
             {
-                cache?.Add(handle.NodeId, target);
+                cache?.Add(handle.NodeId, target!);
             }
         }
 
@@ -305,11 +304,11 @@ namespace Opc.Ua.Server.FileSystem
         /// NodeId. Returns <c>null</c> if the NodeId is not a file
         /// NodeId in this provider's namespace.
         /// </summary>
-        internal FileHandle GetOrCreateHandle(NodeId nodeId, string providerPath)
+        internal FileHandle? GetOrCreateHandle(NodeId nodeId, string providerPath)
         {
             lock (Lock)
             {
-                if (m_handles.TryGetValue(nodeId, out FileHandle handle))
+                if (m_handles.TryGetValue(nodeId, out FileHandle? handle))
                 {
                     return handle;
                 }
@@ -328,7 +327,7 @@ namespace Opc.Ua.Server.FileSystem
         {
             lock (Lock)
             {
-                if (m_handles.TryGetValue(nodeId, out FileHandle handle))
+                if (m_handles.TryGetValue(nodeId, out FileHandle? handle))
                 {
                     handle.Dispose();
                     m_handles.Remove(nodeId);

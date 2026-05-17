@@ -177,7 +177,7 @@ namespace Opc.Ua.Server.FileSystem
             NumericRange indexRange, QualifiedName dataEncoding, ref Variant value,
             ref StatusCode statusCode, ref DateTimeUtc timestamp)
         {
-            if (!TryGetHandle(context, out FileHandle handle, out ServiceResult result))
+            if (!TryGetHandle(context, out FileHandle? handle, out ServiceResult result))
             {
                 return result;
             }
@@ -191,7 +191,7 @@ namespace Opc.Ua.Server.FileSystem
             NumericRange indexRange, QualifiedName dataEncoding, ref Variant value,
             ref StatusCode statusCode, ref DateTimeUtc timestamp)
         {
-            if (!TryGetHandle(context, out FileHandle handle, out ServiceResult result))
+            if (!TryGetHandle(context, out FileHandle? handle, out ServiceResult result))
             {
                 return result;
             }
@@ -205,7 +205,7 @@ namespace Opc.Ua.Server.FileSystem
             NumericRange indexRange, QualifiedName dataEncoding, ref Variant value,
             ref StatusCode statusCode, ref DateTimeUtc timestamp)
         {
-            if (!TryGetHandle(context, out FileHandle handle, out ServiceResult result))
+            if (!TryGetHandle(context, out FileHandle? handle, out ServiceResult result))
             {
                 return result;
             }
@@ -219,7 +219,7 @@ namespace Opc.Ua.Server.FileSystem
             NumericRange indexRange, QualifiedName dataEncoding, ref Variant value,
             ref StatusCode statusCode, ref DateTimeUtc timestamp)
         {
-            if (!TryGetHandle(context, out FileHandle handle, out ServiceResult result))
+            if (!TryGetHandle(context, out FileHandle? handle, out ServiceResult result))
             {
                 return result;
             }
@@ -233,7 +233,7 @@ namespace Opc.Ua.Server.FileSystem
             NumericRange indexRange, QualifiedName dataEncoding, ref Variant value,
             ref StatusCode statusCode, ref DateTimeUtc timestamp)
         {
-            if (!TryGetHandle(context, out FileHandle handle, out ServiceResult result))
+            if (!TryGetHandle(context, out FileHandle? handle, out ServiceResult result))
             {
                 return result;
             }
@@ -246,7 +246,7 @@ namespace Opc.Ua.Server.FileSystem
         private ServiceResult OnOpen(ISystemContext context, MethodState method,
             NodeId objectId, byte mode, ref uint fileHandle)
         {
-            if (!TryGetHandle(context, out FileHandle handle, out ServiceResult result))
+            if (!TryGetHandle(context, out FileHandle? handle, out ServiceResult result))
             {
                 return result;
             }
@@ -256,7 +256,7 @@ namespace Opc.Ua.Server.FileSystem
         private ServiceResult OnClose(ISystemContext context, MethodState method,
             NodeId objectId, uint fileHandle)
         {
-            if (!TryGetHandle(context, out FileHandle handle, out ServiceResult result))
+            if (!TryGetHandle(context, out FileHandle? handle, out ServiceResult result))
             {
                 return result;
             }
@@ -269,11 +269,11 @@ namespace Opc.Ua.Server.FileSystem
         private ServiceResult OnSetPosition(ISystemContext context, MethodState method,
             NodeId objectId, uint fileHandle, ulong position)
         {
-            if (!TryGetHandle(context, out FileHandle handle, out ServiceResult result))
+            if (!TryGetHandle(context, out FileHandle? handle, out ServiceResult result))
             {
                 return result;
             }
-            Stream stream = handle.GetStream(fileHandle);
+            Stream? stream = handle.GetStream(fileHandle);
             if (stream == null)
             {
                 return ServiceResult.Create(StatusCodes.BadInvalidState,
@@ -286,11 +286,11 @@ namespace Opc.Ua.Server.FileSystem
         private ServiceResult OnGetPosition(ISystemContext context, MethodState method,
             NodeId objectId, uint fileHandle, ref ulong position)
         {
-            if (!TryGetHandle(context, out FileHandle handle, out ServiceResult result))
+            if (!TryGetHandle(context, out FileHandle? handle, out ServiceResult result))
             {
                 return result;
             }
-            Stream stream = handle.GetStream(fileHandle);
+            Stream? stream = handle.GetStream(fileHandle);
             if (stream == null)
             {
                 return ServiceResult.Create(StatusCodes.BadInvalidState,
@@ -303,11 +303,11 @@ namespace Opc.Ua.Server.FileSystem
         private ServiceResult OnRead(ISystemContext context, MethodState method,
             NodeId objectId, uint fileHandle, int length, ref ByteString data)
         {
-            if (!TryGetHandle(context, out FileHandle handle, out ServiceResult result))
+            if (!TryGetHandle(context, out FileHandle? handle, out ServiceResult result))
             {
                 return result;
             }
-            Stream stream = handle.GetStream(fileHandle);
+            Stream? stream = handle.GetStream(fileHandle);
             if (stream == null)
             {
                 return ServiceResult.Create(StatusCodes.BadInvalidState,
@@ -337,11 +337,11 @@ namespace Opc.Ua.Server.FileSystem
         private ServiceResult OnWrite(ISystemContext context, MethodState method,
             NodeId objectId, uint fileHandle, ByteString data)
         {
-            if (!TryGetHandle(context, out FileHandle handle, out ServiceResult result))
+            if (!TryGetHandle(context, out FileHandle? handle, out ServiceResult result))
             {
                 return result;
             }
-            Stream stream = handle.GetStream(fileHandle);
+            Stream? stream = handle.GetStream(fileHandle);
             if (stream == null)
             {
                 return ServiceResult.Create(StatusCodes.BadInvalidState,
@@ -362,7 +362,7 @@ namespace Opc.Ua.Server.FileSystem
             }
 
             // Reverse reference to the parent directory.
-            FileSystemNodeManager manager = ResolveManager(context);
+            FileSystemNodeManager? manager = ResolveManager(context);
             if (manager == null)
             {
                 return;
@@ -376,10 +376,10 @@ namespace Opc.Ua.Server.FileSystem
 
         private bool TryGetHandle(
             ISystemContext context,
-            out FileHandle handle,
+            [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out FileHandle? handle,
             out ServiceResult result)
         {
-            FileSystemNodeManager manager = ResolveManager(context);
+            FileSystemNodeManager? manager = ResolveManager(context);
             if (manager == null)
             {
                 handle = null;
@@ -401,7 +401,7 @@ namespace Opc.Ua.Server.FileSystem
             return true;
         }
 
-        private static FileSystemNodeManager ResolveManager(ISystemContext context)
+        private static FileSystemNodeManager? ResolveManager(ISystemContext context)
         {
             return context?.SystemHandle as FileSystemNodeManager;
         }

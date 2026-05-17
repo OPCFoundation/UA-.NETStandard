@@ -71,7 +71,7 @@ namespace Quickstarts.ReferenceServer
         /// </remarks>
         public override async ValueTask<AddNodesResponse> AddNodesAsync(
             SecureChannelContext secureChannelContext,
-            RequestHeader requestHeader,
+            RequestHeader? requestHeader,
             ArrayOf<AddNodesItem> nodesToAdd,
             RequestLifetime requestLifetime)
         {
@@ -85,8 +85,8 @@ namespace Quickstarts.ReferenceServer
             {
                 ValidateOperationLimits(
                     nodesToAdd,
-                    ServerInternal.ServerObject.ServerCapabilities.OperationLimits
-                        .MaxNodesPerNodeManagement);
+                    ServerInternal.ServerObject.ServerCapabilities!.OperationLimits!
+                        .MaxNodesPerNodeManagement!);
 
                 var results = new AddNodesResult[nodesToAdd.Count];
                 var diagnosticInfos = new DiagnosticInfo[nodesToAdd.Count];
@@ -154,7 +154,7 @@ namespace Quickstarts.ReferenceServer
         /// </summary>
         public override async ValueTask<DeleteNodesResponse> DeleteNodesAsync(
             SecureChannelContext secureChannelContext,
-            RequestHeader requestHeader,
+            RequestHeader? requestHeader,
             ArrayOf<DeleteNodesItem> nodesToDelete,
             RequestLifetime requestLifetime)
         {
@@ -168,8 +168,8 @@ namespace Quickstarts.ReferenceServer
             {
                 ValidateOperationLimits(
                     nodesToDelete,
-                    ServerInternal.ServerObject.ServerCapabilities.OperationLimits
-                        .MaxNodesPerNodeManagement);
+                    ServerInternal.ServerObject.ServerCapabilities!.OperationLimits!
+                        .MaxNodesPerNodeManagement!);
 
                 var results = new StatusCode[nodesToDelete.Count];
                 var diagnosticInfos = new DiagnosticInfo[nodesToDelete.Count];
@@ -230,7 +230,7 @@ namespace Quickstarts.ReferenceServer
         /// </summary>
         public override async ValueTask<AddReferencesResponse> AddReferencesAsync(
             SecureChannelContext secureChannelContext,
-            RequestHeader requestHeader,
+            RequestHeader? requestHeader,
             ArrayOf<AddReferencesItem> referencesToAdd,
             RequestLifetime requestLifetime)
         {
@@ -244,8 +244,8 @@ namespace Quickstarts.ReferenceServer
             {
                 ValidateOperationLimits(
                     referencesToAdd,
-                    ServerInternal.ServerObject.ServerCapabilities.OperationLimits
-                        .MaxNodesPerNodeManagement);
+                    ServerInternal.ServerObject.ServerCapabilities!.OperationLimits!
+                        .MaxNodesPerNodeManagement!);
 
                 var results = new StatusCode[referencesToAdd.Count];
                 var diagnosticInfos = new DiagnosticInfo[referencesToAdd.Count];
@@ -305,7 +305,7 @@ namespace Quickstarts.ReferenceServer
         /// </summary>
         public override async ValueTask<DeleteReferencesResponse> DeleteReferencesAsync(
             SecureChannelContext secureChannelContext,
-            RequestHeader requestHeader,
+            RequestHeader? requestHeader,
             ArrayOf<DeleteReferencesItem> referencesToDelete,
             RequestLifetime requestLifetime)
         {
@@ -319,8 +319,8 @@ namespace Quickstarts.ReferenceServer
             {
                 ValidateOperationLimits(
                     referencesToDelete,
-                    ServerInternal.ServerObject.ServerCapabilities.OperationLimits
-                        .MaxNodesPerNodeManagement);
+                    ServerInternal.ServerObject.ServerCapabilities!.OperationLimits!
+                        .MaxNodesPerNodeManagement!);
 
                 var results = new StatusCode[referencesToDelete.Count];
                 var diagnosticInfos = new DiagnosticInfo[referencesToDelete.Count];
@@ -382,7 +382,7 @@ namespace Quickstarts.ReferenceServer
             AddNodesItem item,
             CancellationToken cancellationToken)
         {
-            ReferenceNodeManager nodeManager = m_referenceNodeManager;
+            ReferenceNodeManager? nodeManager = m_referenceNodeManager;
             if (nodeManager == null)
             {
                 return (StatusCodes.BadNotSupported, NodeId.Null);
@@ -408,7 +408,7 @@ namespace Quickstarts.ReferenceServer
                 return (StatusCodes.BadParentNodeIdInvalid, NodeId.Null);
             }
 
-            (object parentHandle, _) = await ServerInternal.NodeManager
+            (object? parentHandle, _) = await ServerInternal.NodeManager
                 .GetManagerHandleAsync(parentNodeId, cancellationToken)
                 .ConfigureAwait(false);
             if (parentHandle == null)
@@ -493,7 +493,7 @@ namespace Quickstarts.ReferenceServer
                 return StatusCodes.BadNodeIdInvalid;
             }
 
-            (object handle, IAsyncNodeManager nodeManager) = await ServerInternal
+            (object? handle, IAsyncNodeManager? nodeManager) = await ServerInternal
                 .NodeManager.GetManagerHandleAsync(item.NodeId, cancellationToken)
                 .ConfigureAwait(false);
             if (handle == null)
@@ -536,7 +536,7 @@ namespace Quickstarts.ReferenceServer
                 return StatusCodes.BadReferenceTypeIdInvalid;
             }
 
-            (object sourceHandle, _) = await ServerInternal.NodeManager
+            (object? sourceHandle, _) = await ServerInternal.NodeManager
                 .GetManagerHandleAsync(item.SourceNodeId, cancellationToken)
                 .ConfigureAwait(false);
             if (sourceHandle == null)
@@ -552,7 +552,7 @@ namespace Quickstarts.ReferenceServer
                 return StatusCodes.BadTargetNodeIdInvalid;
             }
 
-            (object targetHandle, _) = await ServerInternal.NodeManager
+            (object? targetHandle, _) = await ServerInternal.NodeManager
                 .GetManagerHandleAsync(targetNodeId, cancellationToken)
                 .ConfigureAwait(false);
             if (targetHandle == null)
@@ -597,7 +597,7 @@ namespace Quickstarts.ReferenceServer
                 return StatusCodes.BadNodeIdInvalid;
             }
 
-            (object sourceHandle, IAsyncNodeManager nodeManager) = await ServerInternal
+            (object? sourceHandle, IAsyncNodeManager? nodeManager) = await ServerInternal
                 .NodeManager.GetManagerHandleAsync(item.SourceNodeId, cancellationToken)
                 .ConfigureAwait(false);
             if (sourceHandle == null)
@@ -607,8 +607,8 @@ namespace Quickstarts.ReferenceServer
 
             try
             {
-                ServiceResult result = await nodeManager.DeleteReferenceAsync(
-                    sourceHandle,
+                ServiceResult? result = await nodeManager!.DeleteReferenceAsync(
+                    sourceHandle!,
                     item.ReferenceTypeId,
                     !item.IsForward,
                     item.TargetNodeId,
@@ -663,12 +663,12 @@ namespace Quickstarts.ReferenceServer
 
                     if (!item.NodeAttributes.IsNull)
                     {
-                        if (!item.NodeAttributes.TryGetValue(out VariableAttributes va))
+                        if (!item.NodeAttributes.TryGetValue(out VariableAttributes? va))
                         {
                             throw new ServiceResultException(
                                 StatusCodes.BadNodeAttributesInvalid);
                         }
-                        ApplyVariableAttributes(variable, va);
+                        ApplyVariableAttributes(variable, va!);
                     }
 
                     return variable;
@@ -686,12 +686,12 @@ namespace Quickstarts.ReferenceServer
 
                     if (!item.NodeAttributes.IsNull)
                     {
-                        if (!item.NodeAttributes.TryGetValue(out ObjectAttributes oa))
+                        if (!item.NodeAttributes.TryGetValue(out ObjectAttributes? oa))
                         {
                             throw new ServiceResultException(
                                 StatusCodes.BadNodeAttributesInvalid);
                         }
-                        ApplyObjectAttributes(instance, oa);
+                        ApplyObjectAttributes(instance, oa!);
                     }
 
                     return instance;
@@ -798,7 +798,7 @@ namespace Quickstarts.ReferenceServer
                 (ArrayOf<BrowseResult> results, _) = await ServerInternal.NodeManager
                     .BrowseAsync(
                         context,
-                        null,
+                        null!,
                         0,
                         browseDescriptions.ToArrayOf(),
                         cancellationToken).ConfigureAwait(false);

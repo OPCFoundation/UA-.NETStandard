@@ -65,7 +65,7 @@ namespace Opc.Ua.Server.FileSystem
             int rootType,
             string providerPath,
             ushort namespaceIndex,
-            string componentPath = null)
+            string? componentPath = null)
         {
             RootType = rootType;
             ProviderPath = providerPath ?? string.Empty;
@@ -80,7 +80,7 @@ namespace Opc.Ua.Server.FileSystem
         public string ProviderPath { get; }
 
         /// <summary>Optional component-name chain.</summary>
-        public string ComponentPath { get; }
+        public string? ComponentPath { get; }
 
         /// <summary>Namespace index of the encoded NodeId.</summary>
         public ushort NamespaceIndex { get; }
@@ -103,7 +103,7 @@ namespace Opc.Ua.Server.FileSystem
             result = default;
 
             if (nodeId.IsNull ||
-                !nodeId.TryGetValue(out string identifier) ||
+                !nodeId.TryGetValue(out string? identifier) ||
                 string.IsNullOrEmpty(identifier))
             {
                 return false;
@@ -150,7 +150,7 @@ namespace Opc.Ua.Server.FileSystem
                 escaped = false;
             }
 
-            string componentPath = end < identifier.Length
+            string? componentPath = end < identifier.Length
                 ? identifier.Substring(end)
                 : null;
 
@@ -173,7 +173,7 @@ namespace Opc.Ua.Server.FileSystem
         /// appending an additional child component name to the
         /// existing <see cref="ComponentPath"/>.
         /// </summary>
-        public NodeId ToNodeId(string componentName)
+        public NodeId ToNodeId(string? componentName)
         {
             var buffer = new StringBuilder();
             buffer.Append(RootType).Append(':');
@@ -223,7 +223,7 @@ namespace Opc.Ua.Server.FileSystem
             }
             if (component is not BaseInstanceState instance ||
                 instance.Parent == null ||
-                !instance.Parent.NodeId.TryGetValue(out string parentId))
+                !instance.Parent.NodeId.TryGetValue(out string? parentId))
             {
                 return component.NodeId;
             }

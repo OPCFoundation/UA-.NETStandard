@@ -83,7 +83,7 @@ namespace Opc.Ua.Server
             m_lock.EnterWriteLock();
             try
             {
-                if (!m_roles.TryGetValue(roleId, out RoleEntry entry))
+                if (!m_roles.TryGetValue(roleId, out RoleEntry? entry))
                 {
                     entry = new RoleEntry(roleId);
                     m_roles[roleId] = entry;
@@ -122,7 +122,7 @@ namespace Opc.Ua.Server
         public ServiceResult AddIdentity(NodeId roleId, IdentityMappingRuleType rule)
         {
             if (rule == null) { throw new ArgumentNullException(nameof(rule)); }
-            RoleEntry entry = GetEntryOrFail(roleId, out ServiceResult error);
+            RoleEntry? entry = GetEntryOrFail(roleId, out ServiceResult error);
             if (entry == null)
             {
                 return error;
@@ -150,7 +150,7 @@ namespace Opc.Ua.Server
         public ServiceResult RemoveIdentity(NodeId roleId, IdentityMappingRuleType rule)
         {
             if (rule == null) { throw new ArgumentNullException(nameof(rule)); }
-            RoleEntry entry = GetEntryOrFail(roleId, out ServiceResult error);
+            RoleEntry? entry = GetEntryOrFail(roleId, out ServiceResult error);
             if (entry == null)
             {
                 return error;
@@ -182,7 +182,7 @@ namespace Opc.Ua.Server
             {
                 return new ServiceResult(StatusCodes.BadInvalidArgument);
             }
-            RoleEntry entry = GetEntryOrFail(roleId, out ServiceResult error);
+            RoleEntry? entry = GetEntryOrFail(roleId, out ServiceResult error);
             if (entry == null)
             {
                 return error;
@@ -212,7 +212,7 @@ namespace Opc.Ua.Server
             {
                 return new ServiceResult(StatusCodes.BadInvalidArgument);
             }
-            RoleEntry entry = GetEntryOrFail(roleId, out ServiceResult error);
+            RoleEntry? entry = GetEntryOrFail(roleId, out ServiceResult error);
             if (entry == null)
             {
                 return error;
@@ -239,7 +239,7 @@ namespace Opc.Ua.Server
         public ServiceResult AddEndpoint(NodeId roleId, EndpointType endpoint)
         {
             if (endpoint == null) { throw new ArgumentNullException(nameof(endpoint)); }
-            RoleEntry entry = GetEntryOrFail(roleId, out ServiceResult error);
+            RoleEntry? entry = GetEntryOrFail(roleId, out ServiceResult error);
             if (entry == null)
             {
                 return error;
@@ -266,7 +266,7 @@ namespace Opc.Ua.Server
         public ServiceResult RemoveEndpoint(NodeId roleId, EndpointType endpoint)
         {
             if (endpoint == null) { throw new ArgumentNullException(nameof(endpoint)); }
-            RoleEntry entry = GetEntryOrFail(roleId, out ServiceResult error);
+            RoleEntry? entry = GetEntryOrFail(roleId, out ServiceResult error);
             if (entry == null)
             {
                 return error;
@@ -297,7 +297,7 @@ namespace Opc.Ua.Server
             m_lock.EnterReadLock();
             try
             {
-                return m_roles.TryGetValue(roleId, out RoleEntry entry)
+                return m_roles.TryGetValue(roleId, out RoleEntry? entry)
                     ? entry.Identities.ConvertAll(Clone)
                     : [];
             }
@@ -315,7 +315,7 @@ namespace Opc.Ua.Server
             m_lock.EnterReadLock();
             try
             {
-                if (!m_roles.TryGetValue(roleId, out RoleEntry entry))
+                if (!m_roles.TryGetValue(roleId, out RoleEntry? entry))
                 {
                     exclude = false;
                     return [];
@@ -337,7 +337,7 @@ namespace Opc.Ua.Server
             m_lock.EnterReadLock();
             try
             {
-                if (!m_roles.TryGetValue(roleId, out RoleEntry entry))
+                if (!m_roles.TryGetValue(roleId, out RoleEntry? entry))
                 {
                     exclude = false;
                     return [];
@@ -395,15 +395,15 @@ namespace Opc.Ua.Server
         /// </remarks>
         public IList<NodeId> ResolveGrantedRoles(
             IUserIdentity identity,
-            Certificate clientCertificate,
-            EndpointDescription endpoint)
+            Certificate? clientCertificate,
+            EndpointDescription? endpoint)
         {
             if (identity == null) { throw new ArgumentNullException(nameof(identity)); }
 
-            string clientApplicationUri = clientCertificate != null
+            string clientApplicationUri = (clientCertificate != null
                 ? X509Utils.GetApplicationUrisFromCertificate(clientCertificate).FirstOrDefault()
-                : null;
-            string endpointUrl = endpoint?.EndpointUrl;
+                : null) ?? string.Empty;
+            string endpointUrl = endpoint?.EndpointUrl ?? string.Empty;
 
             var granted = new List<NodeId>();
 
@@ -429,7 +429,7 @@ namespace Opc.Ua.Server
         private bool RoleMatches(
             RoleEntry entry,
             IUserIdentity identity,
-            Certificate clientCertificate,
+            Certificate? clientCertificate,
             string clientApplicationUri,
             string endpointUrl,
             IReadOnlyList<NodeId> rolesGrantedSoFar)
@@ -470,7 +470,7 @@ namespace Opc.Ua.Server
         private static bool IdentityRuleMatches(
             IdentityMappingRuleType rule,
             IUserIdentity identity,
-            Certificate clientCertificate,
+            Certificate? clientCertificate,
             IReadOnlyList<NodeId> rolesGrantedSoFar)
         {
             UserTokenType tokenType = identity.TokenType;
@@ -498,13 +498,13 @@ namespace Opc.Ua.Server
             };
         }
 
-        private RoleEntry GetEntryOrFail(NodeId roleId, out ServiceResult error)
+        private RoleEntry? GetEntryOrFail(NodeId roleId, out ServiceResult error)
         {
             if (roleId.IsNull) { throw new ArgumentException("roleId cannot be null.", nameof(roleId)); }
             m_lock.EnterReadLock();
             try
             {
-                if (m_roles.TryGetValue(roleId, out RoleEntry entry))
+                if (m_roles.TryGetValue(roleId, out RoleEntry? entry))
                 {
                     error = ServiceResult.Good;
                     return entry;
@@ -660,13 +660,13 @@ namespace Opc.Ua.Server
         /// Display / browse name of the role. Set for dynamically added roles via
         /// <see cref="RoleManager.AddRole"/>; null for well-known roles.
         /// </summary>
-        public string BrowseName { get; internal set; }
+        public string? BrowseName { get; internal set; }
 
         /// <summary>
         /// Namespace URI requested when the role was created. Currently used only
         /// for diagnostics.
         /// </summary>
-        public string NamespaceUri { get; internal set; }
+        public string? NamespaceUri { get; internal set; }
 
         /// <summary>
         /// Identity-mapping rules added via <c>AddIdentity</c>.

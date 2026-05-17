@@ -331,7 +331,7 @@ namespace Quickstarts.ReferenceServer
             }
 
             // Walk into sub-categories (children of category type).
-            BaseObjectState category =
+            BaseObjectState? category =
                 FindPredefinedNode<BaseObjectState>(categoryId);
             if (category == null)
             {
@@ -395,7 +395,7 @@ namespace Quickstarts.ReferenceServer
             throw new NotSupportedException();
         }
 
-        public bool IsEqual(IEncodeable encodeable)
+        public bool IsEqual(IEncodeable? encodeable)
         {
             return ReferenceEquals(this, encodeable);
         }
