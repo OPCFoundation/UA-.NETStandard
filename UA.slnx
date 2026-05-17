@@ -1,5 +1,6 @@
 <Solution>
   <Folder Name="/Applications/">
+    <Project Path="Applications/ConsoleLdsServer/ConsoleLdsServer.csproj" />
     <Project Path="Applications/ConsoleReferenceClient/ConsoleReferenceClient.csproj" />
     <Project Path="Applications/ConsoleReferencePublisher/ConsoleReferencePublisher.csproj" />
     <Project Path="Applications/ConsoleReferenceServer/ConsoleReferenceServer.csproj" />
@@ -44,6 +45,7 @@
     <Project Path="Libraries/Opc.Ua.Gds.Client.Common/Opc.Ua.Gds.Client.Common.csproj" />
     <Project Path="Libraries/Opc.Ua.Gds.Common/Opc.Ua.Gds.Common.csproj" />
     <Project Path="Libraries/Opc.Ua.Gds.Server.Common/Opc.Ua.Gds.Server.Common.csproj" />
+    <Project Path="Libraries/Opc.Ua.Lds.Server/Opc.Ua.Lds.Server.csproj" />
     <Project Path="Libraries/Opc.Ua.PubSub/Opc.Ua.PubSub.csproj" />
     <Project Path="Libraries/Opc.Ua.Security.Certificates/Opc.Ua.Security.Certificates.csproj" />
     <Project Path="Libraries/Opc.Ua.Server/Opc.Ua.Server.csproj" />
