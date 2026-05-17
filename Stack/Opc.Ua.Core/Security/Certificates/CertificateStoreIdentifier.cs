@@ -111,7 +111,7 @@ namespace Opc.Ua
                 return Utils.Format("{0}", StorePath ?? string.Empty);
             }
 
-            return Utils.Format("[{0}]{1}", StoreType ?? string.Empty, StorePath ?? string.Empty);
+            return Utils.Format("[{0}]{1}", StoreType!, StorePath ?? string.Empty);
         }
 
         /// <summary>

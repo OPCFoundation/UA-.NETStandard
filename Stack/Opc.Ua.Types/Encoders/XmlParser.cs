@@ -2672,7 +2672,7 @@ namespace Opc.Ua
                     throw ServiceResultException.Create(
                         StatusCodes.BadDecodingError,
                         "Expected element '{1}:{0}' not found.",
-                        fieldName ?? string.Empty,
+                        fieldName!,
                         ns);
                 }
 

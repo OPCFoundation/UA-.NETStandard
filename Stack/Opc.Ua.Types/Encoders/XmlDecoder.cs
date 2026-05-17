@@ -2610,7 +2610,7 @@ namespace Opc.Ua
                             "Encountered element: '{1}:{0}' when expecting element: '{2}:{3}'.",
                             m_reader.LocalName,
                             m_reader.NamespaceURI,
-                            fieldName ?? string.Empty,
+                            fieldName!,
                             m_namespaces.Peek());
                     }
 
@@ -2658,7 +2658,7 @@ namespace Opc.Ua
                 throw ServiceResultException.Create(
                     StatusCodes.BadDecodingError,
                     "Unable to read field {0}: {1}",
-                    fieldName ?? string.Empty,
+                    fieldName!,
                     xe.Message);
             }
         }
@@ -2684,7 +2684,7 @@ namespace Opc.Ua
                             "Encountered end element: '{1}:{0}' when expecting element: '{3}:{2}'.",
                             m_reader.LocalName,
                             m_reader.NamespaceURI,
-                            fieldName ?? string.Empty,
+                            fieldName!,
                             m_namespaces.Peek());
                     }
 
@@ -2695,7 +2695,7 @@ namespace Opc.Ua
                     throw ServiceResultException.Create(
                         StatusCodes.BadDecodingError,
                         "Unable to read end field: {0}: {1}",
-                        fieldName ?? string.Empty,
+                        fieldName!,
                         xe.Message);
                 }
             }

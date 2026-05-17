@@ -624,7 +624,7 @@ namespace Opc.Ua.Server
                         // that shall be reported if the check fails.
                         server.ReportAuditCertificateEvent(logger, systemContext, clientCertificate, sre);
                     }
-                    exception = exception?.InnerException;
+                    exception = exception.InnerException;
                 }
             }
             catch (Exception ex)
@@ -1601,7 +1601,7 @@ namespace Opc.Ua.Server
                 StatusCode statusCode = StatusCodes.Good;
                 while (exception is not null and not ServiceResultException)
                 {
-                    exception = exception?.InnerException;
+                    exception = exception.InnerException;
                 }
 
                 if (exception is ServiceResultException sre)
@@ -1751,7 +1751,7 @@ namespace Opc.Ua.Server
                 StatusCode statusCode = StatusCodes.Good;
                 while (exception is not null and not ServiceResultException)
                 {
-                    exception = exception?.InnerException;
+                    exception = exception.InnerException;
                 }
                 if (exception is ServiceResultException sre)
                 {

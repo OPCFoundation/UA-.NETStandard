@@ -2387,7 +2387,12 @@ namespace Opc.Ua
             {
                 BaseInstanceState? next = root as BaseInstanceState;
 
+                // CA1508: `next` can legitimately be null when `root` is a NodeState that does
+                // not derive from BaseInstanceState (e.g. an ObjectTypeState root). The
+                // analyzer's flow tracking misses this entry-time possibility.
+#pragma warning disable CA1508
                 if (next == null || next.Parent == null)
+#pragma warning restore CA1508
                 {
                     return root;
                 }

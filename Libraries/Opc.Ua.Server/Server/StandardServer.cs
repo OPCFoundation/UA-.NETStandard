@@ -2401,7 +2401,7 @@ namespace Opc.Ua.Server
             }
 
             // check server state.
-            IServerInternal? serverInternal = m_serverInternal;
+            ServerInternalData? serverInternal = m_serverInternal;
 
             if (serverInternal == null || !serverInternal.IsRunning)
             {
@@ -3708,7 +3708,7 @@ namespace Opc.Ua.Server
 
         private readonly Lock m_registrationLock = new();
         private readonly SemaphoreSlim m_semaphoreSlim = new(1, 1);
-        private IServerInternal? m_serverInternal;
+        private ServerInternalData? m_serverInternal;
         private ConfigurationWatcher? m_configurationWatcher;
         private ConfiguredEndpointCollection? m_registrationEndpoints;
         private RegisteredServer? m_registrationInfo;

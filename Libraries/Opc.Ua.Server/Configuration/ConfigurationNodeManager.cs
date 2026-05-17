@@ -745,9 +745,12 @@ namespace Opc.Ua.Server
                                             newCert,
                                             certificateGroup.TemporaryApplicationCertificate))
                                     {
+                                        // CA2000: disposed in the finally block of the surrounding try.
+#pragma warning disable CA2000
                                         exportableKey = X509Utils.CreateCopyWithPrivateKey(
                                             certificateGroup.TemporaryApplicationCertificate,
                                             false);
+#pragma warning restore CA2000
                                     }
                                     else
                                     {
@@ -762,9 +765,12 @@ namespace Opc.Ua.Server
                                             throw new ServiceResultException(
                                                 StatusCodes.BadSecurityChecksFailed,
                                                 "A private key was not found");
+                                        // CA2000: disposed in the finally block of the surrounding try.
+#pragma warning disable CA2000
                                         exportableKey = X509Utils.CreateCopyWithPrivateKey(
                                             certWithPrivateKey,
                                             false);
+#pragma warning restore CA2000
                                     }
 
                                     updateCertificate.CertificateWithPrivateKey =

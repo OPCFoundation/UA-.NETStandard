@@ -622,7 +622,7 @@ namespace Opc.Ua
             throw ServiceResultException.Create(
                 StatusCodes.BadIdentityTokenInvalid,
                 "Unexpected encryption algorithm : {0}",
-                dataToDecrypt.Algorithm ?? string.Empty);
+                dataToDecrypt.Algorithm!);
         }
 
         /// <summary>

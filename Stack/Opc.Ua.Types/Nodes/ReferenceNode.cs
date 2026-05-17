@@ -277,7 +277,7 @@ namespace Opc.Ua
 
             if (ReferenceTypeId.IsNull)
             {
-                return obj?.ReferenceTypeId.IsNull == true ? 0 : -1;
+                return obj.ReferenceTypeId.IsNull ? 0 : -1;
             }
 
             int result = ReferenceTypeId.CompareTo(obj.ReferenceTypeId);
