@@ -331,6 +331,104 @@ internal sealed class BrowserViewModel : ObservableObject
     }
 
     /// <summary>
+    /// Resolves one or more relative-path strings against
+    /// <paramref name="startingNode"/> via <c>TranslateBrowsePathsToNodeIds</c>.
+    /// Each input string follows the OPC UA <c>RelativePath</c> grammar
+    /// (e.g. <c>"/Objects/Server/ServerStatus.CurrentTime"</c>).
+    /// </summary>
+    /// <param name="startingNode">Anchor node for each path; <see cref="Opc.Ua.NodeId.Null"/> uses ObjectsFolder.</param>
+    /// <param name="relativePaths">One path per row; blank rows are skipped.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>
+    /// Per input path, a tuple of the (parsed-or-null) status code and the
+    /// resolved matching NodeIds. Path-parse failures yield
+    /// <see cref="StatusCodes.BadSyntaxError"/> with an empty match list;
+    /// service-level failures yield the server-reported status; success
+    /// yields <see cref="StatusCodes.Good"/>.
+    /// </returns>
+    public async Task<IReadOnlyList<(string Path, StatusCode Status, IReadOnlyList<NodeId> Matches)>>
+        ResolveBrowsePathsAsync(
+            NodeId startingNode,
+            IReadOnlyList<string> relativePaths,
+            CancellationToken ct = default)
+    {
+        if (m_connection.Session is not { } session || relativePaths.Count == 0)
+        {
+            return Array.Empty<(string, StatusCode, IReadOnlyList<NodeId>)>();
+        }
+        NodeId anchor = startingNode.IsNull ? ObjectIds.ObjectsFolder : startingNode;
+        var rows = new List<(string, StatusCode, IReadOnlyList<NodeId>)>(relativePaths.Count);
+        var live = new List<(int Index, string Path, BrowsePath Browse)>(relativePaths.Count);
+        for (int i = 0; i < relativePaths.Count; i++)
+        {
+            string raw = (relativePaths[i] ?? string.Empty).Trim();
+            if (raw.Length == 0)
+            {
+                rows.Add((raw, StatusCodes.Good, Array.Empty<NodeId>()));
+                continue;
+            }
+            try
+            {
+                var bp = new BrowsePath
+                {
+                    StartingNode = anchor,
+                    RelativePath = Opc.Ua.RelativePath.Parse(raw, session.TypeTree)
+                };
+                rows.Add((raw, StatusCodes.Good, Array.Empty<NodeId>()));
+                live.Add((i, raw, bp));
+            }
+            catch (Exception ex)
+            {
+                m_log.LogDebug(ex, "Parse RelativePath '{Path}' failed.", raw);
+                rows.Add((raw, StatusCodes.BadSyntaxError, Array.Empty<NodeId>()));
+            }
+        }
+        if (live.Count == 0)
+        {
+            return rows;
+        }
+        try
+        {
+            var browsePaths = new ArrayOf<BrowsePath>();
+            foreach ((_, _, BrowsePath bp) in live)
+            {
+                browsePaths = browsePaths.AddItem(bp);
+            }
+            TranslateBrowsePathsToNodeIdsResponse resp = await session
+                .TranslateBrowsePathsToNodeIdsAsync(null, browsePaths, ct).ConfigureAwait(false);
+            for (int j = 0; j < live.Count && j < resp.Results.Count; j++)
+            {
+                int idx = live[j].Index;
+                BrowsePathResult r = resp.Results[j];
+                var matches = new List<NodeId>();
+                if (r.Targets is { Count: > 0 } tgts)
+                {
+                    foreach (BrowsePathTarget t in tgts)
+                    {
+                        NodeId mapped = ExpandedNodeId.ToNodeId(t.TargetId, session.NamespaceUris);
+                        if (!mapped.IsNull)
+                        {
+                            matches.Add(mapped);
+                        }
+                    }
+                }
+                rows[idx] = (live[j].Path, r.StatusCode, matches);
+            }
+        }
+        catch (Exception ex)
+        {
+            m_log.LogWarning(ex, "TranslateBrowsePathsToNodeIds failed.");
+            for (int j = 0; j < live.Count; j++)
+            {
+                int idx = live[j].Index;
+                rows[idx] = (live[j].Path, new StatusCode(StatusCodes.BadCommunicationError.Code), Array.Empty<NodeId>());
+            }
+        }
+        return rows;
+    }
+
+
+    /// <summary>
     /// Marshals an action onto the Avalonia UI thread when an
     /// <see cref="Avalonia.Application"/> is running; otherwise (e.g. headless
     /// validators like <c>--testtree</c>) runs it inline so the production

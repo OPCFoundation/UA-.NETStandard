@@ -193,6 +193,10 @@ internal sealed partial class MainWindow : Window, IDisposable
         // --- Tabs → New … wiring ---
         menuNewGdsPush.Click += async (_, _) => await m_vm.AddPluginAsync(PluginKind.GdsPush).ConfigureAwait(false);
         menuNewGdsManagement.Click += async (_, _) => await m_vm.AddPluginAsync(PluginKind.GdsManagement).ConfigureAwait(false);
+        var menuNewGdsDiscovery = this.RequiredControl<MenuItem>("MenuNewGdsDiscovery");
+        menuNewGdsDiscovery.Click += async (_, _) => await m_vm.AddPluginAsync(PluginKind.GdsDiscovery).ConfigureAwait(false);
+        var menuLocales = this.RequiredControl<MenuItem>("MenuLocales");
+        menuLocales.Click += async (_, _) => await OnLocalesAsync().ConfigureAwait(false);
         menuNewPerformance.Click += async (_, _) => await m_vm.AddPluginAsync(PluginKind.Performance).ConfigureAwait(false);
         menuNewEventView.Click += async (_, _) => await m_vm.AddPluginAsync(PluginKind.EventView).ConfigureAwait(false);
         menuNewHistorian.Click += async (_, _) => await m_vm.AddPluginAsync(PluginKind.Historian).ConfigureAwait(false);
@@ -446,6 +450,7 @@ internal sealed partial class MainWindow : Window, IDisposable
         liveTree.PerfRequested += async _ =>
             await m_vm.AddPluginAsync(PluginKind.Performance, seedPickTarget: true).ConfigureAwait(false);
         liveTree.ExportValueRequested += async n => await OnExportValueAsync(n).ConfigureAwait(false);
+        liveTree.FindByPathRequested += n => OnFindByPath(n);
 
         // Animation view-mode dropdown — Dots (0) / Bars (1) / Lines (2) / Signal (3) / Histogram (4) / Heatmap (5).
         // Per-tab: reads/writes m_vm.SelectedTab?.AnimationMode.  Re-syncs on tab switch.
@@ -2247,6 +2252,18 @@ internal sealed partial class MainWindow : Window, IDisposable
             sb.Append(Array.IndexOf(invalid, c) >= 0 ? '_' : c);
         }
         return sb.ToString();
+    }
+
+    private void OnFindByPath(UaLens.ViewModels.NodeViewModel? n)
+    {
+        var dlg = new UaLens.Views.FindNodeDialog(m_vm.Browser, n?.NodeId);
+        dlg.Show(this);
+    }
+
+    private async Task OnLocalesAsync()
+    {
+        var dlg = new UaLens.Views.LocalePickerDialog(m_vm.Connection);
+        await dlg.ShowDialog(this).ConfigureAwait(true);
     }
 
     private void ShowHelp()

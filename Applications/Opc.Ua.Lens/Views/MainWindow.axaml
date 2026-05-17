@@ -106,14 +106,17 @@
         <Separator />
         <MenuItem x:Name="MenuQuit"        Header="_Quit"                InputGesture="Ctrl+Q" />
       </MenuItem>
-      <MenuItem Header="_Certificates">
-        <MenuItem x:Name="MenuCertificates" Header="_Manage..."          InputGesture="Ctrl+K" />
+      <MenuItem Header="_Session">
+        <MenuItem x:Name="MenuCertificates" Header="_Manage Certificates..." InputGesture="Ctrl+K" />
+        <Separator />
+        <MenuItem x:Name="MenuLocales"      Header="Preferred _Locales..." />
       </MenuItem>
       <MenuItem Header="_Tabs">
         <MenuItem Header="_Add…">
           <MenuItem x:Name="MenuNewSubscription"   Header="⚡  _Subscription"    InputGesture="Ctrl+T" />
           <MenuItem x:Name="MenuNewGdsPush"        Header="🛡  GDS _Push" />
           <MenuItem x:Name="MenuNewGdsManagement"  Header="🏛  GDS _Management" />
+          <MenuItem x:Name="MenuNewGdsDiscovery"   Header="🔍  GDS _Discovery" />
           <MenuItem x:Name="MenuNewPerformance"    Header="📊  Per_formance" />
           <MenuItem x:Name="MenuNewEventView"      Header="🔔  _Event View" />
           <MenuItem x:Name="MenuNewHistorian"      Header="📈  _Historian" />

@@ -66,6 +66,7 @@ internal sealed partial class AddressSpaceView : UserControl
     public event Action<NodeViewModel>? ShowEventsRequested;
     public event Action<NodeViewModel>? PerfRequested;
     public event Action<NodeViewModel>? ExportValueRequested;
+    public event Action<NodeViewModel?>? FindByPathRequested;
 
     /// <summary>
     /// Visibility policy for the context-menu entries.  Set once by the
@@ -89,11 +90,12 @@ internal sealed partial class AddressSpaceView : UserControl
         var miShowEvents = this.FindControl<MenuItem>("MenuShowEvents");
         var miPerf = this.FindControl<MenuItem>("MenuPerf");
         var miExportValue = this.FindControl<MenuItem>("MenuExportValue");
+        var miFindByPath = this.FindControl<MenuItem>("MenuFindByPath");
         var search = this.FindControl<TextBox>("SearchBox");
         if (tree is null || menu is null || miAdd is null || miAddRec is null
             || miCall is null || miWrite is null
             || miReadHistory is null || miShowEvents is null || miPerf is null
-            || miExportValue is null
+            || miExportValue is null || miFindByPath is null
             || search is null)
         {
             return;
@@ -116,6 +118,7 @@ internal sealed partial class AddressSpaceView : UserControl
                 miAdd.IsVisible = miAddRec.IsVisible = miCall.IsVisible = miWrite.IsVisible = false;
                 miReadHistory.IsVisible = miShowEvents.IsVisible = miPerf.IsVisible = false;
                 miExportValue.IsVisible = false;
+                miFindByPath.IsVisible = true;
                 return;
             }
             ContextMenuVisibility v = ContextMenuPolicy.Inspect(n);
@@ -127,6 +130,7 @@ internal sealed partial class AddressSpaceView : UserControl
             miShowEvents.IsVisible = v.CanShowEvents;
             miPerf.IsVisible = v.CanPerf;
             miExportValue.IsVisible = v.CanExportValue;
+            miFindByPath.IsVisible = true;
         };
 
         miAdd.Click += (_, _) =>
@@ -184,6 +188,11 @@ internal sealed partial class AddressSpaceView : UserControl
             {
                 ExportValueRequested?.Invoke(n);
             }
+        };
+        miFindByPath.Click += (_, _) =>
+        {
+            // Find-by-path works without a selection too (defaults to ObjectsFolder).
+            FindByPathRequested?.Invoke(tree.SelectedItem as NodeViewModel);
         };
 
         // Browse search — Enter starts a fresh search; F3 jumps to next match.

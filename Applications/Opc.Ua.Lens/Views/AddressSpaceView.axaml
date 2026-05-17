@@ -51,6 +51,8 @@
             <MenuItem x:Name="MenuShowEvents" Header="Show Events…" />
             <MenuItem x:Name="MenuPerf" Header="Perf…" />
             <MenuItem x:Name="MenuExportValue" Header="Export value to file…" />
+            <Separator />
+            <MenuItem x:Name="MenuFindByPath" Header="Find by path…" />
           </ContextMenu>
         </TreeView.ContextMenu>
         <TreeView.ItemTemplate>
