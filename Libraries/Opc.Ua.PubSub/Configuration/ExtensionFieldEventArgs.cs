@@ -49,6 +49,6 @@ namespace Opc.Ua.PubSub.Configuration
         /// <summary>
         /// Get/Set the ExtensionField
         /// </summary>
-        public KeyValuePair ExtensionField { get; set; }
+        public required KeyValuePair ExtensionField { get; set; }
     }
 }

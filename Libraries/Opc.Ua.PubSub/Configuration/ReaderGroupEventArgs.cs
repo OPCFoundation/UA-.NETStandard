@@ -49,6 +49,6 @@ namespace Opc.Ua.PubSub.Configuration
         /// <summary>
         /// Reference to <see cref="ReaderGroupDataType"/> object
         /// </summary>
-        public ReaderGroupDataType ReaderGroupDataType { get; set; }
+        public required ReaderGroupDataType ReaderGroupDataType { get; set; }
     }
 }

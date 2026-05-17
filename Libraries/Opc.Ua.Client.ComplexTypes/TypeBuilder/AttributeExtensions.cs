@@ -49,7 +49,8 @@ namespace Opc.Ua.Client.ComplexTypes
             "Uses reflection to access collection item type.")]
         public static Type GetItemType(this Type collectionType)
         {
-            return collectionType.GetMethod("get_Item").ReturnType;
+            // Caller passes a collection type known to expose an indexer at runtime.
+            return collectionType.GetMethod("get_Item")!.ReturnType;
         }
 
         /// <summary>
@@ -94,15 +95,17 @@ namespace Opc.Ua.Client.ComplexTypes
             StructureBaseDataType baseDataType = ComplexTypes.StructureDefinitionAttribute
                 .FromBaseType(
                     structureDefinition.BaseDataType);
-            ConstructorInfo ctorInfo = attributeType.GetConstructor(Type.EmptyTypes);
+            // Reflection on local types: the parameterless constructor and named properties
+            // are guaranteed to exist for the locally-defined attribute classes.
+            ConstructorInfo ctorInfo = attributeType.GetConstructor(Type.EmptyTypes)!;
             var builder = new CustomAttributeBuilder(
                 ctorInfo,
                 [], // constructor arguments
                 // properties to assign
                 [
-                    attributeType.GetProperty("DefaultEncodingId"),
-                    attributeType.GetProperty("BaseDataType"),
-                    attributeType.GetProperty("StructureType")
+                    attributeType.GetProperty("DefaultEncodingId")!,
+                    attributeType.GetProperty("BaseDataType")!,
+                    attributeType.GetProperty("StructureType")!
                 ],
                 // values to assign
                 [structureDefinition.DefaultEncodingId
@@ -120,15 +123,16 @@ namespace Opc.Ua.Client.ComplexTypes
             ExpandedNodeId xmlEncodingId)
         {
             Type attributeType = typeof(StructureTypeIdAttribute);
-            ConstructorInfo ctorInfo = attributeType.GetConstructor(Type.EmptyTypes);
+            // Reflection on a locally-defined attribute: ctor and properties are known.
+            ConstructorInfo ctorInfo = attributeType.GetConstructor(Type.EmptyTypes)!;
             var builder = new CustomAttributeBuilder(
                 ctorInfo,
                 [], // constructor arguments
                 // properties to assign
                 [
-                    attributeType.GetProperty("ComplexTypeId"),
-                    attributeType.GetProperty("BinaryEncodingId"),
-                    attributeType.GetProperty("XmlEncodingId")
+                    attributeType.GetProperty("ComplexTypeId")!,
+                    attributeType.GetProperty("BinaryEncodingId")!,
+                    attributeType.GetProperty("XmlEncodingId")!
                 ],
                 // values to assign
                 [
@@ -149,12 +153,13 @@ namespace Opc.Ua.Client.ComplexTypes
             bool isEnum)
         {
             Type attributeType = typeof(StructureFieldAttribute);
-            ConstructorInfo ctorInfo = attributeType.GetConstructor(Type.EmptyTypes);
+            // Reflection on a locally-defined attribute: ctor and properties are known.
+            ConstructorInfo ctorInfo = attributeType.GetConstructor(Type.EmptyTypes)!;
             var pi = new List<PropertyInfo>
             {
-                attributeType.GetProperty("ValueRank"),
-                attributeType.GetProperty("MaxStringLength"),
-                attributeType.GetProperty("IsOptional")
+                attributeType.GetProperty("ValueRank")!,
+                attributeType.GetProperty("MaxStringLength")!,
+                attributeType.GetProperty("IsOptional")!
             };
 
             var pv = new List<object>
@@ -178,7 +183,7 @@ namespace Opc.Ua.Client.ComplexTypes
 
             if (builtInType != 0)
             {
-                pi.Add(attributeType.GetProperty("BuiltInType"));
+                pi.Add(attributeType.GetProperty("BuiltInType")!);
                 pv.Add(builtInType);
             }
 
@@ -199,12 +204,13 @@ namespace Opc.Ua.Client.ComplexTypes
             int value)
         {
             Type attributeType = typeof(EnumMemberAttribute);
-            ConstructorInfo ctorInfo = attributeType.GetConstructor(Type.EmptyTypes);
+            // EnumMemberAttribute provides a parameterless ctor and a Value property.
+            ConstructorInfo ctorInfo = attributeType.GetConstructor(Type.EmptyTypes)!;
             var builder = new CustomAttributeBuilder(
                 ctorInfo,
                 [], // constructor arguments
                 // properties to assign
-                [attributeType.GetProperty("Value")],
+                [attributeType.GetProperty("Value")!],
                 // values to assign
                 [name + "_" + value.ToString(CultureInfo.InvariantCulture)]);
             typeBuilder.SetCustomAttribute(builder);
@@ -219,15 +225,16 @@ namespace Opc.Ua.Client.ComplexTypes
             int order)
         {
             Type attributeType = typeof(DataMemberAttribute);
-            ConstructorInfo ctorInfo = attributeType.GetConstructor(Type.EmptyTypes);
+            // DataMemberAttribute provides a parameterless ctor and the named properties.
+            ConstructorInfo ctorInfo = attributeType.GetConstructor(Type.EmptyTypes)!;
             return new CustomAttributeBuilder(
                 ctorInfo,
                 [], // constructor arguments
                 // properties to assign
                 [
-                    attributeType.GetProperty("Name"),
-                    attributeType.GetProperty("IsRequired"),
-                    attributeType.GetProperty("Order")
+                    attributeType.GetProperty("Name")!,
+                    attributeType.GetProperty("IsRequired")!,
+                    attributeType.GetProperty("Order")!
                 ],
                 // values to assign
                 [name, isRequired, order]);
@@ -239,12 +246,13 @@ namespace Opc.Ua.Client.ComplexTypes
         private static CustomAttributeBuilder DataContractAttributeBuilder(string @namespace)
         {
             Type attributeType = typeof(DataContractAttribute);
-            ConstructorInfo ctorInfo = attributeType.GetConstructor(Type.EmptyTypes);
+            // DataContractAttribute provides a parameterless ctor and a Namespace property.
+            ConstructorInfo ctorInfo = attributeType.GetConstructor(Type.EmptyTypes)!;
             return new CustomAttributeBuilder(
                 ctorInfo,
                 [], // constructor arguments
                 // properties to assign
-                [attributeType.GetProperty("Namespace")],
+                [attributeType.GetProperty("Namespace")!],
                 // values to assign
                 [@namespace]);
         }

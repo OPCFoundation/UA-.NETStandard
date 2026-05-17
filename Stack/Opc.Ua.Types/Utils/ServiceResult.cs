@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -57,11 +57,11 @@ namespace Opc.Ua
         [Obsolete("Use StatusCode constructor with symbolic id")]
         public ServiceResult(
             uint code,
-            string symbolicId,
-            string namespaceUri,
+            string? symbolicId,
+            string? namespaceUri,
             LocalizedText localizedText,
-            string additionalInfo,
-            ServiceResult innerResult)
+            string? additionalInfo,
+            ServiceResult? innerResult)
             : this(
                   namespaceUri,
                   new StatusCode(code, symbolicId),
@@ -80,8 +80,8 @@ namespace Opc.Ua
         [Obsolete("Use StatusCode constructor with symbolic id")]
         public ServiceResult(
             uint code,
-            string symbolicId,
-            string namespaceUri,
+            string? symbolicId,
+            string? namespaceUri,
             LocalizedText localizedText,
             Exception innerException)
             : this(
@@ -102,10 +102,10 @@ namespace Opc.Ua
         [Obsolete("Use StatusCode constructor with symbolic id")]
         public ServiceResult(
             uint code,
-            string symbolicId,
-            string namespaceUri,
+            string? symbolicId,
+            string? namespaceUri,
             LocalizedText localizedText,
-            string additionalInfo,
+            string? additionalInfo,
             Exception innerException)
             : this(
                   namespaceUri,
@@ -120,11 +120,11 @@ namespace Opc.Ua
         /// Constructs an object by specifying each property.
         /// </summary>
         public ServiceResult(
-            string namespaceUri,
+            string? namespaceUri,
             StatusCode code,
             LocalizedText localizedText,
-            string additionalInfo,
-            ServiceResult innerResult)
+            string? additionalInfo,
+            ServiceResult? innerResult)
         {
             StatusCode = code;
             NamespaceUri = namespaceUri;
@@ -146,7 +146,7 @@ namespace Opc.Ua
         /// </summary>
         public ServiceResult(
             ServiceResult outerResult,
-            ServiceResult innerResult = null)
+            ServiceResult? innerResult = null)
             : this(
                 outerResult.NamespaceUri,
                 outerResult.StatusCode,
@@ -159,7 +159,7 @@ namespace Opc.Ua
         /// <summary>
         /// Constructs an object by specifying each property.
         /// </summary>
-        public ServiceResult(StatusCode code, ServiceResult innerResult)
+        public ServiceResult(StatusCode code, ServiceResult? innerResult)
             : this(null, code, LocalizedText.Null, null, innerResult)
         {
         }
@@ -168,7 +168,7 @@ namespace Opc.Ua
         /// Constructs an object from a StatusCode.
         /// </summary>
         public ServiceResult(StatusCode code)
-            : this(null, code, LocalizedText.Null, null, (ServiceResult)null)
+            : this(null, code, LocalizedText.Null, null, (ServiceResult?)null)
         {
         }
 
@@ -176,7 +176,7 @@ namespace Opc.Ua
         /// Constructs an object by specifying each property.
         /// </summary>
         public ServiceResult(StatusCode code, LocalizedText localizedText)
-            : this(null, code, localizedText, null, (ServiceResult)null)
+            : this(null, code, localizedText, null, (ServiceResult?)null)
         {
         }
 
@@ -184,16 +184,16 @@ namespace Opc.Ua
         /// Constructs an object by specifying each property.
         /// </summary>
         public ServiceResult(
-            string namespaceUri,
+            string? namespaceUri,
             StatusCode code,
             LocalizedText localizedText,
-            string additionalInfo)
+            string? additionalInfo)
             : this(
                 namespaceUri,
                 code,
                 localizedText,
                 additionalInfo,
-                (ServiceResult)null)
+                (ServiceResult?)null)
         {
         }
 
@@ -201,7 +201,7 @@ namespace Opc.Ua
         /// Constructs an object by specifying each property.
         /// </summary>
         public ServiceResult(
-            string namespaceUri,
+            string? namespaceUri,
             StatusCode code,
             LocalizedText localizedText)
             : this(
@@ -209,7 +209,7 @@ namespace Opc.Ua
                   code,
                   localizedText,
                   null,
-                  (ServiceResult)null)
+                  (ServiceResult?)null)
         {
         }
 
@@ -225,7 +225,7 @@ namespace Opc.Ua
                 new StatusCode(code.Code, symbolicId?.Name),
                 localizedText,
                 null,
-                (ServiceResult)null)
+                (ServiceResult?)null)
         {
         }
 
@@ -236,10 +236,10 @@ namespace Opc.Ua
         /// The innerException is used to construct the inner result.
         /// </remarks>
         public ServiceResult(
-            string namespaceUri,
+            string? namespaceUri,
             StatusCode code,
             LocalizedText localizedText,
-            string additionalInfo,
+            string? additionalInfo,
             Exception innerException)
         {
             var innerResult = new ServiceResult(innerException);
@@ -273,7 +273,7 @@ namespace Opc.Ua
         /// The innerException is used to construct the innerResult.
         /// </remarks>
         public ServiceResult(
-            string namespaceUri,
+            string? namespaceUri,
             StatusCode code,
             LocalizedText localizedText,
             Exception innerException)
@@ -299,7 +299,7 @@ namespace Opc.Ua
         /// The innerException is used to construct the innerResult.
         /// </remarks>
         public ServiceResult(
-            string namespaceUri,
+            string? namespaceUri,
             StatusCode code,
             Exception innerException)
             : this(namespaceUri, code, LocalizedText.Null, null, innerException)
@@ -329,7 +329,7 @@ namespace Opc.Ua
         /// </remarks>
         public ServiceResult(
             Exception e,
-            string defaultNamespaceUri,
+            string? defaultNamespaceUri,
             StatusCode defaultCode,
             LocalizedText defaultLocalizedText)
         {
@@ -389,7 +389,7 @@ namespace Opc.Ua
         /// </remarks>
         public ServiceResult(
             Exception exception,
-            string defaultNamespaceUri,
+            string? defaultNamespaceUri,
             StatusCode defaultCode)
             : this(
                   exception,
@@ -425,7 +425,7 @@ namespace Opc.Ua
         /// </summary>
         public ServiceResult(
             StatusCode code,
-            DiagnosticInfo diagnosticInfo,
+            DiagnosticInfo? diagnosticInfo,
             ArrayOf<string> stringTable)
         {
             StatusCode = code;
@@ -435,9 +435,9 @@ namespace Opc.Ua
                 NamespaceUri = LookupString(stringTable, diagnosticInfo.NamespaceUri);
                 SymbolicId = LookupString(stringTable, diagnosticInfo.SymbolicId);
 
-                string locale = LookupString(stringTable, diagnosticInfo.Locale);
-                string localizedText = LookupString(stringTable, diagnosticInfo.LocalizedText);
-                LocalizedText = new LocalizedText(locale, localizedText);
+                string? locale = LookupString(stringTable, diagnosticInfo.Locale);
+                string? localizedText = LookupString(stringTable, diagnosticInfo.LocalizedText);
+                LocalizedText = new LocalizedText(locale!, localizedText!);
 
                 AdditionalInfo = diagnosticInfo.AdditionalInfo;
 
@@ -471,9 +471,9 @@ namespace Opc.Ua
                     NamespaceUri = LookupString(stringTable, diagnosticInfo.NamespaceUri);
                     SymbolicId = LookupString(stringTable, diagnosticInfo.SymbolicId);
 
-                    string locale = LookupString(stringTable, diagnosticInfo.Locale);
-                    string localizedText = LookupString(stringTable, diagnosticInfo.LocalizedText);
-                    LocalizedText = new LocalizedText(locale, localizedText);
+                    string? locale = LookupString(stringTable, diagnosticInfo.Locale);
+                    string? localizedText = LookupString(stringTable, diagnosticInfo.LocalizedText);
+                    LocalizedText = new LocalizedText(locale!, localizedText!);
 
                     AdditionalInfo = diagnosticInfo.AdditionalInfo;
 
@@ -537,7 +537,7 @@ namespace Opc.Ua
         /// <summary>
         /// Creates a new instance of a ServiceResult
         /// </summary>
-        public static ServiceResult Create(StatusCode code, string format, params object[] args)
+        public static ServiceResult Create(StatusCode code, string? format, params object[] args)
         {
             if (format == null)
             {
@@ -558,7 +558,7 @@ namespace Opc.Ua
         public static ServiceResult Create(
             Exception e,
             StatusCode defaultCode,
-            string format,
+            string? format,
             params object[] args)
         {
             // replace the default code with the one from the exception.
@@ -575,16 +575,16 @@ namespace Opc.Ua
 
             if (args == null || args.Length == 0)
             {
-                return new ServiceResult(defaultCode, new LocalizedText(format), e);
+                return new ServiceResult(defaultCode, new LocalizedText(format!), e);
             }
 
-            return new ServiceResult(defaultCode, new LocalizedText(CoreUtils.Format(format, args)), e);
+            return new ServiceResult(defaultCode, new LocalizedText(CoreUtils.Format(format!, args)), e);
         }
 
         /// <summary>
         /// Returns true if the status code is good.
         /// </summary>
-        public static bool IsGood(ServiceResult status)
+        public static bool IsGood(ServiceResult? status)
         {
             if (status != null)
             {
@@ -597,7 +597,7 @@ namespace Opc.Ua
         /// <summary>
         /// Returns true if the status is bad or uncertain.
         /// </summary>
-        public static bool IsNotGood(ServiceResult status)
+        public static bool IsNotGood(ServiceResult? status)
         {
             if (status != null)
             {
@@ -610,7 +610,7 @@ namespace Opc.Ua
         /// <summary>
         /// Returns true if the status code is uncertain.
         /// </summary>
-        public static bool IsUncertain(ServiceResult status)
+        public static bool IsUncertain(ServiceResult? status)
         {
             if (status != null)
             {
@@ -623,7 +623,7 @@ namespace Opc.Ua
         /// <summary>
         /// Returns true if the status code is good or uncertain.
         /// </summary>
-        public static bool IsGoodOrUncertain(ServiceResult status)
+        public static bool IsGoodOrUncertain(ServiceResult? status)
         {
             if (status != null)
             {
@@ -636,7 +636,7 @@ namespace Opc.Ua
         /// <summary>
         /// Returns true if the status is good or uncertain.
         /// </summary>
-        public static bool IsNotUncertain(ServiceResult status)
+        public static bool IsNotUncertain(ServiceResult? status)
         {
             if (status != null)
             {
@@ -649,7 +649,7 @@ namespace Opc.Ua
         /// <summary>
         /// Returns true if the status code is bad.
         /// </summary>
-        public static bool IsBad(ServiceResult status)
+        public static bool IsBad(ServiceResult? status)
         {
             if (status != null)
             {
@@ -662,7 +662,7 @@ namespace Opc.Ua
         /// <summary>
         /// Returns true if the status is good or uncertain.
         /// </summary>
-        public static bool IsNotBad(ServiceResult status)
+        public static bool IsNotBad(ServiceResult? status)
         {
             if (status != null)
             {
@@ -691,7 +691,7 @@ namespace Opc.Ua
         /// <summary>
         /// Converts a StatusCode object to a 32-bit code.
         /// </summary>
-        public static explicit operator StatusCode(ServiceResult status)
+        public static explicit operator StatusCode(ServiceResult? status)
         {
             if (status == null)
             {
@@ -705,7 +705,7 @@ namespace Opc.Ua
         /// Looks up the symbolic name for a status code.
         /// </summary>
         [Obsolete("Use Status code type with symbolic id directly.")]
-        public static string LookupSymbolicId(uint code)
+        public static string? LookupSymbolicId(uint code)
         {
             return StatusCode.LookupSymbolicId(code);
         }
@@ -725,13 +725,13 @@ namespace Opc.Ua
         /// The namespace that qualifies symbolic identifier.
         /// </summary>
         [DataMember(Order = 2)]
-        public string NamespaceUri { get; private set; }
+        public string? NamespaceUri { get; private set; }
 
         /// <summary>
         /// The qualified name of the symbolic identifier associated with the status code.
         /// </summary>
         [DataMember(Order = 3)]
-        public string SymbolicId
+        public string? SymbolicId
         {
             get => StatusCode.SymbolicId;
             private set => StatusCode = new StatusCode(StatusCode.Code, value);
@@ -747,13 +747,13 @@ namespace Opc.Ua
         /// Additional diagnostic/debugging information associated with the operation.
         /// </summary>
         [DataMember(Order = 5)]
-        public string AdditionalInfo { get; private set; }
+        public string? AdditionalInfo { get; private set; }
 
         /// <summary>
         /// Nested error information.
         /// </summary>
         [DataMember(Order = 6)]
-        public ServiceResult InnerResult { get; private set; }
+        public ServiceResult? InnerResult { get; private set; }
 
         /// <summary>
         /// Converts the value to a human readable string.
@@ -810,7 +810,7 @@ namespace Opc.Ua
         /// <summary>
         /// Looks up a string in a string table.
         /// </summary>
-        private static string LookupString(ArrayOf<string> stringTable, int index)
+        private static string? LookupString(ArrayOf<string> stringTable, int index)
         {
             if (index < 0 || index >= stringTable.Count)
             {

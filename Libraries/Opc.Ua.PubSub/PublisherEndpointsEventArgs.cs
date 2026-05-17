@@ -44,7 +44,7 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// Get the source information
         /// </summary>
-        public string Source { get; internal set; }
+        public string Source { get; internal set; } = null!;
 
         /// <summary>
         /// Get the received Publisher Endpoints.

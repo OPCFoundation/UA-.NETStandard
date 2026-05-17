@@ -84,8 +84,8 @@ namespace Opc.Ua.Server
         {
             if (disposing)
             {
-                List<SamplingGroup> samplingGroups = null;
-                List<ISampledDataChangeMonitoredItem> monitoredItems = null;
+                List<SamplingGroup>? samplingGroups = null;
+                List<ISampledDataChangeMonitoredItem>? monitoredItems = null;
 
                 lock (m_lock)
                 {
@@ -165,7 +165,7 @@ namespace Opc.Ua.Server
 
             // get filter.
             if (itemToCreate.RequestedParameters.Filter.TryGetValue(
-                out MonitoringFilter filter) &&
+                out MonitoringFilter? filter) &&
                 filter is EventFilter)
             {
                 // update limits for event filters.
@@ -196,8 +196,8 @@ namespace Opc.Ua.Server
                 timestampsToReturn,
                 itemToCreate.MonitoringMode,
                 itemToCreate.RequestedParameters.ClientHandle,
-                filter,
-                filter,
+                filter!,
+                filter!,
                 range,
                 samplingInterval,
                 revisedQueueSize,
@@ -302,7 +302,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Modifies a monitored item and calls ModifyMonitoring().
         /// </summary>
-        public virtual ServiceResult ModifyMonitoredItem(
+        public virtual ServiceResult? ModifyMonitoredItem(
             OperationContext context,
             TimestampsToReturn timestampsToReturn,
             ISampledDataChangeMonitoredItem monitoredItem,
@@ -338,7 +338,7 @@ namespace Opc.Ua.Server
             }
 
             // get filter.
-            if (itemToModify.RequestedParameters.Filter.TryGetValue(out MonitoringFilter filter) &&
+            if (itemToModify.RequestedParameters.Filter.TryGetValue(out MonitoringFilter? filter) &&
                 filter is EventFilter)
             {
                 // update limits for event filters.
@@ -346,12 +346,12 @@ namespace Opc.Ua.Server
             }
 
             // modify the item attributes.
-            ServiceResult error = monitoredItem.ModifyAttributes(
+            ServiceResult? error = monitoredItem.ModifyAttributes(
                 context.DiagnosticsMask,
                 timestampsToReturn,
                 itemToModify.RequestedParameters.ClientHandle,
-                filter,
-                filter,
+                filter!,
+                filter!,
                 range,
                 samplingInterval,
                 revisedQueueSize,
@@ -380,7 +380,7 @@ namespace Opc.Ua.Server
         public virtual void StartMonitoring(
             OperationContext context,
             ISampledDataChangeMonitoredItem monitoredItem,
-            IUserIdentity savedOwnerIdentity = null)
+            IUserIdentity? savedOwnerIdentity = null)
         {
             lock (m_lock)
             {
@@ -388,7 +388,7 @@ namespace Opc.Ua.Server
                 if (monitoredItem.MonitoringMode == MonitoringMode.Disabled ||
                     monitoredItem.MinimumSamplingInterval == 0)
                 {
-                    m_sampledItems.Add(monitoredItem, null);
+                    m_sampledItems.Add(monitoredItem, null!);
                     return;
                 }
 
@@ -403,7 +403,7 @@ namespace Opc.Ua.Server
                 }
 
                 // create a new sampling group.
-                SamplingGroup tempSamplingGroup = null;
+                SamplingGroup? tempSamplingGroup = null;
                 try
                 {
                     tempSamplingGroup = new SamplingGroup(
@@ -442,7 +442,7 @@ namespace Opc.Ua.Server
             {
                 // find existing sampling group.
 
-                if (m_sampledItems.TryGetValue(monitoredItem, out SamplingGroup samplingGroup))
+                if (m_sampledItems.TryGetValue(monitoredItem, out SamplingGroup? samplingGroup))
                 {
                     if (samplingGroup != null &&
                         samplingGroup.ModifyMonitoring(context, monitoredItem))
@@ -472,7 +472,7 @@ namespace Opc.Ua.Server
             {
                 // check for sampling group.
 
-                if (m_sampledItems.TryGetValue(monitoredItem, out SamplingGroup samplingGroup))
+                if (m_sampledItems.TryGetValue(monitoredItem, out SamplingGroup? samplingGroup))
                 {
                     samplingGroup?.StopMonitoring(monitoredItem);
 

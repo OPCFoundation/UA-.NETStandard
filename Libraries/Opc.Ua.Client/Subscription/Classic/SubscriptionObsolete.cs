@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable disable
-
 using System;
 using System.Collections.Generic;
 
@@ -159,7 +157,7 @@ namespace Opc.Ua.Client
         /// Set monitoring mode of items.
         /// </summary>
         [Obsolete("Use SetMonitoringModeAsync() instead.")]
-        public static List<ServiceResult> SetMonitoringMode(
+        public static List<ServiceResult?>? SetMonitoringMode(
             this Subscription subscription,
             MonitoringMode monitoringMode,
             ArrayOf<MonitoredItem> monitoredItems)
@@ -242,7 +240,7 @@ namespace Opc.Ua.Client
         /// Get event type
         /// </summary>
         [Obsolete("Use GetEventTypeAsync() instead.")]
-        public static INode GetEventType(
+        public static INode? GetEventType(
             this MonitoredItem monitoredItem,
             EventFieldList eventFields)
         {

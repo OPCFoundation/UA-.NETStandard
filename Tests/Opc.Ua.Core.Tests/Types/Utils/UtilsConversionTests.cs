@@ -263,7 +263,8 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             };
             var defaultName = new LocalizedText("en", "Default");
 
-            LocalizedText result = Utils.SelectLocalizedText(locales, names, defaultName);
+            LocalizedText? resultNullable = Utils.SelectLocalizedText(locales, names, defaultName);
+            LocalizedText result = resultNullable ?? defaultName;
             Assert.That(result.Text, Is.EqualTo("Hallo"));
         }
 
@@ -278,7 +279,8 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             };
             var defaultName = new LocalizedText("en", "Default");
 
-            LocalizedText result = Utils.SelectLocalizedText(locales, names, defaultName);
+            LocalizedText? resultNullable = Utils.SelectLocalizedText(locales, names, defaultName);
+            LocalizedText result = resultNullable ?? defaultName;
             Assert.That(result.Text, Is.EqualTo("Hello"));
         }
 
@@ -293,7 +295,8 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             };
             var defaultName = new LocalizedText("en", "Default");
 
-            LocalizedText result = Utils.SelectLocalizedText(locales, names, defaultName);
+            LocalizedText? resultNullable = Utils.SelectLocalizedText(locales, names, defaultName);
+            LocalizedText result = resultNullable ?? defaultName;
             Assert.That(result.Text, Is.EqualTo("Default"));
         }
 
@@ -306,7 +309,8 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             };
             var defaultName = new LocalizedText("en", "Default");
 
-            LocalizedText result = Utils.SelectLocalizedText(null, names, defaultName);
+            LocalizedText? resultNullable = Utils.SelectLocalizedText(null, names, defaultName);
+            LocalizedText result = resultNullable ?? defaultName;
             Assert.That(result.Text, Is.EqualTo("Default"));
         }
 
@@ -316,7 +320,8 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             var locales = new List<string> { "en-US" };
             var defaultName = new LocalizedText("en", "Default");
 
-            LocalizedText result = Utils.SelectLocalizedText(locales, null, defaultName);
+            LocalizedText? resultNullable = Utils.SelectLocalizedText(locales, null, defaultName);
+            LocalizedText result = resultNullable ?? defaultName;
             Assert.That(result.Text, Is.EqualTo("Default"));
         }
 

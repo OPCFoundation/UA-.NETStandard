@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -109,7 +109,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void ConstructorWithIEnumeratedTypeSetsSource()
         {
             var mockType = new Mock<IEnumeratedType>();
-            mockType.Setup(t => t.TryGetSymbol(2, out It.Ref<string>.IsAny))
+            mockType.Setup(t => t.TryGetSymbol(2, out It.Ref<string?>.IsAny))
                 .Callback(new TryGetSymbolDelegate((v, out s) => s = "Variable"))
                 .Returns(true);
 
@@ -150,7 +150,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void SymbolFromIEnumeratedTypeSourceThatFailsReturnsNull()
         {
             var mockType = new Mock<IEnumeratedType>();
-            mockType.Setup(t => t.TryGetSymbol(It.IsAny<int>(), out It.Ref<string>.IsAny))
+            mockType.Setup(t => t.TryGetSymbol(It.IsAny<int>(), out It.Ref<string?>.IsAny))
                 .Returns(false);
 
             var ev = new EnumValue(99, mockType.Object);
@@ -560,7 +560,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(ev.Symbol, Is.Null);
         }
 
-        private delegate void TryGetSymbolDelegate(int value, out string symbol);
+        private delegate void TryGetSymbolDelegate(int value, out string? symbol);
         private static readonly int[] s_testIntValues = [1, 2, 4, 8];
     }
 }

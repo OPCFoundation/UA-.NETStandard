@@ -105,6 +105,6 @@ namespace Opc.Ua.Server.Fluent
         /// callers that want to bubble the exception into their own
         /// telemetry. Default <c>null</c>.
         /// </summary>
-        public Action<Exception> OnError { get; init; }
+        public Action<Exception>? OnError { get; init; }
     }
 }

@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -305,7 +305,7 @@ namespace Opc.Ua.Bindings
                     {
                         var tcpTransportListener = Listener as TcpTransportListener;
                         tcpTransportListener?.MarkAsPotentialProblematic(
-                            ((IPEndPoint)Socket.RemoteEndpoint).Address);
+                            ((IPEndPoint)Socket!.RemoteEndpoint!).Address);
                     }
 
                     // close channel immediately.
@@ -393,7 +393,7 @@ namespace Opc.Ua.Bindings
         {
             m_logger.LogDebug("ChannelId {ChannelId}: SendErrorMessage={Status}", ChannelId, error.StatusCode);
 
-            byte[] buffer = BufferManager.TakeBuffer(SendBufferSize, "SendErrorMessage");
+            byte[]? buffer = BufferManager.TakeBuffer(SendBufferSize, "SendErrorMessage");
 
             try
             {
@@ -433,7 +433,7 @@ namespace Opc.Ua.Bindings
                 requestId,
                 fault.StatusCode);
 
-            BufferCollection buffers = null;
+            BufferCollection? buffers = null;
 
             try
             {
@@ -543,22 +543,22 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// The channel request event handler.
         /// </summary>
-        protected TcpChannelRequestEventHandler RequestReceived { get; private set; }
+        protected TcpChannelRequestEventHandler? RequestReceived { get; private set; }
 
         /// <summary>
         /// The report open secure channel audit event handler.
         /// </summary>
-        protected ReportAuditOpenSecureChannelEventHandler ReportAuditOpenSecureChannelEvent { get; private set; }
+        protected ReportAuditOpenSecureChannelEventHandler? ReportAuditOpenSecureChannelEvent { get; private set; }
 
         /// <summary>
         /// The report close secure channel audit event handler.
         /// </summary>
-        protected ReportAuditCloseSecureChannelEventHandler ReportAuditCloseSecureChannelEvent { get; private set; }
+        protected ReportAuditCloseSecureChannelEventHandler? ReportAuditCloseSecureChannelEvent { get; private set; }
 
         /// <summary>
         /// The report certificate audit event handler.
         /// </summary>
-        protected ReportAuditCertificateEventHandler ReportAuditCertificateEvent { get; private set; }
+        protected ReportAuditCertificateEventHandler? ReportAuditCertificateEvent { get; private set; }
 
         private readonly ILogger m_logger;
         private bool m_responseRequired;
@@ -587,8 +587,8 @@ namespace Opc.Ua.Bindings
     public delegate void ReportAuditOpenSecureChannelEventHandler(
         TcpServerChannel channel,
         OpenSecureChannelRequest request,
-        Certificate clientCertificate,
-        Exception exception);
+        Certificate? clientCertificate,
+        Exception? exception);
 
     /// <summary>
     /// Used to report a close secure channel audit event

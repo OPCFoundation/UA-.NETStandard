@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -880,7 +880,7 @@ namespace Opc.Ua
                     storeType,
                     false);
                 using ICertificateStore store =
-                    certificateStoreIdentifier.OpenStore(telemetry) ??
+                    certificateStoreIdentifier.OpenStore(telemetry!) ??
                     throw new ArgumentException("Invalid store type");
 
                 await store.AddAsync(certificate, password, ct).ConfigureAwait(false);
@@ -906,7 +906,7 @@ namespace Opc.Ua
             // add cert to the store.
             if (storeIdentifier != null)
             {
-                ICertificateStore store = storeIdentifier.OpenStore(telemetry);
+                ICertificateStore store = storeIdentifier.OpenStore(telemetry!);
                 try
                 {
                     if (store == null)
@@ -946,7 +946,7 @@ namespace Opc.Ua
             // add cert to the store.
             if (storeIdentifier != null)
             {
-                ICertificateStore store = storeIdentifier.OpenStore(telemetry);
+                ICertificateStore store = storeIdentifier.OpenStore(telemetry!);
                 try
                 {
                     if (store == null)

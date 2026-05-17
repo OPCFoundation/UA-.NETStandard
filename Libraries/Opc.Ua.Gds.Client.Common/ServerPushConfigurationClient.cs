@@ -50,7 +50,7 @@ namespace Opc.Ua.Gds.Client
         /// <param name="diagnosticsMasks">Return diagnostics to use for all requests</param>
         public ServerPushConfigurationClient(
             ApplicationConfiguration configuration,
-            ISessionFactory sessionFactory = null,
+            ISessionFactory? sessionFactory = null,
             DiagnosticsMasks diagnosticsMasks = DiagnosticsMasks.None)
             : this(configuration, options: null, sessionFactory, diagnosticsMasks)
         {
@@ -66,8 +66,8 @@ namespace Opc.Ua.Gds.Client
         /// <param name="diagnosticsMasks">Return diagnostics to use for all requests.</param>
         public ServerPushConfigurationClient(
             ApplicationConfiguration configuration,
-            GdsClientOptions options,
-            ISessionFactory sessionFactory = null,
+            GdsClientOptions? options,
+            ISessionFactory? sessionFactory = null,
             DiagnosticsMasks diagnosticsMasks = DiagnosticsMasks.None)
         {
             Configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
@@ -96,16 +96,16 @@ namespace Opc.Ua.Gds.Client
         public IServiceMessageContext MessageContext { get; }
 
         /// <inheritdoc/>
-        public IUserIdentity AdminCredentials { get; set; }
+        public IUserIdentity? AdminCredentials { get; set; }
 
         /// <inheritdoc/>
-        public string EndpointUrl => m_endpoint?.EndpointUrl.ToString();
+        public string? EndpointUrl => m_endpoint?.EndpointUrl?.ToString();
 
         /// <inheritdoc/>
-        public event EventHandler<AdminCredentialsRequiredEventArgs> AdminCredentialsRequired;
+        public event EventHandler<AdminCredentialsRequiredEventArgs>? AdminCredentialsRequired;
 
         /// <inheritdoc/>
-        public event EventHandler ConnectionStatusChanged;
+        public event EventHandler? ConnectionStatusChanged;
 
         /// <inheritdoc/>
         public ArrayOf<string> PreferredLocales { get; set; }
@@ -120,13 +120,13 @@ namespace Opc.Ua.Gds.Client
         {
             get
             {
-                ISession session = Session;
+                ISession? session = Session;
                 return session is { Connected: true };
             }
         }
 
         /// <inheritdoc/>
-        public ISession Session { get; private set; }
+        public ISession? Session { get; private set; }
 
         /// <summary>
         /// Typed proxy for the ServerConfigurationType ObjectType
@@ -134,7 +134,7 @@ namespace Opc.Ua.Gds.Client
         /// ApplyChanges). Constructed after a successful connect and cleared on
         /// disconnect/dispose.
         /// </summary>
-        public ServerConfigurationTypeClient ServerConfiguration => m_serverConfiguration;
+        public ServerConfigurationTypeClient? ServerConfiguration => m_serverConfiguration;
 
         /// <summary>
         /// Gets the endpoint. The setter is write-once: an endpoint may be
@@ -143,11 +143,11 @@ namespace Opc.Ua.Gds.Client
         /// admin credentials.
         /// </summary>
         /// <exception cref="InvalidOperationException"/>
-        public ConfiguredEndpoint Endpoint
+        public ConfiguredEndpoint? Endpoint
         {
             get
             {
-                ISession session = Session;
+                ISession? session = Session;
                 return session?.ConfiguredEndpoint ?? m_endpoint;
             }
             set
@@ -169,13 +169,13 @@ namespace Opc.Ua.Gds.Client
         }
 
         /// <inheritdoc/>
-        public event KeepAliveEventHandler KeepAlive;
+        public event KeepAliveEventHandler? KeepAlive;
 
         /// <summary>
         /// Occurs when the server status changes.
         /// </summary>
 #pragma warning disable CS0067
-        public event MonitoredItemNotificationEventHandler ServerStatusChanged;
+        public event MonitoredItemNotificationEventHandler? ServerStatusChanged;
 #pragma warning restore CS0067
 
         /// <inheritdoc/>
@@ -242,12 +242,12 @@ namespace Opc.Ua.Gds.Client
 
             int maxAttempts = m_options.MaxConnectAttempts;
             int backoffMs = (int)m_options.ConnectBackoff.TotalMilliseconds;
-            ServiceResultException lastException = null;
+            ServiceResultException? lastException = null;
             for (int attempt = 0; attempt < maxAttempts; attempt++)
             {
                 try
                 {
-                    EndpointDescription endpointDescription =
+                    EndpointDescription? endpointDescription =
                         await CoreClientUtils.SelectEndpointAsync(
                             Configuration,
                             endpointUrl,
@@ -257,7 +257,7 @@ namespace Opc.Ua.Gds.Client
                     var endpointConfiguration = EndpointConfiguration.Create(Configuration);
                     var endpoint = new ConfiguredEndpoint(
                         null,
-                        endpointDescription,
+                        endpointDescription!,
                         endpointConfiguration);
 
                     await ConnectInternalAsync(endpoint, false, ct).ConfigureAwait(false);
@@ -283,13 +283,13 @@ namespace Opc.Ua.Gds.Client
                     maxAttempts);
         }
         /// <inheritdoc/>
-        public async ValueTask ConnectAsync(ConfiguredEndpoint endpoint, CancellationToken ct = default)
+        public async ValueTask ConnectAsync(ConfiguredEndpoint? endpoint, CancellationToken ct = default)
         {
             endpoint ??= m_endpoint ?? throw new ArgumentNullException(nameof(endpoint));
 
             int maxAttempts = m_options.MaxConnectAttempts;
             int backoffMs = (int)m_options.ConnectBackoff.TotalMilliseconds;
-            ServiceResultException lastException = null;
+            ServiceResultException? lastException = null;
             for (int attempt = 0; attempt < maxAttempts; attempt++)
             {
                 try
@@ -322,7 +322,7 @@ namespace Opc.Ua.Gds.Client
             await m_lock.WaitAsync(ct).ConfigureAwait(false);
             try
             {
-                ISession session = Session;
+                ISession? session = Session;
                 Session = null;
                 m_serverConfiguration = null;
 
@@ -332,7 +332,7 @@ namespace Opc.Ua.Gds.Client
                 }
                 try
                 {
-                    KeepAlive?.Invoke(session, null);
+                    KeepAlive?.Invoke(session, null!);
                     await session.CloseAsync(ct).ConfigureAwait(false);
                 }
                 finally
@@ -355,7 +355,7 @@ namespace Opc.Ua.Gds.Client
             }
 
             ISession session = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
-            IUserIdentity oldUser = await ElevatePermissionsAsync(session, ct).ConfigureAwait(false);
+            IUserIdentity? oldUser = await ElevatePermissionsAsync(session, ct).ConfigureAwait(false);
 
             try
             {
@@ -393,7 +393,7 @@ namespace Opc.Ua.Gds.Client
             long maxTrustListSize = 0, CancellationToken ct = default)
         {
             ISession session = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
-            IUserIdentity oldUser = await ElevatePermissionsAsync(session, ct).ConfigureAwait(false);
+            IUserIdentity? oldUser = await ElevatePermissionsAsync(session, ct).ConfigureAwait(false);
 
             try
             {
@@ -463,7 +463,7 @@ namespace Opc.Ua.Gds.Client
             CancellationToken ct = default)
         {
             ISession session = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
-            IUserIdentity oldUser = await ElevatePermissionsAsync(session, ct).ConfigureAwait(false);
+            IUserIdentity? oldUser = await ElevatePermissionsAsync(session, ct).ConfigureAwait(false);
 
             try
             {
@@ -513,7 +513,7 @@ namespace Opc.Ua.Gds.Client
             CancellationToken ct = default)
         {
             ISession session = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
-            IUserIdentity oldUser = await ElevatePermissionsAsync(session, ct).ConfigureAwait(false);
+            IUserIdentity? oldUser = await ElevatePermissionsAsync(session, ct).ConfigureAwait(false);
             try
             {
                 TrustListTypeClient trustListClient = await GetApplicationGroupTrustListClientAsync(session, certificateGroupId, ct).ConfigureAwait(false);
@@ -536,7 +536,7 @@ namespace Opc.Ua.Gds.Client
             CancellationToken ct = default)
         {
             ISession session = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
-            IUserIdentity oldUser = await ElevatePermissionsAsync(session, ct).ConfigureAwait(false);
+            IUserIdentity? oldUser = await ElevatePermissionsAsync(session, ct).ConfigureAwait(false);
             try
             {
                 TrustListTypeClient trustListClient = await GetApplicationGroupTrustListClientAsync(session, certificateGroupId, ct).ConfigureAwait(false);
@@ -564,10 +564,10 @@ namespace Opc.Ua.Gds.Client
             CancellationToken ct = default)
         {
             ISession session = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
-            IUserIdentity oldUser = await ElevatePermissionsAsync(session, ct).ConfigureAwait(false);
+            IUserIdentity? oldUser = await ElevatePermissionsAsync(session, ct).ConfigureAwait(false);
             try
             {
-                return await m_serverConfiguration.GetCertificatesAsync(certificateGroupId, ct).ConfigureAwait(false);
+                return await m_serverConfiguration!.GetCertificatesAsync(certificateGroupId, ct).ConfigureAwait(false);
             }
             finally
             {
@@ -584,11 +584,11 @@ namespace Opc.Ua.Gds.Client
             CancellationToken ct = default)
         {
             ISession session = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
-            IUserIdentity oldUser = await ElevatePermissionsAsync(session, ct).ConfigureAwait(false);
+            IUserIdentity? oldUser = await ElevatePermissionsAsync(session, ct).ConfigureAwait(false);
 
             try
             {
-                return await m_serverConfiguration.CreateSigningRequestAsync(
+                return await m_serverConfiguration!.CreateSigningRequestAsync(
                     certificateGroupId,
                     certificateTypeId,
                     subjectName,
@@ -612,11 +612,11 @@ namespace Opc.Ua.Gds.Client
             CancellationToken ct = default)
         {
             ISession session = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
-            IUserIdentity oldUser = await ElevatePermissionsAsync(session, ct).ConfigureAwait(false);
+            IUserIdentity? oldUser = await ElevatePermissionsAsync(session, ct).ConfigureAwait(false);
 
             try
             {
-                return await m_serverConfiguration.UpdateCertificateAsync(
+                return await m_serverConfiguration!.UpdateCertificateAsync(
                     certificateGroupId,
                     certificateTypeId,
                     certificate,
@@ -634,11 +634,11 @@ namespace Opc.Ua.Gds.Client
         public async ValueTask<CertificateCollection> GetRejectedListAsync(CancellationToken ct = default)
         {
             ISession session = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
-            IUserIdentity oldUser = await ElevatePermissionsAsync(session, ct).ConfigureAwait(false);
+            IUserIdentity? oldUser = await ElevatePermissionsAsync(session, ct).ConfigureAwait(false);
 
             try
             {
-                ArrayOf<ByteString> rawCertificates = await m_serverConfiguration.GetRejectedListAsync(ct).ConfigureAwait(false);
+                ArrayOf<ByteString> rawCertificates = await m_serverConfiguration!.GetRejectedListAsync(ct).ConfigureAwait(false);
                 var collection = new CertificateCollection();
                 foreach (ByteString rawCertificate in rawCertificates)
                 {
@@ -657,7 +657,7 @@ namespace Opc.Ua.Gds.Client
             ISession session = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
             await ElevatePermissionsAsync(session, ct).ConfigureAwait(false);
 
-            await m_serverConfiguration.ApplyChangesAsync(ct).ConfigureAwait(false);
+            await m_serverConfiguration!.ApplyChangesAsync(ct).ConfigureAwait(false);
         }
 
 
@@ -670,25 +670,25 @@ namespace Opc.Ua.Gds.Client
                 Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup)
             {
                 return new ValueTask<NodeId>(ExpandedNodeId.ToNodeId(Ua.ObjectIds
-                    .ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList, Session.NamespaceUris));
+                    .ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList, Session!.NamespaceUris));
             }
 
             if (normalizedCertificateGroupId ==
                 Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultHttpsGroup)
             {
                 return new ValueTask<NodeId>(ExpandedNodeId.ToNodeId(Ua.ObjectIds
-                    .ServerConfiguration_CertificateGroups_DefaultHttpsGroup_TrustList, Session.NamespaceUris));
+                    .ServerConfiguration_CertificateGroups_DefaultHttpsGroup_TrustList, Session!.NamespaceUris));
             }
 
             if (normalizedCertificateGroupId ==
                 Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultUserTokenGroup)
             {
                 return new ValueTask<NodeId>(ExpandedNodeId.ToNodeId(Ua.ObjectIds
-                    .ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_TrustList, Session.NamespaceUris));
+                    .ServerConfiguration_CertificateGroups_DefaultUserTokenGroup_TrustList, Session!.NamespaceUris));
             }
 
             return FindChildByTypeDefinitionAsync(
-                ExpandedNodeId.ToNodeId(certificateGroupId, Session.NamespaceUris),
+                ExpandedNodeId.ToNodeId(certificateGroupId, Session!.NamespaceUris),
                 Ua.ObjectTypeIds.TrustListType,
                 ct);
         }
@@ -708,17 +708,17 @@ namespace Opc.Ua.Gds.Client
                 ResultMask = (uint)BrowseResultMask.All
             };
 
-            BrowseResponse results = await Session.BrowseAsync(
+            BrowseResponse results = await Session!.BrowseAsync(
                 null, null, 0, [browseDescription], ct).ConfigureAwait(false);
 
-            ReferenceDescription reference = results.Results.ToList()
+            ReferenceDescription? reference = results.Results.ToList()
                 .Where(r => StatusCode.IsGood(r.StatusCode))
                 .SelectMany(r => r.References.ToList())
                 .FirstOrDefault(r => r.TypeDefinition == targetTypeDefinitionId);
 
             if (reference != null)
             {
-                return ExpandedNodeId.ToNodeId(reference.NodeId, Session.NamespaceUris);
+                return ExpandedNodeId.ToNodeId(reference.NodeId, Session!.NamespaceUris);
             }
 
             throw new ServiceResultException(
@@ -726,15 +726,15 @@ namespace Opc.Ua.Gds.Client
                 $"Could not find child with TypeDefinition {targetTypeDefinitionId} under {parentNodeId}");
         }
 
-        private async Task<IUserIdentity> ElevatePermissionsAsync(
+        private async Task<IUserIdentity?> ElevatePermissionsAsync(
             ISession session,
             CancellationToken ct = default)
         {
-            IUserIdentity oldUser = session.Identity;
+            IUserIdentity? oldUser = session.Identity;
 
             if (AdminCredentials == null || !ReferenceEquals(session.Identity, AdminCredentials))
             {
-                IUserIdentity newCredentials = null;
+                IUserIdentity? newCredentials = null;
 
                 if (AdminCredentials == null)
                 {
@@ -758,7 +758,7 @@ namespace Opc.Ua.Gds.Client
 
                 try
                 {
-                    await session.UpdateSessionAsync(newCredentials, PreferredLocales, ct)
+                    await session.UpdateSessionAsync(newCredentials!, PreferredLocales, ct)
                         .ConfigureAwait(false);
                 }
                 catch (Exception)
@@ -773,14 +773,14 @@ namespace Opc.Ua.Gds.Client
 
         private async Task RevertPermissionsAsync(
             ISession session,
-            IUserIdentity oldUser,
+            IUserIdentity? oldUser,
             CancellationToken ct = default)
         {
             try
             {
                 if (!ReferenceEquals(session.Identity, oldUser))
                 {
-                    await session.UpdateSessionAsync(oldUser, PreferredLocales, ct)
+                    await session.UpdateSessionAsync(oldUser!, PreferredLocales, ct)
                         .ConfigureAwait(false);
                 }
             }
@@ -814,7 +814,7 @@ namespace Opc.Ua.Gds.Client
 
         private void RaiseConnectionStatusChangedEvent()
         {
-            EventHandler callback = ConnectionStatusChanged;
+            EventHandler? callback = ConnectionStatusChanged;
 
             if (callback != null)
             {
@@ -850,7 +850,7 @@ namespace Opc.Ua.Gds.Client
                     endpoint,
                     updateBeforeConnect,
                     false,
-                    Configuration.ApplicationName,
+                    Configuration.ApplicationName!,
                     (uint)m_options.SessionTimeout.TotalMilliseconds,
                     AdminCredentials,
                     PreferredLocales,
@@ -924,8 +924,8 @@ namespace Opc.Ua.Gds.Client
         private readonly ILogger m_logger;
         private readonly GdsClientOptions m_options;
         private readonly CancellationTokenSource m_disposeCts = new();
-        private ConfiguredEndpoint m_endpoint;
-        private ServerConfigurationTypeClient m_serverConfiguration;
+        private ConfiguredEndpoint? m_endpoint;
+        private ServerConfigurationTypeClient? m_serverConfiguration;
         private bool m_disposed;
     }
 }

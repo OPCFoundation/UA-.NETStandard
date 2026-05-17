@@ -91,6 +91,9 @@ namespace Opc.Ua.Security.Certificates
             NextUpdate = DateTime.MinValue;
             m_revokedCertificates = [];
             CrlExtensions = [];
+            // Late-init: set by Decode() called from EnsureDecoded(), or by chained constructors.
+            IssuerName = null!;
+            RawData = null!;
         }
 
         /// <inheritdoc/>

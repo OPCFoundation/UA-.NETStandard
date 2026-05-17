@@ -67,7 +67,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// The parsed identifier (must not be null if Validated == False).
         /// </summary>
-        public object ParsedNodeId { get; set; }
+        public object ParsedNodeId { get; set; } = null!;
 
         /// <summary>
         /// A unique string identifier for the root of a complex object tree.
@@ -77,7 +77,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// A path to a component within the tree identified by the root id.
         /// </summary>
-        public string ComponentPath { get; set; }
+        public string ComponentPath { get; set; } = null!;
 
         /// <summary>
         /// An index associated with the handle.
@@ -101,11 +101,11 @@ namespace Opc.Ua.Server
         /// <remarks>
         /// Not set until after the handle is validated.
         /// </remarks>
-        public NodeState Node { get; set; }
+        public NodeState Node { get; set; } = null!;
 
         /// <summary>
         /// An object that can be used to manage the items which are monitoring the node.
         /// </summary>
-        public MonitoredNode2 MonitoredNode { get; set; }
+        public MonitoredNode2 MonitoredNode { get; set; } = null!;
     }
 }

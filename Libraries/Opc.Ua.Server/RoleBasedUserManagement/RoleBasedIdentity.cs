@@ -123,7 +123,7 @@ namespace Opc.Ua.Server
         public ExpandedNodeId RoleId { get; set; }
 
         /// <inheritdoc/>
-        public bool Equals(Role other)
+        public bool Equals(Role? other)
         {
             if (other is null)
             {
@@ -141,9 +141,9 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
-            return Equals(obj as Role);
+            return Equals(obj! as Role);
         }
 
         /// <inheritdoc/>
@@ -205,7 +205,7 @@ namespace Opc.Ua.Server
 
             GrantedRoleIds = identity.GrantedRoleIds
                 .AddItems(roles
-                .Where(role => role != null)
+                .Where(role => role != null!)
                 .Select(role => ExpandedNodeId.ToNodeId(role.RoleId, namespaces))
                 .Where(roleID => !identity.GrantedRoleIds.Contains(roleID))
                 .ToArrayOf());

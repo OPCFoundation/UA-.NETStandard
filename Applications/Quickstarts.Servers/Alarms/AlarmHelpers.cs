@@ -174,7 +174,7 @@ namespace Alarms
                 NodeId = new NodeId(startMethod.BrowseName.Name + "InArgs", namespaceIndex),
                 BrowseName = QualifiedName.From(BrowseNames.InputArguments)
             };
-            startMethod.InputArguments.DisplayName = LocalizedText.From(startMethod.InputArguments.BrowseName.Name);
+            startMethod.InputArguments.DisplayName = LocalizedText.From(startMethod.InputArguments.BrowseName.Name!);
             startMethod.InputArguments.TypeDefinitionId = VariableTypeIds.PropertyType;
             startMethod.InputArguments.ReferenceTypeId = ReferenceTypeIds.HasProperty;
             startMethod.InputArguments.DataType = DataTypeIds.Argument;

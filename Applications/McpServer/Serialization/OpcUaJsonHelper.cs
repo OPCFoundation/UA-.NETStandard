@@ -152,7 +152,7 @@ namespace Opc.Ua.Mcp.Serialization
         /// </summary>
         public static string StatusCodeToString(StatusCode statusCode)
         {
-            return statusCode.SymbolicId;
+            return statusCode.SymbolicId ?? string.Empty;
         }
 
         /// <summary>
@@ -253,7 +253,7 @@ namespace Opc.Ua.Mcp.Serialization
                 JsonValueKind.Number => new Variant(element.GetDouble()),
                 JsonValueKind.String when dataType?.Equals("DateTime", StringComparison.OrdinalIgnoreCase) == true
                     => new Variant(DateTime.Parse(element.GetString()!, CultureInfo.InvariantCulture)),
-                JsonValueKind.String => new Variant(element.GetString()),
+                JsonValueKind.String => new Variant(element.GetString()!),
                 JsonValueKind.Null or JsonValueKind.Undefined => Variant.Null,
                 _ => new Variant(element.GetRawText())
             };

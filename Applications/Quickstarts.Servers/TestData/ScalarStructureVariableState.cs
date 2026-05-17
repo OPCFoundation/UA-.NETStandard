@@ -42,33 +42,33 @@ namespace TestData
         {
             base.OnAfterCreate(context, node, ct);
 
-            InitializeVariable(context, BooleanValue);
-            InitializeVariable(context, SByteValue);
-            InitializeVariable(context, ByteValue);
-            InitializeVariable(context, Int16Value);
-            InitializeVariable(context, UInt16Value);
-            InitializeVariable(context, Int32Value);
-            InitializeVariable(context, UInt32Value);
-            InitializeVariable(context, Int64Value);
-            InitializeVariable(context, UInt64Value);
-            InitializeVariable(context, FloatValue);
-            InitializeVariable(context, DoubleValue);
-            InitializeVariable(context, StringValue);
-            InitializeVariable(context, DateTimeValue);
-            InitializeVariable(context, GuidValue);
-            InitializeVariable(context, ByteStringValue);
-            InitializeVariable(context, XmlElementValue);
-            InitializeVariable(context, NodeIdValue);
-            InitializeVariable(context, ExpandedNodeIdValue);
-            InitializeVariable(context, QualifiedNameValue);
-            InitializeVariable(context, LocalizedTextValue);
-            InitializeVariable(context, StatusCodeValue);
-            InitializeVariable(context, VariantValue);
-            InitializeVariable(context, EnumerationValue);
-            InitializeVariable(context, StructureValue);
-            InitializeVariable(context, NumberValue);
-            InitializeVariable(context, IntegerValue);
-            InitializeVariable(context, UIntegerValue);
+            InitializeVariable(context, BooleanValue!);
+            InitializeVariable(context, SByteValue!);
+            InitializeVariable(context, ByteValue!);
+            InitializeVariable(context, Int16Value!);
+            InitializeVariable(context, UInt16Value!);
+            InitializeVariable(context, Int32Value!);
+            InitializeVariable(context, UInt32Value!);
+            InitializeVariable(context, Int64Value!);
+            InitializeVariable(context, UInt64Value!);
+            InitializeVariable(context, FloatValue!);
+            InitializeVariable(context, DoubleValue!);
+            InitializeVariable(context, StringValue!);
+            InitializeVariable(context, DateTimeValue!);
+            InitializeVariable(context, GuidValue!);
+            InitializeVariable(context, ByteStringValue!);
+            InitializeVariable(context, XmlElementValue!);
+            InitializeVariable(context, NodeIdValue!);
+            InitializeVariable(context, ExpandedNodeIdValue!);
+            InitializeVariable(context, QualifiedNameValue!);
+            InitializeVariable(context, LocalizedTextValue!);
+            InitializeVariable(context, StatusCodeValue!);
+            InitializeVariable(context, VariantValue!);
+            InitializeVariable(context, EnumerationValue!);
+            InitializeVariable(context, StructureValue!);
+            InitializeVariable(context, NumberValue!);
+            InitializeVariable(context, IntegerValue!);
+            InitializeVariable(context, UIntegerValue!);
         }
 
         /// <summary>

@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -273,8 +273,8 @@ namespace Opc.Ua
         /// <remarks>The LoadPrivateKey special handling is not necessary in this store.</remarks>
         public Task<Certificate?> LoadPrivateKeyAsync(
             string thumbprint,
-            string subjectName,
-            string applicationUri,
+            string? subjectName,
+            string? applicationUri,
             NodeId certificateType,
             char[]? password,
             CancellationToken ct = default)

@@ -159,7 +159,7 @@ namespace Opc.Ua.Export
             {
                 using Stream schemaContent = Assembly
                     .GetExecutingAssembly()
-                    .GetManifestResourceStream("Opc.Ua.Schema.UANodeSet.xsd");
+                    .GetManifestResourceStream("Opc.Ua.Schema.UANodeSet.xsd")!;
                 using var schema = XmlReader.Create(schemaContent);
                 XmlReaderSettings settings = CoreUtils.DefaultXmlReaderSettings();
                 settings.Schemas.Add("http://opcfoundation.org/UA/2011/03/UANodeSet.xsd", schema);
@@ -171,7 +171,7 @@ namespace Opc.Ua.Export
 
                 var eventHandler = new ValidationEventHandler(ValidationEventHandler);
                 document.Validate(eventHandler);
-                void ValidationEventHandler(object sender, ValidationEventArgs e)
+                void ValidationEventHandler(object? sender, ValidationEventArgs e)
                 {
                     switch (e.Severity)
                     {
@@ -218,7 +218,7 @@ namespace Opc.Ua.Export
             "IL2026:RequiresUnreferencedCode",
             Justification = "UANodeSet and all reachable types are fully " +
                 "annotated with XML serialization attributes.")]
-        public static UANodeSet Read(Stream istrm)
+        public static UANodeSet? Read(Stream istrm)
         {
             using var reader = new StreamReader(istrm);
             using var xmlReader = XmlReader.Create(reader, CoreUtils.DefaultXmlReaderSettings());
@@ -299,8 +299,7 @@ namespace Opc.Ua.Export
             }
 
             public override WriteState WriteState => m_inner.WriteState;
-
-            public override string LookupPrefix(string ns)
+            public override string? LookupPrefix(string ns)
             {
                 foreach ((string prefix, string uri) in m_declarations)
                 {
@@ -311,117 +310,32 @@ namespace Opc.Ua.Export
                 }
                 return m_inner.LookupPrefix(ns);
             }
-
-            public override void Flush()
-            {
-                m_inner.Flush();
-            }
-
-            public override void WriteBase64(byte[] buffer, int index, int count)
-            {
-                m_inner.WriteBase64(buffer, index, count);
-            }
-
-            public override void WriteCData(string text)
-            {
-                m_inner.WriteCData(text);
-            }
-
-            public override void WriteCharEntity(char ch)
-            {
-                m_inner.WriteCharEntity(ch);
-            }
-
-            public override void WriteChars(char[] buffer, int index, int count)
-            {
-                m_inner.WriteChars(buffer, index, count);
-            }
-
-            public override void WriteComment(string text)
-            {
-                m_inner.WriteComment(text);
-            }
-
-            public override void WriteDocType(string name, string pubid, string sysid, string subset)
-            {
-                m_inner.WriteDocType(name, pubid, sysid, subset);
-            }
-
-            public override void WriteEndAttribute()
-            {
-                m_inner.WriteEndAttribute();
-            }
-
-            public override void WriteEndDocument()
-            {
-                m_inner.WriteEndDocument();
-            }
-
-            public override void WriteEndElement()
-            {
-                m_inner.WriteEndElement();
-            }
-
-            public override void WriteEntityRef(string name)
-            {
-                m_inner.WriteEntityRef(name);
-            }
-
-            public override void WriteFullEndElement()
-            {
-                m_inner.WriteFullEndElement();
-            }
-
-            public override void WriteProcessingInstruction(string name, string text)
-            {
-                m_inner.WriteProcessingInstruction(name, text);
-            }
-
-            public override void WriteRaw(char[] buffer, int index, int count)
-            {
-                m_inner.WriteRaw(buffer, index, count);
-            }
-
-            public override void WriteRaw(string data)
-            {
-                m_inner.WriteRaw(data);
-            }
-
-            public override void WriteStartAttribute(string prefix, string localName, string ns)
-            {
-                m_inner.WriteStartAttribute(prefix, localName, ns);
-            }
-
-            public override void WriteStartDocument()
-            {
-                m_inner.WriteStartDocument();
-            }
-
-            public override void WriteStartDocument(bool standalone)
-            {
-                m_inner.WriteStartDocument(standalone);
-            }
-
-            public override void WriteStartElement(string prefix, string localName, string ns)
+            public override void Flush() => m_inner.Flush();
+            public override void WriteBase64(byte[] buffer, int index, int count) => m_inner.WriteBase64(buffer, index, count);
+            public override void WriteCData(string? text) => m_inner.WriteCData(text);
+            public override void WriteCharEntity(char ch) => m_inner.WriteCharEntity(ch);
+            public override void WriteChars(char[] buffer, int index, int count) => m_inner.WriteChars(buffer, index, count);
+            public override void WriteComment(string? text) => m_inner.WriteComment(text);
+            public override void WriteDocType(string name, string? pubid, string? sysid, string? subset) => m_inner.WriteDocType(name, pubid, sysid, subset);
+            public override void WriteEndAttribute() => m_inner.WriteEndAttribute();
+            public override void WriteEndDocument() => m_inner.WriteEndDocument();
+            public override void WriteEndElement() => m_inner.WriteEndElement();
+            public override void WriteEntityRef(string name) => m_inner.WriteEntityRef(name);
+            public override void WriteFullEndElement() => m_inner.WriteFullEndElement();
+            public override void WriteProcessingInstruction(string name, string? text) => m_inner.WriteProcessingInstruction(name, text);
+            public override void WriteRaw(char[] buffer, int index, int count) => m_inner.WriteRaw(buffer, index, count);
+            public override void WriteRaw(string data) => m_inner.WriteRaw(data);
+            public override void WriteStartAttribute(string? prefix, string localName, string? ns) => m_inner.WriteStartAttribute(prefix, localName, ns);
+            public override void WriteStartDocument() => m_inner.WriteStartDocument();
+            public override void WriteStartDocument(bool standalone) => m_inner.WriteStartDocument(standalone);
+            public override void WriteStartElement(string? prefix, string localName, string? ns)
             {
                 m_inner.WriteStartElement(prefix, localName, ns);
                 DeclareIfNeeded();
             }
-
-            public override void WriteString(string text)
-            {
-                m_inner.WriteString(text);
-            }
-
-            public override void WriteSurrogateCharEntity(char lowChar, char highChar)
-            {
-                m_inner.WriteSurrogateCharEntity(lowChar, highChar);
-            }
-
-            public override void WriteWhitespace(string ws)
-            {
-                m_inner.WriteWhitespace(ws);
-            }
+            public override void WriteString(string? text) => m_inner.WriteString(text);
+            public override void WriteSurrogateCharEntity(char lowChar, char highChar) => m_inner.WriteSurrogateCharEntity(lowChar, highChar);
+            public override void WriteWhitespace(string? ws) => m_inner.WriteWhitespace(ws);
 
             protected override void Dispose(bool disposing)
             {
@@ -477,7 +391,7 @@ namespace Opc.Ua.Export
         /// <param name="linkParentChild">If true, establishes parent-child relationships based on ParentNodeId attributes. Default is false for backward compatibility.</param>
         public void Import(ISystemContext context, NodeStateCollection nodes, bool linkParentChild = false)
         {
-            for (int ii = 0; ii < Items.Length; ii++)
+            for (int ii = 0; ii < Items!.Length; ii++)
             {
                 UANode node = Items[ii];
                 NodeState importedNode = Import(context, node);
@@ -513,7 +427,7 @@ namespace Opc.Ua.Export
                 if (node is BaseInstanceState instance && instance.Handle is NodeId parentNodeId)
                 {
                     // Find the parent node
-                    if (nodeTable.TryGetValue(parentNodeId, out NodeState parent))
+                    if (nodeTable.TryGetValue(parentNodeId, out NodeState? parent))
                     {
                         // Set the Parent property to establish the relationship
                         instance.Parent = parent;
@@ -546,7 +460,7 @@ namespace Opc.Ua.Export
                 throw new ArgumentException("A non-null NodeId must be specified.");
             }
 
-            UANode exportedNode = null;
+            UANode? exportedNode = null;
 
             switch (node.NodeClass)
             {
@@ -592,7 +506,7 @@ namespace Opc.Ua.Export
                         encoder.WriteVariantValue(null, o.Value);
 
                         var document = new XmlDocument();
-                        document.LoadInnerXml(encoder.CloseAndReturnText());
+                        document.LoadInnerXml(encoder.CloseAndReturnText()!);
                         value.Value = document.DocumentElement;
                     }
 
@@ -657,7 +571,7 @@ namespace Opc.Ua.Export
                         encoder.WriteVariantValue(null, o.Value);
 
                         var document = new XmlDocument();
-                        document.LoadInnerXml(encoder.CloseAndReturnText());
+                        document.LoadInnerXml(encoder.CloseAndReturnText()!);
                         value.Value = document.DocumentElement;
                     }
 
@@ -701,7 +615,7 @@ namespace Opc.Ua.Export
                         $"Unexpected NodeClass {node.NodeClass}");
             }
 
-            exportedNode.NodeId = Export(node.NodeId, context.NamespaceUris);
+            exportedNode!.NodeId = Export(node.NodeId, context.NamespaceUris);
             exportedNode.BrowseName = Export(node.BrowseName, context.NamespaceUris);
 
             if (outputRedundantNames || node.DisplayName.Text != node.BrowseName.Name)
@@ -728,7 +642,7 @@ namespace Opc.Ua.Export
             exportedNode.ReleaseStatus = node.ReleaseStatus;
             exportedNode.WriteMask = (uint)node.WriteMask;
             exportedNode.UserWriteMask = (uint)node.UserWriteMask;
-            exportedNode.Extensions = node.Extensions?.Select(x => x.AsXmlElement()).ToArray();
+            exportedNode.Extensions = node.Extensions?.Select(x => x.AsXmlElement()!).ToArray();
             exportedNode.RolePermissions = null;
             exportedNode.AccessRestrictions = 0;
             exportedNode.AccessRestrictionsSpecified = false;
@@ -774,7 +688,7 @@ namespace Opc.Ua.Export
                 default,
                 true);
             var exportedReferences = new List<Reference>();
-            IReference reference = browser.Next();
+            IReference? reference = browser.Next();
 
             while (reference != null)
             {
@@ -902,7 +816,7 @@ namespace Opc.Ua.Export
         /// <exception cref="ServiceResultException"></exception>
         private NodeState Import(ISystemContext context, UANode node)
         {
-            NodeState importedNode = null;
+            NodeState? importedNode = null;
 
             NodeClass nodeClass = NodeClass.Unspecified;
 
@@ -984,16 +898,16 @@ namespace Opc.Ua.Export
                     BaseVariableState value;
                     if (typeDefinitionId == VariableTypeIds.PropertyType)
                     {
-                        value = new PropertyState(null);
+                        value = new PropertyState(null!);
                     }
                     else
                     {
-                        value = new BaseDataVariableState(null);
+                        value = new BaseDataVariableState(null!);
                     }
 
                     value.DataType = ImportNodeId(o.DataType, context.NamespaceUris, true);
                     value.ValueRank = o.ValueRank;
-                    value.ArrayDimensions = ImportArrayDimensions(o.ArrayDimensions);
+                    value.ArrayDimensions = ImportArrayDimensions(o.ArrayDimensions) ?? [];
                     value.AccessLevelEx = o.AccessLevel;
                     value.UserAccessLevel = (byte)(o.AccessLevel & 0xFF);
                     value.MinimumSamplingInterval = o.MinimumSamplingInterval;
@@ -1049,7 +963,7 @@ namespace Opc.Ua.Export
                         IsAbstract = o.IsAbstract,
                         DataType = ImportNodeId(o.DataType, context.NamespaceUris, true),
                         ValueRank = o.ValueRank,
-                        ArrayDimensions = ImportArrayDimensions(o.ArrayDimensions)
+                        ArrayDimensions = ImportArrayDimensions(o.ArrayDimensions) ?? []
                     };
 
                     if (o.Value != null)
@@ -1066,10 +980,10 @@ namespace Opc.Ua.Export
                 {
                     var o = (UADataType)node;
                     var value = new DataTypeState { IsAbstract = o.IsAbstract };
-                    Ua.DataTypeDefinition dataTypeDefinition = Import(
-                        o.Definition,
+                    Ua.DataTypeDefinition? dataTypeDefinition = Import(
+                        o.Definition!,
                         context.NamespaceUris);
-                    value.DataTypeDefinition = new ExtensionObject(dataTypeDefinition);
+                    value.DataTypeDefinition = new ExtensionObject(dataTypeDefinition!);
                     value.Purpose = o.Purpose;
                     importedNode = value;
                     break;
@@ -1091,7 +1005,7 @@ namespace Opc.Ua.Export
                     throw ServiceResultException.Unexpected($"Unexpected NodeClass {nodeClass}");
             }
 
-            importedNode.NodeId = ImportNodeId(node.NodeId, context.NamespaceUris, false);
+            importedNode!.NodeId = ImportNodeId(node.NodeId, context.NamespaceUris, false);
             importedNode.BrowseName = ImportQualifiedName(node.BrowseName, context.NamespaceUris);
             importedNode.DisplayName = Import(node.DisplayName);
             if (importedNode.DisplayName.IsNullOrEmpty)
@@ -1134,7 +1048,7 @@ namespace Opc.Ua.Export
 
             if (!string.IsNullOrEmpty(node.SymbolicName))
             {
-                importedNode.SymbolicName = node.SymbolicName;
+                importedNode.SymbolicName = node.SymbolicName!;
             }
 
             if (node.References != null)
@@ -1182,7 +1096,7 @@ namespace Opc.Ua.Export
                 }
             }
 
-            string parentNodeId = (node as UAInstance)?.ParentNodeId;
+            string? parentNodeId = (node as UAInstance)?.ParentNodeId;
 
             if (!string.IsNullOrEmpty(parentNodeId))
             {
@@ -1196,7 +1110,7 @@ namespace Opc.Ua.Export
         /// <summary>
         /// Exports a NodeId as an alias.
         /// </summary>
-        private string ExportAlias(NodeId source, NamespaceTable namespaceUris)
+        private string? ExportAlias(NodeId source, NamespaceTable namespaceUris)
         {
             string nodeId = Export(source, namespaceUris);
 
@@ -1236,7 +1150,7 @@ namespace Opc.Ua.Export
         /// <summary>
         ///  Imports a NodeId
         /// </summary>
-        private NodeId ImportNodeId(string source, NamespaceTable namespaceUris, bool lookupAlias)
+        private NodeId ImportNodeId(string? source, NamespaceTable namespaceUris, bool lookupAlias)
         {
             if (string.IsNullOrEmpty(source))
             {
@@ -1257,7 +1171,7 @@ namespace Opc.Ua.Export
             }
 
             // parse the string.
-            var nodeId = NodeId.Parse(source);
+            var nodeId = NodeId.Parse(source!);
 
             if (nodeId.NamespaceIndex > 0)
             {
@@ -1295,7 +1209,7 @@ namespace Opc.Ua.Export
             }
             else
             {
-                namespaceIndex = ExportNamespaceUri(source.NamespaceUri, namespaceUris);
+                namespaceIndex = ExportNamespaceUri(source.NamespaceUri!, namespaceUris);
             }
 
             uint serverIndex = ExportServerIndex(source.ServerIndex, serverUris);
@@ -1307,7 +1221,7 @@ namespace Opc.Ua.Export
         /// Imports a ExpandedNodeId
         /// </summary>
         private ExpandedNodeId ImportExpandedNodeId(
-            string source,
+            string? source,
             NamespaceTable namespaceUris,
             StringTable serverUris)
         {
@@ -1329,7 +1243,7 @@ namespace Opc.Ua.Export
             }
 
             // parse the node.
-            var nodeId = ExpandedNodeId.Parse(source);
+            var nodeId = ExpandedNodeId.Parse(source!);
 
             if (nodeId.ServerIndex <= 0 &&
                 nodeId.NamespaceIndex <= 0 &&
@@ -1343,14 +1257,14 @@ namespace Opc.Ua.Export
 
             if (serverIndex > 0)
             {
-                string namespaceUri = nodeId.NamespaceUri;
+                string? namespaceUri = nodeId.NamespaceUri;
 
                 if (string.IsNullOrEmpty(nodeId.NamespaceUri))
                 {
                     namespaceUri = namespaceUris.GetString(namespaceIndex);
                 }
 
-                return nodeId.WithNamespaceUri(namespaceUri).WithServerIndex(serverIndex);
+                return nodeId.WithNamespaceUri(namespaceUri!).WithServerIndex(serverIndex);
             }
 
             return nodeId.WithNamespaceIndex(namespaceIndex).WithServerIndex(0);
@@ -1378,7 +1292,7 @@ namespace Opc.Ua.Export
         /// <summary>
         /// Exports a DataTypeDefinition
         /// </summary>
-        private DataTypeDefinition Export(
+        private DataTypeDefinition? Export(
             DataTypeState dataType,
             ExtensionObject source,
             NamespaceTable namespaceUris,
@@ -1401,7 +1315,7 @@ namespace Opc.Ua.Export
                 definition.SymbolicName = dataType.SymbolicName;
             }
 
-            if (source.TryGetValue(out StructureDefinition sd))
+            if (source.TryGetValue<StructureDefinition>(out var sd) && sd != null)
             {
                 if (sd
                     .StructureType is StructureType.Union or StructureType.UnionWithSubtypedValues)
@@ -1470,7 +1384,7 @@ namespace Opc.Ua.Export
                 }
             }
 
-            if (source.TryGetValue(out EnumDefinition ed))
+            if (source.TryGetValue<EnumDefinition>(out var ed) && ed != null)
             {
                 definition.IsOptionSet = ed.IsOptionSet;
 
@@ -1508,7 +1422,7 @@ namespace Opc.Ua.Export
         /// <summary>
         /// Imports a DataTypeDefinition
         /// </summary>
-        private Ua.DataTypeDefinition Import(
+        private Ua.DataTypeDefinition? Import(
             DataTypeDefinition source,
             NamespaceTable namespaceUris)
         {
@@ -1517,7 +1431,7 @@ namespace Opc.Ua.Export
                 return null;
             }
 
-            Ua.DataTypeDefinition definition = null;
+            Ua.DataTypeDefinition? definition = null;
 
             if (source.Field != null)
             {
@@ -1566,14 +1480,14 @@ namespace Opc.Ua.Export
 
                             var output = new StructureField
                             {
-                                Name = field.Name,
+                                Name = field.Name!,
                                 Description = Import(field.Description),
                                 DataType = ImportNodeId(field.DataType, namespaceUris, true),
                                 ValueRank = field.ValueRank
                             };
                             if (!string.IsNullOrWhiteSpace(field.ArrayDimensions))
                             {
-                                if (output.ValueRank > 1 || field.ArrayDimensions[0] > 0)
+                                if (output.ValueRank > 1 || field.ArrayDimensions![0] > 0)
                                 {
                                     output.ArrayDimensions =
                                     [
@@ -1623,7 +1537,7 @@ namespace Opc.Ua.Export
                         {
                             var output = new EnumField
                             {
-                                Name = field.Name,
+                                Name = field.Name!,
                                 DisplayName = Import(field.DisplayName),
                                 Description = Import(field.Description),
                                 Value = field.Value
@@ -1645,14 +1559,14 @@ namespace Opc.Ua.Export
         /// <summary>
         /// Imports a QualifiedName
         /// </summary>
-        private QualifiedName ImportQualifiedName(string source, NamespaceTable namespaceUris)
+        private QualifiedName ImportQualifiedName(string? source, NamespaceTable namespaceUris)
         {
             if (string.IsNullOrEmpty(source))
             {
                 return QualifiedName.Null;
             }
 
-            var qname = QualifiedName.Parse(source);
+            var qname = QualifiedName.Parse(source!);
 
             if (qname.NamespaceIndex > 0)
             {
@@ -1691,14 +1605,14 @@ namespace Opc.Ua.Export
         /// <summary>
         /// Imports the array dimensions.
         /// </summary>
-        private static uint[] ImportArrayDimensions(string arrayDimensions)
+        private static uint[]? ImportArrayDimensions(string? arrayDimensions)
         {
             if (string.IsNullOrEmpty(arrayDimensions))
             {
                 return null;
             }
 
-            string[] fields = arrayDimensions.Split(',');
+            string[] fields = arrayDimensions!.Split(',');
             uint[] dimensions = new uint[fields.Length];
 
             for (int ii = 0; ii < fields.Length; ii++)
@@ -1719,7 +1633,7 @@ namespace Opc.Ua.Export
         /// <summary>
         /// Exports localized text.
         /// </summary>
-        private static LocalizedText[] Export(Ua.LocalizedText[] input)
+        private static LocalizedText[]? Export(Ua.LocalizedText[] input)
         {
             if (input == null)
             {
@@ -1762,7 +1676,7 @@ namespace Opc.Ua.Export
         /// <summary>
         /// Imports localized text.
         /// </summary>
-        private static Ua.LocalizedText Import(params LocalizedText[] input)
+        private static Ua.LocalizedText Import(params LocalizedText[]? input)
         {
             if (input == null)
             {
@@ -1773,7 +1687,7 @@ namespace Opc.Ua.Export
             {
                 if (input[ii] != null)
                 {
-                    return new Ua.LocalizedText(input[ii].Locale, input[ii].Value);
+                    return new Ua.LocalizedText(input[ii].Locale!, input[ii].Value!);
                 }
             }
 
@@ -1799,7 +1713,7 @@ namespace Opc.Ua.Export
 
             // find an existing index.
             int count = 1;
-            string targetUri = namespaceUris.GetString(namespaceIndex);
+            string? targetUri = namespaceUris.GetString(namespaceIndex);
 
             if (NamespaceUris != null)
             {
@@ -1822,7 +1736,7 @@ namespace Opc.Ua.Export
                 Array.Copy(NamespaceUris, uris, count - 1);
             }
 
-            uris[count - 1] = targetUri;
+            uris[count - 1] = targetUri!;
             NamespaceUris = uris;
 
             // return the new index.
@@ -1921,7 +1835,7 @@ namespace Opc.Ua.Export
 
             // find an existing index.
             int count = 1;
-            string targetUri = serverUris.GetString(serverIndex);
+            string? targetUri = serverUris.GetString(serverIndex);
 
             if (ServerUris != null)
             {
@@ -1944,7 +1858,7 @@ namespace Opc.Ua.Export
                 Array.Copy(ServerUris, uris, count - 1);
             }
 
-            uris[count - 1] = targetUri;
+            uris[count - 1] = targetUri!;
             ServerUris = uris;
 
             // return the new index.

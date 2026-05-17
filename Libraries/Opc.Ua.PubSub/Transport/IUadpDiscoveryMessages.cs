@@ -49,7 +49,7 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// Create and return the list of EndpointDescription to be used only by UADP Discovery response messages
         /// </summary>
-        UaNetworkMessage CreatePublisherEndpointsNetworkMessage(
+        UaNetworkMessage? CreatePublisherEndpointsNetworkMessage(
             EndpointDescription[] endpoints,
             StatusCode publisherProvideEndpointsStatusCode,
             Variant publisherId);

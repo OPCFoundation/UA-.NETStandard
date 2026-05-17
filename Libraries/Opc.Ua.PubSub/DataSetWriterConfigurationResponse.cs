@@ -37,18 +37,18 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// DataSetWriterIds contained in the configuration information.
         /// </summary>
-        public ushort[] DataSetWriterIds { get; set; }
+        public required ushort[] DataSetWriterIds { get; set; }
 
         /// <summary>
         /// The field shall contain only the entry for the requested or changed DataSetWriters in the WriterGroup.
         /// </summary>
-        public WriterGroupDataType DataSetWriterConfig { get; set; }
+        public WriterGroupDataType DataSetWriterConfig { get; set; } = null!;
 
         /// <summary>
         /// Status codes indicating the capability of the Publisher to provide
         /// configuration information for the DataSetWriterIds.The size of the array
         /// shall match the size of the DataSetWriterIds array.
         /// </summary>
-        public StatusCode[] StatusCodes { get; set; }
+        public required StatusCode[] StatusCodes { get; set; }
     }
 }

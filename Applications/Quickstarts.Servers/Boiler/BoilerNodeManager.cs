@@ -43,7 +43,7 @@ namespace Boiler
         /// <inheritdoc/>
         public INodeManager Create(IServerInternal server, ApplicationConfiguration configuration)
         {
-            return new BoilerNodeManager(server, configuration, NamespacesUris.ToArray());
+            return new BoilerNodeManager(server, configuration, NamespacesUris.ToArray()!);
         }
 
         /// <inheritdoc/>
@@ -61,10 +61,11 @@ namespace Boiler
         /// </summary>
         public BoilerNodeManager(
             IServerInternal server,
-            ApplicationConfiguration configuration,
+            ApplicationConfiguration? configuration,
             string[] namespaceUris)
             : base(server)
         {
+            _ = configuration;
             NamespaceUris = namespaceUris;
 
             Server.NamespaceUris.GetIndexOrAppend(namespaceUris[0]);
@@ -118,26 +119,26 @@ namespace Boiler
             boiler.Create(context, default, new QualifiedName(name, m_namespaceIndex), default, true);
 
             NodeState folder = FindPredefinedNode<NodeState>(
-                ExpandedNodeId.ToNodeId(ObjectIds.Boilers, Server.NamespaceUris));
+                ExpandedNodeId.ToNodeId(ObjectIds.Boilers, Server.NamespaceUris)!)!;
 
             folder.AddReference(Opc.Ua.ReferenceTypeIds.Organizes, false, boiler.NodeId);
             boiler.AddReference(Opc.Ua.ReferenceTypeIds.Organizes, true, folder.NodeId);
 
             string unitLabel = Utils.Format("{0}0", unitNumber);
 
-            UpdateDisplayName(boiler.InputPipe, unitLabel);
-            UpdateDisplayName(boiler.Drum, unitLabel);
-            UpdateDisplayName(boiler.OutputPipe, unitLabel);
-            UpdateDisplayName(boiler.LevelController, unitLabel);
-            UpdateDisplayName(boiler.FlowController, unitLabel);
-            UpdateDisplayName(boiler.CustomController, unitLabel);
+            UpdateDisplayName(boiler.InputPipe!, unitLabel);
+            UpdateDisplayName(boiler.Drum!, unitLabel);
+            UpdateDisplayName(boiler.OutputPipe!, unitLabel);
+            UpdateDisplayName(boiler.LevelController!, unitLabel);
+            UpdateDisplayName(boiler.FlowController!, unitLabel);
+            UpdateDisplayName(boiler.CustomController!, unitLabel);
 
             m_boilers.Add(boiler);
 
             AddPredefinedNode(context, boiler);
 
             // Autostart boiler simulation state machine
-            MethodState start = boiler.Simulation.Start;
+            MethodState start = boiler.Simulation!.Start!;
             ArrayOf<Variant> inputArguments = [];
             List<Variant> outputArguments = [];
             var errors = new List<ServiceResult>();
@@ -156,7 +157,7 @@ namespace Boiler
 
             if (!displayName.IsNullOrEmpty)
             {
-                string text = displayName.Text;
+                string? text = displayName.Text;
 
                 if (text != null)
                 {
@@ -209,7 +210,7 @@ namespace Boiler
                     }
 
                     // Autostart boiler simulation state machine
-                    MethodState start = activeNode.Simulation.Start;
+                    MethodState start = activeNode.Simulation!.Start!;
                     ArrayOf<Variant> inputArguments = [];
                     List<Variant> outputArguments = [];
                     var errors = new List<ServiceResult>();
