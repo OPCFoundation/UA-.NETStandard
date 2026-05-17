@@ -41,7 +41,7 @@ namespace Opc.Ua.Gds.Tests
     public class LinqApplicationsDatabaseTests
     {
         [Test]
-        public void RegisterApplicationDuplicateUriThrowsBadEntryExists()
+        public void RegisterApplicationWithDuplicateUriThrowsBadEntryExists()
         {
             var database = new LinqApplicationsDatabase();
             ApplicationRecordDataType application = CreateServerApplication("urn:test:duplicate", "ServerOne");
@@ -54,7 +54,7 @@ namespace Opc.Ua.Gds.Tests
         }
 
         [Test]
-        public void UpdateApplicationChangingUriThrowsBadWriteNotSupported()
+        public void UpdateApplicationWithChangedUriThrowsBadWriteNotSupported()
         {
             var database = new LinqApplicationsDatabase();
             ApplicationRecordDataType application = CreateServerApplication("urn:test:update-original", "ServerOne");
