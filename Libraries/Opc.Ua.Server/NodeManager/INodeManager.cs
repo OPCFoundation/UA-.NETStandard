@@ -393,6 +393,13 @@ namespace Opc.Ua.Server
            OperationContext operationContext,
            NodeId nodeId,
            PermissionType requestedPermission);
+
+        /// <summary>
+        /// Resolves the effective <see cref="MethodState"/> for a call request.
+        /// </summary>
+        MethodState FindMethodState(
+            OperationContext context,
+            CallMethodRequest methodToCall);
     }
 
     /// <summary>
@@ -711,6 +718,14 @@ namespace Opc.Ua.Server
         IModifyMonitoredItemsAsyncNodeManager,
         ICreateMonitoredItemsAsyncNodeManager
     {
+        /// <summary>
+        /// Resolves the effective <see cref="MethodState"/> for a call request.
+        /// </summary>
+        ValueTask<MethodState> FindMethodStateAsync(
+            OperationContext context,
+            CallMethodRequest methodToCall,
+            CancellationToken cancellationToken = default);
+
         /// <summary>
         /// Returns the NamespaceUris for the Nodes belonging to the NodeManager.
         /// </summary>

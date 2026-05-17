@@ -65,7 +65,7 @@ namespace Opc.Ua.Gds.Server
             ApplicationConfiguration configuration,
             IApplicationsDatabase database,
             ICertificateRequest request,
-            ICertificateGroup certificateGroup,
+            ICertificateGroup certificateGroupFactory,
             bool autoApprove = false)
             : base(
                   server,
@@ -105,7 +105,7 @@ namespace Opc.Ua.Gds.Server
             m_autoApprove = autoApprove;
             m_database = database;
             m_request = request;
-            m_certificateGroupFactory = certificateGroup;
+            m_certificateGroupFactory = certificateGroupFactory;
             m_certificateGroups = [];
 
             try
@@ -661,7 +661,14 @@ namespace Opc.Ua.Gds.Server
 
             m_logger.LogInformation("OnRegisterApplication: {ApplicationUri}", application.ApplicationUri);
 
-            applicationId = m_database.RegisterApplication(application);
+            try
+            {
+                applicationId = m_database.RegisterApplication(application);
+            }
+            catch (ArgumentException ex)
+            {
+                throw new ServiceResultException(StatusCodes.BadInvalidArgument, ex);
+            }
 
             if (!applicationId.IsNull)
             {
@@ -696,7 +703,14 @@ namespace Opc.Ua.Gds.Server
                     LocalizedText.From("The application id does not exist."));
             }
 
-            m_database.RegisterApplication(application);
+            try
+            {
+                m_database.UpdateApplication(application);
+            }
+            catch (ArgumentException ex)
+            {
+                throw new ServiceResultException(StatusCodes.BadInvalidArgument, ex);
+            }
 
             ArrayOf<Variant> inputArguments = [Variant.FromStructure(application)];
             Server.ReportApplicationRegistrationChangedAuditEvent(
@@ -721,6 +735,16 @@ namespace Opc.Ua.Gds.Server
 
             m_logger.LogInformation("OnUnregisterApplication: {ApplicationId}", applicationId.ToString());
 
+            if (m_database.GetApplication(applicationId) == null)
+            {
+                return new UnregisterApplicationMethodStateResult
+                {
+                    ServiceResult = new ServiceResult(
+                        StatusCodes.BadNotFound,
+                        LocalizedText.From("The application id does not exist."))
+                };
+            }
+
             foreach (KeyValuePair<NodeId, string> certType in m_certTypeMap)
             {
                 try
@@ -734,9 +758,9 @@ namespace Opc.Ua.Gds.Server
                         await RevokeCertificateAsync(certificate).ConfigureAwait(false);
                     }
                 }
-                catch
+                catch (Exception ex)
                 {
-                    m_logger.LogError("Failed to revoke: {CertificateType}", certType.Value);
+                    m_logger.LogWarning(ex, "Failed to revoke: {CertificateType}", certType.Value);
                 }
             }
 
@@ -815,7 +839,7 @@ namespace Opc.Ua.Gds.Server
         {
             AuthorizationHelper.HasAuthorization(context, AuthorizationHelper.AuthenticatedUser);
             m_logger.LogInformation("OnFindApplications: {ApplicationUri}", applicationUri);
-            applications = m_database.FindApplications(applicationUri)!;
+            applications = m_database.FindApplications(applicationUri) ?? [];
             return ServiceResult.Good;
         }
 
@@ -831,7 +855,19 @@ namespace Opc.Ua.Gds.Server
                 AuthorizationHelper.AuthenticatedUserOrSelfAdmin,
                 applicationId);
             m_logger.LogInformation("OnGetApplication: {ApplicationId}", applicationId);
-            application = m_database.GetApplication(applicationId)!;
+            try
+            {
+                ApplicationRecordDataType? foundApplication = m_database.GetApplication(applicationId);
+                if (foundApplication == null)
+                {
+                    throw new ServiceResultException(StatusCodes.BadNotFound);
+                }
+                application = foundApplication;
+            }
+            catch (ArgumentException ex)
+            {
+                throw new ServiceResultException(StatusCodes.BadInvalidArgument, ex);
+            }
             return ServiceResult.Good;
         }
 

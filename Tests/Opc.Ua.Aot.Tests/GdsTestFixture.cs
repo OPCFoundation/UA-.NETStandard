@@ -158,7 +158,10 @@ namespace Opc.Ua.Aot.Tests
                         StoreType = CertificateStoreType.Directory,
                         StorePath = Path.Combine(m_pkiRoot, "rejected")
                     },
-                    AutoAcceptUntrustedCertificates = true
+                    AutoAcceptUntrustedCertificates = true,
+                    RejectSHA1SignedCertificates = false,
+                    RejectUnknownRevocationStatus = true,
+                    MinimumCertificateKeySize = 1024
                 },
                 TransportQuotas = new TransportQuotas(),
                 ClientConfiguration = new ClientConfiguration(),
@@ -170,6 +173,26 @@ namespace Opc.Ua.Aot.Tests
             m_clientConfiguration.CertificateManager ??= CertificateManagerFactory.Create(
                 m_clientConfiguration.SecurityConfiguration, Telemetry);
             m_clientConfiguration.CertificateManager.AcceptError = static (cert, err) => true;
+
+            var clientApplication = new ApplicationInstance(Telemetry)
+            {
+                ApplicationName = m_clientConfiguration.ApplicationName,
+                ApplicationType = ApplicationType.Client,
+                ApplicationConfiguration = m_clientConfiguration
+            };
+            try
+            {
+                bool haveAppCertificate = await clientApplication
+                    .CheckApplicationInstanceCertificatesAsync(true).ConfigureAwait(false);
+                if (!haveAppCertificate)
+                {
+                    throw new InvalidOperationException("Client application certificate invalid!");
+                }
+            }
+            finally
+            {
+                await clientApplication.DisposeAsync().ConfigureAwait(false);
+            }
 
             // Create the GDS client with admin credentials
             GdsClient = new GlobalDiscoveryServerClient(
@@ -192,10 +215,35 @@ namespace Opc.Ua.Aot.Tests
             EndpointDescription selectedEndpoint = null;
             foreach (EndpointDescription ep in endpoints)
             {
-                if (ep.SecurityPolicyUri == SecurityPolicies.None)
+                if (ep.SecurityMode == MessageSecurityMode.SignAndEncrypt &&
+                    ep.SecurityPolicyUri == SecurityPolicies.Aes256_Sha256_RsaPss)
                 {
                     selectedEndpoint = ep;
                     break;
+                }
+            }
+            if (selectedEndpoint == null)
+            {
+                foreach (EndpointDescription ep in endpoints)
+                {
+                    if (ep.SecurityMode == MessageSecurityMode.SignAndEncrypt &&
+                        (ep.SecurityPolicyUri == SecurityPolicies.Aes128_Sha256_RsaOaep ||
+                        ep.SecurityPolicyUri == SecurityPolicies.Basic256Sha256))
+                    {
+                        selectedEndpoint = ep;
+                        break;
+                    }
+                }
+            }
+            if (selectedEndpoint == null)
+            {
+                foreach (EndpointDescription ep in endpoints)
+                {
+                    if (ep.SecurityMode == MessageSecurityMode.SignAndEncrypt)
+                    {
+                        selectedEndpoint = ep;
+                        break;
+                    }
                 }
             }
             selectedEndpoint ??= endpoints[0];
@@ -296,12 +344,16 @@ namespace Opc.Ua.Aot.Tests
             };
 
             ArrayOf<CertificateIdentifier> applicationCerts =
-                ApplicationConfigurationBuilder
-                    .CreateDefaultApplicationCertificates(
-                        "CN=GDS AOT Test Server, O=OPC Foundation, " +
-                        "DC=localhost",
-                        CertificateStoreType.Directory,
-                        m_gdsRoot);
+            [
+                new CertificateIdentifier
+                {
+                    StoreType = CertificateStoreType.Directory,
+                    StorePath = m_gdsRoot,
+                    SubjectName =
+                        "CN=GDS AOT Test Server, O=OPC Foundation, DC=localhost",
+                    CertificateType = ObjectTypeIds.RsaSha256ApplicationCertificateType
+                }
+            ];
 
             m_serverApplication = new ApplicationInstance(Telemetry)
             {

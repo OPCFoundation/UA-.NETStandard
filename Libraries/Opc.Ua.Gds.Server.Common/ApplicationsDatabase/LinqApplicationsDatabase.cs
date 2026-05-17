@@ -109,74 +109,126 @@ namespace Opc.Ua.Gds.Server.Database.Linq
 
         public override NodeId RegisterApplication(ApplicationRecordDataType application)
         {
-            NodeId appNodeId = base.RegisterApplication(application);
-            if (appNodeId.IsNull)
-            {
-                appNodeId = new NodeId(Guid.NewGuid(), NamespaceIndex);
-            }
-            Guid applicationId = GetNodeIdGuid(appNodeId);
+            base.RegisterApplication(application);
+
+            var applicationId = Guid.NewGuid();
+
             string capabilities = ServerCapabilities(application);
 
             lock (Lock)
             {
-                Application? record = null;
+                bool existingApplication = (
+                    from ii in Applications
+                    where ii.ApplicationUri == application.ApplicationUri
+                    select ii
+                ).Any();
 
-                if (applicationId != Guid.Empty)
+                if (existingApplication)
                 {
-                    IEnumerable<Application> results =
-                        from ii in Applications
-                        where ii.ApplicationId == applicationId
-                        select ii;
+                    throw new ServiceResultException(
+                        StatusCodes.BadEntryExists,
+                        "An application with the same application URI is already registered.");
+                }
 
-                    record = results.SingleOrDefault();
+                var record = new Application
+                {
+                    ApplicationId = applicationId,
+                    ID = 0,
+                    ApplicationUri = application.ApplicationUri,
+                    ApplicationName = application.ApplicationNames[0].Text,
+                    ApplicationType = (int)application.ApplicationType,
+                    ProductUri = application.ProductUri,
+                    ServerCapabilities = capabilities
+                };
 
-                    if (record != null)
+                Applications.Add(record);
+
+                SaveChanges();
+
+                foreach (string discoveryUrl in application.DiscoveryUrls)
+                {
+                    ServerEndpoints.Add(
+                        new ServerEndpoint
+                        {
+                            ApplicationId = record.ApplicationId,
+                            DiscoveryUrl = discoveryUrl
+                        });
+                }
+
+                if (!application.ApplicationNames.IsEmpty)
+                {
+                    foreach (LocalizedText applicationName in application.ApplicationNames)
                     {
-                        var endpoints = (
-                            from ii in ServerEndpoints
-                            where ii.ApplicationId == record.ApplicationId
-                            select ii
-                        ).ToList();
-
-                        foreach (ServerEndpoint endpoint in endpoints)
-                        {
-                            ServerEndpoints.Remove(endpoint);
-                        }
-
-                        var names = (
-                            from ii in ApplicationNames
-                            where ii.ApplicationId == record.ApplicationId
-                            select ii
-                        ).ToList();
-
-                        foreach (ApplicationName name in names)
-                        {
-                            ApplicationNames.Remove(name);
-                        }
-
-                        SaveChanges();
+                        ApplicationNames.Add(
+                            new ApplicationName
+                            {
+                                ApplicationId = record.ApplicationId,
+                                Locale = applicationName.Locale,
+                                Text = applicationName.Text
+                            });
                     }
                 }
 
-                bool isNew = false;
+                SaveChanges();
+
+                return new NodeId(applicationId, NamespaceIndex);
+            }
+        }
+
+        public override NodeId UpdateApplication(ApplicationRecordDataType application)
+        {
+            base.UpdateApplication(application);
+
+            Guid applicationId = GetNodeIdGuid(application.ApplicationId);
+            string capabilities = ServerCapabilities(application);
+
+            lock (Lock)
+            {
+                Application? record =
+                        (from ii in Applications
+                         where ii.ApplicationId == applicationId
+                         select ii).SingleOrDefault();
 
                 if (record == null)
                 {
-                    applicationId = Guid.NewGuid();
-                    record = new Application { ApplicationId = applicationId, ID = 0 };
-                    isNew = true;
+                    throw new ServiceResultException(StatusCodes.BadNotFound);
                 }
+
+                if (record.ApplicationUri != application.ApplicationUri)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadWriteNotSupported);
+                }
+
+                var endpoints = (
+                    from ii in ServerEndpoints
+                    where ii.ApplicationId == record.ApplicationId
+                    select ii
+                ).ToList();
+
+                foreach (ServerEndpoint endpoint in endpoints)
+                {
+                    ServerEndpoints.Remove(endpoint);
+                }
+
+                var names = (
+                    from ii in ApplicationNames
+                    where ii.ApplicationId == record.ApplicationId
+                    select ii
+                ).ToList();
+
+                foreach (ApplicationName name in names)
+                {
+                    ApplicationNames.Remove(name);
+                }
+
+                SaveChanges();
 
                 record.ApplicationUri = application.ApplicationUri;
                 record.ApplicationName = application.ApplicationNames[0].Text;
                 record.ApplicationType = (int)application.ApplicationType;
                 record.ProductUri = application.ProductUri;
                 record.ServerCapabilities = capabilities;
-
-                if (isNew)
-                {
-                    Applications.Add(record);
-                }
 
                 SaveChanges();
 
@@ -221,9 +273,9 @@ namespace Opc.Ua.Gds.Server.Database.Linq
                 Application application =
                     (from ii in Applications where ii.ApplicationId == id select ii)
                         .SingleOrDefault()
-                    ?? throw new ArgumentException(
-                        "A record with the specified application id does not exist.",
-                        nameof(applicationId));
+                    ?? throw new ServiceResultException(
+                        StatusCodes.BadNotFound,
+                        "A record with the specified application id does not exist.");
 
                 IEnumerable<CertificateRequest> certificateRequests =
                     from ii in CertificateRequests
@@ -325,6 +377,8 @@ namespace Opc.Ua.Gds.Server.Database.Linq
 
         public override ApplicationRecordDataType[] FindApplications(string applicationUri)
         {
+            base.FindApplications(applicationUri);
+
             lock (Lock)
             {
                 IEnumerable<Application> results =
@@ -401,15 +455,27 @@ namespace Opc.Ua.Gds.Server.Database.Linq
             out DateTimeUtc lastCounterResetTime,
             out uint nextRecordId)
         {
+            base.QueryApplications(
+                startingRecordId,
+                maxRecordsToReturn,
+                applicationName,
+                applicationUri,
+                applicationType,
+                productUri,
+                serverCapabilities,
+                out lastCounterResetTime,
+                out nextRecordId);
+
             lastCounterResetTime = DateTimeUtc.MinValue;
             nextRecordId = 0;
             var records = new List<ApplicationDescription>();
 
             lock (Lock)
             {
-                IEnumerable<Application> results =
+                IOrderedEnumerable<Application> results =
                     from x in Applications
-                    where (int)startingRecordId == 0 || (int)startingRecordId <= x.ID
+                    where (int)startingRecordId == 0 || (int)startingRecordId < x.ID
+                    orderby x.ID
                     select x;
 
                 lastCounterResetTime = QueryCounterResetTime;
@@ -500,6 +566,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
                     {
                         if (maxRecordsToReturn != 0 && records.Count >= maxRecordsToReturn)
                         {
+                            nextRecordId = result.ID + 1;
                             break;
                         }
 
@@ -529,7 +596,6 @@ namespace Opc.Ua.Gds.Server.Database.Linq
                             DiscoveryProfileUri = null,
                             DiscoveryUrls = discoveryUrls
                         });
-                    nextRecordId = lastID + 1;
                 }
                 return [.. records];
             }
@@ -544,6 +610,15 @@ namespace Opc.Ua.Gds.Server.Database.Linq
             ArrayOf<string> serverCapabilities,
             out DateTimeUtc lastCounterResetTime)
         {
+            base.QueryServers(
+                startingRecordId,
+                maxRecordsToReturn,
+                applicationName,
+                applicationUri,
+                productUri,
+                serverCapabilities,
+                out lastCounterResetTime);
+
             lock (Lock)
             {
                 lastCounterResetTime = QueryCounterResetTime;
@@ -551,7 +626,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
                 var results =
                     from x in ServerEndpoints
                     join y in Applications on x.ApplicationId equals y.ApplicationId
-                    where y.ID >= startingRecordId
+                    where y.ID > startingRecordId
                     orderby y.ID
                     select new
                     {
@@ -614,7 +689,6 @@ namespace Opc.Ua.Gds.Server.Database.Linq
 
                     if (lastID != 0 &&
                         maxRecordsToReturn != 0 &&
-                        lastID != result.ID &&
                         records.Count >= maxRecordsToReturn)
                     {
                         break;

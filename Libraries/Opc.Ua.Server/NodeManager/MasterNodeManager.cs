@@ -1337,6 +1337,7 @@ namespace Opc.Ua.Server
             Type listType = typeof(T);
 
             if (listType != typeof(ReadValueId) &&
+                listType != typeof(WriteValue) &&
                 listType != typeof(BrowseDescription) &&
                 listType != typeof(CallMethodRequest))
             {
@@ -2085,6 +2086,10 @@ namespace Opc.Ua.Server
             var results = new List<StatusCode>(count);
             var diagnosticInfos = new List<DiagnosticInfo>(count);
 
+            PrepareValidationCache(
+                nodesToWrite,
+                out Dictionary<NodeId, Variant[]> uniqueNodesReadAttributes);
+
             // add placeholder for each result.
             bool validItems = false;
 
@@ -2094,7 +2099,12 @@ namespace Opc.Ua.Server
                 DiagnosticInfo? diagnosticInfo = null;
 
                 // pre-validate and pre-parse parameter. Validate also access rights and role permissions
-                ServiceResult? error = await ValidateWriteRequestAsync(context, nodesToWrite[ii], cancellationToken)
+                ServiceResult? error = await ValidateWriteRequestAsync(
+                    context,
+                    nodesToWrite[ii],
+                    uniqueNodesReadAttributes,
+                    false,
+                    cancellationToken)
                     .ConfigureAwait(false);
 
                 // return error status.
@@ -2326,6 +2336,10 @@ namespace Opc.Ua.Server
             var diagnosticInfos = new List<DiagnosticInfo>(methodsToCall.Count);
             var errors = new List<ServiceResult>(methodsToCall.Count);
 
+            PrepareValidationCache(
+                methodsToCall,
+                out Dictionary<NodeId, Variant[]> uniqueNodesReadAttributes);
+
             // add placeholder for each result.
             bool validItems = false;
 
@@ -2340,7 +2354,14 @@ namespace Opc.Ua.Server
                 }
 
                 // validate request parameters.
-                errors[ii] = ValidateCallRequestItem(context, methodsToCall[ii]);
+                errors[ii] = await ValidateCallRequestItemAsync(
+                    context,
+                    methodsToCall[ii],
+                    uniqueNodesReadAttributes,
+                    // With resolver-based method lookup and an attribute cache, GetPermissionMetadataAsync
+                    // reads and caches the required permission attributes without the permissionsOnly shortcut.
+                    false,
+                    cancellationToken).ConfigureAwait(false);
 
                 if (ServiceResult.IsBad(errors[ii]))
                 {
@@ -3522,11 +3543,14 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Validates a call request item parameter. It validates also access rights and role permissions
+        /// Validates a call request item parameter and checks access rights and role permissions.
         /// </summary>
-        protected ServiceResult ValidateCallRequestItem(
+        protected async ValueTask<ServiceResult> ValidateCallRequestItemAsync(
             OperationContext operationContext,
-            CallMethodRequest callMethodRequest)
+            CallMethodRequest callMethodRequest,
+            Dictionary<NodeId, Variant[]>? uniqueNodesReadAttributes = null,
+            bool permissionsOnly = false,
+            CancellationToken cancellationToken = default)
         {
             // check for null structure.
             if (callMethodRequest == null)
@@ -3544,6 +3568,33 @@ namespace Opc.Ua.Server
             if (callMethodRequest.MethodId.IsNull)
             {
                 return StatusCodes.BadMethodInvalid;
+            }
+
+            (_, IAsyncNodeManager? nodeManager) = await GetManagerHandleAsync(callMethodRequest.ObjectId, cancellationToken)
+                    .ConfigureAwait(false);
+
+            if (nodeManager == null)
+            {
+                return StatusCodes.BadNodeIdUnknown;
+            }
+
+            // Method resolution fallback is provided by the IAsyncNodeManager adapter path.
+            MethodState method = await nodeManager.FindMethodStateAsync(
+                operationContext,
+                callMethodRequest,
+                cancellationToken).ConfigureAwait(false);
+
+            if (method != null)
+            {
+                // check access rights and role permissions
+                return await ValidatePermissionsAsync(
+                        operationContext,
+                        method.NodeId,
+                        PermissionType.Call,
+                        uniqueNodesReadAttributes,
+                        permissionsOnly,
+                        cancellationToken)
+                    .ConfigureAwait(false);
             }
 
             return StatusCodes.Good;
@@ -3593,6 +3644,8 @@ namespace Opc.Ua.Server
         protected async ValueTask<ServiceResult?> ValidateWriteRequestAsync(
             OperationContext operationContext,
             WriteValue writeValue,
+            Dictionary<NodeId, Variant[]>? uniqueNodesServiceAttributes = null,
+            bool permissionsOnly = false,
             CancellationToken cancellationToken = default)
         {
             ServiceResult? serviceResult = WriteValue.Validate(writeValue);
@@ -3618,8 +3671,8 @@ namespace Opc.Ua.Server
                         operationContext,
                         writeValue.NodeId,
                         requestedPermission,
-                        null,
-                        true,
+                        uniqueNodesServiceAttributes,
+                        permissionsOnly,
                         cancellationToken)
                     .ConfigureAwait(false);
             }

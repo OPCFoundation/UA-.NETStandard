@@ -133,6 +133,21 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
+        public ValueTask<MethodState> FindMethodStateAsync(
+            OperationContext context,
+            CallMethodRequest methodToCall,
+            CancellationToken cancellationToken = default)
+        {
+            if (SyncNodeManager is INodeManager3 nodeManager)
+            {
+                MethodState method = nodeManager.FindMethodState(context, methodToCall);
+                return new ValueTask<MethodState>(method);
+            }
+
+            return new ValueTask<MethodState>(result: null!);
+        }
+
+        /// <inheritdoc/>
         public ValueTask<ServiceResult> ConditionRefreshAsync(
             OperationContext context,
             IList<IEventMonitoredItem> monitoredItems,
