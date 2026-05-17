@@ -247,8 +247,13 @@
           </Grid>
         </TabItem>
         <TabItem Header="Rejected" x:Name="TabRejected">
-          <Grid RowDefinitions="Auto,*">
-            <Grid Grid.Row="0" ColumnDefinitions="200,2*,2*,100,100"
+          <Grid RowDefinitions="Auto,Auto,*">
+            <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,4,0,4" Spacing="6">
+              <Button Classes="tonal" Content="↻ Rejected"
+                      IsEnabled="{CompiledBinding !IsBusy}"
+                      Command="{CompiledBinding RefreshRejectedListCommand}" />
+            </StackPanel>
+            <Grid Grid.Row="1" ColumnDefinitions="200,2*,2*,100,100"
                   Background="#1E293B" Margin="0,4,0,0">
               <TextBlock Grid.Column="0" Margin="6,4" Classes="h" Text="Thumbprint" />
               <TextBlock Grid.Column="1" Margin="6,4" Classes="h" Text="Subject" />
@@ -256,7 +261,7 @@
               <TextBlock Grid.Column="3" Margin="6,4" Classes="h" Text="Not Before" />
               <TextBlock Grid.Column="4" Margin="6,4" Classes="h" Text="Not After" />
             </Grid>
-            <ListBox Grid.Row="1" x:Name="RejectedList"
+            <ListBox Grid.Row="2" x:Name="RejectedList"
                      ItemsSource="{CompiledBinding Rejected}"
                      Background="#0B1220" Foreground="#E2E8F0"
                      BorderThickness="0">
@@ -288,6 +293,11 @@
     <!-- Row 4: action bar -->
     <Border Grid.Row="4" Classes="panel" Margin="0,6,0,0">
       <StackPanel Orientation="Horizontal" Spacing="6">
+        <TextBlock Classes="h" Text="Mask" VerticalAlignment="Center" Margin="0,0,4,0" />
+        <ComboBox MinWidth="180"
+                  ItemsSource="{CompiledBinding TrustListMaskOptions}"
+                  SelectedItem="{CompiledBinding TrustListMasks}"
+                  IsEnabled="{CompiledBinding !IsBusy}" />
         <Button Classes="tonal" Content="↻ Refresh"
                 IsEnabled="{CompiledBinding !IsBusy}"
                 Command="{CompiledBinding RefreshCommand}" />

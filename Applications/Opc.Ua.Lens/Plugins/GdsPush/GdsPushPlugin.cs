@@ -201,6 +201,15 @@ internal sealed partial class GdsPushPlugin : ObservableObject, IPlugin
     [ObservableProperty]
     private TrustListBucket m_activeBucket = TrustListBucket.Trusted;
 
+    /// <summary>
+    /// Which categories the <see cref="RefreshAsync"/> command pulls from
+    /// the server. Defaults to <see cref="TrustListMasks.All"/> so the
+    /// view behaves like before; the user can narrow this from the
+    /// trust-list panel's mask combo.
+    /// </summary>
+    [ObservableProperty]
+    private TrustListMasks m_trustListMasks = TrustListMasks.All;
+
     [ObservableProperty]
     private GdsCertItem? m_selectedCertificate;
 
@@ -213,6 +222,13 @@ internal sealed partial class GdsPushPlugin : ObservableObject, IPlugin
     public ObservableCollection<GdsCertItem> Trusted { get; } = new();
     public ObservableCollection<GdsCertItem> Issuers { get; } = new();
     public ObservableCollection<GdsCertItem> Rejected { get; } = new();
+
+    /// <summary>
+    /// Source for the trust-list mask ComboBox on the trust-list panel.
+    /// Exposed once so the view can bind via CompiledBinding without
+    /// hitting reflection on <c>Enum.GetValues</c> at runtime.
+    /// </summary>
+    public IReadOnlyList<TrustListMasks> TrustListMaskOptions { get; } = Enum.GetValues<TrustListMasks>();
 
     public GdsPushPlugin(PluginHost host)
     {
@@ -304,6 +320,9 @@ internal sealed partial class GdsPushPlugin : ObservableObject, IPlugin
         disconnect.Click += async (_, _) => await DisconnectCommand.ExecuteAsync(null).ConfigureAwait(true);
         var refresh = new MenuItem { Header = "_Refresh" };
         refresh.Click += async (_, _) => await RefreshCommand.ExecuteAsync(null).ConfigureAwait(true);
+        var refreshRejected = new MenuItem { Header = "Refresh Re_jected List" };
+        refreshRejected.Click += async (_, _) =>
+            await RefreshRejectedListCommand.ExecuteAsync(null).ConfigureAwait(true);
         var addCert = new MenuItem { Header = "_Add Cert…" };
         addCert.Click += async (_, _) => await AddCertificateCommand.ExecuteAsync(null).ConfigureAwait(true);
         var removeCert = new MenuItem { Header = "_Remove Cert" };
@@ -312,7 +331,7 @@ internal sealed partial class GdsPushPlugin : ObservableObject, IPlugin
         newCert.Click += async (_, _) => await RequestNewCertificateCommand.ExecuteAsync(null).ConfigureAwait(true);
         var apply = new MenuItem { Header = "_Apply Changes" };
         apply.Click += async (_, _) => await ApplyChangesCommand.ExecuteAsync(null).ConfigureAwait(true);
-        return new[] { connect, disconnect, refresh, addCert, removeCert, newCert, apply };
+        return new[] { connect, disconnect, refresh, refreshRejected, addCert, removeCert, newCert, apply };
     }
 
     public void OnActivated() { }
@@ -636,20 +655,66 @@ internal sealed partial class GdsPushPlugin : ObservableObject, IPlugin
             {
                 return;
             }
+            TrustListMasks masks = TrustListMasks;
             TrustListDataType list = await client.ReadTrustListAsync(
-                TrustListMasks.All,
+                masks,
                 0,
                 CancellationToken.None).ConfigureAwait(true);
             Opc.Ua.Security.Certificates.CertificateCollection rejected = await client.GetRejectedListAsync(
                 CancellationToken.None).ConfigureAwait(true);
-            PopulateTrustList(list, rejected);
-            SetResult($"Refreshed: {Trusted.Count} trusted · {Issuers.Count} issuers · {Rejected.Count} rejected.");
-            m_log.LogInformation("GdsPush tab {Title}: refresh ok.", Title);
+            PopulateTrustList(list, rejected, masks);
+            SetResult($"Refreshed ({masks}): {Trusted.Count} trusted · {Issuers.Count} issuers · {Rejected.Count} rejected.");
+            m_log.LogInformation("GdsPush tab {Title}: refresh ok (masks={Masks}).", Title, masks);
         }
         catch (Exception ex)
         {
             SetResult($"Refresh failed: {ex.Message}");
             m_log.LogError(ex, "GdsPush tab {Title}: refresh failed.", Title);
+        }
+        finally
+        {
+            IsBusy = false;
+            UpdateStatus();
+        }
+    }
+
+    /// <summary>
+    /// Reloads only the server's rejected-certificates list via
+    /// <see cref="ServerPushConfigurationClient.GetRejectedListAsync"/>
+    /// and writes it into the <see cref="Rejected"/> collection. Use
+    /// from the Rejected sub-tab to pick up newly rejected connection
+    /// attempts without re-pulling the trust + issuer lists.
+    /// </summary>
+    [RelayCommand]
+    private async Task RefreshRejectedListAsync()
+    {
+        if (IsBusy)
+        {
+            return;
+        }
+
+        IsBusy = true;
+        try
+        {
+            ServerPushConfigurationClient? client = await EnsureSessionAsync(CancellationToken.None).ConfigureAwait(true);
+            if (client is null)
+            {
+                return;
+            }
+            Opc.Ua.Security.Certificates.CertificateCollection rejected = await client.GetRejectedListAsync(
+                CancellationToken.None).ConfigureAwait(true);
+            Rejected.Clear();
+            foreach (Opc.Ua.Security.Certificates.Certificate cert in rejected)
+            {
+                Rejected.Add(ToItem(cert.AsX509Certificate2()));
+            }
+            SetResult($"Rejected list refreshed: {Rejected.Count} cert(s).");
+            m_log.LogInformation("GdsPush tab {Title}: rejected list refresh ok ({Count}).", Title, Rejected.Count);
+        }
+        catch (Exception ex)
+        {
+            SetResult($"Refresh rejected list failed: {ex.Message}");
+            m_log.LogError(ex, "GdsPush tab {Title}: refresh rejected list failed.", Title);
         }
         finally
         {
@@ -908,12 +973,14 @@ internal sealed partial class GdsPushPlugin : ObservableObject, IPlugin
         await Task.CompletedTask.ConfigureAwait(false);
     }
 
-    private void PopulateTrustList(TrustListDataType list, Opc.Ua.Security.Certificates.CertificateCollection rejected)
+    private void PopulateTrustList(TrustListDataType list, Opc.Ua.Security.Certificates.CertificateCollection rejected, TrustListMasks masks)
     {
         Trusted.Clear();
         Issuers.Clear();
         Rejected.Clear();
-        if (list?.TrustedCertificates is { } trusted)
+        bool wantTrusted = (masks & TrustListMasks.TrustedCertificates) != 0;
+        bool wantIssuers = (masks & TrustListMasks.IssuerCertificates) != 0;
+        if (wantTrusted && list?.TrustedCertificates is { } trusted)
         {
             foreach (ByteString der in trusted)
             {
@@ -923,7 +990,7 @@ internal sealed partial class GdsPushPlugin : ObservableObject, IPlugin
                 }
             }
         }
-        if (list?.IssuerCertificates is { } issuers)
+        if (wantIssuers && list?.IssuerCertificates is { } issuers)
         {
             foreach (ByteString der in issuers)
             {
