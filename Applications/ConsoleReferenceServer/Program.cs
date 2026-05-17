@@ -148,7 +148,7 @@ namespace Quickstarts.ReferenceServer
                         telemetry,
                         t => new ReferenceServer(t)
                         {
-                            EnableConformanceNodeManagers = cttMode
+                            EnableFileSystemNodeManager = cttMode
                         })
                     {
                         AutoAccept = autoAccept,
