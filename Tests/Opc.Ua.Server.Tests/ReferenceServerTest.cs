@@ -1953,5 +1953,166 @@ namespace Opc.Ua.Server.Tests
             Assert.That(readResponse.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good),
                 "Read of References_HasReferenceTypeAndSubType should succeed");
         }
+
+        /// <summary>
+        /// Verifies that after transferring a subscription to a new session and re-activating
+        /// that session (which changes the identity context, e.g. simulating a switch from a
+        /// Sign &amp; Encrypt session to a Sign-only session), the permission caches for the
+        /// transferred monitored items are invalidated and permissions are re-evaluated
+        /// correctly on subsequent notifications.
+        /// </summary>
+        [Test]
+        public async Task PermissionsRevalidatedAfterTransferSubscriptionsAndReactivationAsync()
+        {
+            // Session A uses Sign security mode. Anonymous identity with a secure channel
+            // satisfies the identity check required by TransferSubscriptions.
+            (RequestHeader headerA, SecureChannelContext channelA) =
+                await m_server.CreateAndActivateSessionAsync(
+                    "TransferTest_SessionA",
+                    useSecurity: true).ConfigureAwait(false);
+            headerA.Timestamp = DateTimeUtc.Now;
+
+            uint subscriptionId = 0;
+            try
+            {
+                var servicesA = new ServerTestServices(m_server, channelA);
+
+                // Create a subscription in session A.
+                CreateSubscriptionResponse subResp = await servicesA.CreateSubscriptionAsync(
+                    headerA,
+                    requestedPublishingInterval: 100,
+                    requestedLifetimeCount: 10,
+                    requestedMaxKeepAliveCount: 5,
+                    maxNotificationsPerPublish: 0,
+                    publishingEnabled: true,
+                    priority: 0).ConfigureAwait(false);
+                ServerFixtureUtils.ValidateResponse(subResp.ResponseHeader);
+                subscriptionId = subResp.SubscriptionId;
+
+                // Monitor a variable node that is accessible to all sessions.
+                ArrayOf<MonitoredItemCreateRequest> monitoredItems =
+                [
+                    new MonitoredItemCreateRequest
+                    {
+                        ItemToMonitor = new ReadValueId
+                        {
+                            NodeId = VariableIds.Server_ServerStatus_CurrentTime,
+                            AttributeId = Attributes.Value
+                        },
+                        MonitoringMode = MonitoringMode.Reporting,
+                        RequestedParameters = new MonitoringParameters
+                        {
+                            ClientHandle = 1,
+                            SamplingInterval = 0,
+                            QueueSize = 10,
+                            DiscardOldest = true
+                        }
+                    }
+                ];
+
+                CreateMonitoredItemsResponse itemsResp = await servicesA.CreateMonitoredItemsAsync(
+                    headerA,
+                    subscriptionId,
+                    TimestampsToReturn.Both,
+                    monitoredItems).ConfigureAwait(false);
+                ServerFixtureUtils.ValidateResponse(itemsResp.ResponseHeader, itemsResp.Results, monitoredItems);
+                Assert.That(StatusCode.IsGood(itemsResp.Results[0].StatusCode), Is.True,
+                    "Monitored item creation should succeed.");
+
+                // Allow time for the initial notification to be queued and populate the permission cache.
+                await Task.Delay(300).ConfigureAwait(false);
+
+                headerA.Timestamp = DateTimeUtc.Now;
+                PublishResponse publishRespA = await servicesA.PublishAsync(
+                    headerA,
+                    []).ConfigureAwait(false);
+                ServerFixtureUtils.ValidateResponse(publishRespA.ResponseHeader);
+
+                // Session B: also Sign security mode (required for anonymous-identity transfer).
+                (RequestHeader headerB, SecureChannelContext channelB) =
+                    await m_server.CreateAndActivateSessionAsync(
+                        "TransferTest_SessionB",
+                        useSecurity: true).ConfigureAwait(false);
+                headerB.Timestamp = DateTimeUtc.Now;
+
+                try
+                {
+                    var servicesB = new ServerTestServices(m_server, channelB);
+
+                    // Transfer the subscription from session A to session B.
+                    TransferSubscriptionsResponse transferResp =
+                        await servicesB.TransferSubscriptionsAsync(
+                            headerB,
+                            [subscriptionId],
+                            sendInitialValues: true).ConfigureAwait(false);
+                    ServerFixtureUtils.ValidateResponse(transferResp.ResponseHeader);
+                    Assert.That(StatusCode.IsGood(transferResp.Results[0].StatusCode), Is.True,
+                        "Subscription transfer to session B should succeed.");
+
+                    // Re-activate session B with different locale IDs.
+                    // Changing the locale causes Session.Activate to return changed=true, which
+                    // triggers StandardServer.ActivateSessionAsync to call
+                    // IMasterNodeManager.SessionActivatedAsync. That in turn calls
+                    // MonitoredNode2.InvalidatePermissionCacheForSession for the transferred items,
+                    // ensuring permissions are re-evaluated on the next notification — the same
+                    // effect as switching from a Sign & Encrypt session to a Sign-only session.
+                    headerB.Timestamp = DateTimeUtc.Now;
+                    ActivateSessionResponse reactivateResp = await m_server.ActivateSessionAsync(
+                        channelB,
+                        headerB,
+                        default,
+                        [],
+                        ["fr-FR"],
+                        default,
+                        null,
+                        RequestLifetime.None).ConfigureAwait(false);
+                    ServerFixtureUtils.ValidateResponse(reactivateResp.ResponseHeader);
+
+                    // Allow time for a new notification with the re-evaluated permissions.
+                    await Task.Delay(300).ConfigureAwait(false);
+
+                    // Publish from session B. With correct cache invalidation, permissions are
+                    // re-evaluated and the subscription delivers notifications without error.
+                    headerB.Timestamp = DateTimeUtc.Now;
+                    PublishResponse publishRespB = await servicesB.PublishAsync(
+                        headerB,
+                        []).ConfigureAwait(false);
+                    ServerFixtureUtils.ValidateResponse(publishRespB.ResponseHeader);
+                    Assert.That(publishRespB.SubscriptionId, Is.EqualTo(subscriptionId),
+                        "Subscription should still be associated with session B after re-activation.");
+
+                    // Clean up subscription via session B.
+                    headerB.Timestamp = DateTimeUtc.Now;
+                    await servicesB.DeleteSubscriptionsAsync(
+                        headerB,
+                        [subscriptionId]).ConfigureAwait(false);
+                    subscriptionId = 0;
+                }
+                finally
+                {
+                    headerB.Timestamp = DateTimeUtc.Now;
+                    await m_server.CloseSessionAsync(
+                        channelB,
+                        headerB,
+                        CancellationToken.None).ConfigureAwait(false);
+                }
+            }
+            finally
+            {
+                if (subscriptionId != 0)
+                {
+                    var servicesA = new ServerTestServices(m_server, channelA);
+                    headerA.Timestamp = DateTimeUtc.Now;
+                    await servicesA.DeleteSubscriptionsAsync(headerA, [subscriptionId])
+                        .ConfigureAwait(false);
+                }
+
+                headerA.Timestamp = DateTimeUtc.Now;
+                await m_server.CloseSessionAsync(
+                    channelA,
+                    headerA,
+                    CancellationToken.None).ConfigureAwait(false);
+            }
+        }
     }
 }
