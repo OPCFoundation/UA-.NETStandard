@@ -105,25 +105,6 @@ namespace Quickstarts.ReferenceServer
         public bool ProvisioningMode { get; set; }
 
         /// <summary>
-        /// If true, the server creates the FileSystem node manager that
-        /// exposes the host's drives/directories/files under the Server
-        /// object. This materially grows the address space — only enable
-        /// it in tests / hosts that exercise FileSystem (Part 20). Default
-        /// is <c>false</c> so the standard test fixtures keep a small,
-        /// browse-friendly address space.
-        /// </summary>
-        public bool EnableFileSystemNodeManager { get; set; }
-
-        /// <summary>
-        /// Provider that backs the FileSystem node manager when
-        /// <see cref="EnableFileSystemNodeManager"/> is <c>true</c>.
-        /// When <c>null</c>, the server falls back to a
-        /// <see cref="Opc.Ua.Server.FileSystem.PhysicalFileSystemProvider"/>
-        /// rooted at <c>%TEMP%/OpcUaReferenceServerFs</c>.
-        /// </summary>
-        public Opc.Ua.Server.FileSystem.IFileSystemProvider? FileSystemProvider { get; set; }
-
-        /// <summary>
         /// The user database used for credential verification and user management.
         /// </summary>
         public IUserDatabase UserDatabase => m_userDatabase;
@@ -194,34 +175,7 @@ namespace Quickstarts.ReferenceServer
             var aliasNameNodeManager = new AliasNameNodeManager(server, configuration);
             nodeManagers.Add(aliasNameNodeManager);
 
-            if (EnableFileSystemNodeManager)
-            {
-                // FileSystem node manager — exposes the configured
-                // provider (defaults to a temp folder) under the
-                // standard Server.FileSystem object (i=16314).
-                Opc.Ua.Server.FileSystem.IFileSystemProvider provider =
-                    FileSystemProvider ?? CreateDefaultFileSystemProvider();
-                nodeManagers.Add(new Opc.Ua.Server.FileSystem.FileSystemNodeManager(
-                    server, configuration, provider));
-            }
-
             return new MasterNodeManager(server, configuration, null, asyncNodeManagers, nodeManagers);
-        }
-
-        /// <summary>
-        /// Returns a default <see cref="Opc.Ua.Server.FileSystem.PhysicalFileSystemProvider"/>
-        /// rooted at a per-process temp folder. Override
-        /// <see cref="FileSystemProvider"/> to mount a different
-        /// backend.
-        /// </summary>
-        private static Opc.Ua.Server.FileSystem.IFileSystemProvider CreateDefaultFileSystemProvider()
-        {
-            string root = System.IO.Path.Combine(
-                System.IO.Path.GetTempPath(),
-                "OpcUaReferenceServerFs");
-            return new Opc.Ua.Server.FileSystem.PhysicalFileSystemProvider(
-                root,
-                mountName: "Temp");
         }
 
         /// <summary>
