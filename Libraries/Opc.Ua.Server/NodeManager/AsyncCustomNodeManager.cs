@@ -5034,7 +5034,7 @@ namespace Opc.Ua.Server
             NodeId sessionId,
             CancellationToken cancellationToken = default)
         {
-            // overridden by the sub-class.
+            // Override in derived classes to handle session activation with changed identity.
             return default;
         }
 
