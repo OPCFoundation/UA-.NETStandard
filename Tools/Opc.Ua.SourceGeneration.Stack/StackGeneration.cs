@@ -129,7 +129,7 @@ namespace Opc.Ua.SourceGeneration
             // Check that we are running with opc ua core production only
             switch (m_compilationOptions.AssemblyName)
             {
-                case "Opc.Ua":
+                case "Opc.Ua.Core.Types":
                     type = StackGenerationType.Models;
                     break;
                 case "Opc.Ua.Core":
