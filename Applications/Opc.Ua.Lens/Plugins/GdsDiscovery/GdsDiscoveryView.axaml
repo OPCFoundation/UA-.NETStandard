@@ -1,0 +1,157 @@
+<!-- ========================================================================
+   Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+
+   OPC Foundation MIT License 1.00
+
+   Permission is hereby granted, free of charge, to any person
+   obtaining a copy of this software and associated documentation
+   files (the "Software"), to deal in the Software without
+   restriction, including without limitation the rights to use,
+   copy, modify, merge, publish, distribute, sublicense, and/or sell
+   copies of the Software, and to permit persons to whom the
+   Software is furnished to do so, subject to the following
+   conditions:
+
+   The above copyright notice and this permission notice shall be
+   included in all copies or substantial portions of the Software.
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+   EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+   OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+   NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+   HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+   WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+   FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+   OTHER DEALINGS IN THE SOFTWARE.
+
+   The complete license agreement can be found here:
+   http://opcfoundation.org/License/MIT/1.00/
+======================================================================== -->
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:UaLens.Plugins.GdsDiscovery"
+             x:Class="UaLens.Plugins.GdsDiscovery.GdsDiscoveryView"
+             x:DataType="vm:GdsDiscoveryPlugin"
+             Background="#121A2C" Foreground="#E2E8F0">
+  <UserControl.Styles>
+    <Style Selector="Button.tonal">
+      <Setter Property="Background" Value="#1E293B" />
+      <Setter Property="Foreground" Value="#E2E8F0" />
+      <Setter Property="Padding" Value="10,5" />
+      <Setter Property="MinWidth" Value="96" />
+    </Style>
+    <Style Selector="Button.primary">
+      <Setter Property="Background" Value="#0EA5E9" />
+      <Setter Property="Foreground" Value="#0F172A" />
+      <Setter Property="Padding" Value="10,5" />
+      <Setter Property="MinWidth" Value="96" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+    <Style Selector="Border.panel">
+      <Setter Property="BorderBrush" Value="#1E293B" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="4" />
+      <Setter Property="Background" Value="#0B1220" />
+    </Style>
+    <Style Selector="TextBlock.h">
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Foreground" Value="#94A3B8" />
+    </Style>
+    <Style Selector="TextBlock.row">
+      <Setter Property="FontFamily" Value="Cascadia Mono, Consolas, monospace" />
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+      <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+    </Style>
+  </UserControl.Styles>
+
+  <DockPanel LastChildFill="True">
+
+    <Border DockPanel.Dock="Top" Classes="panel" Margin="8,8,8,4" Padding="8,6">
+      <DockPanel LastChildFill="False">
+        <TextBlock VerticalAlignment="Center" Foreground="#94A3B8"
+                   FontSize="12" Margin="0,0,12,0"
+                   Text="🔍 Discovery" />
+        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="6">
+          <TextBlock VerticalAlignment="Center" Foreground="#94A3B8" FontSize="11"
+                     Text="LDS host:" />
+          <TextBox Width="220" Margin="6,0"
+                   Text="{CompiledBinding LocalMachineUrl, Mode=TwoWay}"
+                   FontFamily="Cascadia Mono, Consolas, monospace" FontSize="12" />
+          <Button Classes="tonal" Content="Add Custom…"
+                  Command="{CompiledBinding AddCustomEndpointCommand}" />
+          <Border Width="1" Background="#1E293B" Margin="2,4" />
+          <Button Classes="tonal" Content="↻ Refresh"
+                  Command="{CompiledBinding RefreshSelectedRootCommand}" />
+          <Button Classes="tonal" Content="Filter…"
+                  Command="{CompiledBinding EditFilterCommand}" />
+          <Border Width="1" Background="#1E293B" Margin="2,4" />
+          <Button Classes="primary" Content="Connect"
+                  Command="{CompiledBinding ConnectSelectedToConnectionPaneCommand}" />
+        </StackPanel>
+      </DockPanel>
+    </Border>
+
+    <Border Classes="panel" Margin="8,4,8,8">
+      <Grid ColumnDefinitions="*,5,2*">
+        <!-- Left: tree -->
+        <Grid Grid.Column="0" RowDefinitions="Auto,*">
+          <Border Grid.Row="0" Background="#1E293B">
+            <TextBlock Margin="8,4" Classes="h" Text="SERVERS" />
+          </Border>
+          <TreeView Grid.Row="1"
+                    ItemsSource="{CompiledBinding Roots}"
+                    SelectedItem="{CompiledBinding SelectedNode, Mode=TwoWay}"
+                    Background="#0B1220" Foreground="#E2E8F0"
+                    BorderThickness="0">
+            <TreeView.Styles>
+              <Style Selector="TreeViewItem" x:DataType="vm:DiscoveryNode">
+                <Setter Property="IsExpanded" Value="{CompiledBinding IsExpanded, Mode=TwoWay}" />
+                <Setter Property="Padding" Value="4,2" />
+              </Style>
+            </TreeView.Styles>
+            <TreeView.ItemTemplate>
+              <TreeDataTemplate DataType="vm:DiscoveryNode" ItemsSource="{CompiledBinding Children}">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                  <TextBlock Text="{CompiledBinding Glyph}"
+                             FontFamily="Cascadia Mono, Consolas, monospace" FontSize="12" />
+                  <TextBlock Text="{CompiledBinding Display}" Classes="row" />
+                </StackPanel>
+              </TreeDataTemplate>
+            </TreeView.ItemTemplate>
+          </TreeView>
+        </Grid>
+
+        <GridSplitter Grid.Column="1" Width="5"
+                      ResizeDirection="Columns"
+                      ResizeBehavior="PreviousAndNext"
+                      Background="#1E293B" />
+
+        <!-- Right: endpoints list -->
+        <Grid Grid.Column="2" RowDefinitions="Auto,*">
+          <Grid Grid.Row="0" Background="#1E293B"
+                ColumnDefinitions="2*,120,*">
+            <TextBlock Grid.Column="0" Margin="8,4" Classes="h" Text="ENDPOINT URL" />
+            <TextBlock Grid.Column="1" Margin="8,4" Classes="h" Text="SEC. MODE" />
+            <TextBlock Grid.Column="2" Margin="8,4" Classes="h" Text="PROFILE" />
+          </Grid>
+          <ListBox Grid.Row="1"
+                   ItemsSource="{CompiledBinding Endpoints}"
+                   SelectedItem="{CompiledBinding SelectedEndpoint, Mode=TwoWay}"
+                   Background="#0B1220" Foreground="#E2E8F0"
+                   BorderThickness="0">
+            <ListBox.ItemTemplate>
+              <DataTemplate DataType="vm:DiscoveryEndpointRow">
+                <Grid ColumnDefinitions="2*,120,*">
+                  <TextBlock Grid.Column="0" Text="{CompiledBinding Url}" Classes="row" />
+                  <TextBlock Grid.Column="1" Text="{CompiledBinding SecurityMode}" Classes="row" />
+                  <TextBlock Grid.Column="2" Text="{CompiledBinding SecurityProfile}" Classes="row" />
+                </Grid>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+        </Grid>
+      </Grid>
+    </Border>
+  </DockPanel>
+</UserControl>

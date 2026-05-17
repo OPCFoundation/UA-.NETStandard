@@ -46,6 +46,7 @@ internal enum PluginKind
     Subscription,
     GdsPush,
     GdsManagement,
+    GdsDiscovery,
     Performance,
     EventView,
     Historian,

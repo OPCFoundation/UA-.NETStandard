@@ -133,6 +133,17 @@ internal sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     private SidePanelMode m_attributesPanelMode = SidePanelMode.AttrsAndRefs;
 
     /// <summary>
+    /// The registered application UaLens is currently working with.
+    /// Set by GDS plug-ins (Management resolves it, Push delivers
+    /// against it, Discovery surfaces it from picked endpoints). Other
+    /// plug-ins consume it via the <see cref="PluginHost"/> /
+    /// <see cref="MainViewModel"/>; updating it raises PropertyChanged
+    /// so cooperating tabs can react.
+    /// </summary>
+    [ObservableProperty]
+    private UaLens.Plugins.Gds.RegisteredApplicationContext? m_currentRegisteredApp;
+
+    /// <summary>
     /// Cycles the side-panel visibility through:
     /// None → AttrsOnly → AttrsAndRefs → RefsOnly → None.
     /// </summary>
@@ -250,12 +261,21 @@ internal sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     public async Task AddPluginAsync(
         PluginKind kind,
         NodeViewModel? seedEventSource = null,
-        bool seedPickTarget = false)
+        bool seedPickTarget = false,
+        UaLens.Plugins.Gds.RegisteredApplicationContext? seedRegisteredApp = null,
+        EndpointDescription? seedDiscoveryEndpoint = null)
     {
         if (kind == PluginKind.Subscription)
         {
             await AddTabCommand.ExecuteAsync(null).ConfigureAwait(true);
             return;
+        }
+        // Promote the seeded registered-app context to the shared
+        // top-level state so cooperating tabs (the freshly-spawned one
+        // plus any already-open GDS tabs) all see the same record.
+        if (seedRegisteredApp is not null)
+        {
+            CurrentRegisteredApp = seedRegisteredApp;
         }
         PluginRegistration reg = PluginRegistry.For(kind);
         IPlugin tab = reg.Factory(this);
@@ -284,6 +304,10 @@ internal sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
                 }
             });
         }
+        // seedDiscoveryEndpoint is consumed by the (future)
+        // GdsDiscoveryPlugin via a dedicated SeedEndpointAsync hook —
+        // wired here as a no-op until the plug-in lands.
+        _ = seedDiscoveryEndpoint;
     }
 
     /// <summary>Set by Program.cs once the resource-monitor host is up.</summary>

@@ -86,6 +86,15 @@ internal static class PluginRegistry
         },
         new PluginRegistration
         {
+            Kind = PluginKind.GdsDiscovery,
+            DisplayName = "GDS Discovery",
+            Glyph = "🔍",
+            Description = "Discover OPC UA servers via LDS (local network) and GDS (global), plus saved Custom endpoints.",
+            MenuHeader = "GDS _Discovery",
+            Factory = vm => new UaLens.Plugins.GdsDiscovery.GdsDiscoveryPlugin(vm.CreatePluginHost())
+        },
+        new PluginRegistration
+        {
             Kind = PluginKind.Performance,
             DisplayName = "Performance",
             Glyph = "📊",
