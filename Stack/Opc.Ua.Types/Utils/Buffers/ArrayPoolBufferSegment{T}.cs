@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -53,7 +53,7 @@ namespace Opc.Ua.Buffers
         /// </summary>
         public void Return(bool clearArray = false)
         {
-            T[] array = Interlocked.Exchange(ref m_array, null);
+            T[]? array = Interlocked.Exchange(ref m_array, null!);
             if (array != null)
             {
                 ArrayPool<T>.Shared.Return(array, clearArray);

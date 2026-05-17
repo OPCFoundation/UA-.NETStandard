@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Linq;
 using System.Net;
@@ -187,12 +188,12 @@ namespace Opc.Ua
         /// <summary>
         /// Raised when the status of a monitored connection changes.
         /// </summary>
-        public event EventHandler<ConnectionStatusEventArgs> ConnectionStatusChanged;
+        public event EventHandler<ConnectionStatusEventArgs>? ConnectionStatusChanged;
 
         /// <summary>
         /// Raised when a connection arrives and is waiting for a callback.
         /// </summary>
-        protected virtual void OnConnectionStatusChanged(object sender, ConnectionStatusEventArgs e)
+        protected virtual void OnConnectionStatusChanged(object? sender, ConnectionStatusEventArgs e)
         {
             ConnectionStatusChanged?.Invoke(sender, e);
         }
@@ -203,7 +204,7 @@ namespace Opc.Ua
         /// <exception cref="ArgumentException"></exception>
         public void CreateConnection(Uri url, int timeout)
         {
-            ITransportListener listener = null;
+            ITransportListener? listener = null;
 
             m_logger.LogInformation("Create Reverse Connection to Client at {Url}.", url);
 
@@ -255,7 +256,7 @@ namespace Opc.Ua
             ITransportListenerBindings bindingFactory = TransportBindings.Listeners;
 
             // initialize the server capabilities
-            ServerCapabilities = configuration.ServerConfiguration.ServerCapabilities;
+            ServerCapabilities = configuration.ServerConfiguration!.ServerCapabilities;
 
             // initialize the base addresses.
             InitializeBaseAddresses(configuration);
@@ -265,7 +266,7 @@ namespace Opc.Ua
             IList<ServiceHost> hosts = InitializeServiceHosts(
                 configuration,
                 bindingFactory,
-                out ApplicationDescription serverDescription,
+                out ApplicationDescription? serverDescription,
                 out ArrayOf<EndpointDescription> endpoints);
 
             // save discovery information.
@@ -322,7 +323,7 @@ namespace Opc.Ua
             ITransportListenerBindings bindingFactory = TransportBindings.Listeners;
 
             // initialize the server capabilities
-            ServerCapabilities = configuration.ServerConfiguration.ServerCapabilities;
+            ServerCapabilities = configuration.ServerConfiguration!.ServerCapabilities;
 
             // initialize the base addresses.
             InitializeBaseAddresses(configuration);
@@ -332,7 +333,7 @@ namespace Opc.Ua
             IList<ServiceHost> hosts = InitializeServiceHosts(
                 configuration,
                 bindingFactory,
-                out ApplicationDescription serverDescription,
+                out ApplicationDescription? serverDescription,
                 out ArrayOf<EndpointDescription> endpoints);
 
             // save discovery information.
@@ -431,7 +432,7 @@ namespace Opc.Ua
 
             foreach (BaseAddress baseAddress in BaseAddresses)
             {
-                var builder = new UriBuilder(baseAddress.DiscoveryUrl);
+                var builder = new UriBuilder(baseAddress.DiscoveryUrl!);
 
                 int index = builder.Host.IndexOf("localhost", StringComparison.OrdinalIgnoreCase);
 
@@ -532,7 +533,7 @@ namespace Opc.Ua
             }
 
             // close and dispose any listeners.
-            List<ITransportListener> listeners = TransportListeners;
+            List<ITransportListener>? listeners = TransportListeners;
 
             if (listeners != null)
             {
@@ -578,7 +579,7 @@ namespace Opc.Ua
         /// <summary>
         /// Creates an instance of the service host.
         /// </summary>
-        public virtual ServiceHost CreateServiceHost(ServerBase server, params Uri[] addresses)
+        public virtual ServiceHost? CreateServiceHost(ServerBase server, params Uri[] addresses)
         {
             return null;
         }
@@ -623,18 +624,18 @@ namespace Opc.Ua
         {
             if (!checkRequireEncryption || RequireEncryption(description))
             {
-                Certificate serverCertificate = serverCertificates
+                Certificate? serverCertificate = serverCertificates
                     .GetInstanceCertificate(
-                        description.SecurityPolicyUri)?.Certificate;
+                        description.SecurityPolicyUri!)?.Certificate;
                 // check if complete chain should be sent.
                 if (serverCertificates.SendCertificateChain)
                 {
                     description.ServerCertificate = serverCertificates
-                        .LoadCertificateChainRaw(serverCertificate).ToByteString();
+                        .LoadCertificateChainRaw(serverCertificate!)!.ToByteString();
                 }
                 else
                 {
-                    description.ServerCertificate = serverCertificate.RawData.ToByteString();
+                    description.ServerCertificate = serverCertificate!.RawData.ToByteString();
                 }
             }
         }
@@ -647,28 +648,28 @@ namespace Opc.Ua
             /// <summary>
             /// The URL for the base address.
             /// </summary>
-            public Uri Url { get; set; }
+            public required Uri Url { get; set; }
 
             /// <summary>
             /// Alternate URLs for the base address.
             /// </summary>
-            public List<Uri> AlternateUrls { get; set; }
+            public List<Uri>? AlternateUrls { get; set; }
 
             /// <summary>
             /// The profile URL for the address.
             /// </summary>
-            public string ProfileUri { get; set; }
+            public string? ProfileUri { get; set; }
 
             /// <summary>
             /// The discovery URL for the address.
             /// </summary>
-            public Uri DiscoveryUrl { get; set; }
+            public Uri? DiscoveryUrl { get; set; }
         }
 
         /// <summary>
         /// Gets the list of base addresses supported by the server.
         /// </summary>
-        protected IList<BaseAddress> BaseAddresses { get; set; }
+        protected IList<BaseAddress> BaseAddresses { get; set; } = [];
 
         /// <summary>
         /// Gets the list of endpoints supported by the server.
@@ -678,7 +679,7 @@ namespace Opc.Ua
         /// <summary>
         /// Gets the certificate manager, if available.
         /// </summary>
-        public CertificateManager CertificateManager { get; protected set; }
+        public CertificateManager? CertificateManager { get; protected set; }
 
         /// <summary>
         /// Gets or sets the encodeable factory to use for this server instance.
@@ -694,25 +695,25 @@ namespace Opc.Ua
         /// during server startup.
         /// </para>
         /// </remarks>
-        public IEncodeableFactory PrivateEncodeableFactory { get; set; }
+        public IEncodeableFactory? PrivateEncodeableFactory { get; set; }
 
         /// <summary>
         /// The non-configurable properties for the server.
         /// </summary>
         /// <value>The properties of the current server instance.</value>
-        protected ServerProperties ServerProperties { get; private set; }
+        protected ServerProperties? ServerProperties { get; private set; }
 
         /// <summary>
         /// The configuration for the server.
         /// </summary>
         /// <value>Object that stores the configurable configuration information for a UA application</value>
-        protected ApplicationConfiguration Configuration { get; private set; }
+        protected ApplicationConfiguration? Configuration { get; private set; }
 
         /// <summary>
         /// The application description for the server.
         /// </summary>
         /// <value>Object that contains a description for the ApplicationDescription DataType.</value>
-        protected ApplicationDescription ServerDescription { get; private set; }
+        protected ApplicationDescription? ServerDescription { get; private set; }
 
         /// <summary>
         /// Gets the list of service hosts used by the server instance.
@@ -740,7 +741,7 @@ namespace Opc.Ua
         /// Returns the service contract to use.
         /// </summary>
         [Obsolete("WCF not supported in this version.")]
-        protected virtual Type GetServiceContract()
+        protected virtual Type? GetServiceContract()
         {
             return null;
         }
@@ -748,7 +749,7 @@ namespace Opc.Ua
         /// <summary>
         /// Returns an instance of the endpoint to use.
         /// </summary>
-        protected virtual EndpointBase GetEndpointInstance(ServerBase server)
+        protected virtual EndpointBase? GetEndpointInstance(ServerBase server)
         {
             return null;
         }
@@ -757,13 +758,13 @@ namespace Opc.Ua
         /// Called after the application certificate update.
         /// </summary>
 #pragma warning disable RCS1047 // protected virtual member kept for binary compatibility with existing overrides
-        protected virtual void OnCertificateUpdateAsync(object sender, CertificateUpdateEventArgs e)
+        protected virtual void OnCertificateUpdateAsync(object? sender, CertificateUpdateEventArgs e)
 #pragma warning restore RCS1047
         {
             try
             {
-                ICertificateRegistry serverCertificates = CertificateManager;
-                ICertificateValidatorEx certificateValidator = e.CertificateValidator;
+                ICertificateRegistry? serverCertificates = CertificateManager;
+                ICertificateValidatorEx? certificateValidator = e.CertificateValidator;
 
                 if (serverCertificates == null)
                 {
@@ -823,14 +824,14 @@ namespace Opc.Ua
                     MaxChannelCount = 0
                 };
 
-                settings.MaxChannelCount = Configuration.ServerConfiguration.MaxChannelCount;
+                settings.MaxChannelCount = Configuration!.ServerConfiguration!.MaxChannelCount;
                 if (Utils.IsUriHttpsScheme(endpointUri.AbsoluteUri))
                 {
                     settings.HttpsMutualTls = Configuration.ServerConfiguration
                         .HttpsMutualTls;
                 }
 
-                listener.Open(endpointUri, settings, GetEndpointInstance(this));
+                listener.Open(endpointUri, settings, GetEndpointInstance(this)!);
 
                 TransportListeners.Add(listener);
 
@@ -886,7 +887,7 @@ namespace Opc.Ua
                     }
                 }
 
-                UserTokenPolicy existingPolicy = UserTokenPolicys.FirstOrDefault(
+                UserTokenPolicy? existingPolicy = UserTokenPolicys.FirstOrDefault(
                     o => o.TokenType == clone.TokenType &&
                         string.Equals(
                             o.SecurityPolicyUri,
@@ -931,7 +932,7 @@ namespace Opc.Ua
             }
 
             // check if client is using an ip address.
-            if (IPAddress.TryParse(hostname, out IPAddress address))
+            if (IPAddress.TryParse(hostname, out IPAddress? address) && address != null)
             {
                 if (IPAddress.IsLoopback(address))
                 {
@@ -978,7 +979,7 @@ namespace Opc.Ua
             }
 
             // check for aliases.
-            IPHostEntry entry = null;
+            IPHostEntry? entry = null;
 
             try
             {
@@ -1186,7 +1187,7 @@ namespace Opc.Ua
                 // process endpoints
                 foreach (EndpointDescription endpoint in endpoints)
                 {
-                    var endpointUrl = new UriBuilder(endpoint.EndpointUrl);
+                    var endpointUrl = new UriBuilder(endpoint.EndpointUrl!);
 
                     // find matching base address.
                     foreach (BaseAddress baseAddress in baseAddresses)
@@ -1239,10 +1240,10 @@ namespace Opc.Ua
                         translation.Server = application;
 
                         if (!translations.Exists(match =>
-                                match.EndpointUrl
+                                match.EndpointUrl!
                                     .Equals(translation.EndpointUrl, StringComparison.Ordinal) &&
                                 match.SecurityMode == translation.SecurityMode &&
-                                match.SecurityPolicyUri.Equals(
+                                match.SecurityPolicyUri!.Equals(
                                     translation.SecurityPolicyUri,
                                     StringComparison.Ordinal)))
                         {
@@ -1263,7 +1264,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="requestHeader">The object that contains description for the RequestHeader DataType.</param>
         /// <exception cref="ServiceResultException"></exception>
-        protected virtual void ValidateRequest(RequestHeader requestHeader)
+        protected virtual void ValidateRequest([NotNull] RequestHeader? requestHeader)
         {
             if (requestHeader == null)
             {
@@ -1376,6 +1377,10 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="configuration">The object that stores the configurable configuration information for a UA application.</param>
         /// <exception cref="ServiceResultException"></exception>
+        [MemberNotNull(
+            nameof(Configuration),
+            nameof(ServerProperties),
+            nameof(m_messageContext))]
         protected virtual void OnServerStarting(ApplicationConfiguration configuration)
         {
             // use the message context from the configuration to ensure the channels are
@@ -1440,9 +1445,9 @@ namespace Opc.Ua
             }
 
             // load the instance certificate.
-            Certificate defaultInstanceCertificate = null;
+            Certificate? defaultInstanceCertificate = null;
 
-            foreach (ServerSecurityPolicy securityPolicy in configuration.ServerConfiguration
+            foreach (ServerSecurityPolicy securityPolicy in configuration.ServerConfiguration!
                 .SecurityPolicies)
             {
                 if (securityPolicy.SecurityMode == MessageSecurityMode.None)
@@ -1452,7 +1457,7 @@ namespace Opc.Ua
 
                 Certificate instanceCertificate =
                     CertificateManager.GetInstanceCertificate(
-                        securityPolicy.SecurityPolicyUri)?.Certificate
+                        securityPolicy.SecurityPolicyUri!)?.Certificate
                     ?? throw ServiceResultException.ConfigurationError(
                         "Server does not have an instance certificate assigned.");
 
@@ -1468,12 +1473,12 @@ namespace Opc.Ua
             // assign a unique identifier if none specified.
             if (string.IsNullOrEmpty(configuration.ApplicationUri))
             {
-                Certificate instanceCertificate = CertificateManager
+                Certificate? instanceCertificate = CertificateManager
                     .GetInstanceCertificate(
-                        configuration.ServerConfiguration.SecurityPolicies[0].SecurityPolicyUri)?.Certificate;
+                        configuration.ServerConfiguration.SecurityPolicies[0].SecurityPolicyUri!)?.Certificate;
 
                 IReadOnlyList<string> applicationUris = X509Utils.GetApplicationUrisFromCertificate(
-                    instanceCertificate);
+                    instanceCertificate!);
                 // it is ok to pick the first here since it is only a fallback value
                 configuration.ApplicationUri = applicationUris.Count > 0 ? applicationUris[0] : null;
 
@@ -1482,13 +1487,13 @@ namespace Opc.Ua
                     configuration.ApplicationUri = Utils.Format(
                         "http://{0}/{1}/{2}",
                         Utils.GetHostName(),
-                        configuration.ApplicationName,
+                        configuration.ApplicationName!,
                         Guid.NewGuid());
                 }
             }
 
             // initialize namespace table.
-            messageContext.NamespaceUris.Append(configuration.ApplicationUri);
+            messageContext.NamespaceUris.Append(configuration.ApplicationUri!);
 
             // assign an instance name.
             if (string.IsNullOrEmpty(configuration.ApplicationName) &&
@@ -1515,7 +1520,7 @@ namespace Opc.Ua
         protected virtual IList<ServiceHost> InitializeServiceHosts(
             ApplicationConfiguration configuration,
             ITransportListenerBindings bindingFactory,
-            out ApplicationDescription serverDescription,
+            out ApplicationDescription? serverDescription,
             out ArrayOf<EndpointDescription> endpoints)
         {
             serverDescription = null;
@@ -1592,7 +1597,7 @@ namespace Opc.Ua
         protected ILogger m_logger { get; }
 #pragma warning restore IDE1006 // Naming Styles
 
-        private IServiceMessageContext m_messageContext;
+        private IServiceMessageContext? m_messageContext;
         private RequestQueue m_requestQueue;
         private readonly ITelemetryContext m_telemetry;
 

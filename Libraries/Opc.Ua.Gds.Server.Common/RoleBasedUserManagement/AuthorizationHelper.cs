@@ -70,7 +70,7 @@ namespace Opc.Ua.Gds.Server
                 bool selfAdmin = allowedRoles.Remove(GdsRole.ApplicationSelfAdmin);
 
                 //if true access is allowed
-                IUserIdentity userIdentity = (context as ISessionSystemContext)?.UserIdentity;
+                IUserIdentity? userIdentity = (context as ISessionSystemContext)?.UserIdentity;
                 if (HasRole(userIdentity, allowedRoles, context.NamespaceUris))
                 {
                     return;
@@ -105,7 +105,7 @@ namespace Opc.Ua.Gds.Server
             IApplicationsDatabase applicationsDatabase)
         {
             var roles = new List<Role> { GdsRole.CertificateAuthorityAdmin, Role.SecurityAdmin };
-            IUserIdentity userIdentity = (context as ISessionSystemContext)?.UserIdentity;
+            IUserIdentity? userIdentity = (context as ISessionSystemContext)?.UserIdentity;
             if (HasRole(userIdentity, roles, context.NamespaceUris))
             {
                 return;
@@ -145,7 +145,7 @@ namespace Opc.Ua.Gds.Server
             }
         }
 
-        private static bool HasRole(IUserIdentity userIdentity, IEnumerable<Role> roles, NamespaceTable namespaces)
+        private static bool HasRole(IUserIdentity? userIdentity, IEnumerable<Role> roles, NamespaceTable namespaces)
         {
             if (userIdentity != null && userIdentity.TokenType != UserTokenType.Anonymous)
             {
@@ -163,7 +163,7 @@ namespace Opc.Ua.Gds.Server
         }
 
         private static bool CheckSelfAdminPrivilege(
-            IUserIdentity userIdentity,
+            IUserIdentity? userIdentity,
             NodeId applicationId)
         {
             if (applicationId.IsNull)
@@ -183,7 +183,7 @@ namespace Opc.Ua.Gds.Server
         }
 
         private static bool CheckSelfAdminPrivilege(
-            IUserIdentity userIdentity,
+            IUserIdentity? userIdentity,
             CertificateStoreIdentifier trustedStore,
             Dictionary<NodeId, string> certTypeMap,
             IApplicationsDatabase applicationsDatabase)
@@ -195,7 +195,7 @@ namespace Opc.Ua.Gds.Server
                     applicationsDatabase.GetApplicationTrustLists(
                         identity.ApplicationId,
                         certType,
-                        out string trustListId);
+                        out string? trustListId);
                     if (trustedStore.StorePath == trustListId)
                     {
                         return true;

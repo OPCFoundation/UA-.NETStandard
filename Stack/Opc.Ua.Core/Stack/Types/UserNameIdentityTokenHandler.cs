@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -70,7 +70,7 @@ namespace Opc.Ua
         public UserIdentityToken Token => m_token;
 
         /// <inheritdoc/>
-        public string DisplayName => m_token.UserName;
+        public string DisplayName => m_token.UserName!;
 
         /// <inheritdoc/>
         public UserTokenType TokenType => UserTokenType.UserName;
@@ -78,12 +78,12 @@ namespace Opc.Ua
         /// <summary>
         /// The decrypted password associated with the token.
         /// </summary>
-        public byte[] DecryptedPassword { get; set; }
+        public byte[]? DecryptedPassword { get; set; }
 
         /// <summary>
         /// User name in the token.
         /// </summary>
-        public string UserName => m_token.UserName;
+        public string UserName => m_token.UserName!;
 
         /// <inheritdoc/>
         public void UpdatePolicy(UserTokenPolicy userTokenPolicy)
@@ -97,9 +97,9 @@ namespace Opc.Ua
             byte[] receiverNonce,
             string securityPolicyUri,
             IServiceMessageContext context,
-            Nonce receiverEphemeralKey = null,
-            Certificate senderCertificate = null,
-            CertificateCollection senderIssuerCertificates = null,
+            Nonce? receiverEphemeralKey = null,
+            Certificate? senderCertificate = null,
+            CertificateCollection? senderIssuerCertificates = null,
             bool doNotEncodeSenderCertificate = false,
             CancellationToken ct = default)
         {
@@ -119,9 +119,9 @@ namespace Opc.Ua
             }
 
             // handle RSA encryption.
-            SecurityPolicyInfo securityPolicy = SecurityPolicies.GetInfo(securityPolicyUri);
+            SecurityPolicyInfo? securityPolicy = SecurityPolicies.GetInfo(securityPolicyUri);
 
-            if (securityPolicy.EphemeralKeyAlgorithm == CertificateKeyAlgorithm.None)
+            if (securityPolicy!.EphemeralKeyAlgorithm == CertificateKeyAlgorithm.None)
             {
                 if (DecryptedPassword.Length > RsaEncryptedSecretPasswordThreshold)
                 {
@@ -154,7 +154,7 @@ namespace Opc.Ua
                 // check if the complete chain is included in the sender issuers.
                 if (senderIssuerCertificates != null &&
                     senderIssuerCertificates.Count > 0 &&
-                    senderIssuerCertificates[0].Thumbprint == senderCertificate.Thumbprint)
+                    senderIssuerCertificates[0].Thumbprint == senderCertificate?.Thumbprint)
                 {
                     var issuers = new CertificateCollection();
 
@@ -169,11 +169,11 @@ namespace Opc.Ua
                 var secret = EncryptedSecret.CreateForEcc(
                     context: context,
                     securityPolicyUri: securityPolicyUri,
-                    senderIssuerCertificates: senderIssuerCertificates,
+                    senderIssuerCertificates: senderIssuerCertificates!,
                     receiverCertificate: receiverCertificate,
-                    receiverNonce: receiverEphemeralKey,
-                    senderCertificate: senderCertificate,
-                    senderNonce: Nonce.CreateNonce(securityPolicy),
+                    receiverNonce: receiverEphemeralKey!,
+                    senderCertificate: senderCertificate!,
+                    senderNonce: Nonce.CreateNonce(securityPolicy)!,
                     doNotEncodeSenderCertificate: doNotEncodeSenderCertificate);
 
                 m_token.Password = secret.Encrypt(DecryptedPassword, receiverNonce).ToByteString();
@@ -189,10 +189,10 @@ namespace Opc.Ua
             Nonce receiverNonce,
             string securityPolicyUri,
             IServiceMessageContext context,
-            Nonce ephemeralKey = null,
-            Certificate senderCertificate = null,
-            CertificateCollection senderIssuerCertificates = null,
-            ICertificateValidatorEx validator = null,
+            Nonce? ephemeralKey = null,
+            Certificate? senderCertificate = null,
+            CertificateCollection? senderIssuerCertificates = null,
+            ICertificateValidatorEx? validator = null,
             CancellationToken ct = default)
         {
             //zero out existing password
@@ -211,7 +211,10 @@ namespace Opc.Ua
             }
 
             // handle RSA encryption.
-            SecurityPolicyInfo securityPolicy = SecurityPolicies.GetInfo(securityPolicyUri);
+            // GetInfo returns null only for unknown URIs; bail/throw earlier handled None case.
+            SecurityPolicyInfo securityPolicy = SecurityPolicies.GetInfo(securityPolicyUri)
+                ?? throw new ServiceResultException(StatusCodes.BadSecurityPolicyRejected,
+                    "Unknown security policy: " + securityPolicyUri);
 
             if (securityPolicy.EphemeralKeyAlgorithm == CertificateKeyAlgorithm.None)
             {
@@ -219,9 +222,9 @@ namespace Opc.Ua
                     context,
                     securityPolicyUri,
                     certificate,
-                    receiverNonce);
+                    receiverNonce!);
                 if (string.IsNullOrEmpty(m_token.EncryptionAlgorithm) &&
-                    encryptedSecret.TryDecrypt(m_token.Password.ToArray(), receiverNonce?.Data, out byte[] decryptedSecret))
+                    encryptedSecret.TryDecrypt(m_token.Password.ToArray()!, receiverNonce?.Data!, out byte[]? decryptedSecret))
                 {
                     DecryptedPassword = decryptedSecret;
                     return default;
@@ -234,7 +237,7 @@ namespace Opc.Ua
                 };
 
                 ILogger logger = context.Telemetry.CreateLogger<UserNameIdentityTokenHandler>();
-                byte[] decryptedPassword = SecurityPolicies.Decrypt(
+                byte[]? decryptedPassword = SecurityPolicies.Decrypt(
                     certificate,
                     securityPolicyUri,
                     encryptedData,
@@ -250,7 +253,7 @@ namespace Opc.Ua
                 int startOfNonce = decryptedPassword.Length;
                 if (receiverNonce != null)
                 {
-                    startOfNonce -= receiverNonce.Data.Length;
+                    startOfNonce -= receiverNonce.Data!.Length;
 
                     int result = 0;
                     for (int ii = 0; ii < receiverNonce.Data.Length; ii++)
@@ -276,14 +279,14 @@ namespace Opc.Ua
                 var secret = EncryptedSecret.CreateForEcc(
                     context: context,
                     securityPolicyUri: securityPolicyUri,
-                    senderIssuerCertificates: senderIssuerCertificates,
+                    senderIssuerCertificates: senderIssuerCertificates!,
                     receiverCertificate: certificate,
-                    receiverNonce: ephemeralKey,
-                    senderCertificate: senderCertificate,
-                    senderNonce: null,
+                    receiverNonce: ephemeralKey!,
+                    senderCertificate: senderCertificate!,
+                    senderNonce: null!,
                     validator: validator);
 
-                if (!secret.TryDecrypt(m_token.Password.ToArray(), receiverNonce?.Data, out byte[] decryptedSecret))
+                if (!secret.TryDecrypt(m_token.Password.ToArray()!, receiverNonce?.Data!, out byte[]? decryptedSecret))
                 {
                     throw new ServiceResultException(
                         StatusCodes.BadIdentityTokenInvalid,
@@ -318,14 +321,14 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public object Clone()
         {
-            return new UserNameIdentityTokenHandler(CoreUtils.Clone(m_token))
+            return new UserNameIdentityTokenHandler(CoreUtils.Clone(m_token)!)
             {
                 DecryptedPassword = DecryptedPassword == null ? null : [.. DecryptedPassword]
             };
         }
 
         /// <inheritdoc/>
-        public bool Equals(IUserIdentityTokenHandler other)
+        public bool Equals(IUserIdentityTokenHandler? other)
         {
             if (other is not UserNameIdentityTokenHandler tokenHandler)
             {

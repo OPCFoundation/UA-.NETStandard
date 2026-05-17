@@ -49,7 +49,7 @@ namespace Opc.Ua.Server
             double processingInterval,
             bool stepped,
             AggregateConfiguration configuration)
-            : this(aggregateId, startTime, endTime, processingInterval, stepped, configuration, null)
+            : this(aggregateId, startTime, endTime, processingInterval, stepped, configuration, null!)
         {
         }
 
@@ -160,7 +160,7 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="returnPartial">If true a partial interval should be processed.</param>
         /// <returns>The processed value. Null if nothing available and returnPartial is false.</returns>
-        public DataValue GetProcessedValue(bool returnPartial)
+        public DataValue? GetProcessedValue(bool returnPartial)
         {
             // check if all done.
             if (Complete)
@@ -171,7 +171,7 @@ namespace Opc.Ua.Server
             // update the slice.
             if (CurrentSlice == null)
             {
-                CurrentSlice = CreateSlice(null);
+                CurrentSlice = CreateSlice(null!);
             }
             else
             {
@@ -188,8 +188,8 @@ namespace Opc.Ua.Server
             DateTimeUtc earlyTime = CurrentSlice.StartTime;
             DateTimeUtc lateTime = CurrentSlice.EndTime;
 
-            if (CompareTimestamps(lateTime, m_values.First) < 0 ||
-                CompareTimestamps(earlyTime, m_values.Last) > 0)
+            if (CompareTimestamps(lateTime, m_values.First!) < 0 ||
+                CompareTimestamps(earlyTime, m_values.Last!) > 0)
             {
                 CurrentSlice.OutOfDataRange = true;
             }
@@ -229,11 +229,11 @@ namespace Opc.Ua.Server
             {
                 if (CurrentSlice.LateBound != null)
                 {
-                    LinkedListNode<DataValue> ii = CurrentSlice.LateBound.Next;
+                    LinkedListNode<DataValue>? ii = CurrentSlice.LateBound.Next;
 
                     while (ii != null)
                     {
-                        LinkedListNode<DataValue> next = ii.Next;
+                        LinkedListNode<DataValue>? next = ii.Next;
                         m_values.Remove(ii);
                         ii = next;
                     }
@@ -241,7 +241,7 @@ namespace Opc.Ua.Server
             }
             else if (CurrentSlice.EarlyBound != null)
             {
-                LinkedListNode<DataValue> ii = CurrentSlice.EarlyBound.Previous;
+                LinkedListNode<DataValue>? ii = CurrentSlice.EarlyBound.Previous;
 
                 if (CurrentSlice.SecondEarlyBound != null)
                 {
@@ -250,7 +250,7 @@ namespace Opc.Ua.Server
 
                 while (ii != null)
                 {
-                    LinkedListNode<DataValue> next = ii.Previous;
+                    LinkedListNode<DataValue>? next = ii.Previous;
                     m_values.Remove(ii);
                     ii = next;
                 }
@@ -340,7 +340,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Whether to use the server timestamp for all processing.
         /// </summary>
-        protected TimeSlice CurrentSlice { get; private set; }
+        protected TimeSlice CurrentSlice { get; private set; } = null!;
 
         /// <summary>
         /// True if all values required for the request have been received and processed
@@ -519,32 +519,32 @@ namespace Opc.Ua.Server
             /// <summary>
             /// The first early bound for the slice.
             /// </summary>
-            public LinkedListNode<DataValue> EarlyBound { get; set; }
+            public LinkedListNode<DataValue> EarlyBound { get; set; } = null!;
 
             /// <summary>
             /// The second early bound for the slice (always earlier than the first).
             /// </summary>
-            public LinkedListNode<DataValue> SecondEarlyBound { get; set; }
+            public LinkedListNode<DataValue> SecondEarlyBound { get; set; } = null!;
 
             /// <summary>
             /// The beginning of the slice.
             /// </summary>
-            public LinkedListNode<DataValue> Begin { get; set; }
+            public LinkedListNode<DataValue> Begin { get; set; } = null!;
 
             /// <summary>
             /// The end of the slice.
             /// </summary>
-            public LinkedListNode<DataValue> End { get; set; }
+            public LinkedListNode<DataValue> End { get; set; } = null!;
 
             /// <summary>
             /// The late bound for the slice.
             /// </summary>
-            public LinkedListNode<DataValue> LateBound { get; set; }
+            public LinkedListNode<DataValue> LateBound { get; set; } = null!;
 
             /// <summary>
             /// The last value which was processed.
             /// </summary>
-            public LinkedListNode<DataValue> LastProcessedValue { get; set; }
+            public LinkedListNode<DataValue> LastProcessedValue { get; set; } = null!;
         }
 
         /// <summary>
@@ -617,7 +617,7 @@ namespace Opc.Ua.Server
             }
 
             // restart processing from where it left off.
-            LinkedListNode<DataValue> start = m_values.First;
+            LinkedListNode<DataValue>? start = m_values.First;
 
             if (!TimeFlowsBackward && slice.LastProcessedValue != null)
             {
@@ -627,11 +627,11 @@ namespace Opc.Ua.Server
             // reset the begin bound each time we go through the values.
             if (TimeFlowsBackward)
             {
-                slice.Begin = null;
+                slice.Begin = null!;
             }
 
             // initialize slice from value list.
-            for (LinkedListNode<DataValue> ii = start; ii != null; ii = ii.Next)
+            for (LinkedListNode<DataValue>? ii = start; ii != null; ii = ii.Next)
             {
                 if (TimeFlowsBackward)
                 {
@@ -1003,12 +1003,12 @@ namespace Opc.Ua.Server
         protected DataValue GetSimpleBound(DateTimeUtc timestamp, TimeSlice slice)
         {
             // choose the start point
-            LinkedListNode<DataValue> start = slice.EarlyBound ?? m_values.First;
+            LinkedListNode<DataValue>? start = slice.EarlyBound ?? m_values.First;
 
             // look for a raw value at or immediately before the timestamp.
-            LinkedListNode<DataValue> startBound = start;
+            LinkedListNode<DataValue>? startBound = start;
 
-            for (LinkedListNode<DataValue> ii = start; ii != null; ii = ii.Next)
+            for (LinkedListNode<DataValue>? ii = start; ii != null; ii = ii.Next)
             {
                 // check for an exact match.
                 if (CompareTimestamps(timestamp, ii) == 0)
@@ -1041,7 +1041,7 @@ namespace Opc.Ua.Server
 
             // look for an end bound.
             bool revertToStepped = false;
-            LinkedListNode<DataValue> endBound = startBound.Next;
+            LinkedListNode<DataValue>? endBound = startBound.Next;
 
             if (!Stepped)
             {
@@ -1080,11 +1080,11 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Returns the values in the list with simple bounds.
         /// </summary>
-        protected List<DataValue> GetValuesWithSimpleBounds(TimeSlice slice)
+        protected List<DataValue>? GetValuesWithSimpleBounds(TimeSlice slice)
         {
             // check if slice is beyond end of available data.
-            if (CompareTimestamps(slice.StartTime, m_values.Last) > 0 ||
-                CompareTimestamps(slice.EndTime, m_values.First) < 0)
+            if (CompareTimestamps(slice.StartTime, m_values.Last!) > 0 ||
+                CompareTimestamps(slice.EndTime, m_values.First!) < 0)
             {
                 return null;
             }
@@ -1100,7 +1100,7 @@ namespace Opc.Ua.Server
             }
 
             // initialize slice from value list.
-            for (LinkedListNode<DataValue> ii = slice.Begin; ii != null; ii = ii.Next)
+            for (LinkedListNode<DataValue>? ii = slice.Begin; ii != null; ii = ii.Next)
             {
                 if (CompareTimestamps(slice.EndTime, ii) <= 0)
                 {
@@ -1127,11 +1127,11 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Returns the values between the start time and the end time for the slice.
         /// </summary>
-        protected List<DataValue> GetValues(TimeSlice slice)
+        protected List<DataValue>? GetValues(TimeSlice slice)
         {
             // check if slice is beyond end of available data.
-            if (CompareTimestamps(slice.StartTime, m_values.Last) > 0 ||
-                CompareTimestamps(slice.EndTime, m_values.First) < 0)
+            if (CompareTimestamps(slice.StartTime, m_values.Last!) > 0 ||
+                CompareTimestamps(slice.EndTime, m_values.First!) < 0)
             {
                 return null;
             }
@@ -1139,7 +1139,7 @@ namespace Opc.Ua.Server
             var values = new List<DataValue>();
 
             // initialize slice from value list.
-            for (LinkedListNode<DataValue> ii = slice.Begin; ii != null; ii = ii.Next)
+            for (LinkedListNode<DataValue>? ii = slice.Begin; ii != null; ii = ii.Next)
             {
                 if (TimeFlowsBackward)
                 {
@@ -1173,10 +1173,10 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Returns the values in the list with interpolated bounds.
         /// </summary>
-        protected List<DataValue> GetValuesWithInterpolatedBounds(TimeSlice slice)
+        protected List<DataValue>? GetValuesWithInterpolatedBounds(TimeSlice slice)
         {
             // check if slice is before the available data.
-            if (CompareTimestamps(slice.EndTime, m_values.First) < 0)
+            if (CompareTimestamps(slice.EndTime, m_values.First!) < 0)
             {
                 return null;
             }
@@ -1192,7 +1192,7 @@ namespace Opc.Ua.Server
             }
 
             // initialize slice from value list.
-            for (LinkedListNode<DataValue> ii = slice.Begin; ii != null; ii = ii.Next)
+            for (LinkedListNode<DataValue>? ii = slice.Begin; ii != null; ii = ii.Next)
             {
                 if (CompareTimestamps(slice.EndTime, ii) <= 0)
                 {
@@ -1249,13 +1249,13 @@ namespace Opc.Ua.Server
             /// <summary>
             /// The data point at the start of the region.
             /// </summary>
-            public DataValue DataPoint;
+            public DataValue? DataPoint;
         }
 
         /// <summary>
         /// Returns the values in the list with simple bounds.
         /// </summary>
-        protected List<SubRegion> GetRegionsInValueSet(
+        protected List<SubRegion>? GetRegionsInValueSet(
             List<DataValue> values,
             bool ignoreBadData,
             bool useSteppedCalculations)
@@ -1266,7 +1266,7 @@ namespace Opc.Ua.Server
                 return null;
             }
 
-            SubRegion currentRegion = null;
+            SubRegion? currentRegion = null;
             var regions = new List<SubRegion>();
 
             for (int ii = 0; ii < values.Count; ii++)
@@ -1359,7 +1359,7 @@ namespace Opc.Ua.Server
                     // if at end of data then duration is 1 tick.
                     // must be end of data if start of region is good yet end bound is bad.
                     if (!ignoreBadData &&
-                        IsGood(currentRegion.DataPoint) &&
+                        IsGood(currentRegion.DataPoint!) &&
                         currentStatus == StatusCodes.BadNoData &&
                         ii == values.Count - 1)
                     {
@@ -1450,7 +1450,7 @@ namespace Opc.Ua.Server
             StatusCode defaultCode)
         {
             // get the regions in the slice.
-            List<SubRegion> regions = GetRegionsInValueSet(values, false, Stepped);
+            List<SubRegion>? regions = GetRegionsInValueSet(values, false, Stepped);
 
             if (regions == null || regions.Count == 0)
             {

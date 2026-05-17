@@ -72,7 +72,7 @@ namespace Opc.Ua.Server.Fluent
         public INodeBuilder OnRead(NodeValueEventHandler handler)
         {
             BaseVariableState v = RequireVariable("OnRead");
-            ThrowIfSlotOccupied(v.OnReadValue, "OnRead");
+            ThrowIfSlotOccupied(v.OnReadValue!, "OnRead");
             v.OnReadValue = handler ?? throw new ArgumentNullException(nameof(handler));
             return this;
         }
@@ -81,7 +81,7 @@ namespace Opc.Ua.Server.Fluent
         public INodeBuilder OnRead(NodeValueSimpleEventHandler handler)
         {
             BaseVariableState v = RequireVariable("OnSimpleRead");
-            ThrowIfSlotOccupied(v.OnSimpleReadValue, "OnSimpleRead");
+            ThrowIfSlotOccupied(v.OnSimpleReadValue!, "OnSimpleRead");
             v.OnSimpleReadValue = handler ?? throw new ArgumentNullException(nameof(handler));
             return this;
         }
@@ -90,7 +90,7 @@ namespace Opc.Ua.Server.Fluent
         public INodeBuilder OnWrite(NodeValueEventHandler handler)
         {
             BaseVariableState v = RequireVariable("OnWrite");
-            ThrowIfSlotOccupied(v.OnWriteValue, "OnWrite");
+            ThrowIfSlotOccupied(v.OnWriteValue!, "OnWrite");
             v.OnWriteValue = handler ?? throw new ArgumentNullException(nameof(handler));
             return this;
         }
@@ -99,7 +99,7 @@ namespace Opc.Ua.Server.Fluent
         public INodeBuilder OnWrite(NodeValueSimpleEventHandler handler)
         {
             BaseVariableState v = RequireVariable("OnSimpleWrite");
-            ThrowIfSlotOccupied(v.OnSimpleWriteValue, "OnSimpleWrite");
+            ThrowIfSlotOccupied(v.OnSimpleWriteValue!, "OnSimpleWrite");
             v.OnSimpleWriteValue = handler ?? throw new ArgumentNullException(nameof(handler));
             return this;
         }
@@ -144,7 +144,7 @@ namespace Opc.Ua.Server.Fluent
         public INodeBuilder OnCall(GenericMethodCalledEventHandler2 handler)
         {
             MethodState m = RequireMethod("OnCall");
-            ThrowIfSlotOccupied(m.OnCallMethod2, "OnCall");
+            ThrowIfSlotOccupied(m.OnCallMethod2!, "OnCall");
             m.OnCallMethod2 = handler ?? throw new ArgumentNullException(nameof(handler));
             return this;
         }
@@ -153,7 +153,7 @@ namespace Opc.Ua.Server.Fluent
         public INodeBuilder OnCall(GenericMethodCalledEventHandler2Async handler)
         {
             MethodState m = RequireMethod("OnCallAsync");
-            ThrowIfSlotOccupied(m.OnCallMethod2Async, "OnCallAsync");
+            ThrowIfSlotOccupied(m.OnCallMethod2Async!, "OnCallAsync");
             m.OnCallMethod2Async = handler ?? throw new ArgumentNullException(nameof(handler));
             return this;
         }
@@ -209,7 +209,7 @@ namespace Opc.Ua.Server.Fluent
             {
                 throw new ArgumentNullException(nameof(handler));
             }
-            ThrowIfSlotOccupied(Node.OnConditionRefresh, "OnConditionRefresh");
+            ThrowIfSlotOccupied(Node.OnConditionRefresh!, "OnConditionRefresh");
             // Direct wire — signature matches NodeStateConditionRefreshEventHandler.
             Node.OnConditionRefresh = (ctx, n, evts) => handler(ctx, n, evts);
             return this;
@@ -235,7 +235,7 @@ namespace Opc.Ua.Server.Fluent
             }
             // OnReportEvent is also used by CustomNodeManager2 for root notifier
             // wiring — replacing it would silently break server event propagation.
-            ThrowIfSlotOccupied(Node.OnReportEvent, "OnEvent (NodeState.OnReportEvent)");
+            ThrowIfSlotOccupied(Node.OnReportEvent!, "OnEvent (NodeState.OnReportEvent)");
             Node.OnReportEvent = (ctx, n, e) => handler(ctx, n, e);
             return this;
         }
@@ -321,7 +321,7 @@ namespace Opc.Ua.Server.Fluent
             return m;
         }
 
-        private void ThrowIfSlotOccupied(Delegate existing, string what)
+        private void ThrowIfSlotOccupied(Delegate? existing, string what)
         {
             if (existing != null)
             {

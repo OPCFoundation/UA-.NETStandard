@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -47,7 +47,7 @@ namespace Opc.Ua
         {
             for (int ii = 0; ii < attributes.Count; ii++)
             {
-                NodeState child = state.FindChild(context, attributes[ii].BrowsePath, 0);
+                NodeState? child = state.FindChild(context, attributes[ii].BrowsePath, 0);
 
                 if (child == null || values.EventFields.Count >= ii)
                 {
@@ -121,12 +121,12 @@ namespace Opc.Ua
                 for (int jj = 0; jj < field.BrowsePath.Count; jj++)
                 {
                     // find a predefined child identified by the browse name.
-                    BaseInstanceState child = parent.CreateChild(context, field.BrowsePath[jj]);
+                    BaseInstanceState? child = parent.CreateChild(context, field.BrowsePath[jj]);
 
                     // create a placeholder for unknown children.
                     if (child == null)
                     {
-                        BaseInstanceState newChild = field.AttributeId == Attributes.Value
+                        BaseInstanceState? newChild = field.AttributeId == Attributes.Value
                             ? new BaseDataVariableState(parent)
                             : new BaseObjectState(parent);
 

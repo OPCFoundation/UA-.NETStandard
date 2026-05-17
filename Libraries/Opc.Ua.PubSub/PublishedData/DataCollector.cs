@@ -97,7 +97,8 @@ namespace Opc.Ua.PubSub.PublishedData
             // validate publishedDataSet
             if (ValidatePublishedDataSet(publishedDataSet))
             {
-                m_publishedDataSetsByName[publishedDataSet.Name] = publishedDataSet;
+                // TODO: Consider adding ArgumentNullException.ThrowIfNull(publishedDataSet.Name)
+                m_publishedDataSetsByName[publishedDataSet.Name!] = publishedDataSet;
             }
             else
             {
@@ -117,16 +118,17 @@ namespace Opc.Ua.PubSub.PublishedData
             {
                 throw new ArgumentException(null, nameof(publishedDataSet));
             }
-            m_publishedDataSetsByName.Remove(publishedDataSet.Name);
+            // TODO: Consider adding ArgumentNullException.ThrowIfNull(publishedDataSet.Name)
+            m_publishedDataSetsByName.Remove(publishedDataSet.Name!);
         }
 
         /// <summary>
         ///  Create and return a DataSet object created from its dataSetName
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public DataSet CollectData(string dataSetName)
+        public DataSet? CollectData(string dataSetName)
         {
-            PublishedDataSetDataType publishedDataSet = GetPublishedDataSet(dataSetName);
+            PublishedDataSetDataType? publishedDataSet = GetPublishedDataSet(dataSetName);
 
             if (publishedDataSet != null)
             {
@@ -157,7 +159,7 @@ namespace Opc.Ua.PubSub.PublishedData
                                 };
 
                                 // retrieve value from DataStore
-                                DataValue dataValue = null;
+                                DataValue? dataValue = null;
 
                                 if (!publishedVariable.PublishedVariable.IsNull)
                                 {
@@ -190,7 +192,7 @@ namespace Opc.Ua.PubSub.PublishedData
                                     dataValue = CoreUtils.Clone(dataValue);
 
                                     //check StatusCode and return SubstituteValue if possible
-                                    if (dataValue.StatusCode == StatusCodes.Bad &&
+                                    if (dataValue!.StatusCode == StatusCodes.Bad &&
                                         publishedVariable.SubstituteValue != Variant.Null)
                                     {
                                         dataValue.WrappedValue = publishedVariable.SubstituteValue;
@@ -205,11 +207,11 @@ namespace Opc.Ua.PubSub.PublishedData
 
                                 bool ShouldBringToConstraints(uint givenStrlen)
                                 {
-                                    return field.FieldMetaData.MaxStringLength > 0 &&
+                                    return field.FieldMetaData!.MaxStringLength > 0 &&
                                         givenStrlen > field.FieldMetaData.MaxStringLength;
                                 }
 
-                                var builtInType = (BuiltInType)field.FieldMetaData.BuiltInType;
+                                var builtInType = (BuiltInType)field.FieldMetaData!.BuiltInType;
                                 switch (builtInType)
                                 {
                                     case BuiltInType.String:
@@ -322,7 +324,7 @@ namespace Opc.Ua.PubSub.PublishedData
         /// Get The <see cref="PublishedDataSetDataType"/> for a DataSetName
         /// </summary>
         /// <exception cref="ArgumentException"><paramref name="dataSetName"/></exception>
-        public PublishedDataSetDataType GetPublishedDataSet(string dataSetName)
+        public PublishedDataSetDataType? GetPublishedDataSet(string dataSetName)
         {
             if (dataSetName == null)
             {
@@ -331,7 +333,7 @@ namespace Opc.Ua.PubSub.PublishedData
 
             if (m_publishedDataSetsByName.TryGetValue(
                 dataSetName,
-                out PublishedDataSetDataType value))
+                out PublishedDataSetDataType? value))
             {
                 return value;
             }

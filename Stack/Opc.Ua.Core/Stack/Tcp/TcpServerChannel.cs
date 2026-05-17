@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -92,12 +92,12 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// The URL used to establish a connection to the client.
         /// </summary>
-        public Uri ReverseConnectionUrl { get; internal set; }
+        public Uri? ReverseConnectionUrl { get; internal set; }
 
         /// <summary>
         /// Raised when the connection status changes.
         /// </summary>
-        public event TcpChannelStatusEventHandler StatusChanged;
+        public event TcpChannelStatusEventHandler? StatusChanged;
 
 #pragma warning disable CS0618 // Type or member is obsolete
         private class ReverseConnectAsyncResult : AsyncResultBase
@@ -112,7 +112,7 @@ namespace Opc.Ua.Bindings
             {
             }
 
-            public IMessageSocket Socket;
+            public IMessageSocket? Socket;
         }
 
         /// <summary>
@@ -167,9 +167,9 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Reverse client is connected, send reverse hello message.
         /// </summary>
-        private void OnReverseConnectComplete(object sender, IMessageSocketAsyncEventArgs result)
+        private void OnReverseConnectComplete(object? sender, IMessageSocketAsyncEventArgs result)
         {
-            var ar = (ReverseConnectAsyncResult)result.UserToken;
+            var ar = (ReverseConnectAsyncResult?)result.UserToken;
 
             if (ar == null || m_pendingReverseHello != null)
             {
@@ -185,14 +185,14 @@ namespace Opc.Ua.Bindings
                 return;
             }
 
-            byte[] buffer = BufferManager.TakeBuffer(
+            byte[]? buffer = BufferManager.TakeBuffer(
                 SendBufferSize,
                 "OnReverseConnectConnectComplete");
 
             try
             {
                 // start reading messages.
-                ar.Socket.ReadNextMessage();
+                ar.Socket!.ReadNextMessage();
 
                 // send reverse hello message.
                 using var encoder = new BinaryEncoder(
@@ -202,7 +202,7 @@ namespace Opc.Ua.Bindings
                     Quotas.MessageContext);
                 encoder.WriteUInt32(null, TcpMessageType.ReverseHello);
                 encoder.WriteUInt32(null, 0);
-                encoder.WriteString(null, EndpointDescription.Server.ApplicationUri);
+                encoder.WriteString(null, EndpointDescription!.Server.ApplicationUri);
                 encoder.WriteString(null, EndpointDescription.EndpointUrl);
                 int size = encoder.Close();
                 UpdateMessageSize(buffer, 0, size);
@@ -367,7 +367,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Called to send queued responses after a reconnect.
         /// </summary>
-        private void OnChannelReconnected(object state)
+        private void OnChannelReconnected(object? state)
         {
             if (state is not SortedDictionary<uint, IServiceResponse> responses)
             {
@@ -494,7 +494,7 @@ namespace Opc.Ua.Bindings
                     ReceiveBufferSize);
 
                 // send acknowledge.
-                byte[] buffer = BufferManager.TakeBuffer(
+                byte[]? buffer = BufferManager.TakeBuffer(
                     kResponseBufferSize,
                     nameof(ProcessHelloMessage));
 
@@ -562,7 +562,7 @@ namespace Opc.Ua.Bindings
 
             // parse the security header.
             uint channelId = 0;
-            Certificate clientCertificate = null;
+            Certificate? clientCertificate = null;
             uint requestId = 0;
             uint sequenceNumber = 0;
 
@@ -574,16 +574,16 @@ namespace Opc.Ua.Bindings
 
                 messageBody = ReadAsymmetricMessage(
                     messageChunk,
-                    ServerCertificate,
+                    ServerCertificate!,
                     out channelId,
                     out clientCertificate,
                     out requestId,
                     out sequenceNumber,
-                    null,
+                    null!,
                     out byte[] signature);
 
                 // don't keep signature if secure channel enhancements are not used.
-                m_oscRequestSignature = SecurityPolicy.SecureChannelEnhancements ? signature : null;
+                m_oscRequestSignature = SecurityPolicy!.SecureChannelEnhancements ? signature : null;
 
                 // check for replay attacks.
                 if (!VerifySequenceNumber(sequenceNumber, "ProcessOpenSecureChannelRequest"))
@@ -599,10 +599,10 @@ namespace Opc.Ua.Bindings
                 m_logger.LogError(e, errorSecurityChecksFailed);
 
                 // report the audit event for open secure channel
-                ReportAuditOpenSecureChannelEvent?.Invoke(this, null, clientCertificate, e);
+                ReportAuditOpenSecureChannelEvent?.Invoke(this, null!, clientCertificate!, e);
 
                 // report the audit event for open certificate error
-                ReportAuditCertificateEvent?.Invoke(clientCertificate, e);
+                ReportAuditCertificateEvent?.Invoke(clientCertificate!, e);
 
                 // dispose the client certificate since it will not be stored
                 clientCertificate?.Dispose();
@@ -645,9 +645,9 @@ namespace Opc.Ua.Bindings
                 return false;
             }
 
-            BufferCollection chunksToProcess = null;
-            OpenSecureChannelRequest request = null;
-            ChannelToken token = null;
+            BufferCollection? chunksToProcess = null;
+            OpenSecureChannelRequest? request = null;
+            ChannelToken? token = null;
             try
             {
                 bool firstCall = ClientCertificate == null;
@@ -690,7 +690,7 @@ namespace Opc.Ua.Bindings
                 // create a new token.
                 token = CreateToken();
                 token.TokenId = GetNewTokenId();
-                token.ServerNonce = CreateNonce(ServerCertificate);
+                token.ServerNonce = CreateNonce(ServerCertificate!);
                 token.PreviousSecret = CurrentToken?.Secret;
 
                 // check the client nonce.
@@ -733,11 +733,11 @@ namespace Opc.Ua.Bindings
                     {
                         // tell the listener to find the channel that can process the request.
                         Listener.ReconnectToExistingChannel(
-                            Socket,
+                            Socket!,
                             requestId,
                             sequenceNumber,
                             channelId,
-                            ClientCertificate,
+                            ClientCertificate!,
                             token,
                             request);
 
@@ -777,9 +777,9 @@ namespace Opc.Ua.Bindings
                         s_implementationString,
                         Listener.EndpointUrl.ToString(),
                         Utils.Format("{0}", ChannelId),
-                        EndpointDescription,
+                        EndpointDescription!,
                         ClientCertificate,
-                        ServerCertificate,
+                        ServerCertificate!,
                         BinaryEncodingSupport.Required);
                 }
                 else
@@ -804,15 +804,15 @@ namespace Opc.Ua.Bindings
                 // send the response.
                 if (requestType == SecurityTokenRequestType.Renew)
                 {
-                    SendOpenSecureChannelResponse(requestId, RenewedToken, request, true);
+                    SendOpenSecureChannelResponse(requestId, RenewedToken!, request, true);
                 }
                 else
                 {
-                    SendOpenSecureChannelResponse(requestId, CurrentToken, request, false);
+                    SendOpenSecureChannelResponse(requestId, CurrentToken!, request, false);
                 }
 
                 // notify reverse
-                CompleteReverseHello(null);
+                CompleteReverseHello(null!);
 
                 // notify any monitors.
                 NotifyMonitors(ServiceResult.Good, false);
@@ -824,7 +824,7 @@ namespace Opc.Ua.Bindings
                         this,
                         request,
                         ClientCertificate,
-                        null);
+                        null!);
                 }
 
                 return false;
@@ -832,7 +832,7 @@ namespace Opc.Ua.Bindings
             catch (Exception e)
             {
                 // report the audit event for open secure channel
-                ReportAuditOpenSecureChannelEvent?.Invoke(this, request, ClientCertificate, e);
+                ReportAuditOpenSecureChannelEvent?.Invoke(this, request!, ClientCertificate!, e);
 
                 SendServiceFault(
                     requestId,
@@ -868,7 +868,7 @@ namespace Opc.Ua.Bindings
         /// <inheritdoc/>
         protected override void CompleteReverseHello(Exception e)
         {
-            ReverseConnectAsyncResult ar = m_pendingReverseHello;
+            ReverseConnectAsyncResult? ar = m_pendingReverseHello;
             if (ar != null &&
                 ar == Interlocked.CompareExchange(ref m_pendingReverseHello, null, ar))
             {
@@ -888,7 +888,7 @@ namespace Opc.Ua.Bindings
                 requestId,
                 fault.StatusCode);
 
-            BufferCollection chunksToSend = null;
+            BufferCollection? chunksToSend = null;
 
             try
             {
@@ -915,9 +915,9 @@ namespace Opc.Ua.Bindings
                 chunksToSend = WriteAsymmetricMessage(
                     TcpMessageType.Open,
                     requestId,
-                    ServerCertificate,
-                    null,
-                    ClientCertificate,
+                    ServerCertificate!,
+                    senderCertificateChain: null,
+                    ClientCertificate!,
                     new ArraySegment<byte>(buffer, 0, buffer.Length),
                     !renew ? m_oscRequestSignature : null,
                     out byte[] signature);
@@ -979,9 +979,9 @@ namespace Opc.Ua.Bindings
             BufferCollection chunksToSend = WriteAsymmetricMessage(
                 TcpMessageType.Open,
                 requestId,
-                ServerCertificate,
-                ServerCertificateChain,
-                ClientCertificate,
+                ServerCertificate!,
+                ServerCertificateChain!,
+                ClientCertificate!,
                 new ArraySegment<byte>(buffer, 0, buffer.Length),
                 !renew ? m_oscRequestSignature : null,
                 out byte[] signature);
@@ -992,14 +992,15 @@ namespace Opc.Ua.Bindings
             }
 
             // write the response to the client.
+            BufferCollection? chunksToRelease = chunksToSend;
             try
             {
                 BeginWriteMessage(chunksToSend, null);
-                chunksToSend = null;
+                chunksToRelease = null;
             }
             finally
             {
-                chunksToSend?.Release(BufferManager, "SendOpenSecureChannelResponse");
+                chunksToRelease?.Release(BufferManager, "SendOpenSecureChannelResponse");
             }
         }
 
@@ -1015,7 +1016,7 @@ namespace Opc.Ua.Bindings
             UpdateLastActiveTime();
 
             // validate security on the message.
-            ChannelToken token = null;
+            ChannelToken? token = null;
             uint requestId = 0;
             uint sequenceNumber = 0;
 
@@ -1049,7 +1050,7 @@ namespace Opc.Ua.Bindings
                     "Could not verify security on CloseSecureChannel request.");
             }
 
-            BufferCollection chunksToProcess = null;
+            BufferCollection? chunksToProcess = null;
 
             try
             {
@@ -1076,7 +1077,7 @@ namespace Opc.Ua.Bindings
                 // SendCloseSecureChannelResponse(requestId, token, request);
 
                 // report the audit event for close secure channel
-                ReportAuditCloseSecureChannelEvent?.Invoke(this, null);
+                ReportAuditCloseSecureChannelEvent?.Invoke(this, null!);
             }
             catch (Exception e)
             {
@@ -1178,7 +1179,7 @@ namespace Opc.Ua.Bindings
                 }
             }
 
-            BufferCollection chunksToProcess = null;
+            BufferCollection? chunksToProcess = null;
 
             try
             {
@@ -1335,7 +1336,7 @@ namespace Opc.Ua.Bindings
                 //     "ChannelId {ChannelId}: SendResponse {RequestId}",
                 //     ChannelId,
                 //     requestId);
-                BufferCollection buffers = null;
+                BufferCollection? buffers = null;
 
                 try
                 {
@@ -1344,7 +1345,7 @@ namespace Opc.Ua.Bindings
                     buffers = WriteSymmetricMessage(
                         TcpMessageType.Message,
                         requestId,
-                        CurrentToken,
+                        CurrentToken!,
                         response,
                         false,
                         out bool limitsExceeded);
@@ -1352,7 +1353,7 @@ namespace Opc.Ua.Bindings
                 catch (Exception e)
                 {
                     SendServiceFault(
-                        CurrentToken,
+                        CurrentToken!,
                         requestId,
                         ServiceResult.Create(
                             e,
@@ -1365,7 +1366,7 @@ namespace Opc.Ua.Bindings
                 try
                 {
                     BeginWriteMessage(buffers, null);
-                    buffers = null;
+                    buffers = null!;
                 }
                 catch (Exception)
                 {
@@ -1386,7 +1387,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Reset the sorted dictionary of queued responses after reconnect.
         /// </summary>
-        private void ResetQueuedResponses(Action<object> action)
+        private void ResetQueuedResponses(Action<object?> action)
         {
             _ = Task.Factory.StartNew(
                 action,
@@ -1415,7 +1416,7 @@ namespace Opc.Ua.Bindings
             ArraySegment<byte> messageBody,
             out BufferCollection chunksToProcess)
         {
-            chunksToProcess = null;
+            chunksToProcess = null!;
             using var decoder = new BinaryDecoder(messageBody, Quotas.MessageContext);
             // read the type of the message before more chunks are processed.
             NodeId typeId = decoder.ReadNodeId(null);
@@ -1438,8 +1439,8 @@ namespace Opc.Ua.Bindings
 
         private readonly ILogger m_logger;
         private SortedDictionary<uint, IServiceResponse> m_queuedResponses;
-        private ReverseConnectAsyncResult m_pendingReverseHello;
-        private byte[] m_oscRequestSignature;
+        private ReverseConnectAsyncResult? m_pendingReverseHello;
+        private byte[]? m_oscRequestSignature;
 
         private static readonly string s_implementationString =
             ".NET Standard ServerChannel UA-TCP " + Utils.GetAssemblyBuildNumber();

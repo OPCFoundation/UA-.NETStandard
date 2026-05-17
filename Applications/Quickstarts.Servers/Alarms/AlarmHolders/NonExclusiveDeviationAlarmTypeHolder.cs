@@ -76,7 +76,7 @@ namespace Alarms
             base.Initialize(alarmTypeIdentifier, name, maxTimeShelved);
 
             NonExclusiveDeviationAlarmState alarm = GetAlarm();
-            alarm.SetpointNode.Value = m_setpointNodeId;
+            alarm.SetpointNode!.Value = m_setpointNodeId;
         }
 
         private NonExclusiveDeviationAlarmState GetAlarm()

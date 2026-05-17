@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -91,9 +91,9 @@ namespace Opc.Ua
             byte[] receiverNonce,
             string securityPolicyUri,
             IServiceMessageContext context,
-            Nonce receiverEphemeralKey = null,
-            Certificate senderCertificate = null,
-            CertificateCollection senderIssuerCertificates = null,
+            Nonce? receiverEphemeralKey = null,
+            Certificate? senderCertificate = null,
+            CertificateCollection? senderIssuerCertificates = null,
             bool doNotEncodeSenderCertificate = false,
             CancellationToken ct = default);
 
@@ -109,10 +109,10 @@ namespace Opc.Ua
             Nonce receiverNonce,
             string securityPolicyUri,
             IServiceMessageContext context,
-            Nonce ephemeralKey = null,
-            Certificate senderCertificate = null,
-            CertificateCollection senderIssuerCertificates = null,
-            ICertificateValidatorEx validator = null,
+            Nonce? ephemeralKey = null,
+            Certificate? senderCertificate = null,
+            CertificateCollection? senderIssuerCertificates = null,
+            ICertificateValidatorEx? validator = null,
             CancellationToken ct = default);
 
         /// <summary>

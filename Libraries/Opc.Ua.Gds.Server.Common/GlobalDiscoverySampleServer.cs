@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -162,7 +163,7 @@ namespace Opc.Ua.Gds.Server
         /// <exception cref="ServiceResultException"></exception>
         protected override async ValueTask<OperationContext> ValidateRequestAsync(
             SecureChannelContext secureChannelContext,
-            RequestHeader requestHeader,
+            [NotNull] RequestHeader? requestHeader,
             RequestType requestType,
             RequestLifetime requestLifetime)
         {
@@ -214,7 +215,7 @@ namespace Opc.Ua.Gds.Server
             {
                 if (m_contexts.TryGetValue(
                     context.RequestId,
-                    out ImpersonationContext impersonationContext))
+                    out ImpersonationContext? impersonationContext))
                 {
                     m_contexts.Remove(context.RequestId);
                 }
@@ -233,9 +234,8 @@ namespace Opc.Ua.Gds.Server
             {
                 IEnumerable<Role> roles = m_userDatabase.GetUserRoles(userNameToken.UserName);
 
-                var tempIdentity = new UserIdentity(userNameToken);
                 args.Identity = new GdsRoleBasedIdentity(
-                    tempIdentity,
+                    new UserIdentity(userNameToken),
                     roles,
                     ServerInternal.MessageContext.NamespaceUris);
                 return;
@@ -277,17 +277,17 @@ namespace Opc.Ua.Gds.Server
                 Certificate.FromRawData(session.ClientCertificate.RawData);
             bool applicationRegistered = false;
 
-            Uri applicationUri = Utils.ParseUri(
+            Uri? applicationUri = Utils.ParseUri(
                 session.SessionDiagnostics.ClientDescription.ApplicationUri);
-            X509Utils.DoesUrlMatchCertificate(applicationInstanceCertificate, applicationUri);
+            X509Utils.DoesUrlMatchCertificate(applicationInstanceCertificate!, applicationUri!);
 
             // get access to GDS configuration section to find out ApplicationCertificatesStorePath
             GlobalDiscoveryServerConfiguration configuration =
-                Configuration.ParseExtension<GlobalDiscoveryServerConfiguration>()
+                Configuration!.ParseExtension<GlobalDiscoveryServerConfiguration>()
                 ?? new GlobalDiscoveryServerConfiguration();
             // check if application certificate is in the Store of the GDS
             var certificateStoreIdentifier = new CertificateStoreIdentifier(
-                configuration.ApplicationCertificatesStorePath);
+                configuration.ApplicationCertificatesStorePath!);
             using (ICertificateStore applicationsStore = certificateStoreIdentifier.OpenStore(MessageContext.Telemetry))
             {
                 using CertificateCollection matchingCerts = applicationsStore
@@ -306,7 +306,7 @@ namespace Opc.Ua.Gds.Server
             }
             // check if application certificate is revoked
             certificateStoreIdentifier = new CertificateStoreIdentifier(
-                configuration.AuthoritiesStorePath);
+                configuration.AuthoritiesStorePath!);
             using (ICertificateStore authoritiesStore = certificateStoreIdentifier.OpenStore(MessageContext.Telemetry))
             {
                 foreach (X509CRL crl in authoritiesStore.EnumerateCRLsAsync().Result)
@@ -326,7 +326,7 @@ namespace Opc.Ua.Gds.Server
         /// <exception cref="ServiceResultException"></exception>
         private void VerifyX509IdentityToken(X509IdentityToken token)
         {
-            using Certificate userCertificate = token.CertificateData.IsEmpty
+            using Certificate? userCertificate = token.CertificateData.IsEmpty
                 ? null
                 : Certificate.FromRawData(token.CertificateData);
             try
@@ -336,9 +336,9 @@ namespace Opc.Ua.Gds.Server
                 // CA2025: task awaited via GetAwaiter().GetResult(); the disposable's
                 // using scope extends past the await.
 #pragma warning disable CA2025
-                CertificateValidationResult result = CertificateManager
+                CertificateValidationResult result = CertificateManager!
                     .ValidateAsync(
-                        userCertificate,
+                        userCertificate!,
                         TrustListIdentifier.Users)
                     .GetAwaiter().GetResult();
 #pragma warning restore CA2025
@@ -395,8 +395,8 @@ namespace Opc.Ua.Gds.Server
         /// <param name="args">the impersonateEventArgs</param>
         private void ImpersonateAsApplicationSelfAdmin(ISession session, ImpersonateEventArgs args)
         {
-            string applicationUri = session.SessionDiagnostics.ClientDescription.ApplicationUri;
-            ApplicationRecordDataType[] application = m_database.FindApplications(applicationUri);
+            string? applicationUri = session.SessionDiagnostics.ClientDescription.ApplicationUri;
+            ApplicationRecordDataType[]? application = m_database.FindApplications(applicationUri!);
             if (application == null || application.Length != 1)
             {
                 m_logger.LogInformation(
@@ -404,13 +404,12 @@ namespace Opc.Ua.Gds.Server
                     applicationUri);
                 return;
             }
-            NodeId applicationId = application.FirstOrDefault().ApplicationId;
+            NodeId applicationId = application.FirstOrDefault()!.ApplicationId;
             m_logger.LogInformation(
                 "Application {ApplicationUri} accepted based on ApplicationInstanceCertificate as ApplicationSelfAdmin",
                 applicationUri);
-            var tempIdentity = new UserIdentity();
             args.Identity = new GdsRoleBasedIdentity(
-                tempIdentity,
+                new UserIdentity(),
                 [GdsRole.ApplicationSelfAdmin],
                 applicationId,
                 ServerInternal.MessageContext.NamespaceUris);

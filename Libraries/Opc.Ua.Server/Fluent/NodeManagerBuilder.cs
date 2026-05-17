@@ -188,7 +188,7 @@ namespace Opc.Ua.Server.Fluent
         public INodeBuilder NodeFromTypeId(NodeId typeDefinitionId)
         {
             ThrowIfSealed();
-            NodeState node = ResolveByTypeDefinition(typeDefinitionId, (QualifiedName)null);
+            NodeState node = ResolveByTypeDefinition(typeDefinitionId, (QualifiedName)null!);
             return new NodeBuilder(this, node);
         }
 
@@ -205,7 +205,7 @@ namespace Opc.Ua.Server.Fluent
             where TState : NodeState
         {
             ThrowIfSealed();
-            NodeState node = ResolveByTypeDefinition(typeDefinitionId, (QualifiedName)null);
+            NodeState node = ResolveByTypeDefinition(typeDefinitionId, (QualifiedName)null!);
             if (node is not TState typed)
             {
                 throw ServiceResultException.Create(
@@ -261,7 +261,7 @@ namespace Opc.Ua.Server.Fluent
         public IVariableBuilder<TValue> VariableFromTypeId<TValue>(NodeId typeDefinitionId)
         {
             ThrowIfSealed();
-            NodeState node = ResolveByTypeDefinition(typeDefinitionId, (QualifiedName)null);
+            NodeState node = ResolveByTypeDefinition(typeDefinitionId, (QualifiedName)null!);
             return ToVariableBuilder<TValue>(node, FormatNodeId(typeDefinitionId));
         }
 
@@ -304,7 +304,7 @@ namespace Opc.Ua.Server.Fluent
         /// <c>null</c>; the <c>Publish</c> extensions surface a
         /// targeted error in that case.
         /// </remarks>
-        internal EventSourceRegistry EventSources { get; private set; }
+        internal EventSourceRegistry? EventSources { get; private set; }
 
         /// <summary>
         /// Wires the supplied registry into this builder so the
@@ -348,8 +348,8 @@ namespace Opc.Ua.Server.Fluent
             HistoryReadResult result,
             out ServiceResult status)
         {
-            if (node != null &&
-                m_historyRead.TryGetValue(node.NodeId, out HistoryReadHandler handler))
+            if (node != null
+                && m_historyRead.TryGetValue(node.NodeId, out HistoryReadHandler? handler))
             {
                 status = handler(
                     context,
@@ -374,8 +374,8 @@ namespace Opc.Ua.Server.Fluent
             HistoryUpdateResult result,
             out ServiceResult status)
         {
-            if (node != null &&
-                m_historyUpdate.TryGetValue(node.NodeId, out HistoryUpdateHandler handler))
+            if (node != null
+                && m_historyUpdate.TryGetValue(node.NodeId, out HistoryUpdateHandler? handler))
             {
                 status = handler(context, node, nodeToUpdate, result);
                 return true;
@@ -391,8 +391,8 @@ namespace Opc.Ua.Server.Fluent
             NodeState source,
             ISampledDataChangeMonitoredItem monitoredItem)
         {
-            if (source != null &&
-                m_monitoredItemCreated.TryGetValue(source.NodeId, out MonitoredItemCreatedHandler handler))
+            if (source != null
+                && m_monitoredItemCreated.TryGetValue(source.NodeId, out MonitoredItemCreatedHandler? handler))
             {
                 handler(context, source, monitoredItem);
             }
@@ -401,8 +401,8 @@ namespace Opc.Ua.Server.Fluent
         /// <inheritdoc/>
         public void NotifyNodeAdded(ISystemContext context, NodeState node)
         {
-            if (node != null &&
-                m_nodeAdded.TryGetValue(node.NodeId, out NodeLifecycleHandler handler))
+            if (node != null
+                && m_nodeAdded.TryGetValue(node.NodeId, out NodeLifecycleHandler? handler))
             {
                 handler(context, node);
             }
@@ -411,8 +411,8 @@ namespace Opc.Ua.Server.Fluent
         /// <inheritdoc/>
         public void NotifyNodeRemoved(ISystemContext context, NodeState node)
         {
-            if (node != null &&
-                m_nodeRemoved.TryGetValue(node.NodeId, out NodeLifecycleHandler handler))
+            if (node != null
+                && m_nodeRemoved.TryGetValue(node.NodeId, out NodeLifecycleHandler? handler))
             {
                 handler(context, node);
             }
@@ -498,7 +498,7 @@ namespace Opc.Ua.Server.Fluent
                 return candidates[0];
             }
 
-            NodeState match = null;
+             NodeState? match = null;
             for (int i = 0; i < candidates.Count; i++)
             {
                 if (candidates[i].BrowseName == browseName)

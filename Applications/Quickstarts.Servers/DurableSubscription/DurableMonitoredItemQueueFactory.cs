@@ -105,7 +105,7 @@ namespace Quickstarts.Servers
             return new EventMonitoredItemQueue(isDurable, monitoredItemId, m_telemetry);
         }
 
-        private void DataChangeQueueDisposed(object sender, EventArgs eventArgs)
+        private void DataChangeQueueDisposed(object? sender, EventArgs eventArgs)
         {
             if (sender is DataChangeMonitoredItemQueue queue)
             {
@@ -113,7 +113,7 @@ namespace Quickstarts.Servers
             }
         }
 
-        private void EventQueueDisposed(object sender, EventArgs eventArgs)
+        private void EventQueueDisposed(object? sender, EventArgs eventArgs)
         {
             if (sender is EventMonitoredItemQueue queue)
             {
@@ -138,7 +138,7 @@ namespace Quickstarts.Servers
                 {
                     if (m_dataChangeQueues.TryGetValue(
                         id,
-                        out DurableDataChangeMonitoredItemQueue queue))
+                        out DurableDataChangeMonitoredItemQueue? queue))
                     {
                         string filePath = Path.Combine(targetPath, id + kBase_filename);
                         using FileStream stream = File.Create(filePath);
@@ -154,7 +154,7 @@ namespace Quickstarts.Servers
 
                     if (m_eventQueues.TryGetValue(
                         id,
-                        out DurableEventMonitoredItemQueue eventQueue))
+                        out DurableEventMonitoredItemQueue? eventQueue))
                     {
                         string filePath = Path.Combine(targetPath, id + kBase_filename);
                         using FileStream stream = File.Create(filePath);
@@ -186,7 +186,7 @@ namespace Quickstarts.Servers
         /// <summary>
         /// Restore an Event queue
         /// </summary>
-        public IEventMonitoredItemQueue RestoreEventQueue(uint id, string baseDirectory)
+        public IEventMonitoredItemQueue? RestoreEventQueue(uint id, string baseDirectory)
         {
             try
             {
@@ -203,8 +203,8 @@ namespace Quickstarts.Servers
                 using (var decoder = new BinaryDecoder(
                     stream, m_messageContext, true))
                 {
-                    ArrayOf<string> nsUris = decoder.ReadStringArray(null);
-                    ArrayOf<string> serverUris = decoder.ReadStringArray(null);
+                    ArrayOf<string> nsUris = decoder.ReadStringArray(null)!;
+                    ArrayOf<string> serverUris = decoder.ReadStringArray(null)!;
                     decoder.SetMappingTables(
                         new NamespaceTable(nsUris.Memory.ToArray()),
                         new StringTable(serverUris.Memory.ToArray()));
@@ -227,7 +227,7 @@ namespace Quickstarts.Servers
         /// <summary>
         /// Restore a DataChange queue
         /// </summary>
-        public IDataChangeMonitoredItemQueue RestoreDataChangeQueue(uint id, string baseDirectory)
+        public IDataChangeMonitoredItemQueue? RestoreDataChangeQueue(uint id, string baseDirectory)
         {
             try
             {
@@ -244,8 +244,8 @@ namespace Quickstarts.Servers
                 using (var decoder = new BinaryDecoder(
                     stream, m_messageContext, true))
                 {
-                    ArrayOf<string> nsUris = decoder.ReadStringArray(null);
-                    ArrayOf<string> serverUris = decoder.ReadStringArray(null);
+                    ArrayOf<string> nsUris = decoder.ReadStringArray(null)!;
+                    ArrayOf<string> serverUris = decoder.ReadStringArray(null)!;
                     decoder.SetMappingTables(
                         new NamespaceTable(nsUris.Memory.ToArray()),
                         new StringTable(serverUris.Memory.ToArray()));
@@ -308,8 +308,8 @@ namespace Quickstarts.Servers
                 {
                     queue?.Dispose();
                 }
-                m_dataChangeQueues = null;
-                m_eventQueues = null;
+                m_dataChangeQueues = null!;
+                m_eventQueues = null!;
             }
         }
 
@@ -349,16 +349,15 @@ namespace Quickstarts.Servers
             q.DataChangeBatches = new List<DataChangeBatch>(batchCount);
             for (int i = 0; i < batchCount; i++)
             {
-                q.DataChangeBatches.Add(DecodeDataChangeBatch(decoder));
+                q.DataChangeBatches.Add(DecodeDataChangeBatch(decoder)!);
             }
             return q;
         }
 
-        internal static void EncodeDataChangeBatch(BinaryEncoder encoder, DataChangeBatch batch)
+        internal static void EncodeDataChangeBatch(BinaryEncoder encoder, DataChangeBatch? batch)
         {
-            bool hasValue = batch != null;
-            encoder.WriteBoolean(null, hasValue);
-            if (!hasValue)
+            encoder.WriteBoolean(null, batch != null);
+            if (batch == null)
             {
                 return;
             }
@@ -374,7 +373,7 @@ namespace Quickstarts.Servers
             {
                 for (int i = 0; i < count; i++)
                 {
-                    (DataValue dv, ServiceResult sr) = batch.Values[i];
+                    (DataValue dv, ServiceResult? sr) = batch.Values[i];
                     encoder.WriteDataValue(null, dv);
                     encoder.WriteStatusCode(null,
                         sr?.StatusCode ?? StatusCodes.Good);
@@ -382,7 +381,7 @@ namespace Quickstarts.Servers
             }
         }
 
-        internal static DataChangeBatch DecodeDataChangeBatch(BinaryDecoder decoder)
+        internal static DataChangeBatch? DecodeDataChangeBatch(BinaryDecoder decoder)
         {
             bool hasValue = decoder.ReadBoolean(null);
             if (!hasValue)
@@ -396,14 +395,14 @@ namespace Quickstarts.Servers
             bool isPersisted = decoder.ReadBoolean(null);
 
             int count = decoder.ReadInt32(null);
-            var values = new List<(DataValue, ServiceResult)>(count);
+            var values = new List<(DataValue, ServiceResult?)>(count);
             for (int i = 0; i < count; i++)
             {
-                DataValue dv = decoder.ReadDataValue(null);
+                DataValue? dv = decoder.ReadDataValue(null);
                 StatusCode sc = decoder.ReadStatusCode(null);
-                ServiceResult sr = sc == StatusCodes.Good
+                ServiceResult? sr = sc == StatusCodes.Good
                     ? null : new ServiceResult(sc);
-                values.Add((dv, sr));
+                values.Add((dv!, sr));
             }
 
             var batch = new DataChangeBatch(values, batchSize, monItemId);
@@ -449,17 +448,16 @@ namespace Quickstarts.Servers
             q.EventBatches = new List<EventBatch>(batchCount);
             for (int i = 0; i < batchCount; i++)
             {
-                q.EventBatches.Add(DecodeEventBatch(decoder));
+                q.EventBatches.Add(DecodeEventBatch(decoder)!);
             }
             return q;
         }
 
         internal static void EncodeEventBatch(
-            BinaryEncoder encoder, EventBatch batch)
+            BinaryEncoder encoder, EventBatch? batch)
         {
-            bool hasValue = batch != null;
-            encoder.WriteBoolean(null, hasValue);
-            if (!hasValue)
+            encoder.WriteBoolean(null, batch != null);
+            if (batch == null)
             {
                 return;
             }
@@ -480,7 +478,7 @@ namespace Quickstarts.Servers
             }
         }
 
-        internal static EventBatch DecodeEventBatch(BinaryDecoder decoder)
+        internal static EventBatch? DecodeEventBatch(BinaryDecoder decoder)
         {
             bool hasValue = decoder.ReadBoolean(null);
             if (!hasValue)
@@ -499,7 +497,7 @@ namespace Quickstarts.Servers
             {
                 ExtensionObject eo = decoder.ReadExtensionObject(null);
                 if (!eo.IsNull &&
-                    eo.TryGetValue(out IEncodeable e) &&
+                    eo.TryGetValue(out IEncodeable? e) &&
                     e is EventFieldList efl)
                 {
                     events.Add(efl);

@@ -71,21 +71,21 @@ namespace Alarms
             base.Initialize(alarmTypeIdentifier, name);
 
             // Set all ConditionType Parameters
-            alarm.ClientUserId.Value = "Anonymous";
-            alarm.ConditionClassId.Value = m_alarmConditionType.Node;
-            alarm.ConditionClassName.Value
+            alarm.ClientUserId!.Value = "Anonymous";
+            alarm.ConditionClassId!.Value = m_alarmConditionType.Node;
+            alarm.ConditionClassName!.Value
                 = new LocalizedText(string.Empty, m_alarmConditionType.ConditionName);
-            alarm.ConditionName.Value = m_alarmRootName;
+            alarm.ConditionName!.Value = m_alarmRootName;
             m_logger.LogTrace("Alarm ConditionName = {ConditionName}", alarm.ConditionName.Value);
 
-            alarm.BranchId.Value = new NodeId();
-            alarm.Retain.Value = false;
+            alarm.BranchId!.Value = new NodeId();
+            alarm.Retain!.Value = false;
 
             alarm.SetEnableState(SystemContext, true);
-            alarm.Quality.Value = StatusCodes.Good;
-            alarm.LastSeverity.Value = AlarmDefines.INACTIVE_SEVERITY;
-            alarm.Severity.Value = AlarmDefines.INACTIVE_SEVERITY;
-            alarm.Comment.Value = new LocalizedText("en", string.Empty);
+            alarm.Quality!.Value = StatusCodes.Good;
+            alarm.LastSeverity!.Value = AlarmDefines.INACTIVE_SEVERITY;
+            alarm.Severity!.Value = AlarmDefines.INACTIVE_SEVERITY;
+            alarm.Comment!.Value = new LocalizedText("en", string.Empty);
 
             // Set Method Handlers
             alarm.OnEnableDisable = OnEnableDisableAlarm;
@@ -95,7 +95,7 @@ namespace Alarms
             alarm.ConditionSubClassName = null;
         }
 
-        public BaseEventState FindBranch()
+        public BaseEventState? FindBranch()
         {
             return null;
         }
@@ -106,7 +106,7 @@ namespace Alarms
             {
                 ConditionState alarm = GetAlarm();
 
-                int currentSeverity = alarm.Severity.Value;
+                int currentSeverity = alarm.Severity!.Value;
                 int newSeverity = GetSeverity();
                 // A branch is created at the end of an active cycle
                 // This could be a transition between alarm states,
@@ -116,9 +116,9 @@ namespace Alarms
                     newSeverity != currentSeverity)
                 {
                     NodeId branchId = GetNewBranchId();
-                    ConditionState branch = alarm.CreateBranch(SystemContext, branchId);
+                    ConditionState branch = alarm.CreateBranch(SystemContext, branchId)!;
 
-                    string postEventId = branch.EventId.Value.ToHexString();
+                    string postEventId = branch.EventId!.Value.ToHexString();
 
                     Log(
                         "CreateBranch",
@@ -127,7 +127,7 @@ namespace Alarms
                         " EventId " +
                         postEventId +
                         " created, Message " +
-                        alarm.Message.Value.Text);
+                        alarm.Message!.Value.Text);
 
                     m_alarmController.SetBranchCount(alarm.GetBranchCount());
                 }
@@ -150,28 +150,28 @@ namespace Alarms
                     message = "Alarm Event Value = " + m_trigger.Value;
                 }
 
-                alarm.Message.Value = new LocalizedText("en", message);
+                alarm.Message!.Value = new LocalizedText("en", message);
 
                 ReportEvent();
             }
         }
 
-        public void ReportEvent(ConditionState alarm = null)
+        public void ReportEvent(ConditionState? alarm = null)
         {
             alarm ??= GetAlarm();
 
-            if (alarm.EnabledState.Id.Value)
+            if (alarm.EnabledState!.Id!.Value)
             {
-                alarm.EventId.Value = Uuid.NewUuid().ToByteString();
-                alarm.Time.Value = DateTimeUtc.Now;
-                alarm.ReceiveTime.Value = alarm.Time.Value;
+                alarm.EventId!.Value = Uuid.NewUuid().ToByteString();
+                alarm.Time!.Value = DateTimeUtc.Now;
+                alarm.ReceiveTime!.Value = alarm.Time.Value;
 
                 Log(
                     "ReportEvent",
                     " Value " +
                     m_alarmController.GetValue().ToString(CultureInfo.InvariantCulture) +
                     " Message " +
-                    alarm.Message.Value.Text);
+                    alarm.Message!.Value.Text);
 
                 alarm.ClearChangeMasks(SystemContext, true);
 
@@ -236,7 +236,7 @@ namespace Alarms
         {
             bool wasActive = false;
             ConditionState alarm = GetAlarm();
-            if (alarm.Severity.Value > AlarmDefines.INACTIVE_SEVERITY)
+            if (alarm.Severity!.Value > AlarmDefines.INACTIVE_SEVERITY)
             {
                 wasActive = true;
             }
@@ -248,7 +248,7 @@ namespace Alarms
             bool shouldEvent = false;
             ConditionState alarm = GetAlarm();
             ushort newSeverity = GetSeverity();
-            if (newSeverity != alarm.Severity.Value)
+            if (newSeverity != alarm.Severity!.Value)
             {
                 shouldEvent = true;
             }
@@ -256,7 +256,7 @@ namespace Alarms
             return shouldEvent;
         }
 
-        private ConditionState GetAlarm(BaseEventState alarm = null)
+        private ConditionState GetAlarm(BaseEventState? alarm = null)
         {
             alarm ??= m_alarm;
             return (ConditionState)alarm;
@@ -288,10 +288,10 @@ namespace Alarms
 
             ConditionState alarm = GetAlarm();
 
-            if (enabling != alarm.EnabledState.Id.Value)
+            if (enabling != alarm.EnabledState!.Id!.Value)
             {
                 alarm.SetEnableState(SystemContext, enabling);
-                alarm.Message.Value = enabling ?
+                alarm.Message!.Value = enabling ?
                     LocalizedText.From("Enabling") :
                     LocalizedText.From("Disabling alarm " + MapName);
 
@@ -318,11 +318,11 @@ namespace Alarms
         {
             ConditionState alarm = GetAlarm();
 
-            ConditionState alarmOrBranch = alarm.GetEventByEventId(eventId);
+            ConditionState? alarmOrBranch = alarm.GetEventByEventId(eventId);
             if (alarmOrBranch == null)
             {
                 string errorMessage = "Unknown event id " + eventId.ToHexString();
-                alarm.Message.Value = LocalizedText.From("OnAddComment " + errorMessage);
+                alarm.Message!.Value = LocalizedText.From("OnAddComment " + errorMessage);
                 LogError("OnAddComment", errorMessage);
                 return StatusCodes.BadEventIdUnknown;
             }

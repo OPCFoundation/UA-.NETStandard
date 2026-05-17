@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -202,7 +202,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return obj switch
             {
@@ -225,7 +225,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public int CompareTo(object obj)
+        public int CompareTo(object? obj)
         {
             return obj switch
             {
@@ -260,7 +260,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public string ToString(string format, IFormatProvider formatProvider)
+        public  string ToString(string? format, IFormatProvider? formatProvider)
         {
             return Guid.ToString(format);
         }

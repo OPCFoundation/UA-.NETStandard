@@ -85,7 +85,7 @@ namespace Opc.Ua.Server.Fluent
         public static INodeBuilder<TNotifier> Publish<TNotifier, TEvent>(
             this INodeBuilder<TNotifier> nodeBuilder,
             Func<TNotifier, ISystemContext, CancellationToken, IAsyncEnumerable<TEvent>> factory,
-            EventPublishOptions options = null)
+            EventPublishOptions? options = null)
             where TNotifier : BaseObjectState
             where TEvent : BaseEventState
         {
@@ -130,7 +130,7 @@ namespace Opc.Ua.Server.Fluent
         public static INodeBuilder<TNotifier> Publish<TNotifier, TEvent>(
             this INodeBuilder<TNotifier> nodeBuilder,
             IAsyncEnumerable<TEvent> source,
-            EventPublishOptions options = null)
+            EventPublishOptions? options = null)
             where TNotifier : BaseObjectState
             where TEvent : BaseEventState
         {

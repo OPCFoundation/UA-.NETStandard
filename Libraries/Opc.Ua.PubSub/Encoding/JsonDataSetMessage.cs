@@ -46,7 +46,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Create new instance of <see cref="JsonDataSetMessage"/> with DataSet parameter
         /// </summary>
-        public JsonDataSetMessage(ILogger logger = null)
+        public JsonDataSetMessage(ILogger? logger = null)
             : this(null, logger)
         {
         }
@@ -54,10 +54,10 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Create new instance of <see cref="JsonDataSetMessage"/> with DataSet parameter
         /// </summary>
-        public JsonDataSetMessage(DataSet dataSet, ILogger logger = null)
-            : base(logger)
+        public JsonDataSetMessage(DataSet? dataSet, ILogger? logger = null)
+            : base(logger!)
         {
-            DataSet = dataSet;
+            DataSet = dataSet!;
         }
 
         /// <summary>
@@ -109,9 +109,9 @@ namespace Opc.Ua.PubSub.Encoding
         /// </summary>
         /// <param name="jsonEncoder">The <see cref="PubSubJsonEncoder"/> used to encode this object.</param>
         /// <param name="fieldName">The field name to be used to encode this object, by default it is null.</param>
-        internal void Encode(PubSubJsonEncoder jsonEncoder, string fieldName = null)
+        internal void Encode(PubSubJsonEncoder jsonEncoder, string? fieldName = null)
         {
-            jsonEncoder.PushStructure(fieldName);
+            jsonEncoder.PushStructure(fieldName!);
             if (HasDataSetMessageHeader)
             {
                 EncodeDataSetMessageHeader(jsonEncoder);
@@ -150,13 +150,13 @@ namespace Opc.Ua.PubSub.Encoding
                 }
 
                 DecodeErrorReason = ValidateMetadataVersion(
-                    dataSetReader?.DataSetMetaData?.ConfigurationVersion);
+                    dataSetReader?.DataSetMetaData?.ConfigurationVersion!);
                 if (IsMetadataMajorVersionChange)
                 {
                     return;
                 }
                 // handle single dataset with no network message header & no dataset message header (the content of the payload)
-                DataSet = DecodePayloadContent(jsonDecoder, dataSetReader);
+                DataSet = DecodePayloadContent(jsonDecoder, dataSetReader!)!;
             }
             else
             {
@@ -200,12 +200,12 @@ namespace Opc.Ua.PubSub.Encoding
                 return;
             }
 
-            string payloadStructureName = kFieldPayload;
+            string? payloadStructureName = kFieldPayload;
             // try to read "Payload" structure
             if (!jsonDecoder.ReadField(kFieldPayload, out object token))
             {
                 // Decode the Messages element in case there is no "Payload" structure
-                jsonDecoder.ReadField(null, out token);
+                jsonDecoder.ReadField(null!, out token);
                 payloadStructureName = null;
             }
 
@@ -236,10 +236,10 @@ namespace Opc.Ua.PubSub.Encoding
             try
             {
                 // try decoding Payload Structure
-                bool wasPush = jsonDecoder.PushStructure(payloadStructureName);
+                bool wasPush = jsonDecoder.PushStructure(payloadStructureName!);
                 if (wasPush)
                 {
-                    DataSet = DecodePayloadContent(jsonDecoder, dataSetReader);
+                    DataSet = DecodePayloadContent(jsonDecoder, dataSetReader)!;
                 }
             }
             finally
@@ -253,7 +253,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// Decode the Content of the Payload and create a DataSet object from it
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        private DataSet DecodePayloadContent(
+        private DataSet? DecodePayloadContent(
             PubSubJsonDecoder jsonDecoder,
             DataSetReaderDataType dataSetReader)
         {
@@ -262,27 +262,27 @@ namespace Opc.Ua.PubSub.Encoding
             var dataValues = new List<DataValue>();
             for (int index = 0; index < dataSetMetaData?.Fields.Count; index++)
             {
-                FieldMetaData fieldMetaData = dataSetMetaData?.Fields[index];
+                FieldMetaData? fieldMetaData = dataSetMetaData?.Fields[index];
 
-                if (jsonDecoder.ReadField(fieldMetaData.Name, out _))
+                if (jsonDecoder.ReadField(fieldMetaData!.Name!, out _))
                 {
                     switch (m_fieldTypeEncoding)
                     {
                         case FieldTypeEncodingMask.Variant:
-                            Variant variantValue = jsonDecoder.ReadVariant(fieldMetaData.Name);
+                            Variant variantValue = jsonDecoder.ReadVariant(fieldMetaData.Name!);
                             dataValues.Add(new DataValue(variantValue));
                             break;
                         case FieldTypeEncodingMask.RawData:
-                            object value = DecodeRawData(
+                            object? value = DecodeRawData(
                                 jsonDecoder,
-                                dataSetMetaData?.Fields[index],
-                                dataSetMetaData?.Fields[index].Name);
+                                dataSetMetaData!.Fields[index],
+                                dataSetMetaData.Fields[index].Name!);
 #pragma warning disable CS0618 // Type or member is obsolete
-                            dataValues.Add(new DataValue(new Variant(value)));
+                            dataValues.Add(new DataValue(new Variant(value!)));
 #pragma warning restore CS0618 // Type or member is obsolete
                             break;
                         case FieldTypeEncodingMask.DataValue:
-                            bool wasPush2 = jsonDecoder.PushStructure(fieldMetaData.Name);
+                            bool wasPush2 = jsonDecoder.PushStructure(fieldMetaData.Name!);
                             var dataValue = new DataValue(Variant.Null);
                             try
                             {
@@ -291,10 +291,10 @@ namespace Opc.Ua.PubSub.Encoding
                                     // the Value was encoded using the non reversible json encoding
                                     token = DecodeRawData(
                                         jsonDecoder,
-                                        dataSetMetaData?.Fields[index],
-                                        "Value");
+                                        dataSetMetaData!.Fields[index],
+                                        "Value")!;
 #pragma warning disable CS0618 // Type or member is obsolete
-                                    dataValue = new DataValue(new Variant(token));
+                                    dataValue = new DataValue(new Variant(token!));
 #pragma warning restore CS0618 // Type or member is obsolete
                                 }
                                 else
@@ -470,7 +470,7 @@ namespace Opc.Ua.PubSub.Encoding
                 jsonEncoder.PushStructure(kFieldPayload);
             }
 
-            foreach (Field field in DataSet.Fields)
+            foreach (Field field in DataSet.Fields!)
             {
                 if (field != null)
                 {
@@ -492,9 +492,9 @@ namespace Opc.Ua.PubSub.Encoding
         /// <exception cref="ServiceResultException"></exception>
         private void EncodeField(PubSubJsonEncoder encoder, Field field)
         {
-            string fieldName = field.FieldMetaData.Name;
+            string fieldName = field.FieldMetaData!.Name!;
 
-            Variant valueToEncode = field.Value.WrappedValue;
+            Variant valueToEncode = field.Value!.WrappedValue;
 
             // Only treat an actual StatusCode value equal to Good as null to avoid misencoding
             if (valueToEncode.TypeInfo.BuiltInType == BuiltInType.StatusCode &&
@@ -583,7 +583,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Decode RawData type
         /// </summary>
-        private object DecodeRawData(
+        private object? DecodeRawData(
             PubSubJsonDecoder jsonDecoder,
             FieldMetaData fieldMetaData,
             string fieldName)
@@ -638,10 +638,10 @@ namespace Opc.Ua.PubSub.Encoding
                 jsonDecoder.ReadField(nameof(MetaDataVersion), out _))
             {
                 MetaDataVersion =
-                    jsonDecoder.ReadEncodeable(
+                    (jsonDecoder.ReadEncodeable(
                         nameof(MetaDataVersion),
                         typeof(ConfigurationVersionDataType)) as
-                    ConfigurationVersionDataType;
+                    ConfigurationVersionDataType)!;
             }
 
             if ((DataSetMessageContentMask & JsonDataSetMessageContentMask.Timestamp) != 0 &&
@@ -661,7 +661,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// Decode a scalar type
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        private object DecodeRawScalar(
+        private object? DecodeRawScalar(
             PubSubJsonDecoder jsonDecoder,
             byte builtInType,
             string fieldName)

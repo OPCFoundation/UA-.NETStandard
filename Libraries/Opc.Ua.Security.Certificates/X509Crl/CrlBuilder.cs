@@ -121,6 +121,9 @@ namespace Opc.Ua.Security.Certificates
             NextUpdate = DateTime.MinValue;
             m_revokedCertificates = [];
             CrlExtensions = [];
+            // Late-init: set by chained constructors or by CreateSignature for RawData.
+            IssuerName = null!;
+            RawData = null!;
         }
 
         /// <inheritdoc/>

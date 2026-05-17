@@ -115,7 +115,9 @@ namespace Opc.Ua.PubSub.Transport
             }
 
             // Setup reconnect handler
-            mqttClient.DisconnectedAsync += async e =>
+            // mqttClient is non-null here (CreateMqttClient returns a new instance);
+            // the analyzer narrows it to maybe-null because of defensive `?.` usage in closures above.
+            mqttClient!.DisconnectedAsync += async e =>
             {
                 try
                 {
@@ -134,7 +136,7 @@ namespace Opc.Ua.PubSub.Transport
                         mqttClient?.Options?.ClientId,
                         e.Reason,
                         e.ClientWasConnected);
-                    await ConnectAsync(reconnectInterval, mqttClientOptions, mqttClient, logger, ct)
+                    await ConnectAsync(reconnectInterval, mqttClientOptions, mqttClient!, logger, ct)
                         .ConfigureAwait(false);
                 }
                 catch (Exception excOnDisconnect)

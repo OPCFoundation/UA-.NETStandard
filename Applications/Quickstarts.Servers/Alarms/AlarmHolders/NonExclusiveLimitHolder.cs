@@ -93,7 +93,7 @@ namespace Alarms
         {
             NonExclusiveLimitAlarmState alarm = GetAlarm();
             int newSeverity = GetSeverity();
-            int currentSeverity = alarm.Severity.Value;
+            int currentSeverity = alarm.Severity!.Value;
 
             if (newSeverity != currentSeverity)
             {

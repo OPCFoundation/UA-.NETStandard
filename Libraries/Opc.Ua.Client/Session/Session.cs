@@ -43,6 +43,29 @@ namespace Opc.Ua.Client
     /// <summary>
     /// Manages a session with a server.
     /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Many properties on <see cref="ConfiguredEndpoint"/> (e.g. <c>EndpointUrl</c>,
+    /// <c>Configuration</c>) and <see cref="EndpointDescription"/> (<c>SecurityPolicyUri</c>)
+    /// are annotated nullable on the schema-generated DTOs but are required at runtime once
+    /// a session has been created. The same applies to <see cref="ApplicationConfiguration"/>
+    /// members such as <c>ClientConfiguration</c>, <c>CertificateValidator</c> and
+    /// <c>ApplicationName</c>: a <c>Session</c> cannot be opened without them - see
+    /// <see cref="ValidateClientConfiguration(ApplicationConfiguration)"/>.
+    /// Null-forgiving (<c>!</c>) suppressions in this file reflect those lifecycle
+    /// invariants which the C# compiler cannot infer from the type system.
+    /// </para>
+    /// <para>
+    /// The instance-level fields <c>m_serverCertificate</c>, <c>m_instanceCertificate</c>
+    /// and <c>m_userTokenSecurityPolicyUri</c> are nullable until <c>OpenAsync</c> /
+    /// <c>ActivateSessionAsync</c> populates them; uses inside post-open code paths bang
+    /// them to acknowledge the open-session invariant. A <c>!</c> on a return value of
+    /// <see cref="SecurityPolicies.GetInfo"/> (which returns nullable) is reused immediately
+    /// thereafter and the implicit dereference would NRE on null, so the bang preserves the
+    /// pre-nullable behavior of throwing a <see cref="NullReferenceException"/> if a
+    /// caller-supplied policy URI is unknown.
+    /// </para>
+    /// </remarks>
     public partial class Session : SessionClientBatched, ISession,
         ISnapshotRestore<SessionState>, ISnapshotRestore<SessionConfiguration>
     {
@@ -221,7 +244,7 @@ namespace Opc.Ua.Client
             m_identity = new UserIdentity();
 
             // update the default subscription.
-            DefaultSubscription.MinLifetimeInterval = (uint)m_configuration.ClientConfiguration
+            DefaultSubscription.MinLifetimeInterval = (uint)m_configuration.ClientConfiguration!
                 .MinSubscriptionLifetime;
 
             // initialize operation limits from client configuration.
@@ -278,6 +301,13 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Check if all required configuration fields are populated.
         /// </summary>
+        /// <remarks>
+        /// Subsequent code paths in this class dereference <see cref="ApplicationConfiguration.ClientConfiguration"/>,
+        /// <see cref="ApplicationConfiguration.SecurityConfiguration"/> and
+        /// <see cref="ApplicationConfiguration.CertificateManager"/> using the null-forgiving
+        /// (<c>!</c>) operator. This method enforces the matching invariant at session
+        /// construction time; the compiler cannot infer the narrowing across method boundaries.
+        /// </remarks>
         /// <exception cref="ArgumentNullException"><paramref name="configuration"/> is <c>null</c>.</exception>
         /// <exception cref="ServiceResultException"></exception>
         private static void ValidateClientConfiguration(ApplicationConfiguration configuration)
@@ -722,7 +752,7 @@ namespace Opc.Ua.Client
                 LifetimeCount = 1000,
                 Priority = 255,
                 PublishingEnabled = true,
-                MinLifetimeInterval = (uint)m_configuration.ClientConfiguration
+                MinLifetimeInterval = (uint)m_configuration.ClientConfiguration!
                   .MinSubscriptionLifetime
             });
             set
@@ -981,9 +1011,9 @@ namespace Opc.Ua.Client
                 string? ephemeralKeyPolicyUri = !string.IsNullOrEmpty(m_userTokenSecurityPolicyUri)
                     ? m_userTokenSecurityPolicyUri
                     : m_endpoint.Description?.SecurityPolicyUri ?? SecurityPolicies.None;
-                SecurityPolicyInfo ephemeralKeyPolicy = SecurityPolicies.GetInfo(ephemeralKeyPolicyUri);
+                SecurityPolicyInfo? ephemeralKeyPolicy = SecurityPolicies.GetInfo(ephemeralKeyPolicyUri!);
                 m_eccServerEphemeralKey = Nonce.CreateNonce(
-                    ephemeralKeyPolicy,
+                    ephemeralKeyPolicy!,
                     sessionConfiguration.ServerEccEphemeralKey.ToArray());
             }
             else
@@ -1072,11 +1102,11 @@ namespace Opc.Ua.Client
                 ?? throw new InvalidOperationException("Missing service message context");
             using var decoder = new BinaryDecoder(
                 stream, context, true);
-            ArrayOf<string> nsUris = decoder.ReadStringArray(null);
-            ArrayOf<string> serverUris = decoder.ReadStringArray(null);
+            ArrayOf<string?> nsUris = decoder.ReadStringArray(null);
+            ArrayOf<string?> serverUris = decoder.ReadStringArray(null);
             decoder.SetMappingTables(
-                new NamespaceTable(nsUris.Memory.ToArray()),
-                new StringTable(serverUris.Memory.ToArray()));
+                new NamespaceTable(nsUris.Memory.ToArray()!),
+                new StringTable(serverUris.Memory.ToArray()!));
 
             int count = decoder.ReadInt32(null);
             if (count <= 0)
@@ -1228,14 +1258,14 @@ namespace Opc.Ua.Client
             var clientDescription = new ApplicationDescription
             {
                 ApplicationUri = m_configuration.ApplicationUri,
-                ApplicationName = LocalizedText.From(m_configuration.ApplicationName),
+                ApplicationName = LocalizedText.From(m_configuration.ApplicationName!),
                 ApplicationType = ApplicationType.Client,
                 ProductUri = m_configuration.ProductUri
             };
 
             if (sessionTimeout == 0)
             {
-                sessionTimeout = (uint)m_configuration.ClientConfiguration.DefaultSessionTimeout;
+                sessionTimeout = (uint)m_configuration.ClientConfiguration!.DefaultSessionTimeout;
             }
 
             // select the security policy for the user token.
@@ -1255,7 +1285,7 @@ namespace Opc.Ua.Client
                         null,
                         clientDescription,
                         m_endpoint.Description.Server.ApplicationUri,
-                        m_endpoint.EndpointUrl.ToString(),
+                        m_endpoint.EndpointUrl!.ToString(),
                         sessionName,
                         clientNonce,
                         default,
@@ -1278,7 +1308,7 @@ namespace Opc.Ua.Client
                     requestHeader,
                     clientDescription,
                     m_endpoint.Description.Server.ApplicationUri,
-                    m_endpoint.EndpointUrl.ToString(),
+                    m_endpoint.EndpointUrl!.ToString(),
                     sessionName,
                     clientNonce,
                     clientCertificateChainData.IsEmpty ?
@@ -1338,10 +1368,10 @@ namespace Opc.Ua.Client
                 ProcessResponseAdditionalHeader(response.ResponseHeader, serverCertificate);
 
                 // create the client signature.
-                SecurityPolicyInfo securityPolicy = SecurityPolicies.GetInfo(securityPolicyUri);
+                SecurityPolicyInfo? securityPolicy = SecurityPolicies.GetInfo(securityPolicyUri);
 
                 // create the client signature.
-                byte[] dataToSign = securityPolicy.GetClientSignatureData(
+                byte[] dataToSign = securityPolicy!.GetClientSignatureData(
                     TransportChannel.ChannelThumbprint,
                     serverNonce.ToArray(),
                     serverCertificate?.RawData,
@@ -1351,13 +1381,15 @@ namespace Opc.Ua.Client
 
                 SignatureData clientSignature = SecurityPolicies.CreateSignatureData(
                     securityPolicyUri,
-                    m_instanceCertificate,
+                    m_instanceCertificate!,
                     dataToSign);
 
                 // select the security policy for the user token.
-                string? tokenSecurityPolicyUri = string.IsNullOrEmpty(identityPolicy.SecurityPolicyUri)
+                string tokenSecurityPolicyUri = string.IsNullOrEmpty(identityPolicy.SecurityPolicyUri)
                     ? m_endpoint.Description.SecurityPolicyUri ?? SecurityPolicies.None
-                    : identityPolicy.SecurityPolicyUri;
+                    // identityPolicy.SecurityPolicyUri is non-empty here; legacy BCL targets
+                    // lack [NotNullWhen(false)] on string.IsNullOrEmpty.
+                    : identityPolicy.SecurityPolicyUri!;
 
                 // validate server nonce and security parameters for user identity.
                 ValidateServerNonce(
@@ -1393,7 +1425,7 @@ namespace Opc.Ua.Client
                 {
                     // encrypt token.
                     await identityToken.EncryptAsync(
-                        serverCertificate,
+                        serverCertificate!,
                         serverNonce.ToArray(),
                         tokenSecurityPolicyUri,
                         MessageContext,
@@ -1535,10 +1567,10 @@ namespace Opc.Ua.Client
             // get the identity token.
             string securityPolicyUri =
                 m_endpoint.Description.SecurityPolicyUri ?? SecurityPolicies.None;
-            SecurityPolicyInfo securityPolicy = SecurityPolicies.GetInfo(securityPolicyUri);
+            SecurityPolicyInfo? securityPolicy = SecurityPolicies.GetInfo(securityPolicyUri);
 
             // create the client signature.
-            byte[] dataToSign = securityPolicy.GetClientSignatureData(
+            byte[] dataToSign = securityPolicy!.GetClientSignatureData(
                 TransportChannel.ChannelThumbprint,
                 serverNonce.ToArray(),
                 m_serverCertificate?.RawData,
@@ -1548,16 +1580,16 @@ namespace Opc.Ua.Client
 
             SignatureData clientSignature = SecurityPolicies.CreateSignatureData(
                 securityPolicyUri,
-                m_instanceCertificate,
+                m_instanceCertificate!,
                 dataToSign);
 
             // choose a default token.
             identity ??= new UserIdentity();
 
             // check that the user identity is supported by the endpoint.
-            UserTokenPolicy identityPolicy =
+            UserTokenPolicy? identityPolicy =
                 m_endpoint.Description.FindUserTokenPolicy(
-                    identity.TokenHandler.Token.PolicyId,
+                    identity.TokenHandler.Token.PolicyId!,
                     securityPolicyUri) ??
                 m_endpoint.Description.FindUserTokenPolicy(
                     identity.TokenType,
@@ -1568,9 +1600,11 @@ namespace Opc.Ua.Client
                     "Endpoint does not support the user identity type provided.");
 
             // select the security policy for the user token.
-            string? tokenSecurityPolicyUri = string.IsNullOrEmpty(identityPolicy.SecurityPolicyUri)
+            string tokenSecurityPolicyUri = string.IsNullOrEmpty(identityPolicy.SecurityPolicyUri)
                 ? securityPolicyUri
-                : identityPolicy.SecurityPolicyUri;
+                // identityPolicy.SecurityPolicyUri is non-empty here; legacy BCL targets
+                // lack [NotNullWhen(false)] on string.IsNullOrEmpty.
+                : identityPolicy.SecurityPolicyUri!;
 
             bool requireEncryption = tokenSecurityPolicyUri != SecurityPolicies.None;
 
@@ -1623,7 +1657,7 @@ namespace Opc.Ua.Client
             {
                 // encrypt token.
                 await identityToken.EncryptAsync(
-                    m_serverCertificate,
+                    m_serverCertificate!,
                     serverNonce.ToArray(),
                     tokenSecurityPolicyUri,
                     MessageContext,
@@ -2153,7 +2187,7 @@ namespace Opc.Ua.Client
             ITransportChannel channel = await UaChannelBase.CreateUaBinaryChannelAsync(
                 m_configuration,
                 ConfiguredEndpoint.Description,
-                ConfiguredEndpoint.Configuration,
+                ConfiguredEndpoint.Configuration!,
                 m_instanceCertificate?.AddRef(),
                 channelChain,
                 messageContext,
@@ -2213,7 +2247,7 @@ namespace Opc.Ua.Client
                 m_configuration,
                 connection,
                 ConfiguredEndpoint.Description,
-                ConfiguredEndpoint.Configuration,
+                ConfiguredEndpoint.Configuration!,
                 m_instanceCertificate?.AddRef(),
                 channelChain,
                 messageContext,
@@ -2418,7 +2452,7 @@ namespace Opc.Ua.Client
                                 m_configuration,
                                 connection,
                                 m_endpoint.Description,
-                                m_endpoint.Configuration,
+                                m_endpoint.Configuration!,
                                 m_instanceCertificate?.AddRef(),
                                 m_configuration.SecurityConfiguration
                                         .SendCertificateChain
@@ -2434,7 +2468,7 @@ namespace Opc.Ua.Client
                             .CreateUaBinaryChannelAsync(
                                 m_configuration,
                                 m_endpoint.Description,
-                                m_endpoint.Configuration,
+                                m_endpoint.Configuration!,
                                 m_instanceCertificate?.AddRef(),
                                 m_configuration.SecurityConfiguration
                                         .SendCertificateChain
@@ -2702,14 +2736,14 @@ namespace Opc.Ua.Client
                 await LoadInstanceCertificateAsync(true, ct).ConfigureAwait(false);
 
                 string securityPolicyUri = m_endpoint.Description.SecurityPolicyUri ?? SecurityPolicies.None;
-                SecurityPolicyInfo securityPolicy = SecurityPolicies.GetInfo(securityPolicyUri);
+                SecurityPolicyInfo? securityPolicy = SecurityPolicies.GetInfo(securityPolicyUri);
                 EndpointDescription endpoint = m_endpoint.Description;
 
                 // check that the user identity is supported by the endpoint.
-                UserTokenPolicy identityPolicy = endpoint.FindUserTokenPolicy(
+                UserTokenPolicy? identityPolicy = endpoint.FindUserTokenPolicy(
                     m_identity.TokenType,
                     m_identity.IssuedTokenType,
-                    m_userTokenSecurityPolicyUri ?? endpoint.SecurityPolicyUri);
+                    m_userTokenSecurityPolicyUri ?? endpoint.SecurityPolicyUri!);
 
                 if (identityPolicy == null)
                 {
@@ -2722,9 +2756,11 @@ namespace Opc.Ua.Client
                 }
 
                 // select the security policy for the user token.
-                string? tokenSecurityPolicyUri = string.IsNullOrEmpty(identityPolicy.SecurityPolicyUri)
+                string tokenSecurityPolicyUri = string.IsNullOrEmpty(identityPolicy.SecurityPolicyUri)
                     ? endpoint.SecurityPolicyUri ?? SecurityPolicies.None
-                    : identityPolicy.SecurityPolicyUri;
+                    // identityPolicy.SecurityPolicyUri is non-empty here; legacy BCL targets
+                    // lack [NotNullWhen(false)] on string.IsNullOrEmpty.
+                    : identityPolicy.SecurityPolicyUri!;
 
                 if (m_userTokenSecurityPolicyUri == null)
                 {
@@ -2766,7 +2802,7 @@ namespace Opc.Ua.Client
                             m_configuration,
                             connection,
                             m_endpoint.Description,
-                            m_endpoint.Configuration,
+                            m_endpoint.Configuration!,
                             m_instanceCertificate?.AddRef(),
                             m_configuration.SecurityConfiguration.SendCertificateChain
                                 ? m_instanceCertificateChain?.AddRef()
@@ -2798,7 +2834,7 @@ namespace Opc.Ua.Client
                         transportChannel = await UaChannelBase.CreateUaBinaryChannelAsync(
                             m_configuration,
                             m_endpoint.Description,
-                            m_endpoint.Configuration,
+                            m_endpoint.Configuration!,
                             m_instanceCertificate?.AddRef(),
                             m_configuration.SecurityConfiguration.SendCertificateChain
                                 ? m_instanceCertificateChain?.AddRef()
@@ -2832,7 +2868,7 @@ namespace Opc.Ua.Client
                 }
 
                 // create the client signature.
-                byte[] dataToSign = securityPolicy.GetClientSignatureData(
+                byte[] dataToSign = securityPolicy!.GetClientSignatureData(
                     channelThumbprint,
                     m_serverNonce.ToArray(),
                     m_serverCertificate?.RawData,
@@ -2841,8 +2877,8 @@ namespace Opc.Ua.Client
                     m_clientNonce ?? []);
 
                 SignatureData clientSignature = SecurityPolicies.CreateSignatureData(
-                    endpoint.SecurityPolicyUri,
-                    m_instanceCertificate,
+                    endpoint.SecurityPolicyUri!,
+                    m_instanceCertificate!,
                     dataToSign);
 
                 dataToSign = securityPolicy.GetUserTokenSignatureData(
@@ -2867,7 +2903,7 @@ namespace Opc.Ua.Client
                 {
                     // encrypt token.
                     await identityToken.EncryptAsync(
-                        m_serverCertificate,
+                        m_serverCertificate!,
                         m_serverNonce.ToArray(),
                         tokenSecurityPolicyUri,
                         MessageContext,
@@ -2880,7 +2916,7 @@ namespace Opc.Ua.Client
 
                 m_logger.LogInformation("Session RE-ACTIVATING {SessionId}.", SessionId);
 
-                RequestHeader? header = CreateRequestHeaderForActivateSession(
+                RequestHeader header = CreateRequestHeaderForActivateSession(
                     tokenSecurityPolicyUri!) ??
                     new RequestHeader();
 
@@ -3793,7 +3829,7 @@ namespace Opc.Ua.Client
                     "Retrieved namespaces are missing OPC UA namespace at index 0.");
             }
 
-            NamespaceUris.Update(namespaceArray.ToArray());
+            NamespaceUris.Update(namespaceArray.ToArray()!);
 
             if (StatusCode.IsBad(values[1].StatusCode))
             {
@@ -3819,7 +3855,7 @@ namespace Opc.Ua.Client
 
             if (values[1].WrappedValue.TryGetValue(out ArrayOf<string> serverArray))
             {
-                ServerUris.Update(serverArray.ToArray());
+                ServerUris.Update(serverArray.ToArray()!);
             }
         }
 
@@ -3909,8 +3945,8 @@ namespace Opc.Ua.Client
 
             // check that the user identity is supported by the endpoint.
             identityPolicy = m_endpoint.Description.FindUserTokenPolicy(
-                identity.TokenHandler.Token.PolicyId,
-                securityPolicyUri);
+                identity.TokenHandler.Token.PolicyId!,
+                securityPolicyUri!)!;
 
             if (identityPolicy == null)
             {
@@ -4012,9 +4048,9 @@ namespace Opc.Ua.Client
             }
 
             // validate the server's signature.
-            SecurityPolicyInfo securityPolicy = SecurityPolicies.GetInfo(m_endpoint.Description.SecurityPolicyUri);
+            SecurityPolicyInfo? securityPolicy = SecurityPolicies.GetInfo(m_endpoint.Description.SecurityPolicyUri!);
 
-            byte[] dataToSign = securityPolicy.GetServerSignatureData(
+            byte[] dataToSign = securityPolicy!.GetServerSignatureData(
                 TransportChannel.ChannelThumbprint,
                 clientNonce,
                 TransportChannel.ServerChannelCertificate,
@@ -4025,7 +4061,7 @@ namespace Opc.Ua.Client
             if (!SecurityPolicies.VerifySignatureData(
                     serverSignature,
                     securityPolicy,
-                    serverCertificate,
+                    serverCertificate!,
                     dataToSign))
             {
                 // validate the signature with complete chain if the check with leaf certificate failed.
@@ -4042,7 +4078,7 @@ namespace Opc.Ua.Client
                     if (!SecurityPolicies.VerifySignatureData(
                             serverSignature,
                             securityPolicy,
-                            serverCertificate,
+                            serverCertificate!,
                             dataToSign))
                     {
                         throw ServiceResultException.Create(
@@ -4200,13 +4236,13 @@ namespace Opc.Ua.Client
             EndpointDescription match,
             bool matchPort)
         {
-            Uri expectedUrl = Utils.ParseUri(match.EndpointUrl);
+            Uri? expectedUrl = Utils.ParseUri(match.EndpointUrl);
             for (int ii = 0; ii < endpointDescriptions.Count; ii++)
             {
                 EndpointDescription serverEndpoint = endpointDescriptions[ii];
-                Uri actualUrl = Utils.ParseUri(serverEndpoint.EndpointUrl);
+                Uri? actualUrl = Utils.ParseUri(serverEndpoint.EndpointUrl);
 
-                if (actualUrl != null &&
+                if (actualUrl != null && expectedUrl != null &&
                     actualUrl.Scheme == expectedUrl.Scheme &&
                     (!matchPort || actualUrl.Port == expectedUrl.Port) &&
                     serverEndpoint.SecurityPolicyUri == m_endpoint.Description.SecurityPolicyUri &&
@@ -4478,9 +4514,9 @@ namespace Opc.Ua.Client
 
             m_userTokenSecurityPolicyUri = userTokenSecurityPolicyUri;
 
-            SecurityPolicyInfo securityPolicy = SecurityPolicies.GetInfo(userTokenSecurityPolicyUri);
+            SecurityPolicyInfo? securityPolicy = SecurityPolicies.GetInfo(userTokenSecurityPolicyUri);
 
-            if (securityPolicy.EphemeralKeyAlgorithm != CertificateKeyAlgorithm.None)
+            if (securityPolicy!.EphemeralKeyAlgorithm != CertificateKeyAlgorithm.None)
             {
                 var parameters = new AdditionalParametersType
                 {
@@ -4509,9 +4545,9 @@ namespace Opc.Ua.Client
 
             if (!string.IsNullOrEmpty(userTokenSecurityPolicyUri))
             {
-                SecurityPolicyInfo userTokenSecurityPolicy = SecurityPolicies.GetInfo(userTokenSecurityPolicyUri);
+                SecurityPolicyInfo? userTokenSecurityPolicy = SecurityPolicies.GetInfo(userTokenSecurityPolicyUri);
 
-                if (userTokenSecurityPolicy.EphemeralKeyAlgorithm != CertificateKeyAlgorithm.None)
+                if (userTokenSecurityPolicy!.EphemeralKeyAlgorithm != CertificateKeyAlgorithm.None)
                 {
                     parameters.Parameters =
                     [
@@ -4552,7 +4588,7 @@ namespace Opc.Ua.Client
             Certificate? serverCertificate)
         {
             if (responseHeader != null &&
-                responseHeader.AdditionalHeader.TryGetValue(out IEncodeable e) &&
+                responseHeader.AdditionalHeader.TryGetValue(out IEncodeable? e) &&
                 e is AdditionalParametersType parameters)
             {
                 foreach (KeyValuePair ii in parameters.Parameters)
@@ -4613,8 +4649,8 @@ namespace Opc.Ua.Client
                         if (!CryptoUtils.Verify(
                                 new ArraySegment<byte>(key.PublicKey.ToArray()),
                                 key.Signature.ToArray(),
-                                serverCertificate,
-                                m_userTokenSecurityPolicyUri))
+                                serverCertificate!,
+                                m_userTokenSecurityPolicyUri!))
                         {
                             throw new ServiceResultException(
                                 StatusCodes.BadDecodingError,
@@ -4622,7 +4658,7 @@ namespace Opc.Ua.Client
                         }
 
                         m_eccServerEphemeralKey = Nonce.CreateNonce(
-                            SecurityPolicies.GetInfo(m_userTokenSecurityPolicyUri),
+                            SecurityPolicies.GetInfo(m_userTokenSecurityPolicyUri!)!,
                             key.PublicKey.ToArray());
 
                         m_logger.LogWarning("Updating ServerEphemeralKey: {Key} bytes", m_eccServerEphemeralKey.Data?.Length ?? 0);

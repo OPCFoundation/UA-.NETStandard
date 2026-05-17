@@ -68,7 +68,7 @@ namespace MemoryBuffer
         /// The browse name for the instance.
         /// </summary>
         [DataTypeField(Order = 1)]
-        public string Name { get; set; }
+        public string Name { get; set; } = null!;
 
         /// <summary>
         /// The number of tags in the buffer.
@@ -80,6 +80,6 @@ namespace MemoryBuffer
         /// The data type of the tags in the buffer.
         /// </summary>
         [DataTypeField(Order = 3)]
-        public string DataType { get; set; }
+        public string DataType { get; set; } = null!;
     }
 }

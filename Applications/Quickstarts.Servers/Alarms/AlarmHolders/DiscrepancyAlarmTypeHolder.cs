@@ -76,8 +76,8 @@ namespace Alarms
             base.Initialize(alarmTypeIdentifier, name, maxTimeShelved);
 
             DiscrepancyAlarmState alarm = GetAlarm();
-            alarm.TargetValueNode.Value = m_targetValueNodeId;
-            alarm.ExpectedTime.Value = 0.0;
+            alarm.TargetValueNode!.Value = m_targetValueNodeId;
+            alarm.ExpectedTime!.Value = 0.0;
         }
 
         private DiscrepancyAlarmState GetAlarm()

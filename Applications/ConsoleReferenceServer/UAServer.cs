@@ -44,17 +44,17 @@ namespace Quickstarts
 {
     public class UAServer<T> where T : StandardServer
     {
-        public IApplicationInstance Application { get; private set; }
+        public IApplicationInstance Application { get; private set; } = null!;
 
-        public ApplicationConfiguration Configuration => Application.ApplicationConfiguration;
+        public ApplicationConfiguration Configuration => Application.ApplicationConfiguration!;
 
         public bool AutoAccept { get; set; }
 
-        public char[] Password { get; set; }
+        public char[]? Password { get; set; }
 
         public ExitCode ExitCode { get; private set; }
 
-        public T Server { get; private set; }
+        public T? Server { get; private set; }
 
         /// <summary>
         /// Ctor of the server.
@@ -104,7 +104,7 @@ namespace Quickstarts
         {
             try
             {
-                ApplicationConfiguration config = Application.ApplicationConfiguration;
+                ApplicationConfiguration config = Application.ApplicationConfiguration!;
                 if (renewCertificate)
                 {
                     await Application.DeleteApplicationInstanceCertificateAsync().ConfigureAwait(false);
@@ -169,7 +169,7 @@ namespace Quickstarts
                 ExitCode = ExitCode.ErrorRunning;
 
                 // print endpoint info
-                foreach (string endpoint in Application.Server
+                foreach (string? endpoint in Application.Server!
                     .GetEndpoints()
                     .ConvertAll(e => e.EndpointUrl)
                     .ToList()
@@ -315,7 +315,7 @@ namespace Quickstarts
             private string m_message = string.Empty;
             private bool m_ask;
 
-            public ApplicationMessageDlg(TextWriter output = null)
+            public ApplicationMessageDlg(TextWriter? output = null)
             {
                 m_output = output ?? Console.Out;
             }
@@ -358,7 +358,7 @@ namespace Quickstarts
         private readonly Func<ITelemetryContext, T> m_factory;
         private readonly ITelemetryContext m_telemetry;
         private readonly ILogger m_logger;
-        private Task m_status;
+        private Task m_status = Task.CompletedTask;
         private DateTime m_lastEventTime;
     }
 }

@@ -1,4 +1,4 @@
-/* Copyright (c) 1996-2022 The OPC Foundation. All rights reserved.
+﻿/* Copyright (c) 1996-2022 The OPC Foundation. All rights reserved.
    The source code in this file is covered under a dual-license scenario:
      - RCL: for OPC Foundation Corporate Members in good-standing
      - GPL V2: everybody else
@@ -59,13 +59,11 @@ namespace Opc.Ua
             ReceiverNonce = receiverNonce;
             ReceiverCertificate = receiverCertificate;
             Validator = validator;
-            SecurityPolicy = SecurityPolicies.GetInfo(securityPolicyUri);
+            SecurityPolicy = SecurityPolicies.GetInfo(securityPolicyUri)
+                ?? throw new ArgumentException(
+                    $"Cannot resolve SecurityPolicy '{securityPolicyUri}'.",
+                    nameof(securityPolicyUri));
             Context = context;
-
-            if (SecurityPolicy == null)
-            {
-                throw new ArgumentException($"Cannot resolve SecurityPolicy '{securityPolicyUri}'.", nameof(securityPolicyUri));
-            }
         }
 
         /// <summary>
@@ -188,7 +186,7 @@ namespace Opc.Ua
                 forDecryption ? localNonce.Data : remoteNonce.Data);
 
             byte[] keyData = localNonce.DeriveKeyData(
-                secret,
+                secret!,
                 salt,
                 securityPolicy.KeyDerivationAlgorithm,
                 encryptingKeySize + blockSize);
@@ -218,7 +216,7 @@ namespace Opc.Ua
                 throw new ServiceResultException(StatusCodes.BadCertificateInvalid, "Sender certificate is required for ECC encryption.");
             }
 
-            int signatureLength = CryptoUtils.GetSignatureLength(SenderCertificate);
+            int signatureLength = CryptoUtils.GetSignatureLength(SenderCertificate!);
 
             using var encoder = new BinaryEncoder(Context);
 
@@ -235,7 +233,7 @@ namespace Opc.Ua
 
             if (!DoNotEncodeSenderCertificate)
             {
-                senderCertificate = SenderCertificate.RawData;
+                senderCertificate = SenderCertificate!.RawData;
 
                 if (SenderIssuerCertificates != null && SenderIssuerCertificates.Count > 0)
                 {
@@ -279,8 +277,8 @@ namespace Opc.Ua
                     "The sender nonce is required for ECC encryption.");
             }
 
-            byte[] senderNonce = SenderNonce.Data;
-            byte[] receiverNonce = ReceiverNonce.Data;
+            byte[] senderNonce = SenderNonce!.Data;
+            byte[] receiverNonce = ReceiverNonce!.Data;
 
             encoder.WriteUInt16(null, (ushort)(senderNonce.Length + receiverNonce.Length + 8));
             int senderNonceStart = encoder.Position;
@@ -359,8 +357,8 @@ namespace Opc.Ua
                 encoder.WriteByte(null, 0xDE);
             }
 
-            byte[] message = encoder.CloseAndReturnBuffer();
-            int length = message.Length - lengthPosition - 4;
+            byte[]? message = encoder.CloseAndReturnBuffer();
+            int length = message!.Length - lengthPosition - 4;
 
             message[lengthPosition++] = (byte)(length & 0xFF);
             message[lengthPosition++] = (byte)((length & 0xFF00) >> 8);
@@ -375,14 +373,14 @@ namespace Opc.Ua
 
             var dataToSign = new ArraySegment<byte>(message, 0, message.Length - signatureLength);
 
-            byte[] signature = CryptoUtils.Sign(
+            byte[]? signature = CryptoUtils.Sign(
                 dataToSign,
                 SenderCertificate,
                 SecurityPolicy.AsymmetricSignatureAlgorithm) ??
                 throw new ServiceResultException(StatusCodes.BadSecurityChecksFailed, "Failed to sign data.");
 
             Buffer.BlockCopy(
-                signature,
+                signature!,
                 0,
                 message,
                 endOfSecret + outerPaddingSize + tagLength,
@@ -421,7 +419,7 @@ namespace Opc.Ua
                 keyData = Utils.Append(signingKey, encryptingKey, iv);
 
                 ILogger logger = Context.Telemetry.CreateLogger<EncryptedSecret>();
-                byte[] encryptedKeyData = SecurityPolicies.Encrypt(
+                byte[]? encryptedKeyData = SecurityPolicies.Encrypt(
                     ReceiverCertificate,
                     SecurityPolicy.Uri,
                     keyData,
@@ -431,11 +429,11 @@ namespace Opc.Ua
                 using var payloadEncoder = new BinaryEncoder(Context);
                 payloadEncoder.WriteByteString(null, nonce ?? []);
                 payloadEncoder.WriteByteString(null, secret);
-                byte[] payload = payloadEncoder.CloseAndReturnBuffer();
+                byte[]? payload = payloadEncoder.CloseAndReturnBuffer();
 
                 int blockSize = SecurityPolicy.InitializationVectorLength;
                 int paddingByteSize = blockSize > byte.MaxValue ? 2 : 1;
-                int paddingSize = blockSize - ((payload.Length + paddingByteSize) % blockSize);
+                int paddingSize = blockSize - ((payload!.Length + paddingByteSize) % blockSize);
                 paddingSize %= blockSize;
 
                 encryptedPayload = new byte[payload.Length + paddingSize + paddingByteSize];
@@ -481,14 +479,14 @@ namespace Opc.Ua
                 encoder.WriteString(null, SecurityPolicy.Uri);
                 encoder.WriteByteString(null, ComputeSha1Hash(ReceiverCertificate.RawData));
                 encoder.WriteDateTime(null, DateTime.UtcNow);
-                encoder.WriteUInt16(null, (ushort)encryptedKeyData.Length);
+                encoder.WriteUInt16(null, (ushort)encryptedKeyData!.Length);
 
                 for (int ii = 0; ii < encryptedKeyData.Length; ii++)
                 {
                     encoder.WriteByte(null, encryptedKeyData[ii]);
                 }
 
-                for (int ii = 0; ii < encryptedPayload.Length; ii++)
+                for (int ii = 0; ii < encryptedPayload!.Length; ii++)
                 {
                     encoder.WriteByte(null, encryptedPayload[ii]);
                 }
@@ -498,8 +496,8 @@ namespace Opc.Ua
                     encoder.WriteByte(null, 0);
                 }
 
-                byte[] encodedSecret = encoder.CloseAndReturnBuffer();
-                int extensionObjectLength = encodedSecret.Length - lengthPosition - 4;
+                byte[]? encodedSecret = encoder.CloseAndReturnBuffer();
+                int extensionObjectLength = encodedSecret!.Length - lengthPosition - 4;
                 encodedSecret[lengthPosition++] = (byte)(extensionObjectLength & 0xFF);
                 encodedSecret[lengthPosition++] = (byte)((extensionObjectLength >> 8) & 0xFF);
                 encodedSecret[lengthPosition++] = (byte)((extensionObjectLength >> 16) & 0xFF);
@@ -587,13 +585,13 @@ namespace Opc.Ua
                 throw new ServiceResultException(StatusCodes.BadDecodingError);
             }
 
-            string encryptedSecretPolicyUri = decoder.ReadString(null);
+            string? encryptedSecretPolicyUri = decoder.ReadString(null);
             if (!string.Equals(encryptedSecretPolicyUri, SecurityPolicy.Uri, StringComparison.Ordinal))
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadSecurityPolicyRejected,
                     "Unexpected encrypted secret security policy: {0}",
-                    encryptedSecretPolicyUri);
+                    encryptedSecretPolicyUri ?? "null");
             }
 
             ByteString certificateHash = decoder.ReadByteString(null);
@@ -703,7 +701,7 @@ namespace Opc.Ua
                 encryptedPayload = new byte[encryptedPayloadLength];
                 Buffer.BlockCopy(encodedSecret, encryptedPayloadStart, encryptedPayload, 0, encryptedPayloadLength);
                 ArraySegment<byte> plainText = CryptoUtils.SymmetricDecryptAndVerify(
-                    new ArraySegment<byte>(encryptedPayload),
+                    new ArraySegment<byte>(encryptedPayload!),
                     SecurityPolicy,
                     encryptingKey,
                     iv);
@@ -837,7 +835,7 @@ namespace Opc.Ua
 
             int length = (int)decoder.ReadUInt32(null) + decoder.Position;
 
-            SecurityPolicy = SecurityPolicies.GetInfo(decoder.ReadString(null));
+            SecurityPolicy = SecurityPolicies.GetInfo(decoder.ReadString(null)!) ?? throw new ServiceResultException(StatusCodes.BadSecurityPolicyRejected);
 
             if (SecurityPolicy.EphemeralKeyAlgorithm == CertificateKeyAlgorithm.None)
             {
@@ -937,7 +935,7 @@ namespace Opc.Ua
                 dataToDecrypt.Offset,
                 dataToDecrypt.Count - signatureLength);
 
-            if (!CryptoUtils.Verify(dataToSign, signature, SenderCertificate, SecurityPolicy.AsymmetricSignatureAlgorithm))
+            if (!CryptoUtils.Verify(dataToSign, signature, SenderCertificate!, SecurityPolicy.AsymmetricSignatureAlgorithm))
             {
                 throw new ServiceResultException(
                     StatusCodes.BadSecurityChecksFailed,
@@ -982,8 +980,8 @@ namespace Opc.Ua
 
             CreateKeysForEcc(
                 SecurityPolicy,
-                ReceiverNonce,
-                SenderNonce,
+                ReceiverNonce!,
+                SenderNonce!,
                 true,
                 out byte[] encryptingKey,
                 out byte[] iv);
@@ -995,7 +993,7 @@ namespace Opc.Ua
                 iv);
 
             using var decoder = new BinaryDecoder(
-                plainText.Array,
+                plainText.GetArray(),
                 plainText.Offset + dataToDecrypt.Offset,
                 plainText.Count - dataToDecrypt.Offset,
                 Context);

@@ -43,38 +43,42 @@ namespace Boiler
         /// </summary>
         public double UpdateMeasurement(AnalogItemState<double> source)
         {
-            Range range = source.EURange.Value;
-            m_measurement.Value = source.Value;
+            var measurement = m_measurement!;
+            var setPoint = m_setPoint!;
+            var controlOut = m_controlOut!;
+
+            Range? range = source.EURange?.Value;
+            measurement.Value = source.Value;
 
             // clamp the setpoint.
             if (range != null)
             {
-                if (m_setPoint.Value > range.High)
+                if (setPoint.Value > range.High)
                 {
-                    m_setPoint.Value = range.High;
+                    setPoint.Value = range.High;
                 }
 
-                if (m_setPoint.Value < range.Low)
+                if (setPoint.Value < range.Low)
                 {
-                    m_setPoint.Value = range.Low;
+                    setPoint.Value = range.Low;
                 }
             }
 
             // calculate error.
-            m_controlOut.Value = m_setPoint.Value - m_measurement.Value;
+            controlOut.Value = setPoint.Value - measurement.Value;
 
             if (range != null)
             {
-                m_controlOut.Value /= range.Magnitude;
+                controlOut.Value /= range.Magnitude;
 
-                if (Math.Abs(m_controlOut.Value) > 1.0)
+                if (Math.Abs(controlOut.Value) > 1.0)
                 {
-                    m_controlOut.Value = m_controlOut.Value < 0 ? -1.0 : +1.0;
+                    controlOut.Value = controlOut.Value < 0 ? -1.0 : +1.0;
                 }
             }
 
             // return the new output.
-            return m_controlOut.Value;
+            return controlOut.Value;
         }
     }
 }

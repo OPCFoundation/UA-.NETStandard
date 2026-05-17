@@ -44,7 +44,7 @@ namespace Quickstarts.Servers
             "Durable Subscriptions");
 
         private const string kFilename = "subscriptionsStore.bin";
-        private readonly DurableMonitoredItemQueueFactory m_durableMonitoredItemQueueFactory;
+        private readonly DurableMonitoredItemQueueFactory? m_durableMonitoredItemQueueFactory;
         private readonly ILogger m_logger;
         private readonly IServiceMessageContext m_messageContext;
 
@@ -111,8 +111,8 @@ namespace Quickstarts.Servers
                     using (var decoder = new BinaryDecoder(
                         fileStream, m_messageContext, true))
                     {
-                        ArrayOf<string> nsUris = decoder.ReadStringArray(null);
-                        ArrayOf<string> serverUris = decoder.ReadStringArray(null);
+                        ArrayOf<string> nsUris = decoder.ReadStringArray(null)!;
+                        ArrayOf<string> serverUris = decoder.ReadStringArray(null)!;
                         decoder.SetMappingTables(
                             new NamespaceTable(nsUris.Memory.ToArray()),
                             new StringTable(serverUris.Memory.ToArray()));
@@ -142,14 +142,14 @@ namespace Quickstarts.Servers
         {
             return m_durableMonitoredItemQueueFactory?.RestoreDataChangeQueue(
                 monitoredItemId,
-                s_storage_path);
+                s_storage_path)!;
         }
 
         public IEventMonitoredItemQueue RestoreEventMonitoredItemQueue(uint monitoredItemId)
         {
             return m_durableMonitoredItemQueueFactory?.RestoreEventQueue(
                 monitoredItemId,
-                s_storage_path);
+                s_storage_path)!;
         }
 
         public void OnSubscriptionRestoreComplete(Dictionary<uint, ArrayOf<uint>> createdSubscriptions)
@@ -171,7 +171,7 @@ namespace Quickstarts.Servers
             // remove old batches & queues
             if (m_durableMonitoredItemQueueFactory != null)
             {
-                IEnumerable<uint> ids = createdSubscriptions.SelectMany(s => s.Value.ToArray());
+                IEnumerable<uint> ids = createdSubscriptions.SelectMany(s => s.Value.Memory.ToArray());
                 m_durableMonitoredItemQueueFactory.CleanStoredQueues(s_storage_path, ids);
             }
         }
@@ -266,7 +266,7 @@ namespace Quickstarts.Servers
             };
 
             ExtensionObject tokenEo = decoder.ReadExtensionObject(null);
-            if (!tokenEo.IsNull && tokenEo.TryGetValue(out IEncodeable tokenBody))
+            if (!tokenEo.IsNull && tokenEo.TryGetValue(out IEncodeable? tokenBody))
             {
                 subscription.UserIdentityToken = tokenBody as UserIdentityToken;
             }
@@ -279,7 +279,7 @@ namespace Quickstarts.Servers
                 foreach (ExtensionObject eo in sentMsgEos.Memory.ToArray())
                 {
                     if (!eo.IsNull &&
-                        eo.TryGetValue(out IEncodeable e) &&
+                        eo.TryGetValue(out IEncodeable? e) &&
                         e is NotificationMessage nm)
                     {
                         sentList.Add(nm);
@@ -308,7 +308,7 @@ namespace Quickstarts.Servers
                 TypeMask = decoder.ReadInt32(null),
                 NodeId = decoder.ReadNodeId(null),
                 AttributeId = decoder.ReadUInt32(null),
-                IndexRange = decoder.ReadString(null),
+                IndexRange = decoder.ReadString(null)!,
                 Encoding = decoder.ReadQualifiedName(null),
                 DiagnosticsMasks = decoder.ReadEnumerated<DiagnosticsMasks>(null),
                 TimestampsToReturn = decoder.ReadEnumerated<TimestampsToReturn>(null),
@@ -317,15 +317,17 @@ namespace Quickstarts.Servers
             };
 
             ExtensionObject origFilterEo = decoder.ReadExtensionObject(null);
-            if (!origFilterEo.IsNull && origFilterEo.TryGetValue(out IEncodeable origBody))
+            if (!origFilterEo.IsNull && origFilterEo.TryGetValue(out IEncodeable? origBody) &&
+                origBody is MonitoringFilter origFilter)
             {
-                item.OriginalFilter = origBody as MonitoringFilter;
+                item.OriginalFilter = origFilter;
             }
 
             ExtensionObject filterEo = decoder.ReadExtensionObject(null);
-            if (!filterEo.IsNull && filterEo.TryGetValue(out IEncodeable filterBody))
+            if (!filterEo.IsNull && filterEo.TryGetValue(out IEncodeable? filterBody) &&
+                filterBody is MonitoringFilter filterToUse)
             {
-                item.FilterToUse = filterBody as MonitoringFilter;
+                item.FilterToUse = filterToUse;
             }
 
             item.Range = decoder.ReadDouble(null);
@@ -335,15 +337,15 @@ namespace Quickstarts.Servers
             item.SourceSamplingInterval = decoder.ReadInt32(null);
             item.AlwaysReportUpdates = decoder.ReadBoolean(null);
             item.IsDurable = decoder.ReadBoolean(null);
-            item.LastValue = decoder.ReadDataValue(null);
+            item.LastValue = decoder.ReadDataValue(null)!;
 
             StatusCode lastErrorStatus = decoder.ReadStatusCode(null);
             item.LastError = lastErrorStatus == StatusCodes.Good
-                ? null : new ServiceResult(lastErrorStatus);
+                ? null! : new ServiceResult(lastErrorStatus);
 
-            string rangeStr = decoder.ReadString(null);
+            string? rangeStr = decoder.ReadString(null);
             item.ParsedIndexRange = string.IsNullOrEmpty(rangeStr)
-                ? NumericRange.Null : NumericRange.Parse(rangeStr);
+                ? NumericRange.Null : NumericRange.Parse(rangeStr!);
 
             return item;
         }

@@ -156,7 +156,7 @@ namespace Opc.Ua.Client
                 }
             };
 
-            return new ConfiguredEndpoint(null, endpointDescription);
+            return new ConfiguredEndpoint(null, endpointDescription, null);
         }
 
         private static async Task<List<RedundantServer>> ReadRedundantServerArrayAsync(
@@ -182,7 +182,7 @@ namespace Opc.Ua.Client
                     foreach (ExtensionObject extensionObject in extensionObjects)
                     {
                         if (extensionObject.TryGetValue(
-                            out RedundantServerDataType serverData))
+                            out RedundantServerDataType? serverData))
                         {
                             result.Add(new RedundantServer
                             {

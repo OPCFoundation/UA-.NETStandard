@@ -57,7 +57,7 @@ namespace TestData
         /// <summary>
         /// Returns an object that can be used to browse the archive.
         /// </summary>
-        public HistoryFile GetHistoryFile(NodeId nodeId)
+        public HistoryFile? GetHistoryFile(NodeId nodeId)
         {
             lock (m_lock)
             {
@@ -66,7 +66,7 @@ namespace TestData
                     return null;
                 }
 
-                if (!m_records.TryGetValue(nodeId, out HistoryRecord record))
+                if (!m_records.TryGetValue(nodeId, out HistoryRecord? record))
                 {
                     return null;
                 }
@@ -121,7 +121,7 @@ namespace TestData
         /// <summary>
         /// Periodically adds new values into the archive.
         /// </summary>
-        private void OnUpdate(object state)
+        private void OnUpdate(object? state)
         {
             try
             {
@@ -129,7 +129,7 @@ namespace TestData
 
                 lock (m_lock)
                 {
-                    foreach (HistoryRecord record in m_records.Values)
+                    foreach (HistoryRecord record in m_records!.Values)
                     {
                         if (!record.Historizing || record.RawData.Count >= 2000)
                         {
@@ -163,8 +163,8 @@ namespace TestData
         }
 
         private readonly Lock m_lock = new();
-        private Timer m_updateTimer;
-        private Dictionary<NodeId, HistoryRecord> m_records;
+        private Timer? m_updateTimer;
+        private Dictionary<NodeId, HistoryRecord>? m_records;
         private readonly ILogger m_logger;
     }
 
@@ -173,7 +173,7 @@ namespace TestData
     /// </summary>
     internal sealed class HistoryEntry
     {
-        public DataValue Value;
+        public DataValue Value = null!;
         public bool IsModified;
     }
 
@@ -182,7 +182,7 @@ namespace TestData
     /// </summary>
     internal sealed class HistoryRecord
     {
-        public List<HistoryEntry> RawData;
+        public List<HistoryEntry> RawData = null!;
         public bool Historizing;
         public BuiltInType DataType;
     }
