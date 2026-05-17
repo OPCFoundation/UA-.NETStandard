@@ -42,6 +42,33 @@ using UaLens.Connection;
 namespace UaLens.ViewModels;
 
 /// <summary>
+/// Address-space view kinds, mirroring the <c>BrowseViewType</c> enum from
+/// the WinForms reference client (<c>BrowseNodeCtrl.cs</c>).  Each value
+/// selects a different folder root and the hierarchical reference type
+/// followed when expanding children.
+/// </summary>
+internal enum BrowseViewKind
+{
+    /// <summary>Object instance hierarchy under <c>ObjectsFolder</c> (i=85).</summary>
+    Objects,
+
+    /// <summary>ObjectType hierarchy under <c>ObjectTypesFolder</c> (i=88).</summary>
+    ObjectTypes,
+
+    /// <summary>VariableType hierarchy under <c>VariableTypesFolder</c> (i=89).</summary>
+    VariableTypes,
+
+    /// <summary>DataType hierarchy under <c>DataTypesFolder</c> (i=90).</summary>
+    DataTypes,
+
+    /// <summary>ReferenceType hierarchy under <c>ReferenceTypesFolder</c> (i=91).</summary>
+    ReferenceTypes,
+
+    /// <summary>Server-defined views under <c>ViewsFolder</c> (i=87).</summary>
+    Views,
+}
+
+/// <summary>
 /// Hierarchical view model backing the address-space TreeView. Roots are
 /// Objects (i=85) and Server (i=2253); children are loaded lazily on
 /// <see cref="NodeViewModel.IsExpanded"/> change.
@@ -60,8 +87,19 @@ namespace UaLens.ViewModels;
 /// Methods.
 /// </para>
 /// </remarks>
-internal sealed class BrowserViewModel : ObservableObject
+internal sealed partial class BrowserViewModel : ObservableObject
 {
+    /// <summary>
+    /// Currently-selected view kind.  Drives both the root NodeId chosen
+    /// by <see cref="Reload"/> and the reference type followed when
+    /// expanding children in <see cref="LoadChildrenAsync"/>.  The combo
+    /// in <c>AddressSpaceView</c> rebinds the tree via
+    /// <see cref="SetViewKindAsync"/> rather than relying on the setter
+    /// so callers can await the rebuild.
+    /// </summary>
+    [ObservableProperty]
+    private BrowseViewKind m_currentViewKind = BrowseViewKind.Objects;
+
     private readonly ITelemetryContext m_telemetry;
     private readonly ILogger m_log;
     private readonly ConnectionService m_connection;
@@ -107,22 +145,57 @@ internal sealed class BrowserViewModel : ObservableObject
     /// roots and re-issues their initial browse against the live session.
     /// Bound to the "↻ Refresh" button at the top-right of the address-space
     /// panel.  Auto-invoked by <see cref="OnConnectionStateChanged"/> when
-    /// the live session reference changes.
+    /// the live session reference changes.  Uses <see cref="CurrentViewKind"/>
+    /// to choose the root folder.
     /// </summary>
     internal void Reload()
     {
         Roots.Clear();
         if (m_connection is { IsConnected: true, Session: { } })
         {
-            // Single root: i=84 (RootFolder).  Children (Objects, Types,
-            // Views, ...) load lazily on expand.
-            var root = new NodeViewModel(this, NodeId.Null, ObjectIds.RootFolder, "◉ Root", NodeClass.Object);
+            (NodeId rootId, string rootLabel) = GetRootSpec(CurrentViewKind);
+            // Children load lazily on expand via LoadChildrenAsync, which
+            // uses CurrentViewKind to pick the reference type to follow.
+            var root = new NodeViewModel(this, NodeId.Null, rootId, $"\u25C9 {rootLabel}", NodeClass.Object);
             Roots.Add(root);
-            // Auto-expand the root so the user immediately sees Objects/Types/Views.
+            // Auto-expand the root so the user immediately sees its
+            // children (Objects / Types / Views, etc.).
             root.IsExpanded = true;
         }
         m_lastSessionRef = m_connection.Session;
     }
+
+    /// <summary>
+    /// Switches the address-space view to <paramref name="kind"/>, clears
+    /// the existing roots, and re-loads from the new root with the
+    /// reference type associated with <paramref name="kind"/>.  No-op if
+    /// the view kind is unchanged.
+    /// </summary>
+    public Task SetViewKindAsync(BrowseViewKind kind, CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        if (CurrentViewKind == kind)
+        {
+            return Task.CompletedTask;
+        }
+        CurrentViewKind = kind;
+        return PostToUiAsync(Reload);
+    }
+
+    /// <summary>
+    /// Maps a <see cref="BrowseViewKind"/> to its root NodeId and the
+    /// human-readable label shown at the top of the tree.
+    /// </summary>
+    private static (NodeId RootId, string Label) GetRootSpec(BrowseViewKind kind) => kind switch
+    {
+        BrowseViewKind.Objects => (ObjectIds.ObjectsFolder, "Objects"),
+        BrowseViewKind.ObjectTypes => (ObjectIds.ObjectTypesFolder, "ObjectTypes"),
+        BrowseViewKind.VariableTypes => (ObjectIds.VariableTypesFolder, "VariableTypes"),
+        BrowseViewKind.DataTypes => (ObjectIds.DataTypesFolder, "DataTypes"),
+        BrowseViewKind.ReferenceTypes => (ObjectIds.ReferenceTypesFolder, "ReferenceTypes"),
+        BrowseViewKind.Views => (ObjectIds.ViewsFolder, "Views"),
+        _ => (ObjectIds.ObjectsFolder, "Objects"),
+    };
 
     internal async Task LoadChildrenAsync(NodeViewModel node)
     {
@@ -138,46 +211,17 @@ internal sealed class BrowserViewModel : ObservableObject
         }
         try
         {
-            // Two BrowseDescriptions per node, issued in a single round-trip:
-            //   1. Aggregates (HasComponent / HasOrderedComponent / HasProperty
-            //                  / HasHistoricalConfiguration via subtype walk)
-            //   2. Organizes (no subtypes — preserves folder navigation under
-            //                 the standard Objects folder, where children are
-            //                 linked via Organizes rather than HasComponent).
-            // Their union is what we render. We deduplicate by absolute NodeId
-            // so a child reachable through both refs (rare but possible) only
-            // shows once.  HasNotifier / HasEventSource are intentionally
-            // excluded — they cause duplicates on event-emitting servers.
-            // Browse with `Aggregates` (IncludeSubtypes=true) — covers
-            // HasComponent / HasOrderedComponent / HasProperty /
-            // HasHistoricalConfiguration via subtype walk — AND `Organizes`
-            // (no subtypes) so folder-style nodes (RootFolder → Objects /
-            // Types / Views, the standard Objects folder, …) navigate
-            // correctly.  Two BrowseDescriptions in one round-trip; results
-            // are deduplicated by absolute NodeId.  HasNotifier /
-            // HasEventSource are intentionally excluded — they cause
-            // duplicates on event-emitting servers.
-            ArrayOf<BrowseDescription> descriptions = new BrowseDescription[]
-            {
-                new BrowseDescription
-                {
-                    NodeId = node.NodeId,
-                    BrowseDirection = BrowseDirection.Forward,
-                    ReferenceTypeId = ReferenceTypeIds.Aggregates,
-                    IncludeSubtypes = true,
-                    NodeClassMask = (uint)(NodeClass.Object | NodeClass.Variable | NodeClass.Method),
-                    ResultMask = (uint)BrowseResultMask.All
-                },
-                new BrowseDescription
-                {
-                    NodeId = node.NodeId,
-                    BrowseDirection = BrowseDirection.Forward,
-                    ReferenceTypeId = ReferenceTypeIds.Organizes,
-                    IncludeSubtypes = false,
-                    NodeClassMask = (uint)(NodeClass.Object | NodeClass.Variable | NodeClass.Method),
-                    ResultMask = (uint)BrowseResultMask.All
-                }
-            };
+            // Build the BrowseDescription(s) to issue against this node.
+            // For instance views (Objects, Views) we follow Aggregates+Organizes
+            // so folder-style navigation works.  For type views (ObjectTypes,
+            // VariableTypes, DataTypes, ReferenceTypes) we follow HasSubtype
+            // and constrain the NodeClass to the matching type class so the
+            // tree only surfaces type nodes.  Results are deduplicated by
+            // absolute NodeId so a child reachable through both refs (rare
+            // but possible) only shows once.  HasNotifier / HasEventSource
+            // are intentionally excluded — they cause duplicates on
+            // event-emitting servers.
+            ArrayOf<BrowseDescription> descriptions = BuildBrowseDescriptions(node.NodeId);
 
             var refs = new List<ReferenceDescription>();
             var continuationPoints = new List<ByteString>();
@@ -255,6 +299,73 @@ internal sealed class BrowserViewModel : ObservableObject
             }).ConfigureAwait(false);
         }
     }
+
+    /// <summary>
+    /// Builds the <see cref="BrowseDescription"/> set used by
+    /// <see cref="LoadChildrenAsync"/> for the supplied node, choosing the
+    /// reference type(s) to follow from <see cref="CurrentViewKind"/>:
+    /// <list type="bullet">
+    ///   <item>Objects / Views → <c>Aggregates</c> (with subtypes) ∪ <c>Organizes</c>
+    ///     so folder-style navigation works under <c>ObjectsFolder</c> and
+    ///     <c>ViewsFolder</c>.</item>
+    ///   <item>ObjectTypes / VariableTypes / DataTypes / ReferenceTypes →
+    ///     <c>HasSubtype</c> (no further subtype walk) so the tree exposes
+    ///     each type's direct subtype hierarchy, filtered to the matching
+    ///     <see cref="NodeClass"/>.</item>
+    /// </list>
+    /// </summary>
+    private ArrayOf<BrowseDescription> BuildBrowseDescriptions(NodeId nodeId)
+    {
+        switch (CurrentViewKind)
+        {
+            case BrowseViewKind.ObjectTypes:
+                return BuildSubtypeDescriptions(nodeId, NodeClass.ObjectType);
+            case BrowseViewKind.VariableTypes:
+                return BuildSubtypeDescriptions(nodeId, NodeClass.VariableType);
+            case BrowseViewKind.DataTypes:
+                return BuildSubtypeDescriptions(nodeId, NodeClass.DataType);
+            case BrowseViewKind.ReferenceTypes:
+                return BuildSubtypeDescriptions(nodeId, NodeClass.ReferenceType);
+            case BrowseViewKind.Objects:
+            case BrowseViewKind.Views:
+            default:
+                return new BrowseDescription[]
+                {
+                    new BrowseDescription
+                    {
+                        NodeId = nodeId,
+                        BrowseDirection = BrowseDirection.Forward,
+                        ReferenceTypeId = ReferenceTypeIds.Aggregates,
+                        IncludeSubtypes = true,
+                        NodeClassMask = (uint)(NodeClass.Object | NodeClass.Variable | NodeClass.Method),
+                        ResultMask = (uint)BrowseResultMask.All
+                    },
+                    new BrowseDescription
+                    {
+                        NodeId = nodeId,
+                        BrowseDirection = BrowseDirection.Forward,
+                        ReferenceTypeId = ReferenceTypeIds.Organizes,
+                        IncludeSubtypes = false,
+                        NodeClassMask = (uint)(NodeClass.Object | NodeClass.Variable | NodeClass.View | NodeClass.Method),
+                        ResultMask = (uint)BrowseResultMask.All
+                    }
+                };
+        }
+    }
+
+    private static ArrayOf<BrowseDescription> BuildSubtypeDescriptions(NodeId nodeId, NodeClass nodeClass) =>
+        new BrowseDescription[]
+        {
+            new BrowseDescription
+            {
+                NodeId = nodeId,
+                BrowseDirection = BrowseDirection.Forward,
+                ReferenceTypeId = ReferenceTypeIds.HasSubtype,
+                IncludeSubtypes = false,
+                NodeClassMask = (uint)nodeClass,
+                ResultMask = (uint)BrowseResultMask.All
+            }
+        };
 
     /// <summary>
     /// Browses a node's HasComponent (no subtypes — explicitly excludes

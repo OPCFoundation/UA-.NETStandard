@@ -30,10 +30,10 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="UaLens.Views.AddItemDialog"
         Title="Add monitored item"
-        Width="560" Height="320"
+        Width="560" Height="460"
         WindowStartupLocation="CenterOwner"
         Background="#0F172A" Foreground="#E2E8F0">
-  <Grid Margin="16" RowDefinitions="Auto,Auto,Auto,Auto,Auto,*,Auto" ColumnDefinitions="160,*">
+  <Grid Margin="16" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,*,Auto" ColumnDefinitions="160,*">
     <TextBlock Grid.Row="0" Grid.ColumnSpan="2"
                Margin="0,0,0,12"
                TextWrapping="Wrap"
@@ -52,7 +52,37 @@
     <TextBlock Grid.Row="3" Grid.Column="0" Text="Sampling interval (ms)" VerticalAlignment="Center" Margin="0,8,0,0" />
     <TextBox   Grid.Row="3" Grid.Column="1" x:Name="SamplingMs" Text="1000" Margin="0,8,0,0" />
 
-    <StackPanel Grid.Row="6" Grid.ColumnSpan="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
+    <!-- ========= DataChangeFilter (value-monitored items only) ========= -->
+    <TextBlock Grid.Row="4" Grid.ColumnSpan="2"
+               x:Name="FilterHeader"
+               Text="Data change filter (optional)"
+               FontWeight="SemiBold" FontSize="13"
+               Foreground="#06B6D4" Margin="0,16,0,4" />
+
+    <TextBlock Grid.Row="5" Grid.Column="0" x:Name="TriggerLabel"
+               Text="Trigger" VerticalAlignment="Center" Margin="0,4,0,0" />
+    <ComboBox  Grid.Row="5" Grid.Column="1" x:Name="TriggerCombo"
+               SelectedIndex="1" Margin="0,4,0,0" HorizontalAlignment="Stretch">
+      <ComboBoxItem Content="Status" />
+      <ComboBoxItem Content="StatusValue" />
+      <ComboBoxItem Content="StatusValueTimestamp" />
+    </ComboBox>
+
+    <TextBlock Grid.Row="6" Grid.Column="0" x:Name="DeadbandTypeLabel"
+               Text="Deadband type" VerticalAlignment="Center" Margin="0,8,0,0" />
+    <ComboBox  Grid.Row="6" Grid.Column="1" x:Name="DeadbandTypeCombo"
+               SelectedIndex="0" Margin="0,8,0,0" HorizontalAlignment="Stretch">
+      <ComboBoxItem Content="None" />
+      <ComboBoxItem Content="Absolute" />
+      <ComboBoxItem Content="Percent" />
+    </ComboBox>
+
+    <TextBlock Grid.Row="7" Grid.Column="0" x:Name="DeadbandValueLabel"
+               Text="Deadband value" VerticalAlignment="Center" Margin="0,8,0,0" />
+    <TextBox   Grid.Row="7" Grid.Column="1" x:Name="DeadbandValueBox"
+               Text="0" Margin="0,8,0,0" IsEnabled="False" />
+
+    <StackPanel Grid.Row="10" Grid.ColumnSpan="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
       <Button x:Name="OkButton"     Content="OK"     IsDefault="True" Width="100" />
       <Button x:Name="CancelButton" Content="Cancel" IsCancel="True"  Width="100" Margin="8,0,0,0" />
     </StackPanel>

@@ -3,9 +3,15 @@
     <TargetFrameworks>net8.0;net9.0;net10.0</TargetFrameworks>
     <AssemblyName>UaLens</AssemblyName>
     <OutputType>Exe</OutputType>
-    <PackageId>UaLens</PackageId>
+    <PackageId>OPCFoundation.NetStandard.Opc.Ua.Lens</PackageId>
     <Company>OPC Foundation</Company>
-    <Description>UaLens — Avalonia desktop lens for OPC UA: address-space browsing, multi-tab subscriptions, and live notification scope (signal/histogram/heatmap/lines/bars/dots).</Description>
+    <Description>UaLens — multi-tab Avalonia desktop client for OPC UA.</Description>
+    <PackageProjectUrl>https://github.com/OPCFoundation/UA-.NETStandard</PackageProjectUrl>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageLicenseFile></PackageLicenseFile>
+    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+    <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>
+    <PackageTags>opc-ua;opcua;client;avalonia;dotnet-tool</PackageTags>
     <Copyright>Copyright © 2025 OPC Foundation, Inc</Copyright>
     <RootNamespace>UaLens</RootNamespace>
     <Nullable>enable</Nullable>
@@ -27,12 +33,27 @@
          introduces a CS86xx becomes a build break instead of a silent
          warning. -->
     <WarningsAsErrors>$(WarningsAsErrors);nullable</WarningsAsErrors>
+    <!-- Ship the net10.0 build as a `dotnet tool` (global tool).
+         net8.0 / net9.0 still compile as normal Avalonia executables
+         but are not packed as tools. -->
+    <IsPackable>true</IsPackable>
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>ualens</ToolCommandName>
+    <PackageType>DotnetTool</PackageType>
   </PropertyGroup>
 
   <ItemGroup>
     <!-- App icon (PNG for window/taskbar via Avalonia; ICO consumed by
          <ApplicationIcon> for the Windows .exe resource). -->
     <AvaloniaResource Include="Assets\app-icon.png" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Replace the repo-root Docs/NugetREADME.md inherited from
+         common.props with this tool's own readme so the package landing
+         page on nuget.org describes UaLens, not the SDK as a whole. -->
+    <None Remove="$(MSBuildThisFileDirectory)..\..\Docs\NugetREADME.md" />
+    <None Include="NugetREADME.md" Pack="true" PackagePath="/" />
   </ItemGroup>
 
   <ItemGroup>

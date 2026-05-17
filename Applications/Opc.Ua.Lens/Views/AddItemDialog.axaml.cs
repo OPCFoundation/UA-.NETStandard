@@ -65,12 +65,68 @@ internal sealed partial class AddItemDialog : Window
         var ok = this.RequiredControl<Button>("OkButton");
         var cancel = this.RequiredControl<Button>("CancelButton");
 
+        var filterHeader = this.RequiredControl<TextBlock>("FilterHeader");
+        var triggerLabel = this.RequiredControl<TextBlock>("TriggerLabel");
+        var triggerCombo = this.RequiredControl<ComboBox>("TriggerCombo");
+        var deadbandTypeLabel = this.RequiredControl<TextBlock>("DeadbandTypeLabel");
+        var deadbandTypeCombo = this.RequiredControl<ComboBox>("DeadbandTypeCombo");
+        var deadbandValueLabel = this.RequiredControl<TextBlock>("DeadbandValueLabel");
+        var deadbandValueBox = this.RequiredControl<TextBox>("DeadbandValueBox");
+
+        // The DataChangeFilter is only meaningful for value monitored items.
+        // Hide the whole section in event mode so the dialog stays clean.
+        bool showFilter = !isEvent;
+        filterHeader.IsVisible = showFilter;
+        triggerLabel.IsVisible = showFilter;
+        triggerCombo.IsVisible = showFilter;
+        deadbandTypeLabel.IsVisible = showFilter;
+        deadbandTypeCombo.IsVisible = showFilter;
+        deadbandValueLabel.IsVisible = showFilter;
+        deadbandValueBox.IsVisible = showFilter;
+
+        // Greying-out: the deadband value only matters when the type is non-None.
+        deadbandTypeCombo.SelectionChanged += (_, _) =>
+            deadbandValueBox.IsEnabled = deadbandTypeCombo.SelectedIndex > 0;
+
         ok.Click += (_, _) =>
         {
             if (!uint.TryParse(samplingMs.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out uint smp))
             {
                 return;
             }
+
+            DataChangeFilter? filter = null;
+            if (!isEvent)
+            {
+                var trigger = (DataChangeTrigger)Math.Max(0, triggerCombo.SelectedIndex);
+                var deadbandType = (DeadbandType)Math.Max(0, deadbandTypeCombo.SelectedIndex);
+                double deadbandValue = 0.0;
+                if (deadbandType != DeadbandType.None)
+                {
+                    if (!double.TryParse(deadbandValueBox.Text, NumberStyles.Float,
+                            CultureInfo.InvariantCulture, out deadbandValue) || deadbandValue < 0.0)
+                    {
+                        return;
+                    }
+                    if (deadbandType == DeadbandType.Percent && deadbandValue > 100.0)
+                    {
+                        return;
+                    }
+                }
+
+                // Only emit a filter when the user picked something other than
+                // the server-default (Trigger=StatusValue, DeadbandType=None).
+                if (trigger != DataChangeTrigger.StatusValue || deadbandType != DeadbandType.None)
+                {
+                    filter = new DataChangeFilter
+                    {
+                        Trigger = trigger,
+                        DeadbandType = (uint)deadbandType,
+                        DeadbandValue = deadbandValue
+                    };
+                }
+            }
+
             Result = new MonitoredItemConfig
             {
                 DisplayName = (m_isEvent ? "event:" : "value:") + m_node.NodeId,
@@ -80,7 +136,8 @@ internal sealed partial class AddItemDialog : Window
                 QueueSize = m_isEvent ? 100u : 1u,
                 DiscardOldest = true,
                 IsEvent = m_isEvent,
-                MonitoringMode = MonitoringMode.Reporting
+                MonitoringMode = MonitoringMode.Reporting,
+                DataChangeFilter = filter
             };
             Close(Result);
         };

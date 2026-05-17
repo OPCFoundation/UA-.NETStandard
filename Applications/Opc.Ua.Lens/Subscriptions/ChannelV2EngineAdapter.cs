@@ -318,7 +318,9 @@ internal sealed class ChannelV2EngineAdapter : ISubscriptionAdapter
             QueueSize = c.QueueSize,
             DiscardOldest = c.DiscardOldest,
             MonitoringMode = c.MonitoringMode,
-            Filter = c.IsEvent ? DefaultEventFilters.Build() : null
+            Filter = c.IsEvent
+                ? DefaultEventFilters.Build()
+                : (MonitoringFilter?)c.DataChangeFilter
         };
         return opts;
     }

@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
@@ -184,6 +185,36 @@ internal sealed partial class PerformancePlugin : ObservableObject, IPlugin
     [ObservableProperty]
     private string m_errorsText = "0";
 
+    /// <summary>
+    /// When true the "RUNS" history list highlights the most recent 3
+    /// entries and <see cref="CompareStatus"/> describes the selection;
+    /// when false the list is shown un-highlighted and the status text
+    /// is cleared.  Drawing an overlay on top of the live histogram is
+    /// intentionally not implemented — the comparison surface is the
+    /// history list itself.
+    /// </summary>
+    [ObservableProperty]
+    private bool m_compareLast3;
+
+    /// <summary>
+    /// Human-readable summary of which runs the user is currently
+    /// comparing, e.g. <c>"Comparing runs 4–6 of 6"</c>.  Empty when
+    /// <see cref="CompareLast3"/> is false or fewer than 2 runs exist.
+    /// </summary>
+    [ObservableProperty]
+    private string m_compareStatus = string.Empty;
+
+    /// <summary>Maximum entries retained in <see cref="RunHistory"/>; oldest drops off.</summary>
+    public const int MaxHistorySize = 64;
+
+    /// <summary>
+    /// Aggregate stats from completed runs, in chronological order.
+    /// Capped at <see cref="MaxHistorySize"/>; bound to the history
+    /// ListBox in the view and round-tripped through CSV by
+    /// <see cref="SaveResultsAsync"/> / <see cref="LoadResultsAsync"/>.
+    /// </summary>
+    public ObservableCollection<BenchmarkRunRow> RunHistory { get; } = [];
+
     /// <summary>Current p50 latency in milliseconds — read by the view to drive the marker line.</summary>
     public double P50Ms { get; private set; }
 
@@ -233,7 +264,9 @@ internal sealed partial class PerformancePlugin : ObservableObject, IPlugin
             CreateMenuItem("_Stop",               StopCommand),
             CreateMenuItem("_Reset",              ResetCommand),
             CreateMenuItem("_Configure Target…",  PickTargetCommand),
-            CreateMenuItem("_Export Stats CSV",   ExportStatsCommand)
+            CreateMenuItem("_Export Stats CSV",   ExportStatsCommand),
+            CreateMenuItem("_Save Results…",      SaveResultsCommand),
+            CreateMenuItem("_Load Results…",      LoadResultsCommand)
         };
     }
 
@@ -515,6 +548,254 @@ internal sealed partial class PerformancePlugin : ObservableObject, IPlugin
         }
     }
 
+    [RelayCommand]
+    private async Task SaveResultsAsync()
+    {
+        Window? owner = GetOwnerWindow();
+        if (owner is null)
+        {
+            return;
+        }
+
+        IStorageProvider? storage = owner.StorageProvider;
+        if (storage is null)
+        {
+            return;
+        }
+
+        var opts = new FilePickerSaveOptions
+        {
+            Title = "Save benchmark run history",
+            SuggestedFileName = string.Format(CultureInfo.InvariantCulture,
+                "ualens-perf-runs-{0:yyyyMMdd-HHmmss}.csv", DateTime.UtcNow),
+            DefaultExtension = "csv",
+            FileTypeChoices =
+            [
+                new FilePickerFileType("CSV") { Patterns = ["*.csv"] }
+            ]
+        };
+        IStorageFile? file = await storage.SaveFilePickerAsync(opts).ConfigureAwait(true);
+        if (file is null)
+        {
+            return;
+        }
+
+        try
+        {
+            Stream s = await file.OpenWriteAsync().ConfigureAwait(true);
+            await using (s.ConfigureAwait(false))
+            {
+                var w = new StreamWriter(s, new UTF8Encoding(false));
+                await using (w.ConfigureAwait(false))
+                {
+                    await w.WriteLineAsync(BenchmarkRun.CsvHeader).ConfigureAwait(true);
+                    foreach (BenchmarkRunRow row in RunHistory)
+                    {
+                        await w.WriteLineAsync(row.Run.ToCsvRow()).ConfigureAwait(true);
+                    }
+                }
+            }
+            Status = string.Format(CultureInfo.InvariantCulture,
+                "● Saved {0} run(s) to {1}.", RunHistory.Count, file.Name);
+        }
+        catch (Exception ex)
+        {
+            Status = $"● Save failed: {ex.Message}";
+            m_log.LogWarning(ex, "Performance run history save failed.");
+        }
+    }
+
+    [RelayCommand]
+    private async Task LoadResultsAsync()
+    {
+        Window? owner = GetOwnerWindow();
+        if (owner is null)
+        {
+            return;
+        }
+
+        IStorageProvider? storage = owner.StorageProvider;
+        if (storage is null)
+        {
+            return;
+        }
+
+        var opts = new FilePickerOpenOptions
+        {
+            Title = "Load benchmark run history",
+            AllowMultiple = false,
+            FileTypeFilter =
+            [
+                new FilePickerFileType("CSV") { Patterns = ["*.csv"] }
+            ]
+        };
+        IReadOnlyList<IStorageFile> files = await storage.OpenFilePickerAsync(opts).ConfigureAwait(true);
+        if (files.Count == 0)
+        {
+            return;
+        }
+
+        IStorageFile file = files[0];
+        var parsed = new List<BenchmarkRun>();
+        int skipped = 0;
+        try
+        {
+            Stream s = await file.OpenReadAsync().ConfigureAwait(true);
+            await using (s.ConfigureAwait(false))
+            {
+                var r = new StreamReader(s, Encoding.UTF8);
+                using (r)
+                {
+                    bool first = true;
+                    while (await r.ReadLineAsync().ConfigureAwait(true) is { } line)
+                    {
+                        if (first)
+                        {
+                            first = false;
+                            // Tolerate either an exact header or a CSV
+                            // file that omits it — fall through and
+                            // attempt to parse the first row.
+                            if (line.StartsWith("timestamp_utc", StringComparison.OrdinalIgnoreCase))
+                            {
+                                continue;
+                            }
+                        }
+                        if (string.IsNullOrWhiteSpace(line))
+                        {
+                            continue;
+                        }
+                        BenchmarkRun? run = BenchmarkRun.TryParseCsvRow(line);
+                        if (run is null)
+                        {
+                            skipped++;
+                            continue;
+                        }
+                        parsed.Add(run);
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Status = $"● Load failed: {ex.Message}";
+            m_log.LogWarning(ex, "Performance run history load failed.");
+            return;
+        }
+
+        // Keep only the most recent MaxHistorySize rows when the file
+        // is bigger than our in-memory cap.
+        if (parsed.Count > MaxHistorySize)
+        {
+            parsed.RemoveRange(0, parsed.Count - MaxHistorySize);
+        }
+
+        RunHistory.Clear();
+        foreach (BenchmarkRun run in parsed)
+        {
+            RunHistory.Add(new BenchmarkRunRow(run));
+        }
+        RefreshHighlights();
+        Status = skipped == 0
+            ? string.Format(CultureInfo.InvariantCulture,
+                "● Loaded {0} run(s) from {1}.", parsed.Count, file.Name)
+            : string.Format(CultureInfo.InvariantCulture,
+                "● Loaded {0} run(s) from {1} (skipped {2} malformed).",
+                parsed.Count, file.Name, skipped);
+    }
+
+    /// <summary>
+    /// Build a <see cref="BenchmarkRun"/> from the live aggregate
+    /// counters and the current histogram contents.  Called on the UI
+    /// thread when a run finishes, so values stay consistent for the
+    /// snapshot.
+    /// </summary>
+    private BenchmarkRun SnapshotCurrentRun()
+    {
+        long total = System.Threading.Interlocked.Read(ref m_totalOps);
+        long errors = System.Threading.Interlocked.Read(ref m_errorOps);
+        double elapsed = m_runDuration.TotalSeconds > 0
+            ? m_runDuration.TotalSeconds
+            : (Stopwatch.GetTimestamp() - m_runStartTicks) / (double)Stopwatch.Frequency;
+        double achieved = elapsed > 0.001 ? total / elapsed : 0.0;
+        long[] snap = new long[LatencyHistogram.BucketCount];
+        m_histogram.Snapshot(snap);
+        double mean = ComputeMeanLatencyMs(snap);
+        double p90 = m_histogram.GetPercentile(0.90);
+        string notes = string.Format(CultureInfo.InvariantCulture,
+            "mode={0}; gen={1}; burst={2}; target={3}",
+            Mode, Generator, UnboundedBurst,
+            Target?.DisplayName ?? "(none)");
+        return new BenchmarkRun
+        {
+            TimestampUtc = DateTime.UtcNow,
+            TargetRate = UnboundedBurst ? 0 : TargetRate,
+            AchievedRate = achieved,
+            TotalOps = total,
+            MeanLatencyMs = mean,
+            P50Ms = P50Ms,
+            P90Ms = p90,
+            P99Ms = P99Ms,
+            ErrorCount = errors,
+            Notes = notes
+        };
+    }
+
+    private static double ComputeMeanLatencyMs(long[] snap)
+    {
+        long total = 0;
+        double sum = 0;
+        for (int i = 0; i < snap.Length; i++)
+        {
+            long c = snap[i];
+            if (c == 0)
+            {
+                continue;
+            }
+            double mid = (LatencyHistogram.BucketLowerMs(i)
+                + LatencyHistogram.BucketUpperMs(i)) / 2.0;
+            sum += mid * c;
+            total += c;
+        }
+        return total > 0 ? sum / total : 0.0;
+    }
+
+    /// <summary>
+    /// Apply the "Compare last 3" highlight flag to the matching
+    /// <see cref="BenchmarkRunRow"/> entries and update
+    /// <see cref="CompareStatus"/> accordingly.  Safe to call on the
+    /// UI thread whenever <see cref="RunHistory"/> or
+    /// <see cref="CompareLast3"/> changes.
+    /// </summary>
+    private void RefreshHighlights()
+    {
+        int count = RunHistory.Count;
+        int highlightStart = CompareLast3 ? Math.Max(0, count - 3) : count;
+        for (int i = 0; i < count; i++)
+        {
+            RunHistory[i].IsHighlighted = CompareLast3 && i >= highlightStart;
+        }
+        if (!CompareLast3 || count < 2)
+        {
+            CompareStatus = string.Empty;
+            return;
+        }
+        int firstOneBased = highlightStart + 1;
+        CompareStatus = string.Format(CultureInfo.InvariantCulture,
+            "Comparing runs {0}–{1} of {2}.", firstOneBased, count, count);
+    }
+
+    partial void OnCompareLast3Changed(bool value) => RefreshHighlights();
+
+    private static Window? GetOwnerWindow()
+    {
+        if (Avalonia.Application.Current?.ApplicationLifetime
+            is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desk)
+        {
+            return desk.MainWindow;
+        }
+        return null;
+    }
+
     // ---- Runner callbacks ----
 
     private void HandleSample(BenchmarkSample sample)
@@ -534,6 +815,13 @@ internal sealed partial class PerformancePlugin : ObservableObject, IPlugin
             IsRunning = false;
             m_aggregationTimer?.Stop();
             OnAggregationTick(); // final refresh
+            BenchmarkRun run = SnapshotCurrentRun();
+            RunHistory.Add(new BenchmarkRunRow(run));
+            while (RunHistory.Count > MaxHistorySize)
+            {
+                RunHistory.RemoveAt(0);
+            }
+            RefreshHighlights();
             Status = error is null ? "● Run complete" : $"● Run failed: {error}";
             m_log.LogInformation("Performance run finished — total={Total} errors={Errors}",
                 System.Threading.Interlocked.Read(ref m_totalOps),

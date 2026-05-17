@@ -41,6 +41,7 @@ using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.Gds.Client;
+using UaLens.Connection;
 using UaLens.ViewModels;
 using UaLens.Views;
 
@@ -74,6 +75,13 @@ internal sealed partial class DiscoveryNode : ObservableObject
     public ApplicationDescription? Application { get; init; }
     public ServerOnNetwork? ServerOnNetwork { get; init; }
     public EndpointDescription? Endpoint { get; init; }
+
+    /// <summary>
+    /// True when this node was seeded from the persisted favourites
+    /// list (rendered under the Custom Discovery root with the ⭐
+    /// glyph).  Used to gate the "Remove from favourites" command.
+    /// </summary>
+    public bool IsFavorite { get; init; }
 
     public string Display { get; init; } = string.Empty;
     public string Glyph { get; init; } = "•";
@@ -155,6 +163,7 @@ internal sealed partial class GdsDiscoveryPlugin : ObservableObject, IPlugin
 
     private readonly PluginHost m_host;
     private readonly ILogger m_log;
+    private readonly List<string> m_favorites = new();
     private GdsDiscoveryView? m_view;
     // CA2213: m_lds and m_gds ARE disposed in DisposeAsync below, but the
     // analyzer can't see ownership through async patterns + null checks.
@@ -195,6 +204,8 @@ internal sealed partial class GdsDiscoveryPlugin : ObservableObject, IPlugin
         Roots.Add(MakeRoot(DiscoveryRootKind.LocalNetwork, "Local Network", "🌐"));
         Roots.Add(MakeRoot(DiscoveryRootKind.GlobalDiscovery, "Global Discovery", "🛰"));
         Roots.Add(MakeRoot(DiscoveryRootKind.CustomDiscovery, "Custom Discovery", "📂"));
+
+        _ = LoadFavoritesAtStartupAsync();
     }
 
     public PluginKind Kind => PluginKind.GdsDiscovery;
@@ -212,11 +223,15 @@ internal sealed partial class GdsDiscoveryPlugin : ObservableObject, IPlugin
         filter.Click += async (_, _) => await EditFilterAsync().ConfigureAwait(true);
         var connect = new MenuItem { Header = "_Connect to selection…" };
         connect.Click += (_, _) => ConnectSelectedToConnectionPane();
+        var addFav = new MenuItem { Header = "★ _Add to favourites" };
+        addFav.Click += async (_, _) => await AddCurrentToFavouritesAsync().ConfigureAwait(true);
+        var removeFav = new MenuItem { Header = "✕ Re_move from favourites" };
+        removeFav.Click += async (_, _) => await RemoveFromFavouritesAsync().ConfigureAwait(true);
         var openPush = new MenuItem { Header = "Open as _Push…" };
         openPush.Click += async (_, _) => await OpenAsPluginAsync(PluginKind.GdsPush).ConfigureAwait(true);
         var openMgmt = new MenuItem { Header = "Open as _Management…" };
         openMgmt.Click += async (_, _) => await OpenAsPluginAsync(PluginKind.GdsManagement).ConfigureAwait(true);
-        return new[] { refresh, filter, connect, openPush, openMgmt };
+        return new[] { refresh, filter, connect, addFav, removeFav, openPush, openMgmt };
     }
 
     public async ValueTask DisposeAsync()
@@ -322,6 +337,70 @@ internal sealed partial class GdsDiscoveryPlugin : ObservableObject, IPlugin
         custom.Children.Add(node);
         SelectedNode = node;
         return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// Saves the currently-selected endpoint URL into the persistent
+    /// favourites list and re-seeds it under the Custom Discovery root
+    /// with a ⭐ marker.  Mirrors the "Add" button on the legacy
+    /// <c>ConfiguredServerListDlg</c>.
+    /// </summary>
+    [RelayCommand]
+    public async Task AddCurrentToFavouritesAsync()
+    {
+        string url = SelectedEndpoint?.Url ?? SelectedNode?.EndpointUrl ?? string.Empty;
+        url = url.Trim();
+        if (string.IsNullOrEmpty(url))
+        {
+            Status = "● Pick a server or endpoint first.";
+            return;
+        }
+        foreach (string existing in m_favorites)
+        {
+            if (string.Equals(existing, url, StringComparison.OrdinalIgnoreCase))
+            {
+                Status = $"● {url} already in favourites.";
+                return;
+            }
+        }
+        m_favorites.Add(url);
+        SeedFavoritesIntoCustomRoot();
+        await FavoritesStore.SaveAsync(m_favorites, m_log).ConfigureAwait(true);
+        Status = $"● ★ Added {url} to favourites.";
+    }
+
+    /// <summary>
+    /// Removes the currently-selected favourite under Custom Discovery
+    /// from the persistent list.  No-op when the selection is not a
+    /// favourite-backed node.
+    /// </summary>
+    [RelayCommand]
+    public async Task RemoveFromFavouritesAsync()
+    {
+        DiscoveryNode? node = SelectedNode;
+        if (node is null || !node.IsFavorite)
+        {
+            Status = "● Select a ⭐ favourite under Custom Discovery first.";
+            return;
+        }
+        string url = node.EndpointUrl;
+        int removed = 0;
+        for (int i = m_favorites.Count - 1; i >= 0; i--)
+        {
+            if (string.Equals(m_favorites[i], url, StringComparison.OrdinalIgnoreCase))
+            {
+                m_favorites.RemoveAt(i);
+                removed++;
+            }
+        }
+        if (removed == 0)
+        {
+            Status = $"● {url} was not in favourites.";
+            return;
+        }
+        SeedFavoritesIntoCustomRoot();
+        await FavoritesStore.SaveAsync(m_favorites, m_log).ConfigureAwait(true);
+        Status = $"● ✕ Removed {url} from favourites.";
     }
 
     /// <summary>
@@ -567,6 +646,77 @@ internal sealed partial class GdsDiscoveryPlugin : ObservableObject, IPlugin
             }
         }
         return null;
+    }
+
+    /// <summary>
+    /// One-shot startup hook: pulls the saved favourites list from
+    /// <see cref="FavoritesStore"/> on a background thread and re-seeds
+    /// the Custom Discovery root.  Defensive: a corrupt or absent
+    /// favourites file is logged but never crashes the plug-in.
+    /// </summary>
+    private async Task LoadFavoritesAtStartupAsync()
+    {
+        try
+        {
+            List<string> loaded = await FavoritesStore.LoadAsync(m_log)
+                .ConfigureAwait(true);
+            m_favorites.Clear();
+            m_favorites.AddRange(loaded);
+            if (m_favorites.Count > 0)
+            {
+                SeedFavoritesIntoCustomRoot();
+            }
+        }
+        catch (Exception ex)
+        {
+            m_log.LogDebug(ex, "GdsDiscovery: loading favourites failed; starting empty.");
+        }
+    }
+
+    /// <summary>
+    /// Re-projects <see cref="m_favorites"/> into the Custom Discovery
+    /// root: drops any previously-seeded ⭐ nodes, preserves manually
+    /// added "Add Custom…" entries, and rebuilds in list order.  Runs
+    /// on the UI thread.
+    /// </summary>
+    private void SeedFavoritesIntoCustomRoot()
+    {
+        DiscoveryNode? custom = FindRoot(DiscoveryRootKind.CustomDiscovery);
+        if (custom is null)
+        {
+            return;
+        }
+        if (Dispatcher.UIThread.CheckAccess())
+        {
+            ApplySeed(custom);
+        }
+        else
+        {
+            Dispatcher.UIThread.Post(() => ApplySeed(custom));
+        }
+    }
+
+    private void ApplySeed(DiscoveryNode custom)
+    {
+        for (int i = custom.Children.Count - 1; i >= 0; i--)
+        {
+            if (custom.Children[i].IsFavorite)
+            {
+                custom.Children.RemoveAt(i);
+            }
+        }
+        int insert = 0;
+        foreach (string url in m_favorites)
+        {
+            var node = new DiscoveryNode
+            {
+                Display = url,
+                Glyph = "⭐",
+                IsFavorite = true,
+                Endpoint = new EndpointDescription(url)
+            };
+            custom.Children.Insert(insert++, node);
+        }
     }
 
     private static DiscoveryNode? ResolveRoot(DiscoveryNode? node)

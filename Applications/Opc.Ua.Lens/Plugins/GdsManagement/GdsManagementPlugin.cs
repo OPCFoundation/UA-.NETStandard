@@ -45,6 +45,7 @@ using Opc.Ua;
 using Opc.Ua.Client;
 using Opc.Ua.Gds;
 using Opc.Ua.Gds.Client;
+using UaLens.Plugins.Gds;
 using UaLens.Plugins.GdsPush;
 using UaLens.ViewModels;
 using UaLens.Views;
@@ -586,18 +587,20 @@ internal sealed partial class GdsManagementPlugin : ObservableObject, IPlugin
             SetResult("Register: no owner window.");
             return;
         }
-        ApplicationRecordDataType? record;
+        RegisteredApplicationContext? context;
         try
         {
-            var dlg = new RegisterApplicationDialog();
-            record = await dlg.ShowDialog<ApplicationRecordDataType?>(owner).ConfigureAwait(true);
+            var dlg = new RegisterApplicationDialog(
+                m_host.Main.Telemetry,
+                m_host.Main.CurrentRegisteredApp);
+            context = await dlg.ShowDialog<RegisteredApplicationContext?>(owner).ConfigureAwait(true);
         }
         catch (Exception ex)
         {
             SetResult($"Register dialog failed: {ex.Message}");
             return;
         }
-        if (record is null)
+        if (context is null)
         {
             SetResult("Register cancelled.");
             return;
@@ -610,11 +613,13 @@ internal sealed partial class GdsManagementPlugin : ObservableObject, IPlugin
             {
                 return;
             }
+            ApplicationRecordDataType record = BuildApplicationRecord(context);
             NodeId id = await client.RegisterApplicationAsync(
                 record, CancellationToken.None).ConfigureAwait(true);
             SetResult($"Registered {record.ApplicationUri} → {id}.");
             m_log.LogInformation("GdsManagement tab {Title}: registered {Uri} → {Id}.",
                 Title, record.ApplicationUri, id);
+            m_host.Main.CurrentRegisteredApp = context with { ApplicationId = id };
             await RefreshAsync().ConfigureAwait(true);
         }
         catch (Exception ex)
@@ -627,6 +632,42 @@ internal sealed partial class GdsManagementPlugin : ObservableObject, IPlugin
             IsBusy = false;
             UpdateStatus();
         }
+    }
+
+    /// <summary>
+    /// Derives the GDS <see cref="ApplicationRecordDataType"/> from a
+    /// <see cref="RegisteredApplicationContext"/>. <see cref="ApplicationType"/>
+    /// is inferred from <see cref="RegisteredApplicationContext.RegistrationType"/>:
+    /// <c>ClientPull</c> → <c>Client</c>; <c>ServerPull</c>/<c>ServerPush</c>
+    /// → <c>Server</c>.
+    /// </summary>
+    private static ApplicationRecordDataType BuildApplicationRecord(RegisteredApplicationContext context)
+    {
+        ApplicationType appType = context.RegistrationType == GdsRegistrationType.ClientPull
+            ? ApplicationType.Client
+            : ApplicationType.Server;
+
+        var discoveryArray = new string[context.DiscoveryUrls.Count];
+        for (int i = 0; i < context.DiscoveryUrls.Count; i++)
+        {
+            discoveryArray[i] = context.DiscoveryUrls[i];
+        }
+        var capabilityArray = new string[context.ServerCapabilities.Count];
+        for (int i = 0; i < context.ServerCapabilities.Count; i++)
+        {
+            capabilityArray[i] = context.ServerCapabilities[i];
+        }
+
+        return new ApplicationRecordDataType
+        {
+            ApplicationId = context.ApplicationId,
+            ApplicationNames = [new LocalizedText(string.Empty, context.ApplicationName)],
+            ApplicationUri = context.ApplicationUri,
+            ProductUri = context.ProductUri,
+            ApplicationType = appType,
+            DiscoveryUrls = discoveryArray,
+            ServerCapabilities = capabilityArray
+        };
     }
 
     [RelayCommand]

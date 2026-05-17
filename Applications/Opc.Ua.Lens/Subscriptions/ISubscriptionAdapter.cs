@@ -67,6 +67,14 @@ internal sealed record MonitoredItemConfig
     public bool DiscardOldest { get; init; } = true;
     public MonitoringMode MonitoringMode { get; init; } = MonitoringMode.Reporting;
     public bool IsEvent { get; init; }
+
+    /// <summary>
+    /// Optional <see cref="Opc.Ua.DataChangeFilter"/> for value-monitored items.
+    /// When null the server applies its default (Trigger = StatusValue,
+    /// DeadbandType = None).  Ignored for event monitored items (the adapters
+    /// install the default <see cref="EventFilter"/> instead).
+    /// </summary>
+    public DataChangeFilter? DataChangeFilter { get; init; }
 }
 
 internal sealed class SubscriptionCounters

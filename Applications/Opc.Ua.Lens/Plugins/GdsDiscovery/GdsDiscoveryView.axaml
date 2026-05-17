@@ -80,6 +80,12 @@
                    FontFamily="Cascadia Mono, Consolas, monospace" FontSize="12" />
           <Button Classes="tonal" Content="Add Custom…"
                   Command="{CompiledBinding AddCustomEndpointCommand}" />
+          <Button Classes="tonal" Content="★ Favourite"
+                  ToolTip.Tip="Save the selected endpoint as a favourite"
+                  Command="{CompiledBinding AddCurrentToFavouritesCommand}" />
+          <Button Classes="tonal" Content="✕ Unfavourite"
+                  ToolTip.Tip="Remove the selected ⭐ favourite under Custom Discovery"
+                  Command="{CompiledBinding RemoveFromFavouritesCommand}" />
           <Border Width="1" Background="#1E293B" Margin="2,4" />
           <Button Classes="tonal" Content="↻ Refresh"
                   Command="{CompiledBinding RefreshSelectedRootCommand}" />

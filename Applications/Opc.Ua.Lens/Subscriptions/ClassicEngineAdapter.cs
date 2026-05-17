@@ -199,7 +199,9 @@ internal sealed class ClassicEngineAdapter : ISubscriptionAdapter
             SamplingInterval = (int)stored.SamplingInterval.TotalMilliseconds,
             QueueSize = stored.QueueSize,
             DiscardOldest = stored.DiscardOldest,
-            Filter = stored.IsEvent ? DefaultEventFilters.Build() : null
+            Filter = stored.IsEvent
+                ? DefaultEventFilters.Build()
+                : (MonitoringFilter?)stored.DataChangeFilter
         });
 
         lock (m_lock)

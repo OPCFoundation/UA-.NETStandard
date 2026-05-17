@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Threading;
 using Avalonia.Controls;
 using Avalonia.Markup.Xaml;
 using UaLens.ViewModels;
@@ -92,14 +93,17 @@ internal sealed partial class AddressSpaceView : UserControl
         var miExportValue = this.FindControl<MenuItem>("MenuExportValue");
         var miFindByPath = this.FindControl<MenuItem>("MenuFindByPath");
         var search = this.FindControl<TextBox>("SearchBox");
+        var viewKindCombo = this.FindControl<ComboBox>("ViewKindCombo");
         if (tree is null || menu is null || miAdd is null || miAddRec is null
             || miCall is null || miWrite is null
             || miReadHistory is null || miShowEvents is null || miPerf is null
             || miExportValue is null || miFindByPath is null
-            || search is null)
+            || search is null || viewKindCombo is null)
         {
             return;
         }
+
+        WireViewKindCombo(viewKindCombo);
 
         tree.SelectionChanged += (_, _) =>
         {
@@ -287,6 +291,54 @@ internal sealed partial class AddressSpaceView : UserControl
             }
         }
         return null;
+    }
+
+    /// <summary>
+    /// Populates the View-kind combo with all <see cref="BrowseViewKind"/>
+    /// values, mirrors the bound <see cref="BrowserViewModel.CurrentViewKind"/>
+    /// into the selected item whenever the <see cref="UserControl.DataContext"/>
+    /// changes, and forwards user selections via
+    /// <see cref="BrowserViewModel.SetViewKindAsync"/>.  Re-entry is
+    /// suppressed via a sentinel so the programmatic resync we do on
+    /// DataContext arrival does not fire another SetViewKindAsync.
+    /// </summary>
+    private void WireViewKindCombo(ComboBox combo)
+    {
+        combo.ItemsSource = Enum.GetValues<BrowseViewKind>();
+        bool syncing = false;
+
+        void SyncFromDataContext()
+        {
+            if (DataContext is BrowserViewModel vm)
+            {
+                syncing = true;
+                try
+                {
+                    combo.SelectedItem = vm.CurrentViewKind;
+                }
+                finally
+                {
+                    syncing = false;
+                }
+            }
+        }
+
+        SyncFromDataContext();
+        DataContextChanged += (_, _) => SyncFromDataContext();
+
+        combo.SelectionChanged += async (_, _) =>
+        {
+            if (syncing)
+            {
+                return;
+            }
+            if (DataContext is BrowserViewModel vm
+                && combo.SelectedItem is BrowseViewKind kind
+                && kind != vm.CurrentViewKind)
+            {
+                await vm.SetViewKindAsync(kind, CancellationToken.None).ConfigureAwait(false);
+            }
+        };
     }
 
     private void InitializeComponent()

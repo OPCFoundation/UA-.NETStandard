@@ -101,6 +101,9 @@ internal sealed partial class GdsPushPlugin : ObservableObject, IPlugin
     private ServerPushConfigurationClient? m_client;
     private GdsPushView? m_view;
     private CancellationTokenSource? m_busyCts;
+    private readonly Timer m_statusTimer;
+    private int m_statusPollInFlight;
+    private bool m_statusTimerDisposed;
 
     [ObservableProperty]
     private string m_title;
@@ -163,6 +166,39 @@ internal sealed partial class GdsPushPlugin : ObservableObject, IPlugin
     private string m_serverCertExpiry = "—";
 
     [ObservableProperty]
+    private string m_statusProductName = "—";
+
+    [ObservableProperty]
+    private string m_statusProductUri = "—";
+
+    [ObservableProperty]
+    private string m_statusManufacturerName = "—";
+
+    [ObservableProperty]
+    private string m_statusSoftwareVersion = "—";
+
+    [ObservableProperty]
+    private string m_statusBuildNumber = "—";
+
+    [ObservableProperty]
+    private string m_statusBuildDate = "—";
+
+    [ObservableProperty]
+    private string m_statusStartTime = "—";
+
+    [ObservableProperty]
+    private string m_statusCurrentTime = "—";
+
+    [ObservableProperty]
+    private string m_statusState = "—";
+
+    [ObservableProperty]
+    private string m_statusSecondsTillShutdown = string.Empty;
+
+    [ObservableProperty]
+    private string m_statusShutdownReason = string.Empty;
+
+    [ObservableProperty]
     private TrustListBucket m_activeBucket = TrustListBucket.Trusted;
 
     [ObservableProperty]
@@ -190,6 +226,9 @@ internal sealed partial class GdsPushPlugin : ObservableObject, IPlugin
             s_perKindCounter[PluginKind.GdsPush] = n;
         }
         m_title = $"GDS Push {n}";
+        // Idle until a (secondary or piggy-backed) Push session comes up;
+        // ServerStatus polling is gated on that via UpdateStatusPolling.
+        m_statusTimer = new Timer(OnStatusTimerTick, null, Timeout.Infinite, Timeout.Infinite);
         // Track changes to the main Connection pane's endpoint URL so our
         // read-only display + Connect button always use the latest value.
         m_host.Main.PropertyChanged += (_, e) =>
@@ -237,12 +276,14 @@ internal sealed partial class GdsPushPlugin : ObservableObject, IPlugin
         if (m_secondaryConnected == value)
         {
             OnPropertyChanged(nameof(HasSecondarySession));
+            UpdateStatusPolling();
             return;
         }
         m_secondaryConnected = value;
         OnPropertyChanged(nameof(IsConnected));
         OnPropertyChanged(nameof(HasSecondarySession));
         OnPropertyChanged(nameof(ConnectButtonText));
+        UpdateStatusPolling();
     }
 
     // ----- IPlugin members -----
@@ -293,6 +334,19 @@ internal sealed partial class GdsPushPlugin : ObservableObject, IPlugin
         }
         catch (ObjectDisposedException)
         {
+        }
+        try
+        {
+            if (!m_statusTimerDisposed)
+            {
+                m_statusTimerDisposed = true;
+                m_statusTimer.Change(Timeout.Infinite, Timeout.Infinite);
+                await m_statusTimer.DisposeAsync().ConfigureAwait(false);
+            }
+        }
+        catch (Exception ex)
+        {
+            m_log.LogDebug(ex, "GdsPush tab {Title}: status timer dispose threw (suppressed).", Title);
         }
         if (m_client is not null)
         {
@@ -556,6 +610,7 @@ internal sealed partial class GdsPushPlugin : ObservableObject, IPlugin
             ServerCertSubject = "—";
             ServerCertIssuer = "—";
             ServerCertExpiry = "—";
+            ResetServerStatusFields();
             SetResult("Disconnected.");
         }
         finally
@@ -1057,6 +1112,171 @@ internal sealed partial class GdsPushPlugin : ObservableObject, IPlugin
     }
 
     partial void OnLastOperationResultChanged(string value) => UpdateStatus();
+
+    // ----- ServerStatus polling (mirrors GDS WinForms client + ServerStatusControl) -----
+
+    /// <summary>
+    /// Forces an immediate ServerStatus read.  Bound to the "↻ Refresh"
+    /// button in the Server status sub-pane.  Skips silently when no
+    /// secondary / piggy-backed Push session is currently up; the timer
+    /// itself will resume polling automatically when one comes back.
+    /// </summary>
+    [RelayCommand]
+    private Task PollOnceAsync()
+    {
+        return PollStatusInternalAsync();
+    }
+
+    private void OnStatusTimerTick(object? state)
+    {
+        _ = PollStatusInternalAsync();
+    }
+
+    private void UpdateStatusPolling()
+    {
+        if (m_statusTimerDisposed)
+        {
+            return;
+        }
+        if (m_client?.Session is { Connected: true })
+        {
+            // First tick fires immediately so the panel is populated as
+            // soon as the session comes up, then every second after.
+            m_statusTimer.Change(0, 1000);
+        }
+        else
+        {
+            m_statusTimer.Change(Timeout.Infinite, Timeout.Infinite);
+            ResetServerStatusFields();
+        }
+    }
+
+    private async Task PollStatusInternalAsync()
+    {
+        if (Interlocked.CompareExchange(ref m_statusPollInFlight, 1, 0) != 0)
+        {
+            return;
+        }
+        try
+        {
+            await ReadAndApplyServerStatusAsync(CancellationToken.None).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            // Sessions can be torn down between ticks (ApplyChanges, keep-alive
+            // failure, server reboot).  Surface as Debug only — the next tick
+            // will silently no-op until UpdateStatusPolling reactivates us.
+            m_log.LogDebug(ex, "GdsPush tab {Title}: server-status poll skipped.", Title);
+        }
+        finally
+        {
+            Interlocked.Exchange(ref m_statusPollInFlight, 0);
+        }
+    }
+
+    private async Task ReadAndApplyServerStatusAsync(CancellationToken ct)
+    {
+        ISession? session = m_client?.Session;
+        if (session is not { Connected: true })
+        {
+            return;
+        }
+        var ids = new ArrayOf<ReadValueId>(new[]
+        {
+            new ReadValueId
+            {
+                NodeId = VariableIds.Server_ServerStatus,
+                AttributeId = Attributes.Value
+            }
+        });
+        ReadResponse resp = await session
+            .ReadAsync(null, 0, TimestampsToReturn.Server, ids, ct)
+            .ConfigureAwait(false);
+        if (resp.Results.Count < 1)
+        {
+            return;
+        }
+        DataValue dv = resp.Results[0];
+        if (StatusCode.IsBad(dv.StatusCode))
+        {
+            m_log.LogDebug(
+                "GdsPush tab {Title}: server-status read returned status {Status}.",
+                Title, dv.StatusCode);
+            return;
+        }
+#pragma warning disable CS8600 // status may be null when TryGetValue returns false; we check below.
+        if (!dv.WrappedValue.TryGetValue(out ServerStatusDataType status, session.MessageContext)
+            || status is null)
+#pragma warning restore CS8600
+        {
+            return;
+        }
+        ApplyServerStatus(status);
+    }
+
+    private void ApplyServerStatus(ServerStatusDataType status)
+    {
+        BuildInfo? bi = status.BuildInfo;
+        string productName = string.IsNullOrEmpty(bi?.ProductName) ? "—" : bi!.ProductName;
+        string productUri = string.IsNullOrEmpty(bi?.ProductUri) ? "—" : bi!.ProductUri;
+        string manufacturerName = string.IsNullOrEmpty(bi?.ManufacturerName) ? "—" : bi!.ManufacturerName;
+        string softwareVersion = string.IsNullOrEmpty(bi?.SoftwareVersion) ? "—" : bi!.SoftwareVersion;
+        string buildNumber = string.IsNullOrEmpty(bi?.BuildNumber) ? "—" : bi!.BuildNumber;
+        string buildDate = FormatStatusDateTime(bi?.BuildDate ?? default);
+        string startTime = FormatStatusDateTime(status.StartTime);
+        string currentTime = FormatStatusDateTime(status.CurrentTime);
+        string state = status.State.ToString();
+        bool reasonPresent = !status.ShutdownReason.IsNullOrEmpty;
+        bool shuttingDown = status.SecondsTillShutdown > 0 || reasonPresent;
+        string seconds = shuttingDown
+            ? status.SecondsTillShutdown.ToString(CultureInfo.InvariantCulture)
+            : string.Empty;
+        string reason = shuttingDown
+            ? status.ShutdownReason.Text ?? string.Empty
+            : string.Empty;
+
+        Dispatcher.UIThread.Post(() =>
+        {
+            StatusProductName = productName;
+            StatusProductUri = productUri;
+            StatusManufacturerName = manufacturerName;
+            StatusSoftwareVersion = softwareVersion;
+            StatusBuildNumber = buildNumber;
+            StatusBuildDate = buildDate;
+            StatusStartTime = startTime;
+            StatusCurrentTime = currentTime;
+            StatusState = state;
+            StatusSecondsTillShutdown = seconds;
+            StatusShutdownReason = reason;
+        });
+    }
+
+    private void ResetServerStatusFields()
+    {
+        Dispatcher.UIThread.Post(() =>
+        {
+            StatusProductName = "—";
+            StatusProductUri = "—";
+            StatusManufacturerName = "—";
+            StatusSoftwareVersion = "—";
+            StatusBuildNumber = "—";
+            StatusBuildDate = "—";
+            StatusStartTime = "—";
+            StatusCurrentTime = "—";
+            StatusState = "—";
+            StatusSecondsTillShutdown = string.Empty;
+            StatusShutdownReason = string.Empty;
+        });
+    }
+
+    private static string FormatStatusDateTime(DateTimeUtc dt)
+    {
+        if (dt.IsNull)
+        {
+            return "—";
+        }
+        return dt.ToDateTime().ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture);
+    }
 }
 
 /// <summary>

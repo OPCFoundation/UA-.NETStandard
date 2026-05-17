@@ -32,11 +32,24 @@
              x:Class="UaLens.Views.AddressSpaceView"
              x:DataType="vm:BrowserViewModel">
   <Border BorderBrush="#1E293B" BorderThickness="1" CornerRadius="4" Padding="0">
-    <Grid RowDefinitions="Auto,*">
-      <TextBox Grid.Row="0" x:Name="SearchBox" Margin="4,4,4,2"
+    <Grid RowDefinitions="Auto,Auto,*">
+      <DockPanel Grid.Row="0" Margin="4,4,4,2" LastChildFill="True">
+        <TextBlock DockPanel.Dock="Left"
+                   VerticalAlignment="Center"
+                   Margin="0,0,4,0"
+                   Foreground="#94A3B8"
+                   Text="View:" />
+        <ComboBox x:Name="ViewKindCombo"
+                  HorizontalAlignment="Stretch"
+                  MinHeight="24"
+                  VerticalAlignment="Center"
+                  VerticalContentAlignment="Center"
+                  ToolTip.Tip="Re-roots the address-space tree (Objects / type hierarchies / Views)." />
+      </DockPanel>
+      <TextBox Grid.Row="1" x:Name="SearchBox" Margin="4,4,4,2"
                Watermark="Search BrowseName / NodeId (Enter, F3 next)"
                FontFamily="Cascadia Mono, Consolas, monospace" />
-      <TreeView Grid.Row="1" x:Name="Tree"
+      <TreeView Grid.Row="2" x:Name="Tree"
                 ItemsSource="{CompiledBinding Roots}"
                 Background="#0F172A"
                 Foreground="#E2E8F0"

@@ -69,10 +69,21 @@
       <Setter Property="MinWidth" Value="86" />
       <Setter Property="FontWeight" Value="SemiBold" />
     </Style>
+    <Style Selector="Border.runRow">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderBrush" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0,0,0,1" />
+      <Setter Property="Padding" Value="6,3" />
+    </Style>
+    <Style Selector="Border.runRow.highlight">
+      <Setter Property="Background" Value="#0E2A47" />
+      <Setter Property="BorderBrush" Value="#0EA5E9" />
+      <Setter Property="BorderThickness" Value="2,0,0,1" />
+    </Style>
   </UserControl.Styles>
 
   <Border Background="#0F172A" BorderBrush="#1E293B" BorderThickness="1" CornerRadius="4" Padding="10">
-    <Grid RowDefinitions="Auto,Auto,*,*,Auto">
+    <Grid RowDefinitions="Auto,Auto,*,*,Auto,Auto">
 
       <!-- Row 0: target picker + workload + actions -->
       <Border Grid.Row="0" Padding="10" Background="#0B1220" BorderBrush="#1E293B"
@@ -142,8 +153,14 @@
                     Command="{CompiledBinding RunCommand}" />
             <Button Classes="danger"  Content="■ Stop" Margin="0,0,6,0"
                     Command="{CompiledBinding StopCommand}" />
-            <Button Classes="tonal"   Content="↺ Reset"
+            <Button Classes="tonal"   Content="↺ Reset" Margin="0,0,6,0"
                     Command="{CompiledBinding ResetCommand}" />
+            <Button Classes="tonal"   Content="💾 Save…" Margin="0,0,6,0"
+                    ToolTip.Tip="Save the run history to a CSV file."
+                    Command="{CompiledBinding SaveResultsCommand}" />
+            <Button Classes="tonal"   Content="📂 Load…"
+                    ToolTip.Tip="Replace the run history with rows loaded from a CSV file."
+                    Command="{CompiledBinding LoadResultsCommand}" />
           </WrapPanel>
         </Grid>
       </Border>
@@ -200,6 +217,50 @@
             <TextBlock Classes="statDim" Text="ERRORS" />
             <TextBlock Classes="stat" Text="{CompiledBinding ErrorsText}" />
           </StackPanel>
+        </Grid>
+      </Border>
+
+      <!-- Row 5: run history list + compare-last-3 toggle -->
+      <Border Grid.Row="5" Padding="8,6" Margin="0,8,0,0"
+              Background="#0B1220" BorderBrush="#1E293B" BorderThickness="1" CornerRadius="4">
+        <Grid RowDefinitions="Auto,Auto,Auto">
+          <Grid Grid.Row="0" ColumnDefinitions="*,Auto">
+            <TextBlock Grid.Column="0" Classes="h" VerticalAlignment="Center"
+                       Text="RUNS — most recent first; toggle 'Compare last 3' to highlight the three latest rows" />
+            <CheckBox Grid.Column="1" Content="Compare last 3"
+                      VerticalAlignment="Center"
+                      IsChecked="{CompiledBinding CompareLast3, Mode=TwoWay}" />
+          </Grid>
+          <TextBlock Grid.Row="1" Classes="statDim" Margin="0,2,0,4"
+                     Text="{CompiledBinding CompareStatus}" />
+          <ListBox Grid.Row="2" x:Name="HistoryList"
+                   ItemsSource="{CompiledBinding RunHistory}"
+                   MaxHeight="160"
+                   Background="#0F172A"
+                   BorderBrush="#1E293B"
+                   BorderThickness="1">
+            <ListBox.ItemTemplate>
+              <DataTemplate x:DataType="vm:BenchmarkRunRow">
+                <Border Classes="runRow" Classes.highlight="{CompiledBinding IsHighlighted}">
+                  <Grid ColumnDefinitions="160,90,90,100,80,80,70">
+                    <TextBlock Grid.Column="0" Classes="stat" Text="{CompiledBinding TimestampDisplay}" />
+                    <TextBlock Grid.Column="1" Classes="statDim" TextAlignment="Right"
+                               Text="{CompiledBinding TargetRateDisplay}" />
+                    <TextBlock Grid.Column="2" Classes="stat" TextAlignment="Right"
+                               Text="{CompiledBinding AchievedRateDisplay}" />
+                    <TextBlock Grid.Column="3" Classes="statDim" TextAlignment="Right"
+                               Text="{CompiledBinding TotalOpsDisplay}" />
+                    <TextBlock Grid.Column="4" Classes="statDim" TextAlignment="Right"
+                               Text="{CompiledBinding P50Display}" />
+                    <TextBlock Grid.Column="5" Classes="statDim" TextAlignment="Right"
+                               Text="{CompiledBinding P99Display}" />
+                    <TextBlock Grid.Column="6" Classes="statDim" TextAlignment="Right"
+                               Text="{CompiledBinding ErrorCountDisplay}" />
+                  </Grid>
+                </Border>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
         </Grid>
       </Border>
     </Grid>

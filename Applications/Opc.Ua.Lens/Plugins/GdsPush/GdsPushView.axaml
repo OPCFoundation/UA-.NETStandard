@@ -71,7 +71,7 @@
     </Style>
   </UserControl.Styles>
 
-  <Grid Margin="10" RowDefinitions="Auto,Auto,*,Auto">
+  <Grid Margin="10" RowDefinitions="Auto,Auto,Auto,*,Auto">
 
     <!-- Row 0: connection bar — endpoint comes from the main Connection pane
          (read-only here); the Connect/Disconnect buttons drive a SEPARATE
@@ -123,8 +123,56 @@
       </Grid>
     </Border>
 
-    <!-- Row 2: trust-list tabs -->
-    <Border Grid.Row="2" Classes="panel">
+    <!-- Row 2: collapsible server-status panel — polled at 1 Hz from
+         the secondary (or piggy-backed) Push session via ReadAsync on
+         VariableIds.Server_ServerStatus (i=2256). -->
+    <Border Grid.Row="2" Classes="panel" Margin="0,0,0,6">
+      <Expander Header="Server status" IsExpanded="True">
+        <Grid ColumnDefinitions="180,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
+          <TextBlock Grid.Row="0"  Grid.Column="0" Classes="k" Text="Product name" Margin="0,2" />
+          <TextBlock Grid.Row="0"  Grid.Column="1" Classes="v"
+                     Text="{CompiledBinding StatusProductName}" Margin="0,2" />
+          <TextBlock Grid.Row="1"  Grid.Column="0" Classes="k" Text="Product URI" Margin="0,2" />
+          <TextBlock Grid.Row="1"  Grid.Column="1" Classes="v"
+                     Text="{CompiledBinding StatusProductUri}" Margin="0,2" />
+          <TextBlock Grid.Row="2"  Grid.Column="0" Classes="k" Text="Manufacturer" Margin="0,2" />
+          <TextBlock Grid.Row="2"  Grid.Column="1" Classes="v"
+                     Text="{CompiledBinding StatusManufacturerName}" Margin="0,2" />
+          <TextBlock Grid.Row="3"  Grid.Column="0" Classes="k" Text="Software version" Margin="0,2" />
+          <TextBlock Grid.Row="3"  Grid.Column="1" Classes="v"
+                     Text="{CompiledBinding StatusSoftwareVersion}" Margin="0,2" />
+          <TextBlock Grid.Row="4"  Grid.Column="0" Classes="k" Text="Build number" Margin="0,2" />
+          <TextBlock Grid.Row="4"  Grid.Column="1" Classes="v"
+                     Text="{CompiledBinding StatusBuildNumber}" Margin="0,2" />
+          <TextBlock Grid.Row="5"  Grid.Column="0" Classes="k" Text="Build date (UTC)" Margin="0,2" />
+          <TextBlock Grid.Row="5"  Grid.Column="1" Classes="v"
+                     Text="{CompiledBinding StatusBuildDate}" Margin="0,2" />
+          <TextBlock Grid.Row="6"  Grid.Column="0" Classes="k" Text="Start time (UTC)" Margin="0,2" />
+          <TextBlock Grid.Row="6"  Grid.Column="1" Classes="v"
+                     Text="{CompiledBinding StatusStartTime}" Margin="0,2" />
+          <TextBlock Grid.Row="7"  Grid.Column="0" Classes="k" Text="Current time (UTC)" Margin="0,2" />
+          <TextBlock Grid.Row="7"  Grid.Column="1" Classes="v"
+                     Text="{CompiledBinding StatusCurrentTime}" Margin="0,2" />
+          <TextBlock Grid.Row="8"  Grid.Column="0" Classes="k" Text="State" Margin="0,2" />
+          <TextBlock Grid.Row="8"  Grid.Column="1" Classes="v"
+                     Text="{CompiledBinding StatusState}" Margin="0,2" />
+          <TextBlock Grid.Row="9"  Grid.Column="0" Classes="k" Text="Seconds till shutdown" Margin="0,2" />
+          <TextBlock Grid.Row="9"  Grid.Column="1" Classes="v"
+                     Text="{CompiledBinding StatusSecondsTillShutdown}" Margin="0,2" />
+          <TextBlock Grid.Row="10" Grid.Column="0" Classes="k" Text="Shutdown reason" Margin="0,2" />
+          <TextBlock Grid.Row="10" Grid.Column="1" Classes="v"
+                     Text="{CompiledBinding StatusShutdownReason}" Margin="0,2" />
+          <StackPanel Grid.Row="11" Grid.ColumnSpan="2" Orientation="Horizontal"
+                      Margin="0,8,0,0" Spacing="6">
+            <Button Classes="tonal" Content="↻ Refresh"
+                    Command="{CompiledBinding PollOnceCommand}" />
+          </StackPanel>
+        </Grid>
+      </Expander>
+    </Border>
+
+    <!-- Row 3: trust-list tabs -->
+    <Border Grid.Row="3" Classes="panel">
       <TabControl x:Name="TrustTabs" Background="Transparent" BorderThickness="0" Padding="0">
         <TabItem Header="Trusted Peers" x:Name="TabTrusted">
           <Grid RowDefinitions="Auto,*">
@@ -237,8 +285,8 @@
       </TabControl>
     </Border>
 
-    <!-- Row 3: action bar -->
-    <Border Grid.Row="3" Classes="panel" Margin="0,6,0,0">
+    <!-- Row 4: action bar -->
+    <Border Grid.Row="4" Classes="panel" Margin="0,6,0,0">
       <StackPanel Orientation="Horizontal" Spacing="6">
         <Button Classes="tonal" Content="↻ Refresh"
                 IsEnabled="{CompiledBinding !IsBusy}"
