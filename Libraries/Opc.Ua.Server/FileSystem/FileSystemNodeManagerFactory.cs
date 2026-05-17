@@ -27,16 +27,40 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-namespace Quickstarts.FileSystem
+using System;
+
+namespace Opc.Ua.Server.FileSystem
 {
     /// <summary>
-    /// Defines constants for namespaces used by the application.
+    /// <see cref="INodeManagerFactory"/> that wraps an
+    /// <see cref="IFileSystemProvider"/> so it can be plugged into a
+    /// <c>StandardServer</c> via the standard
+    /// <c>NodeManagerFactories</c> collection.
     /// </summary>
-    public static class Namespaces
+    public sealed class FileSystemNodeManagerFactory : INodeManagerFactory
     {
         /// <summary>
-        /// The namespace for the nodes provided by the server.
+        /// Creates a new factory backed by <paramref name="provider"/>.
         /// </summary>
-        public const string FileSystem = "FileSystem";
+        public FileSystemNodeManagerFactory(IFileSystemProvider provider)
+        {
+            m_provider = provider ?? throw new ArgumentNullException(nameof(provider));
+        }
+
+        /// <inheritdoc/>
+        public ArrayOf<string> NamespacesUris =>
+        [
+            FileSystemNodeManager.NamespaceUriBase + "/" + m_provider.MountName
+        ];
+
+        /// <inheritdoc/>
+        public INodeManager Create(
+            IServerInternal server,
+            ApplicationConfiguration configuration)
+        {
+            return new FileSystemNodeManager(server, configuration, m_provider);
+        }
+
+        private readonly IFileSystemProvider m_provider;
     }
 }

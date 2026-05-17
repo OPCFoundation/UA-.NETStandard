@@ -579,7 +579,7 @@ namespace Opc.Ua.Client.FileSystem
                         yield return info;
                     }
                 }
-                if (continuation.IsNull)
+                if (continuation.IsNull || continuation.Length == 0)
                 {
                     yield break;
                 }

@@ -27,37 +27,38 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-namespace Quickstarts.FileSystem
+using System;
+using System.IO;
+
+namespace Opc.Ua.Server.FileSystem
 {
-    using Opc.Ua;
-    using System;
-    using System.IO;
-
     /// <summary>
-    /// A object which maps a segment to a UA object.
+    /// Address-space representation of a single file in an
+    /// <see cref="IFileSystemProvider"/>. Hangs the FileType
+    /// metadata properties (Size, Writable, LastModifiedTime, …)
+    /// and the FileType methods (Open / Read / Write / Close /
+    /// SetPosition / GetPosition) on top of an underlying
+    /// <see cref="FileHandle"/> obtained from the owning
+    /// <see cref="FileSystemNodeManager"/>.
     /// </summary>
-    public class FileObjectState : FileState
+    internal sealed class FileObjectState : FileState
     {
-        /// <summary>
-        /// Gets the path to the file
-        /// </summary>
-        public string FullPath { get; }
+        public string ProviderPath { get; }
 
-        /// <summary>
-        /// Initializes a new instance of the <see cref="FileObjectState"/> class.
-        /// </summary>
-        public FileObjectState(ISystemContext context, NodeId nodeId, string path)
+        public FileObjectState(
+            ISystemContext context,
+            NodeId nodeId,
+            string providerPath,
+            string displayName)
             : base(null)
         {
-            System.Diagnostics.Contracts.Contract.Assume(context != null);
-            FullPath = path;
+            ProviderPath = providerPath;
 
-            string name = Path.GetFileName(path);
             TypeDefinitionId = ObjectTypeIds.FileType;
-            SymbolicName = path;
+            SymbolicName = providerPath;
             NodeId = nodeId;
-            BrowseName = new QualifiedName(name, nodeId.NamespaceIndex);
-            DisplayName = new LocalizedText(name);
+            BrowseName = new QualifiedName(displayName);
+            DisplayName = new LocalizedText(displayName);
             Description = LocalizedText.Null;
             WriteMask = 0;
             UserWriteMask = 0;
@@ -176,205 +177,233 @@ namespace Quickstarts.FileSystem
             NumericRange indexRange, QualifiedName dataEncoding, ref Variant value,
             ref StatusCode statusCode, ref DateTimeUtc timestamp)
         {
-            if (GetFileHandle(context, NodeId, out FileHandle handle, out ServiceResult result))
+            if (!TryGetHandle(context, out FileHandle handle, out ServiceResult result))
             {
-                value = new Variant(handle.MimeType);
-                timestamp = DateTimeUtc.Now;
-                statusCode = StatusCodes.Uncertain;
+                return result;
             }
-            return result;
+            value = new Variant(handle.MimeType);
+            timestamp = DateTimeUtc.Now;
+            statusCode = StatusCodes.Uncertain;
+            return ServiceResult.Good;
         }
 
-        private ServiceResult OnLastModifiedTime(ISystemContext context,
-            NodeState node, NumericRange indexRange, QualifiedName dataEncoding,
-            ref Variant value, ref StatusCode statusCode, ref DateTimeUtc timestamp)
+        private ServiceResult OnLastModifiedTime(ISystemContext context, NodeState node,
+            NumericRange indexRange, QualifiedName dataEncoding, ref Variant value,
+            ref StatusCode statusCode, ref DateTimeUtc timestamp)
         {
-            if (GetFileHandle(context, NodeId, out FileHandle handle, out ServiceResult result))
+            if (!TryGetHandle(context, out FileHandle handle, out ServiceResult result))
             {
-                value = new Variant((DateTimeUtc)handle.LastModifiedTime);
-                timestamp = DateTimeUtc.Now;
-                statusCode = StatusCodes.Good;
+                return result;
             }
-            return result;
+            value = new Variant((DateTimeUtc)handle.LastModifiedTime);
+            timestamp = DateTimeUtc.Now;
+            statusCode = StatusCodes.Good;
+            return ServiceResult.Good;
         }
 
         private ServiceResult OnWritable(ISystemContext context, NodeState node,
             NumericRange indexRange, QualifiedName dataEncoding, ref Variant value,
             ref StatusCode statusCode, ref DateTimeUtc timestamp)
         {
-            if (GetFileHandle(context, NodeId, out FileHandle handle, out ServiceResult result))
+            if (!TryGetHandle(context, out FileHandle handle, out ServiceResult result))
             {
-                value = new Variant(handle.IsWriteable);
-                timestamp = DateTimeUtc.Now;
-                statusCode = StatusCodes.Good;
+                return result;
             }
-            return result;
+            value = new Variant(handle.IsWriteable);
+            timestamp = DateTimeUtc.Now;
+            statusCode = StatusCodes.Good;
+            return ServiceResult.Good;
         }
 
         private ServiceResult OnSize(ISystemContext context, NodeState node,
             NumericRange indexRange, QualifiedName dataEncoding, ref Variant value,
             ref StatusCode statusCode, ref DateTimeUtc timestamp)
         {
-            if (GetFileHandle(context, NodeId, out FileHandle handle, out ServiceResult result))
+            if (!TryGetHandle(context, out FileHandle handle, out ServiceResult result))
             {
-                value = new Variant((ulong)handle.Length);
-                timestamp = DateTimeUtc.Now;
-                statusCode = StatusCodes.Good;
+                return result;
             }
-            return result;
+            value = new Variant((ulong)handle.Length);
+            timestamp = DateTimeUtc.Now;
+            statusCode = StatusCodes.Good;
+            return ServiceResult.Good;
         }
 
         private ServiceResult OnOpenCount(ISystemContext context, NodeState node,
             NumericRange indexRange, QualifiedName dataEncoding, ref Variant value,
             ref StatusCode statusCode, ref DateTimeUtc timestamp)
         {
-            if (GetFileHandle(context, NodeId, out FileHandle handle, out ServiceResult result))
+            if (!TryGetHandle(context, out FileHandle handle, out ServiceResult result))
             {
-                value = new Variant(handle.OpenCount);
-                timestamp = DateTimeUtc.Now;
-                statusCode = StatusCodes.Good;
+                return result;
             }
-            return result;
+            value = new Variant(handle.OpenCount);
+            timestamp = DateTimeUtc.Now;
+            statusCode = StatusCodes.Good;
+            return ServiceResult.Good;
         }
 
-        private ServiceResult OnOpen(ISystemContext _context, MethodState _method,
-            NodeId _objectId, byte mode, ref uint fileHandle)
+        private ServiceResult OnOpen(ISystemContext context, MethodState method,
+            NodeId objectId, byte mode, ref uint fileHandle)
         {
-            if (GetFileHandle(_context, _objectId, out FileHandle handle, out ServiceResult result))
+            if (!TryGetHandle(context, out FileHandle handle, out ServiceResult result))
             {
-                result = handle.Open(mode, out fileHandle);
+                return result;
             }
-            return result;
+            return handle.Open(mode, out fileHandle);
         }
 
-        private ServiceResult OnClose(ISystemContext _context, MethodState _method,
-            NodeId _objectId, uint fileHandle)
+        private ServiceResult OnClose(ISystemContext context, MethodState method,
+            NodeId objectId, uint fileHandle)
         {
-            if (GetFileHandle(_context, _objectId, out FileHandle handle, out ServiceResult result)
-                && !handle.Close(fileHandle))
+            if (!TryGetHandle(context, out FileHandle handle, out ServiceResult result))
+            {
+                return result;
+            }
+            return handle.Close(fileHandle)
+                ? ServiceResult.Good
+                : ServiceResult.Create(StatusCodes.BadInvalidState,
+                    "File handle could not be closed.");
+        }
+
+        private ServiceResult OnSetPosition(ISystemContext context, MethodState method,
+            NodeId objectId, uint fileHandle, ulong position)
+        {
+            if (!TryGetHandle(context, out FileHandle handle, out ServiceResult result))
+            {
+                return result;
+            }
+            Stream stream = handle.GetStream(fileHandle);
+            if (stream == null)
             {
                 return ServiceResult.Create(StatusCodes.BadInvalidState,
-                   "File handle could not be closed.");
+                    "File handle not open.");
             }
-            return result;
+            stream.Position = (long)position;
+            return ServiceResult.Good;
         }
 
-        private ServiceResult OnSetPosition(ISystemContext _context, MethodState _method,
-            NodeId _objectId, uint fileHandle, ulong position)
+        private ServiceResult OnGetPosition(ISystemContext context, MethodState method,
+            NodeId objectId, uint fileHandle, ref ulong position)
         {
-            if (GetFileHandle(_context, _objectId, out FileHandle handle, out ServiceResult result))
+            if (!TryGetHandle(context, out FileHandle handle, out ServiceResult result))
             {
-                Stream stream = handle.GetStream(fileHandle);
-                if (stream == null)
-                {
-                    return ServiceResult.Create(StatusCodes.BadInvalidState,
-                       "File handle not open.");
-                }
-                stream.Position = (long)position;
+                return result;
             }
-            return result;
+            Stream stream = handle.GetStream(fileHandle);
+            if (stream == null)
+            {
+                return ServiceResult.Create(StatusCodes.BadInvalidState,
+                    "File handle not open.");
+            }
+            position = (ulong)stream.Position;
+            return ServiceResult.Good;
         }
 
-        private ServiceResult OnGetPosition(ISystemContext _context,
-            MethodState _method, NodeId _objectId, uint fileHandle, ref ulong position)
+        private ServiceResult OnRead(ISystemContext context, MethodState method,
+            NodeId objectId, uint fileHandle, int length, ref ByteString data)
         {
-            if (GetFileHandle(_context, _objectId, out FileHandle handle, out ServiceResult result))
+            if (!TryGetHandle(context, out FileHandle handle, out ServiceResult result))
             {
-                Stream stream = handle.GetStream(fileHandle);
-                if (stream == null)
-                {
-                    return ServiceResult.Create(StatusCodes.BadInvalidState,
-                       "File handle not open.");
-                }
-                position = (ulong)stream.Position;
+                return result;
             }
-            return result;
+            Stream stream = handle.GetStream(fileHandle);
+            if (stream == null)
+            {
+                return ServiceResult.Create(StatusCodes.BadInvalidState,
+                    "File handle not open.");
+            }
+
+            if (length < 0)
+            {
+                return ServiceResult.Create(StatusCodes.BadInvalidArgument,
+                    "Negative length.");
+            }
+            var buffer = new byte[length];
+            int read = stream.Read(buffer, 0, length);
+            if (read == length)
+            {
+                data = ByteString.From(buffer);
+            }
+            else
+            {
+                var trimmed = new byte[read];
+                Array.Copy(buffer, 0, trimmed, 0, read);
+                data = ByteString.From(trimmed);
+            }
+            return ServiceResult.Good;
         }
 
-        private ServiceResult OnRead(ISystemContext _context, MethodState _method,
-            NodeId _objectId, uint fileHandle, int length, ref ByteString data)
+        private ServiceResult OnWrite(ISystemContext context, MethodState method,
+            NodeId objectId, uint fileHandle, ByteString data)
         {
-            if (GetFileHandle(_context, _objectId, out FileHandle handle, out ServiceResult result))
+            if (!TryGetHandle(context, out FileHandle handle, out ServiceResult result))
             {
-                Stream stream = handle.GetStream(fileHandle);
-                if (stream == null)
-                {
-                    return ServiceResult.Create(StatusCodes.BadInvalidState,
-                       "File handle not open.");
-                }
-                var buffer = new byte[length];
-                int read = stream.Read(buffer, 0, length);
-                if (read == length)
-                {
-                    data = ByteString.From(buffer);
-                }
-                else
-                {
-                    var trimmed = new byte[read];
-                    Array.Copy(buffer, 0, trimmed, 0, read);
-                    data = ByteString.From(trimmed);
-                }
+                return result;
             }
-            return result;
+            Stream stream = handle.GetStream(fileHandle);
+            if (stream == null)
+            {
+                return ServiceResult.Create(StatusCodes.BadInvalidState,
+                    "File handle not open.");
+            }
+            byte[] bytes = data.ToArray();
+            stream.Write(bytes, 0, bytes.Length);
+            return ServiceResult.Good;
         }
 
-        private ServiceResult OnWrite(ISystemContext _context, MethodState _method,
-            NodeId _objectId, uint fileHandle, ByteString data)
-        {
-            if (GetFileHandle(_context, _objectId, out FileHandle handle, out ServiceResult result))
-            {
-                Stream stream = handle.GetStream(fileHandle);
-                if (stream == null)
-                {
-                    return StatusCodes.BadInvalidState;
-                }
-                byte[] bytes = data.ToArray();
-                stream.Write(bytes, 0, bytes.Length);
-            }
-            return result;
-        }
-
-        /// <summary>
-        /// Populates the browser with references that meet the criteria.
-        /// </summary>
         protected override void PopulateBrowser(ISystemContext context, NodeBrowser browser)
         {
             base.PopulateBrowser(context, browser);
 
-            // check if the parent segments need to be returned.
-            if (browser.IsRequired(ReferenceTypeIds.HasComponent, true))
+            if (!browser.IsRequired(ReferenceTypeIds.HasComponent, true))
             {
-                string directory = Path.GetDirectoryName(FullPath);
-                if (!string.IsNullOrEmpty(directory))
-                {
-                    if (Path.GetPathRoot(FullPath) == directory)
-                    {
-                        browser.Add(ReferenceTypeIds.HasComponent, true,
-                            ModelUtils.ConstructIdForVolume(directory, NodeId.NamespaceIndex));
-                    }
-                    else
-                    {
-                        browser.Add(ReferenceTypeIds.HasComponent, true,
-                            ModelUtils.ConstructIdForDirectory(directory, NodeId.NamespaceIndex));
-                    }
-                }
+                return;
+            }
+
+            // Reverse reference to the parent directory.
+            FileSystemNodeManager manager = ResolveManager(context);
+            if (manager == null)
+            {
+                return;
+            }
+            NodeId parentId = manager.GetParentNodeId(ProviderPath);
+            if (!parentId.IsNull)
+            {
+                browser.Add(ReferenceTypeIds.HasComponent, true, parentId);
             }
         }
 
-        private static bool GetFileHandle(ISystemContext context, NodeId nodeId,
-            out FileHandle handle, out ServiceResult result)
+        private bool TryGetHandle(
+            ISystemContext context,
+            out FileHandle handle,
+            out ServiceResult result)
         {
-            if (!(context.SystemHandle is FileSystem system) ||
-               !(system.GetHandle(nodeId) is FileHandle h))
+            FileSystemNodeManager manager = ResolveManager(context);
+            if (manager == null)
             {
-                result = ServiceResult.Create(StatusCodes.BadInvalidState,
-                    "Object is not a file.");
                 handle = null;
+                result = ServiceResult.Create(
+                    StatusCodes.BadInvalidState,
+                    "Node manager unavailable.");
                 return false;
             }
-            handle = h;
+
+            handle = manager.GetOrCreateHandle(NodeId, ProviderPath);
+            if (handle == null)
+            {
+                result = ServiceResult.Create(
+                    StatusCodes.BadInvalidState,
+                    "File handle unavailable.");
+                return false;
+            }
             result = ServiceResult.Good;
             return true;
+        }
+
+        private static FileSystemNodeManager ResolveManager(ISystemContext context)
+        {
+            return context?.SystemHandle as FileSystemNodeManager;
         }
     }
 }
