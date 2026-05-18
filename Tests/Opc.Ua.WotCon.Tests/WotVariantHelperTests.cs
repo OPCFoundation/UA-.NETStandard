@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Xml;
 using NUnit.Framework;
 using Opc.Ua.WotCon.Server;
 
@@ -145,8 +144,8 @@ namespace Opc.Ua.WotCon.Tests
         [Test]
         public void ToVariantOfXmlElementProducesXmlElementVariant()
         {
-            var doc = new XmlDocument { XmlResolver = null };
-            XmlElement element = doc.CreateElement("root");
+            var doc = new System.Xml.XmlDocument { XmlResolver = null };
+            System.Xml.XmlElement element = doc.CreateElement("root");
             doc.AppendChild(element);
             Variant v = WotVariantHelper.ToVariant(element);
             Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.XmlElement));
