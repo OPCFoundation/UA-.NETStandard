@@ -388,7 +388,7 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public async Task ReadAsync_UsesNodeStateAsyncReadCallbackAsync()
+        public async Task ReadAsync_UsesNodeStateAsyncReadCallback()
         {
             using TestableAsyncCustomNodeManager manager = CreateManager();
             ServerSystemContext context = manager.SystemContext;
@@ -429,8 +429,10 @@ namespace Opc.Ua.Server.Tests
                 values,
                 errors).ConfigureAwait(false);
 
-            Assert.That(asyncCallbackCalled, Is.True);
+            Assert.That(values[0], Is.Not.Null);
+            Assert.That(errors[0], Is.Not.Null);
             Assert.That(errors[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(asyncCallbackCalled, Is.True);
             Assert.That((int)values[0].WrappedValue, Is.EqualTo(123));
         }
 
@@ -569,7 +571,7 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public async Task WriteAsync_UsesNodeStateAsyncWriteCallbackAsync()
+        public async Task WriteAsync_UsesNodeStateAsyncWriteCallback()
         {
             using TestableAsyncCustomNodeManager manager = CreateManager();
             ServerSystemContext context = manager.SystemContext;
@@ -610,6 +612,7 @@ namespace Opc.Ua.Server.Tests
                 nodesToWrite,
                 errors).ConfigureAwait(false);
 
+            Assert.That(errors[0], Is.Not.Null);
             Assert.That(asyncCallbackCalled, Is.True);
             Assert.That(errors[0].StatusCode, Is.EqualTo(StatusCodes.BadNotWritable));
             Assert.That(variable.Value, Is.EqualTo(10));

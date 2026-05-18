@@ -2100,7 +2100,7 @@ namespace Opc.Ua.Server
                             systemContext,
                             nodeToWrite.AttributeId,
                             nodeToWrite.ParsedIndexRange,
-                            default,
+                            QualifiedName.Null,
                             oldDataValue,
                             cancellationToken).ConfigureAwait(false);
                         oldValue = oldDataValue.WrappedValue;
