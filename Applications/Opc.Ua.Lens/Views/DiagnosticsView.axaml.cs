@@ -38,6 +38,7 @@ using Avalonia.Markup.Xaml;
 using Avalonia.Threading;
 using Opc.Ua;
 using Opc.Ua.Client;
+using UaLens.Diagnostics;
 
 namespace UaLens.Views;
 
@@ -86,6 +87,17 @@ internal sealed partial class DiagnosticsView : UserControl
             Rows.Add(new DiagRow(label, "(loading…)"));
         }
         m_timer = new DispatcherTimer(TimeSpan.FromSeconds(1), DispatcherPriority.Background, async (_, _) => await PollAsync().ConfigureAwait(false));
+    }
+
+    /// <summary>
+    /// Binds the diagnostic view's "Publishes" sub-tab to the shared
+    /// <see cref="PublishLogObserver"/> owned by <c>MainViewModel</c>.
+    /// Idempotent — safe to call repeatedly.
+    /// </summary>
+    public void BindPublishLog(PublishLogObserver observer)
+    {
+        ArgumentNullException.ThrowIfNull(observer);
+        this.RequiredControl<ListBox>("PublishList").ItemsSource = observer.Entries;
     }
 
     private void InitializeComponent()

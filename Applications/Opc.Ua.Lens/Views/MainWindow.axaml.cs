@@ -219,6 +219,7 @@ internal sealed partial class MainWindow : Window, IDisposable
         };
 
         // --- View menu: Diagnostics ---
+        diagnosticsPanel.BindPublishLog(m_vm.PublishLog);
         menuDiag.Click += (_, _) =>
         {
             bool show = menuDiag.IsChecked;
@@ -451,6 +452,7 @@ internal sealed partial class MainWindow : Window, IDisposable
             await m_vm.AddPluginAsync(PluginKind.Performance, seedPickTarget: true).ConfigureAwait(false);
         liveTree.ExportValueRequested += async n => await OnExportValueAsync(n).ConfigureAwait(false);
         liveTree.FindByPathRequested += n => OnFindByPath(n);
+        liveTree.ViewNodeStateRequested += n => OnViewNodeState(n);
 
         // Animation view-mode dropdown — Dots (0) / Bars (1) / Lines (2) / Signal (3) / Histogram (4) / Heatmap (5).
         // Per-tab: reads/writes m_vm.SelectedTab?.AnimationMode.  Re-syncs on tab switch.
@@ -2142,6 +2144,33 @@ internal sealed partial class MainWindow : Window, IDisposable
         }
     }
 
+    // ----- B2: per-row "Set monitoring mode →" context-menu handlers -----
+    //
+    // Each MenuItem under the status-row ContextMenu fires the matching
+    // entrypoint below.  The MenuItem's CommandParameter (or DataContext)
+    // carries the bound row; we forward it to the per-tab VM's
+    // SetMonitoringModeAsync method, which calls the adapter and refreshes
+    // the row's Mode column on success.
+
+    private void OnStatusRowModeDisabledClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+        => InvokeRowMonitoringMode(sender, MonitoringMode.Disabled);
+
+    private void OnStatusRowModeSamplingClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+        => InvokeRowMonitoringMode(sender, MonitoringMode.Sampling);
+
+    private void OnStatusRowModeReportingClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+        => InvokeRowMonitoringMode(sender, MonitoringMode.Reporting);
+
+    private void InvokeRowMonitoringMode(object? sender, MonitoringMode mode)
+    {
+        if (sender is MenuItem mi
+            && mi.CommandParameter is MonitoredItemStatusRow row
+            && m_vm.SelectedSubscriptionTab is { } tab)
+        {
+            _ = tab.SetMonitoringModeAsync(row, mode);
+        }
+    }
+
     private async Task OnSettings()
     {
         if (m_vm.SelectedTab is not SubscriptionViewModel tab)
@@ -2257,6 +2286,12 @@ internal sealed partial class MainWindow : Window, IDisposable
     private void OnFindByPath(UaLens.ViewModels.NodeViewModel? n)
     {
         var dlg = new UaLens.Views.FindNodeDialog(m_vm.Browser, n?.NodeId);
+        dlg.Show(this);
+    }
+
+    private void OnViewNodeState(UaLens.ViewModels.NodeViewModel n)
+    {
+        var dlg = new UaLens.Views.ViewNodeStateDialog(m_vm.Browser, m_vm.Connection, n.NodeId);
         dlg.Show(this);
     }
 

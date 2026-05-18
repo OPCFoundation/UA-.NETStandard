@@ -43,6 +43,7 @@ using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.Client;
 using Opc.Ua.Gds.Client;
+using UaLens.Plugins.Gds;
 using UaLens.ViewModels;
 using UaLens.Views;
 
@@ -271,21 +272,9 @@ internal sealed partial class GdsPushPlugin : ObservableObject, IPlugin
         });
     }
 
-    private bool OuterIsSuitable()
-    {
-        ManagedSession? s = m_host.Connection.Session;
-        return s is { Connected: true }
-            && s.ConfiguredEndpoint?.Description is { } d
-            && d.SecurityMode == MessageSecurityMode.SignAndEncrypt;
-    }
+    private bool OuterIsSuitable() => GdsSessionHelper.IsOuterSuitable(m_host.Connection.Session);
 
-    private bool OuterIsInsecure()
-    {
-        ManagedSession? s = m_host.Connection.Session;
-        return s is { Connected: true }
-            && s.ConfiguredEndpoint?.Description is { } d
-            && d.SecurityMode != MessageSecurityMode.SignAndEncrypt;
-    }
+    private bool OuterIsInsecure() => GdsSessionHelper.IsOuterInsecure(m_host.Connection.Session);
 
     private void SetSecondaryConnected(bool value)
     {
@@ -1061,29 +1050,22 @@ internal sealed partial class GdsPushPlugin : ObservableObject, IPlugin
 
     private async Task SafeDisposeClientAsync()
     {
-        if (m_client is null)
+        ServerPushConfigurationClient? client = m_client;
+        if (client is null)
         {
             return;
         }
 
-        try
-        {
-            m_client.AdminCredentialsRequired -= OnAdminCredentialsRequired;
-            m_client.KeepAlive -= OnKeepAlive;
-            await m_client.DisconnectAsync(CancellationToken.None).ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
-            m_log.LogDebug(ex, "GdsPush tab {Title}: disconnect threw (suppressed).", Title);
-        }
-        try
-        {
-            await m_client.DisposeAsync().ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
-            m_log.LogDebug(ex, "GdsPush tab {Title}: dispose threw (suppressed).", Title);
-        }
+        await GdsSessionHelper.SafeDisconnectAndDisposeAsync(
+            client,
+            () =>
+            {
+                client.AdminCredentialsRequired -= OnAdminCredentialsRequired;
+                client.KeepAlive -= OnKeepAlive;
+            },
+            client.DisconnectAsync,
+            m_log,
+            $"GdsPush tab {Title}").ConfigureAwait(false);
         m_client = null;
     }
 

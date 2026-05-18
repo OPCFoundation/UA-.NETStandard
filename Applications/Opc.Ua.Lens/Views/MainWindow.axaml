@@ -346,6 +346,10 @@
                         <CheckBox x:Name="ResourceOverlayCheck"
                                   VerticalAlignment="Center"
                                   Content="CPU/Mem" />
+                        <CheckBox x:Name="ItemStatusToggle"
+                                  VerticalAlignment="Center"
+                                  Content="📋 Items"
+                                  IsChecked="{CompiledBinding SelectedSubscriptionTab.ShowItemStatusGrid, Mode=TwoWay, FallbackValue=False}" />
                         <TextBlock VerticalAlignment="Center" Margin="6,0,4,0" Foreground="#94A3B8" Text="View:" />
                         <ComboBox x:Name="ViewModeCombo" MinWidth="110" SelectedIndex="0"
                                   VerticalAlignment="Center" VerticalContentAlignment="Center"
@@ -377,9 +381,82 @@
                       </StackPanel>
                     </ScrollViewer>
                   </Border>
-                  <Grid Grid.Row="1">
-                    <v:AnimationCanvas x:Name="Animation" />
-                    <v:ScottPlotView   x:Name="ScottPlot" IsVisible="False" />
+                  <Grid Grid.Row="1" ColumnDefinitions="*,Auto">
+                    <Grid Grid.Column="0">
+                      <v:AnimationCanvas x:Name="Animation" />
+                      <v:ScottPlotView   x:Name="ScottPlot" IsVisible="False" />
+                    </Grid>
+                    <!-- B1: per-monitored-item status sub-pane.  Toggled
+                         via the toolbar's "📋 Items" checkbox.  Right-click
+                         a row to set its monitoring mode (B2). -->
+                    <Border Grid.Column="1"
+                            IsVisible="{CompiledBinding SelectedSubscriptionTab.ShowItemStatusGrid, FallbackValue=False}"
+                            Width="560"
+                            Background="#0B1220"
+                            BorderBrush="#1E293B" BorderThickness="1,0,0,0">
+                      <Grid RowDefinitions="Auto,Auto,*">
+                        <TextBlock Grid.Row="0"
+                                   Margin="10,8,10,6"
+                                   Foreground="#94A3B8" FontSize="12"
+                                   Text="Monitored items" />
+                        <!-- Column header row to align with each item row. -->
+                        <Grid Grid.Row="1" Margin="10,0,10,4"
+                              ColumnDefinitions="40,*,2*,90,80,70,50,70,80,*">
+                          <TextBlock Grid.Column="0" Text="Id"        FontSize="11" Foreground="#64748B" />
+                          <TextBlock Grid.Column="1" Text="Browse"    FontSize="11" Foreground="#64748B" Margin="6,0,0,0" />
+                          <TextBlock Grid.Column="2" Text="NodeId"    FontSize="11" Foreground="#64748B" Margin="6,0,0,0" />
+                          <TextBlock Grid.Column="3" Text="Attr"      FontSize="11" Foreground="#64748B" Margin="6,0,0,0" />
+                          <TextBlock Grid.Column="4" Text="Mode"      FontSize="11" Foreground="#64748B" Margin="6,0,0,0" />
+                          <TextBlock Grid.Column="5" Text="Sampling"  FontSize="11" Foreground="#64748B" Margin="6,0,0,0" />
+                          <TextBlock Grid.Column="6" Text="Q"         FontSize="11" Foreground="#64748B" Margin="6,0,0,0" />
+                          <TextBlock Grid.Column="7" Text="Samples"   FontSize="11" Foreground="#64748B" Margin="6,0,0,0" />
+                          <TextBlock Grid.Column="8" Text="Status"    FontSize="11" Foreground="#64748B" Margin="6,0,0,0" />
+                          <TextBlock Grid.Column="9" Text="Value"     FontSize="11" Foreground="#64748B" Margin="6,0,0,0" />
+                        </Grid>
+                        <ListBox Grid.Row="2"
+                                 x:Name="ItemStatusList"
+                                 Background="Transparent" BorderThickness="0"
+                                 ItemsSource="{CompiledBinding SelectedSubscriptionTab.ItemStatuses, FallbackValue={x:Null}}">
+                          <ListBox.ItemContainerTheme>
+                            <ControlTheme TargetType="ListBoxItem" BasedOn="{StaticResource {x:Type ListBoxItem}}">
+                              <Setter Property="Padding"   Value="10,2" />
+                              <Setter Property="MinHeight" Value="22" />
+                            </ControlTheme>
+                          </ListBox.ItemContainerTheme>
+                          <ListBox.ItemTemplate>
+                            <DataTemplate x:DataType="vm:MonitoredItemStatusRow">
+                              <Grid ColumnDefinitions="40,*,2*,90,80,70,50,70,80,*">
+                                <Grid.ContextMenu>
+                                  <ContextMenu>
+                                    <MenuItem Header="Set monitoring mode">
+                                      <MenuItem Header="_Disabled"  Click="OnStatusRowModeDisabledClick"  CommandParameter="{CompiledBinding .}" />
+                                      <MenuItem Header="_Sampling"  Click="OnStatusRowModeSamplingClick"  CommandParameter="{CompiledBinding .}" />
+                                      <MenuItem Header="_Reporting" Click="OnStatusRowModeReportingClick" CommandParameter="{CompiledBinding .}" />
+                                    </MenuItem>
+                                  </ContextMenu>
+                                </Grid.ContextMenu>
+                                <TextBlock Grid.Column="0" Text="{CompiledBinding Id}"            FontSize="11" Foreground="#CBD5E1"
+                                           FontFamily="Cascadia Mono, Consolas, monospace" />
+                                <TextBlock Grid.Column="1" Text="{CompiledBinding BrowseName}"    FontSize="11" Foreground="#E2E8F0" Margin="6,0,0,0" TextTrimming="CharacterEllipsis" />
+                                <TextBlock Grid.Column="2" Text="{CompiledBinding NodeId}"        FontSize="11" Foreground="#94A3B8" Margin="6,0,0,0"
+                                           FontFamily="Cascadia Mono, Consolas, monospace" TextTrimming="CharacterEllipsis" />
+                                <TextBlock Grid.Column="3" Text="{CompiledBinding AttributeName}" FontSize="11" Foreground="#94A3B8" Margin="6,0,0,0" />
+                                <TextBlock Grid.Column="4" Text="{CompiledBinding Mode}"          FontSize="11" Foreground="#CBD5E1" Margin="6,0,0,0" />
+                                <TextBlock Grid.Column="5" Text="{CompiledBinding Sampling}"      FontSize="11" Foreground="#94A3B8" Margin="6,0,0,0"
+                                           FontFamily="Cascadia Mono, Consolas, monospace" />
+                                <TextBlock Grid.Column="6" Text="{CompiledBinding Queue}"         FontSize="11" Foreground="#94A3B8" Margin="6,0,0,0"
+                                           FontFamily="Cascadia Mono, Consolas, monospace" />
+                                <TextBlock Grid.Column="7" Text="{CompiledBinding Samples}"       FontSize="11" Foreground="#CBD5E1" Margin="6,0,0,0"
+                                           FontFamily="Cascadia Mono, Consolas, monospace" />
+                                <TextBlock Grid.Column="8" Text="{CompiledBinding LastStatus}"    FontSize="11" Foreground="#94A3B8" Margin="6,0,0,0" TextTrimming="CharacterEllipsis" />
+                                <TextBlock Grid.Column="9" Text="{CompiledBinding LastValue}"     FontSize="11" Foreground="#CBD5E1" Margin="6,0,0,0"
+                                           FontFamily="Cascadia Mono, Consolas, monospace" TextTrimming="CharacterEllipsis" />
+                              </Grid>
+                            </DataTemplate>
+                          </ListBox.ItemTemplate>
+                        </ListBox>
+                      </Grid>
+                    </Border>
                   </Grid>
                 </Grid>
                 <!-- Generic per-app view for non-Subscription tabs. -->

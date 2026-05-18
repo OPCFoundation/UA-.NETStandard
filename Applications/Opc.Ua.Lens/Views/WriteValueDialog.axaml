@@ -28,12 +28,13 @@
 ======================================================================== -->
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:v="using:UaLens.Views"
         x:Class="UaLens.Views.WriteValueDialog"
         Title="Write value"
-        Width="640" Height="420"
+        Width="640" Height="560"
         WindowStartupLocation="CenterOwner"
         Background="#0F172A" Foreground="#E2E8F0">
-  <Grid Margin="16" RowDefinitions="Auto,Auto,Auto,Auto,Auto,*,Auto,Auto" ColumnDefinitions="160,*">
+  <Grid Margin="16" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,*,Auto" ColumnDefinitions="160,*">
     <TextBlock Grid.Row="0" Grid.ColumnSpan="2"
                Margin="0,0,0,12"
                TextWrapping="Wrap"
@@ -60,7 +61,31 @@
                AcceptsReturn="True" TextWrapping="Wrap" Height="120" />
     </Grid>
 
-    <TextBlock Grid.Row="5" Grid.ColumnSpan="2" x:Name="ResultLabel" Margin="0,8,0,0"
+    <Expander Grid.Row="5" Grid.ColumnSpan="2" x:Name="AdvancedExpander"
+              Header="Advanced (status code + timestamps)" IsExpanded="False"
+              Margin="0,12,0,0">
+      <Grid Margin="0,4,0,0"
+            RowDefinitions="Auto,Auto,Auto"
+            ColumnDefinitions="Auto,*">
+        <CheckBox Grid.Row="0" Grid.Column="0" x:Name="StatusOverride"
+                  Content="Override status" VerticalAlignment="Center" />
+        <TextBox  Grid.Row="0" Grid.Column="1" x:Name="StatusText"
+                  Margin="8,0,0,0"
+                  Watermark="e.g. 0x80000000 or BadOutOfService" />
+        <CheckBox Grid.Row="1" Grid.Column="0" x:Name="SourceOverride"
+                  Content="Override source timestamp" VerticalAlignment="Center"
+                  Margin="0,8,0,0" />
+        <v:UtcDateTimePicker Grid.Row="1" Grid.Column="1" x:Name="SourceTimePicker"
+                             Margin="8,8,0,0" />
+        <CheckBox Grid.Row="2" Grid.Column="0" x:Name="ServerOverride"
+                  Content="Override server timestamp" VerticalAlignment="Center"
+                  Margin="0,8,0,0" />
+        <v:UtcDateTimePicker Grid.Row="2" Grid.Column="1" x:Name="ServerTimePicker"
+                             Margin="8,8,0,0" />
+      </Grid>
+    </Expander>
+
+    <TextBlock Grid.Row="6" Grid.ColumnSpan="2" x:Name="ResultLabel" Margin="0,8,0,0"
                FontFamily="Cascadia Mono, Consolas, monospace" TextWrapping="Wrap" />
 
     <StackPanel Grid.Row="7" Grid.ColumnSpan="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">

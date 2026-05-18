@@ -66,6 +66,7 @@
             <MenuItem x:Name="MenuExportValue" Header="Export value to file…" />
             <Separator />
             <MenuItem x:Name="MenuFindByPath" Header="Find by path…" />
+            <MenuItem x:Name="MenuViewNodeState" Header="View NodeState…" />
           </ContextMenu>
         </TreeView.ContextMenu>
         <TreeView.ItemTemplate>

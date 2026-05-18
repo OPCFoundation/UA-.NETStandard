@@ -211,21 +211,9 @@ internal sealed partial class GdsManagementPlugin : ObservableObject, IPlugin
         });
     }
 
-    private bool OuterIsSuitable()
-    {
-        ManagedSession? s = m_host.Connection.Session;
-        return s is { Connected: true }
-            && s.ConfiguredEndpoint?.Description is { } d
-            && d.SecurityMode == MessageSecurityMode.SignAndEncrypt;
-    }
+    private bool OuterIsSuitable() => GdsSessionHelper.IsOuterSuitable(m_host.Connection.Session);
 
-    private bool OuterIsInsecure()
-    {
-        ManagedSession? s = m_host.Connection.Session;
-        return s is { Connected: true }
-            && s.ConfiguredEndpoint?.Description is { } d
-            && d.SecurityMode != MessageSecurityMode.SignAndEncrypt;
-    }
+    private bool OuterIsInsecure() => GdsSessionHelper.IsOuterInsecure(m_host.Connection.Session);
 
     private void SetSecondaryConnected(bool value)
     {
@@ -1837,27 +1825,18 @@ internal sealed partial class GdsManagementPlugin : ObservableObject, IPlugin
 
     private async Task SafeDisposeClientAsync()
     {
-        if (m_client is null)
+        GlobalDiscoveryServerClient? client = m_client;
+        if (client is null)
         {
             return;
         }
 
-        try
-        {
-            await m_client.DisconnectAsync(CancellationToken.None).ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
-            m_log.LogDebug(ex, "GdsManagement tab {Title}: disconnect threw (suppressed).", Title);
-        }
-        try
-        {
-            await m_client.DisposeAsync().ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
-            m_log.LogDebug(ex, "GdsManagement tab {Title}: dispose threw (suppressed).", Title);
-        }
+        await GdsSessionHelper.SafeDisconnectAndDisposeAsync(
+            client,
+            detachHandlers: null,
+            client.DisconnectAsync,
+            m_log,
+            $"GdsManagement tab {Title}").ConfigureAwait(false);
         m_client = null;
     }
 

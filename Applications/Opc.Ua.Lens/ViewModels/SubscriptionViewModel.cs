@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Collections.Specialized;
 using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
@@ -107,6 +108,30 @@ internal sealed partial class SubscriptionViewModel : ObservableObject, IPlugin
     /// <summary>Monitored items currently subscribed in this tab.</summary>
     public ObservableCollection<MonitoredItemConfig> Items { get; } = new();
 
+    /// <summary>
+    /// Per-monitored-item status rows for the B1 status sub-pane.  Kept
+    /// in lock-step with <see cref="Items"/>: rows are added/removed by
+    /// <see cref="OnItemsCollectionChanged"/> and dynamic columns
+    /// (Mode / Samples / Last status / Last value) are refreshed by the
+    /// 250 ms <see cref="m_statusRefreshTimer"/> from the adapter's
+    /// live-stats dictionary.
+    /// </summary>
+    public ObservableCollection<MonitoredItemStatusRow> ItemStatuses { get; } = new();
+
+    /// <summary>
+    /// Toggles visibility of the per-item status sub-pane.  Persists per
+    /// tab (each <see cref="SubscriptionViewModel"/> tracks its own
+    /// preference).  When true the VM also drives a 250 ms status
+    /// refresh timer; when false the timer stays parked.
+    /// </summary>
+    [ObservableProperty]
+    private bool m_showItemStatusGrid;
+
+    /// <summary>250 ms throttle for status sub-pane refresh.</summary>
+    private static readonly TimeSpan s_statusRefreshInterval
+        = TimeSpan.FromMilliseconds(250);
+    private DispatcherTimer? m_statusRefreshTimer;
+
     /// <summary>Currently-selected item (mostly for display / future actions).</summary>
     [ObservableProperty]
     private MonitoredItemConfig? m_selectedItem;
@@ -141,6 +166,149 @@ internal sealed partial class SubscriptionViewModel : ObservableObject, IPlugin
         m_title = title;
         m_adapter = adapter;
         m_log = log;
+        Items.CollectionChanged += OnItemsCollectionChanged;
+    }
+
+    /// <summary>
+    /// Mirror Items mutations into <see cref="ItemStatuses"/>.  Runs on
+    /// the UI thread because <see cref="Items"/> is only ever mutated via
+    /// <see cref="Dispatcher.UIThread.Post"/>.
+    /// </summary>
+    private void OnItemsCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        switch (e.Action)
+        {
+            case NotifyCollectionChangedAction.Add:
+                if (e.NewItems is not null)
+                {
+                    foreach (object? obj in e.NewItems)
+                    {
+                        if (obj is MonitoredItemConfig cfg)
+                        {
+                            ItemStatuses.Add(new MonitoredItemStatusRow(cfg));
+                        }
+                    }
+                }
+                break;
+            case NotifyCollectionChangedAction.Remove:
+                if (e.OldItems is not null)
+                {
+                    foreach (object? obj in e.OldItems)
+                    {
+                        if (obj is MonitoredItemConfig cfg)
+                        {
+                            for (int i = ItemStatuses.Count - 1; i >= 0; i--)
+                            {
+                                if (ItemStatuses[i].Id == cfg.Id)
+                                {
+                                    ItemStatuses.RemoveAt(i);
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+                break;
+            case NotifyCollectionChangedAction.Reset:
+                ItemStatuses.Clear();
+                break;
+        }
+    }
+
+    partial void OnShowItemStatusGridChanged(bool value)
+    {
+        if (value)
+        {
+            EnsureStatusTimerStarted();
+            // Push an immediate refresh so the user sees populated rows
+            // without waiting up to 250 ms after toggling the pane on.
+            RefreshItemStatuses();
+        }
+        else
+        {
+            m_statusRefreshTimer?.Stop();
+        }
+    }
+
+    private void EnsureStatusTimerStarted()
+    {
+        if (m_statusRefreshTimer is null)
+        {
+            m_statusRefreshTimer = new DispatcherTimer
+            {
+                Interval = s_statusRefreshInterval
+            };
+            m_statusRefreshTimer.Tick += (_, _) => RefreshItemStatuses();
+        }
+        if (!m_statusRefreshTimer.IsEnabled)
+        {
+            m_statusRefreshTimer.Start();
+        }
+    }
+
+    /// <summary>
+    /// Snapshot per-row state from the adapter's live-stats dictionary and
+    /// the adapter's <see cref="ISubscriptionAdapter.Items"/> (for the
+    /// server-confirmed Mode column).  Runs on the UI thread under the
+    /// 250 ms timer.  No-op when unbound — rows keep their last-seen text.
+    /// </summary>
+    private void RefreshItemStatuses()
+    {
+        ISubscriptionAdapter? adapter = m_adapter;
+        if (adapter is null || ItemStatuses.Count == 0)
+        {
+            return;
+        }
+        // Build a lookup from the adapter's confirmed configs so we can
+        // pick up server-revised Mode / SamplingInterval / QueueSize.
+        var confirmed = new Dictionary<int, MonitoredItemConfig>(adapter.Items.Count);
+        foreach (MonitoredItemConfig c in adapter.Items)
+        {
+            confirmed[c.Id] = c;
+        }
+        foreach (MonitoredItemStatusRow row in ItemStatuses)
+        {
+            if (confirmed.TryGetValue(row.Id, out MonitoredItemConfig? cfg) && cfg is not null)
+            {
+                string mode = cfg.MonitoringMode.ToString();
+                if (row.Mode != mode)
+                {
+                    row.Mode = mode;
+                }
+                string sampling = string.Format(CultureInfo.InvariantCulture,
+                    "{0:0}ms", cfg.SamplingInterval.TotalMilliseconds);
+                if (row.Sampling != sampling)
+                {
+                    row.Sampling = sampling;
+                }
+                string queue = cfg.QueueSize.ToString(CultureInfo.InvariantCulture);
+                if (row.Queue != queue)
+                {
+                    row.Queue = queue;
+                }
+            }
+            if (adapter.TryGetItemStats(row.Id, out MonitoredItemLiveStats? stats))
+            {
+                string samples = stats.Samples.ToString(CultureInfo.InvariantCulture);
+                if (row.Samples != samples)
+                {
+                    row.Samples = samples;
+                }
+                if (stats.HasValue)
+                {
+                    string status = stats.LastStatus.ToString();
+                    if (row.LastStatus != status)
+                    {
+                        row.LastStatus = status;
+                    }
+                    string value = stats.LastValueText;
+                    if (row.LastValue != value)
+                    {
+                        row.LastValue = value;
+                    }
+                }
+            }
+        }
     }
 
     /// <summary>
@@ -302,6 +470,75 @@ internal sealed partial class SubscriptionViewModel : ObservableObject, IPlugin
     }
 
     /// <summary>
+    /// Right-click "Set monitoring mode →" handler on a status sub-pane row
+    /// (B2).  Issues a SetMonitoringMode service call via the active
+    /// adapter; on success the affected row's Mode column is refreshed
+    /// inline (the 250 ms status timer would catch it too, this just
+    /// avoids the perceptible lag).
+    /// </summary>
+    public async Task SetMonitoringModeAsync(MonitoredItemStatusRow row, MonitoringMode mode)
+    {
+        if (row is null)
+        {
+            return;
+        }
+        if (m_adapter is null)
+        {
+            // Disconnected: persist the user's intent into the local Items
+            // collection so the next AttachAdapterAsync re-creates the item
+            // with the chosen mode.
+            for (int i = 0; i < Items.Count; i++)
+            {
+                if (Items[i].Id == row.Id)
+                {
+                    Items[i] = Items[i] with { MonitoringMode = mode };
+                    break;
+                }
+            }
+            row.Mode = mode.ToString();
+            return;
+        }
+        try
+        {
+            await m_adapter.SetMonitoringModeAsync(row.Id, mode, CancellationToken.None)
+                .ConfigureAwait(true);
+            // Mirror the adapter's confirmed mode back into the VM's Items
+            // collection so a later reconnect restores the new mode.
+            for (int i = 0; i < Items.Count; i++)
+            {
+                if (Items[i].Id == row.Id)
+                {
+                    Items[i] = Items[i] with { MonitoringMode = mode };
+                    break;
+                }
+            }
+            row.Mode = mode.ToString();
+            m_log.LogInformation("Tab {Title} monitored item {Id} mode -> {Mode}",
+                Title, row.Id, mode);
+        }
+        catch (Exception ex)
+        {
+            m_log.LogError(ex, "SetMonitoringMode failed (tab {Title}, id {Id}, mode {Mode}).",
+                Title, row.Id, mode);
+        }
+    }
+
+    /// <summary>Bound to the per-row "Disabled" sub-menu item.</summary>
+    [RelayCommand]
+    private Task SetMonitoringModeDisabledAsync(MonitoredItemStatusRow row)
+        => SetMonitoringModeAsync(row, MonitoringMode.Disabled);
+
+    /// <summary>Bound to the per-row "Sampling" sub-menu item.</summary>
+    [RelayCommand]
+    private Task SetMonitoringModeSamplingAsync(MonitoredItemStatusRow row)
+        => SetMonitoringModeAsync(row, MonitoringMode.Sampling);
+
+    /// <summary>Bound to the per-row "Reporting" sub-menu item.</summary>
+    [RelayCommand]
+    private Task SetMonitoringModeReportingAsync(MonitoredItemStatusRow row)
+        => SetMonitoringModeAsync(row, MonitoringMode.Reporting);
+
+    /// <summary>
     /// Recomputes the status text from the adapter's current revised values.
     /// Called after ApplySubscription and on connect.  No-op when unbound.
     /// </summary>
@@ -321,6 +558,9 @@ internal sealed partial class SubscriptionViewModel : ObservableObject, IPlugin
 
     public async ValueTask DisposeAsync()
     {
+        Items.CollectionChanged -= OnItemsCollectionChanged;
+        m_statusRefreshTimer?.Stop();
+        m_statusRefreshTimer = null;
         ISubscriptionAdapter? a = m_adapter;
         m_adapter = null;
         if (a is null)

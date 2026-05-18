@@ -78,6 +78,14 @@ internal sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     public ReferencesViewModel References { get; }
 
     /// <summary>
+    /// Singleton sink for low-level publish-message metadata.  Bound by
+    /// the "Publishes" sub-tab of <c>DiagnosticsView</c>; populated by
+    /// every subscription adapter created on the live
+    /// <see cref="ConnectionService"/>.
+    /// </summary>
+    public UaLens.Diagnostics.PublishLogObserver PublishLog { get; } = new();
+
+    /// <summary>
     /// All open tabs (any kind from <see cref="PluginKind"/>).
     /// Subscription tabs are auto-spawned on first connect; other kinds
     /// are user-opt-in via the Tabs → New menu.
@@ -220,7 +228,7 @@ internal sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         m_logBuffer = new LogRingBuffer(capacity: 4096);
         Telemetry = new AppTelemetryContext(m_logBuffer);
         m_log = Telemetry.CreateLogger("Main");
-        Connection = new ConnectionService(Telemetry);
+        Connection = new ConnectionService(Telemetry, PublishLog);
         Browser = new BrowserViewModel(Telemetry, Connection);
         Attributes = new NodeAttributesViewModel(Telemetry, Connection);
         References = new ReferencesViewModel(Telemetry, Connection);

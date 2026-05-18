@@ -37,6 +37,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.Client;
+using UaLens.Diagnostics;
 using ClassicMonitoredItem = Opc.Ua.Client.MonitoredItem;
 using ClassicMonitoredItemOptions = Opc.Ua.Client.MonitoredItemOptions;
 using ClassicSubscription = Opc.Ua.Client.Subscription;
@@ -53,7 +54,9 @@ internal sealed class ClassicEngineAdapter : ISubscriptionAdapter
     private readonly ManagedSession m_session;
     private readonly ILogger m_log;
     private readonly Channel<NotificationEvent> m_channel;
+    private readonly PublishLogObserver? m_publishLog;
     private readonly ConcurrentDictionary<int, ItemEntry> m_items = new();
+    private readonly ConcurrentDictionary<int, MonitoredItemLiveStats> m_stats = new();
     private readonly object m_lock = new();
     // CA2213: m_subscription IS disposed in DisposeAsync below, but the
     // analyzer can't track lifecycle through Interlocked.Exchange.
@@ -100,10 +103,12 @@ internal sealed class ClassicEngineAdapter : ISubscriptionAdapter
     public IReadOnlyList<MonitoredItemConfig> Items
         => m_items.Values.OrderBy(e => e.Config.Id).Select(e => e.Config).ToList();
 
-    public ClassicEngineAdapter(ManagedSession session, ITelemetryContext telemetry)
+    public ClassicEngineAdapter(ManagedSession session, ITelemetryContext telemetry,
+        PublishLogObserver? publishLog = null)
     {
         m_session = session;
         m_log = telemetry.CreateLogger("ClassicAdapter");
+        m_publishLog = publishLog;
         m_channel = Channel.CreateBounded<NotificationEvent>(new BoundedChannelOptions(8192)
         {
             FullMode = BoundedChannelFullMode.DropOldest,
@@ -209,6 +214,7 @@ internal sealed class ClassicEngineAdapter : ISubscriptionAdapter
             m_subscription.AddItem(mi);
             m_items[id] = new ItemEntry(stored, mi);
         }
+        m_stats[id] = new MonitoredItemLiveStats();
 
         await m_subscription.ApplyChangesAsync(ct).ConfigureAwait(false);
         m_log.LogInformation("Classic monitored item added: id={Id} node={Node}", id, stored.NodeId);
@@ -221,12 +227,39 @@ internal sealed class ClassicEngineAdapter : ISubscriptionAdapter
         {
             return;
         }
+        m_stats.TryRemove(id, out _);
         lock (m_lock)
         {
             m_subscription.RemoveItem(entry.MonitoredItem);
         }
         await m_subscription.ApplyChangesAsync(ct).ConfigureAwait(false);
         m_log.LogInformation("Classic monitored item removed: id={Id}", id);
+    }
+
+    public async Task SetMonitoringModeAsync(int id, MonitoringMode mode, CancellationToken ct)
+    {
+        if (m_subscription is null || !m_items.TryGetValue(id, out ItemEntry? entry))
+        {
+            return;
+        }
+        ArrayOf<ClassicMonitoredItem> batch = new[] { entry.MonitoredItem };
+        List<ServiceResult?>? errors = await m_subscription
+            .SetMonitoringModeAsync(mode, batch, ct)
+            .ConfigureAwait(false);
+        if (errors is { Count: > 0 } && errors[0] is { } err && ServiceResult.IsBad(err))
+        {
+            throw new ServiceResultException(err);
+        }
+        // The classic Subscription already updated the item's MonitoringMode
+        // on success; mirror that into the adapter's cached config snapshot.
+        MonitoredItemConfig updated = entry.Config with { MonitoringMode = mode };
+        m_items[id] = entry with { Config = updated };
+        m_log.LogInformation("Classic monitored item {Id} mode -> {Mode}", id, mode);
+    }
+
+    public bool TryGetItemStats(int id, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out MonitoredItemLiveStats? stats)
+    {
+        return m_stats.TryGetValue(id, out stats);
     }
 
     public async ValueTask DisposeAsync()
@@ -248,11 +281,17 @@ internal sealed class ClassicEngineAdapter : ISubscriptionAdapter
     {
         int n = notification.MonitoredItems.Count;
         Counters.IncDataMessage(n);
+        m_publishLog?.Record(subscription.Id, subscription.SequenceNumber,
+            (DateTime)subscription.PublishTime, n, PublishLogKind.Data);
         DateTime now = DateTime.UtcNow;
         for (int i = 0; i < n; i++)
         {
             MonitoredItemNotification mi = notification.MonitoredItems[i];
             int itemId = ResolveItemId(mi.ClientHandle);
+            if (itemId != 0 && m_stats.TryGetValue(itemId, out MonitoredItemLiveStats? stats))
+            {
+                stats.RecordValue(mi.Value);
+            }
             double? d = VariantNumeric.TryToDouble(mi.Value.WrappedValue, out double parsed)
                 ? parsed : (double?)null;
             m_channel.Writer.TryWrite(new NotificationEvent(
@@ -265,10 +304,16 @@ internal sealed class ClassicEngineAdapter : ISubscriptionAdapter
     {
         int n = notification.Events.Count;
         Counters.IncEventMessage(n);
+        m_publishLog?.Record(subscription.Id, subscription.SequenceNumber,
+            (DateTime)subscription.PublishTime, n, PublishLogKind.Event);
         DateTime now = DateTime.UtcNow;
         for (int i = 0; i < n; i++)
         {
             int itemId = ResolveItemId(notification.Events[i].ClientHandle);
+            if (itemId != 0 && m_stats.TryGetValue(itemId, out MonitoredItemLiveStats? stats))
+            {
+                stats.RecordEvent();
+            }
             m_channel.Writer.TryWrite(new NotificationEvent(
                 NotificationKind.Event, itemId, 1, subscription.SequenceNumber, now));
             WriteEventOrCount_NoOpHelper();
@@ -278,6 +323,8 @@ internal sealed class ClassicEngineAdapter : ISubscriptionAdapter
     private void OnKeepAlive(ClassicSubscription subscription, NotificationData notification)
     {
         Counters.IncKeepAlive();
+        m_publishLog?.Record(subscription.Id, subscription.SequenceNumber,
+            (DateTime)subscription.PublishTime, 1, PublishLogKind.KeepAlive);
         m_channel.Writer.TryWrite(new NotificationEvent(NotificationKind.KeepAlive, 0, 0, subscription.SequenceNumber, DateTime.UtcNow));
         WriteEventOrCount_NoOpHelper();
     }

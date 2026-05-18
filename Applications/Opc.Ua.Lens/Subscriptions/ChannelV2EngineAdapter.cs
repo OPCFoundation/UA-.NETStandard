@@ -31,6 +31,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
@@ -39,6 +40,7 @@ using Opc.Ua;
 using Opc.Ua.Client;
 using Opc.Ua.Client.Subscriptions;
 using Opc.Ua.Client.Subscriptions.MonitoredItems;
+using UaLens.Diagnostics;
 using V2MonitoredItemOptions = Opc.Ua.Client.Subscriptions.MonitoredItems.MonitoredItemOptions;
 using V2SubscriptionOptions = Opc.Ua.Client.Subscriptions.SubscriptionOptions;
 
@@ -53,7 +55,9 @@ internal sealed class ChannelV2EngineAdapter : ISubscriptionAdapter
     private readonly ManagedSession m_session;
     private readonly ILogger m_log;
     private readonly Channel<NotificationEvent> m_channel;
+    private readonly PublishLogObserver? m_publishLog;
     private readonly ConcurrentDictionary<int, ItemEntry> m_items = new();
+    private readonly ConcurrentDictionary<int, MonitoredItemLiveStats> m_stats = new();
     private readonly object m_lock = new();
     private OptionsMonitor<V2SubscriptionOptions>? m_subscriptionOptions;
     private ISubscription? m_subscription;
@@ -152,10 +156,12 @@ internal sealed class ChannelV2EngineAdapter : ISubscriptionAdapter
     public IReadOnlyList<MonitoredItemConfig> Items
         => m_items.Values.OrderBy(e => e.Config.Id).Select(e => e.Config).ToList();
 
-    public ChannelV2EngineAdapter(ManagedSession session, ITelemetryContext telemetry)
+    public ChannelV2EngineAdapter(ManagedSession session, ITelemetryContext telemetry,
+        PublishLogObserver? publishLog = null)
     {
         m_session = session;
         m_log = telemetry.CreateLogger("ChannelV2Adapter");
+        m_publishLog = publishLog;
         m_channel = Channel.CreateBounded<NotificationEvent>(new BoundedChannelOptions(8192)
         {
             FullMode = BoundedChannelFullMode.DropOldest,
@@ -260,6 +266,7 @@ internal sealed class ChannelV2EngineAdapter : ISubscriptionAdapter
             // above guarantees we only reach here on success.
             m_items[id] = new ItemEntry(stored, created!, optionsMonitor);
         }
+        m_stats[id] = new MonitoredItemLiveStats();
         m_log.LogInformation("V2 monitored item added: id={Id} node={Node} attr={Attr}", id, stored.NodeId, stored.AttributeId);
         return Task.FromResult(id);
     }
@@ -270,12 +277,38 @@ internal sealed class ChannelV2EngineAdapter : ISubscriptionAdapter
         {
             return Task.CompletedTask;
         }
+        m_stats.TryRemove(id, out _);
         lock (m_lock)
         {
             m_subscription.MonitoredItems.TryRemove(entry.MonitoredItem.ClientHandle);
         }
         m_log.LogInformation("V2 monitored item removed: id={Id}", id);
         return Task.CompletedTask;
+    }
+
+    public Task SetMonitoringModeAsync(int id, MonitoringMode mode, CancellationToken ct)
+    {
+        if (m_subscription is null || !m_items.TryGetValue(id, out ItemEntry? entry))
+        {
+            return Task.CompletedTask;
+        }
+        // V2 model: mutate the per-item OptionsMonitor.  The MonitoredItem
+        // change-tracking detects the new MonitoringMode in its OptionsMonitor
+        // listener and the SubscriptionManager schedules the SetMonitoringMode
+        // service call as part of its next apply pass; the change is then
+        // confirmed via Item.CurrentMonitoringMode (see
+        // MonitoredItem.Change.SetMonitoringModeResult).
+        V2MonitoredItemOptions current = entry.Options.CurrentValue;
+        entry.Options.CurrentValue = current with { MonitoringMode = mode };
+        MonitoredItemConfig updated = entry.Config with { MonitoringMode = mode };
+        m_items[id] = entry with { Config = updated };
+        m_log.LogInformation("V2 monitored item {Id} mode -> {Mode}", id, mode);
+        return Task.CompletedTask;
+    }
+
+    public bool TryGetItemStats(int id, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out MonitoredItemLiveStats? stats)
+    {
+        return m_stats.TryGetValue(id, out stats);
     }
 
     public async ValueTask DisposeAsync()
@@ -334,6 +367,12 @@ internal sealed class ChannelV2EngineAdapter : ISubscriptionAdapter
     private sealed class Handler : ISubscriptionNotificationHandler
     {
         private readonly ChannelV2EngineAdapter m_owner;
+        // Cache the lookup of the internal Id property on the concrete
+        // V2 subscription type — the public ISubscription interface
+        // doesn't expose the server-side subscription id, but it is set
+        // (and stable) on the underlying MessageProcessor base class.
+        private PropertyInfo? m_idProperty;
+        private uint m_resolvedSubscriptionId;
 
         public Handler(ChannelV2EngineAdapter owner) => m_owner = owner;
 
@@ -344,6 +383,9 @@ internal sealed class ChannelV2EngineAdapter : ISubscriptionAdapter
         {
             int n = notification.Length;
             m_owner.Counters.IncDataMessage(n);
+            m_owner.m_publishLog?.Record(
+                ResolveSubscriptionId(subscription), sequenceNumber, publishTime, n,
+                PublishLogKind.Data);
             // Emit one NotificationEvent per individual DataValueChange so
             // the Lines view can plot each value's converted-to-double
             // sample.  The Variant→double conversion (via VariantNumeric)
@@ -355,6 +397,11 @@ internal sealed class ChannelV2EngineAdapter : ISubscriptionAdapter
             for (int i = 0; i < span.Length; i++)
             {
                 int itemId = ResolveItemId(span[i].MonitoredItem);
+                if (itemId != 0
+                    && m_owner.m_stats.TryGetValue(itemId, out MonitoredItemLiveStats? stats))
+                {
+                    stats.RecordValue(span[i].Value);
+                }
                 double? d = VariantNumeric.TryToDouble(span[i].Value.WrappedValue, out double parsed)
                     ? parsed : (double?)null;
                 m_owner.WriteEventOrCount(new NotificationEvent(
@@ -370,6 +417,9 @@ internal sealed class ChannelV2EngineAdapter : ISubscriptionAdapter
         {
             int n = notification.Length;
             m_owner.Counters.IncEventMessage(n);
+            m_owner.m_publishLog?.Record(
+                ResolveSubscriptionId(subscription), sequenceNumber, publishTime, n,
+                PublishLogKind.Event);
             // Events have field arrays — no single double — so we still
             // emit one event per item (without a Value).
             ReadOnlySpan<EventNotification> span = notification.Span;
@@ -377,6 +427,11 @@ internal sealed class ChannelV2EngineAdapter : ISubscriptionAdapter
             for (int i = 0; i < span.Length; i++)
             {
                 int itemId = ResolveItemId(span[i].MonitoredItem);
+                if (itemId != 0
+                    && m_owner.m_stats.TryGetValue(itemId, out MonitoredItemLiveStats? stats))
+                {
+                    stats.RecordEvent();
+                }
                 m_owner.WriteEventOrCount(new NotificationEvent(
                     NotificationKind.Event, itemId, 1, sequenceNumber, now));
             }
@@ -387,6 +442,9 @@ internal sealed class ChannelV2EngineAdapter : ISubscriptionAdapter
             uint sequenceNumber, DateTime publishTime, PublishState publishStateMask)
         {
             m_owner.Counters.IncKeepAlive();
+            m_owner.m_publishLog?.Record(
+                ResolveSubscriptionId(subscription), sequenceNumber, publishTime, 1,
+                PublishLogKind.KeepAlive);
             m_owner.WriteEventOrCount(new NotificationEvent(
                 NotificationKind.KeepAlive, 0, 0, sequenceNumber, DateTime.UtcNow));
             return ValueTask.CompletedTask;
@@ -404,6 +462,22 @@ internal sealed class ChannelV2EngineAdapter : ISubscriptionAdapter
                 {
                     return kv.Key;
                 }
+            }
+            return 0;
+        }
+
+        private uint ResolveSubscriptionId(ISubscription subscription)
+        {
+            if (m_resolvedSubscriptionId != 0)
+            {
+                return m_resolvedSubscriptionId;
+            }
+            m_idProperty ??= subscription.GetType().GetProperty("Id",
+                BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            if (m_idProperty?.GetValue(subscription) is uint id && id != 0)
+            {
+                m_resolvedSubscriptionId = id;
+                return id;
             }
             return 0;
         }

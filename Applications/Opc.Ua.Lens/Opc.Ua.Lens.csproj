@@ -35,7 +35,14 @@
     <WarningsAsErrors>$(WarningsAsErrors);nullable</WarningsAsErrors>
     <!-- Ship the net10.0 build as a `dotnet tool` (global tool).
          net8.0 / net9.0 still compile as normal Avalonia executables
-         but are not packed as tools. -->
+         but are not packed as tools.  IsPackable + the tool-specific
+         properties are intentionally gated to net10.0 only because
+         PackAsTool / ToolCommandName / PackageType cannot be set on
+         net8 / net9 (no Avalonia AOT, different runtime).  Consequence:
+         `dotnet pack` from this project needs an explicit
+         `-f net10.0` (or `-p:TargetFramework=net10.0`) — without it
+         pack tries to bundle per-TFM nupkgs and fails because the net8
+         / net9 outputs aren't built. -->
     <IsPackable>true</IsPackable>
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>ualens</ToolCommandName>

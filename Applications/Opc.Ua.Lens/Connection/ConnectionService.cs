@@ -36,6 +36,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.Client;
+using UaLens.Diagnostics;
 using UaLens.Subscriptions;
 
 namespace UaLens.Connection;
@@ -58,10 +59,24 @@ internal sealed class ConnectionService : IAsyncDisposable
     private readonly List<ISubscriptionAdapter> m_adapters = new();
 
     public ConnectionService(ITelemetryContext telemetry)
+        : this(telemetry, null)
+    {
+    }
+
+    public ConnectionService(ITelemetryContext telemetry, PublishLogObserver? publishLog)
     {
         m_telemetry = telemetry;
         m_log = telemetry.CreateLogger("Connection");
+        PublishLog = publishLog;
     }
+
+    /// <summary>
+    /// Shared sink used by the diagnostics view's "Publishes" tab.  Threaded
+    /// into every adapter created via <see cref="CreateAdapter"/> so each
+    /// engine appends one row per publish callback.  May be <c>null</c> in
+    /// tests / smoke runs that don't surface the diagnostics pane.
+    /// </summary>
+    public PublishLogObserver? PublishLog { get; }
 
     public bool IsConnected => m_session is not null;
     public ManagedSession? Session => m_session;
@@ -101,8 +116,8 @@ internal sealed class ConnectionService : IAsyncDisposable
             throw new InvalidOperationException("Cannot create a subscription adapter — not connected.");
         }
         ISubscriptionAdapter adapter = m_engine == SubscriptionEngineKind.Classic
-            ? new ClassicEngineAdapter(m_session, m_telemetry)
-            : new ChannelV2EngineAdapter(m_session, m_telemetry);
+            ? new ClassicEngineAdapter(m_session, m_telemetry, PublishLog)
+            : new ChannelV2EngineAdapter(m_session, m_telemetry, PublishLog);
         lock (m_adapters)
         {
             m_adapters.Add(adapter);

@@ -188,7 +188,7 @@ internal sealed partial class BrowserViewModel : ObservableObject
     /// </summary>
     private static (NodeId RootId, string Label) GetRootSpec(BrowseViewKind kind) => kind switch
     {
-        BrowseViewKind.Objects => (ObjectIds.ObjectsFolder, "Objects"),
+        BrowseViewKind.Objects => (ObjectIds.RootFolder, "Objects"),
         BrowseViewKind.ObjectTypes => (ObjectIds.ObjectTypesFolder, "ObjectTypes"),
         BrowseViewKind.VariableTypes => (ObjectIds.VariableTypesFolder, "VariableTypes"),
         BrowseViewKind.DataTypes => (ObjectIds.DataTypesFolder, "DataTypes"),

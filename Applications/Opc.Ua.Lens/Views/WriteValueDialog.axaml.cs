@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
@@ -70,9 +71,25 @@ internal sealed partial class WriteValueDialog : Window
         cancel.Click += (_, _) => Close();
         import.Click += async (_, _) => await OnImportAsync().ConfigureAwait(true);
 
+        WireOverride(
+            this.RequiredControl<CheckBox>("StatusOverride"),
+            this.RequiredControl<TextBox>("StatusText"));
+        WireOverride(
+            this.RequiredControl<CheckBox>("SourceOverride"),
+            this.RequiredControl<UtcDateTimePicker>("SourceTimePicker"));
+        WireOverride(
+            this.RequiredControl<CheckBox>("ServerOverride"),
+            this.RequiredControl<UtcDateTimePicker>("ServerTimePicker"));
+
         // Defer the read until after the window is shown so the dialog
         // appears immediately with a "loading…" placeholder.
         Opened += async (_, _) => await LoadCurrentAsync().ConfigureAwait(false);
+    }
+
+    private static void WireOverride(CheckBox toggle, Control partner)
+    {
+        partner.IsEnabled = toggle.IsChecked == true;
+        toggle.IsCheckedChanged += (_, _) => partner.IsEnabled = toggle.IsChecked == true;
     }
 
     private async Task LoadCurrentAsync()
@@ -167,6 +184,13 @@ internal sealed partial class WriteValueDialog : Window
             return;
         }
 
+        if (!TryBuildDataValue(parsed, out DataValue dataValue, out string? dverr))
+        {
+            result.Text = dverr;
+            result.Foreground = new SolidColorBrush(Color.FromRgb(0xF8, 0x71, 0x71));
+            return;
+        }
+
         try
         {
             ArrayOf<WriteValue> writes =
@@ -175,7 +199,7 @@ internal sealed partial class WriteValueDialog : Window
                 {
                     NodeId = m_node.NodeId,
                     AttributeId = Attributes.Value,
-                    Value = new DataValue { WrappedValue = parsed }
+                    Value = dataValue
                 }
             ];
             WriteResponse resp = await m_session.WriteAsync(null, writes, CancellationToken.None).ConfigureAwait(true);
@@ -199,6 +223,107 @@ internal sealed partial class WriteValueDialog : Window
             result.Text = $"Write exception: {ex.Message}";
             result.Foreground = new SolidColorBrush(Color.FromRgb(0xF8, 0x71, 0x71));
         }
+    }
+
+    /// <summary>
+    /// Builds the <see cref="DataValue"/> to write, applying optional
+    /// StatusCode / SourceTimestamp / ServerTimestamp overrides chosen via
+    /// the "Advanced" expander.  When an override checkbox is unchecked,
+    /// the corresponding field retains the existing default (Good /
+    /// <see cref="DateTime.MinValue"/>).
+    /// </summary>
+    private bool TryBuildDataValue(Variant parsed, out DataValue dataValue, [NotNullWhen(false)] out string? error)
+    {
+        var statusOverride = this.RequiredControl<CheckBox>("StatusOverride");
+        var sourceOverride = this.RequiredControl<CheckBox>("SourceOverride");
+        var serverOverride = this.RequiredControl<CheckBox>("ServerOverride");
+        var statusText = this.RequiredControl<TextBox>("StatusText");
+        var sourceTime = this.RequiredControl<UtcDateTimePicker>("SourceTimePicker");
+        var serverTime = this.RequiredControl<UtcDateTimePicker>("ServerTimePicker");
+
+        dataValue = new DataValue { WrappedValue = parsed };
+        error = null;
+
+        if (statusOverride.IsChecked == true)
+        {
+            if (!TryParseStatusCode(statusText.Text, out StatusCode sc))
+            {
+                error = $"Status code '{statusText.Text}' is not a recognised numeric or symbolic StatusCode.";
+                return false;
+            }
+            dataValue.StatusCode = sc;
+        }
+
+        if (sourceOverride.IsChecked == true)
+        {
+            dataValue.SourceTimestamp = ToUtc(sourceTime.Value);
+        }
+
+        if (serverOverride.IsChecked == true)
+        {
+            dataValue.ServerTimestamp = ToUtc(serverTime.Value);
+        }
+
+        return true;
+    }
+
+    private static DateTime ToUtc(DateTime value)
+        => value.Kind switch
+        {
+            DateTimeKind.Utc => value,
+            DateTimeKind.Local => value.ToUniversalTime(),
+            _ => DateTime.SpecifyKind(value, DateTimeKind.Utc)
+        };
+
+    /// <summary>
+    /// Parses a user-entered StatusCode: accepts an unsigned hex literal
+    /// (<c>0x80000000</c>), a decimal value, or a symbolic id
+    /// (<c>BadOutOfService</c>).  Returns <c>false</c> on unrecognised
+    /// input so the caller can surface a clear error rather than silently
+    /// defaulting to <see cref="StatusCodes.Good"/>.
+    /// </summary>
+    private static bool TryParseStatusCode(string? text, out StatusCode code)
+    {
+        code = StatusCodes.Good;
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return false;
+        }
+        string trimmed = text.Trim();
+        if (trimmed.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+        {
+            if (uint.TryParse(
+                    trimmed.AsSpan(2),
+                    NumberStyles.HexNumber,
+                    CultureInfo.InvariantCulture,
+                    out uint hex))
+            {
+                code = new StatusCode(hex);
+                return true;
+            }
+            return false;
+        }
+        if (uint.TryParse(
+                trimmed,
+                NumberStyles.Integer,
+                CultureInfo.InvariantCulture,
+                out uint dec))
+        {
+            code = new StatusCode(dec);
+            return true;
+        }
+        // Symbolic id (e.g. "BadOutOfService") — scan the interned codes
+        // for an exact case-sensitive match.  StatusCode.LookupSymbolicId
+        // only goes uint→name, so we walk the public interned table.
+        foreach (StatusCode interned in StatusCode.InternedStatusCodes)
+        {
+            if (string.Equals(interned.SymbolicId, trimmed, StringComparison.Ordinal))
+            {
+                code = interned;
+                return true;
+            }
+        }
+        return false;
     }
 
     private static string FormatVariant(Variant v)

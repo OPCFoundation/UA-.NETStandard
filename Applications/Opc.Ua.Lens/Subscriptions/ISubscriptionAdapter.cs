@@ -77,6 +77,89 @@ internal sealed record MonitoredItemConfig
     public DataChangeFilter? DataChangeFilter { get; init; }
 }
 
+/// <summary>
+/// Per-monitored-item live counters / latest sample, tracked by both
+/// engine adapters and surfaced to the Subscription tab's status sub-pane
+/// (B1) via <see cref="ISubscriptionAdapter.TryGetItemStats"/>.
+/// </summary>
+/// <remarks>
+/// Writes happen on the adapter notification hot path (one writer per item
+/// in practice); reads happen on the UI thread under a 250 ms throttle.
+/// <see cref="Samples"/> is bumped with <see cref="Interlocked"/>;
+/// <see cref="LastStatus"/> / <see cref="LastValueText"/> / <see cref="HasValue"/>
+/// are guarded by a per-instance lock so the (status, value) pair is read
+/// consistently.
+/// </remarks>
+internal sealed class MonitoredItemLiveStats
+{
+    private long m_samples;
+    private readonly object m_sync = new();
+    private StatusCode m_lastStatus;
+    private string m_lastValueText = "—";
+    private bool m_hasValue;
+
+    /// <summary>Total notifications observed for this item (data + event).</summary>
+    public long Samples => Interlocked.Read(ref m_samples);
+
+    /// <summary>Last server-supplied status code (Good if never received).</summary>
+    public StatusCode LastStatus
+    {
+        get { lock (m_sync) { return m_lastStatus; } }
+    }
+
+    /// <summary>Last variant rendered as a short string (or "—" if none).</summary>
+    public string LastValueText
+    {
+        get { lock (m_sync) { return m_lastValueText; } }
+    }
+
+    /// <summary>True once at least one value has been recorded.</summary>
+    public bool HasValue
+    {
+        get { lock (m_sync) { return m_hasValue; } }
+    }
+
+    /// <summary>
+    /// Record an inbound DataChange — increments the sample counter and
+    /// captures the latest status code and a truncated string rendering of
+    /// the value for the UI.
+    /// </summary>
+    internal void RecordValue(DataValue value)
+    {
+        Interlocked.Increment(ref m_samples);
+        string text = FormatVariant(value.WrappedValue);
+        lock (m_sync)
+        {
+            m_lastStatus = value.StatusCode;
+            m_lastValueText = text;
+            m_hasValue = true;
+        }
+    }
+
+    /// <summary>
+    /// Record an inbound Event notification — only the counter advances;
+    /// event fields aren't a single scalar value.
+    /// </summary>
+    internal void RecordEvent()
+    {
+        Interlocked.Increment(ref m_samples);
+    }
+
+    private static string FormatVariant(Variant v)
+    {
+        if (v.IsNull)
+        {
+            return "(null)";
+        }
+        string s = v.ToString() ?? string.Empty;
+        if (s.Length > 64)
+        {
+            s = string.Concat(s.AsSpan(0, 61), "...");
+        }
+        return s;
+    }
+}
+
 internal sealed class SubscriptionCounters
 {
     private long m_dataMessages;
@@ -184,6 +267,22 @@ internal interface ISubscriptionAdapter : IAsyncDisposable
     Task ApplySubscriptionAsync(SubscriptionConfig config, CancellationToken ct);
     Task<int> AddItemAsync(MonitoredItemConfig config, CancellationToken ct);
     Task RemoveItemAsync(int id, CancellationToken ct);
+
+    /// <summary>
+    /// Change the server-side monitoring mode for a single monitored item.
+    /// On success the adapter's local <see cref="MonitoredItemConfig"/>
+    /// snapshot in <see cref="Items"/> is updated so the caller can
+    /// re-render the Mode column from the confirmed state.
+    /// </summary>
+    Task SetMonitoringModeAsync(int id, MonitoringMode mode, CancellationToken ct);
+
+    /// <summary>
+    /// Try to fetch the live counters / last value snapshot for a
+    /// monitored item.  Returns false when the id is unknown to the
+    /// adapter (e.g. after disconnect/rebind, before any notification).
+    /// </summary>
+    bool TryGetItemStats(int id, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out MonitoredItemLiveStats? stats);
+
     IReadOnlyList<MonitoredItemConfig> Items { get; }
 }
 
