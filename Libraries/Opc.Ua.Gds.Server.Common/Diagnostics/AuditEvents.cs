@@ -67,7 +67,7 @@ namespace Opc.Ua.Gds.Server.Diagnostics
                 e.SetChildValue(
                     systemContext,
                     Ua.BrowseNames.SourceName,
-                    "Method/UpdateCertificate",
+                    "Attribute/Call",
                     false);
                 e.SetChildValue(
                     systemContext,
@@ -148,7 +148,7 @@ namespace Opc.Ua.Gds.Server.Diagnostics
                 e.SetChildValue(
                     systemContext,
                     Ua.BrowseNames.SourceName,
-                    "Method/UpdateCertificate",
+                    "Attribute/Call",
                     false);
                 e.SetChildValue(
                     systemContext,
@@ -180,7 +180,7 @@ namespace Opc.Ua.Gds.Server.Diagnostics
             {
                 logger.LogError(
                     ex,
-                    "Error while reporting CertificateDeliveredAuditEventState event.");
+                    "Error while reporting CertificateRequestedAuditEventState event.");
             }
         }
 
@@ -216,8 +216,9 @@ namespace Opc.Ua.Gds.Server.Diagnostics
                 e.SetChildValue(
                     systemContext,
                     Ua.BrowseNames.SourceName,
-                    "Method/UpdateCertificate",
+                    "Attribute/Call",
                     false);
+
                 e.SetChildValue(
                     systemContext,
                     Ua.BrowseNames.LocalTime,
@@ -237,7 +238,7 @@ namespace Opc.Ua.Gds.Server.Diagnostics
             {
                 logger.LogError(
                     ex,
-                    "Error while reporting CertificateDeliveredAuditEventState event.");
+                    "Error while reporting ApplicationRegistrationChangedAuditEventState event.");
             }
         }
     }
