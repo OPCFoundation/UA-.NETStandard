@@ -611,30 +611,88 @@ namespace Opc.Ua.Server
         /// Per OPC UA Part 3 §4.9, the <see cref="Role.TrustedApplication"/> role is always
         /// assigned when a Session has been authenticated with a trusted ApplicationInstance
         /// Certificate and uses at least a signed communication channel.
+        ///
+        /// Per OPC UA Part 18 §4.4 the live <see cref="IRoleManager"/> identity-mapping rules
+        /// are evaluated and any matching roles are layered on top of the identity supplied
+        /// by the ImpersonateUser callback.
+        ///
+        /// Per OPC UA Part 18 §5.2.8, when the session authenticates via a USERNAME token and
+        /// the user has the <see cref="UserConfigurationMask.MustChangePassword"/> bit set,
+        /// the session is restricted to the <see cref="Role.Anonymous"/> role only — the
+        /// session can only call <c>ChangePassword</c> until the password is changed.
         /// </remarks>
         protected virtual IUserIdentity AddMandatoryRoles(
             ISession session,
             OperationContext context,
             IUserIdentity effectiveIdentity)
         {
-            // Assign TrustedApplication role per OPC UA Part 3 §4.9:
-            // The role is always assigned when the session was authenticated with a
-            // trusted ApplicationInstance certificate and uses at least a signed channel.
+            // Part 18 §5.2.8 — restrict the session to the Anonymous role if
+            // the user has MustChangePassword set. The ChangePassword method
+            // is callable by USERNAME sessions regardless of role; once the
+            // password is changed the next ActivateSession will see
+            // MustChangePassword == false and grant the full role set.
+            if (effectiveIdentity.TokenType == UserTokenType.UserName
+                && !string.IsNullOrEmpty(effectiveIdentity.DisplayName)
+                && m_server.UserManagement?.MustChangePassword(effectiveIdentity.DisplayName) == true)
+            {
+                if (effectiveIdentity is RoleBasedIdentity rbiMustChange)
+                {
+                    return rbiMustChange.WithAdditionalRoles([Role.Anonymous], m_server.NamespaceUris);
+                }
+                return new RoleBasedIdentity(
+                    effectiveIdentity,
+                    [Role.Anonymous],
+                    m_server.NamespaceUris);
+            }
+
+            // Assign TrustedApplication role per OPC UA Part 3 §4.9.
             if (session.ClientCertificate != null &&
                 context.ChannelContext?.EndpointDescription?.SecurityMode >= MessageSecurityMode.Sign)
             {
-                // When the identity is already a RoleBasedIdentity (e.g. GdsRoleBasedIdentity),
-                // delegate to WithAdditionalRoles so the concrete subtype and any extra state
-                // (e.g. ApplicationId) are preserved rather than losing the type by wrapping.
                 if (effectiveIdentity is RoleBasedIdentity rbi)
                 {
-                    return rbi.WithAdditionalRoles([Role.TrustedApplication], m_server.NamespaceUris);
+                    effectiveIdentity = rbi.WithAdditionalRoles([Role.TrustedApplication], m_server.NamespaceUris);
                 }
+                else
+                {
+                    effectiveIdentity = new RoleBasedIdentity(
+                        effectiveIdentity,
+                        [Role.TrustedApplication],
+                        m_server.NamespaceUris);
+                }
+            }
 
-                return new RoleBasedIdentity(
+            // Layer in roles from the live IRoleManager identity-mapping rules
+            // (Part 18 §4.4.4). Roles already granted by the ImpersonateUser
+            // callback are preserved.
+            IRoleManager roleManager = m_server.RoleManager;
+            if (roleManager != null)
+            {
+                System.Collections.Generic.IList<NodeId> dynamicRoleIds = roleManager.ResolveGrantedRoles(
                     effectiveIdentity,
-                    [Role.TrustedApplication],
-                    m_server.NamespaceUris);
+                    session.ClientCertificate,
+                    context.ChannelContext?.EndpointDescription);
+
+                if (dynamicRoleIds.Count > 0)
+                {
+                    var dynamicRoles = new System.Collections.Generic.List<Role>(dynamicRoleIds.Count);
+                    foreach (NodeId roleId in dynamicRoleIds)
+                    {
+                        dynamicRoles.Add(new Role(roleId, roleId.ToString()));
+                    }
+
+                    if (effectiveIdentity is RoleBasedIdentity rbi2)
+                    {
+                        effectiveIdentity = rbi2.WithAdditionalRoles(dynamicRoles, m_server.NamespaceUris);
+                    }
+                    else
+                    {
+                        effectiveIdentity = new RoleBasedIdentity(
+                            effectiveIdentity,
+                            dynamicRoles,
+                            m_server.NamespaceUris);
+                    }
+                }
             }
 
             return effectiveIdentity;
