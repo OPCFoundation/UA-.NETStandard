@@ -145,9 +145,10 @@ namespace Opc.Ua.WotCon.Tests
         [Test]
         public void ToVariantOfXmlElementProducesXmlElementVariant()
         {
-            var doc = new XmlDocument();
-            doc.LoadXml("<root/>");
-            Variant v = WotVariantHelper.ToVariant((XmlElement)doc.DocumentElement!);
+            var doc = new XmlDocument { XmlResolver = null };
+            XmlElement element = doc.CreateElement("root");
+            doc.AppendChild(element);
+            Variant v = WotVariantHelper.ToVariant(element);
             Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.XmlElement));
         }
 
