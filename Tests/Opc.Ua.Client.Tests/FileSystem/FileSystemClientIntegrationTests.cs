@@ -297,13 +297,11 @@ namespace Opc.Ua.Client.Tests.FileSystem
                 .CreateFileAsync("big.bin")
                 .ConfigureAwait(false);
 
-            // CA5394: Random is acceptable here — this is deterministic test
-            // payload generation, not cryptographic material.
-#pragma warning disable CA5394
-            var rng = new Random(42);
+            // Deterministic test payload generation, not cryptographic
+            // material - use the shared UnsecureRandom wrapper.
+            var rng = new UnsecureRandom(42);
             byte[] payload = new byte[64 * 1024];
             rng.NextBytes(payload);
-#pragma warning restore CA5394
             await file.WriteAllBytesAsync(payload).ConfigureAwait(false);
 
             byte[] roundTrip = await file.ReadAllBytesAsync().ConfigureAwait(false);

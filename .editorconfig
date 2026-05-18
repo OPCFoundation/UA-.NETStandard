@@ -357,8 +357,8 @@ dotnet_code_quality.CA1822.api_surface                                        = 
 dotnet_diagnostic.CA3075.severity                                             = error
 dotnet_diagnostic.CA3077.severity                                             = error
 
-# CA2007: Do not directly await a Task
-dotnet_diagnostic.CA2007.severity                                             = warning
+# CA2007: Do not directly await a Task (promoted to error after PR #3780 cleanup)
+dotnet_diagnostic.CA2007.severity                                             = error
 
 # CA1507: Use nameof in place of string
 dotnet_diagnostic.CA1507.severity                                             = warning
@@ -366,8 +366,8 @@ dotnet_diagnostic.CA1507.severity                                             = 
 # CA1711: Identifiers should not have incorrect suffix
 dotnet_diagnostic.CA1711.severity                                             = none
 
-# CA1305: Specify IFormatProvider
-dotnet_diagnostic.CA1305.severity                                             = warning
+# CA1305: Specify IFormatProvider (promoted to error after PR #3780 cleanup)
+dotnet_diagnostic.CA1305.severity                                             = error
 
 # CA1819: Properties should not return arrays
 dotnet_diagnostic.CA1819.severity                                             = silent
@@ -394,6 +394,17 @@ dotnet_diagnostic.CA1001.severity                                             = 
 dotnet_diagnostic.CA1849.severity                                             = suggestion
 # CA2225: Operator overloads have named alternates
 dotnet_diagnostic.CA2225.severity                                             = suggestion
+
+# Rules promoted to error after PR #3780 cleanup brought UA.slnx to 0 hits.
+# These catch real correctness defects; keeping them as errors prevents regression.
+# CA1014: Mark assemblies with CLSCompliant
+dotnet_diagnostic.CA1014.severity                                             = error
+# CA1307: Specify StringComparison for clarity (locale-dependent string ops)
+dotnet_diagnostic.CA1307.severity                                             = error
+# CA2016: Forward CancellationToken to invoked methods
+dotnet_diagnostic.CA2016.severity                                             = error
+# RCS1166: Value type object is never null (catches dead null-checks on structs)
+dotnet_diagnostic.RCS1166.severity                                            = error
 
 #
 # https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/style-rules/language-rules
