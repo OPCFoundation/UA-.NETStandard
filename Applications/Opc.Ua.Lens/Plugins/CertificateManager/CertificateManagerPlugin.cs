@@ -96,7 +96,18 @@ internal sealed partial class CertificateManagerPlugin : ObservableObject, IPlug
     private CertStoreNode? m_selectedStore;
 
     [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(ViewDetailsCommand))]
+    [NotifyCanExecuteChangedFor(nameof(TrustToPeerCommand))]
+    [NotifyCanExecuteChangedFor(nameof(TrustToIssuerCommand))]
+    [NotifyCanExecuteChangedFor(nameof(RejectCommand))]
+    [NotifyCanExecuteChangedFor(nameof(DeleteCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ExportCommand))]
     private CertItemRow? m_selectedCertificate;
+
+    /// <summary>True when a certificate row is currently selected. Drives
+    /// the CanExecute state of all per-certificate commands so menu items
+    /// and toolbar buttons grey out automatically when nothing is picked.</summary>
+    public bool HasSelectedCertificate => SelectedCertificate is not null;
 
     /// <summary>Stores rendered in the left-hand TreeView.</summary>
     public ObservableCollection<CertStoreNode> Stores { get; } = new();
@@ -129,31 +140,24 @@ internal sealed partial class CertificateManagerPlugin : ObservableObject, IPlug
 
     public IReadOnlyList<MenuItem> ContributeMenuItems()
     {
-        var refresh = new MenuItem { Header = "_Refresh" };
-        var addStore = new MenuItem { Header = "_Add Store…" };
-        var openTrust = new MenuItem { Header = "_Open Trust Dialog…" };
-        var viewDetails = new MenuItem { Header = "_View Details…" };
-        var trustPeer = new MenuItem { Header = "Trust → _Peer" };
-        var trustIssuer = new MenuItem { Header = "Trust → _Issuer" };
-        var reject = new MenuItem { Header = "Re_ject" };
-        var delete = new MenuItem { Header = "_Delete" };
-        var export = new MenuItem { Header = "_Export…" };
-        var import = new MenuItem { Header = "I_mport…" };
-
-        refresh.Click += async (_, _) => await RefreshAsync().ConfigureAwait(true);
-        addStore.Click += async (_, _) => await AddStoreAsync().ConfigureAwait(true);
-        openTrust.Click += async (_, _) => await OpenTrustDialogAsync().ConfigureAwait(true);
-        viewDetails.Click += async (_, _) => await ViewDetailsAsync().ConfigureAwait(true);
-        trustPeer.Click += async (_, _) => await TrustToPeerAsync().ConfigureAwait(true);
-        trustIssuer.Click += async (_, _) => await TrustToIssuerAsync().ConfigureAwait(true);
-        reject.Click += async (_, _) => await RejectAsync().ConfigureAwait(true);
-        delete.Click += async (_, _) => await DeleteAsync().ConfigureAwait(true);
-        export.Click += async (_, _) => await ExportAsync().ConfigureAwait(true);
-        import.Click += async (_, _) => await ImportAsync().ConfigureAwait(true);
-
-        return [refresh, addStore, openTrust, viewDetails,
-                trustPeer, trustIssuer, reject, delete, export, import];
+        // Use Command binding so menu items react to CanExecute — the
+        // per-cert actions automatically grey out when nothing is selected.
+        return [
+            CreateMenuItem("_Refresh",            RefreshCommand),
+            CreateMenuItem("_Add Store…",         AddStoreCommand),
+            CreateMenuItem("_Open Trust Dialog…", OpenTrustDialogCommand),
+            CreateMenuItem("_View Details…",      ViewDetailsCommand),
+            CreateMenuItem("Trust → _Peer",       TrustToPeerCommand),
+            CreateMenuItem("Trust → _Issuer",     TrustToIssuerCommand),
+            CreateMenuItem("Re_ject",             RejectCommand),
+            CreateMenuItem("_Delete",             DeleteCommand),
+            CreateMenuItem("_Export…",            ExportCommand),
+            CreateMenuItem("I_mport…",            ImportCommand),
+        ];
     }
+
+    private static MenuItem CreateMenuItem(string header, System.Windows.Input.ICommand cmd)
+        => new() { Header = header, Command = cmd };
 
     public ValueTask DisposeAsync()
     {
@@ -292,7 +296,11 @@ internal sealed partial class CertificateManagerPlugin : ObservableObject, IPlug
         }
         try
         {
-            using Certificate wrapper = Certificate.From(cert);
+            // FromRawData clones so the wrapper's Dispose does not invalidate
+            // the caller's X509Certificate2 (this method is called from
+            // MoveSelectedAsync with row.Certificate, which the row still
+            // owns afterwards).
+            using Certificate wrapper = Certificate.FromRawData(cert.RawData);
             await store.AddAsync(wrapper, password: null, ct).ConfigureAwait(true);
             m_log.LogInformation("Added certificate {Thumbprint} ({Subject}) to {Store}.",
                 cert.Thumbprint, cert.Subject, node.DisplayName);
@@ -443,6 +451,7 @@ internal sealed partial class CertificateManagerPlugin : ObservableObject, IPlug
     /// rather than extracted to <c>Views/</c> to stay within this
     /// plug-in's owned file scope.
     /// </summary>
+    [RelayCommand(CanExecute = nameof(HasSelectedCertificate))]
     public async Task ViewDetailsAsync()
     {
         Window? owner = GetOwnerWindow();
@@ -463,12 +472,15 @@ internal sealed partial class CertificateManagerPlugin : ObservableObject, IPlug
     }
 
     /// <summary>Move the selected certificate to the TrustedPeer store.</summary>
+    [RelayCommand(CanExecute = nameof(HasSelectedCertificate))]
     public Task TrustToPeerAsync() => MoveSelectedAsync(CertStoreRole.TrustedPeer);
 
     /// <summary>Move the selected certificate to the TrustedIssuer store.</summary>
+    [RelayCommand(CanExecute = nameof(HasSelectedCertificate))]
     public Task TrustToIssuerAsync() => MoveSelectedAsync(CertStoreRole.TrustedIssuer);
 
     /// <summary>Move the selected certificate to the Rejected store.</summary>
+    [RelayCommand(CanExecute = nameof(HasSelectedCertificate))]
     public Task RejectAsync() => MoveSelectedAsync(CertStoreRole.Rejected);
 
     private async Task MoveSelectedAsync(CertStoreRole target)
@@ -512,6 +524,7 @@ internal sealed partial class CertificateManagerPlugin : ObservableObject, IPlug
     }
 
     /// <summary>Delete the selected certificate from the currently-selected store.</summary>
+    [RelayCommand(CanExecute = nameof(HasSelectedCertificate))]
     public async Task DeleteAsync()
     {
         if (SelectedStore is not { } src || SelectedCertificate is not { } row)
@@ -538,6 +551,7 @@ internal sealed partial class CertificateManagerPlugin : ObservableObject, IPlug
     /// file type via the save-picker extension: <c>.pem</c> writes a
     /// PEM-encoded certificate, anything else writes raw DER bytes.
     /// </summary>
+    [RelayCommand(CanExecute = nameof(HasSelectedCertificate))]
     public async Task ExportAsync()
     {
         Window? owner = GetOwnerWindow();
@@ -569,7 +583,11 @@ internal sealed partial class CertificateManagerPlugin : ObservableObject, IPlug
             byte[] bytes;
             if (path.EndsWith(".pem", StringComparison.OrdinalIgnoreCase))
             {
-                using Certificate wrapper = Certificate.From(SelectedCertificate.Certificate);
+                // FromRawData clones the inner X509Certificate2 so the
+                // wrapper's Dispose does not invalidate
+                // SelectedCertificate.Certificate (which the row keeps for
+                // later actions).
+                using Certificate wrapper = Certificate.FromRawData(SelectedCertificate.Certificate.RawData);
                 bytes = PEMWriter.ExportCertificateAsPEM(wrapper);
             }
             else
@@ -594,6 +612,7 @@ internal sealed partial class CertificateManagerPlugin : ObservableObject, IPlug
     /// or PEM (<c>.pem</c>) — both are handled by
     /// <see cref="X509CertificateLoader.LoadCertificate(byte[])"/>.
     /// </summary>
+    [RelayCommand]
     public async Task ImportAsync()
     {
         Window? owner = GetOwnerWindow();
@@ -660,7 +679,12 @@ internal sealed partial class CertificateManagerPlugin : ObservableObject, IPlug
         string appUri;
         try
         {
-            using Certificate wrapper = Certificate.From(cert);
+            // FromRawData creates a fresh inner X509Certificate2 so the
+            // wrapper's Dispose does not invalidate the cert handle owned
+            // by the caller — Certificate.From(cert) would, and would
+            // surface as "m_safeCertContext is an invalid handle" on the
+            // next access of cert.Thumbprint / cert.NotBefore etc.
+            using Certificate wrapper = Certificate.FromRawData(cert.RawData);
             appUri = X509Utils.GetApplicationUriFromCertificate(wrapper) ?? "(none)";
         }
         catch (Exception)
@@ -710,7 +734,8 @@ internal sealed partial class CertificateManagerPlugin : ObservableObject, IPlug
         };
         try
         {
-            using Certificate wrapper = Certificate.From(cert);
+            // FromRawData — see note in the appUri block above.
+            using Certificate wrapper = Certificate.FromRawData(cert.RawData);
             pem.Text = System.Text.Encoding.ASCII.GetString(PEMWriter.ExportCertificateAsPEM(wrapper));
         }
         catch (Exception)

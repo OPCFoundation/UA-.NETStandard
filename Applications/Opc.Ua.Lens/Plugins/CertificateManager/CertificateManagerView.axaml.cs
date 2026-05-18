@@ -37,9 +37,9 @@ namespace UaLens.Plugins.CertificateManager;
 /// Avalonia view for <see cref="CertificateManagerPlugin"/>.  Layout:
 /// toolbar on top, left-hand TreeView listing the well-known cert
 /// stores, right-hand ListBox of certificates in the selected store.
-/// The right-pane context menu is built in code-behind so the actions
-/// (Trust / Reject / Delete / Export / Import / View details) always
-/// target the row that was actually clicked.
+/// The right-pane context menu is declared in XAML and binds to the
+/// plug-in's per-cert <see cref="RelayCommand"/> properties so commands
+/// honour their <c>CanExecute</c> based on the current selection.
 /// </summary>
 internal sealed partial class CertificateManagerView : UserControl
 {
@@ -54,9 +54,9 @@ internal sealed partial class CertificateManagerView : UserControl
     }
 
     /// <summary>
-    /// Right-click on a certificate row sets the plug-in's selected
-    /// certificate to the clicked row before showing the context menu,
-    /// so subsequent commands always act on the row under the cursor.
+    /// Pointer-press on a certificate row sets the plug-in's selected
+    /// certificate to the clicked row before the context menu opens, so
+    /// right-click-to-act always targets the row under the cursor.
     /// </summary>
     private void OnCertRowPointerPressed(object? sender, PointerPressedEventArgs e)
     {
@@ -73,50 +73,23 @@ internal sealed partial class CertificateManagerView : UserControl
         {
             vm.SelectedCertificate = item;
         }
-        if (props.IsRightButtonPressed)
-        {
-            row.ContextMenu = BuildContextMenu(vm);
-        }
     }
 
-    private static ContextMenu BuildContextMenu(CertificateManagerPlugin vm)
+    /// <summary>
+    /// Double-tap on a certificate row opens the details popup (the same
+    /// action as the ContextMenu / toolbar "Show details" button) — the
+    /// natural shortcut once a row is selected.
+    /// </summary>
+    private void OnCertRowDoubleTapped(object? sender, TappedEventArgs e)
     {
-        var menu = new ContextMenu();
-
-        var details = new MenuItem { Header = "_View details…" };
-        details.Click += async (_, _) => await vm.ViewDetailsAsync().ConfigureAwait(true);
-        menu.Items.Add(details);
-
-        menu.Items.Add(new Separator());
-
-        var trustPeer = new MenuItem { Header = "Trust → _Peer" };
-        trustPeer.Click += async (_, _) => await vm.TrustToPeerAsync().ConfigureAwait(true);
-        menu.Items.Add(trustPeer);
-
-        var trustIssuer = new MenuItem { Header = "Trust → _Issuer" };
-        trustIssuer.Click += async (_, _) => await vm.TrustToIssuerAsync().ConfigureAwait(true);
-        menu.Items.Add(trustIssuer);
-
-        var reject = new MenuItem { Header = "_Reject" };
-        reject.Click += async (_, _) => await vm.RejectAsync().ConfigureAwait(true);
-        menu.Items.Add(reject);
-
-        menu.Items.Add(new Separator());
-
-        var delete = new MenuItem { Header = "_Delete" };
-        delete.Click += async (_, _) => await vm.DeleteAsync().ConfigureAwait(true);
-        menu.Items.Add(delete);
-
-        menu.Items.Add(new Separator());
-
-        var export = new MenuItem { Header = "_Export…" };
-        export.Click += async (_, _) => await vm.ExportAsync().ConfigureAwait(true);
-        menu.Items.Add(export);
-
-        var import = new MenuItem { Header = "I_mport…" };
-        import.Click += async (_, _) => await vm.ImportAsync().ConfigureAwait(true);
-        menu.Items.Add(import);
-
-        return menu;
+        if (DataContext is not CertificateManagerPlugin vm
+            || vm.SelectedCertificate is null)
+        {
+            return;
+        }
+        if (vm.ViewDetailsCommand.CanExecute(null))
+        {
+            vm.ViewDetailsCommand.Execute(null);
+        }
     }
 }

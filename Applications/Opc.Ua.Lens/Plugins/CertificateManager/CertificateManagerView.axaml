@@ -85,21 +85,26 @@
         <Button Classes="tonal" Content="↻ Refresh" Margin="4,0"
                 Command="{CompiledBinding RefreshCommand}" />
         <Border Width="1" Background="#1E293B" Margin="4,6" />
+        <Button Classes="tonal" Content="📄 Show details…" Margin="4,0"
+                Command="{CompiledBinding ViewDetailsCommand}"
+                ToolTip.Tip="Show details of the selected certificate (Enter)" />
+        <Button Classes="tonal" Content="⬇ Import…" Margin="4,0"
+                Command="{CompiledBinding ImportCommand}"
+                ToolTip.Tip="Import a certificate into the selected store" />
+        <Button Classes="tonal" Content="⬆ Export…" Margin="4,0"
+                Command="{CompiledBinding ExportCommand}"
+                ToolTip.Tip="Export the selected certificate to disk" />
+        <Border Width="1" Background="#1E293B" Margin="4,6" />
         <Button Classes="tonal" Content="🛡 Open trust dialog…" Margin="4,0"
                 Command="{CompiledBinding OpenTrustDialogCommand}" />
       </WrapPanel>
     </Border>
 
-    <!-- Status -->
-    <Border DockPanel.Dock="Bottom" Classes="panel" Margin="8,4,8,8" Padding="8,4">
-      <TextBlock Text="{CompiledBinding Status}"
-                 Foreground="{StaticResource LabelDim}"
-                 FontFamily="Cascadia Mono, Consolas, monospace"
-                 FontSize="11" />
-    </Border>
-
-    <!-- Body: TreeView (left) + ListBox (right) -->
-    <Border Classes="panel" Margin="8,4,8,4">
+    <!-- Body: TreeView (left) + ListBox (right).
+         Status text is intentionally not duplicated here — the MainWindow's
+         per-tab status footer (bound to SelectedTab.Status) shows the same
+         message in green; rendering it twice was confusing. -->
+    <Border Classes="panel" Margin="8,4,8,8">
       <Grid ColumnDefinitions="*,5,2*">
 
         <!-- Left: stores tree -->
@@ -137,33 +142,92 @@
                       ResizeBehavior="PreviousAndNext"
                       Background="#1E293B" />
 
-        <!-- Right: certificates list -->
-        <Grid Grid.Column="2" RowDefinitions="Auto,*">
-          <Grid Grid.Row="0" Background="#1E293B"
-                ColumnDefinitions="200,2*,2*,110,110,90">
+        <!-- Right: certificates list with shared-size column groups so the
+             header row and the per-cert data rows stay aligned and the
+             user can drag the inter-column splitters in the header. -->
+        <Grid Grid.Column="2" RowDefinitions="Auto,*"
+              Grid.IsSharedSizeScope="True">
+          <Grid Grid.Row="0" Background="#1E293B">
+            <Grid.Resources>
+              <SolidColorBrush x:Key="SplitBrush" Color="#0F172A" />
+            </Grid.Resources>
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="200" SharedSizeGroup="CmCol0" />
+              <ColumnDefinition Width="Auto" SharedSizeGroup="CmSep0" />
+              <ColumnDefinition Width="2*"  SharedSizeGroup="CmCol1" />
+              <ColumnDefinition Width="Auto" SharedSizeGroup="CmSep1" />
+              <ColumnDefinition Width="2*"  SharedSizeGroup="CmCol2" />
+              <ColumnDefinition Width="Auto" SharedSizeGroup="CmSep2" />
+              <ColumnDefinition Width="110" SharedSizeGroup="CmCol3" />
+              <ColumnDefinition Width="Auto" SharedSizeGroup="CmSep3" />
+              <ColumnDefinition Width="110" SharedSizeGroup="CmCol4" />
+              <ColumnDefinition Width="Auto" SharedSizeGroup="CmSep4" />
+              <ColumnDefinition Width="90"  SharedSizeGroup="CmCol5" />
+            </Grid.ColumnDefinitions>
             <TextBlock Grid.Column="0" Margin="8,4" Classes="h" Text="THUMBPRINT" />
-            <TextBlock Grid.Column="1" Margin="8,4" Classes="h" Text="SUBJECT" />
-            <TextBlock Grid.Column="2" Margin="8,4" Classes="h" Text="ISSUER" />
-            <TextBlock Grid.Column="3" Margin="8,4" Classes="h" Text="NOT BEFORE" />
-            <TextBlock Grid.Column="4" Margin="8,4" Classes="h" Text="NOT AFTER" />
-            <TextBlock Grid.Column="5" Margin="8,4" Classes="h" Text="STATUS" />
+            <GridSplitter Grid.Column="1" Width="4" Background="{StaticResource SplitBrush}"
+                          ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" />
+            <TextBlock Grid.Column="2" Margin="8,4" Classes="h" Text="SUBJECT" />
+            <GridSplitter Grid.Column="3" Width="4" Background="{StaticResource SplitBrush}"
+                          ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" />
+            <TextBlock Grid.Column="4" Margin="8,4" Classes="h" Text="ISSUER" />
+            <GridSplitter Grid.Column="5" Width="4" Background="{StaticResource SplitBrush}"
+                          ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" />
+            <TextBlock Grid.Column="6" Margin="8,4" Classes="h" Text="NOT BEFORE" />
+            <GridSplitter Grid.Column="7" Width="4" Background="{StaticResource SplitBrush}"
+                          ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" />
+            <TextBlock Grid.Column="8" Margin="8,4" Classes="h" Text="NOT AFTER" />
+            <GridSplitter Grid.Column="9" Width="4" Background="{StaticResource SplitBrush}"
+                          ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" />
+            <TextBlock Grid.Column="10" Margin="8,4" Classes="h" Text="STATUS" />
           </Grid>
           <ListBox Grid.Row="1"
                    x:Name="CertList"
                    ItemsSource="{CompiledBinding Certificates}"
                    SelectedItem="{CompiledBinding SelectedCertificate, Mode=TwoWay}"
                    Background="#0B1220" Foreground="#E2E8F0"
-                   BorderThickness="0">
+                   BorderThickness="0"
+                   DoubleTapped="OnCertRowDoubleTapped">
+            <ListBox.ContextMenu>
+              <ContextMenu>
+                <MenuItem Header="📄 Show _details…"
+                          Command="{CompiledBinding ViewDetailsCommand}" />
+                <Separator />
+                <MenuItem Header="🛡 Trust → _Peer"
+                          Command="{CompiledBinding TrustToPeerCommand}" />
+                <MenuItem Header="🛡 Trust → _Issuer"
+                          Command="{CompiledBinding TrustToIssuerCommand}" />
+                <MenuItem Header="🚫 Re_ject"
+                          Command="{CompiledBinding RejectCommand}" />
+                <Separator />
+                <MenuItem Header="⬆ _Export…"
+                          Command="{CompiledBinding ExportCommand}" />
+                <MenuItem Header="🗑 De_lete"
+                          Command="{CompiledBinding DeleteCommand}" />
+              </ContextMenu>
+            </ListBox.ContextMenu>
             <ListBox.ItemTemplate>
               <DataTemplate DataType="vm:CertItemRow">
-                <Grid ColumnDefinitions="200,2*,2*,110,110,90"
-                      PointerPressed="OnCertRowPointerPressed">
-                  <TextBlock Grid.Column="0" Text="{CompiledBinding Thumbprint}" Classes="row" Margin="8,2" />
-                  <TextBlock Grid.Column="1" Text="{CompiledBinding Subject}"    Classes="row" Margin="8,2" />
-                  <TextBlock Grid.Column="2" Text="{CompiledBinding Issuer}"     Classes="row" Margin="8,2" />
-                  <TextBlock Grid.Column="3" Text="{CompiledBinding NotBefore}"  Classes="row" Margin="8,2" />
-                  <TextBlock Grid.Column="4" Text="{CompiledBinding NotAfter}"   Classes="row" Margin="8,2" />
-                  <TextBlock Grid.Column="5" Text="{CompiledBinding Status}"     Classes="row" Margin="8,2" FontWeight="SemiBold" />
+                <Grid PointerPressed="OnCertRowPointerPressed">
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="200" SharedSizeGroup="CmCol0" />
+                    <ColumnDefinition Width="Auto" SharedSizeGroup="CmSep0" />
+                    <ColumnDefinition Width="2*"  SharedSizeGroup="CmCol1" />
+                    <ColumnDefinition Width="Auto" SharedSizeGroup="CmSep1" />
+                    <ColumnDefinition Width="2*"  SharedSizeGroup="CmCol2" />
+                    <ColumnDefinition Width="Auto" SharedSizeGroup="CmSep2" />
+                    <ColumnDefinition Width="110" SharedSizeGroup="CmCol3" />
+                    <ColumnDefinition Width="Auto" SharedSizeGroup="CmSep3" />
+                    <ColumnDefinition Width="110" SharedSizeGroup="CmCol4" />
+                    <ColumnDefinition Width="Auto" SharedSizeGroup="CmSep4" />
+                    <ColumnDefinition Width="90"  SharedSizeGroup="CmCol5" />
+                  </Grid.ColumnDefinitions>
+                  <TextBlock Grid.Column="0"  Text="{CompiledBinding Thumbprint}" Classes="row" Margin="8,2" />
+                  <TextBlock Grid.Column="2"  Text="{CompiledBinding Subject}"    Classes="row" Margin="8,2" />
+                  <TextBlock Grid.Column="4"  Text="{CompiledBinding Issuer}"     Classes="row" Margin="8,2" />
+                  <TextBlock Grid.Column="6"  Text="{CompiledBinding NotBefore}"  Classes="row" Margin="8,2" />
+                  <TextBlock Grid.Column="8"  Text="{CompiledBinding NotAfter}"   Classes="row" Margin="8,2" />
+                  <TextBlock Grid.Column="10" Text="{CompiledBinding Status}"     Classes="row" Margin="8,2" FontWeight="SemiBold" />
                 </Grid>
               </DataTemplate>
             </ListBox.ItemTemplate>

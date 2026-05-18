@@ -101,8 +101,6 @@
         <MenuItem x:Name="MenuExport"      Header="_Export NodeSet2..."  InputGesture="Ctrl+E" />
         <MenuItem x:Name="MenuExportTab"   Header="Export _Plugin Data..." InputGesture="Ctrl+Shift+E" />
         <Separator />
-        <MenuItem x:Name="MenuCertificates" Header="_Manage Certificates..." InputGesture="Ctrl+K" />
-        <Separator />
         <MenuItem x:Name="MenuQuit"        Header="_Quit"                InputGesture="Ctrl+Q" />
       </MenuItem>
       <MenuItem Header="_Session">
@@ -137,6 +135,8 @@
         <MenuItem x:Name="MenuLocales"
                   Header="Preferred _Locales..."
                   IsEnabled="{CompiledBinding IsConnected}" />
+        <Separator />
+        <MenuItem x:Name="MenuCertificates" Header="_Manage Certificates..." InputGesture="Ctrl+K" />
       </MenuItem>
       <MenuItem Header="_Tabs">
         <MenuItem Header="_Add…">
@@ -372,19 +372,19 @@
                                   Margin="4,0"
                                   Content="Legend"
                                   ToolTip.Tip="Show / hide the chart legend (Signal / Histogram / Heatmap)"
-                                  IsChecked="{CompiledBinding SelectedSubscriptionTab.ShowLegend, Mode=TwoWay, FallbackValue=True}" />
+                                  IsChecked="{CompiledBinding SelectedSubscriptionTab.ShowLegend, Mode=TwoWay, FallbackValue=False}" />
                         <CheckBox x:Name="ShowXAxisCheck"
                                   VerticalAlignment="Center"
                                   Margin="4,0"
                                   Content="X axis"
                                   ToolTip.Tip="Show / hide the chart X axis (bottom)"
-                                  IsChecked="{CompiledBinding SelectedSubscriptionTab.ShowXAxis, Mode=TwoWay, FallbackValue=True}" />
+                                  IsChecked="{CompiledBinding SelectedSubscriptionTab.ShowXAxis, Mode=TwoWay, FallbackValue=False}" />
                         <CheckBox x:Name="ShowYAxisCheck"
                                   VerticalAlignment="Center"
                                   Margin="4,0"
                                   Content="Y axis"
                                   ToolTip.Tip="Show / hide the chart Y axis (left)"
-                                  IsChecked="{CompiledBinding SelectedSubscriptionTab.ShowYAxis, Mode=TwoWay, FallbackValue=True}" />
+                                  IsChecked="{CompiledBinding SelectedSubscriptionTab.ShowYAxis, Mode=TwoWay, FallbackValue=False}" />
                         <StackPanel Orientation="Horizontal" Margin="4,0" VerticalAlignment="Center">
                           <TextBlock VerticalAlignment="Center" Margin="6,0,4,0" Foreground="#94A3B8" Text="View:" />
                           <ComboBox x:Name="ViewModeCombo" MinWidth="110" SelectedIndex="0"

@@ -127,17 +127,21 @@ internal sealed partial class SubscriptionViewModel : ObservableObject, IPlugin
     [ObservableProperty]
     private bool m_showItemStatusGrid;
 
-    /// <summary>Chart legend visibility (ScottPlot signal/histogram/heatmap modes).</summary>
+    /// <summary>Chart legend visibility (ScottPlot signal/histogram/heatmap modes).
+    /// Defaults to false — chart is busy enough without legend / axis chrome;
+    /// the user can opt-in via the per-tab checkboxes.</summary>
     [ObservableProperty]
-    private bool m_showLegend = true;
+    private bool m_showLegend;
 
-    /// <summary>Chart X-axis visibility (labels + ticks; bottom axis).</summary>
+    /// <summary>Chart X-axis visibility (labels + ticks; bottom axis).
+    /// Defaults to false — see <see cref="ShowLegend"/>.</summary>
     [ObservableProperty]
-    private bool m_showXAxis = true;
+    private bool m_showXAxis;
 
-    /// <summary>Chart Y-axis visibility (labels + ticks; left axis).</summary>
+    /// <summary>Chart Y-axis visibility (labels + ticks; left axis).
+    /// Defaults to false — see <see cref="ShowLegend"/>.</summary>
     [ObservableProperty]
-    private bool m_showYAxis = true;
+    private bool m_showYAxis;
 
     /// <summary>250 ms throttle for status sub-pane refresh.</summary>
     private static readonly TimeSpan s_statusRefreshInterval
