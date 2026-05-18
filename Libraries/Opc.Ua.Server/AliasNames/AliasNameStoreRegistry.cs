@@ -250,6 +250,11 @@ namespace Opc.Ua.Server.AliasNames
         /// <inheritdoc/>
         public void Dispose()
         {
+            if (m_disposed)
+            {
+                return;
+            }
+            m_disposed = true;
             m_semaphore.Wait();
             try
             {
@@ -297,5 +302,6 @@ namespace Opc.Ua.Server.AliasNames
         private readonly List<IAliasNameStore> m_stores = [];
         private readonly Dictionary<NodeId, IAliasNameStore> m_categoryToStore = [];
         private readonly SemaphoreSlim m_semaphore = new(1, 1);
+        private bool m_disposed;
     }
 }
