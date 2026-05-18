@@ -475,6 +475,28 @@ namespace Opc.Ua.Server
 
                     return activeNode;
                 }
+                case ObjectTypes.RoleSetType:
+                {
+                    if (passiveNode is RoleSetState)
+                    {
+                        break;
+                    }
+                    var activeNode = new RoleSetState(passiveNode.Parent);
+                    activeNode.Create(context, passiveNode);
+                    passiveNode.Parent?.ReplaceChild(context, activeNode);
+                    return activeNode;
+                }
+                case ObjectTypes.RoleType:
+                {
+                    if (passiveNode is RoleState)
+                    {
+                        break;
+                    }
+                    var activeNode = new RoleState(passiveNode.Parent);
+                    activeNode.Create(context, passiveNode);
+                    passiveNode.Parent?.ReplaceChild(context, activeNode);
+                    return activeNode;
+                }
             }
 
             return predefinedNode;
