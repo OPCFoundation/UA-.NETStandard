@@ -3069,6 +3069,64 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Resolves the effective method for a call request.
+        /// </summary>
+        public virtual MethodState FindMethodState(
+            OperationContext context,
+            CallMethodRequest methodToCall)
+        {
+            if (methodToCall == null || methodToCall.ObjectId.IsNull || methodToCall.MethodId.IsNull)
+            {
+                return null!;
+            }
+
+            ServerSystemContext systemContext = SystemContext.Copy(context);
+            IDictionary<NodeId, NodeState> operationCache = new NodeIdDictionary<NodeState>();
+
+            NodeHandle? handle = GetManagerHandle(
+                systemContext,
+                methodToCall.ObjectId,
+                operationCache);
+
+            if (handle == null)
+            {
+                return null!;
+            }
+
+            lock (Lock)
+            {
+                NodeState? source = ValidateNode(systemContext, handle, operationCache);
+
+                if (source == null)
+                {
+                    return null!;
+                }
+
+                MethodState? method = source.FindMethod(systemContext, methodToCall.MethodId);
+
+                if (method != null)
+                {
+                    return method;
+                }
+
+                if (source.ReferenceExists(
+                    ReferenceTypeIds.HasComponent,
+                    false,
+                    methodToCall.MethodId))
+                {
+                    method = FindPredefinedNode<MethodState>(methodToCall.MethodId);
+                }
+
+                if (method == null && source is BaseInstanceState instanceState)
+                {
+                    method = FindMethodInTypeHierarchy(systemContext, instanceState.TypeDefinitionId, methodToCall.MethodId);
+                }
+
+                return method!;
+            }
+        }
+
+        /// <summary>
         /// Calls a method on the specified nodes.
         /// </summary>
         protected virtual async ValueTask CallInternalAsync(
@@ -3119,34 +3177,11 @@ namespace Opc.Ua.Server
                         continue;
                     }
 
-                    // find the method.
-                    method = source.FindMethod(systemContext, methodToCall.MethodId);
-
+                    method = FindMethodState(context, methodToCall);
                     if (method == null)
                     {
-                        // check for loose coupling.
-                        if (source.ReferenceExists(
-                            ReferenceTypeIds.HasComponent,
-                            false,
-                            methodToCall.MethodId))
-                        {
-                            method = FindPredefinedNode<MethodState>(
-                                methodToCall.MethodId);
-                        }
-
-                        // Per OPC UA spec Part 4 section 5.12.2.2: the ObjectType of the Object
-                        // or a super type of that ObjectType may also be the source of a HasComponent
-                        // reference to the method.
-                        if (method == null && source is BaseInstanceState instanceState)
-                        {
-                            method = FindMethodInTypeHierarchy(systemContext, instanceState.TypeDefinitionId, methodToCall.MethodId);
-                        }
-
-                        if (method == null)
-                        {
-                            errors[ii] = StatusCodes.BadMethodInvalid;
-                            continue;
-                        }
+                        errors[ii] = StatusCodes.BadMethodInvalid;
+                        continue;
                     }
 
                     // validate the role permissions for method to be executed,

@@ -296,6 +296,14 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
+        public MethodState FindMethodState(
+            OperationContext context,
+            CallMethodRequest methodToCall)
+        {
+            return m_nodeManager.FindMethodStateAsync(context, methodToCall).AsTask().GetAwaiter().GetResult();
+        }
+
+        /// <inheritdoc/>
         public ServiceResult ValidateEventRolePermissions(IEventMonitoredItem monitoredItem, IFilterTarget filterTarget)
         {
             return m_nodeManager.ValidateEventRolePermissionsAsync(monitoredItem, filterTarget).AsTask().GetAwaiter().GetResult();

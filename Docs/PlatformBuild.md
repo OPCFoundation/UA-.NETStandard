@@ -4,6 +4,7 @@ The following Nuget packages are released in a monthly cadence, unless security 
 
 [OPCFoundation.NetStandard.Opc.Ua](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua/)
 [OPCFoundation.NetStandard.Opc.Ua.Types](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua.Types/)
+[OPCFoundation.NetStandard.Opc.Ua.Core.Types](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua.Core.Types/)
 [OPCFoundation.NetStandard.Opc.Ua.Core](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua.Core/)
 [OPCFoundation.NetStandard.Opc.Ua.Security.Certificates](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua.Security.Certificates/)
 [OPCFoundation.NetStandard.Opc.Ua.Configuration](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua.Configuration/)
@@ -80,10 +81,11 @@ In addition packages compiled as Debug are available on Nuget.org with a '.Debug
 
 This is a wrapper package to include all the available packages from this repository, except PubSub. It is recommended to rather include the individual packages as below to reduce the number of dependencies.
 
+[OPCFoundation.NetStandard.Opc.Ua.Core.Types](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua.Core.Types/)
 [OPCFoundation.NetStandard.Opc.Ua.Core](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua.Core/)
 [OPCFoundation.NetStandard.Opc.Ua.Security.Certificates](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua.Security.Certificates/)
 
-Core and Certificates are required for Client and Server projects.
+Core.Types contains the generated OPC UA NodeSet models and state classes. Core and Certificates are required for Client and Server projects.
 
 [OPCFoundation.NetStandard.Opc.Ua.Configuration](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua.Configuration/)
 
