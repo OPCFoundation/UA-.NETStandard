@@ -140,15 +140,15 @@
       </MenuItem>
       <MenuItem Header="_Tabs">
         <MenuItem Header="_Add…">
-          <MenuItem x:Name="MenuNewSubscription"   Header="⚡  _Subscription"    InputGesture="Ctrl+T" />
-          <MenuItem x:Name="MenuNewGdsPush"        Header="🛡  GDS _Push" />
-          <MenuItem x:Name="MenuNewGdsManagement"  Header="🏛  GDS _Management" />
-          <MenuItem x:Name="MenuNewGdsDiscovery"   Header="🔍  GDS _Discovery" />
-          <MenuItem x:Name="MenuNewPerformance"    Header="📊  Per_formance" />
-          <MenuItem x:Name="MenuNewEventView"      Header="🔔  _Event View" />
-          <MenuItem x:Name="MenuNewHistorian"      Header="📈  _Historian" />
-          <MenuItem x:Name="MenuNewFileSystem"     Header="📁  _File System" />
-          <MenuItem x:Name="MenuNewCertificateManager" Header="🔑  _Certificate Manager" />
+          <MenuItem x:Name="MenuNewSubscription"   Header="⚡  _Subscription"        InputGesture="Ctrl+T" />
+          <MenuItem x:Name="MenuNewGdsPush"        Header="🛡  GDS _Push"            InputGesture="Ctrl+Shift+P" />
+          <MenuItem x:Name="MenuNewGdsManagement"  Header="🏛  GDS _Management"      InputGesture="Ctrl+Shift+M" />
+          <MenuItem x:Name="MenuNewGdsDiscovery"   Header="🔍  GDS _Discovery"       InputGesture="Ctrl+Shift+D" />
+          <MenuItem x:Name="MenuNewPerformance"    Header="📊  Per_formance"         InputGesture="Ctrl+Shift+B" />
+          <MenuItem x:Name="MenuNewEventView"      Header="🔔  _Event View"          InputGesture="Ctrl+Shift+V" />
+          <MenuItem x:Name="MenuNewHistorian"      Header="📈  _Historian"           InputGesture="Ctrl+Shift+H" />
+          <MenuItem x:Name="MenuNewFileSystem"     Header="📁  _File System"         InputGesture="Ctrl+Shift+L" />
+          <MenuItem x:Name="MenuNewCertificateManager" Header="🔑  _Certificate Manager" InputGesture="Ctrl+Shift+C" />
         </MenuItem>
         <Separator />
         <MenuItem x:Name="MenuRenameTab"   Header="_Rename Active Tab"    InputGesture="F2" />

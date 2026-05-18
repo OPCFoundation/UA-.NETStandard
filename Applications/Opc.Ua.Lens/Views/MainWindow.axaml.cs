@@ -679,6 +679,27 @@ internal sealed partial class MainWindow : Window, IDisposable
             if (ctrl && e.Key == Key.OemComma)
             { InvokeMenu(menuSubSettings); e.Handled = true; return; }
 
+            // New-tab shortcuts for the non-Subscription plug-ins.
+            // Listed before the plain Ctrl+V (cycle view-mode) and Ctrl+R
+            // (toggle References) bindings so the shift-modified variants
+            // take precedence.
+            if (ctrl && shift && e.Key == Key.P)
+            { InvokeMenu(menuNewGdsPush); e.Handled = true; return; }
+            if (ctrl && shift && e.Key == Key.M)
+            { InvokeMenu(menuNewGdsManagement); e.Handled = true; return; }
+            if (ctrl && shift && e.Key == Key.D)
+            { InvokeMenu(menuNewGdsDiscovery); e.Handled = true; return; }
+            if (ctrl && shift && e.Key == Key.B)
+            { InvokeMenu(menuNewPerformance); e.Handled = true; return; }
+            if (ctrl && shift && e.Key == Key.V)
+            { InvokeMenu(menuNewEventView); e.Handled = true; return; }
+            if (ctrl && shift && e.Key == Key.H)
+            { InvokeMenu(menuNewHistorian); e.Handled = true; return; }
+            if (ctrl && shift && e.Key == Key.L)
+            { InvokeMenu(menuNewFileSystem); e.Handled = true; return; }
+            if (ctrl && shift && e.Key == Key.C)
+            { InvokeMenu(menuNewCertificateManager); e.Handled = true; return; }
+
             // View — checkable items: toggle then invoke handler.
             if (e.Key == Key.F2)
             { ToggleMenu(menuDiag); e.Handled = true; return; }
