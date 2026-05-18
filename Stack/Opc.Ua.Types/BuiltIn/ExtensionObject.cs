@@ -199,7 +199,15 @@ namespace Opc.Ua
             {
                 return 0;
             }
-            return HashCode.Combine(TypeId.GetHashCode(), m_body switch
+            // When the body is an IEncodeable, use the encodeable's canonical
+            // TypeId (rather than the wrapper's TypeId) so that two ExtensionObjects
+            // wrapping the same encodeable but tagged with different encoding ids
+            // (TypeId, BinaryEncodingId, XmlEncodingId) produce the same hash —
+            // consistent with the relaxed equality semantics in Equals.
+            int typeIdHash = m_body is IEncodeable encodeable
+                ? encodeable.TypeId.GetHashCode()
+                : TypeId.GetHashCode();
+            return HashCode.Combine(typeIdHash, m_body switch
             {
                 ByteString b => b.GetHashCode(),
                 string s => StringComparer.Ordinal.GetHashCode(s),
@@ -229,7 +237,7 @@ namespace Opc.Ua
             {
                 return isNull1 == isNull2;
             }
-            if (TypeId != value.TypeId)
+            if (!TypeIdsAreEquivalent(this, value))
             {
                 return false;
             }
@@ -250,6 +258,53 @@ namespace Opc.Ua
                 };
             }
             return CoreUtils.IsEqual(m_body!, value.m_body!);
+        }
+
+        /// <summary>
+        /// Tests whether the two ExtensionObjects refer to the same data type.
+        /// </summary>
+        /// <remarks>
+        /// An <see cref="IEncodeable"/> body exposes three node ids that all identify
+        /// the same logical type: <see cref="IEncodeable.TypeId"/>,
+        /// <see cref="IEncodeable.BinaryEncodingId"/>, and
+        /// <see cref="IEncodeable.XmlEncodingId"/>. Depending on how an
+        /// <see cref="ExtensionObject"/> is constructed (binary decode, XML decode,
+        /// JSON decode, or directly from an <see cref="IEncodeable"/>), its
+        /// <see cref="TypeId"/> may carry any one of those ids. Two ExtensionObjects
+        /// wrapping the same encodeable should therefore compare equal regardless of
+        /// which of the three ids each side carries. When neither side has an
+        /// <see cref="IEncodeable"/> body, strict <see cref="TypeId"/> equality is
+        /// required.
+        /// </remarks>
+        private static bool TypeIdsAreEquivalent(ExtensionObject left, ExtensionObject right)
+        {
+            if (left.TypeId == right.TypeId)
+            {
+                return true;
+            }
+            if (right.m_body is IEncodeable rightEncodeable &&
+                TypeIdMatches(left.TypeId, rightEncodeable))
+            {
+                return true;
+            }
+            if (left.m_body is IEncodeable leftEncodeable &&
+                TypeIdMatches(right.TypeId, leftEncodeable))
+            {
+                return true;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Tests whether the given <paramref name="typeId"/> equals the
+        /// <see cref="IEncodeable.TypeId"/>, <see cref="IEncodeable.BinaryEncodingId"/>,
+        /// or <see cref="IEncodeable.XmlEncodingId"/> of the given encodeable.
+        /// </summary>
+        private static bool TypeIdMatches(ExpandedNodeId typeId, IEncodeable encodeable)
+        {
+            return typeId == encodeable.TypeId
+                || typeId == encodeable.BinaryEncodingId
+                || typeId == encodeable.XmlEncodingId;
         }
 
         /// <inheritdoc/>
