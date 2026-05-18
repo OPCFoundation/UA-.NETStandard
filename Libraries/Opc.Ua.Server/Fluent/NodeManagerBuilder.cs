@@ -498,7 +498,7 @@ namespace Opc.Ua.Server.Fluent
                 return candidates[0];
             }
 
-             NodeState? match = null;
+            NodeState? match = null;
             for (int i = 0; i < candidates.Count; i++)
             {
                 if (candidates[i].BrowseName == browseName)

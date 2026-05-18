@@ -1,4 +1,4 @@
-﻿/* ========================================================================
+/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -43,7 +43,7 @@ namespace Opc.Ua
         /// <summary>
         /// Name
         /// </summary>
-        [DataMember(Name = "Name", IsRequired = false, Order = 1)]public string? Name { get; set; }
+        [DataMember(Name = "Name", IsRequired = false, Order = 1)] public string? Name { get; set; }
 
         /// <inheritdoc/>
         public override ExpandedNodeId TypeId => DataTypeIds.EnumField;

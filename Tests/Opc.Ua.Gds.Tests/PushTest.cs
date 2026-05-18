@@ -1540,8 +1540,8 @@ namespace Opc.Ua.Gds.Tests
                 BrowseDirection = BrowseDirection.Forward,
                 ReferenceTypeId = ReferenceTypeIds.HierarchicalReferences,
                 IncludeSubtypes = true,
-                NodeClassMask = (uint) NodeClass.Object,
-                ResultMask = (uint) BrowseResultMask.All,
+                NodeClassMask = (uint)NodeClass.Object,
+                ResultMask = (uint)BrowseResultMask.All,
             };
 
             BrowseResponse results = await m_pushClient.PushClient.Session.BrowseAsync(
