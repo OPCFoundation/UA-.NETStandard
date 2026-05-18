@@ -39,7 +39,7 @@ using Microsoft.Extensions.Logging;
 namespace Opc.Ua.Server
 {
     /// <inheritdoc/>
-    public class DiagnosticsNodeManager : AsyncCustomNodeManager, IDiagnosticsNodeManager
+    public partial class DiagnosticsNodeManager : AsyncCustomNodeManager, IDiagnosticsNodeManager
     {
         /// <summary>
         /// Initializes the node manager.
@@ -220,6 +220,11 @@ namespace Opc.Ua.Server
                 MethodIds.Server_ResendData);
 
             resendData?.OnCallMethod = OnResendData;
+
+            // OPC UA Part 17 — wire the standard well-known Aliases /
+            // TagVariables / Topics methods through the server-wide
+            // IAliasNameStoreRegistry. See DiagnosticsNodeManager.AliasNames.cs.
+            WireStandardAliasMethods();
         }
 
         /// <summary>
