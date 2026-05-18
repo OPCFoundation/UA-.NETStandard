@@ -1,8 +1,8 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFrameworks>$(LibCoreTargetFrameworks)</TargetFrameworks>
-    <AssemblyName>$(AssemblyPrefix)</AssemblyName>
-    <PackageId>$(PackagePrefix).Opc.Ua</PackageId>
+    <AssemblyName>$(AssemblyPrefix).Core.Types</AssemblyName>
+    <PackageId>$(PackagePrefix).Opc.Ua.Core.Types</PackageId>
     <RootNamespace>Opc.Ua</RootNamespace>
     <Description>OPC UA Core Types Library</Description>
     <IsPackable>true</IsPackable>

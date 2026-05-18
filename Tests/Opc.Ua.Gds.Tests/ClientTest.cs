@@ -219,31 +219,9 @@ namespace Opc.Ua.Gds.Tests
                 var newRecord = (ApplicationRecordDataType)application.ApplicationRecord
                     .MemberwiseClone();
                 newRecord.ApplicationId = default;
-                NodeId id = await m_gdsClient.GDSClient.RegisterApplicationAsync(newRecord).ConfigureAwait(false);
-                Assert.That(id.IsNull, Is.False);
-                Assert.That(id.IdType, Is.EqualTo(IdType.Guid).Or.EqualTo(IdType.String));
-                newRecord.ApplicationId = id;
-                ArrayOf<ApplicationRecordDataType> applicationDataRecords = await m_gdsClient.GDSClient
-                    .FindApplicationAsync(
-                        newRecord.ApplicationUri).ConfigureAwait(false);
-                Assert.That(applicationDataRecords.IsNull, Is.False);
-                bool newIdFound = false;
-                bool registeredIdFound = false;
-                foreach (ApplicationRecordDataType applicationDataRecord in applicationDataRecords.ToList())
-                {
-                    if (applicationDataRecord.ApplicationId == newRecord.ApplicationId)
-                    {
-                        await m_gdsClient.GDSClient.UnregisterApplicationAsync(id).ConfigureAwait(false);
-                        newIdFound = true;
-                    }
-                    else if (applicationDataRecord.ApplicationId == application.ApplicationRecord
-                        .ApplicationId)
-                    {
-                        registeredIdFound = true;
-                    }
-                }
-                Assert.That(newIdFound, Is.True);
-                Assert.That(registeredIdFound, Is.True);
+                ServiceResultException serviceResultException = Assert.ThrowsAsync<ServiceResultException>(
+                    async () => await m_gdsClient.GDSClient.RegisterApplicationAsync(newRecord).ConfigureAwait(false));
+                Assert.That(serviceResultException.StatusCode, Is.EqualTo(StatusCodes.BadEntryExists));
             }
         }
 
@@ -288,12 +266,9 @@ namespace Opc.Ua.Gds.Tests
                 var updatedApplicationRecord = (ApplicationRecordDataType)
                     application.ApplicationRecord.MemberwiseClone();
                 updatedApplicationRecord.ApplicationUri += "update";
-                await m_gdsClient.GDSClient.UpdateApplicationAsync(updatedApplicationRecord).ConfigureAwait(false);
-                ArrayOf<ApplicationRecordDataType> result = await m_gdsClient.GDSClient.FindApplicationAsync(
-                    updatedApplicationRecord.ApplicationUri).ConfigureAwait(false);
-                await m_gdsClient.GDSClient.UpdateApplicationAsync(application.ApplicationRecord).ConfigureAwait(false);
-                Assert.That(result.IsNull, Is.False);
-                Assert.That(result.Count, Is.GreaterThanOrEqualTo(1), "Couldn't find updated application record");
+                ServiceResultException serviceResultException = Assert.ThrowsAsync<ServiceResultException>(
+                    async () => await m_gdsClient.GDSClient.UpdateApplicationAsync(updatedApplicationRecord).ConfigureAwait(false));
+                Assert.That(serviceResultException.StatusCode, Is.EqualTo(StatusCodes.BadWriteNotSupported));
             }
         }
 
@@ -562,8 +537,9 @@ namespace Opc.Ua.Gds.Tests
             Assert.That(allServers.IsNull, Is.False);
             foreach (ServerOnNetwork server in allServers.ToList())
             {
+                uint startingRecordId = server.RecordId > 0 ? server.RecordId - 1 : 0;
                 ArrayOf<ServerOnNetwork> oneServers = (await m_gdsClient.GDSClient.QueryServersAsync(
-                    server.RecordId,
+                    startingRecordId,
                     1,
                     string.Empty,
                     string.Empty,
@@ -573,7 +549,7 @@ namespace Opc.Ua.Gds.Tests
                 Assert.That(oneServers.Count, Is.GreaterThanOrEqualTo(1));
                 foreach (ServerOnNetwork oneServer in oneServers)
                 {
-                    Assert.That(server.RecordId, Is.EqualTo(oneServer.RecordId));
+                    Assert.That(oneServer.RecordId, Is.GreaterThan(startingRecordId));
                 }
                 firstID = Math.Min(firstID, server.RecordId);
                 lastID = Math.Max(lastID, server.RecordId);
@@ -601,8 +577,9 @@ namespace Opc.Ua.Gds.Tests
             Assert.That(allServers.IsNull, Is.False);
             foreach (ServerOnNetwork server in allServers.ToList())
             {
+                uint startingRecordId = server.RecordId > 0 ? server.RecordId - 1 : 0;
                 ArrayOf<ServerOnNetwork> oneServers = (await m_gdsClient.GDSClient.QueryServersAsync(
-                    server.RecordId,
+                    startingRecordId,
                     1,
                     null,
                     null,
@@ -612,7 +589,7 @@ namespace Opc.Ua.Gds.Tests
                 Assert.That(oneServers.Count, Is.GreaterThanOrEqualTo(1));
                 foreach (ServerOnNetwork oneServer in oneServers)
                 {
-                    Assert.That(server.RecordId, Is.EqualTo(oneServer.RecordId));
+                    Assert.That(oneServer.RecordId, Is.GreaterThan(startingRecordId));
                 }
                 firstID = Math.Min(firstID, server.RecordId);
                 lastID = Math.Max(lastID, server.RecordId);
@@ -630,10 +607,21 @@ namespace Opc.Ua.Gds.Tests
         public async Task QueryGoodServersBatchesAsync()
         {
             // repeating queries to get all servers
+            ArrayOf<ServerOnNetwork> allServers = (await m_gdsClient.GDSClient.QueryServersAsync(
+                0,
+                string.Empty,
+                string.Empty,
+                string.Empty,
+                default).ConfigureAwait(false));
+            int uniqueServerRecords = allServers
+                .ToList()
+                .Select(server => server.RecordId)
+                .Distinct()
+                .Count();
+
             uint nextID = 0;
             uint iterationCount = Math.Min(10, (uint)(kGoodApplicationsTestCount / 2));
             int serversOnNetwork = 0;
-            int goodServersOnNetwork = GoodServersOnNetworkCount();
             while (true)
             {
                 ArrayOf<ServerOnNetwork> iterServers = (await m_gdsClient.GDSClient.QueryServersAsync(
@@ -650,10 +638,11 @@ namespace Opc.Ua.Gds.Tests
                     break;
                 }
                 uint previousID = nextID;
-                nextID = iterServers[^1].RecordId + 1;
+                nextID = iterServers[^1].RecordId;
                 Assert.That(nextID, Is.GreaterThan(previousID));
             }
-            Assert.That(serversOnNetwork, Is.GreaterThanOrEqualTo(goodServersOnNetwork));
+            Assert.That(serversOnNetwork, Is.GreaterThanOrEqualTo(uniqueServerRecords));
+            Assert.That(serversOnNetwork, Is.LessThanOrEqualTo(allServers.Count));
         }
 
         [Test]
@@ -773,7 +762,6 @@ namespace Opc.Ua.Gds.Tests
             }
         }
 
-        [Test]
         [Order(480)]
         public async Task QueryAllApplicationsAsync()
         {

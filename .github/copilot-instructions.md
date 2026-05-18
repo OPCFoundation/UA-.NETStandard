@@ -183,6 +183,7 @@ This is the official OPC UA .NET Standard Stack from the OPC Foundation. It prov
 - Samples Repository: https://github.com/OPCFoundation/UA-.NETStandard-Samples
 - NuGet Packages:
   - Types: https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua.Types/
+  - Core.Types: https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua.Core.Types/
   - Core: https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua.Core/
   - Client: https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua.Client/
   - Server: https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua.Server/

@@ -30,8 +30,8 @@
     <Reference Include="System.Net.Http" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\Libraries\Opc.Ua.Security.Certificates\Opc.Ua.Security.Certificates.csproj" />
-    <ProjectReference Include="..\Opc.Ua\Opc.Ua.csproj" />
+    <ProjectReference Include="..\Opc.Ua.Security.Certificates\Opc.Ua.Security.Certificates.csproj" />
+    <ProjectReference Include="..\Opc.Ua.Core.Types\Opc.Ua.Core.Types.csproj" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Types\Utils\LocalizedData.txt" />

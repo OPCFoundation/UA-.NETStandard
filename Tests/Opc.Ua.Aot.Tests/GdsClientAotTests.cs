@@ -124,8 +124,9 @@ namespace Opc.Ua.Aot.Tests
                 .ConfigureAwait(false);
             appRecord.ApplicationId = id;
 
-            const string updatedUri = appUri + "/v2";
-            appRecord.ApplicationUri = updatedUri;
+            const string updatedProductUri =
+                "http://opcfoundation.org/AotTest/Product/Updated";
+            appRecord.ProductUri = updatedProductUri;
             await fixture.GdsClient
                 .UpdateApplicationAsync(appRecord)
                 .ConfigureAwait(false);
@@ -135,7 +136,7 @@ namespace Opc.Ua.Aot.Tests
                 .ConfigureAwait(false);
 
             await Assert.That(result).IsNotNull();
-            await Assert.That(result.ApplicationUri).IsEqualTo(updatedUri);
+            await Assert.That(result.ProductUri).IsEqualTo(updatedProductUri);
 
             // cleanup
             await fixture.GdsClient
