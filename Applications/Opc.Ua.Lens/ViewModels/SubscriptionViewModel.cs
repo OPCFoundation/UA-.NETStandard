@@ -127,6 +127,18 @@ internal sealed partial class SubscriptionViewModel : ObservableObject, IPlugin
     [ObservableProperty]
     private bool m_showItemStatusGrid;
 
+    /// <summary>Chart legend visibility (ScottPlot signal/histogram/heatmap modes).</summary>
+    [ObservableProperty]
+    private bool m_showLegend = true;
+
+    /// <summary>Chart X-axis visibility (labels + ticks; bottom axis).</summary>
+    [ObservableProperty]
+    private bool m_showXAxis = true;
+
+    /// <summary>Chart Y-axis visibility (labels + ticks; left axis).</summary>
+    [ObservableProperty]
+    private bool m_showYAxis = true;
+
     /// <summary>250 ms throttle for status sub-pane refresh.</summary>
     private static readonly TimeSpan s_statusRefreshInterval
         = TimeSpan.FromMilliseconds(250);

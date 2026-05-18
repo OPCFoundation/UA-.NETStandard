@@ -1432,6 +1432,12 @@ internal sealed partial class MainWindow : Window, IDisposable
             anim.ShowResourceOverlay = tab.ShowResourceOverlay;
             resourceCheck.IsChecked = tab.ShowResourceOverlay;
             ApplyMode(tab.AnimationMode);
+            // Push the per-tab chart-element visibility into ScottPlot
+            // (ApplyMode rebinds the pump and Bind itself re-applies the
+            // visibility, but if the tab's visibility flags changed while
+            // the mode didn't, we still want them honoured).
+            this.FindControl<ScottPlotView>("ScottPlot")?
+                .SetChartElementsVisible(tab.ShowLegend, tab.ShowXAxis, tab.ShowYAxis);
         }
         else
         {
@@ -1603,6 +1609,12 @@ internal sealed partial class MainWindow : Window, IDisposable
                 anim.ShowResourceOverlay = tab.ShowResourceOverlay;
                 resourceCheck.IsChecked = tab.ShowResourceOverlay;
                 anim.InvalidateVisual();
+                break;
+            case nameof(SubscriptionViewModel.ShowLegend):
+            case nameof(SubscriptionViewModel.ShowXAxis):
+            case nameof(SubscriptionViewModel.ShowYAxis):
+                this.FindControl<ScottPlotView>("ScottPlot")?
+                    .SetChartElementsVisible(tab.ShowLegend, tab.ShowXAxis, tab.ShowYAxis);
                 break;
         }
     }

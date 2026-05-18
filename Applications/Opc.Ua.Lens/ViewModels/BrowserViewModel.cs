@@ -284,7 +284,7 @@ internal sealed partial class BrowserViewModel : ObservableObject
                 string name = !r.DisplayName.IsNull
                     ? r.DisplayName.Text ?? string.Empty
                     : (!r.BrowseName.IsNull ? r.BrowseName.Name ?? string.Empty : (child.ToString() ?? string.Empty));
-                children.Add(new NodeViewModel(this, node.NodeId, child, $"{Glyph(r.NodeClass)} {name}", r.NodeClass));
+                children.Add(new NodeViewModel(this, node.NodeId, child, name, r.NodeClass));
             }
 
             Action apply = () =>

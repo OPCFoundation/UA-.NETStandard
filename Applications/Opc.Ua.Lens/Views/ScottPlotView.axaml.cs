@@ -130,6 +130,11 @@ internal sealed partial class ScottPlotView : UserControl, IDisposable
         m_pump?.Bind(m_plot.Plot, m_plot.Refresh);
         m_pump?.OnItemsChanged(m_items);
 
+        // Each pump calls ShowLegend()/Axes setup on Bind — re-apply
+        // the user's chart-element visibility right after so the user's
+        // toggle isn't blown away on mode switch.
+        ApplyChartElementsVisibility();
+
         // Restore previously-saved axis state (if any) so switching back
         // to this mode preserves the user's pan/zoom.
         if (restoreLimits is { } lim && m_pump is not null)
@@ -159,6 +164,42 @@ internal sealed partial class ScottPlotView : UserControl, IDisposable
 
     /// <summary>Reset the active pump's X axis to auto-fit defaults.</summary>
     public void ResetXZoom() => m_pump?.ResetXZoom();
+
+    /// <summary>
+    /// Toggle chart-element visibility (legend / X axis / Y axis).
+    /// Safe to call before a pump is bound — the values are remembered
+    /// and re-applied on the next <see cref="Bind"/>.
+    /// </summary>
+    public void SetChartElementsVisible(bool legend, bool xAxis, bool yAxis)
+    {
+        m_showLegend = legend;
+        m_showXAxis = xAxis;
+        m_showYAxis = yAxis;
+        ApplyChartElementsVisibility();
+    }
+
+    private bool m_showLegend = true;
+    private bool m_showXAxis = true;
+    private bool m_showYAxis = true;
+
+    private void ApplyChartElementsVisibility()
+    {
+        if (m_plot is null)
+        {
+            return;
+        }
+        if (m_showLegend)
+        {
+            m_plot.Plot.ShowLegend();
+        }
+        else
+        {
+            m_plot.Plot.HideLegend();
+        }
+        m_plot.Plot.Axes.Bottom.IsVisible = m_showXAxis;
+        m_plot.Plot.Axes.Left.IsVisible = m_showYAxis;
+        m_plot.Refresh();
+    }
 
     protected override void OnAttachedToVisualTree(Avalonia.VisualTreeAttachmentEventArgs e)
     {

@@ -356,8 +356,24 @@
                                   Content="CPU/Mem" />
                         <CheckBox x:Name="ItemStatusToggle"
                                   VerticalAlignment="Center"
-                                  Content="📋 Items"
+                                  Content="Monitored Items"
                                   IsChecked="{CompiledBinding SelectedSubscriptionTab.ShowItemStatusGrid, Mode=TwoWay, FallbackValue=False}" />
+                        <Border Width="1" Background="#1E293B" Margin="2,4" />
+                        <CheckBox x:Name="ShowLegendCheck"
+                                  VerticalAlignment="Center"
+                                  Content="Legend"
+                                  ToolTip.Tip="Show / hide the chart legend (Signal / Histogram / Heatmap)"
+                                  IsChecked="{CompiledBinding SelectedSubscriptionTab.ShowLegend, Mode=TwoWay, FallbackValue=True}" />
+                        <CheckBox x:Name="ShowXAxisCheck"
+                                  VerticalAlignment="Center"
+                                  Content="X axis"
+                                  ToolTip.Tip="Show / hide the chart X axis (bottom)"
+                                  IsChecked="{CompiledBinding SelectedSubscriptionTab.ShowXAxis, Mode=TwoWay, FallbackValue=True}" />
+                        <CheckBox x:Name="ShowYAxisCheck"
+                                  VerticalAlignment="Center"
+                                  Content="Y axis"
+                                  ToolTip.Tip="Show / hide the chart Y axis (left)"
+                                  IsChecked="{CompiledBinding SelectedSubscriptionTab.ShowYAxis, Mode=TwoWay, FallbackValue=True}" />
                         <TextBlock VerticalAlignment="Center" Margin="6,0,4,0" Foreground="#94A3B8" Text="View:" />
                         <ComboBox x:Name="ViewModeCombo" MinWidth="110" SelectedIndex="0"
                                   VerticalAlignment="Center" VerticalContentAlignment="Center"

@@ -29,6 +29,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:UaLens.ViewModels"
+             xmlns:v="using:UaLens.Views"
              x:Class="UaLens.Views.AddressSpaceView"
              x:DataType="vm:BrowserViewModel">
   <Border BorderBrush="#1E293B" BorderThickness="1" CornerRadius="4" Padding="0">
@@ -73,7 +74,18 @@
         </TreeView.ContextMenu>
         <TreeView.ItemTemplate>
           <TreeDataTemplate DataType="vm:NodeViewModel" ItemsSource="{CompiledBinding Children}">
-            <TextBlock Text="{CompiledBinding Text}" />
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <!-- 14×14 vector icon, nothing rendered for placeholder rows
+                   (NodeClass.Unspecified has no geometry → null Data). -->
+              <Path Width="14" Height="14"
+                    Stretch="Uniform"
+                    StrokeThickness="1.2"
+                    Data="{CompiledBinding NodeClass, Converter={x:Static v:NodeClassToGeometryConverter.Instance}}"
+                    Fill="{CompiledBinding NodeClass, Converter={x:Static v:NodeClassToFillConverter.Instance}}"
+                    Stroke="{CompiledBinding NodeClass, Converter={x:Static v:NodeClassToStrokeConverter.Instance}}"
+                    VerticalAlignment="Center" />
+              <TextBlock Text="{CompiledBinding Text}" VerticalAlignment="Center" />
+            </StackPanel>
           </TreeDataTemplate>
         </TreeView.ItemTemplate>
         <TreeView.Styles>
