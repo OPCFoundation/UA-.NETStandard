@@ -62,7 +62,8 @@ namespace UaLens.Plugins.GdsManagement;
 /// </remarks>
 internal sealed partial class RegisterApplicationDialog : Window
 {
-    private static readonly string[] s_xmlPatterns = ["*.xml"];
+    private static readonly string[] s_jsonPatterns = ["*.json"];
+    private static readonly string[] s_loadPatterns = ["*.json", "*.xml"];
 
     private readonly ITelemetryContext? m_telemetry;
     private EndpointDescription? m_pickedPushEndpoint;
@@ -187,9 +188,9 @@ internal sealed partial class RegisterApplicationDialog : Window
                     AllowMultiple = false,
                     FileTypeFilter = new[]
                     {
-                        new FilePickerFileType("RegisteredApplicationContext (*.xml)")
+                        new FilePickerFileType("RegisteredApplicationContext (*.json, *.xml)")
                         {
-                            Patterns = s_xmlPatterns
+                            Patterns = s_loadPatterns
                         }
                     }
                 }).ConfigureAwait(true);
@@ -232,12 +233,12 @@ internal sealed partial class RegisterApplicationDialog : Window
                 {
                     Title = "Save application context",
                     SuggestedFileName = SuggestFileName(snapshot),
-                    DefaultExtension = "xml",
+                    DefaultExtension = "json",
                     FileTypeChoices = new[]
                     {
-                        new FilePickerFileType("RegisteredApplicationContext (*.xml)")
+                        new FilePickerFileType("RegisteredApplicationContext (*.json)")
                         {
-                            Patterns = s_xmlPatterns
+                            Patterns = s_jsonPatterns
                         }
                     }
                 }).ConfigureAwait(true);
@@ -440,7 +441,7 @@ internal sealed partial class RegisterApplicationDialog : Window
         {
             baseName = baseName.Replace(c, '_');
         }
-        return baseName + ".xml";
+        return baseName + ".json";
     }
 
     private static List<string> SplitLines(string? text)

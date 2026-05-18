@@ -29,6 +29,7 @@
 
 using System;
 using System.Globalization;
+using CommunityToolkit.Mvvm.ComponentModel;
 using Opc.Ua;
 
 namespace UaLens.Plugins.Historian;
@@ -38,7 +39,7 @@ namespace UaLens.Plugins.Historian;
 /// the value as <see cref="DisplayValue"/> so the DataGrid binding stays
 /// trivial and AOT-friendly (no value converters needed).
 /// </summary>
-internal sealed partial class HistoryRow
+internal sealed partial class HistoryRow : ObservableObject
 {
     public DateTime SourceTimestamp { get; }
     public DateTime ServerTimestamp { get; }
@@ -63,6 +64,48 @@ internal sealed partial class HistoryRow
 
     /// <summary>Best-effort numeric coercion of <see cref="Value"/> (NaN otherwise).</summary>
     public double Numeric { get; }
+
+    /// <summary>
+    /// Optional <see cref="Opc.Ua.Annotation"/> attached to this row's
+    /// <see cref="SourceTimestamp"/> — populated post-read by
+    /// <see cref="HistoryReader.AttachAnnotationsAsync"/> when the
+    /// historizing variable exposes the standard <c>Annotations</c>
+    /// property (Part 11 §5.4.5).  <c>null</c> if the server does not
+    /// support annotations on this node.
+    /// </summary>
+    public Annotation? Annotation
+    {
+        get => m_annotation;
+        set
+        {
+            if (!ReferenceEquals(m_annotation, value))
+            {
+                m_annotation = value;
+                OnPropertyChanged(nameof(Annotation));
+                OnPropertyChanged(nameof(DisplayAnnotation));
+            }
+        }
+    }
+    private Annotation? m_annotation;
+
+    /// <summary>
+    /// Single-line projection of <see cref="Annotation"/> for the
+    /// Annotation column in the results grid — empty when no annotation
+    /// has been attached.
+    /// </summary>
+    public string DisplayAnnotation
+    {
+        get
+        {
+            if (m_annotation is null)
+            {
+                return string.Empty;
+            }
+            string msg = m_annotation.Message ?? string.Empty;
+            string user = m_annotation.UserName ?? string.Empty;
+            return user.Length == 0 ? msg : $"{msg}  —  {user}";
+        }
+    }
 
     public HistoryRow(DateTime sourceTimestamp,
                       DateTime serverTimestamp,

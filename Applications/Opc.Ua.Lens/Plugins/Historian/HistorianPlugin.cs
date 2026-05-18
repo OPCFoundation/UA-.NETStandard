@@ -60,6 +60,28 @@ internal enum HistorianReadMode
     AtTime
 }
 
+/// <summary>
+/// HistoryUpdate operations dispatched by the History-Update bar.  Maps
+/// 1:1 to OPC UA Part 11 §6.8 service variants.
+/// </summary>
+internal enum HistorianUpdateOp
+{
+    /// <summary>UpdateDataDetails, PerformUpdateType.Insert.</summary>
+    Insert,
+    /// <summary>UpdateDataDetails, PerformUpdateType.Update (insert-or-replace).</summary>
+    InsertReplace,
+    /// <summary>UpdateDataDetails, PerformUpdateType.Replace.</summary>
+    Replace,
+    /// <summary>DeleteRawModifiedDetails with StartTime == EndTime == timestamp.</summary>
+    Remove,
+    /// <summary>DeleteRawModifiedDetails over a range, IsDeleteModified=false.</summary>
+    DeleteRaw,
+    /// <summary>DeleteRawModifiedDetails over a range, IsDeleteModified=true.</summary>
+    DeleteModified,
+    /// <summary>DeleteAtTimeDetails with a list of timestamps.</summary>
+    DeleteAtTime
+}
+
 /// <summary>Time-range quick-pick units backing the Last-N quick range.</summary>
 internal enum HistorianTimeUnit
 {
@@ -145,6 +167,7 @@ internal sealed partial class HistorianPlugin : ObservableObject, IPlugin
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(ReadCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ExecuteUpdateCommand))]
     [NotifyPropertyChangedFor(nameof(TargetDescription))]
     [NotifyPropertyChangedFor(nameof(HasTarget))]
     private NodeId targetNodeId = NodeId.Null;
@@ -246,12 +269,80 @@ internal sealed partial class HistorianPlugin : ObservableObject, IPlugin
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(EditSelectedCommand))]
     [NotifyCanExecuteChangedFor(nameof(DeleteSelectedCommand))]
+    [NotifyCanExecuteChangedFor(nameof(EditAnnotationCommand))]
     private HistoryRow? m_selectedRow;
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(ReadCommand))]
     [NotifyCanExecuteChangedFor(nameof(CancelReadCommand))]
     private bool m_isReading;
+
+    // ---- History Update bar ----
+
+    /// <summary>Display strings for the HistoryUpdate op combo box.</summary>
+    public IReadOnlyList<string> UpdateOpOptions { get; } = new[]
+    {
+        "Insert",
+        "InsertReplace",
+        "Replace",
+        "Remove",
+        "DeleteRaw (range)",
+        "DeleteModified (range)",
+        "DeleteAtTime (list)"
+    };
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SelectedUpdateOpIndex))]
+    [NotifyPropertyChangedFor(nameof(IsSingleValueOp))]
+    [NotifyPropertyChangedFor(nameof(IsRemoveOp))]
+    [NotifyPropertyChangedFor(nameof(IsRangeOp))]
+    [NotifyPropertyChangedFor(nameof(IsDeleteAtTimeOp))]
+    private HistorianUpdateOp m_selectedUpdateOp = HistorianUpdateOp.Insert;
+
+    /// <summary>Combo-box index adapter for <see cref="SelectedUpdateOp"/>.</summary>
+    public int SelectedUpdateOpIndex
+    {
+        get => (int)SelectedUpdateOp;
+        set
+        {
+            if (Enum.IsDefined(typeof(HistorianUpdateOp), value))
+            {
+                SelectedUpdateOp = (HistorianUpdateOp)value;
+            }
+        }
+    }
+
+    public bool IsSingleValueOp =>
+        SelectedUpdateOp is HistorianUpdateOp.Insert
+            or HistorianUpdateOp.InsertReplace
+            or HistorianUpdateOp.Replace;
+    public bool IsRemoveOp => SelectedUpdateOp == HistorianUpdateOp.Remove;
+    public bool IsRangeOp =>
+        SelectedUpdateOp is HistorianUpdateOp.DeleteRaw or HistorianUpdateOp.DeleteModified;
+    public bool IsDeleteAtTimeOp => SelectedUpdateOp == HistorianUpdateOp.DeleteAtTime;
+
+    [ObservableProperty]
+    private DateTime m_updateTimestamp = DateTime.UtcNow;
+
+    [ObservableProperty]
+    private string m_updateValueText = "0";
+
+    [ObservableProperty]
+    private DateTime m_updateStart = DateTime.UtcNow.AddHours(-1);
+
+    [ObservableProperty]
+    private DateTime m_updateEnd = DateTime.UtcNow;
+
+    /// <summary>
+    /// Multi-timestamp picker collection for the
+    /// <see cref="HistorianUpdateOp.DeleteAtTime"/> mode.  Mirrors the
+    /// At-Time read collection (<see cref="AtTimes"/>) in structure but
+    /// is independent.
+    /// </summary>
+    public ObservableCollection<AtTimeRow> UpdateAtTimes { get; } = new();
+
+    [ObservableProperty]
+    private string m_updateResult = string.Empty;
 
     public HistorianPlugin(PluginHost host)
     {
@@ -262,8 +353,9 @@ internal sealed partial class HistorianPlugin : ObservableObject, IPlugin
         m_selectedAggregate = AggregateOptions[0];
         // Seed with the trailing "+" sentinel only.  Users add rows by
         // clicking the sentinel; each added row starts in editing mode.
-        AtTimes.Add(NewSentinelRow());
+        AtTimes.Add(NewSentinelRow(AtTimes));
         AtTimes.CollectionChanged += OnAtTimesChanged;
+        UpdateAtTimes.Add(NewSentinelRow(UpdateAtTimes));
         // Seed the target from the current address-space selection if any.
         if (m_host.Main.SelectedNode is { } sel && sel.NodeClass == NodeClass.Variable)
         {
@@ -310,7 +402,9 @@ internal sealed partial class HistorianPlugin : ObservableObject, IPlugin
             CreateMenuItem("_Pick Variable…",      PickVariableCommand),
             CreateMenuItem("_Range…",              PickRangeCommand),
             CreateMenuItem("_Edit Selected…",      EditSelectedCommand),
+            CreateMenuItem("Edit _Annotation…",    EditAnnotationCommand),
             CreateMenuItem("_Delete Selected",     DeleteSelectedCommand),
+            CreateMenuItem("History _Update…",     ExecuteUpdateCommand),
             CreateMenuItem("Export _CSV…",         ExportCsvCommand)
         };
     }
@@ -428,7 +522,7 @@ internal sealed partial class HistorianPlugin : ObservableObject, IPlugin
     [RelayCommand]
     private void AddTimestamp()
     {
-        InsertEditableBeforeSentinel();
+        InsertEditableBeforeSentinel(AtTimes);
     }
 
     [RelayCommand]
@@ -453,17 +547,17 @@ internal sealed partial class HistorianPlugin : ObservableObject, IPlugin
         CustomEnd = result.Value.End;
     }
 
-    private void RemoveTimestamp(AtTimeRow? row)
+    private void RemoveTimestamp(ObservableCollection<AtTimeRow> collection, AtTimeRow? row)
     {
         if (row is null || row.IsAddButton)
         {
             return;
         }
 
-        AtTimes.Remove(row);
+        collection.Remove(row);
     }
 
-    private void ConfirmTimestamp(AtTimeRow? row)
+    private static void ConfirmTimestamp(AtTimeRow? row)
     {
         if (row is null || row.IsAddButton)
         {
@@ -472,35 +566,35 @@ internal sealed partial class HistorianPlugin : ObservableObject, IPlugin
         row.IsEditing = false;
     }
 
-    private void InsertEditableBeforeSentinel()
+    private void InsertEditableBeforeSentinel(ObservableCollection<AtTimeRow> collection)
     {
         int sentinelIndex = -1;
-        for (int i = 0; i < AtTimes.Count; i++)
+        for (int i = 0; i < collection.Count; i++)
         {
-            if (AtTimes[i].IsAddButton)
+            if (collection[i].IsAddButton)
             {
                 sentinelIndex = i;
                 break;
             }
         }
-        AtTimeRow row = NewEditableRow();
+        AtTimeRow row = NewEditableRow(collection);
         if (sentinelIndex < 0)
         {
-            AtTimes.Add(row);
-            AtTimes.Add(NewSentinelRow());
+            collection.Add(row);
+            collection.Add(NewSentinelRow(collection));
         }
         else
         {
-            AtTimes.Insert(sentinelIndex, row);
+            collection.Insert(sentinelIndex, row);
         }
     }
 
-    private AtTimeRow NewEditableRow()
+    private AtTimeRow NewEditableRow(ObservableCollection<AtTimeRow> collection)
     {
         AtTimeRow? capture = null;
         var row = new AtTimeRow
         {
-            RemoveCommand = new RelayCommand(() => RemoveTimestamp(capture)),
+            RemoveCommand = new RelayCommand(() => RemoveTimestamp(collection, capture)),
             ConfirmCommand = new RelayCommand(() => ConfirmTimestamp(capture)),
             IsEditing = true
         };
@@ -508,7 +602,7 @@ internal sealed partial class HistorianPlugin : ObservableObject, IPlugin
         return row;
     }
 
-    private AtTimeRow NewSentinelRow()
+    private AtTimeRow NewSentinelRow(ObservableCollection<AtTimeRow> collection)
     {
         // Sentinel reuses RemoveCommand to add a fresh editable row
         // before itself; the DataTemplate binds the "+" button to it.
@@ -517,7 +611,7 @@ internal sealed partial class HistorianPlugin : ObservableObject, IPlugin
         {
             IsAddButton = true,
             IsEditing = false,
-            RemoveCommand = new RelayCommand(InsertEditableBeforeSentinel),
+            RemoveCommand = new RelayCommand(() => InsertEditableBeforeSentinel(collection)),
             ConfirmCommand = new RelayCommand(() => { })
         };
         return sentinel;
@@ -612,6 +706,24 @@ internal sealed partial class HistorianPlugin : ObservableObject, IPlugin
                     break;
             }
 
+            // Best-effort: attach Annotation column data via a second
+            // pass through the historian's Annotations property.  Failure
+            // here is silent — servers without annotation history will
+            // simply render an empty Annotation column.
+            try
+            {
+                await reader.AttachAnnotationsAsync(TargetNodeId, rows, ct).ConfigureAwait(true);
+            }
+            catch (OperationCanceledException)
+            {
+                // Cancellation already handled by outer catch.
+                throw;
+            }
+            catch (Exception ex)
+            {
+                m_log.LogDebug(ex, "Historian tab {Title} annotation read skipped.", Title);
+            }
+
             Dispatcher.UIThread.Post(() =>
             {
                 foreach (HistoryRow r in rows)
@@ -651,7 +763,7 @@ internal sealed partial class HistorianPlugin : ObservableObject, IPlugin
     private bool CanModifyRow() => SelectedRow is not null && HasTarget;
 
     [RelayCommand(CanExecute = nameof(CanModifyRow))]
-    private async Task EditSelectedAsync()
+    public async Task EditSelectedAsync()
     {
         if (SelectedRow is not { } row || TargetNodeId.IsNull)
         {
@@ -694,7 +806,7 @@ internal sealed partial class HistorianPlugin : ObservableObject, IPlugin
     }
 
     [RelayCommand(CanExecute = nameof(CanModifyRow))]
-    private async Task DeleteSelectedAsync()
+    public async Task DeleteSelectedAsync()
     {
         if (SelectedRow is not { } row || TargetNodeId.IsNull)
         {
@@ -725,6 +837,159 @@ internal sealed partial class HistorianPlugin : ObservableObject, IPlugin
             m_log.LogWarning(ex, "Historian tab {Title} HistoryDelete failed.", Title);
         }
     }
+
+    /// <summary>
+    /// Opens <see cref="AnnotationEditDialog"/> for the currently
+    /// selected row, then writes the resulting <see cref="Annotation"/>
+    /// back via <see cref="HistoryUpdater.UpdateAnnotationAsync"/>.  On
+    /// success the row's <see cref="HistoryRow.Annotation"/> is updated
+    /// in-place so the Annotation column re-renders without a re-read.
+    /// </summary>
+    [RelayCommand(CanExecute = nameof(CanModifyRow))]
+    public async Task EditAnnotationAsync()
+    {
+        if (SelectedRow is not { } row || TargetNodeId.IsNull)
+        {
+            return;
+        }
+        if (m_host.Main.Connection.Session is not { } session)
+        {
+            Status = "● Not connected — connect first.";
+            return;
+        }
+        Window? owner = GetOwnerWindow();
+        var dialog = new AnnotationEditDialog(row.SourceTimestamp, row.Annotation);
+        Annotation? edited = owner is null
+            ? await dialog.ShowDialog<Annotation?>(new Window()).ConfigureAwait(true)
+            : await dialog.ShowDialog<Annotation?>(owner).ConfigureAwait(true);
+        if (edited is null)
+        {
+            return;
+        }
+        try
+        {
+            var updater = new HistoryUpdater(session);
+            HistoryUpdateOutcome outcome = await updater
+                .UpdateAnnotationAsync(TargetNodeId, row.SourceTimestamp, edited, CancellationToken.None)
+                .ConfigureAwait(true);
+            if (outcome.IsGood)
+            {
+                row.Annotation = edited;
+                Status = $"● Annotation saved at {row.DisplayTimestamp}.";
+            }
+            else
+            {
+                Status = $"● Annotation update: {outcome.Summarise()}.";
+                m_log.LogWarning(
+                    "Historian tab {Title} UpdateAnnotation returned {Outcome}.",
+                    Title, outcome.Summarise());
+            }
+        }
+        catch (Exception ex)
+        {
+            Status = $"● Annotation update failed: {ex.Message}";
+            m_log.LogWarning(ex, "Historian tab {Title} UpdateAnnotation failed.", Title);
+        }
+    }
+
+    private bool CanExecuteUpdate() => HasTarget && m_host.Main.Connection.Session is not null;
+
+    /// <summary>
+    /// Dispatches the HistoryUpdate selected in the
+    /// <see cref="SelectedUpdateOp"/> combo against the current target,
+    /// using the op-specific input fields.  Results are surfaced via
+    /// <see cref="UpdateResult"/> — bad statuses (including
+    /// <c>BadHistoryOperationUnsupported</c> from servers that don't
+    /// implement the requested op) are rendered as text rather than
+    /// thrown.
+    /// </summary>
+    [RelayCommand(CanExecute = nameof(CanExecuteUpdate))]
+    public async Task ExecuteUpdateAsync()
+    {
+        if (m_host.Main.Connection.Session is not { } session || TargetNodeId.IsNull)
+        {
+            UpdateResult = "● Not connected or no target.";
+            return;
+        }
+        var updater = new HistoryUpdater(session);
+        try
+        {
+            HistoryUpdateOutcome outcome = SelectedUpdateOp switch
+            {
+                HistorianUpdateOp.Insert => await updater.InsertAsync(
+                    TargetNodeId, BuildUpdateDataValue(), CancellationToken.None).ConfigureAwait(true),
+                HistorianUpdateOp.InsertReplace => await updater.InsertReplaceAsync(
+                    TargetNodeId, BuildUpdateDataValue(), CancellationToken.None).ConfigureAwait(true),
+                HistorianUpdateOp.Replace => await updater.ReplaceAsync(
+                    TargetNodeId, BuildUpdateDataValue(), CancellationToken.None).ConfigureAwait(true),
+                HistorianUpdateOp.Remove => await updater.RemoveAsync(
+                    TargetNodeId, ToUtc(UpdateTimestamp), CancellationToken.None).ConfigureAwait(true),
+                HistorianUpdateOp.DeleteRaw => await updater.DeleteRawAsync(
+                    TargetNodeId, ToUtc(UpdateStart), ToUtc(UpdateEnd), CancellationToken.None).ConfigureAwait(true),
+                HistorianUpdateOp.DeleteModified => await updater.DeleteModifiedAsync(
+                    TargetNodeId, ToUtc(UpdateStart), ToUtc(UpdateEnd), CancellationToken.None).ConfigureAwait(true),
+                HistorianUpdateOp.DeleteAtTime => await updater.DeleteAtTimesAsync(
+                    TargetNodeId, CollectUpdateTimestamps(), CancellationToken.None).ConfigureAwait(true),
+                _ => new HistoryUpdateOutcome { StatusCode = StatusCodes.Good }
+            };
+            UpdateResult = string.Format(CultureInfo.InvariantCulture,
+                "● {0}: {1}", SelectedUpdateOp, outcome.Summarise());
+            if (outcome.IsGood)
+            {
+                // Auto-refresh so the user sees the side-effects of the
+                // update without having to click Read again.
+                await ReadAsync().ConfigureAwait(true);
+            }
+            else
+            {
+                m_log.LogWarning(
+                    "Historian tab {Title} HistoryUpdate {Op} returned {Outcome}.",
+                    Title, SelectedUpdateOp, outcome.Summarise());
+            }
+        }
+        catch (FormatException ex)
+        {
+            UpdateResult = $"● Bad input: {ex.Message}";
+        }
+        catch (Exception ex)
+        {
+            UpdateResult = $"● HistoryUpdate failed: {ex.Message}";
+            m_log.LogWarning(ex, "Historian tab {Title} HistoryUpdate {Op} failed.", Title, SelectedUpdateOp);
+        }
+    }
+
+    private DataValue BuildUpdateDataValue()
+    {
+        if (!double.TryParse(UpdateValueText, NumberStyles.Float, CultureInfo.InvariantCulture, out double parsed))
+        {
+            throw new FormatException($"Update value '{UpdateValueText}' is not a valid double.");
+        }
+        DateTime ts = ToUtc(UpdateTimestamp);
+        return new DataValue
+        {
+            WrappedValue = new Variant(parsed),
+            StatusCode = StatusCodes.Good,
+            SourceTimestamp = ts,
+            ServerTimestamp = ts
+        };
+    }
+
+    private List<DateTime> CollectUpdateTimestamps()
+    {
+        var list = new List<DateTime>(UpdateAtTimes.Count);
+        foreach (AtTimeRow row in UpdateAtTimes)
+        {
+            if (row.IsAddButton || row.IsEditing)
+            {
+                continue;
+            }
+            list.Add(ToUtc(row.Timestamp));
+        }
+        return list;
+    }
+
+    private static DateTime ToUtc(DateTime t) =>
+        t.Kind == DateTimeKind.Utc ? t : t.ToUniversalTime();
 
     [RelayCommand]
     private async Task ExportCsvAsync()

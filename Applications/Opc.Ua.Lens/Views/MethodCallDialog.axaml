@@ -48,14 +48,19 @@
       <ItemsControl x:Name="InputsList">
         <ItemsControl.ItemTemplate>
           <DataTemplate DataType="v:MethodArgRow">
-            <Grid ColumnDefinitions="200,*,Auto" Margin="0,2,0,2">
+            <Grid ColumnDefinitions="200,*,Auto,Auto" Margin="0,2,0,2">
               <TextBlock Grid.Column="0" Text="{CompiledBinding Header}"
                          Foreground="#94A3B8"
                          FontFamily="Cascadia Mono, Consolas, monospace"
                          VerticalAlignment="Center" />
               <TextBox Grid.Column="1" Text="{CompiledBinding ValueText, Mode=TwoWay}"
                        FontFamily="Cascadia Mono, Consolas, monospace" />
-              <Button Grid.Column="2" Content="📂"
+              <Button Grid.Column="2" Content="🧩"
+                      ToolTip.Tip="Edit as structured value"
+                      Padding="6,2" Margin="6,0,0,0"
+                      IsVisible="{CompiledBinding IsComplex}"
+                      Command="{CompiledBinding EditComplexCommand}" />
+              <Button Grid.Column="3" Content="📂"
                       ToolTip.Tip="Import argument from file"
                       Padding="6,2" Margin="6,0,0,0"
                       Command="{CompiledBinding ImportCommand}" />

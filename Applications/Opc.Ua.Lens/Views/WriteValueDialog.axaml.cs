@@ -97,6 +97,7 @@ internal sealed partial class WriteValueDialog : Window
         var dataTypeLbl = this.RequiredControl<TextBlock>("DataTypeLabel");
         var currentLbl = this.RequiredControl<TextBlock>("CurrentLabel");
         var valueText = this.RequiredControl<TextBox>("ValueText");
+        var complexEditor = this.RequiredControl<ComplexValueEditor>("ComplexEditor");
         dataTypeLbl.Text = "(loading…)";
         currentLbl.Text = "(loading…)";
 
@@ -129,6 +130,26 @@ internal sealed partial class WriteValueDialog : Window
             // Pre-fill the textbox with the current value so the user has a
             // concrete starting point.
             valueText.Text = formatted;
+
+            // If the resolved DataType is a Structure or Enum and we are
+            // editing a scalar, swap the primitive TextBox for the
+            // structured editor.  The TextBox stays available as a fallback
+            // when the server doesn't expose DataTypeDefinition.
+            if (m_valueRank == ValueRanks.Scalar
+                || m_valueRank == ValueRanks.ScalarOrOneDimension
+                || m_valueRank == ValueRanks.Any)
+            {
+                DataTypeDefinition? def = await ComplexValueIO
+                    .GetDataTypeDefinitionAsync(m_dataType, m_session, CancellationToken.None)
+                    .ConfigureAwait(true);
+                if (def is StructureDefinition or EnumDefinition)
+                {
+                    complexEditor.Initialize(m_dataType, def, m_session);
+                    complexEditor.Value = current.WrappedValue;
+                    complexEditor.IsVisible = true;
+                    valueText.IsVisible = false;
+                }
+            }
         }
         catch (Exception ex)
         {
@@ -168,6 +189,7 @@ internal sealed partial class WriteValueDialog : Window
     private async Task OnWrite()
     {
         var valueText = this.RequiredControl<TextBox>("ValueText");
+        var complexEditor = this.RequiredControl<ComplexValueEditor>("ComplexEditor");
         var result = this.RequiredControl<TextBlock>("ResultLabel");
         if (m_dataType.IsNull)
         {
@@ -176,8 +198,18 @@ internal sealed partial class WriteValueDialog : Window
             return;
         }
 
-        if (!VariantParser.TryParse(m_dataType, m_valueRank,
-            valueText.Text ?? string.Empty, out Variant parsed, out string? perr))
+        Variant parsed;
+        if (complexEditor.IsVisible)
+        {
+            if (!complexEditor.TryCommit(out parsed, out string? cerr))
+            {
+                result.Text = $"Editor: {cerr}";
+                result.Foreground = new SolidColorBrush(Color.FromRgb(0xF8, 0x71, 0x71));
+                return;
+            }
+        }
+        else if (!VariantParser.TryParse(m_dataType, m_valueRank,
+            valueText.Text ?? string.Empty, out parsed, out string? perr))
         {
             result.Text = $"Parse error: {perr}";
             result.Foreground = new SolidColorBrush(Color.FromRgb(0xF8, 0x71, 0x71));

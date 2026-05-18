@@ -121,6 +121,7 @@
           <MenuItem x:Name="MenuNewEventView"      Header="🔔  _Event View" />
           <MenuItem x:Name="MenuNewHistorian"      Header="📈  _Historian" />
           <MenuItem x:Name="MenuNewFileSystem"     Header="📁  _File System" />
+          <MenuItem x:Name="MenuNewCertificateManager" Header="🔑  _Certificate Manager" />
         </MenuItem>
         <Separator />
         <MenuItem x:Name="MenuRenameTab"   Header="_Rename Active Tab"    InputGesture="F2" />
@@ -140,12 +141,14 @@
         <Separator />
         <MenuItem Header="_Address Space">
           <MenuItem x:Name="MenuToggleAddressSpace" Header="_Show Address Space" ToggleType="CheckBox" IsChecked="True" InputGesture="Ctrl+B" />
+          <MenuItem x:Name="MenuToggleAddressSpaceFilters" Header="_Filter / View Combo" ToggleType="CheckBox" InputGesture="Ctrl+Shift+F" />
           <MenuItem x:Name="MenuToggleAttrs"        Header="A_ttributes"         ToggleType="CheckBox" InputGesture="Ctrl+A" />
           <MenuItem x:Name="MenuToggleRefs"         Header="_References"         ToggleType="CheckBox" InputGesture="Ctrl+R" />
         </MenuItem>
       </MenuItem>
       <MenuItem Header="_Help">
         <MenuItem x:Name="MenuAbout" Header="_Cheat sheet" InputGesture="F1" />
+        <MenuItem x:Name="MenuAboutDialog" Header="_About…" />
       </MenuItem>
       </Menu>
     </DockPanel>
@@ -223,6 +226,11 @@
                     ToolTip.Tip="Refresh address space"
                     Padding="2,0"
                     MinWidth="0"
+                    VerticalAlignment="Center" />
+            <Button x:Name="ToggleAddressSpaceFiltersBtn" Classes="tonal"
+                    DockPanel.Dock="Right" Content="🔽"
+                    ToolTip.Tip="Show/hide filters and view selector (Ctrl+Shift+F)"
+                    Padding="2,0" MinWidth="0" Margin="0,0,4,0"
                     VerticalAlignment="Center" />
             <TextBlock Classes="h" Text="Address space" VerticalAlignment="Center" />
           </DockPanel>

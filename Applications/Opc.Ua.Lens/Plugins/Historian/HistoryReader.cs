@@ -119,6 +119,239 @@ internal sealed class HistoryReader
         return ReadLoopAsync(nodeId, new ExtensionObject(details), ct);
     }
 
+    /// <summary>
+    /// Best-effort: resolves the standard <c>Annotations</c> property of
+    /// the historizing variable (Part 11 §5.4.5) and, when present, reads
+    /// the annotation history covering the source timestamps of the given
+    /// rows.  Each <see cref="HistoryRow.Annotation"/> is populated with
+    /// the first annotation whose <see cref="Annotation.AnnotationTime"/>
+    /// matches the row's <see cref="HistoryRow.SourceTimestamp"/> (UTC,
+    /// millisecond precision).  Servers that do not expose the
+    /// <c>Annotations</c> property or that fail the secondary read are
+    /// silently skipped — annotations are an optional feature and missing
+    /// annotations must never break the primary value read.
+    /// </summary>
+    public async Task AttachAnnotationsAsync(
+        NodeId variableNodeId,
+        IReadOnlyList<HistoryRow> rows,
+        CancellationToken ct)
+    {
+        if (variableNodeId.IsNull || rows.Count == 0)
+        {
+            return;
+        }
+        NodeId? annotationsNodeId = await ResolveAnnotationsNodeIdAsync(variableNodeId, ct).ConfigureAwait(false);
+        if (!annotationsNodeId.HasValue || annotationsNodeId.Value.IsNull)
+        {
+            return;
+        }
+        NodeId annNode = annotationsNodeId.Value;
+        DateTime minTs = DateTime.MaxValue;
+        DateTime maxTs = DateTime.MinValue;
+        foreach (HistoryRow r in rows)
+        {
+            DateTime ts = r.SourceTimestamp.Kind == DateTimeKind.Utc
+                ? r.SourceTimestamp
+                : r.SourceTimestamp.ToUniversalTime();
+            if (ts < minTs)
+            {
+                minTs = ts;
+            }
+            if (ts > maxTs)
+            {
+                maxTs = ts;
+            }
+        }
+        if (minTs == DateTime.MaxValue)
+        {
+            return;
+        }
+        // Pad the range by one millisecond on each side so servers that
+        // treat StartTime/EndTime as exclusive still return the bounding
+        // annotations.
+        DateTime start = minTs.AddMilliseconds(-1);
+        DateTime end = maxTs.AddMilliseconds(1);
+        List<DataValue> annotationValues;
+        try
+        {
+            annotationValues = await ReadAnnotationDataValuesAsync(annNode, start, end, ct)
+                .ConfigureAwait(false);
+        }
+        catch (Exception)
+        {
+            // Best-effort — server doesn't support annotations or read
+            // failed for an unrelated reason.  Annotation column simply
+            // stays empty for this batch.
+            return;
+        }
+        if (annotationValues.Count == 0)
+        {
+            return;
+        }
+        // Build a lookup keyed by 100ns-truncated source ticks so an
+        // ordinary equality match suffices.  Annotations whose
+        // AnnotationTime aligns with a known row are projected onto the
+        // row; orphan annotations are ignored.
+        var byTick = new Dictionary<long, HistoryRow>(rows.Count);
+        foreach (HistoryRow r in rows)
+        {
+            DateTime ts = r.SourceTimestamp.Kind == DateTimeKind.Utc
+                ? r.SourceTimestamp
+                : r.SourceTimestamp.ToUniversalTime();
+            byTick[ts.Ticks] = r;
+        }
+        foreach (DataValue dv in annotationValues)
+        {
+            if (dv is null || dv.WrappedValue.IsNull)
+            {
+                continue;
+            }
+            Annotation? ann = ExtractAnnotation(dv.WrappedValue);
+            if (ann is null)
+            {
+                continue;
+            }
+            // The DataValue's SourceTimestamp identifies the *data point*
+            // being annotated (per Part 11 §5.4.5); the inner
+            // Annotation.AnnotationTime is when the annotation itself
+            // was created, which is not what we want to match on.
+            DateTime key = (DateTime)dv.SourceTimestamp;
+            if (key.Kind != DateTimeKind.Utc)
+            {
+                key = key.ToUniversalTime();
+            }
+            if (byTick.TryGetValue(key.Ticks, out HistoryRow? matched))
+            {
+                matched.Annotation = ann;
+            }
+        }
+    }
+
+    private async Task<NodeId?> ResolveAnnotationsNodeIdAsync(
+        NodeId variableNodeId, CancellationToken ct)
+    {
+        try
+        {
+            var element = new RelativePathElement
+            {
+                ReferenceTypeId = ReferenceTypeIds.HasProperty,
+                IsInverse = false,
+                IncludeSubtypes = false,
+                TargetName = new QualifiedName(BrowseNames.Annotations)
+            };
+            var browsePath = new BrowsePath
+            {
+                StartingNode = variableNodeId,
+                RelativePath = new RelativePath { Elements = [element] }
+            };
+            var browsePaths = new List<BrowsePath> { browsePath }.ToArrayOf();
+            TranslateBrowsePathsToNodeIdsResponse resp = await m_session
+                .TranslateBrowsePathsToNodeIdsAsync(null, browsePaths, ct)
+                .ConfigureAwait(false);
+            if (resp.Results.Count == 0)
+            {
+                return null;
+            }
+            BrowsePathResult r = resp.Results[0];
+            if (StatusCode.IsBad(r.StatusCode) || r.Targets is not { Count: > 0 } targets)
+            {
+                return null;
+            }
+            NodeId mapped = ExpandedNodeId.ToNodeId(targets[0].TargetId, m_session.NamespaceUris);
+            return mapped.IsNull ? null : mapped;
+        }
+        catch (Exception)
+        {
+            return null;
+        }
+    }
+
+    private async Task<List<DataValue>> ReadAnnotationDataValuesAsync(
+        NodeId annotationsNodeId,
+        DateTime startUtc,
+        DateTime endUtc,
+        CancellationToken ct)
+    {
+        var details = new ReadRawModifiedDetails
+        {
+            StartTime = startUtc,
+            EndTime = endUtc,
+            NumValuesPerNode = 0,
+            IsReadModified = false,
+            ReturnBounds = false
+        };
+        var detailsObject = new ExtensionObject(details);
+        var results = new List<DataValue>();
+        ByteString continuationPoint = default;
+        while (true)
+        {
+            ct.ThrowIfCancellationRequested();
+            var valueId = new HistoryReadValueId
+            {
+                NodeId = annotationsNodeId,
+                ContinuationPoint = continuationPoint
+            };
+            var nodesToRead = new HistoryReadValueId[] { valueId };
+            HistoryReadResponse response = await m_session.HistoryReadAsync(
+                requestHeader: null,
+                historyReadDetails: detailsObject,
+                timestampsToReturn: TimestampsToReturn.Source,
+                releaseContinuationPoints: false,
+                nodesToRead: nodesToRead,
+                ct: ct).ConfigureAwait(false);
+            if (response.Results.Count == 0)
+            {
+                return results;
+            }
+            HistoryReadResult r = response.Results[0];
+            if (StatusCode.IsBad(r.StatusCode))
+            {
+                return results;
+            }
+            if (r.HistoryData.TryGetValue(out HistoryData? hd) && hd is not null)
+            {
+                foreach (DataValue dv in hd.DataValues)
+                {
+                    if (dv is not null)
+                    {
+                        results.Add(dv);
+                    }
+                }
+            }
+            ByteString cp = r.ContinuationPoint;
+            if (cp.IsNull || cp.Length == 0)
+            {
+                return results;
+            }
+            continuationPoint = cp;
+        }
+    }
+
+    private static Annotation? ExtractAnnotation(Variant v)
+    {
+        object? boxed = v.Value;
+        switch (boxed)
+        {
+            case Annotation ann:
+                return ann;
+            case ExtensionObject eo when eo.Body is Annotation ann2:
+                return ann2;
+            case ExtensionObject[] arr when arr.Length > 0:
+                foreach (ExtensionObject e in arr)
+                {
+                    if (e.Body is Annotation match)
+                    {
+                        return match;
+                    }
+                }
+                return null;
+            case Annotation[] arr when arr.Length > 0:
+                return arr[0];
+            default:
+                return null;
+        }
+    }
+
     private async Task<List<HistoryRow>> ReadLoopAsync(
         NodeId nodeId,
         ExtensionObject historyReadDetails,

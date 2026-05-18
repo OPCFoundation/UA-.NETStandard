@@ -29,11 +29,12 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="UaLens.Plugins.EventView.EventFilterDialog"
+        xmlns:views="clr-namespace:UaLens.Views"
         Title="Event filter"
-        Width="520" Height="500"
+        Width="780" Height="720"
         WindowStartupLocation="CenterOwner"
         Background="#0F172A" Foreground="#E2E8F0">
-  <Grid Margin="16" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,*,Auto" ColumnDefinitions="*">
+  <Grid Margin="16" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,*,Auto,Auto" ColumnDefinitions="*">
 
     <TextBlock Grid.Row="0"
                Text="OPC UA event filter"
@@ -81,7 +82,13 @@
       </ScrollViewer>
     </Border>
 
-    <StackPanel Grid.Row="7" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+    <Expander Grid.Row="7" x:Name="WhereClauseExpander"
+              Header="Where clause (ContentFilter)"
+              IsExpanded="False" Margin="0,12,0,0">
+      <views:ContentFilterEditor x:Name="WhereClauseEditor" Height="420" />
+    </Expander>
+
+    <StackPanel Grid.Row="8" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
       <Button x:Name="OkButton"     Content="Apply"  IsDefault="True" Width="90" />
       <Button x:Name="CancelButton" Content="Cancel" IsCancel="True"  Width="90" Margin="8,0,0,0" />
     </StackPanel>

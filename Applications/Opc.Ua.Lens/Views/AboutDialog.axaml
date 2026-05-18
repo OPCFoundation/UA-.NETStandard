@@ -1,0 +1,82 @@
+<!-- ========================================================================
+   Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+
+   OPC Foundation MIT License 1.00
+
+   Permission is hereby granted, free of charge, to any person
+   obtaining a copy of this software and associated documentation
+   files (the "Software"), to deal in the Software without
+   restriction, including without limitation the rights to use,
+   copy, modify, merge, publish, distribute, sublicense, and/or sell
+   copies of the Software, and to permit persons to whom the
+   Software is furnished to do so, subject to the following
+   conditions:
+
+   The above copyright notice and this permission notice shall be
+   included in all copies or substantial portions of the Software.
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+   EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+   OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+   NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+   HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+   WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+   FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+   OTHER DEALINGS IN THE SOFTWARE.
+
+   The complete license agreement can be found here:
+   http://opcfoundation.org/License/MIT/1.00/
+======================================================================== -->
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="UaLens.Views.AboutDialog"
+        Title="About UaLens"
+        Width="480" Height="420"
+        WindowStartupLocation="CenterOwner"
+        Background="#0F172A" Foreground="#E2E8F0"
+        FontFamily="Inter, Segoe UI, sans-serif">
+  <Grid Margin="16" RowDefinitions="Auto,*,Auto">
+
+    <!-- Header: icon + product info -->
+    <Grid Grid.Row="0" ColumnDefinitions="Auto,*" Margin="0,0,0,12">
+      <Image Grid.Column="0"
+             Width="64" Height="64"
+             VerticalAlignment="Top"
+             Source="avares://UaLens/Assets/app-icon.png" />
+      <StackPanel Grid.Column="1" Margin="14,0,0,0" Spacing="2">
+        <TextBlock Text="UaLens"
+                   FontSize="22" FontWeight="SemiBold"
+                   Foreground="#E2E8F0" />
+        <TextBlock Text="Multi-tab Avalonia desktop client for OPC UA"
+                   FontSize="12" Foreground="#94A3B8" />
+        <TextBlock x:Name="VersionLabel"
+                   FontSize="12" Foreground="#94A3B8"
+                   Margin="0,6,0,0" />
+        <TextBlock Text="Copyright © 2025 OPC Foundation, Inc."
+                   FontSize="12" Foreground="#94A3B8" />
+      </StackPanel>
+    </Grid>
+
+    <!-- License body -->
+    <TextBox Grid.Row="1"
+             x:Name="LicenseBox"
+             AcceptsReturn="True"
+             IsReadOnly="True"
+             TextWrapping="Wrap"
+             FontFamily="Cascadia Mono, Consolas, monospace"
+             FontSize="11"
+             Background="#0B1220" Foreground="#CBD5E1"
+             BorderBrush="#1E293B" BorderThickness="1" />
+
+    <!-- Bottom-right action buttons -->
+    <StackPanel Grid.Row="2" Orientation="Horizontal"
+                HorizontalAlignment="Right" Spacing="8" Margin="0,12,0,0">
+      <Button x:Name="WebsiteButton" Content="Visit website"
+              Padding="12,6" MinWidth="120"
+              Background="#1E293B" Foreground="#E2E8F0" />
+      <Button x:Name="CloseButton" Content="Close"
+              IsCancel="True" IsDefault="True"
+              Padding="12,6" MinWidth="100"
+              Background="#0EA5E9" Foreground="#0F172A" FontWeight="SemiBold" />
+    </StackPanel>
+  </Grid>
+</Window>

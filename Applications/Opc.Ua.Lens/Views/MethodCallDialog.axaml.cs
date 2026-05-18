@@ -176,12 +176,42 @@ internal sealed partial class MethodCallDialog : Window
             {
                 var row = new MethodArgRow(a, FormatDefault(a));
                 row.ImportCommand = new AsyncRelayCommand(() => OnImportArgAsync(row));
+                row.EditComplexCommand = new AsyncRelayCommand(() => OnEditComplexArgAsync(row));
                 Inputs.Add(row);
             }
+
+            // After the rows are built, probe each argument's DataType for
+            // a StructureDefinition / EnumDefinition.  Rows whose type
+            // resolves to a complex shape get an "Edit struct…" affordance
+            // alongside their primitive TextBox; the textbox stays so
+            // users can still hand-paste a JSON/XML payload.
+            await ProbeComplexTypesAsync().ConfigureAwait(true);
         }
         catch (Exception ex)
         {
             this.RequiredControl<TextBlock>("ResultStatus").Text = $"Failed to load arguments: {ex.Message}";
+        }
+    }
+
+    private async Task ProbeComplexTypesAsync()
+    {
+        for (int i = 0; i < m_arguments.Length && i < Inputs.Count; i++)
+        {
+            Argument a = m_arguments[i];
+            if (a.ValueRank != ValueRanks.Scalar
+                && a.ValueRank != ValueRanks.ScalarOrOneDimension
+                && a.ValueRank != ValueRanks.Any)
+            {
+                continue;
+            }
+            DataTypeDefinition? def = await ComplexValueIO
+                .GetDataTypeDefinitionAsync(a.DataType, m_session, CancellationToken.None)
+                .ConfigureAwait(true);
+            if (def is StructureDefinition or EnumDefinition)
+            {
+                Inputs[i].Definition = def;
+                Inputs[i].IsComplex = true;
+            }
         }
     }
 
@@ -233,8 +263,15 @@ internal sealed partial class MethodCallDialog : Window
         for (int i = 0; i < m_arguments.Length; i++)
         {
             Argument a = m_arguments[i];
-            string txt = i < Inputs.Count ? Inputs[i].ValueText : string.Empty;
-            if (!VariantParser.TryParse(a.DataType, a.ValueRank, txt ?? string.Empty,
+            MethodArgRow? row = i < Inputs.Count ? Inputs[i] : null;
+            if (row?.CachedVariant is { IsNull: false } cached)
+            {
+                // Complex-edit / import path bypassed the text parser.
+                parsed.Add(cached);
+                continue;
+            }
+            string txt = row?.ValueText ?? string.Empty;
+            if (!VariantParser.TryParse(a.DataType, a.ValueRank, txt,
                 out Variant v, out string? perr))
             {
                 statusLbl.Text = $"Argument '{a.Name}' parse error: {perr}";
@@ -314,6 +351,7 @@ internal sealed partial class MethodCallDialog : Window
             Variant v = UaLens.Connection.DataValueCodec.DecodeVariant(
                 bytes, fmt, m_session.MessageContext);
             row.ValueText = FormatVariant(v);
+            row.CachedVariant = v;
             statusLbl.Text = $"Loaded {row.Header} from {name} ({fmt}).";
             statusLbl.Foreground = new SolidColorBrush(Color.FromRgb(0x22, 0xC5, 0x5E));
         }
@@ -321,6 +359,25 @@ internal sealed partial class MethodCallDialog : Window
         {
             statusLbl.Text = $"Import failed: {ex.Message}";
             statusLbl.Foreground = new SolidColorBrush(Color.FromRgb(0xF8, 0x71, 0x71));
+        }
+    }
+
+    private async Task OnEditComplexArgAsync(MethodArgRow row)
+    {
+        var statusLbl = this.RequiredControl<TextBlock>("ResultStatus");
+        if (row.Definition is null)
+        {
+            return;
+        }
+        var dlg = new ComplexValueElementDialog(
+            row.Argument.DataType, row.Definition, m_session, row.CachedVariant);
+        Variant? edited = await dlg.ShowDialog<Variant?>(this).ConfigureAwait(true);
+        if (edited.HasValue)
+        {
+            row.CachedVariant = edited.Value;
+            row.ValueText = FormatVariant(edited.Value);
+            statusLbl.Text = $"Edited {row.Header} (complex value).";
+            statusLbl.Foreground = new SolidColorBrush(Color.FromRgb(0xE2, 0xE8, 0xF0));
         }
     }
 
@@ -384,8 +441,23 @@ internal sealed partial class MethodArgRow : ObservableObject
 {
     public string Header { get; }
 
+    public Argument Argument { get; }
+
     [ObservableProperty]
     private string m_valueText;
+
+    [ObservableProperty]
+    private bool m_isComplex;
+
+    public DataTypeDefinition? Definition { get; set; }
+
+    /// <summary>
+    /// Cached structured-value / imported variant.  When non-null and
+    /// non-<see cref="Variant.Null"/> the dialog uses this directly
+    /// instead of re-parsing the text — preserves complex bodies that
+    /// can't be round-tripped through <see cref="VariantParser"/>.
+    /// </summary>
+    public Variant CachedVariant { get; set; } = Variant.Null;
 
     /// <summary>
     /// Per-row Import command, wired after construction by the dialog
@@ -394,8 +466,16 @@ internal sealed partial class MethodArgRow : ObservableObject
     /// </summary>
     public System.Windows.Input.ICommand? ImportCommand { get; set; }
 
+    /// <summary>
+    /// Per-row Edit-complex command, wired after construction by the
+    /// dialog code-behind.  Bound to the puzzle-piece button; visible
+    /// only when <see cref="IsComplex"/> is true.
+    /// </summary>
+    public System.Windows.Input.ICommand? EditComplexCommand { get; set; }
+
     public MethodArgRow(Argument a, string defaultValue)
     {
+        Argument = a;
         Header = $"{a.Name} : {a.DataType} (rank={a.ValueRank})";
         m_valueText = defaultValue;
     }

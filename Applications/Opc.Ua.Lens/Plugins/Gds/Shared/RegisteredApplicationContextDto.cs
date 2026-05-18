@@ -28,28 +28,33 @@
  * ======================================================================*/
 
 using System.Collections.Generic;
-using System.Xml.Serialization;
+using System.Text.Json.Serialization;
 
 namespace UaLens.Plugins.Gds;
 
 /// <summary>
-/// Mutable, parameter-less, public XML round-trip companion for
+/// Mutable, parameter-less, internal JSON round-trip companion for
 /// <see cref="RegisteredApplicationContext"/>.
 /// </summary>
 /// <remarks>
 /// <para>
 /// <see cref="RegisteredApplicationContext"/> is an <em>internal</em>
 /// immutable <c>record</c> with a primary constructor — incompatible
-/// with <see cref="XmlSerializer"/>, which requires the serialised type
-/// to be <em>public</em>, have a parameter-less constructor, and expose
-/// settable public properties.
+/// with most serialisers, which require a parameter-less constructor
+/// and settable properties.
 /// </para>
 /// <para>
-/// This sibling DTO is intentionally a flat, public POCO with no
-/// references to the internal record or its enum so it can be wired
-/// straight into <see cref="XmlSerializer"/>. Conversion to/from the
-/// internal record lives in <c>RegisteredApplicationContextXml</c>
-/// alongside the record itself.
+/// This sibling DTO is a flat POCO with no references to the internal
+/// record or its enum, dedicated to System.Text.Json round-trip via the
+/// source-generated <see cref="RegisteredApplicationContextJsonContext"/>.
+/// Conversion to/from the internal record lives in
+/// <c>RegisteredApplicationContextXml</c> alongside the record itself.
+/// </para>
+/// <para>
+/// Property names on the wire are camelCase courtesy of the JSON naming
+/// policy declared on <see cref="RegisteredApplicationContextJsonContext"/>;
+/// null values are omitted on write. No per-property
+/// <see cref="JsonPropertyNameAttribute"/> overrides are needed.
 /// </para>
 /// <para>
 /// <see cref="EndpointDescription"/> serialisation is deliberately not
@@ -58,8 +63,7 @@ namespace UaLens.Plugins.Gds;
 /// use-time so the persisted URL is enough to drive the picker.
 /// </para>
 /// </remarks>
-[XmlRoot("RegisteredApplicationContext")]
-public sealed class RegisteredApplicationContextDto
+internal sealed class RegisteredApplicationContextDto
 {
     /// <summary>GDS-assigned application id as its string form
     /// (<c>NodeId.ToString()</c>); empty when not yet registered.</summary>
@@ -79,13 +83,9 @@ public sealed class RegisteredApplicationContextDto
     public string RegistrationType { get; set; } = "ClientPull";
 
     /// <summary>DiscoveryUrls advertised for the application.</summary>
-    [XmlArray("DiscoveryUrls")]
-    [XmlArrayItem("Url")]
     public List<string> DiscoveryUrls { get; set; } = new();
 
     /// <summary>Server capabilities ("LiveData", "DA", "HA", …).</summary>
-    [XmlArray("ServerCapabilities")]
-    [XmlArrayItem("Capability")]
     public List<string> ServerCapabilities { get; set; } = new();
 
     /// <summary>Comma-separated SAN list used when crafting CSRs.</summary>
@@ -130,4 +130,23 @@ public sealed class RegisteredApplicationContextDto
 
     /// <summary>Push-endpoint <c>SecurityPolicyUri</c>.</summary>
     public string? PushEndpointSecurityPolicyUri { get; set; }
+}
+
+/// <summary>
+/// System.Text.Json source-generated serialiser context for
+/// <see cref="RegisteredApplicationContextDto"/>.
+/// </summary>
+/// <remarks>
+/// Using a <see cref="JsonSerializerContext"/> makes the round-trip
+/// trim-safe and NativeAOT-compatible — required because the
+/// <c>net10.0</c> Lens build ships with <c>&lt;PublishAot&gt;true&lt;/PublishAot&gt;</c>
+/// and full trimming.
+/// </remarks>
+[JsonSourceGenerationOptions(
+    WriteIndented = true,
+    PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
+    DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
+[JsonSerializable(typeof(RegisteredApplicationContextDto))]
+internal sealed partial class RegisteredApplicationContextJsonContext : JsonSerializerContext
+{
 }

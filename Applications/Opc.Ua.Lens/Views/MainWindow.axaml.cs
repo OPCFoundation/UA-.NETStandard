@@ -128,6 +128,7 @@ internal sealed partial class MainWindow : Window, IDisposable
         var menuNewEventView = this.RequiredControl<MenuItem>("MenuNewEventView");
         var menuNewHistorian = this.RequiredControl<MenuItem>("MenuNewHistorian");
         var menuNewFileSystem = this.RequiredControl<MenuItem>("MenuNewFileSystem");
+        var menuNewCertificateManager = this.RequiredControl<MenuItem>("MenuNewCertificateManager");
         var menuRenameTab = this.RequiredControl<MenuItem>("MenuRenameTab");
         var menuCloseTab = this.RequiredControl<MenuItem>("MenuCloseTab");
         var menuAddItem = this.RequiredControl<MenuItem>("MenuAddItemMenu");
@@ -137,9 +138,12 @@ internal sealed partial class MainWindow : Window, IDisposable
         var menuDiag = this.RequiredControl<MenuItem>("MenuToggleDiag");
         var menuLog = this.RequiredControl<MenuItem>("MenuToggleLog");
         var menuAS = this.RequiredControl<MenuItem>("MenuToggleAddressSpace");
+        var menuASFilters = this.RequiredControl<MenuItem>("MenuToggleAddressSpaceFilters");
         var menuAttrs = this.RequiredControl<MenuItem>("MenuToggleAttrs");
         var menuRefs = this.RequiredControl<MenuItem>("MenuToggleRefs");
         var menuAbout = this.RequiredControl<MenuItem>("MenuAbout");
+        var menuAboutDialog = this.RequiredControl<MenuItem>("MenuAboutDialog");
+        var toggleFiltersBtn = this.RequiredControl<Button>("ToggleAddressSpaceFiltersBtn");
 
         // Connection panel Change ▾ flyout items.
         var menuConnDisconnect = this.RequiredControl<MenuItem>("MenuConnectionDisconnect");
@@ -201,6 +205,7 @@ internal sealed partial class MainWindow : Window, IDisposable
         menuNewEventView.Click += async (_, _) => await m_vm.AddPluginAsync(PluginKind.EventView).ConfigureAwait(false);
         menuNewHistorian.Click += async (_, _) => await m_vm.AddPluginAsync(PluginKind.Historian).ConfigureAwait(false);
         menuNewFileSystem.Click += async (_, _) => await m_vm.AddPluginAsync(PluginKind.FileSystem).ConfigureAwait(false);
+        menuNewCertificateManager.Click += async (_, _) => await m_vm.AddPluginAsync(PluginKind.CertificateManager).ConfigureAwait(false);
 
         // --- Tabs → Rename / Duplicate / Close Active Tab ---
         menuRenameTab.Click += (_, _) =>
@@ -257,8 +262,37 @@ internal sealed partial class MainWindow : Window, IDisposable
             UpdateLeftStackRows();
         };
 
+        // --- View menu: Address Space → Filter / View combo toggle.
+        // Bound to Browser.ShowFilters (default false).  The toolbar 🔽
+        // button on the address-space column header and the Ctrl+Shift+F
+        // keyboard shortcut both flip the same property.
+        menuASFilters.IsChecked = m_vm.Browser.ShowFilters;
+        menuASFilters.Click += (_, _) =>
+        {
+            m_vm.Browser.ShowFilters = menuASFilters.IsChecked;
+        };
+        toggleFiltersBtn.Click += (_, _) =>
+        {
+            m_vm.Browser.ShowFilters = !m_vm.Browser.ShowFilters;
+        };
+        m_vm.Browser.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(UaLens.ViewModels.BrowserViewModel.ShowFilters))
+            {
+                Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                {
+                    menuASFilters.IsChecked = m_vm.Browser.ShowFilters;
+                });
+            }
+        };
+
         // --- Help menu ---
         menuAbout.Click += (_, _) => ShowHelp();
+        menuAboutDialog.Click += async (_, _) =>
+        {
+            var dlg = new AboutDialog();
+            await dlg.ShowDialog(this).ConfigureAwait(true);
+        };
 
         // Sync menu check state from the view model's initial state.
         SyncViewMenuFromVm(menuAttrs, menuRefs);
@@ -652,6 +686,8 @@ internal sealed partial class MainWindow : Window, IDisposable
             { ToggleMenu(menuAttrs); e.Handled = true; return; }
             if (ctrl && e.Key == Key.R && !shift)
             { ToggleMenu(menuRefs); e.Handled = true; return; }
+            if (ctrl && shift && e.Key == Key.F)
+            { ToggleMenu(menuASFilters); e.Handled = true; return; }
 
             // View-cycle and time-scale (no menu items — direct).
             if (ctrl && e.Key == Key.V)
@@ -2348,6 +2384,7 @@ internal sealed partial class MainWindow : Window, IDisposable
                 "  F2                  Toggle diagnostics panel\n" +
                 "  Ctrl+L              Toggle log panel\n" +
                 "  Ctrl+B              Toggle address-space pane\n" +
+                "  Ctrl+Shift+F        Toggle address-space filter / view combo\n" +
                 "  Ctrl+A              Toggle Attributes pane (sub of address space)\n" +
                 "  Ctrl+R              Toggle References pane (sub of address space)\n" +
                 "  Ctrl+V              Cycle chart view mode\n" +
@@ -2358,8 +2395,8 @@ internal sealed partial class MainWindow : Window, IDisposable
                 "  F1                  Cheat sheet (this dialog)\n" +
                 "\n" +
                 "  Tree-view glyphs:\n" +
-                "    ◉ Object   ◇ ObjectType   ○ Variable   ◎ VariableType\n" +
-                "    ▶ Method   ◦ ReferenceType   □ DataType   ▣ View"
+                "    🟦 Object   🧩 ObjectType   🟢 Variable   🟣 VariableType\n" +
+                "    ⚙️ Method   🔗 ReferenceType   🧮 DataType   👁️ View"
         };
         help.ShowDialog(this);
     }

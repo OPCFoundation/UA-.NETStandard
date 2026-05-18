@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.ComponentModel;
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Markup.Xaml;
 using Avalonia.Threading;
 using ScottPlot;
@@ -178,5 +179,54 @@ internal sealed partial class HistorianView : UserControl
         m_scatter.MarkerSize = 4;
         plot.Axes.AutoScale();
         m_plot.Refresh();
+    }
+
+    /// <summary>
+    /// Right-click on a history row sets <see cref="HistorianPlugin.SelectedRow"/>
+    /// to the clicked row and attaches a context menu with the per-row
+    /// actions (Edit annotation… / Edit row / Delete row) so the user
+    /// can dispatch operations against any row without first selecting
+    /// it via the keyboard or single-click.
+    /// </summary>
+    private void OnRowPointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (DataContext is not HistorianPlugin vm)
+        {
+            return;
+        }
+        if (sender is not Control row || row.DataContext is not HistoryRow item)
+        {
+            return;
+        }
+        PointerPointProperties props = e.GetCurrentPoint(row).Properties;
+        if (props.IsRightButtonPressed || props.IsLeftButtonPressed)
+        {
+            vm.SelectedRow = item;
+        }
+        if (props.IsRightButtonPressed)
+        {
+            row.ContextMenu = BuildRowContextMenu(vm);
+        }
+    }
+
+    private static ContextMenu BuildRowContextMenu(HistorianPlugin vm)
+    {
+        var menu = new ContextMenu();
+
+        var editAnn = new MenuItem { Header = "Edit _annotation…" };
+        editAnn.Click += async (_, _) => await vm.EditAnnotationAsync().ConfigureAwait(true);
+        menu.Items.Add(editAnn);
+
+        menu.Items.Add(new Separator());
+
+        var editRow = new MenuItem { Header = "_Edit row…" };
+        editRow.Click += async (_, _) => await vm.EditSelectedAsync().ConfigureAwait(true);
+        menu.Items.Add(editRow);
+
+        var deleteRow = new MenuItem { Header = "_Delete row" };
+        deleteRow.Click += async (_, _) => await vm.DeleteSelectedAsync().ConfigureAwait(true);
+        menu.Items.Add(deleteRow);
+
+        return menu;
     }
 }

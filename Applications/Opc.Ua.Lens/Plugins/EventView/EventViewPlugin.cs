@@ -101,6 +101,7 @@ internal sealed partial class EventViewPlugin : ObservableObject, IPlugin
 #pragma warning restore CA2213
     private SimpleAttributeOperand[] m_selectClauses;
     private string[] m_selectPaths;
+    private ContentFilter? m_whereClause;
     private long m_eventCount;
     private long m_droppedCount;
     private EventViewView? m_view;
@@ -447,7 +448,7 @@ internal sealed partial class EventViewPlugin : ObservableObject, IPlugin
                 SamplingInterval = 0,
                 QueueSize = 100,
                 DiscardOldest = true,
-                Filter = BuildEventFilter(m_selectClauses)
+                Filter = BuildEventFilter(m_selectClauses, m_whereClause)
             });
             sub.AddItem(mi);
             await sub.ApplyChangesAsync(CancellationToken.None).ConfigureAwait(true);
@@ -481,6 +482,7 @@ internal sealed partial class EventViewPlugin : ObservableObject, IPlugin
         (SimpleAttributeOperand[] clauses, string[] paths) = BuildSelectClauses(newFilter);
         m_selectClauses = clauses;
         m_selectPaths = paths;
+        m_whereClause = newFilter.WhereClause;
         await m_lock.WaitAsync().ConfigureAwait(true);
         try
         {
@@ -491,11 +493,12 @@ internal sealed partial class EventViewPlugin : ObservableObject, IPlugin
             }
             foreach (EventSourceVm src in EventSources)
             {
-                src.MonitoredItem.Filter = BuildEventFilter(clauses);
+                src.MonitoredItem.Filter = BuildEventFilter(clauses, m_whereClause);
             }
             await sub.ApplyChangesAsync(CancellationToken.None).ConfigureAwait(true);
-            m_log.LogInformation("Event View filter applied: severity≥{Sev}, {N} fields.",
-                newFilter.SeverityThreshold, newFilter.Fields.Count);
+            m_log.LogInformation("Event View filter applied: severity≥{Sev}, {N} fields, where={W}.",
+                newFilter.SeverityThreshold, newFilter.Fields.Count,
+                m_whereClause is null ? 0 : m_whereClause.Elements.Count);
         }
         catch (Exception ex)
         {
@@ -677,12 +680,18 @@ internal sealed partial class EventViewPlugin : ObservableObject, IPlugin
         return (ops, paths);
     }
 
-    private static EventFilter BuildEventFilter(IReadOnlyList<SimpleAttributeOperand> clauses)
+    private static EventFilter BuildEventFilter(
+        IReadOnlyList<SimpleAttributeOperand> clauses,
+        ContentFilter? whereClause)
     {
         var filter = new EventFilter();
         foreach (SimpleAttributeOperand op in clauses)
         {
             filter.SelectClauses = filter.SelectClauses.AddItem(op);
+        }
+        if (whereClause is not null && whereClause.Elements.Count > 0)
+        {
+            filter.WhereClause = whereClause;
         }
         return filter;
     }

@@ -30,35 +30,29 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Xml;
-using System.Xml.Serialization;
+using System.Text.Json;
+using System.Xml.Linq;
 using Opc.Ua;
 
 namespace UaLens.Plugins.Gds;
 
 /// <summary>
 /// Bridges the internal <see cref="RegisteredApplicationContext"/>
-/// record with its public <see cref="RegisteredApplicationContextDto"/>
-/// twin for XML save/load operations.
+/// record with its internal <see cref="RegisteredApplicationContextDto"/>
+/// twin for JSON save/load operations, with a backward-compatible XML
+/// load path for files produced by previous (XmlSerializer-based) builds.
 /// </summary>
 /// <remarks>
-/// All XML I/O goes through these helpers so the <see cref="XmlSerializer"/>
-/// call site is localised and the dialog code doesn't need to deal with
-/// stream / encoding plumbing. The DTO has to be public for
-/// <see cref="XmlSerializer"/> to operate on it; this helper keeps the
-/// internal record type out of any public surface.
+/// All file I/O goes through these helpers so the
+/// <see cref="JsonSerializer"/> / <see cref="XDocument"/> call sites are
+/// localised and the dialog code doesn't need to deal with stream /
+/// encoding plumbing. The JSON path is driven by the source-generated
+/// <see cref="RegisteredApplicationContextJsonContext"/>, keeping it
+/// trim-safe and NativeAOT-friendly.
 /// </remarks>
 internal static class RegisteredApplicationContextXml
 {
-    private static readonly XmlWriterSettings s_writerSettings = new()
-    {
-        Indent = true,
-        IndentChars = "  ",
-        NewLineChars = "\r\n",
-        Encoding = new System.Text.UTF8Encoding(encoderShouldEmitUTF8Identifier: false)
-    };
-
-    /// <summary>Lowers the internal record to its public XML DTO.</summary>
+    /// <summary>Lowers the internal record to its DTO.</summary>
     public static RegisteredApplicationContextDto ToDto(RegisteredApplicationContext src)
     {
         ArgumentNullException.ThrowIfNull(src);
@@ -149,7 +143,7 @@ internal static class RegisteredApplicationContextXml
     }
 
     /// <summary>
-    /// Serialises a context record to indented UTF-8 XML at <paramref name="path"/>,
+    /// Serialises a context record to indented UTF-8 JSON at <paramref name="path"/>,
     /// creating parent directories on demand.
     /// </summary>
     public static void Save(RegisteredApplicationContext record, string path)
@@ -161,29 +155,128 @@ internal static class RegisteredApplicationContextXml
         {
             Directory.CreateDirectory(dir);
         }
-        var serializer = new XmlSerializer(typeof(RegisteredApplicationContextDto));
         using FileStream fs = File.Create(path);
-        using XmlWriter writer = XmlWriter.Create(fs, s_writerSettings);
-        serializer.Serialize(writer, ToDto(record));
+        JsonSerializer.Serialize(
+            fs,
+            ToDto(record),
+            RegisteredApplicationContextJsonContext.Default.RegisteredApplicationContextDto);
     }
 
     /// <summary>
-    /// Deserialises a context record from XML at <paramref name="path"/>.
-    /// Throws <see cref="InvalidDataException"/> when the file does not
-    /// contain a recognisable <see cref="RegisteredApplicationContextDto"/>.
+    /// Deserialises a context record from <paramref name="path"/>.
     /// </summary>
+    /// <remarks>
+    /// JSON (the new on-disk format) is attempted first. If parsing fails
+    /// with a <see cref="JsonException"/> the file is treated as a legacy
+    /// XmlSerializer-produced document and parsed via <see cref="XDocument"/>,
+    /// so registrations saved by previous builds continue to load. Throws
+    /// <see cref="InvalidDataException"/> when neither format matches.
+    /// </remarks>
     public static RegisteredApplicationContext Load(string path)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
-        var serializer = new XmlSerializer(typeof(RegisteredApplicationContextDto));
-        using FileStream fs = File.OpenRead(path);
-        using XmlReader reader = XmlReader.Create(fs);
-        object? raw = serializer.Deserialize(reader);
-        if (raw is not RegisteredApplicationContextDto dto)
+
+        byte[] bytes = File.ReadAllBytes(path);
+
+        try
+        {
+            RegisteredApplicationContextDto? dto = JsonSerializer.Deserialize(
+                bytes,
+                RegisteredApplicationContextJsonContext.Default.RegisteredApplicationContextDto);
+            if (dto is null)
+            {
+                throw new InvalidDataException(
+                    $"File '{path}' did not yield a RegisteredApplicationContext payload.");
+            }
+            return ToRecord(dto);
+        }
+        catch (JsonException)
+        {
+            return ToRecord(LoadLegacyXmlDto(bytes, path));
+        }
+    }
+
+    /// <summary>
+    /// Parses the legacy XmlSerializer-flavoured XML format directly via
+    /// <see cref="XDocument"/>. The element names mirror the previous
+    /// <c>[XmlRoot]</c> / <c>[XmlArray]</c> / <c>[XmlArrayItem]</c>
+    /// decorations that have since been dropped from the DTO; using
+    /// <see cref="XDocument"/> here keeps the fallback trim- and AOT-safe
+    /// (XmlSerializer requires public types and emits reflection-heavy
+    /// dynamic code that is incompatible with the Lens NativeAOT build).
+    /// </summary>
+    private static RegisteredApplicationContextDto LoadLegacyXmlDto(byte[] bytes, string path)
+    {
+        XDocument doc;
+        try
+        {
+            using var ms = new MemoryStream(bytes, writable: false);
+            doc = XDocument.Load(ms);
+        }
+        catch (Exception ex) when (ex is System.Xml.XmlException or InvalidOperationException)
         {
             throw new InvalidDataException(
-                $"File '{path}' is not a RegisteredApplicationContext XML document.");
+                $"File '{path}' is not a valid RegisteredApplicationContext JSON or XML document.",
+                ex);
         }
-        return ToRecord(dto);
+
+        XElement? root = doc.Root;
+        if (root is null
+            || !string.Equals(root.Name.LocalName, "RegisteredApplicationContext", StringComparison.Ordinal))
+        {
+            throw new InvalidDataException(
+                $"File '{path}' is not a RegisteredApplicationContext document.");
+        }
+
+        var dto = new RegisteredApplicationContextDto
+        {
+            ApplicationId = ElementValue(root, "ApplicationId"),
+            ApplicationUri = ElementValue(root, "ApplicationUri") ?? string.Empty,
+            ApplicationName = ElementValue(root, "ApplicationName") ?? string.Empty,
+            ProductUri = ElementValue(root, "ProductUri") ?? string.Empty,
+            RegistrationType = ElementValue(root, "RegistrationType") ?? "ClientPull",
+            Domains = ElementValue(root, "Domains"),
+            CertificateStorePath = ElementValue(root, "CertificateStorePath"),
+            CertificateSubjectName = ElementValue(root, "CertificateSubjectName"),
+            CertificatePublicKeyPath = ElementValue(root, "CertificatePublicKeyPath"),
+            CertificatePrivateKeyPath = ElementValue(root, "CertificatePrivateKeyPath"),
+            TrustListStorePath = ElementValue(root, "TrustListStorePath"),
+            IssuerListStorePath = ElementValue(root, "IssuerListStorePath"),
+            HttpsCertificatePublicKeyPath = ElementValue(root, "HttpsCertificatePublicKeyPath"),
+            HttpsCertificatePrivateKeyPath = ElementValue(root, "HttpsCertificatePrivateKeyPath"),
+            HttpsTrustListStorePath = ElementValue(root, "HttpsTrustListStorePath"),
+            HttpsIssuerListStorePath = ElementValue(root, "HttpsIssuerListStorePath"),
+            PushEndpointUrl = ElementValue(root, "PushEndpointUrl"),
+            PushEndpointSecurityMode = ElementValue(root, "PushEndpointSecurityMode"),
+            PushEndpointSecurityPolicyUri = ElementValue(root, "PushEndpointSecurityPolicyUri")
+        };
+
+        CollectStringList(root, "DiscoveryUrls", "Url", dto.DiscoveryUrls);
+        CollectStringList(root, "ServerCapabilities", "Capability", dto.ServerCapabilities);
+
+        return dto;
+    }
+
+    private static string? ElementValue(XElement root, string localName)
+    {
+        XElement? el = root.Element(localName);
+        return el is null ? null : el.Value;
+    }
+
+    private static void CollectStringList(XElement root, string container, string item, List<string> sink)
+    {
+        XElement? containerEl = root.Element(container);
+        if (containerEl is null)
+        {
+            return;
+        }
+        foreach (XElement child in containerEl.Elements(item))
+        {
+            string value = child.Value;
+            if (!string.IsNullOrEmpty(value))
+            {
+                sink.Add(value);
+            }
+        }
     }
 }

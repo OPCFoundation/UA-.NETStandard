@@ -50,7 +50,8 @@ internal enum PluginKind
     Performance,
     EventView,
     Historian,
-    FileSystem
+    FileSystem,
+    CertificateManager
 }
 
 /// <summary>

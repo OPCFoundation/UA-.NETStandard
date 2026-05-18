@@ -46,13 +46,16 @@ namespace UaLens.Plugins.EventView;
 /// Configuration produced by the <see cref="EventFilterDialog"/>: the
 /// minimum severity that should pass the UI-side filter, the ordered
 /// list of SelectClause field BrowseNames to include in every monitored
-/// item's filter, and the event-type NodeId those fields are rooted on
-/// (used as <c>SimpleAttributeOperand.TypeDefinitionId</c>).
+/// item's filter, the event-type NodeId those fields are rooted on
+/// (used as <c>SimpleAttributeOperand.TypeDefinitionId</c>) and an
+/// optional <see cref="Opc.Ua.ContentFilter"/> bound to the EventFilter's
+/// <c>WhereClause</c>.
 /// </summary>
 internal sealed record EventFilterConfig(
     ushort SeverityThreshold,
     IReadOnlyList<string> Fields,
-    Opc.Ua.NodeId? EventTypeNodeId = null);
+    Opc.Ua.NodeId? EventTypeNodeId = null,
+    Opc.Ua.ContentFilter? WhereClause = null);
 
 /// <summary>
 /// Modal editor for the Event View's filter knobs: severity threshold
@@ -85,6 +88,7 @@ internal sealed partial class EventFilterDialog : Window
     private readonly Dictionary<string, CheckBox> m_checkboxes = new(StringComparer.Ordinal);
     private readonly TextBlock m_eventTypeLabel;
     private readonly StackPanel m_fieldsPanel;
+    private readonly ContentFilterEditor m_whereClauseEditor;
     private NodeId m_eventTypeNodeId;
     private IReadOnlyList<string> m_fields;
     private HashSet<string> m_selectedSnapshot;
@@ -113,6 +117,8 @@ internal sealed partial class EventFilterDialog : Window
         m_eventTypeLabel = this.RequiredControl<TextBlock>("EventTypeLabel");
         Button pickType = this.RequiredControl<Button>("PickTypeButton");
         m_fieldsPanel = this.RequiredControl<StackPanel>("FieldsPanel");
+        m_whereClauseEditor = this.RequiredControl<ContentFilterEditor>("WhereClauseEditor");
+        m_whereClauseEditor.Initialize(current.WhereClause, session);
         Button ok = this.RequiredControl<Button>("OkButton");
         Button cancel = this.RequiredControl<Button>("CancelButton");
 
@@ -144,7 +150,12 @@ internal sealed partial class EventFilterDialog : Window
                 }
             }
             ushort threshold = (ushort)Math.Clamp((int)severity.Value, 0, 1000);
-            Result = new EventFilterConfig(threshold, fields, m_eventTypeNodeId);
+            ContentFilter whereClause = m_whereClauseEditor.BuildResult();
+            Result = new EventFilterConfig(
+                threshold,
+                fields,
+                m_eventTypeNodeId,
+                whereClause.Elements.Count > 0 ? whereClause : null);
             Close(Result);
         };
         cancel.Click += (_, _) => Close(null);

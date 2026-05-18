@@ -53,12 +53,14 @@
                FontFamily="Cascadia Mono, Consolas, monospace" TextWrapping="Wrap" Margin="0,8,0,0" />
 
     <TextBlock Grid.Row="4" Grid.Column="0" Text="New value" VerticalAlignment="Top" Margin="0,12,0,0" />
-    <Grid Grid.Row="4" Grid.Column="1" Margin="0,12,0,0" RowDefinitions="Auto,*">
+    <Grid Grid.Row="4" Grid.Column="1" Margin="0,12,0,0" RowDefinitions="Auto,*,*">
       <Button Grid.Row="0" x:Name="ImportButton"
               Classes="tonal" Content="📂 Import from file…"
               HorizontalAlignment="Left" Margin="0,0,0,4" />
       <TextBox Grid.Row="1" x:Name="ValueText"
                AcceptsReturn="True" TextWrapping="Wrap" Height="120" />
+      <v:ComplexValueEditor Grid.Row="2" x:Name="ComplexEditor"
+                            IsVisible="False" Margin="0,4,0,0" />
     </Grid>
 
     <Expander Grid.Row="5" Grid.ColumnSpan="2" x:Name="AdvancedExpander"

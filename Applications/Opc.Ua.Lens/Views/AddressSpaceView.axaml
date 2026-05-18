@@ -33,7 +33,8 @@
              x:DataType="vm:BrowserViewModel">
   <Border BorderBrush="#1E293B" BorderThickness="1" CornerRadius="4" Padding="0">
     <Grid RowDefinitions="Auto,Auto,*">
-      <DockPanel Grid.Row="0" Margin="4,4,4,2" LastChildFill="True">
+      <DockPanel Grid.Row="0" Margin="4,4,4,2" LastChildFill="True"
+                 IsVisible="{CompiledBinding ShowFilters, Mode=OneWay}">
         <TextBlock DockPanel.Dock="Left"
                    VerticalAlignment="Center"
                    Margin="0,0,4,0"
@@ -48,7 +49,8 @@
       </DockPanel>
       <TextBox Grid.Row="1" x:Name="SearchBox" Margin="4,4,4,2"
                Watermark="Search BrowseName / NodeId (Enter, F3 next)"
-               FontFamily="Cascadia Mono, Consolas, monospace" />
+               FontFamily="Cascadia Mono, Consolas, monospace"
+               IsVisible="{CompiledBinding ShowFilters, Mode=OneWay}" />
       <TreeView Grid.Row="2" x:Name="Tree"
                 ItemsSource="{CompiledBinding Roots}"
                 Background="#0F172A"

@@ -128,6 +128,15 @@ internal static class PluginRegistry
             Description = "Browse FileType / FileDirectoryType objects like Windows Explorer.",
             MenuHeader = "_File System",
             Factory = vm => new UaLens.Plugins.FileSystem.FileSystemPlugin(vm.CreatePluginHost())
+        },
+        new PluginRegistration
+        {
+            Kind = PluginKind.CertificateManager,
+            DisplayName = "Certificate Manager",
+            Glyph = "🔑",
+            Description = "Manage local certificate stores (Application, TrustedPeer, TrustedIssuer, Rejected). Works without an active session.",
+            MenuHeader = "_Certificate Manager",
+            Factory = vm => new UaLens.Plugins.CertificateManager.CertificateManagerPlugin(vm.CreatePluginHost())
         }
     ];
 

@@ -100,6 +100,16 @@ internal sealed partial class BrowserViewModel : ObservableObject
     [ObservableProperty]
     private BrowseViewKind m_currentViewKind = BrowseViewKind.Objects;
 
+    /// <summary>
+    /// Controls whether the address-space view shows its filter row
+    /// (the "View:" combo and the search box).  Hidden by default to
+    /// maximize tree real estate; toggled by the address-space column
+    /// header's 🔽 button, the View → Address Space → Filter / View
+    /// Combo menu item, or the Ctrl+Shift+F keyboard shortcut.
+    /// </summary>
+    [ObservableProperty]
+    private bool m_showFilters;
+
     private readonly ITelemetryContext m_telemetry;
     private readonly ILogger m_log;
     private readonly ConnectionService m_connection;
@@ -156,7 +166,7 @@ internal sealed partial class BrowserViewModel : ObservableObject
             (NodeId rootId, string rootLabel) = GetRootSpec(CurrentViewKind);
             // Children load lazily on expand via LoadChildrenAsync, which
             // uses CurrentViewKind to pick the reference type to follow.
-            var root = new NodeViewModel(this, NodeId.Null, rootId, $"\u25C9 {rootLabel}", NodeClass.Object);
+            var root = new NodeViewModel(this, NodeId.Null, rootId, $"{Glyph(NodeClass.Object)} {rootLabel}", NodeClass.Object);
             Roots.Add(root);
             // Auto-expand the root so the user immediately sees its
             // children (Objects / Types / Views, etc.).
@@ -599,20 +609,20 @@ internal sealed partial class BrowserViewModel : ObservableObject
     }
 
     /// <summary>
-    /// ◉ Object · ◇ ObjectType · ○ Variable · ◎ VariableType · ▶ Method
-    /// ◦ ReferenceType · □ DataType · ▣ View
+    /// 🟦 Object · 🧩 ObjectType · 🟢 Variable · 🟣 VariableType · ⚙️ Method
+    /// 🔗 ReferenceType · 🧮 DataType · 👁️ View
     /// </summary>
     private static string Glyph(NodeClass cls) => cls switch
     {
-        NodeClass.Object => "\u25C9",
-        NodeClass.ObjectType => "\u25C7",
-        NodeClass.Variable => "\u25CB",
-        NodeClass.VariableType => "\u25CE",
-        NodeClass.Method => "\u25B6",
-        NodeClass.ReferenceType => "\u25E6",
-        NodeClass.DataType => "\u25A1",
-        NodeClass.View => "\u25A3",
-        _ => "?"
+        NodeClass.Object => "🟦",
+        NodeClass.ObjectType => "🧩",
+        NodeClass.Variable => "🟢",
+        NodeClass.VariableType => "🟣",
+        NodeClass.Method => "⚙️",
+        NodeClass.ReferenceType => "🔗",
+        NodeClass.DataType => "🧮",
+        NodeClass.View => "👁️",
+        _ => "•"
     };
 }
 

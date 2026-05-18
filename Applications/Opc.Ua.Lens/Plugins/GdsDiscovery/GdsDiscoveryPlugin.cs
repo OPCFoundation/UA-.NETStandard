@@ -31,6 +31,9 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Globalization;
+using System.Net;
+using System.Net.NetworkInformation;
+using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Controls;
@@ -518,7 +521,7 @@ internal sealed partial class GdsDiscoveryPlugin : ObservableObject, IPlugin
         (ArrayOf<ServerOnNetwork> servers, _) = await lds
             .FindServersOnNetworkAsync(0, 100, CancellationToken.None)
             .ConfigureAwait(true);
-        var loaded = new List<DiscoveryNode>(servers.Count);
+        var loaded = new List<DiscoveryNode>(servers.Count + 1);
         foreach (ServerOnNetwork s in servers)
         {
             loaded.Add(new DiscoveryNode
@@ -528,7 +531,168 @@ internal sealed partial class GdsDiscoveryPlugin : ObservableObject, IPlugin
                 ServerOnNetwork = s
             });
         }
+
+        // F3 — Complementary "mDNS hosts" sub-folder.  The OPC UA stack's
+        // FindServersOnNetwork already taps mDNS internally on
+        // LDS-ME-equipped servers, but only surfaces hosts that run an
+        // LDS.  This folder lists the local machine's own interfaces so
+        // operators can confirm which addresses an OPC UA peer would
+        // *advertise on* via mDNS, even when no LDS is reachable.  True
+        // cross-host mDNS discovery would require pulling in an mDNS
+        // library (e.g. Makaretu.Mdns) which UaLens does not currently
+        // reference, so this is intentionally a "this machine" listing.
+        DiscoveryNode mdnsFolder = await BuildMdnsHostsFolderAsync().ConfigureAwait(true);
+        loaded.Add(mdnsFolder);
+
         await ApplyChildrenAsync(root, loaded).ConfigureAwait(true);
+    }
+
+    /// <summary>
+    /// Builds the "mDNS hosts (this machine)" sub-folder appended under
+    /// the Local Network root.  Enumerates every operational
+    /// <see cref="NetworkInterface"/> on a background thread (so the UI
+    /// stays responsive) and projects each unicast IPv4/IPv6 address
+    /// into a leaf row.  Returns an info-only folder with a leading
+    /// disclaimer row plus zero or more interface rows.
+    /// </summary>
+    private async Task<DiscoveryNode> BuildMdnsHostsFolderAsync()
+    {
+        var folder = new DiscoveryNode
+        {
+            Display = "mDNS hosts (this machine)",
+            Glyph = "📡",
+            IsExpanded = false
+        };
+        folder.Children.Add(new DiscoveryNode
+        {
+            Display = "Cross-host mDNS discovery would require an additional library "
+                + "(e.g. Makaretu.Mdns) which UaLens does not currently reference. "
+                + "Listing local network interfaces instead.",
+            Glyph = "ℹ"
+        });
+        List<DiscoveryNode> rows;
+        try
+        {
+            rows = await Task.Run(EnumerateLocalInterfaceRows).ConfigureAwait(true);
+        }
+        catch (Exception ex)
+        {
+            m_log.LogDebug(ex, "GdsDiscovery: enumerating network interfaces failed.");
+            folder.Children.Add(new DiscoveryNode
+            {
+                Display = $"(enumeration failed: {ex.Message})",
+                Glyph = "—"
+            });
+            return folder;
+        }
+        if (rows.Count == 0)
+        {
+            folder.Children.Add(new DiscoveryNode
+            {
+                Display = "(no operational network interfaces)",
+                Glyph = "—"
+            });
+            return folder;
+        }
+        foreach (DiscoveryNode row in rows)
+        {
+            folder.Children.Add(row);
+        }
+        return folder;
+    }
+
+    /// <summary>
+    /// Collects one row per (interface, unicast address) tuple for every
+    /// operational, non-loopback <see cref="NetworkInterface"/>.  Each
+    /// row's <c>Display</c> carries name, address family, IP, MAC and
+    /// the "Up" status — mirroring the columns of the legacy
+    /// <c>HostListCtrl</c> in the samples repo.  Runs entirely
+    /// synchronously and is intended to be wrapped in
+    /// <see cref="Task.Run(Func{object})"/> by the caller.
+    /// </summary>
+    private static List<DiscoveryNode> EnumerateLocalInterfaceRows()
+    {
+        var list = new List<DiscoveryNode>();
+        string hostName;
+        try
+        {
+            hostName = Dns.GetHostName();
+        }
+        catch (SocketException)
+        {
+            hostName = string.Empty;
+        }
+        NetworkInterface[] nics = NetworkInterface.GetAllNetworkInterfaces();
+        foreach (NetworkInterface nic in nics)
+        {
+            if (nic.OperationalStatus != OperationalStatus.Up)
+            {
+                continue;
+            }
+            if (nic.NetworkInterfaceType == NetworkInterfaceType.Loopback)
+            {
+                continue;
+            }
+            IPInterfaceProperties props;
+            try
+            {
+                props = nic.GetIPProperties();
+            }
+            catch (NetworkInformationException)
+            {
+                continue;
+            }
+            string mac = FormatMacAddress(nic.GetPhysicalAddress());
+            foreach (UnicastIPAddressInformation addr in props.UnicastAddresses)
+            {
+                AddressFamily af = addr.Address.AddressFamily;
+                if (af != AddressFamily.InterNetwork && af != AddressFamily.InterNetworkV6)
+                {
+                    continue;
+                }
+                string displayHost = string.IsNullOrEmpty(hostName) ? nic.Name : hostName;
+                string family = af == AddressFamily.InterNetwork ? "IPv4" : "IPv6";
+                string label = string.Format(
+                    CultureInfo.InvariantCulture,
+                    "{0} — {1} {2}  [iface: {3}, MAC: {4}, status: Up]",
+                    displayHost,
+                    family,
+                    addr.Address,
+                    nic.Name,
+                    mac);
+                list.Add(new DiscoveryNode
+                {
+                    Display = label,
+                    Glyph = "🖧"
+                });
+            }
+        }
+        return list;
+    }
+
+    /// <summary>
+    /// Formats a <see cref="PhysicalAddress"/> as colon-separated
+    /// hex pairs (e.g. <c>AA:BB:CC:DD:EE:FF</c>).  Returns
+    /// <c>"—"</c> when the address is empty (loopback / virtual
+    /// interfaces).
+    /// </summary>
+    private static string FormatMacAddress(PhysicalAddress address)
+    {
+        byte[] bytes = address.GetAddressBytes();
+        if (bytes.Length == 0)
+        {
+            return "—";
+        }
+        var sb = new System.Text.StringBuilder(bytes.Length * 3);
+        for (int i = 0; i < bytes.Length; i++)
+        {
+            if (i > 0)
+            {
+                sb.Append(':');
+            }
+            sb.Append(bytes[i].ToString("X2", CultureInfo.InvariantCulture));
+        }
+        return sb.ToString();
     }
 
     private async Task LoadGlobalDiscoveryAsync(DiscoveryNode root)

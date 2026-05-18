@@ -138,7 +138,7 @@ internal sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     private string m_engineButtonText = "↻ Engine: ChannelV2";
 
     [ObservableProperty]
-    private SidePanelMode m_attributesPanelMode = SidePanelMode.AttrsAndRefs;
+    private SidePanelMode m_attributesPanelMode = SidePanelMode.AttrsOnly;
 
     /// <summary>
     /// The registered application UaLens is currently working with.

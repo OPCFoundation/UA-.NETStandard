@@ -1,0 +1,175 @@
+<!-- ========================================================================
+   Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+
+   OPC Foundation MIT License 1.00
+
+   Permission is hereby granted, free of charge, to any person
+   obtaining a copy of this software and associated documentation
+   files (the "Software"), to deal in the Software without
+   restriction, including without limitation the rights to use,
+   copy, modify, merge, publish, distribute, sublicense, and/or sell
+   copies of the Software, and to permit persons to whom the
+   Software is furnished to do so, subject to the following
+   conditions:
+
+   The above copyright notice and this permission notice shall be
+   included in all copies or substantial portions of the Software.
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+   EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+   OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+   NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+   HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+   WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+   FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+   OTHER DEALINGS IN THE SOFTWARE.
+
+   The complete license agreement can be found here:
+   http://opcfoundation.org/License/MIT/1.00/
+======================================================================== -->
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="UaLens.Views.FilterOperandEditDialog"
+        Title="Edit filter operand"
+        Width="640" Height="540"
+        WindowStartupLocation="CenterOwner"
+        Background="#0F172A" Foreground="#E2E8F0">
+  <Grid Margin="16" RowDefinitions="Auto,Auto,Auto,*,Auto,Auto" ColumnDefinitions="*">
+
+    <TextBlock Grid.Row="0"
+               Text="OPC UA filter operand"
+               FontWeight="SemiBold" FontSize="14"
+               Foreground="#06B6D4" Margin="0,0,0,4" />
+    <Border    Grid.Row="1" Height="1" Background="#1E293B" Margin="0,0,0,12" />
+
+    <Grid Grid.Row="2" ColumnDefinitions="160,*" Margin="0,0,0,12">
+      <TextBlock Grid.Column="0" Text="Operand kind" VerticalAlignment="Center" />
+      <ComboBox Grid.Column="1" x:Name="KindCombo" HorizontalAlignment="Stretch" />
+    </Grid>
+
+    <!-- One panel per kind; only one is visible at a time. -->
+    <Border Grid.Row="3" BorderBrush="#1E293B" BorderThickness="1" CornerRadius="4"
+            Padding="12" Background="#0B1220">
+      <Grid>
+        <!-- Literal -->
+        <Grid x:Name="LiteralPanel" IsVisible="False"
+              RowDefinitions="Auto,Auto,Auto,Auto,Auto,*" ColumnDefinitions="160,*">
+          <TextBlock Grid.Row="0" Grid.ColumnSpan="2"
+                     Text="Literal value (Variant)"
+                     FontWeight="SemiBold" Foreground="#F59E0B" Margin="0,0,0,6" />
+          <TextBlock Grid.Row="1" Grid.Column="0" Text="DataType" VerticalAlignment="Center" />
+          <ComboBox  Grid.Row="1" Grid.Column="1" x:Name="LiteralDataType" />
+          <TextBlock Grid.Row="2" Grid.Column="0" Text="Value (invariant)"
+                     VerticalAlignment="Top" Margin="0,8,0,0" />
+          <TextBox   Grid.Row="2" Grid.Column="1" x:Name="LiteralValue"
+                     Margin="0,8,0,0" AcceptsReturn="True"
+                     FontFamily="Cascadia Mono, Consolas, monospace"
+                     MinHeight="60" TextWrapping="Wrap" />
+          <TextBlock Grid.Row="3" Grid.ColumnSpan="2"
+                     Text="Use a comma-separated list for 1-D arrays.  Strings are taken verbatim."
+                     Foreground="#94A3B8" FontSize="11" Margin="0,8,0,0"
+                     TextWrapping="Wrap" />
+          <CheckBox  Grid.Row="4" Grid.ColumnSpan="2" x:Name="LiteralIsArray"
+                     Content="Array (one-dimensional)" Margin="0,8,0,0" />
+        </Grid>
+
+        <!-- Element -->
+        <Grid x:Name="ElementPanel" IsVisible="False"
+              RowDefinitions="Auto,Auto,Auto,*" ColumnDefinitions="160,*">
+          <TextBlock Grid.Row="0" Grid.ColumnSpan="2"
+                     Text="Reference to another ContentFilterElement"
+                     FontWeight="SemiBold" Foreground="#F59E0B" Margin="0,0,0,6" />
+          <TextBlock Grid.Row="1" Grid.Column="0" Text="Element index (0-based)"
+                     VerticalAlignment="Center" />
+          <NumericUpDown Grid.Row="1" Grid.Column="1" x:Name="ElementIndex"
+                         Minimum="0" Maximum="1000" Value="0" />
+          <TextBlock Grid.Row="2" Grid.ColumnSpan="2"
+                     Text="Must reference a later element in the ContentFilter array (validated by the server)."
+                     Foreground="#94A3B8" FontSize="11" Margin="0,8,0,0"
+                     TextWrapping="Wrap" />
+        </Grid>
+
+        <!-- Attribute -->
+        <Grid x:Name="AttributePanel" IsVisible="False"
+              RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,*"
+              ColumnDefinitions="160,*,Auto">
+          <TextBlock Grid.Row="0" Grid.ColumnSpan="3"
+                     Text="AttributeOperand (refers to an attribute of any node)"
+                     FontWeight="SemiBold" Foreground="#F59E0B" Margin="0,0,0,6" />
+          <TextBlock Grid.Row="1" Grid.Column="0" Text="NodeId" VerticalAlignment="Center" />
+          <TextBox   Grid.Row="1" Grid.Column="1" x:Name="AttrNodeId"
+                     FontFamily="Cascadia Mono, Consolas, monospace" />
+          <Button    Grid.Row="1" Grid.Column="2" x:Name="AttrPickNode"
+                     Content="Pick…" Width="80" Margin="8,0,0,0" />
+
+          <TextBlock Grid.Row="2" Grid.Column="0" Text="Alias (optional)"
+                     VerticalAlignment="Center" Margin="0,8,0,0" />
+          <TextBox   Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="2" x:Name="AttrAlias"
+                     Margin="0,8,0,0" />
+
+          <TextBlock Grid.Row="3" Grid.Column="0" Text="RelativePath"
+                     VerticalAlignment="Center" Margin="0,8,0,0" />
+          <TextBox   Grid.Row="3" Grid.Column="1" Grid.ColumnSpan="2" x:Name="AttrPath"
+                     Margin="0,8,0,0"
+                     FontFamily="Cascadia Mono, Consolas, monospace"
+                     Watermark="/2:MyFolder/2:MyVariable" />
+
+          <TextBlock Grid.Row="4" Grid.Column="0" Text="AttributeId"
+                     VerticalAlignment="Center" Margin="0,8,0,0" />
+          <ComboBox  Grid.Row="4" Grid.Column="1" Grid.ColumnSpan="2" x:Name="AttrAttributeId"
+                     Margin="0,8,0,0" HorizontalAlignment="Stretch" />
+
+          <TextBlock Grid.Row="5" Grid.Column="0" Text="IndexRange"
+                     VerticalAlignment="Center" Margin="0,8,0,0" />
+          <TextBox   Grid.Row="5" Grid.Column="1" Grid.ColumnSpan="2" x:Name="AttrIndexRange"
+                     Margin="0,8,0,0"
+                     FontFamily="Cascadia Mono, Consolas, monospace"
+                     Watermark="0:3 or 0:3,1:5" />
+        </Grid>
+
+        <!-- SimpleAttribute -->
+        <Grid x:Name="SimplePanel" IsVisible="False"
+              RowDefinitions="Auto,Auto,Auto,Auto,Auto,*"
+              ColumnDefinitions="160,*,Auto">
+          <TextBlock Grid.Row="0" Grid.ColumnSpan="3"
+                     Text="SimpleAttributeOperand (event-source field)"
+                     FontWeight="SemiBold" Foreground="#F59E0B" Margin="0,0,0,6" />
+          <TextBlock Grid.Row="1" Grid.Column="0" Text="TypeDefinition NodeId"
+                     VerticalAlignment="Center" />
+          <TextBox   Grid.Row="1" Grid.Column="1" x:Name="SimpleTypeId"
+                     FontFamily="Cascadia Mono, Consolas, monospace" />
+          <Button    Grid.Row="1" Grid.Column="2" x:Name="SimplePickType"
+                     Content="Pick…" Width="80" Margin="8,0,0,0" />
+
+          <TextBlock Grid.Row="2" Grid.Column="0" Text="BrowsePath (one QN per line)"
+                     VerticalAlignment="Top" Margin="0,8,0,0" />
+          <TextBox   Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="2" x:Name="SimplePath"
+                     Margin="0,8,0,0"
+                     AcceptsReturn="True"
+                     MinHeight="80"
+                     FontFamily="Cascadia Mono, Consolas, monospace"
+                     Watermark="Severity&#x0A;EnabledState&#x0A;EnabledState.Id" />
+
+          <TextBlock Grid.Row="3" Grid.Column="0" Text="AttributeId"
+                     VerticalAlignment="Center" Margin="0,8,0,0" />
+          <ComboBox  Grid.Row="3" Grid.Column="1" Grid.ColumnSpan="2" x:Name="SimpleAttributeId"
+                     Margin="0,8,0,0" HorizontalAlignment="Stretch" />
+
+          <TextBlock Grid.Row="4" Grid.Column="0" Text="IndexRange"
+                     VerticalAlignment="Center" Margin="0,8,0,0" />
+          <TextBox   Grid.Row="4" Grid.Column="1" Grid.ColumnSpan="2" x:Name="SimpleIndexRange"
+                     Margin="0,8,0,0"
+                     FontFamily="Cascadia Mono, Consolas, monospace" />
+        </Grid>
+      </Grid>
+    </Border>
+
+    <TextBlock Grid.Row="4" x:Name="StatusLabel"
+               Margin="0,8,0,0" TextWrapping="Wrap"
+               Foreground="#94A3B8" FontSize="11" />
+
+    <StackPanel Grid.Row="5" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
+      <Button x:Name="OkButton"     Content="OK"     IsDefault="True" Width="90" />
+      <Button x:Name="CancelButton" Content="Cancel" IsCancel="True"  Width="90" Margin="8,0,0,0" />
+    </StackPanel>
+  </Grid>
+</Window>
