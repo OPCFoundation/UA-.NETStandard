@@ -247,6 +247,17 @@ namespace Opc.Ua.Server
                             }
                         }
                         break;
+                        case ObjectTypes.UserManagementType:
+                        {
+                            if (passiveNode is UserManagementState)
+                            {
+                                break;
+                            }
+                            var activeNode = new UserManagementState(passiveNode.Parent);
+                            activeNode.Create(context, passiveNode);
+                            passiveNode.Parent?.ReplaceChild(context, activeNode);
+                            return activeNode;
+                        }
                     }
                 }
             }
@@ -279,6 +290,8 @@ namespace Opc.Ua.Server
 
                 // m_serverConfigurationNode is owned by the address space, not by this manager
                 m_serverConfigurationNode = null;
+                m_userManagementBinding?.Dispose();
+                m_userManagementBinding = null;
             }
 
             base.Dispose(disposing);
@@ -355,6 +368,17 @@ namespace Opc.Ua.Server
                         SubscribeToNamespaceDefaultPermissions(metadataState);
                     }
                 }
+            }
+
+            // Bind ServerConfiguration.UserManagement (i=24290) per Part 18 §5
+            // if an IUserManagement was injected via IServerInternal.SetUserManagement.
+            if (Server is IServerInternal serverInternal && serverInternal.UserManagement != null)
+            {
+                m_userManagementBinding?.Dispose();
+                m_userManagementBinding = Opc.Ua.Server.UserManagement.UserManagementBinding.Bind(
+                    this,
+                    serverInternal.UserManagement,
+                    serverInternal.SessionManager);
             }
         }
 
@@ -1569,6 +1593,7 @@ namespace Opc.Ua.Server
 
 #pragma warning disable CA2213 // m_serverConfigurationNode is owned by the address space, not by this manager.
         private ServerConfigurationState? m_serverConfigurationNode;
+        private Opc.Ua.Server.UserManagement.UserManagementBinding? m_userManagementBinding;
 #pragma warning restore CA2213
         private readonly ApplicationConfiguration m_configuration;
         private readonly List<ServerCertificateGroup> m_certificateGroups;

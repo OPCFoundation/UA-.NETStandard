@@ -137,6 +137,12 @@ namespace Opc.Ua.Server
         /// <value>The session manager.</value>
         public ISessionManager SessionManager { get; private set; } = null!;
 
+        /// <inheritdoc/>
+        public IRoleManager RoleManager { get; private set; } = new RoleManager();
+
+        /// <inheritdoc/>
+        public Opc.Ua.Server.UserManagement.IUserManagement? UserManagement { get; private set; }
+
         /// <summary>
         /// The subscription manager to use with the server.
         /// </summary>
@@ -231,6 +237,19 @@ namespace Opc.Ua.Server
         public void SetSubscriptionStore(ISubscriptionStore subscriptionStore)
         {
             SubscriptionStore = subscriptionStore;
+        }
+
+        /// <inheritdoc/>
+        public void SetRoleManager(IRoleManager roleManager)
+        {
+            if (roleManager == null) { throw new ArgumentNullException(nameof(roleManager)); }
+            RoleManager = roleManager;
+        }
+
+        /// <inheritdoc/>
+        public void SetUserManagement(Opc.Ua.Server.UserManagement.IUserManagement userManagement)
+        {
+            UserManagement = userManagement ?? throw new ArgumentNullException(nameof(userManagement));
         }
 
         /// <summary>

@@ -80,6 +80,52 @@ Per Part 3 4.9 and Part 18 4.3 the default `RoleManager` rules already grant:
 
 Integrators returning a `RoleBasedIdentity` from `SessionManager_ImpersonateUser` layer additional roles on top of those defaults.
 
+### User Management (Part 18 §5)
+
+The Part 18 §5 `UserManagementType` is bound to the standard
+`Server.ServerConfiguration.UserManagement` object (NodeId `i=24290`).
+Integrators inject an `IUserManagement` instance via
+`IServerInternal.SetUserManagement` before the configuration node manager
+binds the address space; the default `UserManagement` implementation wraps
+an existing `IUserDatabase` for credential persistence and stores the
+per-user `UserConfigurationMask` and description in memory:
+
+```csharp
+using Opc.Ua.Server.UserDatabase;
+using Opc.Ua.Server.UserManagement;
+
+var users = new LinqUserDatabase();
+users.CreateUser("alice", "secret"u8, [Role.AuthenticatedUser]);
+
+var userManagement = new UserManagement(
+    users,
+    passwordLength: new Range { Low = 8, High = 256 },
+    passwordOptions:
+        PasswordOptionsMask.SupportDisableUser
+        | PasswordOptionsMask.SupportInitialPasswordChange
+        | PasswordOptionsMask.RequiresDigitCharacters);
+
+serverInternal.SetUserManagement(userManagement);
+```
+
+`UserManagementBinding.Bind` (called automatically by
+`ConfigurationNodeManager.CreateServerConfiguration` when an
+`IUserManagement` is injected) wires the typed `AddUser`, `ModifyUser`,
+`RemoveUser` and `ChangePassword` method-state proxies, enforces
+`RoleAuthorizationGate.CheckAdmin` on the admin methods (SecurityAdmin +
+SignAndEncrypt) and `RoleAuthorizationGate.CheckSelfUserName` on
+`ChangePassword`, and closes any active sessions for a deactivated user
+via the supplied `ISessionManager`.
+
+Spec result codes honoured:
+
+| Operation | Failure codes |
+|-----------|---------------|
+| `AddUser` (§5.2.5) | `Bad_AlreadyExists`, `Bad_OutOfRange`, `Bad_NotSupported`, `Bad_ConfigurationError`, `Bad_UserAccessDenied`, `Bad_SecurityModeInsufficient`, `Bad_ResourceUnavailable` |
+| `ModifyUser` (§5.2.6) | `Bad_NotFound`, `Bad_OutOfRange`, `Bad_NotSupported`, `Bad_ConfigurationError`, `Bad_UserAccessDenied`, `Bad_SecurityModeInsufficient`, `Bad_InvalidSelfReference` |
+| `RemoveUser` (§5.2.7) | `Bad_NotFound`, `Bad_UserAccessDenied`, `Bad_NotSupported` (NoDelete), `Bad_SecurityModeInsufficient`, `Bad_InvalidSelfReference` |
+| `ChangePassword` (§5.2.8) | `Bad_IdentityTokenInvalid`, `Bad_OutOfRange`, `Bad_InvalidState`, `Bad_NotSupported` (NoChangeByUser), `Bad_SecurityModeInsufficient`, `Bad_AlreadyExists` (new == old) |
+
 ### User name / password storage
 
 The `IUserDatabase` interface (`Opc.Ua.Server.UserDatabase.IUserDatabase`) remains the extension point for username/password storage. The shipped implementations are:
@@ -141,7 +187,7 @@ See [GdsRole.cs](https://github.com/OPCFoundation/UA-.NETStandard/blob/main/Libr
 
 - **AddRole address-space materialization**: the default `RoleManager` registers the role in its identity-resolution table but does not create a `RoleType` instance node for dynamically added roles. Integrators that want the new role to be browseable can subscribe to `IRoleManager.RoleConfigurationChanged` and call `AddNodeAsync` on the diagnostics node manager to create the materialized node.
 - **Live session re-evaluation**: per Part 18 4.4.1 the role assignment of active sessions should be re-evaluated when a role configuration changes. Today, re-evaluation happens on the next session activation via `SessionManager.AddMandatoryRoles`. A full live re-evaluation implementation is on the roadmap.
-- **UserManagement (Part 18 5)**: the spec-defined `UserManagement` object (`AddUser` / `ModifyUser` / `RemoveUser` / `ChangePassword` on `ServerConfiguration.UserManagement`, i=24290) is not yet bound; user CRUD is currently exposed only via the non-spec `IUserDatabase` extension point.
+- **MustChangePassword activation flow**: the spec's `Good_PasswordChangeRequired` return from `ActivateSession` (Part 18 §5.2.8) is not yet wired into the session activation pipeline. The `IUserManagement.MustChangePassword(userName)` flag is exposed and is correctly cleared by `ChangePassword`; integrators can consult it from their `ImpersonateUser` callback to gate role assignment for users that have not yet changed their initial password.
 
 ## References
 
