@@ -11,14 +11,14 @@
     <Project Path="Libraries/Opc.Ua.Gds.Common/Opc.Ua.Gds.Common.csproj" />
     <Project Path="Libraries/Opc.Ua.Gds.Server.Common/Opc.Ua.Gds.Server.Common.csproj" />
     <Project Path="Libraries/Opc.Ua.PubSub/Opc.Ua.PubSub.csproj" />
-    <Project Path="Libraries/Opc.Ua.Security.Certificates/Opc.Ua.Security.Certificates.csproj" />
     <Project Path="Libraries/Opc.Ua.Server/Opc.Ua.Server.csproj" />
     <Project Path="Tools/Opc.Ua.SourceGeneration.Core/Opc.Ua.SourceGeneration.Core.csproj" />
     <Project Path="Tools/Opc.Ua.SourceGeneration.Stack/Opc.Ua.SourceGeneration.Stack.csproj" />
     <Project Path="Tools/Opc.Ua.SourceGeneration/Opc.Ua.SourceGeneration.csproj" />
     <Project Path="Stack/Opc.Ua.Bindings.Https/Opc.Ua.Bindings.Https.csproj" />
     <Project Path="Stack/Opc.Ua.Core/Opc.Ua.Core.csproj" />
+    <Project Path="Stack/Opc.Ua.Core.Types/Opc.Ua.Core.Types.csproj" />
+    <Project Path="Stack/Opc.Ua.Security.Certificates/Opc.Ua.Security.Certificates.csproj" />
     <Project Path="Stack/Opc.Ua.Types/Opc.Ua.Types.csproj" />
-    <Project Path="Stack/Opc.Ua/Opc.Ua.csproj" />
   </Folder>
 </Solution>
