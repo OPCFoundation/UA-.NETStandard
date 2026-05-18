@@ -637,7 +637,7 @@ internal sealed partial class MainWindow : Window, IDisposable
             // File.
             if (ctrl && e.Key == Key.O)
             { InvokeMenu(menuLoad); e.Handled = true; return; }
-            if (ctrl && e.Key == Key.S)
+            if (ctrl && e.Key == Key.S && !shift)
             { InvokeMenu(menuSave); e.Handled = true; return; }
             if (ctrl && shift && e.Key == Key.E)
             { InvokeMenu(menuExportTab); e.Handled = true; return; }
@@ -668,7 +668,7 @@ internal sealed partial class MainWindow : Window, IDisposable
             }
 
             // Subscription.
-            if (ctrl && e.Key == Key.T)
+            if (ctrl && shift && e.Key == Key.S)
             { InvokeMenu(menuAddTab); e.Handled = true; return; }
             if (ctrl && shift && e.Key == Key.I)
             { InvokeMenu(menuAddRecursive); e.Handled = true; return; }
@@ -2395,61 +2395,80 @@ internal sealed partial class MainWindow : Window, IDisposable
         var help = new Window
         {
             Title = "Cheat sheet",
-            Width = 600,
-            Height = 520,
+            Width = 640,
+            Height = 640,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
             Background = Avalonia.Media.Brushes.Black,
             Foreground = Avalonia.Media.Brushes.White
         };
-        help.Content = new TextBlock
+        help.Content = new ScrollViewer
         {
-            Margin = new Thickness(20),
-            FontFamily = new Avalonia.Media.FontFamily("Cascadia Mono, Consolas, monospace"),
-            Text =
-                "  ─── Navigation ───\n" +
-                "  Tab / Shift+Tab     cycle focus across controls\n" +
-                "  Ctrl+Tab / Ctrl+Sh+Tab  cycle subscription tabs\n" +
-                "  Ctrl+U              focus the Endpoint URL field\n" +
-                "  Arrow keys          navigate inside the focused tree / list / text\n" +
-                "  Right / Left        expand / collapse a tree node\n" +
-                "  Enter               default button (OK in dialogs)\n" +
-                "  Esc                 Cancel in dialogs\n" +
-                "\n" +
-                "  ─── File ───\n" +
-                "  Ctrl+O              Load session\n" +
-                "  Ctrl+S              Save session\n" +
-                "  Ctrl+E              Export NodeSet2 XML\n" +
-                "  Ctrl+Shift+E        Export Tab Data (CSV / JSON)\n" +
-                "  Ctrl+Q              Quit\n" +
-                "\n" +
-                "  ─── Certificates ───\n" +
-                "  Ctrl+K              Manage trust stores\n" +
-                "\n" +
-                "  ─── Subscription ───\n" +
-                "  Ctrl+T              New subscription tab\n" +
-                "  Ctrl+I              Add item…\n" +
-                "  Ctrl+Shift+I        Add recursively…\n" +
-                "  Ctrl+Shift+R        Remove item…\n" +
-                "  Ctrl+,              Subscription settings…\n" +
-                "  (right-click tab)   Rename… / Duplicate / Close\n" +
-                "\n" +
-                "  ─── View ───\n" +
-                "  F2                  Toggle diagnostics panel\n" +
-                "  Ctrl+L              Toggle log panel\n" +
-                "  Ctrl+B              Toggle address-space pane\n" +
-                "  Ctrl+Shift+F        Toggle address-space filter / view combo\n" +
-                "  Ctrl+A              Toggle Attributes pane (sub of address space)\n" +
-                "  Ctrl+R              Toggle References pane (sub of address space)\n" +
-                "  Ctrl+V              Cycle chart view mode\n" +
-                "  Ctrl++ / Ctrl+−     Zoom chart time-scale in / out\n" +
-                "  Ctrl+0              Reset chart time-scale\n" +
-                "\n" +
-                "  ─── Help ───\n" +
-                "  F1                  Cheat sheet (this dialog)\n" +
-                "\n" +
-                "  Tree-view glyphs:\n" +
-                "    🟦 Object   🧩 ObjectType   🟢 Variable   🟣 VariableType\n" +
-                "    ⚙️ Method   🔗 ReferenceType   🧮 DataType   👁️ View"
+            HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled,
+            VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,
+            Content = new TextBlock
+            {
+                Margin = new Thickness(20),
+                FontFamily = new Avalonia.Media.FontFamily("Cascadia Mono, Consolas, monospace"),
+                Text =
+                    "  ─── Navigation ───\n" +
+                    "  Tab / Shift+Tab     cycle focus across controls\n" +
+                    "  Ctrl+Tab / Ctrl+Sh+Tab  cycle subscription tabs\n" +
+                    "  Arrow keys          navigate inside the focused tree / list / text\n" +
+                    "  Right / Left        expand / collapse a tree node\n" +
+                    "  Enter               default button (OK in dialogs)\n" +
+                    "  Esc                 Cancel in dialogs\n" +
+                    "\n" +
+                    "  ─── File ───\n" +
+                    "  Ctrl+E              Export NodeSet2 XML\n" +
+                    "  Ctrl+Shift+E        Export Plugin Data (CSV / JSON)\n" +
+                    "  Ctrl+Q              Quit\n" +
+                    "\n" +
+                    "  ─── Session ───\n" +
+                    "  Ctrl+N / Ctrl+U     Connect (open Create-Session dialog)\n" +
+                    "  Ctrl+O              Load session\n" +
+                    "  Ctrl+S              Save session\n" +
+                    "  Ctrl+K              Manage Certificates\n" +
+                    "\n" +
+                    "  ─── Tabs (add) ───\n" +
+                    "  Ctrl+Shift+S        Subscription\n" +
+                    "  Ctrl+Shift+P        GDS Push\n" +
+                    "  Ctrl+Shift+M        GDS Management\n" +
+                    "  Ctrl+Shift+D        GDS Discovery\n" +
+                    "  Ctrl+Shift+B        Performance (Benchmark)\n" +
+                    "  Ctrl+Shift+V        Event View\n" +
+                    "  Ctrl+Shift+H        Historian\n" +
+                    "  Ctrl+Shift+L        File System (fiLe)\n" +
+                    "  Ctrl+Shift+C        Certificate Manager\n" +
+                    "\n" +
+                    "  ─── Tabs (manage) ───\n" +
+                    "  F2 (in tab strip)   Rename Active Tab\n" +
+                    "  Ctrl+W              Close Active Tab\n" +
+                    "  (right-click tab)   Rename… / Duplicate / Close\n" +
+                    "\n" +
+                    "  ─── Subscription ───\n" +
+                    "  Ctrl+I              Add item…\n" +
+                    "  Ctrl+Shift+I        Add recursively…\n" +
+                    "  Ctrl+Shift+R        Remove item…\n" +
+                    "  Ctrl+,              Subscription settings…\n" +
+                    "\n" +
+                    "  ─── View ───\n" +
+                    "  F2                  Toggle diagnostics panel\n" +
+                    "  Ctrl+L              Toggle log panel\n" +
+                    "  Ctrl+B              Toggle address-space pane\n" +
+                    "  Ctrl+Shift+F        Toggle address-space filter / view combo\n" +
+                    "  Ctrl+A              Toggle Attributes pane (sub of address space)\n" +
+                    "  Ctrl+R              Toggle References pane (sub of address space)\n" +
+                    "  Ctrl+V              Cycle chart view mode\n" +
+                    "  Ctrl++ / Ctrl+−     Zoom chart time-scale in / out\n" +
+                    "  Ctrl+0              Reset chart time-scale\n" +
+                    "\n" +
+                    "  ─── Help ───\n" +
+                    "  F1                  Cheat sheet (this dialog)\n" +
+                    "\n" +
+                    "  Tree-view glyphs:\n" +
+                    "    🟦 Object   🧩 ObjectType   🟢 Variable   🟣 VariableType\n" +
+                    "    ⚙️ Method   🔗 ReferenceType   🧮 DataType   👁️ View"
+            }
         };
         help.ShowDialog(this);
     }

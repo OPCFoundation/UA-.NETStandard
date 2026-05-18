@@ -140,7 +140,7 @@
       </MenuItem>
       <MenuItem Header="_Tabs">
         <MenuItem Header="_Add…">
-          <MenuItem x:Name="MenuNewSubscription"   Header="⚡  _Subscription"        InputGesture="Ctrl+T" />
+          <MenuItem x:Name="MenuNewSubscription"   Header="⚡  _Subscription"        InputGesture="Ctrl+Shift+S" />
           <MenuItem x:Name="MenuNewGdsPush"        Header="🛡  GDS _Push"            InputGesture="Ctrl+Shift+P" />
           <MenuItem x:Name="MenuNewGdsManagement"  Header="🏛  GDS _Management"      InputGesture="Ctrl+Shift+M" />
           <MenuItem x:Name="MenuNewGdsDiscovery"   Header="🔍  GDS _Discovery"       InputGesture="Ctrl+Shift+D" />
