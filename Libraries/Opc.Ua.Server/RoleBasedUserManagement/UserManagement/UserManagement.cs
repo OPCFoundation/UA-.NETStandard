@@ -232,14 +232,38 @@ namespace Opc.Ua.Server.UserManagement
                     {
                         return passwordValidation;
                     }
+
                     // The IUserDatabase API only exposes ChangePassword which
                     // requires the old password — admin password resets are
-                    // emulated by delete+create to keep the abstraction stable.
-                    if (!m_userDatabase.DeleteUser(userName)
-                        || !m_userDatabase.CreateUser(userName, GetPasswordBytes(password), []))
+                    // emulated by delete + recreate to keep the abstraction
+                    // stable. The previously assigned roles are snapshotted
+                    // and re-applied to preserve role assignments across the
+                    // reset (Part 18 §5.2.6 does not mandate role removal on
+                    // password change).
+                    //
+                    // KNOWN LIMITATION (see Docs/RoleBasedUserManagement.md):
+                    // this two-step is not atomic — if CreateUser fails after
+                    // DeleteUser succeeds, the user account is lost. The
+                    // built-in LinqUserDatabase / JsonUserDatabase delete and
+                    // create operations succeed unconditionally so this is
+                    // only a concern for custom IUserDatabase implementations
+                    // that may fail mid-reset.
+                    ICollection<Role> preservedRoles = SnapshotUserRolesSafe(userName);
+                    if (!m_userDatabase.DeleteUser(userName))
                     {
                         return new ServiceResult(StatusCodes.BadResourceUnavailable,
-                            new LocalizedText("User-database rejected the password update."));
+                            new LocalizedText("User-database rejected the delete during password reset."));
+                    }
+                    if (!m_userDatabase.CreateUser(userName, GetPasswordBytes(password), preservedRoles))
+                    {
+                        // User has been deleted but recreate failed — surface
+                        // a clear error. There is no way to recover the
+                        // original password from IUserDatabase.
+                        m_metadata.Remove(userName);
+                        return new ServiceResult(StatusCodes.BadResourceUnavailable,
+                            new LocalizedText(
+                                "User-database rejected the create during password reset; " +
+                                "the user account has been removed."));
                     }
                 }
 
@@ -505,6 +529,25 @@ namespace Opc.Ua.Server.UserManagement
         private static byte[] GetPasswordBytes(string password)
         {
             return Encoding.UTF8.GetBytes(password ?? string.Empty);
+        }
+
+        /// <summary>
+        /// Reads the current set of roles for <paramref name="userName"/>
+        /// from the user database, swallowing the <see cref="ArgumentException"/>
+        /// some implementations throw when the user is unknown and returning
+        /// an empty collection in that case. Used to preserve roles across
+        /// admin password resets (see <see cref="ModifyUser"/>).
+        /// </summary>
+        private ICollection<Role> SnapshotUserRolesSafe(string userName)
+        {
+            try
+            {
+                return m_userDatabase.GetUserRoles(userName) ?? [];
+            }
+            catch (ArgumentException)
+            {
+                return [];
+            }
         }
 
         private sealed record UserMetadata(UserConfigurationMask Configuration, string Description);

@@ -200,6 +200,45 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        public void ModifyUser_AdminPasswordReset_PreservesUserRoles()
+        {
+            // Regression for the password-reset path that previously dropped
+            // the user's roles by calling CreateUser with []. The fix
+            // snapshots roles via IUserDatabase.GetUserRoles before delete
+            // and re-applies them on recreate.
+            var db = new LinqUserDatabase();
+            db.CreateUser("alice", "secret"u8, [Role.SecurityAdmin, Role.AuthenticatedUser]);
+
+            using var um = new Opc.Ua.Server.UserManagement.UserManagement(
+                db, passwordLength: new Range { Low = 4, High = 64 });
+            Assert.That(ServiceResult.IsGood(
+                um.AddUser("bob", "secret", UserConfigurationMask.None, string.Empty)), Is.True);
+            // Bob exists in the manager metadata as well as in the db (added
+            // by AddUser); now layer in admin-assigned roles directly on the
+            // db (typical pattern for integrators).
+            db.DeleteUser("bob");
+            db.CreateUser("bob", "secret"u8, [Role.Engineer]);
+
+            ServiceResult result = um.ModifyUser(
+                "bob",
+                modifyPassword: true,
+                password: "newsecret",
+                modifyUserConfiguration: false,
+                userConfiguration: UserConfigurationMask.None,
+                modifyDescription: false,
+                description: string.Empty,
+                callingUserName: "admin");
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+
+            // The Engineer role assignment must have survived the reset.
+            ICollection<Role> rolesAfter = db.GetUserRoles("bob");
+            Assert.That(rolesAfter, Has.Member(Role.Engineer),
+                "Admin password reset should preserve previously assigned roles.");
+            Assert.That(db.CheckCredentials("bob", "newsecret"u8), Is.True,
+                "New password must be active after the reset.");
+        }
+
+        [Test]
         public void ChangePassword_HappyPath_Succeeds()
         {
             using var um = CreateManager();

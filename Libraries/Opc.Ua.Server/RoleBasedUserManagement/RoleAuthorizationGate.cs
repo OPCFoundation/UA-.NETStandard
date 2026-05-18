@@ -144,9 +144,22 @@ namespace Opc.Ua.Server
             {
                 return false;
             }
+            // Well-known role NodeIds are always in namespace 0 by spec
+            // (Part 3 §4.9.2 and Part 6 §F.7). Compare against both the
+            // canonical NodeId and the numeric identifier directly so a
+            // custom IRoleManager that returns the well-known role under a
+            // different NodeId representation still authorises correctly.
+            uint securityAdminId = Opc.Ua.Objects.WellKnownRole_SecurityAdmin;
             foreach (NodeId nodeId in identity.GrantedRoleIds)
             {
                 if (nodeId == s_securityAdmin)
+                {
+                    return true;
+                }
+                if (nodeId.NamespaceIndex == 0
+                    && nodeId.IdType == IdType.Numeric
+                    && nodeId.TryGetValue(out uint id)
+                    && id == securityAdminId)
                 {
                     return true;
                 }
@@ -156,6 +169,17 @@ namespace Opc.Ua.Server
 
         private static SecureChannelContext? GetChannelContext(ISystemContext? context)
         {
+            // The OPC UA Server hands a SessionSystemContext (concretely a
+            // ServerSystemContext) to method-state OnCallAsync delegates;
+            // ConfigurationNodeManager.HasApplicationSecureAdminAccess uses
+            // the same pattern. Match both base classes defensively so the
+            // gate works whether the caller is the server-side method
+            // dispatcher (SessionSystemContext) or a fluent address-space
+            // path that uses plain SystemContext.
+            if (context is SessionSystemContext { OperationContext: OperationContext sessionOp })
+            {
+                return sessionOp.ChannelContext;
+            }
             if (context is SystemContext { OperationContext: OperationContext op })
             {
                 return op.ChannelContext;
