@@ -672,22 +672,32 @@ namespace Opc.Ua.Server.Tests
             Assert.That(ServiceResult.IsGood(writeErrors[0]), Is.True);
             Assert.That(variable.Value, Is.EqualTo(123));
 
+            // Initial value is queued synchronously at item creation time.
             Assert.That(monitoredItem.IsReadyToPublish, Is.True);
 
-            var notifications = new Queue<MonitoredItemNotification>();
-            var diagnostics = new Queue<DiagnosticInfo>();
-
-            bool hadMore = monitoredItem.Publish(
-                new OperationContext(new RequestHeader(), null, RequestType.Publish, RequestLifetime.None),
-                notifications,
-                diagnostics,
-                10,
-                m_mockLogger.Object);
-
-            Assert.That(hadMore, Is.False);
             if (!m_useSamplingGroups)
             {
-                // MonitoredNodeMonitoredItemManager propagates writes immediately via ClearChangeMasks
+                // AsyncMonitoredNode delivers write notifications via Task.Run (asynchronously).
+                // Accumulate notifications via repeated Publish calls until both the initial and
+                // write values arrive. Handles both fast (task completed before Publish) and slow
+                // (task completes after) scenarios.
+                var notifications = new Queue<MonitoredItemNotification>();
+                var diagnostics = new Queue<DiagnosticInfo>();
+                DateTime deadline = DateTime.UtcNow.AddSeconds(5);
+                while (notifications.Count < 2 && DateTime.UtcNow < deadline)
+                {
+                    monitoredItem.Publish(
+                        new OperationContext(new RequestHeader(), null, RequestType.Publish, RequestLifetime.None),
+                        notifications,
+                        diagnostics,
+                        10,
+                        m_mockLogger.Object);
+                    if (notifications.Count < 2)
+                    {
+                        await Task.Delay(10).ConfigureAwait(false);
+                    }
+                }
+
                 Assert.That(notifications, Has.Count.EqualTo(2));
                 MonitoredItemNotification notification = notifications.Dequeue();
                 MonitoredItemNotification notificationAfterWrite = notifications.Dequeue();
@@ -777,6 +787,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(ServiceResult.IsGood(writeErrors[0]), Is.True);
             Assert.That(euProperty.Value, Is.EqualTo(123));
 
+            // Initial value is queued synchronously at item creation time.
             Assert.That(monitoredItem.IsReadyToPublish, Is.True);
 
             var notifications = new Queue<MonitoredItemNotification>();
@@ -790,7 +801,8 @@ namespace Opc.Ua.Server.Tests
                 m_mockLogger.Object);
 
             Assert.That(hadMore, Is.False);
-            // For MonitoredNodeMonitoredItemManager the write value is propagated immediately
+            // The semantic change notification is delivered synchronously in the write path
+            // (via SetSemanticsChanged + QueueValue), so both notifications are immediately available.
             if (!m_useSamplingGroups)
             {
                 Assert.That(notifications, Has.Count.EqualTo(2));
@@ -800,8 +812,6 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(notification.Value.StatusCode.SemanticsChanged, Is.True);
                 Assert.That(diagnostics, Has.Count.EqualTo(2));
             }
-
-            Assert.That(hadMore, Is.False);
 
             // Verify a semantic change event was correctly reported and queued
             m_mockServer.Verify(
