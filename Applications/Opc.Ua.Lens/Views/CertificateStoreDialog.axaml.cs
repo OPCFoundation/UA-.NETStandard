@@ -54,6 +54,10 @@ internal sealed partial class CertificateStoreDialog : Window
     private static readonly string[] s_certPatterns = ["*.cer", "*.crt", "*.der", "*.pem"];
 
     private readonly CertificateStoreService m_service;
+    // Cached up-front in WireUp() to avoid FindControl walks from worker
+    // threads — Avalonia 11+ enforces UI-thread access for logical-tree
+    // queries.  See SetStatus.
+    private TextBlock? m_statusLabel;
     public ObservableCollection<CertRow> Trusted { get; } = new();
     public ObservableCollection<CertRow> Issuer { get; } = new();
     public ObservableCollection<CertRow> Rejected { get; } = new();
@@ -82,6 +86,10 @@ internal sealed partial class CertificateStoreDialog : Window
         var trustedList = this.RequiredControl<ListBox>("TrustedList");
         var issuerList = this.RequiredControl<ListBox>("IssuerList");
         var rejectedList = this.RequiredControl<ListBox>("RejectedList");
+        // Capture the status label on the UI thread once at construction
+        // so SetStatus(...) — which may be invoked from worker threads —
+        // doesn't have to walk the logical tree.
+        m_statusLabel = this.FindControl<TextBlock>("StatusLabel");
         trustedList.ItemsSource = Trusted;
         issuerList.ItemsSource = Issuer;
         rejectedList.ItemsSource = Rejected;
@@ -249,8 +257,21 @@ internal sealed partial class CertificateStoreDialog : Window
 
     private void SetStatus(string text)
     {
-        var lbl = this.FindControl<TextBlock>("StatusLabel");
-        if (lbl is not null)
+        // Thread-safe: may be called from worker threads after awaiting
+        // CertificateStoreService methods that ran on the thread pool.
+        // Marshal the assignment to the UI thread; the label reference
+        // was cached on the UI thread by WireUp() so no FindControl walk
+        // happens here.
+        TextBlock? lbl = m_statusLabel;
+        if (lbl is null)
+        {
+            return;
+        }
+        if (Dispatcher.UIThread.CheckAccess())
+        {
+            lbl.Text = text;
+        }
+        else
         {
             Dispatcher.UIThread.Post(() => lbl.Text = text);
         }
