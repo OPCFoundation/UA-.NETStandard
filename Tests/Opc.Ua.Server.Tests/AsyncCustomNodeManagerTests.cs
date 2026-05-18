@@ -388,6 +388,53 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        public async Task ReadAsync_UsesNodeStateAsyncReadCallbackAsync()
+        {
+            using TestableAsyncCustomNodeManager manager = CreateManager();
+            ServerSystemContext context = manager.SystemContext;
+            ushort nsIdx = manager.NamespaceIndexes[0];
+            var variable = new BaseDataVariableState(null);
+            variable.CreateAsPredefinedNode(context);
+            variable.NodeId = new NodeId("AsyncReadVar", nsIdx);
+            variable.BrowseName = new QualifiedName("AsyncReadVar", nsIdx);
+            variable.Value = 42;
+            variable.DataType = DataTypeIds.Int32;
+            variable.ValueRank = ValueRanks.Scalar;
+
+            bool asyncCallbackCalled = false;
+            variable.OnSimpleReadValueAsync = (_, _, _) =>
+            {
+                asyncCallbackCalled = true;
+                return new ValueTask<AttributeSimpleReadResult>(
+                    new AttributeSimpleReadResult(ServiceResult.Good, new Variant(123)));
+            };
+
+            await manager.AddNodeAsync(context, default, variable).ConfigureAwait(false);
+
+            var nodesToRead = new List<ReadValueId>
+            {
+                new()
+                {
+                    NodeId = variable.NodeId,
+                    AttributeId = Attributes.Value
+                }
+            };
+            var values = new List<DataValue> { null };
+            var errors = new List<ServiceResult> { null };
+
+            await manager.ReadAsync(
+                new OperationContext(new RequestHeader(), null, RequestType.Read, RequestLifetime.None),
+                0,
+                nodesToRead,
+                values,
+                errors).ConfigureAwait(false);
+
+            Assert.That(asyncCallbackCalled, Is.True);
+            Assert.That(errors[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That((int)values[0].WrappedValue, Is.EqualTo(123));
+        }
+
+        [Test]
         public async Task TranslateBrowsePathAsync_ResolvesTargetsAsync()
         {
             using TestableAsyncCustomNodeManager manager = CreateManager();
@@ -519,6 +566,53 @@ namespace Opc.Ua.Server.Tests
             Assert.That(ServiceResult.IsGood(errors[0]), Is.True);
             Assert.That(variable.Value, Is.EqualTo(99));
             Assert.That(errors[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+        }
+
+        [Test]
+        public async Task WriteAsync_UsesNodeStateAsyncWriteCallbackAsync()
+        {
+            using TestableAsyncCustomNodeManager manager = CreateManager();
+            ServerSystemContext context = manager.SystemContext;
+            ushort nsIdx = manager.NamespaceIndexes[0];
+            var variable = new BaseDataVariableState(null);
+            variable.CreateAsPredefinedNode(context);
+            variable.NodeId = new NodeId("AsyncWriteVar", nsIdx);
+            variable.BrowseName = new QualifiedName("AsyncWriteVar", nsIdx);
+            variable.Value = 10;
+            variable.DataType = DataTypeIds.Int32;
+            variable.ValueRank = ValueRanks.Scalar;
+            variable.AccessLevel = AccessLevels.CurrentReadOrWrite;
+            variable.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
+
+            bool asyncCallbackCalled = false;
+            variable.OnSimpleWriteValueAsync = (_, _, _, _) =>
+            {
+                asyncCallbackCalled = true;
+                return new ValueTask<AttributeWriteResult>(
+                    new AttributeWriteResult(StatusCodes.BadNotWritable));
+            };
+
+            await manager.AddNodeAsync(context, default, variable).ConfigureAwait(false);
+
+            var nodesToWrite = new List<WriteValue>
+            {
+                new()
+                {
+                    NodeId = variable.NodeId,
+                    AttributeId = Attributes.Value,
+                    Value = new DataValue(new Variant(99))
+                }
+            };
+            var errors = new List<ServiceResult> { null };
+
+            await manager.WriteAsync(
+                new OperationContext(new RequestHeader(), null, RequestType.Write, RequestLifetime.None),
+                nodesToWrite,
+                errors).ConfigureAwait(false);
+
+            Assert.That(asyncCallbackCalled, Is.True);
+            Assert.That(errors[0].StatusCode, Is.EqualTo(StatusCodes.BadNotWritable));
+            Assert.That(variable.Value, Is.EqualTo(10));
         }
 
         [Test]
