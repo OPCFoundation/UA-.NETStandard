@@ -677,29 +677,19 @@ namespace Opc.Ua.Server.Tests
 
             if (!m_useSamplingGroups)
             {
-                // AsyncMonitoredNode delivers write notifications via Task.Run (asynchronously).
-                // Accumulate notifications via repeated Publish calls until both the initial and
-                // write values arrive. Handles both fast (task completed before Publish) and slow
-                // (task completes after) scenarios.
+                // AsyncMonitoredNodeAdapter blocks on .GetAwaiter().GetResult() inside
+                // OnMonitoredNodeChanged → both the initial and write notifications are
+                // delivered synchronously during WriteAsync / ClearChangeMasks.
                 var notifications = new Queue<MonitoredItemNotification>();
                 var diagnostics = new Queue<DiagnosticInfo>();
-                DateTime deadline = DateTime.UtcNow.AddSeconds(5);
-                while (notifications.Count < 2 && DateTime.UtcNow < deadline)
-                {
-                    monitoredItem.Publish(
-                        new OperationContext(new RequestHeader(), null, RequestType.Publish, RequestLifetime.None),
-                        notifications,
-                        diagnostics,
-                        10,
-                        m_mockLogger.Object);
-                    if (notifications.Count < 2)
-                    {
-                        await Task.Delay(10).ConfigureAwait(false);
-                    }
-                }
-
-                Assert.That(notifications, Has.Count.EqualTo(2),
-                    "Both the initial and write notifications should arrive within the 5-second timeout.");
+                bool hadMore = monitoredItem.Publish(
+                    new OperationContext(new RequestHeader(), null, RequestType.Publish, RequestLifetime.None),
+                    notifications,
+                    diagnostics,
+                    10,
+                    m_mockLogger.Object);
+                Assert.That(hadMore, Is.False);
+                Assert.That(notifications, Has.Count.EqualTo(2));
                 MonitoredItemNotification notification = notifications.Dequeue();
                 MonitoredItemNotification notificationAfterWrite = notifications.Dequeue();
                 Assert.That((int)notification.Value.WrappedValue, Is.Zero);

@@ -56,7 +56,7 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         protected override MonitoredNode2 CreateMonitoredNode(NodeState node)
         {
-            return new AsyncMonitoredNode(m_asyncNodeManager, m_server, node);
+            return new AsyncMonitoredNodeAdapter(m_asyncNodeManager, m_server, node);
         }
 
         private readonly IAsyncNodeManager m_asyncNodeManager;

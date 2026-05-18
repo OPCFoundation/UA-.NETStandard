@@ -75,12 +75,12 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Gets the current list of data change MonitoredItems.
         /// </summary>
-        public ConcurrentDictionary<uint, IDataChangeMonitoredItem2> DataChangeMonitoredItems { get; } = new();
+        public virtual ConcurrentDictionary<uint, IDataChangeMonitoredItem2> DataChangeMonitoredItems => m_dataChangeMonitoredItems;
 
         /// <summary>
         /// Gets the current list of event MonitoredItems.
         /// </summary>
-        public ConcurrentDictionary<uint, IEventMonitoredItem> EventMonitoredItems { get; } = new();
+        public virtual ConcurrentDictionary<uint, IEventMonitoredItem> EventMonitoredItems => m_eventMonitoredItems;
 
         /// <summary>
         /// Gets a value indicating whether this instance has monitored items.
@@ -88,7 +88,7 @@ namespace Opc.Ua.Server
         /// <value>
         /// 	<c>true</c> if this instance has monitored items; otherwise, <c>false</c>.
         /// </value>
-        public bool HasMonitoredItems
+        public virtual bool HasMonitoredItems
         {
             get
             {
@@ -110,7 +110,7 @@ namespace Opc.Ua.Server
         /// Adds the specified data change monitored item.
         /// </summary>
         /// <param name="datachangeItem">The monitored item.</param>
-        public void Add(IDataChangeMonitoredItem2 datachangeItem)
+        public virtual void Add(IDataChangeMonitoredItem2 datachangeItem)
         {
             bool wasEmpty = DataChangeMonitoredItems.IsEmpty;
             DataChangeMonitoredItems.TryAdd(datachangeItem.Id, datachangeItem);
@@ -128,7 +128,7 @@ namespace Opc.Ua.Server
         /// Removes the specified data change monitored item.
         /// </summary>
         /// <param name="datachangeItem">The monitored item.</param>
-        public void Remove(IDataChangeMonitoredItem2 datachangeItem)
+        public virtual void Remove(IDataChangeMonitoredItem2 datachangeItem)
         {
             if (DataChangeMonitoredItems.TryRemove(datachangeItem.Id, out _))
             {
@@ -150,7 +150,7 @@ namespace Opc.Ua.Server
         /// Adds the specified event monitored item.
         /// </summary>
         /// <param name="eventItem">The monitored item.</param>
-        public void Add(IEventMonitoredItem eventItem)
+        public virtual void Add(IEventMonitoredItem eventItem)
         {
             EventMonitoredItems.TryAdd(eventItem.Id, eventItem);
 
@@ -161,7 +161,7 @@ namespace Opc.Ua.Server
         /// Removes the specified event monitored item.
         /// </summary>
         /// <param name="eventItem">The monitored item.</param>
-        public void Remove(IEventMonitoredItem eventItem)
+        public virtual void Remove(IEventMonitoredItem eventItem)
         {
             EventMonitoredItems.TryRemove(eventItem.Id, out _);
 
@@ -398,11 +398,7 @@ namespace Opc.Ua.Server
         private readonly ConcurrentDictionary<uint, (ServerSystemContext Context, int CreatedAtTicks)> m_contextCache =
             new();
 
-        /// <summary>
-        /// Permission result cache, keyed by monitored item id. Protected to allow async
-        /// subclasses to use the same cache when they populate it via async validation.
-        /// </summary>
-        protected readonly ConcurrentDictionary<uint, ServiceResult> m_permissionCache =
+        private readonly ConcurrentDictionary<uint, ServiceResult> m_permissionCache =
             new();
 
         private readonly int m_cacheLifetimeTicks = (int)TimeSpan.FromMinutes(5).TotalMilliseconds;
@@ -410,5 +406,8 @@ namespace Opc.Ua.Server
         private readonly Lock m_dataChangelock = new();
         private readonly Lock m_eventLock = new();
         private readonly IServerInternal m_server;
+
+        private readonly ConcurrentDictionary<uint, IDataChangeMonitoredItem2> m_dataChangeMonitoredItems = new();
+        private readonly ConcurrentDictionary<uint, IEventMonitoredItem> m_eventMonitoredItems = new();
     }
 }
