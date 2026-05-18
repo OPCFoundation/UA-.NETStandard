@@ -532,5 +532,15 @@ namespace Opc.Ua.Lds.Server
         {
             return new DiscoveryEndpoint(server);
         }
+
+        /// <inheritdoc />
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                m_lock?.Dispose();
+            }
+            base.Dispose(disposing);
+        }
     }
 }

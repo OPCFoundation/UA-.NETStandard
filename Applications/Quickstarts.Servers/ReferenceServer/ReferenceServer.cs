@@ -202,7 +202,7 @@ namespace Quickstarts.ReferenceServer
         /// rooted at a per-process temp folder. Override
         /// <see cref="FileSystemProvider"/> to mount a different backend.
         /// </summary>
-        private static Opc.Ua.Server.FileSystem.IFileSystemProvider CreateDefaultFileSystemProvider()
+        private static Opc.Ua.Server.FileSystem.PhysicalFileSystemProvider CreateDefaultFileSystemProvider()
         {
             string root = System.IO.Path.Combine(
                 System.IO.Path.GetTempPath(),

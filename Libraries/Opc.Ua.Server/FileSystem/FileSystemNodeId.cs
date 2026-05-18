@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Text;
 
 namespace Opc.Ua.Server.FileSystem
@@ -230,7 +231,7 @@ namespace Opc.Ua.Server.FileSystem
 
             var buffer = new StringBuilder();
             buffer.Append(parentId);
-            buffer.Append(parentId.IndexOf('?') < 0 ? '?' : '/');
+            buffer.Append(parentId.IndexOf('?', StringComparison.Ordinal) < 0 ? '?' : '/');
             buffer.Append(component.SymbolicName);
             return new NodeId(buffer.ToString(), namespaceIndex);
         }

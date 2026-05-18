@@ -91,7 +91,8 @@ namespace Opc.Ua.Lds.Server.Console
                 {
                     Log.Logger = new LoggerConfiguration()
                         .MinimumLevel.Information()
-                        .WriteTo.Console(restrictedToMinimumLevel: LogEventLevel.Information)
+                        .WriteTo.Console(restrictedToMinimumLevel: LogEventLevel.Information,
+                            formatProvider: CultureInfo.InvariantCulture)
                         .CreateLogger();
                 }
 
@@ -117,12 +118,12 @@ namespace Opc.Ua.Lds.Server.Console
                 {
                     System.Console.WriteLine($"Loading configuration from {ConfigSectionName}.Config.xml.");
                     await application
-                        .LoadApplicationConfigurationAsync(silent: false)
+                        .LoadApplicationConfigurationAsync(silent: false, ct: cancellationToken)
                         .ConfigureAwait(false);
 
                     System.Console.WriteLine("Checking the application certificate.");
                     bool ok = await application
-                        .CheckApplicationInstanceCertificatesAsync(silent: false)
+                        .CheckApplicationInstanceCertificatesAsync(silent: false, ct: cancellationToken)
                         .ConfigureAwait(false);
                     if (!ok)
                     {

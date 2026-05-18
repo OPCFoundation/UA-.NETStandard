@@ -53,6 +53,8 @@ namespace Opc.Ua.Lds.Server
         /// </summary>
         public const string OpcUaServiceType = "_opcua-tcp._tcp";
 
+        private static readonly char[] s_capsSeparator = [','];
+
         private readonly RegisteredServerStore m_store;
         private readonly ILogger m_logger;
         private readonly bool m_loopbackOnly;
@@ -260,7 +262,7 @@ namespace Opc.Ua.Lds.Server
                         else if (str.StartsWith("caps=", StringComparison.Ordinal))
                         {
                             foreach (string raw in str.Substring("caps=".Length)
-                                .Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries))
+                                .Split(s_capsSeparator, StringSplitOptions.RemoveEmptyEntries))
                             {
                                 string trimmed = raw.Trim();
                                 if (trimmed.Length > 0)

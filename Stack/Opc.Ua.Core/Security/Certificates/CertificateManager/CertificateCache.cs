@@ -31,9 +31,9 @@
 
 using System;
 using System.Diagnostics.Metrics;
-using Opc.Ua.Security.Certificates;
 using BitFaster.Caching;
 using BitFaster.Caching.Lru;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua
 {
