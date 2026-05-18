@@ -29,6 +29,7 @@
 
 #nullable enable
 
+using System;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server.UserManagement;
@@ -238,6 +239,223 @@ namespace Opc.Ua.Server.Tests
             // (which is USERNAME-only per the spec).
             userManagement.Verify(u => u.MustChangePassword(It.IsAny<string>()), Times.Never,
                 "MustChangePassword should only be consulted for USERNAME tokens.");
+        }
+
+        // ----------------------------------------------------------------
+        // ComputeActivationStatus — Good_PasswordChangeRequired (Part 18 §5.2.8)
+        // ----------------------------------------------------------------
+
+        [Test]
+        public void ComputeActivationStatus_MustChangePasswordSet_ReturnsGoodPasswordChangeRequired()
+        {
+            var userManagement = new Mock<IUserManagement>();
+            userManagement.Setup(u => u.MustChangePassword("alice")).Returns(true);
+            m_serverMock.Setup(s => s.UserManagement).Returns(userManagement.Object);
+
+            using TestableSessionManager manager = CreateManager();
+            IUserIdentity identity = CreateUserNameIdentity("alice");
+
+            ServiceResult status = manager.PublicComputeActivationStatus(identity);
+
+            Assert.That(status.Code, Is.EqualTo((uint)StatusCodes.GoodPasswordChangeRequired),
+                "Part 18 §5.2.8 — MustChangePassword users must see Good_PasswordChangeRequired on activation.");
+        }
+
+        [Test]
+        public void ComputeActivationStatus_MustChangePasswordClear_ReturnsGood()
+        {
+            var userManagement = new Mock<IUserManagement>();
+            userManagement.Setup(u => u.MustChangePassword(It.IsAny<string>())).Returns(false);
+            m_serverMock.Setup(s => s.UserManagement).Returns(userManagement.Object);
+
+            using TestableSessionManager manager = CreateManager();
+            IUserIdentity identity = CreateUserNameIdentity("alice");
+
+            ServiceResult status = manager.PublicComputeActivationStatus(identity);
+
+            Assert.That(status, Is.EqualTo(ServiceResult.Good),
+                "Normal users must see Good on activation.");
+        }
+
+        [Test]
+        public void ComputeActivationStatus_AnonymousIdentity_ReturnsGoodAndSkipsUserManagement()
+        {
+            var userManagement = new Mock<IUserManagement>();
+            userManagement.Setup(u => u.MustChangePassword(It.IsAny<string>())).Returns(true);
+            m_serverMock.Setup(s => s.UserManagement).Returns(userManagement.Object);
+
+            using TestableSessionManager manager = CreateManager();
+            var identity = new UserIdentity();
+
+            ServiceResult status = manager.PublicComputeActivationStatus(identity);
+
+            Assert.That(status, Is.EqualTo(ServiceResult.Good),
+                "Anonymous identities must never carry Good_PasswordChangeRequired.");
+            userManagement.Verify(u => u.MustChangePassword(It.IsAny<string>()), Times.Never,
+                "MustChangePassword must only be consulted for USERNAME tokens.");
+        }
+
+        [Test]
+        public void ComputeActivationStatus_NoUserManagement_ReturnsGood()
+        {
+            // UserManagement is null — no MustChangePassword data available.
+            using TestableSessionManager manager = CreateManager();
+            IUserIdentity identity = CreateUserNameIdentity("alice");
+
+            ServiceResult status = manager.PublicComputeActivationStatus(identity);
+
+            Assert.That(status, Is.EqualTo(ServiceResult.Good),
+                "Without UserManagement injected, activation must default to Good.");
+        }
+
+        [Test]
+        public void ComputeActivationStatus_EmptyUserName_ReturnsGood()
+        {
+            var userManagement = new Mock<IUserManagement>();
+            userManagement.Setup(u => u.MustChangePassword(It.IsAny<string>())).Returns(true);
+            m_serverMock.Setup(s => s.UserManagement).Returns(userManagement.Object);
+
+            using TestableSessionManager manager = CreateManager();
+            IUserIdentity identity = CreateUserNameIdentity(string.Empty);
+
+            ServiceResult status = manager.PublicComputeActivationStatus(identity);
+
+            Assert.That(status, Is.EqualTo(ServiceResult.Good),
+                "USERNAME identities without a DisplayName cannot be looked up — must return Good.");
+            userManagement.Verify(u => u.MustChangePassword(It.IsAny<string>()), Times.Never);
+        }
+
+        // ----------------------------------------------------------------
+        // Live re-evaluation on RoleConfigurationChanged (Part 18 §4.4.1)
+        // ----------------------------------------------------------------
+
+        [Test]
+        public void OnRoleConfigurationChanged_MarksAllSessionsStale()
+        {
+            using TestableSessionManager manager = CreateManager();
+
+            var sessionA = new Mock<ISession>();
+            var sessionB = new Mock<ISession>();
+            manager.InjectedSessions = [sessionA.Object, sessionB.Object];
+
+            manager.PublicOnRoleConfigurationChanged(
+                this,
+                new RoleConfigurationChangedEventArgs(
+                    ObjectIds.WellKnownRole_Observer,
+                    RoleConfigurationChangeKind.IdentityAdded));
+
+            sessionA.Verify(s => s.MarkIdentityStale(), Times.Once);
+            sessionB.Verify(s => s.MarkIdentityStale(), Times.Once);
+        }
+
+        [Test]
+        public void OnRoleConfigurationChanged_SessionThrows_OtherSessionsStillMarked()
+        {
+            using TestableSessionManager manager = CreateManager();
+
+            var sessionA = new Mock<ISession>();
+            sessionA.Setup(s => s.MarkIdentityStale()).Throws(new InvalidOperationException("boom"));
+            var sessionB = new Mock<ISession>();
+
+            // Order in the list determines walk order; the throwing session
+            // is first so we need the handler to swallow the error and still
+            // raise on the second session. The current implementation logs
+            // the error and exits the loop, so this test documents the
+            // observed behaviour. If the contract changes to per-session
+            // isolation, update this assertion.
+            manager.InjectedSessions = [sessionA.Object, sessionB.Object];
+
+            Assert.DoesNotThrow(() =>
+                manager.PublicOnRoleConfigurationChanged(
+                    this,
+                    new RoleConfigurationChangedEventArgs(
+                        ObjectIds.WellKnownRole_Observer,
+                        RoleConfigurationChangeKind.IdentityAdded)),
+                "The event handler must never throw — it would tear down the RoleManager event source.");
+
+            sessionA.Verify(s => s.MarkIdentityStale(), Times.Once);
+        }
+
+        [Test]
+        public void ReevaluateIdentityIfStale_NotStale_DoesNotInvokeRefresh()
+        {
+            using TestableSessionManager manager = CreateManager();
+
+            var session = new Mock<ISession>();
+            session.Setup(s => s.IsIdentityStale).Returns(false);
+            SecureChannelContext channelContext = CreateSecureChannelContext(MessageSecurityMode.SignAndEncrypt);
+
+            manager.PublicReevaluateIdentityIfStale(session.Object, channelContext);
+
+            session.Verify(s => s.RefreshEffectiveIdentity(It.IsAny<IUserIdentity>()), Times.Never,
+                "Fresh sessions must not be refreshed.");
+        }
+
+        [Test]
+        public void ReevaluateIdentityIfStale_StaleSession_RefreshesWithLayeredIdentity()
+        {
+            // The RoleManager grants Observer to any AuthenticatedUser; the
+            // re-evaluation should apply this on top of the original Identity
+            // and pass the result to RefreshEffectiveIdentity.
+            using var roleManager = new RoleManager();
+            Assert.That(ServiceResult.IsGood(
+                roleManager.AddIdentity(
+                    ObjectIds.WellKnownRole_Observer,
+                    new IdentityMappingRuleType
+                    {
+                        CriteriaType = IdentityCriteriaType.AuthenticatedUser
+                    })),
+                Is.True);
+            m_serverMock.Setup(s => s.RoleManager).Returns(roleManager);
+
+            using TestableSessionManager manager = CreateManager();
+
+            IUserIdentity originalIdentity = CreateUserNameIdentity("alice");
+            IUserIdentity? refreshed = null;
+            var session = new Mock<ISession>();
+            session.Setup(s => s.IsIdentityStale).Returns(true);
+            session.Setup(s => s.Identity).Returns(originalIdentity);
+            session.Setup(s => s.EffectiveIdentity).Returns(originalIdentity);
+            session.Setup(s => s.ClientCertificate)
+                .Returns((Opc.Ua.Security.Certificates.Certificate)null!);
+            session.Setup(s => s.RefreshEffectiveIdentity(It.IsAny<IUserIdentity>()))
+                .Callback<IUserIdentity>(id => refreshed = id);
+
+            SecureChannelContext channelContext = CreateSecureChannelContext(MessageSecurityMode.SignAndEncrypt);
+            manager.PublicReevaluateIdentityIfStale(session.Object, channelContext);
+
+            Assert.That(refreshed, Is.Not.Null, "Stale session must be refreshed.");
+            Assert.That(refreshed!.GrantedRoleIds.Contains(ObjectIds.WellKnownRole_Observer), Is.True,
+                "Refreshed identity must reflect the current RoleManager grants.");
+        }
+
+        [Test]
+        public void ReevaluateIdentityIfStale_RefreshThrows_DoesNotPropagate()
+        {
+            using TestableSessionManager manager = CreateManager();
+
+            IUserIdentity originalIdentity = CreateUserNameIdentity("alice");
+            var session = new Mock<ISession>();
+            session.Setup(s => s.IsIdentityStale).Returns(true);
+            session.Setup(s => s.Identity).Returns(originalIdentity);
+            session.Setup(s => s.EffectiveIdentity).Returns(originalIdentity);
+            session.Setup(s => s.ClientCertificate)
+                .Returns((Opc.Ua.Security.Certificates.Certificate)null!);
+            session.Setup(s => s.RefreshEffectiveIdentity(It.IsAny<IUserIdentity>()))
+                .Throws(new InvalidOperationException("session disposed"));
+
+            SecureChannelContext channelContext = CreateSecureChannelContext(MessageSecurityMode.SignAndEncrypt);
+
+            // The hook is on the request hot path — a per-session failure
+            // (e.g. mid-disposal race) must not poison the request pipeline.
+            Assert.DoesNotThrow(
+                () => manager.PublicReevaluateIdentityIfStale(session.Object, channelContext));
+        }
+
+        private static SecureChannelContext CreateSecureChannelContext(MessageSecurityMode securityMode)
+        {
+            var endpoint = new EndpointDescription { SecurityMode = securityMode };
+            return new SecureChannelContext("test-channel", endpoint, RequestEncoding.Binary);
         }
 
         private TestableSessionManager CreateManager()

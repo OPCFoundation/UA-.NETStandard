@@ -81,6 +81,40 @@ namespace Opc.Ua.Server
         IUserIdentity EffectiveIdentity { get; }
 
         /// <summary>
+        /// Whether the session's <see cref="EffectiveIdentity"/> has been
+        /// invalidated by a configuration change (e.g. Role identity-mapping
+        /// rules) and should be recomputed on the next request.
+        /// </summary>
+        /// <remarks>
+        /// The flag is set by <see cref="MarkIdentityStale"/> and cleared by
+        /// <see cref="RefreshEffectiveIdentity"/>. Per OPC UA Part 18 §4.4.1
+        /// role grants must reflect the live RoleSet without forcing the
+        /// client to re-activate.
+        /// </remarks>
+        bool IsIdentityStale { get; }
+
+        /// <summary>
+        /// Marks the session's <see cref="EffectiveIdentity"/> as stale so
+        /// the next request triggers a re-evaluation of the role mapping.
+        /// </summary>
+        /// <remarks>
+        /// Safe to call from any thread. Multiple concurrent calls are
+        /// idempotent — the flag is sticky until a refresh clears it.
+        /// </remarks>
+        void MarkIdentityStale();
+
+        /// <summary>
+        /// Atomically replaces the session's <see cref="EffectiveIdentity"/>
+        /// with the supplied value and clears the
+        /// <see cref="IsIdentityStale"/> flag.
+        /// </summary>
+        /// <param name="effectiveIdentity">
+        /// The newly resolved effective identity (including any roles layered
+        /// on by mandatory-role assignment and the live RoleSet).
+        /// </param>
+        void RefreshEffectiveIdentity(IUserIdentity effectiveIdentity);
+
+        /// <summary>
         /// Returns the session's endpoint
         /// </summary>
         EndpointDescription EndpointDescription { get; }

@@ -119,7 +119,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Activates an existing session
         /// </summary>
-        ValueTask<(bool IdentityContextChanged, ByteString ServerNonce)> ActivateSessionAsync(
+        ValueTask<(bool IdentityContextChanged, ByteString ServerNonce, ServiceResult ActivationStatus)> ActivateSessionAsync(
             OperationContext context,
             NodeId authenticationToken,
             SignatureData? clientSignature,
