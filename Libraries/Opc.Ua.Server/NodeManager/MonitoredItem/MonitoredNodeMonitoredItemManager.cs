@@ -78,7 +78,7 @@ namespace Opc.Ua.Server
             {
                 NodeState cachedNode = addNodeToComponentCache(context, handle, handle.Node);
                 MonitoredNodes[handle.Node.NodeId]
-                    = monitoredNode = new MonitoredNode2(m_nodeManager, m_server, cachedNode);
+                    = monitoredNode = CreateMonitoredNode(cachedNode);
             }
 
             handle.Node = monitoredNode!.Node;
@@ -202,7 +202,7 @@ namespace Opc.Ua.Server
             {
                 NodeState cachedNode = addNodeToComponentCache(context, handle, handle.Node);
                 MonitoredNodes[handle.Node.NodeId]
-                    = monitoredNode = new MonitoredNode2(m_nodeManager, m_server, cachedNode);
+                    = monitoredNode = CreateMonitoredNode(cachedNode);
             }
 
             handle.Node = monitoredNode!.Node;
@@ -293,7 +293,7 @@ namespace Opc.Ua.Server
             if (!MonitoredNodes.TryGetValue(source.NodeId, out monitoredNode!))
             {
                 MonitoredNodes[source.NodeId]
-                    = monitoredNode = new MonitoredNode2(m_nodeManager, m_server, source);
+                    = monitoredNode = CreateMonitoredNode(source);
             }
 
             // remove existing monitored items with the same Id prior to insertion in order to avoid duplicates
@@ -311,7 +311,20 @@ namespace Opc.Ua.Server
             return (monitoredNode, ServiceResult.Good);
         }
 
-        private readonly INodeManager3 m_nodeManager;
-        private readonly IServerInternal m_server;
+        /// <summary>
+        /// Creates the <see cref="MonitoredNode2"/> instance for a given node.
+        /// Override in derived classes to return a specialised subclass such as
+        /// <see cref="AsyncMonitoredNode"/>.
+        /// </summary>
+        protected virtual MonitoredNode2 CreateMonitoredNode(NodeState node)
+        {
+            return new MonitoredNode2(m_nodeManager, m_server, node);
+        }
+
+        /// <summary>The node manager that owns the nodes.</summary>
+        protected readonly INodeManager3 m_nodeManager;
+
+        /// <summary>The server instance.</summary>
+        protected readonly IServerInternal m_server;
     }
 }

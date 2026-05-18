@@ -164,14 +164,14 @@ namespace Opc.Ua.Server
             // create a monitored item manager that owns sampling groups / monitoredNodes
             if (useSamplingGroups)
             {
-                m_monitoredItemManager = new SamplingGroupMonitoredItemManager(
-                    m_syncNodeManager!,
+                m_monitoredItemManager = new AsyncSamplingGroupMonitoredItemManager(
+                    this,
                     server,
                     configuration!);
             }
             else
             {
-                m_monitoredItemManager = new MonitoredNodeMonitoredItemManager(m_syncNodeManager!, server);
+                m_monitoredItemManager = new AsyncMonitoredNodeMonitoredItemManager(this, server);
             }
 
             PredefinedNodes = [];

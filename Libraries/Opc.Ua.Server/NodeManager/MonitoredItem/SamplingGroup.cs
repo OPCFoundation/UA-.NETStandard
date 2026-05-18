@@ -125,10 +125,10 @@ namespace Opc.Ua.Server
                 m_shutdownEvent.Reset();
 
                 m_samplingTask = Task.Factory.StartNew(
-                    () => SampleMonitoredItems(m_samplingInterval),
+                    async () => await SampleMonitoredItemsAsync(m_samplingInterval).ConfigureAwait(false),
                     default, // TODO: Pass a cancellation token
                     TaskCreationOptions.LongRunning | TaskCreationOptions.DenyChildAttach,
-                    TaskScheduler.Default);
+                    TaskScheduler.Default).Unwrap();
             }
         }
 
@@ -251,7 +251,7 @@ namespace Opc.Ua.Server
                 // collect first sample.
                 if (itemsToSample.Count > 0)
                 {
-                    _ = Task.Run(() => DoSample(itemsToSample));
+                    _ = Task.Run(() => DoSampleAsync(itemsToSample));
                 }
 
                 // remove items.
@@ -374,7 +374,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Periodically checks if the sessions have timed out.
         /// </summary>
-        private void SampleMonitoredItems(object data)
+        private async Task SampleMonitoredItemsAsync(object data)
         {
             try
             {
@@ -424,7 +424,7 @@ namespace Opc.Ua.Server
                     }
 
                     // sample the values.
-                    DoSample(items);
+                    await DoSampleAsync(items).ConfigureAwait(false);
 
                     int delay = (int)(HiResClock.UtcNow - start).TotalMilliseconds;
                     timeToWait = sleepCycle;
@@ -453,65 +453,75 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Samples the values of the items.
+        /// Builds an <see cref="OperationContext"/> from the current session or, if no session
+        /// is set yet, from the first monitored item in the list.
         /// </summary>
-        private void DoSample(object state)
+        protected OperationContext BuildOperationContext(IList<ISampledDataChangeMonitoredItem> items)
+        {
+            if (m_session != null)
+            {
+                return new OperationContext(m_session, m_diagnosticsMask);
+            }
+
+            // If session of the Sampling group is not set yet, use the first monitored item.
+            IMonitoredItem firstItem = items[0];
+            m_session = firstItem.Session;
+            return new OperationContext(firstItem);
+        }
+
+        /// <summary>
+        /// Samples the values of the items by reading via the node manager and queuing results.
+        /// Override in derived classes to use an async read path.
+        /// </summary>
+        protected virtual Task DoSampleAsync(IList<ISampledDataChangeMonitoredItem> items)
         {
             try
             {
                 // read values for all enabled items.
-                if (state is List<ISampledDataChangeMonitoredItem> items && items.Count > 0)
+                if (items == null || items.Count == 0)
                 {
-                    var itemsToRead = new List<ReadValueId>(items.Count);
-                    var values = new List<DataValue>(items.Count);
-                    var errors = new List<ServiceResult>(items.Count);
+                    return Task.CompletedTask;
+                }
 
-                    // allocate space for results.
-                    for (int ii = 0; ii < items.Count; ii++)
+                var itemsToRead = new List<ReadValueId>(items.Count);
+                var values = new List<DataValue>(items.Count);
+                var errors = new List<ServiceResult>(items.Count);
+
+                // allocate space for results.
+                for (int ii = 0; ii < items.Count; ii++)
+                {
+                    ReadValueId readValueId = items[ii].GetReadValueId();
+                    readValueId.Processed = false;
+                    itemsToRead.Add(readValueId);
+
+                    values.Add(null!);
+                    errors.Add(null!);
+                }
+
+                OperationContext context = BuildOperationContext(items);
+
+                // read values.
+                m_nodeManager.Read(context, 0, itemsToRead, values, errors);
+
+                // update monitored items.
+                for (int ii = 0; ii < items.Count; ii++)
+                {
+                    if (values[ii] == null)
                     {
-                        ReadValueId readValueId = items[ii].GetReadValueId();
-                        readValueId.Processed = false;
-                        itemsToRead.Add(readValueId);
-
-                        values.Add(null!);
-                        errors.Add(null!);
+                        values[ii] = DataValue.FromStatusCode(
+                            StatusCodes.BadInternalError,
+                            DateTime.UtcNow);
                     }
 
-                    OperationContext context;
-
-                    if (m_session != null)
-                    {
-                        context = new OperationContext(m_session, m_diagnosticsMask);
-                    }
-                    else
-                    {
-                        // if session of the Sampling group is not set yet, use the first monitored item to create the context.
-                        IMonitoredItem firstItem = items[0];
-                        context = new OperationContext(firstItem);
-                        m_session = firstItem.Session;
-                    }
-
-                    // read values.
-                    m_nodeManager.Read(context, 0, itemsToRead, values, errors);
-
-                    // update monitored items.
-                    for (int ii = 0; ii < items.Count; ii++)
-                    {
-                        if (values[ii] == null)
-                        {
-                            values[ii] = DataValue.FromStatusCode(
-                                StatusCodes.BadInternalError,
-                                DateTime.UtcNow);
-                        }
-
-                        items[ii].QueueValue(values[ii], errors[ii]);
-                    }
+                    items[ii].QueueValue(values[ii], errors[ii]);
                 }
             }
             catch (Exception e)
             {
                 m_logger.LogError(e, "Server: Unexpected error sampling values.");
             }
+
+            return Task.CompletedTask;
         }
 
         private readonly Lock m_lock = new();

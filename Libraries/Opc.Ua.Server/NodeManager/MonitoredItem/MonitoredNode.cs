@@ -63,6 +63,11 @@ namespace Opc.Ua.Server
         public INodeManager3 NodeManager { get; set; }
 
         /// <summary>
+        /// Gets the server instance.
+        /// </summary>
+        protected IServerInternal Server => m_server;
+
+        /// <summary>
         /// Gets or sets the Node being monitored.
         /// </summary>
         public NodeState Node { get; set; }
@@ -172,7 +177,7 @@ namespace Opc.Ua.Server
         /// <param name="context">The system context.</param>
         /// <param name="node">The affected node.</param>
         /// <param name="e">The event.</param>
-        public void OnReportEvent(ISystemContext context, NodeState node, IFilterTarget e)
+        public virtual void OnReportEvent(ISystemContext context, NodeState node, IFilterTarget e)
         {
             // make sure to process events in the order they are received and avoid concurrent processing of events for the same node
             lock (m_eventLock)
@@ -230,7 +235,7 @@ namespace Opc.Ua.Server
         /// <param name="context">The system context.</param>
         /// <param name="node">The affected node.</param>
         /// <param name="changes">The mask indicating what changes have occurred.</param>
-        public void OnMonitoredNodeChanged(
+        public virtual void OnMonitoredNodeChanged(
             ISystemContext context,
             NodeState node,
             NodeStateChangeMasks changes)
@@ -305,7 +310,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Reads the value of an attribute and reports it to the MonitoredItem.
         /// </summary>
-        public void QueueValue(
+        public virtual void QueueValue(
             ISystemContext context,
             NodeState node,
             IDataChangeMonitoredItem2 monitoredItem)
@@ -338,7 +343,7 @@ namespace Opc.Ua.Server
         /// <param name="context">The system context.</param>
         /// <param name="monitoredItem">The monitored item.</param>
         /// <returns>The cached or newly created context.</returns>
-        private ServerSystemContext GetOrCreateContext(
+        protected ServerSystemContext GetOrCreateContext(
             ServerSystemContext context,
             IDataChangeMonitoredItem2 monitoredItem)
         {
@@ -393,7 +398,11 @@ namespace Opc.Ua.Server
         private readonly ConcurrentDictionary<uint, (ServerSystemContext Context, int CreatedAtTicks)> m_contextCache =
             new();
 
-        private readonly ConcurrentDictionary<uint, ServiceResult> m_permissionCache =
+        /// <summary>
+        /// Permission result cache, keyed by monitored item id. Protected to allow async
+        /// subclasses to use the same cache when they populate it via async validation.
+        /// </summary>
+        protected readonly ConcurrentDictionary<uint, ServiceResult> m_permissionCache =
             new();
 
         private readonly int m_cacheLifetimeTicks = (int)TimeSpan.FromMinutes(5).TotalMilliseconds;

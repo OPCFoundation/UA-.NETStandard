@@ -406,7 +406,7 @@ namespace Opc.Ua.Server
                 SamplingGroup? tempSamplingGroup = null;
                 try
                 {
-                    tempSamplingGroup = new SamplingGroup(
+                    tempSamplingGroup = CreateSamplingGroup(
                         m_server,
                         m_nodeManager,
                         m_samplingRates,
@@ -425,6 +425,21 @@ namespace Opc.Ua.Server
                     tempSamplingGroup?.Dispose();
                 }
             }
+        }
+
+        /// <summary>
+        /// Creates a new <see cref="SamplingGroup"/> for the specified sampling interval.
+        /// Override in derived classes to create specialised sampling groups (e.g. async variants).
+        /// </summary>
+        protected virtual SamplingGroup CreateSamplingGroup(
+            IServerInternal server,
+            INodeManager nodeManager,
+            List<SamplingRateGroup> samplingRates,
+            OperationContext context,
+            double samplingInterval,
+            IUserIdentity? savedOwnerIdentity = null)
+        {
+            return new SamplingGroup(server, nodeManager, samplingRates, context, samplingInterval, savedOwnerIdentity);
         }
 
         /// <summary>
