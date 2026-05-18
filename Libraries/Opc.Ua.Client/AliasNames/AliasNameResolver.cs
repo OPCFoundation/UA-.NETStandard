@@ -273,15 +273,37 @@ namespace Opc.Ua.Client.AliasNames
 
         /// <summary>
         /// Stops auto-refresh polling (if enabled) and releases the
-        /// internal cache. Idempotent.
+        /// internal cache. Idempotent. Waits for any in-flight resolve /
+        /// refresh / poll callback to release the internal lock before
+        /// disposing it so concurrent calls cannot observe an
+        /// <see cref="ObjectDisposedException"/>.
         /// </summary>
-        public ValueTask DisposeAsync()
+        public async ValueTask DisposeAsync()
         {
             Timer? timer = m_pollTimer;
             m_pollTimer = null;
             timer?.Dispose();
-            m_semaphore.Dispose();
-            return default;
+
+            try
+            {
+                await m_semaphore.WaitAsync().ConfigureAwait(false);
+            }
+            catch (ObjectDisposedException)
+            {
+                // Already disposed via a re-entrant call.
+                return;
+            }
+            try
+            {
+                m_forward.Clear();
+                m_serverUris.Clear();
+                m_reverse.Clear();
+            }
+            finally
+            {
+                m_semaphore.Release();
+                m_semaphore.Dispose();
+            }
         }
 
         private void PollLastChange(object? _)

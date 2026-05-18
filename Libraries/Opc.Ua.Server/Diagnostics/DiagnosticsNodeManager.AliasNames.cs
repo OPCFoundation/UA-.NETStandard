@@ -140,6 +140,24 @@ namespace Opc.Ua.Server
             }
         }
 
+        /// <summary>
+        /// Detaches the <see cref="OnAliasRegistryChanged"/> handler.
+        /// Invoked from <c>Dispose(bool)</c> so the registry — which
+        /// outlives this manager when other node managers share the same
+        /// server — does not hold a stale reference into the disposed
+        /// <see cref="DiagnosticsNodeManager"/>.
+        /// </summary>
+        private void UnwireStandardAliasMethods()
+        {
+            IAliasNameStoreRegistry? registry = m_aliasRegistry;
+            if (registry != null)
+            {
+                registry.Changed -= OnAliasRegistryChanged;
+                m_aliasRegistry = null;
+            }
+            m_aliasesLastChangeNode = null;
+        }
+
         private IAliasNameStoreRegistry? m_aliasRegistry;
         private PropertyState<uint>? m_aliasesLastChangeNode;
     }

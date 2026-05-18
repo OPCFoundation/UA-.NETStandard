@@ -75,8 +75,10 @@ namespace Opc.Ua.Client.Tests.AliasNames
             Assert.That(harness.CallRequests, Has.Count.EqualTo(1));
             Assert.That(harness.CallRequests[0].ObjectId, Is.EqualTo(ObjectIds.Aliases));
             Assert.That(harness.CallRequests[0].MethodId,
-                Is.EqualTo(MethodIds.Aliases_FindAlias),
-                "Standard Aliases.FindAlias method-id should be used.");
+                Is.EqualTo(MethodIds.AliasNameCategoryType_FindAlias),
+                "Generated AliasNameCategoryTypeClient proxy invokes the " +
+                "type's method-declaration NodeId; the server resolves it " +
+                "against the supplied ObjectId.");
             Assert.That(harness.CallRequests[0].InputArguments.Count, Is.EqualTo(2));
             Assert.That(result, Has.Count.EqualTo(1));
             Assert.That(result[0].AliasName.Name, Is.EqualTo("Tag1"));
@@ -105,7 +107,9 @@ namespace Opc.Ua.Client.Tests.AliasNames
             await client.FindAliasAsync("Foo", null).ConfigureAwait(false);
 
             Assert.That(captured, Is.Not.Null);
-            Assert.That(captured.MethodId, Is.EqualTo(MethodIds.Topics_FindAlias));
+            Assert.That(captured.ObjectId, Is.EqualTo(ObjectIds.Topics));
+            Assert.That(captured.MethodId,
+                Is.EqualTo(MethodIds.AliasNameCategoryType_FindAlias));
             captured.InputArguments[1].TryGetValue(out NodeId filter);
             Assert.That(filter.IsNull, Is.True);
         }

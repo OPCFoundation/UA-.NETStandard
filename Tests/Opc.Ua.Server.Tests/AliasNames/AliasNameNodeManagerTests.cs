@@ -117,12 +117,12 @@ namespace Opc.Ua.Server.Tests.AliasNames
         }
 
         [Test]
-        public void CreateAddressSpaceBuildsCategoryWithAllOptionalChildren()
+        public async Task CreateAddressSpaceBuildsCategoryWithAllOptionalChildrenAsync()
         {
             using AliasNameNodeManager manager = CreateManager();
             var externalReferences =
                 new Dictionary<NodeId, IList<IReference>>();
-            manager.CreateAddressSpace(externalReferences);
+            await manager.CreateAddressSpaceAsync(externalReferences).ConfigureAwait(false);
 
             AliasNameCategoryState category = manager
                 .FindPredefinedNode<AliasNameCategoryState>(
@@ -151,7 +151,7 @@ namespace Opc.Ua.Server.Tests.AliasNames
         }
 
         [Test]
-        public void OmittingCapabilitiesSkipsOptionalChildren()
+        public async Task OmittingCapabilitiesSkipsOptionalChildrenAsync()
         {
             m_store.Dispose();
             var minimal = new AliasNameCategoryDescriptor(
@@ -161,7 +161,7 @@ namespace Opc.Ua.Server.Tests.AliasNames
             m_store = new InMemoryAliasNameStore([minimal]);
 
             using AliasNameNodeManager manager = CreateManager();
-            manager.CreateAddressSpace(new Dictionary<NodeId, IList<IReference>>());
+            await manager.CreateAddressSpaceAsync(new Dictionary<NodeId, IList<IReference>>()).ConfigureAwait(false);
 
             AliasNameCategoryState category = manager
                 .FindPredefinedNode<AliasNameCategoryState>(
@@ -179,7 +179,7 @@ namespace Opc.Ua.Server.Tests.AliasNames
         public async Task FindAliasHandlerReturnsStoreAliasesAsync()
         {
             using AliasNameNodeManager manager = CreateManager();
-            manager.CreateAddressSpace(new Dictionary<NodeId, IList<IReference>>());
+            await manager.CreateAddressSpaceAsync(new Dictionary<NodeId, IList<IReference>>()).ConfigureAwait(false);
 
             var categoryId = new NodeId("MyCategory", 1);
             await m_store.AddAliasesAsync(categoryId,
@@ -220,7 +220,7 @@ namespace Opc.Ua.Server.Tests.AliasNames
         public async Task LastChangeReflectsStoreUpdatesAsync()
         {
             using AliasNameNodeManager manager = CreateManager();
-            manager.CreateAddressSpace(new Dictionary<NodeId, IList<IReference>>());
+            await manager.CreateAddressSpaceAsync(new Dictionary<NodeId, IList<IReference>>()).ConfigureAwait(false);
 
             var categoryId = new NodeId("MyCategory", 1);
             AliasNameCategoryState category = manager
@@ -253,7 +253,7 @@ namespace Opc.Ua.Server.Tests.AliasNames
                     RegisterWithServerRegistry = false,
                     RequireSecurityAdminForMutations = true
                 });
-            manager.CreateAddressSpace(new Dictionary<NodeId, IList<IReference>>());
+            await manager.CreateAddressSpaceAsync(new Dictionary<NodeId, IList<IReference>>()).ConfigureAwait(false);
 
             var categoryId = new NodeId("MyCategory", 1);
             AliasNameCategoryState category = manager

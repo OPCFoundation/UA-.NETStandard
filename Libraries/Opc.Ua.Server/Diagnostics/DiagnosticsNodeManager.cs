@@ -109,6 +109,11 @@ namespace Opc.Ua.Server
                 m_modifyAddressSpaceSemaphoreSlim.Dispose();
 
                 m_historyCapabilities = null;
+
+                // OPC UA Part 17 — unsubscribe from the alias-name
+                // registry so the registry does not hold a stale handler
+                // reference into a disposed manager.
+                UnwireStandardAliasMethods();
             }
 
             base.Dispose(disposing);

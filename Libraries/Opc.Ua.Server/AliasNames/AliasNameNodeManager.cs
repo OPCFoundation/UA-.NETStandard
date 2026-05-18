@@ -69,7 +69,7 @@ namespace Opc.Ua.Server.AliasNames
     /// to opt out.
     /// </para>
     /// </remarks>
-    public class AliasNameNodeManager : CustomNodeManager2
+    public class AliasNameNodeManager : AsyncCustomNodeManager
     {
         /// <summary>
         /// Initializes a new instance.
@@ -122,53 +122,54 @@ namespace Opc.Ua.Server.AliasNames
         }
 
         /// <inheritdoc/>
-        public override void CreateAddressSpace(
-            IDictionary<NodeId, IList<IReference>> externalReferences)
+        public override async ValueTask CreateAddressSpaceAsync(
+            IDictionary<NodeId, IList<IReference>> externalReferences,
+            CancellationToken cancellationToken = default)
         {
-            lock (Lock)
+            await base.CreateAddressSpaceAsync(externalReferences, cancellationToken)
+                .ConfigureAwait(false);
+
+            foreach (AliasNameCategoryDescriptor root in m_store.RootCategories)
             {
-                base.CreateAddressSpace(externalReferences);
+                AliasNameCategoryState rootState = BuildCategoryTree(root);
+                m_rootCategoryStates[root.NodeId] = rootState;
 
-                foreach (AliasNameCategoryDescriptor root in m_store.RootCategories)
+                if (m_options.LinkToStandardAliasesObject)
                 {
-                    AliasNameCategoryState rootState = BuildCategoryTree(root);
-                    m_rootCategoryStates[root.NodeId] = rootState;
-
-                    if (m_options.LinkToStandardAliasesObject)
-                    {
-                        AddExternalReference(
-                            ObjectIds.Aliases,
-                            ReferenceTypeIds.Organizes,
-                            isInverse: false,
-                            rootState.NodeId,
-                            externalReferences);
-                        rootState.AddReference(
-                            ReferenceTypeIds.Organizes,
-                            isInverse: true,
-                            ObjectIds.Aliases);
-                    }
-
-                    AddPredefinedNode(SystemContext, rootState);
+                    AddExternalReference(
+                        ObjectIds.Aliases,
+                        ReferenceTypeIds.Organizes,
+                        isInverse: false,
+                        rootState.NodeId,
+                        externalReferences);
+                    rootState.AddReference(
+                        ReferenceTypeIds.Organizes,
+                        isInverse: true,
+                        ObjectIds.Aliases);
                 }
 
-                if (m_options.RegisterWithServerRegistry && m_registry != null)
-                {
-                    try
-                    {
-                        m_registry.Register(m_store);
-                        m_registeredWithServer = true;
-                    }
-                    catch (InvalidOperationException ex)
-                    {
-                        m_aliasLogger.LogWarning(ex,
-                            "AliasNameStore could not be registered with " +
-                            "the server-wide registry; standard well-known " +
-                            "Aliases methods will not dispatch through it.");
-                    }
-                }
-
-                m_store.Changed += OnStoreChanged;
+                await AddPredefinedNodeAsync(
+                    SystemContext, rootState, cancellationToken)
+                    .ConfigureAwait(false);
             }
+
+            if (m_options.RegisterWithServerRegistry && m_registry != null)
+            {
+                try
+                {
+                    m_registry.Register(m_store);
+                    m_registeredWithServer = true;
+                }
+                catch (InvalidOperationException ex)
+                {
+                    m_aliasLogger.LogWarning(ex,
+                        "AliasNameStore could not be registered with " +
+                        "the server-wide registry; standard well-known " +
+                        "Aliases methods will not dispatch through it.");
+                }
+            }
+
+            m_store.Changed += OnStoreChanged;
         }
 
         /// <inheritdoc/>
@@ -362,7 +363,7 @@ namespace Opc.Ua.Server.AliasNames
 
         private void OnStoreChanged(object? sender, AliasStoreChangedEventArgs e)
         {
-            lock (Lock)
+            lock (m_lock)
             {
                 if (!m_rootCategoryStates.TryGetValue(e.CategoryId, out AliasNameCategoryState? root))
                 {
@@ -450,5 +451,6 @@ namespace Opc.Ua.Server.AliasNames
         private readonly Dictionary<NodeId, AliasNameCategoryState> m_rootCategoryStates = [];
         private bool m_registeredWithServer;
         private uint m_nextNodeId;
+        private readonly object m_lock = new();
     }
 }

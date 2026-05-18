@@ -45,21 +45,22 @@ namespace Opc.Ua.Client.AliasNames
     /// </summary>
     /// <remarks>
     /// <para>
-    /// The client lazily resolves method NodeIds via
-    /// <c>TranslateBrowsePathsToNodeIds</c> against the category root and
-    /// caches them — so every method call after the first only costs one
-    /// <c>Call</c> service round-trip. Standard well-known categories
-    /// (<c>Aliases</c>, <c>TagVariables</c>, <c>Topics</c>) use
-    /// hardcoded method NodeIds as a fast-path.
+    /// Built on top of the source-generated
+    /// <see cref="AliasNameCategoryTypeClient"/> ObjectType proxy that
+    /// ships with the standard NodeSet. The proxy handles
+    /// <c>CallRequest</c> packing/unpacking and per-call validation
+    /// (<c>BadUnexpectedError</c> on malformed output) — this wrapper
+    /// adds the ergonomic surface: typed exceptions for service-level
+    /// status codes, sub-category browse, and an
+    /// <see cref="ReadLastChangeAsync"/> helper for the
+    /// <c>VersionTime</c> property (which the proxy does not cover).
     /// </para>
     /// <para>
-    /// Per-entry Part 17 status codes are returned as a
-    /// <see cref="StatusCode"/> array. Method-level failures
-    /// (<c>BadUserAccessDenied</c>, <c>BadNotImplemented</c>, …)
-    /// are translated into typed exceptions
-    /// (<see cref="UnauthorizedAccessException"/>,
-    /// <see cref="NotSupportedException"/>) when raised at the service
-    /// level.
+    /// Service-level failures map to typed .NET exceptions:
+    /// <c>BadUserAccessDenied</c> → <see cref="UnauthorizedAccessException"/>,
+    /// <c>BadNotSupported</c>/<c>BadNotImplemented</c> →
+    /// <see cref="NotSupportedException"/>; everything else propagates as
+    /// <see cref="ServiceResultException"/>.
     /// </para>
     /// </remarks>
     public sealed class AliasNameClient
@@ -88,7 +89,10 @@ namespace Opc.Ua.Client.AliasNames
             }
             CategoryId = categoryId;
             Options = (options ?? new AliasNameClientOptions()).Clone();
-            m_methodIdCache = StandardMethodIdCache.For(categoryId);
+            Proxy = new AliasNameCategoryTypeClient(
+                session,
+                categoryId,
+                session.MessageContext.Telemetry);
         }
 
         /// <summary>
@@ -134,6 +138,12 @@ namespace Opc.Ua.Client.AliasNames
         public AliasNameClientOptions Options { get; }
 
         /// <summary>
+        /// The underlying source-generated proxy. Exposed for advanced
+        /// scenarios that need direct access to the raw proxy methods.
+        /// </summary>
+        public AliasNameCategoryTypeClient Proxy { get; }
+
+        /// <summary>
         /// Calls <c>FindAlias</c> (Part 17 §6.3.2). An empty
         /// <paramref name="aliasNameSearchPattern"/> returns an empty
         /// result; a null/empty <paramref name="referenceTypeFilter"/>
@@ -144,59 +154,44 @@ namespace Opc.Ua.Client.AliasNames
             NodeId? referenceTypeFilter = null,
             CancellationToken ct = default)
         {
-            NodeId methodId = await ResolveMethodIdAsync(
-                BrowseNames.FindAlias, ct).ConfigureAwait(false);
-
-            ArrayOf<Variant> output = await Session.CallAsync(
-                CategoryId,
-                methodId,
-                ct,
-                new Variant(aliasNameSearchPattern ?? string.Empty),
-                new Variant(referenceTypeFilter ?? NodeId.Null))
-                .ConfigureAwait(false);
-
-            return ExtractAliasNameDataTypeList(output);
+            try
+            {
+                ArrayOf<AliasNameDataType> result = await Proxy
+                    .FindAliasAsync(
+                        aliasNameSearchPattern ?? string.Empty,
+                        referenceTypeFilter ?? NodeId.Null,
+                        ct)
+                    .ConfigureAwait(false);
+                return ToList(result);
+            }
+            catch (ServiceResultException sre)
+            {
+                throw AliasNameClientErrors.Translate(
+                    sre.StatusCode, "FindAlias", CategoryId);
+            }
         }
 
         /// <summary>
-        /// Calls <c>FindAliasVerbose</c> (Part 17 §6.3.3). Throws
-        /// <see cref="NotSupportedException"/> when the category does not
-        /// expose this optional method (unless
-        /// <see cref="AliasNameClientOptions.AllowVerboseProbe"/> is set,
-        /// in which case the call is made and a service-level
-        /// <c>BadNotImplemented</c> bubbles up as
-        /// <see cref="NotSupportedException"/>).
+        /// Calls <c>FindAliasVerbose</c> (Part 17 §6.3.3). The proxy issues
+        /// the call against <c>MethodIds.AliasNameCategoryType_FindAliasVerbose</c>
+        /// — when the category does not expose the optional method the
+        /// server replies with <c>BadNotImplemented</c>/<c>BadMethodInvalid</c>
+        /// which is translated into <see cref="NotSupportedException"/>.
         /// </summary>
         public async Task<IReadOnlyList<AliasNameVerboseDataType>> FindAliasVerboseAsync(
             string aliasNameSearchPattern,
             NodeId? referenceTypeFilter = null,
             CancellationToken ct = default)
         {
-            NodeId methodId;
             try
             {
-                methodId = await ResolveMethodIdAsync(
-                    BrowseNames.FindAliasVerbose, ct).ConfigureAwait(false);
-            }
-            catch (ServiceResultException sre)
-                when (sre.StatusCode == StatusCodes.BadNotFound
-                    && !Options.AllowVerboseProbe)
-            {
-                throw new NotSupportedException(
-                    "Category " + CategoryId +
-                    " does not expose the optional FindAliasVerbose method.");
-            }
-
-            try
-            {
-                ArrayOf<Variant> output = await Session.CallAsync(
-                    CategoryId,
-                    methodId,
-                    ct,
-                    new Variant(aliasNameSearchPattern ?? string.Empty),
-                    new Variant(referenceTypeFilter ?? NodeId.Null))
+                ArrayOf<AliasNameVerboseDataType> result = await Proxy
+                    .FindAliasVerboseAsync(
+                        aliasNameSearchPattern ?? string.Empty,
+                        referenceTypeFilter ?? NodeId.Null,
+                        ct)
                     .ConfigureAwait(false);
-                return ExtractAliasNameVerboseDataTypeList(output);
+                return ToList(result);
             }
             catch (ServiceResultException sre)
             {
@@ -221,19 +216,6 @@ namespace Opc.Ua.Client.AliasNames
             if (requests == null)
             {
                 throw new ArgumentNullException(nameof(requests));
-            }
-            NodeId methodId;
-            try
-            {
-                methodId = await ResolveMethodIdAsync(
-                    BrowseNames.AddAliasesToCategory, ct).ConfigureAwait(false);
-            }
-            catch (ServiceResultException sre)
-                when (sre.StatusCode == StatusCodes.BadNotFound)
-            {
-                throw new NotSupportedException(
-                    "Category " + CategoryId +
-                    " does not expose the optional AddAliasesToCategory method.");
             }
 
             var names = new string[requests.Count];
@@ -266,16 +248,15 @@ namespace Opc.Ua.Client.AliasNames
 
             try
             {
-                ArrayOf<Variant> output = await Session.CallAsync(
-                    CategoryId,
-                    methodId,
-                    ct,
-                    Variant.From(names.ToArrayOf()),
-                    Variant.From(targets.ToArrayOf()),
-                    Variant.From(servers.ToArrayOf()),
-                    new Variant(refType))
+                ArrayOf<StatusCode> codes = await Proxy
+                    .AddAliasesToCategoryAsync(
+                        names.ToArrayOf(),
+                        targets.ToArrayOf(),
+                        servers.ToArrayOf(),
+                        refType,
+                        ct)
                     .ConfigureAwait(false);
-                return ExtractStatusCodeArray(output);
+                return ToArray(codes);
             }
             catch (ServiceResultException sre)
             {
@@ -301,20 +282,6 @@ namespace Opc.Ua.Client.AliasNames
             {
                 throw new ArgumentNullException(nameof(requests));
             }
-            NodeId methodId;
-            try
-            {
-                methodId = await ResolveMethodIdAsync(
-                    BrowseNames.DeleteAliasesFromCategory, ct).ConfigureAwait(false);
-            }
-            catch (ServiceResultException sre)
-                when (sre.StatusCode == StatusCodes.BadNotFound)
-            {
-                throw new NotSupportedException(
-                    "Category " + CategoryId +
-                    " does not expose the optional " +
-                    "DeleteAliasesFromCategory method.");
-            }
 
             var names = new string[requests.Count];
             var targets = new ExpandedNodeId[requests.Count];
@@ -327,14 +294,13 @@ namespace Opc.Ua.Client.AliasNames
 
             try
             {
-                ArrayOf<Variant> output = await Session.CallAsync(
-                    CategoryId,
-                    methodId,
-                    ct,
-                    Variant.From(names.ToArrayOf()),
-                    Variant.From(targets.ToArrayOf()))
+                ArrayOf<StatusCode> codes = await Proxy
+                    .DeleteAliasesFromCategoryAsync(
+                        names.ToArrayOf(),
+                        targets.ToArrayOf(),
+                        ct)
                     .ConfigureAwait(false);
-                return ExtractStatusCodeArray(output);
+                return ToArray(codes);
             }
             catch (ServiceResultException sre)
             {
@@ -351,16 +317,17 @@ namespace Opc.Ua.Client.AliasNames
         /// </summary>
         public async Task<uint?> ReadLastChangeAsync(CancellationToken ct = default)
         {
-            NodeId lastChangeId;
-            try
+            NodeId lastChangeId = ResolveStandardLastChange(CategoryId);
+            if (lastChangeId.IsNull)
             {
-                lastChangeId = await ResolveMethodIdAsync(
+                // Fall back to a browse-path lookup for non-standard
+                // categories.
+                lastChangeId = await ResolveChildAsync(
                     BrowseNames.LastChange, ct).ConfigureAwait(false);
-            }
-            catch (ServiceResultException sre)
-                when (sre.StatusCode == StatusCodes.BadNotFound)
-            {
-                return null;
+                if (lastChangeId.IsNull)
+                {
+                    return null;
+                }
             }
 
             ArrayOf<ReadValueId> nodesToRead =
@@ -459,26 +426,10 @@ namespace Opc.Ua.Client.AliasNames
         // Internal helpers
         // --------------------------------------------------------------
 
-        /// <summary>
-        /// Resolves a child method/property NodeId on this category,
-        /// caching the result.
-        /// </summary>
-        internal async Task<NodeId> ResolveMethodIdAsync(
+        private async Task<NodeId> ResolveChildAsync(
             string childBrowseName,
             CancellationToken ct)
         {
-            if (m_methodIdCache.TryGet(childBrowseName, out NodeId cached))
-            {
-                if (cached.IsNull)
-                {
-                    throw new ServiceResultException(
-                        StatusCodes.BadNotFound,
-                        "Category " + CategoryId +
-                        " does not expose '" + childBrowseName + "'.");
-                }
-                return cached;
-            }
-
             var relativePath = new RelativePath
             {
                 Elements =
@@ -507,38 +458,26 @@ namespace Opc.Ua.Client.AliasNames
                 || StatusCode.IsBad(response.Results[0].StatusCode)
                 || response.Results[0].Targets.Count == 0)
             {
-                m_methodIdCache.Set(childBrowseName, NodeId.Null);
-                throw new ServiceResultException(
-                    StatusCodes.BadNotFound,
-                    "Category " + CategoryId +
-                    " does not expose '" + childBrowseName + "'.");
+                return NodeId.Null;
             }
             ExpandedNodeId target = response.Results[0].Targets[0].TargetId;
-            NodeId local = ExpandedNodeId.ToNodeId(target, Session.NamespaceUris);
-            if (local.IsNull)
-            {
-                m_methodIdCache.Set(childBrowseName, NodeId.Null);
-                throw new ServiceResultException(
-                    StatusCodes.BadNotFound,
-                    "Category " + CategoryId +
-                    " does not expose '" + childBrowseName + "'.");
-            }
-            m_methodIdCache.Set(childBrowseName, local);
-            return local;
+            return ExpandedNodeId.ToNodeId(target, Session.NamespaceUris);
         }
 
-        private static IReadOnlyList<AliasNameDataType> ExtractAliasNameDataTypeList(
-            ArrayOf<Variant> output)
+        private static NodeId ResolveStandardLastChange(NodeId categoryId)
         {
-            var result = new List<AliasNameDataType>();
-            if (output.Count == 0)
+            // Only the standard Aliases (i=23470) object instantiates
+            // LastChange in the shipped NodeSet (Part 17 §9.2).
+            if (categoryId.Equals(ObjectIds.Aliases))
             {
-                return result;
+                return VariableIds.Aliases_LastChange;
             }
-            if (!output[0].TryGetStructure(out ArrayOf<AliasNameDataType> arr))
-            {
-                return result;
-            }
+            return NodeId.Null;
+        }
+
+        private static List<T> ToList<T>(ArrayOf<T> arr)
+        {
+            var result = new List<T>(arr.Count);
             for (int i = 0; i < arr.Count; i++)
             {
                 if (arr[i] != null)
@@ -549,99 +488,14 @@ namespace Opc.Ua.Client.AliasNames
             return result;
         }
 
-        private static IReadOnlyList<AliasNameVerboseDataType> ExtractAliasNameVerboseDataTypeList(
-            ArrayOf<Variant> output)
+        private static StatusCode[] ToArray(ArrayOf<StatusCode> arr)
         {
-            var result = new List<AliasNameVerboseDataType>();
-            if (output.Count == 0)
-            {
-                return result;
-            }
-            if (!output[0].TryGetStructure(out ArrayOf<AliasNameVerboseDataType> arr))
-            {
-                return result;
-            }
+            var result = new StatusCode[arr.Count];
             for (int i = 0; i < arr.Count; i++)
             {
-                if (arr[i] != null)
-                {
-                    result.Add(arr[i]);
-                }
+                result[i] = arr[i];
             }
             return result;
-        }
-
-        private static StatusCode[] ExtractStatusCodeArray(ArrayOf<Variant> output)
-        {
-            if (output.Count == 0)
-            {
-                return [];
-            }
-            if (!output[0].TryGetValue(out ArrayOf<StatusCode> codes))
-            {
-                return [];
-            }
-            var result = new StatusCode[codes.Count];
-            for (int i = 0; i < codes.Count; i++)
-            {
-                result[i] = codes[i];
-            }
-            return result;
-        }
-
-        private readonly MethodIdCache m_methodIdCache;
-
-        private sealed class MethodIdCache
-        {
-            public bool TryGet(string browseName, out NodeId nodeId)
-            {
-                lock (m_lock)
-                {
-                    return m_lookup.TryGetValue(browseName, out nodeId);
-                }
-            }
-
-            public void Set(string browseName, NodeId nodeId)
-            {
-                lock (m_lock)
-                {
-                    m_lookup[browseName] = nodeId;
-                }
-            }
-
-            public void SeedKnown(string browseName, NodeId nodeId)
-            {
-                m_lookup[browseName] = nodeId;
-            }
-
-            private readonly Dictionary<string, NodeId> m_lookup = [];
-            private readonly object m_lock = new();
-        }
-
-        private static class StandardMethodIdCache
-        {
-            public static MethodIdCache For(NodeId categoryId)
-            {
-                var cache = new MethodIdCache();
-                if (categoryId.Equals(ObjectIds.Aliases))
-                {
-                    cache.SeedKnown(BrowseNames.FindAlias,
-                        MethodIds.Aliases_FindAlias);
-                    cache.SeedKnown(BrowseNames.LastChange,
-                        VariableIds.Aliases_LastChange);
-                }
-                else if (categoryId.Equals(ObjectIds.TagVariables))
-                {
-                    cache.SeedKnown(BrowseNames.FindAlias,
-                        MethodIds.TagVariables_FindAlias);
-                }
-                else if (categoryId.Equals(ObjectIds.Topics))
-                {
-                    cache.SeedKnown(BrowseNames.FindAlias,
-                        MethodIds.Topics_FindAlias);
-                }
-                return cache;
-            }
         }
     }
 }
