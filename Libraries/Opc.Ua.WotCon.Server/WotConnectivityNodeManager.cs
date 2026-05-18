@@ -228,6 +228,7 @@ namespace Opc.Ua.WotCon.Server
         {
             if (disposing)
             {
+                m_registry.DisposeAsync().AsTask().GetAwaiter().GetResult();
                 m_writeLock.Dispose();
             }
             base.Dispose(disposing);

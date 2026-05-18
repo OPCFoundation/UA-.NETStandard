@@ -51,6 +51,8 @@ namespace Opc.Ua.WotCon.Server
         [SuppressMessage("AOT", "IL3050", Justification = "Reflection fallback documented; AOT-safe path handled above.")]
         public static Variant ToVariant(object? value)
         {
+            // Scalars first — boxed primitives carry their exact runtime
+            // type so pattern matching on them is unambiguous.
             switch (value)
             {
                 case null: return Variant.Null;
@@ -70,7 +72,6 @@ namespace Opc.Ua.WotCon.Server
                 case DateTime dt: return new Variant(dt);
                 case Guid g: return new Variant(new Uuid(g));
                 case Uuid uuid: return new Variant(uuid);
-                case byte[] bytes: return new Variant(ByteString.From(bytes));
                 case ByteString bs: return new Variant(bs);
                 case XmlElement xml: return new Variant(xml);
                 case NodeId nodeId: return new Variant(nodeId);
@@ -78,26 +79,37 @@ namespace Opc.Ua.WotCon.Server
                 case QualifiedName qn: return new Variant(qn);
                 case LocalizedText lt: return new Variant(lt);
                 case StatusCode sc: return new Variant(sc);
-                case bool[] ba: return new Variant(new ArrayOf<bool>(ba));
-                case sbyte[] sba: return new Variant(new ArrayOf<sbyte>(sba));
-                case short[] s16a: return new Variant(new ArrayOf<short>(s16a));
-                case ushort[] u16a: return new Variant(new ArrayOf<ushort>(u16a));
-                case int[] s32a: return new Variant(new ArrayOf<int>(s32a));
-                case uint[] u32a: return new Variant(new ArrayOf<uint>(u32a));
-                case long[] s64a: return new Variant(new ArrayOf<long>(s64a));
-                case ulong[] u64a: return new Variant(new ArrayOf<ulong>(u64a));
-                case float[] fa: return new Variant(new ArrayOf<float>(fa));
-                case double[] da: return new Variant(new ArrayOf<double>(da));
-                case string[] sa: return new Variant(new ArrayOf<string>(sa));
-                case DateTime[] dta:
-                    DateTimeUtc[] dtua = new DateTimeUtc[dta.Length];
-                    for (int i = 0; i < dta.Length; i++) { dtua[i] = new DateTimeUtc(dta[i]); }
-                    return new Variant(new ArrayOf<DateTimeUtc>(dtua));
-                default:
-#pragma warning disable CS0618 // intentional reflection fallback
-                    return new Variant(value);
-#pragma warning restore CS0618
             }
+
+            // Arrays: the CLR treats signed / unsigned same-size primitive
+            // arrays as runtime-compatible (sbyte[] is-a byte[], short[]
+            // is-a ushort[], etc. per ECMA-335 II.8.7), so a C# type
+            // pattern like `case byte[]` would also match sbyte[]. Dispatch
+            // on the exact array type instead to keep the mapping accurate.
+            Type t = value.GetType();
+            if (t == typeof(byte[])) { return new Variant(ByteString.From((byte[])value)); }
+            if (t == typeof(sbyte[])) { return new Variant(new ArrayOf<sbyte>((sbyte[])value)); }
+            if (t == typeof(bool[])) { return new Variant(new ArrayOf<bool>((bool[])value)); }
+            if (t == typeof(short[])) { return new Variant(new ArrayOf<short>((short[])value)); }
+            if (t == typeof(ushort[])) { return new Variant(new ArrayOf<ushort>((ushort[])value)); }
+            if (t == typeof(int[])) { return new Variant(new ArrayOf<int>((int[])value)); }
+            if (t == typeof(uint[])) { return new Variant(new ArrayOf<uint>((uint[])value)); }
+            if (t == typeof(long[])) { return new Variant(new ArrayOf<long>((long[])value)); }
+            if (t == typeof(ulong[])) { return new Variant(new ArrayOf<ulong>((ulong[])value)); }
+            if (t == typeof(float[])) { return new Variant(new ArrayOf<float>((float[])value)); }
+            if (t == typeof(double[])) { return new Variant(new ArrayOf<double>((double[])value)); }
+            if (t == typeof(string[])) { return new Variant(new ArrayOf<string>((string[])value)); }
+            if (t == typeof(DateTime[]))
+            {
+                DateTime[] dta = (DateTime[])value;
+                DateTimeUtc[] dtua = new DateTimeUtc[dta.Length];
+                for (int i = 0; i < dta.Length; i++) { dtua[i] = new DateTimeUtc(dta[i]); }
+                return new Variant(new ArrayOf<DateTimeUtc>(dtua));
+            }
+
+#pragma warning disable CS0618 // intentional reflection fallback
+            return new Variant(value);
+#pragma warning restore CS0618
         }
     }
 }

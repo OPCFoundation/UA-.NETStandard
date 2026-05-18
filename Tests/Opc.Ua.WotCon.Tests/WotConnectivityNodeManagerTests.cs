@@ -229,6 +229,355 @@ namespace Opc.Ua.WotCon.Tests
             Assert.That(roundtrip.Base, Is.EqualTo(td.Base));
         }
 
+        [Test]
+        public async Task RebuildMaterialisesPropertyVariableAndAssetEndpoint()
+        {
+            using var harness = new ManagerHarness(
+                _tempFolder,
+                new SimulatedWotAssetProviderFactory());
+            await harness.StartAsync();
+            (_, NodeId assetId) = await harness.Registry
+                .CreateAssetAsync("asset-001", CancellationToken.None);
+            AssetEntry entry = harness.Registry.FindByNodeId(assetId)!;
+            var td = new ThingDescription
+            {
+                Name = "asset-001",
+                Base = "sim://opcua.test/wot/asset-001",
+                Properties = new Dictionary<string, WotProperty>
+                {
+                    ["Voltage"] = new WotProperty
+                    {
+                        Type = "number",
+                        Title = "Voltage",
+                        Unit = "V",
+                        Observable = true
+                    }
+                }
+            };
+
+            ServiceResult status = await harness.Registry
+                .RebuildAsync(entry, td, persistOnSuccess: false, CancellationToken.None);
+
+            Assert.That(ServiceResult.IsGood(status), Is.True);
+            Assert.That(entry.Properties, Has.Count.EqualTo(1));
+            (BaseDataVariableState variable, WotPropertyTag tag) = entry.Properties.Values.First();
+            Assert.That(tag.Name, Is.EqualTo("Voltage"));
+            Assert.That(variable.DataType, Is.EqualTo(DataTypeIds.Double));
+            Assert.That(variable.ValueRank, Is.EqualTo(ValueRanks.Scalar));
+            Assert.That(variable.BrowseName.Name, Is.EqualTo("Voltage"));
+            Assert.That(variable.DisplayName.Text, Is.EqualTo("Voltage"));
+            Assert.That(entry.Asset.AssetEndpoint, Is.Not.Null);
+            Assert.That(entry.Asset.AssetEndpoint!.Value, Is.EqualTo(td.Base));
+        }
+
+        [Test]
+        public async Task RebuildMarksUnmappablePropertyWithBadConfigurationError()
+        {
+            using var harness = new ManagerHarness(
+                _tempFolder,
+                new SimulatedWotAssetProviderFactory());
+            await harness.StartAsync();
+            (_, NodeId assetId) = await harness.Registry
+                .CreateAssetAsync("asset-001", CancellationToken.None);
+            AssetEntry entry = harness.Registry.FindByNodeId(assetId)!;
+            var td = new ThingDescription
+            {
+                Name = "asset-001",
+                Base = "sim://opcua.test/wot/asset-001",
+                Properties = new Dictionary<string, WotProperty>
+                {
+                    // "object" cannot map per Spec Table 14 → BadConfigurationError on read.
+                    ["Metadata"] = new WotProperty { Type = "object" }
+                }
+            };
+
+            await harness.Registry.RebuildAsync(entry, td, persistOnSuccess: false, CancellationToken.None);
+
+            (BaseDataVariableState variable, _) = entry.Properties.Values.First();
+            Assert.That(variable.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadConfigurationError));
+        }
+
+        [Test]
+        public async Task RebuildSimpleReadValueDelegatesToProviderForReadablePropertyValues()
+        {
+            using var harness = new ManagerHarness(
+                _tempFolder,
+                new SimulatedWotAssetProviderFactory());
+            await harness.StartAsync();
+            (_, NodeId assetId) = await harness.Registry
+                .CreateAssetAsync("asset-001", CancellationToken.None);
+            AssetEntry entry = harness.Registry.FindByNodeId(assetId)!;
+            await harness.Registry.RebuildAsync(
+                entry,
+                new ThingDescription
+                {
+                    Name = "asset-001",
+                    Base = "sim://opcua.test/wot/asset-001",
+                    Properties = new Dictionary<string, WotProperty>
+                    {
+                        ["Voltage"] = new WotProperty { Type = "number" }
+                    }
+                },
+                persistOnSuccess: false,
+                CancellationToken.None);
+
+            (BaseDataVariableState variable, _) = entry.Properties.Values.First();
+            // Push a provider-side value the simulated provider remembers.
+            ((SimulatedWotAssetProvider)entry.Provider!).SetValue("Voltage", 12.3);
+
+            Assert.That(variable.OnSimpleReadValue, Is.Not.Null);
+            Variant readBack = default;
+            ServiceResult status = variable.OnSimpleReadValue!(
+                harness.Manager.SystemContext, variable, ref readBack);
+
+            Assert.That(ServiceResult.IsGood(status), Is.True);
+            Assert.That(readBack.AsBoxedObject(), Is.EqualTo(12.3));
+        }
+
+        [Test]
+        public async Task RebuildSimpleWriteValueDelegatesToProviderForWritableProperties()
+        {
+            using var harness = new ManagerHarness(
+                _tempFolder,
+                new SimulatedWotAssetProviderFactory());
+            await harness.StartAsync();
+            (_, NodeId assetId) = await harness.Registry
+                .CreateAssetAsync("asset-001", CancellationToken.None);
+            AssetEntry entry = harness.Registry.FindByNodeId(assetId)!;
+            await harness.Registry.RebuildAsync(
+                entry,
+                new ThingDescription
+                {
+                    Name = "asset-001",
+                    Base = "sim://opcua.test/wot/asset-001",
+                    Properties = new Dictionary<string, WotProperty>
+                    {
+                        ["Voltage"] = new WotProperty { Type = "number", ReadOnly = false }
+                    }
+                },
+                persistOnSuccess: false,
+                CancellationToken.None);
+            (BaseDataVariableState variable, _) = entry.Properties.Values.First();
+            Assert.That(variable.OnSimpleWriteValue, Is.Not.Null,
+                "OnSimpleWriteValue must be wired for non-read-only properties.");
+
+            Variant write = new(42.5);
+            ServiceResult status = variable.OnSimpleWriteValue!(
+                harness.Manager.SystemContext, variable, ref write);
+
+            Assert.That(ServiceResult.IsGood(status), Is.True);
+            var simulated = (SimulatedWotAssetProvider)entry.Provider!;
+            Assert.That(simulated.Values["Voltage"], Is.EqualTo(42.5));
+        }
+
+        [Test]
+        public async Task RebuildReadOnlyPropertyDoesNotWireOnSimpleWriteValue()
+        {
+            using var harness = new ManagerHarness(
+                _tempFolder,
+                new SimulatedWotAssetProviderFactory());
+            await harness.StartAsync();
+            (_, NodeId assetId) = await harness.Registry
+                .CreateAssetAsync("asset-001", CancellationToken.None);
+            AssetEntry entry = harness.Registry.FindByNodeId(assetId)!;
+            await harness.Registry.RebuildAsync(
+                entry,
+                new ThingDescription
+                {
+                    Name = "asset-001",
+                    Base = "sim://opcua.test/wot/asset-001",
+                    Properties = new Dictionary<string, WotProperty>
+                    {
+                        ["Voltage"] = new WotProperty { Type = "number", ReadOnly = true }
+                    }
+                },
+                persistOnSuccess: false,
+                CancellationToken.None);
+
+            (BaseDataVariableState variable, _) = entry.Properties.Values.First();
+            Assert.That(variable.OnSimpleWriteValue, Is.Null);
+            Assert.That(variable.AccessLevel, Is.EqualTo(AccessLevels.CurrentRead));
+        }
+
+        [Test]
+        public async Task RebuildMaterialisesActionMethodWithExpectedArguments()
+        {
+            using var harness = new ManagerHarness(
+                _tempFolder,
+                new SimulatedWotAssetProviderFactory());
+            await harness.StartAsync();
+            (_, NodeId assetId) = await harness.Registry
+                .CreateAssetAsync("asset-001", CancellationToken.None);
+            AssetEntry entry = harness.Registry.FindByNodeId(assetId)!;
+            var td = new ThingDescription
+            {
+                Name = "asset-001",
+                Base = "sim://opcua.test/wot/asset-001",
+                Actions = new Dictionary<string, WotAction>
+                {
+                    ["Echo"] = new WotAction
+                    {
+                        Title = "Echo",
+                        Input = new WotActionSchema
+                        {
+                            Type = "object",
+                            Properties = new Dictionary<string, WotActionMember>
+                            {
+                                ["value"] = new WotActionMember { Type = "integer" }
+                            }
+                        },
+                        Output = new WotActionSchema
+                        {
+                            Type = "object",
+                            Properties = new Dictionary<string, WotActionMember>
+                            {
+                                ["value"] = new WotActionMember { Type = "integer" }
+                            }
+                        }
+                    }
+                }
+            };
+
+            await harness.Registry.RebuildAsync(entry, td, persistOnSuccess: false, CancellationToken.None);
+
+            Assert.That(entry.Actions, Has.Count.EqualTo(1));
+            (MethodState method, WotActionTag tag) = entry.Actions.Values.First();
+            Assert.That(method.BrowseName.Name, Is.EqualTo("Echo"));
+            Assert.That(method.Executable, Is.True);
+            Assert.That(tag.InputArguments, Has.Count.EqualTo(1));
+            Assert.That(tag.InputArguments[0].DataType, Is.EqualTo(DataTypeIds.Int64));
+            Assert.That(tag.OutputArguments, Has.Count.EqualTo(1));
+            Assert.That(method.InputArguments, Is.Not.Null);
+            Assert.That(method.OutputArguments, Is.Not.Null);
+            Assert.That(method.OnCallMethod2Async, Is.Not.Null,
+                "OnCallMethod2Async must be wired so the action routes through the provider.");
+        }
+
+        [Test]
+        public async Task RebuildReplacesPreviouslyMaterialisedChildrenOnSecondCall()
+        {
+            using var harness = new ManagerHarness(
+                _tempFolder,
+                new SimulatedWotAssetProviderFactory());
+            await harness.StartAsync();
+            (_, NodeId assetId) = await harness.Registry
+                .CreateAssetAsync("asset-001", CancellationToken.None);
+            AssetEntry entry = harness.Registry.FindByNodeId(assetId)!;
+
+            await harness.Registry.RebuildAsync(
+                entry,
+                new ThingDescription
+                {
+                    Name = "asset-001",
+                    Base = "sim://opcua.test/wot/asset-001",
+                    Properties = new Dictionary<string, WotProperty>
+                    {
+                        ["Voltage"] = new WotProperty { Type = "number" },
+                        ["Current"] = new WotProperty { Type = "number" }
+                    }
+                },
+                persistOnSuccess: false, CancellationToken.None);
+            Assert.That(entry.Properties, Has.Count.EqualTo(2));
+
+            // Second rebuild with fewer properties — children must be replaced, not appended.
+            await harness.Registry.RebuildAsync(
+                entry,
+                new ThingDescription
+                {
+                    Name = "asset-001",
+                    Base = "sim://opcua.test/wot/asset-001",
+                    Properties = new Dictionary<string, WotProperty>
+                    {
+                        ["Power"] = new WotProperty { Type = "number" }
+                    }
+                },
+                persistOnSuccess: false, CancellationToken.None);
+
+            Assert.That(entry.Properties, Has.Count.EqualTo(1));
+            Assert.That(entry.Properties.Values.First().Tag.Name, Is.EqualTo("Power"));
+        }
+
+        [Test]
+        public async Task FindByNodeIdReturnsNullForUnknownAsset()
+        {
+            using var harness = new ManagerHarness(_tempFolder);
+            await harness.StartAsync();
+
+            Assert.That(harness.Registry.FindByNodeId(new NodeId(999u, 3)), Is.Null);
+        }
+
+        [Test]
+        public async Task TryGetPropertyResolvesMaterialisedVariableByNodeId()
+        {
+            using var harness = new ManagerHarness(
+                _tempFolder,
+                new SimulatedWotAssetProviderFactory());
+            await harness.StartAsync();
+            (_, NodeId assetId) = await harness.Registry
+                .CreateAssetAsync("asset-001", CancellationToken.None);
+            AssetEntry entry = harness.Registry.FindByNodeId(assetId)!;
+            await harness.Registry.RebuildAsync(
+                entry,
+                new ThingDescription
+                {
+                    Name = "asset-001",
+                    Base = "sim://opcua.test/wot/asset-001",
+                    Properties = new Dictionary<string, WotProperty>
+                    {
+                        ["Voltage"] = new WotProperty { Type = "number" }
+                    }
+                },
+                persistOnSuccess: false, CancellationToken.None);
+
+            (BaseDataVariableState variable, WotPropertyTag _) = entry.Properties.Values.First();
+            bool found = harness.Registry.TryGetProperty(
+                variable.NodeId,
+                out AssetEntry foundEntry,
+                out BaseDataVariableState foundVariable,
+                out WotPropertyTag foundTag);
+
+            Assert.That(found, Is.True);
+            Assert.That(foundEntry, Is.SameAs(entry));
+            Assert.That(foundVariable, Is.SameAs(variable));
+            Assert.That(foundTag.Name, Is.EqualTo("Voltage"));
+        }
+
+        [Test]
+        public async Task TryGetActionResolvesMaterialisedMethodByNodeId()
+        {
+            using var harness = new ManagerHarness(
+                _tempFolder,
+                new SimulatedWotAssetProviderFactory());
+            await harness.StartAsync();
+            (_, NodeId assetId) = await harness.Registry
+                .CreateAssetAsync("asset-001", CancellationToken.None);
+            AssetEntry entry = harness.Registry.FindByNodeId(assetId)!;
+            await harness.Registry.RebuildAsync(
+                entry,
+                new ThingDescription
+                {
+                    Name = "asset-001",
+                    Base = "sim://opcua.test/wot/asset-001",
+                    Actions = new Dictionary<string, WotAction>
+                    {
+                        ["Reset"] = new WotAction { Title = "Reset" }
+                    }
+                },
+                persistOnSuccess: false, CancellationToken.None);
+
+            (MethodState method, WotActionTag _) = entry.Actions.Values.First();
+            bool found = harness.Registry.TryGetAction(
+                method.NodeId,
+                out AssetEntry foundEntry,
+                out MethodState foundMethod,
+                out WotActionTag foundTag);
+
+            Assert.That(found, Is.True);
+            Assert.That(foundEntry, Is.SameAs(entry));
+            Assert.That(foundMethod, Is.SameAs(method));
+            Assert.That(foundTag.Name, Is.EqualTo("Reset"));
+        }
+
         // ----------------------------------------------------------------
         // Discovery / ConnectionTest / CreateAssetForEndpoint:
         // BadNotSupported when no discovery provider is configured.
