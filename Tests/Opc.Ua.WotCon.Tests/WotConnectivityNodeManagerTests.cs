@@ -323,7 +323,7 @@ namespace Opc.Ua.WotCon.Tests
 
             (BaseDataVariableState variable, _) = entry.Properties.Values.First();
             // Push a provider-side value the simulated provider remembers.
-            ((SimulatedWotAssetProvider)entry.Provider!).SetValue("Voltage", 12.3);
+            ((SimulatedWotAssetProvider)entry.Provider!).SetValue("Voltage", new Variant(12.3));
 
             Assert.That(variable.OnSimpleReadValue, Is.Not.Null);
             Variant readBack = default;
@@ -367,7 +367,7 @@ namespace Opc.Ua.WotCon.Tests
 
             Assert.That(ServiceResult.IsGood(status), Is.True);
             var simulated = (SimulatedWotAssetProvider)entry.Provider!;
-            Assert.That(simulated.Values["Voltage"], Is.EqualTo(42.5));
+            Assert.That(simulated.Values["Voltage"].AsBoxedObject(), Is.EqualTo(42.5));
         }
 
         [Test]

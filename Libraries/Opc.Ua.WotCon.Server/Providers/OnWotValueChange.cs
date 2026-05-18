@@ -36,12 +36,12 @@ namespace Opc.Ua.WotCon.Server
     /// observed WoT property changes value.
     /// </summary>
     /// <param name="tag">The property whose value changed.</param>
-    /// <param name="value">The new value (raw .NET object, will be wrapped in a <c>Variant</c>).</param>
+    /// <param name="value">The new value as an OPC UA <see cref="Variant"/>.</param>
     /// <param name="status">The status code reported by the binding.</param>
     /// <param name="timestamp">The source timestamp reported by the binding.</param>
     public delegate void OnWotValueChange(
         WotPropertyTag tag,
-        object? value,
+        Variant value,
         StatusCode status,
         DateTime timestamp);
 }

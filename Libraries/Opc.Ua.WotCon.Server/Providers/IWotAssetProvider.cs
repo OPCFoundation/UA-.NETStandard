@@ -59,10 +59,10 @@ namespace Opc.Ua.WotCon.Server
         /// <returns>
         /// A pair of <see cref="ServiceResult"/> describing the operation
         /// outcome and the value to publish on the OPC UA variable. The
-        /// value must be assignable to a <c>Variant</c> for the property's
-        /// declared <c>DataType</c> / <c>ValueRank</c>.
+        /// value's <see cref="Variant"/> type info must match the
+        /// property's declared <c>DataType</c> / <c>ValueRank</c>.
         /// </returns>
-        ValueTask<(ServiceResult Status, object? Value)> ReadAsync(
+        ValueTask<(ServiceResult Status, Variant Value)> ReadAsync(
             WotPropertyTag tag,
             CancellationToken ct);
 
@@ -71,7 +71,7 @@ namespace Opc.Ua.WotCon.Server
         /// </summary>
         ValueTask<ServiceResult> WriteAsync(
             WotPropertyTag tag,
-            object? value,
+            Variant value,
             CancellationToken ct);
 
         /// <summary>
@@ -107,8 +107,8 @@ namespace Opc.Ua.WotCon.Server
         /// <param name="ct">Cancellation token.</param>
         ValueTask<ServiceResult> InvokeActionAsync(
             WotActionTag action,
-            IReadOnlyList<object?> inputs,
-            IList<object?> outputs,
+            IReadOnlyList<Variant> inputs,
+            IList<Variant> outputs,
             CancellationToken ct);
     }
 }

@@ -59,8 +59,7 @@ namespace Opc.Ua.WotCon.Tests.Providers
             {
                 foreach (KeyValuePair<string, WotProperty> kv in thingDescription.Properties)
                 {
-                    object? seed = DefaultForType(kv.Value);
-                    m_values[kv.Key] = seed;
+                    m_values[kv.Key] = DefaultForType(kv.Value);
                 }
             }
         }
@@ -68,10 +67,10 @@ namespace Opc.Ua.WotCon.Tests.Providers
         public ThingDescription ThingDescription { get; }
 
         /// <summary>Snapshot of currently-known property values (test helper).</summary>
-        public IReadOnlyDictionary<string, object?> Values => m_values;
+        public IReadOnlyDictionary<string, Variant> Values => m_values;
 
         /// <summary>Forces a value change so subscribers receive a notification.</summary>
-        public void SetValue(string property, object? value)
+        public void SetValue(string property, Variant value)
         {
             m_values[property] = value;
             if (m_subscriptions.TryGetValue(property, out List<Subscription>? subs))
@@ -85,21 +84,21 @@ namespace Opc.Ua.WotCon.Tests.Providers
             }
         }
 
-        public ValueTask<(ServiceResult Status, object? Value)> ReadAsync(
+        public ValueTask<(ServiceResult Status, Variant Value)> ReadAsync(
             WotPropertyTag tag,
             CancellationToken ct)
         {
-            if (m_values.TryGetValue(tag.Name, out object? value))
+            if (m_values.TryGetValue(tag.Name, out Variant value))
             {
-                return new ValueTask<(ServiceResult, object?)>((ServiceResult.Good, value));
+                return new ValueTask<(ServiceResult, Variant)>((ServiceResult.Good, value));
             }
-            return new ValueTask<(ServiceResult, object?)>(
-                ((ServiceResult)StatusCodes.BadNoDataAvailable, (object?)null));
+            return new ValueTask<(ServiceResult, Variant)>(
+                ((ServiceResult)StatusCodes.BadNoDataAvailable, Variant.Null));
         }
 
         public ValueTask<ServiceResult> WriteAsync(
             WotPropertyTag tag,
-            object? value,
+            Variant value,
             CancellationToken ct)
         {
             m_values[tag.Name] = value;
@@ -137,13 +136,15 @@ namespace Opc.Ua.WotCon.Tests.Providers
 
         public ValueTask<ServiceResult> InvokeActionAsync(
             WotActionTag action,
-            IReadOnlyList<object?> inputs,
-            IList<object?> outputs,
+            IReadOnlyList<Variant> inputs,
+            IList<Variant> outputs,
             CancellationToken ct)
         {
-            // For tests we echo the first input into the first output and
+            // For tests we echo each input into the matching output and
             // record the call so tests can assert on it.
-            m_invocations.Add(new ActionInvocation(action.Name, [.. inputs]));
+            Variant[] inputSnapshot = new Variant[inputs.Count];
+            for (int i = 0; i < inputs.Count; i++) { inputSnapshot[i] = inputs[i]; }
+            m_invocations.Add(new ActionInvocation(action.Name, inputSnapshot));
             for (int i = 0; i < outputs.Count && i < inputs.Count; i++)
             {
                 outputs[i] = inputs[i];
@@ -160,23 +161,23 @@ namespace Opc.Ua.WotCon.Tests.Providers
             return default;
         }
 
-        private static object? DefaultForType(WotProperty property)
+        private static Variant DefaultForType(WotProperty property)
         {
             return property.Type?.ToLowerInvariant() switch
             {
-                "boolean" => false,
-                "number" => 0.0,
-                "integer" => 0L,
-                "string" => string.Empty,
-                _ => null
+                "boolean" => new Variant(false),
+                "number" => new Variant(0.0),
+                "integer" => new Variant(0L),
+                "string" => new Variant(string.Empty),
+                _ => Variant.Null
             };
         }
 
-        public sealed record ActionInvocation(string Name, object?[] Inputs);
+        public sealed record ActionInvocation(string Name, Variant[] Inputs);
 
         private sealed record Subscription(uint Id, WotPropertyTag Tag, OnWotValueChange Callback);
 
-        private readonly ConcurrentDictionary<string, object?> m_values =
+        private readonly ConcurrentDictionary<string, Variant> m_values =
             new(StringComparer.Ordinal);
         private readonly ConcurrentDictionary<string, List<Subscription>> m_subscriptions =
             new(StringComparer.Ordinal);

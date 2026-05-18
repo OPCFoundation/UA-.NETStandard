@@ -319,7 +319,7 @@ namespace Opc.Ua.WotCon.Server
             {
                 return;
             }
-            void OnChange(WotPropertyTag t, object? value, StatusCode status, DateTime timestamp)
+            void OnChange(WotPropertyTag t, Variant value, StatusCode status, DateTime timestamp)
             {
                 OnProviderValueChange(variable, value, status, timestamp);
             }
@@ -371,13 +371,13 @@ namespace Opc.Ua.WotCon.Server
 
         private void OnProviderValueChange(
             BaseDataVariableState variable,
-            object? value,
+            Variant value,
             StatusCode status,
             DateTime timestamp)
         {
             lock (m_changeLock)
             {
-                variable.Value = ToVariant(value);
+                variable.Value = value;
                 variable.StatusCode = status;
                 variable.Timestamp = timestamp;
                 variable.ClearChangeMasks(SystemContext, includeChildren: false);

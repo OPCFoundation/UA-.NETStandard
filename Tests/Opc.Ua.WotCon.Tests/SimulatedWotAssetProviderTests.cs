@@ -77,29 +77,29 @@ namespace Opc.Ua.WotCon.Tests
         [Test]
         public async Task ReadReturnsSeededDefaultBeforeFirstWrite()
         {
-            (ServiceResult status, object? value) = await m_provider
+            (ServiceResult status, Variant value) = await m_provider
                 .ReadAsync(m_voltageTag, CancellationToken.None);
 
             Assert.That(ServiceResult.IsGood(status), Is.True);
-            Assert.That(value, Is.EqualTo(0.0));
+            Assert.That(value.AsBoxedObject(), Is.EqualTo(0.0));
         }
 
         [Test]
         public async Task WriteUpdatesSubsequentRead()
         {
-            await m_provider.WriteAsync(m_voltageTag, 24.5, CancellationToken.None);
+            await m_provider.WriteAsync(m_voltageTag, new Variant(24.5), CancellationToken.None);
 
-            (ServiceResult _, object? value) = await m_provider
+            (ServiceResult _, Variant value) = await m_provider
                 .ReadAsync(m_voltageTag, CancellationToken.None);
 
-            Assert.That(value, Is.EqualTo(24.5));
+            Assert.That(value.AsBoxedObject(), Is.EqualTo(24.5));
         }
 
         [Test]
         public async Task SetValueNotifiesSubscriber()
         {
             int notifications = 0;
-            object? lastValue = null;
+            Variant lastValue = Variant.Null;
             await m_provider.SubscribeAsync(
                 m_voltageTag,
                 subscriberId: 42,
@@ -110,10 +110,10 @@ namespace Opc.Ua.WotCon.Tests
                 },
                 CancellationToken.None);
 
-            m_provider.SetValue("Voltage", 12.3);
+            m_provider.SetValue("Voltage", new Variant(12.3));
 
             Assert.That(notifications, Is.EqualTo(1));
-            Assert.That(lastValue, Is.EqualTo(12.3));
+            Assert.That(lastValue.AsBoxedObject(), Is.EqualTo(12.3));
         }
 
         [Test]
@@ -127,7 +127,7 @@ namespace Opc.Ua.WotCon.Tests
                 CancellationToken.None);
             await m_provider.UnsubscribeAsync(m_voltageTag, subscriberId: 7, CancellationToken.None);
 
-            m_provider.SetValue("Voltage", 1.0);
+            m_provider.SetValue("Voltage", new Variant(1.0));
 
             Assert.That(notifications, Is.EqualTo(0));
         }
@@ -141,16 +141,16 @@ namespace Opc.Ua.WotCon.Tests
                 new[] { new Argument { Name = "in1", DataType = DataTypeIds.Int64 } },
                 new[] { new Argument { Name = "out1", DataType = DataTypeIds.Int64 } },
                 form: (JsonElement?)null);
-            object?[] outputs = new object?[1];
+            Variant[] outputs = new Variant[1];
 
             ServiceResult result = await m_provider.InvokeActionAsync(
                 actionTag,
-                new object?[] { 42L },
+                new[] { new Variant(42L) },
                 outputs,
                 CancellationToken.None);
 
             Assert.That(ServiceResult.IsGood(result), Is.True);
-            Assert.That(outputs[0], Is.EqualTo(42L));
+            Assert.That(outputs[0].AsBoxedObject(), Is.EqualTo(42L));
             Assert.That(m_provider.Invocations, Has.Count.EqualTo(1));
             Assert.That(m_provider.Invocations[0].Name, Is.EqualTo("Echo"));
         }

@@ -500,14 +500,14 @@ namespace Opc.Ua.WotCon.Server.Assets
                 variable.Value = ToVariant(TypeInfo.GetDefaultValue(variable.DataType, variable.ValueRank));
                 variable.OnSimpleReadValue = (ISystemContext _, NodeState _, ref Variant value) =>
                 {
-                    (ServiceResult status, object? read) = SimpleReadFromProvider(entry, tag);
-                    value = ToVariant(read);
+                    (ServiceResult status, Variant read) = SimpleReadFromProvider(entry, tag);
+                    value = read;
                     return status;
                 };
                 if (!property.ReadOnly)
                 {
                     variable.OnSimpleWriteValue = (ISystemContext _, NodeState _, ref Variant value) =>
-                        SimpleWriteToProvider(entry, tag, value.AsBoxedObject());
+                        SimpleWriteToProvider(entry, tag, value);
                 }
             }
 
@@ -587,12 +587,12 @@ namespace Opc.Ua.WotCon.Server.Assets
             entry.Actions[nodeId] = (method, tag);
         }
 
-        private (ServiceResult Status, object? Value) SimpleReadFromProvider(AssetEntry entry, WotPropertyTag tag)
+        private (ServiceResult Status, Variant Value) SimpleReadFromProvider(AssetEntry entry, WotPropertyTag tag)
         {
             IWotAssetProvider? provider = entry.Provider;
             if (provider == null)
             {
-                return (StatusCodes.BadNotConnected, null);
+                return (StatusCodes.BadNotConnected, Variant.Null);
             }
             try
             {
@@ -603,11 +603,11 @@ namespace Opc.Ua.WotCon.Server.Assets
             {
                 m_logger.LogWarning(ex,
                     "Read failed for asset {AssetName} property {Property}", entry.Name, tag.Name);
-                return (ServiceResult.Create(ex, StatusCodes.BadCommunicationError, ex.Message), null);
+                return (ServiceResult.Create(ex, StatusCodes.BadCommunicationError, ex.Message), Variant.Null);
             }
         }
 
-        private ServiceResult SimpleWriteToProvider(AssetEntry entry, WotPropertyTag tag, object? value)
+        private ServiceResult SimpleWriteToProvider(AssetEntry entry, WotPropertyTag tag, Variant value)
         {
             IWotAssetProvider? provider = entry.Provider;
             if (provider == null)
@@ -640,13 +640,13 @@ namespace Opc.Ua.WotCon.Server.Assets
                 return StatusCodes.BadNotConnected;
             }
 
-            object?[] inputCopy = new object?[inputArguments.Count];
+            Variant[] inputCopy = new Variant[inputArguments.Count];
             for (int i = 0; i < inputArguments.Count; i++)
             {
-                inputCopy[i] = inputArguments[i].AsBoxedObject();
+                inputCopy[i] = inputArguments[i];
             }
 
-            object?[] outputBuffer = new object?[tag.OutputArguments.Count];
+            Variant[] outputBuffer = new Variant[tag.OutputArguments.Count];
             try
             {
                 ServiceResult status = await provider.InvokeActionAsync(
@@ -655,7 +655,7 @@ namespace Opc.Ua.WotCon.Server.Assets
                 outputArguments.Clear();
                 for (int i = 0; i < outputBuffer.Length; i++)
                 {
-                    outputArguments.Add(ToVariant(outputBuffer[i]));
+                    outputArguments.Add(outputBuffer[i]);
                 }
                 return status;
             }
