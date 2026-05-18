@@ -226,7 +226,7 @@ namespace Opc.Ua.Server
             NodeState node,
             IDataChangeMonitoredItem2 monitoredItem)
         {
-            _ = QueueValueAsync(context, node, monitoredItem).AsTask();
+            _ = Task.Run(async () => await QueueValueAsync(context, node, monitoredItem).ConfigureAwait(false));
         }
 
         /// <summary>

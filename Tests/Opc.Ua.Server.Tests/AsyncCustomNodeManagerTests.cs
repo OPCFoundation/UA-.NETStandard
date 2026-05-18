@@ -698,7 +698,8 @@ namespace Opc.Ua.Server.Tests
                     }
                 }
 
-                Assert.That(notifications, Has.Count.EqualTo(2));
+                Assert.That(notifications, Has.Count.EqualTo(2),
+                    "Both the initial and write notifications should arrive within the 5-second timeout.");
                 MonitoredItemNotification notification = notifications.Dequeue();
                 MonitoredItemNotification notificationAfterWrite = notifications.Dequeue();
                 Assert.That((int)notification.Value.WrappedValue, Is.Zero);
