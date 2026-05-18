@@ -15,6 +15,7 @@
     <dependencies>
       <dependency id="OPCFoundation.NetStandard.Opc.Ua.Types" version="$version$"/>
       <dependency id="OPCFoundation.NetStandard.Opc.Ua.Types.Debug" version="$version$"/>
+      <dependency id="OPCFoundation.NetStandard.Opc.Ua.Core.Types.Debug" version="$version$"/>
       <dependency id="OPCFoundation.NetStandard.Opc.Ua.Core.Debug" version="$version$"/>
       <dependency id="OPCFoundation.NetStandard.Opc.Ua.Security.Certificates.Debug" version="$version$"/>
       <dependency id="OPCFoundation.NetStandard.Opc.Ua.Configuration.Debug" version="$version$"/>

@@ -69,13 +69,13 @@ namespace Opc.Ua.SourceGeneration.Tests
         }
 
         [Test]
-        public void GeneratorWithOpcUaAssemblyNameProducesModels()
+        public void GeneratorWithOpcUaCoreTypesAssemblyNameProducesModels()
         {
             var generator = new StackSourceGenerator();
             var host = new StackSourceGeneratorHoist(generator);
 
             CSharpCompilation compilation = OptimizationLevel.Debug
-                .CreateCompilation("Opc.Ua")
+                .CreateCompilation("Opc.Ua.Core.Types")
                 .AddCode(
                     new Dictionary<string, string>().WithOpcUaCoreStubs(),
                     LanguageVersion.Latest);
