@@ -108,7 +108,7 @@ namespace Opc.Ua.Client.Roles
                     continue;
                 }
                 if (!reference.TypeDefinition.IsNull
-                    && !ExpandedNodeId.Equals(reference.TypeDefinition, Opc.Ua.ObjectTypeIds.RoleType))
+                    && ExpandedNodeId.ToNodeId(reference.TypeDefinition, Session.NamespaceUris) != Opc.Ua.ObjectTypeIds.RoleType)
                 {
                     continue;
                 }

@@ -459,7 +459,12 @@ namespace Opc.Ua.Server
                 }
                 else
                 {
-                    namespaceIndex = 0;
+                    // The caller asked for the default namespace (either no
+                    // URI provided or the bare OPC UA URI) but the role name
+                    // is not one of the reserved Part 3 §4.9 names. Allocate
+                    // in the manager's dynamic namespace rather than ns=0,
+                    // which is reserved for OPC UA core nodes per Part 5.
+                    namespaceIndex = defaultNamespaceIndex;
                 }
             }
 

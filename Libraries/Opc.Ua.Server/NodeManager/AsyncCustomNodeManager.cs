@@ -507,6 +507,34 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Replaces an existing PredefinedNodes entry in place. Used by
+        /// runtime upgraders (e.g. <see cref="RoleStateBinding"/>) that
+        /// swap a passive child with a typed proxy after the original
+        /// nodeset was loaded.
+        /// </summary>
+        /// <remarks>
+        /// The replacement only affects the manager's address-space index.
+        /// Parent linkage and child traversal must already be wired up by
+        /// the caller via <c>parent.ReplaceChild</c>.
+        /// </remarks>
+        /// <param name="nodeId">The NodeId whose entry should be replaced.</param>
+        /// <param name="node">The replacement node state.</param>
+        /// <returns><see langword="true"/> if an existing entry was replaced.</returns>
+        internal bool ReplacePredefinedNode(NodeId nodeId, NodeState node)
+        {
+            if (nodeId.IsNull || node == null)
+            {
+                return false;
+            }
+            if (!PredefinedNodes.ContainsKey(nodeId))
+            {
+                return false;
+            }
+            PredefinedNodes[nodeId] = node;
+            return true;
+        }
+
+        /// <summary>
         /// Deletes a node and all of its children.
         /// </summary>
         public async ValueTask<bool> DeleteNodeAsync(ServerSystemContext context, NodeId nodeId, CancellationToken cancellationToken = default)

@@ -149,9 +149,36 @@ namespace Opc.Ua.Server
             roleSet.GetChildren(m_nodeManager.SystemContext, children);
             foreach (BaseInstanceState child in children)
             {
-                if (child is RoleState roleState)
+                if (child is RoleState roleStateChild)
                 {
-                    BindRoleState(roleState);
+                    BindRoleState(roleStateChild);
+                }
+            }
+
+            // The standard nodeset wires the well-known role nodes to the
+            // RoleSet via a HasComponent reference but GetChildren on the
+            // typed RoleSetState proxy only enumerates the typed AddRole /
+            // RemoveRole method children. Walk the raw references and look
+            // each role up in the manager's PredefinedNodes index.
+            var refs = new List<IReference>();
+            roleSet.GetReferences(m_nodeManager.SystemContext, refs);
+            foreach (IReference reference in refs)
+            {
+                if (reference.IsInverse ||
+                    reference.ReferenceTypeId != ReferenceTypeIds.HasComponent)
+                {
+                    continue;
+                }
+                NodeId targetId = ExpandedNodeId.ToNodeId(reference.TargetId,
+                    m_nodeManager.SystemContext.NamespaceUris);
+                if (targetId.IsNull)
+                {
+                    continue;
+                }
+                NodeState? target = m_nodeManager.FindPredefinedNode<NodeState>(targetId);
+                if (target is RoleState roleStateRef && !m_boundRoles.ContainsKey(targetId))
+                {
+                    BindRoleState(roleStateRef);
                 }
             }
 
@@ -160,19 +187,45 @@ namespace Opc.Ua.Server
 
         private ushort ResolveDynamicNamespaceIndex()
         {
-            string? firstOwned = m_nodeManager.NamespaceUris?.FirstOrDefault();
-            if (string.IsNullOrEmpty(firstOwned))
+            if (m_nodeManager.NamespaceUris == null)
             {
                 return 0;
             }
-            int idx = m_nodeManager.SystemContext.NamespaceUris.GetIndex(firstOwned!);
-            return idx is >= 0 and <= ushort.MaxValue ? (ushort)idx : (ushort)0;
+            // The diagnostics manager owns both the OPC UA core namespace
+            // and a dedicated "Diagnostics" namespace. Pick the first one
+            // that is NOT the OPC UA core URI so dynamically allocated role
+            // NodeIds don't collide with reserved Part 5 identifiers
+            // (e.g. i=1 = Boolean in ns=0).
+            foreach (string uri in m_nodeManager.NamespaceUris)
+            {
+                if (string.IsNullOrEmpty(uri))
+                {
+                    continue;
+                }
+                if (string.Equals(uri, "http://opcfoundation.org/UA/", StringComparison.Ordinal))
+                {
+                    continue;
+                }
+                int idx = m_nodeManager.SystemContext.NamespaceUris.GetIndex(uri);
+                if (idx is > 0 and <= ushort.MaxValue)
+                {
+                    return (ushort)idx;
+                }
+            }
+            return 0;
         }
 
         private void BindRoleState(RoleState roleState)
         {
             NodeId roleId = roleState.NodeId;
             m_boundRoles[roleId] = roleState;
+
+            // When the role node was loaded from the standard nodeset XML,
+            // its method/property children are plain MethodState /
+            // PropertyState instances rather than the typed proxies the
+            // source-gen RoleState exposes. Promote them so the typed
+            // OnCallAsync / OnWriteValue plumbing applies uniformly.
+            EnsureTypedChildrenAttached(roleState);
 
             if (roleState.AddIdentity != null)
             {
@@ -231,6 +284,161 @@ namespace Opc.Ua.Server
             }
 
             SyncPropertiesFromManager(roleId, roleState);
+        }
+
+        /// <summary>
+        /// Promotes plain <see cref="MethodState"/> / <see cref="PropertyState"/>
+        /// children of <paramref name="roleState"/> to the typed proxies
+        /// exposed by the source-generated <see cref="RoleState"/> shape.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// The standard nodeset XML loader instantiates each child as the
+        /// generic base type. The <see cref="RoleState.AddIdentity"/> and
+        /// related typed properties remain <see langword="null"/> unless we
+        /// explicitly construct an <c>AddIdentityMethodState</c> (etc.)
+        /// from the existing passive child and assign it back. Without this
+        /// promotion the typed <c>OnCallAsync</c> delegates that
+        /// <see cref="BindRoleState"/> wires up are never reached and the
+        /// server returns <c>BadNotImplemented</c>.
+        /// </para>
+        /// <para>
+        /// Children that are already typed (e.g. ones materialized via
+        /// <see cref="MaterializeDynamicRoleAsync"/> for dynamically added
+        /// roles) are left untouched.
+        /// </para>
+        /// </remarks>
+        private void EnsureTypedChildrenAttached(RoleState roleState)
+        {
+            ISystemContext context = m_nodeManager.SystemContext;
+
+            if (roleState.AddIdentity == null)
+            {
+                roleState.AddIdentity = PromoteMethodChild(
+                    m_nodeManager, context, roleState, BrowseNames.AddIdentity,
+                    parent => new AddIdentityMethodState(parent));
+            }
+            if (roleState.RemoveIdentity == null)
+            {
+                roleState.RemoveIdentity = PromoteMethodChild(
+                    m_nodeManager, context, roleState, BrowseNames.RemoveIdentity,
+                    parent => new RemoveIdentityMethodState(parent));
+            }
+            if (roleState.AddApplication == null)
+            {
+                roleState.AddApplication = PromoteMethodChild(
+                    m_nodeManager, context, roleState, BrowseNames.AddApplication,
+                    parent => new AddApplicationMethodState(parent));
+            }
+            if (roleState.RemoveApplication == null)
+            {
+                roleState.RemoveApplication = PromoteMethodChild(
+                    m_nodeManager, context, roleState, BrowseNames.RemoveApplication,
+                    parent => new RemoveApplicationMethodState(parent));
+            }
+            if (roleState.AddEndpoint == null)
+            {
+                roleState.AddEndpoint = PromoteMethodChild(
+                    m_nodeManager, context, roleState, BrowseNames.AddEndpoint,
+                    parent => new AddEndpointMethodState(parent));
+            }
+            if (roleState.RemoveEndpoint == null)
+            {
+                roleState.RemoveEndpoint = PromoteMethodChild(
+                    m_nodeManager, context, roleState, BrowseNames.RemoveEndpoint,
+                    parent => new RemoveEndpointMethodState(parent));
+            }
+
+            if (roleState.ApplicationsExclude == null)
+            {
+                roleState.ApplicationsExclude = PromoteBoolPropertyChild(
+                    m_nodeManager, context, roleState, BrowseNames.ApplicationsExclude);
+            }
+            if (roleState.EndpointsExclude == null)
+            {
+                roleState.EndpointsExclude = PromoteBoolPropertyChild(
+                    m_nodeManager, context, roleState, BrowseNames.EndpointsExclude);
+            }
+            if (roleState.CustomConfiguration == null)
+            {
+                roleState.CustomConfiguration = PromoteBoolPropertyChild(
+                    m_nodeManager, context, roleState, BrowseNames.CustomConfiguration);
+            }
+        }
+
+        private static TTyped? PromoteMethodChild<TTyped>(
+            AsyncCustomNodeManager manager,
+            ISystemContext context,
+            NodeState parent,
+            string browseName,
+            Func<NodeState, TTyped> factory)
+            where TTyped : MethodState
+        {
+            BaseInstanceState? passive = FindChildByBrowseName(context, parent, browseName);
+            if (passive is not MethodState passiveMethod)
+            {
+                return null;
+            }
+            if (passiveMethod is TTyped typedAlready)
+            {
+                return typedAlready;
+            }
+
+            // Construct the typed proxy and re-bind it in place of the
+            // passive method. Create(context, source) copies the NodeId,
+            // BrowseName, references, etc. so the existing method
+            // dispatch on the original NodeId continues to work.
+            TTyped active = factory(parent);
+            active.Create(context, passiveMethod);
+            parent.ReplaceChild(context, active);
+            // The manager's PredefinedNodes index still points at the
+            // passive instance. Refresh it so server-side method dispatch
+            // (which looks up by NodeId) lands on the typed proxy.
+            manager.ReplacePredefinedNode(active.NodeId, active);
+            return active;
+        }
+
+        private static PropertyState<bool>? PromoteBoolPropertyChild(
+            AsyncCustomNodeManager manager,
+            ISystemContext context,
+            NodeState parent,
+            string browseName)
+        {
+            BaseInstanceState? passive = FindChildByBrowseName(context, parent, browseName);
+            if (passive == null)
+            {
+                return null;
+            }
+            if (passive is PropertyState<bool> typedAlready)
+            {
+                return typedAlready;
+            }
+            if (passive is not BaseVariableState passiveVar)
+            {
+                return null;
+            }
+
+            PropertyState<bool> active = PropertyState<bool>.With<VariantBuilder>(parent);
+            active.Create(context, passiveVar);
+            parent.ReplaceChild(context, active);
+            manager.ReplacePredefinedNode(active.NodeId, active);
+            return active;
+        }
+
+        private static BaseInstanceState? FindChildByBrowseName(
+            ISystemContext context, NodeState parent, string browseName)
+        {
+            var children = new List<BaseInstanceState>();
+            parent.GetChildren(context, children);
+            for (int ii = 0; ii < children.Count; ii++)
+            {
+                BaseInstanceState child = children[ii];
+                if (child.BrowseName.Name == browseName)
+                {
+                    return child;
+                }
+            }
+            return null;
         }
 
         private NodeValueEventHandler WriteApplicationsExcludeHandler(NodeId roleId)
@@ -436,30 +644,55 @@ namespace Opc.Ua.Server
 
             // Optional method children — wire each one in via the typed
             // factories so the OnCallAsync delegates on the source-generated
-            // method state become available for binding.
-            roleState.AddIdentity = context.CreateInstanceOfAddIdentityMethodType(roleState);
+            // method state become available for binding. Each child must
+            // be added BOTH to the typed property (for binding lookups)
+            // AND to the base m_children collection (so Browse traversal
+            // sees the HasComponent reference). Browse walks GetReferences
+            // (not m_children), so we also need to add explicit forward
+            // and inverse references for every materialized child.
+            // Pass the spec-defined BrowseName so the standard browse-path
+            // lookups (e.g. "/AddIdentity") match the instance.
+            ushort opcUaNs = 0;
+            roleState.AddIdentity = context.CreateInstanceOfAddIdentityMethodType(
+                roleState, new QualifiedName(BrowseNames.AddIdentity, opcUaNs));
             AssignChildNodeId(context, roleState.AddIdentity);
+            LinkChild(roleState, roleState.AddIdentity);
 
-            roleState.RemoveIdentity = context.CreateInstanceOfRemoveIdentityMethodType(roleState);
+            roleState.RemoveIdentity = context.CreateInstanceOfRemoveIdentityMethodType(
+                roleState, new QualifiedName(BrowseNames.RemoveIdentity, opcUaNs));
             AssignChildNodeId(context, roleState.RemoveIdentity);
+            LinkChild(roleState, roleState.RemoveIdentity);
 
-            roleState.AddApplication = context.CreateInstanceOfAddApplicationMethodType(roleState);
+            roleState.AddApplication = context.CreateInstanceOfAddApplicationMethodType(
+                roleState, new QualifiedName(BrowseNames.AddApplication, opcUaNs));
             AssignChildNodeId(context, roleState.AddApplication);
+            LinkChild(roleState, roleState.AddApplication);
 
-            roleState.RemoveApplication = context.CreateInstanceOfRemoveApplicationMethodType(roleState);
+            roleState.RemoveApplication = context.CreateInstanceOfRemoveApplicationMethodType(
+                roleState, new QualifiedName(BrowseNames.RemoveApplication, opcUaNs));
             AssignChildNodeId(context, roleState.RemoveApplication);
+            LinkChild(roleState, roleState.RemoveApplication);
 
-            roleState.AddEndpoint = context.CreateInstanceOfAddEndpointMethodType(roleState);
+            roleState.AddEndpoint = context.CreateInstanceOfAddEndpointMethodType(
+                roleState, new QualifiedName(BrowseNames.AddEndpoint, opcUaNs));
             AssignChildNodeId(context, roleState.AddEndpoint);
+            LinkChild(roleState, roleState.AddEndpoint);
 
-            roleState.RemoveEndpoint = context.CreateInstanceOfRemoveEndpointMethodType(roleState);
+            roleState.RemoveEndpoint = context.CreateInstanceOfRemoveEndpointMethodType(
+                roleState, new QualifiedName(BrowseNames.RemoveEndpoint, opcUaNs));
             AssignChildNodeId(context, roleState.RemoveEndpoint);
+            LinkChild(roleState, roleState.RemoveEndpoint);
 
             // Optional property children — ApplicationsExclude / EndpointsExclude
-            // / CustomConfiguration are all PropertyState<bool>.
+            // / CustomConfiguration are all PropertyState<bool>. Use the
+            // HasProperty reference type rather than HasComponent so the
+            // browse classification matches the standard nodeset.
             roleState.ApplicationsExclude = BuildBoolProperty(context, roleState, BrowseNames.ApplicationsExclude);
+            LinkChild(roleState, roleState.ApplicationsExclude, ReferenceTypeIds.HasProperty);
             roleState.EndpointsExclude = BuildBoolProperty(context, roleState, BrowseNames.EndpointsExclude);
+            LinkChild(roleState, roleState.EndpointsExclude, ReferenceTypeIds.HasProperty);
             roleState.CustomConfiguration = BuildBoolProperty(context, roleState, BrowseNames.CustomConfiguration);
+            LinkChild(roleState, roleState.CustomConfiguration, ReferenceTypeIds.HasProperty);
 
             // The Identities child is created by the factory but its NodeId
             // still points at the type definition — give it a dynamic id too
@@ -470,8 +703,13 @@ namespace Opc.Ua.Server
             }
 
             // Attach to RoleSet so browse references are established before
-            // the manager indexes the subtree.
+            // the manager indexes the subtree. AddChild only updates the
+            // typed children collection; the actual HasComponent reference
+            // pair that Browse traverses is added explicitly so the new
+            // role shows up when clients walk the RoleSet's children.
             m_roleSet.AddChild(roleState);
+            m_roleSet.AddReference(ReferenceTypeIds.HasComponent, isInverse: false, roleState.NodeId);
+            roleState.AddReference(ReferenceTypeIds.HasComponent, isInverse: true, m_roleSet.NodeId);
 
             await m_nodeManager.AddPredefinedNodeAsync(roleState, cancellationToken)
                 .ConfigureAwait(false);
@@ -509,6 +747,24 @@ namespace Opc.Ua.Server
                 return;
             }
             child.NodeId = context.NodeIdFactory.New(context, child);
+        }
+
+        /// <summary>
+        /// Attaches <paramref name="child"/> to <paramref name="parent"/> by
+        /// registering the typed child link (<c>AddChild</c>) and adding
+        /// explicit forward + inverse references so Browse traversal sees
+        /// the new HasComponent / HasProperty relationship.
+        /// </summary>
+        private static void LinkChild(NodeState parent, BaseInstanceState? child, NodeId? referenceTypeId = null)
+        {
+            if (child == null || child.NodeId.IsNull)
+            {
+                return;
+            }
+            NodeId refTypeId = referenceTypeId ?? ReferenceTypeIds.HasComponent;
+            parent.AddChild(child);
+            parent.AddReference(refTypeId, isInverse: false, child.NodeId);
+            child.AddReference(refTypeId, isInverse: true, parent.NodeId);
         }
 
         private static PropertyState<bool> BuildBoolProperty(
