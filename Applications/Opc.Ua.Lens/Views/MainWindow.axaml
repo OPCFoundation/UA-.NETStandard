@@ -389,37 +389,79 @@
                       </StackPanel>
                     </ScrollViewer>
                   </Border>
-                  <Grid Grid.Row="1" ColumnDefinitions="*,Auto">
+                  <Grid Grid.Row="1" ColumnDefinitions="*,Auto,400">
                     <Grid Grid.Column="0">
                       <v:AnimationCanvas x:Name="Animation" />
                       <v:ScottPlotView   x:Name="ScottPlot" IsVisible="False" />
                     </Grid>
+                    <!-- Splitter for the Monitored items flyout (drag to
+                         resize the chart / flyout columns). Visible only
+                         when the flyout itself is shown. -->
+                    <GridSplitter Grid.Column="1"
+                                  Width="4"
+                                  ResizeDirection="Columns"
+                                  ResizeBehavior="PreviousAndNext"
+                                  Background="#1E293B"
+                                  IsVisible="{CompiledBinding SelectedSubscriptionTab.ShowItemStatusGrid, FallbackValue=False}" />
                     <!-- B1: per-monitored-item status sub-pane.  Toggled
                          via the toolbar's "📋 Items" checkbox.  Right-click
-                         a row to set its monitoring mode (B2). -->
-                    <Border Grid.Column="1"
+                         a row to set its monitoring mode (B2).  Width is
+                         driven by the parent ColumnDefinition (default
+                         400px) — drag the splitter to resize. -->
+                    <Border Grid.Column="2"
                             IsVisible="{CompiledBinding SelectedSubscriptionTab.ShowItemStatusGrid, FallbackValue=False}"
-                            Width="560"
+                            MinWidth="240"
                             Background="#0B1220"
                             BorderBrush="#1E293B" BorderThickness="1,0,0,0">
-                      <Grid RowDefinitions="Auto,Auto,*">
+                      <Grid RowDefinitions="Auto,Auto,*" Grid.IsSharedSizeScope="True">
                         <TextBlock Grid.Row="0"
                                    Margin="10,8,10,6"
                                    Foreground="#94A3B8" FontSize="12"
                                    Text="Monitored items" />
-                        <!-- Column header row to align with each item row. -->
-                        <Grid Grid.Row="1" Margin="10,0,10,4"
-                              ColumnDefinitions="40,*,2*,90,80,70,50,70,80,*">
-                          <TextBlock Grid.Column="0" Text="Id"        FontSize="11" Foreground="#64748B" />
-                          <TextBlock Grid.Column="1" Text="Browse"    FontSize="11" Foreground="#64748B" Margin="6,0,0,0" />
-                          <TextBlock Grid.Column="2" Text="NodeId"    FontSize="11" Foreground="#64748B" Margin="6,0,0,0" />
-                          <TextBlock Grid.Column="3" Text="Attr"      FontSize="11" Foreground="#64748B" Margin="6,0,0,0" />
-                          <TextBlock Grid.Column="4" Text="Mode"      FontSize="11" Foreground="#64748B" Margin="6,0,0,0" />
-                          <TextBlock Grid.Column="5" Text="Sampling"  FontSize="11" Foreground="#64748B" Margin="6,0,0,0" />
-                          <TextBlock Grid.Column="6" Text="Q"         FontSize="11" Foreground="#64748B" Margin="6,0,0,0" />
-                          <TextBlock Grid.Column="7" Text="Samples"   FontSize="11" Foreground="#64748B" Margin="6,0,0,0" />
-                          <TextBlock Grid.Column="8" Text="Status"    FontSize="11" Foreground="#64748B" Margin="6,0,0,0" />
-                          <TextBlock Grid.Column="9" Text="Value"     FontSize="11" Foreground="#64748B" Margin="6,0,0,0" />
+                        <!-- Column header row with GridSplitter cells
+                             between each column.  SharedSizeGroup mirrors
+                             the widths into every per-row Grid below. -->
+                        <Grid Grid.Row="1" Margin="10,0,10,4">
+                          <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="40"   MinWidth="32"  SharedSizeGroup="MiCol0" />
+                            <ColumnDefinition Width="Auto"                SharedSizeGroup="MiSep0" />
+                            <ColumnDefinition Width="100"  MinWidth="60"  SharedSizeGroup="MiCol1" />
+                            <ColumnDefinition Width="Auto"                SharedSizeGroup="MiSep1" />
+                            <ColumnDefinition Width="180"  MinWidth="80"  SharedSizeGroup="MiCol2" />
+                            <ColumnDefinition Width="Auto"                SharedSizeGroup="MiSep2" />
+                            <ColumnDefinition Width="80"   MinWidth="50"  SharedSizeGroup="MiCol3" />
+                            <ColumnDefinition Width="Auto"                SharedSizeGroup="MiSep3" />
+                            <ColumnDefinition Width="80"   MinWidth="60"  SharedSizeGroup="MiCol4" />
+                            <ColumnDefinition Width="Auto"                SharedSizeGroup="MiSep4" />
+                            <ColumnDefinition Width="70"   MinWidth="50"  SharedSizeGroup="MiCol5" />
+                            <ColumnDefinition Width="Auto"                SharedSizeGroup="MiSep5" />
+                            <ColumnDefinition Width="40"   MinWidth="30"  SharedSizeGroup="MiCol6" />
+                            <ColumnDefinition Width="Auto"                SharedSizeGroup="MiSep6" />
+                            <ColumnDefinition Width="70"   MinWidth="50"  SharedSizeGroup="MiCol7" />
+                            <ColumnDefinition Width="Auto"                SharedSizeGroup="MiSep7" />
+                            <ColumnDefinition Width="80"   MinWidth="60"  SharedSizeGroup="MiCol8" />
+                            <ColumnDefinition Width="Auto"                SharedSizeGroup="MiSep8" />
+                            <ColumnDefinition Width="*"    MinWidth="60"  SharedSizeGroup="MiCol9" />
+                          </Grid.ColumnDefinitions>
+                          <TextBlock Grid.Column="0"  Text="Id"        FontSize="11" Foreground="#64748B" />
+                          <GridSplitter Grid.Column="1"  Width="3" ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" Background="#1E293B" />
+                          <TextBlock Grid.Column="2"  Text="Browse"    FontSize="11" Foreground="#64748B" Margin="6,0,0,0" />
+                          <GridSplitter Grid.Column="3"  Width="3" ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" Background="#1E293B" />
+                          <TextBlock Grid.Column="4"  Text="NodeId"    FontSize="11" Foreground="#64748B" Margin="6,0,0,0" />
+                          <GridSplitter Grid.Column="5"  Width="3" ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" Background="#1E293B" />
+                          <TextBlock Grid.Column="6"  Text="Attr"      FontSize="11" Foreground="#64748B" Margin="6,0,0,0" />
+                          <GridSplitter Grid.Column="7"  Width="3" ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" Background="#1E293B" />
+                          <TextBlock Grid.Column="8"  Text="Mode"      FontSize="11" Foreground="#64748B" Margin="6,0,0,0" />
+                          <GridSplitter Grid.Column="9"  Width="3" ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" Background="#1E293B" />
+                          <TextBlock Grid.Column="10" Text="Sampling"  FontSize="11" Foreground="#64748B" Margin="6,0,0,0" />
+                          <GridSplitter Grid.Column="11" Width="3" ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" Background="#1E293B" />
+                          <TextBlock Grid.Column="12" Text="Q"         FontSize="11" Foreground="#64748B" Margin="6,0,0,0" />
+                          <GridSplitter Grid.Column="13" Width="3" ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" Background="#1E293B" />
+                          <TextBlock Grid.Column="14" Text="Samples"   FontSize="11" Foreground="#64748B" Margin="6,0,0,0" />
+                          <GridSplitter Grid.Column="15" Width="3" ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" Background="#1E293B" />
+                          <TextBlock Grid.Column="16" Text="Status"    FontSize="11" Foreground="#64748B" Margin="6,0,0,0" />
+                          <GridSplitter Grid.Column="17" Width="3" ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" Background="#1E293B" />
+                          <TextBlock Grid.Column="18" Text="Value"     FontSize="11" Foreground="#64748B" Margin="6,0,0,0" />
                         </Grid>
                         <ListBox Grid.Row="2"
                                  x:Name="ItemStatusList"
@@ -433,7 +475,28 @@
                           </ListBox.ItemContainerTheme>
                           <ListBox.ItemTemplate>
                             <DataTemplate x:DataType="vm:MonitoredItemStatusRow">
-                              <Grid ColumnDefinitions="40,*,2*,90,80,70,50,70,80,*">
+                              <Grid>
+                                <Grid.ColumnDefinitions>
+                                  <ColumnDefinition Width="40"   SharedSizeGroup="MiCol0" />
+                                  <ColumnDefinition Width="Auto" SharedSizeGroup="MiSep0" />
+                                  <ColumnDefinition Width="100"  SharedSizeGroup="MiCol1" />
+                                  <ColumnDefinition Width="Auto" SharedSizeGroup="MiSep1" />
+                                  <ColumnDefinition Width="180"  SharedSizeGroup="MiCol2" />
+                                  <ColumnDefinition Width="Auto" SharedSizeGroup="MiSep2" />
+                                  <ColumnDefinition Width="80"   SharedSizeGroup="MiCol3" />
+                                  <ColumnDefinition Width="Auto" SharedSizeGroup="MiSep3" />
+                                  <ColumnDefinition Width="80"   SharedSizeGroup="MiCol4" />
+                                  <ColumnDefinition Width="Auto" SharedSizeGroup="MiSep4" />
+                                  <ColumnDefinition Width="70"   SharedSizeGroup="MiCol5" />
+                                  <ColumnDefinition Width="Auto" SharedSizeGroup="MiSep5" />
+                                  <ColumnDefinition Width="40"   SharedSizeGroup="MiCol6" />
+                                  <ColumnDefinition Width="Auto" SharedSizeGroup="MiSep6" />
+                                  <ColumnDefinition Width="70"   SharedSizeGroup="MiCol7" />
+                                  <ColumnDefinition Width="Auto" SharedSizeGroup="MiSep7" />
+                                  <ColumnDefinition Width="80"   SharedSizeGroup="MiCol8" />
+                                  <ColumnDefinition Width="Auto" SharedSizeGroup="MiSep8" />
+                                  <ColumnDefinition Width="*"    SharedSizeGroup="MiCol9" />
+                                </Grid.ColumnDefinitions>
                                 <Grid.ContextMenu>
                                   <ContextMenu>
                                     <MenuItem Header="Set monitoring mode">
@@ -443,21 +506,21 @@
                                     </MenuItem>
                                   </ContextMenu>
                                 </Grid.ContextMenu>
-                                <TextBlock Grid.Column="0" Text="{CompiledBinding Id}"            FontSize="11" Foreground="#CBD5E1"
+                                <TextBlock Grid.Column="0"  Text="{CompiledBinding Id}"            FontSize="11" Foreground="#CBD5E1"
                                            FontFamily="Cascadia Mono, Consolas, monospace" />
-                                <TextBlock Grid.Column="1" Text="{CompiledBinding BrowseName}"    FontSize="11" Foreground="#E2E8F0" Margin="6,0,0,0" TextTrimming="CharacterEllipsis" />
-                                <TextBlock Grid.Column="2" Text="{CompiledBinding NodeId}"        FontSize="11" Foreground="#94A3B8" Margin="6,0,0,0"
+                                <TextBlock Grid.Column="2"  Text="{CompiledBinding BrowseName}"    FontSize="11" Foreground="#E2E8F0" Margin="6,0,0,0" TextTrimming="CharacterEllipsis" />
+                                <TextBlock Grid.Column="4"  Text="{CompiledBinding NodeId}"        FontSize="11" Foreground="#94A3B8" Margin="6,0,0,0"
                                            FontFamily="Cascadia Mono, Consolas, monospace" TextTrimming="CharacterEllipsis" />
-                                <TextBlock Grid.Column="3" Text="{CompiledBinding AttributeName}" FontSize="11" Foreground="#94A3B8" Margin="6,0,0,0" />
-                                <TextBlock Grid.Column="4" Text="{CompiledBinding Mode}"          FontSize="11" Foreground="#CBD5E1" Margin="6,0,0,0" />
-                                <TextBlock Grid.Column="5" Text="{CompiledBinding Sampling}"      FontSize="11" Foreground="#94A3B8" Margin="6,0,0,0"
+                                <TextBlock Grid.Column="6"  Text="{CompiledBinding AttributeName}" FontSize="11" Foreground="#94A3B8" Margin="6,0,0,0" />
+                                <TextBlock Grid.Column="8"  Text="{CompiledBinding Mode}"          FontSize="11" Foreground="#CBD5E1" Margin="6,0,0,0" />
+                                <TextBlock Grid.Column="10" Text="{CompiledBinding Sampling}"      FontSize="11" Foreground="#94A3B8" Margin="6,0,0,0"
                                            FontFamily="Cascadia Mono, Consolas, monospace" />
-                                <TextBlock Grid.Column="6" Text="{CompiledBinding Queue}"         FontSize="11" Foreground="#94A3B8" Margin="6,0,0,0"
+                                <TextBlock Grid.Column="12" Text="{CompiledBinding Queue}"         FontSize="11" Foreground="#94A3B8" Margin="6,0,0,0"
                                            FontFamily="Cascadia Mono, Consolas, monospace" />
-                                <TextBlock Grid.Column="7" Text="{CompiledBinding Samples}"       FontSize="11" Foreground="#CBD5E1" Margin="6,0,0,0"
+                                <TextBlock Grid.Column="14" Text="{CompiledBinding Samples}"       FontSize="11" Foreground="#CBD5E1" Margin="6,0,0,0"
                                            FontFamily="Cascadia Mono, Consolas, monospace" />
-                                <TextBlock Grid.Column="8" Text="{CompiledBinding LastStatus}"    FontSize="11" Foreground="#94A3B8" Margin="6,0,0,0" TextTrimming="CharacterEllipsis" />
-                                <TextBlock Grid.Column="9" Text="{CompiledBinding LastValue}"     FontSize="11" Foreground="#CBD5E1" Margin="6,0,0,0"
+                                <TextBlock Grid.Column="16" Text="{CompiledBinding LastStatus}"    FontSize="11" Foreground="#94A3B8" Margin="6,0,0,0" TextTrimming="CharacterEllipsis" />
+                                <TextBlock Grid.Column="18" Text="{CompiledBinding LastValue}"     FontSize="11" Foreground="#CBD5E1" Margin="6,0,0,0"
                                            FontFamily="Cascadia Mono, Consolas, monospace" TextTrimming="CharacterEllipsis" />
                               </Grid>
                             </DataTemplate>
