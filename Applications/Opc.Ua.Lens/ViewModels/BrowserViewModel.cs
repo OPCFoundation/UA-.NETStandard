@@ -166,7 +166,7 @@ internal sealed partial class BrowserViewModel : ObservableObject
             (NodeId rootId, string rootLabel) = GetRootSpec(CurrentViewKind);
             // Children load lazily on expand via LoadChildrenAsync, which
             // uses CurrentViewKind to pick the reference type to follow.
-            var root = new NodeViewModel(this, NodeId.Null, rootId, $"{Glyph(NodeClass.Object)} {rootLabel}", NodeClass.Object);
+            var root = new NodeViewModel(this, NodeId.Null, rootId, rootLabel, NodeClass.Object);
             Roots.Add(root);
             // Auto-expand the root so the user immediately sees its
             // children (Objects / Types / Views, etc.).

@@ -344,66 +344,74 @@
                 <Grid IsVisible="{CompiledBinding IsSubscriptionTabActive}"
                       RowDefinitions="Auto,*">
                   <!-- Toolbar moved here from above the tab strip so the
-                       subscription-specific buttons live INSIDE the tab. -->
+                       subscription-specific buttons live INSIDE the tab.
+                       WrapPanel so the children flow onto the next line
+                       when the window narrows (no horizontal scroll). -->
                   <Border Grid.Row="0" Background="#0B1220" Padding="8,6"
                           BorderBrush="#1E293B" BorderThickness="0,0,0,1">
-                    <ScrollViewer HorizontalScrollBarVisibility="Auto"
-                                  VerticalScrollBarVisibility="Disabled"
-                                  BorderThickness="0">
-                      <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+                    <WrapPanel Orientation="Horizontal" HorizontalAlignment="Right" ItemHeight="32">
                         <CheckBox x:Name="ResourceOverlayCheck"
                                   VerticalAlignment="Center"
+                                  Margin="4,0"
                                   Content="CPU/Mem" />
                         <CheckBox x:Name="ItemStatusToggle"
                                   VerticalAlignment="Center"
+                                  Margin="4,0"
                                   Content="Monitored Items"
                                   IsChecked="{CompiledBinding SelectedSubscriptionTab.ShowItemStatusGrid, Mode=TwoWay, FallbackValue=False}" />
-                        <Border Width="1" Background="#1E293B" Margin="2,4" />
+                        <Border Width="1" Background="#1E293B" Margin="4,6" />
                         <CheckBox x:Name="ShowLegendCheck"
                                   VerticalAlignment="Center"
+                                  Margin="4,0"
                                   Content="Legend"
                                   ToolTip.Tip="Show / hide the chart legend (Signal / Histogram / Heatmap)"
                                   IsChecked="{CompiledBinding SelectedSubscriptionTab.ShowLegend, Mode=TwoWay, FallbackValue=True}" />
                         <CheckBox x:Name="ShowXAxisCheck"
                                   VerticalAlignment="Center"
+                                  Margin="4,0"
                                   Content="X axis"
                                   ToolTip.Tip="Show / hide the chart X axis (bottom)"
                                   IsChecked="{CompiledBinding SelectedSubscriptionTab.ShowXAxis, Mode=TwoWay, FallbackValue=True}" />
                         <CheckBox x:Name="ShowYAxisCheck"
                                   VerticalAlignment="Center"
+                                  Margin="4,0"
                                   Content="Y axis"
                                   ToolTip.Tip="Show / hide the chart Y axis (left)"
                                   IsChecked="{CompiledBinding SelectedSubscriptionTab.ShowYAxis, Mode=TwoWay, FallbackValue=True}" />
-                        <TextBlock VerticalAlignment="Center" Margin="6,0,4,0" Foreground="#94A3B8" Text="View:" />
-                        <ComboBox x:Name="ViewModeCombo" MinWidth="110" SelectedIndex="0"
-                                  VerticalAlignment="Center" VerticalContentAlignment="Center"
-                                  MinHeight="28">
-                          <ComboBoxItem Content="Dots" />
-                          <ComboBoxItem Content="Bars" />
-                          <ComboBoxItem Content="Lines" />
-                          <ComboBoxItem Content="Signal" />
-                          <ComboBoxItem Content="Histogram" />
-                          <ComboBoxItem Content="Heatmap" />
-                        </ComboBox>
-                        <Button x:Name="TimeScaleDownBtn" Classes="tonal" Content="−" Width="30" Margin="12,0,0,0"
-                                VerticalAlignment="Center" />
-                        <TextBlock x:Name="TimeScaleLabel" VerticalAlignment="Center"
-                                   HorizontalAlignment="Center" Width="40"
-                                   TextAlignment="Center"
-                                   Foreground="#94A3B8"
-                                   FontFamily="Cascadia Mono, Consolas, monospace" Text="1.0×" />
-                        <Button x:Name="TimeScaleUpBtn"   Classes="tonal" Content="+" Width="30"
-                                VerticalAlignment="Center" />
-                        <Button x:Name="AddItemButton"    Classes="primary" Content="✚ Add" Width="100"
-                                Margin="12,0,0,0"
-                                IsEnabled="{CompiledBinding CanAddSelectedItem}"
-                                VerticalAlignment="Center" />
-                        <Button x:Name="RemoveItemButton" Classes="tonal"   Content="✗ Remove" Width="100"
-                                VerticalAlignment="Center" />
-                        <Button x:Name="SettingsButton"   Classes="tonal"   Content="⚙ Settings" Width="100"
-                                VerticalAlignment="Center" />
-                      </StackPanel>
-                    </ScrollViewer>
+                        <StackPanel Orientation="Horizontal" Margin="4,0" VerticalAlignment="Center">
+                          <TextBlock VerticalAlignment="Center" Margin="6,0,4,0" Foreground="#94A3B8" Text="View:" />
+                          <ComboBox x:Name="ViewModeCombo" MinWidth="110" SelectedIndex="0"
+                                    VerticalAlignment="Center" VerticalContentAlignment="Center"
+                                    MinHeight="28">
+                            <ComboBoxItem Content="Dots" />
+                            <ComboBoxItem Content="Bars" />
+                            <ComboBoxItem Content="Lines" />
+                            <ComboBoxItem Content="Signal" />
+                            <ComboBoxItem Content="Histogram" />
+                            <ComboBoxItem Content="Heatmap" />
+                          </ComboBox>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="4,0" VerticalAlignment="Center">
+                          <Button x:Name="TimeScaleDownBtn" Classes="tonal" Content="−" Width="30"
+                                  VerticalAlignment="Center" />
+                          <TextBlock x:Name="TimeScaleLabel" VerticalAlignment="Center"
+                                     HorizontalAlignment="Center" Width="40"
+                                     TextAlignment="Center"
+                                     Foreground="#94A3B8"
+                                     FontFamily="Cascadia Mono, Consolas, monospace" Text="1.0×" />
+                          <Button x:Name="TimeScaleUpBtn"   Classes="tonal" Content="+" Width="30"
+                                  VerticalAlignment="Center" />
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="4,0" VerticalAlignment="Center" Spacing="4">
+                          <Button x:Name="AddItemButton"    Classes="primary" Content="✚ Add" Width="100"
+                                  IsEnabled="{CompiledBinding CanAddSelectedItem}"
+                                  VerticalAlignment="Center" />
+                          <Button x:Name="RemoveItemButton" Classes="tonal"   Content="✗ Remove" Width="100"
+                                  VerticalAlignment="Center" />
+                          <Button x:Name="SettingsButton"   Classes="tonal"   Content="⚙ Settings" Width="100"
+                                  VerticalAlignment="Center" />
+                        </StackPanel>
+                    </WrapPanel>
                   </Border>
                   <Grid Grid.Row="1" ColumnDefinitions="*,Auto,400">
                     <Grid Grid.Column="0">

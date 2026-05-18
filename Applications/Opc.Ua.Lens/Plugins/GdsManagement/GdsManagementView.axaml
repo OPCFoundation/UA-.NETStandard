@@ -171,22 +171,22 @@
       </Grid>
     </Border>
 
-    <!-- Row 3: action bar -->
+    <!-- Row 3: action bar (WrapPanel: children flow to next line on narrow windows). -->
     <Border Grid.Row="3" Classes="panel" Margin="0,6,0,0">
-      <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Right">
-        <Button Classes="tonal" Content="＋ Register New…"
+      <WrapPanel Orientation="Horizontal" HorizontalAlignment="Right" ItemHeight="32">
+        <Button Classes="tonal" Content="＋ Register New…" Margin="4,0"
                 IsEnabled="{CompiledBinding !IsBusy}"
                 Command="{CompiledBinding RegisterApplicationCommand}" />
-        <Button Classes="tonal" Content="− Unregister Selected"
+        <Button Classes="tonal" Content="− Unregister Selected" Margin="4,0"
                 IsEnabled="{CompiledBinding !IsBusy}"
                 Command="{CompiledBinding UnregisterApplicationCommand}" />
-        <Button Classes="tonal" Content="🔑 Issue Cert…"
+        <Button Classes="tonal" Content="🔑 Issue Cert…" Margin="4,0"
                 IsEnabled="{CompiledBinding !IsBusy}"
                 Command="{CompiledBinding IssueNewCertificateCommand}" />
-        <Button Classes="primary" Content="📜 View Cert Groups…"
+        <Button Classes="primary" Content="📜 View Cert Groups…" Margin="4,0"
                 IsEnabled="{CompiledBinding !IsBusy}"
                 Command="{CompiledBinding ViewCertGroupsCommand}" />
-      </StackPanel>
+      </WrapPanel>
     </Border>
   </Grid>
 </UserControl>

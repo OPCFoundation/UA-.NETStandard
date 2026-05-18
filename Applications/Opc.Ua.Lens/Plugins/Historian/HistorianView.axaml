@@ -190,19 +190,19 @@
         </TabItem>
       </TabControl>
 
-      <!-- Row 2: action buttons -->
-      <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="6" Margin="0,8,0,0">
-        <Button Classes="primary" Content="▶ Read"
+      <!-- Row 2: action buttons (WrapPanel: wrap on narrow windows). -->
+      <WrapPanel Grid.Row="2" Orientation="Horizontal" Margin="0,8,0,0" ItemHeight="32">
+        <Button Classes="primary" Content="▶ Read" Margin="4,0"
                 Command="{CompiledBinding ReadCommand}" />
-        <Button Classes="tonal" Content="■ Cancel"
+        <Button Classes="tonal" Content="■ Cancel" Margin="4,0"
                 Command="{CompiledBinding CancelReadCommand}" />
-        <Button Classes="tonal" Content="✎ Edit selected…"
+        <Button Classes="tonal" Content="✎ Edit selected…" Margin="4,0"
                 Command="{CompiledBinding EditSelectedCommand}" />
-        <Button Classes="danger" Content="🗑 Delete selected"
+        <Button Classes="danger" Content="🗑 Delete selected" Margin="4,0"
                 Command="{CompiledBinding DeleteSelectedCommand}" />
-        <Button Classes="tonal" Content="⇩ Export CSV…"
+        <Button Classes="tonal" Content="⇩ Export CSV…" Margin="4,0"
                 Command="{CompiledBinding ExportCsvCommand}" />
-      </StackPanel>
+      </WrapPanel>
 
       <!-- Row 3: history-update mode bar -->
       <Border Grid.Row="3" Margin="0,8,0,0" Padding="10" Background="#0B1220"

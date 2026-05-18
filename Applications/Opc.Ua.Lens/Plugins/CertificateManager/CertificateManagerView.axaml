@@ -73,23 +73,21 @@
 
   <DockPanel LastChildFill="True">
 
-    <!-- Toolbar -->
+    <!-- Toolbar (WrapPanel so children flow to next line when narrow). -->
     <Border DockPanel.Dock="Top" Classes="panel" Margin="8,8,8,4" Padding="8,6">
-      <DockPanel LastChildFill="False">
+      <WrapPanel Orientation="Horizontal" ItemHeight="32">
         <TextBlock VerticalAlignment="Center"
                    Foreground="{StaticResource LabelDim}"
                    FontSize="12" Margin="0,0,12,0"
                    Text="🔑 Certificate Manager" />
-        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-          <Button Classes="tonal" Content="＋ Add store…"
-                  Command="{CompiledBinding AddStoreCommand}" />
-          <Button Classes="tonal" Content="↻ Refresh"
-                  Command="{CompiledBinding RefreshCommand}" />
-          <Border Width="1" Background="#1E293B" Margin="2,4" />
-          <Button Classes="tonal" Content="🛡 Open trust dialog…"
-                  Command="{CompiledBinding OpenTrustDialogCommand}" />
-        </StackPanel>
-      </DockPanel>
+        <Button Classes="tonal" Content="＋ Add store…" Margin="4,0"
+                Command="{CompiledBinding AddStoreCommand}" />
+        <Button Classes="tonal" Content="↻ Refresh" Margin="4,0"
+                Command="{CompiledBinding RefreshCommand}" />
+        <Border Width="1" Background="#1E293B" Margin="4,6" />
+        <Button Classes="tonal" Content="🛡 Open trust dialog…" Margin="4,0"
+                Command="{CompiledBinding OpenTrustDialogCommand}" />
+      </WrapPanel>
     </Border>
 
     <!-- Status -->

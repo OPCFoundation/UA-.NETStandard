@@ -68,34 +68,34 @@
   <DockPanel LastChildFill="True">
 
     <Border DockPanel.Dock="Top" Classes="panel" Margin="8,8,8,4" Padding="8,6">
-      <DockPanel LastChildFill="False">
+      <WrapPanel Orientation="Horizontal" ItemHeight="32">
         <TextBlock VerticalAlignment="Center" Foreground="#94A3B8"
                    FontSize="12" Margin="0,0,12,0"
                    Text="🔍 Discovery" />
-        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="6">
+        <StackPanel Orientation="Horizontal" Spacing="6" Margin="4,0" VerticalAlignment="Center">
           <TextBlock VerticalAlignment="Center" Foreground="#94A3B8" FontSize="11"
                      Text="LDS host:" />
-          <TextBox Width="220" Margin="6,0"
+          <TextBox Width="220"
                    Text="{CompiledBinding LocalMachineUrl, Mode=TwoWay}"
                    FontFamily="Cascadia Mono, Consolas, monospace" FontSize="12" />
-          <Button Classes="tonal" Content="Add Custom…"
-                  Command="{CompiledBinding AddCustomEndpointCommand}" />
-          <Button Classes="tonal" Content="★ Favourite"
-                  ToolTip.Tip="Save the selected endpoint as a favourite"
-                  Command="{CompiledBinding AddCurrentToFavouritesCommand}" />
-          <Button Classes="tonal" Content="✕ Unfavourite"
-                  ToolTip.Tip="Remove the selected ⭐ favourite under Custom Discovery"
-                  Command="{CompiledBinding RemoveFromFavouritesCommand}" />
-          <Border Width="1" Background="#1E293B" Margin="2,4" />
-          <Button Classes="tonal" Content="↻ Refresh"
-                  Command="{CompiledBinding RefreshSelectedRootCommand}" />
-          <Button Classes="tonal" Content="Filter…"
-                  Command="{CompiledBinding EditFilterCommand}" />
-          <Border Width="1" Background="#1E293B" Margin="2,4" />
-          <Button Classes="primary" Content="Connect"
-                  Command="{CompiledBinding ConnectSelectedToConnectionPaneCommand}" />
         </StackPanel>
-      </DockPanel>
+        <Button Classes="tonal" Content="Add Custom…" Margin="4,0"
+                Command="{CompiledBinding AddCustomEndpointCommand}" />
+        <Button Classes="tonal" Content="★ Favourite" Margin="4,0"
+                ToolTip.Tip="Save the selected endpoint as a favourite"
+                Command="{CompiledBinding AddCurrentToFavouritesCommand}" />
+        <Button Classes="tonal" Content="✕ Unfavourite" Margin="4,0"
+                ToolTip.Tip="Remove the selected ⭐ favourite under Custom Discovery"
+                Command="{CompiledBinding RemoveFromFavouritesCommand}" />
+        <Border Width="1" Background="#1E293B" Margin="4,6" />
+        <Button Classes="tonal" Content="↻ Refresh" Margin="4,0"
+                Command="{CompiledBinding RefreshSelectedRootCommand}" />
+        <Button Classes="tonal" Content="Filter…" Margin="4,0"
+                Command="{CompiledBinding EditFilterCommand}" />
+        <Border Width="1" Background="#1E293B" Margin="4,6" />
+        <Button Classes="primary" Content="Connect" Margin="4,0"
+                Command="{CompiledBinding ConnectSelectedToConnectionPaneCommand}" />
+      </WrapPanel>
     </Border>
 
     <Border Classes="panel" Margin="8,4,8,8">

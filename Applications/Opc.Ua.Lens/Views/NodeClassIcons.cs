@@ -60,35 +60,44 @@ internal static class NodeClassIcons
     /// <summary>
     /// Geometry per node class. Lookup is keyed by <see cref="NodeClass"/>
     /// — unknown / unspecified classes return <c>null</c>, which renders
-    /// no Path (the row TextBlock still shows).
+    /// no Path (the row TextBlock still shows).  All geometries use only
+    /// M/L/Z commands (no arc commands) so they parse identically on
+    /// every Avalonia platform.  Each shape is distinct in silhouette so
+    /// rows scan apart at a glance: square / gear / hexagon / hex-ring /
+    /// triangle / arrow / grid / diamond.
     /// </summary>
     public static IReadOnlyDictionary<NodeClass, Geometry> Geometries { get; }
         = new Dictionary<NodeClass, Geometry>
         {
-            // Object: filled rounded square — concrete instance.
+            // Object: solid square — concrete instance.
             [NodeClass.Object] = StreamGeometry.Parse(
-                "M3,2 L13,2 A1,1 0 0 1 14,3 L14,13 A1,1 0 0 1 13,14 L3,14 A1,1 0 0 1 2,13 L2,3 A1,1 0 0 1 3,2 Z"),
-            // ObjectType: same square outline, gridded (4 quadrants) — template.
+                "M2 2 L14 2 L14 14 L2 14 Z"),
+            // ObjectType: square with internal cross — instance template.
+            // Two lines split the square into 4 quadrants (rendered via
+            // stroke; the fill is transparent for type kinds).
             [NodeClass.ObjectType] = StreamGeometry.Parse(
-                "M3,2 L13,2 A1,1 0 0 1 14,3 L14,13 A1,1 0 0 1 13,14 L3,14 A1,1 0 0 1 2,13 L2,3 A1,1 0 0 1 3,2 Z M2,8 L14,8 M8,2 L8,14"),
-            // Variable: filled circle — concrete value.
+                "M2 2 L14 2 L14 14 L2 14 Z M2 8 L14 8 M8 2 L8 14"),
+            // Variable: hexagon — concrete value.  Distinct from Object's
+            // square so Variable rows visually pop apart from Object rows.
             [NodeClass.Variable] = StreamGeometry.Parse(
-                "M8,2 A6,6 0 1,1 8,14 A6,6 0 1,1 8,2 Z"),
-            // VariableType: ring (circle with hollow centre) — template.
+                "M5 2 L11 2 L14 8 L11 14 L5 14 L2 8 Z"),
+            // VariableType: hexagon-ring (outer hex + inner hex).  Reads
+            // as "value template".
             [NodeClass.VariableType] = StreamGeometry.Parse(
-                "M8,2 A6,6 0 1,1 8,14 A6,6 0 1,1 8,2 Z M8,6 A2,2 0 1,1 8,10 A2,2 0 1,1 8,6 Z"),
-            // Method: right-pointing play triangle — invocation.
+                "M5 2 L11 2 L14 8 L11 14 L5 14 L2 8 Z M7 6 L9 6 L10 8 L9 10 L7 10 L6 8 Z"),
+            // Method: right-pointing triangle — invocation arrow.
             [NodeClass.Method] = StreamGeometry.Parse(
-                "M4,3 L13,8 L4,13 Z"),
-            // ReferenceType: bidirectional arrow — linkage / relation.
+                "M3 2 L13 8 L3 14 Z"),
+            // ReferenceType: double-headed arrow — linkage / relation.
             [NodeClass.ReferenceType] = StreamGeometry.Parse(
-                "M1,8 L4,5 L4,7 L12,7 L12,5 L15,8 L12,11 L12,9 L4,9 L4,11 Z"),
-            // DataType: stacked rows / spec — schema definition.
+                "M2 8 L6 4 L6 7 L10 7 L10 4 L14 8 L10 12 L10 9 L6 9 L6 12 Z"),
+            // DataType: rectangle filled with 3 horizontal rows (a small
+            // spreadsheet) — schema / data layout.
             [NodeClass.DataType] = StreamGeometry.Parse(
-                "M3,3 L13,3 L13,13 L3,13 Z M5,6 L11,6 M5,8 L11,8 M5,10 L11,10"),
-            // View: eye with pupil — visibility / scope.
+                "M2 2 L14 2 L14 14 L2 14 Z M2 6 L14 6 M2 10 L14 10"),
+            // View: diamond — viewport / scope.
             [NodeClass.View] = StreamGeometry.Parse(
-                "M1,8 Q8,2 15,8 Q8,14 1,8 Z M8,5 A3,3 0 1,1 8,11 A3,3 0 1,1 8,5 Z"),
+                "M8 2 L14 8 L8 14 L2 8 Z"),
         };
 
     /// <summary>

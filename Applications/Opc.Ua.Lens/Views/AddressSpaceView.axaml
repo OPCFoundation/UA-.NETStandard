@@ -79,7 +79,8 @@
                    (NodeClass.Unspecified has no geometry → null Data). -->
               <Path Width="14" Height="14"
                     Stretch="Uniform"
-                    StrokeThickness="1.2"
+                    StrokeThickness="1.6"
+                    StrokeJoin="Round"
                     Data="{CompiledBinding NodeClass, Converter={x:Static v:NodeClassToGeometryConverter.Instance}}"
                     Fill="{CompiledBinding NodeClass, Converter={x:Static v:NodeClassToFillConverter.Instance}}"
                     Stroke="{CompiledBinding NodeClass, Converter={x:Static v:NodeClassToStrokeConverter.Instance}}"

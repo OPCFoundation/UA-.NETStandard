@@ -290,30 +290,32 @@
       </TabControl>
     </Border>
 
-    <!-- Row 4: action bar -->
+    <!-- Row 4: action bar (WrapPanel: children flow to next line on narrow windows). -->
     <Border Grid.Row="4" Classes="panel" Margin="0,6,0,0">
-      <StackPanel Orientation="Horizontal" Spacing="6">
-        <TextBlock Classes="h" Text="Mask" VerticalAlignment="Center" Margin="0,0,4,0" />
-        <ComboBox MinWidth="180"
-                  ItemsSource="{CompiledBinding TrustListMaskOptions}"
-                  SelectedItem="{CompiledBinding TrustListMasks}"
-                  IsEnabled="{CompiledBinding !IsBusy}" />
-        <Button Classes="tonal" Content="↻ Refresh"
+      <WrapPanel Orientation="Horizontal" ItemHeight="32">
+        <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center" Margin="4,0">
+          <TextBlock Classes="h" Text="Mask" VerticalAlignment="Center" Margin="0,0,4,0" />
+          <ComboBox MinWidth="180"
+                    ItemsSource="{CompiledBinding TrustListMaskOptions}"
+                    SelectedItem="{CompiledBinding TrustListMasks}"
+                    IsEnabled="{CompiledBinding !IsBusy}" />
+        </StackPanel>
+        <Button Classes="tonal" Content="↻ Refresh" Margin="4,0"
                 IsEnabled="{CompiledBinding !IsBusy}"
                 Command="{CompiledBinding RefreshCommand}" />
-        <Button Classes="tonal" Content="+ Add Cert…"
+        <Button Classes="tonal" Content="+ Add Cert…" Margin="4,0"
                 IsEnabled="{CompiledBinding !IsBusy}"
                 Command="{CompiledBinding AddCertificateCommand}" />
-        <Button Classes="tonal" Content="− Remove Cert"
+        <Button Classes="tonal" Content="− Remove Cert" Margin="4,0"
                 IsEnabled="{CompiledBinding !IsBusy}"
                 Command="{CompiledBinding RemoveCertificateCommand}" />
-        <Button Classes="tonal" Content="🔑 Request New Cert…"
+        <Button Classes="tonal" Content="🔑 Request New Cert…" Margin="4,0"
                 IsEnabled="{CompiledBinding !IsBusy}"
                 Command="{CompiledBinding RequestNewCertificateCommand}" />
-        <Button Classes="primary" Content="✓ Apply Changes"
+        <Button Classes="primary" Content="✓ Apply Changes" Margin="4,0"
                 IsEnabled="{CompiledBinding !IsBusy}"
                 Command="{CompiledBinding ApplyChangesCommand}" />
-      </StackPanel>
+      </WrapPanel>
     </Border>
   </Grid>
 </UserControl>

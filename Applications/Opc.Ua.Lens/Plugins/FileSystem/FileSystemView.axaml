@@ -80,35 +80,33 @@
 
   <DockPanel LastChildFill="True">
 
-    <!-- Toolbar -->
+    <!-- Toolbar (WrapPanel: children flow to next line on narrow windows). -->
     <Border DockPanel.Dock="Top" Classes="panel" Margin="8,8,8,4" Padding="8,6">
-      <DockPanel LastChildFill="False">
+      <WrapPanel Orientation="Horizontal" ItemHeight="32">
         <TextBlock VerticalAlignment="Center"
                    Foreground="{StaticResource LabelDim}"
                    FontSize="12" Margin="0,0,12,0"
                    Text="📁 File System" />
-        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-          <Button Classes="primary" Content="Pick Root…"
-                  Command="{CompiledBinding PickRootCommand}" />
-          <Button Classes="tonal"   Content="Filter…"
-                  Command="{CompiledBinding EditFilterCommand}" />
-          <Border Width="1" Background="#1E293B" Margin="2,4" />
-          <Button Classes="tonal"   Content="Add File…"
-                  Command="{CompiledBinding AddFileCommand}" />
-          <Button Classes="tonal"   Content="Export File…"
-                  Command="{CompiledBinding ExportFileCommand}" />
-          <Border Width="1" Background="#1E293B" Margin="2,4" />
-          <Button Classes="tonal"   Content="New Folder…"
-                  Command="{CompiledBinding NewFolderCommand}" />
-          <Button Classes="tonal"   Content="Rename…"
-                  Command="{CompiledBinding RenameCommand}" />
-          <Button Classes="danger"  Content="Delete"
-                  Command="{CompiledBinding DeleteCommand}" />
-          <Border Width="1" Background="#1E293B" Margin="2,4" />
-          <Button Classes="tonal"   Content="↻ Refresh"
-                  Command="{CompiledBinding RefreshCommand}" />
-        </StackPanel>
-      </DockPanel>
+        <Button Classes="primary" Content="Pick Root…" Margin="4,0"
+                Command="{CompiledBinding PickRootCommand}" />
+        <Button Classes="tonal"   Content="Filter…" Margin="4,0"
+                Command="{CompiledBinding EditFilterCommand}" />
+        <Border Width="1" Background="#1E293B" Margin="4,6" />
+        <Button Classes="tonal"   Content="Add File…" Margin="4,0"
+                Command="{CompiledBinding AddFileCommand}" />
+        <Button Classes="tonal"   Content="Export File…" Margin="4,0"
+                Command="{CompiledBinding ExportFileCommand}" />
+        <Border Width="1" Background="#1E293B" Margin="4,6" />
+        <Button Classes="tonal"   Content="New Folder…" Margin="4,0"
+                Command="{CompiledBinding NewFolderCommand}" />
+        <Button Classes="tonal"   Content="Rename…" Margin="4,0"
+                Command="{CompiledBinding RenameCommand}" />
+        <Button Classes="danger"  Content="Delete" Margin="4,0"
+                Command="{CompiledBinding DeleteCommand}" />
+        <Border Width="1" Background="#1E293B" Margin="4,6" />
+        <Button Classes="tonal"   Content="↻ Refresh" Margin="4,0"
+                Command="{CompiledBinding RefreshCommand}" />
+      </WrapPanel>
     </Border>
 
     <!-- Body: TreeView (left) + details ListBox (right) -->
