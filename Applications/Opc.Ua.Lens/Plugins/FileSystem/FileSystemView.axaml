@@ -150,13 +150,28 @@
                       ResizeBehavior="PreviousAndNext"
                       Background="#1E293B" />
 
-        <!-- Right: details list -->
-        <Grid Grid.Column="2" RowDefinitions="Auto,*">
-          <Grid Grid.Row="0" Background="#1E293B"
-                ColumnDefinitions="*,120,180">
+        <!-- Right: details list with shared-size columns so the header
+             splitter drags resize both the header and per-row grids. -->
+        <Grid Grid.Column="2" RowDefinitions="Auto,*"
+              Grid.IsSharedSizeScope="True">
+          <Grid Grid.Row="0" Background="#1E293B">
+            <Grid.Resources>
+              <SolidColorBrush x:Key="FsSplitBrush" Color="#0F172A" />
+            </Grid.Resources>
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*"   SharedSizeGroup="FsCol0" />
+              <ColumnDefinition Width="Auto" SharedSizeGroup="FsSep0" />
+              <ColumnDefinition Width="120" SharedSizeGroup="FsCol1" />
+              <ColumnDefinition Width="Auto" SharedSizeGroup="FsSep1" />
+              <ColumnDefinition Width="180" SharedSizeGroup="FsCol2" />
+            </Grid.ColumnDefinitions>
             <TextBlock Grid.Column="0" Margin="8,4" Classes="h" Text="NAME" />
-            <TextBlock Grid.Column="1" Margin="8,4" Classes="h" Text="SIZE"     TextAlignment="Right" />
-            <TextBlock Grid.Column="2" Margin="8,4" Classes="h" Text="MODIFIED" />
+            <GridSplitter Grid.Column="1" Width="4" Background="{StaticResource FsSplitBrush}"
+                          ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" />
+            <TextBlock Grid.Column="2" Margin="8,4" Classes="h" Text="SIZE"     TextAlignment="Right" />
+            <GridSplitter Grid.Column="3" Width="4" Background="{StaticResource FsSplitBrush}"
+                          ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" />
+            <TextBlock Grid.Column="4" Margin="8,4" Classes="h" Text="MODIFIED" />
           </Grid>
           <ListBox Grid.Row="1"
                    x:Name="DetailsList"
@@ -165,15 +180,22 @@
                    BorderThickness="0">
             <ListBox.ItemTemplate>
               <DataTemplate DataType="vm:FsNode">
-                <Grid ColumnDefinitions="*,120,180" PointerPressed="OnDetailsRowPointerPressed">
+                <Grid PointerPressed="OnDetailsRowPointerPressed">
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"   SharedSizeGroup="FsCol0" />
+                    <ColumnDefinition Width="Auto" SharedSizeGroup="FsSep0" />
+                    <ColumnDefinition Width="120" SharedSizeGroup="FsCol1" />
+                    <ColumnDefinition Width="Auto" SharedSizeGroup="FsSep1" />
+                    <ColumnDefinition Width="180" SharedSizeGroup="FsCol2" />
+                  </Grid.ColumnDefinitions>
                   <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6">
                     <TextBlock Text="{CompiledBinding Glyph}" Classes="row" />
                     <TextBlock Text="{CompiledBinding Name}"  Classes="row" />
                   </StackPanel>
-                  <TextBlock Grid.Column="1"
+                  <TextBlock Grid.Column="2"
                              Text="{CompiledBinding DisplaySize}"
                              Classes="row" TextAlignment="Right" />
-                  <TextBlock Grid.Column="2"
+                  <TextBlock Grid.Column="4"
                              Text="{CompiledBinding DisplayLastModified}"
                              Classes="row" />
                 </Grid>
