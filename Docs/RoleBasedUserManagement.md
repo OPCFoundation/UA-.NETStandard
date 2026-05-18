@@ -185,9 +185,7 @@ See [GdsRole.cs](https://github.com/OPCFoundation/UA-.NETStandard/blob/main/Libr
 
 ## Known limitations
 
-- **AddRole address-space materialization**: the default `RoleManager` registers the role in its identity-resolution table but does not create a `RoleType` instance node for dynamically added roles. Integrators that want the new role to be browseable can subscribe to `IRoleManager.RoleConfigurationChanged` and call `AddNodeAsync` on the diagnostics node manager to create the materialized node.
-- **Live session re-evaluation**: per Part 18 4.4.1 the role assignment of active sessions should be re-evaluated when a role configuration changes. Today, re-evaluation happens on the next session activation via `SessionManager.AddMandatoryRoles`. A full live re-evaluation implementation is on the roadmap.
-- **MustChangePassword activation flow**: `SessionManager.AddMandatoryRoles` now restricts USERNAME sessions whose user has `MustChangePassword` set to the `Anonymous` role only — the session can only call `ChangePassword` until the password is updated. The spec's `Good_PasswordChangeRequired` return code from `ActivateSession` is not yet propagated (deeper refactor needed); clients see the role restriction but receive `Good` from activation.
+- **Integration tests for end-to-end RoleSet / UserManagement scenarios** (e.g. AddRole over the wire followed by browse + AddIdentity + activated session under the new grant) are tracked as a follow-up.
 
 ## References
 

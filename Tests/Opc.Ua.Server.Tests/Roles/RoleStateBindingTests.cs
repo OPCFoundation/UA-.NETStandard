@@ -329,6 +329,156 @@ namespace Opc.Ua.Server.Tests.Roles
         }
 
         // ----------------------------------------------------------------
+        // Dynamic AddRole / RemoveRole address-space materialization
+        // ----------------------------------------------------------------
+
+        [Test]
+        public async Task AddRoleHandler_AdminCaller_MaterializesRoleStateUnderRoleSet()
+        {
+            ISystemContext ctx = BuildAdminContext(MessageSecurityMode.SignAndEncrypt);
+            AddRoleMethodStateResult result = await InvokeAddRoleAsync(
+                ctx, "CustomReporter", "http://test.org/role-binding/").ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(result.ServiceResult), Is.True,
+                "AddRole must succeed under SecurityAdmin + SignAndEncrypt.");
+            Assert.That(result.RoleNodeId.IsNull, Is.False,
+                "AddRole must return a non-null allocated NodeId.");
+
+            Assert.That(m_nodeManager.PredefinedNodes.ContainsKey(result.RoleNodeId), Is.True,
+                "The new RoleState must be present in PredefinedNodes.");
+
+            Assert.That(m_nodeManager.PredefinedNodes[result.RoleNodeId], Is.InstanceOf<RoleState>(),
+                "Materialization must place a typed RoleState — not a bare BaseObjectState.");
+        }
+
+        [Test]
+        public async Task AddRoleHandler_MaterializedRoleHasAllOptionalChildren()
+        {
+            ISystemContext ctx = BuildAdminContext(MessageSecurityMode.SignAndEncrypt);
+            AddRoleMethodStateResult result = await InvokeAddRoleAsync(
+                ctx, "CustomReporter", "http://test.org/role-binding/").ConfigureAwait(false);
+            Assume.That(ServiceResult.IsGood(result.ServiceResult), Is.True);
+
+            var role = (RoleState)m_nodeManager.PredefinedNodes[result.RoleNodeId];
+
+            Assert.That(role.AddIdentity, Is.Not.Null);
+            Assert.That(role.RemoveIdentity, Is.Not.Null);
+            Assert.That(role.AddApplication, Is.Not.Null);
+            Assert.That(role.RemoveApplication, Is.Not.Null);
+            Assert.That(role.AddEndpoint, Is.Not.Null);
+            Assert.That(role.RemoveEndpoint, Is.Not.Null);
+            Assert.That(role.ApplicationsExclude, Is.Not.Null);
+            Assert.That(role.EndpointsExclude, Is.Not.Null);
+            Assert.That(role.CustomConfiguration, Is.Not.Null);
+        }
+
+        [Test]
+        public async Task AddRoleHandler_MaterializedRoleHasOnCallAsyncDelegatesWired()
+        {
+            ISystemContext ctx = BuildAdminContext(MessageSecurityMode.SignAndEncrypt);
+            AddRoleMethodStateResult result = await InvokeAddRoleAsync(
+                ctx, "CustomReporter", "http://test.org/role-binding/").ConfigureAwait(false);
+            Assume.That(ServiceResult.IsGood(result.ServiceResult), Is.True);
+
+            var role = (RoleState)m_nodeManager.PredefinedNodes[result.RoleNodeId];
+
+            // The binding must wire each typed method's OnCallAsync so callers
+            // can invoke the methods immediately after AddRole returns.
+            Assert.That(role.AddIdentity!.OnCallAsync, Is.Not.Null);
+            Assert.That(role.RemoveIdentity!.OnCallAsync, Is.Not.Null);
+            Assert.That(role.AddApplication!.OnCallAsync, Is.Not.Null);
+            Assert.That(role.RemoveApplication!.OnCallAsync, Is.Not.Null);
+            Assert.That(role.AddEndpoint!.OnCallAsync, Is.Not.Null);
+            Assert.That(role.RemoveEndpoint!.OnCallAsync, Is.Not.Null);
+
+            // And the exclude-flag writers.
+            Assert.That(role.ApplicationsExclude!.OnWriteValue, Is.Not.Null);
+            Assert.That(role.EndpointsExclude!.OnWriteValue, Is.Not.Null);
+            Assert.That(role.CustomConfiguration!.OnWriteValue, Is.Not.Null);
+        }
+
+        [Test]
+        public async Task AddRoleHandler_AnonymousCaller_ReturnsBadUserAccessDenied_AndDoesNotMaterialize()
+        {
+            ISystemContext ctx = BuildContext(MessageSecurityMode.SignAndEncrypt, anonymous: true);
+            int countBefore = m_nodeManager.PredefinedNodes.Count;
+
+            AddRoleMethodStateResult result = await InvokeAddRoleAsync(
+                ctx, "ShouldNotMaterialize", "http://test.org/role-binding/").ConfigureAwait(false);
+
+            Assert.That((StatusCode)result.ServiceResult.StatusCode,
+                Is.EqualTo((StatusCode)StatusCodes.BadUserAccessDenied));
+            Assert.That(m_nodeManager.PredefinedNodes.Count, Is.EqualTo(countBefore),
+                "Auth failures must not leave a partially-materialized node.");
+        }
+
+        [Test]
+        public async Task RemoveRoleHandler_AdminCaller_DropsRoleStateFromAddressSpace()
+        {
+            ISystemContext ctx = BuildAdminContext(MessageSecurityMode.SignAndEncrypt);
+
+            AddRoleMethodStateResult addResult = await InvokeAddRoleAsync(
+                ctx, "Ephemeral", "http://test.org/role-binding/").ConfigureAwait(false);
+            Assume.That(ServiceResult.IsGood(addResult.ServiceResult), Is.True);
+            Assume.That(m_nodeManager.PredefinedNodes.ContainsKey(addResult.RoleNodeId), Is.True);
+
+            ServiceResult removeResult = await InvokeRemoveRoleAsync(ctx, addResult.RoleNodeId)
+                .ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(removeResult), Is.True);
+            Assert.That(m_nodeManager.PredefinedNodes.ContainsKey(addResult.RoleNodeId), Is.False,
+                "RemoveRole must drop the role from PredefinedNodes.");
+        }
+
+        [Test]
+        public async Task RemoveRoleHandler_AnonymousCaller_ReturnsBadUserAccessDenied_AndKeepsRole()
+        {
+            ISystemContext adminCtx = BuildAdminContext(MessageSecurityMode.SignAndEncrypt);
+
+            AddRoleMethodStateResult addResult = await InvokeAddRoleAsync(
+                adminCtx, "Persistent", "http://test.org/role-binding/").ConfigureAwait(false);
+            Assume.That(ServiceResult.IsGood(addResult.ServiceResult), Is.True);
+
+            ISystemContext anonCtx = BuildContext(MessageSecurityMode.SignAndEncrypt, anonymous: true);
+            ServiceResult removeResult = await InvokeRemoveRoleAsync(anonCtx, addResult.RoleNodeId)
+                .ConfigureAwait(false);
+
+            Assert.That((StatusCode)removeResult.StatusCode,
+                Is.EqualTo((StatusCode)StatusCodes.BadUserAccessDenied));
+            Assert.That(m_nodeManager.PredefinedNodes.ContainsKey(addResult.RoleNodeId), Is.True,
+                "Auth-rejected RemoveRole must leave the address space untouched.");
+        }
+
+        [Test]
+        public async Task AddRoleHandler_TypedRoleStateUpgradedByBinding_CanCallAddIdentity()
+        {
+            ISystemContext ctx = BuildAdminContext(MessageSecurityMode.SignAndEncrypt);
+            AddRoleMethodStateResult addResult = await InvokeAddRoleAsync(
+                ctx, "Engineer", "http://test.org/role-binding/").ConfigureAwait(false);
+            Assume.That(ServiceResult.IsGood(addResult.ServiceResult), Is.True);
+
+            // Invoke AddIdentity on the freshly materialized role to prove the
+            // OnCallAsync delegate works end-to-end.
+            var role = (RoleState)m_nodeManager.PredefinedNodes[addResult.RoleNodeId];
+            AddIdentityMethodState addIdentity = role.AddIdentity!;
+            AddIdentityMethodStateResult identityResult = await addIdentity.OnCallAsync!(
+                ctx, addIdentity, role.NodeId,
+                new IdentityMappingRuleType
+                {
+                    CriteriaType = IdentityCriteriaType.UserName,
+                    Criteria = "carol"
+                },
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(identityResult.ServiceResult), Is.True);
+
+            RoleEntry? entry = m_roleManager.GetRole(addResult.RoleNodeId);
+            Assert.That(entry, Is.Not.Null);
+            Assert.That(entry!.Identities, Has.Count.EqualTo(1));
+            Assert.That(entry.Identities[0].Criteria, Is.EqualTo("carol"));
+        }
+
+        // ----------------------------------------------------------------
         // Test helpers
         // ----------------------------------------------------------------
 
@@ -382,6 +532,32 @@ namespace Opc.Ua.Server.Tests.Roles
 
             AddIdentityMethodStateResult result = await method.OnCallAsync!(
                 context, method, m_roleState.NodeId, rule, CancellationToken.None)
+                .ConfigureAwait(false);
+            return result.ServiceResult;
+        }
+
+        private ValueTask<AddRoleMethodStateResult> InvokeAddRoleAsync(
+            ISystemContext context, string roleName, string namespaceUri)
+        {
+            AddRoleMethodState? method = m_roleSet.AddRole;
+            Assume.That(method, Is.Not.Null, "AddRole method state should be attached.");
+            Assume.That(method!.OnCallAsync, Is.Not.Null,
+                "Binding should have wired the typed OnCallAsync delegate.");
+
+            return method.OnCallAsync!(
+                context, method, m_roleSet.NodeId, roleName, namespaceUri, CancellationToken.None);
+        }
+
+        private async ValueTask<ServiceResult> InvokeRemoveRoleAsync(
+            ISystemContext context, NodeId roleNodeId)
+        {
+            RemoveRoleMethodState? method = m_roleSet.RemoveRole;
+            Assume.That(method, Is.Not.Null, "RemoveRole method state should be attached.");
+            Assume.That(method!.OnCallAsync, Is.Not.Null,
+                "Binding should have wired the typed OnCallAsync delegate.");
+
+            RemoveRoleMethodStateResult result = await method.OnCallAsync!(
+                context, method, m_roleSet.NodeId, roleNodeId, CancellationToken.None)
                 .ConfigureAwait(false);
             return result.ServiceResult;
         }

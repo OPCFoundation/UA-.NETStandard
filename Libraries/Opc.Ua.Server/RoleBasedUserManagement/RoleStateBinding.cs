@@ -337,10 +337,26 @@ namespace Opc.Ua.Server
             if (ServiceResult.IsGood(add))
             {
                 result.RoleNodeId = newRoleId;
-                // Address-space materialization for dynamic roles is delegated
-                // to integrators who subscribe to IRoleManager.RoleConfigurationChanged;
-                // the well-known roles are already materialized by the
-                // standard nodeset.
+
+                // Materialize the RoleType subtree into the address space so
+                // browsers and method callers see the dynamic role straight
+                // away. Failures here are logged but not surfaced as a status
+                // code so the RoleManager state stays consistent with what
+                // AddRole reported.
+                try
+                {
+                    await MaterializeDynamicRoleAsync(
+                        context,
+                        newRoleId,
+                        roleName,
+                        cancellationToken).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    m_logger.LogWarning(ex,
+                        "AddRole({RoleName}) succeeded in the RoleManager but address-space materialization failed.",
+                        roleName);
+                }
             }
             result.ServiceResult = add;
             return result;
@@ -360,10 +376,160 @@ namespace Opc.Ua.Server
                 return new RemoveRoleMethodStateResult { ServiceResult = auth };
             }
 
-            return new RemoveRoleMethodStateResult
+            ServiceResult remove = m_roleManager.RemoveRole(roleNodeId);
+
+            if (ServiceResult.IsGood(remove))
             {
-                ServiceResult = m_roleManager.RemoveRole(roleNodeId)
-            };
+                // Drop the address-space subtree so subsequent browses don't
+                // see the deleted role. Mirror the AddRole behaviour: failures
+                // are logged and swallowed so the RoleManager state stays
+                // authoritative.
+                try
+                {
+                    await DematerializeDynamicRoleAsync(roleNodeId, cancellationToken)
+                        .ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    m_logger.LogWarning(ex,
+                        "RemoveRole({RoleId}) succeeded in the RoleManager but address-space removal failed.",
+                        roleNodeId);
+                }
+            }
+
+            return new RemoveRoleMethodStateResult { ServiceResult = remove };
+        }
+
+        /// <summary>
+        /// Materializes a dynamically added <c>RoleType</c> instance
+        /// underneath the bound <see cref="RoleSetState"/> using the
+        /// source-generated typed proxies.
+        /// </summary>
+        /// <remarks>
+        /// The well-known roles ship pre-built in the standard nodeset; this
+        /// method only fires for roles created at runtime via
+        /// <see cref="IRoleManager.AddRole"/>. The factory
+        /// <c>CreateInstanceOfRoleType</c> sets the well-known RoleType NodeId
+        /// (15620) as the default — we overwrite it with the dynamic role's
+        /// allocated NodeId and allocate fresh NodeIds for each optional child
+        /// via <see cref="ISystemContext.NodeIdFactory"/>.
+        /// </remarks>
+        private async ValueTask MaterializeDynamicRoleAsync(
+            ISystemContext context,
+            NodeId roleNodeId,
+            string roleName,
+            CancellationToken cancellationToken)
+        {
+            if (m_roleSet == null)
+            {
+                return;
+            }
+
+            ushort browseNs = roleNodeId.NamespaceIndex;
+
+            RoleState roleState = context.CreateInstanceOfRoleType(
+                parent: m_roleSet,
+                browseName: new QualifiedName(roleName, browseNs));
+            roleState.NodeId = roleNodeId;
+            roleState.SymbolicName = roleName;
+            roleState.DisplayName = new LocalizedText(roleName);
+
+            // Optional method children — wire each one in via the typed
+            // factories so the OnCallAsync delegates on the source-generated
+            // method state become available for binding.
+            roleState.AddIdentity = context.CreateInstanceOfAddIdentityMethodType(roleState);
+            AssignChildNodeId(context, roleState.AddIdentity);
+
+            roleState.RemoveIdentity = context.CreateInstanceOfRemoveIdentityMethodType(roleState);
+            AssignChildNodeId(context, roleState.RemoveIdentity);
+
+            roleState.AddApplication = context.CreateInstanceOfAddApplicationMethodType(roleState);
+            AssignChildNodeId(context, roleState.AddApplication);
+
+            roleState.RemoveApplication = context.CreateInstanceOfRemoveApplicationMethodType(roleState);
+            AssignChildNodeId(context, roleState.RemoveApplication);
+
+            roleState.AddEndpoint = context.CreateInstanceOfAddEndpointMethodType(roleState);
+            AssignChildNodeId(context, roleState.AddEndpoint);
+
+            roleState.RemoveEndpoint = context.CreateInstanceOfRemoveEndpointMethodType(roleState);
+            AssignChildNodeId(context, roleState.RemoveEndpoint);
+
+            // Optional property children — ApplicationsExclude / EndpointsExclude
+            // / CustomConfiguration are all PropertyState<bool>.
+            roleState.ApplicationsExclude = BuildBoolProperty(context, roleState, BrowseNames.ApplicationsExclude);
+            roleState.EndpointsExclude = BuildBoolProperty(context, roleState, BrowseNames.EndpointsExclude);
+            roleState.CustomConfiguration = BuildBoolProperty(context, roleState, BrowseNames.CustomConfiguration);
+
+            // The Identities child is created by the factory but its NodeId
+            // still points at the type definition — give it a dynamic id too
+            // so it is addressable as an instance.
+            if (roleState.Identities != null)
+            {
+                AssignChildNodeId(context, roleState.Identities);
+            }
+
+            // Attach to RoleSet so browse references are established before
+            // the manager indexes the subtree.
+            m_roleSet.AddChild(roleState);
+
+            await m_nodeManager.AddPredefinedNodeAsync(roleState, cancellationToken)
+                .ConfigureAwait(false);
+
+            // Now that the state is in PredefinedNodes, wire the OnCallAsync
+            // delegates and OnWriteValue handlers via the existing binding
+            // path. This keeps materialization and wiring identical to the
+            // well-known role path.
+            BindRoleState(roleState);
+
+            m_logger.LogDebug(
+                "Materialized dynamic role {RoleName} ({RoleId}) under RoleSet.",
+                roleName, roleNodeId);
+        }
+
+        private async ValueTask DematerializeDynamicRoleAsync(
+            NodeId roleNodeId,
+            CancellationToken cancellationToken)
+        {
+            // Drop the binding bookkeeping first so any concurrent
+            // RoleConfigurationChanged listener walks the new state.
+            m_boundRoles.Remove(roleNodeId);
+
+            await m_nodeManager.DeleteNodeAsync(
+                    m_nodeManager.SystemContext,
+                    roleNodeId,
+                    cancellationToken)
+                .ConfigureAwait(false);
+        }
+
+        private static void AssignChildNodeId(ISystemContext context, BaseInstanceState? child)
+        {
+            if (child == null || context.NodeIdFactory == null)
+            {
+                return;
+            }
+            child.NodeId = context.NodeIdFactory.New(context, child);
+        }
+
+        private static PropertyState<bool> BuildBoolProperty(
+            ISystemContext context,
+            NodeState parent,
+            string browseName)
+        {
+            // Property BrowseNames in the standard nodeset live in the OPC UA
+            // base namespace (always index 0). Look it up rather than relying
+            // on the internal Namespaces.OpcUa constant so this code stays
+            // compatible if the runtime resequences known namespaces.
+            int opcUaNsIndex = context.NamespaceUris.GetIndex("http://opcfoundation.org/UA/");
+            ushort ns = opcUaNsIndex >= 0 ? (ushort)opcUaNsIndex : (ushort)0;
+            PropertyState<bool> property = PropertyState<bool>.With<VariantBuilder>(parent);
+            property.BrowseName = new QualifiedName(browseName, ns);
+            property.DisplayName = new LocalizedText(browseName);
+            property.SymbolicName = browseName;
+            property.DataType = DataTypeIds.Boolean;
+            property.ValueRank = ValueRanks.Scalar;
+            AssignChildNodeId(context, property);
+            return property;
         }
 
         private async ValueTask<AddIdentityMethodStateResult> OnAddIdentityAsync(

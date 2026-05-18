@@ -475,6 +475,38 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Adds an already-constructed node subtree (a "predefined" subtree)
+        /// to this manager's address space while preserving the caller-supplied
+        /// NodeIds.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// Use this when a node is materialized dynamically at runtime and the
+        /// caller has already allocated NodeIds for the root and every child
+        /// (e.g. via <see cref="IRoleManager.AddRole"/>). Unlike
+        /// <see cref="AddNodeAsync"/>, this method does <strong>not</strong>
+        /// run <c>AssignNodeIds</c> — the NodeIds set on the instance and its
+        /// children are kept verbatim and used as PredefinedNodes keys.
+        /// </para>
+        /// <para>
+        /// The supplied <paramref name="node"/> should already be attached to
+        /// its parent (via <c>parent.AddChild</c>) when invoked, if a parent
+        /// linkage is required for browse references.
+        /// </para>
+        /// </remarks>
+        /// <param name="node">The pre-built node subtree to register.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        public async ValueTask AddPredefinedNodeAsync(NodeState node, CancellationToken cancellationToken = default)
+        {
+            if (node == null)
+            {
+                throw new ArgumentNullException(nameof(node));
+            }
+
+            await AddPredefinedNodeAsync(SystemContext, node, cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <summary>
         /// Deletes a node and all of its children.
         /// </summary>
         public async ValueTask<bool> DeleteNodeAsync(ServerSystemContext context, NodeId nodeId, CancellationToken cancellationToken = default)
