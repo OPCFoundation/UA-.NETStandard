@@ -173,7 +173,7 @@
 
     <!-- Row 3: action bar (WrapPanel: children flow to next line on narrow windows). -->
     <Border Grid.Row="3" Classes="panel" Margin="0,6,0,0">
-      <WrapPanel Orientation="Horizontal" HorizontalAlignment="Right" ItemHeight="32">
+      <WrapPanel Orientation="Horizontal" HorizontalAlignment="Left" ItemHeight="32">
         <Button Classes="tonal" Content="＋ Register New…" Margin="4,0"
                 IsEnabled="{CompiledBinding !IsBusy}"
                 Command="{CompiledBinding RegisterApplicationCommand}" />

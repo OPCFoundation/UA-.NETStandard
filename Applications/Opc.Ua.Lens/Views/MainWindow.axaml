@@ -140,15 +140,33 @@
       </MenuItem>
       <MenuItem Header="_Tabs">
         <MenuItem Header="_Add…">
-          <MenuItem x:Name="MenuNewSubscription"   Header="⚡  _Subscription"        InputGesture="Ctrl+Shift+S" />
-          <MenuItem x:Name="MenuNewGdsPush"        Header="🛡  GDS _Push"            InputGesture="Ctrl+Shift+P" />
-          <MenuItem x:Name="MenuNewGdsManagement"  Header="🏛  GDS _Management"      InputGesture="Ctrl+Shift+M" />
-          <MenuItem x:Name="MenuNewGdsDiscovery"   Header="🔍  GDS _Discovery"       InputGesture="Ctrl+Shift+D" />
-          <MenuItem x:Name="MenuNewPerformance"    Header="📊  Per_formance"         InputGesture="Ctrl+Shift+B" />
-          <MenuItem x:Name="MenuNewEventView"      Header="🔔  _Event View"          InputGesture="Ctrl+Shift+V" />
-          <MenuItem x:Name="MenuNewHistorian"      Header="📈  _Historian"           InputGesture="Ctrl+Shift+H" />
-          <MenuItem x:Name="MenuNewFileSystem"     Header="📁  _File System"         InputGesture="Ctrl+Shift+L" />
-          <MenuItem x:Name="MenuNewCertificateManager" Header="🔑  _Certificate Manager" InputGesture="Ctrl+Shift+C" />
+          <MenuItem x:Name="MenuNewSubscription"   Header="_Subscription"        InputGesture="Ctrl+Shift+S">
+            <MenuItem.Icon><TextBlock Text="⚡" Width="18" TextAlignment="Center" FontSize="14" /></MenuItem.Icon>
+          </MenuItem>
+          <MenuItem x:Name="MenuNewGdsPush"        Header="GDS _Push"            InputGesture="Ctrl+Shift+P">
+            <MenuItem.Icon><TextBlock Text="🛡" Width="18" TextAlignment="Center" FontSize="14" /></MenuItem.Icon>
+          </MenuItem>
+          <MenuItem x:Name="MenuNewGdsManagement"  Header="GDS _Management"      InputGesture="Ctrl+Shift+M">
+            <MenuItem.Icon><TextBlock Text="🏛" Width="18" TextAlignment="Center" FontSize="14" /></MenuItem.Icon>
+          </MenuItem>
+          <MenuItem x:Name="MenuNewGdsDiscovery"   Header="GDS _Discovery"       InputGesture="Ctrl+Shift+D">
+            <MenuItem.Icon><TextBlock Text="🔍" Width="18" TextAlignment="Center" FontSize="14" /></MenuItem.Icon>
+          </MenuItem>
+          <MenuItem x:Name="MenuNewPerformance"    Header="Per_formance"         InputGesture="Ctrl+Shift+B">
+            <MenuItem.Icon><TextBlock Text="📊" Width="18" TextAlignment="Center" FontSize="14" /></MenuItem.Icon>
+          </MenuItem>
+          <MenuItem x:Name="MenuNewEventView"      Header="_Event View"          InputGesture="Ctrl+Shift+V">
+            <MenuItem.Icon><TextBlock Text="🔔" Width="18" TextAlignment="Center" FontSize="14" /></MenuItem.Icon>
+          </MenuItem>
+          <MenuItem x:Name="MenuNewHistorian"      Header="_Historian"           InputGesture="Ctrl+Shift+H">
+            <MenuItem.Icon><TextBlock Text="📈" Width="18" TextAlignment="Center" FontSize="14" /></MenuItem.Icon>
+          </MenuItem>
+          <MenuItem x:Name="MenuNewFileSystem"     Header="_File System"         InputGesture="Ctrl+Shift+L">
+            <MenuItem.Icon><TextBlock Text="📁" Width="18" TextAlignment="Center" FontSize="14" /></MenuItem.Icon>
+          </MenuItem>
+          <MenuItem x:Name="MenuNewCertificateManager" Header="_Certificate Manager" InputGesture="Ctrl+Shift+C">
+            <MenuItem.Icon><TextBlock Text="🔑" Width="18" TextAlignment="Center" FontSize="14" /></MenuItem.Icon>
+          </MenuItem>
         </MenuItem>
         <Separator />
         <MenuItem x:Name="MenuRenameTab"   Header="_Rename Active Tab"    InputGesture="F2" />
@@ -356,7 +374,7 @@
                        when the window narrows (no horizontal scroll). -->
                   <Border Grid.Row="0" Background="#0B1220" Padding="8,6"
                           BorderBrush="#1E293B" BorderThickness="0,0,0,1">
-                    <WrapPanel Orientation="Horizontal" HorizontalAlignment="Right" ItemHeight="32">
+                    <WrapPanel Orientation="Horizontal" HorizontalAlignment="Left" ItemHeight="32">
                         <CheckBox x:Name="ResourceOverlayCheck"
                                   VerticalAlignment="Center"
                                   Margin="4,0"

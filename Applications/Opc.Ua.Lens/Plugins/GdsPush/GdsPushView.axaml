@@ -127,7 +127,7 @@
          the secondary (or piggy-backed) Push session via ReadAsync on
          VariableIds.Server_ServerStatus (i=2256). -->
     <Border Grid.Row="2" Classes="panel" Margin="0,0,0,6">
-      <Expander Header="Server status" IsExpanded="True">
+      <Expander Header="Server status" IsExpanded="False">
         <Grid ColumnDefinitions="180,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
           <TextBlock Grid.Row="0"  Grid.Column="0" Classes="k" Text="Product name" Margin="0,2" />
           <TextBlock Grid.Row="0"  Grid.Column="1" Classes="v"

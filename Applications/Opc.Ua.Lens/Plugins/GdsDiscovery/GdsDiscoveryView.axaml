@@ -69,31 +69,28 @@
 
     <Border DockPanel.Dock="Top" Classes="panel" Margin="8,8,8,4" Padding="8,6">
       <WrapPanel Orientation="Horizontal" ItemHeight="32">
-        <TextBlock VerticalAlignment="Center" Foreground="#94A3B8"
-                   FontSize="12" Margin="0,0,12,0"
-                   Text="🔍 Discovery" />
-        <StackPanel Orientation="Horizontal" Spacing="6" Margin="4,0" VerticalAlignment="Center">
+        <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,0,4,0" VerticalAlignment="Center">
           <TextBlock VerticalAlignment="Center" Foreground="#94A3B8" FontSize="11"
                      Text="LDS host:" />
           <TextBox Width="220"
                    Text="{CompiledBinding LocalMachineUrl, Mode=TwoWay}"
                    FontFamily="Cascadia Mono, Consolas, monospace" FontSize="12" />
         </StackPanel>
-        <Button Classes="tonal" Content="Add Custom…" Margin="4,0"
+        <Button Classes="tonal" Content="Add Custom…" Margin="0,0,4,0"
                 Command="{CompiledBinding AddCustomEndpointCommand}" />
-        <Button Classes="tonal" Content="★ Favourite" Margin="4,0"
+        <Button Classes="tonal" Content="★ Favourite" Margin="0,0,4,0"
                 ToolTip.Tip="Save the selected endpoint as a favourite"
                 Command="{CompiledBinding AddCurrentToFavouritesCommand}" />
-        <Button Classes="tonal" Content="✕ Unfavourite" Margin="4,0"
+        <Button Classes="tonal" Content="✕ Unfavourite" Margin="0,0,4,0"
                 ToolTip.Tip="Remove the selected ⭐ favourite under Custom Discovery"
                 Command="{CompiledBinding RemoveFromFavouritesCommand}" />
         <Border Width="1" Background="#1E293B" Margin="4,6" />
-        <Button Classes="tonal" Content="↻ Refresh" Margin="4,0"
+        <Button Classes="tonal" Content="↻ Refresh" Margin="0,0,4,0"
                 Command="{CompiledBinding RefreshSelectedRootCommand}" />
-        <Button Classes="tonal" Content="Filter…" Margin="4,0"
+        <Button Classes="tonal" Content="Filter…" Margin="0,0,4,0"
                 Command="{CompiledBinding EditFilterCommand}" />
         <Border Width="1" Background="#1E293B" Margin="4,6" />
-        <Button Classes="primary" Content="Connect" Margin="4,0"
+        <Button Classes="primary" Content="Connect" Margin="0,0,4,0"
                 Command="{CompiledBinding ConnectSelectedToConnectionPaneCommand}" />
       </WrapPanel>
     </Border>

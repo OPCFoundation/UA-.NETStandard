@@ -76,26 +76,22 @@
     <!-- Toolbar (WrapPanel so children flow to next line when narrow). -->
     <Border DockPanel.Dock="Top" Classes="panel" Margin="8,8,8,4" Padding="8,6">
       <WrapPanel Orientation="Horizontal" ItemHeight="32">
-        <TextBlock VerticalAlignment="Center"
-                   Foreground="{StaticResource LabelDim}"
-                   FontSize="12" Margin="0,0,12,0"
-                   Text="🔑 Certificate Manager" />
-        <Button Classes="tonal" Content="＋ Add store…" Margin="4,0"
+        <Button Classes="tonal" Content="＋ Add store…" Margin="0,0,4,0"
                 Command="{CompiledBinding AddStoreCommand}" />
-        <Button Classes="tonal" Content="↻ Refresh" Margin="4,0"
+        <Button Classes="tonal" Content="↻ Refresh" Margin="0,0,4,0"
                 Command="{CompiledBinding RefreshCommand}" />
         <Border Width="1" Background="#1E293B" Margin="4,6" />
-        <Button Classes="tonal" Content="📄 Show details…" Margin="4,0"
+        <Button Classes="tonal" Content="📄 Show details…" Margin="0,0,4,0"
                 Command="{CompiledBinding ViewDetailsCommand}"
                 ToolTip.Tip="Show details of the selected certificate (Enter)" />
-        <Button Classes="tonal" Content="⬇ Import…" Margin="4,0"
+        <Button Classes="tonal" Content="⬇ Import…" Margin="0,0,4,0"
                 Command="{CompiledBinding ImportCommand}"
                 ToolTip.Tip="Import a certificate into the selected store" />
-        <Button Classes="tonal" Content="⬆ Export…" Margin="4,0"
+        <Button Classes="tonal" Content="⬆ Export…" Margin="0,0,4,0"
                 Command="{CompiledBinding ExportCommand}"
                 ToolTip.Tip="Export the selected certificate to disk" />
         <Border Width="1" Background="#1E293B" Margin="4,6" />
-        <Button Classes="tonal" Content="🛡 Open trust dialog…" Margin="4,0"
+        <Button Classes="tonal" Content="🛡 Open trust dialog…" Margin="0,0,4,0"
                 Command="{CompiledBinding OpenTrustDialogCommand}" />
       </WrapPanel>
     </Border>

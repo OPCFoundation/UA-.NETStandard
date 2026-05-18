@@ -125,18 +125,18 @@
                           Orientation="Horizontal" Margin="0,4,0,0">
                 <CheckBox Content="Unbounded burst" Margin="0,0,12,0"
                           IsChecked="{CompiledBinding UnboundedBurst, Mode=TwoWay}" />
-                <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center"
+                <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center"
                             Margin="0,0,12,0">
                   <TextBlock Classes="statDim" VerticalAlignment="Center" Text="Duration:" />
                   <NumericUpDown MinWidth="110"
                                  Minimum="1" Maximum="9999" Increment="1"
                                  Value="{CompiledBinding DurationSeconds, Mode=TwoWay}"
                                  FormatString="0" />
-                  <ComboBox MinWidth="110"
+                  <ComboBox MinWidth="110" Margin="2,0,0,0"
                             ItemsSource="{CompiledBinding DurationUnitOptions}"
                             SelectedItem="{CompiledBinding DurationUnit, Mode=TwoWay}" />
                 </StackPanel>
-                <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                   <TextBlock Classes="statDim" VerticalAlignment="Center" Text="Values:" />
                   <ComboBox ItemsSource="{CompiledBinding GeneratorOptions}"
                             SelectedItem="{CompiledBinding Generator, Mode=TwoWay}" MinWidth="100" />

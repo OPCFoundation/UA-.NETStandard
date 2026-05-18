@@ -83,28 +83,24 @@
     <!-- Toolbar (WrapPanel: children flow to next line on narrow windows). -->
     <Border DockPanel.Dock="Top" Classes="panel" Margin="8,8,8,4" Padding="8,6">
       <WrapPanel Orientation="Horizontal" ItemHeight="32">
-        <TextBlock VerticalAlignment="Center"
-                   Foreground="{StaticResource LabelDim}"
-                   FontSize="12" Margin="0,0,12,0"
-                   Text="📁 File System" />
-        <Button Classes="primary" Content="Pick Root…" Margin="4,0"
+        <Button Classes="primary" Content="Pick Root…" Margin="0,0,4,0"
                 Command="{CompiledBinding PickRootCommand}" />
-        <Button Classes="tonal"   Content="Filter…" Margin="4,0"
+        <Button Classes="tonal"   Content="Filter…" Margin="0,0,4,0"
                 Command="{CompiledBinding EditFilterCommand}" />
         <Border Width="1" Background="#1E293B" Margin="4,6" />
-        <Button Classes="tonal"   Content="Add File…" Margin="4,0"
+        <Button Classes="tonal"   Content="Add File…" Margin="0,0,4,0"
                 Command="{CompiledBinding AddFileCommand}" />
-        <Button Classes="tonal"   Content="Export File…" Margin="4,0"
+        <Button Classes="tonal"   Content="Export File…" Margin="0,0,4,0"
                 Command="{CompiledBinding ExportFileCommand}" />
         <Border Width="1" Background="#1E293B" Margin="4,6" />
-        <Button Classes="tonal"   Content="New Folder…" Margin="4,0"
+        <Button Classes="tonal"   Content="New Folder…" Margin="0,0,4,0"
                 Command="{CompiledBinding NewFolderCommand}" />
-        <Button Classes="tonal"   Content="Rename…" Margin="4,0"
+        <Button Classes="tonal"   Content="Rename…" Margin="0,0,4,0"
                 Command="{CompiledBinding RenameCommand}" />
-        <Button Classes="danger"  Content="Delete" Margin="4,0"
+        <Button Classes="danger"  Content="Delete" Margin="0,0,4,0"
                 Command="{CompiledBinding DeleteCommand}" />
         <Border Width="1" Background="#1E293B" Margin="4,6" />
-        <Button Classes="tonal"   Content="↻ Refresh" Margin="4,0"
+        <Button Classes="tonal"   Content="↻ Refresh" Margin="0,0,4,0"
                 Command="{CompiledBinding RefreshCommand}" />
       </WrapPanel>
     </Border>
