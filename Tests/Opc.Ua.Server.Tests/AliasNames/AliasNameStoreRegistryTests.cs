@@ -102,5 +102,138 @@ namespace Opc.Ua.Server.Tests.AliasNames
             registry.Unregister(storeA);
             Assert.That(registry.GetStoreForCategory(s_a), Is.Null);
         }
+
+        [Test]
+        public async System.Threading.Tasks.Task RegistryChangedFiresWhenContainedStoreChangesAsync()
+        {
+            using var registry = new AliasNameStoreRegistry();
+            var descriptor = new AliasNameCategoryDescriptor(
+                s_a, new QualifiedName("A", 2),
+                AliasNameCapabilities.AddAliasesToCategory
+                    | AliasNameCapabilities.LastChange);
+            using var store = new InMemoryAliasNameStore([descriptor]);
+            registry.Register(store);
+
+            var captured = new System.Collections.Generic.List<AliasStoreChangedEventArgs>();
+            registry.Changed += (_, e) => captured.Add(e);
+
+            await store.AddAliasesAsync(s_a,
+                [new AliasAddRequest("X", new ExpandedNodeId("T", 2), null,
+                    ReferenceTypeIds.AliasFor)],
+                System.Threading.CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(captured, Has.Count.EqualTo(1),
+                "Registry.Changed must propagate the contained store's Changed event.");
+            Assert.That(captured[0].CategoryId, Is.EqualTo(s_a));
+            Assert.That(captured[0].LastChange, Is.EqualTo(1u));
+        }
+
+        [Test]
+        public async System.Threading.Tasks.Task RegistryChangedStopsAfterUnregisterAsync()
+        {
+            using var registry = new AliasNameStoreRegistry();
+            var descriptor = new AliasNameCategoryDescriptor(
+                s_a, new QualifiedName("A", 2),
+                AliasNameCapabilities.AddAliasesToCategory
+                    | AliasNameCapabilities.LastChange);
+            using var store = new InMemoryAliasNameStore([descriptor]);
+            registry.Register(store);
+            registry.Unregister(store);
+
+            int hits = 0;
+            registry.Changed += (_, _) => hits++;
+
+            await store.AddAliasesAsync(s_a,
+                [new AliasAddRequest("X", new ExpandedNodeId("T", 2), null,
+                    ReferenceTypeIds.AliasFor)],
+                System.Threading.CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(hits, Is.Zero,
+                "Registry.Changed must NOT fire for stores that have been unregistered.");
+        }
+
+        [Test]
+        public async System.Threading.Tasks.Task DispatchBadNotImplementedAcrossAllVerbsAsync()
+        {
+            using var registry = new AliasNameStoreRegistry();
+            var typeTree = new TypeTable(new NamespaceTable());
+
+            (ServiceResult findResult, _) = await registry
+                .DispatchFindAliasAsync(s_a, "%", NodeId.Null, typeTree)
+                .ConfigureAwait(false);
+            Assert.That(findResult.StatusCode.Code,
+                Is.EqualTo(StatusCodes.BadNotImplemented));
+
+            (ServiceResult findVerboseResult, _) = await registry
+                .DispatchFindAliasVerboseAsync(s_a, "%", NodeId.Null, typeTree)
+                .ConfigureAwait(false);
+            Assert.That(findVerboseResult.StatusCode.Code,
+                Is.EqualTo(StatusCodes.BadNotImplemented));
+
+            (ServiceResult addResult, StatusCode[] addCodes) = await registry
+                .DispatchAddAliasesAsync(s_a,
+                    [new AliasAddRequest("X", new ExpandedNodeId("T", 2), null,
+                        ReferenceTypeIds.AliasFor)])
+                .ConfigureAwait(false);
+            Assert.That(addResult.StatusCode.Code,
+                Is.EqualTo(StatusCodes.BadNotImplemented));
+            Assert.That(addCodes, Is.Empty);
+
+            (ServiceResult deleteResult, StatusCode[] deleteCodes) = await registry
+                .DispatchDeleteAliasesAsync(s_a,
+                    [new AliasDeleteRequest("X", new ExpandedNodeId("T", 2))])
+                .ConfigureAwait(false);
+            Assert.That(deleteResult.StatusCode.Code,
+                Is.EqualTo(StatusCodes.BadNotImplemented));
+            Assert.That(deleteCodes, Is.Empty);
+        }
+
+        [Test]
+        public async System.Threading.Tasks.Task DispatchAddCatchesServiceResultExceptionAsync()
+        {
+            using var registry = new AliasNameStoreRegistry();
+            // Category WITHOUT AddAliasesToCategory capability — the
+            // store throws BadNotSupported which the registry must
+            // catch and turn into a ServiceResult.
+            using InMemoryAliasNameStore store = Store(s_a, "A");
+            registry.Register(store);
+
+            (ServiceResult result, StatusCode[] codes) = await registry
+                .DispatchAddAliasesAsync(s_a,
+                    [new AliasAddRequest("X", new ExpandedNodeId("T", 2), null,
+                        ReferenceTypeIds.AliasFor)])
+                .ConfigureAwait(false);
+
+            Assert.That((uint)result.StatusCode.Code,
+                Is.EqualTo(StatusCodes.BadNotSupported),
+                "Service-level errors from the store must surface as the dispatch ServiceResult, not as exceptions.");
+            Assert.That(codes, Is.Empty);
+        }
+
+        [Test]
+        public async System.Threading.Tasks.Task DispatchDeleteCatchesServiceResultExceptionAsync()
+        {
+            using var registry = new AliasNameStoreRegistry();
+            using InMemoryAliasNameStore store = Store(s_a, "A");
+            registry.Register(store);
+
+            (ServiceResult result, StatusCode[] codes) = await registry
+                .DispatchDeleteAliasesAsync(s_a,
+                    [new AliasDeleteRequest("X", new ExpandedNodeId("T", 2))])
+                .ConfigureAwait(false);
+
+            Assert.That((uint)result.StatusCode.Code,
+                Is.EqualTo(StatusCodes.BadNotSupported));
+            Assert.That(codes, Is.Empty);
+        }
+
+        [Test]
+        public void DisposeIsIdempotent()
+        {
+            var registry = new AliasNameStoreRegistry();
+            registry.Dispose();
+            Assert.That(() => registry.Dispose(), Throws.Nothing,
+                "Dispose must be idempotent — the SDK's standard server-shutdown flow disposes node managers twice.");
+        }
     }
 }

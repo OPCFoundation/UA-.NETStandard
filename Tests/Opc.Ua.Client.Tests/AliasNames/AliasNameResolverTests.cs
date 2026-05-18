@@ -154,5 +154,125 @@ namespace Opc.Ua.Client.Tests.AliasNames
                 .ResolveAsync("Unknown").ConfigureAwait(false);
             Assert.That(result, Is.Empty);
         }
+
+        // ----------------------------------------------------------------
+        // Verbose mode coverage
+        // ----------------------------------------------------------------
+
+        private static CallMethodResult VerboseAliasesResult(
+            params (string name, ExpandedNodeId target, string? serverUri)[] aliases)
+        {
+            var entries = new AliasNameVerboseDataType[aliases.Length];
+            for (int i = 0; i < aliases.Length; i++)
+            {
+                entries[i] = new AliasNameVerboseDataType
+                {
+                    AliasName = new QualifiedName(aliases[i].name),
+                    ReferencedNodes = new[] { aliases[i].target }.ToArrayOf(),
+                    ServerUris = new[] { aliases[i].serverUri ?? string.Empty }.ToArrayOf(),
+                    AliasNameCategoryId = ObjectIds.Aliases,
+                };
+            }
+            return new CallMethodResult
+            {
+                StatusCode = StatusCodes.Good,
+                OutputArguments = new[]
+                {
+                    Variant.FromStructure(entries.ToArrayOf())
+                }.ToArrayOf()
+            };
+        }
+
+        [Test]
+        public async Task VerboseResolverPopulatesServerUrisAsync()
+        {
+            AliasNameSessionHarness harness = AliasNameSessionHarness.Create();
+            harness.CallHandler = req =>
+            {
+                if (req.MethodId == MethodIds.AliasNameCategoryType_FindAliasVerbose)
+                {
+                    return VerboseAliasesResult(
+                        ("Tag1", new ExpandedNodeId("T1", 2), "urn:remote-server"));
+                }
+                // Non-verbose path should not be hit when UseVerbose succeeds.
+                return AliasesResult(("Tag1", new ExpandedNodeId("T1", 2)));
+            };
+            AliasNameClient client = AliasNameClient.OpenStandardAliases(harness.Session);
+            await using var resolver = new AliasNameResolver(
+                client,
+                new AliasNameResolverOptions { UseVerbose = true });
+
+            IReadOnlyList<ExpandedNodeId> targets =
+                await resolver.ResolveAsync("Tag1").ConfigureAwait(false);
+            IReadOnlyList<string?> uris =
+                await resolver.ResolveServerUrisAsync("Tag1").ConfigureAwait(false);
+
+            Assert.That(targets, Has.Count.EqualTo(1));
+            Assert.That(targets[0], Is.EqualTo(new ExpandedNodeId("T1", 2)));
+            Assert.That(uris, Has.Count.EqualTo(1));
+            Assert.That(uris[0], Is.EqualTo("urn:remote-server"));
+        }
+
+        [Test]
+        public async Task NonVerboseResolverReturnsEmptyServerUrisAsync()
+        {
+            AliasNameSessionHarness harness = AliasNameSessionHarness.Create();
+            harness.CallHandler = _ => AliasesResult(
+                ("Tag1", new ExpandedNodeId("T1", 2)));
+            AliasNameClient client = AliasNameClient.OpenStandardAliases(harness.Session);
+            await using var resolver = new AliasNameResolver(client);
+
+            await resolver.ResolveAsync("Tag1").ConfigureAwait(false);
+            IReadOnlyList<string?> uris =
+                await resolver.ResolveServerUrisAsync("Tag1").ConfigureAwait(false);
+
+            Assert.That(uris, Is.Empty,
+                "Non-verbose mode must surface an empty list for ServerUris (no decoration).");
+        }
+
+        [Test]
+        public async Task VerboseResolverFallsBackToNonVerboseOnNotSupportedAsync()
+        {
+            // Server returns BadNotImplemented for the verbose method —
+            // the resolver must transparently fall back to FindAlias and
+            // populate the cache from the non-verbose response.
+            AliasNameSessionHarness harness = AliasNameSessionHarness.Create();
+            int verboseCalls = 0;
+            int nonVerboseCalls = 0;
+            harness.CallHandler = req =>
+            {
+                if (req.MethodId == MethodIds.AliasNameCategoryType_FindAliasVerbose)
+                {
+                    verboseCalls++;
+                    return new CallMethodResult
+                    {
+                        StatusCode = StatusCodes.BadNotImplemented
+                    };
+                }
+                nonVerboseCalls++;
+                return AliasesResult(("Tag1", new ExpandedNodeId("T1", 2)));
+            };
+            AliasNameClient client = AliasNameClient.OpenStandardAliases(harness.Session);
+            await using var resolver = new AliasNameResolver(
+                client,
+                new AliasNameResolverOptions { UseVerbose = true });
+
+            IReadOnlyList<ExpandedNodeId> targets =
+                await resolver.ResolveAsync("Tag1").ConfigureAwait(false);
+            Assert.That(targets, Has.Count.EqualTo(1));
+            Assert.That(targets[0], Is.EqualTo(new ExpandedNodeId("T1", 2)));
+            Assert.That(verboseCalls, Is.EqualTo(1),
+                "Verbose call must have been attempted once.");
+            Assert.That(nonVerboseCalls, Is.EqualTo(1),
+                "Non-verbose fallback must have been issued after the verbose failure.");
+
+            // A second resolve should NOT re-attempt the verbose call —
+            // the resolver flips UseVerbose=false once it falls back.
+            resolver.Invalidate();
+            await resolver.ResolveAsync("Tag1").ConfigureAwait(false);
+            Assert.That(verboseCalls, Is.EqualTo(1),
+                "Once fallen back, the resolver must not re-attempt the verbose method.");
+            Assert.That(nonVerboseCalls, Is.EqualTo(2));
+        }
     }
 }

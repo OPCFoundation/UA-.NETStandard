@@ -169,5 +169,81 @@ namespace Opc.Ua.Client.Tests.AliasNames.Refresh
 
             Assert.That(m_session.SubscriptionCount, Is.EqualTo(initialCount));
         }
+
+        [Test]
+        public async Task StrategyWithSharedSubscriptionDoesNotOwnItAsync()
+        {
+            // Pre-create a subscription owned by the test (NOT the
+            // strategy). The strategy must hook a MonitoredItem onto it
+            // without taking ownership, so that disposing the strategy
+            // leaves the subscription alive on the session for the test
+            // to reuse and dispose explicitly.
+            int initialCount = m_session.SubscriptionCount;
+            using var sharedSubscription = new Subscription(
+                m_session.MessageContext.Telemetry)
+            {
+                DisplayName = "shared-by-test",
+                PublishingEnabled = true,
+                PublishingInterval = 500,
+            };
+            m_session.AddSubscription(sharedSubscription);
+            await sharedSubscription.CreateAsync();
+            Assert.That(m_session.SubscriptionCount,
+                Is.EqualTo(initialCount + 1),
+                "Test setup must own the subscription.");
+
+            int sharedItemCountBefore = (int)sharedSubscription.MonitoredItemCount;
+            AliasNameClient client = AliasNameClient.OpenStandardAliases(m_session);
+
+            var resolver = new AliasNameResolver(
+                client,
+                new AliasNameResolverOptions
+                {
+                    RefreshStrategy = new Opc.Ua.Client.AliasNames.Refresh
+                        .MonitoredItemAliasNameRefreshStrategy(
+                        new Opc.Ua.Client.AliasNames.Refresh
+                            .MonitoredItemAliasNameRefreshStrategyOptions
+                        {
+                            SharedSubscription = sharedSubscription,
+                            SamplingIntervalMs = 500,
+                        })
+                });
+            try
+            {
+                await resolver.EnsureLoadedAsync();
+
+                Assert.That(m_session.SubscriptionCount,
+                    Is.EqualTo(initialCount + 1),
+                    "Shared-mode strategy must NOT create a new subscription.");
+                Assert.That(sharedSubscription.MonitoredItemCount,
+                    Is.GreaterThan(sharedItemCountBefore),
+                    "Strategy must hook its MonitoredItem onto the shared subscription.");
+            }
+            finally
+            {
+                await resolver.DisposeAsync();
+            }
+
+            // After the strategy disposes, the shared subscription must
+            // still be alive on the session and reusable. The strategy
+            // SHOULD have removed its own monitored item (best-effort) —
+            // but must NOT have removed/deleted the subscription itself.
+            Assert.That(m_session.SubscriptionCount,
+                Is.EqualTo(initialCount + 1),
+                "Strategy.DisposeAsync must NOT remove a shared subscription from the session.");
+            Assert.That(sharedSubscription.Created, Is.True,
+                "Shared subscription must remain in the Created state after strategy disposal.");
+
+            // Test owns the subscription — clean it up.
+            try
+            {
+                await m_session.RemoveSubscriptionAsync(sharedSubscription);
+                await sharedSubscription.DeleteAsync(silent: true);
+            }
+            catch
+            {
+                // Best-effort teardown.
+            }
+        }
     }
 }

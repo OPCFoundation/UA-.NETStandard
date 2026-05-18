@@ -181,5 +181,50 @@ namespace Opc.Ua.Client.Tests.AliasNames
             string reverse = await resolver.ResolveAliasNameAsync(targets[0]);
             Assert.That(reverse, Is.EqualTo("Pump1_Status"));
         }
+
+        [Test]
+        public async Task EnumerateSubCategoriesAsyncReturnsStandardCategoriesAsync()
+        {
+            // The standard Aliases (i=23470) node has TagVariables and
+            // Topics as Organizes children in the shipped NodeSet; the
+            // client's IAsyncEnumerable must yield both.
+            AliasNameClient client = AliasNameClient
+                .OpenStandardAliases(m_session);
+
+            var names = new System.Collections.Generic.HashSet<string>();
+            var nodeIds = new System.Collections.Generic.HashSet<NodeId>();
+            await foreach (AliasNameSubCategoryInfo info in
+                client.EnumerateSubCategoriesAsync())
+            {
+                Assert.That(info, Is.Not.Null);
+                Assert.That(info.BrowseName.IsNull, Is.False);
+                Assert.That(info.NodeId.IsNull, Is.False);
+                names.Add(info.BrowseName.Name);
+                nodeIds.Add(info.NodeId);
+            }
+
+            Assert.That(names, Does.Contain(BrowseNames.TagVariables),
+                "Standard Aliases must Organize-link to TagVariables.");
+            Assert.That(names, Does.Contain(BrowseNames.Topics),
+                "Standard Aliases must Organize-link to Topics.");
+            Assert.That(nodeIds, Does.Contain(ObjectIds.TagVariables));
+            Assert.That(nodeIds, Does.Contain(ObjectIds.Topics));
+        }
+
+        [Test]
+        public async Task EnumerateSubCategoriesAsyncOnLeafReturnsEmptyAsync()
+        {
+            // TagVariables has no sub-categories in the standard NodeSet —
+            // the enumeration must yield zero results without throwing.
+            AliasNameClient client = AliasNameClient
+                .OpenStandardTagVariables(m_session);
+            int count = 0;
+            await foreach (AliasNameSubCategoryInfo _ in
+                client.EnumerateSubCategoriesAsync())
+            {
+                count++;
+            }
+            Assert.That(count, Is.Zero);
+        }
     }
 }

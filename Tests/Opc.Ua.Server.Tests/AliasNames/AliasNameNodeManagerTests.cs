@@ -285,5 +285,246 @@ namespace Opc.Ua.Server.Tests.AliasNames
             Assert.That(result.StatusCode.Code,
                 Is.EqualTo(StatusCodes.BadUserAccessDenied));
         }
+
+        // --------------------------------------------------------------
+        // Security matrix for HasSecureAdminAccess.
+        // The auth boundary depends on (a) the channel's SecurityMode
+        // and (b) whether the user identity carries the SecurityAdmin
+        // role. The matrix below exercises every non-trivial combination
+        // and asserts the user-facing service result on AddAliases
+        // and DeleteAliases.
+        // --------------------------------------------------------------
+
+        private ServerSystemContext BuildSecuritySystemContext(
+            MessageSecurityMode securityMode,
+            bool grantSecurityAdmin)
+        {
+            var endpoint = new EndpointDescription { SecurityMode = securityMode };
+            var secureChannelContext = new SecureChannelContext(
+                "test", endpoint, RequestEncoding.Binary,
+                clientChannelCertificate: null,
+                serverChannelCertificate: null,
+                channelThumbprint: null);
+
+            var baseIdentity = new UserIdentity("admin", []);
+            IUserIdentity identity = grantSecurityAdmin
+                ? new RoleBasedIdentity(
+                    baseIdentity,
+                    [Role.SecurityAdmin],
+                    m_mockServer.Object.NamespaceUris)
+                : baseIdentity;
+
+            // The identity must be carried by the OperationContext —
+            // SessionSystemContext.UserIdentity prefers
+            // OperationContext.UserIdentity when the OperationContext
+            // implements ISessionOperationContext (which the server-side
+            // OperationContext class does), so setting it on the
+            // SystemContext directly is silently ignored.
+            var opContext = new OperationContext(
+                new RequestHeader(),
+                secureChannelContext,
+                RequestType.Call,
+                RequestLifetime.None,
+                identity);
+
+            return new ServerSystemContext(m_mockServer.Object, opContext);
+        }
+
+        private async Task<ServiceResult> InvokeAddAliasesAsync(
+            AliasNameNodeManager manager,
+            AliasNameCategoryState category,
+            NodeId categoryId,
+            ISystemContext context)
+        {
+            var input = new ArrayOf<Variant>(
+                new[]
+                {
+                    new Variant(s_singleX.ToArrayOf()),
+                    new Variant(s_singleT.ToArrayOf()),
+                    new Variant(s_singleEmpty.ToArrayOf()),
+                    new Variant(ReferenceTypeIds.AliasFor)
+                });
+            var argumentErrors = new List<ServiceResult>();
+            var output = new List<Variant>
+            {
+                new Variant(System.Array.Empty<StatusCode>().ToArrayOf())
+            };
+            return await category.AddAliasesToCategory!.CallAsync(
+                context, categoryId, input, argumentErrors, output,
+                CancellationToken.None).ConfigureAwait(false);
+        }
+
+        private async Task<ServiceResult> InvokeDeleteAliasesAsync(
+            AliasNameNodeManager manager,
+            AliasNameCategoryState category,
+            NodeId categoryId,
+            ISystemContext context)
+        {
+            var input = new ArrayOf<Variant>(
+                new[]
+                {
+                    new Variant(s_singleX.ToArrayOf()),
+                    new Variant(s_singleT.ToArrayOf())
+                });
+            var argumentErrors = new List<ServiceResult>();
+            var output = new List<Variant>
+            {
+                new Variant(System.Array.Empty<StatusCode>().ToArrayOf())
+            };
+            return await category.DeleteAliasesFromCategory!.CallAsync(
+                context, categoryId, input, argumentErrors, output,
+                CancellationToken.None).ConfigureAwait(false);
+        }
+
+        private async Task<(AliasNameNodeManager Manager,
+                            AliasNameCategoryState Category,
+                            NodeId CategoryId)>
+            CreateAdminCheckedManagerAsync()
+        {
+            AliasNameNodeManager manager = CreateManager(
+                new AliasNameNodeManagerOptions
+                {
+                    NamespaceUri = c_namespaceUri,
+                    RegisterWithServerRegistry = false,
+                    RequireSecurityAdminForMutations = true,
+                });
+            await manager.CreateAddressSpaceAsync(
+                new Dictionary<NodeId, IList<IReference>>()).ConfigureAwait(false);
+            var categoryId = new NodeId("MyCategory", 1);
+            AliasNameCategoryState category = manager
+                .FindPredefinedNode<AliasNameCategoryState>(categoryId);
+            return (manager, category, categoryId);
+        }
+
+        [Test]
+        public async Task AddAliasesAdminOnSignAndEncryptIsAcceptedAsync()
+        {
+            (AliasNameNodeManager manager, AliasNameCategoryState category, NodeId categoryId) =
+                await CreateAdminCheckedManagerAsync().ConfigureAwait(false);
+            using (manager)
+            {
+                ServerSystemContext ctx = BuildSecuritySystemContext(
+                    MessageSecurityMode.SignAndEncrypt, grantSecurityAdmin: true);
+                ServiceResult result = await InvokeAddAliasesAsync(
+                    manager, category, categoryId, ctx).ConfigureAwait(false);
+
+                // The auth predicate must pass; the call reaches the
+                // store and returns Good at the service level.
+                Assert.That(result, Is.Null.Or.EqualTo(ServiceResult.Good),
+                    "Admin on SignAndEncrypt must satisfy HasSecureAdminAccess.");
+            }
+        }
+
+        [Test]
+        public async Task AddAliasesAdminOnSignOnlyIsRejectedAsync()
+        {
+            (AliasNameNodeManager manager, AliasNameCategoryState category, NodeId categoryId) =
+                await CreateAdminCheckedManagerAsync().ConfigureAwait(false);
+            using (manager)
+            {
+                ServerSystemContext ctx = BuildSecuritySystemContext(
+                    MessageSecurityMode.Sign, grantSecurityAdmin: true);
+                ServiceResult result = await InvokeAddAliasesAsync(
+                    manager, category, categoryId, ctx).ConfigureAwait(false);
+
+                Assert.That(result, Is.Not.Null);
+                Assert.That(result.StatusCode.Code,
+                    Is.EqualTo(StatusCodes.BadUserAccessDenied),
+                    "Admin role on Sign-only must NOT be sufficient — admin mutations require SignAndEncrypt.");
+            }
+        }
+
+        [Test]
+        public async Task AddAliasesAdminOnNoneSecurityIsRejectedAsync()
+        {
+            (AliasNameNodeManager manager, AliasNameCategoryState category, NodeId categoryId) =
+                await CreateAdminCheckedManagerAsync().ConfigureAwait(false);
+            using (manager)
+            {
+                ServerSystemContext ctx = BuildSecuritySystemContext(
+                    MessageSecurityMode.None, grantSecurityAdmin: true);
+                ServiceResult result = await InvokeAddAliasesAsync(
+                    manager, category, categoryId, ctx).ConfigureAwait(false);
+
+                Assert.That(result.StatusCode.Code,
+                    Is.EqualTo(StatusCodes.BadUserAccessDenied));
+            }
+        }
+
+        [Test]
+        public async Task AddAliasesNonAdminOnSignAndEncryptIsRejectedAsync()
+        {
+            (AliasNameNodeManager manager, AliasNameCategoryState category, NodeId categoryId) =
+                await CreateAdminCheckedManagerAsync().ConfigureAwait(false);
+            using (manager)
+            {
+                ServerSystemContext ctx = BuildSecuritySystemContext(
+                    MessageSecurityMode.SignAndEncrypt, grantSecurityAdmin: false);
+                ServiceResult result = await InvokeAddAliasesAsync(
+                    manager, category, categoryId, ctx).ConfigureAwait(false);
+
+                Assert.That(result, Is.Not.Null);
+                Assert.That(result.StatusCode.Code,
+                    Is.EqualTo(StatusCodes.BadUserAccessDenied),
+                    "A SignAndEncrypt channel alone is not enough; the user must also have SecurityAdmin.");
+            }
+        }
+
+        [Test]
+        public async Task DeleteAliasesAnonymousIsRejectedWithBadUserAccessDeniedAsync()
+        {
+            (AliasNameNodeManager manager, AliasNameCategoryState category, NodeId categoryId) =
+                await CreateAdminCheckedManagerAsync().ConfigureAwait(false);
+            using (manager)
+            {
+                // Default manager.SystemContext has no SessionSystemContext shape —
+                // mirror the existing Add-side anonymous-rejection test.
+                ServiceResult result = await InvokeDeleteAliasesAsync(
+                    manager, category, categoryId, manager.SystemContext)
+                    .ConfigureAwait(false);
+
+                Assert.That(result, Is.Not.Null);
+                Assert.That(result.StatusCode.Code,
+                    Is.EqualTo(StatusCodes.BadUserAccessDenied));
+            }
+        }
+
+        [Test]
+        public async Task DeleteAliasesAdminOnSignAndEncryptIsAcceptedAsync()
+        {
+            (AliasNameNodeManager manager, AliasNameCategoryState category, NodeId categoryId) =
+                await CreateAdminCheckedManagerAsync().ConfigureAwait(false);
+            using (manager)
+            {
+                ServerSystemContext ctx = BuildSecuritySystemContext(
+                    MessageSecurityMode.SignAndEncrypt, grantSecurityAdmin: true);
+                ServiceResult result = await InvokeDeleteAliasesAsync(
+                    manager, category, categoryId, ctx).ConfigureAwait(false);
+
+                // The auth predicate passes; the store returns Good
+                // at the service level even though the per-row delete
+                // would fail with BadNotFound (the test fixture's store
+                // is empty) — the service result itself is Good.
+                Assert.That(result, Is.Null.Or.EqualTo(ServiceResult.Good),
+                    "Admin on SignAndEncrypt must satisfy the Delete-side auth predicate.");
+            }
+        }
+
+        [Test]
+        public async Task DeleteAliasesAdminOnSignOnlyIsRejectedAsync()
+        {
+            (AliasNameNodeManager manager, AliasNameCategoryState category, NodeId categoryId) =
+                await CreateAdminCheckedManagerAsync().ConfigureAwait(false);
+            using (manager)
+            {
+                ServerSystemContext ctx = BuildSecuritySystemContext(
+                    MessageSecurityMode.Sign, grantSecurityAdmin: true);
+                ServiceResult result = await InvokeDeleteAliasesAsync(
+                    manager, category, categoryId, ctx).ConfigureAwait(false);
+
+                Assert.That(result.StatusCode.Code,
+                    Is.EqualTo(StatusCodes.BadUserAccessDenied));
+            }
+        }
     }
 }

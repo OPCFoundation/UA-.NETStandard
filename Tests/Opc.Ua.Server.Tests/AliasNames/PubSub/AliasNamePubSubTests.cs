@@ -83,6 +83,81 @@ namespace Opc.Ua.Server.Tests.AliasNames.PubSub
         }
 
         [Test]
+        public void PortableResolverPreservesNumericIdentifier()
+        {
+            var resolver = NewResolver();
+            PortableNodeId portable = resolver.ToPortable(new NodeId(42u, 1));
+
+            Assert.That(portable, Is.Not.Null);
+            Assert.That(portable.NamespaceUri,
+                Is.EqualTo("http://example.org/MyServer/"));
+            Assert.That(portable.Identifier.NamespaceIndex, Is.EqualTo((ushort)0));
+            Assert.That(portable.Identifier.IdType, Is.EqualTo(IdType.Numeric));
+            Assert.That(portable.Identifier.TryGetValue(out uint numeric), Is.True);
+            Assert.That(numeric, Is.EqualTo(42u));
+        }
+
+        [Test]
+        public void PortableResolverPreservesGuidIdentifier()
+        {
+            var resolver = NewResolver();
+            var guid = Guid.NewGuid();
+            PortableNodeId portable = resolver.ToPortable(new NodeId(guid, 1));
+
+            Assert.That(portable, Is.Not.Null);
+            Assert.That(portable.Identifier.NamespaceIndex, Is.EqualTo((ushort)0));
+            Assert.That(portable.Identifier.IdType, Is.EqualTo(IdType.Guid));
+            Assert.That(portable.Identifier.TryGetValue(out Guid g), Is.True);
+            Assert.That(g, Is.EqualTo(guid));
+        }
+
+        [Test]
+        public void PortableResolverPreservesOpaqueIdentifier()
+        {
+            var resolver = NewResolver();
+            var bytes = new byte[] { 0xCA, 0xFE, 0xBA, 0xBE };
+            PortableNodeId portable = resolver.ToPortable(new NodeId((ByteString)bytes, 1));
+
+            Assert.That(portable, Is.Not.Null);
+            Assert.That(portable.Identifier.NamespaceIndex, Is.EqualTo((ushort)0));
+            Assert.That(portable.Identifier.IdType, Is.EqualTo(IdType.Opaque));
+            Assert.That(portable.Identifier.TryGetValue(out ByteString opaque), Is.True);
+            Assert.That(opaque.Span.ToArray(), Is.EqualTo(bytes));
+        }
+
+        [Test]
+        public void PortableResolverReturnsNullForNullNodeId()
+        {
+            var resolver = NewResolver();
+            PortableNodeId portable = resolver.ToPortable(NodeId.Null);
+            Assert.That(portable, Is.Null,
+                "Null NodeId must short-circuit to null without throwing.");
+        }
+
+        [Test]
+        public void PortableResolverReturnsNullForUnknownNamespaceIndex()
+        {
+            var resolver = NewResolver();
+            // Namespace index 99 is not registered — the resolver must
+            // gracefully return null rather than emit a PortableNodeId
+            // with a null/empty namespace URI.
+            PortableNodeId portable = resolver.ToPortable(new NodeId("X", 99));
+            Assert.That(portable, Is.Null);
+        }
+
+        private static ServerPortableNodeIdResolver NewResolver()
+        {
+            var ns = new NamespaceTable();
+            ns.Append("http://example.org/MyServer/");
+            var servers = new StringTable();
+            servers.Append("urn:example:server");
+            var serverMock = new Moq.Mock<IServerInternal>();
+            serverMock.SetupGet(s => s.NamespaceUris).Returns(ns);
+            serverMock.SetupGet(s => s.ServerUris).Returns(servers);
+            return new ServerPortableNodeIdResolver(serverMock.Object);
+        }
+
+        [Test]
         public void PublisherProducesAliasUpdateOnRegistryChange()
         {
             using var registry = new AliasNameStoreRegistry();
