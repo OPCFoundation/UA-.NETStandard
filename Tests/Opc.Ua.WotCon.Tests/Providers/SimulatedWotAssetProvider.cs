@@ -80,7 +80,6 @@ namespace Opc.Ua.WotCon.Tests.Providers
                 lock (subs) { snapshot = subs.ToArray(); }
                 foreach (Subscription s in snapshot)
                 {
-                    s.Tag.Observable.ToString();
                     s.Callback(s.Tag, value, StatusCodes.Good, DateTime.UtcNow);
                 }
             }
