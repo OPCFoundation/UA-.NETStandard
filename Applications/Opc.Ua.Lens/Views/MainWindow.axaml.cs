@@ -97,8 +97,6 @@ internal sealed partial class MainWindow : Window, IDisposable
 
     private void WireUp()
     {
-        var connectBtn = this.RequiredControl<Button>("ConnectButton");
-        var toggleBtn = this.RequiredControl<Button>("ToggleEngineButton");
         var addBtn = this.RequiredControl<Button>("AddItemButton");
         var removeBtn = this.RequiredControl<Button>("RemoveItemButton");
         var settingsBtn = this.RequiredControl<Button>("SettingsButton");
@@ -121,6 +119,10 @@ internal sealed partial class MainWindow : Window, IDisposable
         var menuExportTab = this.RequiredControl<MenuItem>("MenuExportTab");
         var menuQuit = this.RequiredControl<MenuItem>("MenuQuit");
         var menuCerts = this.RequiredControl<MenuItem>("MenuCertificates");
+        var menuSessionCreate = this.RequiredControl<MenuItem>("MenuSessionCreate");
+        var menuSessionClose = this.RequiredControl<MenuItem>("MenuSessionClose");
+        var menuSessionReconnect = this.RequiredControl<MenuItem>("MenuSessionReconnect");
+        var menuSessionChangeUser = this.RequiredControl<MenuItem>("MenuSessionChangeUser");
         var menuAddTab = this.RequiredControl<MenuItem>("MenuNewSubscription");
         var menuNewGdsPush = this.RequiredControl<MenuItem>("MenuNewGdsPush");
         var menuNewGdsManagement = this.RequiredControl<MenuItem>("MenuNewGdsManagement");
@@ -145,16 +147,11 @@ internal sealed partial class MainWindow : Window, IDisposable
         var menuAboutDialog = this.RequiredControl<MenuItem>("MenuAboutDialog");
         var toggleFiltersBtn = this.RequiredControl<Button>("ToggleAddressSpaceFiltersBtn");
 
-        // Connection panel Change ▾ flyout items.
-        var menuConnDisconnect = this.RequiredControl<MenuItem>("MenuConnectionDisconnect");
-        var menuConnChangeUser = this.RequiredControl<MenuItem>("MenuConnectionChangeUser");
-        var menuConnReconnect = this.RequiredControl<MenuItem>("MenuConnectionReconnect");
-
-        connectBtn.Click += async (_, _) => await OnConnect().ConfigureAwait(false);
-        menuConnDisconnect.Click += async (_, _) => await OnDisconnect().ConfigureAwait(false);
-        menuConnChangeUser.Click += async (_, _) => await OnChangeUser().ConfigureAwait(false);
-        menuConnReconnect.Click += async (_, _) => await OnReconnect().ConfigureAwait(false);
-        toggleBtn.Click += async (_, _) => await m_vm.ToggleEngineCommand.ExecuteAsync(null).ConfigureAwait(false);
+        // --- Session menu wiring (was the inline Connection panel pre-2026-05) ---
+        menuSessionCreate.Click += async (_, _) => await OnSessionCreateAsync().ConfigureAwait(false);
+        menuSessionClose.Click += async (_, _) => await OnDisconnect().ConfigureAwait(false);
+        menuSessionChangeUser.Click += async (_, _) => await OnChangeUser().ConfigureAwait(false);
+        menuSessionReconnect.Click += async (_, _) => await OnReconnect().ConfigureAwait(false);
 
         addBtn.Click += async (_, _) => await OnAddItem().ConfigureAwait(false);
         removeBtn.Click += async (_, _) => await OnRemoveItem().ConfigureAwait(false);
@@ -163,14 +160,14 @@ internal sealed partial class MainWindow : Window, IDisposable
         refreshBtn.Click += (_, _) => m_vm.Browser.Reload();
 
         // --- File menu ---
-        menuLoad.Click += async (_, _) => await OnLoadSessionAsync().ConfigureAwait(false);
-        menuSave.Click += async (_, _) => await OnSaveSessionAsync().ConfigureAwait(false);
         menuExport.Click += async (_, _) => await OnExportNodeSetAsync().ConfigureAwait(false);
         menuExportTab.Click += async (_, _) => await OnExportTabDataAsync().ConfigureAwait(false);
         menuQuit.Click += (_, _) => Close();
-
-        // --- Certificates menu ---
         menuCerts.Click += async (_, _) => await OnOpenCertStoreAsync().ConfigureAwait(false);
+
+        // --- Session menu (Load / Save moved here from File) ---
+        menuLoad.Click += async (_, _) => await OnLoadSessionAsync().ConfigureAwait(false);
+        menuSave.Click += async (_, _) => await OnSaveSessionAsync().ConfigureAwait(false);
 
         // --- Subscription menu ---
         menuAddTab.Click += async (_, _) =>
@@ -653,12 +650,19 @@ internal sealed partial class MainWindow : Window, IDisposable
             if (ctrl && e.Key == Key.K)
             { InvokeMenu(menuCerts); e.Handled = true; return; }
 
-            // Endpoint URL focus shortcut.
+            // Endpoint URL focus shortcut.  The inline endpoint TextBox
+            // was removed in favour of `Session → Create…` (Ctrl+N).
+            // Keep Ctrl+U as a convenience alias for the same dialog so
+            // muscle-memory still works.
             if (ctrl && e.Key == Key.U)
             {
-                var urlBox = this.FindControl<TextBox>("EndpointBox");
-                urlBox?.Focus();
-                urlBox?.SelectAll();
+                InvokeMenu(menuSessionCreate);
+                e.Handled = true;
+                return;
+            }
+            if (ctrl && e.Key == Key.N)
+            {
+                InvokeMenu(menuSessionCreate);
                 e.Handled = true;
                 return;
             }
@@ -1696,6 +1700,22 @@ internal sealed partial class MainWindow : Window, IDisposable
             m_vm.ConnectionStatus = $"● Certs dialog failed: {ex.Message}";
             System.Diagnostics.Debug.WriteLine($"OpenCertStore failed: {ex}");
         }
+    }
+
+    private async Task OnSessionCreateAsync()
+    {
+        if (m_vm.Connection.IsConnected)
+        {
+            return;
+        }
+        var dlg = new UaLens.Views.ConnectDialog(m_vm.EndpointUrl);
+        string? picked = await dlg.ShowDialog<string?>(this).ConfigureAwait(true);
+        if (string.IsNullOrWhiteSpace(picked))
+        {
+            return;
+        }
+        m_vm.EndpointUrl = picked;
+        await OnConnect().ConfigureAwait(false);
     }
 
     private async Task OnConnect()

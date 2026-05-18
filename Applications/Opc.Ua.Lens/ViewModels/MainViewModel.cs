@@ -362,22 +362,41 @@ internal sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
     [RelayCommand]
     private async Task ToggleEngineAsync()
     {
-        // C4: when connected with tabs, refuse the toggle rather than
-        // silently destroying the user's subscriptions.  The user can
-        // disconnect explicitly before toggling.
-        if (Connection.IsConnected && Tabs.Count > 0)
-        {
-            ConnectionStatus = $"● Disconnect to change engine (currently {Engine}).";
-            return;
-        }
+        // Per user request the toggle now recreates the session on the
+        // fly when connected (rather than refusing as the older C4
+        // guard did) — the menu binding makes the change deliberate, so
+        // tab disposal-then-rebind is the expected behaviour.
         Engine = Engine == SubscriptionEngineKind.ChannelV2
             ? SubscriptionEngineKind.Classic
             : SubscriptionEngineKind.ChannelV2;
         EngineButtonText = $"↻ Engine: {Engine}";
+        OnPropertyChanged(nameof(UseChannelV2Engine));
         if (Connection.IsConnected)
         {
             await Connection.DisconnectAsync().ConfigureAwait(false);
             await ConnectAsync().ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>
+    /// Two-way binding helper for the <c>Session → Use ChannelV2 Engine</c>
+    /// menu checkbox.  Reading returns <c>true</c> iff the live engine is
+    /// <see cref="SubscriptionEngineKind.ChannelV2"/>; setting to the
+    /// opposite value invokes <see cref="ToggleEngineCommand"/> which
+    /// recreates the session when connected.  Setting to the current
+    /// value is a no-op so the checkbox can be re-synced without side
+    /// effects.
+    /// </summary>
+    public bool UseChannelV2Engine
+    {
+        get => Engine == SubscriptionEngineKind.ChannelV2;
+        set
+        {
+            if (value == (Engine == SubscriptionEngineKind.ChannelV2))
+            {
+                return;
+            }
+            _ = ToggleEngineCommand.ExecuteAsync(null);
         }
     }
 

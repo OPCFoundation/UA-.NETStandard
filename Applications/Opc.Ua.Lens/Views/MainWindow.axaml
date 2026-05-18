@@ -98,18 +98,45 @@
       </Border>
       <Menu Background="#0B1220">
       <MenuItem Header="_File">
-        <MenuItem x:Name="MenuLoadSession" Header="_Load Session..."     InputGesture="Ctrl+O" />
-        <MenuItem x:Name="MenuSaveSession" Header="_Save Session..."     InputGesture="Ctrl+S" />
-        <Separator />
         <MenuItem x:Name="MenuExport"      Header="_Export NodeSet2..."  InputGesture="Ctrl+E" />
         <MenuItem x:Name="MenuExportTab"   Header="Export _Plugin Data..." InputGesture="Ctrl+Shift+E" />
+        <Separator />
+        <MenuItem x:Name="MenuCertificates" Header="_Manage Certificates..." InputGesture="Ctrl+K" />
         <Separator />
         <MenuItem x:Name="MenuQuit"        Header="_Quit"                InputGesture="Ctrl+Q" />
       </MenuItem>
       <MenuItem Header="_Session">
-        <MenuItem x:Name="MenuCertificates" Header="_Manage Certificates..." InputGesture="Ctrl+K" />
+        <MenuItem x:Name="MenuSessionCreate"
+                  Header="_Create..."
+                  InputGesture="Ctrl+N"
+                  IsEnabled="{CompiledBinding !IsConnected}" />
+        <MenuItem x:Name="MenuSessionClose"
+                  Header="_Close (Disconnect)"
+                  IsEnabled="{CompiledBinding IsConnected}" />
+        <MenuItem x:Name="MenuSessionReconnect"
+                  Header="_Reconnect"
+                  IsEnabled="{CompiledBinding IsConnected}" />
+        <MenuItem x:Name="MenuSessionChangeUser"
+                  Header="Change _User..."
+                  IsEnabled="{CompiledBinding IsConnected}" />
         <Separator />
-        <MenuItem x:Name="MenuLocales"      Header="Preferred _Locales..." />
+        <MenuItem x:Name="MenuSessionEngine"
+                  Header="Use ChannelV2 _Engine"
+                  ToggleType="CheckBox"
+                  IsChecked="{CompiledBinding UseChannelV2Engine, Mode=TwoWay}" />
+        <Separator />
+        <MenuItem x:Name="MenuLoadSession"
+                  Header="_Load Session..."
+                  InputGesture="Ctrl+O"
+                  IsEnabled="{CompiledBinding IsConnected}" />
+        <MenuItem x:Name="MenuSaveSession"
+                  Header="_Save Session..."
+                  InputGesture="Ctrl+S"
+                  IsEnabled="{CompiledBinding IsConnected}" />
+        <Separator />
+        <MenuItem x:Name="MenuLocales"
+                  Header="Preferred _Locales..."
+                  IsEnabled="{CompiledBinding IsConnected}" />
       </MenuItem>
       <MenuItem Header="_Tabs">
         <MenuItem Header="_Add…">
@@ -268,30 +295,10 @@
                     VerticalAlignment="Stretch"
                     Background="#1E293B" />
 
-      <!-- RIGHT: Connection on top, Subscription below -->
-      <Grid Grid.Column="2" RowDefinitions="Auto,*">
-        <Border Grid.Row="0" Classes="panel" Margin="0,0,0,8">
-          <Grid RowDefinitions="Auto,Auto,Auto" ColumnDefinitions="Auto,*,Auto,Auto">
-            <TextBlock Grid.Row="0" Grid.ColumnSpan="4" Classes="h" Text="🔌 Connection" />
-            <TextBlock Grid.Row="1" Grid.Column="0" Text="Endpoint" VerticalAlignment="Center" Margin="0,0,8,0" />
-            <TextBox   Grid.Row="1" Grid.Column="1" x:Name="EndpointBox" Text="{CompiledBinding EndpointUrl, Mode=TwoWay}" />
-            <Button    Grid.Row="1" Grid.Column="2" x:Name="ConnectButton"      Classes="primary" Content="⏻ Connect"
-                       IsVisible="{CompiledBinding !IsConnected}" Margin="8,0,0,0" />
-            <Button    Grid.Row="1" Grid.Column="2" x:Name="ChangeButton"       Classes="primary" Content="Change ▾"
-                       IsVisible="{CompiledBinding IsConnected}" Margin="8,0,0,0">
-              <Button.Flyout>
-                <MenuFlyout>
-                  <MenuItem x:Name="MenuConnectionDisconnect" Header="Disconnect" />
-                  <MenuItem x:Name="MenuConnectionChangeUser" Header="Change User…" />
-                  <MenuItem x:Name="MenuConnectionReconnect" Header="Reconnect" />
-                </MenuFlyout>
-              </Button.Flyout>
-            </Button>
-            <Button    Grid.Row="1" Grid.Column="3" x:Name="ToggleEngineButton" Classes="tonal"   Content="{CompiledBinding EngineButtonText}" Margin="8,0,0,0" />
-            <TextBlock Grid.Row="2" Grid.ColumnSpan="4" Margin="0,8,0,0" Classes="status" Text="{CompiledBinding ConnectionStatus}" />
-          </Grid>
-        </Border>
-        <Border Grid.Row="1" Classes="panel" ClipToBounds="True">
+      <!-- RIGHT: tab strip + body.  The old inline connection panel was
+           replaced by `Session → Create...` (ConnectDialog). -->
+      <Grid Grid.Column="2" RowDefinitions="*">
+        <Border Grid.Row="0" Classes="panel" ClipToBounds="True">
           <Grid RowDefinitions="Auto,*,Auto">
             <ListBox Grid.Row="0" x:Name="TabStrip" Margin="0,0,0,0"
                      ItemsSource="{CompiledBinding Tabs}"
