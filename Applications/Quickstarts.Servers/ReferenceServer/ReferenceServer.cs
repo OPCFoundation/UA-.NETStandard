@@ -231,11 +231,20 @@ namespace Quickstarts.ReferenceServer
             // FindAliasVerbose / LastChange dispatched against it
             // aggregate the TagVariables / Topics sub-categories
             // (per Part 17 §6.3.2 recursive matching semantics).
+            // AddAliasesToCategory / DeleteAliasesFromCategory are enabled
+            // on the in-memory store so server-side test/admin code can
+            // bump LastChange via store.AddAliasesAsync / DeleteAliasesAsync.
+            // The standard well-known Aliases (i=23470) node does not
+            // instantiate Add/Delete method nodes (per the OPC UA NodeSet),
+            // so this is a server-side capability only and does not
+            // expose mutation methods over the wire on the standard node.
             var aliases = new Opc.Ua.Server.AliasNames.AliasNameCategoryDescriptor(
                 Opc.Ua.ObjectIds.Aliases,
                 Opc.Ua.QualifiedName.From(Opc.Ua.BrowseNames.Aliases),
                 Opc.Ua.Server.AliasNames.AliasNameCapabilities.FindAliasVerbose
-                    | Opc.Ua.Server.AliasNames.AliasNameCapabilities.LastChange,
+                    | Opc.Ua.Server.AliasNames.AliasNameCapabilities.LastChange
+                    | Opc.Ua.Server.AliasNames.AliasNameCapabilities.AddAliasesToCategory
+                    | Opc.Ua.Server.AliasNames.AliasNameCapabilities.DeleteAliasesFromCategory,
                 subCategories: [tagVariables, topics]);
 
             // CA2000: ownership transferred to the registry which disposes
