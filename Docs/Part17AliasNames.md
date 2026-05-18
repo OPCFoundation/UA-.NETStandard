@@ -26,6 +26,7 @@ side) and **`Opc.Ua.Client`** (client side). The implementation covers:
 | §9.2         | Well-known `Aliases (i=23470)`           | ✔ wired |
 | §9.3         | Well-known `TagVariables (i=23479)`      | ✔ wired |
 | §9.4         | Well-known `Topics (i=23488)`            | ✔ wired |
+| Annex D      | PubSub replication (LastChange notifications) | ✔ transport-agnostic — see below |
 | Annex D      | PubSub replication                       | not implemented |
 
 ## Server side — `Opc.Ua.Server.AliasNames`
@@ -181,11 +182,42 @@ string aliasName = await resolver.ResolveAliasNameAsync(targets[0], ct);
 
 Default refresh mode is `Manual` — callers invoke `RefreshAsync`
 (or rely on lazy-load via `ResolveAsync`). Opt in to automatic cache
-invalidation via `AliasNameResolverRefreshMode.AutoOnLastChange`, which
-polls the category's `LastChange` property at the configured publishing
-interval and invalidates the cache on any value-difference (covers
-`VersionTime` wraparound). Disposing the resolver tears down the
-polling timer.
+invalidation via one of:
+
+| `AliasNameResolverRefreshMode`     | Strategy                                  | When to use |
+| ---------------------------------- | ----------------------------------------- | ----------- |
+| `Manual` (default)                 | `ManualAliasNameRefreshStrategy`          | Caller drives refresh explicitly. Safe everywhere. |
+| `AutoOnLastChangePolling`          | `PollingAliasNameRefreshStrategy`         | Server lacks Subscriptions or you want a fixed `Read` cadence. |
+| `AutoOnLastChangeMonitoredItem`    | `MonitoredItemAliasNameRefreshStrategy`   | Server supports Subscriptions. Push-based — no `Read` per interval. |
+
+Custom strategies (e.g. the Annex D PubSub bridge in
+`Opc.Ua.Client.AliasNames.PubSub` — see Annex D below) plug in via:
+
+```csharp
+new AliasNameResolverOptions
+{
+    RefreshStrategy = new MyCustomStrategy()  // takes precedence over RefreshMode
+}
+```
+
+The `IAliasNameRefreshStrategy` contract is tiny:
+
+```csharp
+public interface IAliasNameRefreshStrategy : IAsyncDisposable
+{
+    ValueTask StartAsync(AliasNameClient client, Action onInvalidate, CancellationToken ct);
+}
+```
+
+Implementations watch for stale-cache triggers and invoke
+`onInvalidate` whenever they detect a change. `MonitoredItemAliasNameRefreshStrategyOptions`
+controls the underlying `Subscription`: it can be left owned (default
+— created + deleted by the strategy) or set via `SharedSubscription`
+to plug the monitored item into an externally managed subscription.
+
+Disposing the resolver (`await using` / `DisposeAsync`) tears down the
+strategy: timer for polling, `MonitoredItem` + `Subscription` for the
+monitored-item variant. Disposal is idempotent and never throws.
 
 ## Spec deviations / wrinkles
 
@@ -209,6 +241,109 @@ polling timer.
   reference type. Otherwise matches are limited to aliases whose
   reference type is, or is a subtype of, the filter (using
   `Server.TypeTree.IsTypeOf`).
+
+## Annex D — PubSub LastChange notifications
+
+Part 17 Annex D defines a lightweight PubSub schema for alias-change
+notifications between servers. The schema carries only each category's
+current `LastChange` value (a `VersionTime`/`uint`) — subscribers learn
+that a publisher's category changed, then refetch alias contents via
+`FindAlias`/`FindAliasVerbose` if needed.
+
+The data types (already emitted by the source generator):
+
+| NodeId   | Type                          | Fields |
+| -------- | ----------------------------- | ------ |
+| `i=24052` | `AliasCategoryUpdateDataType` | `Category : PortableNodeId`, `LastChange : VersionTime` |
+| `i=24053` | `AliasUpdateDataType`         | `ApplicationUri : string`, `Categories : AliasCategoryUpdateDataType[]` |
+
+### Server side — `Opc.Ua.Server.AliasNames.PubSub`
+
+The server library exposes a transport-agnostic publisher that emits
+fully-built `AliasUpdateDataType` messages whenever an
+`IAliasNameStoreRegistry`-tracked store changes:
+
+```csharp
+using Opc.Ua.Server.AliasNames;
+using Opc.Ua.Server.AliasNames.PubSub;
+
+// inside server startup (after the alias store is registered):
+var resolver = new ServerPortableNodeIdResolver(server);
+var publisher = new AliasNamePublisher(
+    registry: ((IAliasNameStoreRegistryProvider)server).AliasNameStoreRegistry,
+    portableResolver: resolver,
+    applicationUri: configuration.ApplicationUri);
+
+publisher.AliasUpdateProduced += (_, e) =>
+{
+    // Hand `e.Update` to your transport — e.g. publish a DataSetMessage
+    // through Opc.Ua.PubSub.UaPubSubApplication with the DataSet
+    // built by AliasUpdateDataSetFactory.Create(...).
+};
+```
+
+Helpers shipped:
+
+* `IPortableNodeIdResolver` + `ServerPortableNodeIdResolver` — converts
+  a local `NodeId` into the spec-required `PortableNodeId`
+  (NamespaceUri + Identifier with namespace index stripped).
+* `AliasUpdateDataSetFactory.Create(dataSetClassId)` — builds the
+  fixed-by-spec `DataSetMetaDataType` describing the `AliasUpdate`
+  DataSet (`ApplicationUri : string`,
+  `Categories : AliasCategoryUpdateDataType[]`).
+* `AliasNamePublisher` — subscribes to the registry, builds and emits
+  `AliasUpdateDataType` messages via the `AliasUpdateProduced` event.
+
+The library deliberately stays transport-agnostic: it raises the
+fully-built `AliasUpdateDataType` and lets the application wire it
+into `Opc.Ua.PubSub.UaPubSubApplication` (UDP / JSON / MQTT) or any
+other transport that can carry the `AliasUpdateDataType` payload.
+
+### Client side — `Opc.Ua.Client.AliasNames.PubSub`
+
+The client library mirrors the publisher:
+
+```csharp
+using Opc.Ua.Client.AliasNames;
+using Opc.Ua.Client.AliasNames.PubSub;
+
+var reader = new AliasNamePubSubReader(
+    new AliasNamePubSubReaderOptions
+    {
+        ExpectedApplicationUri = "urn:opcfoundation:publisher",
+    });
+
+// Hand incoming AliasUpdateDataType messages off to the reader from
+// your transport (e.g. UaPubSubApplication.DataReceived, an MQTT
+// subscriber callback, ...):
+reader.Submit(receivedAliasUpdate);
+
+// Wire reader into the resolver so the cache invalidates on every
+// LastChange bump observed via PubSub.
+await using var resolver = new AliasNameResolver(
+    AliasNameClient.OpenStandardAliases(session),
+    new AliasNameResolverOptions
+    {
+        RefreshStrategy = new AliasNamePubSubRefreshStrategy(reader),
+    });
+```
+
+Helpers shipped:
+
+* `AliasNamePubSubReader` — surfaces incoming
+  `AliasUpdateDataType` messages as the `AliasUpdateReceived` event.
+  Optional `ExpectedApplicationUri` filter drops messages from other
+  publishers.
+* `AliasNamePubSubRefreshStrategy : IAliasNameRefreshStrategy` —
+  bridges the reader into the resolver. Matches incoming entries by
+  the resolver's category `NamespaceUri` + identifier; fires
+  `Invalidate` on any value-difference (wrap-safe — the comparison is
+  inequality, not strict greater-than).
+
+The PubSub bridge plugs into the same `IAliasNameRefreshStrategy`
+extension point as the polling and monitored-item strategies — apps
+can mix-and-match, e.g. fall back to polling on a particular category
+while letting PubSub drive the rest.
 
 ## See also
 

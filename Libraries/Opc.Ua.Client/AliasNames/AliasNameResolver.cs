@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua.Client.AliasNames.Refresh;
 
 namespace Opc.Ua.Client.AliasNames
 {
@@ -54,17 +55,16 @@ namespace Opc.Ua.Client.AliasNames
     /// <para>
     /// Opt in to automatic invalidation by setting
     /// <see cref="AliasNameResolverOptions.RefreshMode"/> to
-    /// <see cref="AliasNameResolverRefreshMode.AutoOnLastChange"/> —
-    /// the resolver will read the category's
-    /// <c>LastChange</c> property (Part 17 §6.3.1) every
-    /// <see cref="AliasNameResolverOptions.PublishingIntervalMs"/> and
-    /// invalidate the cache on any value-difference. Wraparound of the
-    /// underlying <c>VersionTime</c> (<c>uint</c>) is honoured — the
-    /// comparison is for inequality, not strictly greater-than.
+    /// <see cref="AliasNameResolverRefreshMode.AutoOnLastChangePolling"/>
+    /// (read-based) or
+    /// <see cref="AliasNameResolverRefreshMode.AutoOnLastChangeMonitoredItem"/>
+    /// (subscription-based). Custom strategies — e.g. a Part 17
+    /// Annex D PubSub bridge — can be plugged in via
+    /// <see cref="AliasNameResolverOptions.RefreshStrategy"/>.
     /// </para>
     /// <para>
     /// The resolver is <see cref="IAsyncDisposable"/> — disposing it
-    /// stops the auto-refresh timer and releases any cached state.
+    /// stops the active refresh strategy and releases any cached state.
     /// </para>
     /// </remarks>
     public sealed class AliasNameResolver : IAsyncDisposable
@@ -79,17 +79,8 @@ namespace Opc.Ua.Client.AliasNames
         {
             Client = client ?? throw new ArgumentNullException(nameof(client));
             Options = (options ?? new AliasNameResolverOptions()).Clone();
-
-            if (Options.RefreshMode == AliasNameResolverRefreshMode.AutoOnLastChange)
-            {
-                int periodMs = (int)Math.Max(100,
-                    Options.PublishingIntervalMs);
-                m_pollTimer = new Timer(
-                    PollLastChange,
-                    state: null,
-                    dueTime: periodMs,
-                    period: periodMs);
-            }
+            m_strategy = Options.RefreshStrategy
+                ?? BuildBuiltInStrategy(Options);
         }
 
         /// <summary>The wrapped <see cref="AliasNameClient"/>.</summary>
@@ -100,7 +91,9 @@ namespace Opc.Ua.Client.AliasNames
 
         /// <summary>
         /// Ensures the cache is populated; performs a refresh only on
-        /// the first call (or after an invalidation).
+        /// the first call (or after an invalidation). On the first call
+        /// the configured <see cref="IAliasNameRefreshStrategy"/> is
+        /// also started.
         /// </summary>
         public async Task EnsureLoadedAsync(CancellationToken ct = default)
         {
@@ -108,7 +101,31 @@ namespace Opc.Ua.Client.AliasNames
             {
                 return;
             }
+            await EnsureStrategyStartedAsync(ct).ConfigureAwait(false);
             await RefreshAsync(ct).ConfigureAwait(false);
+        }
+
+        private async Task EnsureStrategyStartedAsync(CancellationToken ct)
+        {
+            if (Volatile.Read(ref m_strategyStarted) == 1)
+            {
+                return;
+            }
+            await m_strategyStartLock.WaitAsync(ct).ConfigureAwait(false);
+            try
+            {
+                if (Volatile.Read(ref m_strategyStarted) == 1)
+                {
+                    return;
+                }
+                await m_strategy.StartAsync(Client, Invalidate, ct)
+                    .ConfigureAwait(false);
+                Volatile.Write(ref m_strategyStarted, 1);
+            }
+            finally
+            {
+                m_strategyStartLock.Release();
+            }
         }
 
         /// <summary>
@@ -116,8 +133,6 @@ namespace Opc.Ua.Client.AliasNames
         /// </summary>
         public async Task RefreshAsync(CancellationToken ct = default)
         {
-            uint? lastChange = await Client.ReadLastChangeAsync(ct).ConfigureAwait(false);
-
             var forward = new Dictionary<string, ExpandedNodeId[]>(StringComparer.Ordinal);
             var serverUris = new Dictionary<string, string?[]>(StringComparer.Ordinal);
             var reverse = new Dictionary<ExpandedNodeId, string>();
@@ -162,7 +177,6 @@ namespace Opc.Ua.Client.AliasNames
                 m_forward = forward;
                 m_serverUris = serverUris;
                 m_reverse = reverse;
-                m_lastSeenChange = lastChange;
                 Volatile.Write(ref m_loaded, 1);
             }
             finally
@@ -272,7 +286,7 @@ namespace Opc.Ua.Client.AliasNames
         }
 
         /// <summary>
-        /// Stops auto-refresh polling (if enabled) and releases the
+        /// Stops the configured refresh strategy and releases the
         /// internal cache. Idempotent. Waits for any in-flight resolve /
         /// refresh / poll callback to release the internal lock before
         /// disposing it so concurrent calls cannot observe an
@@ -280,9 +294,16 @@ namespace Opc.Ua.Client.AliasNames
         /// </summary>
         public async ValueTask DisposeAsync()
         {
-            Timer? timer = m_pollTimer;
-            m_pollTimer = null;
-            timer?.Dispose();
+            try
+            {
+                await m_strategy.DisposeAsync().ConfigureAwait(false);
+            }
+            catch
+            {
+                // Best-effort cleanup; the strategy implementation is
+                // responsible for not throwing during dispose, but we
+                // never want disposal of the resolver to throw.
+            }
 
             try
             {
@@ -303,37 +324,32 @@ namespace Opc.Ua.Client.AliasNames
             {
                 m_semaphore.Release();
                 m_semaphore.Dispose();
+                m_strategyStartLock.Dispose();
             }
         }
 
-        private void PollLastChange(object? _)
+        private static IAliasNameRefreshStrategy BuildBuiltInStrategy(
+            AliasNameResolverOptions options)
         {
-            // Fire-and-forget; exceptions are swallowed so a broken
-            // server cannot crash the resolver.
-            _ = PollLastChangeAsync();
-        }
-
-        private async Task PollLastChangeAsync()
-        {
-            try
+#pragma warning disable CS0618 // AutoOnLastChange aliases AutoOnLastChangePolling.
+            switch (options.RefreshMode)
             {
-                uint? current = await Client.ReadLastChangeAsync().ConfigureAwait(false);
-                if (current == null)
-                {
-                    return;
-                }
-                uint? seen = m_lastSeenChange;
-                // Compare on inequality only — VersionTime may wrap and
-                // a strict greater-than would miss the wraparound case.
-                if (seen != current)
-                {
-                    Invalidate();
-                }
+                case AliasNameResolverRefreshMode.AutoOnLastChangePolling:
+                    return new PollingAliasNameRefreshStrategy(
+                        TimeSpan.FromMilliseconds(
+                            Math.Max(100, options.PublishingIntervalMs)));
+                case AliasNameResolverRefreshMode.AutoOnLastChangeMonitoredItem:
+                    return new MonitoredItemAliasNameRefreshStrategy(
+                        new MonitoredItemAliasNameRefreshStrategyOptions
+                        {
+                            PublishingIntervalMs = options.PublishingIntervalMs,
+                            SamplingIntervalMs = options.LastChangeSamplingIntervalMs,
+                        });
+                case AliasNameResolverRefreshMode.Manual:
+                default:
+                    return new ManualAliasNameRefreshStrategy();
             }
-            catch
-            {
-                // Ignore transient errors; the next poll cycle will retry.
-            }
+#pragma warning restore CS0618
         }
 
         private static void PopulateFromNonVerbose(
@@ -379,13 +395,14 @@ namespace Opc.Ua.Client.AliasNames
         }
 
         private readonly SemaphoreSlim m_semaphore = new(1, 1);
+        private readonly SemaphoreSlim m_strategyStartLock = new(1, 1);
+        private readonly IAliasNameRefreshStrategy m_strategy;
         private Dictionary<string, ExpandedNodeId[]> m_forward
             = new(StringComparer.Ordinal);
         private Dictionary<string, string?[]> m_serverUris
             = new(StringComparer.Ordinal);
         private Dictionary<ExpandedNodeId, string> m_reverse = [];
-        private uint? m_lastSeenChange;
         private int m_loaded;
-        private Timer? m_pollTimer;
+        private int m_strategyStarted;
     }
 }

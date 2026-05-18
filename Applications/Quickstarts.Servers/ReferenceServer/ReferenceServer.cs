@@ -227,11 +227,22 @@ namespace Quickstarts.ReferenceServer
                 Opc.Ua.QualifiedName.From(Opc.Ua.BrowseNames.Topics),
                 Opc.Ua.Server.AliasNames.AliasNameCapabilities.FindAliasVerbose);
 
+            // Root the Aliases (i=23470) object too so FindAlias /
+            // FindAliasVerbose / LastChange dispatched against it
+            // aggregate the TagVariables / Topics sub-categories
+            // (per Part 17 §6.3.2 recursive matching semantics).
+            var aliases = new Opc.Ua.Server.AliasNames.AliasNameCategoryDescriptor(
+                Opc.Ua.ObjectIds.Aliases,
+                Opc.Ua.QualifiedName.From(Opc.Ua.BrowseNames.Aliases),
+                Opc.Ua.Server.AliasNames.AliasNameCapabilities.FindAliasVerbose
+                    | Opc.Ua.Server.AliasNames.AliasNameCapabilities.LastChange,
+                subCategories: [tagVariables, topics]);
+
             // CA2000: ownership transferred to the registry which disposes
             // the store along with itself.
 #pragma warning disable CA2000
             var store = new Opc.Ua.Server.AliasNames.InMemoryAliasNameStore(
-                [tagVariables, topics]);
+                [aliases]);
 #pragma warning restore CA2000
 
             int refServerNsIndex = server.NamespaceUris.GetIndex(

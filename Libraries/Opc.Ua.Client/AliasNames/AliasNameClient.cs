@@ -310,6 +310,27 @@ namespace Opc.Ua.Client.AliasNames
         }
 
         /// <summary>
+        /// Resolves the category's <c>LastChange</c> property NodeId
+        /// (Part 17 §6.3.1). For the standard well-known <c>Aliases
+        /// (i=23470)</c> category the hardcoded <c>i=32852</c> instance
+        /// is returned without a round-trip; other categories fall back
+        /// to a <c>TranslateBrowsePathsToNodeIds</c> probe. Returns
+        /// <see cref="NodeId.Null"/> when the category does not expose
+        /// the property.
+        /// </summary>
+        public async Task<NodeId> ResolveLastChangeNodeIdAsync(
+            CancellationToken ct = default)
+        {
+            NodeId lastChangeId = ResolveStandardLastChange(CategoryId);
+            if (!lastChangeId.IsNull)
+            {
+                return lastChangeId;
+            }
+            return await ResolveChildAsync(
+                BrowseNames.LastChange, ct).ConfigureAwait(false);
+        }
+
+        /// <summary>
         /// Reads the category's <c>LastChange</c> property (Part 17
         /// §6.3.1) — a <c>VersionTime</c> (<c>uint</c>) that advances
         /// monotonically on every Add/Delete batch. Returns <c>null</c>
@@ -317,17 +338,11 @@ namespace Opc.Ua.Client.AliasNames
         /// </summary>
         public async Task<uint?> ReadLastChangeAsync(CancellationToken ct = default)
         {
-            NodeId lastChangeId = ResolveStandardLastChange(CategoryId);
+            NodeId lastChangeId = await ResolveLastChangeNodeIdAsync(ct)
+                .ConfigureAwait(false);
             if (lastChangeId.IsNull)
             {
-                // Fall back to a browse-path lookup for non-standard
-                // categories.
-                lastChangeId = await ResolveChildAsync(
-                    BrowseNames.LastChange, ct).ConfigureAwait(false);
-                if (lastChangeId.IsNull)
-                {
-                    return null;
-                }
+                return null;
             }
 
             ArrayOf<ReadValueId> nodesToRead =
