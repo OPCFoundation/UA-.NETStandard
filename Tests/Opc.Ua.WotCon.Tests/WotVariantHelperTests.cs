@@ -144,9 +144,11 @@ namespace Opc.Ua.WotCon.Tests
         [Test]
         public void ToVariantOfXmlElementProducesXmlElementVariant()
         {
-            var doc = new System.Xml.XmlDocument { XmlResolver = null };
-            System.Xml.XmlElement element = doc.CreateElement("root");
-            doc.AppendChild(element);
+            // WotVariantHelper handles the Opc.Ua.XmlElement built-in type
+            // (System.Xml.XmlElement falls through to the reflection
+            // fallback, which is the documented behaviour for non-spec
+            // types).
+            Opc.Ua.XmlElement element = (Opc.Ua.XmlElement)"<root/>";
             Variant v = WotVariantHelper.ToVariant(element);
             Assert.That(v.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.XmlElement));
         }
