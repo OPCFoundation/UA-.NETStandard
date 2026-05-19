@@ -88,10 +88,11 @@ internal sealed partial class EventFilterDialog : Window
     private readonly Dictionary<string, CheckBox> m_checkboxes = new(StringComparer.Ordinal);
     private readonly TextBlock m_eventTypeLabel;
     private readonly StackPanel m_fieldsPanel;
-    private readonly ContentFilterEditor m_whereClauseEditor;
+    private readonly TextBlock m_whereClauseSummary;
     private NodeId m_eventTypeNodeId;
     private IReadOnlyList<string> m_fields;
     private HashSet<string> m_selectedSnapshot;
+    private ContentFilter? m_whereClause;
 
     public EventFilterDialog(EventFilterConfig current)
         : this(current, session: null)
@@ -111,14 +112,15 @@ internal sealed partial class EventFilterDialog : Window
         m_eventTypeNodeId = current.EventTypeNodeId ?? ObjectTypeIds.BaseEventType;
         m_fields = DefaultFields;
         m_selectedSnapshot = new HashSet<string>(current.Fields, StringComparer.Ordinal);
+        m_whereClause = current.WhereClause;
 
         Slider severity = this.RequiredControl<Slider>("SeveritySlider");
         TextBlock severityValue = this.RequiredControl<TextBlock>("SeverityValue");
         m_eventTypeLabel = this.RequiredControl<TextBlock>("EventTypeLabel");
         Button pickType = this.RequiredControl<Button>("PickTypeButton");
         m_fieldsPanel = this.RequiredControl<StackPanel>("FieldsPanel");
-        m_whereClauseEditor = this.RequiredControl<ContentFilterEditor>("WhereClauseEditor");
-        m_whereClauseEditor.Initialize(current.WhereClause, session);
+        m_whereClauseSummary = this.RequiredControl<TextBlock>("WhereClauseSummary");
+        Button editWhereClause = this.RequiredControl<Button>("EditWhereClauseButton");
         Button ok = this.RequiredControl<Button>("OkButton");
         Button cancel = this.RequiredControl<Button>("CancelButton");
 
@@ -137,6 +139,9 @@ internal sealed partial class EventFilterDialog : Window
         pickType.Click += async (_, _) => await PickEventTypeAsync().ConfigureAwait(true);
 
         RebuildFieldList(DefaultFields);
+        RefreshWhereClauseSummary();
+
+        editWhereClause.Click += async (_, _) => await OpenWhereClauseDialogAsync().ConfigureAwait(true);
 
         ok.Click += (_, _) =>
         {
@@ -150,15 +155,36 @@ internal sealed partial class EventFilterDialog : Window
                 }
             }
             ushort threshold = (ushort)Math.Clamp((int)severity.Value, 0, 1000);
-            ContentFilter whereClause = m_whereClauseEditor.BuildResult();
             Result = new EventFilterConfig(
                 threshold,
                 fields,
                 m_eventTypeNodeId,
-                whereClause.Elements.Count > 0 ? whereClause : null);
+                m_whereClause);
             Close(Result);
         };
         cancel.Click += (_, _) => Close(null);
+    }
+
+    private async Task OpenWhereClauseDialogAsync()
+    {
+        var dlg = new WhereClauseDialog(m_whereClause, m_session);
+        ContentFilter? result = await dlg.ShowDialog<ContentFilter?>(this).ConfigureAwait(true);
+        if (dlg.Applied)
+        {
+            m_whereClause = result;
+            RefreshWhereClauseSummary();
+        }
+    }
+
+    private void RefreshWhereClauseSummary()
+    {
+        if (m_whereClause is null || m_whereClause.Elements.Count == 0)
+        {
+            m_whereClauseSummary.Text = "(none — all events pass)";
+            return;
+        }
+        string text = m_whereClause.ToString();
+        m_whereClauseSummary.Text = string.IsNullOrEmpty(text) ? "(empty)" : text;
     }
 
     private async Task PickEventTypeAsync()

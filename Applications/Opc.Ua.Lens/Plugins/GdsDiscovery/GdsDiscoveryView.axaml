@@ -130,13 +130,23 @@
                       ResizeBehavior="PreviousAndNext"
                       Background="#1E293B" />
 
-        <!-- Right: endpoints list -->
-        <Grid Grid.Column="2" RowDefinitions="Auto,*">
-          <Grid Grid.Row="0" Background="#1E293B"
-                ColumnDefinitions="2*,120,*">
+        <!-- Right: endpoints list with resizable columns. -->
+        <Grid Grid.Column="2" RowDefinitions="Auto,*" Grid.IsSharedSizeScope="True">
+          <Grid Grid.Row="0" Background="#1E293B">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="2*"   SharedSizeGroup="DiCol0" />
+              <ColumnDefinition Width="Auto" SharedSizeGroup="DiSep0" />
+              <ColumnDefinition Width="120"  SharedSizeGroup="DiCol1" />
+              <ColumnDefinition Width="Auto" SharedSizeGroup="DiSep1" />
+              <ColumnDefinition Width="*"    SharedSizeGroup="DiCol2" />
+            </Grid.ColumnDefinitions>
             <TextBlock Grid.Column="0" Margin="8,4" Classes="h" Text="ENDPOINT URL" />
-            <TextBlock Grid.Column="1" Margin="8,4" Classes="h" Text="SEC. MODE" />
-            <TextBlock Grid.Column="2" Margin="8,4" Classes="h" Text="PROFILE" />
+            <GridSplitter Grid.Column="1" Width="4" Background="#0F172A"
+                          ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" />
+            <TextBlock Grid.Column="2" Margin="8,4" Classes="h" Text="SEC. MODE" />
+            <GridSplitter Grid.Column="3" Width="4" Background="#0F172A"
+                          ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" />
+            <TextBlock Grid.Column="4" Margin="8,4" Classes="h" Text="PROFILE" />
           </Grid>
           <ListBox Grid.Row="1"
                    ItemsSource="{CompiledBinding Endpoints}"
@@ -145,10 +155,17 @@
                    BorderThickness="0">
             <ListBox.ItemTemplate>
               <DataTemplate DataType="vm:DiscoveryEndpointRow">
-                <Grid ColumnDefinitions="2*,120,*">
+                <Grid>
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="2*"   SharedSizeGroup="DiCol0" />
+                    <ColumnDefinition Width="Auto" SharedSizeGroup="DiSep0" />
+                    <ColumnDefinition Width="120"  SharedSizeGroup="DiCol1" />
+                    <ColumnDefinition Width="Auto" SharedSizeGroup="DiSep1" />
+                    <ColumnDefinition Width="*"    SharedSizeGroup="DiCol2" />
+                  </Grid.ColumnDefinitions>
                   <TextBlock Grid.Column="0" Text="{CompiledBinding Url}" Classes="row" />
-                  <TextBlock Grid.Column="1" Text="{CompiledBinding SecurityMode}" Classes="row" />
-                  <TextBlock Grid.Column="2" Text="{CompiledBinding SecurityProfile}" Classes="row" />
+                  <TextBlock Grid.Column="2" Text="{CompiledBinding SecurityMode}" Classes="row" />
+                  <TextBlock Grid.Column="4" Text="{CompiledBinding SecurityProfile}" Classes="row" />
                 </Grid>
               </DataTemplate>
             </ListBox.ItemTemplate>

@@ -113,14 +113,28 @@
     <!-- Row 2: split view (apps list | details) -->
     <Border Grid.Row="2" Classes="panel">
       <Grid ColumnDefinitions="2*,5,3*">
-        <!-- Left: apps list -->
-        <Grid Grid.Column="0" RowDefinitions="Auto,*">
-          <Grid Grid.Row="0" ColumnDefinitions="2*,*,2*,*"
-                Background="#1E293B" Margin="0,0,0,0">
+        <!-- Left: apps list with resizable columns. -->
+        <Grid Grid.Column="0" RowDefinitions="Auto,*" Grid.IsSharedSizeScope="True">
+          <Grid Grid.Row="0" Background="#1E293B" Margin="0,0,0,0">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="2*"   SharedSizeGroup="GmCol0" />
+              <ColumnDefinition Width="Auto" SharedSizeGroup="GmSep0" />
+              <ColumnDefinition Width="*"    SharedSizeGroup="GmCol1" />
+              <ColumnDefinition Width="Auto" SharedSizeGroup="GmSep1" />
+              <ColumnDefinition Width="2*"   SharedSizeGroup="GmCol2" />
+              <ColumnDefinition Width="Auto" SharedSizeGroup="GmSep2" />
+              <ColumnDefinition Width="*"    SharedSizeGroup="GmCol3" />
+            </Grid.ColumnDefinitions>
             <TextBlock Grid.Column="0" Margin="6,4" Classes="h" Text="Application Name" />
-            <TextBlock Grid.Column="1" Margin="6,4" Classes="h" Text="Type" />
-            <TextBlock Grid.Column="2" Margin="6,4" Classes="h" Text="Product URI" />
-            <TextBlock Grid.Column="3" Margin="6,4" Classes="h" Text="NodeId" />
+            <GridSplitter Grid.Column="1" Width="4" Background="#0F172A"
+                          ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" />
+            <TextBlock Grid.Column="2" Margin="6,4" Classes="h" Text="Type" />
+            <GridSplitter Grid.Column="3" Width="4" Background="#0F172A"
+                          ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" />
+            <TextBlock Grid.Column="4" Margin="6,4" Classes="h" Text="Product URI" />
+            <GridSplitter Grid.Column="5" Width="4" Background="#0F172A"
+                          ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" />
+            <TextBlock Grid.Column="6" Margin="6,4" Classes="h" Text="NodeId" />
           </Grid>
           <ListBox Grid.Row="1" x:Name="AppsList"
                    ItemsSource="{CompiledBinding FilteredApps}"
@@ -129,16 +143,25 @@
                    BorderThickness="0">
             <ListBox.ItemTemplate>
               <DataTemplate DataType="vm:RegisteredApp">
-                <Grid ColumnDefinitions="2*,*,2*,*">
+                <Grid>
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="2*"   SharedSizeGroup="GmCol0" />
+                    <ColumnDefinition Width="Auto" SharedSizeGroup="GmSep0" />
+                    <ColumnDefinition Width="*"    SharedSizeGroup="GmCol1" />
+                    <ColumnDefinition Width="Auto" SharedSizeGroup="GmSep1" />
+                    <ColumnDefinition Width="2*"   SharedSizeGroup="GmCol2" />
+                    <ColumnDefinition Width="Auto" SharedSizeGroup="GmSep2" />
+                    <ColumnDefinition Width="*"    SharedSizeGroup="GmCol3" />
+                  </Grid.ColumnDefinitions>
                   <TextBlock Grid.Column="0" Margin="6,2"
                              Text="{CompiledBinding ApplicationName}" TextTrimming="CharacterEllipsis" />
-                  <TextBlock Grid.Column="1" Margin="6,2"
-                             FontFamily="Cascadia Mono, Consolas, monospace" FontSize="11"
-                             Text="{CompiledBinding ApplicationType}" TextTrimming="CharacterEllipsis" />
                   <TextBlock Grid.Column="2" Margin="6,2"
                              FontFamily="Cascadia Mono, Consolas, monospace" FontSize="11"
+                             Text="{CompiledBinding ApplicationType}" TextTrimming="CharacterEllipsis" />
+                  <TextBlock Grid.Column="4" Margin="6,2"
+                             FontFamily="Cascadia Mono, Consolas, monospace" FontSize="11"
                              Text="{CompiledBinding ProductUri}" TextTrimming="CharacterEllipsis" />
-                  <TextBlock Grid.Column="3" Margin="6,2"
+                  <TextBlock Grid.Column="6" Margin="6,2"
                              FontFamily="Cascadia Mono, Consolas, monospace" FontSize="11"
                              Text="{CompiledBinding Identifier}" TextTrimming="CharacterEllipsis" />
                 </Grid>

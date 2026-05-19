@@ -29,7 +29,6 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="UaLens.Plugins.EventView.EventFilterDialog"
-        xmlns:views="clr-namespace:UaLens.Views"
         Title="Event filter"
         Width="780" Height="720"
         WindowStartupLocation="CenterOwner"
@@ -82,11 +81,27 @@
       </ScrollViewer>
     </Border>
 
-    <Expander Grid.Row="7" x:Name="WhereClauseExpander"
-              Header="Where clause (ContentFilter)"
-              IsExpanded="False" Margin="0,12,0,0">
-      <views:ContentFilterEditor x:Name="WhereClauseEditor" Height="420" />
-    </Expander>
+    <!-- Where clause is edited in a dedicated modal dialog so the
+         operand list has room to render and selection works
+         predictably. The summary preview here mirrors the filter's
+         ContentFilter.ToString() output. -->
+    <Border Grid.Row="7" BorderBrush="#1E293B" BorderThickness="1" CornerRadius="4"
+            Padding="10" Background="#0B1220" Margin="0,12,0,0">
+      <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto">
+        <TextBlock Grid.Row="0" Grid.Column="0"
+                   Text="Where clause (ContentFilter)"
+                   FontWeight="SemiBold"
+                   Foreground="#F59E0B" />
+        <Button Grid.Row="0" Grid.Column="1" x:Name="EditWhereClauseButton"
+                Content="Edit where clause…" Width="180" />
+        <TextBlock Grid.Row="1" Grid.ColumnSpan="2" x:Name="WhereClauseSummary"
+                   Margin="0,6,0,0"
+                   FontFamily="Cascadia Mono, Consolas, monospace"
+                   FontSize="11"
+                   TextWrapping="Wrap"
+                   Foreground="#94A3B8" />
+      </Grid>
+    </Border>
 
     <StackPanel Grid.Row="8" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
       <Button x:Name="OkButton"     Content="Apply"  IsDefault="True" Width="90" />

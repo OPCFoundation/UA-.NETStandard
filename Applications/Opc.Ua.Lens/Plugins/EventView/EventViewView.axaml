@@ -71,22 +71,6 @@
     <!-- ========= Filter / toolbar bar (WrapPanel wraps on small windows). ========= -->
     <Border DockPanel.Dock="Top" Classes="panel" Margin="8,8,8,4" Padding="8,6">
       <WrapPanel Orientation="Horizontal" ItemHeight="32">
-        <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,0,8,0" VerticalAlignment="Center">
-          <TextBlock VerticalAlignment="Center"
-                     Foreground="{StaticResource LabelDim}"
-                     FontSize="11" Text="Min severity" />
-          <Slider Minimum="0" Maximum="1000"
-                  Value="{CompiledBinding Filter.SeverityThreshold, Mode=OneWay}"
-                  Width="180" MinHeight="20"
-                  VerticalAlignment="Center"
-                  IsHitTestVisible="False"
-                  ToolTip.Tip="Use Edit Filter… to change" />
-          <TextBlock VerticalAlignment="Center"
-                     FontFamily="Cascadia Mono, Consolas, monospace"
-                     FontSize="11"
-                     MinWidth="36" TextAlignment="Right"
-                     Text="{CompiledBinding Filter.SeverityThreshold}" />
-        </StackPanel>
         <Button Classes="tonal" Margin="0,0,4,0"
                 Content="⚙ Filter…"
                 Command="{CompiledBinding EditFilterCommand}" />
@@ -100,11 +84,12 @@
       </WrapPanel>
     </Border>
 
-    <!-- ========= Main 3-column body ========= -->
-    <Grid Margin="8,4,8,8" ColumnDefinitions="250,*,350">
+    <!-- ========= Main 3-column body — GridSplitters let the user drag
+         Event sources / Event log / Event details widths. ========= -->
+    <Grid Margin="8,4,8,8" ColumnDefinitions="250,5,*,5,350">
 
       <!-- LEFT: event sources -->
-      <Border Grid.Column="0" Classes="panel" Padding="8" Margin="0,0,4,0">
+      <Border Grid.Column="0" Classes="panel" Padding="8" Margin="0,0,0,0">
         <Grid RowDefinitions="Auto,*,Auto">
           <TextBlock Grid.Row="0"
                      Foreground="{StaticResource LabelDim}"
@@ -149,18 +134,39 @@
         </Grid>
       </Border>
 
-      <!-- CENTER: event log -->
-      <Border Grid.Column="1" Classes="panel" Padding="0" Margin="4,0,4,0">
-        <Grid RowDefinitions="Auto,*">
-          <Grid Grid.Row="0"
-                ColumnDefinitions="100,70,160,160,*"
-                Background="#121A2C"
-                Margin="0" Height="22">
+      <GridSplitter Grid.Column="1" Width="5"
+                    Background="#1E293B"
+                    ResizeDirection="Columns"
+                    ResizeBehavior="PreviousAndNext" />
+
+      <!-- CENTER: event log with shared-size + draggable columns -->
+      <Border Grid.Column="2" Classes="panel" Padding="0" Margin="0,0,0,0">
+        <Grid RowDefinitions="Auto,*" Grid.IsSharedSizeScope="True">
+          <Grid Grid.Row="0" Background="#121A2C" Margin="0" Height="22">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="100"  SharedSizeGroup="EvCol0" />
+              <ColumnDefinition Width="Auto" SharedSizeGroup="EvSep0" />
+              <ColumnDefinition Width="70"   SharedSizeGroup="EvCol1" />
+              <ColumnDefinition Width="Auto" SharedSizeGroup="EvSep1" />
+              <ColumnDefinition Width="160"  SharedSizeGroup="EvCol2" />
+              <ColumnDefinition Width="Auto" SharedSizeGroup="EvSep2" />
+              <ColumnDefinition Width="160"  SharedSizeGroup="EvCol3" />
+              <ColumnDefinition Width="Auto" SharedSizeGroup="EvSep3" />
+              <ColumnDefinition Width="*"    SharedSizeGroup="EvCol4" />
+            </Grid.ColumnDefinitions>
             <TextBlock Grid.Column="0" Classes="colHeader" Text="Time"       Margin="6,4,0,0" />
-            <TextBlock Grid.Column="1" Classes="colHeader" Text="Severity"   Margin="0,4,0,0" />
-            <TextBlock Grid.Column="2" Classes="colHeader" Text="Source"     Margin="0,4,0,0" />
-            <TextBlock Grid.Column="3" Classes="colHeader" Text="EventType"  Margin="0,4,0,0" />
-            <TextBlock Grid.Column="4" Classes="colHeader" Text="Message"    Margin="0,4,0,0" />
+            <GridSplitter Grid.Column="1" Width="4" Background="#0F172A"
+                          ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" />
+            <TextBlock Grid.Column="2" Classes="colHeader" Text="Severity"   Margin="0,4,0,0" />
+            <GridSplitter Grid.Column="3" Width="4" Background="#0F172A"
+                          ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" />
+            <TextBlock Grid.Column="4" Classes="colHeader" Text="Source"     Margin="0,4,0,0" />
+            <GridSplitter Grid.Column="5" Width="4" Background="#0F172A"
+                          ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" />
+            <TextBlock Grid.Column="6" Classes="colHeader" Text="EventType"  Margin="0,4,0,0" />
+            <GridSplitter Grid.Column="7" Width="4" Background="#0F172A"
+                          ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" />
+            <TextBlock Grid.Column="8" Classes="colHeader" Text="Message"    Margin="0,4,0,0" />
           </Grid>
           <ListBox Grid.Row="1"
                    ItemsSource="{CompiledBinding Events}"
@@ -174,21 +180,32 @@
             </ListBox.ItemContainerTheme>
             <ListBox.ItemTemplate>
               <DataTemplate x:DataType="vm:EventLogEntry">
-                <Grid ColumnDefinitions="100,70,160,160,*">
+                <Grid>
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="100"  SharedSizeGroup="EvCol0" />
+                    <ColumnDefinition Width="Auto" SharedSizeGroup="EvSep0" />
+                    <ColumnDefinition Width="70"   SharedSizeGroup="EvCol1" />
+                    <ColumnDefinition Width="Auto" SharedSizeGroup="EvSep1" />
+                    <ColumnDefinition Width="160"  SharedSizeGroup="EvCol2" />
+                    <ColumnDefinition Width="Auto" SharedSizeGroup="EvSep2" />
+                    <ColumnDefinition Width="160"  SharedSizeGroup="EvCol3" />
+                    <ColumnDefinition Width="Auto" SharedSizeGroup="EvSep3" />
+                    <ColumnDefinition Width="*"    SharedSizeGroup="EvCol4" />
+                  </Grid.ColumnDefinitions>
                   <TextBlock Grid.Column="0" Classes="colCell"
                              Text="{CompiledBinding DisplayTime}"
                              Foreground="{CompiledBinding SeverityBrush}"
                              Margin="6,0,0,0" />
-                  <TextBlock Grid.Column="1" Classes="colCell"
+                  <TextBlock Grid.Column="2" Classes="colCell"
                              Text="{CompiledBinding Severity}"
                              Foreground="{CompiledBinding SeverityBrush}" />
-                  <TextBlock Grid.Column="2" Classes="colCell"
+                  <TextBlock Grid.Column="4" Classes="colCell"
                              Text="{CompiledBinding SourceName}"
                              Foreground="{CompiledBinding SeverityBrush}" />
-                  <TextBlock Grid.Column="3" Classes="colCell"
+                  <TextBlock Grid.Column="6" Classes="colCell"
                              Text="{CompiledBinding EventType}"
                              Foreground="{CompiledBinding SeverityBrush}" />
-                  <TextBlock Grid.Column="4" Classes="colCell"
+                  <TextBlock Grid.Column="8" Classes="colCell"
                              Text="{CompiledBinding Message}"
                              Foreground="{CompiledBinding SeverityBrush}" />
                 </Grid>
@@ -198,8 +215,13 @@
         </Grid>
       </Border>
 
+      <GridSplitter Grid.Column="3" Width="5"
+                    Background="#1E293B"
+                    ResizeDirection="Columns"
+                    ResizeBehavior="PreviousAndNext" />
+
       <!-- RIGHT: details TreeView -->
-      <Border Grid.Column="2" Classes="panel" Padding="8" Margin="4,0,0,0">
+      <Border Grid.Column="4" Classes="panel" Padding="8" Margin="0,0,0,0">
         <Grid RowDefinitions="Auto,*">
           <TextBlock Grid.Row="0"
                      Foreground="{StaticResource LabelDim}"
