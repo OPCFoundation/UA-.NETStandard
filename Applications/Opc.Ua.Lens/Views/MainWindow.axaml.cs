@@ -2465,9 +2465,10 @@ internal sealed partial class MainWindow : Window, IDisposable
                     "  ─── Help ───\n" +
                     "  F1                  Cheat sheet (this dialog)\n" +
                     "\n" +
-                    "  Tree-view glyphs:\n" +
-                    "    🟦 Object   🧩 ObjectType   🟢 Variable   🟣 VariableType\n" +
-                    "    ⚙️ Method   🔗 ReferenceType   🧮 DataType   👁️ View"
+                    "  Tree-view glyphs (letter tiles):\n" +
+                    "    [C] Object   [C] ObjectType   [V] Variable   [V] VariableType\n" +
+                    "    [M] Method   [R] ReferenceType   [T] DataType   [W] View\n" +
+                    "    Solid tiles are concrete instances; outlined tiles are type templates."
             }
         };
         help.ShowDialog(this);
