@@ -1773,15 +1773,13 @@ namespace Opc.Ua.Server
                 }
 
                 // read the attribute value.
-                lock (handle.Node)
-                {
-                    errors[ii] = handle.Node.ReadAttribute(
-                        systemContext,
-                        nodeToRead.AttributeId,
-                        nodeToRead.ParsedIndexRange,
-                        nodeToRead.DataEncoding,
-                        value);
-                }
+                errors[ii] = await handle.Node.ReadAttributeAsync(
+                    systemContext,
+                    nodeToRead.AttributeId,
+                    nodeToRead.ParsedIndexRange,
+                    nodeToRead.DataEncoding,
+                    value,
+                    cancellationToken).ConfigureAwait(false);
 
                 // Set timestamps after ReadAttribute to ensure consistency
                 // For Value attributes, match ServerTimestamp to SourceTimestamp
@@ -2097,27 +2095,24 @@ namespace Opc.Ua.Server
                     {
                         //current server supports auditing
                         // read the old value for the purpose of auditing
-                        lock (handle.Node)
-                        {
-                            DateTimeUtc sourceTimestamp = DateTimeUtc.MinValue;
-                            handle.Node.ReadAttribute(
-                                systemContext,
-                                nodeToWrite.AttributeId,
-                                ref oldValue,
-                                ref sourceTimestamp,
-                                nodeToWrite.ParsedIndexRange);
-                        }
-                    }
-
-                    // write the attribute value.
-                    lock (handle.Node)
-                    {
-                        errors[ii] = handle.Node.WriteAttribute(
+                        var oldDataValue = new DataValue();
+                        await handle.Node.ReadAttributeAsync(
                             systemContext,
                             nodeToWrite.AttributeId,
                             nodeToWrite.ParsedIndexRange,
-                            nodeToWrite.Value);
+                            QualifiedName.Null,
+                            oldDataValue,
+                            cancellationToken).ConfigureAwait(false);
+                        oldValue = oldDataValue.WrappedValue;
                     }
+
+                    // write the attribute value.
+                    errors[ii] = await handle.Node.WriteAttributeAsync(
+                        systemContext,
+                        nodeToWrite.AttributeId,
+                        nodeToWrite.ParsedIndexRange,
+                        nodeToWrite.Value,
+                        cancellationToken).ConfigureAwait(false);
 
                     // report the write value audit event
                     Server.ReportAuditWriteUpdateEvent(
