@@ -438,7 +438,12 @@
                         </StackPanel>
                     </WrapPanel>
                   </Border>
-                  <Grid Grid.Row="1" ColumnDefinitions="*,Auto,400">
+                  <Grid Grid.Row="1" x:Name="ChartFlyoutGrid">
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="*" />
+                      <ColumnDefinition Width="0" />
+                      <ColumnDefinition Width="0" />
+                    </Grid.ColumnDefinitions>
                     <Grid Grid.Column="0">
                       <v:AnimationCanvas x:Name="Animation" />
                       <v:ScottPlotView   x:Name="ScottPlot" IsVisible="False" />

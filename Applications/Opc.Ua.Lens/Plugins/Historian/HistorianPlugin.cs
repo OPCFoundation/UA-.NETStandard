@@ -90,6 +90,12 @@ internal enum HistorianTimeUnit
     Days
 }
 
+/// <summary>Payload for <see cref="HistorianPlugin.InsertAtCommand"/> — the chart's "Insert here…" menu.</summary>
+internal sealed record InsertAtArgs(DateTime Timestamp, double Value);
+
+/// <summary>Payload for <see cref="HistorianPlugin.EditNearestCommand"/> / <see cref="HistorianPlugin.DeleteNearestCommand"/>.</summary>
+internal sealed record NearestArgs(DateTime Timestamp);
+
 /// <summary>One row in the aggregate-type ComboBox.</summary>
 internal sealed class AggregateOption
 {
@@ -169,6 +175,9 @@ internal sealed partial class HistorianPlugin : ObservableObject, IPlugin
     [NotifyCanExecuteChangedFor(nameof(ReadCommand))]
     [NotifyCanExecuteChangedFor(nameof(ExecuteUpdateCommand))]
     [NotifyCanExecuteChangedFor(nameof(InsertNewCommand))]
+    [NotifyCanExecuteChangedFor(nameof(InsertAtCommand))]
+    [NotifyCanExecuteChangedFor(nameof(EditNearestCommand))]
+    [NotifyCanExecuteChangedFor(nameof(DeleteNearestCommand))]
     [NotifyPropertyChangedFor(nameof(TargetDescription))]
     [NotifyPropertyChangedFor(nameof(HasTarget))]
     private NodeId targetNodeId = NodeId.Null;
@@ -822,19 +831,23 @@ internal sealed partial class HistorianPlugin : ObservableObject, IPlugin
 
     /// <summary>
     /// Insert at an arbitrary (timestamp, value) — used by the chart's
-    /// "Insert here…" context menu.
+    /// "Insert here…" context menu. Requires a target so the resulting
+    /// HistoryUpdate has somewhere to land.
     /// </summary>
-    public Task InsertAtAsync(DateTime timestamp, double value)
-        => OpenInsertDialogAsync(timestamp, value,
+    [RelayCommand(CanExecute = nameof(HasTarget))]
+    public Task InsertAtAsync(InsertAtArgs args)
+        => OpenInsertDialogAsync(args.Timestamp, args.Value,
             hint: "Insert a new history row at the picked chart position.");
 
     /// <summary>
-    /// Edit the row nearest to <paramref name="timestamp"/> among the
-    /// plotted numeric rows. Used by the chart's "Edit nearest…" menu.
+    /// Edit the row nearest to <paramref name="args"/>'s timestamp among
+    /// the plotted numeric rows. Used by the chart's "Edit nearest…"
+    /// menu.
     /// </summary>
-    public async Task EditNearestAsync(DateTime timestamp)
+    [RelayCommand(CanExecute = nameof(HasTarget))]
+    public async Task EditNearestAsync(NearestArgs args)
     {
-        HistoryRow? nearest = FindNearestNumeric(timestamp);
+        HistoryRow? nearest = FindNearestNumeric(args.Timestamp);
         if (nearest is null)
         {
             Status = "● No numeric history row available to edit.";
@@ -845,12 +858,14 @@ internal sealed partial class HistorianPlugin : ObservableObject, IPlugin
     }
 
     /// <summary>
-    /// Delete the row nearest to <paramref name="timestamp"/> among the
-    /// plotted numeric rows. Used by the chart's "Remove nearest" menu.
+    /// Delete the row nearest to <paramref name="args"/>'s timestamp
+    /// among the plotted numeric rows. Used by the chart's "Remove
+    /// nearest" menu.
     /// </summary>
-    public async Task DeleteNearestAsync(DateTime timestamp)
+    [RelayCommand(CanExecute = nameof(HasTarget))]
+    public async Task DeleteNearestAsync(NearestArgs args)
     {
-        HistoryRow? nearest = FindNearestNumeric(timestamp);
+        HistoryRow? nearest = FindNearestNumeric(args.Timestamp);
         if (nearest is null)
         {
             Status = "● No numeric history row available to delete.";

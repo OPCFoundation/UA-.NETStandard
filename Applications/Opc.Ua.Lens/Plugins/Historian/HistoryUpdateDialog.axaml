@@ -33,7 +33,9 @@
         x:Class="UaLens.Plugins.Historian.HistoryUpdateDialog"
         x:DataType="vm:HistorianPlugin"
         Title="History update"
-        Width="680" Height="380"
+        Width="440"
+        SizeToContent="Height"
+        MinHeight="240"
         WindowStartupLocation="CenterOwner"
         Background="#0F172A" Foreground="#E2E8F0">
   <Window.Styles>
@@ -62,110 +64,133 @@
     </Style>
   </Window.Styles>
 
-  <Grid Margin="14" RowDefinitions="Auto,*,Auto">
+  <Grid Margin="16" RowDefinitions="*,Auto">
 
-    <!-- Op chooser + Execute -->
-    <StackPanel Grid.Row="0" Orientation="Vertical" Spacing="6">
-      <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-        <TextBlock Classes="h" Text="HISTORY UPDATE" VerticalAlignment="Center" Margin="0,0,8,0" />
-        <ComboBox ItemsSource="{CompiledBinding UpdateOpOptions}"
-                  SelectedIndex="{CompiledBinding SelectedUpdateOpIndex, Mode=TwoWay}"
-                  MinWidth="200" />
-        <Button Classes="primary" Content="Execute"
-                Command="{CompiledBinding ExecuteUpdateCommand}"
-                VerticalAlignment="Center" />
-      </StackPanel>
+    <!-- Each editor row sits on its own line and is left-aligned;
+         conditional rows collapse via IsVisible. The bottom Execute /
+         Close strip is anchored at the dialog footer per dialog
+         convention. -->
+    <ScrollViewer Grid.Row="0"
+                  HorizontalScrollBarVisibility="Disabled"
+                  VerticalScrollBarVisibility="Auto">
+      <StackPanel Orientation="Vertical" Spacing="10" HorizontalAlignment="Stretch">
 
-      <!-- Single-row ops (Insert / InsertReplace / Replace) -->
-      <StackPanel Orientation="Horizontal" Spacing="6"
-                  IsVisible="{CompiledBinding IsSingleValueOp}">
-        <TextBlock Classes="statDim" Text="Timestamp (UTC):" VerticalAlignment="Center" Width="110" />
-        <v:UtcDateTimePicker Value="{CompiledBinding UpdateTimestamp, Mode=TwoWay}" />
-        <TextBlock Classes="statDim" Text="Value (double):" VerticalAlignment="Center" Margin="12,0,0,0" />
-        <TextBox Text="{CompiledBinding UpdateValueText, Mode=TwoWay}" MinWidth="160" />
-      </StackPanel>
+        <!-- History update op picker -->
+        <StackPanel Orientation="Vertical" Spacing="4" HorizontalAlignment="Stretch">
+          <TextBlock Classes="h" Text="HISTORY UPDATE" />
+          <ComboBox ItemsSource="{CompiledBinding UpdateOpOptions}"
+                    SelectedIndex="{CompiledBinding SelectedUpdateOpIndex, Mode=TwoWay}"
+                    MinWidth="240" HorizontalAlignment="Left" />
+        </StackPanel>
 
-      <!-- Single-timestamp ops (Remove) -->
-      <StackPanel Orientation="Horizontal" Spacing="6"
-                  IsVisible="{CompiledBinding IsRemoveOp}">
-        <TextBlock Classes="statDim" Text="Timestamp (UTC):" VerticalAlignment="Center" Width="110" />
-        <v:UtcDateTimePicker Value="{CompiledBinding UpdateTimestamp, Mode=TwoWay}" />
-      </StackPanel>
+        <!-- Single-row ops (Insert / InsertReplace / Replace) -->
+        <StackPanel Orientation="Vertical" Spacing="4" HorizontalAlignment="Stretch"
+                    IsVisible="{CompiledBinding IsSingleValueOp}">
+          <TextBlock Classes="statDim" Text="Timestamp (UTC):" />
+          <v:UtcDateTimePicker Value="{CompiledBinding UpdateTimestamp, Mode=TwoWay}"
+                               HorizontalAlignment="Left" />
+        </StackPanel>
+        <StackPanel Orientation="Vertical" Spacing="4" HorizontalAlignment="Stretch"
+                    IsVisible="{CompiledBinding IsSingleValueOp}">
+          <TextBlock Classes="statDim" Text="Value (double):" />
+          <TextBox Text="{CompiledBinding UpdateValueText, Mode=TwoWay}"
+                   MinWidth="240" HorizontalAlignment="Left" />
+        </StackPanel>
 
-      <!-- Range ops (DeleteRaw / DeleteModified) -->
-      <StackPanel Orientation="Horizontal" Spacing="6"
-                  IsVisible="{CompiledBinding IsRangeOp}">
-        <TextBlock Classes="statDim" Text="Start (UTC):" VerticalAlignment="Center" Width="110" />
-        <v:UtcDateTimePicker Value="{CompiledBinding UpdateStart, Mode=TwoWay}" />
-        <TextBlock Classes="statDim" Text="End (UTC):" VerticalAlignment="Center" Margin="12,0,0,0" />
-        <v:UtcDateTimePicker Value="{CompiledBinding UpdateEnd, Mode=TwoWay}" />
-      </StackPanel>
-    </StackPanel>
+        <!-- Single-timestamp op (Remove) -->
+        <StackPanel Orientation="Vertical" Spacing="4" HorizontalAlignment="Stretch"
+                    IsVisible="{CompiledBinding IsRemoveOp}">
+          <TextBlock Classes="statDim" Text="Timestamp (UTC):" />
+          <v:UtcDateTimePicker Value="{CompiledBinding UpdateTimestamp, Mode=TwoWay}"
+                               HorizontalAlignment="Left" />
+        </StackPanel>
 
-    <!-- Multi-timestamp op (DeleteAtTime) + Result text -->
-    <Grid Grid.Row="1" RowDefinitions="*,Auto" Margin="0,8,0,0">
-      <Border Grid.Row="0"
-              IsVisible="{CompiledBinding IsDeleteAtTimeOp}"
-              BorderBrush="#1E293B" BorderThickness="1" CornerRadius="4"
-              Background="#0B1220">
-        <ScrollViewer HorizontalScrollBarVisibility="Disabled"
-                      VerticalScrollBarVisibility="Auto">
-          <ItemsControl ItemsSource="{CompiledBinding UpdateAtTimes}">
-            <ItemsControl.ItemsPanel>
-              <ItemsPanelTemplate>
-                <WrapPanel Orientation="Horizontal" />
-              </ItemsPanelTemplate>
-            </ItemsControl.ItemsPanel>
-            <ItemsControl.ItemTemplate>
-              <DataTemplate DataType="vm:AtTimeRow">
-                <Panel Margin="4">
-                  <Border IsVisible="{CompiledBinding IsEditor}"
-                          Padding="4" CornerRadius="4" Background="#0F172A"
-                          BorderBrush="#1E293B" BorderThickness="1">
-                    <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
-                      <v:UtcDateTimePicker Value="{CompiledBinding Timestamp, Mode=TwoWay}" />
-                      <Button Classes="tonal" Content="✓"
-                              MinWidth="32" Padding="4,2"
-                              ToolTip.Tip="Confirm"
-                              Command="{CompiledBinding ConfirmCommand}" />
-                    </StackPanel>
-                  </Border>
-                  <Border IsVisible="{CompiledBinding IsLabel}"
-                          Padding="6,4" CornerRadius="4" Background="#0F172A"
-                          BorderBrush="#1E293B" BorderThickness="1">
-                    <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                      <TextBlock Text="{CompiledBinding Timestamp, StringFormat='{}{0:yyyy-MM-ddTHH:mm:ssZ}'}"
-                                 FontFamily="Cascadia Mono, Consolas, monospace"
-                                 FontSize="11"
-                                 VerticalAlignment="Center" />
-                      <Button Classes="tonal" Content="✗"
-                              MinWidth="28" Padding="4,2"
-                              ToolTip.Tip="Remove"
+        <!-- Range ops (DeleteRaw / DeleteModified) -->
+        <StackPanel Orientation="Vertical" Spacing="4" HorizontalAlignment="Stretch"
+                    IsVisible="{CompiledBinding IsRangeOp}">
+          <TextBlock Classes="statDim" Text="Start (UTC):" />
+          <v:UtcDateTimePicker Value="{CompiledBinding UpdateStart, Mode=TwoWay}"
+                               HorizontalAlignment="Left" />
+        </StackPanel>
+        <StackPanel Orientation="Vertical" Spacing="4" HorizontalAlignment="Stretch"
+                    IsVisible="{CompiledBinding IsRangeOp}">
+          <TextBlock Classes="statDim" Text="End (UTC):" />
+          <v:UtcDateTimePicker Value="{CompiledBinding UpdateEnd, Mode=TwoWay}"
+                               HorizontalAlignment="Left" />
+        </StackPanel>
+
+        <!-- Multi-timestamp op (DeleteAtTime) -->
+        <StackPanel Orientation="Vertical" Spacing="4" HorizontalAlignment="Stretch"
+                    IsVisible="{CompiledBinding IsDeleteAtTimeOp}">
+          <TextBlock Classes="statDim" Text="Timestamps:" />
+          <Border BorderBrush="#1E293B" BorderThickness="1" CornerRadius="4"
+                  Background="#0B1220" Padding="4" MinHeight="80">
+            <ScrollViewer HorizontalScrollBarVisibility="Disabled"
+                          VerticalScrollBarVisibility="Auto">
+              <ItemsControl ItemsSource="{CompiledBinding UpdateAtTimes}">
+                <ItemsControl.ItemsPanel>
+                  <ItemsPanelTemplate>
+                    <WrapPanel Orientation="Horizontal" />
+                  </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate DataType="vm:AtTimeRow">
+                    <Panel Margin="4">
+                      <Border IsVisible="{CompiledBinding IsEditor}"
+                              Padding="4" CornerRadius="4" Background="#0F172A"
+                              BorderBrush="#1E293B" BorderThickness="1">
+                        <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                          <v:UtcDateTimePicker Value="{CompiledBinding Timestamp, Mode=TwoWay}" />
+                          <Button Classes="tonal" Content="✓"
+                                  MinWidth="32" Padding="4,2"
+                                  ToolTip.Tip="Confirm"
+                                  Command="{CompiledBinding ConfirmCommand}" />
+                        </StackPanel>
+                      </Border>
+                      <Border IsVisible="{CompiledBinding IsLabel}"
+                              Padding="6,4" CornerRadius="4" Background="#0F172A"
+                              BorderBrush="#1E293B" BorderThickness="1">
+                        <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                          <TextBlock Text="{CompiledBinding Timestamp, StringFormat='{}{0:yyyy-MM-ddTHH:mm:ssZ}'}"
+                                     FontFamily="Cascadia Mono, Consolas, monospace"
+                                     FontSize="11"
+                                     VerticalAlignment="Center" />
+                          <Button Classes="tonal" Content="✗"
+                                  MinWidth="28" Padding="4,2"
+                                  ToolTip.Tip="Remove"
+                                  Command="{CompiledBinding RemoveCommand}" />
+                        </StackPanel>
+                      </Border>
+                      <Button IsVisible="{CompiledBinding IsAddButton}"
+                              Classes="tonal" Content="＋"
+                              MinWidth="36" Padding="6,4"
+                              ToolTip.Tip="Add timestamp"
                               Command="{CompiledBinding RemoveCommand}" />
-                    </StackPanel>
-                  </Border>
-                  <Button IsVisible="{CompiledBinding IsAddButton}"
-                          Classes="tonal" Content="＋"
-                          MinWidth="36" Padding="6,4"
-                          ToolTip.Tip="Add timestamp"
-                          Command="{CompiledBinding RemoveCommand}" />
-                </Panel>
-              </DataTemplate>
-            </ItemsControl.ItemTemplate>
-          </ItemsControl>
-        </ScrollViewer>
-      </Border>
+                    </Panel>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </ScrollViewer>
+          </Border>
+        </StackPanel>
 
-      <TextBlock Grid.Row="1" Classes="statDim"
-                 Margin="0,8,0,0"
-                 FontFamily="Cascadia Mono, Consolas, monospace"
-                 TextWrapping="Wrap"
-                 Text="{CompiledBinding UpdateResult}" />
-    </Grid>
+        <!-- Last-run status -->
+        <TextBlock Classes="statDim"
+                   FontFamily="Cascadia Mono, Consolas, monospace"
+                   TextWrapping="Wrap"
+                   Text="{CompiledBinding UpdateResult}" />
+      </StackPanel>
+    </ScrollViewer>
 
-    <!-- Close -->
-    <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
-      <Button x:Name="CloseButton" Content="Close" IsCancel="True" Width="100" />
+    <!-- Footer: Execute (primary) + Close (cancel). Anchored at the
+         dialog bottom per common dialog convention. -->
+    <StackPanel Grid.Row="1" Orientation="Horizontal"
+                HorizontalAlignment="Right" Margin="0,14,0,0">
+      <Button Classes="primary" Content="Execute"
+              IsDefault="True" Width="120"
+              Command="{CompiledBinding ExecuteUpdateCommand}" />
+      <Button x:Name="CloseButton" Content="Close"
+              IsCancel="True" Width="100" Margin="8,0,0,0" />
     </StackPanel>
   </Grid>
 </Window>

@@ -264,12 +264,14 @@ internal sealed partial class HistorianView : UserControl
         string tsLabel = ctx.DataTimestamp.ToString("u",
             System.Globalization.CultureInfo.InvariantCulture);
 
+        // Command-bound menu items honour CanExecute, so the entries
+        // grey out when the plug-in has no target Variable picked yet.
         var insert = new MenuItem
         {
-            Header = $"✚ Insert here ({tsLabel})…"
+            Header = $"✚ Insert here ({tsLabel})…",
+            Command = vm.InsertAtCommand,
+            CommandParameter = new InsertAtArgs(ctx.DataTimestamp, ctx.DataValue)
         };
-        insert.Click += async (_, _) =>
-            await vm.InsertAtAsync(ctx.DataTimestamp, ctx.DataValue).ConfigureAwait(true);
         menu.Items.Add(insert);
 
         menu.Items.Add(new Separator());
@@ -277,22 +279,24 @@ internal sealed partial class HistorianView : UserControl
         string nearestLabel = ctx.NearestNumeric is { } nr
             ? $" ({nr.DisplayTimestamp})"
             : string.Empty;
+        bool hasNearest = ctx.NearestNumeric is not null;
+        var nearestArgs = new NearestArgs(ctx.DataTimestamp);
         var edit = new MenuItem
         {
             Header = $"✎ Edit nearest{nearestLabel}…",
-            IsEnabled = ctx.NearestNumeric is not null
+            Command = vm.EditNearestCommand,
+            CommandParameter = nearestArgs,
+            IsEnabled = hasNearest
         };
-        edit.Click += async (_, _) =>
-            await vm.EditNearestAsync(ctx.DataTimestamp).ConfigureAwait(true);
         menu.Items.Add(edit);
 
         var remove = new MenuItem
         {
             Header = $"🗑 Remove nearest{nearestLabel}",
-            IsEnabled = ctx.NearestNumeric is not null
+            Command = vm.DeleteNearestCommand,
+            CommandParameter = nearestArgs,
+            IsEnabled = hasNearest
         };
-        remove.Click += async (_, _) =>
-            await vm.DeleteNearestAsync(ctx.DataTimestamp).ConfigureAwait(true);
         menu.Items.Add(remove);
 
         return menu;
@@ -330,23 +334,37 @@ internal sealed partial class HistorianView : UserControl
     {
         var menu = new ContextMenu();
 
-        var editRow = new MenuItem { Header = "✎ _Edit row…" };
-        editRow.Click += async (_, _) => await vm.EditSelectedAsync().ConfigureAwait(true);
+        // Command-bound menu items reflect CanExecute, so every entry
+        // greys out when no Variable is picked (HasTarget=false) or
+        // when no row is selected (SelectedRow=null).
+        var editRow = new MenuItem
+        {
+            Header = "✎ _Edit row…",
+            Command = vm.EditSelectedCommand
+        };
         menu.Items.Add(editRow);
 
-        var insertAfter = new MenuItem { Header = "✚ _Insert after…" };
-        insertAfter.Click += async (_, _) =>
-            await vm.InsertAfterSelectedAsync().ConfigureAwait(true);
+        var insertAfter = new MenuItem
+        {
+            Header = "✚ _Insert after…",
+            Command = vm.InsertAfterSelectedCommand
+        };
         menu.Items.Add(insertAfter);
 
-        var deleteRow = new MenuItem { Header = "🗑 _Delete row" };
-        deleteRow.Click += async (_, _) => await vm.DeleteSelectedAsync().ConfigureAwait(true);
+        var deleteRow = new MenuItem
+        {
+            Header = "🗑 _Delete row",
+            Command = vm.DeleteSelectedCommand
+        };
         menu.Items.Add(deleteRow);
 
         menu.Items.Add(new Separator());
 
-        var editAnn = new MenuItem { Header = "Edit _annotation…" };
-        editAnn.Click += async (_, _) => await vm.EditAnnotationAsync().ConfigureAwait(true);
+        var editAnn = new MenuItem
+        {
+            Header = "Edit _annotation…",
+            Command = vm.EditAnnotationCommand
+        };
         menu.Items.Add(editAnn);
 
         return menu;

@@ -1569,6 +1569,14 @@ internal sealed partial class MainWindow : Window, IDisposable
         if (m_attachedTab is { } cur)
         {
             cur.PropertyChanged += OnSelectedTabPropertyChanged;
+            // Sync the chart/flyout column widths to the newly-selected
+            // tab's flyout state so switching tabs reflects per-tab state.
+            UpdateChartFlyoutColumns(cur.ShowItemStatusGrid);
+        }
+        else
+        {
+            // No tab selected → chart claims full width.
+            UpdateChartFlyoutColumns(flyoutVisible: false);
         }
     }
 
@@ -1641,8 +1649,50 @@ internal sealed partial class MainWindow : Window, IDisposable
                 this.FindControl<ScottPlotView>("ScottPlot")?
                     .SetChartElementsVisible(tab.ShowLegend, tab.ShowXAxis, tab.ShowYAxis);
                 break;
+            case nameof(SubscriptionViewModel.ShowItemStatusGrid):
+                UpdateChartFlyoutColumns(tab.ShowItemStatusGrid);
+                break;
         }
     }
+
+    /// <summary>
+    /// Collapses the splitter + Monitored-items flyout columns to width 0
+    /// when the flyout is hidden so the chart extends edge-to-edge. When
+    /// the flyout becomes visible the columns expand to the GridSplitter
+    /// (4 px) + the flyout's last-used width (default 400). Pure layout
+    /// adjustment — the controls' IsVisible is still driven by binding.
+    /// </summary>
+    private void UpdateChartFlyoutColumns(bool flyoutVisible)
+    {
+        var grid = this.FindControl<Grid>("ChartFlyoutGrid");
+        if (grid is null || grid.ColumnDefinitions.Count < 3)
+        {
+            return;
+        }
+        if (flyoutVisible)
+        {
+            // Restore the last user-dragged flyout width (or default 400).
+            double restored = m_lastFlyoutWidth > 0 ? m_lastFlyoutWidth : 400;
+            grid.ColumnDefinitions[1].Width = new GridLength(4);
+            grid.ColumnDefinitions[2].Width = new GridLength(restored);
+        }
+        else
+        {
+            // Remember the current width so toggling back keeps the user's
+            // drag intent.
+            double current = grid.ColumnDefinitions[2].Width.IsAbsolute
+                ? grid.ColumnDefinitions[2].Width.Value
+                : 0;
+            if (current > 0)
+            {
+                m_lastFlyoutWidth = current;
+            }
+            grid.ColumnDefinitions[1].Width = new GridLength(0);
+            grid.ColumnDefinitions[2].Width = new GridLength(0);
+        }
+    }
+
+    private double m_lastFlyoutWidth;
 
     /// <summary>
     /// 📤 Export — write the connected server's address space (every node
