@@ -26,7 +26,7 @@ pr:
     - '*'
 
 variables:
-  FullBuild: ${{ or(ne(variables['Build.Reason'], 'PullRequest'), ne(variables['System.PullRequest.IsFork'], 'False')) }}
+  FullBuild: ${{ ne(variables['Build.Reason'], 'PullRequest') }}
   ScheduledBuild: ${{ in(variables['Build.Reason'], 'Schedule', 'Manual') }}
 
 stages:
@@ -58,9 +58,8 @@ stages:
       ${{ else }}:
         solutions: ''
 - stage: testrelease
-  dependsOn: [build]
+  dependsOn: []
   displayName: 'Test Core and SDK Release'
-  condition: and(succeeded(), ne(variables.FullBuild, 'False'))
   jobs:
   - template: .azurepipelines/test.yml
     parameters:
@@ -80,25 +79,9 @@ stages:
       configuration: Release
       agents: '@{ windows = "windows-2025-vs2026"; linux="ubuntu-24.04"}'
       jobnamesuffix: net100aot
-- stage: testreleasepr
-  dependsOn: []
-  displayName: 'Fast .NET 10.0 PR Test'
-  condition: and(eq(variables.FullBuild, 'False'), eq(variables.ScheduledBuild, 'False'))
-  jobs:
-  - template: .azurepipelines/test.yml
-    parameters:
-      configuration: Release
-      framework: net10.0
-      agents: '@{ windows = "windows-2025-vs2026"; linux="ubuntu-22.04"}'
-      jobnamesuffix: net100pr
-  - template: .azurepipelines/test-aot.yml
-    parameters:
-      configuration: Release
-      agents: '@{ windows = "windows-2025-vs2026"; linux="ubuntu-22.04"}'
-      jobnamesuffix: net100praot
 - stage: testdebug
   dependsOn: [build]
-  displayName: 'Test .NET 10.0 Debug'
+  displayName: 'Test Core and SDK Debug'
   condition: and(succeeded(), ne(variables.ScheduledBuild, 'False'))
   jobs:
   - template: .azurepipelines/test.yml
@@ -106,16 +89,6 @@ stages:
       framework: net10.0
       configuration: Debug
       jobnamesuffix: net100debug
-- stage: testnet80
-  dependsOn: [build]
-  displayName: 'Test .NET 8.0'
-  condition: and(succeeded(), ne(variables.ScheduledBuild, 'False'))
-  jobs:
-  - template: .azurepipelines/test.yml
-    parameters:
-      framework: net8.0
-      configuration: Release
-      jobnamesuffix: net80
 - stage: testnet90
   dependsOn: [build]
   displayName: 'Test .NET 9.0'
@@ -126,20 +99,16 @@ stages:
       framework: net9.0
       configuration: Release
       jobnamesuffix: net90
-- stage: testnet100
+- stage: testnet80
   dependsOn: [build]
-  displayName: 'Test .NET 10.0'
+  displayName: 'Test .NET 8.0'
   condition: and(succeeded(), ne(variables.ScheduledBuild, 'False'))
   jobs:
   - template: .azurepipelines/test.yml
     parameters:
-      framework: net10.0
+      framework: net8.0
       configuration: Release
-      jobnamesuffix: net100
-  - template: .azurepipelines/test-aot.yml
-    parameters:
-      configuration: Release
-      jobnamesuffix: net100aot
+      jobnamesuffix: net80
 - stage: testnet472
   dependsOn: [build]
   displayName: 'Test .NET 4.7.2'
