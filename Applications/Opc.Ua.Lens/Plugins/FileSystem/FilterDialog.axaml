@@ -29,8 +29,8 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="UaLens.Plugins.FileSystem.FilterDialog"
-        Title="Pick-root filter"
-        Width="380" Height="240"
+        Title="FileSystem settings"
+        Width="400" Height="240"
         WindowStartupLocation="CenterOwner"
         Background="#0F172A" Foreground="#E2E8F0">
   <Grid Margin="14" RowDefinitions="Auto,Auto,Auto,Auto,*,Auto" ColumnDefinitions="*">

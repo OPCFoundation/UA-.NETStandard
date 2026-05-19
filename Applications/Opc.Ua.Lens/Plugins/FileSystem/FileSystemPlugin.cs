@@ -153,7 +153,7 @@ internal sealed partial class FileSystemPlugin : ObservableObject, IPlugin
     public IReadOnlyList<MenuItem> ContributeMenuItems()
     {
         var pickRoot = new MenuItem { Header = "_Pick Root\u2026" };
-        var filter = new MenuItem { Header = "_Filter\u2026" };
+        var filter = new MenuItem { Header = "_Settings\u2026" };
         var refresh = new MenuItem { Header = "_Refresh" };
         var addFile = new MenuItem { Header = "_Add File\u2026" };
         var exportFile = new MenuItem { Header = "_Export File\u2026" };
@@ -200,9 +200,15 @@ internal sealed partial class FileSystemPlugin : ObservableObject, IPlugin
             return;
         }
         Window? owner = GetOwnerWindow();
+        // Root the picker at Server.FileSystem (i=16314) — the canonical
+        // Part 20 entry point. Browsing from ObjectsFolder doesn't work
+        // because i=16314 has no inverse HasComponent reference back to
+        // Server in the standard NodeSet, so a BFS from ObjectsFolder
+        // never reaches the file system content. Starting at i=16314
+        // makes Flatten… actually return directories and files.
         var picker = new BrowsePickerDialog(new BrowsePickerDialog.Options(
             Session: session,
-            Root: ObjectIds.ObjectsFolder,
+            Root: ObjectIds.FileSystem,
             Title: "Pick FileSystem root",
             AcceptedClasses: NodeClass.Object,
             AcceptPredicate: (id, cls) => MatchesFilterAsync(session, id, cls),
