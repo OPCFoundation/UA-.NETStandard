@@ -157,9 +157,29 @@ add what the spec needs but the base FileSystem client cannot offer
 
 * `FileTypeClient.UploadAsync(bytes, …)` — chunked write with
   automatic `Open(Write|EraseExisting)` → `Write*` → `Close`.
+* `FileTypeClient.UploadAsync(Stream, …)` — same flow but reads the
+  content from a `System.IO.Stream` so callers don't have to buffer the
+  entire payload in memory. Non-seekable streams (`NetworkStream`,
+  `GZipStream`, …) are supported.
 * `FileTypeClient.DownloadAllAsync(…)` — chunked read until end-of-file.
+* `FileTypeClient.DownloadToAsync(Stream, …)` — chunked read that
+  writes each chunk directly to the supplied `System.IO.Stream`.
 * `WoTAssetFileTypeClient.UploadAndUpdateAsync(td, …)` — uploads the TD
-  then calls `CloseAndUpdate` (Spec §6.3.10).
+  (as `ReadOnlyMemory<byte>` or `System.IO.Stream`) and then calls
+  `CloseAndUpdate` (Spec §6.3.10).
+
+`WotAssetClient` exposes the same upload / download convenience pair —
+`UploadThingDescriptionAsync` and `DownloadThingDescriptionAsync` —
+both with a `ReadOnlyMemory<byte>` / `byte[]` overload and a
+`System.IO.Stream` overload, e.g.:
+
+```csharp
+await using FileStream tdFile = File.OpenRead("device.td.json");
+await asset.UploadThingDescriptionAsync(tdFile, ct);
+```
+
+Stream-based callers retain ownership of the stream — the WoT
+Connectivity client never disposes the caller's stream.
 
 These work on any `FileType` instance, including ones that are not
 anchored under `Server.FileSystem` (e.g. the WoT asset file living

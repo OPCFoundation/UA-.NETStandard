@@ -28,6 +28,8 @@
  * ======================================================================*/
 
 using System;
+using System.Buffers;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -96,6 +98,56 @@ namespace Opc.Ua.WotCon.Client
         }
 
         /// <summary>
+        /// Uploads the contents of <paramref name="content"/> to the
+        /// file behind <paramref name="file"/> in chunks. The stream is
+        /// read sequentially until end-of-stream; non-seekable streams
+        /// (e.g. <see cref="System.Net.Sockets.NetworkStream"/>,
+        /// <see cref="System.IO.Compression.GZipStream"/>) are
+        /// supported. The caller retains ownership of
+        /// <paramref name="content"/> and is responsible for disposing
+        /// it.
+        /// </summary>
+        /// <param name="file">The <c>FileType</c> proxy.</param>
+        /// <param name="content">A readable stream producing the bytes
+        /// to upload.</param>
+        /// <param name="mode">The Open mode to use; defaults to
+        /// <c>Write | EraseExisting</c>.</param>
+        /// <param name="chunkSize">Maximum per-write chunk size and
+        /// size of the rented intermediate buffer.</param>
+        /// <param name="ct">Cancellation token.</param>
+        public static async ValueTask UploadAsync(
+            this FileTypeClient file,
+            Stream content,
+            byte mode = 6,
+            int chunkSize = DefaultChunkSize,
+            CancellationToken ct = default)
+        {
+            if (file is null) { throw new ArgumentNullException(nameof(file)); }
+            if (content is null) { throw new ArgumentNullException(nameof(content)); }
+            if (!content.CanRead)
+            {
+                throw new ArgumentException("Stream must be readable.", nameof(content));
+            }
+            if (chunkSize <= 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(chunkSize), "Chunk size must be positive.");
+            }
+            uint handle = await file.OpenAsync(mode, ct).ConfigureAwait(false);
+            try
+            {
+                await CopyStreamInChunksAsync(
+                    content,
+                    chunkSize,
+                    (chunk, token) => file.WriteAsync(handle, ByteString.From(chunk), token),
+                    ct).ConfigureAwait(false);
+            }
+            finally
+            {
+                await file.CloseAsync(handle, CancellationToken.None).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
         /// Reads the entire content of the file behind <paramref name="file"/>
         /// into memory using chunked <c>Read</c> calls.
         /// </summary>
@@ -133,6 +185,123 @@ namespace Opc.Ua.WotCon.Client
             finally
             {
                 await file.CloseAsync(handle, CancellationToken.None).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Reads the entire content of the file behind
+        /// <paramref name="file"/> using chunked <c>Read</c> calls and
+        /// writes it sequentially into <paramref name="destination"/>.
+        /// The caller retains ownership of
+        /// <paramref name="destination"/> and is responsible for
+        /// disposing it.
+        /// </summary>
+        /// <param name="file">The <c>FileType</c> proxy.</param>
+        /// <param name="destination">A writable stream that receives
+        /// the file contents.</param>
+        /// <param name="chunkSize">Maximum per-read chunk size.</param>
+        /// <param name="ct">Cancellation token.</param>
+        public static async ValueTask DownloadToAsync(
+            this FileTypeClient file,
+            Stream destination,
+            int chunkSize = DefaultChunkSize,
+            CancellationToken ct = default)
+        {
+            if (file is null) { throw new ArgumentNullException(nameof(file)); }
+            if (destination is null) { throw new ArgumentNullException(nameof(destination)); }
+            if (!destination.CanWrite)
+            {
+                throw new ArgumentException("Stream must be writable.", nameof(destination));
+            }
+            if (chunkSize <= 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(chunkSize), "Chunk size must be positive.");
+            }
+            const byte readMode = 1;
+            uint handle = await file.OpenAsync(readMode, ct).ConfigureAwait(false);
+            try
+            {
+                await CopyChunksToStreamAsync(
+                    destination,
+                    chunkSize,
+                    async (size, token) =>
+                    {
+                        ByteString chunk = await file.ReadAsync(handle, size, token).ConfigureAwait(false);
+                        if (chunk.IsNull) { return ReadOnlyMemory<byte>.Empty; }
+                        return chunk.Span.ToArray();
+                    },
+                    ct).ConfigureAwait(false);
+            }
+            finally
+            {
+                await file.CloseAsync(handle, CancellationToken.None).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Reads from <paramref name="source"/> in chunks of up to
+        /// <paramref name="chunkSize"/> bytes and invokes
+        /// <paramref name="writeChunk"/> for each chunk that contained
+        /// data. The loop terminates when
+        /// <see cref="Stream.ReadAsync(byte[], int, int, CancellationToken)"/>
+        /// returns 0 (end-of-stream). The buffer is rented from
+        /// <see cref="ArrayPool{T}.Shared"/>.
+        /// </summary>
+        internal static async ValueTask CopyStreamInChunksAsync(
+            Stream source,
+            int chunkSize,
+            Func<ReadOnlyMemory<byte>, CancellationToken, ValueTask> writeChunk,
+            CancellationToken ct)
+        {
+            byte[] buffer = ArrayPool<byte>.Shared.Rent(chunkSize);
+            try
+            {
+                while (true)
+                {
+                    ct.ThrowIfCancellationRequested();
+#if NETSTANDARD2_1_OR_GREATER || NET
+                    int read = await source.ReadAsync(buffer.AsMemory(0, chunkSize), ct)
+                        .ConfigureAwait(false);
+#else
+                    int read = await source.ReadAsync(buffer, 0, chunkSize, ct)
+                        .ConfigureAwait(false);
+#endif
+                    if (read <= 0) { break; }
+                    await writeChunk(buffer.AsMemory(0, read), ct).ConfigureAwait(false);
+                }
+            }
+            finally
+            {
+                ArrayPool<byte>.Shared.Return(buffer);
+            }
+        }
+
+        /// <summary>
+        /// Repeatedly invokes <paramref name="readChunk"/> until it
+        /// returns an empty chunk (end-of-file) or a partial chunk
+        /// shorter than <paramref name="chunkSize"/> (which signals the
+        /// last chunk for a chunk-aligned server protocol like
+        /// <c>FileType.Read</c>) and writes each chunk sequentially
+        /// into <paramref name="destination"/>.
+        /// </summary>
+        internal static async ValueTask CopyChunksToStreamAsync(
+            Stream destination,
+            int chunkSize,
+            Func<int, CancellationToken, ValueTask<ReadOnlyMemory<byte>>> readChunk,
+            CancellationToken ct)
+        {
+            while (true)
+            {
+                ct.ThrowIfCancellationRequested();
+                ReadOnlyMemory<byte> chunk = await readChunk(chunkSize, ct).ConfigureAwait(false);
+                if (chunk.IsEmpty) { break; }
+#if NETSTANDARD2_1_OR_GREATER || NET
+                await destination.WriteAsync(chunk, ct).ConfigureAwait(false);
+#else
+                byte[] copy = chunk.ToArray();
+                await destination.WriteAsync(copy, 0, copy.Length, ct).ConfigureAwait(false);
+#endif
+                if (chunk.Length < chunkSize) { break; }
             }
         }
     }

@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -86,11 +87,37 @@ namespace Opc.Ua.WotCon.Client
             => File.UploadAndUpdateAsync(thingDescriptionJson, ct: ct);
 
         /// <summary>
+        /// Uploads a WoT Thing Description streamed from
+        /// <paramref name="thingDescriptionJson"/> and triggers
+        /// <c>CloseAndUpdate</c>. Streams are read sequentially until
+        /// end-of-stream; non-seekable streams (e.g. network or
+        /// compressed streams) are supported. The caller retains
+        /// ownership of <paramref name="thingDescriptionJson"/> and is
+        /// responsible for disposing it.
+        /// </summary>
+        public ValueTask UploadThingDescriptionAsync(
+            Stream thingDescriptionJson,
+            CancellationToken ct = default)
+            => File.UploadAndUpdateAsync(thingDescriptionJson, ct: ct);
+
+        /// <summary>
         /// Downloads the currently persisted WoT Thing Description.
         /// </summary>
         public ValueTask<byte[]> DownloadThingDescriptionAsync(
             CancellationToken ct = default)
             => File.DownloadAllAsync(ct: ct);
+
+        /// <summary>
+        /// Downloads the currently persisted WoT Thing Description and
+        /// writes it sequentially into <paramref name="destination"/>.
+        /// The caller retains ownership of
+        /// <paramref name="destination"/> and is responsible for
+        /// disposing it.
+        /// </summary>
+        public ValueTask DownloadThingDescriptionAsync(
+            Stream destination,
+            CancellationToken ct = default)
+            => File.DownloadToAsync(destination, ct: ct);
 
         /// <summary>
         /// Enumerates the asset's property variables (children attached
