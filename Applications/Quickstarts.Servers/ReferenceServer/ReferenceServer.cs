@@ -194,7 +194,109 @@ namespace Quickstarts.ReferenceServer
                     server, configuration, provider));
             }
 
+            // OPC UA Part 17 — AliasName provider for the reference server.
+            //
+            // Registers a Part 17 InMemoryAliasNameStore directly with the
+            // server-wide IAliasNameStoreRegistry so the standard
+            // well-known FindAlias methods on TagVariables (i=23485) and
+            // Topics (i=23494) — wired by DiagnosticsNodeManager — return
+            // the sample tag/topic aliases below.
+            //
+            // No standalone AliasNameNodeManager is needed for read-only
+            // service of standard categories; apps wanting their own
+            // categories with full Add/Delete support add an
+            // AliasNameNodeManager configured with their own namespace.
+            ConfigureAliasNameStore(server);
+
             return new MasterNodeManager(server, configuration, null, asyncNodeManagers, nodeManagers);
+        }
+
+        private static void ConfigureAliasNameStore(IServerInternal server)
+        {
+            if (server is not Opc.Ua.Server.AliasNames.IAliasNameStoreRegistryProvider provider)
+            {
+                return;
+            }
+
+            var tagVariables = new Opc.Ua.Server.AliasNames.AliasNameCategoryDescriptor(
+                Opc.Ua.ObjectIds.TagVariables,
+                Opc.Ua.QualifiedName.From(Opc.Ua.BrowseNames.TagVariables),
+                Opc.Ua.Server.AliasNames.AliasNameCapabilities.FindAliasVerbose);
+            var topics = new Opc.Ua.Server.AliasNames.AliasNameCategoryDescriptor(
+                Opc.Ua.ObjectIds.Topics,
+                Opc.Ua.QualifiedName.From(Opc.Ua.BrowseNames.Topics),
+                Opc.Ua.Server.AliasNames.AliasNameCapabilities.FindAliasVerbose);
+
+            // Root the Aliases (i=23470) object too so FindAlias /
+            // FindAliasVerbose / LastChange dispatched against it
+            // aggregate the TagVariables / Topics sub-categories
+            // (per Part 17 §6.3.2 recursive matching semantics).
+            // AddAliasesToCategory / DeleteAliasesFromCategory are enabled
+            // on the in-memory store so server-side test/admin code can
+            // bump LastChange via store.AddAliasesAsync / DeleteAliasesAsync.
+            // The standard well-known Aliases (i=23470) node does not
+            // instantiate Add/Delete method nodes (per the OPC UA NodeSet),
+            // so this is a server-side capability only and does not
+            // expose mutation methods over the wire on the standard node.
+            var aliases = new Opc.Ua.Server.AliasNames.AliasNameCategoryDescriptor(
+                Opc.Ua.ObjectIds.Aliases,
+                Opc.Ua.QualifiedName.From(Opc.Ua.BrowseNames.Aliases),
+                Opc.Ua.Server.AliasNames.AliasNameCapabilities.FindAliasVerbose
+                    | Opc.Ua.Server.AliasNames.AliasNameCapabilities.LastChange
+                    | Opc.Ua.Server.AliasNames.AliasNameCapabilities.AddAliasesToCategory
+                    | Opc.Ua.Server.AliasNames.AliasNameCapabilities.DeleteAliasesFromCategory,
+                subCategories: [tagVariables, topics]);
+
+            // CA2000: ownership transferred to the registry which disposes
+            // the store along with itself.
+#pragma warning disable CA2000
+            var store = new Opc.Ua.Server.AliasNames.InMemoryAliasNameStore(
+                [aliases]);
+#pragma warning restore CA2000
+
+            int refServerNsIndex = server.NamespaceUris.GetIndex(
+                Namespaces.ReferenceServer);
+            ushort refServerNs = refServerNsIndex >= 0
+                ? (ushort)refServerNsIndex
+                : ushort.MaxValue;
+
+            NodeId aliasFor = Opc.Ua.ReferenceTypeIds.AliasFor;
+
+            if (refServerNs != ushort.MaxValue)
+            {
+                SeedTag(store, "TIC101_Setpoint",
+                    new ExpandedNodeId("Scalar_Static_Double", refServerNs));
+                SeedTag(store, "TIC101_PV",
+                    new ExpandedNodeId("Scalar_Static_Float", refServerNs));
+                SeedTag(store, "FIC202_Flow",
+                    new ExpandedNodeId("Scalar_Simulation_Double", refServerNs));
+                SeedTag(store, "Pump1_Status",
+                    new ExpandedNodeId("Scalar_Static_Boolean", refServerNs));
+                SeedTag(store, "Heater_Power",
+                    new ExpandedNodeId("Scalar_Static_Int32", refServerNs));
+                SeedTag(store, "MultiRefAlias",
+                    new ExpandedNodeId("Scalar_Static_Double", refServerNs));
+                SeedTag(store, "MultiRefAlias",
+                    new ExpandedNodeId("Scalar_Static_Int32", refServerNs));
+            }
+
+            store.Seed(Opc.Ua.ObjectIds.Topics, "ServerEvents",
+                Opc.Ua.ObjectIds.Server, serverUri: null, referenceTypeId: aliasFor);
+            store.Seed(Opc.Ua.ObjectIds.Topics, "AuditEvents",
+                new ExpandedNodeId(Opc.Ua.ObjectTypes.AuditEventType),
+                serverUri: null, referenceTypeId: aliasFor);
+
+            provider.AliasNameStoreRegistry.Register(store);
+
+            static void SeedTag(
+                Opc.Ua.Server.AliasNames.InMemoryAliasNameStore store,
+                string name,
+                ExpandedNodeId target)
+            {
+                store.Seed(Opc.Ua.ObjectIds.TagVariables, name, target,
+                    serverUri: null,
+                    referenceTypeId: Opc.Ua.ReferenceTypeIds.AliasFor);
+            }
         }
 
         /// <summary>
