@@ -452,6 +452,120 @@ namespace Opc.Ua.Server.Tests
                 () => manager.PublicReevaluateIdentityIfStale(session.Object, channelContext));
         }
 
+        [Test]
+        public void ReevaluateIdentityIfStale_RuleRemoved_DropsPreviouslyGrantedRole()
+        {
+            // Regression for PR #3778 review comment (romanett): when a role
+            // grant is REMOVED from the role manager (e.g. RemoveIdentity),
+            // the live re-evaluation must drop that role from the session's
+            // EffectiveIdentity on the next request.
+            //
+            // The implementation re-runs AddMandatoryRoles starting from
+            // session.Identity (the original impersonated identity), not from
+            // the accumulated EffectiveIdentity, so RoleManager-derived role
+            // grants are recomputed fresh from scratch.
+            using var roleManager = new RoleManager();
+            ServiceResult addRule = roleManager.AddIdentity(
+                ObjectIds.WellKnownRole_Observer,
+                new IdentityMappingRuleType
+                {
+                    CriteriaType = IdentityCriteriaType.UserName,
+                    Criteria = "alice"
+                });
+            Assert.That(ServiceResult.IsGood(addRule), Is.True);
+            m_serverMock.Setup(s => s.RoleManager).Returns(roleManager);
+
+            using TestableSessionManager manager = CreateManager();
+            IUserIdentity originalIdentity = CreateUserNameIdentity("alice");
+
+            IUserIdentity? refreshed = null;
+            var session = new Mock<ISession>();
+            session.Setup(s => s.IsIdentityStale).Returns(true);
+            session.Setup(s => s.Identity).Returns(originalIdentity);
+            session.Setup(s => s.EffectiveIdentity).Returns(originalIdentity);
+            session.Setup(s => s.ClientCertificate)
+                .Returns((Opc.Ua.Security.Certificates.Certificate)null!);
+            session.Setup(s => s.RefreshEffectiveIdentity(It.IsAny<IUserIdentity>()))
+                .Callback<IUserIdentity>(id => refreshed = id);
+
+            SecureChannelContext channelContext = CreateSecureChannelContext(MessageSecurityMode.SignAndEncrypt);
+
+            // First re-evaluation: rule is present → Observer must be granted.
+            manager.PublicReevaluateIdentityIfStale(session.Object, channelContext);
+            Assert.That(refreshed, Is.Not.Null);
+            Assert.That(refreshed!.GrantedRoleIds.Contains(ObjectIds.WellKnownRole_Observer), Is.True,
+                "Before the rule is removed, alice must have the Observer role.");
+
+            // Admin removes the identity rule that granted Observer to alice.
+            ServiceResult removeRule = roleManager.RemoveIdentity(
+                ObjectIds.WellKnownRole_Observer,
+                new IdentityMappingRuleType
+                {
+                    CriteriaType = IdentityCriteriaType.UserName,
+                    Criteria = "alice"
+                });
+            Assert.That(ServiceResult.IsGood(removeRule), Is.True);
+
+            // Second re-evaluation: rule is gone → Observer must NOT be granted.
+            refreshed = null;
+            manager.PublicReevaluateIdentityIfStale(session.Object, channelContext);
+            Assert.That(refreshed, Is.Not.Null);
+            Assert.That(refreshed!.GrantedRoleIds.Contains(ObjectIds.WellKnownRole_Observer), Is.False,
+                "After RemoveIdentity, the live re-evaluation must drop the previously granted Observer role.");
+        }
+
+        [Test]
+        public void ReevaluateIdentityIfStale_RoleRemoved_DropsPreviouslyGrantedRole()
+        {
+            // Stronger regression: removing the entire role from the manager
+            // (RemoveRole) must also drop the role from active sessions on
+            // the next re-evaluation. This is the case where the role NodeId
+            // simply ceases to exist.
+            using var roleManager = new RoleManager();
+            // Use a custom role so it is not reserved and can be removed.
+            var namespaces = new NamespaceTable();
+            namespaces.GetIndexOrAppend("http://example.org/custom");
+            ServiceResult addRole = roleManager.AddRole("CustomRole",
+                "http://example.org/custom", namespaces, defaultNamespaceIndex: 1,
+                out NodeId customRoleId);
+            Assert.That(ServiceResult.IsGood(addRole), Is.True);
+            Assert.That(ServiceResult.IsGood(
+                roleManager.AddIdentity(customRoleId,
+                    new IdentityMappingRuleType
+                    {
+                        CriteriaType = IdentityCriteriaType.UserName,
+                        Criteria = "alice"
+                    })),
+                Is.True);
+            m_serverMock.Setup(s => s.RoleManager).Returns(roleManager);
+
+            using TestableSessionManager manager = CreateManager();
+            IUserIdentity originalIdentity = CreateUserNameIdentity("alice");
+
+            IUserIdentity? refreshed = null;
+            var session = new Mock<ISession>();
+            session.Setup(s => s.IsIdentityStale).Returns(true);
+            session.Setup(s => s.Identity).Returns(originalIdentity);
+            session.Setup(s => s.EffectiveIdentity).Returns(originalIdentity);
+            session.Setup(s => s.ClientCertificate)
+                .Returns((Opc.Ua.Security.Certificates.Certificate)null!);
+            session.Setup(s => s.RefreshEffectiveIdentity(It.IsAny<IUserIdentity>()))
+                .Callback<IUserIdentity>(id => refreshed = id);
+
+            SecureChannelContext channelContext = CreateSecureChannelContext(MessageSecurityMode.SignAndEncrypt);
+
+            manager.PublicReevaluateIdentityIfStale(session.Object, channelContext);
+            Assert.That(refreshed!.GrantedRoleIds.Contains(customRoleId), Is.True,
+                "Before RemoveRole, alice must have the custom role.");
+
+            Assert.That(ServiceResult.IsGood(roleManager.RemoveRole(customRoleId)), Is.True);
+
+            refreshed = null;
+            manager.PublicReevaluateIdentityIfStale(session.Object, channelContext);
+            Assert.That(refreshed!.GrantedRoleIds.Contains(customRoleId), Is.False,
+                "After RemoveRole, the live re-evaluation must drop the removed role.");
+        }
+
         private static SecureChannelContext CreateSecureChannelContext(MessageSecurityMode securityMode)
         {
             var endpoint = new EndpointDescription { SecurityMode = securityMode };
