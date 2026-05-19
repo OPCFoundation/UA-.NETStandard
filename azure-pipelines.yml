@@ -17,6 +17,7 @@ trigger:
     - '**/*.md'
 pr:
   autoCancel: 'true'
+  drafts: 'false'
   branches:
     include:
     - '*'
