@@ -314,5 +314,135 @@ namespace Opc.Ua.Server.Tests
                 UserConfigurationMask.None, string.Empty)), Is.True);
             Assert.That(um.IsUserActive("alice"), Is.True);
         }
+
+        // ----------------------------------------------------------------
+        // Gap 11: Password length exact boundaries
+        // ----------------------------------------------------------------
+
+        [TestCase(3, ExpectedResult = false, TestName = "Password just below min length is rejected")]
+        [TestCase(4, ExpectedResult = true, TestName = "Password exactly at min length is accepted")]
+        [TestCase(5, ExpectedResult = true, TestName = "Password just above min length is accepted")]
+        public bool AddUser_PasswordLengthAtLowerBoundary_RespectsRange(int length)
+        {
+            using var um = new UserManagementImpl(
+                new LinqUserDatabase(),
+                passwordLength: new Range { Low = 4, High = 64 });
+            ServiceResult result = um.AddUser("alice", new string('a', length),
+                UserConfigurationMask.None, string.Empty);
+            return ServiceResult.IsGood(result);
+        }
+
+        [TestCase(63, ExpectedResult = true, TestName = "Password just below max length is accepted")]
+        [TestCase(64, ExpectedResult = true, TestName = "Password exactly at max length is accepted")]
+        [TestCase(65, ExpectedResult = false, TestName = "Password just above max length is rejected")]
+        public bool AddUser_PasswordLengthAtUpperBoundary_RespectsRange(int length)
+        {
+            using var um = new UserManagementImpl(
+                new LinqUserDatabase(),
+                passwordLength: new Range { Low = 4, High = 64 });
+            ServiceResult result = um.AddUser("alice", new string('a', length),
+                UserConfigurationMask.None, string.Empty);
+            return ServiceResult.IsGood(result);
+        }
+
+        // ----------------------------------------------------------------
+        // Gap 10: Password complexity (Upper / Lower / Digit / Special)
+        // ----------------------------------------------------------------
+
+        [Test]
+        public void AddUser_RequiresUpperCase_PasswordWithoutUpper_ReturnsBadOutOfRange()
+        {
+            using var um = new UserManagementImpl(
+                new LinqUserDatabase(),
+                passwordLength: new Range { Low = 4, High = 64 },
+                passwordOptions: PasswordOptionsMask.RequiresUpperCaseCharacters);
+            ServiceResult result = um.AddUser("alice", "alllower1!",
+                UserConfigurationMask.None, string.Empty);
+            Assert.That((StatusCode)result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadOutOfRange));
+        }
+
+        [Test]
+        public void AddUser_RequiresUpperCase_PasswordWithUpper_Succeeds()
+        {
+            using var um = new UserManagementImpl(
+                new LinqUserDatabase(),
+                passwordLength: new Range { Low = 4, High = 64 },
+                passwordOptions: PasswordOptionsMask.RequiresUpperCaseCharacters);
+            ServiceResult result = um.AddUser("alice", "HasUpper",
+                UserConfigurationMask.None, string.Empty);
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+        }
+
+        [Test]
+        public void AddUser_RequiresLowerCase_PasswordWithoutLower_ReturnsBadOutOfRange()
+        {
+            using var um = new UserManagementImpl(
+                new LinqUserDatabase(),
+                passwordLength: new Range { Low = 4, High = 64 },
+                passwordOptions: PasswordOptionsMask.RequiresLowerCaseCharacters);
+            ServiceResult result = um.AddUser("alice", "ALLUPPER1!",
+                UserConfigurationMask.None, string.Empty);
+            Assert.That((StatusCode)result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadOutOfRange));
+        }
+
+        [Test]
+        public void AddUser_RequiresLowerCase_PasswordWithLower_Succeeds()
+        {
+            using var um = new UserManagementImpl(
+                new LinqUserDatabase(),
+                passwordLength: new Range { Low = 4, High = 64 },
+                passwordOptions: PasswordOptionsMask.RequiresLowerCaseCharacters);
+            ServiceResult result = um.AddUser("alice", "haslower",
+                UserConfigurationMask.None, string.Empty);
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+        }
+
+        [Test]
+        public void AddUser_RequiresDigit_PasswordWithoutDigit_ReturnsBadOutOfRange()
+        {
+            using var um = new UserManagementImpl(
+                new LinqUserDatabase(),
+                passwordLength: new Range { Low = 4, High = 64 },
+                passwordOptions: PasswordOptionsMask.RequiresDigitCharacters);
+            ServiceResult result = um.AddUser("alice", "NoDigits",
+                UserConfigurationMask.None, string.Empty);
+            Assert.That((StatusCode)result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadOutOfRange));
+        }
+
+        [Test]
+        public void AddUser_RequiresDigit_PasswordWithDigit_Succeeds()
+        {
+            using var um = new UserManagementImpl(
+                new LinqUserDatabase(),
+                passwordLength: new Range { Low = 4, High = 64 },
+                passwordOptions: PasswordOptionsMask.RequiresDigitCharacters);
+            ServiceResult result = um.AddUser("alice", "HasDigit1",
+                UserConfigurationMask.None, string.Empty);
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+        }
+
+        [Test]
+        public void AddUser_RequiresSpecial_PasswordWithoutSpecial_ReturnsBadOutOfRange()
+        {
+            using var um = new UserManagementImpl(
+                new LinqUserDatabase(),
+                passwordLength: new Range { Low = 4, High = 64 },
+                passwordOptions: PasswordOptionsMask.RequiresSpecialCharacters);
+            ServiceResult result = um.AddUser("alice", "OnlyAlphaNumeric1",
+                UserConfigurationMask.None, string.Empty);
+            Assert.That((StatusCode)result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadOutOfRange));
+        }
+
+        [Test]
+        public void AddUser_RequiresSpecial_PasswordWithSpecial_Succeeds()
+        {
+            using var um = new UserManagementImpl(
+                new LinqUserDatabase(),
+                passwordLength: new Range { Low = 4, High = 64 },
+                passwordOptions: PasswordOptionsMask.RequiresSpecialCharacters);
+            ServiceResult result = um.AddUser("alice", "Has!Special",
+                UserConfigurationMask.None, string.Empty);
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+        }
     }
 }

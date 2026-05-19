@@ -141,6 +141,31 @@ namespace Opc.Ua.Server.Tests.Roles
             m_roleState.EndpointsExclude.DataType = DataTypeIds.Boolean;
             m_roleState.EndpointsExclude.ValueRank = ValueRanks.Scalar;
 
+            m_roleState.CustomConfiguration = PropertyState<bool>
+                .With<VariantBuilder>(m_roleState);
+            m_roleState.CustomConfiguration.BrowseName = new QualifiedName(BrowseNames.CustomConfiguration);
+            m_roleState.CustomConfiguration.DisplayName = new LocalizedText(BrowseNames.CustomConfiguration);
+            m_roleState.CustomConfiguration.DataType = DataTypeIds.Boolean;
+            m_roleState.CustomConfiguration.ValueRank = ValueRanks.Scalar;
+
+            // Applications and Endpoints typed properties are not attached by
+            // the source-gen factory either — attach them via the typed
+            // PropertyState&lt;ArrayOf&lt;T&gt;&gt; builder so SyncPropertiesFromManager
+            // can write back to them when the manager state changes.
+            m_roleState.Applications = PropertyState<ArrayOf<string>>
+                .With<VariantBuilder>(m_roleState);
+            m_roleState.Applications.BrowseName = new QualifiedName(BrowseNames.Applications);
+            m_roleState.Applications.DisplayName = new LocalizedText(BrowseNames.Applications);
+            m_roleState.Applications.DataType = DataTypeIds.String;
+            m_roleState.Applications.ValueRank = ValueRanks.OneDimension;
+
+            m_roleState.Endpoints = PropertyState<ArrayOf<EndpointType>>
+                .With<StructureBuilder<EndpointType>>(m_roleState);
+            m_roleState.Endpoints.BrowseName = new QualifiedName(BrowseNames.Endpoints);
+            m_roleState.Endpoints.DisplayName = new LocalizedText(BrowseNames.Endpoints);
+            m_roleState.Endpoints.DataType = DataTypeIds.EndpointType;
+            m_roleState.Endpoints.ValueRank = ValueRanks.OneDimension;
+
             m_roleSet.AddChild(m_roleState);
             m_nodeManager.PredefinedNodes[m_roleState.NodeId] = m_roleState;
 
@@ -326,6 +351,115 @@ namespace Opc.Ua.Server.Tests.Roles
                 Is.True);
             Assert.That(m_roleState.ApplicationsExclude.Value, Is.False,
                 "RoleConfigurationChanged subscription should sync the role-state property.");
+        }
+
+        // ----------------------------------------------------------------
+        // Gap 12: RoleConfigurationChanged syncs every typed property
+        // ----------------------------------------------------------------
+
+        [Test]
+        public void RoleConfigurationChanged_SyncsIdentitiesOnRoleState()
+        {
+            Assume.That(m_roleState.Identities, Is.Not.Null);
+            Assert.That(ServiceResult.IsGood(
+                m_roleManager.AddIdentity(ObjectIds.WellKnownRole_Observer,
+                    new IdentityMappingRuleType
+                    {
+                        CriteriaType = IdentityCriteriaType.UserName,
+                        Criteria = "alice"
+                    })), Is.True);
+
+            ArrayOf<IdentityMappingRuleType> synced = m_roleState.Identities!.Value;
+            bool hasAlice = false;
+            foreach (IdentityMappingRuleType rule in synced)
+            {
+                if (rule.CriteriaType == IdentityCriteriaType.UserName
+                    && string.Equals(rule.Criteria, "alice", System.StringComparison.Ordinal))
+                {
+                    hasAlice = true;
+                    break;
+                }
+            }
+            Assert.That(hasAlice, Is.True,
+                "Identities sync must reflect AddIdentity mutations.");
+        }
+
+        [Test]
+        public void RoleConfigurationChanged_SyncsApplicationsOnRoleState()
+        {
+            Assume.That(m_roleState.Applications, Is.Not.Null);
+            Assert.That(ServiceResult.IsGood(
+                m_roleManager.AddApplication(ObjectIds.WellKnownRole_Observer, "urn:test:app")), Is.True);
+
+            ArrayOf<string> apps = m_roleState.Applications!.Value;
+            bool found = false;
+            foreach (string app in apps)
+            {
+                if (string.Equals(app, "urn:test:app", System.StringComparison.Ordinal))
+                {
+                    found = true;
+                    break;
+                }
+            }
+            Assert.That(found, Is.True,
+                "Applications sync must reflect AddApplication mutations.");
+        }
+
+        [Test]
+        public void RoleConfigurationChanged_SyncsEndpointsOnRoleState()
+        {
+            Assume.That(m_roleState.Endpoints, Is.Not.Null);
+            Assert.That(ServiceResult.IsGood(
+                m_roleManager.AddEndpoint(ObjectIds.WellKnownRole_Observer,
+                    new EndpointType { EndpointUrl = "opc.tcp://srv:4840" })), Is.True);
+
+            ArrayOf<EndpointType> endpoints = m_roleState.Endpoints!.Value;
+            bool found = false;
+            foreach (EndpointType ep in endpoints)
+            {
+                if (string.Equals(ep.EndpointUrl, "opc.tcp://srv:4840", System.StringComparison.Ordinal))
+                {
+                    found = true;
+                    break;
+                }
+            }
+            Assert.That(found, Is.True,
+                "Endpoints sync must reflect AddEndpoint mutations.");
+        }
+
+        [Test]
+        public void RoleConfigurationChanged_SyncsEndpointsExcludeOnRoleState()
+        {
+            Assume.That(m_roleState.EndpointsExclude, Is.Not.Null);
+            // Observer starts with EndpointsExclude=false (it's a well-known
+            // role with no endpoints configured). Flip to true and verify
+            // the sync propagates.
+            Assert.That(ServiceResult.IsGood(
+                m_roleManager.SetEndpointsExclude(ObjectIds.WellKnownRole_Observer, true)),
+                Is.True);
+            Assert.That(m_roleState.EndpointsExclude!.Value, Is.True);
+
+            Assert.That(ServiceResult.IsGood(
+                m_roleManager.SetEndpointsExclude(ObjectIds.WellKnownRole_Observer, false)),
+                Is.True);
+            Assert.That(m_roleState.EndpointsExclude.Value, Is.False,
+                "EndpointsExclude sync must mirror SetEndpointsExclude.");
+        }
+
+        [Test]
+        public void RoleConfigurationChanged_SyncsCustomConfigurationOnRoleState()
+        {
+            Assume.That(m_roleState.CustomConfiguration, Is.Not.Null);
+            Assert.That(ServiceResult.IsGood(
+                m_roleManager.SetCustomConfiguration(ObjectIds.WellKnownRole_Observer, true)),
+                Is.True);
+            Assert.That(m_roleState.CustomConfiguration!.Value, Is.True);
+
+            Assert.That(ServiceResult.IsGood(
+                m_roleManager.SetCustomConfiguration(ObjectIds.WellKnownRole_Observer, false)),
+                Is.True);
+            Assert.That(m_roleState.CustomConfiguration.Value, Is.False,
+                "CustomConfiguration sync must mirror SetCustomConfiguration.");
         }
 
         // ----------------------------------------------------------------

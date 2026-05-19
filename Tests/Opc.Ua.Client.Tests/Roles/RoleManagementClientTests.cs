@@ -374,6 +374,207 @@ namespace Opc.Ua.Client.Tests.Roles
         }
 
         // ----------------------------------------------------------------
+        // Gap 13: Remove* / SetCustomConfiguration unit coverage
+        // ----------------------------------------------------------------
+
+        [Test]
+        public async Task RemoveIdentityAsync_TranslatesBrowsePathThenSendsCallWithRuleStructure()
+        {
+            NodeId methodId = new(110u, 0);
+            ArrayOf<BrowsePath> capturedPaths = default;
+            m_sessionMock.Setup(s => s.TranslateBrowsePathsToNodeIdsAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.IsAny<ArrayOf<BrowsePath>>(),
+                    It.IsAny<CancellationToken>()))
+                .Callback<RequestHeader, ArrayOf<BrowsePath>, CancellationToken>(
+                    (_, paths, _) => capturedPaths = paths)
+                .Returns(new ValueTask<TranslateBrowsePathsToNodeIdsResponse>(
+                    new TranslateBrowsePathsToNodeIdsResponse
+                    {
+                        ResponseHeader = new ResponseHeader(),
+                        Results = ArrayOf.Wrapped(new[]
+                        {
+                            new BrowsePathResult
+                            {
+                                StatusCode = StatusCodes.Good,
+                                Targets = ArrayOf.Wrapped(new[]
+                                {
+                                    new BrowsePathTarget { TargetId = methodId }
+                                })
+                            }
+                        }),
+                        DiagnosticInfos = ArrayOf.Empty<DiagnosticInfo>()
+                    }));
+
+            ArrayOf<CallMethodRequest> capturedRequests = default;
+            SetupCallResponse(captured => capturedRequests = captured);
+
+            var rule = new IdentityMappingRuleType
+            {
+                CriteriaType = IdentityCriteriaType.UserName,
+                Criteria = "alice"
+            };
+            await m_client.RemoveIdentityAsync(ObjectIds.WellKnownRole_Observer, rule).ConfigureAwait(false);
+
+            Assert.That(capturedPaths[0].RelativePath.Elements[0].TargetName.Name,
+                Is.EqualTo(BrowseNames.RemoveIdentity));
+            Assert.That(capturedRequests[0].MethodId, Is.EqualTo(methodId));
+#pragma warning disable CS8600
+            bool decoded = capturedRequests[0].InputArguments[0].TryGetStructure(
+                out IdentityMappingRuleType actual);
+#pragma warning restore CS8600
+            Assert.That(decoded, Is.True);
+            Assert.That(actual!.CriteriaType, Is.EqualTo(IdentityCriteriaType.UserName));
+            Assert.That(actual.Criteria, Is.EqualTo("alice"));
+        }
+
+        [Test]
+        public void RemoveIdentityAsync_NullRule_Throws()
+        {
+            Assert.That(
+                async () => await m_client.RemoveIdentityAsync(ObjectIds.WellKnownRole_Observer, null!)
+                    .ConfigureAwait(false),
+                Throws.TypeOf<System.ArgumentNullException>());
+        }
+
+        [Test]
+        public async Task RemoveApplicationAsync_TranslatesBrowsePathThenSendsCallWithUri()
+        {
+            NodeId methodId = new(111u, 0);
+            SetupTranslateResponse(methodId);
+            ArrayOf<CallMethodRequest> capturedRequests = default;
+            SetupCallResponse(captured => capturedRequests = captured);
+
+            await m_client.RemoveApplicationAsync(
+                ObjectIds.WellKnownRole_Observer, "urn:example:app").ConfigureAwait(false);
+
+            Assert.That(capturedRequests[0].MethodId, Is.EqualTo(methodId));
+            Assert.That(capturedRequests[0].InputArguments[0].TryGetValue(out string uri), Is.True);
+            Assert.That(uri, Is.EqualTo("urn:example:app"));
+        }
+
+        [Test]
+        public void RemoveApplicationAsync_NullUri_Throws()
+        {
+            Assert.That(
+                async () => await m_client.RemoveApplicationAsync(ObjectIds.WellKnownRole_Observer, null!)
+                    .ConfigureAwait(false),
+                Throws.TypeOf<System.ArgumentException>());
+        }
+
+        [Test]
+        public void RemoveApplicationAsync_EmptyUri_Throws()
+        {
+            Assert.That(
+                async () => await m_client.RemoveApplicationAsync(ObjectIds.WellKnownRole_Observer, string.Empty)
+                    .ConfigureAwait(false),
+                Throws.TypeOf<System.ArgumentException>());
+        }
+
+        [Test]
+        public async Task RemoveEndpointAsync_SendsEndpointStructure()
+        {
+            NodeId methodId = new(112u, 0);
+            SetupTranslateResponse(methodId);
+            ArrayOf<CallMethodRequest> capturedRequests = default;
+            SetupCallResponse(captured => capturedRequests = captured);
+
+            var endpoint = new EndpointType
+            {
+                EndpointUrl = "opc.tcp://srv:4840",
+                SecurityMode = MessageSecurityMode.SignAndEncrypt
+            };
+            await m_client.RemoveEndpointAsync(ObjectIds.WellKnownRole_Observer, endpoint).ConfigureAwait(false);
+
+            Assert.That(capturedRequests[0].MethodId, Is.EqualTo(methodId));
+#pragma warning disable CS8600
+            bool decoded = capturedRequests[0].InputArguments[0].TryGetStructure(
+                out EndpointType actual);
+#pragma warning restore CS8600
+            Assert.That(decoded, Is.True);
+            Assert.That(actual!.EndpointUrl, Is.EqualTo(endpoint.EndpointUrl));
+        }
+
+        [Test]
+        public void RemoveEndpointAsync_NullEndpoint_Throws()
+        {
+            Assert.That(
+                async () => await m_client.RemoveEndpointAsync(ObjectIds.WellKnownRole_Observer, null!)
+                    .ConfigureAwait(false),
+                Throws.TypeOf<System.ArgumentNullException>());
+        }
+
+        [Test]
+        public async Task SetCustomConfigurationAsync_ResolvesCustomConfigurationProperty()
+        {
+            NodeId propertyId = new(202u, 0);
+            ArrayOf<BrowsePath> capturedPaths = default;
+            m_sessionMock.Setup(s => s.TranslateBrowsePathsToNodeIdsAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.IsAny<ArrayOf<BrowsePath>>(),
+                    It.IsAny<CancellationToken>()))
+                .Callback<RequestHeader, ArrayOf<BrowsePath>, CancellationToken>(
+                    (_, paths, _) => capturedPaths = paths)
+                .Returns(new ValueTask<TranslateBrowsePathsToNodeIdsResponse>(
+                    new TranslateBrowsePathsToNodeIdsResponse
+                    {
+                        ResponseHeader = new ResponseHeader(),
+                        Results = ArrayOf.Wrapped(new[]
+                        {
+                            new BrowsePathResult
+                            {
+                                StatusCode = StatusCodes.Good,
+                                Targets = ArrayOf.Wrapped(new[]
+                                {
+                                    new BrowsePathTarget { TargetId = propertyId }
+                                })
+                            }
+                        }),
+                        DiagnosticInfos = ArrayOf.Empty<DiagnosticInfo>()
+                    }));
+            ArrayOf<WriteValue> capturedWrites = default;
+            m_sessionMock.Setup(s => s.WriteAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.IsAny<ArrayOf<WriteValue>>(),
+                    It.IsAny<CancellationToken>()))
+                .Callback<RequestHeader, ArrayOf<WriteValue>, CancellationToken>(
+                    (_, writes, _) => capturedWrites = writes)
+                .Returns(new ValueTask<WriteResponse>(new WriteResponse
+                {
+                    ResponseHeader = new ResponseHeader(),
+                    Results = ArrayOf.Wrapped(new[] { (StatusCode)StatusCodes.Good }),
+                    DiagnosticInfos = ArrayOf.Empty<DiagnosticInfo>()
+                }));
+
+            await m_client.SetCustomConfigurationAsync(
+                ObjectIds.WellKnownRole_Operator, value: true).ConfigureAwait(false);
+
+            Assert.That(capturedPaths[0].RelativePath.Elements[0].TargetName.Name,
+                Is.EqualTo(BrowseNames.CustomConfiguration));
+            Assert.That(capturedWrites[0].NodeId, Is.EqualTo(propertyId));
+            Assert.That(capturedWrites[0].Value.WrappedValue.TryGetValue(out bool b), Is.True);
+            Assert.That(b, Is.True);
+        }
+
+        [Test]
+        public void AddApplicationAsync_NullUri_Throws()
+        {
+            Assert.That(
+                async () => await m_client.AddApplicationAsync(ObjectIds.WellKnownRole_Observer, null!)
+                    .ConfigureAwait(false),
+                Throws.TypeOf<System.ArgumentException>());
+        }
+
+        [Test]
+        public void AddEndpointAsync_NullEndpoint_Throws()
+        {
+            Assert.That(
+                async () => await m_client.AddEndpointAsync(ObjectIds.WellKnownRole_Observer, null!)
+                    .ConfigureAwait(false),
+                Throws.TypeOf<System.ArgumentNullException>());
+        }
+
+        // ----------------------------------------------------------------
         // Helpers
         // ----------------------------------------------------------------
 

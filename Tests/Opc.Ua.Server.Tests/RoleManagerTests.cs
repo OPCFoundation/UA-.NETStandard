@@ -558,5 +558,321 @@ namespace Opc.Ua.Server.Tests
             };
             Assert.That(EndpointTypeComparer.Matches(rule, candidate), Is.True);
         }
+
+        // ----------------------------------------------------------------
+        // Gap 2: UserName rule case-sensitivity
+        // ----------------------------------------------------------------
+
+        [Test]
+        public void ResolveGrantedRoles_UserNameRuleDifferentCase_DoesNotGrantRole()
+        {
+            using var manager = new RoleManager();
+            Assert.That(ServiceResult.IsGood(
+                manager.AddIdentity(ObjectIds.WellKnownRole_Operator, UserName("operator1"))), Is.True);
+
+            var identity = new Mock<IUserIdentity>();
+            identity.Setup(i => i.TokenType).Returns(UserTokenType.UserName);
+            identity.Setup(i => i.DisplayName).Returns("Operator1");
+            identity.Setup(i => i.GrantedRoleIds).Returns(ArrayOf.Empty<NodeId>());
+
+            IList<NodeId> roles = manager.ResolveGrantedRoles(identity.Object, null, null);
+            Assert.That(roles, Has.No.Member(ObjectIds.WellKnownRole_Operator),
+                "UserName matching must be ordinal (case-sensitive).");
+        }
+
+        // ----------------------------------------------------------------
+        // Gap 3: Application include / exclude semantics — all 4 quadrants
+        // ----------------------------------------------------------------
+
+        [Test]
+        public void ResolveGrantedRoles_ApplicationFilterInclude_MatchingUri_GrantsRole()
+        {
+            using var manager = new RoleManager();
+            Assert.That(ServiceResult.IsGood(
+                manager.AddIdentity(ObjectIds.WellKnownRole_Operator, AuthenticatedUser())), Is.True);
+            Assert.That(ServiceResult.IsGood(
+                manager.AddApplication(ObjectIds.WellKnownRole_Operator, "urn:listed:app")), Is.True);
+            Assert.That(ServiceResult.IsGood(
+                manager.SetApplicationsExclude(ObjectIds.WellKnownRole_Operator, false)), Is.True);
+
+            using Certificate cert = CertificateBuilder.Create("CN=Test")
+                .AddExtension(new X509SubjectAltNameExtension("urn:listed:app", new[] { "localhost" }))
+                .SetRSAKeySize(CertificateFactory.DefaultKeySize).CreateForRSA();
+            var identity = new Mock<IUserIdentity>();
+            identity.Setup(i => i.TokenType).Returns(UserTokenType.UserName);
+            identity.Setup(i => i.DisplayName).Returns("op");
+            identity.Setup(i => i.GrantedRoleIds).Returns(ArrayOf.Empty<NodeId>());
+
+            var endpoint = new EndpointDescription { SecurityMode = MessageSecurityMode.Sign };
+            IList<NodeId> roles = manager.ResolveGrantedRoles(identity.Object, cert, endpoint);
+            Assert.That(roles, Has.Member(ObjectIds.WellKnownRole_Operator),
+                "Include mode with a matching ApplicationUri must grant the role.");
+        }
+
+        [Test]
+        public void ResolveGrantedRoles_ApplicationFilterExclude_MatchingUri_DeniesRole()
+        {
+            using var manager = new RoleManager();
+            Assert.That(ServiceResult.IsGood(
+                manager.AddIdentity(ObjectIds.WellKnownRole_Operator, AuthenticatedUser())), Is.True);
+            Assert.That(ServiceResult.IsGood(
+                manager.AddApplication(ObjectIds.WellKnownRole_Operator, "urn:blocked:app")), Is.True);
+            // Operator starts with ApplicationsExclude=true (default for newly
+            // created roles per Part 18 §4.2.2). Make this explicit.
+            Assert.That(ServiceResult.IsGood(
+                manager.SetApplicationsExclude(ObjectIds.WellKnownRole_Operator, true)), Is.True);
+
+            using Certificate cert = CertificateBuilder.Create("CN=Test")
+                .AddExtension(new X509SubjectAltNameExtension("urn:blocked:app", new[] { "localhost" }))
+                .SetRSAKeySize(CertificateFactory.DefaultKeySize).CreateForRSA();
+            var identity = new Mock<IUserIdentity>();
+            identity.Setup(i => i.TokenType).Returns(UserTokenType.UserName);
+            identity.Setup(i => i.DisplayName).Returns("op");
+            identity.Setup(i => i.GrantedRoleIds).Returns(ArrayOf.Empty<NodeId>());
+
+            var endpoint = new EndpointDescription { SecurityMode = MessageSecurityMode.Sign };
+            IList<NodeId> roles = manager.ResolveGrantedRoles(identity.Object, cert, endpoint);
+            Assert.That(roles, Has.No.Member(ObjectIds.WellKnownRole_Operator),
+                "Exclude mode with a matching ApplicationUri must deny the role.");
+        }
+
+        [Test]
+        public void ResolveGrantedRoles_ApplicationFilterExclude_NonMatchingUri_GrantsRole()
+        {
+            using var manager = new RoleManager();
+            Assert.That(ServiceResult.IsGood(
+                manager.AddIdentity(ObjectIds.WellKnownRole_Operator, AuthenticatedUser())), Is.True);
+            Assert.That(ServiceResult.IsGood(
+                manager.AddApplication(ObjectIds.WellKnownRole_Operator, "urn:blocked:app")), Is.True);
+            Assert.That(ServiceResult.IsGood(
+                manager.SetApplicationsExclude(ObjectIds.WellKnownRole_Operator, true)), Is.True);
+
+            using Certificate cert = CertificateBuilder.Create("CN=Test")
+                .AddExtension(new X509SubjectAltNameExtension("urn:other:app", new[] { "localhost" }))
+                .SetRSAKeySize(CertificateFactory.DefaultKeySize).CreateForRSA();
+            var identity = new Mock<IUserIdentity>();
+            identity.Setup(i => i.TokenType).Returns(UserTokenType.UserName);
+            identity.Setup(i => i.DisplayName).Returns("op");
+            identity.Setup(i => i.GrantedRoleIds).Returns(ArrayOf.Empty<NodeId>());
+
+            var endpoint = new EndpointDescription { SecurityMode = MessageSecurityMode.Sign };
+            IList<NodeId> roles = manager.ResolveGrantedRoles(identity.Object, cert, endpoint);
+            Assert.That(roles, Has.Member(ObjectIds.WellKnownRole_Operator),
+                "Exclude mode with a non-matching ApplicationUri must grant the role.");
+        }
+
+        // ----------------------------------------------------------------
+        // Gap 4: Endpoint include / exclude semantics — all 4 quadrants
+        // ----------------------------------------------------------------
+
+        [Test]
+        public void ResolveGrantedRoles_EndpointFilterInclude_MatchingEndpoint_GrantsRole()
+        {
+            using var manager = new RoleManager();
+            Assert.That(ServiceResult.IsGood(
+                manager.AddIdentity(ObjectIds.WellKnownRole_Operator, AuthenticatedUser())), Is.True);
+            Assert.That(ServiceResult.IsGood(
+                manager.AddEndpoint(ObjectIds.WellKnownRole_Operator,
+                    new EndpointType { EndpointUrl = "opc.tcp://srv:4840" })), Is.True);
+            Assert.That(ServiceResult.IsGood(
+                manager.SetEndpointsExclude(ObjectIds.WellKnownRole_Operator, false)), Is.True);
+
+            var identity = new Mock<IUserIdentity>();
+            identity.Setup(i => i.TokenType).Returns(UserTokenType.UserName);
+            identity.Setup(i => i.DisplayName).Returns("op");
+            identity.Setup(i => i.GrantedRoleIds).Returns(ArrayOf.Empty<NodeId>());
+
+            var endpoint = new EndpointDescription
+            {
+                EndpointUrl = "opc.tcp://srv:4840",
+                SecurityMode = MessageSecurityMode.SignAndEncrypt
+            };
+            IList<NodeId> roles = manager.ResolveGrantedRoles(identity.Object, null, endpoint);
+            Assert.That(roles, Has.Member(ObjectIds.WellKnownRole_Operator));
+        }
+
+        [Test]
+        public void ResolveGrantedRoles_EndpointFilterInclude_NonMatchingEndpoint_DeniesRole()
+        {
+            using var manager = new RoleManager();
+            Assert.That(ServiceResult.IsGood(
+                manager.AddIdentity(ObjectIds.WellKnownRole_Operator, AuthenticatedUser())), Is.True);
+            Assert.That(ServiceResult.IsGood(
+                manager.AddEndpoint(ObjectIds.WellKnownRole_Operator,
+                    new EndpointType { EndpointUrl = "opc.tcp://allowed:4840" })), Is.True);
+            Assert.That(ServiceResult.IsGood(
+                manager.SetEndpointsExclude(ObjectIds.WellKnownRole_Operator, false)), Is.True);
+
+            var identity = new Mock<IUserIdentity>();
+            identity.Setup(i => i.TokenType).Returns(UserTokenType.UserName);
+            identity.Setup(i => i.DisplayName).Returns("op");
+            identity.Setup(i => i.GrantedRoleIds).Returns(ArrayOf.Empty<NodeId>());
+
+            var endpoint = new EndpointDescription
+            {
+                EndpointUrl = "opc.tcp://other:4840",
+                SecurityMode = MessageSecurityMode.SignAndEncrypt
+            };
+            IList<NodeId> roles = manager.ResolveGrantedRoles(identity.Object, null, endpoint);
+            Assert.That(roles, Has.No.Member(ObjectIds.WellKnownRole_Operator));
+        }
+
+        [Test]
+        public void ResolveGrantedRoles_EndpointFilterExclude_MatchingEndpoint_DeniesRole()
+        {
+            using var manager = new RoleManager();
+            Assert.That(ServiceResult.IsGood(
+                manager.AddIdentity(ObjectIds.WellKnownRole_Operator, AuthenticatedUser())), Is.True);
+            Assert.That(ServiceResult.IsGood(
+                manager.AddEndpoint(ObjectIds.WellKnownRole_Operator,
+                    new EndpointType { EndpointUrl = "opc.tcp://blocked:4840" })), Is.True);
+            Assert.That(ServiceResult.IsGood(
+                manager.SetEndpointsExclude(ObjectIds.WellKnownRole_Operator, true)), Is.True);
+
+            var identity = new Mock<IUserIdentity>();
+            identity.Setup(i => i.TokenType).Returns(UserTokenType.UserName);
+            identity.Setup(i => i.DisplayName).Returns("op");
+            identity.Setup(i => i.GrantedRoleIds).Returns(ArrayOf.Empty<NodeId>());
+
+            var endpoint = new EndpointDescription
+            {
+                EndpointUrl = "opc.tcp://blocked:4840",
+                SecurityMode = MessageSecurityMode.SignAndEncrypt
+            };
+            IList<NodeId> roles = manager.ResolveGrantedRoles(identity.Object, null, endpoint);
+            Assert.That(roles, Has.No.Member(ObjectIds.WellKnownRole_Operator));
+        }
+
+        [Test]
+        public void ResolveGrantedRoles_EndpointFilterExclude_NonMatchingEndpoint_GrantsRole()
+        {
+            using var manager = new RoleManager();
+            Assert.That(ServiceResult.IsGood(
+                manager.AddIdentity(ObjectIds.WellKnownRole_Operator, AuthenticatedUser())), Is.True);
+            Assert.That(ServiceResult.IsGood(
+                manager.AddEndpoint(ObjectIds.WellKnownRole_Operator,
+                    new EndpointType { EndpointUrl = "opc.tcp://blocked:4840" })), Is.True);
+            Assert.That(ServiceResult.IsGood(
+                manager.SetEndpointsExclude(ObjectIds.WellKnownRole_Operator, true)), Is.True);
+
+            var identity = new Mock<IUserIdentity>();
+            identity.Setup(i => i.TokenType).Returns(UserTokenType.UserName);
+            identity.Setup(i => i.DisplayName).Returns("op");
+            identity.Setup(i => i.GrantedRoleIds).Returns(ArrayOf.Empty<NodeId>());
+
+            var endpoint = new EndpointDescription
+            {
+                EndpointUrl = "opc.tcp://allowed:4840",
+                SecurityMode = MessageSecurityMode.SignAndEncrypt
+            };
+            IList<NodeId> roles = manager.ResolveGrantedRoles(identity.Object, null, endpoint);
+            Assert.That(roles, Has.Member(ObjectIds.WellKnownRole_Operator));
+        }
+
+        // ----------------------------------------------------------------
+        // Gap 5: GroupId rule path
+        // ----------------------------------------------------------------
+
+        [Test]
+        public void ResolveGrantedRoles_GroupIdRule_DoesNotGrantRole()
+        {
+            using var manager = new RoleManager();
+            // The default RoleManager cannot resolve external group claims —
+            // GroupId rules must always return false to avoid silently
+            // granting roles when no external auth service is wired up.
+            Assert.That(ServiceResult.IsGood(
+                manager.AddIdentity(ObjectIds.WellKnownRole_Operator,
+                    new IdentityMappingRuleType
+                    {
+                        CriteriaType = IdentityCriteriaType.GroupId,
+                        Criteria = "admins"
+                    })), Is.True);
+
+            var identity = new Mock<IUserIdentity>();
+            identity.Setup(i => i.TokenType).Returns(UserTokenType.UserName);
+            identity.Setup(i => i.DisplayName).Returns("alice");
+            identity.Setup(i => i.GrantedRoleIds).Returns(ArrayOf.Empty<NodeId>());
+
+            IList<NodeId> roles = manager.ResolveGrantedRoles(identity.Object, null, null);
+            Assert.That(roles, Has.No.Member(ObjectIds.WellKnownRole_Operator),
+                "GroupId rule must never grant a role in the default in-memory implementation.");
+        }
+
+        // ----------------------------------------------------------------
+        // Gap 6: AuthenticatedUser / TrustedApplication non-empty criteria
+        // ----------------------------------------------------------------
+
+        [TestCase(IdentityCriteriaType.AuthenticatedUser)]
+        [TestCase(IdentityCriteriaType.TrustedApplication)]
+        public void AddIdentity_NonEmptyCriteriaForImpliedRule_ReturnsBadInvalidArgument(IdentityCriteriaType criteriaType)
+        {
+            using var manager = new RoleManager();
+            ServiceResult result = manager.AddIdentity(ObjectIds.WellKnownRole_Observer,
+                new IdentityMappingRuleType
+                {
+                    CriteriaType = criteriaType,
+                    Criteria = "must-be-empty"
+                });
+            Assert.That((StatusCode)result.StatusCode,
+                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+        }
+
+        // ----------------------------------------------------------------
+        // Gap 7: UserName / Role / GroupId / Application empty criteria
+        // ----------------------------------------------------------------
+
+        [TestCase(IdentityCriteriaType.UserName)]
+        [TestCase(IdentityCriteriaType.Role)]
+        [TestCase(IdentityCriteriaType.GroupId)]
+        [TestCase(IdentityCriteriaType.Application)]
+        public void AddIdentity_EmptyCriteriaForExplicitRule_ReturnsBadInvalidArgument(IdentityCriteriaType criteriaType)
+        {
+            using var manager = new RoleManager();
+            ServiceResult result = manager.AddIdentity(ObjectIds.WellKnownRole_Observer,
+                new IdentityMappingRuleType
+                {
+                    CriteriaType = criteriaType,
+                    Criteria = string.Empty
+                });
+            Assert.That((StatusCode)result.StatusCode,
+                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+        }
+
+        // ----------------------------------------------------------------
+        // Gap 8 + 9: Thumbprint boundary chars + odd-length / empty
+        // ----------------------------------------------------------------
+
+        [Test]
+        public void AddIdentity_ThumbprintWithFullHexAlphabet_Succeeds()
+        {
+            // Exercise every hex character including the digit and letter
+            // boundaries '0', '9', 'A' and 'F' so boundary mutations on the
+            // hex-range checks (c <= '9', c <= 'F') are caught.
+            using var manager = new RoleManager();
+            ServiceResult result = manager.AddIdentity(ObjectIds.WellKnownRole_Observer,
+                Thumbprint("0123456789ABCDEF"));
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+        }
+
+        [Test]
+        public void AddIdentity_ThumbprintOddLength_ReturnsBadInvalidArgument()
+        {
+            using var manager = new RoleManager();
+            ServiceResult result = manager.AddIdentity(ObjectIds.WellKnownRole_Observer,
+                Thumbprint("ABC"));
+            Assert.That((StatusCode)result.StatusCode,
+                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument),
+                "Odd-length thumbprints are not valid hex strings.");
+        }
+
+        [Test]
+        public void AddIdentity_ThumbprintEmpty_ReturnsBadInvalidArgument()
+        {
+            using var manager = new RoleManager();
+            ServiceResult result = manager.AddIdentity(ObjectIds.WellKnownRole_Observer,
+                Thumbprint(string.Empty));
+            Assert.That((StatusCode)result.StatusCode,
+                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+        }
     }
 }

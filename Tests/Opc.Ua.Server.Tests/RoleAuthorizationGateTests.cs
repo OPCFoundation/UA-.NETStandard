@@ -208,5 +208,24 @@ namespace Opc.Ua.Server.Tests
             Assert.That((StatusCode)result.StatusCode,
                 Is.EqualTo((StatusCode)StatusCodes.BadInvalidState));
         }
+
+        [Test]
+        public void CheckSelfUserName_DifferentCaseName_ReturnsBadUserAccessDenied()
+        {
+            // Defensive: user-name comparison must be case-sensitive. A
+            // database that treats "alice" and "Alice" as distinct accounts
+            // would otherwise let "Alice" change "alice"'s password if the
+            // gate compared case-insensitively.
+            var identity = new Mock<IUserIdentity>();
+            identity.Setup(i => i.TokenType).Returns(UserTokenType.UserName);
+            identity.Setup(i => i.DisplayName).Returns("alice");
+            identity.Setup(i => i.GrantedRoleIds).Returns(ArrayOf.Empty<NodeId>());
+            ISystemContext ctx = BuildContext(MessageSecurityMode.SignAndEncrypt, identity.Object);
+
+            ServiceResult result = RoleAuthorizationGate.CheckSelfUserName(ctx, "Alice");
+            Assert.That((StatusCode)result.StatusCode,
+                Is.EqualTo((StatusCode)StatusCodes.BadUserAccessDenied),
+                "CheckSelfUserName must use ordinal (case-sensitive) comparison.");
+        }
     }
 }
