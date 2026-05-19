@@ -105,7 +105,7 @@ namespace Opc.Ua.Configuration.Tests
         public async Task FindApplicationCertificateUsesAbstractApplicationCertificateAsFallbackAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            using X509Certificate2 certificate = CertificateFactory
+            using Certificate certificate = CertificateFactory
                 .CreateCertificate("CN=Abstract Application Certificate")
                 .CreateForRSA();
             var certificateIdentifier = new CertificateIdentifier
@@ -118,7 +118,7 @@ namespace Opc.Ua.Configuration.Tests
                 ApplicationCertificates = [certificateIdentifier]
             };
 
-            X509Certificate2 result = await securityConfiguration.FindApplicationCertificateAsync(
+            using Certificate result = await securityConfiguration.FindApplicationCertificateAsync(
                 SecurityPolicies.Basic256Sha256,
                 privateKey: false,
                 telemetry: telemetry).ConfigureAwait(false);
@@ -127,7 +127,7 @@ namespace Opc.Ua.Configuration.Tests
             Assert.That(result.Thumbprint, Is.EqualTo(certificate.Thumbprint));
             Assert.That(
                 certificateIdentifier.CertificateType,
-                Is.EqualTo(ObjectTypeIds.RsaSha256ApplicationCertificateType));
+                Is.EqualTo(ObjectTypeIds.ApplicationCertificateType));
         }
 
         [Test]

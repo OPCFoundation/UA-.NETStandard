@@ -234,14 +234,14 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         }
 
         /// <summary>
-        /// Verify loading a private key normalizes an abstract application certificate type.
+        /// Verify loading a private key does not change the configured certificate type.
         /// </summary>
         [Test]
         [Order(21)]
-        public async Task LoadPrivateKeyNormalizesAbstractApplicationCertificateTypeAsync()
+        public async Task LoadPrivateKeyKeepsConfiguredAbstractApplicationCertificateTypeAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            X509Certificate2 appCertificate = GetTestCert();
+            Certificate appCertificate = GetTestCert();
             Assert.That(appCertificate, Is.Not.Null);
             Assert.That(appCertificate.HasPrivateKey, Is.True);
 
@@ -256,7 +256,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             await appCertificate.AddToStoreAsync(certificateStoreIdentifier, password, telemetry: telemetry)
                 .ConfigureAwait(false);
 
-            using X509Certificate2 publicKey = CertificateFactory.Create(
+            using Certificate publicKey = Certificate.FromRawData(
                 appCertificate.RawData);
             Assert.That(publicKey, Is.Not.Null);
             Assert.That(publicKey.HasPrivateKey, Is.False);
@@ -267,12 +267,14 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 StorePath = storePath,
                 StoreType = storeType,
                 // Start with the abstract type to verify loading the real certificate
-                // normalizes the identifier to its concrete OPC UA certificate type.
+                // does not mutate the configured identifier.
                 CertificateType = ObjectTypeIds.ApplicationCertificateType
             };
 
-            X509Certificate2 privateKey = await id.LoadPrivateKeyExAsync(
+            using Certificate privateKey = await CertificateIdentifierResolver.LoadPrivateKeyAsync(
+                id,
                 new CertificatePasswordProvider(password),
+                applicationUri: null,
                 telemetry: telemetry)
                 .ConfigureAwait(false);
 
@@ -280,8 +282,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.That(privateKey.HasPrivateKey, Is.True);
             Assert.That(
                 id.CertificateType,
-                Is.EqualTo(ObjectTypeIds.RsaSha256ApplicationCertificateType),
-                "Loading the real certificate should normalize the abstract type.");
+                Is.EqualTo(ObjectTypeIds.ApplicationCertificateType),
+                "Loading the real certificate should not change the configured identifier.");
 
             X509Utils.VerifyRSAKeyPair(publicKey, privateKey, true);
 
