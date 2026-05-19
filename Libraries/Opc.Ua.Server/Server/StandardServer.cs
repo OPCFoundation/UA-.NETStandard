@@ -697,7 +697,16 @@ namespace Opc.Ua.Server
 
                 if (identityChanged)
                 {
-                    // TBD - call Node Manager and Subscription Manager.
+                    ISession? activatedSession = ServerInternal.SessionManager
+                        .GetSession(requestHeader.AuthenticationToken);
+
+                    if (activatedSession != null)
+                    {
+                        await ServerInternal.NodeManager.SessionActivatedAsync(
+                            context,
+                            activatedSession.Id,
+                            requestLifetime.CancellationToken).ConfigureAwait(false);
+                    }
                 }
 
                 ISession? session = ServerInternal.SessionManager

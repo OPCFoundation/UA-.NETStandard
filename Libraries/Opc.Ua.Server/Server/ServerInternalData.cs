@@ -58,7 +58,7 @@ namespace Opc.Ua.Server
     /// Objects returned from this object can be assumed to be threadsafe unless otherwise stated.
     /// </para>
     /// </remarks>
-    public class ServerInternalData : IServerInternal
+    public class ServerInternalData : IServerInternal, AliasNames.IAliasNameStoreRegistryProvider
     {
         /// <summary>
         /// Initializes the datastore with the server configuration.
@@ -128,8 +128,19 @@ namespace Opc.Ua.Server
                 SessionManager?.Dispose();
                 SubscriptionManager?.Dispose();
                 MonitoredItemQueueFactory?.Dispose();
+                (AliasNameStoreRegistry as IDisposable)?.Dispose();
             }
         }
+
+        /// <summary>
+        /// The server-wide registry of OPC UA Part 17 alias-name stores.
+        /// Surfaces through the optional
+        /// <see cref="AliasNames.IAliasNameStoreRegistryProvider"/>
+        /// interface so consumers can discover it without any change to
+        /// <see cref="IServerInternal"/>; never <c>null</c>.
+        /// </summary>
+        public AliasNames.IAliasNameStoreRegistry AliasNameStoreRegistry { get; }
+            = new AliasNames.AliasNameStoreRegistry();
 
         /// <summary>
         /// The session manager to use with the server.
