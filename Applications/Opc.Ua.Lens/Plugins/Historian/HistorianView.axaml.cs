@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.ComponentModel;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Markup.Xaml;
@@ -52,6 +53,19 @@ internal sealed partial class HistorianView : UserControl
     private AvaPlot? m_plot;
     private Scatter? m_scatter;
     private HistorianPlugin? m_vm;
+
+    /// <summary>
+    /// Snapshot of a right-click on the chart: where the cursor was
+    /// (pixel + data coords) and the nearest plotted numeric row at the
+    /// time the menu opened. Captured into a context menu's Tag so the
+    /// click-handlers see a consistent state even if the user later
+    /// moves the cursor or new rows arrive.
+    /// </summary>
+    private sealed record ChartClickContext(
+        Pixel PixelPosition,
+        DateTime DataTimestamp,
+        double DataValue,
+        HistoryRow? NearestNumeric);
 
     private static readonly Color s_text = Color.FromHex("#E2E8F0");
     private static readonly Color s_dim = Color.FromHex("#94A3B8");
@@ -140,6 +154,20 @@ internal sealed partial class HistorianView : UserControl
         }
         plot.Grid.MajorLineColor = s_grid;
         plot.Axes.DateTimeTicksBottom();
+        // Suppress ScottPlot's default right-click menu so our Avalonia
+        // ContextMenu (Insert/Edit/Remove) is the only one shown.
+        // The menu lives on the control wrapper (AvaPlot.Menu), not on
+        // the underlying Plot object.
+        try
+        {
+            m_plot.Menu?.Clear();
+        }
+        catch
+        {
+            // If the API surface changes, fall back gracefully — the
+            // default menu remains but our handler still fires.
+        }
+        m_plot.PointerReleased += OnChartPointerReleased;
         m_plot.Refresh();
     }
 
@@ -182,11 +210,100 @@ internal sealed partial class HistorianView : UserControl
     }
 
     /// <summary>
+    /// Right-click on the chart converts the pixel position to data
+    /// coordinates (timestamp + value), captures an immutable
+    /// <see cref="ChartClickContext"/> snapshot, and opens a context
+    /// menu with Insert / Edit nearest / Remove nearest. PointerReleased
+    /// fires after ScottPlot's own pan/right-click handling so we don't
+    /// race with built-in input processing.
+    /// </summary>
+    private void OnChartPointerReleased(object? sender, PointerReleasedEventArgs e)
+    {
+        if (m_plot is null || m_vm is null)
+        {
+            return;
+        }
+        if (e.InitialPressMouseButton != MouseButton.Right)
+        {
+            return;
+        }
+        Point pos = e.GetPosition(m_plot);
+        var pixel = new Pixel((float)pos.X, (float)pos.Y);
+        Coordinates coords;
+        try
+        {
+            coords = m_plot.Plot.GetCoordinates(pixel);
+        }
+        catch
+        {
+            return;
+        }
+
+        DateTime ts;
+        try
+        {
+            ts = DateTime.SpecifyKind(DateTime.FromOADate(coords.X), DateTimeKind.Utc);
+        }
+        catch (ArgumentException)
+        {
+            return;
+        }
+        HistoryRow? nearest = m_vm.FindNearestNumeric(ts);
+        var ctx = new ChartClickContext(pixel, ts, coords.Y, nearest);
+
+        ContextMenu menu = BuildChartContextMenu(m_vm, ctx);
+        menu.PlacementTarget = m_plot;
+        menu.Open(m_plot);
+        e.Handled = true;
+    }
+
+    private static ContextMenu BuildChartContextMenu(HistorianPlugin vm, ChartClickContext ctx)
+    {
+        var menu = new ContextMenu();
+
+        string tsLabel = ctx.DataTimestamp.ToString("u",
+            System.Globalization.CultureInfo.InvariantCulture);
+
+        var insert = new MenuItem
+        {
+            Header = $"✚ Insert here ({tsLabel})…"
+        };
+        insert.Click += async (_, _) =>
+            await vm.InsertAtAsync(ctx.DataTimestamp, ctx.DataValue).ConfigureAwait(true);
+        menu.Items.Add(insert);
+
+        menu.Items.Add(new Separator());
+
+        string nearestLabel = ctx.NearestNumeric is { } nr
+            ? $" ({nr.DisplayTimestamp})"
+            : string.Empty;
+        var edit = new MenuItem
+        {
+            Header = $"✎ Edit nearest{nearestLabel}…",
+            IsEnabled = ctx.NearestNumeric is not null
+        };
+        edit.Click += async (_, _) =>
+            await vm.EditNearestAsync(ctx.DataTimestamp).ConfigureAwait(true);
+        menu.Items.Add(edit);
+
+        var remove = new MenuItem
+        {
+            Header = $"🗑 Remove nearest{nearestLabel}",
+            IsEnabled = ctx.NearestNumeric is not null
+        };
+        remove.Click += async (_, _) =>
+            await vm.DeleteNearestAsync(ctx.DataTimestamp).ConfigureAwait(true);
+        menu.Items.Add(remove);
+
+        return menu;
+    }
+
+    /// <summary>
     /// Right-click on a history row sets <see cref="HistorianPlugin.SelectedRow"/>
     /// to the clicked row and attaches a context menu with the per-row
-    /// actions (Edit annotation… / Edit row / Delete row) so the user
-    /// can dispatch operations against any row without first selecting
-    /// it via the keyboard or single-click.
+    /// actions (Edit row… / Insert after… / Delete row / Edit annotation…)
+    /// so the user can dispatch operations against any row without first
+    /// selecting it via the keyboard or single-click.
     /// </summary>
     private void OnRowPointerPressed(object? sender, PointerPressedEventArgs e)
     {
@@ -213,19 +330,24 @@ internal sealed partial class HistorianView : UserControl
     {
         var menu = new ContextMenu();
 
-        var editAnn = new MenuItem { Header = "Edit _annotation…" };
-        editAnn.Click += async (_, _) => await vm.EditAnnotationAsync().ConfigureAwait(true);
-        menu.Items.Add(editAnn);
-
-        menu.Items.Add(new Separator());
-
-        var editRow = new MenuItem { Header = "_Edit row…" };
+        var editRow = new MenuItem { Header = "✎ _Edit row…" };
         editRow.Click += async (_, _) => await vm.EditSelectedAsync().ConfigureAwait(true);
         menu.Items.Add(editRow);
 
-        var deleteRow = new MenuItem { Header = "_Delete row" };
+        var insertAfter = new MenuItem { Header = "✚ _Insert after…" };
+        insertAfter.Click += async (_, _) =>
+            await vm.InsertAfterSelectedAsync().ConfigureAwait(true);
+        menu.Items.Add(insertAfter);
+
+        var deleteRow = new MenuItem { Header = "🗑 _Delete row" };
         deleteRow.Click += async (_, _) => await vm.DeleteSelectedAsync().ConfigureAwait(true);
         menu.Items.Add(deleteRow);
+
+        menu.Items.Add(new Separator());
+
+        var editAnn = new MenuItem { Header = "Edit _annotation…" };
+        editAnn.Click += async (_, _) => await vm.EditAnnotationAsync().ConfigureAwait(true);
+        menu.Items.Add(editAnn);
 
         return menu;
     }

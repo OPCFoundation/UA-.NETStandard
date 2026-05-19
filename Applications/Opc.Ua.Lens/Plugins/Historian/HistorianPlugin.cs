@@ -168,6 +168,7 @@ internal sealed partial class HistorianPlugin : ObservableObject, IPlugin
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(ReadCommand))]
     [NotifyCanExecuteChangedFor(nameof(ExecuteUpdateCommand))]
+    [NotifyCanExecuteChangedFor(nameof(InsertNewCommand))]
     [NotifyPropertyChangedFor(nameof(TargetDescription))]
     [NotifyPropertyChangedFor(nameof(HasTarget))]
     private NodeId targetNodeId = NodeId.Null;
@@ -270,11 +271,13 @@ internal sealed partial class HistorianPlugin : ObservableObject, IPlugin
     [NotifyCanExecuteChangedFor(nameof(EditSelectedCommand))]
     [NotifyCanExecuteChangedFor(nameof(DeleteSelectedCommand))]
     [NotifyCanExecuteChangedFor(nameof(EditAnnotationCommand))]
+    [NotifyCanExecuteChangedFor(nameof(InsertAfterSelectedCommand))]
     private HistoryRow? m_selectedRow;
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(ReadCommand))]
     [NotifyCanExecuteChangedFor(nameof(CancelReadCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ExecuteUpdateCommand))]
     private bool m_isReading;
 
     // ---- History Update bar ----
@@ -785,13 +788,144 @@ internal sealed partial class HistorianPlugin : ObservableObject, IPlugin
         {
             return;
         }
+        await ApplyEditResultAsync(session, result, refreshOnSuccess: true).ConfigureAwait(true);
+    }
+
+    /// <summary>
+    /// Opens <see cref="EditHistoryRowDialog"/> in Insert mode pre-filled
+    /// with <see cref="DateTime.UtcNow"/> and value 0. Reachable from the
+    /// toolbar's "Insert…" button.
+    /// </summary>
+    [RelayCommand(CanExecute = nameof(HasTarget))]
+    public Task InsertNewAsync()
+        => OpenInsertDialogAsync(DateTime.UtcNow, 0.0,
+            hint: "Insert a new history row at the chosen timestamp.");
+
+    /// <summary>
+    /// Opens the Insert dialog with the timestamp pre-filled at the
+    /// midpoint between the selected row and the next row in
+    /// <see cref="Rows"/>. For the last row, the fallback is the
+    /// selected row's timestamp plus the average sample interval.
+    /// </summary>
+    [RelayCommand(CanExecute = nameof(CanModifyRow))]
+    public Task InsertAfterSelectedAsync()
+    {
+        if (SelectedRow is not { } row)
+        {
+            return Task.CompletedTask;
+        }
+        DateTime ts = ComputeInsertAfterTimestamp(row);
+        double initialValue = row.IsNumeric ? row.Numeric : 0.0;
+        return OpenInsertDialogAsync(ts, initialValue,
+            hint: $"Insert a new history row after {row.DisplayTimestamp}.");
+    }
+
+    /// <summary>
+    /// Insert at an arbitrary (timestamp, value) — used by the chart's
+    /// "Insert here…" context menu.
+    /// </summary>
+    public Task InsertAtAsync(DateTime timestamp, double value)
+        => OpenInsertDialogAsync(timestamp, value,
+            hint: "Insert a new history row at the picked chart position.");
+
+    /// <summary>
+    /// Edit the row nearest to <paramref name="timestamp"/> among the
+    /// plotted numeric rows. Used by the chart's "Edit nearest…" menu.
+    /// </summary>
+    public async Task EditNearestAsync(DateTime timestamp)
+    {
+        HistoryRow? nearest = FindNearestNumeric(timestamp);
+        if (nearest is null)
+        {
+            Status = "● No numeric history row available to edit.";
+            return;
+        }
+        SelectedRow = nearest;
+        await EditSelectedAsync().ConfigureAwait(true);
+    }
+
+    /// <summary>
+    /// Delete the row nearest to <paramref name="timestamp"/> among the
+    /// plotted numeric rows. Used by the chart's "Remove nearest" menu.
+    /// </summary>
+    public async Task DeleteNearestAsync(DateTime timestamp)
+    {
+        HistoryRow? nearest = FindNearestNumeric(timestamp);
+        if (nearest is null)
+        {
+            Status = "● No numeric history row available to delete.";
+            return;
+        }
+        SelectedRow = nearest;
+        Status = $"● Deleting row nearest to picked chart position ({nearest.DisplayTimestamp})…";
+        await DeleteSelectedAsync().ConfigureAwait(true);
+    }
+
+    /// <summary>
+    /// Shared core for every Insert flow: open the EditHistoryRowDialog
+    /// in Insert mode, then dispatch the resulting Insert / Replace via
+    /// the same HistoryUpdater pipeline as Edit.
+    /// </summary>
+    private async Task OpenInsertDialogAsync(DateTime timestamp, double value, string hint)
+    {
+        if (m_host.Main.Connection.Session is not { } session)
+        {
+            Status = "● Not connected — connect first.";
+            return;
+        }
+        if (TargetNodeId.IsNull)
+        {
+            Status = "● Pick a target Variable first.";
+            return;
+        }
+        Window? owner = GetOwnerWindow();
+        var options = new EditHistoryRowDialogOptions(
+            EditHistoryRowMode.Insert,
+            TargetNodeId,
+            EnsureUtc(timestamp),
+            value,
+            StatusCodes.Good,
+            AllowedActions: new[]
+            {
+                PerformUpdateType.Insert,
+                PerformUpdateType.Replace
+            },
+            DefaultAction: PerformUpdateType.Insert,
+            Hint: hint);
+        var dialog = new EditHistoryRowDialog(options);
+        EditHistoryRowResult? result = owner is null
+            ? await dialog.ShowDialog<EditHistoryRowResult?>(new Window()).ConfigureAwait(true)
+            : await dialog.ShowDialog<EditHistoryRowResult?>(owner).ConfigureAwait(true);
+        if (result is null)
+        {
+            return;
+        }
+        await ApplyEditResultAsync(session, result, refreshOnSuccess: true).ConfigureAwait(true);
+    }
+
+    /// <summary>
+    /// Common pipeline used by Edit and Insert: dispatch the
+    /// HistoryUpdate, render the outcome to the status line, and (on
+    /// success of an Insert / Replace) trigger a Read so the rows /
+    /// chart reflect server state.
+    /// </summary>
+    private async Task ApplyEditResultAsync(
+        Opc.Ua.Client.ISession session,
+        EditHistoryRowResult result,
+        bool refreshOnSuccess)
+    {
         try
         {
             var updater = new HistoryUpdater(session);
             await updater.UpdateAsync(
                 result.NodeId, result.Action, result.Timestamp,
                 result.Value, result.Status, CancellationToken.None).ConfigureAwait(true);
-            Status = $"● HistoryUpdate ({result.Action}) applied at {row.DisplayTimestamp}.";
+            string ts = result.Timestamp.ToString("u", CultureInfo.InvariantCulture);
+            Status = $"● HistoryUpdate ({result.Action}) applied at {ts}.";
+            if (refreshOnSuccess)
+            {
+                await ReadAsync().ConfigureAwait(true);
+            }
         }
         catch (ServiceResultException ex)
         {
@@ -804,6 +938,133 @@ internal sealed partial class HistorianPlugin : ObservableObject, IPlugin
             m_log.LogWarning(ex, "Historian tab {Title} HistoryUpdate failed.", Title);
         }
     }
+
+    /// <summary>
+    /// Compute the Insert-after timestamp for <paramref name="row"/>:
+    /// midpoint between row and its successor in <see cref="Rows"/>,
+    /// or <c>row.Ts + averageInterval</c> when row is the last entry.
+    /// Falls back to <c>row.Ts + 1 s</c> when the average interval can't
+    /// be computed (single-row tables).
+    /// </summary>
+    private DateTime ComputeInsertAfterTimestamp(HistoryRow row)
+    {
+        int idx = Rows.IndexOf(row);
+        if (idx < 0)
+        {
+            return EnsureUtc(row.SourceTimestamp.AddSeconds(1));
+        }
+        if (idx + 1 < Rows.Count)
+        {
+            DateTime next = Rows[idx + 1].SourceTimestamp;
+            long midpointTicks = (row.SourceTimestamp.Ticks + next.Ticks) / 2;
+            return EnsureUtc(new DateTime(midpointTicks, DateTimeKind.Utc));
+        }
+        // Last row — try to use the average interval of the visible Rows.
+        TimeSpan avg = AverageInterval();
+        if (avg <= TimeSpan.Zero)
+        {
+            avg = TimeSpan.FromSeconds(1);
+        }
+        return EnsureUtc(row.SourceTimestamp + avg);
+    }
+
+    private TimeSpan AverageInterval()
+    {
+        if (Rows.Count < 2)
+        {
+            return TimeSpan.Zero;
+        }
+        long totalTicks = 0;
+        for (int i = 1; i < Rows.Count; i++)
+        {
+            totalTicks += Rows[i].SourceTimestamp.Ticks - Rows[i - 1].SourceTimestamp.Ticks;
+        }
+        return new TimeSpan(totalTicks / (Rows.Count - 1));
+    }
+
+    /// <summary>
+    /// Find the numeric history row whose timestamp is closest to
+    /// <paramref name="timestamp"/>. Non-numeric rows aren't plotted on
+    /// the chart so they are excluded — chart-driven actions only act
+    /// on what the user can actually see.
+    /// </summary>
+    public HistoryRow? FindNearestNumeric(DateTime timestamp)
+    {
+        DateTime target = EnsureUtc(timestamp);
+        HistoryRow? best = null;
+        long bestDelta = long.MaxValue;
+        foreach (HistoryRow r in Rows)
+        {
+            if (!r.IsNumeric)
+            {
+                continue;
+            }
+            long delta = Math.Abs(r.SourceTimestamp.Ticks - target.Ticks);
+            if (delta < bestDelta)
+            {
+                bestDelta = delta;
+                best = r;
+            }
+        }
+        return best;
+    }
+
+    /// <summary>True when at least one numeric row is plotted.</summary>
+    public bool HasAnyNumericRow
+    {
+        get
+        {
+            foreach (HistoryRow r in Rows)
+            {
+                if (r.IsNumeric)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+    }
+
+    private static DateTime EnsureUtc(DateTime dt)
+        => dt.Kind == DateTimeKind.Utc
+            ? dt
+            : DateTime.SpecifyKind(dt.ToUniversalTime(), DateTimeKind.Utc);
+
+    /// <summary>
+    /// Opens the modal <see cref="HistoryUpdateDialog"/>. If a dialog is
+    /// already open, focuses it instead of opening a duplicate so the
+    /// shared per-plug-in fields (timestamp / value / range / at-time
+    /// list) can't be overwritten by two windows simultaneously.
+    /// </summary>
+    [RelayCommand]
+    public async Task OpenHistoryUpdateDialogAsync()
+    {
+        if (m_advancedDialog is { } existing)
+        {
+            existing.Activate();
+            return;
+        }
+        Window? owner = GetOwnerWindow();
+        var dlg = new HistoryUpdateDialog { DataContext = this };
+        m_advancedDialog = dlg;
+        try
+        {
+            if (owner is null)
+            {
+                await dlg.ShowDialog(new Window()).ConfigureAwait(true);
+            }
+            else
+            {
+                await dlg.ShowDialog(owner).ConfigureAwait(true);
+            }
+        }
+        finally
+        {
+            m_advancedDialog = null;
+        }
+    }
+
+    private Window? m_advancedDialog;
 
     [RelayCommand(CanExecute = nameof(CanModifyRow))]
     public async Task DeleteSelectedAsync()
@@ -892,7 +1153,8 @@ internal sealed partial class HistorianPlugin : ObservableObject, IPlugin
         }
     }
 
-    private bool CanExecuteUpdate() => HasTarget && m_host.Main.Connection.Session is not null;
+    private bool CanExecuteUpdate() =>
+        HasTarget && !IsReading && m_host.Main.Connection.Session is not null;
 
     /// <summary>
     /// Dispatches the HistoryUpdate selected in the

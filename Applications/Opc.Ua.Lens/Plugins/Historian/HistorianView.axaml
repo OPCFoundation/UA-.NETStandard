@@ -73,12 +73,12 @@
   </UserControl.Styles>
 
   <Border Background="#0F172A" BorderBrush="#1E293B" BorderThickness="1" CornerRadius="4" Padding="10">
-    <Grid RowDefinitions="Auto,Auto,Auto,Auto,*,*">
+    <Grid RowDefinitions="Auto,Auto,Auto,*,*">
 
       <!-- Row 0: target picker -->
       <Border Grid.Row="0" Padding="10" Background="#0B1220" BorderBrush="#1E293B"
               BorderThickness="1" CornerRadius="4">
-        <Grid ColumnDefinitions="*,Auto,Auto">
+        <Grid ColumnDefinitions="*,Auto,Auto,Auto">
           <StackPanel Grid.Column="0" Orientation="Vertical" Spacing="4">
             <TextBlock Classes="h" Text="TARGET VARIABLE" />
             <TextBlock Classes="statDim"
@@ -90,6 +90,10 @@
                   VerticalAlignment="Center" Margin="0,0,6,0" />
           <Button Grid.Column="2" Classes="tonal" Content="Range…"
                   Command="{CompiledBinding PickRangeCommand}"
+                  VerticalAlignment="Center" Margin="0,0,6,0" />
+          <Button Grid.Column="3" Classes="tonal" Content="History update…"
+                  ToolTip.Tip="Insert / Replace / DeleteRaw / DeleteModified / DeleteAtTime — advanced HistoryUpdate operations."
+                  Command="{CompiledBinding OpenHistoryUpdateDialogCommand}"
                   VerticalAlignment="Center" />
         </Grid>
       </Border>
@@ -196,6 +200,9 @@
                 Command="{CompiledBinding ReadCommand}" />
         <Button Classes="tonal" Content="■ Cancel" Margin="4,0"
                 Command="{CompiledBinding CancelReadCommand}" />
+        <Button Classes="tonal" Content="✚ Insert…" Margin="4,0"
+                ToolTip.Tip="Insert a new history row at a chosen timestamp."
+                Command="{CompiledBinding InsertNewCommand}" />
         <Button Classes="tonal" Content="✎ Edit selected…" Margin="4,0"
                 Command="{CompiledBinding EditSelectedCommand}" />
         <Button Classes="danger" Content="🗑 Delete selected" Margin="4,0"
@@ -204,103 +211,8 @@
                 Command="{CompiledBinding ExportCsvCommand}" />
       </WrapPanel>
 
-      <!-- Row 3: history-update mode bar -->
-      <Border Grid.Row="3" Margin="0,8,0,0" Padding="10" Background="#0B1220"
-              BorderBrush="#1E293B" BorderThickness="1" CornerRadius="4">
-        <StackPanel Orientation="Vertical" Spacing="6">
-          <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-            <TextBlock Classes="h" Text="HISTORY UPDATE" VerticalAlignment="Center" Margin="0,0,8,0" />
-            <ComboBox ItemsSource="{CompiledBinding UpdateOpOptions}"
-                      SelectedIndex="{CompiledBinding SelectedUpdateOpIndex, Mode=TwoWay}"
-                      MinWidth="180" />
-            <Button Classes="primary" Content="Execute"
-                    Command="{CompiledBinding ExecuteUpdateCommand}"
-                    VerticalAlignment="Center" />
-          </StackPanel>
-
-          <!-- Single-row ops (Insert / InsertReplace / Replace) -->
-          <StackPanel Orientation="Horizontal" Spacing="6" IsVisible="{CompiledBinding IsSingleValueOp}">
-            <TextBlock Classes="statDim" Text="Timestamp (UTC):" VerticalAlignment="Center" Width="110" />
-            <v:UtcDateTimePicker Value="{CompiledBinding UpdateTimestamp, Mode=TwoWay}" />
-            <TextBlock Classes="statDim" Text="Value (double):" VerticalAlignment="Center" Margin="12,0,0,0" />
-            <TextBox Text="{CompiledBinding UpdateValueText, Mode=TwoWay}" MinWidth="160" />
-          </StackPanel>
-
-          <!-- Single-timestamp ops (Remove) -->
-          <StackPanel Orientation="Horizontal" Spacing="6" IsVisible="{CompiledBinding IsRemoveOp}">
-            <TextBlock Classes="statDim" Text="Timestamp (UTC):" VerticalAlignment="Center" Width="110" />
-            <v:UtcDateTimePicker Value="{CompiledBinding UpdateTimestamp, Mode=TwoWay}" />
-          </StackPanel>
-
-          <!-- Range ops (DeleteRaw / DeleteModified) -->
-          <StackPanel Orientation="Horizontal" Spacing="6" IsVisible="{CompiledBinding IsRangeOp}">
-            <TextBlock Classes="statDim" Text="Start (UTC):" VerticalAlignment="Center" Width="110" />
-            <v:UtcDateTimePicker Value="{CompiledBinding UpdateStart, Mode=TwoWay}" />
-            <TextBlock Classes="statDim" Text="End (UTC):" VerticalAlignment="Center" Margin="12,0,0,0" />
-            <v:UtcDateTimePicker Value="{CompiledBinding UpdateEnd, Mode=TwoWay}" />
-          </StackPanel>
-
-          <!-- Multi-timestamp op (DeleteAtTime) -->
-          <Border IsVisible="{CompiledBinding IsDeleteAtTimeOp}"
-                  BorderBrush="#1E293B" BorderThickness="1" CornerRadius="4"
-                  Background="#0F172A" MaxHeight="100">
-            <ScrollViewer HorizontalScrollBarVisibility="Disabled"
-                          VerticalScrollBarVisibility="Auto">
-              <ItemsControl ItemsSource="{CompiledBinding UpdateAtTimes}">
-                <ItemsControl.ItemsPanel>
-                  <ItemsPanelTemplate>
-                    <WrapPanel Orientation="Horizontal" />
-                  </ItemsPanelTemplate>
-                </ItemsControl.ItemsPanel>
-                <ItemsControl.ItemTemplate>
-                  <DataTemplate DataType="vm:AtTimeRow">
-                    <Panel Margin="4">
-                      <Border IsVisible="{CompiledBinding IsEditor}"
-                              Padding="4" CornerRadius="4" Background="#0B1220"
-                              BorderBrush="#1E293B" BorderThickness="1">
-                        <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
-                          <v:UtcDateTimePicker Value="{CompiledBinding Timestamp, Mode=TwoWay}" />
-                          <Button Classes="tonal" Content="✓"
-                                  MinWidth="32" Padding="4,2"
-                                  ToolTip.Tip="Confirm"
-                                  Command="{CompiledBinding ConfirmCommand}" />
-                        </StackPanel>
-                      </Border>
-                      <Border IsVisible="{CompiledBinding IsLabel}"
-                              Padding="6,4" CornerRadius="4" Background="#0B1220"
-                              BorderBrush="#1E293B" BorderThickness="1">
-                        <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                          <TextBlock Text="{CompiledBinding Timestamp, StringFormat='{}{0:yyyy-MM-ddTHH:mm:ssZ}'}"
-                                     FontFamily="Cascadia Mono, Consolas, monospace"
-                                     FontSize="11"
-                                     VerticalAlignment="Center" />
-                          <Button Classes="tonal" Content="✗"
-                                  MinWidth="28" Padding="4,2"
-                                  ToolTip.Tip="Remove"
-                                  Command="{CompiledBinding RemoveCommand}" />
-                        </StackPanel>
-                      </Border>
-                      <Button IsVisible="{CompiledBinding IsAddButton}"
-                              Classes="tonal" Content="＋"
-                              MinWidth="36" Padding="6,4"
-                              ToolTip.Tip="Add timestamp"
-                              Command="{CompiledBinding RemoveCommand}" />
-                    </Panel>
-                  </DataTemplate>
-                </ItemsControl.ItemTemplate>
-              </ItemsControl>
-            </ScrollViewer>
-          </Border>
-
-          <TextBlock Classes="statDim"
-                     FontFamily="Cascadia Mono, Consolas, monospace"
-                     TextWrapping="Wrap"
-                     Text="{CompiledBinding UpdateResult}" />
-        </StackPanel>
-      </Border>
-
-      <!-- Row 4: results table -->
-      <Border Grid.Row="4" Margin="0,8,0,4" Background="#0B1220"
+      <!-- Row 3: results table -->
+      <Border Grid.Row="3" Margin="0,8,0,4" Background="#0B1220"
               BorderBrush="#1E293B" BorderThickness="1" CornerRadius="4">
         <Grid RowDefinitions="Auto,*" Grid.IsSharedSizeScope="True">
           <Grid Grid.Row="0" Background="#1E293B">
@@ -370,8 +282,8 @@
         </Grid>
       </Border>
 
-      <!-- Row 5: line chart -->
-      <Border Grid.Row="5" Margin="0,4,0,0"
+      <!-- Row 4: line chart -->
+      <Border Grid.Row="4" Margin="0,4,0,0"
               Background="#0B1220" BorderBrush="#1E293B" BorderThickness="1" CornerRadius="4">
         <Grid RowDefinitions="Auto,*">
           <TextBlock Grid.Row="0" Classes="h" Margin="8,6,0,0"

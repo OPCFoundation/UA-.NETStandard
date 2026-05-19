@@ -28,13 +28,15 @@
 ======================================================================== -->
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:v="using:UaLens.Views"
         x:Class="UaLens.Plugins.Historian.EditHistoryRowDialog"
         Title="Edit history row"
-        Width="560" Height="320"
+        Width="600" Height="340"
         WindowStartupLocation="CenterOwner"
         Background="#0F172A" Foreground="#E2E8F0">
   <Grid Margin="16" RowDefinitions="Auto,Auto,Auto,Auto,Auto,*,Auto" ColumnDefinitions="180,*">
     <TextBlock Grid.Row="0" Grid.ColumnSpan="2"
+               x:Name="HintLabel"
                Margin="0,0,0,12"
                TextWrapping="Wrap"
                Text="Edit the value + status for the selected history row. Action selects the HistoryUpdate variant per OPC UA Part 11 §6.8." />
@@ -45,8 +47,14 @@
                TextWrapping="Wrap" />
 
     <TextBlock Grid.Row="2" Grid.Column="0" Text="Timestamp (UTC)" VerticalAlignment="Center" Margin="0,8,0,0" />
+    <!-- Label in Edit mode (fixed to the existing row's time); picker in Insert mode. -->
     <TextBlock Grid.Row="2" Grid.Column="1" x:Name="TimestampLabel"
-               FontFamily="Cascadia Mono, Consolas, monospace" Margin="0,8,0,0" />
+               FontFamily="Cascadia Mono, Consolas, monospace" Margin="0,8,0,0"
+               IsVisible="False" />
+    <v:UtcDateTimePicker Grid.Row="2" Grid.Column="1" x:Name="TimestampPicker"
+                         HorizontalAlignment="Left"
+                         Margin="0,8,0,0"
+                         IsVisible="False" />
 
     <TextBlock Grid.Row="3" Grid.Column="0" Text="Action" VerticalAlignment="Center" Margin="0,8,0,0" />
     <ComboBox  Grid.Row="3" Grid.Column="1" x:Name="ActionCombo" Margin="0,8,0,0" Width="240" HorizontalAlignment="Left" />
