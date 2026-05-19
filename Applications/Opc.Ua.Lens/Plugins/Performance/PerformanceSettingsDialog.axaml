@@ -1,0 +1,108 @@
+<!-- ========================================================================
+   Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+
+   OPC Foundation MIT License 1.00
+
+   Permission is hereby granted, free of charge, to any person
+   obtaining a copy of this software and associated documentation
+   files (the "Software"), to deal in the Software without
+   restriction, including without limitation the rights to use,
+   copy, modify, merge, publish, distribute, sublicense, and/or sell
+   copies of the Software, and to permit persons to whom the
+   Software is furnished to do so, subject to the following
+   conditions:
+
+   The above copyright notice and this permission notice shall be
+   included in all copies or substantial portions of the Software.
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+   EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+   OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+   NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+   HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+   WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+   FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+   OTHER DEALINGS IN THE SOFTWARE.
+
+   The complete license agreement can be found here:
+   http://opcfoundation.org/License/MIT/1.00/
+======================================================================== -->
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:UaLens.Plugins.Performance"
+        x:Class="UaLens.Plugins.Performance.PerformanceSettingsDialog"
+        x:DataType="vm:PerformancePlugin"
+        Title="Performance settings"
+        Width="640" Height="320"
+        WindowStartupLocation="CenterOwner"
+        Background="#0F172A" Foreground="#E2E8F0">
+  <Window.Styles>
+    <Style Selector="TextBlock.h">
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Foreground" Value="#94A3B8" />
+    </Style>
+    <Style Selector="TextBlock.statDim">
+      <Setter Property="Foreground" Value="#94A3B8" />
+      <Setter Property="FontFamily" Value="Cascadia Mono, Consolas, monospace" />
+      <Setter Property="FontSize" Value="11" />
+    </Style>
+    <Style Selector="TextBlock.stat">
+      <Setter Property="Foreground" Value="#E2E8F0" />
+      <Setter Property="FontFamily" Value="Cascadia Mono, Consolas, monospace" />
+      <Setter Property="FontSize" Value="12" />
+    </Style>
+    <Style Selector="Button.tonal">
+      <Setter Property="Background" Value="#1E293B" />
+      <Setter Property="Foreground" Value="#E2E8F0" />
+      <Setter Property="Padding" Value="10,5" />
+      <Setter Property="MinWidth" Value="100" />
+    </Style>
+  </Window.Styles>
+
+  <Grid Margin="16" RowDefinitions="Auto,*,Auto">
+    <TextBlock Grid.Row="0" Classes="h" Text="WORKLOAD" Margin="0,0,0,8" />
+
+    <StackPanel Grid.Row="1" Orientation="Vertical" Spacing="10">
+      <Grid ColumnDefinitions="120,*,Auto">
+        <TextBlock Grid.Column="0" Classes="statDim"
+                   VerticalAlignment="Center" Text="Rate (ops/s):" />
+        <Slider   Grid.Column="1" x:Name="RateSlider"
+                  Minimum="1" Maximum="10000"
+                  Value="{CompiledBinding TargetRate, Mode=TwoWay}"
+                  IsEnabled="{CompiledBinding RateEditable}"
+                  Margin="6,0,6,0" />
+        <TextBlock Grid.Column="2" Classes="stat"
+                   VerticalAlignment="Center" MinWidth="60" TextAlignment="Right"
+                   Text="{CompiledBinding TargetRateText}" />
+      </Grid>
+
+      <CheckBox Content="Unbounded burst"
+                IsChecked="{CompiledBinding UnboundedBurst, Mode=TwoWay}" />
+
+      <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+        <TextBlock Classes="statDim" VerticalAlignment="Center" Text="Duration:" Width="80" />
+        <NumericUpDown MinWidth="110"
+                       Minimum="1" Maximum="9999" Increment="1"
+                       Value="{CompiledBinding DurationSeconds, Mode=TwoWay}"
+                       FormatString="0" />
+        <ComboBox MinWidth="110" Margin="2,0,0,0"
+                  ItemsSource="{CompiledBinding DurationUnitOptions}"
+                  SelectedItem="{CompiledBinding DurationUnit, Mode=TwoWay}" />
+      </StackPanel>
+
+      <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+        <TextBlock Classes="statDim" VerticalAlignment="Center" Text="Values:" Width="80" />
+        <ComboBox MinWidth="200"
+                  ItemsSource="{CompiledBinding GeneratorOptions}"
+                  SelectedItem="{CompiledBinding Generator, Mode=TwoWay}" />
+      </StackPanel>
+
+      <TextBlock Classes="statDim" Text="{CompiledBinding ConcurrencyHint}" />
+    </StackPanel>
+
+    <StackPanel Grid.Row="2" Orientation="Horizontal"
+                HorizontalAlignment="Right" Margin="0,12,0,0">
+      <Button x:Name="CloseButton" Content="Close" IsCancel="True" IsDefault="True" Width="100" />
+    </StackPanel>
+  </Grid>
+</Window>

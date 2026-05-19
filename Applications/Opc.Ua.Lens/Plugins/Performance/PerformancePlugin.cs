@@ -129,15 +129,18 @@ internal sealed partial class PerformancePlugin : ObservableObject, IPlugin
     private bool unboundedBurst;
 
     [ObservableProperty]
-    private int m_durationSeconds = 10;
+    [NotifyPropertyChangedFor(nameof(EffectiveDurationText))]
+    private int m_durationSeconds = 1;
 
     /// <summary>
     /// Unit applied to <see cref="DurationSeconds"/> to compute the
     /// effective run duration.  Choices: Seconds / Minutes / Hours.
-    /// Defaults to Seconds to preserve prior behavior.
+    /// Defaults to Hours so a freshly opened tab is wired up for a
+    /// realistic long-running benchmark instead of a 10-second burst.
     /// </summary>
     [ObservableProperty]
-    private DurationUnit m_durationUnit = DurationUnit.Seconds;
+    [NotifyPropertyChangedFor(nameof(EffectiveDurationText))]
+    private DurationUnit m_durationUnit = DurationUnit.Hours;
 
     public IReadOnlyList<DurationUnit> DurationUnitOptions { get; } =
         new[] { DurationUnit.Seconds, DurationUnit.Minutes, DurationUnit.Hours };
@@ -302,6 +305,32 @@ internal sealed partial class PerformancePlugin : ObservableObject, IPlugin
         ? "(no Target — pick a Variable or Method first)"
         : Target.DisplayName;
 
+    /// <summary>NodeId of the configured target as a mono-spaced string for the toolbar label.</summary>
+    public string TargetNodeIdText => Target is null
+        ? "(no target selected)"
+        : Target.NodeId.ToString() ?? "(null)";
+
+    /// <summary>Short summary used by the Settings dialog button label.</summary>
+    public string EffectiveDurationText
+    {
+        get
+        {
+            TimeSpan d = EffectiveDuration;
+            if (d.TotalHours >= 1)
+            {
+                return string.Format(CultureInfo.InvariantCulture,
+                    "{0:0.##} h", d.TotalHours);
+            }
+            if (d.TotalMinutes >= 1)
+            {
+                return string.Format(CultureInfo.InvariantCulture,
+                    "{0:0.##} min", d.TotalMinutes);
+            }
+            return string.Format(CultureInfo.InvariantCulture,
+                "{0:0} s", d.TotalSeconds);
+        }
+    }
+
     public bool RateEditable => !UnboundedBurst && !IsRunning;
 
     public string TargetRateText => string.Format(CultureInfo.InvariantCulture,
@@ -319,6 +348,27 @@ internal sealed partial class PerformancePlugin : ObservableObject, IPlugin
     }
 
     // ---- Commands ----
+
+    /// <summary>
+    /// Opens a modal <see cref="PerformanceSettingsDialog"/> hosting the
+    /// workload editor (rate / unbounded burst / duration / value
+    /// generator). The dialog binds the same plug-in instance so live
+    /// changes propagate into the toolbar's effective-duration label.
+    /// </summary>
+    [RelayCommand]
+    private async Task OpenSettingsDialogAsync()
+    {
+        Window? owner = GetOwnerWindow();
+        var dlg = new PerformanceSettingsDialog { DataContext = this };
+        if (owner is null)
+        {
+            await dlg.ShowDialog(new Window()).ConfigureAwait(true);
+        }
+        else
+        {
+            await dlg.ShowDialog(owner).ConfigureAwait(true);
+        }
+    }
 
     [RelayCommand]
     private async Task PickTargetAsync()
@@ -898,5 +948,9 @@ internal sealed partial class PerformancePlugin : ObservableObject, IPlugin
 
     partial void OnUnboundedBurstChanged(bool value) => OnPropertyChanged(nameof(RateEditable));
     partial void OnIsRunningChanged(bool value) => OnPropertyChanged(nameof(RateEditable));
-    partial void OnTargetChanged(BenchmarkTarget? value) => OnPropertyChanged(nameof(TargetDescription));
+    partial void OnTargetChanged(BenchmarkTarget? value)
+    {
+        OnPropertyChanged(nameof(TargetDescription));
+        OnPropertyChanged(nameof(TargetNodeIdText));
+    }
 }

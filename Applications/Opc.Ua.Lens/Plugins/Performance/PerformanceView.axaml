@@ -85,83 +85,62 @@
   <Border Background="#0F172A" BorderBrush="#1E293B" BorderThickness="1" CornerRadius="4" Padding="10">
     <Grid RowDefinitions="Auto,Auto,*,*,Auto,Auto">
 
-      <!-- Row 0: target picker + workload + actions -->
+      <!-- Row 0: action toolbar (WrapPanel — wraps on narrow windows) -->
       <Border Grid.Row="0" Padding="10" Background="#0B1220" BorderBrush="#1E293B"
               BorderThickness="1" CornerRadius="4">
-        <Grid ColumnDefinitions="*,12,*,12,Auto">
-
-          <!-- Target column -->
-          <StackPanel Grid.Column="0" Orientation="Vertical" Spacing="6">
-            <TextBlock Classes="h" Text="TARGET" />
-            <StackPanel Orientation="Horizontal" Spacing="8">
-              <ComboBox x:Name="ModeCombo"
-                        ItemsSource="{CompiledBinding ModeOptions}"
-                        SelectedItem="{CompiledBinding Mode, Mode=TwoWay}"
-                        MinWidth="100" />
-              <Button Classes="tonal" Content="Pick target…"
-                      Command="{CompiledBinding PickTargetCommand}" />
-            </StackPanel>
-            <TextBlock Classes="statDim"
-                       TextTrimming="CharacterEllipsis"
-                       MaxWidth="380"
-                       Text="{CompiledBinding TargetDescription}" />
-          </StackPanel>
-
-          <!-- Workload column -->
-          <StackPanel Grid.Column="2" Orientation="Vertical" Spacing="6">
-            <TextBlock Classes="h" Text="WORKLOAD" />
-            <Grid ColumnDefinitions="Auto,*,Auto" RowDefinitions="Auto,Auto">
-              <TextBlock Grid.Row="0" Grid.Column="0" Classes="statDim"
-                         VerticalAlignment="Center" Text="Rate (ops/s):" />
-              <Slider   Grid.Row="0" Grid.Column="1" x:Name="RateSlider"
-                        Minimum="1" Maximum="10000"
-                        Value="{CompiledBinding TargetRate, Mode=TwoWay}"
-                        IsEnabled="{CompiledBinding RateEditable}" Margin="6,0,6,0" />
-              <TextBlock Grid.Row="0" Grid.Column="2" Classes="stat"
-                         VerticalAlignment="Center" MinWidth="60" TextAlignment="Right"
-                         Text="{CompiledBinding TargetRateText}" />
-
-              <WrapPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="3"
-                          Orientation="Horizontal" Margin="0,4,0,0">
-                <CheckBox Content="Unbounded burst" Margin="0,0,12,0"
-                          IsChecked="{CompiledBinding UnboundedBurst, Mode=TwoWay}" />
-                <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center"
-                            Margin="0,0,12,0">
-                  <TextBlock Classes="statDim" VerticalAlignment="Center" Text="Duration:" />
-                  <NumericUpDown MinWidth="110"
-                                 Minimum="1" Maximum="9999" Increment="1"
-                                 Value="{CompiledBinding DurationSeconds, Mode=TwoWay}"
-                                 FormatString="0" />
-                  <ComboBox MinWidth="110" Margin="2,0,0,0"
-                            ItemsSource="{CompiledBinding DurationUnitOptions}"
-                            SelectedItem="{CompiledBinding DurationUnit, Mode=TwoWay}" />
-                </StackPanel>
-                <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                  <TextBlock Classes="statDim" VerticalAlignment="Center" Text="Values:" />
-                  <ComboBox ItemsSource="{CompiledBinding GeneratorOptions}"
-                            SelectedItem="{CompiledBinding Generator, Mode=TwoWay}" MinWidth="100" />
-                </StackPanel>
-              </WrapPanel>
-            </Grid>
-            <TextBlock Classes="statDim" Text="{CompiledBinding ConcurrencyHint}" />
-          </StackPanel>
-
-          <!-- Action column -->
-          <WrapPanel Grid.Column="4" Orientation="Horizontal" MinWidth="270"
-                     VerticalAlignment="Center">
+        <Grid RowDefinitions="Auto,Auto">
+          <WrapPanel Grid.Row="0" Orientation="Horizontal" ItemHeight="32">
+            <ComboBox x:Name="ModeCombo" Margin="0,0,6,0"
+                      ItemsSource="{CompiledBinding ModeOptions}"
+                      SelectedItem="{CompiledBinding Mode, Mode=TwoWay}"
+                      MinWidth="100" VerticalAlignment="Center" />
+            <Button Classes="tonal" Content="Pick target…" Margin="0,0,6,0"
+                    VerticalAlignment="Center"
+                    Command="{CompiledBinding PickTargetCommand}" />
             <Button Classes="primary" Content="▶ Run"  Margin="0,0,6,0"
+                    VerticalAlignment="Center"
                     Command="{CompiledBinding RunCommand}" />
             <Button Classes="danger"  Content="■ Stop" Margin="0,0,6,0"
+                    VerticalAlignment="Center"
                     Command="{CompiledBinding StopCommand}" />
             <Button Classes="tonal"   Content="↺ Reset" Margin="0,0,6,0"
+                    VerticalAlignment="Center"
                     Command="{CompiledBinding ResetCommand}" />
             <Button Classes="tonal"   Content="💾 Save…" Margin="0,0,6,0"
+                    VerticalAlignment="Center"
                     ToolTip.Tip="Save the run history to a CSV file."
                     Command="{CompiledBinding SaveResultsCommand}" />
-            <Button Classes="tonal"   Content="📂 Load…"
+            <Button Classes="tonal"   Content="📂 Load…" Margin="0,0,6,0"
+                    VerticalAlignment="Center"
                     ToolTip.Tip="Replace the run history with rows loaded from a CSV file."
                     Command="{CompiledBinding LoadResultsCommand}" />
+            <Button Classes="tonal"   Content="⚙ Settings…"
+                    VerticalAlignment="Center"
+                    ToolTip.Tip="Open the workload editor (rate / duration / value generator)."
+                    Command="{CompiledBinding OpenSettingsDialogCommand}" />
           </WrapPanel>
+          <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="8"
+                      Margin="0,8,0,0" VerticalAlignment="Center">
+            <TextBlock Classes="h" Text="TARGET" VerticalAlignment="Center" />
+            <TextBlock Classes="statDim" VerticalAlignment="Center"
+                       Text="{CompiledBinding TargetNodeIdText}"
+                       ToolTip.Tip="{CompiledBinding TargetDescription}"
+                       TextTrimming="CharacterEllipsis" />
+            <TextBlock Classes="statDim" Margin="12,0,0,0" VerticalAlignment="Center"
+                       Text="·" />
+            <TextBlock Classes="statDim" VerticalAlignment="Center"
+                       Text="{CompiledBinding TargetDescription}"
+                       TextTrimming="CharacterEllipsis"
+                       MaxWidth="420" />
+            <TextBlock Classes="statDim" Margin="12,0,0,0" VerticalAlignment="Center"
+                       Text="·" />
+            <TextBlock Classes="statDim" VerticalAlignment="Center"
+                       Text="{CompiledBinding EffectiveDurationText, StringFormat='duration={0}'}" />
+            <TextBlock Classes="statDim" Margin="12,0,0,0" VerticalAlignment="Center"
+                       Text="·" />
+            <TextBlock Classes="statDim" VerticalAlignment="Center"
+                       Text="{CompiledBinding ConcurrencyHint}" />
+          </StackPanel>
         </Grid>
       </Border>
 
