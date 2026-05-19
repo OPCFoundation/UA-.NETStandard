@@ -339,6 +339,20 @@ internal sealed partial class BrowserViewModel : ObservableObject
             case BrowseViewKind.Objects:
             case BrowseViewKind.Views:
             default:
+                // Objects/Views browsing follows three reference families
+                // so the user can walk both the instance hierarchy AND
+                // the type hierarchy reachable from RootFolder/Types:
+                //   • Aggregates (+ subtypes) — HasComponent / HasProperty /
+                //     HasHistoricalConfiguration for folder-style children;
+                //   • Organizes — Types/ObjectTypes/Views folder layout
+                //     (e.g. ObjectTypesFolder → BaseObjectType);
+                //   • HasSubtype — type-tree navigation once the user
+                //     drills into a TypeDefinition (e.g. BaseObjectType →
+                //     BaseEventType → SystemEventType …).
+                // NodeClassMask=0 means "any class" so type-tree nodes
+                // surface alongside instance children. HasNotifier /
+                // HasEventSource are intentionally excluded — they cause
+                // duplicates on event-emitting servers.
                 return new BrowseDescription[]
                 {
                     new BrowseDescription
@@ -347,7 +361,7 @@ internal sealed partial class BrowserViewModel : ObservableObject
                         BrowseDirection = BrowseDirection.Forward,
                         ReferenceTypeId = ReferenceTypeIds.Aggregates,
                         IncludeSubtypes = true,
-                        NodeClassMask = (uint)(NodeClass.Object | NodeClass.Variable | NodeClass.Method),
+                        NodeClassMask = 0,
                         ResultMask = (uint)BrowseResultMask.All
                     },
                     new BrowseDescription
@@ -356,7 +370,16 @@ internal sealed partial class BrowserViewModel : ObservableObject
                         BrowseDirection = BrowseDirection.Forward,
                         ReferenceTypeId = ReferenceTypeIds.Organizes,
                         IncludeSubtypes = false,
-                        NodeClassMask = (uint)(NodeClass.Object | NodeClass.Variable | NodeClass.View | NodeClass.Method),
+                        NodeClassMask = 0,
+                        ResultMask = (uint)BrowseResultMask.All
+                    },
+                    new BrowseDescription
+                    {
+                        NodeId = nodeId,
+                        BrowseDirection = BrowseDirection.Forward,
+                        ReferenceTypeId = ReferenceTypeIds.HasSubtype,
+                        IncludeSubtypes = false,
+                        NodeClassMask = 0,
                         ResultMask = (uint)BrowseResultMask.All
                     }
                 };
