@@ -1812,13 +1812,10 @@ namespace Opc.Ua.Server
                 // owned by this node manager.
                 nodeToRead.Processed = true;
 
-                // create an initial value.
+                // create an initial value (default ctor already sets
+                // WrappedValue = Variant.Null, ServerTimestamp /
+                // SourceTimestamp = DateTimeUtc.MinValue, StatusCode = Good).
                 DataValue value = values[ii] = new DataValue();
-
-                value.WrappedValue = default;
-                value.ServerTimestamp = DateTimeUtc.MinValue; // Will be set after ReadAttribute
-                value.SourceTimestamp = DateTimeUtc.MinValue;
-                value.StatusCode = StatusCodes.Good;
 
                 // check if the node is a area in memory.
                 if (handle.Node == null)
@@ -1848,18 +1845,21 @@ namespace Opc.Ua.Server
                 {
                     if (value.SourceTimestamp == DateTimeUtc.MinValue)
                     {
-                        value.SourceTimestamp = DateTime.UtcNow;
+                        value = value.WithSourceTimestamp(DateTimeUtc.Now);
                     }
-                    value.ServerTimestamp = value.SourceTimestamp;
+                    value = value.WithServerTimestamp(value.SourceTimestamp);
                 }
                 else
                 {
                     // For non-value attributes, only ServerTimestamp is relevant
                     if (value.ServerTimestamp == DateTimeUtc.MinValue)
                     {
-                        value.ServerTimestamp = DateTime.UtcNow;
+                        value = value.WithServerTimestamp(DateTimeUtc.Now);
                     }
                 }
+
+                // Commit any With-chain rebindings back into the results array.
+                values[ii] = value;
 #if DEBUG
                 if (nodeToRead.AttributeId == Attributes.Value)
                 {
