@@ -164,13 +164,17 @@ namespace Opc.Ua.Client.Tests
             Assert.That(loadedSession.Subscriptions.First().MonitoredItems.Count(), Is.EqualTo(monitoredItems.Count));
 
             List<MonitoredItemState> originalStates = monitoredItems
+                .OrderBy(item => item.DisplayName, StringComparer.Ordinal)
+                .ToList()
                 .ConvertAll(item =>
                 {
                     item.Snapshot(out MonitoredItemState state);
                     return state;
                 });
 
-            var loadedItems = loadedSession.Subscriptions.First().MonitoredItems.ToList();
+            var loadedItems = loadedSession.Subscriptions.First().MonitoredItems
+                .OrderBy(item => item.DisplayName, StringComparer.Ordinal)
+                .ToList();
             List<MonitoredItemState> loadedStates = loadedItems
                 .ConvertAll(item =>
                 {

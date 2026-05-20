@@ -545,6 +545,26 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
+        public ValueTask SessionActivatedAsync(
+            OperationContext context,
+            NodeId sessionId,
+            CancellationToken cancellationToken = default)
+        {
+            if (SyncNodeManager is IAsyncNodeManager asyncNodeManager)
+            {
+                return asyncNodeManager.SessionActivatedAsync(context, sessionId, cancellationToken);
+            }
+
+            if (SyncNodeManager is INodeManager3 nodeManager3)
+            {
+                nodeManager3.SessionActivated(context, sessionId);
+            }
+
+            // Return a completed ValueTask since the underlying call is synchronous.
+            return default;
+        }
+
+        /// <inheritdoc/>
         public ValueTask SetMonitoringModeAsync(
             OperationContext context,
             MonitoringMode monitoringMode,
