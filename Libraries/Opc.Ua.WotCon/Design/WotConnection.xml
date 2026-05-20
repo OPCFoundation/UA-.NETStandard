@@ -1,0 +1,188 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<opc:ModelDesign
+  xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xmlns:ua="http://opcfoundation.org/UA/"
+  xmlns:opc="http://opcfoundation.org/UA/ModelDesign.xsd"
+  xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+  xmlns="http://opcfoundation.org/UA/WoT-Con/"
+  TargetNamespace="http://opcfoundation.org/UA/WoT-Con/"
+  TargetXmlNamespace="http://opcfoundation.org/UA/WoT-Con/"
+  TargetVersion="1.02.0"
+  TargetPublicationDate="2025-12-05T00:00:00Z">
+
+  <opc:Namespaces>
+    <opc:Namespace Name="WotCon" Prefix="Opc.Ua.WotCon" XmlPrefix="WotCon">http://opcfoundation.org/UA/WoT-Con/</opc:Namespace>
+    <opc:Namespace Name="OpcUa" Prefix="Opc.Ua" InternalPrefix="Opc.Ua.Server" Version="1.05.04" PublicationDate="2025-01-08T00:00:00Z" XmlNamespace="http://opcfoundation.org/UA/2008/02/Types.xsd" XmlPrefix="OpcUa">http://opcfoundation.org/UA/</opc:Namespace>
+  </opc:Namespaces>
+
+  <opc:Object SymbolicName="WotConNamespaceMetadata" TypeDefinition="ua:NamespaceMetadataType">
+    <opc:BrowseName>http://opcfoundation.org/UA/WoT-Con/</opc:BrowseName>
+    <opc:Children>
+      <opc:Property SymbolicName="ua:NamespaceUri" DataType="ua:String">
+        <opc:DefaultValue>
+          <uax:String>http://opcfoundation.org/UA/WoT-Con/</uax:String>
+        </opc:DefaultValue>
+      </opc:Property>
+      <opc:Property SymbolicName="ua:NamespaceVersion" DataType="ua:String">
+        <opc:DefaultValue>
+          <uax:String>1.02.0</uax:String>
+        </opc:DefaultValue>
+      </opc:Property>
+      <opc:Property SymbolicName="ua:ModelVersion" DataType="ua:SemanticVersionString">
+        <opc:DefaultValue>
+          <uax:String>1.2.0</uax:String>
+        </opc:DefaultValue>
+      </opc:Property>
+      <opc:Property SymbolicName="ua:NamespacePublicationDate" DataType="ua:DateTime">
+        <opc:DefaultValue>
+          <uax:DateTime>2025-12-05</uax:DateTime>
+        </opc:DefaultValue>
+      </opc:Property>
+      <opc:Property SymbolicName="ua:IsNamespaceSubset" DataType="ua:Boolean">
+        <opc:DefaultValue>
+          <uax:Boolean>false</uax:Boolean>
+        </opc:DefaultValue>
+      </opc:Property>
+      <opc:Property SymbolicName="ua:StaticNodeIdTypes" DataType="ua:IdType" ValueRank="Array">
+        <opc:DefaultValue>
+          <uax:ListOfInt32>
+            <uax:Int32>0</uax:Int32>
+          </uax:ListOfInt32>
+        </opc:DefaultValue>
+      </opc:Property>
+      <opc:Property SymbolicName="ua:StaticNumericNodeIdRange" DataType="ua:NumericRange" ValueRank="Array"/>
+      <opc:Property SymbolicName="ua:StaticStringNodeIdPattern" DataType="ua:String">
+        <opc:DefaultValue>
+          <uax:String></uax:String>
+        </opc:DefaultValue>
+      </opc:Property>
+      <opc:Property SymbolicName="ua:DefaultRolePermissions" ModellingRule="Mandatory" />
+      <opc:Property SymbolicName="ua:DefaultUserRolePermissions" ModellingRule="Mandatory" />
+      <opc:Property SymbolicName="ua:DefaultAccessRestrictions" ModellingRule="Mandatory" />
+    </opc:Children>
+    <opc:References>
+      <opc:Reference IsInverse="true">
+        <opc:ReferenceType>ua:HasComponent</opc:ReferenceType>
+        <opc:TargetId>ua:Server_Namespaces</opc:TargetId>
+      </opc:Reference>
+    </opc:References>
+  </opc:Object>
+
+  <opc:ObjectType SymbolicName="WoTAssetConnectionManagementType" BaseType="ua:BaseObjectType">
+    <opc:Children>
+      <opc:Object SymbolicName="WoTAssetName_Placeholder" TypeDefinition="ua:BaseObjectType" ModellingRule="OptionalPlaceholder">
+        <opc:BrowseName>&lt;WoTAssetName&gt;</opc:BrowseName>
+        <opc:Children>
+          <opc:Object SymbolicName="WoTFile" ModellingRule="Mandatory" TypeDefinition="WoTAssetFileType"></opc:Object>
+          <opc:Property SymbolicName="AssetEndpoint" DataType="ua:String" ModellingRule="Optional" />
+        </opc:Children>
+        <opc:References>
+          <opc:Reference IsOneWay="true">
+            <opc:ReferenceType>ua:HasInterface</opc:ReferenceType>
+            <opc:TargetId>IWoTAssetType</opc:TargetId>
+          </opc:Reference>
+          <opc:Reference>
+            <opc:ReferenceType>HasWoTComponent</opc:ReferenceType>
+            <opc:TargetId>IWoTAssetType_WoTPropertyName_Placeholder</opc:TargetId>
+          </opc:Reference>
+        </opc:References>
+        <opc:ReferenceType>ua:Organizes</opc:ReferenceType>
+      </opc:Object>
+      <opc:Property SymbolicName="SupportedWoTBindings" DataType="ua:UriString" ValueRank="Array" ModellingRule="Optional" />
+      <opc:Method SymbolicName="CreateAsset" ModellingRule="Mandatory" TypeDefinition="CreateAssetMethodType"></opc:Method>
+      <opc:Method SymbolicName="DeleteAsset" ModellingRule="Mandatory" TypeDefinition="DeleteAssetMethodType"></opc:Method>
+      <opc:Method SymbolicName="DiscoverAssets" ModellingRule="Optional" TypeDefinition="DiscoverAssetsMethodType"></opc:Method>
+      <opc:Method SymbolicName="CreateAssetForEndpoint" ModellingRule="Optional" TypeDefinition="CreateAssetForEndpointMethodType"></opc:Method>
+      <opc:Method SymbolicName="ConnectionTest" ModellingRule="Optional" TypeDefinition="ConnectionTestMethodType"></opc:Method>
+      <opc:Object SymbolicName="Configuration" TypeDefinition="WoTAssetConfigurationType" ModellingRule="Optional" />
+    </opc:Children>
+  </opc:ObjectType>
+
+  <opc:Object SymbolicName="WoTAssetConnectionManagement" TypeDefinition="WoTAssetConnectionManagementType">
+    <opc:References>
+      <opc:Reference IsInverse="true">
+        <opc:ReferenceType>ua:Organizes</opc:ReferenceType>
+        <opc:TargetId>ua:ObjectsFolder</opc:TargetId>
+      </opc:Reference>
+    </opc:References>
+  </opc:Object>
+
+  <opc:Method SymbolicName="CreateAssetMethodType">
+    <opc:InputArguments>
+      <opc:Argument Name="AssetName" DataType="ua:String"/>
+    </opc:InputArguments>
+    <opc:OutputArguments>
+      <opc:Argument Name="AssetId" DataType="ua:NodeId"/>
+    </opc:OutputArguments>
+  </opc:Method>
+
+  <opc:Method SymbolicName="DeleteAssetMethodType">
+    <opc:InputArguments>
+      <opc:Argument Name="AssetId" DataType="ua:NodeId"/>
+    </opc:InputArguments>
+  </opc:Method>
+
+  <opc:Method SymbolicName="DiscoverAssetsMethodType">
+    <opc:OutputArguments>
+      <opc:Argument Name="AssetEndpoints" DataType="ua:String" ValueRank="Array" />
+    </opc:OutputArguments>
+  </opc:Method>
+
+  <opc:Method SymbolicName="CreateAssetForEndpointMethodType">
+    <opc:InputArguments>
+      <opc:Argument Name="AssetName" DataType="ua:String" />
+      <opc:Argument Name="AssetEndpoint" DataType="ua:String" />
+    </opc:InputArguments>
+    <opc:OutputArguments>
+      <opc:Argument Name="AssetId" DataType="ua:NodeId" />
+    </opc:OutputArguments>
+  </opc:Method>
+
+  <opc:Method SymbolicName="ConnectionTestMethodType">
+    <opc:InputArguments>
+      <opc:Argument Name="AssetEndpoint" DataType="ua:String" />
+    </opc:InputArguments>
+    <opc:OutputArguments>
+      <opc:Argument Name="Success" DataType="ua:Boolean" />
+      <opc:Argument Name="Status" DataType="ua:String" />
+    </opc:OutputArguments>
+  </opc:Method>
+  
+  <opc:ObjectType SymbolicName="WoTAssetConfigurationType" BaseType="ua:BaseInterfaceType" IsAbstract="false">
+    <opc:Children>
+      <opc:Property SymbolicName="WoTConfigurationParameterName_Placeholder" ModellingRule="OptionalPlaceholder">
+        <opc:BrowseName>&lt;WoTConfigurationParameterName&gt;</opc:BrowseName>
+      </opc:Property>
+      <opc:Property SymbolicName="License" DataType="ua:String" ModellingRule="Optional" />
+    </opc:Children>
+  </opc:ObjectType>
+
+  <opc:ObjectType SymbolicName="IWoTAssetType" BaseType="ua:BaseInterfaceType" IsAbstract="true">
+    <opc:Children>
+      <opc:Object SymbolicName="WoTFile" ModellingRule="Mandatory" TypeDefinition="WoTAssetFileType"></opc:Object>
+      <opc:Property SymbolicName="AssetEndpoint" DataType="ua:String" ModellingRule="Optional" />
+      <opc:Variable SymbolicName="WoTPropertyName_Placeholder" TypeDefinition="ua:BaseDataVariableType" ModellingRule="OptionalPlaceholder">
+        <opc:BrowseName>&lt;WoTPropertyName&gt;</opc:BrowseName>
+        <opc:ReferenceType>HasWoTComponent</opc:ReferenceType>
+      </opc:Variable>
+    </opc:Children>
+  </opc:ObjectType>
+
+  <opc:ReferenceType SymbolicName="HasWoTComponent" BaseType="ua:HasComponent">
+    <opc:InverseName>WoTComponentOf</opc:InverseName>
+  </opc:ReferenceType>
+  
+  <opc:Method SymbolicName="CloseAndUpdateMethodType">
+    <opc:InputArguments>
+      <opc:Argument Name="FileHandle" DataType="ua:UInt32" />
+    </opc:InputArguments>
+  </opc:Method>
+  
+  <opc:ObjectType SymbolicName="WoTAssetFileType" BaseType="ua:FileType">
+    <opc:Children>
+      <opc:Method SymbolicName="CloseAndUpdate" ModellingRule="Mandatory" TypeDefinition="CloseAndUpdateMethodType"></opc:Method>
+    </opc:Children>
+  </opc:ObjectType>
+
+</opc:ModelDesign>

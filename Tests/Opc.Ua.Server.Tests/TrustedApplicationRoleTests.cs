@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#nullable enable
+
 using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
@@ -154,7 +156,7 @@ namespace Opc.Ua.Server.Tests
         public void AddMandatoryRoles_WithNoCertAndSignMode_DoesNotAddTrustedApplicationRole()
         {
             using TestableSessionManager manager = CreateManager();
-            Mock<ISession> sessionMock = CreateSessionMock(certificate: null);
+            Mock<ISession> sessionMock = CreateSessionMock(certificate: null!);
             OperationContext context = CreateOperationContext(MessageSecurityMode.Sign);
             var identity = new UserIdentity();
 
@@ -168,7 +170,7 @@ namespace Opc.Ua.Server.Tests
         public void AddMandatoryRoles_WithNoCertAndNoneMode_DoesNotAddTrustedApplicationRole()
         {
             using TestableSessionManager manager = CreateManager();
-            Mock<ISession> sessionMock = CreateSessionMock(certificate: null);
+            Mock<ISession> sessionMock = CreateSessionMock(certificate: null!);
             OperationContext context = CreateOperationContext(MessageSecurityMode.None);
             var identity = new UserIdentity();
 
@@ -203,7 +205,7 @@ namespace Opc.Ua.Server.Tests
         public void AddMandatoryRoles_WithNoCertAndSignMode_ReturnsIdentityUnchanged()
         {
             using TestableSessionManager manager = CreateManager();
-            Mock<ISession> sessionMock = CreateSessionMock(certificate: null);
+            Mock<ISession> sessionMock = CreateSessionMock(certificate: null!);
             OperationContext context = CreateOperationContext(MessageSecurityMode.Sign);
             var identity = new UserIdentity();
 
@@ -246,11 +248,11 @@ namespace Opc.Ua.Server.Tests
                 await m_server.CreateAndActivateSessionAsync("NoCertNoTrusted", useSecurity: false)
                     .ConfigureAwait(false);
 
-            ISession session = m_server.CurrentInstance.SessionManager.GetSession(
+            ISession? session = m_server.CurrentInstance.SessionManager.GetSession(
                 requestHeader.AuthenticationToken);
 
             Assert.That(session, Is.Not.Null);
-            Assert.That(session.EffectiveIdentity.GrantedRoleIds.Contains(ObjectIds.WellKnownRole_TrustedApplication), Is.False,
+            Assert.That(session!.EffectiveIdentity.GrantedRoleIds.Contains(ObjectIds.WellKnownRole_TrustedApplication), Is.False,
                 "Session with no certificate and None security should not have the TrustedApplication role.");
         }
     }
@@ -265,12 +267,38 @@ namespace Opc.Ua.Server.Tests
         {
         }
 
+        /// <summary>
+        /// Sessions that <see cref="GetSessions"/> should return. When
+        /// <see langword="null"/>, falls back to the inherited behaviour.
+        /// </summary>
+        public System.Collections.Generic.IList<ISession>? InjectedSessions { get; set; }
+
+        public override System.Collections.Generic.IList<ISession> GetSessions()
+        {
+            return InjectedSessions ?? base.GetSessions();
+        }
+
         public IUserIdentity PublicAddMandatoryRoles(
             ISession session,
             OperationContext context,
             IUserIdentity effectiveIdentity)
         {
             return AddMandatoryRoles(session, context, effectiveIdentity);
+        }
+
+        public ServiceResult PublicComputeActivationStatus(IUserIdentity effectiveIdentity)
+        {
+            return ComputeActivationStatus(effectiveIdentity);
+        }
+
+        public void PublicReevaluateIdentityIfStale(ISession session, SecureChannelContext channelContext)
+        {
+            ReevaluateIdentityIfStale(session, channelContext);
+        }
+
+        public void PublicOnRoleConfigurationChanged(object? sender, RoleConfigurationChangedEventArgs e)
+        {
+            OnRoleConfigurationChanged(sender, e);
         }
     }
 }

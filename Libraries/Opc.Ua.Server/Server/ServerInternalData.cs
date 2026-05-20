@@ -117,6 +117,9 @@ namespace Opc.Ua.Server
         {
             if (disposing)
             {
+                m_roleStateBinding?.Dispose();
+                m_roleStateBinding = null;
+                (RoleManager as IDisposable)?.Dispose();
                 ResourceManager?.Dispose();
                 RequestManager?.Dispose();
                 AggregateManager?.Dispose();
@@ -144,6 +147,12 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <value>The session manager.</value>
         public ISessionManager SessionManager { get; private set; } = null!;
+
+        /// <inheritdoc/>
+        public IRoleManager RoleManager { get; private set; } = new RoleManager();
+
+        /// <inheritdoc/>
+        public Opc.Ua.Server.UserManagement.IUserManagement? UserManagement { get; private set; }
 
         /// <summary>
         /// The subscription manager to use with the server.
@@ -239,6 +248,19 @@ namespace Opc.Ua.Server
         public void SetSubscriptionStore(ISubscriptionStore subscriptionStore)
         {
             SubscriptionStore = subscriptionStore;
+        }
+
+        /// <inheritdoc/>
+        public void SetRoleManager(IRoleManager roleManager)
+        {
+            if (roleManager == null) { throw new ArgumentNullException(nameof(roleManager)); }
+            RoleManager = roleManager;
+        }
+
+        /// <inheritdoc/>
+        public void SetUserManagement(Opc.Ua.Server.UserManagement.IUserManagement userManagement)
+        {
+            UserManagement = userManagement ?? throw new ArgumentNullException(nameof(userManagement));
         }
 
         /// <summary>
@@ -869,6 +891,17 @@ namespace Opc.Ua.Server
             auditing.AccessLevel = AccessLevels.CurrentRead;
             auditing.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
             auditing.MinimumSamplingInterval = 1000;
+
+            // Wire RoleManager into the well-known role nodes per Part 18 §4.
+            // The binding upgrades RoleSet to the typed RoleSetState proxy,
+            // wires typed OnCallAsync delegates on each Role's method-state
+            // children, applies the SecurityAdmin + SignAndEncrypt
+            // authorization gate, and raises RoleMappingRuleChangedAuditEvent
+            // on every successful mutation.
+            if (DiagnosticsNodeManager is AsyncCustomNodeManager diagnosticsCustom)
+            {
+                m_roleStateBinding = RoleStateBinding.Bind(diagnosticsCustom, RoleManager, this);
+            }
         }
 
         /// <summary>
@@ -1009,5 +1042,6 @@ namespace Opc.Ua.Server
         private readonly ServerProperties m_serverDescription;
         private readonly ApplicationConfiguration m_configuration;
         private readonly List<Uri> m_endpointAddresses;
+        private RoleStateBinding? m_roleStateBinding;
     }
 }
