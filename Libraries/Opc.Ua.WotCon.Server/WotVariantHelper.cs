@@ -55,30 +55,54 @@ namespace Opc.Ua.WotCon.Server
             // type so pattern matching on them is unambiguous.
             switch (value)
             {
-                case null: return Variant.Null;
-                case Variant v: return v;
-                case bool b: return new Variant(b);
-                case sbyte sb: return new Variant(sb);
-                case byte by: return new Variant(by);
-                case short s16: return new Variant(s16);
-                case ushort u16: return new Variant(u16);
-                case int s32: return new Variant(s32);
-                case uint u32: return new Variant(u32);
-                case long s64: return new Variant(s64);
-                case ulong u64: return new Variant(u64);
-                case float f: return new Variant(f);
-                case double d: return new Variant(d);
-                case string str: return new Variant(str);
-                case DateTime dt: return new Variant(dt);
-                case Guid g: return new Variant(new Uuid(g));
-                case Uuid uuid: return new Variant(uuid);
-                case ByteString bs: return new Variant(bs);
-                case XmlElement xml: return new Variant(xml);
-                case NodeId nodeId: return new Variant(nodeId);
-                case ExpandedNodeId expandedNodeId: return new Variant(expandedNodeId);
-                case QualifiedName qn: return new Variant(qn);
-                case LocalizedText lt: return new Variant(lt);
-                case StatusCode sc: return new Variant(sc);
+                case null:
+                    return Variant.Null;
+                case Variant v:
+                    return v;
+                case bool b:
+                    return new Variant(b);
+                case sbyte sb:
+                    return new Variant(sb);
+                case byte by:
+                    return new Variant(by);
+                case short s16:
+                    return new Variant(s16);
+                case ushort u16:
+                    return new Variant(u16);
+                case int s32:
+                    return new Variant(s32);
+                case uint u32:
+                    return new Variant(u32);
+                case long s64:
+                    return new Variant(s64);
+                case ulong u64:
+                    return new Variant(u64);
+                case float f:
+                    return new Variant(f);
+                case double d:
+                    return new Variant(d);
+                case string str:
+                    return new Variant(str);
+                case DateTime dt:
+                    return new Variant(dt);
+                case Guid g:
+                    return new Variant(new Uuid(g));
+                case Uuid uuid:
+                    return new Variant(uuid);
+                case ByteString bs:
+                    return new Variant(bs);
+                case XmlElement xml:
+                    return new Variant(xml);
+                case NodeId nodeId:
+                    return new Variant(nodeId);
+                case ExpandedNodeId expandedNodeId:
+                    return new Variant(expandedNodeId);
+                case QualifiedName qn:
+                    return new Variant(qn);
+                case LocalizedText lt:
+                    return new Variant(lt);
+                case StatusCode sc:
+                    return new Variant(sc);
             }
 
             // Arrays: the CLR treats signed / unsigned same-size primitive
@@ -87,23 +111,36 @@ namespace Opc.Ua.WotCon.Server
             // pattern like `case byte[]` would also match sbyte[]. Dispatch
             // on the exact array type instead to keep the mapping accurate.
             Type t = value.GetType();
-            if (t == typeof(byte[])) { return new Variant(ByteString.From((byte[])value)); }
-            if (t == typeof(sbyte[])) { return new Variant(new ArrayOf<sbyte>((sbyte[])value)); }
-            if (t == typeof(bool[])) { return new Variant(new ArrayOf<bool>((bool[])value)); }
-            if (t == typeof(short[])) { return new Variant(new ArrayOf<short>((short[])value)); }
-            if (t == typeof(ushort[])) { return new Variant(new ArrayOf<ushort>((ushort[])value)); }
-            if (t == typeof(int[])) { return new Variant(new ArrayOf<int>((int[])value)); }
-            if (t == typeof(uint[])) { return new Variant(new ArrayOf<uint>((uint[])value)); }
-            if (t == typeof(long[])) { return new Variant(new ArrayOf<long>((long[])value)); }
-            if (t == typeof(ulong[])) { return new Variant(new ArrayOf<ulong>((ulong[])value)); }
-            if (t == typeof(float[])) { return new Variant(new ArrayOf<float>((float[])value)); }
-            if (t == typeof(double[])) { return new Variant(new ArrayOf<double>((double[])value)); }
-            if (t == typeof(string[])) { return new Variant(new ArrayOf<string>((string[])value)); }
+            if (t == typeof(byte[]))
+            { return new Variant(ByteString.From((byte[])value)); }
+            if (t == typeof(sbyte[]))
+            { return new Variant(new ArrayOf<sbyte>((sbyte[])value)); }
+            if (t == typeof(bool[]))
+            { return new Variant(new ArrayOf<bool>((bool[])value)); }
+            if (t == typeof(short[]))
+            { return new Variant(new ArrayOf<short>((short[])value)); }
+            if (t == typeof(ushort[]))
+            { return new Variant(new ArrayOf<ushort>((ushort[])value)); }
+            if (t == typeof(int[]))
+            { return new Variant(new ArrayOf<int>((int[])value)); }
+            if (t == typeof(uint[]))
+            { return new Variant(new ArrayOf<uint>((uint[])value)); }
+            if (t == typeof(long[]))
+            { return new Variant(new ArrayOf<long>((long[])value)); }
+            if (t == typeof(ulong[]))
+            { return new Variant(new ArrayOf<ulong>((ulong[])value)); }
+            if (t == typeof(float[]))
+            { return new Variant(new ArrayOf<float>((float[])value)); }
+            if (t == typeof(double[]))
+            { return new Variant(new ArrayOf<double>((double[])value)); }
+            if (t == typeof(string[]))
+            { return new Variant(new ArrayOf<string>((string[])value)); }
             if (t == typeof(DateTime[]))
             {
                 DateTime[] dta = (DateTime[])value;
                 DateTimeUtc[] dtua = new DateTimeUtc[dta.Length];
-                for (int i = 0; i < dta.Length; i++) { dtua[i] = new DateTimeUtc(dta[i]); }
+                for (int i = 0; i < dta.Length; i++)
+                { dtua[i] = new DateTimeUtc(dta[i]); }
                 return new Variant(new ArrayOf<DateTimeUtc>(dtua));
             }
 

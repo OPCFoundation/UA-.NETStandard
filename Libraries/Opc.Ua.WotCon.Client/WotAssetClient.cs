@@ -161,7 +161,8 @@ namespace Opc.Ua.WotCon.Client
                 (uint)nodeClasses,
                 ct).ConfigureAwait(false);
             ReferenceDescription[] snapshot = new ReferenceDescription[references.Count];
-            for (int i = 0; i < references.Count; i++) { snapshot[i] = references[i]; }
+            for (int i = 0; i < references.Count; i++)
+            { snapshot[i] = references[i]; }
             foreach (ReferenceDescription reference in snapshot)
             {
                 ct.ThrowIfCancellationRequested();

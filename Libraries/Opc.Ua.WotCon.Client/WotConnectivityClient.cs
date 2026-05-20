@@ -59,12 +59,14 @@ namespace Opc.Ua.WotCon.Client
             NodeId managementObjectId,
             ITelemetryContext telemetry)
         {
-            if (session is null) { throw new ArgumentNullException(nameof(session)); }
+            if (session is null)
+            { throw new ArgumentNullException(nameof(session)); }
             if (managementObjectId.IsNull)
             {
                 throw new ArgumentException("Management object NodeId is required.", nameof(managementObjectId));
             }
-            if (telemetry is null) { throw new ArgumentNullException(nameof(telemetry)); }
+            if (telemetry is null)
+            { throw new ArgumentNullException(nameof(telemetry)); }
 
             Session = session;
             Telemetry = telemetry;
@@ -88,8 +90,10 @@ namespace Opc.Ua.WotCon.Client
             ITelemetryContext telemetry,
             CancellationToken ct = default)
         {
-            if (session is null) { throw new ArgumentNullException(nameof(session)); }
-            if (telemetry is null) { throw new ArgumentNullException(nameof(telemetry)); }
+            if (session is null)
+            { throw new ArgumentNullException(nameof(session)); }
+            if (telemetry is null)
+            { throw new ArgumentNullException(nameof(telemetry)); }
 
             ushort ns = session.NamespaceUris.GetIndexOrAppend(Namespaces.WotCon);
             BrowsePath path = new()
@@ -161,7 +165,8 @@ namespace Opc.Ua.WotCon.Client
         {
             ArrayOf<string> endpoints = await Proxy.DiscoverAssetsAsync(ct).ConfigureAwait(false);
             string[] copy = new string[endpoints.Count];
-            for (int i = 0; i < endpoints.Count; i++) { copy[i] = endpoints[i]; }
+            for (int i = 0; i < endpoints.Count; i++)
+            { copy[i] = endpoints[i]; }
             return copy;
         }
 
@@ -253,7 +258,8 @@ namespace Opc.Ua.WotCon.Client
                 (uint)NodeClass.Object,
                 ct).ConfigureAwait(false);
             ReferenceDescription[] snapshot = new ReferenceDescription[references.Count];
-            for (int i = 0; i < references.Count; i++) { snapshot[i] = references[i]; }
+            for (int i = 0; i < references.Count; i++)
+            { snapshot[i] = references[i]; }
             foreach (ReferenceDescription reference in snapshot)
             {
                 ct.ThrowIfCancellationRequested();

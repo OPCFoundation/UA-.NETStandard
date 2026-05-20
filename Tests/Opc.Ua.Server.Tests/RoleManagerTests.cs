@@ -35,6 +35,11 @@ using Moq;
 using NUnit.Framework;
 using Opc.Ua.Security.Certificates;
 
+// Test fixtures construct short-lived literal arrays inline as method
+// arguments; the per-call allocation cost is irrelevant for tests and
+// keeping the data adjacent to the assertion improves readability.
+#pragma warning disable CA1861 // Avoid constant arrays as arguments
+
 namespace Opc.Ua.Server.Tests
 {
     /// <summary>

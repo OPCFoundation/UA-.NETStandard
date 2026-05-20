@@ -56,6 +56,7 @@ namespace Opc.Ua.Client.AliasNames
         /// compatibility with code that targeted the v1 resolver.
         /// </summary>
         [Obsolete("Use AutoOnLastChangePolling for explicit semantics.")]
+#pragma warning disable CA1069 // Enums values should not be duplicated - intentional source-compat alias
         AutoOnLastChange = 1,
 
         /// <summary>
@@ -67,6 +68,7 @@ namespace Opc.Ua.Client.AliasNames
         /// servers that do not support subscriptions.
         /// </summary>
         AutoOnLastChangePolling = 1,
+#pragma warning restore CA1069 // Enums values should not be duplicated
 
         /// <summary>
         /// On the first call, the resolver creates an OPC UA

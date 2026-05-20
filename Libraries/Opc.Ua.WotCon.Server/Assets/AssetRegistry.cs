@@ -346,8 +346,10 @@ namespace Opc.Ua.WotCon.Server.Assets
             bool persistOnSuccess,
             CancellationToken ct)
         {
-            if (entry is null) { throw new ArgumentNullException(nameof(entry)); }
-            if (td is null) { throw new ArgumentNullException(nameof(td)); }
+            if (entry is null)
+            { throw new ArgumentNullException(nameof(entry)); }
+            if (td is null)
+            { throw new ArgumentNullException(nameof(td)); }
 
             IWotAssetProviderFactory? factory = null;
             foreach (IWotAssetProviderFactory candidate in m_options.Bindings)
@@ -533,7 +535,8 @@ namespace Opc.Ua.WotCon.Server.Assets
             if (inputArgs.Count > 0)
             {
                 Argument[] argsArray = new Argument[inputArgs.Count];
-                for (int i = 0; i < inputArgs.Count; i++) { argsArray[i] = inputArgs[i]; }
+                for (int i = 0; i < inputArgs.Count; i++)
+                { argsArray[i] = inputArgs[i]; }
                 PropertyState<ArrayOf<Argument>> inputProperty =
                     PropertyState<ArrayOf<Argument>>.With<StructureBuilder<Argument>>(method);
                 inputProperty.NodeId = m_manager.AllocateChildNodeId(entry.Name, "actions", name + "_in");
@@ -550,7 +553,8 @@ namespace Opc.Ua.WotCon.Server.Assets
             if (outputArgs.Count > 0)
             {
                 Argument[] argsArray = new Argument[outputArgs.Count];
-                for (int i = 0; i < outputArgs.Count; i++) { argsArray[i] = outputArgs[i]; }
+                for (int i = 0; i < outputArgs.Count; i++)
+                { argsArray[i] = outputArgs[i]; }
                 PropertyState<ArrayOf<Argument>> outputProperty =
                     PropertyState<ArrayOf<Argument>>.With<StructureBuilder<Argument>>(method);
                 outputProperty.NodeId = m_manager.AllocateChildNodeId(entry.Name, "actions", name + "_out");

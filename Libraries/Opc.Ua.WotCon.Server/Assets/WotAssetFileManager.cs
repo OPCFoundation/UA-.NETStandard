@@ -67,24 +67,37 @@ namespace Opc.Ua.WotCon.Server.Assets
             m_onCloseAndUpdate = onCloseAndUpdate ?? throw new ArgumentNullException(nameof(onCloseAndUpdate));
             m_logger = logger;
 
-            if (file.Size != null) { file.Size.Value = 0; }
-            if (file.Writable != null) { file.Writable.Value = true; }
-            if (file.UserWritable != null) { file.UserWritable.Value = true; }
-            if (file.OpenCount != null) { file.OpenCount.Value = 0; }
-            if (file.MimeType != null) { file.MimeType.Value = "application/td+json"; }
+            if (file.Size != null)
+            { file.Size.Value = 0; }
+            if (file.Writable != null)
+            { file.Writable.Value = true; }
+            if (file.UserWritable != null)
+            { file.UserWritable.Value = true; }
+            if (file.OpenCount != null)
+            { file.OpenCount.Value = 0; }
+            if (file.MimeType != null)
+            { file.MimeType.Value = "application/td+json"; }
             if (file.MaxByteStringLength != null)
             {
                 file.MaxByteStringLength.Value = (uint)maxThingDescriptionSize;
             }
-            if (file.LastModifiedTime != null) { file.LastModifiedTime.Value = DateTime.UtcNow; }
+            if (file.LastModifiedTime != null)
+            { file.LastModifiedTime.Value = DateTime.UtcNow; }
 
-            if (file.Open != null) { file.Open.OnCall = new OpenMethodStateMethodCallHandler(OnOpen); }
-            if (file.Close != null) { file.Close.OnCall = new CloseMethodStateMethodCallHandler(OnClose); }
-            if (file.Read != null) { file.Read.OnCall = new ReadMethodStateMethodCallHandler(OnRead); }
-            if (file.Write != null) { file.Write.OnCall = new WriteMethodStateMethodCallHandler(OnWrite); }
-            if (file.GetPosition != null) { file.GetPosition.OnCall = new GetPositionMethodStateMethodCallHandler(OnGetPosition); }
-            if (file.SetPosition != null) { file.SetPosition.OnCall = new SetPositionMethodStateMethodCallHandler(OnSetPosition); }
-            if (file.CloseAndUpdate != null) { file.CloseAndUpdate.OnCall = new CloseAndUpdateMethodStateMethodCallHandler(OnCloseAndUpdate); }
+            if (file.Open != null)
+            { file.Open.OnCall = new OpenMethodStateMethodCallHandler(OnOpen); }
+            if (file.Close != null)
+            { file.Close.OnCall = new CloseMethodStateMethodCallHandler(OnClose); }
+            if (file.Read != null)
+            { file.Read.OnCall = new ReadMethodStateMethodCallHandler(OnRead); }
+            if (file.Write != null)
+            { file.Write.OnCall = new WriteMethodStateMethodCallHandler(OnWrite); }
+            if (file.GetPosition != null)
+            { file.GetPosition.OnCall = new GetPositionMethodStateMethodCallHandler(OnGetPosition); }
+            if (file.SetPosition != null)
+            { file.SetPosition.OnCall = new SetPositionMethodStateMethodCallHandler(OnSetPosition); }
+            if (file.CloseAndUpdate != null)
+            { file.CloseAndUpdate.OnCall = new CloseAndUpdateMethodStateMethodCallHandler(OnCloseAndUpdate); }
         }
 
         /// <summary>The currently persisted Thing Description bytes (UTF-8, JSON).</summary>
@@ -94,8 +107,10 @@ namespace Opc.Ua.WotCon.Server.Assets
         public void UpdatePersistedContent(byte[] content)
         {
             CurrentContent = content ?? throw new ArgumentNullException(nameof(content));
-            if (m_file.Size != null) { m_file.Size.Value = (ulong)content.Length; }
-            if (m_file.LastModifiedTime != null) { m_file.LastModifiedTime.Value = DateTime.UtcNow; }
+            if (m_file.Size != null)
+            { m_file.Size.Value = (ulong)content.Length; }
+            if (m_file.LastModifiedTime != null)
+            { m_file.LastModifiedTime.Value = DateTime.UtcNow; }
         }
 
         public void Dispose()
@@ -144,8 +159,10 @@ namespace Opc.Ua.WotCon.Server.Assets
                     : Handle.OpenRead(sessionId, CurrentContent);
                 fileHandle = ++m_nextHandle;
                 m_handles.Add(fileHandle, handle);
-                if (mode == writeEraseMode) { m_writingHandle = fileHandle; }
-                if (m_file.OpenCount != null) { m_file.OpenCount.Value = (ushort)m_handles.Count; }
+                if (mode == writeEraseMode)
+                { m_writingHandle = fileHandle; }
+                if (m_file.OpenCount != null)
+                { m_file.OpenCount.Value = (ushort)m_handles.Count; }
             }
             return ServiceResult.Good;
         }
@@ -163,9 +180,11 @@ namespace Opc.Ua.WotCon.Server.Assets
                     return err;
                 }
                 m_handles.Remove(fileHandle);
-                if (m_writingHandle == fileHandle) { m_writingHandle = 0; }
+                if (m_writingHandle == fileHandle)
+                { m_writingHandle = 0; }
                 handle.Dispose();
-                if (m_file.OpenCount != null) { m_file.OpenCount.Value = (ushort)m_handles.Count; }
+                if (m_file.OpenCount != null)
+                { m_file.OpenCount.Value = (ushort)m_handles.Count; }
             }
             return ServiceResult.Good;
         }
@@ -208,7 +227,8 @@ namespace Opc.Ua.WotCon.Server.Assets
                 while (totalRead < buffer.Length)
                 {
                     int n = handle.Stream.Read(buffer, totalRead, buffer.Length - totalRead);
-                    if (n <= 0) { break; }
+                    if (n <= 0)
+                    { break; }
                     totalRead += n;
                 }
                 if (totalRead != buffer.Length)
@@ -315,7 +335,8 @@ namespace Opc.Ua.WotCon.Server.Assets
                 }
                 m_handles.Remove(fileHandle);
                 m_writingHandle = 0;
-                if (m_file.OpenCount != null) { m_file.OpenCount.Value = (ushort)m_handles.Count; }
+                if (m_file.OpenCount != null)
+                { m_file.OpenCount.Value = (ushort)m_handles.Count; }
             }
 
             try

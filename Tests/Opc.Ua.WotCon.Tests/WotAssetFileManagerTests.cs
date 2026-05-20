@@ -492,9 +492,11 @@ namespace Opc.Ua.WotCon.Tests
                     {
                         ByteString chunk = default;
                         Read(handle, 1024, ref chunk);
-                        if (chunk.IsNull || chunk.Span.Length == 0) { break; }
+                        if (chunk.IsNull || chunk.Span.Length == 0)
+                        { break; }
                         buffer.AddRange(chunk.Span.ToArray());
-                        if (chunk.Span.Length < 1024) { break; }
+                        if (chunk.Span.Length < 1024)
+                        { break; }
                     }
                     return [.. buffer];
                 }

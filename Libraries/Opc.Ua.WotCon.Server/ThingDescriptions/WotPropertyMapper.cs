@@ -61,7 +61,8 @@ namespace Opc.Ua.WotCon.Server.ThingDescriptions
             out NodeId dataType,
             out int valueRank)
         {
-            if (property is null) { throw new ArgumentNullException(nameof(property)); }
+            if (property is null)
+            { throw new ArgumentNullException(nameof(property)); }
 
             if (string.Equals(property.Type, "array", StringComparison.OrdinalIgnoreCase))
             {

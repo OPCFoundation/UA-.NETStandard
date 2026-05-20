@@ -76,7 +76,8 @@ namespace Opc.Ua.WotCon.Tests.Providers
             if (m_subscriptions.TryGetValue(property, out List<Subscription>? subs))
             {
                 Subscription[] snapshot;
-                lock (subs) { snapshot = subs.ToArray(); }
+                lock (subs)
+                { snapshot = subs.ToArray(); }
                 foreach (Subscription s in snapshot)
                 {
                     s.Callback(s.Tag, value, StatusCodes.Good, DateTime.UtcNow);
@@ -143,7 +144,8 @@ namespace Opc.Ua.WotCon.Tests.Providers
             // For tests we echo each input into the matching output and
             // record the call so tests can assert on it.
             Variant[] inputSnapshot = new Variant[inputs.Count];
-            for (int i = 0; i < inputs.Count; i++) { inputSnapshot[i] = inputs[i]; }
+            for (int i = 0; i < inputs.Count; i++)
+            { inputSnapshot[i] = inputs[i]; }
             m_invocations.Add(new ActionInvocation(action.Name, inputSnapshot));
             for (int i = 0; i < outputs.Count && i < inputs.Count; i++)
             {

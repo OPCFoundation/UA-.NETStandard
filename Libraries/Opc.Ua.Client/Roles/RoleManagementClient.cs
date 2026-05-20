@@ -493,7 +493,7 @@ namespace Opc.Ua.Client.Roles
             }
         }
 
-        private static IReadOnlyList<T> ReadStructureArray<T>(DataValue dv) where T : class, IEncodeable, new()
+        private static List<T> ReadStructureArray<T>(DataValue dv) where T : class, IEncodeable, new()
         {
             if (StatusCode.IsBad(dv.StatusCode))
             {
@@ -527,7 +527,7 @@ namespace Opc.Ua.Client.Roles
             return [];
         }
 
-        private static IReadOnlyList<string> ReadStringArray(DataValue dv)
+        private static List<string> ReadStringArray(DataValue dv)
         {
             if (StatusCode.IsBad(dv.StatusCode))
             {

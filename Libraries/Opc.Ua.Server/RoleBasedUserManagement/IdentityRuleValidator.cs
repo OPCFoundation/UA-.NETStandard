@@ -313,7 +313,7 @@ namespace Opc.Ua.Server
             {
                 return string.Empty;
             }
-            return thumbprint!.Replace(" ", string.Empty).ToUpper(CultureInfo.InvariantCulture);
+            return thumbprint!.Replace(" ", string.Empty, StringComparison.Ordinal).ToUpper(CultureInfo.InvariantCulture);
         }
     }
 }
