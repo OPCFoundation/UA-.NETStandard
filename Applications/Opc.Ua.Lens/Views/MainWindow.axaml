@@ -362,6 +362,11 @@
               </ListBox.ItemTemplate>
             </ListBox>
             <Border Grid.Row="1" BorderBrush="#1E293B" BorderThickness="1" CornerRadius="4" Background="#121A2C" Margin="0,4,0,0">
+              <!-- Wrap the disabled-body Grid + the disconnected-overlay
+                   placeholder so the placeholder is NOT a child of the
+                   ``IsEnabled=IsConnected`` Grid; otherwise its Connect
+                   button would be greyed out exactly when we need it. -->
+              <Grid>
               <!-- Whole tab body is disabled while disconnected so users see
                    the tab strip but can't interact with the active plugin. -->
               <Grid IsEnabled="{CompiledBinding IsConnected}">
@@ -587,21 +592,24 @@
                 <!-- Generic per-app view for non-Subscription tabs. -->
                 <ContentControl Content="{CompiledBinding SelectedTab.View}"
                                 IsVisible="{CompiledBinding IsCustomTabActive}" />
-                <!-- Disconnected-overlay: friendly hint while the user has
-                     no active session.  Sits on top of the disabled body. -->
-                <StackPanel IsVisible="{CompiledBinding !IsConnected}"
-                            HorizontalAlignment="Center" VerticalAlignment="Center"
-                            Orientation="Vertical" Spacing="12">
-                  <TextBlock HorizontalAlignment="Center"
-                             Foreground="#94A3B8" FontSize="14"
-                             Text="Connect to a server to activate this tab." />
-                  <Button x:Name="DisconnectedConnectButton"
-                          HorizontalAlignment="Center"
-                          Padding="14,6"
-                          Background="#1E293B" Foreground="#E2E8F0"
-                          BorderBrush="#334155" BorderThickness="1"
-                          Content="Connect…" />
-                </StackPanel>
+              </Grid>
+              <!-- Disconnected-overlay: friendly hint + Connect button.
+                   Sits on top of the disabled body and is NOT inside the
+                   ``IsEnabled=IsConnected`` Grid so the button stays
+                   interactive while disconnected. -->
+              <StackPanel IsVisible="{CompiledBinding !IsConnected}"
+                          HorizontalAlignment="Center" VerticalAlignment="Center"
+                          Orientation="Vertical" Spacing="12">
+                <TextBlock HorizontalAlignment="Center"
+                           Foreground="#94A3B8" FontSize="14"
+                           Text="Connect to a server to activate this tab." />
+                <Button x:Name="DisconnectedConnectButton"
+                        HorizontalAlignment="Center"
+                        Padding="14,6"
+                        Background="#1E293B" Foreground="#E2E8F0"
+                        BorderBrush="#334155" BorderThickness="1"
+                        Content="Connect…" />
+              </StackPanel>
               </Grid>
             </Border>
             <TextBlock Grid.Row="2" Margin="0,6,0,0" Classes="status"
