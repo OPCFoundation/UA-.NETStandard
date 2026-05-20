@@ -298,13 +298,11 @@ namespace MemoryBuffer
             }
 
             // read initial value.
-            var initialValue = new DataValue
-            {
-                WrappedValue = default,
-                ServerTimestamp = DateTime.UtcNow,
-                SourceTimestamp = DateTime.MinValue,
-                StatusCode = StatusCodes.Good
-            };
+            var initialValue = new DataValue(
+                Variant.Null,
+                StatusCodes.Good,
+                DateTime.MinValue,
+                DateTime.UtcNow);
 
             ServiceResult error = source.ReadAttribute(
                 context,
@@ -510,13 +508,11 @@ namespace MemoryBuffer
             if (previousMode == MonitoringMode.Disabled &&
                 monitoringMode != MonitoringMode.Disabled)
             {
-                var initialValue = new DataValue
-                {
-                    WrappedValue = default,
-                    ServerTimestamp = DateTime.UtcNow,
-                    SourceTimestamp = DateTime.MinValue,
-                    StatusCode = StatusCodes.Good
-                };
+                var initialValue = new DataValue(
+                    Variant.Null,
+                    StatusCodes.Good,
+                    DateTime.MinValue,
+                    DateTime.UtcNow);
 
                 var tag = new MemoryTagState(buffer, datachangeItem.Offset);
 

@@ -448,7 +448,7 @@ namespace Opc.Ua.Types.Tests.State
         public void WriteNodeIdReturnsNotWritable()
         {
             var node = new Node { NodeId = new NodeId(8100) };
-            var dataValue = new DataValue { WrappedValue = new NodeId(8200) };
+            var dataValue = new DataValue(new Variant(new NodeId(8200)));
 
             ServiceResult result = node.Write(Attributes.NodeId, dataValue);
 
@@ -459,7 +459,7 @@ namespace Opc.Ua.Types.Tests.State
         public void WriteNodeClassReturnsNotWritable()
         {
             var node = new Node { NodeClass = NodeClass.Object };
-            var dataValue = new DataValue { WrappedValue = Variant.From(NodeClass.Variable) };
+            var dataValue = new DataValue(Variant.From(NodeClass.Variable));
 
             ServiceResult result = node.Write(Attributes.NodeClass, dataValue);
 
@@ -470,7 +470,7 @@ namespace Opc.Ua.Types.Tests.State
         public void WriteUnsupportedAttributeReturnsBadStatus()
         {
             var node = new Node();
-            var dataValue = new DataValue { WrappedValue = 42 };
+            var dataValue = new DataValue(new Variant(42));
 
             ServiceResult result = node.Write(Attributes.Value, dataValue);
 
@@ -481,7 +481,7 @@ namespace Opc.Ua.Types.Tests.State
         public void WriteWithTypeMismatchReturnsBadTypeMismatch()
         {
             var node = new Node();
-            var dataValue = new DataValue { WrappedValue = "wrong type" };
+            var dataValue = new DataValue(new Variant("wrong type"));
 
             ServiceResult result = node.Write(Attributes.WriteMask, dataValue);
 

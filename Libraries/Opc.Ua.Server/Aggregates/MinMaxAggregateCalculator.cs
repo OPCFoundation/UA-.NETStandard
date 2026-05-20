@@ -260,11 +260,7 @@ namespace Opc.Ua.Server
             processedValue = processedValue.ConvertTo(processedType.BuiltInType);
 
             // create processed value.
-            var value = new DataValue
-            {
-                WrappedValue = processedValue,
-                StatusCode = statusCode
-            };
+            var value = new DataValue(processedValue, statusCode);
 
             if (returnActualTime)
             {
@@ -382,8 +378,8 @@ namespace Opc.Ua.Server
                 // check if interval is partial and set the flag accordingly
                 if (slice.Partial)
                 {
-                    noDataValue.StatusCode =
-                        noDataValue.StatusCode.WithAggregateBits(AggregateBits.Partial);
+                    noDataValue = noDataValue.WithStatus(
+                        noDataValue.StatusCode.WithAggregateBits(AggregateBits.Partial));
                 }
                 return noDataValue;
             }
@@ -444,11 +440,9 @@ namespace Opc.Ua.Server
             // convert back to original datatype.
             processedValue = processedValue.ConvertTo(processedType.BuiltInType);
             // create processed value.
-            var value = new DataValue
-            {
-                WrappedValue = processedValue,
-                StatusCode = GetTimeBasedStatusCode(slice, values, statusCode)
-            };
+            var value = new DataValue(
+                processedValue,
+                GetTimeBasedStatusCode(slice, values, statusCode));
 
             // zero value if status is bad.
             if (StatusCode.IsBad(value.StatusCode))

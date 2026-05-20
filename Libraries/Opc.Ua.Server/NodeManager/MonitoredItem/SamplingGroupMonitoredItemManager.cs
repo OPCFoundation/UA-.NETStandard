@@ -225,11 +225,11 @@ namespace Opc.Ua.Server
             if (previousMode == MonitoringMode.Disabled &&
                 monitoringMode != MonitoringMode.Disabled)
             {
-                var initialValue = new DataValue
-                {
-                    ServerTimestamp = DateTime.UtcNow,
-                    StatusCode = StatusCodes.BadWaitingForInitialData
-                };
+                var initialValue = new DataValue(
+                    Variant.Null,
+                    StatusCodes.BadWaitingForInitialData,
+                    DateTimeUtc.MinValue,
+                    DateTime.UtcNow);
 
                 // read the initial value.
 

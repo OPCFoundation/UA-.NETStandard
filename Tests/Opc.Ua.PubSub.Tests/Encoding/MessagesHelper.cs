@@ -3234,7 +3234,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 bool boolVal = Convert.ToBoolean(boolToggle.Value, CultureInfo.InvariantCulture);
 #pragma warning restore CS0618 // Type or member is obsolete
 #pragma warning disable CS0618 // Type or member is obsolete
-                boolToggle.Value = !boolVal;
+                boolToggle = boolToggle.WithWrappedValue(Variant.From(!boolVal));
 #pragma warning restore CS0618 // Type or member is obsolete
                 pubSubApplication.DataStore.WritePublishedDataItem(
                     new NodeId("BoolToggle", namespaceIndexAllTypes),
@@ -3252,7 +3252,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 byte byteVal = Convert.ToByte(byteValue.Value, CultureInfo.InvariantCulture);
 #pragma warning restore CS0618 // Type or member is obsolete
 #pragma warning disable CS0618 // Type or member is obsolete
-                byteValue.Value = ++byteVal;
+                byteValue = byteValue.WithWrappedValue(Variant.From(++byteVal));
 #pragma warning restore CS0618 // Type or member is obsolete
                 pubSubApplication.DataStore.WritePublishedDataItem(
                     new NodeId("Byte", namespaceIndexAllTypes),
@@ -3271,7 +3271,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 #pragma warning restore CS0618 // Type or member is obsolete
                 Interlocked.CompareExchange(ref intIdentifier, 0, short.MaxValue);
 #pragma warning disable CS0618 // Type or member is obsolete
-                int16Value.Value = (short)Interlocked.Increment(ref intIdentifier);
+                int16Value = int16Value.WithWrappedValue(Variant.From((short)Interlocked.Increment(ref intIdentifier)));
 #pragma warning restore CS0618 // Type or member is obsolete
                 pubSubApplication.DataStore.WritePublishedDataItem(
                     new NodeId("Int16", namespaceIndexAllTypes),
@@ -3290,7 +3290,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 #pragma warning restore CS0618 // Type or member is obsolete
                 Interlocked.CompareExchange(ref intIdentifier, 0, int.MaxValue);
 #pragma warning disable CS0618 // Type or member is obsolete
-                int32Value.Value = Interlocked.Increment(ref intIdentifier);
+                int32Value = int32Value.WithWrappedValue(Variant.From(Interlocked.Increment(ref intIdentifier)));
 #pragma warning restore CS0618 // Type or member is obsolete
                 pubSubApplication.DataStore.WritePublishedDataItem(
                     new NodeId("Int32", namespaceIndexAllTypes),
@@ -3311,7 +3311,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 #pragma warning restore CS0618 // Type or member is obsolete
                 Interlocked.CompareExchange(ref intIdentifier, 0, ushort.MaxValue);
 #pragma warning disable CS0618 // Type or member is obsolete
-                uInt16Value.Value = (ushort)Interlocked.Increment(ref intIdentifier);
+                uInt16Value = uInt16Value.WithWrappedValue(Variant.From((ushort)Interlocked.Increment(ref intIdentifier)));
 #pragma warning restore CS0618 // Type or member is obsolete
                 pubSubApplication.DataStore.WritePublishedDataItem(
                     new NodeId("UInt16", namespaceIndexAllTypes),
@@ -3332,7 +3332,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 #pragma warning restore CS0618 // Type or member is obsolete
                 Interlocked.CompareExchange(ref longIdentifier, 0, uint.MaxValue);
 #pragma warning disable CS0618 // Type or member is obsolete
-                uInt32Value.Value = (uint)Interlocked.Increment(ref longIdentifier);
+                uInt32Value = uInt32Value.WithWrappedValue(Variant.From((uint)Interlocked.Increment(ref longIdentifier)));
 #pragma warning restore CS0618 // Type or member is obsolete
                 pubSubApplication.DataStore.WritePublishedDataItem(
                     new NodeId("UInt32", namespaceIndexAllTypes),
@@ -3353,7 +3353,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 #pragma warning restore CS0618 // Type or member is obsolete
                 Interlocked.CompareExchange(ref doubleVal, 0, double.MaxValue);
 #pragma warning disable CS0618 // Type or member is obsolete
-                doubleValue.Value = ++doubleVal;
+                doubleValue = doubleValue.WithWrappedValue(Variant.From(++doubleVal));
 #pragma warning restore CS0618 // Type or member is obsolete
                 pubSubApplication.DataStore.WritePublishedDataItem(
                     new NodeId("Double", namespaceIndexAllTypes),

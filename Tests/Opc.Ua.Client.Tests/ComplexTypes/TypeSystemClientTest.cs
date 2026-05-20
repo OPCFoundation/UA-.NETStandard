@@ -430,10 +430,10 @@ namespace Opc.Ua.Client.Tests.ComplexTypes
             complexType["IntegerValue"] = new Variant((long)54321);
             complexType["UIntegerValue"] = new Variant((ulong)12345);
 
-            var dataWriteValue = new DataValue(dataValue.WrappedValue)
-            {
-                SourceTimestamp = DateTime.UtcNow
-            };
+            var dataWriteValue = new DataValue(
+                dataValue.WrappedValue,
+                StatusCodes.Good,
+                DateTime.UtcNow);
 
             // write value back
             ArrayOf<WriteValue> writeValues =

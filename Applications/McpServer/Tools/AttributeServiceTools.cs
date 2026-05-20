@@ -253,11 +253,10 @@ namespace Opc.Ua.Mcp.Tools
                     _ => PerformUpdateType.Update
                 };
 
-                ArrayOf<DataValue> dataValues = timestamps.Select((ts, i) => new DataValue
-                {
-                    WrappedValue = new Variant(values[i]),
-                    SourceTimestamp = DateTime.Parse(ts, System.Globalization.CultureInfo.InvariantCulture)
-                }).ToArray();
+                ArrayOf<DataValue> dataValues = timestamps.Select((ts, i) => new DataValue(
+                    new Variant(values[i]),
+                    StatusCodes.Good,
+                    DateTime.Parse(ts, System.Globalization.CultureInfo.InvariantCulture))).ToArray();
 
                 var updateDetails = new UpdateDataDetails
                 {

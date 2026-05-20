@@ -316,12 +316,10 @@ namespace Opc.Ua.Server.Tests.Fluent
             // payload). Confirm wiring before we verify behavior.
             Assert.That(v.OnSimpleWriteValue, Is.Not.Null);
 
-            var dv = new DataValue
-            {
-                WrappedValue = new Variant(2.5),
-                StatusCode = StatusCodes.Good,
-                SourceTimestamp = DateTimeUtc.Now
-            };
+            var dv = new DataValue(
+                new Variant(2.5),
+                StatusCodes.Good,
+                DateTimeUtc.Now);
             ServiceResult result = v.WriteAttribute(
                 CreateContext(), Attributes.Value, NumericRange.Null, dv);
 
@@ -345,12 +343,10 @@ namespace Opc.Ua.Server.Tests.Fluent
             });
 
             SystemContext ctx = CreateContext();
-            var dv = new DataValue
-            {
-                WrappedValue = new Variant(11.0),
-                StatusCode = StatusCodes.Good,
-                SourceTimestamp = DateTimeUtc.Now
-            };
+            var dv = new DataValue(
+                new Variant(11.0),
+                StatusCodes.Good,
+                DateTimeUtc.Now);
             v.WriteAttribute(ctx, Attributes.Value, NumericRange.Null, dv);
 
             Assert.That(seenContext, Is.SameAs(ctx));
@@ -391,12 +387,10 @@ namespace Opc.Ua.Server.Tests.Fluent
             Assert.That(v.OnSimpleWriteValueAsync, Is.Not.Null);
             Assert.That(v.OnSimpleWriteValue, Is.Null);
 
-            var dv = new DataValue
-            {
-                WrappedValue = new Variant(7.5),
-                StatusCode = StatusCodes.Good,
-                SourceTimestamp = DateTimeUtc.Now
-            };
+            var dv = new DataValue(
+                new Variant(7.5),
+                StatusCodes.Good,
+                DateTimeUtc.Now);
             ServiceResult result = await v.WriteAttributeAsync(
                 CreateContext(), Attributes.Value, NumericRange.Null, dv).ConfigureAwait(false);
 
@@ -423,12 +417,10 @@ namespace Opc.Ua.Server.Tests.Fluent
                 });
 
             SystemContext ctx = CreateContext();
-            var dv = new DataValue
-            {
-                WrappedValue = new Variant(1.0),
-                StatusCode = StatusCodes.Good,
-                SourceTimestamp = DateTimeUtc.Now
-            };
+            var dv = new DataValue(
+                new Variant(1.0),
+                StatusCodes.Good,
+                DateTimeUtc.Now);
             await v.WriteAttributeAsync(
                 ctx, Attributes.Value, NumericRange.Null, dv, cts.Token).ConfigureAwait(false);
 
@@ -468,12 +460,10 @@ namespace Opc.Ua.Server.Tests.Fluent
             string captured = null;
             b.Variable<string>("Root/Var").OnWrite((string s) => captured = s);
 
-            var dv = new DataValue
-            {
-                WrappedValue = new Variant("hello"),
-                StatusCode = StatusCodes.Good,
-                SourceTimestamp = DateTimeUtc.Now
-            };
+            var dv = new DataValue(
+                new Variant("hello"),
+                StatusCodes.Good,
+                DateTimeUtc.Now);
             v.WriteAttribute(CreateContext(), Attributes.Value, NumericRange.Null, dv);
 
             Assert.That(captured, Is.EqualTo("hello"));

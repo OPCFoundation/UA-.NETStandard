@@ -182,19 +182,19 @@ namespace Opc.Ua.Server
                 return GetNoDataValue(slice);
             }
 
-            var value = new DataValue
-            {
-                SourceTimestamp = GetTimestamp(slice),
-                ServerTimestamp = GetTimestamp(slice)
-            };
+            var value = new DataValue(
+                Variant.Null,
+                StatusCodes.Good,
+                GetTimestamp(slice),
+                GetTimestamp(slice));
 
             // set status code.
             if (badDataSkipped)
             {
-                value.StatusCode = StatusCodes.UncertainDataSubNormal;
+                value = value.WithStatus(StatusCodes.UncertainDataSubNormal);
             }
 
-            value.StatusCode = value.StatusCode.WithAggregateBits(AggregateBits.Calculated);
+            value = value.WithStatus(value.StatusCode.WithAggregateBits(AggregateBits.Calculated));
 
             // calculate delta.
             double delta = endValue - startValue;
@@ -311,15 +311,15 @@ namespace Opc.Ua.Server
                 return GetNoDataValue(slice);
             }
 
-            var value = new DataValue
-            {
-                SourceTimestamp = GetTimestamp(slice),
-                ServerTimestamp = GetTimestamp(slice)
-            };
+            var value = new DataValue(
+                Variant.Null,
+                StatusCodes.Good,
+                GetTimestamp(slice),
+                GetTimestamp(slice));
 
             if (!IsGood(start) || !IsGood(end))
             {
-                value.StatusCode = StatusCodes.UncertainDataSubNormal;
+                value = value.WithStatus(StatusCodes.UncertainDataSubNormal);
             }
 
             value = value.WithStatus(value.StatusCode.WithAggregateBits(AggregateBits.Calculated));

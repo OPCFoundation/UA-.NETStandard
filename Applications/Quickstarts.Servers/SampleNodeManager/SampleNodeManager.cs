@@ -2461,13 +2461,11 @@ namespace Opc.Ua.Sample
             IDataChangeMonitoredItem2 monitoredItem,
             bool ignoreFilters)
         {
-            var initialValue = new DataValue
-            {
-                WrappedValue = default,
-                ServerTimestamp = DateTime.UtcNow,
-                SourceTimestamp = DateTime.MinValue,
-                StatusCode = StatusCodes.BadWaitingForInitialData
-            };
+            var initialValue = new DataValue(
+                Variant.Null,
+                StatusCodes.BadWaitingForInitialData,
+                DateTime.MinValue,
+                DateTime.UtcNow);
 
             ServiceResult error = node.Node.ReadAttribute(
                 context,
@@ -2630,13 +2628,11 @@ namespace Opc.Ua.Sample
             monitoredItem = null!;
 
             // read initial value.
-            var initialValue = new DataValue
-            {
-                WrappedValue = default,
-                ServerTimestamp = DateTime.UtcNow,
-                SourceTimestamp = DateTime.MinValue,
-                StatusCode = StatusCodes.BadWaitingForInitialData
-            };
+            var initialValue = new DataValue(
+                Variant.Null,
+                StatusCodes.BadWaitingForInitialData,
+                DateTime.MinValue,
+                DateTime.UtcNow);
 
             ServiceResult error = source.ReadAttribute(
                 context,

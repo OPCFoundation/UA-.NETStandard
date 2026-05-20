@@ -4611,10 +4611,10 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             IServiceMessageContext context = CreateContextWithNegativeMaxStringLength();
             using var encoder = new BinaryEncoder(context);
-            var dataValue = new DataValue
-            {
-                SourceTimestamp = DateTime.UtcNow
-            };
+            var dataValue = new DataValue(
+                Variant.Null,
+                StatusCodes.Good,
+                DateTime.UtcNow);
             // Act
             encoder.WriteDataValue("test", dataValue);
             byte[] result = encoder.CloseAndReturnBuffer();
@@ -4630,11 +4630,13 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             IServiceMessageContext context = CreateContextWithNegativeMaxStringLength();
             using var encoder = new BinaryEncoder(context);
-            var dataValue = new DataValue
-            {
-                SourceTimestamp = DateTime.UtcNow,
-                SourcePicoseconds = 1234
-            };
+            var dataValue = new DataValue(
+                Variant.Null,
+                StatusCodes.Good,
+                DateTime.UtcNow,
+                DateTimeUtc.MinValue,
+                1234,
+                0);
             // Act
             encoder.WriteDataValue("test", dataValue);
             byte[] result = encoder.CloseAndReturnBuffer();
@@ -4651,11 +4653,10 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             IServiceMessageContext context = CreateContextWithNegativeMaxStringLength();
             using var encoder = new BinaryEncoder(context);
-            var dataValue = new DataValue
-            {
-                SourceTimestamp = DateTime.UtcNow,
-                SourcePicoseconds = 0
-            };
+            var dataValue = new DataValue(
+                Variant.Null,
+                StatusCodes.Good,
+                DateTime.UtcNow);
             // Act
             encoder.WriteDataValue("test", dataValue);
             byte[] result = encoder.CloseAndReturnBuffer();
@@ -4672,10 +4673,11 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             IServiceMessageContext context = CreateContextWithNegativeMaxStringLength();
             using var encoder = new BinaryEncoder(context);
-            var dataValue = new DataValue
-            {
-                ServerTimestamp = DateTime.UtcNow
-            };
+            var dataValue = new DataValue(
+                Variant.Null,
+                StatusCodes.Good,
+                DateTimeUtc.MinValue,
+                DateTime.UtcNow);
             // Act
             encoder.WriteDataValue("test", dataValue);
             byte[] result = encoder.CloseAndReturnBuffer();
@@ -4691,11 +4693,13 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             IServiceMessageContext context = CreateContextWithNegativeMaxStringLength();
             using var encoder = new BinaryEncoder(context);
-            var dataValue = new DataValue
-            {
-                ServerTimestamp = DateTime.UtcNow,
-                ServerPicoseconds = 5678
-            };
+            var dataValue = new DataValue(
+                Variant.Null,
+                StatusCodes.Good,
+                DateTimeUtc.MinValue,
+                DateTime.UtcNow,
+                0,
+                5678);
             // Act
             encoder.WriteDataValue("test", dataValue);
             byte[] result = encoder.CloseAndReturnBuffer();
@@ -4712,11 +4716,11 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             IServiceMessageContext context = CreateContextWithNegativeMaxStringLength();
             using var encoder = new BinaryEncoder(context);
-            var dataValue = new DataValue
-            {
-                ServerTimestamp = DateTime.UtcNow,
-                ServerPicoseconds = 0
-            };
+            var dataValue = new DataValue(
+                Variant.Null,
+                StatusCodes.Good,
+                DateTimeUtc.MinValue,
+                DateTime.UtcNow);
             // Act
             encoder.WriteDataValue("test", dataValue);
             byte[] result = encoder.CloseAndReturnBuffer();
@@ -4733,15 +4737,13 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             IServiceMessageContext context = CreateContextWithNegativeMaxStringLength();
             using var encoder = new BinaryEncoder(context);
-            var dataValue = new DataValue
-            {
-                WrappedValue = Variant.From(42),
-                StatusCode = StatusCodes.Bad,
-                SourceTimestamp = DateTime.UtcNow,
-                SourcePicoseconds = 1234,
-                ServerTimestamp = DateTime.UtcNow,
-                ServerPicoseconds = 5678
-            };
+            var dataValue = new DataValue(
+                Variant.From(42),
+                StatusCodes.Bad,
+                DateTime.UtcNow,
+                DateTime.UtcNow,
+                1234,
+                5678);
             // Act
             encoder.WriteDataValue("test", dataValue);
             byte[] result = encoder.CloseAndReturnBuffer();
@@ -4762,11 +4764,11 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             IServiceMessageContext context = CreateContextWithNegativeMaxStringLength();
             using var encoder = new BinaryEncoder(context);
-            var dataValue = new DataValue
-            {
-                SourceTimestamp = DateTime.MinValue,
-                ServerTimestamp = DateTime.MinValue
-            };
+            var dataValue = new DataValue(
+                Variant.Null,
+                StatusCodes.Good,
+                DateTime.MinValue,
+                DateTime.MinValue);
             // Act
             encoder.WriteDataValue("test", dataValue);
             byte[] result = encoder.CloseAndReturnBuffer();
@@ -4799,10 +4801,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             IServiceMessageContext context = CreateContextWithNegativeMaxStringLength();
             using var encoder = new BinaryEncoder(context);
-            var dataValue = new DataValue
-            {
-                WrappedValue = Variant.Null
-            };
+            var dataValue = new DataValue(Variant.Null);
             // Act
             encoder.WriteDataValue("test", dataValue);
             byte[] result = encoder.CloseAndReturnBuffer();
@@ -4818,13 +4817,13 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             IServiceMessageContext context = CreateContextWithNegativeMaxStringLength();
             using var encoder = new BinaryEncoder(context);
-            var dataValue = new DataValue
-            {
-                SourceTimestamp = DateTime.UtcNow,
-                SourcePicoseconds = ushort.MaxValue,
-                ServerTimestamp = DateTime.UtcNow,
-                ServerPicoseconds = ushort.MaxValue
-            };
+            var dataValue = new DataValue(
+                Variant.Null,
+                StatusCodes.Good,
+                DateTime.UtcNow,
+                DateTime.UtcNow,
+                ushort.MaxValue,
+                ushort.MaxValue);
             // Act
             encoder.WriteDataValue("test", dataValue);
             byte[] result = encoder.CloseAndReturnBuffer();
@@ -4841,13 +4840,13 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             IServiceMessageContext context = CreateContextWithNegativeMaxStringLength();
             using var encoder = new BinaryEncoder(context);
-            var dataValue = new DataValue
-            {
-                SourceTimestamp = DateTime.UtcNow,
-                SourcePicoseconds = 1, // Minimum non-zero
-                ServerTimestamp = DateTime.UtcNow,
-                ServerPicoseconds = 1
-            };
+            var dataValue = new DataValue(
+                Variant.Null,
+                StatusCodes.Good,
+                DateTime.UtcNow,
+                DateTime.UtcNow,
+                1, // Minimum non-zero
+                1);
             // Act
             encoder.WriteDataValue("test", dataValue);
             byte[] result = encoder.CloseAndReturnBuffer();
@@ -4884,11 +4883,11 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             IServiceMessageContext context = CreateContextWithNegativeMaxStringLength();
             using var encoder = new BinaryEncoder(context);
-            var dataValue = new DataValue
-            {
-                SourceTimestamp = DateTime.MaxValue,
-                ServerTimestamp = DateTime.MaxValue
-            };
+            var dataValue = new DataValue(
+                Variant.Null,
+                StatusCodes.Good,
+                DateTime.MaxValue,
+                DateTime.MaxValue);
             // Act
             encoder.WriteDataValue("test", dataValue);
             byte[] result = encoder.CloseAndReturnBuffer();
@@ -6874,16 +6873,15 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ServiceMessageContext messageContext = CreateContext(0);
             using var encoder = new BinaryEncoder(messageContext);
-            var dataValue1 = new DataValue(Variant.From(42))
-            {
-                StatusCode = StatusCodes.Good,
-                SourceTimestamp = DateTime.UtcNow
-            };
-            var dataValue2 = new DataValue(Variant.From("test"))
-            {
-                StatusCode = StatusCodes.Bad,
-                ServerTimestamp = DateTime.UtcNow
-            };
+            var dataValue1 = new DataValue(
+                Variant.From(42),
+                StatusCodes.Good,
+                DateTime.UtcNow);
+            var dataValue2 = new DataValue(
+                Variant.From("test"),
+                StatusCodes.Bad,
+                DateTimeUtc.MinValue,
+                DateTime.UtcNow);
             var array = new ArrayOf<DataValue>([dataValue1, dataValue2]);
             // Act
             encoder.WriteDataValueArray("TestField", array);

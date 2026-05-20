@@ -640,20 +640,18 @@ namespace Opc.Ua.Sample
                 // make a shallow copy of the value.
                 if (value != null)
                 {
-                    value = new DataValue
-                    {
-                        WrappedValue = value.WrappedValue,
-                        StatusCode = value.StatusCode,
-                        SourceTimestamp = value.SourceTimestamp,
-                        SourcePicoseconds = value.SourcePicoseconds,
-                        ServerTimestamp = value.ServerTimestamp,
-                        ServerPicoseconds = value.ServerPicoseconds
-                    };
+                    value = new DataValue(
+                        value.WrappedValue,
+                        value.StatusCode,
+                        value.SourceTimestamp,
+                        value.ServerTimestamp,
+                        value.SourcePicoseconds,
+                        value.ServerPicoseconds);
 
                     // ensure the data value matches the error status code.
                     if (error != null && error.StatusCode.Code != 0)
                     {
-                        value.StatusCode = error.StatusCode;
+                        value = value.WithStatus(error.StatusCode);
                     }
                 }
 
@@ -837,7 +835,10 @@ namespace Opc.Ua.Sample
             // set semantics changed bit.
             if (m_semanticsChanged)
             {
-                value?.StatusCode = value.StatusCode.SetSemanticsChanged(true);
+                if (value != null)
+                {
+                    value = value.WithStatus(value.StatusCode.SetSemanticsChanged(true));
+                }
 
                 m_semanticsChanged = false;
             }
@@ -845,7 +846,10 @@ namespace Opc.Ua.Sample
             // set structure changed bit.
             if (m_structureChanged)
             {
-                value?.StatusCode = value.StatusCode.SetStructureChanged(true);
+                if (value != null)
+                {
+                    value = value.WithStatus(value.StatusCode.SetStructureChanged(true));
+                }
 
                 m_structureChanged = false;
             }

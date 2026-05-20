@@ -868,19 +868,18 @@ namespace Opc.Ua.Server
                     // ensure the data value matches the error status code.
                     if (error != null && error.StatusCode.Code != 0)
                     {
-                        value.StatusCode = error.StatusCode;
+                        value = value.WithStatus(error.StatusCode);
                     }
                 }
 
                 // create empty value if none provided.
                 if (ServiceResult.IsBad(error) && value == null)
                 {
-                    value = new DataValue
-                    {
-                        StatusCode = error!.StatusCode,
-                        SourceTimestamp = DateTime.UtcNow,
-                        ServerTimestamp = DateTime.UtcNow
-                    };
+                    value = new DataValue(
+                        Variant.Null,
+                        error!.StatusCode,
+                        DateTime.UtcNow,
+                        DateTime.UtcNow);
                 }
 
                 // this should never happen.
@@ -1440,7 +1439,10 @@ namespace Opc.Ua.Server
             // set semantics changed bit.
             if (m_semanticsChanged)
             {
-                value?.StatusCode = value.StatusCode.SetSemanticsChanged(true);
+                if (value != null)
+                {
+                    value = value.WithStatus(value.StatusCode.SetSemanticsChanged(true));
+                }
 
                 if (error != null)
                 {
@@ -1458,7 +1460,10 @@ namespace Opc.Ua.Server
             // set structure changed bit.
             if (m_structureChanged)
             {
-                value?.StatusCode = value.StatusCode.SetStructureChanged(true);
+                if (value != null)
+                {
+                    value = value.WithStatus(value.StatusCode.SetStructureChanged(true));
+                }
 
                 if (error != null)
                 {

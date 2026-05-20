@@ -71,12 +71,10 @@ namespace Opc.Ua.PubSub
 
             lock (m_lock)
             {
-                var dv = new DataValue
-                {
-                    WrappedValue = value,
-                    StatusCode = status ?? StatusCodes.Good,
-                    SourceTimestamp = timestamp ?? DateTimeUtc.Now
-                };
+                var dv = new DataValue(
+                    value,
+                    status ?? StatusCodes.Good,
+                    timestamp ?? DateTimeUtc.Now);
 
                 if (!m_store.TryGetValue(nodeId, out Dictionary<uint, DataValue>? dictionary))
                 {

@@ -95,7 +95,11 @@ namespace TestData
                 {
                     var entry = new HistoryEntry
                     {
-                        Value = new DataValue { ServerTimestamp = now.AddSeconds(-(ii * 10)) }
+                        Value = new DataValue(
+                            Variant.Null,
+                            StatusCodes.Good,
+                            DateTimeUtc.MinValue,
+                            now.AddSeconds(-(ii * 10)))
                     };
                     entry.Value = entry.Value
                         .WithSourceTimestamp(entry.Value.ServerTimestamp.AddMilliseconds(1234));
@@ -139,7 +143,11 @@ namespace TestData
 
                         var entry = new HistoryEntry
                         {
-                            Value = new DataValue { ServerTimestamp = now }
+                            Value = new DataValue(
+                                Variant.Null,
+                                StatusCodes.Good,
+                                DateTimeUtc.MinValue,
+                                now)
                         };
                         entry.Value = entry.Value
                             .WithSourceTimestamp(entry.Value.ServerTimestamp.AddMilliseconds(-4567));

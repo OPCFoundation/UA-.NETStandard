@@ -189,7 +189,9 @@ namespace Opc.Ua.Client.ComplexTypes
                             namespaces[(NodeId)referenceNodeIds[ii]] = ns;
                             continue;
                         }
-                        nameSpaceValues[ii].StatusCode = StatusCodes.BadEncodingError;
+                        nameSpaceValues = nameSpaceValues.ReplaceItem(
+                            nameSpaceValues[ii].WithStatus(StatusCodes.BadEncodingError),
+                            ii);
                     }
                 }
                 m_logger.LogWarning(

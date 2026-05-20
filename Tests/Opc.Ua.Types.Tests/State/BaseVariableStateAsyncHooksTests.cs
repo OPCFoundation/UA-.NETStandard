@@ -292,12 +292,10 @@ namespace Opc.Ua.Types.Tests.State
                     new AttributeWriteResult(ServiceResult.Good));
             };
 
-            var dv = new DataValue
-            {
-                WrappedValue = new Variant(99.5),
-                StatusCode = StatusCodes.Good,
-                SourceTimestamp = DateTimeUtc.Now
-            };
+            var dv = new DataValue(
+                new Variant(99.5),
+                StatusCodes.Good,
+                DateTimeUtc.Now);
 
             ServiceResult result = await v.WriteAttributeAsync(
                 ctx, Attributes.Value, NumericRange.Null, dv).ConfigureAwait(false);
@@ -319,12 +317,10 @@ namespace Opc.Ua.Types.Tests.State
                 new ValueTask<AttributeWriteResult>(
                     new AttributeWriteResult(StatusCodes.BadInvalidArgument));
 
-            var dv = new DataValue
-            {
-                WrappedValue = new Variant(99.5),
-                StatusCode = StatusCodes.Good,
-                SourceTimestamp = DateTimeUtc.Now
-            };
+            var dv = new DataValue(
+                new Variant(99.5),
+                StatusCodes.Good,
+                DateTimeUtc.Now);
 
             ServiceResult result = await v.WriteAttributeAsync(
                 ctx, Attributes.Value, NumericRange.Null, dv).ConfigureAwait(false);
@@ -347,12 +343,10 @@ namespace Opc.Ua.Types.Tests.State
             v.OnSimpleWriteValueAsync = (c, n, value, ct) => new ValueTask<AttributeWriteResult>(
                 new AttributeWriteResult(ServiceResult.Good));
 
-            var dv = new DataValue
-            {
-                WrappedValue = new Variant(11.0),
-                StatusCode = StatusCodes.Good,
-                SourceTimestamp = DateTimeUtc.Now
-            };
+            var dv = new DataValue(
+                new Variant(11.0),
+                StatusCodes.Good,
+                DateTimeUtc.Now);
 
             ServiceResult result = await v.WriteAttributeAsync(
                 ctx, Attributes.Value, NumericRange.Null, dv).ConfigureAwait(false);
@@ -370,12 +364,10 @@ namespace Opc.Ua.Types.Tests.State
                 new AttributeWriteResult(ServiceResult.Good));
 
             var range = NumericRange.Parse("0:3");
-            var dv = new DataValue
-            {
-                WrappedValue = new Variant(11.0),
-                StatusCode = StatusCodes.Good,
-                SourceTimestamp = DateTimeUtc.Now
-            };
+            var dv = new DataValue(
+                new Variant(11.0),
+                StatusCodes.Good,
+                DateTimeUtc.Now);
 
             ServiceResult result = await v.WriteAttributeAsync(
                 ctx, Attributes.Value, range, dv).ConfigureAwait(false);
@@ -409,12 +401,10 @@ namespace Opc.Ua.Types.Tests.State
             BaseDataVariableState v = CreateReadableVariable();
             v.Value = 1.0;
 
-            var dv = new DataValue
-            {
-                WrappedValue = new Variant(2.0),
-                StatusCode = StatusCodes.Good,
-                SourceTimestamp = DateTimeUtc.Now
-            };
+            var dv = new DataValue(
+                new Variant(2.0),
+                StatusCodes.Good,
+                DateTimeUtc.Now);
 
             ServiceResult result = await v.WriteAttributeAsync(
                 ctx, Attributes.Value, NumericRange.Null, dv).ConfigureAwait(false);
@@ -478,12 +468,10 @@ namespace Opc.Ua.Types.Tests.State
                 return new ValueTask<AttributeWriteResult>(default(AttributeWriteResult));
             };
 
-            var dv = new DataValue
-            {
-                WrappedValue = new Variant(2.0),
-                StatusCode = StatusCodes.Good,
-                SourceTimestamp = DateTimeUtc.Now
-            };
+            var dv = new DataValue(
+                new Variant(2.0),
+                StatusCodes.Good,
+                DateTimeUtc.Now);
 
             ServiceResult result = await v.WriteAttributeAsync(
                 ctx, Attributes.Value, NumericRange.Null, dv).ConfigureAwait(false);

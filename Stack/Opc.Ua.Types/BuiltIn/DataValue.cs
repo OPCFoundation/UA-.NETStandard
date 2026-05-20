@@ -29,7 +29,6 @@
 
 using System;
 using System.Runtime.CompilerServices;
-using System.Runtime.Serialization;
 using Opc.Ua.Types;
 
 namespace Opc.Ua
@@ -73,7 +72,6 @@ namespace Opc.Ua
     /// </example>
     /// <seealso cref="Variant"/>
     /// <seealso cref="StatusCode"/>
-    [DataContract(Namespace = Types.Namespaces.OpcUaXsd)]
     public class DataValue : ICloneable, IFormattable, IEquatable<DataValue>
     {
         /// <summary>
@@ -82,9 +80,9 @@ namespace Opc.Ua
         public DataValue()
         {
             m_value = Variant.Null;
-            StatusCode = StatusCodes.Good;
-            SourceTimestamp = DateTimeUtc.MinValue;
-            ServerTimestamp = DateTimeUtc.MinValue;
+            m_statusCode = StatusCodes.Good;
+            m_sourceTimestamp = DateTimeUtc.MinValue;
+            m_serverTimestamp = DateTimeUtc.MinValue;
         }
 
         /// <summary>
@@ -98,9 +96,9 @@ namespace Opc.Ua
         public DataValue(Variant value)
         {
             m_value = value;
-            StatusCode = StatusCodes.Good;
-            SourceTimestamp = DateTimeUtc.MinValue;
-            ServerTimestamp = DateTimeUtc.MinValue;
+            m_statusCode = StatusCodes.Good;
+            m_sourceTimestamp = DateTimeUtc.MinValue;
+            m_serverTimestamp = DateTimeUtc.MinValue;
         }
 
         /// <summary>
@@ -111,9 +109,9 @@ namespace Opc.Ua
         public DataValue(StatusCode statusCode)
         {
             m_value = Variant.Null;
-            StatusCode = statusCode;
-            SourceTimestamp = DateTimeUtc.MinValue;
-            ServerTimestamp = DateTimeUtc.MinValue;
+            m_statusCode = statusCode;
+            m_sourceTimestamp = DateTimeUtc.MinValue;
+            m_serverTimestamp = DateTimeUtc.MinValue;
         }
 
         /// <summary>
@@ -125,9 +123,9 @@ namespace Opc.Ua
         public DataValue(StatusCode statusCode, DateTimeUtc serverTimestamp)
         {
             m_value = Variant.Null;
-            StatusCode = statusCode;
-            ServerTimestamp = serverTimestamp;
-            SourceTimestamp = DateTimeUtc.MinValue;
+            m_statusCode = statusCode;
+            m_serverTimestamp = serverTimestamp;
+            m_sourceTimestamp = DateTimeUtc.MinValue;
         }
 
         /// <summary>
@@ -138,9 +136,9 @@ namespace Opc.Ua
         public DataValue(Variant value, StatusCode statusCode)
         {
             m_value = value;
-            StatusCode = statusCode;
-            SourceTimestamp = DateTimeUtc.MinValue;
-            ServerTimestamp = DateTimeUtc.MinValue;
+            m_statusCode = statusCode;
+            m_sourceTimestamp = DateTimeUtc.MinValue;
+            m_serverTimestamp = DateTimeUtc.MinValue;
         }
 
         /// <summary>
@@ -152,9 +150,9 @@ namespace Opc.Ua
         public DataValue(Variant value, StatusCode statusCode, DateTimeUtc sourceTimestamp)
         {
             m_value = value;
-            StatusCode = statusCode;
-            SourceTimestamp = sourceTimestamp;
-            ServerTimestamp = DateTimeUtc.MinValue;
+            m_statusCode = statusCode;
+            m_sourceTimestamp = sourceTimestamp;
+            m_serverTimestamp = DateTimeUtc.MinValue;
         }
 
         /// <summary>
@@ -172,9 +170,34 @@ namespace Opc.Ua
             DateTimeUtc serverTimestamp)
         {
             m_value = value;
-            StatusCode = statusCode;
-            SourceTimestamp = sourceTimestamp;
-            ServerTimestamp = serverTimestamp;
+            m_statusCode = statusCode;
+            m_sourceTimestamp = sourceTimestamp;
+            m_serverTimestamp = serverTimestamp;
+        }
+
+        /// <summary>
+        /// Initializes the object with all fields including picosecond resolution.
+        /// </summary>
+        /// <param name="value">The variant value to set</param>
+        /// <param name="statusCode">The status code to set</param>
+        /// <param name="sourceTimestamp">The source timestamp to set</param>
+        /// <param name="serverTimestamp">The servers timestamp to set</param>
+        /// <param name="sourcePicoseconds">Additional resolution for the source timestamp</param>
+        /// <param name="serverPicoseconds">Additional resolution for the server timestamp</param>
+        public DataValue(
+            Variant value,
+            StatusCode statusCode,
+            DateTimeUtc sourceTimestamp,
+            DateTimeUtc serverTimestamp,
+            ushort sourcePicoseconds,
+            ushort serverPicoseconds)
+        {
+            m_value = value;
+            m_statusCode = statusCode;
+            m_sourceTimestamp = sourceTimestamp;
+            m_serverTimestamp = serverTimestamp;
+            m_sourcePicoseconds = sourcePicoseconds;
+            m_serverPicoseconds = serverPicoseconds;
         }
 
         /// <summary>
@@ -184,10 +207,7 @@ namespace Opc.Ua
         /// <returns>A new <see cref="DataValue"/> with the specified status code.</returns>
         public static DataValue FromStatusCode(StatusCode statusCode)
         {
-            return new DataValue
-            {
-                StatusCode = statusCode
-            };
+            return new DataValue(Variant.Null, statusCode);
         }
 
         /// <summary>
@@ -198,11 +218,11 @@ namespace Opc.Ua
         /// <returns>A new <see cref="DataValue"/> with the specified status code and server timestamp.</returns>
         public static DataValue FromStatusCode(StatusCode statusCode, DateTimeUtc serverTimestamp)
         {
-            return new DataValue
-            {
-                StatusCode = statusCode,
-                ServerTimestamp = serverTimestamp
-            };
+            return new DataValue(
+                Variant.Null,
+                statusCode,
+                DateTimeUtc.MinValue,
+                serverTimestamp);
         }
 
         // ----------------------------------------------------------------
@@ -232,13 +252,11 @@ namespace Opc.Ua
         {
             return new DataValue(
                 value,
-                StatusCode,
-                SourceTimestamp,
-                ServerTimestamp)
-            {
-                SourcePicoseconds = SourcePicoseconds,
-                ServerPicoseconds = ServerPicoseconds
-            };
+                m_statusCode,
+                m_sourceTimestamp,
+                m_serverTimestamp,
+                m_sourcePicoseconds,
+                m_serverPicoseconds);
         }
 
         /// <summary>
@@ -250,12 +268,10 @@ namespace Opc.Ua
             return new DataValue(
                 m_value,
                 statusCode,
-                SourceTimestamp,
-                ServerTimestamp)
-            {
-                SourcePicoseconds = SourcePicoseconds,
-                ServerPicoseconds = ServerPicoseconds
-            };
+                m_sourceTimestamp,
+                m_serverTimestamp,
+                m_sourcePicoseconds,
+                m_serverPicoseconds);
         }
 
         /// <summary>
@@ -266,13 +282,11 @@ namespace Opc.Ua
         {
             return new DataValue(
                 m_value,
-                StatusCode,
+                m_statusCode,
                 sourceTimestamp,
-                ServerTimestamp)
-            {
-                SourcePicoseconds = SourcePicoseconds,
-                ServerPicoseconds = ServerPicoseconds
-            };
+                m_serverTimestamp,
+                m_sourcePicoseconds,
+                m_serverPicoseconds);
         }
 
         /// <summary>
@@ -283,13 +297,11 @@ namespace Opc.Ua
         {
             return new DataValue(
                 m_value,
-                StatusCode,
-                SourceTimestamp,
-                ServerTimestamp)
-            {
-                SourcePicoseconds = sourcePicoseconds,
-                ServerPicoseconds = ServerPicoseconds
-            };
+                m_statusCode,
+                m_sourceTimestamp,
+                m_serverTimestamp,
+                sourcePicoseconds,
+                m_serverPicoseconds);
         }
 
         /// <summary>
@@ -300,13 +312,11 @@ namespace Opc.Ua
         {
             return new DataValue(
                 m_value,
-                StatusCode,
-                SourceTimestamp,
-                serverTimestamp)
-            {
-                SourcePicoseconds = SourcePicoseconds,
-                ServerPicoseconds = ServerPicoseconds
-            };
+                m_statusCode,
+                m_sourceTimestamp,
+                serverTimestamp,
+                m_sourcePicoseconds,
+                m_serverPicoseconds);
         }
 
         /// <summary>
@@ -317,13 +327,11 @@ namespace Opc.Ua
         {
             return new DataValue(
                 m_value,
-                StatusCode,
-                SourceTimestamp,
-                ServerTimestamp)
-            {
-                SourcePicoseconds = SourcePicoseconds,
-                ServerPicoseconds = serverPicoseconds
-            };
+                m_statusCode,
+                m_sourceTimestamp,
+                m_serverTimestamp,
+                m_sourcePicoseconds,
+                serverPicoseconds);
         }
 
         /// <inheritdoc/>
@@ -455,48 +463,37 @@ namespace Opc.Ua
         public object? Value
         {
             get => m_value.AsBoxedObject(Variant.BoxingBehavior.Legacy);
-            set => VariantHelper.TryCastFrom(value, out m_value);
         }
 
         /// <summary>
         /// The value of data value.
         /// </summary>
-        [DataMember(Name = "Value", Order = 1, IsRequired = false)]
-        public Variant WrappedValue
-        {
-            get => m_value;
-            set => m_value = value;
-        }
+        public Variant WrappedValue => m_value;
 
         /// <summary>
         /// The status code associated with the value.
         /// </summary>
-        [DataMember(Order = 2, IsRequired = false)]
-        public StatusCode StatusCode { get; set; }
+        public StatusCode StatusCode => m_statusCode;
 
         /// <summary>
         /// The source timestamp associated with the value.
         /// </summary>
-        [DataMember(Order = 3, IsRequired = false)]
-        public DateTimeUtc SourceTimestamp { get; set; }
+        public DateTimeUtc SourceTimestamp => m_sourceTimestamp;
 
         /// <summary>
         /// Additional resolution for the source timestamp.
         /// </summary>
-        [DataMember(Order = 4, IsRequired = false)]
-        public ushort SourcePicoseconds { get; set; }
+        public ushort SourcePicoseconds => m_sourcePicoseconds;
 
         /// <summary>
         /// The server timestamp associated with the value.
         /// </summary>
-        [DataMember(Order = 5, IsRequired = false)]
-        public DateTimeUtc ServerTimestamp { get; set; }
+        public DateTimeUtc ServerTimestamp => m_serverTimestamp;
 
         /// <summary>
         /// Additional resolution for the server timestamp.
         /// </summary>
-        [DataMember(Order = 6, IsRequired = false)]
-        public ushort ServerPicoseconds { get; set; }
+        public ushort ServerPicoseconds => m_serverPicoseconds;
 
         /// <summary>
         /// Returns true if the status code is good.
@@ -704,5 +701,10 @@ namespace Opc.Ua
         }
 
         private Variant m_value;
+        private readonly StatusCode m_statusCode;
+        private readonly DateTimeUtc m_sourceTimestamp;
+        private readonly DateTimeUtc m_serverTimestamp;
+        private readonly ushort m_sourcePicoseconds;
+        private readonly ushort m_serverPicoseconds;
     }
 }

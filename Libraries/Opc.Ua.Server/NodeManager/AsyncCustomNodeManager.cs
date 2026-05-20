@@ -2341,7 +2341,7 @@ namespace Opc.Ua.Server
                     {
                         monitoredItem.SetSemanticsChanged();
 
-                        var value = new DataValue { ServerTimestamp = DateTime.UtcNow };
+                        var value = new DataValue(Variant.Null, StatusCodes.Good, DateTimeUtc.MinValue, DateTime.UtcNow);
 
                         lock (node)
                         {
@@ -4231,13 +4231,11 @@ namespace Opc.Ua.Server
             NodeHandle handle,
             IDataChangeMonitoredItem2 monitoredItem)
         {
-            var initialValue = new DataValue
-            {
-                WrappedValue = default,
-                ServerTimestamp = DateTime.UtcNow,
-                SourceTimestamp = DateTimeUtc.MinValue,
-                StatusCode = StatusCodes.BadWaitingForInitialData
-            };
+            var initialValue = new DataValue(
+                Variant.Null,
+                StatusCodes.BadWaitingForInitialData,
+                DateTimeUtc.MinValue,
+                DateTime.UtcNow);
 
             ServiceResult error = handle.Node.ReadAttribute(
                 context,

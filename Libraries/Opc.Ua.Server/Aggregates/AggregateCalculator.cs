@@ -204,8 +204,8 @@ namespace Opc.Ua.Server
             {
                 if (m_startOfData > earlyTime && m_startOfData < lateTime)
                 {
-                    value.StatusCode = value.StatusCode.WithAggregateBits(
-                        value.StatusCode.AggregateBits | AggregateBits.Partial);
+                    value = value.WithStatus(value.StatusCode.WithAggregateBits(
+                        value.StatusCode.AggregateBits | AggregateBits.Partial));
                 }
 
                 if (!UsingExtrapolation &&
@@ -213,8 +213,8 @@ namespace Opc.Ua.Server
                     m_endOfData >= earlyTime &&
                     m_endOfData < lateTime)
                 {
-                    value.StatusCode = value.StatusCode.WithAggregateBits(
-                        value.StatusCode.AggregateBits | AggregateBits.Partial);
+                    value = value.WithStatus(value.StatusCode.WithAggregateBits(
+                        value.StatusCode.AggregateBits | AggregateBits.Partial));
                 }
             }
 
@@ -270,8 +270,8 @@ namespace Opc.Ua.Server
                     m_endOfData >= earlyTime &&
                     m_endOfData < lateTime)
                 {
-                    value.StatusCode = value.StatusCode.WithAggregateBits(
-                        value.StatusCode.AggregateBits | AggregateBits.Partial);
+                    value = value.WithStatus(value.StatusCode.WithAggregateBits(
+                        value.StatusCode.AggregateBits | AggregateBits.Partial));
                 }
             }
             else
@@ -824,8 +824,8 @@ namespace Opc.Ua.Server
 
                     if (!ReferenceEquals(slice.EarlyBound.Next, slice.LateBound))
                     {
-                        dataValue.StatusCode = dataValue.StatusCode
-                            .WithCodeBits(StatusCodes.UncertainDataSubNormal);
+                        dataValue = dataValue.WithStatus(dataValue.StatusCode
+                            .WithCodeBits(StatusCodes.UncertainDataSubNormal));
                     }
 
                     return dataValue;
@@ -842,8 +842,8 @@ namespace Opc.Ua.Server
                             timestamp,
                             slice.SecondEarlyBound.Value,
                             slice.EarlyBound.Value);
-                        dataValue.StatusCode = dataValue.StatusCode
-                            .WithCodeBits(StatusCodes.UncertainDataSubNormal);
+                        dataValue = dataValue.WithStatus(dataValue.StatusCode
+                            .WithCodeBits(StatusCodes.UncertainDataSubNormal));
                         return dataValue;
                     }
 
@@ -861,8 +861,8 @@ namespace Opc.Ua.Server
                     CompareTimestamps(timestamp, slice.EarlyBound.Next) > 0)
                 {
                     UsingExtrapolation = true;
-                    dataValue.StatusCode = dataValue.StatusCode
-                        .WithCodeBits(StatusCodes.UncertainDataSubNormal);
+                    dataValue = dataValue.WithStatus(dataValue.StatusCode
+                        .WithCodeBits(StatusCodes.UncertainDataSubNormal));
                 }
 
                 return dataValue;
@@ -883,28 +883,26 @@ namespace Opc.Ua.Server
                 return new DataValue(Variant.Null, StatusCodes.BadNoData, timestamp, timestamp);
             }
 
-            var dataValue = new DataValue
-            {
-                WrappedValue = earlyBound.WrappedValue,
-                SourceTimestamp = timestamp,
-                ServerTimestamp = timestamp,
-                StatusCode = StatusCodes.Good
-            };
+            var dataValue = new DataValue(
+                earlyBound.WrappedValue,
+                StatusCodes.Good,
+                timestamp,
+                timestamp);
 
             // update status code.
             if (StatusCode.IsBad(earlyBound.StatusCode))
             {
-                dataValue.StatusCode = StatusCodes.BadNoData;
+                dataValue = dataValue.WithStatus(StatusCodes.BadNoData);
             }
 
             // update status code.
             if (StatusCode.IsNotGood(earlyBound.StatusCode))
             {
-                dataValue.StatusCode = StatusCodes.UncertainDataSubNormal;
+                dataValue = dataValue.WithStatus(StatusCodes.UncertainDataSubNormal);
             }
 
-            dataValue.StatusCode = dataValue.StatusCode
-                .WithAggregateBits(AggregateBits.Interpolated);
+            dataValue = dataValue.WithStatus(dataValue.StatusCode
+                .WithAggregateBits(AggregateBits.Interpolated));
             return dataValue;
         }
 
@@ -931,8 +929,8 @@ namespace Opc.Ua.Server
 
                     if (StatusCode.IsNotBad(dataValue2.StatusCode))
                     {
-                        dataValue2.StatusCode = dataValue2.StatusCode
-                            .WithCodeBits(StatusCodes.UncertainDataSubNormal);
+                        dataValue2 = dataValue2.WithStatus(dataValue2.StatusCode
+                            .WithCodeBits(StatusCodes.UncertainDataSubNormal));
                     }
 
                     return dataValue2;
@@ -950,23 +948,21 @@ namespace Opc.Ua.Server
                     earlyValue;
 
                 // convert back to original type.
-                var dataValue = new DataValue
-                {
-                    WrappedValue = CastToOriginalType(calculatedValue, earlyBound),
-                    SourceTimestamp = timestamp,
-                    ServerTimestamp = timestamp,
-                    StatusCode = StatusCodes.Good
-                };
+                var dataValue = new DataValue(
+                    CastToOriginalType(calculatedValue, earlyBound),
+                    StatusCodes.Good,
+                    timestamp,
+                    timestamp);
 
                 // update status code.
                 if (StatusCode.IsNotGood(earlyBound.StatusCode) ||
                     StatusCode.IsNotGood(lateBound.StatusCode))
                 {
-                    dataValue.StatusCode = StatusCodes.UncertainDataSubNormal;
+                    dataValue = dataValue.WithStatus(StatusCodes.UncertainDataSubNormal);
                 }
 
-                dataValue.StatusCode = dataValue.StatusCode
-                    .WithAggregateBits(AggregateBits.Interpolated);
+                dataValue = dataValue.WithStatus(dataValue.StatusCode
+                    .WithAggregateBits(AggregateBits.Interpolated));
 
                 return dataValue;
             }
@@ -1070,8 +1066,8 @@ namespace Opc.Ua.Server
             // need to make it uncertain if interpolation was required but not used.
             if (StatusCode.IsGood(value.StatusCode) && revertToStepped)
             {
-                value.StatusCode = StatusCodes.UncertainDataSubNormal;
-                value.StatusCode = value.StatusCode.WithAggregateBits(AggregateBits.Interpolated);
+                value = value.WithStatus(StatusCodes.UncertainDataSubNormal);
+                value = value.WithStatus(value.StatusCode.WithAggregateBits(AggregateBits.Interpolated));
             }
 
             return value;

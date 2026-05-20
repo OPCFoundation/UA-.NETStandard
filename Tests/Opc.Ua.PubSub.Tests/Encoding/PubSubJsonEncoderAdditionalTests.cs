@@ -662,12 +662,11 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     BuiltInType = (byte)BuiltInType.Double,
                     ValueRank = ValueRanks.Scalar
                 },
-                Value = new DataValue(new Variant(42.0))
-                {
-                    SourceTimestamp = DateTime.UtcNow,
-                    ServerTimestamp = DateTime.UtcNow,
-                    StatusCode = StatusCodes.Good
-                }
+                Value = new DataValue(
+                    new Variant(42.0),
+                    StatusCodes.Good,
+                    DateTime.UtcNow,
+                    DateTime.UtcNow)
             };
 
             var message = new PubSubEncoding.JsonDataSetMessage(
@@ -695,12 +694,13 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     BuiltInType = (byte)BuiltInType.Float,
                     ValueRank = ValueRanks.Scalar
                 },
-                Value = new DataValue(new Variant(1.0f))
-                {
-                    SourceTimestamp = DateTime.UtcNow,
-                    SourcePicoseconds = 1234,
-                    StatusCode = StatusCodes.Good
-                }
+                Value = new DataValue(
+                    new Variant(1.0f),
+                    StatusCodes.Good,
+                    DateTime.UtcNow,
+                    DateTimeUtc.MinValue,
+                    1234,
+                    0)
             };
 
             var message = new PubSubEncoding.JsonDataSetMessage(
@@ -727,12 +727,13 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     BuiltInType = (byte)BuiltInType.Int32,
                     ValueRank = ValueRanks.Scalar
                 },
-                Value = new DataValue(new Variant(77))
-                {
-                    ServerTimestamp = DateTime.UtcNow,
-                    ServerPicoseconds = 5678,
-                    StatusCode = StatusCodes.Good
-                }
+                Value = new DataValue(
+                    new Variant(77),
+                    StatusCodes.Good,
+                    DateTimeUtc.MinValue,
+                    DateTime.UtcNow,
+                    0,
+                    5678)
             };
 
             var message = new PubSubEncoding.JsonDataSetMessage(

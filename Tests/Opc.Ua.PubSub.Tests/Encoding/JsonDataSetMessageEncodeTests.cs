@@ -282,10 +282,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         public void EncodePayloadDataValueWithStatusCode()
         {
             Field field = CreateField("TestField", BuiltInType.Int32, 42);
-            field.Value = new DataValue(new Variant(42))
-            {
-                StatusCode = StatusCodes.BadInvalidArgument
-            };
+            field.Value = new DataValue(new Variant(42), StatusCodes.BadInvalidArgument);
             var message = new PubSubEncoding.JsonDataSetMessage(new DataSet { Fields = [field] });
             message.SetFieldContentMask(DataSetFieldContentMask.StatusCode);
 
@@ -301,11 +298,11 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         public void EncodePayloadDataValueWithTimestamps()
         {
             Field field = CreateField("TestField", BuiltInType.Int32, 42);
-            field.Value = new DataValue(new Variant(42))
-            {
-                SourceTimestamp = DateTime.UtcNow,
-                ServerTimestamp = DateTime.UtcNow
-            };
+            field.Value = new DataValue(
+                new Variant(42),
+                StatusCodes.Good,
+                DateTime.UtcNow,
+                DateTime.UtcNow);
             var message = new PubSubEncoding.JsonDataSetMessage(new DataSet { Fields = [field] });
             message.SetFieldContentMask(
                 DataSetFieldContentMask.SourceTimestamp |
@@ -408,10 +405,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     BuiltInType = (byte)builtInType,
                     ValueRank = ValueRanks.Scalar
                 },
-                Value = new DataValue(new Variant(value))
-                {
-                    SourceTimestamp = DateTime.UtcNow
-                }
+                Value = new DataValue(new Variant(value), StatusCodes.Good, DateTime.UtcNow)
             };
 #pragma warning restore CS0618 // Type or member is obsolete
         }

@@ -28,8 +28,8 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void ValueChangedStatusChangedReturnsTrue()
         {
-            var lastValue = new DataValue(new Variant(1)) { StatusCode = StatusCodes.Good };
-            var value = new DataValue(new Variant(1)) { StatusCode = StatusCodes.Bad };
+            var lastValue = new DataValue(new Variant(1), StatusCodes.Good);
+            var value = new DataValue(new Variant(1), StatusCodes.Bad);
 
             // Status different
             Assert.That(
@@ -40,8 +40,8 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void ValueChangedErrorOverridesStatusReturnsTrueIfChanged()
         {
-            var lastValue = new DataValue(new Variant(1)) { StatusCode = StatusCodes.Good };
-            var value = new DataValue(new Variant(1)) { StatusCode = StatusCodes.Good };
+            var lastValue = new DataValue(new Variant(1), StatusCodes.Good);
+            var value = new DataValue(new Variant(1), StatusCodes.Good);
             var error = new ServiceResult(StatusCodes.Bad);
 
             // Error makes new status Bad, last was Good -> Changed
@@ -106,8 +106,8 @@ namespace Opc.Ua.Server.Tests
                 Trigger = DataChangeTrigger.StatusValueTimestamp
             };
             DateTime now = DateTime.UtcNow;
-            var lastValue = new DataValue(new Variant(1)) { SourceTimestamp = now };
-            var value = new DataValue(new Variant(1)) { SourceTimestamp = now.AddMilliseconds(1) };
+            var lastValue = new DataValue(new Variant(1), StatusCodes.Good, now);
+            var value = new DataValue(new Variant(1), StatusCodes.Good, now.AddMilliseconds(1));
 
             Assert.That(
                 MonitoredItem.ValueChanged(value, null, lastValue, null, filter, 0),
@@ -122,8 +122,8 @@ namespace Opc.Ua.Server.Tests
                 Trigger = DataChangeTrigger.StatusValueTimestamp
             };
             DateTime now = DateTime.UtcNow;
-            var lastValue = new DataValue(new Variant(1)) { SourceTimestamp = now };
-            var value = new DataValue(new Variant(1)) { SourceTimestamp = now };
+            var lastValue = new DataValue(new Variant(1), StatusCodes.Good, now);
+            var value = new DataValue(new Variant(1), StatusCodes.Good, now);
 
             Assert.That(
                 MonitoredItem.ValueChanged(value, null, lastValue, null, filter, 0),

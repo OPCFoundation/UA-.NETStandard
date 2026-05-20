@@ -38,10 +38,7 @@ namespace Opc.Ua.Aot.Tests
         [Test]
         public async Task BinaryEncodeDecodeDataValueAsync()
         {
-            var original = new DataValue(Variant.From(42))
-            {
-                StatusCode = StatusCodes.Good
-            };
+            var original = new DataValue(Variant.From(42), StatusCodes.Good);
 
             using var stream = new MemoryStream();
             using (var encoder = new BinaryEncoder(
@@ -119,10 +116,7 @@ namespace Opc.Ua.Aot.Tests
         [Test]
         public async Task JsonEncodeDecodeDataValueAsync()
         {
-            var original = new DataValue(Variant.From(42))
-            {
-                StatusCode = StatusCodes.Good
-            };
+            var original = new DataValue(Variant.From(42), StatusCodes.Good);
 
             string json;
             using (var encoder = new JsonEncoder(

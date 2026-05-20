@@ -108,7 +108,7 @@ namespace Opc.Ua.Server
 
                 if (StatusCode.IsBad(error))
                 {
-                    e.Value = new DataValue(error) { WrappedValue = value.WrappedValue };
+                    e.Value = new DataValue(value.WrappedValue, error);
                 }
 
                 s_events.Enqueue(e);

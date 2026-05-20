@@ -1933,7 +1933,7 @@ namespace Opc.Ua.Server
                 {
                     value ??= values[ii] = DataValue.FromStatusCode(errors[ii].Code, DateTime.UtcNow);
 
-                    value.StatusCode = errors[ii].Code;
+                    value = values[ii] = value.WithStatus(errors[ii].Code);
 
                     if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
                     {

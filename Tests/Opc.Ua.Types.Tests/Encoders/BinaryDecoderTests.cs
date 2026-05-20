@@ -4556,15 +4556,13 @@ namespace Opc.Ua.Types.Tests.Encoders
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
             var sourceTime = new DateTimeUtc(2024, 6, 15, 12, 0, 0);
             var serverTime = new DateTimeUtc(2024, 6, 15, 12, 0, 1);
-            var dataValue = new DataValue
-            {
-                WrappedValue = new Variant(42),
-                StatusCode = StatusCodes.Good,
-                SourceTimestamp = sourceTime,
-                SourcePicoseconds = 100,
-                ServerTimestamp = serverTime,
-                ServerPicoseconds = 200
-            };
+            var dataValue = new DataValue(
+                new Variant(42),
+                StatusCodes.Good,
+                sourceTime,
+                serverTime,
+                100,
+                200);
 
             using var encoder = new BinaryEncoder(messageContext);
             encoder.WriteDataValue(null, dataValue);
@@ -5676,7 +5674,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
-            ArrayOf<DataValue> values = [new DataValue { StatusCode = StatusCodes.Good }];
+            ArrayOf<DataValue> values = [DataValue.FromStatusCode(StatusCodes.Good)];
             byte[] buffer = CreateMatrixBuffer(
                 messageContext,
                 encoder => encoder.WriteDataValueArray(null, values),

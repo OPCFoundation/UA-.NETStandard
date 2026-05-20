@@ -95,13 +95,11 @@ namespace TestData
 
                 HistoryEntry entry = m_entries[position];
 
-                return new DataValue
-                {
-                    WrappedValue = entry.Value.WrappedValue,
-                    ServerTimestamp = entry.Value.ServerTimestamp,
-                    SourceTimestamp = entry.Value.SourceTimestamp,
-                    StatusCode = entry.Value.StatusCode
-                };
+                return new DataValue(
+                    entry.Value.WrappedValue,
+                    entry.Value.StatusCode,
+                    entry.Value.SourceTimestamp,
+                    entry.Value.ServerTimestamp);
             }
         }
 
@@ -130,13 +128,11 @@ namespace TestData
 
                 HistoryEntry entry = m_entries[position];
 
-                return new DataValue
-                {
-                    WrappedValue = entry.Value.WrappedValue,
-                    ServerTimestamp = entry.Value.ServerTimestamp,
-                    SourceTimestamp = entry.Value.SourceTimestamp,
-                    StatusCode = entry.Value.StatusCode
-                };
+                return new DataValue(
+                    entry.Value.WrappedValue,
+                    entry.Value.StatusCode,
+                    entry.Value.SourceTimestamp,
+                    entry.Value.ServerTimestamp);
             }
         }
 

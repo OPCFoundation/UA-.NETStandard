@@ -536,7 +536,7 @@ namespace Opc.Ua.PubSub.Encoding
                         PubSubJsonEncoding.NonReversible);
                     break;
                 case FieldTypeEncodingMask.DataValue:
-                    var dataValue = new DataValue { WrappedValue = valueToEncode };
+                    var dataValue = new DataValue(valueToEncode);
 
                     if ((FieldContentMask & DataSetFieldContentMask.StatusCode) != 0)
                     {

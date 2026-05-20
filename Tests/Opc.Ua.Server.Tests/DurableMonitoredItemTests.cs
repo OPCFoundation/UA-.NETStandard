@@ -1142,10 +1142,7 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(queueHandler.ItemsInQueue, Is.Zero);
 
-            var dataValue = new DataValue(new Variant(true))
-            {
-                StatusCode = StatusCodes.BadWaitingForInitialData
-            };
+            var dataValue = new DataValue(new Variant(true), StatusCodes.BadWaitingForInitialData);
 
             for (int i = 0; i < 5; i++)
             {

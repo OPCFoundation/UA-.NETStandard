@@ -91,11 +91,9 @@ namespace Opc.Ua
                 WrappedValue,
                 StatusCode,
                 SourceTimestamp,
-                ServerTimestamp)
-            {
-                SourcePicoseconds = SourcePicoseconds,
-                ServerPicoseconds = ServerPicoseconds
-            };
+                ServerTimestamp,
+                SourcePicoseconds,
+                ServerPicoseconds);
         }
 
         /// <summary>The Variant payload.</summary>

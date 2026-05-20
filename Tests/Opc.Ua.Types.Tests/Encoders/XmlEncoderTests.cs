@@ -2363,12 +2363,9 @@ namespace Opc.Ua.Types.Tests.Encoders
                 Variant.From(42),
                 StatusCodes.Good,
                 new DateTime(2024, 1, 1, 12, 0, 0, DateTimeKind.Utc),
-                new DateTime(2024, 1, 1, 12, 0, 5, DateTimeKind.Utc)
-            )
-            {
-                SourcePicoseconds = 100,
-                ServerPicoseconds = 200
-            };
+                new DateTime(2024, 1, 1, 12, 0, 5, DateTimeKind.Utc),
+                100,
+                200);
 
             // Act
             encoder.WriteDataValue("TestValue", dataValue);

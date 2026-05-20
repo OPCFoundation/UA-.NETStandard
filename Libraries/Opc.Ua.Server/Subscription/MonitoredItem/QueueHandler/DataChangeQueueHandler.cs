@@ -376,7 +376,10 @@ namespace Opc.Ua.Server
         /// <param name="error">The error to update.</param>
         private static void SetOverflowBit(ref DataValue value, ref ServiceResult error)
         {
-            value?.StatusCode = value.StatusCode.SetOverflow(true);
+            if (value != null)
+            {
+                value = value.WithStatus(value.StatusCode.SetOverflow(true));
+            }
 
             if (error != null)
             {

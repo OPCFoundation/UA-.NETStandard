@@ -2402,9 +2402,10 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                         decodedExpandedNodeId.IsAbsolute)
                     {
 #pragma warning disable CS0618 // Type or member is obsolete
-                        dataValueDecoded.Value = ExpandedNodeId.ToNodeId(
-                            decodedExpandedNodeId,
-                            m_messageContext.NamespaceUris);
+                        dataValueDecoded = dataValueDecoded.WithWrappedValue(Variant.From(
+                            ExpandedNodeId.ToNodeId(
+                                decodedExpandedNodeId,
+                                m_messageContext.NamespaceUris)));
 #pragma warning restore CS0618 // Type or member is obsolete
                     }
 
@@ -3027,8 +3028,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                                                             "StatusCode");
                                                         if (wasPush3)
                                                         {
-                                                            dataValue.StatusCode = jsonDecoder
-                                                                .ReadStatusCode("Code");
+                                                            dataValue = dataValue.WithStatus(jsonDecoder
+                                                                .ReadStatusCode("Code"));
                                                             jsonDecoder.Pop();
                                                         }
                                                     }
@@ -3112,8 +3113,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                                                             string.Empty,
                                                             expandedNodeId.ServerIndex);
 #pragma warning disable CS0618 // Type or member is obsolete
-                                                        dataValue.Value = ExpandedNodeId.Parse(
-                                                            stringBuilder.ToString());
+                                                        dataValue = dataValue.WithWrappedValue(Variant.From(
+                                                            ExpandedNodeId.Parse(stringBuilder.ToString())));
 #pragma warning restore CS0618 // Type or member is obsolete
                                                     }
 #pragma warning restore CS0618 // Type or member is obsolete

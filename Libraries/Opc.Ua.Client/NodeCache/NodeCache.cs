@@ -1119,7 +1119,9 @@ namespace Opc.Ua.Client
             {
                 if (ServiceResult.IsBad(readErrors[index]))
                 {
-                    values[index].StatusCode = readErrors[index].StatusCode;
+                    values = values.ReplaceItem(
+                        values[index].WithStatus(readErrors[index].StatusCode),
+                        index);
                 }
 
                 if (StatusCode.IsGood(values[index].StatusCode))

@@ -2926,7 +2926,7 @@ namespace Opc.Ua.PubSub.Encoding
 
                 if (mask == DataSetFieldContentMask.None && StatusCode.IsBad(dv.StatusCode))
                 {
-                    dv = new DataValue { WrappedValue = dv.StatusCode };
+                    dv = new DataValue(new Variant(dv.StatusCode));
                 }
 
                 WriteRawValueContents(field, dv, dimensionsInline);

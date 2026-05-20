@@ -1729,11 +1729,11 @@ namespace Opc.Ua.Types.Tests.State
         public void WriteValueAttributeRejectsServerTimestamp()
         {
             BaseObjectState node = CreateObjectNode();
-            var dv = new DataValue
-            {
-                WrappedValue = new Variant(42),
-                ServerTimestamp = DateTimeUtc.Now
-            };
+            var dv = new DataValue(
+                new Variant(42),
+                StatusCodes.Good,
+                DateTimeUtc.MinValue,
+                DateTimeUtc.Now);
             ServiceResult result = node.WriteAttribute(
                 m_context, Attributes.Value, default, dv);
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadWriteNotSupported));
@@ -1744,11 +1744,9 @@ namespace Opc.Ua.Types.Tests.State
         {
             BaseObjectState node = CreateObjectNode();
             node.WriteMask = AttributeWriteMask.BrowseName;
-            var dv = new DataValue
-            {
-                WrappedValue = new Variant(QualifiedName.From("Test")),
-                StatusCode = StatusCodes.BadUnexpectedError
-            };
+            var dv = new DataValue(
+                new Variant(QualifiedName.From("Test")),
+                StatusCodes.BadUnexpectedError);
             ServiceResult result = node.WriteAttribute(
                 m_context, Attributes.BrowseName, default, dv);
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadWriteNotSupported));

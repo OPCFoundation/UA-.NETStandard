@@ -59,11 +59,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var sourceTime = new DateTimeUtc(2024, 6, 15, 10, 30, 0);
             var serverTime = new DateTimeUtc(2024, 6, 15, 10, 30, 1);
-            var original = new DataValue(new Variant(42), StatusCodes.Good, sourceTime, serverTime)
-            {
-                SourcePicoseconds = 100,
-                ServerPicoseconds = 200
-            };
+            var original = new DataValue(new Variant(42), StatusCodes.Good, sourceTime, serverTime, 100, 200);
 
             DataValue copy = original.Copy();
 
@@ -213,8 +209,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void EqualsReturnsFalseForDifferentServerTimestamps()
         {
-            var dv1 = new DataValue(new Variant(42)) { ServerTimestamp = new DateTimeUtc(2024, 1, 1) };
-            var dv2 = new DataValue(new Variant(42)) { ServerTimestamp = new DateTimeUtc(2025, 1, 1) };
+            var dv1 = new DataValue(new Variant(42)).WithServerTimestamp(new DateTimeUtc(2024, 1, 1));
+            var dv2 = new DataValue(new Variant(42)).WithServerTimestamp(new DateTimeUtc(2025, 1, 1));
 
             Assert.That(dv1, Is.Not.EqualTo(dv2));
         }
@@ -222,8 +218,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void EqualsReturnsFalseForDifferentSourceTimestamps()
         {
-            var dv1 = new DataValue(new Variant(42)) { SourceTimestamp = new DateTimeUtc(2024, 1, 1) };
-            var dv2 = new DataValue(new Variant(42)) { SourceTimestamp = new DateTimeUtc(2025, 1, 1) };
+            var dv1 = new DataValue(new Variant(42)).WithSourceTimestamp(new DateTimeUtc(2024, 1, 1));
+            var dv2 = new DataValue(new Variant(42)).WithSourceTimestamp(new DateTimeUtc(2025, 1, 1));
 
             Assert.That(dv1, Is.Not.EqualTo(dv2));
         }
@@ -231,8 +227,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void EqualsReturnsFalseForDifferentServerPicoseconds()
         {
-            var dv1 = new DataValue(new Variant(42)) { ServerPicoseconds = 100 };
-            var dv2 = new DataValue(new Variant(42)) { ServerPicoseconds = 200 };
+            var dv1 = new DataValue(new Variant(42)).WithServerPicoseconds(100);
+            var dv2 = new DataValue(new Variant(42)).WithServerPicoseconds(200);
 
             Assert.That(dv1, Is.Not.EqualTo(dv2));
         }
@@ -240,8 +236,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void EqualsReturnsFalseForDifferentSourcePicoseconds()
         {
-            var dv1 = new DataValue(new Variant(42)) { SourcePicoseconds = 100 };
-            var dv2 = new DataValue(new Variant(42)) { SourcePicoseconds = 200 };
+            var dv1 = new DataValue(new Variant(42)).WithSourcePicoseconds(100);
+            var dv2 = new DataValue(new Variant(42)).WithSourcePicoseconds(200);
 
             Assert.That(dv1, Is.Not.EqualTo(dv2));
         }
@@ -259,16 +255,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void EqualsReturnsTrueForIdenticalDataValues()
         {
             var time = new DateTimeUtc(2024, 6, 1, 12, 0, 0);
-            var dv1 = new DataValue(new Variant("abc"), StatusCodes.Good, time, time)
-            {
-                SourcePicoseconds = 50,
-                ServerPicoseconds = 60
-            };
-            var dv2 = new DataValue(new Variant("abc"), StatusCodes.Good, time, time)
-            {
-                SourcePicoseconds = 50,
-                ServerPicoseconds = 60
-            };
+            var dv1 = new DataValue(new Variant("abc"), StatusCodes.Good, time, time, 50, 60);
+            var dv2 = new DataValue(new Variant("abc"), StatusCodes.Good, time, time, 50, 60);
 
             Assert.That(dv1, Is.EqualTo(dv2));
         }
@@ -346,10 +334,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void GetHashCodeWithNullValue()
         {
-            var dv = new DataValue
-            {
-                StatusCode = StatusCodes.BadUnexpectedError
-            };
+            var dv = DataValue.FromStatusCode(StatusCodes.BadUnexpectedError);
 
             int hash = dv.GetHashCode();
 
@@ -374,11 +359,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void WithStatusCarriesOtherFieldsUnchanged()
         {
             DateTimeUtc ts = new(new DateTime(2025, 1, 2, 3, 4, 5, DateTimeKind.Utc).Ticks);
-            var original = new DataValue(new Variant("hi"), StatusCodes.Good, ts, ts)
-            {
-                SourcePicoseconds = 11,
-                ServerPicoseconds = 22
-            };
+            var original = new DataValue(new Variant("hi"), StatusCodes.Good, ts, ts, 11, 22);
 
             DataValue updated = original.WithStatus(StatusCodes.Bad);
 
@@ -468,11 +449,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             DateTimeUtc src = new(new DateTime(2024, 6, 1, 0, 0, 0, DateTimeKind.Utc).Ticks);
             DateTimeUtc srv = new(new DateTime(2024, 6, 1, 0, 0, 1, DateTimeKind.Utc).Ticks);
-            var original = new DataValue(new Variant(123.45), StatusCodes.Good, src, srv)
-            {
-                SourcePicoseconds = 7,
-                ServerPicoseconds = 11
-            };
+            var original = new DataValue(new Variant(123.45), StatusCodes.Good, src, srv, 7, 11);
 
             var surrogate = new SerializableDataValue(original);
             DataValue roundTripped = surrogate.ToDataValue();
@@ -535,11 +512,13 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void CloneReturnsDeepCopy()
         {
             var sourceTime = new DateTimeUtc(2024, 6, 15, 10, 0, 0);
-            var original = new DataValue(new Variant("hello"), StatusCodes.Good, sourceTime)
-            {
-                SourcePicoseconds = 42,
-                ServerPicoseconds = 99
-            };
+            var original = new DataValue(
+                new Variant("hello"),
+                StatusCodes.Good,
+                sourceTime,
+                DateTimeUtc.MinValue,
+                42,
+                99);
 
             var clone = (DataValue)original.Clone();
 
@@ -562,14 +541,12 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         }
 
         [Test]
-        public void ValueSetterSetsVariant()
+        public void ConstructorFromBoxedObjectVariantSetsWrappedValue()
         {
-#pragma warning disable CS0618 // Type or member is obsolete
-            var dv = new DataValue
-            {
-                Value = "hello"
-            };
-#pragma warning restore CS0618 // Type or member is obsolete
+            // The legacy [Obsolete] object Value setter has been removed; verify the
+            // equivalent path: constructing a DataValue from a Variant produced from
+            // a boxed object yields a matching WrappedValue.
+            var dv = new DataValue(Variant.From("hello"));
 
             Assert.That(dv.WrappedValue, Is.EqualTo(new Variant("hello")));
         }
@@ -919,11 +896,13 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void PicoSecondProperties()
         {
-            var dv = new DataValue
-            {
-                SourcePicoseconds = 12345,
-                ServerPicoseconds = 54321
-            };
+            var dv = new DataValue(
+                Variant.Null,
+                StatusCodes.Good,
+                DateTimeUtc.MinValue,
+                DateTimeUtc.MinValue,
+                12345,
+                54321);
 
             Assert.That(dv.SourcePicoseconds, Is.EqualTo((ushort)12345));
             Assert.That(dv.ServerPicoseconds, Is.EqualTo((ushort)54321));
@@ -935,11 +914,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var sourceTime = new DateTimeUtc(2024, 7, 1, 0, 0, 0);
             var serverTime = new DateTimeUtc(2024, 7, 1, 0, 0, 1);
 
-            var original = new DataValue(new Variant(99), StatusCodes.Uncertain, sourceTime, serverTime)
-            {
-                SourcePicoseconds = 111,
-                ServerPicoseconds = 222
-            };
+            var original = new DataValue(new Variant(99), StatusCodes.Uncertain, sourceTime, serverTime, 111, 222);
 
             var clone = (DataValue)original.Clone();
 

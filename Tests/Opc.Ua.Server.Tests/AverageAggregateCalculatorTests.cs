@@ -62,13 +62,11 @@ namespace Opc.Ua.Server.Tests
             var dataValues = new List<DataValue>();
             for (int i = 0; i < values.Length; i++)
             {
-                dataValues.Add(new DataValue
-                {
-                    WrappedValue = values[i],
-                    SourceTimestamp = startTime.AddMilliseconds(i * intervalMs),
-                    ServerTimestamp = startTime.AddMilliseconds(i * intervalMs),
-                    StatusCode = StatusCodes.Good
-                });
+                dataValues.Add(new DataValue(
+                    new Variant(values[i]),
+                    StatusCodes.Good,
+                    startTime.AddMilliseconds(i * intervalMs),
+                    startTime.AddMilliseconds(i * intervalMs)));
             }
             return dataValues;
         }
