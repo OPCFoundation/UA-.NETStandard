@@ -83,7 +83,9 @@ namespace Opc.Ua.WotCon.Tests
             if (Directory.Exists(_tempFolder))
             {
                 try
-                { Directory.Delete(_tempFolder, recursive: true); }
+                {
+                    Directory.Delete(_tempFolder, recursive: true);
+                }
                 catch { /* swallow */ }
             }
         }
@@ -843,9 +845,13 @@ namespace Opc.Ua.WotCon.Tests
                     ThingDescriptionStorageFolder = thingDescriptionFolder
                 };
                 if (binding != null)
-                { Options.Bindings.Add(binding); }
+                {
+                    Options.Bindings.Add(binding);
+                }
                 if (discoveryProvider != null)
-                { Options.Discovery = discoveryProvider; }
+                {
+                    Options.Discovery = discoveryProvider;
+                }
 
                 Manager = new WotConnectivityNodeManager(
                     MockServer.Object,

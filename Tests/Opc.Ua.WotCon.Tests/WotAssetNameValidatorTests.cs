@@ -183,7 +183,10 @@ namespace Opc.Ua.WotCon.Tests
             }
             finally
             {
-                if (Directory.Exists(baseFolder)) { Directory.Delete(baseFolder, recursive: true); }
+                if (Directory.Exists(baseFolder))
+                {
+                    Directory.Delete(baseFolder, recursive: true);
+                }
             }
         }
 
@@ -233,7 +236,10 @@ namespace Opc.Ua.WotCon.Tests
             }
             finally
             {
-                if (Directory.Exists(root)) { Directory.Delete(root, recursive: true); }
+                if (Directory.Exists(root))
+                {
+                    Directory.Delete(root, recursive: true);
+                }
             }
         }
     }

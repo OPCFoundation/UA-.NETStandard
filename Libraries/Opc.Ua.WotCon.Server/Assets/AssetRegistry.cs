@@ -347,9 +347,13 @@ namespace Opc.Ua.WotCon.Server.Assets
             CancellationToken ct)
         {
             if (entry is null)
-            { throw new ArgumentNullException(nameof(entry)); }
+            {
+                throw new ArgumentNullException(nameof(entry));
+            }
             if (td is null)
-            { throw new ArgumentNullException(nameof(td)); }
+            {
+                throw new ArgumentNullException(nameof(td));
+            }
 
             IWotAssetProviderFactory? factory = null;
             foreach (IWotAssetProviderFactory candidate in m_options.Bindings)
@@ -536,7 +540,9 @@ namespace Opc.Ua.WotCon.Server.Assets
             {
                 Argument[] argsArray = new Argument[inputArgs.Count];
                 for (int i = 0; i < inputArgs.Count; i++)
-                { argsArray[i] = inputArgs[i]; }
+                {
+                    argsArray[i] = inputArgs[i];
+                }
                 PropertyState<ArrayOf<Argument>> inputProperty =
                     PropertyState<ArrayOf<Argument>>.With<StructureBuilder<Argument>>(method);
                 inputProperty.NodeId = m_manager.AllocateChildNodeId(entry.Name, "actions", name + "_in");
@@ -554,7 +560,9 @@ namespace Opc.Ua.WotCon.Server.Assets
             {
                 Argument[] argsArray = new Argument[outputArgs.Count];
                 for (int i = 0; i < outputArgs.Count; i++)
-                { argsArray[i] = outputArgs[i]; }
+                {
+                    argsArray[i] = outputArgs[i];
+                }
                 PropertyState<ArrayOf<Argument>> outputProperty =
                     PropertyState<ArrayOf<Argument>>.With<StructureBuilder<Argument>>(method);
                 outputProperty.NodeId = m_manager.AllocateChildNodeId(entry.Name, "actions", name + "_out");
@@ -690,7 +698,7 @@ namespace Opc.Ua.WotCon.Server.Assets
             try
             {
                 Directory.CreateDirectory(folder);
-                if (!WotAssetNameValidator.TryGetSafeFileName(name, folder, out string? path))
+                if (!WotAssetNameValidator.TryGetSafeFileName(name, folder!, out string? path))
                 {
                     m_logger.LogWarning(
                         "Refusing to persist TD for asset {AssetName}: name did not resolve to a safe path under {Folder}.",
@@ -717,7 +725,7 @@ namespace Opc.Ua.WotCon.Server.Assets
             }
             try
             {
-                if (!WotAssetNameValidator.TryGetSafeFileName(name, folder, out string? path))
+                if (!WotAssetNameValidator.TryGetSafeFileName(name, folder!, out string? path))
                 {
                     m_logger.LogWarning(
                         "Refusing to delete TD for asset {AssetName}: name did not resolve to a safe path under {Folder}.",

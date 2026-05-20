@@ -61,7 +61,9 @@ namespace Opc.Ua.WotCon.Client
             CancellationToken ct = default)
         {
             if (file is null)
-            { throw new ArgumentNullException(nameof(file)); }
+            {
+                throw new ArgumentNullException(nameof(file));
+            }
             if (chunkSize <= 0)
             {
                 throw new ArgumentOutOfRangeException(nameof(chunkSize), "Chunk size must be positive.");
@@ -118,7 +120,9 @@ namespace Opc.Ua.WotCon.Client
             CancellationToken ct = default)
         {
             if (file is null)
-            { throw new ArgumentNullException(nameof(file)); }
+            {
+                throw new ArgumentNullException(nameof(file));
+            }
             if (thingDescriptionJson is null)
             {
                 throw new ArgumentNullException(nameof(thingDescriptionJson));

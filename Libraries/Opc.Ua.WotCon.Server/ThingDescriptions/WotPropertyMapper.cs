@@ -62,7 +62,9 @@ namespace Opc.Ua.WotCon.Server.ThingDescriptions
             out int valueRank)
         {
             if (property is null)
-            { throw new ArgumentNullException(nameof(property)); }
+            {
+                throw new ArgumentNullException(nameof(property));
+            }
 
             if (string.Equals(property.Type, "array", StringComparison.OrdinalIgnoreCase))
             {

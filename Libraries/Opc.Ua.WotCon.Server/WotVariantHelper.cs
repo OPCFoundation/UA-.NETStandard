@@ -112,35 +112,61 @@ namespace Opc.Ua.WotCon.Server
             // on the exact array type instead to keep the mapping accurate.
             Type t = value.GetType();
             if (t == typeof(byte[]))
-            { return new Variant(ByteString.From((byte[])value)); }
+            {
+                return new Variant(ByteString.From((byte[])value));
+            }
             if (t == typeof(sbyte[]))
-            { return new Variant(new ArrayOf<sbyte>((sbyte[])value)); }
+            {
+                return new Variant(new ArrayOf<sbyte>((sbyte[])value));
+            }
             if (t == typeof(bool[]))
-            { return new Variant(new ArrayOf<bool>((bool[])value)); }
+            {
+                return new Variant(new ArrayOf<bool>((bool[])value));
+            }
             if (t == typeof(short[]))
-            { return new Variant(new ArrayOf<short>((short[])value)); }
+            {
+                return new Variant(new ArrayOf<short>((short[])value));
+            }
             if (t == typeof(ushort[]))
-            { return new Variant(new ArrayOf<ushort>((ushort[])value)); }
+            {
+                return new Variant(new ArrayOf<ushort>((ushort[])value));
+            }
             if (t == typeof(int[]))
-            { return new Variant(new ArrayOf<int>((int[])value)); }
+            {
+                return new Variant(new ArrayOf<int>((int[])value));
+            }
             if (t == typeof(uint[]))
-            { return new Variant(new ArrayOf<uint>((uint[])value)); }
+            {
+                return new Variant(new ArrayOf<uint>((uint[])value));
+            }
             if (t == typeof(long[]))
-            { return new Variant(new ArrayOf<long>((long[])value)); }
+            {
+                return new Variant(new ArrayOf<long>((long[])value));
+            }
             if (t == typeof(ulong[]))
-            { return new Variant(new ArrayOf<ulong>((ulong[])value)); }
+            {
+                return new Variant(new ArrayOf<ulong>((ulong[])value));
+            }
             if (t == typeof(float[]))
-            { return new Variant(new ArrayOf<float>((float[])value)); }
+            {
+                return new Variant(new ArrayOf<float>((float[])value));
+            }
             if (t == typeof(double[]))
-            { return new Variant(new ArrayOf<double>((double[])value)); }
+            {
+                return new Variant(new ArrayOf<double>((double[])value));
+            }
             if (t == typeof(string[]))
-            { return new Variant(new ArrayOf<string>((string[])value)); }
+            {
+                return new Variant(new ArrayOf<string>((string[])value));
+            }
             if (t == typeof(DateTime[]))
             {
                 DateTime[] dta = (DateTime[])value;
                 DateTimeUtc[] dtua = new DateTimeUtc[dta.Length];
                 for (int i = 0; i < dta.Length; i++)
-                { dtua[i] = new DateTimeUtc(dta[i]); }
+                {
+                    dtua[i] = new DateTimeUtc(dta[i]);
+                }
                 return new Variant(new ArrayOf<DateTimeUtc>(dtua));
             }
 

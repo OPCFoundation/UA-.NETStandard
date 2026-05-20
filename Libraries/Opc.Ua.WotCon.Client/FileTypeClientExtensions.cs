@@ -75,7 +75,9 @@ namespace Opc.Ua.WotCon.Client
             CancellationToken ct = default)
         {
             if (file is null)
-            { throw new ArgumentNullException(nameof(file)); }
+            {
+                throw new ArgumentNullException(nameof(file));
+            }
             if (chunkSize <= 0)
             {
                 throw new ArgumentOutOfRangeException(nameof(chunkSize), "Chunk size must be positive.");
@@ -124,9 +126,13 @@ namespace Opc.Ua.WotCon.Client
             CancellationToken ct = default)
         {
             if (file is null)
-            { throw new ArgumentNullException(nameof(file)); }
+            {
+                throw new ArgumentNullException(nameof(file));
+            }
             if (content is null)
-            { throw new ArgumentNullException(nameof(content)); }
+            {
+                throw new ArgumentNullException(nameof(content));
+            }
             if (!content.CanRead)
             {
                 throw new ArgumentException("Stream must be readable.", nameof(content));
@@ -160,7 +166,9 @@ namespace Opc.Ua.WotCon.Client
             CancellationToken ct = default)
         {
             if (file is null)
-            { throw new ArgumentNullException(nameof(file)); }
+            {
+                throw new ArgumentNullException(nameof(file));
+            }
             if (chunkSize <= 0)
             {
                 throw new ArgumentOutOfRangeException(nameof(chunkSize), "Chunk size must be positive.");
@@ -212,9 +220,13 @@ namespace Opc.Ua.WotCon.Client
             CancellationToken ct = default)
         {
             if (file is null)
-            { throw new ArgumentNullException(nameof(file)); }
+            {
+                throw new ArgumentNullException(nameof(file));
+            }
             if (destination is null)
-            { throw new ArgumentNullException(nameof(destination)); }
+            {
+                throw new ArgumentNullException(nameof(destination));
+            }
             if (!destination.CanWrite)
             {
                 throw new ArgumentException("Stream must be writable.", nameof(destination));
@@ -234,7 +246,9 @@ namespace Opc.Ua.WotCon.Client
                     {
                         ByteString chunk = await file.ReadAsync(handle, size, token).ConfigureAwait(false);
                         if (chunk.IsNull)
-                        { return ReadOnlyMemory<byte>.Empty; }
+                        {
+                            return ReadOnlyMemory<byte>.Empty;
+                        }
                         return chunk.Span.ToArray();
                     },
                     ct).ConfigureAwait(false);
@@ -274,7 +288,9 @@ namespace Opc.Ua.WotCon.Client
                         .ConfigureAwait(false);
 #endif
                     if (read <= 0)
-                    { break; }
+                    {
+                        break;
+                    }
                     await writeChunk(buffer.AsMemory(0, read), ct).ConfigureAwait(false);
                 }
             }
@@ -303,7 +319,9 @@ namespace Opc.Ua.WotCon.Client
                 ct.ThrowIfCancellationRequested();
                 ReadOnlyMemory<byte> chunk = await readChunk(chunkSize, ct).ConfigureAwait(false);
                 if (chunk.IsEmpty)
-                { break; }
+                {
+                    break;
+                }
 #if NETSTANDARD2_1_OR_GREATER || NET
                 await destination.WriteAsync(chunk, ct).ConfigureAwait(false);
 #else
@@ -311,7 +329,9 @@ namespace Opc.Ua.WotCon.Client
                 await destination.WriteAsync(copy, 0, copy.Length, ct).ConfigureAwait(false);
 #endif
                 if (chunk.Length < chunkSize)
-                { break; }
+                {
+                    break;
+                }
             }
         }
     }

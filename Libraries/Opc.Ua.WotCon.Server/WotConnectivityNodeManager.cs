@@ -501,7 +501,9 @@ namespace Opc.Ua.WotCon.Server
                 .DiscoverAssetsAsync(cancellationToken).ConfigureAwait(false);
             string[] arr = new string[endpoints.Count];
             for (int i = 0; i < endpoints.Count; i++)
-            { arr[i] = endpoints[i]; }
+            {
+                arr[i] = endpoints[i];
+            }
             return new DiscoverAssetsMethodStateResult
             {
                 ServiceResult = status,

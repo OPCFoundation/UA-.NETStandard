@@ -254,7 +254,9 @@ namespace Opc.Ua.Server
         public void SetRoleManager(IRoleManager roleManager)
         {
             if (roleManager == null)
-            { throw new ArgumentNullException(nameof(roleManager)); }
+            {
+                throw new ArgumentNullException(nameof(roleManager));
+            }
             RoleManager = roleManager;
         }
 
