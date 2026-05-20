@@ -205,6 +205,127 @@ namespace Opc.Ua
             };
         }
 
+        // ----------------------------------------------------------------
+        // With<Property>() fluent mutators.
+        //
+        // Each mutator returns a new DataValue with the named field
+        // overwritten and every other field carried through unchanged.
+        // Decoders, NodeState read paths, and any other code that
+        // historically built a DataValue by mutating its properties
+        // after construction migrate to chained With* calls:
+        //
+        //   DataValue v = new DataValue();
+        //   v = v.WithWrappedValue(ReadVariant(null));
+        //   v = v.WithStatus(ReadStatusCode(null));
+        //   return v;
+        //
+        // Once DataValue is flipped to a `readonly struct` in a follow-up
+        // step the JIT folds a default+With-chain into a single ctor
+        // call.
+        // ----------------------------------------------------------------
+
+        /// <summary>
+        /// Returns a copy of this <see cref="DataValue"/> with
+        /// <see cref="WrappedValue"/> replaced.
+        /// </summary>
+        public DataValue WithWrappedValue(Variant value)
+        {
+            return new DataValue(
+                value,
+                StatusCode,
+                SourceTimestamp,
+                ServerTimestamp)
+            {
+                SourcePicoseconds = SourcePicoseconds,
+                ServerPicoseconds = ServerPicoseconds
+            };
+        }
+
+        /// <summary>
+        /// Returns a copy of this <see cref="DataValue"/> with
+        /// <see cref="StatusCode"/> replaced.
+        /// </summary>
+        public DataValue WithStatus(StatusCode statusCode)
+        {
+            return new DataValue(
+                m_value,
+                statusCode,
+                SourceTimestamp,
+                ServerTimestamp)
+            {
+                SourcePicoseconds = SourcePicoseconds,
+                ServerPicoseconds = ServerPicoseconds
+            };
+        }
+
+        /// <summary>
+        /// Returns a copy of this <see cref="DataValue"/> with
+        /// <see cref="SourceTimestamp"/> replaced.
+        /// </summary>
+        public DataValue WithSourceTimestamp(DateTimeUtc sourceTimestamp)
+        {
+            return new DataValue(
+                m_value,
+                StatusCode,
+                sourceTimestamp,
+                ServerTimestamp)
+            {
+                SourcePicoseconds = SourcePicoseconds,
+                ServerPicoseconds = ServerPicoseconds
+            };
+        }
+
+        /// <summary>
+        /// Returns a copy of this <see cref="DataValue"/> with
+        /// <see cref="SourcePicoseconds"/> replaced.
+        /// </summary>
+        public DataValue WithSourcePicoseconds(ushort sourcePicoseconds)
+        {
+            return new DataValue(
+                m_value,
+                StatusCode,
+                SourceTimestamp,
+                ServerTimestamp)
+            {
+                SourcePicoseconds = sourcePicoseconds,
+                ServerPicoseconds = ServerPicoseconds
+            };
+        }
+
+        /// <summary>
+        /// Returns a copy of this <see cref="DataValue"/> with
+        /// <see cref="ServerTimestamp"/> replaced.
+        /// </summary>
+        public DataValue WithServerTimestamp(DateTimeUtc serverTimestamp)
+        {
+            return new DataValue(
+                m_value,
+                StatusCode,
+                SourceTimestamp,
+                serverTimestamp)
+            {
+                SourcePicoseconds = SourcePicoseconds,
+                ServerPicoseconds = ServerPicoseconds
+            };
+        }
+
+        /// <summary>
+        /// Returns a copy of this <see cref="DataValue"/> with
+        /// <see cref="ServerPicoseconds"/> replaced.
+        /// </summary>
+        public DataValue WithServerPicoseconds(ushort serverPicoseconds)
+        {
+            return new DataValue(
+                m_value,
+                StatusCode,
+                SourceTimestamp,
+                ServerTimestamp)
+            {
+                SourcePicoseconds = SourcePicoseconds,
+                ServerPicoseconds = serverPicoseconds
+            };
+        }
+
         /// <inheritdoc/>
         public override bool Equals(object? obj)
         {

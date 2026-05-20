@@ -356,6 +356,151 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(hash, Is.EqualTo(StatusCodes.BadUnexpectedError.GetHashCode()));
         }
 
+        // ---- With<Property>() mutators --------------------------------
+
+        [Test]
+        public void WithWrappedValueReturnsNewInstanceWithReplacedValue()
+        {
+            var original = new DataValue(new Variant(1), StatusCodes.Good);
+            DataValue updated = original.WithWrappedValue(new Variant(99));
+
+            Assert.That(ReferenceEquals(original, updated), Is.False);
+            Assert.That(original.WrappedValue, Is.EqualTo(new Variant(1)));
+            Assert.That(updated.WrappedValue, Is.EqualTo(new Variant(99)));
+            Assert.That(updated.StatusCode, Is.EqualTo((StatusCode)StatusCodes.Good));
+        }
+
+        [Test]
+        public void WithStatusCarriesOtherFieldsUnchanged()
+        {
+            DateTimeUtc ts = new(new DateTime(2025, 1, 2, 3, 4, 5, DateTimeKind.Utc).Ticks);
+            var original = new DataValue(new Variant("hi"), StatusCodes.Good, ts, ts)
+            {
+                SourcePicoseconds = 11,
+                ServerPicoseconds = 22
+            };
+
+            DataValue updated = original.WithStatus(StatusCodes.Bad);
+
+            Assert.That(updated.StatusCode, Is.EqualTo((StatusCode)StatusCodes.Bad));
+            Assert.That(updated.WrappedValue, Is.EqualTo(new Variant("hi")));
+            Assert.That(updated.SourceTimestamp, Is.EqualTo(ts));
+            Assert.That(updated.ServerTimestamp, Is.EqualTo(ts));
+            Assert.That(updated.SourcePicoseconds, Is.EqualTo(11));
+            Assert.That(updated.ServerPicoseconds, Is.EqualTo(22));
+        }
+
+        [Test]
+        public void WithSourceTimestampReplacesOnlyThatField()
+        {
+            DateTimeUtc ts1 = new(new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc).Ticks);
+            DateTimeUtc ts2 = new(new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc).Ticks);
+            var original = new DataValue(new Variant(1), StatusCodes.Good, ts1, ts1);
+
+            DataValue updated = original.WithSourceTimestamp(ts2);
+
+            Assert.That(updated.SourceTimestamp, Is.EqualTo(ts2));
+            Assert.That(updated.ServerTimestamp, Is.EqualTo(ts1));
+            Assert.That(original.SourceTimestamp, Is.EqualTo(ts1));
+        }
+
+        [Test]
+        public void WithServerTimestampReplacesOnlyThatField()
+        {
+            DateTimeUtc ts1 = new(new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc).Ticks);
+            DateTimeUtc ts2 = new(new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc).Ticks);
+            var original = new DataValue(new Variant(1), StatusCodes.Good, ts1, ts1);
+
+            DataValue updated = original.WithServerTimestamp(ts2);
+
+            Assert.That(updated.ServerTimestamp, Is.EqualTo(ts2));
+            Assert.That(updated.SourceTimestamp, Is.EqualTo(ts1));
+        }
+
+        [Test]
+        public void WithSourcePicosecondsReplacesOnlyThatField()
+        {
+            var original = new DataValue(new Variant(1));
+            DataValue updated = original.WithSourcePicoseconds(42);
+
+            Assert.That(updated.SourcePicoseconds, Is.EqualTo(42));
+            Assert.That(original.SourcePicoseconds, Is.EqualTo(0));
+            Assert.That(updated.ServerPicoseconds, Is.EqualTo(0));
+        }
+
+        [Test]
+        public void WithServerPicosecondsReplacesOnlyThatField()
+        {
+            var original = new DataValue(new Variant(1));
+            DataValue updated = original.WithServerPicoseconds(73);
+
+            Assert.That(updated.ServerPicoseconds, Is.EqualTo(73));
+            Assert.That(original.ServerPicoseconds, Is.EqualTo(0));
+            Assert.That(updated.SourcePicoseconds, Is.EqualTo(0));
+        }
+
+        [Test]
+        public void WithChainProducesExpectedFinalValue()
+        {
+            DateTimeUtc src = new(new DateTime(2024, 6, 1, 0, 0, 0, DateTimeKind.Utc).Ticks);
+            DateTimeUtc srv = new(new DateTime(2024, 6, 1, 0, 0, 1, DateTimeKind.Utc).Ticks);
+
+            DataValue result = new DataValue()
+                .WithWrappedValue(new Variant(123.45))
+                .WithStatus(StatusCodes.Good)
+                .WithSourceTimestamp(src)
+                .WithSourcePicoseconds(7)
+                .WithServerTimestamp(srv)
+                .WithServerPicoseconds(11);
+
+            Assert.That(result.WrappedValue.AsBoxedObject(), Is.EqualTo(123.45));
+            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.Good));
+            Assert.That(result.SourceTimestamp, Is.EqualTo(src));
+            Assert.That(result.ServerTimestamp, Is.EqualTo(srv));
+            Assert.That(result.SourcePicoseconds, Is.EqualTo(7));
+            Assert.That(result.ServerPicoseconds, Is.EqualTo(11));
+        }
+
+        // ---- SerializableDataValue round-trip --------------------------
+
+        [Test]
+        public void SerializableDataValueRoundTripPreservesAllFields()
+        {
+            DateTimeUtc src = new(new DateTime(2024, 6, 1, 0, 0, 0, DateTimeKind.Utc).Ticks);
+            DateTimeUtc srv = new(new DateTime(2024, 6, 1, 0, 0, 1, DateTimeKind.Utc).Ticks);
+            var original = new DataValue(new Variant(123.45), StatusCodes.Good, src, srv)
+            {
+                SourcePicoseconds = 7,
+                ServerPicoseconds = 11
+            };
+
+            var surrogate = new SerializableDataValue(original);
+            DataValue roundTripped = surrogate.ToDataValue();
+
+            Assert.That(roundTripped.WrappedValue, Is.EqualTo(original.WrappedValue));
+            Assert.That(roundTripped.StatusCode, Is.EqualTo(original.StatusCode));
+            Assert.That(roundTripped.SourceTimestamp, Is.EqualTo(original.SourceTimestamp));
+            Assert.That(roundTripped.ServerTimestamp, Is.EqualTo(original.ServerTimestamp));
+            Assert.That(roundTripped.SourcePicoseconds, Is.EqualTo(original.SourcePicoseconds));
+            Assert.That(roundTripped.ServerPicoseconds, Is.EqualTo(original.ServerPicoseconds));
+        }
+
+        [Test]
+        public void DataValueSurrogateProviderConvertsBothDirections()
+        {
+            var provider = DataValueSurrogateProvider.Instance;
+            var original = new DataValue(new Variant(42), StatusCodes.Good);
+
+            object surrogate = provider.GetObjectToSerialize(original, typeof(DataValue));
+            Assert.That(surrogate, Is.InstanceOf<SerializableDataValue>());
+
+            object back = provider.GetDeserializedObject(surrogate, typeof(DataValue));
+            Assert.That(back, Is.InstanceOf<DataValue>());
+            Assert.That((DataValue)back, Is.EqualTo(original));
+            Assert.That(provider.GetSurrogateType(typeof(DataValue)),
+                Is.EqualTo(typeof(SerializableDataValue)));
+        }
+
         [Test]
         public void ToStringReturnsValueString()
         {
