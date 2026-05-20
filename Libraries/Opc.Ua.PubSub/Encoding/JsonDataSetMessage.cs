@@ -313,7 +313,7 @@ namespace Opc.Ua.PubSub.Encoding
                                     bool wasPush3 = jsonDecoder.PushStructure("StatusCode");
                                     if (wasPush3)
                                     {
-                                        dataValue.StatusCode = jsonDecoder.ReadStatusCode("Code");
+                                        dataValue = dataValue.WithStatus(jsonDecoder.ReadStatusCode("Code"));
                                         jsonDecoder.Pop();
                                     }
                                 }
@@ -321,29 +321,29 @@ namespace Opc.Ua.PubSub.Encoding
                                 if ((FieldContentMask &
                                     DataSetFieldContentMask.SourceTimestamp) != 0)
                                 {
-                                    dataValue.SourceTimestamp = jsonDecoder.ReadDateTime(
-                                        "SourceTimestamp");
+                                    dataValue = dataValue.WithSourceTimestamp(
+                                        jsonDecoder.ReadDateTime("SourceTimestamp"));
                                 }
 
                                 if ((FieldContentMask &
                                     DataSetFieldContentMask.SourcePicoSeconds) != 0)
                                 {
-                                    dataValue.SourcePicoseconds = jsonDecoder.ReadUInt16(
-                                        "SourcePicoseconds");
+                                    dataValue = dataValue.WithSourcePicoseconds(
+                                        jsonDecoder.ReadUInt16("SourcePicoseconds"));
                                 }
 
                                 if ((FieldContentMask &
                                     DataSetFieldContentMask.ServerTimestamp) != 0)
                                 {
-                                    dataValue.ServerTimestamp = jsonDecoder.ReadDateTime(
-                                        "ServerTimestamp");
+                                    dataValue = dataValue.WithServerTimestamp(
+                                        jsonDecoder.ReadDateTime("ServerTimestamp"));
                                 }
 
                                 if ((FieldContentMask &
                                     DataSetFieldContentMask.ServerPicoSeconds) != 0)
                                 {
-                                    dataValue.ServerPicoseconds = jsonDecoder.ReadUInt16(
-                                        "ServerPicoseconds");
+                                    dataValue = dataValue.WithServerPicoseconds(
+                                        jsonDecoder.ReadUInt16("ServerPicoseconds"));
                                 }
                                 dataValues.Add(dataValue);
                             }
@@ -540,27 +540,27 @@ namespace Opc.Ua.PubSub.Encoding
 
                     if ((FieldContentMask & DataSetFieldContentMask.StatusCode) != 0)
                     {
-                        dataValue.StatusCode = field.Value.StatusCode;
+                        dataValue = dataValue.WithStatus(field.Value.StatusCode);
                     }
 
                     if ((FieldContentMask & DataSetFieldContentMask.SourceTimestamp) != 0)
                     {
-                        dataValue.SourceTimestamp = field.Value.SourceTimestamp;
+                        dataValue = dataValue.WithSourceTimestamp(field.Value.SourceTimestamp);
                     }
 
                     if ((FieldContentMask & DataSetFieldContentMask.SourcePicoSeconds) != 0)
                     {
-                        dataValue.SourcePicoseconds = field.Value.SourcePicoseconds;
+                        dataValue = dataValue.WithSourcePicoseconds(field.Value.SourcePicoseconds);
                     }
 
                     if ((FieldContentMask & DataSetFieldContentMask.ServerTimestamp) != 0)
                     {
-                        dataValue.ServerTimestamp = field.Value.ServerTimestamp;
+                        dataValue = dataValue.WithServerTimestamp(field.Value.ServerTimestamp);
                     }
 
                     if ((FieldContentMask & DataSetFieldContentMask.ServerPicoSeconds) != 0)
                     {
-                        dataValue.ServerPicoseconds = field.Value.ServerPicoseconds;
+                        dataValue = dataValue.WithServerPicoseconds(field.Value.ServerPicoseconds);
                     }
 
                     // If the DataSetFieldContentMask results in a DataValue representation,

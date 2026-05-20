@@ -195,12 +195,13 @@ namespace Opc.Ua.PubSub.PublishedData
                                     if (dataValue!.StatusCode == StatusCodes.Bad &&
                                         publishedVariable.SubstituteValue != Variant.Null)
                                     {
-                                        dataValue.WrappedValue = publishedVariable.SubstituteValue;
-                                        dataValue.StatusCode = StatusCodes.UncertainSubstituteValue;
+                                        dataValue = dataValue
+                                            .WithWrappedValue(publishedVariable.SubstituteValue)
+                                            .WithStatus(StatusCodes.UncertainSubstituteValue);
                                     }
                                 }
 
-                                dataValue.ServerTimestamp = DateTime.UtcNow;
+                                dataValue = dataValue.WithServerTimestamp(DateTimeUtc.Now);
 
                                 Field field = dataSet.Fields[i];
                                 Variant variant = dataValue.WrappedValue;
@@ -221,8 +222,8 @@ namespace Opc.Ua.PubSub.PublishedData
                                                 ShouldBringToConstraints(
                                                     (uint)strFieldValue.Length))
                                             {
-                                                dataValue.WrappedValue = Variant.From(
-                                                    strFieldValue[..(int)field.FieldMetaData.MaxStringLength]);
+                                                dataValue = dataValue.WithWrappedValue(Variant.From(
+                                                    strFieldValue[..(int)field.FieldMetaData.MaxStringLength]));
                                             }
                                         }
                                         else if (field.FieldMetaData.ValueRank == ValueRanks.OneDimension)
@@ -243,11 +244,12 @@ namespace Opc.Ua.PubSub.PublishedData
                                                         buffer[idx] = valueArray[idx];
                                                     }
                                                 }
-                                                dataValue.WrappedValue = Variant.From(buffer.ToArrayOf());
+                                                dataValue = dataValue.WithWrappedValue(
+                                                    Variant.From(buffer.ToArrayOf()));
                                             }
                                             else
                                             {
-                                                dataValue.WrappedValue = default;
+                                                dataValue = dataValue.WithWrappedValue(default);
                                             }
                                         }
                                         break;
@@ -261,7 +263,8 @@ namespace Opc.Ua.PubSub.PublishedData
                                                 Array.Resize(
                                                     ref byteArray,
                                                     (int)field.FieldMetaData.MaxStringLength);
-                                                dataValue.WrappedValue = Variant.From(ByteString.From(byteArray));
+                                                dataValue = dataValue.WithWrappedValue(
+                                                    Variant.From(ByteString.From(byteArray)));
                                             }
                                         }
                                         else if (field.FieldMetaData.ValueRank == ValueRanks.OneDimension)
@@ -286,11 +289,11 @@ namespace Opc.Ua.PubSub.PublishedData
                                                     }
                                                 }
                                                 valueArray = buffer.ToArrayOf();
-                                                dataValue.WrappedValue = Variant.From(valueArray);
+                                                dataValue = dataValue.WithWrappedValue(Variant.From(valueArray));
                                             }
                                             else
                                             {
-                                                dataValue.WrappedValue = default;
+                                                dataValue = dataValue.WithWrappedValue(default);
                                             }
                                         }
                                         break;

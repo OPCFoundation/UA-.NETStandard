@@ -1376,24 +1376,24 @@ namespace Opc.Ua.PubSub.Encoding
                 if (value.ContainsKey("UaType"))
                 {
                     var builtInType = (BuiltInType)ReadByte("UaType");
-                    dv.WrappedValue = ReadVariantFromObject("Value", builtInType, value);
+                    dv = dv.WithWrappedValue(ReadVariantFromObject("Value", builtInType, value));
                 }
                 else
                 {
-                    dv.WrappedValue = ReadVariant("Value");
+                    dv = dv.WithWrappedValue(ReadVariant("Value"));
                 }
 
-                dv.StatusCode = ReadStatusCode("StatusCode");
-                dv.SourceTimestamp = ReadDateTime("SourceTimestamp");
-                dv.SourcePicoseconds =
+                dv = dv.WithStatus(ReadStatusCode("StatusCode"));
+                dv = dv.WithSourceTimestamp(ReadDateTime("SourceTimestamp"));
+                dv = dv.WithSourcePicoseconds(
                     dv.SourceTimestamp != DateTimeUtc.MinValue
                         ? ReadUInt16("SourcePicoseconds")
-                        : (ushort)0;
-                dv.ServerTimestamp = ReadDateTime("ServerTimestamp");
-                dv.ServerPicoseconds =
+                        : (ushort)0);
+                dv = dv.WithServerTimestamp(ReadDateTime("ServerTimestamp"));
+                dv = dv.WithServerPicoseconds(
                     dv.ServerTimestamp != DateTimeUtc.MinValue
                         ? ReadUInt16("ServerPicoseconds")
-                        : (ushort)0;
+                        : (ushort)0);
             }
             finally
             {
