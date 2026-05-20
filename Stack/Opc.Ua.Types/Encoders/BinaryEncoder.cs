@@ -834,6 +834,103 @@ namespace Opc.Ua
             }
         }
 
+        /// <summary>
+        /// Experimental sibling of <see cref="WriteDataValue"/> that
+        /// accepts a <see cref="DataValueStruct"/> value. Wire format
+        /// is byte-identical to the class-based path — only the
+        /// caller-side representation differs. See
+        /// <c>plans/25-datavalue-struct-vs-class.md</c>.
+        /// </summary>
+        public void WriteDataValueStruct(string? fieldName, DataValueStruct value)
+        {
+            // No null check — the struct has its own IsNull notion if
+            // the caller wants to roundtrip a null-on-the-wire DataValue
+            // they should use the class-based WriteDataValue overload.
+
+            byte encoding = 0;
+
+            if (!value.WrappedValue.IsNull)
+            {
+                encoding |= (byte)DataValueEncodingBits.Value;
+            }
+
+            if (value.StatusCode != StatusCodes.Good)
+            {
+                encoding |= (byte)DataValueEncodingBits.StatusCode;
+            }
+
+            if (value.SourceTimestamp != DateTimeUtc.MinValue)
+            {
+                encoding |= (byte)DataValueEncodingBits.SourceTimestamp;
+
+                if (value.SourcePicoseconds != 0)
+                {
+                    encoding |= (byte)DataValueEncodingBits.SourcePicoseconds;
+                }
+            }
+
+            if (value.ServerTimestamp != DateTimeUtc.MinValue)
+            {
+                encoding |= (byte)DataValueEncodingBits.ServerTimestamp;
+
+                if (value.ServerPicoseconds != 0)
+                {
+                    encoding |= (byte)DataValueEncodingBits.ServerPicoseconds;
+                }
+            }
+
+            WriteByte(null, encoding);
+
+            if ((encoding & (byte)DataValueEncodingBits.Value) != 0)
+            {
+                WriteVariant(null, value.WrappedValue);
+            }
+
+            if ((encoding & (byte)DataValueEncodingBits.StatusCode) != 0)
+            {
+                WriteStatusCode(null, value.StatusCode);
+            }
+
+            if ((encoding & (byte)DataValueEncodingBits.SourceTimestamp) != 0)
+            {
+                WriteDateTime(null, value.SourceTimestamp);
+
+                if ((encoding & (byte)DataValueEncodingBits.SourcePicoseconds) != 0)
+                {
+                    WriteUInt16(null, value.SourcePicoseconds);
+                }
+            }
+
+            if ((encoding & (byte)DataValueEncodingBits.ServerTimestamp) != 0)
+            {
+                WriteDateTime(null, value.ServerTimestamp);
+
+                if ((encoding & (byte)DataValueEncodingBits.ServerPicoseconds) != 0)
+                {
+                    WriteUInt16(null, value.ServerPicoseconds);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Writes a length-prefixed array of <see cref="DataValueStruct"/>
+        /// values to the binary stream. Wire format mirrors
+        /// <see cref="WriteDataValueArray(string?, ArrayOf{DataValue})"/>.
+        /// </summary>
+        public void WriteDataValueStructArray(
+            string? fieldName,
+            ReadOnlySpan<DataValueStruct> values)
+        {
+            // Mirror WriteArrayLength for span input. Negative count is
+            // represented with -1 length marker; spans cannot represent
+            // null so we always write the length.
+            WriteInt32(null, values.Length);
+            for (int ii = 0; ii < values.Length; ii++)
+            {
+                WriteDataValueStruct(null, values[ii]);
+            }
+        }
+
         /// <inheritdoc/>
         public void WriteExtensionObject(string? fieldName, ExtensionObject value)
         {

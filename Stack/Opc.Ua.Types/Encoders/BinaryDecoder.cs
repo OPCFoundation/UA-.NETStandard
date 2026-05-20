@@ -666,6 +666,88 @@ namespace Opc.Ua
             return value;
         }
 
+        /// <summary>
+        /// Experimental sibling of <see cref="ReadDataValue"/> that
+        /// reads into a <see cref="DataValueStruct.Builder"/> and
+        /// materialises a single <see cref="DataValueStruct"/> in one
+        /// shot. Wire format is byte-identical to the class-based
+        /// path. See <c>plans/25-datavalue-struct-vs-class.md</c>.
+        /// </summary>
+        public DataValueStruct ReadDataValueStruct(string? fieldName)
+        {
+            byte encodingByte = SafeReadByte();
+
+            var builder = default(DataValueStruct.Builder);
+
+            if ((encodingByte & (byte)DataValueEncodingBits.Value) != 0)
+            {
+                builder.WrappedValue = ReadVariant(null);
+            }
+
+            if ((encodingByte & (byte)DataValueEncodingBits.StatusCode) != 0)
+            {
+                builder.StatusCode = ReadStatusCode(null);
+            }
+
+            ushort sourcePicoseconds = 0;
+            bool hasPicoseconds = (encodingByte &
+                (byte)DataValueEncodingBits.SourcePicoseconds) != 0;
+            if ((encodingByte & (byte)DataValueEncodingBits.SourceTimestamp) != 0)
+            {
+                builder.SourceTimestamp = ReadDateTime(null);
+                if (hasPicoseconds)
+                {
+                    sourcePicoseconds = ReadUInt16(null);
+                }
+            }
+            else if (hasPicoseconds)
+            {
+                _ = ReadUInt16(null);
+            }
+            builder.SourcePicoseconds = sourcePicoseconds;
+
+            ushort serverPicoseconds = 0;
+            hasPicoseconds = (encodingByte & (byte)DataValueEncodingBits.ServerPicoseconds) != 0;
+            if ((encodingByte & (byte)DataValueEncodingBits.ServerTimestamp) != 0)
+            {
+                builder.ServerTimestamp = ReadDateTime(null);
+                if (hasPicoseconds)
+                {
+                    serverPicoseconds = ReadUInt16(null);
+                }
+            }
+            else if (hasPicoseconds)
+            {
+                _ = ReadUInt16(null);
+            }
+            builder.ServerPicoseconds = serverPicoseconds;
+
+            return builder.Build();
+        }
+
+        /// <summary>
+        /// Reads a length-prefixed array of <see cref="DataValueStruct"/>
+        /// values from the binary stream. Wire format mirrors
+        /// <see cref="ReadDataValueArray"/>; the returned array is
+        /// always non-null (callers can use
+        /// <see cref="DataValueStruct.IsNull"/> on individual entries
+        /// to detect an empty payload).
+        /// </summary>
+        public DataValueStruct[] ReadDataValueStructArray(string? fieldName)
+        {
+            int length = ReadInt32(null);
+            if (length < 0)
+            {
+                return Array.Empty<DataValueStruct>();
+            }
+            var result = new DataValueStruct[length];
+            for (int ii = 0; ii < length; ii++)
+            {
+                result[ii] = ReadDataValueStruct(null);
+            }
+            return result;
+        }
+
         /// <inheritdoc/>
         public ExtensionObject ReadExtensionObject(string? fieldName)
         {
