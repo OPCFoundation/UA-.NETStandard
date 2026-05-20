@@ -579,12 +579,18 @@ namespace Opc.Ua.Gds.Server
                             Ua.ObjectTypeIds.ApplicationCertificateType
                         ];
                     }
+                    // OPC 10000-12 §7.8.2.1: a TrustList that supports
+                    // CloseAndUpdate / AddCertificate / RemoveCertificate
+                    // is writeable; Writable / UserWritable advertise the
+                    // capability while the role-based access on the
+                    // individual methods enforces who may actually mutate
+                    // the trust list.
                     activeNode.CertificateGroups.DefaultApplicationGroup.TrustList!.LastUpdateTime!.Value =
                         DateTime.UtcNow;
                     activeNode.CertificateGroups.DefaultApplicationGroup.TrustList.Writable!.Value =
-                        false;
+                        true;
                     activeNode.CertificateGroups.DefaultApplicationGroup.TrustList.UserWritable!.Value =
-                        false;
+                        true;
 
                     var defaultHttpsCertificateTypes = activeNode.CertificateGroups
                         .DefaultHttpsGroup!.CertificateTypes!;
@@ -607,9 +613,9 @@ namespace Opc.Ua.Gds.Server
                     activeNode.CertificateGroups.DefaultHttpsGroup.TrustList!.LastUpdateTime!.Value =
                         DateTime.UtcNow;
                     activeNode.CertificateGroups.DefaultHttpsGroup.TrustList.Writable!.Value =
-                        false;
+                        true;
                     activeNode.CertificateGroups.DefaultHttpsGroup.TrustList.UserWritable!.Value =
-                        false;
+                        true;
 
                     var defaultUserTokenCertificateTypes = activeNode.CertificateGroups
                         .DefaultUserTokenGroup!.CertificateTypes!;
@@ -632,9 +638,9 @@ namespace Opc.Ua.Gds.Server
                     activeNode.CertificateGroups.DefaultUserTokenGroup.TrustList!.LastUpdateTime!.Value =
                         DateTime.UtcNow;
                     activeNode.CertificateGroups.DefaultUserTokenGroup.TrustList.Writable!.Value =
-                        false;
+                        true;
                     activeNode.CertificateGroups.DefaultUserTokenGroup.TrustList.UserWritable!.Value =
-                        false;
+                        true;
 
                     return activeNode;
             }

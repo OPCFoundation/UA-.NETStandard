@@ -533,6 +533,12 @@ namespace Opc.Ua.Server
             bool applyChangesRequired = false;
             HasApplicationSecureAdminAccess(context);
 
+            // OPC 10000-12 §7.10.3: the private key is sensitive material;
+            // it must not be persisted into the
+            // CertificateUpdateRequested / CertificateUpdated audit events.
+            // The audit payload still reflects the public-key certificate,
+            // issuer chain and key format so administrators can correlate
+            // the request without exposing the secret.
             ArrayOf<Variant> inputArguments =
             [
                 certificateGroupId,
@@ -540,7 +546,7 @@ namespace Opc.Ua.Server
                 certificate,
                 issuerCertificates,
                 privateKeyFormat!,
-                privateKey
+                Opc.Ua.Server.AuditEvents.RedactedPrivateKey
             ];
 
             Server.ReportCertificateUpdateRequestedAuditEvent(
