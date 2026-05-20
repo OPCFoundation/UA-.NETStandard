@@ -430,6 +430,8 @@ namespace Opc.Ua.Gds.Server
                     activeNode.QueryApplications!.OnCall = OnQueryApplications;
                     activeNode.RegisterApplication!.OnCall = OnRegisterApplication;
                     activeNode.UpdateApplication!.OnCall = OnUpdateApplication;
+                    activeNode.UpdateApplication.OnReadRolePermissions = OnAddSelfAdminRolePermissions;
+                    activeNode.UpdateApplication.OnReadUserRolePermissions = OnAddSelfAdminUserRolePermissions;
                     activeNode.GetApplication!.OnCall = OnGetApplication;
 
                     // These also add self admin role permissions (call)
@@ -657,7 +659,9 @@ namespace Opc.Ua.Gds.Server
             ApplicationRecordDataType application,
             ref NodeId applicationId)
         {
-            AuthorizationHelper.HasAuthorization(context, AuthorizationHelper.DiscoveryAdmin);
+            AuthorizationHelper.HasAuthorization(
+                context,
+                AuthorizationHelper.DiscoveryAdminOrAppAdmin);
 
             m_logger.LogInformation("OnRegisterApplication: {ApplicationUri}", application.ApplicationUri);
 
@@ -690,7 +694,10 @@ namespace Opc.Ua.Gds.Server
             NodeId objectId,
             ApplicationRecordDataType application)
         {
-            AuthorizationHelper.HasAuthorization(context, AuthorizationHelper.DiscoveryAdmin);
+            AuthorizationHelper.HasAuthorization(
+                context,
+                AuthorizationHelper.DiscoveryAdminOrSelfAdminOrAppAdmin,
+                application.ApplicationId);
 
             m_logger.LogInformation("OnUpdateApplication: {ApplicationUri}", application.ApplicationUri);
 
@@ -731,7 +738,10 @@ namespace Opc.Ua.Gds.Server
             NodeId applicationId,
             CancellationToken cancellationToken)
         {
-            AuthorizationHelper.HasAuthorization(context, AuthorizationHelper.DiscoveryAdminOrSelfAdmin);
+            AuthorizationHelper.HasAuthorization(
+                context,
+                AuthorizationHelper.DiscoveryAdminOrSelfAdminOrAppAdmin,
+                applicationId);
 
             m_logger.LogInformation("OnUnregisterApplication: {ApplicationId}", applicationId.ToString());
 
@@ -985,7 +995,8 @@ namespace Opc.Ua.Gds.Server
         {
             AuthorizationHelper.HasAuthorization(
                 context,
-                AuthorizationHelper.CertificateAuthorityAdminOrSelfAdmin);
+                AuthorizationHelper.CertificateAuthorityAdminOrSelfAdminOrAppAdmin,
+                applicationId);
 
             var certificateTypeIdsList = new List<NodeId>();
             var certificatesList = new List<ByteString>();
@@ -1224,7 +1235,7 @@ namespace Opc.Ua.Gds.Server
 
             AuthorizationHelper.HasAuthorization(
                 context,
-                AuthorizationHelper.CertificateAuthorityAdminOrSelfAdmin,
+                AuthorizationHelper.CertificateAuthorityAdminOrSelfAdminOrAppAdmin,
                 applicationId);
 
             ApplicationRecordDataType? application = m_database.GetApplication(applicationId);
@@ -1364,7 +1375,7 @@ namespace Opc.Ua.Gds.Server
         {
             AuthorizationHelper.HasAuthorization(
                 context,
-                AuthorizationHelper.CertificateAuthorityAdminOrSelfAdmin,
+                AuthorizationHelper.CertificateAuthorityAdminOrSelfAdminOrAppAdmin,
                 applicationId);
 
             var result = new StartSigningRequestMethodStateResult();
@@ -1458,7 +1469,7 @@ namespace Opc.Ua.Gds.Server
         {
             AuthorizationHelper.HasAuthorization(
                 context,
-                AuthorizationHelper.CertificateAuthorityAdminOrSelfAdmin,
+                AuthorizationHelper.CertificateAuthorityAdminOrSelfAdminOrAppAdmin,
                 applicationId);
 
             var result = new FinishRequestMethodStateResult();
@@ -1663,7 +1674,7 @@ namespace Opc.Ua.Gds.Server
         {
             AuthorizationHelper.HasAuthorization(
                 context,
-                AuthorizationHelper.CertificateAuthorityAdminOrSelfAdmin,
+                AuthorizationHelper.CertificateAuthorityAdminOrSelfAdminOrAppAdmin,
                 applicationId);
 
             ApplicationRecordDataType? application = m_database.GetApplication(applicationId);
@@ -1696,7 +1707,7 @@ namespace Opc.Ua.Gds.Server
         {
             AuthorizationHelper.HasAuthorization(
                 context,
-                AuthorizationHelper.CertificateAuthorityAdminOrSelfAdmin,
+                AuthorizationHelper.CertificateAuthorityAdminOrSelfAdminOrAppAdmin,
                 applicationId);
 
             ApplicationRecordDataType? application = m_database.GetApplication(applicationId);
@@ -1734,9 +1745,12 @@ namespace Opc.Ua.Gds.Server
             NodeId certificateTypeId,
             ref bool updateRequired)
         {
+            // Per OPC 10000-12 §7.6.12 GetCertificateStatus shall be called from
+            // a Client with the CertificateAuthorityAdmin Role, the
+            // ApplicationSelfAdmin Privilege, or the ApplicationAdmin Privilege.
             AuthorizationHelper.HasAuthorization(
                 context,
-                AuthorizationHelper.AuthenticatedUserOrSelfAdmin,
+                AuthorizationHelper.CertificateAuthorityAdminOrSelfAdminOrAppAdmin,
                 applicationId);
 
             ApplicationRecordDataType? application = m_database.GetApplication(applicationId);

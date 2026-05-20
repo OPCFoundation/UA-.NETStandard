@@ -52,6 +52,12 @@ namespace Opc.Ua.Gds.Tests
         {
             m_telemetry = NUnitTelemetryContext.Create();
             m_namespaceTable = new NamespaceTable();
+            // Ensure the GDS namespace is registered so that GDS-namespace
+            // role NodeIds (e.g. WellKnownRole_DiscoveryAdmin) resolve to a
+            // unique NodeId rather than colliding on NodeId.Null with the
+            // namespace-less ApplicationSelfAdmin/ApplicationAdmin
+            // privileges.
+            m_namespaceTable.Append(Opc.Ua.Gds.Namespaces.OpcUaGds);
         }
 
         [Test]
@@ -242,7 +248,49 @@ namespace Opc.Ua.Gds.Tests
             ServiceResultException ex = Assert.Throws<ServiceResultException>(() =>
                 AuthorizationHelper.HasAuthenticatedSecureChannel(context));
 
-            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadSecurityModeInsufficient));
+        }
+
+        [Test]
+        public void HasAuthenticatedSecureChannelDoesNotThrowForSign()
+        {
+            var endpoint = new EndpointDescription
+            {
+                SecurityMode = MessageSecurityMode.Sign
+            };
+            var channelContext = new SecureChannelContext(
+                "test-channel", endpoint, RequestEncoding.Binary);
+            var operationContext = new OperationContext(
+                new RequestHeader(), channelContext, RequestType.Read, RequestLifetime.None);
+            var context = new SystemContext(operationContext, m_telemetry)
+            {
+                NamespaceUris = m_namespaceTable
+            };
+
+            Assert.DoesNotThrow(() =>
+                AuthorizationHelper.HasAuthenticatedSecureChannel(context));
+        }
+
+        [Test]
+        public void HasAuthenticatedSecureChannelWithRequireEncryptionThrowsForSign()
+        {
+            var endpoint = new EndpointDescription
+            {
+                SecurityMode = MessageSecurityMode.Sign
+            };
+            var channelContext = new SecureChannelContext(
+                "test-channel", endpoint, RequestEncoding.Binary);
+            var operationContext = new OperationContext(
+                new RequestHeader(), channelContext, RequestType.Read, RequestLifetime.None);
+            var context = new SystemContext(operationContext, m_telemetry)
+            {
+                NamespaceUris = m_namespaceTable
+            };
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(() =>
+                AuthorizationHelper.HasAuthenticatedSecureChannel(context, requireEncryption: true));
+
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadSecurityModeInsufficient));
         }
 
         [Test]
@@ -357,6 +405,141 @@ namespace Opc.Ua.Gds.Tests
                     context,
                     AuthorizationHelper.CertificateAuthorityAdminOrSelfAdmin,
                     new NodeId(42)));
+        }
+
+        [Test]
+        public void HasAuthorizationWithApplicationAdminSucceedsForAdministeredApp()
+        {
+            var managedApp1 = new NodeId(11);
+            var managedApp2 = new NodeId(12);
+            var innerIdentity = new UserIdentity("agent", s_passwordBytes);
+            var identity = new GdsRoleBasedIdentity(
+                innerIdentity,
+                [GdsRole.ApplicationAdmin],
+                NodeId.Null,
+                new[] { managedApp1, managedApp2 },
+                m_namespaceTable);
+            var context = new SessionSystemContext(m_telemetry)
+            {
+                UserIdentity = identity,
+                NamespaceUris = m_namespaceTable
+            };
+
+            Assert.DoesNotThrow(() =>
+                AuthorizationHelper.HasAuthorization(
+                    context,
+                    AuthorizationHelper.DiscoveryAdminOrSelfAdminOrAppAdmin,
+                    managedApp2));
+
+            Assert.DoesNotThrow(() =>
+                AuthorizationHelper.HasAuthorization(
+                    context,
+                    AuthorizationHelper.CertificateAuthorityAdminOrSelfAdminOrAppAdmin,
+                    managedApp1));
+        }
+
+        [Test]
+        public void HasAuthorizationWithApplicationAdminThrowsForUnmanagedApp()
+        {
+            var managedApp = new NodeId(11);
+            var unmanagedApp = new NodeId(99);
+            var innerIdentity = new UserIdentity("agent", s_passwordBytes);
+            var identity = new GdsRoleBasedIdentity(
+                innerIdentity,
+                [GdsRole.ApplicationAdmin],
+                NodeId.Null,
+                new[] { managedApp },
+                m_namespaceTable);
+            var context = new SessionSystemContext(m_telemetry)
+            {
+                UserIdentity = identity,
+                NamespaceUris = m_namespaceTable
+            };
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(() =>
+                AuthorizationHelper.HasAuthorization(
+                    context,
+                    AuthorizationHelper.DiscoveryAdminOrSelfAdminOrAppAdmin,
+                    unmanagedApp));
+
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+        }
+
+        [Test]
+        public void HasAuthorizationWithApplicationAdminSucceedsForRegisterApplication()
+        {
+            var managedApp = new NodeId(11);
+            var innerIdentity = new UserIdentity("agent", s_passwordBytes);
+            var identity = new GdsRoleBasedIdentity(
+                innerIdentity,
+                [GdsRole.ApplicationAdmin],
+                NodeId.Null,
+                new[] { managedApp },
+                m_namespaceTable);
+            var context = new SessionSystemContext(m_telemetry)
+            {
+                UserIdentity = identity,
+                NamespaceUris = m_namespaceTable
+            };
+
+            // RegisterApplication has no existing applicationId; the
+            // ApplicationAdmin privilege alone is sufficient.
+            Assert.DoesNotThrow(() =>
+                AuthorizationHelper.HasAuthorization(
+                    context,
+                    AuthorizationHelper.DiscoveryAdminOrAppAdmin));
+        }
+
+        [Test]
+        public void HasAuthorizationWithApplicationAdminThrowsWithEmptyAdministeredList()
+        {
+            var innerIdentity = new UserIdentity("agent", s_passwordBytes);
+            var identity = new GdsRoleBasedIdentity(
+                innerIdentity,
+                [GdsRole.ApplicationAdmin],
+                NodeId.Null,
+                administeredApplicationIds: null,
+                m_namespaceTable);
+            var context = new SessionSystemContext(m_telemetry)
+            {
+                UserIdentity = identity,
+                NamespaceUris = m_namespaceTable
+            };
+
+            // Without any administered apps the privilege is inert.
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(() =>
+                AuthorizationHelper.HasAuthorization(
+                    context,
+                    AuthorizationHelper.DiscoveryAdminOrAppAdmin));
+
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+        }
+
+        [Test]
+        public void NewRoleListsAreCorrectlyPopulated()
+        {
+            Assert.That(AuthorizationHelper.DiscoveryAdminOrAppAdmin, Has.Count.EqualTo(2));
+            Assert.That(AuthorizationHelper.DiscoveryAdminOrAppAdmin,
+                Does.Contain(GdsRole.DiscoveryAdmin));
+            Assert.That(AuthorizationHelper.DiscoveryAdminOrAppAdmin,
+                Does.Contain(GdsRole.ApplicationAdmin));
+
+            Assert.That(AuthorizationHelper.DiscoveryAdminOrSelfAdminOrAppAdmin, Has.Count.EqualTo(3));
+            Assert.That(AuthorizationHelper.DiscoveryAdminOrSelfAdminOrAppAdmin,
+                Does.Contain(GdsRole.DiscoveryAdmin));
+            Assert.That(AuthorizationHelper.DiscoveryAdminOrSelfAdminOrAppAdmin,
+                Does.Contain(GdsRole.ApplicationSelfAdmin));
+            Assert.That(AuthorizationHelper.DiscoveryAdminOrSelfAdminOrAppAdmin,
+                Does.Contain(GdsRole.ApplicationAdmin));
+
+            Assert.That(AuthorizationHelper.CertificateAuthorityAdminOrSelfAdminOrAppAdmin,
+                Has.Count.EqualTo(3));
+            Assert.That(AuthorizationHelper.CertificateAuthorityAdminOrSelfAdminOrAppAdmin,
+                Does.Contain(GdsRole.CertificateAuthorityAdmin));
+            Assert.That(AuthorizationHelper.CertificateAuthorityAdminOrSelfAdminOrAppAdmin,
+                Does.Contain(GdsRole.ApplicationSelfAdmin));
+            Assert.That(AuthorizationHelper.CertificateAuthorityAdminOrSelfAdminOrAppAdmin,
+                Does.Contain(GdsRole.ApplicationAdmin));
         }
     }
 }
