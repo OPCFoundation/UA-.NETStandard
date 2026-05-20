@@ -379,7 +379,7 @@
                        when the window narrows (no horizontal scroll). -->
                   <Border Grid.Row="0" Background="#0B1220" Padding="8,6"
                           BorderBrush="#1E293B" BorderThickness="0,0,0,1">
-                    <WrapPanel Orientation="Horizontal" HorizontalAlignment="Left" ItemHeight="32">
+                    <WrapPanel Classes="toolbar" Orientation="Horizontal" HorizontalAlignment="Left" ItemHeight="32">
                         <CheckBox x:Name="ResourceOverlayCheck"
                                   VerticalAlignment="Center"
                                   Margin="4,0"

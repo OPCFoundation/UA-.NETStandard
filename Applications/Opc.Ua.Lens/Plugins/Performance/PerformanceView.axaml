@@ -89,7 +89,7 @@
       <Border Grid.Row="0" Padding="10" Background="#0B1220" BorderBrush="#1E293B"
               BorderThickness="1" CornerRadius="4">
         <Grid RowDefinitions="Auto,Auto">
-          <WrapPanel Grid.Row="0" Orientation="Horizontal" ItemHeight="32">
+          <WrapPanel Classes="toolbar" Grid.Row="0" Orientation="Horizontal" ItemHeight="32">
             <ComboBox x:Name="ModeCombo" Margin="0,0,6,0"
                       ItemsSource="{CompiledBinding ModeOptions}"
                       SelectedItem="{CompiledBinding Mode, Mode=TwoWay}"

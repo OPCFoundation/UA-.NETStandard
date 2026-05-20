@@ -82,7 +82,7 @@
 
     <!-- Toolbar (WrapPanel: children flow to next line on narrow windows). -->
     <Border DockPanel.Dock="Top" Classes="panel" Margin="8,8,8,4" Padding="8,6">
-      <WrapPanel Orientation="Horizontal" ItemHeight="32">
+      <WrapPanel Classes="toolbar" Orientation="Horizontal" ItemHeight="32">
         <Button Classes="primary" Content="Pick Root…" Margin="0,0,4,0"
                 Command="{CompiledBinding PickRootCommand}" />
         <Button Classes="tonal"   Content="Settings…" Margin="0,0,4,0"

@@ -32,5 +32,99 @@
              RequestedThemeVariant="Dark">
   <Application.Styles>
     <FluentTheme />
+
+    <!-- Toolbar styles (apply to every WrapPanel / StackPanel / Border whose
+         Classes attribute carries "toolbar").  Forces a single 28 px height
+         on every interactive control inside the strip and vertically centres
+         all content + labels so action bars look tidy across plug-ins. -->
+    <Style Selector="WrapPanel.toolbar Button">
+      <Setter Property="Height" Value="28"/>
+      <Setter Property="MinHeight" Value="28"/>
+      <Setter Property="VerticalAlignment" Value="Center"/>
+      <Setter Property="VerticalContentAlignment" Value="Center"/>
+      <Setter Property="HorizontalContentAlignment" Value="Center"/>
+      <Setter Property="Padding" Value="10,0"/>
+      <Setter Property="FontSize" Value="12"/>
+    </Style>
+    <Style Selector="WrapPanel.toolbar ToggleButton">
+      <Setter Property="Height" Value="28"/>
+      <Setter Property="MinHeight" Value="28"/>
+      <Setter Property="VerticalAlignment" Value="Center"/>
+      <Setter Property="VerticalContentAlignment" Value="Center"/>
+      <Setter Property="HorizontalContentAlignment" Value="Center"/>
+      <Setter Property="Padding" Value="10,0"/>
+      <Setter Property="FontSize" Value="12"/>
+    </Style>
+    <Style Selector="WrapPanel.toolbar ComboBox">
+      <Setter Property="Height" Value="28"/>
+      <Setter Property="MinHeight" Value="28"/>
+      <Setter Property="VerticalAlignment" Value="Center"/>
+      <Setter Property="VerticalContentAlignment" Value="Center"/>
+      <Setter Property="FontSize" Value="12"/>
+      <Setter Property="Padding" Value="8,0"/>
+    </Style>
+    <Style Selector="WrapPanel.toolbar CheckBox">
+      <Setter Property="MinHeight" Value="28"/>
+      <Setter Property="VerticalAlignment" Value="Center"/>
+      <Setter Property="VerticalContentAlignment" Value="Center"/>
+      <Setter Property="FontSize" Value="12"/>
+    </Style>
+    <Style Selector="WrapPanel.toolbar TextBox">
+      <Setter Property="Height" Value="28"/>
+      <Setter Property="MinHeight" Value="28"/>
+      <Setter Property="VerticalAlignment" Value="Center"/>
+      <Setter Property="VerticalContentAlignment" Value="Center"/>
+      <Setter Property="FontSize" Value="12"/>
+    </Style>
+    <Style Selector="WrapPanel.toolbar TextBlock">
+      <Setter Property="VerticalAlignment" Value="Center"/>
+    </Style>
+    <Style Selector="WrapPanel.toolbar StackPanel">
+      <Setter Property="VerticalAlignment" Value="Center"/>
+    </Style>
+
+    <!-- Same rules for toolbars where the strip is a horizontal StackPanel. -->
+    <Style Selector="StackPanel.toolbar Button">
+      <Setter Property="Height" Value="28"/>
+      <Setter Property="MinHeight" Value="28"/>
+      <Setter Property="VerticalAlignment" Value="Center"/>
+      <Setter Property="VerticalContentAlignment" Value="Center"/>
+      <Setter Property="HorizontalContentAlignment" Value="Center"/>
+      <Setter Property="Padding" Value="10,0"/>
+      <Setter Property="FontSize" Value="12"/>
+    </Style>
+    <Style Selector="StackPanel.toolbar ToggleButton">
+      <Setter Property="Height" Value="28"/>
+      <Setter Property="MinHeight" Value="28"/>
+      <Setter Property="VerticalAlignment" Value="Center"/>
+      <Setter Property="VerticalContentAlignment" Value="Center"/>
+      <Setter Property="HorizontalContentAlignment" Value="Center"/>
+      <Setter Property="Padding" Value="10,0"/>
+      <Setter Property="FontSize" Value="12"/>
+    </Style>
+    <Style Selector="StackPanel.toolbar ComboBox">
+      <Setter Property="Height" Value="28"/>
+      <Setter Property="MinHeight" Value="28"/>
+      <Setter Property="VerticalAlignment" Value="Center"/>
+      <Setter Property="VerticalContentAlignment" Value="Center"/>
+      <Setter Property="FontSize" Value="12"/>
+      <Setter Property="Padding" Value="8,0"/>
+    </Style>
+    <Style Selector="StackPanel.toolbar CheckBox">
+      <Setter Property="MinHeight" Value="28"/>
+      <Setter Property="VerticalAlignment" Value="Center"/>
+      <Setter Property="VerticalContentAlignment" Value="Center"/>
+      <Setter Property="FontSize" Value="12"/>
+    </Style>
+    <Style Selector="StackPanel.toolbar TextBox">
+      <Setter Property="Height" Value="28"/>
+      <Setter Property="MinHeight" Value="28"/>
+      <Setter Property="VerticalAlignment" Value="Center"/>
+      <Setter Property="VerticalContentAlignment" Value="Center"/>
+      <Setter Property="FontSize" Value="12"/>
+    </Style>
+    <Style Selector="StackPanel.toolbar TextBlock">
+      <Setter Property="VerticalAlignment" Value="Center"/>
+    </Style>
   </Application.Styles>
 </Application>

@@ -79,7 +79,7 @@
                    FontFamily="Cascadia Mono, Consolas, monospace"
                    FontSize="11"
                    ToolTip.Tip="Subscription state · publishing interval · monitored items (created/total) · publishing flag" />
-        <WrapPanel Orientation="Horizontal" ItemHeight="32">
+        <WrapPanel Classes="toolbar" Orientation="Horizontal" ItemHeight="32">
           <Button Classes="tonal" Margin="0,0,4,0"
                   Content="⚙ Filter…"
                   Command="{CompiledBinding EditFilterCommand}" />

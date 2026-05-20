@@ -367,7 +367,7 @@
 
     <!-- Row 4: action bar (WrapPanel: children flow to next line on narrow windows). -->
     <Border Grid.Row="4" Classes="panel" Margin="0,6,0,0">
-      <WrapPanel Orientation="Horizontal" ItemHeight="32">
+      <WrapPanel Classes="toolbar" Orientation="Horizontal" ItemHeight="32">
         <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center" Margin="4,0">
           <TextBlock Classes="h" Text="Mask" VerticalAlignment="Center" Margin="0,0,4,0" />
           <ComboBox MinWidth="180"

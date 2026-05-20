@@ -195,7 +195,7 @@
       </TabControl>
 
       <!-- Row 2: action buttons (WrapPanel: wrap on narrow windows). -->
-      <WrapPanel Grid.Row="2" Orientation="Horizontal" Margin="0,8,0,0" ItemHeight="32">
+      <WrapPanel Classes="toolbar" Grid.Row="2" Orientation="Horizontal" Margin="0,8,0,0" ItemHeight="32">
         <Button Classes="primary" Content="▶ Read" Margin="4,0"
                 Command="{CompiledBinding ReadCommand}" />
         <Button Classes="tonal" Content="■ Cancel" Margin="4,0"

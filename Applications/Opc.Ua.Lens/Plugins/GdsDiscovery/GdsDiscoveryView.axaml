@@ -68,7 +68,7 @@
   <DockPanel LastChildFill="True">
 
     <Border DockPanel.Dock="Top" Classes="panel" Margin="8,8,8,4" Padding="8,6">
-      <WrapPanel Orientation="Horizontal" ItemHeight="32">
+      <WrapPanel Classes="toolbar" Orientation="Horizontal" ItemHeight="32">
         <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,0,4,0" VerticalAlignment="Center">
           <TextBlock VerticalAlignment="Center" Foreground="#94A3B8" FontSize="11"
                      Text="LDS host:" />

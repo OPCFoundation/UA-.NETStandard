@@ -75,7 +75,7 @@
 
     <!-- Toolbar (WrapPanel so children flow to next line when narrow). -->
     <Border DockPanel.Dock="Top" Classes="panel" Margin="8,8,8,4" Padding="8,6">
-      <WrapPanel Orientation="Horizontal" ItemHeight="32">
+      <WrapPanel Classes="toolbar" Orientation="Horizontal" ItemHeight="32">
         <Button Classes="tonal" Content="＋ Add store…" Margin="0,0,4,0"
                 Command="{CompiledBinding AddStoreCommand}" />
         <Button Classes="tonal" Content="↻ Refresh" Margin="0,0,4,0"
