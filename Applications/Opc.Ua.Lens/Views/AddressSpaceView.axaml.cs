@@ -347,7 +347,7 @@ internal sealed partial class AddressSpaceView : UserControl
                 && combo.SelectedItem is BrowseViewKind kind
                 && kind != vm.CurrentViewKind)
             {
-                await vm.SetViewKindAsync(kind, CancellationToken.None).ConfigureAwait(false);
+                await vm.SetViewKindAsync(kind, CancellationToken.None).ConfigureAwait(true);
             }
         };
     }

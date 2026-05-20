@@ -74,10 +74,10 @@ internal sealed partial class MethodCallDialog : Window
         this.RequiredControl<ItemsControl>("InputsList").ItemsSource = Inputs;
         this.RequiredControl<ItemsControl>("OutputsList").ItemsSource = Outputs;
 
-        this.RequiredControl<Button>("OkButton").Click += async (_, _) => await OnCall().ConfigureAwait(false);
+        this.RequiredControl<Button>("OkButton").Click += async (_, _) => await OnCall().ConfigureAwait(true);
         this.RequiredControl<Button>("CancelButton").Click += (_, _) => Close();
 
-        Opened += async (_, _) => await LoadArgumentsAsync().ConfigureAwait(false);
+        Opened += async (_, _) => await LoadArgumentsAsync().ConfigureAwait(true);
     }
 
     private async Task LoadArgumentsAsync()

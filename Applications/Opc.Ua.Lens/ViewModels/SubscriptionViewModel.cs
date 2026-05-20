@@ -419,7 +419,18 @@ internal sealed partial class SubscriptionViewModel : ObservableObject, IPlugin
     [RelayCommand]
     private async Task ApplySubscriptionAsync(SubscriptionConfig newConfig)
     {
-        Subscription = newConfig;
+        // The Subscription setter fires PropertyChanged synchronously, so it
+        // (and every other binding-touching mutation in this method) MUST
+        // run on the UI thread.  Marshal explicitly so this works regardless
+        // of how the caller awaited us (ConfigureAwait(true) vs false).
+        if (!Dispatcher.UIThread.CheckAccess())
+        {
+            await Dispatcher.UIThread.InvokeAsync(() => Subscription = newConfig);
+        }
+        else
+        {
+            Subscription = newConfig;
+        }
         if (m_adapter is null)
         {
             // Disconnected: just remember the new config; it'll be applied on AttachAdapterAsync.
@@ -435,7 +446,7 @@ internal sealed partial class SubscriptionViewModel : ObservableObject, IPlugin
                 newConfig.PublishingInterval.TotalMilliseconds,
                 newConfig.KeepAliveCount,
                 newConfig.LifetimeCount);
-            RefreshStatus();
+            Dispatcher.UIThread.Post(RefreshStatus);
         }
         catch (Exception ex)
         {

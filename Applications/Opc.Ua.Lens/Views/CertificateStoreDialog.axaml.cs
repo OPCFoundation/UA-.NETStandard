@@ -94,24 +94,24 @@ internal sealed partial class CertificateStoreDialog : Window
         issuerList.ItemsSource = Issuer;
         rejectedList.ItemsSource = Rejected;
 
-        this.RequiredControl<Button>("TrustedRefreshBtn").Click += async (_, _) => await ReloadAsync(CertStoreKind.Trusted).ConfigureAwait(false);
-        this.RequiredControl<Button>("IssuerRefreshBtn").Click += async (_, _) => await ReloadAsync(CertStoreKind.Issuer).ConfigureAwait(false);
-        this.RequiredControl<Button>("RejectedRefreshBtn").Click += async (_, _) => await ReloadAsync(CertStoreKind.Rejected).ConfigureAwait(false);
+        this.RequiredControl<Button>("TrustedRefreshBtn").Click += async (_, _) => await ReloadAsync(CertStoreKind.Trusted).ConfigureAwait(true);
+        this.RequiredControl<Button>("IssuerRefreshBtn").Click += async (_, _) => await ReloadAsync(CertStoreKind.Issuer).ConfigureAwait(true);
+        this.RequiredControl<Button>("RejectedRefreshBtn").Click += async (_, _) => await ReloadAsync(CertStoreKind.Rejected).ConfigureAwait(true);
 
         this.RequiredControl<Button>("TrustedUntrustBtn").Click += async (_, _) =>
-            await UntrustSelectedAsync(CertStoreKind.Trusted, trustedList).ConfigureAwait(false);
+            await UntrustSelectedAsync(CertStoreKind.Trusted, trustedList).ConfigureAwait(true);
         this.RequiredControl<Button>("IssuerUntrustBtn").Click += async (_, _) =>
-            await UntrustSelectedAsync(CertStoreKind.Issuer, issuerList).ConfigureAwait(false);
+            await UntrustSelectedAsync(CertStoreKind.Issuer, issuerList).ConfigureAwait(true);
 
         this.RequiredControl<Button>("TrustedExpireBtn").Click += async (_, _) =>
-            await DeleteExpiredAsync(CertStoreKind.Trusted).ConfigureAwait(false);
+            await DeleteExpiredAsync(CertStoreKind.Trusted).ConfigureAwait(true);
         this.RequiredControl<Button>("IssuerExpireBtn").Click += async (_, _) =>
-            await DeleteExpiredAsync(CertStoreKind.Issuer).ConfigureAwait(false);
+            await DeleteExpiredAsync(CertStoreKind.Issuer).ConfigureAwait(true);
 
         this.RequiredControl<Button>("TrustedAddBtn").Click += async (_, _) =>
-            await AddFromFileAsync(CertStoreKind.Trusted).ConfigureAwait(false);
+            await AddFromFileAsync(CertStoreKind.Trusted).ConfigureAwait(true);
         this.RequiredControl<Button>("IssuerAddBtn").Click += async (_, _) =>
-            await AddFromFileAsync(CertStoreKind.Issuer).ConfigureAwait(false);
+            await AddFromFileAsync(CertStoreKind.Issuer).ConfigureAwait(true);
 
         this.RequiredControl<Button>("RejectedTrustBtn").Click += async (_, _) =>
         {
@@ -126,11 +126,11 @@ internal sealed partial class CertificateStoreDialog : Window
                 SetStatus(ok ? $"Moved {row.Subject} to Trusted Peers." : "Trust failed.");
             }
             catch (Exception ex) { SetStatus($"Trust failed: {ex.Message}"); }
-            await ReloadAsync(CertStoreKind.Rejected).ConfigureAwait(false);
-            await ReloadAsync(CertStoreKind.Trusted).ConfigureAwait(false);
+            await ReloadAsync(CertStoreKind.Rejected).ConfigureAwait(true);
+            await ReloadAsync(CertStoreKind.Trusted).ConfigureAwait(true);
         };
         this.RequiredControl<Button>("RejectedDeleteBtn").Click += async (_, _) =>
-            await UntrustSelectedAsync(CertStoreKind.Rejected, rejectedList).ConfigureAwait(false);
+            await UntrustSelectedAsync(CertStoreKind.Rejected, rejectedList).ConfigureAwait(true);
         this.RequiredControl<Button>("RejectedClearBtn").Click += async (_, _) =>
         {
             try
@@ -147,7 +147,7 @@ internal sealed partial class CertificateStoreDialog : Window
                 SetStatus($"Cleared {n} rejected certificate(s).");
             }
             catch (Exception ex) { SetStatus($"Clear failed: {ex.Message}"); }
-            await ReloadAsync(CertStoreKind.Rejected).ConfigureAwait(false);
+            await ReloadAsync(CertStoreKind.Rejected).ConfigureAwait(true);
         };
     }
 
@@ -156,7 +156,7 @@ internal sealed partial class CertificateStoreDialog : Window
         await Task.WhenAll(
             ReloadAsync(CertStoreKind.Trusted),
             ReloadAsync(CertStoreKind.Issuer),
-            ReloadAsync(CertStoreKind.Rejected)).ConfigureAwait(false);
+            ReloadAsync(CertStoreKind.Rejected)).ConfigureAwait(true);
     }
 
     private async Task ReloadAsync(CertStoreKind kind)
@@ -194,7 +194,7 @@ internal sealed partial class CertificateStoreDialog : Window
             SetStatus(ok ? $"Removed {row.Subject} from {kind}." : "Delete failed.");
         }
         catch (Exception ex) { SetStatus($"Delete failed: {ex.Message}"); }
-        await ReloadAsync(kind).ConfigureAwait(false);
+        await ReloadAsync(kind).ConfigureAwait(true);
     }
 
     private async Task DeleteExpiredAsync(CertStoreKind kind)
@@ -205,7 +205,7 @@ internal sealed partial class CertificateStoreDialog : Window
             SetStatus($"Deleted {n} expired certificate(s) from {kind}.");
         }
         catch (Exception ex) { SetStatus($"Delete-expired failed: {ex.Message}"); }
-        await ReloadAsync(kind).ConfigureAwait(false);
+        await ReloadAsync(kind).ConfigureAwait(true);
     }
 
     /// <summary>
@@ -244,7 +244,7 @@ internal sealed partial class CertificateStoreDialog : Window
                 : $"Add failed for {System.IO.Path.GetFileName(path)}.");
         }
         catch (Exception ex) { SetStatus($"Add failed: {ex.Message}"); }
-        await ReloadAsync(kind).ConfigureAwait(false);
+        await ReloadAsync(kind).ConfigureAwait(true);
     }
 
     private ObservableCollection<CertRow> TargetFor(CertStoreKind kind) => kind switch

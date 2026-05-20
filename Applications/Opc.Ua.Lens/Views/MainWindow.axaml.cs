@@ -73,7 +73,7 @@ internal sealed partial class MainWindow : Window, IDisposable
             // CancellationTokenSources, log pump, and connection get
             // released deterministically.
             try
-            { await m_vm.DisposeAsync().ConfigureAwait(false); }
+            { await m_vm.DisposeAsync().ConfigureAwait(true); }
             catch { /* shutdown is best-effort */ }
         };
     }
@@ -148,34 +148,34 @@ internal sealed partial class MainWindow : Window, IDisposable
         var toggleFiltersBtn = this.RequiredControl<Button>("ToggleAddressSpaceFiltersBtn");
 
         // --- Session menu wiring (was the inline Connection panel pre-2026-05) ---
-        menuSessionCreate.Click += async (_, _) => await OnSessionCreateAsync().ConfigureAwait(false);
-        menuSessionClose.Click += async (_, _) => await OnDisconnect().ConfigureAwait(false);
-        menuSessionChangeUser.Click += async (_, _) => await OnChangeUser().ConfigureAwait(false);
-        menuSessionReconnect.Click += async (_, _) => await OnReconnect().ConfigureAwait(false);
+        menuSessionCreate.Click += async (_, _) => await OnSessionCreateAsync().ConfigureAwait(true);
+        menuSessionClose.Click += async (_, _) => await OnDisconnect().ConfigureAwait(true);
+        menuSessionChangeUser.Click += async (_, _) => await OnChangeUser().ConfigureAwait(true);
+        menuSessionReconnect.Click += async (_, _) => await OnReconnect().ConfigureAwait(true);
 
         // Connect... button rendered on the disconnected placeholder so a
         // brand-new user can launch the Connect dialog without hunting
         // through the Session menu.
         if (this.FindControl<Button>("DisconnectedConnectButton") is { } connectBtn)
         {
-            connectBtn.Click += async (_, _) => await OnSessionCreateAsync().ConfigureAwait(false);
+            connectBtn.Click += async (_, _) => await OnSessionCreateAsync().ConfigureAwait(true);
         }
 
-        addBtn.Click += async (_, _) => await OnAddItem().ConfigureAwait(false);
-        removeBtn.Click += async (_, _) => await OnRemoveItem().ConfigureAwait(false);
-        settingsBtn.Click += async (_, _) => await OnSettings().ConfigureAwait(false);
+        addBtn.Click += async (_, _) => await OnAddItem().ConfigureAwait(true);
+        removeBtn.Click += async (_, _) => await OnRemoveItem().ConfigureAwait(true);
+        settingsBtn.Click += async (_, _) => await OnSettings().ConfigureAwait(true);
 
         refreshBtn.Click += (_, _) => m_vm.Browser.Reload();
 
         // --- File menu ---
-        menuExport.Click += async (_, _) => await OnExportNodeSetAsync().ConfigureAwait(false);
-        menuExportTab.Click += async (_, _) => await OnExportTabDataAsync().ConfigureAwait(false);
+        menuExport.Click += async (_, _) => await OnExportNodeSetAsync().ConfigureAwait(true);
+        menuExportTab.Click += async (_, _) => await OnExportTabDataAsync().ConfigureAwait(true);
         menuQuit.Click += (_, _) => Close();
-        menuCerts.Click += async (_, _) => await OnOpenCertStoreAsync().ConfigureAwait(false);
+        menuCerts.Click += async (_, _) => await OnOpenCertStoreAsync().ConfigureAwait(true);
 
         // --- Session menu (Load / Save moved here from File) ---
-        menuLoad.Click += async (_, _) => await OnLoadSessionAsync().ConfigureAwait(false);
-        menuSave.Click += async (_, _) => await OnSaveSessionAsync().ConfigureAwait(false);
+        menuLoad.Click += async (_, _) => await OnLoadSessionAsync().ConfigureAwait(true);
+        menuSave.Click += async (_, _) => await OnSaveSessionAsync().ConfigureAwait(true);
 
         // --- Subscription menu ---
         menuAddTab.Click += async (_, _) =>
@@ -187,30 +187,30 @@ internal sealed partial class MainWindow : Window, IDisposable
 
             try
             {
-                await m_vm.AddTabCommand.ExecuteAsync(null).ConfigureAwait(false);
+                await m_vm.AddTabCommand.ExecuteAsync(null).ConfigureAwait(true);
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"AddTab failed: {ex}");
             }
         };
-        menuAddItem.Click += async (_, _) => await OnAddItem().ConfigureAwait(false);
-        menuAddRecursive.Click += async (_, _) => await OnAddRecursivelyAsync().ConfigureAwait(false);
-        menuRemoveItem.Click += async (_, _) => await OnRemoveItem().ConfigureAwait(false);
-        menuSubSettings.Click += async (_, _) => await OnSettings().ConfigureAwait(false);
+        menuAddItem.Click += async (_, _) => await OnAddItem().ConfigureAwait(true);
+        menuAddRecursive.Click += async (_, _) => await OnAddRecursivelyAsync().ConfigureAwait(true);
+        menuRemoveItem.Click += async (_, _) => await OnRemoveItem().ConfigureAwait(true);
+        menuSubSettings.Click += async (_, _) => await OnSettings().ConfigureAwait(true);
 
         // --- Tabs → New … wiring ---
-        menuNewGdsPush.Click += async (_, _) => await m_vm.AddPluginAsync(PluginKind.GdsPush).ConfigureAwait(false);
-        menuNewGdsManagement.Click += async (_, _) => await m_vm.AddPluginAsync(PluginKind.GdsManagement).ConfigureAwait(false);
+        menuNewGdsPush.Click += async (_, _) => await m_vm.AddPluginAsync(PluginKind.GdsPush).ConfigureAwait(true);
+        menuNewGdsManagement.Click += async (_, _) => await m_vm.AddPluginAsync(PluginKind.GdsManagement).ConfigureAwait(true);
         var menuNewGdsDiscovery = this.RequiredControl<MenuItem>("MenuNewGdsDiscovery");
-        menuNewGdsDiscovery.Click += async (_, _) => await m_vm.AddPluginAsync(PluginKind.GdsDiscovery).ConfigureAwait(false);
+        menuNewGdsDiscovery.Click += async (_, _) => await m_vm.AddPluginAsync(PluginKind.GdsDiscovery).ConfigureAwait(true);
         var menuLocales = this.RequiredControl<MenuItem>("MenuLocales");
-        menuLocales.Click += async (_, _) => await OnLocalesAsync().ConfigureAwait(false);
-        menuNewPerformance.Click += async (_, _) => await m_vm.AddPluginAsync(PluginKind.Performance).ConfigureAwait(false);
-        menuNewEventView.Click += async (_, _) => await m_vm.AddPluginAsync(PluginKind.EventView).ConfigureAwait(false);
-        menuNewHistorian.Click += async (_, _) => await m_vm.AddPluginAsync(PluginKind.Historian).ConfigureAwait(false);
-        menuNewFileSystem.Click += async (_, _) => await m_vm.AddPluginAsync(PluginKind.FileSystem).ConfigureAwait(false);
-        menuNewCertificateManager.Click += async (_, _) => await m_vm.AddPluginAsync(PluginKind.CertificateManager).ConfigureAwait(false);
+        menuLocales.Click += async (_, _) => await OnLocalesAsync().ConfigureAwait(true);
+        menuNewPerformance.Click += async (_, _) => await m_vm.AddPluginAsync(PluginKind.Performance).ConfigureAwait(true);
+        menuNewEventView.Click += async (_, _) => await m_vm.AddPluginAsync(PluginKind.EventView).ConfigureAwait(true);
+        menuNewHistorian.Click += async (_, _) => await m_vm.AddPluginAsync(PluginKind.Historian).ConfigureAwait(true);
+        menuNewFileSystem.Click += async (_, _) => await m_vm.AddPluginAsync(PluginKind.FileSystem).ConfigureAwait(true);
+        menuNewCertificateManager.Click += async (_, _) => await m_vm.AddPluginAsync(PluginKind.CertificateManager).ConfigureAwait(true);
 
         // --- Tabs → Rename / Duplicate / Close Active Tab ---
         menuRenameTab.Click += (_, _) =>
@@ -334,7 +334,7 @@ internal sealed partial class MainWindow : Window, IDisposable
             {
                 try
                 {
-                    await m_vm.CloseTabCommand.ExecuteAsync(tab).ConfigureAwait(false);
+                    await m_vm.CloseTabCommand.ExecuteAsync(tab).ConfigureAwait(true);
                 }
                 catch (Exception ex)
                 {
@@ -479,17 +479,17 @@ internal sealed partial class MainWindow : Window, IDisposable
 
         // Address-space context menu — visibility policy + wire actions.
         liveTree.ContextMenuPolicy = new ContextMenuPolicy(m_vm);
-        liveTree.AddItemRequested += async _ => await OnAddItem().ConfigureAwait(false);
-        liveTree.AddRecursivelyRequested += async _ => await OnAddRecursivelyAsync().ConfigureAwait(false);
-        liveTree.CallMethodRequested += async n => await OnCallMethod(n).ConfigureAwait(false);
-        liveTree.WriteValueRequested += async n => await OnWriteValue(n).ConfigureAwait(false);
+        liveTree.AddItemRequested += async _ => await OnAddItem().ConfigureAwait(true);
+        liveTree.AddRecursivelyRequested += async _ => await OnAddRecursivelyAsync().ConfigureAwait(true);
+        liveTree.CallMethodRequested += async n => await OnCallMethod(n).ConfigureAwait(true);
+        liveTree.WriteValueRequested += async n => await OnWriteValue(n).ConfigureAwait(true);
         liveTree.ReadHistoryRequested += async _ =>
-            await m_vm.AddPluginAsync(PluginKind.Historian).ConfigureAwait(false);
+            await m_vm.AddPluginAsync(PluginKind.Historian).ConfigureAwait(true);
         liveTree.ShowEventsRequested += async n =>
-            await m_vm.AddPluginAsync(PluginKind.EventView, seedEventSource: n).ConfigureAwait(false);
+            await m_vm.AddPluginAsync(PluginKind.EventView, seedEventSource: n).ConfigureAwait(true);
         liveTree.PerfRequested += async _ =>
-            await m_vm.AddPluginAsync(PluginKind.Performance, seedPickTarget: true).ConfigureAwait(false);
-        liveTree.ExportValueRequested += async n => await OnExportValueAsync(n).ConfigureAwait(false);
+            await m_vm.AddPluginAsync(PluginKind.Performance, seedPickTarget: true).ConfigureAwait(true);
+        liveTree.ExportValueRequested += async n => await OnExportValueAsync(n).ConfigureAwait(true);
         liveTree.FindByPathRequested += n => OnFindByPath(n);
         liveTree.ViewNodeStateRequested += n => OnViewNodeState(n);
 
@@ -770,7 +770,7 @@ internal sealed partial class MainWindow : Window, IDisposable
             }
         };
 
-        Closing += async (_, _) => await m_vm.DisposeAsync().ConfigureAwait(false);
+        Closing += async (_, _) => await m_vm.DisposeAsync().ConfigureAwait(true);
     }
 
     /// <summary>
@@ -1104,7 +1104,7 @@ internal sealed partial class MainWindow : Window, IDisposable
             }
 
             string path = file.Path.LocalPath;
-            await UaLens.Connection.SessionFile.SaveAsync(m_vm.SnapshotSession(), path).ConfigureAwait(false);
+            await UaLens.Connection.SessionFile.SaveAsync(m_vm.SnapshotSession(), path).ConfigureAwait(true);
         }
         catch (Exception ex)
         {
@@ -1147,7 +1147,7 @@ internal sealed partial class MainWindow : Window, IDisposable
                 return;
             }
 
-            await m_vm.LoadSessionAsync(sf).ConfigureAwait(false);
+            await m_vm.LoadSessionAsync(sf).ConfigureAwait(true);
         }
         catch (Exception ex)
         {
@@ -1417,7 +1417,7 @@ internal sealed partial class MainWindow : Window, IDisposable
     /// <summary>Right-click → Duplicate: clones the tab's subscription + items into a new tab.</summary>
     private async Task OnDuplicateTab(UaLens.ViewModels.SubscriptionViewModel tab)
     {
-        await m_vm.DuplicateTabAsync(tab).ConfigureAwait(false);
+        await m_vm.DuplicateTabAsync(tab).ConfigureAwait(true);
     }
 
     /// <summary>
@@ -1719,7 +1719,7 @@ internal sealed partial class MainWindow : Window, IDisposable
         {
             // Phase 1: namespace picker — user chooses which namespaces to include.
             var nsDlg = new NodeSetExportDialog(session.NamespaceUris);
-            IReadOnlyList<string>? picked = await nsDlg.ShowDialog<IReadOnlyList<string>?>(this).ConfigureAwait(false);
+            IReadOnlyList<string>? picked = await nsDlg.ShowDialog<IReadOnlyList<string>?>(this).ConfigureAwait(true);
             if (picked is null)
             {
                 return; // cancelled
@@ -1772,7 +1772,7 @@ internal sealed partial class MainWindow : Window, IDisposable
         {
             Opc.Ua.ApplicationConfiguration cfg = await m_vm.Connection.GetConfigAsync().ConfigureAwait(true);
             var dlg = new CertificateStoreDialog(cfg, m_vm.Telemetry);
-            await dlg.ShowDialog(this).ConfigureAwait(false);
+            await dlg.ShowDialog(this).ConfigureAwait(true);
         }
         catch (Exception ex)
         {
@@ -1794,7 +1794,7 @@ internal sealed partial class MainWindow : Window, IDisposable
             return;
         }
         m_vm.EndpointUrl = picked;
-        await OnConnect().ConfigureAwait(false);
+        await OnConnect().ConfigureAwait(true);
     }
 
     private async Task OnConnect()
@@ -1831,7 +1831,7 @@ internal sealed partial class MainWindow : Window, IDisposable
                 pick.Endpoint,
                 pick.Identity,
                 certPrompt: PromptCertTrustAsync,
-                System.Threading.CancellationToken.None).ConfigureAwait(false);
+                System.Threading.CancellationToken.None).ConfigureAwait(true);
             // No direct ApplySubscriptionAsync here — MainViewModel reacts
             // to the StateChanged event by creating the default tab via
             // AddTabCommand, which applies the default subscription config.
@@ -1852,7 +1852,7 @@ internal sealed partial class MainWindow : Window, IDisposable
         }
         try
         {
-            await m_vm.Connection.DisconnectAsync().ConfigureAwait(false);
+            await m_vm.Connection.DisconnectAsync().ConfigureAwait(true);
         }
         catch (Exception ex)
         {
@@ -1887,7 +1887,7 @@ internal sealed partial class MainWindow : Window, IDisposable
 #pragma warning restore CA2000
 
             await session.UpdateSessionAsync(identity, default, System.Threading.CancellationToken.None)
-                .ConfigureAwait(false);
+                .ConfigureAwait(true);
             m_vm.ConnectionStatus = $"● User changed to {user}.";
         }
         catch (Exception ex)
@@ -1907,7 +1907,7 @@ internal sealed partial class MainWindow : Window, IDisposable
         try
         {
             m_vm.ConnectionStatus = "● Reconnecting…";
-            await session.ReconnectAsync(null, null, System.Threading.CancellationToken.None).ConfigureAwait(false);
+            await session.ReconnectAsync(null, null, System.Threading.CancellationToken.None).ConfigureAwait(true);
             m_vm.ConnectionStatus = "● Reconnected.";
         }
         catch (Exception ex)
@@ -1926,7 +1926,7 @@ internal sealed partial class MainWindow : Window, IDisposable
         return Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(async () =>
         {
             var dlg = new UaLens.Views.CertificateTrustDialog(cert, error);
-            var choice = await dlg.ShowDialog<Connection.TrustChoice?>(this).ConfigureAwait(false);
+            var choice = await dlg.ShowDialog<Connection.TrustChoice?>(this).ConfigureAwait(true);
             return choice ?? UaLens.Connection.TrustChoice.Reject;
         });
     }
@@ -1943,10 +1943,10 @@ internal sealed partial class MainWindow : Window, IDisposable
         if (node.NodeClass == Opc.Ua.NodeClass.Variable)
         {
             var dlg = new AddItemDialog(node, isEvent: false);
-            MonitoredItemConfig? r = await dlg.ShowDialog<MonitoredItemConfig?>(this).ConfigureAwait(false);
+            MonitoredItemConfig? r = await dlg.ShowDialog<MonitoredItemConfig?>(this).ConfigureAwait(true);
             if (r is not null)
             {
-                await tab.AddItemCommand.ExecuteAsync(r).ConfigureAwait(false);
+                await tab.AddItemCommand.ExecuteAsync(r).ConfigureAwait(true);
             }
             return;
         }
@@ -1958,10 +1958,10 @@ internal sealed partial class MainWindow : Window, IDisposable
             if (m_vm.SelectionHasEvents && !m_vm.SelectionHasVariables)
             {
                 var dlg = new AddItemDialog(node, isEvent: true);
-                MonitoredItemConfig? r = await dlg.ShowDialog<MonitoredItemConfig?>(this).ConfigureAwait(false);
+                MonitoredItemConfig? r = await dlg.ShowDialog<MonitoredItemConfig?>(this).ConfigureAwait(true);
                 if (r is not null)
                 {
-                    await tab.AddItemCommand.ExecuteAsync(r).ConfigureAwait(false);
+                    await tab.AddItemCommand.ExecuteAsync(r).ConfigureAwait(true);
                 }
                 return;
             }
@@ -1970,10 +1970,10 @@ internal sealed partial class MainWindow : Window, IDisposable
             if (m_vm.SelectionHasVariables && !m_vm.SelectionHasEvents)
             {
                 var dlg = new AddItemDialog(node, isEvent: false);
-                MonitoredItemConfig? r = await dlg.ShowDialog<MonitoredItemConfig?>(this).ConfigureAwait(false);
+                MonitoredItemConfig? r = await dlg.ShowDialog<MonitoredItemConfig?>(this).ConfigureAwait(true);
                 if (r is not null)
                 {
-                    await BulkAddVariablesAsync(tab, r.SamplingInterval).ConfigureAwait(false);
+                    await BulkAddVariablesAsync(tab, r.SamplingInterval).ConfigureAwait(true);
                 }
                 return;
             }
@@ -1983,7 +1983,7 @@ internal sealed partial class MainWindow : Window, IDisposable
             {
                 byte? notifier = await m_vm.Browser.GetEventNotifierAsync(node.NodeId).ConfigureAwait(true);
                 var dlg = new AddObjectChildrenDialog(node, notifier, m_vm.SelectionVariables.Count);
-                ObjectAddDecision? d = await dlg.ShowDialog<ObjectAddDecision?>(this).ConfigureAwait(false);
+                ObjectAddDecision? d = await dlg.ShowDialog<ObjectAddDecision?>(this).ConfigureAwait(true);
                 if (d is not { } dec)
                 {
                     return;
@@ -2002,11 +2002,11 @@ internal sealed partial class MainWindow : Window, IDisposable
                         IsEvent = true,
                         MonitoringMode = Opc.Ua.MonitoringMode.Reporting
                     };
-                    await tab.AddItemCommand.ExecuteAsync(evt).ConfigureAwait(false);
+                    await tab.AddItemCommand.ExecuteAsync(evt).ConfigureAwait(true);
                 }
                 if (dec.Mode == ObjectAddMode.VariablesOnly || dec.Mode == ObjectAddMode.Both)
                 {
-                    await BulkAddVariablesAsync(tab, sampling).ConfigureAwait(false);
+                    await BulkAddVariablesAsync(tab, sampling).ConfigureAwait(true);
                 }
             }
         }
@@ -2033,7 +2033,7 @@ internal sealed partial class MainWindow : Window, IDisposable
                 IsEvent = false,
                 MonitoringMode = Opc.Ua.MonitoringMode.Reporting
             };
-            await tab.AddItemCommand.ExecuteAsync(cfg).ConfigureAwait(false);
+            await tab.AddItemCommand.ExecuteAsync(cfg).ConfigureAwait(true);
         }
     }
 
@@ -2064,7 +2064,7 @@ internal sealed partial class MainWindow : Window, IDisposable
         }
 
         var dlg = new RecursiveAddDialog($"{selected.NodeId}  ({selected.NodeClass})");
-        RecursiveAddOptions? opts = await dlg.ShowDialog<RecursiveAddOptions?>(this).ConfigureAwait(false);
+        RecursiveAddOptions? opts = await dlg.ShowDialog<RecursiveAddOptions?>(this).ConfigureAwait(true);
         if (opts is null)
         {
             return;
@@ -2162,7 +2162,7 @@ internal sealed partial class MainWindow : Window, IDisposable
         {
             Opc.Ua.ArrayOf<Opc.Ua.INode> hits = await session.NodeCache
                 .FindReferencesAsync(frontier, hierRefs, isInverse: false, includeSubtypes: true)
-                .ConfigureAwait(false);
+                .ConfigureAwait(true);
             var next = new System.Collections.Generic.List<Opc.Ua.ExpandedNodeId>();
             foreach (Opc.Ua.INode n in hits)
             {
@@ -2205,7 +2205,7 @@ internal sealed partial class MainWindow : Window, IDisposable
             frontier = new Opc.Ua.ArrayOf<Opc.Ua.ExpandedNodeId>(next.ToArray());
         }
 
-        var eventEmitters = await FilterEventEmittersAsync(session, objectCandidates).ConfigureAwait(false);
+        var eventEmitters = await FilterEventEmittersAsync(session, objectCandidates).ConfigureAwait(true);
         return (variables, eventEmitters);
     }
 
@@ -2241,7 +2241,7 @@ internal sealed partial class MainWindow : Window, IDisposable
         try
         {
             Opc.Ua.ReadResponse resp = await session.ReadAsync(
-                null, 0, Opc.Ua.TimestampsToReturn.Neither, ids, default).ConfigureAwait(false);
+                null, 0, Opc.Ua.TimestampsToReturn.Neither, ids, default).ConfigureAwait(true);
             int n = System.Math.Min(resp.Results.Count, candidates.Count);
             for (int i = 0; i < n; i++)
             {
@@ -2280,14 +2280,14 @@ internal sealed partial class MainWindow : Window, IDisposable
         }
         var dlg = new RemoveItemDialog(adapter.Items);
         IReadOnlyList<MonitoredItemConfig>? r =
-            await dlg.ShowDialog<IReadOnlyList<MonitoredItemConfig>?>(this).ConfigureAwait(false);
+            await dlg.ShowDialog<IReadOnlyList<MonitoredItemConfig>?>(this).ConfigureAwait(true);
         if (r is null)
         {
             return;
         }
         foreach (MonitoredItemConfig item in r)
         {
-            await tab.RemoveItemCommand.ExecuteAsync(item).ConfigureAwait(false);
+            await tab.RemoveItemCommand.ExecuteAsync(item).ConfigureAwait(true);
         }
     }
 
@@ -2329,10 +2329,10 @@ internal sealed partial class MainWindow : Window, IDisposable
         // edit the SubscriptionConfig pre-connect.
         bool hasPool = tab.Adapter?.HasWorkerPool ?? true;
         var dlg = new SubscriptionSettingsDialog(tab.Subscription, hasPool);
-        SubscriptionConfig? r = await dlg.ShowDialog<SubscriptionConfig?>(this).ConfigureAwait(false);
+        SubscriptionConfig? r = await dlg.ShowDialog<SubscriptionConfig?>(this).ConfigureAwait(true);
         if (r is not null)
         {
-            await tab.ApplySubscriptionCommand.ExecuteAsync(r).ConfigureAwait(false);
+            await tab.ApplySubscriptionCommand.ExecuteAsync(r).ConfigureAwait(true);
         }
     }
 
@@ -2347,7 +2347,7 @@ internal sealed partial class MainWindow : Window, IDisposable
             return;
         }
         var dlg = new MethodCallDialog(node, session);
-        await dlg.ShowDialog(this).ConfigureAwait(false);
+        await dlg.ShowDialog(this).ConfigureAwait(true);
     }
 
     /// <summary>
@@ -2361,7 +2361,7 @@ internal sealed partial class MainWindow : Window, IDisposable
             return;
         }
         var dlg = new WriteValueDialog(node, session);
-        await dlg.ShowDialog(this).ConfigureAwait(false);
+        await dlg.ShowDialog(this).ConfigureAwait(true);
     }
 
     /// <summary>
@@ -2402,9 +2402,9 @@ internal sealed partial class MainWindow : Window, IDisposable
             byte[] bytes = UaLens.Connection.DataValueCodec.EncodeDataValue(
                 dv, fmt, session.MessageContext);
             System.IO.Stream output = await file.OpenWriteAsync().ConfigureAwait(true);
-            await using (output.ConfigureAwait(false))
+            await using (output.ConfigureAwait(true))
             {
-                await output.WriteAsync(bytes).ConfigureAwait(false);
+                await output.WriteAsync(bytes).ConfigureAwait(true);
             }
             m_vm.ConnectionStatus = $"● Exported value to {file.Name} ({fmt}).";
         }

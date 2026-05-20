@@ -86,7 +86,7 @@ internal sealed partial class DiagnosticsView : UserControl
         {
             Rows.Add(new DiagRow(label, "(loading…)"));
         }
-        m_timer = new DispatcherTimer(TimeSpan.FromSeconds(1), DispatcherPriority.Background, async (_, _) => await PollAsync().ConfigureAwait(false));
+        m_timer = new DispatcherTimer(TimeSpan.FromSeconds(1), DispatcherPriority.Background, async (_, _) => await PollAsync().ConfigureAwait(true));
     }
 
     /// <summary>

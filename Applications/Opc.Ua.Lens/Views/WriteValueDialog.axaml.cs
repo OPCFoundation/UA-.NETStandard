@@ -67,7 +67,7 @@ internal sealed partial class WriteValueDialog : Window
         var ok = this.RequiredControl<Button>("OkButton");
         var cancel = this.RequiredControl<Button>("CancelButton");
         var import = this.RequiredControl<Button>("ImportButton");
-        ok.Click += async (_, _) => await OnWrite().ConfigureAwait(false);
+        ok.Click += async (_, _) => await OnWrite().ConfigureAwait(true);
         cancel.Click += (_, _) => Close();
         import.Click += async (_, _) => await OnImportAsync().ConfigureAwait(true);
 
@@ -83,7 +83,7 @@ internal sealed partial class WriteValueDialog : Window
 
         // Defer the read until after the window is shown so the dialog
         // appears immediately with a "loading…" placeholder.
-        Opened += async (_, _) => await LoadCurrentAsync().ConfigureAwait(false);
+        Opened += async (_, _) => await LoadCurrentAsync().ConfigureAwait(true);
     }
 
     private static void WireOverride(CheckBox toggle, Control partner)

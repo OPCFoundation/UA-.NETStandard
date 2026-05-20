@@ -338,7 +338,7 @@ internal sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         {
             if (Connection.IsConnected)
             {
-                await Connection.DisconnectAsync().ConfigureAwait(false);
+                await Connection.DisconnectAsync().ConfigureAwait(true);
                 return;
             }
             ConnectionStatus = "● Connecting…";
@@ -349,7 +349,7 @@ internal sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
                     UseSecurity = false,
                     Engine = Engine
                 },
-                CancellationToken.None).ConfigureAwait(false);
+                CancellationToken.None).ConfigureAwait(true);
             // First tab is created on the StateChanged callback (SyncFromConnection).
         }
         catch (Exception ex)
@@ -373,8 +373,8 @@ internal sealed partial class MainViewModel : ObservableObject, IAsyncDisposable
         OnPropertyChanged(nameof(UseChannelV2Engine));
         if (Connection.IsConnected)
         {
-            await Connection.DisconnectAsync().ConfigureAwait(false);
-            await ConnectAsync().ConfigureAwait(false);
+            await Connection.DisconnectAsync().ConfigureAwait(true);
+            await ConnectAsync().ConfigureAwait(true);
         }
     }
 
