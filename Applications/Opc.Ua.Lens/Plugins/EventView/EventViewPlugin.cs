@@ -279,35 +279,27 @@ internal sealed partial class EventViewPlugin : ObservableObject, IPlugin
             return;
         }
 
-        // Fallback: open the flat-browse picker filtered to Objects / Views
-        // whose EventNotifier has SubscribeToEvents.  Using the
-        // FlattenedBrowseDialog directly (rather than the tree picker)
-        // keeps parity with the Trigger button and lists every event
-        // source in one scrollable view.
+        // Fallback: prompt via BrowsePickerDialog rooted at ObjectsFolder.
         Window? owner = TopLevelWindow();
-        var options = new BrowsePickerDialog.Options(
+        var picker = new BrowsePickerDialog(new BrowsePickerDialog.Options(
             Session: session,
             Root: ObjectIds.ObjectsFolder,
             Title: "Pick event source",
             AcceptedClasses: NodeClass.Object | NodeClass.View,
-            ReferenceTypeId: ReferenceTypeIds.HierarchicalReferences,
             AcceptPredicate: async (id, _) =>
             {
-                byte? n = await m_host.Browser
-                    .GetEventNotifierAsync(id, CancellationToken.None)
-                    .ConfigureAwait(true);
+                byte? n = await m_host.Browser.GetEventNotifierAsync(id, CancellationToken.None).ConfigureAwait(true);
                 return n is not null && (n.Value & EventNotifiers.SubscribeToEvents) != 0;
             },
-            Header: "Pick an Object or View that emits events (EventNotifier has SubscribeToEvents).");
-        var dlg = new FlattenedBrowseDialog(options);
+            Header: "Pick an Object or View that emits events (EventNotifier has SubscribeToEvents)."));
         NodeId? pickedId = owner is null
-            ? await dlg.ShowDialog<NodeId?>(new Window()).ConfigureAwait(true)
-            : await dlg.ShowDialog<NodeId?>(owner).ConfigureAwait(true);
-        if (!pickedId.HasValue || pickedId.Value.IsNull || dlg.PickedItem is null)
+            ? await picker.ShowDialog<NodeId?>(new Window()).ConfigureAwait(true)
+            : await picker.ShowDialog<NodeId?>(owner).ConfigureAwait(true);
+        if (!pickedId.HasValue || pickedId.Value.IsNull)
         {
             return;
         }
-        await AddSourceCoreAsync(pickedId.Value, dlg.PickedItem.DisplayName).ConfigureAwait(true);
+        await AddSourceCoreAsync(pickedId.Value, picker.PickedDisplay).ConfigureAwait(true);
     }
 
     [RelayCommand]
@@ -572,8 +564,35 @@ internal sealed partial class EventViewPlugin : ObservableObject, IPlugin
                 DiscardOldest = true,
                 Filter = BuildEventFilter(m_selectClauses, m_whereClause)
             });
+
+            // Register the source in the UI list BEFORE the network round-trip
+            // so the user gets immediate feedback that the click was accepted
+            // — and so a server-side failure (filter rejection, bad NodeId)
+            // doesn't silently leave the Event sources panel empty. We're on
+            // the UI thread here (every await uses ConfigureAwait(true)), so
+            // mutating EventSources directly is safe.
+            var source = new EventSourceVm(nodeId, displayName, mi);
+            m_byHandle[mi.ClientHandle] = source;
+            EventSources.Add(source);
+            RefreshStatus();
+            m_log.LogInformation(
+                "Event View added source {Name} ({Node}) ch={Handle}.",
+                displayName, nodeId, mi.ClientHandle);
+
             sub.AddItem(mi);
-            await sub.ApplyChangesAsync(CancellationToken.None).ConfigureAwait(true);
+            try
+            {
+                await sub.ApplyChangesAsync(CancellationToken.None).ConfigureAwait(true);
+            }
+            catch (Exception applyEx)
+            {
+                m_log.LogError(applyEx,
+                    "Event View source {Name} ({Node}) ApplyChanges failed; " +
+                    "source remains in the list but won't deliver events.",
+                    displayName, nodeId);
+                return;
+            }
+
             // Surface the server's filter feedback so users see why no
             // events flow when the filter is rejected (e.g. unknown field
             // path against the chosen EventType).
@@ -592,15 +611,6 @@ internal sealed partial class EventViewPlugin : ObservableObject, IPlugin
                     displayName, nodeId, mi.ClientHandle,
                     mi.Status.FilterResult is null ? "(no diagnostics)" : "with diagnostics");
             }
-            var source = new EventSourceVm(nodeId, displayName, mi);
-            m_byHandle[mi.ClientHandle] = source;
-            Dispatcher.UIThread.Post(() =>
-            {
-                EventSources.Add(source);
-                RefreshStatus();
-            });
-            m_log.LogInformation("Event View added source {Name} ({Node}) ch={Handle}.",
-                displayName, nodeId, mi.ClientHandle);
         }
         catch (Exception ex)
         {
