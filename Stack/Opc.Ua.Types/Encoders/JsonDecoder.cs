@@ -1352,10 +1352,8 @@ namespace Opc.Ua
                             statusCode,
                             sourceTimestamp,
                             serverTimestamp)
-                        {
-                            SourcePicoseconds = sourcePicoseconds,
-                            ServerPicoseconds = serverPicoseconds
-                        };
+                            .WithSourcePicoseconds(sourcePicoseconds)
+                            .WithServerPicoseconds(serverPicoseconds);
                         return true;
                     }
                     finally

@@ -952,12 +952,13 @@ namespace Opc.Ua
             {
                 PushNamespace(Namespaces.OpcUaXsd);
 
-                value.WrappedValue = ReadVariant("Value");
-                value.StatusCode = ReadStatusCode("StatusCode");
-                value.SourceTimestamp = ReadDateTime("SourceTimestamp");
-                value.SourcePicoseconds = ReadUInt16("SourcePicoseconds");
-                value.ServerTimestamp = ReadDateTime("ServerTimestamp");
-                value.ServerPicoseconds = ReadUInt16("ServerPicoseconds");
+                value = value
+                    .WithWrappedValue(ReadVariant("Value"))
+                    .WithStatus(ReadStatusCode("StatusCode"))
+                    .WithSourceTimestamp(ReadDateTime("SourceTimestamp"))
+                    .WithSourcePicoseconds(ReadUInt16("SourcePicoseconds"))
+                    .WithServerTimestamp(ReadDateTime("ServerTimestamp"))
+                    .WithServerPicoseconds(ReadUInt16("ServerPicoseconds"));
 
                 PopNamespace();
 
