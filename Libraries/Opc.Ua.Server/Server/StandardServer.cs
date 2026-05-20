@@ -685,7 +685,7 @@ namespace Opc.Ua.Server
             try
             {
                 // activate the session.
-                (bool identityChanged, serverNonce) = await ServerInternal.SessionManager.ActivateSessionAsync(
+                (bool identityChanged, serverNonce, ServiceResult activationStatus) = await ServerInternal.SessionManager.ActivateSessionAsync(
                         context,
                         requestHeader.AuthenticationToken,
                         clientSignature,
@@ -697,7 +697,16 @@ namespace Opc.Ua.Server
 
                 if (identityChanged)
                 {
-                    // TBD - call Node Manager and Subscription Manager.
+                    ISession? activatedSession = ServerInternal.SessionManager
+                        .GetSession(requestHeader.AuthenticationToken);
+
+                    if (activatedSession != null)
+                    {
+                        await ServerInternal.NodeManager.SessionActivatedAsync(
+                            context,
+                            activatedSession.Id,
+                            requestLifetime.CancellationToken).ConfigureAwait(false);
+                    }
                 }
 
                 ISession? session = ServerInternal.SessionManager
@@ -715,7 +724,13 @@ namespace Opc.Ua.Server
                     context.AuditEntryId!,
                     session!);
 
-                ResponseHeader responseHeader = CreateResponse(requestHeader, StatusCodes.Good);
+                // Use the activation status from SessionManager so spec-defined
+                // success codes (e.g. Good_PasswordChangeRequired per Part 18
+                // §5.2.8) reach the client.
+                StatusCode resultStatus = ServiceResult.IsGood(activationStatus)
+                    ? activationStatus.StatusCode
+                    : (StatusCode)StatusCodes.Good;
+                ResponseHeader responseHeader = CreateResponse(requestHeader, resultStatus);
 
                 if (parameters != null)
                 {

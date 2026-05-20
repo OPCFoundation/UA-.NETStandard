@@ -475,6 +475,66 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Adds an already-constructed node subtree (a "predefined" subtree)
+        /// to this manager's address space while preserving the caller-supplied
+        /// NodeIds.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// Use this when a node is materialized dynamically at runtime and the
+        /// caller has already allocated NodeIds for the root and every child
+        /// (e.g. via <see cref="IRoleManager.AddRole"/>). Unlike
+        /// <see cref="AddNodeAsync"/>, this method does <strong>not</strong>
+        /// run <c>AssignNodeIds</c> — the NodeIds set on the instance and its
+        /// children are kept verbatim and used as PredefinedNodes keys.
+        /// </para>
+        /// <para>
+        /// The supplied <paramref name="node"/> should already be attached to
+        /// its parent (via <c>parent.AddChild</c>) when invoked, if a parent
+        /// linkage is required for browse references.
+        /// </para>
+        /// </remarks>
+        /// <param name="node">The pre-built node subtree to register.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        public async ValueTask AddPredefinedNodeAsync(NodeState node, CancellationToken cancellationToken = default)
+        {
+            if (node == null)
+            {
+                throw new ArgumentNullException(nameof(node));
+            }
+
+            await AddPredefinedNodeAsync(SystemContext, node, cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Replaces an existing PredefinedNodes entry in place. Used by
+        /// runtime upgraders (e.g. <see cref="RoleStateBinding"/>) that
+        /// swap a passive child with a typed proxy after the original
+        /// nodeset was loaded.
+        /// </summary>
+        /// <remarks>
+        /// The replacement only affects the manager's address-space index.
+        /// Parent linkage and child traversal must already be wired up by
+        /// the caller via <c>parent.ReplaceChild</c>.
+        /// </remarks>
+        /// <param name="nodeId">The NodeId whose entry should be replaced.</param>
+        /// <param name="node">The replacement node state.</param>
+        /// <returns><see langword="true"/> if an existing entry was replaced.</returns>
+        internal bool ReplacePredefinedNode(NodeId nodeId, NodeState node)
+        {
+            if (nodeId.IsNull || node == null)
+            {
+                return false;
+            }
+            if (!PredefinedNodes.ContainsKey(nodeId))
+            {
+                return false;
+            }
+            PredefinedNodes[nodeId] = node;
+            return true;
+        }
+
+        /// <summary>
         /// Deletes a node and all of its children.
         /// </summary>
         public async ValueTask<bool> DeleteNodeAsync(ServerSystemContext context, NodeId nodeId, CancellationToken cancellationToken = default)
@@ -1773,15 +1833,13 @@ namespace Opc.Ua.Server
                 }
 
                 // read the attribute value.
-                lock (handle.Node)
-                {
-                    errors[ii] = handle.Node.ReadAttribute(
-                        systemContext,
-                        nodeToRead.AttributeId,
-                        nodeToRead.ParsedIndexRange,
-                        nodeToRead.DataEncoding,
-                        value);
-                }
+                errors[ii] = await handle.Node.ReadAttributeAsync(
+                    systemContext,
+                    nodeToRead.AttributeId,
+                    nodeToRead.ParsedIndexRange,
+                    nodeToRead.DataEncoding,
+                    value,
+                    cancellationToken).ConfigureAwait(false);
 
                 // Set timestamps after ReadAttribute to ensure consistency
                 // For Value attributes, match ServerTimestamp to SourceTimestamp
@@ -2097,27 +2155,24 @@ namespace Opc.Ua.Server
                     {
                         //current server supports auditing
                         // read the old value for the purpose of auditing
-                        lock (handle.Node)
-                        {
-                            DateTimeUtc sourceTimestamp = DateTimeUtc.MinValue;
-                            handle.Node.ReadAttribute(
-                                systemContext,
-                                nodeToWrite.AttributeId,
-                                ref oldValue,
-                                ref sourceTimestamp,
-                                nodeToWrite.ParsedIndexRange);
-                        }
-                    }
-
-                    // write the attribute value.
-                    lock (handle.Node)
-                    {
-                        errors[ii] = handle.Node.WriteAttribute(
+                        var oldDataValue = new DataValue();
+                        await handle.Node.ReadAttributeAsync(
                             systemContext,
                             nodeToWrite.AttributeId,
                             nodeToWrite.ParsedIndexRange,
-                            nodeToWrite.Value);
+                            QualifiedName.Null,
+                            oldDataValue,
+                            cancellationToken).ConfigureAwait(false);
+                        oldValue = oldDataValue.WrappedValue;
                     }
+
+                    // write the attribute value.
+                    errors[ii] = await handle.Node.WriteAttributeAsync(
+                        systemContext,
+                        nodeToWrite.AttributeId,
+                        nodeToWrite.ParsedIndexRange,
+                        nodeToWrite.Value,
+                        cancellationToken).ConfigureAwait(false);
 
                     // report the write value audit event
                     Server.ReportAuditWriteUpdateEvent(
@@ -5064,6 +5119,24 @@ namespace Opc.Ua.Server
         {
             // overridden by the sub-class.
             return new ValueTask();
+        }
+
+        /// <summary>
+        /// Called when a session is activated and the user identity has changed.
+        /// Invalidates cached role permissions for all monitored items belonging to the session
+        /// so that permissions are re-evaluated on the next data change notification.
+        /// </summary>
+        public virtual ValueTask SessionActivatedAsync(
+            OperationContext context,
+            NodeId sessionId,
+            CancellationToken cancellationToken = default)
+        {
+            foreach (MonitoredNode2 monitoredNode in MonitoredNodes.Values)
+            {
+                monitoredNode.InvalidatePermissionCacheForSession(sessionId);
+            }
+
+            return default;
         }
 
         /// <summary>

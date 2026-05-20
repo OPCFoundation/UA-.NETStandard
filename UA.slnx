@@ -49,6 +49,9 @@
     <Project Path="Libraries/Opc.Ua.Lds.Server/Opc.Ua.Lds.Server.csproj" />
     <Project Path="Libraries/Opc.Ua.PubSub/Opc.Ua.PubSub.csproj" />
     <Project Path="Libraries/Opc.Ua.Server/Opc.Ua.Server.csproj" />
+    <Project Path="Libraries/Opc.Ua.WotCon/Opc.Ua.WotCon.csproj" />
+    <Project Path="Libraries/Opc.Ua.WotCon.Client/Opc.Ua.WotCon.Client.csproj" />
+    <Project Path="Libraries/Opc.Ua.WotCon.Server/Opc.Ua.WotCon.Server.csproj" />
   </Folder>
   <Folder Name="/Solution Items/">
     <File Path=".dockerignore" />
@@ -140,5 +143,6 @@
     <Project Path="Tests/Opc.Ua.SourceGeneration.Stack.Tests/Opc.Ua.SourceGeneration.Stack.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.SourceGeneration.Tests/Opc.Ua.SourceGeneration.Tests.csproj" />
     <Project Path="Tests/Opc.Ua.Types.Tests/Opc.Ua.Types.Tests.csproj" />
+    <Project Path="Tests/Opc.Ua.WotCon.Tests/Opc.Ua.WotCon.Tests.csproj" />
   </Folder>
 </Solution>
