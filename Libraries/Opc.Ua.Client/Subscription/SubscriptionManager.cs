@@ -89,6 +89,9 @@ namespace Opc.Ua.Client.Subscriptions
         public bool TransferSubscriptionsOnRecreate { get; set; }
 
         /// <inheritdoc/>
+        public bool PoolNotifications { get; set; }
+
+        /// <inheritdoc/>
         public DiagnosticsMasks ReturnDiagnostics { get; set; }
 
         /// <inheritdoc/>
