@@ -39,7 +39,7 @@ using Microsoft.Extensions.Logging;
 namespace Opc.Ua.Server
 {
     /// <inheritdoc/>
-    public class DiagnosticsNodeManager : AsyncCustomNodeManager, IDiagnosticsNodeManager
+    public partial class DiagnosticsNodeManager : AsyncCustomNodeManager, IDiagnosticsNodeManager
     {
         /// <summary>
         /// Initializes the node manager.
@@ -109,6 +109,11 @@ namespace Opc.Ua.Server
                 m_modifyAddressSpaceSemaphoreSlim.Dispose();
 
                 m_historyCapabilities = null;
+
+                // OPC UA Part 17 — unsubscribe from the alias-name
+                // registry so the registry does not hold a stale handler
+                // reference into a disposed manager.
+                UnwireStandardAliasMethods();
             }
 
             base.Dispose(disposing);
@@ -249,6 +254,11 @@ namespace Opc.Ua.Server
                 MethodIds.Server_ResendData);
 
             resendData?.OnCallMethod = OnResendData;
+
+            // OPC UA Part 17 — wire the standard well-known Aliases /
+            // TagVariables / Topics methods through the server-wide
+            // IAliasNameStoreRegistry. See DiagnosticsNodeManager.AliasNames.cs.
+            WireStandardAliasMethods();
         }
 
         /// <summary>
@@ -502,6 +512,28 @@ namespace Opc.Ua.Server
                     // replace the node in the parent.
                     passiveNode.Parent?.ReplaceChild(context, activeNode);
 
+                    return activeNode;
+                }
+                case ObjectTypes.RoleSetType:
+                {
+                    if (passiveNode is RoleSetState)
+                    {
+                        break;
+                    }
+                    var activeNode = new RoleSetState(passiveNode.Parent);
+                    activeNode.Create(context, passiveNode);
+                    passiveNode.Parent?.ReplaceChild(context, activeNode);
+                    return activeNode;
+                }
+                case ObjectTypes.RoleType:
+                {
+                    if (passiveNode is RoleState)
+                    {
+                        break;
+                    }
+                    var activeNode = new RoleState(passiveNode.Parent);
+                    activeNode.Create(context, passiveNode);
+                    passiveNode.Parent?.ReplaceChild(context, activeNode);
                     return activeNode;
                 }
             }

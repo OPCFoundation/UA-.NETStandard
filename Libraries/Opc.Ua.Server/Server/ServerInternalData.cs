@@ -58,7 +58,7 @@ namespace Opc.Ua.Server
     /// Objects returned from this object can be assumed to be threadsafe unless otherwise stated.
     /// </para>
     /// </remarks>
-    public class ServerInternalData : IServerInternal
+    public class ServerInternalData : IServerInternal, AliasNames.IAliasNameStoreRegistryProvider
     {
         /// <summary>
         /// Initializes the datastore with the server configuration.
@@ -117,6 +117,9 @@ namespace Opc.Ua.Server
         {
             if (disposing)
             {
+                m_roleStateBinding?.Dispose();
+                m_roleStateBinding = null;
+                (RoleManager as IDisposable)?.Dispose();
                 ResourceManager?.Dispose();
                 RequestManager?.Dispose();
                 AggregateManager?.Dispose();
@@ -125,8 +128,19 @@ namespace Opc.Ua.Server
                 SessionManager?.Dispose();
                 SubscriptionManager?.Dispose();
                 MonitoredItemQueueFactory?.Dispose();
+                (AliasNameStoreRegistry as IDisposable)?.Dispose();
             }
         }
+
+        /// <summary>
+        /// The server-wide registry of OPC UA Part 17 alias-name stores.
+        /// Surfaces through the optional
+        /// <see cref="AliasNames.IAliasNameStoreRegistryProvider"/>
+        /// interface so consumers can discover it without any change to
+        /// <see cref="IServerInternal"/>; never <c>null</c>.
+        /// </summary>
+        public AliasNames.IAliasNameStoreRegistry AliasNameStoreRegistry { get; }
+            = new AliasNames.AliasNameStoreRegistry();
 
         /// <summary>
         /// The session manager to use with the server.
@@ -136,6 +150,9 @@ namespace Opc.Ua.Server
 
         /// <inheritdoc/>
         public IRoleManager RoleManager { get; private set; } = new RoleManager();
+
+        /// <inheritdoc/>
+        public Opc.Ua.Server.UserManagement.IUserManagement? UserManagement { get; private set; }
 
         /// <summary>
         /// The subscription manager to use with the server.
@@ -238,6 +255,12 @@ namespace Opc.Ua.Server
         {
             if (roleManager == null) { throw new ArgumentNullException(nameof(roleManager)); }
             RoleManager = roleManager;
+        }
+
+        /// <inheritdoc/>
+        public void SetUserManagement(Opc.Ua.Server.UserManagement.IUserManagement userManagement)
+        {
+            UserManagement = userManagement ?? throw new ArgumentNullException(nameof(userManagement));
         }
 
         /// <summary>
@@ -865,12 +888,15 @@ namespace Opc.Ua.Server
             auditing.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
             auditing.MinimumSamplingInterval = 1000;
 
-            // Wire RoleManager into the well-known role nodes so AddIdentity /
-            // AddApplication / AddEndpoint method calls update the live identity
-            // map used by the impersonation path.
+            // Wire RoleManager into the well-known role nodes per Part 18 §4.
+            // The binding upgrades RoleSet to the typed RoleSetState proxy,
+            // wires typed OnCallAsync delegates on each Role's method-state
+            // children, applies the SecurityAdmin + SignAndEncrypt
+            // authorization gate, and raises RoleMappingRuleChangedAuditEvent
+            // on every successful mutation.
             if (DiagnosticsNodeManager is AsyncCustomNodeManager diagnosticsCustom)
             {
-                RoleStateBinding.Bind(diagnosticsCustom, RoleManager);
+                m_roleStateBinding = RoleStateBinding.Bind(diagnosticsCustom, RoleManager, this);
             }
         }
 
@@ -1012,5 +1038,6 @@ namespace Opc.Ua.Server
         private readonly ServerProperties m_serverDescription;
         private readonly ApplicationConfiguration m_configuration;
         private readonly List<Uri> m_endpointAddresses;
+        private RoleStateBinding? m_roleStateBinding;
     }
 }

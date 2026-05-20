@@ -89,6 +89,15 @@ namespace Opc.Ua.Server
         {
             if (disposing)
             {
+                // Unsubscribe from RoleManager configuration events before
+                // tearing down sessions to avoid late-stage callbacks racing
+                // with disposal.
+                IRoleManager? subscribed = Interlocked.Exchange(ref m_subscribedRoleManager, null);
+                if (subscribed != null)
+                {
+                    subscribed.RoleConfigurationChanged -= OnRoleConfigurationChanged;
+                }
+
                 // create snapshot of all sessions
                 KeyValuePair<NodeId, ISession>[] sessions = [.. m_sessions];
                 m_sessions.Clear();
@@ -290,7 +299,7 @@ namespace Opc.Ua.Server
         /// Activates an existing session
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public virtual async ValueTask<(bool IdentityContextChanged, ByteString ServerNonce)> ActivateSessionAsync(
+        public virtual async ValueTask<(bool IdentityContextChanged, ByteString ServerNonce, ServiceResult ActivationStatus)> ActivateSessionAsync(
             OperationContext context,
             NodeId authenticationToken,
             SignatureData? clientSignature,
@@ -451,6 +460,13 @@ namespace Opc.Ua.Server
                 // Add mandatory roles based on session/channel security context (e.g., TrustedApplication).
                 effectiveIdentity = AddMandatoryRoles(session, context, effectiveIdentity);
 
+                // Per Part 18 §5.2.8: when the authenticated user has the
+                // MustChangePassword bit set on UserManagement, the activation
+                // response shall carry Good_PasswordChangeRequired so the
+                // client knows to prompt for a new password. The role
+                // restriction is enforced separately by AddMandatoryRoles.
+                ServiceResult activationStatus = ComputeActivationStatus(effectiveIdentity);
+
                 // activate session.
 
                 bool contextChanged = session.Activate(
@@ -470,7 +486,7 @@ namespace Opc.Ua.Server
                 }
 
                 // indicates that the identity context for the session has changed.
-                return (contextChanged, serverNonce);
+                return (contextChanged, serverNonce, activationStatus);
             }
             finally
             {
@@ -588,6 +604,20 @@ namespace Opc.Ua.Server
                 // validate user has permissions for additional info
                 session.ValidateDiagnosticInfo(requestHeader);
 
+                // Lazily reconcile the RoleManager subscription. The
+                // RoleManager may be injected after SessionManager
+                // construction (see IServerInternal.SetRoleManager), so we
+                // can't subscribe at startup; the first request that flows
+                // through a fully-initialized server wires it up.
+                EnsureRoleManagerSubscription();
+
+                // Part 18 §4.4.1 — if a Role configuration change marked the
+                // session's identity stale, re-evaluate the mandatory roles
+                // (Anonymous/AuthenticatedUser/TrustedApplication + live
+                // RoleManager identity-mapping rules) before the request runs
+                // so that downstream access checks see the current grants.
+                ReevaluateIdentityIfStale(session, secureChannelContext);
+
                 // return context.
                 return new OperationContext(requestHeader, secureChannelContext, requestType, requestLifetime, session);
             }
@@ -612,21 +642,44 @@ namespace Opc.Ua.Server
         /// Per OPC UA Part 3 §4.9, the <see cref="Role.TrustedApplication"/> role is always
         /// assigned when a Session has been authenticated with a trusted ApplicationInstance
         /// Certificate and uses at least a signed communication channel.
+        ///
+        /// Per OPC UA Part 18 §4.4 the live <see cref="IRoleManager"/> identity-mapping rules
+        /// are evaluated and any matching roles are layered on top of the identity supplied
+        /// by the ImpersonateUser callback.
+        ///
+        /// Per OPC UA Part 18 §5.2.8, when the session authenticates via a USERNAME token and
+        /// the user has the <see cref="UserConfigurationMask.MustChangePassword"/> bit set,
+        /// the session is restricted to the <see cref="Role.Anonymous"/> role only — the
+        /// session can only call <c>ChangePassword</c> until the password is changed.
         /// </remarks>
         protected virtual IUserIdentity AddMandatoryRoles(
             ISession session,
             OperationContext context,
             IUserIdentity effectiveIdentity)
         {
-            // Assign TrustedApplication role per OPC UA Part 3 §4.9:
-            // The role is always assigned when the session was authenticated with a
-            // trusted ApplicationInstance certificate and uses at least a signed channel.
+            // Part 18 §5.2.8 — restrict the session to the Anonymous role if
+            // the user has MustChangePassword set. The ChangePassword method
+            // is callable by USERNAME sessions regardless of role; once the
+            // password is changed the next ActivateSession will see
+            // MustChangePassword == false and grant the full role set.
+            if (effectiveIdentity.TokenType == UserTokenType.UserName
+                && !string.IsNullOrEmpty(effectiveIdentity.DisplayName)
+                && m_server.UserManagement?.MustChangePassword(effectiveIdentity.DisplayName) == true)
+            {
+                if (effectiveIdentity is RoleBasedIdentity rbiMustChange)
+                {
+                    return rbiMustChange.WithAdditionalRoles([Role.Anonymous], m_server.NamespaceUris);
+                }
+                return new RoleBasedIdentity(
+                    effectiveIdentity,
+                    [Role.Anonymous],
+                    m_server.NamespaceUris);
+            }
+
+            // Assign TrustedApplication role per OPC UA Part 3 §4.9.
             if (session.ClientCertificate != null &&
                 context.ChannelContext?.EndpointDescription?.SecurityMode >= MessageSecurityMode.Sign)
             {
-                // When the identity is already a RoleBasedIdentity (e.g. GdsRoleBasedIdentity),
-                // delegate to WithAdditionalRoles so the concrete subtype and any extra state
-                // (e.g. ApplicationId) are preserved rather than losing the type by wrapping.
                 if (effectiveIdentity is RoleBasedIdentity rbi)
                 {
                     effectiveIdentity = rbi.WithAdditionalRoles([Role.TrustedApplication], m_server.NamespaceUris);
@@ -640,22 +693,24 @@ namespace Opc.Ua.Server
                 }
             }
 
-            // Layer in roles from the live RoleManager identity-mapping rules
-            // (Part 18 §4.4.4). Roles already granted by the user or
-            // ImpersonateUser callbacks are preserved.
+            // Layer in roles from the live IRoleManager identity-mapping rules
+            // (Part 18 §4.4.4). Roles already granted by the ImpersonateUser
+            // callback are preserved.
             IRoleManager roleManager = m_server.RoleManager;
             if (roleManager != null)
             {
-                IList<NodeId> dynamicRoleIds = roleManager.ResolveGrantedRoles(
+                System.Collections.Generic.IList<NodeId> dynamicRoleIds = roleManager.ResolveGrantedRoles(
                     effectiveIdentity,
                     session.ClientCertificate,
                     context.ChannelContext?.EndpointDescription);
 
                 if (dynamicRoleIds.Count > 0)
                 {
-                    var dynamicRoles = dynamicRoleIds
-                        .Select(roleId => new Role(roleId, roleId.ToString()))
-                        .ToList();
+                    var dynamicRoles = new System.Collections.Generic.List<Role>(dynamicRoleIds.Count);
+                    foreach (NodeId roleId in dynamicRoleIds)
+                    {
+                        dynamicRoles.Add(new Role(roleId, roleId.ToString()));
+                    }
 
                     if (effectiveIdentity is RoleBasedIdentity rbi2)
                     {
@@ -672,6 +727,153 @@ namespace Opc.Ua.Server
             }
 
             return effectiveIdentity;
+        }
+
+        /// <summary>
+        /// Computes the <see cref="ServiceResult"/> that the ActivateSession
+        /// response shall carry.
+        /// </summary>
+        /// <remarks>
+        /// Per OPC UA Part 18 §5.2.8, when the session authenticates via a
+        /// USERNAME token and the user has the
+        /// <see cref="UserConfigurationMask.MustChangePassword"/> bit set, the
+        /// activation must return <c>Good_PasswordChangeRequired</c>. All other
+        /// activations return <c>Good</c>.
+        /// </remarks>
+        /// <param name="effectiveIdentity">
+        /// The identity after impersonation and role resolution. Must not be
+        /// <see langword="null"/>.
+        /// </param>
+        protected virtual ServiceResult ComputeActivationStatus(IUserIdentity effectiveIdentity)
+        {
+            if (effectiveIdentity != null
+                && effectiveIdentity.TokenType == UserTokenType.UserName
+                && !string.IsNullOrEmpty(effectiveIdentity.DisplayName)
+                && m_server.UserManagement?.MustChangePassword(effectiveIdentity.DisplayName) == true)
+            {
+                return new ServiceResult(StatusCodes.GoodPasswordChangeRequired);
+            }
+
+            return ServiceResult.Good;
+        }
+
+        /// <summary>
+        /// Re-evaluates the session's effective identity if it has been
+        /// marked stale by a Role configuration change.
+        /// </summary>
+        /// <remarks>
+        /// Implements OPC UA Part 18 §4.4.1 "live re-evaluation": when an
+        /// <see cref="IRoleManager"/> identity-mapping rule changes, sessions
+        /// receive the new role grants on the next request without needing
+        /// the client to re-activate. The re-evaluation re-runs
+        /// <see cref="AddMandatoryRoles"/> using the original impersonated
+        /// <see cref="ISession.Identity"/> as the starting point, so the
+        /// outcome is deterministic and idempotent.
+        ///
+        /// Multiple concurrent requests racing through this method may each
+        /// compute the same refresh; the last writer wins. This is acceptable
+        /// because the computation is pure with respect to the current
+        /// RoleManager state.
+        /// </remarks>
+        protected virtual void ReevaluateIdentityIfStale(
+            ISession session,
+            SecureChannelContext secureChannelContext)
+        {
+            if (session == null || !session.IsIdentityStale)
+            {
+                return;
+            }
+
+            try
+            {
+                // Build a minimal OperationContext to satisfy the
+                // AddMandatoryRoles signature; only ChannelContext is
+                // consulted (for the endpoint).
+                var refreshContext = new OperationContext(
+                    new RequestHeader(),
+                    secureChannelContext,
+                    RequestType.Unknown,
+                    RequestLifetime.None,
+                    session.EffectiveIdentity);
+
+                IUserIdentity refreshed = AddMandatoryRoles(
+                    session,
+                    refreshContext,
+                    session.Identity);
+
+                session.RefreshEffectiveIdentity(refreshed);
+            }
+            catch (Exception ex)
+            {
+                m_logger.LogWarning(ex,
+                    "Failed to re-evaluate session {SessionId} identity after Role configuration change.",
+                    session.Id);
+            }
+        }
+
+        /// <summary>
+        /// Marks every active session's effective identity stale in response
+        /// to a Role configuration change (Part 18 §4.4.1).
+        /// </summary>
+        /// <remarks>
+        /// The actual re-evaluation happens lazily on the next request via
+        /// <see cref="ReevaluateIdentityIfStale"/> so that the event handler
+        /// stays cheap and contention-free.
+        /// </remarks>
+        protected virtual void OnRoleConfigurationChanged(object? sender, RoleConfigurationChangedEventArgs e)
+        {
+            try
+            {
+                // GetSessions() is virtual to allow tests to inject sentinel
+                // sessions; production walks the SessionManager's own table.
+                foreach (ISession session in GetSessions())
+                {
+                    session?.MarkIdentityStale();
+                }
+            }
+            catch (Exception ex)
+            {
+                m_logger.LogWarning(ex,
+                    "Failed to mark sessions stale after Role configuration change.");
+            }
+        }
+
+        /// <summary>
+        /// Ensures the SessionManager is subscribed to the current
+        /// <see cref="IRoleManager"/>'s <see cref="IRoleManager.RoleConfigurationChanged"/>
+        /// event.
+        /// </summary>
+        /// <remarks>
+        /// <see cref="IServerInternal.SetRoleManager"/> may be called after
+        /// SessionManager construction, and the RoleManager instance can be
+        /// swapped at runtime (e.g. by integrators wiring a persistence
+        /// backend). The subscription is reconciled lazily on each request
+        /// so the wiring works regardless of injection order.
+        /// </remarks>
+        private void EnsureRoleManagerSubscription()
+        {
+            IRoleManager? current = m_server.RoleManager;
+            IRoleManager? previous = m_subscribedRoleManager;
+            if (current == previous)
+            {
+                return;
+            }
+
+            // CAS to claim the swap; on failure another thread already
+            // reconciled — defer to it.
+            if (Interlocked.CompareExchange(ref m_subscribedRoleManager, current, previous) != previous)
+            {
+                return;
+            }
+
+            if (previous != null)
+            {
+                previous.RoleConfigurationChanged -= OnRoleConfigurationChanged;
+            }
+            if (current != null)
+            {
+                current.RoleConfigurationChanged += OnRoleConfigurationChanged;
+            }
         }
 
         /// <summary>
@@ -851,6 +1053,13 @@ namespace Opc.Ua.Server
         private event ImpersonateEventHandler? m_ImpersonateUser;
         private event EventHandler<ValidateSessionLessRequestEventArgs>? m_ValidateSessionLessRequest;
 
+        /// <summary>
+        /// Last <see cref="IRoleManager"/> we wired
+        /// <see cref="OnRoleConfigurationChanged"/> onto. Reconciled in
+        /// <see cref="EnsureRoleManagerSubscription"/>.
+        /// </summary>
+        private IRoleManager? m_subscribedRoleManager;
+
         /// <inheritdoc/>
         public event SessionEventHandler SessionCreated
         {
@@ -985,7 +1194,7 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public IList<ISession> GetSessions()
+        public virtual IList<ISession> GetSessions()
         {
             return [.. m_sessions.Values];
         }

@@ -30,363 +30,958 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Server
 {
     /// <summary>
-    /// Binds the well-known role nodes in the address space to a
-    /// <see cref="RoleManager"/>.
+    /// Binds the standard <c>RoleSet</c> object and its child <c>RoleType</c>
+    /// instances to an <see cref="IRoleManager"/> using the source-generated
+    /// typed proxies (<see cref="RoleSetState"/>, <see cref="RoleState"/>,
+    /// <see cref="AddRoleMethodState"/>, etc.).
     /// </summary>
-    public static class RoleStateBinding
+    /// <remarks>
+    /// <para>
+    /// Every typed method state's <c>OnCallAsync</c> delegate is wired through
+    /// <see cref="RoleAuthorizationGate.CheckAdmin"/>, mutates the
+    /// <see cref="IRoleManager"/>, reports a
+    /// <c>RoleMappingRuleChangedAuditEventType</c> via
+    /// <see cref="AuditEvents.ReportAuditRoleMappingRuleChangedEvent"/> and
+    /// keeps the property values exposed on the address-space role node in
+    /// sync with the manager state (so reads observe live values).
+    /// </para>
+    /// <para>
+    /// The binding relies on <see cref="DiagnosticsNodeManager"/>'s
+    /// <c>AddBehaviourToPredefinedNodeAsync</c> override having upgraded the
+    /// passive <c>BaseObjectState</c> nodes representing <c>RoleSet</c> and
+    /// each well-known role to the typed proxies before <see cref="Bind"/>
+    /// is invoked.
+    /// </para>
+    /// </remarks>
+    public sealed class RoleStateBinding : IDisposable
     {
-        private sealed record RoleNodeIds(
-            uint RoleId,
-            uint Identities,
-            uint Applications,
-            uint ApplicationsExclude,
-            uint Endpoints,
-            uint EndpointsExclude,
-            uint AddIdentity,
-            uint RemoveIdentity,
-            uint AddApplication,
-            uint RemoveApplication,
-            uint AddEndpoint,
-            uint RemoveEndpoint);
+        private readonly AsyncCustomNodeManager m_nodeManager;
+        private readonly IRoleManager m_roleManager;
+        private readonly IAuditEventServer? m_auditServer;
+        private readonly ILogger m_logger;
+        private readonly Dictionary<NodeId, RoleState> m_boundRoles = [];
+        private RoleSetState? m_roleSet;
+        private bool m_disposed;
 
-        private static readonly RoleNodeIds[] s_roles =
-        [
-            new(
-                Objects.WellKnownRole_Observer,
-                Variables.WellKnownRole_Observer_Identities,
-                Variables.WellKnownRole_Observer_Applications,
-                Variables.WellKnownRole_Observer_ApplicationsExclude,
-                Variables.WellKnownRole_Observer_Endpoints,
-                Variables.WellKnownRole_Observer_EndpointsExclude,
-                Methods.WellKnownRole_Observer_AddIdentity,
-                Methods.WellKnownRole_Observer_RemoveIdentity,
-                Methods.WellKnownRole_Observer_AddApplication,
-                Methods.WellKnownRole_Observer_RemoveApplication,
-                Methods.WellKnownRole_Observer_AddEndpoint,
-                Methods.WellKnownRole_Observer_RemoveEndpoint),
-            new(
-                Objects.WellKnownRole_Operator,
-                Variables.WellKnownRole_Operator_Identities,
-                Variables.WellKnownRole_Operator_Applications,
-                Variables.WellKnownRole_Operator_ApplicationsExclude,
-                Variables.WellKnownRole_Operator_Endpoints,
-                Variables.WellKnownRole_Operator_EndpointsExclude,
-                Methods.WellKnownRole_Operator_AddIdentity,
-                Methods.WellKnownRole_Operator_RemoveIdentity,
-                Methods.WellKnownRole_Operator_AddApplication,
-                Methods.WellKnownRole_Operator_RemoveApplication,
-                Methods.WellKnownRole_Operator_AddEndpoint,
-                Methods.WellKnownRole_Operator_RemoveEndpoint),
-            new(
-                Objects.WellKnownRole_Engineer,
-                Variables.WellKnownRole_Engineer_Identities,
-                Variables.WellKnownRole_Engineer_Applications,
-                Variables.WellKnownRole_Engineer_ApplicationsExclude,
-                Variables.WellKnownRole_Engineer_Endpoints,
-                Variables.WellKnownRole_Engineer_EndpointsExclude,
-                Methods.WellKnownRole_Engineer_AddIdentity,
-                Methods.WellKnownRole_Engineer_RemoveIdentity,
-                Methods.WellKnownRole_Engineer_AddApplication,
-                Methods.WellKnownRole_Engineer_RemoveApplication,
-                Methods.WellKnownRole_Engineer_AddEndpoint,
-                Methods.WellKnownRole_Engineer_RemoveEndpoint),
-            new(
-                Objects.WellKnownRole_Supervisor,
-                Variables.WellKnownRole_Supervisor_Identities,
-                Variables.WellKnownRole_Supervisor_Applications,
-                Variables.WellKnownRole_Supervisor_ApplicationsExclude,
-                Variables.WellKnownRole_Supervisor_Endpoints,
-                Variables.WellKnownRole_Supervisor_EndpointsExclude,
-                Methods.WellKnownRole_Supervisor_AddIdentity,
-                Methods.WellKnownRole_Supervisor_RemoveIdentity,
-                Methods.WellKnownRole_Supervisor_AddApplication,
-                Methods.WellKnownRole_Supervisor_RemoveApplication,
-                Methods.WellKnownRole_Supervisor_AddEndpoint,
-                Methods.WellKnownRole_Supervisor_RemoveEndpoint),
-            new(
-                Objects.WellKnownRole_ConfigureAdmin,
-                Variables.WellKnownRole_ConfigureAdmin_Identities,
-                Variables.WellKnownRole_ConfigureAdmin_Applications,
-                Variables.WellKnownRole_ConfigureAdmin_ApplicationsExclude,
-                Variables.WellKnownRole_ConfigureAdmin_Endpoints,
-                Variables.WellKnownRole_ConfigureAdmin_EndpointsExclude,
-                Methods.WellKnownRole_ConfigureAdmin_AddIdentity,
-                Methods.WellKnownRole_ConfigureAdmin_RemoveIdentity,
-                Methods.WellKnownRole_ConfigureAdmin_AddApplication,
-                Methods.WellKnownRole_ConfigureAdmin_RemoveApplication,
-                Methods.WellKnownRole_ConfigureAdmin_AddEndpoint,
-                Methods.WellKnownRole_ConfigureAdmin_RemoveEndpoint),
-            new(
-                Objects.WellKnownRole_SecurityAdmin,
-                Variables.WellKnownRole_SecurityAdmin_Identities,
-                Variables.WellKnownRole_SecurityAdmin_Applications,
-                Variables.WellKnownRole_SecurityAdmin_ApplicationsExclude,
-                Variables.WellKnownRole_SecurityAdmin_Endpoints,
-                Variables.WellKnownRole_SecurityAdmin_EndpointsExclude,
-                Methods.WellKnownRole_SecurityAdmin_AddIdentity,
-                Methods.WellKnownRole_SecurityAdmin_RemoveIdentity,
-                Methods.WellKnownRole_SecurityAdmin_AddApplication,
-                Methods.WellKnownRole_SecurityAdmin_RemoveApplication,
-                Methods.WellKnownRole_SecurityAdmin_AddEndpoint,
-                Methods.WellKnownRole_SecurityAdmin_RemoveEndpoint),
-        ];
+        private RoleStateBinding(
+            AsyncCustomNodeManager nodeManager,
+            IRoleManager roleManager,
+            IAuditEventServer? auditServer)
+        {
+            m_nodeManager = nodeManager;
+            m_roleManager = roleManager;
+            m_auditServer = auditServer;
+            m_logger = (nodeManager.Server as IServerInternal)?.Telemetry?.CreateLogger<RoleStateBinding>()
+                ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<RoleStateBinding>.Instance;
+        }
 
         /// <summary>
-        /// Walk each well-known role on the given node manager and hook each
-        /// role's 6 method nodes + 5 variable nodes to the supplied manager.
+        /// Resolves the <see cref="RoleSetState"/> in <paramref name="nodeManager"/>'s
+        /// predefined nodes, wires every child role to <paramref name="roleManager"/>
+        /// and starts listening for <see cref="IRoleManager.RoleConfigurationChanged"/>
+        /// events. Returns the binding instance so the caller can dispose it
+        /// on server shutdown.
         /// </summary>
-        public static void Bind(AsyncCustomNodeManager nodeManager, IRoleManager manager)
+        public static RoleStateBinding? Bind(
+            AsyncCustomNodeManager nodeManager,
+            IRoleManager roleManager,
+            IAuditEventServer? auditServer)
         {
             if (nodeManager == null)
             {
                 throw new ArgumentNullException(nameof(nodeManager));
             }
-            if (manager == null)
+            if (roleManager == null)
             {
-                throw new ArgumentNullException(nameof(manager));
+                throw new ArgumentNullException(nameof(roleManager));
             }
 
-            foreach (RoleNodeIds ids in s_roles)
+            RoleSetState? roleSet = nodeManager.FindPredefinedNode<RoleSetState>(
+                Opc.Ua.ObjectIds.Server_ServerCapabilities_RoleSet);
+            if (roleSet == null)
             {
-                var roleId = new NodeId(ids.RoleId);
-                manager.EnsureRole(roleId);
-
-                BindMethodHandler(nodeManager, ids.AddIdentity, (input, output) =>
-                    TryGetRule(input, out IdentityMappingRuleType? rule)
-                        ? manager.AddIdentity(roleId, rule)
-                        : new ServiceResult(StatusCodes.BadInvalidArgument));
-
-                BindMethodHandler(nodeManager, ids.RemoveIdentity, (input, output) =>
-                    TryGetRule(input, out IdentityMappingRuleType? rule)
-                        ? manager.RemoveIdentity(roleId, rule)
-                        : new ServiceResult(StatusCodes.BadInvalidArgument));
-
-                BindMethodHandler(nodeManager, ids.AddApplication, (input, output) =>
-                    TryGetString(input, out string? uri)
-                        ? manager.AddApplication(roleId, uri)
-                        : new ServiceResult(StatusCodes.BadInvalidArgument));
-
-                BindMethodHandler(nodeManager, ids.RemoveApplication, (input, output) =>
-                    TryGetString(input, out string? uri)
-                        ? manager.RemoveApplication(roleId, uri)
-                        : new ServiceResult(StatusCodes.BadInvalidArgument));
-
-                BindMethodHandler(nodeManager, ids.AddEndpoint, (input, output) =>
-                    TryGetEndpoint(input, out EndpointType? ep)
-                        ? manager.AddEndpoint(roleId, ep)
-                        : new ServiceResult(StatusCodes.BadInvalidArgument));
-
-                BindMethodHandler(nodeManager, ids.RemoveEndpoint, (input, output) =>
-                    TryGetEndpoint(input, out EndpointType? ep)
-                        ? manager.RemoveEndpoint(roleId, ep)
-                        : new ServiceResult(StatusCodes.BadInvalidArgument));
-
-                BindIdentitiesRead(nodeManager, ids.Identities, manager, roleId);
-                BindApplicationsRead(nodeManager, ids.Applications, manager, roleId);
-                BindApplicationsExcludeRead(nodeManager, ids.ApplicationsExclude, manager, roleId);
-                BindEndpointsRead(nodeManager, ids.Endpoints, manager, roleId);
-                BindEndpointsExcludeRead(nodeManager, ids.EndpointsExclude, manager, roleId);
+                return null;
             }
 
-            BindRoleSetMethods(nodeManager, manager);
+            var binding = new RoleStateBinding(nodeManager, roleManager, auditServer);
+            binding.Initialize(roleSet);
+            return binding;
+        }
+
+        /// <inheritdoc/>
+        public void Dispose()
+        {
+            if (m_disposed)
+            {
+                return;
+            }
+            m_disposed = true;
+            m_roleManager.RoleConfigurationChanged -= OnRoleConfigurationChanged;
+        }
+
+        private void Initialize(RoleSetState roleSet)
+        {
+            m_roleSet = roleSet;
+
+            ushort dynamicNamespaceIndex = ResolveDynamicNamespaceIndex();
+
+            if (roleSet.AddRole != null)
+            {
+                roleSet.AddRole.OnCall = null;
+                roleSet.AddRole.OnCallAsync = (context, method, objectId, roleName, namespaceUri, ct) =>
+                    OnAddRoleAsync(context, method, roleName, namespaceUri, dynamicNamespaceIndex, ct);
+            }
+            if (roleSet.RemoveRole != null)
+            {
+                roleSet.RemoveRole.OnCall = null;
+                roleSet.RemoveRole.OnCallAsync = (context, method, objectId, roleNodeId, ct) =>
+                    OnRemoveRoleAsync(context, method, roleNodeId, ct);
+            }
+
+            var children = new List<BaseInstanceState>();
+            roleSet.GetChildren(m_nodeManager.SystemContext, children);
+            foreach (BaseInstanceState child in children)
+            {
+                if (child is RoleState roleStateChild)
+                {
+                    BindRoleState(roleStateChild);
+                }
+            }
+
+            // The standard nodeset wires the well-known role nodes to the
+            // RoleSet via a HasComponent reference but GetChildren on the
+            // typed RoleSetState proxy only enumerates the typed AddRole /
+            // RemoveRole method children. Walk the raw references and look
+            // each role up in the manager's PredefinedNodes index.
+            var refs = new List<IReference>();
+            roleSet.GetReferences(m_nodeManager.SystemContext, refs);
+            foreach (IReference reference in refs)
+            {
+                if (reference.IsInverse ||
+                    reference.ReferenceTypeId != ReferenceTypeIds.HasComponent)
+                {
+                    continue;
+                }
+                NodeId targetId = ExpandedNodeId.ToNodeId(reference.TargetId,
+                    m_nodeManager.SystemContext.NamespaceUris);
+                if (targetId.IsNull)
+                {
+                    continue;
+                }
+                NodeState? target = m_nodeManager.FindPredefinedNode<NodeState>(targetId);
+                if (target is RoleState roleStateRef && !m_boundRoles.ContainsKey(targetId))
+                {
+                    BindRoleState(roleStateRef);
+                }
+            }
+
+            m_roleManager.RoleConfigurationChanged += OnRoleConfigurationChanged;
+        }
+
+        private ushort ResolveDynamicNamespaceIndex()
+        {
+            if (m_nodeManager.NamespaceUris == null)
+            {
+                return 0;
+            }
+            // The diagnostics manager owns both the OPC UA core namespace
+            // and a dedicated "Diagnostics" namespace. Pick the first one
+            // that is NOT the OPC UA core URI so dynamically allocated role
+            // NodeIds don't collide with reserved Part 5 identifiers
+            // (e.g. i=1 = Boolean in ns=0).
+            foreach (string uri in m_nodeManager.NamespaceUris)
+            {
+                if (string.IsNullOrEmpty(uri))
+                {
+                    continue;
+                }
+                if (string.Equals(uri, "http://opcfoundation.org/UA/", StringComparison.Ordinal))
+                {
+                    continue;
+                }
+                int idx = m_nodeManager.SystemContext.NamespaceUris.GetIndex(uri);
+                if (idx is > 0 and <= ushort.MaxValue)
+                {
+                    return (ushort)idx;
+                }
+            }
+            return 0;
+        }
+
+        private void BindRoleState(RoleState roleState)
+        {
+            NodeId roleId = roleState.NodeId;
+            m_boundRoles[roleId] = roleState;
+
+            // When the role node was loaded from the standard nodeset XML,
+            // its method/property children are plain MethodState /
+            // PropertyState instances rather than the typed proxies the
+            // source-gen RoleState exposes. Promote them so the typed
+            // OnCallAsync / OnWriteValue plumbing applies uniformly.
+            EnsureTypedChildrenAttached(roleState);
+
+            if (roleState.AddIdentity != null)
+            {
+                roleState.AddIdentity.OnCall = null;
+                roleState.AddIdentity.OnCallAsync = (context, method, objectId, rule, ct) =>
+                    OnAddIdentityAsync(context, method, roleId, rule);
+            }
+            if (roleState.RemoveIdentity != null)
+            {
+                roleState.RemoveIdentity.OnCall = null;
+                roleState.RemoveIdentity.OnCallAsync = (context, method, objectId, rule, ct) =>
+                    OnRemoveIdentityAsync(context, method, roleId, rule);
+            }
+            if (roleState.AddApplication != null)
+            {
+                roleState.AddApplication.OnCall = null;
+                roleState.AddApplication.OnCallAsync = (context, method, objectId, applicationUri, ct) =>
+                    OnAddApplicationAsync(context, method, roleId, applicationUri);
+            }
+            if (roleState.RemoveApplication != null)
+            {
+                roleState.RemoveApplication.OnCall = null;
+                roleState.RemoveApplication.OnCallAsync = (context, method, objectId, applicationUri, ct) =>
+                    OnRemoveApplicationAsync(context, method, roleId, applicationUri);
+            }
+            if (roleState.AddEndpoint != null)
+            {
+                roleState.AddEndpoint.OnCall = null;
+                roleState.AddEndpoint.OnCallAsync = (context, method, objectId, endpoint, ct) =>
+                    OnAddEndpointAsync(context, method, roleId, endpoint);
+            }
+            if (roleState.RemoveEndpoint != null)
+            {
+                roleState.RemoveEndpoint.OnCall = null;
+                roleState.RemoveEndpoint.OnCallAsync = (context, method, objectId, endpoint, ct) =>
+                    OnRemoveEndpointAsync(context, method, roleId, endpoint);
+            }
+
+            if (roleState.ApplicationsExclude != null)
+            {
+                roleState.ApplicationsExclude.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
+                roleState.ApplicationsExclude.AccessLevel = AccessLevels.CurrentReadOrWrite;
+                roleState.ApplicationsExclude.OnWriteValue = WriteApplicationsExcludeHandler(roleId);
+            }
+            if (roleState.EndpointsExclude != null)
+            {
+                roleState.EndpointsExclude.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
+                roleState.EndpointsExclude.AccessLevel = AccessLevels.CurrentReadOrWrite;
+                roleState.EndpointsExclude.OnWriteValue = WriteEndpointsExcludeHandler(roleId);
+            }
+            if (roleState.CustomConfiguration != null)
+            {
+                roleState.CustomConfiguration.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
+                roleState.CustomConfiguration.AccessLevel = AccessLevels.CurrentReadOrWrite;
+                roleState.CustomConfiguration.OnWriteValue = WriteCustomConfigurationHandler(roleId);
+            }
+
+            SyncPropertiesFromManager(roleId, roleState);
         }
 
         /// <summary>
-        /// Hook AddRole/RemoveRole on the RoleSet object so dynamic role
-        /// creation/deletion routes through the supplied manager. The
-        /// <see cref="RoleManager.DynamicRoleNamespaceIndex"/> is set to the
-        /// node manager's first owned namespace so synthetic NodeIds don't
-        /// collide with the standard namespace 0 IDs.
+        /// Promotes plain <see cref="MethodState"/> / <see cref="PropertyState"/>
+        /// children of <paramref name="roleState"/> to the typed proxies
+        /// exposed by the source-generated <see cref="RoleState"/> shape.
         /// </summary>
-        private static void BindRoleSetMethods(AsyncCustomNodeManager nm, IRoleManager manager)
+        /// <remarks>
+        /// <para>
+        /// The standard nodeset XML loader instantiates each child as the
+        /// generic base type. The <see cref="RoleState.AddIdentity"/> and
+        /// related typed properties remain <see langword="null"/> unless we
+        /// explicitly construct an <c>AddIdentityMethodState</c> (etc.)
+        /// from the existing passive child and assign it back. Without this
+        /// promotion the typed <c>OnCallAsync</c> delegates that
+        /// <see cref="BindRoleState"/> wires up are never reached and the
+        /// server returns <c>BadNotImplemented</c>.
+        /// </para>
+        /// <para>
+        /// Children that are already typed (e.g. ones materialized via
+        /// <see cref="MaterializeDynamicRoleAsync"/> for dynamically added
+        /// roles) are left untouched.
+        /// </para>
+        /// </remarks>
+        private void EnsureTypedChildrenAttached(RoleState roleState)
         {
-            ushort nsIndex = 0;
-            string? firstOwned = nm.NamespaceUris?.FirstOrDefault();
-            if (!string.IsNullOrEmpty(firstOwned))
+            ISystemContext context = m_nodeManager.SystemContext;
+
+            if (roleState.AddIdentity == null)
             {
-                nsIndex = (ushort)nm.SystemContext.NamespaceUris.GetIndex(firstOwned!);
-                if (nsIndex == ushort.MaxValue)
+                roleState.AddIdentity = PromoteMethodChild(
+                    m_nodeManager, context, roleState, BrowseNames.AddIdentity,
+                    parent => new AddIdentityMethodState(parent));
+            }
+            if (roleState.RemoveIdentity == null)
+            {
+                roleState.RemoveIdentity = PromoteMethodChild(
+                    m_nodeManager, context, roleState, BrowseNames.RemoveIdentity,
+                    parent => new RemoveIdentityMethodState(parent));
+            }
+            if (roleState.AddApplication == null)
+            {
+                roleState.AddApplication = PromoteMethodChild(
+                    m_nodeManager, context, roleState, BrowseNames.AddApplication,
+                    parent => new AddApplicationMethodState(parent));
+            }
+            if (roleState.RemoveApplication == null)
+            {
+                roleState.RemoveApplication = PromoteMethodChild(
+                    m_nodeManager, context, roleState, BrowseNames.RemoveApplication,
+                    parent => new RemoveApplicationMethodState(parent));
+            }
+            if (roleState.AddEndpoint == null)
+            {
+                roleState.AddEndpoint = PromoteMethodChild(
+                    m_nodeManager, context, roleState, BrowseNames.AddEndpoint,
+                    parent => new AddEndpointMethodState(parent));
+            }
+            if (roleState.RemoveEndpoint == null)
+            {
+                roleState.RemoveEndpoint = PromoteMethodChild(
+                    m_nodeManager, context, roleState, BrowseNames.RemoveEndpoint,
+                    parent => new RemoveEndpointMethodState(parent));
+            }
+
+            if (roleState.ApplicationsExclude == null)
+            {
+                roleState.ApplicationsExclude = PromoteBoolPropertyChild(
+                    m_nodeManager, context, roleState, BrowseNames.ApplicationsExclude);
+            }
+            if (roleState.EndpointsExclude == null)
+            {
+                roleState.EndpointsExclude = PromoteBoolPropertyChild(
+                    m_nodeManager, context, roleState, BrowseNames.EndpointsExclude);
+            }
+            if (roleState.CustomConfiguration == null)
+            {
+                roleState.CustomConfiguration = PromoteBoolPropertyChild(
+                    m_nodeManager, context, roleState, BrowseNames.CustomConfiguration);
+            }
+        }
+
+        private static TTyped? PromoteMethodChild<TTyped>(
+            AsyncCustomNodeManager manager,
+            ISystemContext context,
+            NodeState parent,
+            string browseName,
+            Func<NodeState, TTyped> factory)
+            where TTyped : MethodState
+        {
+            BaseInstanceState? passive = FindChildByBrowseName(context, parent, browseName);
+            if (passive is not MethodState passiveMethod)
+            {
+                return null;
+            }
+            if (passiveMethod is TTyped typedAlready)
+            {
+                return typedAlready;
+            }
+
+            // Construct the typed proxy and re-bind it in place of the
+            // passive method. Create(context, source) copies the NodeId,
+            // BrowseName, references, etc. so the existing method
+            // dispatch on the original NodeId continues to work.
+            TTyped active = factory(parent);
+            active.Create(context, passiveMethod);
+            parent.ReplaceChild(context, active);
+            // The manager's PredefinedNodes index still points at the
+            // passive instance. Refresh it so server-side method dispatch
+            // (which looks up by NodeId) lands on the typed proxy.
+            manager.ReplacePredefinedNode(active.NodeId, active);
+            return active;
+        }
+
+        private static PropertyState<bool>? PromoteBoolPropertyChild(
+            AsyncCustomNodeManager manager,
+            ISystemContext context,
+            NodeState parent,
+            string browseName)
+        {
+            BaseInstanceState? passive = FindChildByBrowseName(context, parent, browseName);
+            if (passive == null)
+            {
+                return null;
+            }
+            if (passive is PropertyState<bool> typedAlready)
+            {
+                return typedAlready;
+            }
+            if (passive is not BaseVariableState passiveVar)
+            {
+                return null;
+            }
+
+            PropertyState<bool> active = PropertyState<bool>.With<VariantBuilder>(parent);
+            active.Create(context, passiveVar);
+            parent.ReplaceChild(context, active);
+            manager.ReplacePredefinedNode(active.NodeId, active);
+            return active;
+        }
+
+        private static BaseInstanceState? FindChildByBrowseName(
+            ISystemContext context, NodeState parent, string browseName)
+        {
+            var children = new List<BaseInstanceState>();
+            parent.GetChildren(context, children);
+            for (int ii = 0; ii < children.Count; ii++)
+            {
+                BaseInstanceState child = children[ii];
+                if (child.BrowseName.Name == browseName)
                 {
-                    nsIndex = 0;
+                    return child;
                 }
             }
-            manager.DynamicRoleNamespaceIndex = nsIndex;
+            return null;
+        }
 
-            BindMethodHandler(nm, Methods.Server_ServerCapabilities_RoleSet_AddRole,
-                (input, output) =>
+        private NodeValueEventHandler WriteApplicationsExcludeHandler(NodeId roleId)
+        {
+            return (ISystemContext context, NodeState node, NumericRange indexRange,
+                    QualifiedName dataEncoding, ref Variant value,
+                    ref StatusCode statusCode, ref DateTimeUtc timestamp) =>
+                OnWriteExclude(context, roleId, ref value, isApplications: true);
+        }
+
+        private NodeValueEventHandler WriteEndpointsExcludeHandler(NodeId roleId)
+        {
+            return (ISystemContext context, NodeState node, NumericRange indexRange,
+                    QualifiedName dataEncoding, ref Variant value,
+                    ref StatusCode statusCode, ref DateTimeUtc timestamp) =>
+                OnWriteExclude(context, roleId, ref value, isApplications: false);
+        }
+
+        private NodeValueEventHandler WriteCustomConfigurationHandler(NodeId roleId)
+        {
+            return (ISystemContext context, NodeState node, NumericRange indexRange,
+                    QualifiedName dataEncoding, ref Variant value,
+                    ref StatusCode statusCode, ref DateTimeUtc timestamp) =>
+                OnWriteCustomConfiguration(context, roleId, ref value);
+        }
+
+        private void SyncPropertiesFromManager(NodeId roleId, RoleState roleState)
+        {
+            RoleEntry? entry = m_roleManager.GetRole(roleId);
+            if (entry == null)
+            {
+                return;
+            }
+            if (roleState.Identities != null)
+            {
+                roleState.Identities.Value = ArrayOf.Wrapped(entry.Identities.ToArray());
+            }
+            if (roleState.Applications != null)
+            {
+                roleState.Applications.Value = ArrayOf.Wrapped(entry.Applications.ToArray());
+            }
+            if (roleState.ApplicationsExclude != null)
+            {
+                roleState.ApplicationsExclude.Value = entry.ApplicationsExclude;
+            }
+            if (roleState.Endpoints != null)
+            {
+                roleState.Endpoints.Value = ArrayOf.Wrapped(entry.Endpoints.ToArray());
+            }
+            if (roleState.EndpointsExclude != null)
+            {
+                roleState.EndpointsExclude.Value = entry.EndpointsExclude;
+            }
+            if (roleState.CustomConfiguration != null)
+            {
+                roleState.CustomConfiguration.Value = entry.CustomConfiguration;
+            }
+            roleState.ClearChangeMasks(m_nodeManager.SystemContext, includeChildren: true);
+        }
+
+        private void OnRoleConfigurationChanged(object? sender, RoleConfigurationChangedEventArgs e)
+        {
+            if (m_disposed)
+            {
+                return;
+            }
+            if (e.Kind == RoleConfigurationChangeKind.RoleRemoved)
+            {
+                m_boundRoles.Remove(e.RoleId);
+                return;
+            }
+            if (m_boundRoles.TryGetValue(e.RoleId, out RoleState? roleState))
+            {
+                SyncPropertiesFromManager(e.RoleId, roleState);
+            }
+        }
+
+        private async ValueTask<AddRoleMethodStateResult> OnAddRoleAsync(
+            ISystemContext context,
+            MethodState method,
+            string roleName,
+            string namespaceUri,
+            ushort dynamicNamespaceIndex,
+            CancellationToken cancellationToken)
+        {
+            await Task.Yield();
+
+            var result = new AddRoleMethodStateResult { RoleNodeId = NodeId.Null };
+
+            ServiceResult auth = RoleAuthorizationGate.CheckAdmin(context);
+            if (ServiceResult.IsBad(auth))
+            {
+                result.ServiceResult = auth;
+                return result;
+            }
+
+            ServiceResult add = m_roleManager.AddRole(
+                roleName,
+                namespaceUri,
+                context.NamespaceUris,
+                dynamicNamespaceIndex,
+                out NodeId newRoleId);
+
+            if (ServiceResult.IsGood(add))
+            {
+                result.RoleNodeId = newRoleId;
+
+                // Materialize the RoleType subtree into the address space so
+                // browsers and method callers see the dynamic role straight
+                // away. Failures here are logged but not surfaced as a status
+                // code so the RoleManager state stays consistent with what
+                // AddRole reported.
+                try
                 {
-                    if (input.Count < 2
-                        || !input[0].TryGetValue(out string roleName)
-                        || !input[1].TryGetValue(out string namespaceUri))
-                    {
-                        return new ServiceResult(StatusCodes.BadInvalidArgument);
-                    }
-                    ServiceResult result = manager.AddRole(roleName, namespaceUri, out NodeId newRoleId);
-                    if (ServiceResult.IsGood(result))
-                    {
-                        output.Add(new Variant(newRoleId));
-                    }
-                    return result;
-                });
-
-            BindMethodHandler(nm, Methods.Server_ServerCapabilities_RoleSet_RemoveRole,
-                (input, output) =>
+                    await MaterializeDynamicRoleAsync(
+                        context,
+                        newRoleId,
+                        roleName,
+                        cancellationToken).ConfigureAwait(false);
+                }
+                catch (Exception ex)
                 {
-                    if (input.Count < 1 || !input[0].TryGetValue(out NodeId roleId))
-                    {
-                        return new ServiceResult(StatusCodes.BadInvalidArgument);
-                    }
-                    return manager.RemoveRole(roleId);
-                });
+                    m_logger.LogWarning(ex,
+                        "AddRole({RoleName}) succeeded in the RoleManager but address-space materialization failed.",
+                        roleName);
+                }
+            }
+            result.ServiceResult = add;
+            return result;
         }
 
-        private static void BindMethodHandler(
-            AsyncCustomNodeManager nm,
-            uint nodeId,
-            Func<ArrayOf<Variant>, List<Variant>, ServiceResult> handler)
+        private async ValueTask<RemoveRoleMethodStateResult> OnRemoveRoleAsync(
+            ISystemContext context,
+            MethodState method,
+            NodeId roleNodeId,
+            CancellationToken cancellationToken)
         {
-            MethodState method = nm.FindPredefinedNode<MethodState>(new NodeId(nodeId));
-            if (method == null)
+            await Task.Yield();
+
+            ServiceResult auth = RoleAuthorizationGate.CheckAdmin(context);
+            if (ServiceResult.IsBad(auth))
+            {
+                return new RemoveRoleMethodStateResult { ServiceResult = auth };
+            }
+
+            ServiceResult remove = m_roleManager.RemoveRole(roleNodeId);
+
+            if (ServiceResult.IsGood(remove))
+            {
+                // Drop the address-space subtree so subsequent browses don't
+                // see the deleted role. Mirror the AddRole behaviour: failures
+                // are logged and swallowed so the RoleManager state stays
+                // authoritative.
+                try
+                {
+                    await DematerializeDynamicRoleAsync(roleNodeId, cancellationToken)
+                        .ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    m_logger.LogWarning(ex,
+                        "RemoveRole({RoleId}) succeeded in the RoleManager but address-space removal failed.",
+                        roleNodeId);
+                }
+            }
+
+            return new RemoveRoleMethodStateResult { ServiceResult = remove };
+        }
+
+        /// <summary>
+        /// Materializes a dynamically added <c>RoleType</c> instance
+        /// underneath the bound <see cref="RoleSetState"/> using the
+        /// source-generated typed proxies.
+        /// </summary>
+        /// <remarks>
+        /// The well-known roles ship pre-built in the standard nodeset; this
+        /// method only fires for roles created at runtime via
+        /// <see cref="IRoleManager.AddRole"/>. The factory
+        /// <c>CreateInstanceOfRoleType</c> sets the well-known RoleType NodeId
+        /// (15620) as the default — we overwrite it with the dynamic role's
+        /// allocated NodeId and allocate fresh NodeIds for each optional child
+        /// via <see cref="ISystemContext.NodeIdFactory"/>.
+        /// </remarks>
+        private async ValueTask MaterializeDynamicRoleAsync(
+            ISystemContext context,
+            NodeId roleNodeId,
+            string roleName,
+            CancellationToken cancellationToken)
+        {
+            if (m_roleSet == null)
             {
                 return;
             }
-            method.OnCallMethod2 = (ISystemContext ctx, MethodState m, NodeId obj,
-                ArrayOf<Variant> input, List<Variant> output) => handler(input, output);
+
+            ushort browseNs = roleNodeId.NamespaceIndex;
+
+            RoleState roleState = context.CreateInstanceOfRoleType(
+                parent: m_roleSet,
+                browseName: new QualifiedName(roleName, browseNs));
+            roleState.NodeId = roleNodeId;
+            roleState.SymbolicName = roleName;
+            roleState.DisplayName = new LocalizedText(roleName);
+
+            // Optional method children — wire each one in via the typed
+            // factories so the OnCallAsync delegates on the source-generated
+            // method state become available for binding. Each child must
+            // be added BOTH to the typed property (for binding lookups)
+            // AND to the base m_children collection (so Browse traversal
+            // sees the HasComponent reference). Browse walks GetReferences
+            // (not m_children), so we also need to add explicit forward
+            // and inverse references for every materialized child.
+            // Pass the spec-defined BrowseName so the standard browse-path
+            // lookups (e.g. "/AddIdentity") match the instance.
+            ushort opcUaNs = 0;
+            roleState.AddIdentity = context.CreateInstanceOfAddIdentityMethodType(
+                roleState, new QualifiedName(BrowseNames.AddIdentity, opcUaNs));
+            AssignChildNodeId(context, roleState.AddIdentity);
+            LinkChild(roleState, roleState.AddIdentity);
+
+            roleState.RemoveIdentity = context.CreateInstanceOfRemoveIdentityMethodType(
+                roleState, new QualifiedName(BrowseNames.RemoveIdentity, opcUaNs));
+            AssignChildNodeId(context, roleState.RemoveIdentity);
+            LinkChild(roleState, roleState.RemoveIdentity);
+
+            roleState.AddApplication = context.CreateInstanceOfAddApplicationMethodType(
+                roleState, new QualifiedName(BrowseNames.AddApplication, opcUaNs));
+            AssignChildNodeId(context, roleState.AddApplication);
+            LinkChild(roleState, roleState.AddApplication);
+
+            roleState.RemoveApplication = context.CreateInstanceOfRemoveApplicationMethodType(
+                roleState, new QualifiedName(BrowseNames.RemoveApplication, opcUaNs));
+            AssignChildNodeId(context, roleState.RemoveApplication);
+            LinkChild(roleState, roleState.RemoveApplication);
+
+            roleState.AddEndpoint = context.CreateInstanceOfAddEndpointMethodType(
+                roleState, new QualifiedName(BrowseNames.AddEndpoint, opcUaNs));
+            AssignChildNodeId(context, roleState.AddEndpoint);
+            LinkChild(roleState, roleState.AddEndpoint);
+
+            roleState.RemoveEndpoint = context.CreateInstanceOfRemoveEndpointMethodType(
+                roleState, new QualifiedName(BrowseNames.RemoveEndpoint, opcUaNs));
+            AssignChildNodeId(context, roleState.RemoveEndpoint);
+            LinkChild(roleState, roleState.RemoveEndpoint);
+
+            // Optional property children — ApplicationsExclude / EndpointsExclude
+            // / CustomConfiguration are all PropertyState<bool>. Use the
+            // HasProperty reference type rather than HasComponent so the
+            // browse classification matches the standard nodeset.
+            roleState.ApplicationsExclude = BuildBoolProperty(context, roleState, BrowseNames.ApplicationsExclude);
+            LinkChild(roleState, roleState.ApplicationsExclude, ReferenceTypeIds.HasProperty);
+            roleState.EndpointsExclude = BuildBoolProperty(context, roleState, BrowseNames.EndpointsExclude);
+            LinkChild(roleState, roleState.EndpointsExclude, ReferenceTypeIds.HasProperty);
+            roleState.CustomConfiguration = BuildBoolProperty(context, roleState, BrowseNames.CustomConfiguration);
+            LinkChild(roleState, roleState.CustomConfiguration, ReferenceTypeIds.HasProperty);
+
+            // The Identities child is created by the factory but its NodeId
+            // still points at the type definition — give it a dynamic id too
+            // so it is addressable as an instance.
+            if (roleState.Identities != null)
+            {
+                AssignChildNodeId(context, roleState.Identities);
+            }
+
+            // Attach to RoleSet so browse references are established before
+            // the manager indexes the subtree. AddChild only updates the
+            // typed children collection; the actual HasComponent reference
+            // pair that Browse traverses is added explicitly so the new
+            // role shows up when clients walk the RoleSet's children.
+            m_roleSet.AddChild(roleState);
+            m_roleSet.AddReference(ReferenceTypeIds.HasComponent, isInverse: false, roleState.NodeId);
+            roleState.AddReference(ReferenceTypeIds.HasComponent, isInverse: true, m_roleSet.NodeId);
+
+            await m_nodeManager.AddPredefinedNodeAsync(roleState, cancellationToken)
+                .ConfigureAwait(false);
+
+            // Now that the state is in PredefinedNodes, wire the OnCallAsync
+            // delegates and OnWriteValue handlers via the existing binding
+            // path. This keeps materialization and wiring identical to the
+            // well-known role path.
+            BindRoleState(roleState);
+
+            m_logger.LogDebug(
+                "Materialized dynamic role {RoleName} ({RoleId}) under RoleSet.",
+                roleName, roleNodeId);
         }
 
-        private static void BindIdentitiesRead(
-            AsyncCustomNodeManager nm, uint nodeId, IRoleManager manager, NodeId roleId)
+        private async ValueTask DematerializeDynamicRoleAsync(
+            NodeId roleNodeId,
+            CancellationToken cancellationToken)
         {
-            BaseDataVariableState v = nm.FindPredefinedNode<BaseDataVariableState>(new NodeId(nodeId));
-            if (v == null)
+            // Drop the binding bookkeeping first so any concurrent
+            // RoleConfigurationChanged listener walks the new state.
+            m_boundRoles.Remove(roleNodeId);
+
+            await m_nodeManager.DeleteNodeAsync(
+                    m_nodeManager.SystemContext,
+                    roleNodeId,
+                    cancellationToken)
+                .ConfigureAwait(false);
+        }
+
+        private static void AssignChildNodeId(ISystemContext context, BaseInstanceState? child)
+        {
+            if (child == null || context.NodeIdFactory == null)
             {
                 return;
             }
-            v.OnSimpleReadValue = (ISystemContext ctx, NodeState node, ref Variant value) =>
-            {
-                ExtensionObject[] arr = manager.SnapshotIdentities(roleId)
-                    .Select(r => new ExtensionObject(r))
-                    .ToArray();
-                value = Variant.From(arr);
-                return ServiceResult.Good;
-            };
+            child.NodeId = context.NodeIdFactory.New(context, child);
         }
 
-        private static void BindApplicationsRead(
-            AsyncCustomNodeManager nm, uint nodeId, IRoleManager manager, NodeId roleId)
+        /// <summary>
+        /// Attaches <paramref name="child"/> to <paramref name="parent"/> by
+        /// registering the typed child link (<c>AddChild</c>) and adding
+        /// explicit forward + inverse references so Browse traversal sees
+        /// the new HasComponent / HasProperty relationship.
+        /// </summary>
+        private static void LinkChild(NodeState parent, BaseInstanceState? child, NodeId? referenceTypeId = null)
         {
-            BaseDataVariableState v = nm.FindPredefinedNode<BaseDataVariableState>(new NodeId(nodeId));
-            if (v == null)
+            if (child == null || child.NodeId.IsNull)
             {
                 return;
             }
-            v.OnSimpleReadValue = (ISystemContext ctx, NodeState node, ref Variant value) =>
-            {
-                string[] arr = manager.SnapshotApplications(roleId, out _).ToArray();
-                value = Variant.From(arr);
-                return ServiceResult.Good;
-            };
+            NodeId refTypeId = referenceTypeId ?? ReferenceTypeIds.HasComponent;
+            parent.AddChild(child);
+            parent.AddReference(refTypeId, isInverse: false, child.NodeId);
+            child.AddReference(refTypeId, isInverse: true, parent.NodeId);
         }
 
-        private static void BindApplicationsExcludeRead(
-            AsyncCustomNodeManager nm, uint nodeId, IRoleManager manager, NodeId roleId)
+        private static PropertyState<bool> BuildBoolProperty(
+            ISystemContext context,
+            NodeState parent,
+            string browseName)
         {
-            BaseDataVariableState v = nm.FindPredefinedNode<BaseDataVariableState>(new NodeId(nodeId));
-            if (v == null)
+            // Property BrowseNames in the standard nodeset live in the OPC UA
+            // base namespace (always index 0). Look it up rather than relying
+            // on the internal Namespaces.OpcUa constant so this code stays
+            // compatible if the runtime resequences known namespaces.
+            int opcUaNsIndex = context.NamespaceUris.GetIndex("http://opcfoundation.org/UA/");
+            ushort ns = opcUaNsIndex >= 0 ? (ushort)opcUaNsIndex : (ushort)0;
+            PropertyState<bool> property = PropertyState<bool>.With<VariantBuilder>(parent);
+            property.BrowseName = new QualifiedName(browseName, ns);
+            property.DisplayName = new LocalizedText(browseName);
+            property.SymbolicName = browseName;
+            property.DataType = DataTypeIds.Boolean;
+            property.ValueRank = ValueRanks.Scalar;
+            AssignChildNodeId(context, property);
+            return property;
+        }
+
+        private async ValueTask<AddIdentityMethodStateResult> OnAddIdentityAsync(
+            ISystemContext context,
+            MethodState method,
+            NodeId roleId,
+            IdentityMappingRuleType rule)
+        {
+            await Task.Yield();
+
+            Variant ruleVariant = Variant.FromStructure(rule);
+            var result = new AddIdentityMethodStateResult();
+            ServiceResult auth = RoleAuthorizationGate.CheckAdmin(context);
+            if (ServiceResult.IsBad(auth))
+            {
+                result.ServiceResult = auth;
+                ReportAudit(context, roleId, method, [ruleVariant], success: false);
+                return result;
+            }
+
+            ServiceResult sr = m_roleManager.AddIdentity(roleId, rule);
+            result.ServiceResult = sr;
+            ReportAudit(context, roleId, method, [ruleVariant], ServiceResult.IsGood(sr));
+            return result;
+        }
+
+        private async ValueTask<RemoveIdentityMethodStateResult> OnRemoveIdentityAsync(
+            ISystemContext context,
+            MethodState method,
+            NodeId roleId,
+            IdentityMappingRuleType rule)
+        {
+            await Task.Yield();
+
+            Variant ruleVariant = Variant.FromStructure(rule);
+            var result = new RemoveIdentityMethodStateResult();
+            ServiceResult auth = RoleAuthorizationGate.CheckAdmin(context);
+            if (ServiceResult.IsBad(auth))
+            {
+                result.ServiceResult = auth;
+                ReportAudit(context, roleId, method, [ruleVariant], success: false);
+                return result;
+            }
+
+            ServiceResult sr = m_roleManager.RemoveIdentity(roleId, rule);
+            result.ServiceResult = sr;
+            ReportAudit(context, roleId, method, [ruleVariant], ServiceResult.IsGood(sr));
+            return result;
+        }
+
+        private async ValueTask<AddApplicationMethodStateResult> OnAddApplicationAsync(
+            ISystemContext context,
+            MethodState method,
+            NodeId roleId,
+            string applicationUri)
+        {
+            await Task.Yield();
+
+            Variant uriVariant = Variant.From(applicationUri);
+            var result = new AddApplicationMethodStateResult();
+            ServiceResult auth = RoleAuthorizationGate.CheckAdmin(context);
+            if (ServiceResult.IsBad(auth))
+            {
+                result.ServiceResult = auth;
+                ReportAudit(context, roleId, method, [uriVariant], success: false);
+                return result;
+            }
+
+            ServiceResult sr = m_roleManager.AddApplication(roleId, applicationUri);
+            result.ServiceResult = sr;
+            ReportAudit(context, roleId, method, [uriVariant], ServiceResult.IsGood(sr));
+            return result;
+        }
+
+        private async ValueTask<RemoveApplicationMethodStateResult> OnRemoveApplicationAsync(
+            ISystemContext context,
+            MethodState method,
+            NodeId roleId,
+            string applicationUri)
+        {
+            await Task.Yield();
+
+            Variant uriVariant = Variant.From(applicationUri);
+            var result = new RemoveApplicationMethodStateResult();
+            ServiceResult auth = RoleAuthorizationGate.CheckAdmin(context);
+            if (ServiceResult.IsBad(auth))
+            {
+                result.ServiceResult = auth;
+                ReportAudit(context, roleId, method, [uriVariant], success: false);
+                return result;
+            }
+
+            ServiceResult sr = m_roleManager.RemoveApplication(roleId, applicationUri);
+            result.ServiceResult = sr;
+            ReportAudit(context, roleId, method, [uriVariant], ServiceResult.IsGood(sr));
+            return result;
+        }
+
+        private async ValueTask<AddEndpointMethodStateResult> OnAddEndpointAsync(
+            ISystemContext context,
+            MethodState method,
+            NodeId roleId,
+            EndpointType endpoint)
+        {
+            await Task.Yield();
+
+            Variant epVariant = Variant.FromStructure(endpoint);
+            var result = new AddEndpointMethodStateResult();
+            ServiceResult auth = RoleAuthorizationGate.CheckAdmin(context);
+            if (ServiceResult.IsBad(auth))
+            {
+                result.ServiceResult = auth;
+                ReportAudit(context, roleId, method, [epVariant], success: false);
+                return result;
+            }
+
+            ServiceResult sr = m_roleManager.AddEndpoint(roleId, endpoint);
+            result.ServiceResult = sr;
+            ReportAudit(context, roleId, method, [epVariant], ServiceResult.IsGood(sr));
+            return result;
+        }
+
+        private async ValueTask<RemoveEndpointMethodStateResult> OnRemoveEndpointAsync(
+            ISystemContext context,
+            MethodState method,
+            NodeId roleId,
+            EndpointType endpoint)
+        {
+            await Task.Yield();
+
+            Variant epVariant = Variant.FromStructure(endpoint);
+            var result = new RemoveEndpointMethodStateResult();
+            ServiceResult auth = RoleAuthorizationGate.CheckAdmin(context);
+            if (ServiceResult.IsBad(auth))
+            {
+                result.ServiceResult = auth;
+                ReportAudit(context, roleId, method, [epVariant], success: false);
+                return result;
+            }
+
+            ServiceResult sr = m_roleManager.RemoveEndpoint(roleId, endpoint);
+            result.ServiceResult = sr;
+            ReportAudit(context, roleId, method, [epVariant], ServiceResult.IsGood(sr));
+            return result;
+        }
+
+        private ServiceResult OnWriteExclude(
+            ISystemContext context, NodeId roleId, ref Variant value, bool isApplications)
+        {
+            ServiceResult auth = RoleAuthorizationGate.CheckAdmin(context);
+            if (ServiceResult.IsBad(auth))
+            {
+                return auth;
+            }
+            if (!value.TryGetValue(out bool b))
+            {
+                return new ServiceResult(StatusCodes.BadTypeMismatch);
+            }
+            return isApplications
+                ? m_roleManager.SetApplicationsExclude(roleId, b)
+                : m_roleManager.SetEndpointsExclude(roleId, b);
+        }
+
+        private ServiceResult OnWriteCustomConfiguration(
+            ISystemContext context, NodeId roleId, ref Variant value)
+        {
+            ServiceResult auth = RoleAuthorizationGate.CheckAdmin(context);
+            if (ServiceResult.IsBad(auth))
+            {
+                return auth;
+            }
+            if (!value.TryGetValue(out bool b))
+            {
+                return new ServiceResult(StatusCodes.BadTypeMismatch);
+            }
+            return m_roleManager.SetCustomConfiguration(roleId, b);
+        }
+
+        private void ReportAudit(
+            ISystemContext context,
+            NodeId roleId,
+            MethodState method,
+            Variant[] inputArguments,
+            bool success)
+        {
+            if (m_auditServer == null)
             {
                 return;
             }
-            v.OnSimpleReadValue = (ISystemContext ctx, NodeState node, ref Variant value) =>
-            {
-                _ = manager.SnapshotApplications(roleId, out bool exclude);
-                value = Variant.From(exclude);
-                return ServiceResult.Good;
-            };
-        }
-
-        private static void BindEndpointsRead(
-            AsyncCustomNodeManager nm, uint nodeId, IRoleManager manager, NodeId roleId)
-        {
-            BaseDataVariableState v = nm.FindPredefinedNode<BaseDataVariableState>(new NodeId(nodeId));
-            if (v == null)
-            {
-                return;
-            }
-            v.OnSimpleReadValue = (ISystemContext ctx, NodeState node, ref Variant value) =>
-            {
-                ExtensionObject[] arr = manager.SnapshotEndpoints(roleId, out _)
-                    .Select(e => new ExtensionObject(e))
-                    .ToArray();
-                value = Variant.From(arr);
-                return ServiceResult.Good;
-            };
-        }
-
-        private static void BindEndpointsExcludeRead(
-            AsyncCustomNodeManager nm, uint nodeId, IRoleManager manager, NodeId roleId)
-        {
-            BaseDataVariableState v = nm.FindPredefinedNode<BaseDataVariableState>(new NodeId(nodeId));
-            if (v == null)
-            {
-                return;
-            }
-            v.OnSimpleReadValue = (ISystemContext ctx, NodeState node, ref Variant value) =>
-            {
-                _ = manager.SnapshotEndpoints(roleId, out bool exclude);
-                value = Variant.From(exclude);
-                return ServiceResult.Good;
-            };
-        }
-
-        private static bool TryGetRule(ArrayOf<Variant> args, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out IdentityMappingRuleType? rule)
-        {
-            rule = null;
-            if (args.Count == 0)
-            {
-                return false;
-            }
-            if (args[0].TryGetValue(out ExtensionObject ext)
-                && ext.TryGetValue(out IdentityMappingRuleType? r))
-            {
-                rule = r;
-                return r != null;
-            }
-            return false;
-        }
-
-        private static bool TryGetString(ArrayOf<Variant> args, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out string? value)
-        {
-            value = null;
-            if (args.Count == 0)
-            {
-                return false;
-            }
-            if (args[0].TryGetValue(out string? s))
-            {
-                value = s;
-                return true;
-            }
-            return false;
-        }
-
-        private static bool TryGetEndpoint(ArrayOf<Variant> args, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out EndpointType? endpoint)
-        {
-            endpoint = null;
-            if (args.Count == 0)
-            {
-                return false;
-            }
-            if (args[0].TryGetValue(out ExtensionObject ext)
-                && ext.TryGetValue(out EndpointType? e))
-            {
-                endpoint = e;
-                return e != null;
-            }
-            return false;
+            m_auditServer.ReportAuditRoleMappingRuleChangedEvent(
+                context,
+                roleId,
+                method,
+                ArrayOf.Wrapped(inputArguments),
+                success,
+                m_logger);
         }
     }
 }

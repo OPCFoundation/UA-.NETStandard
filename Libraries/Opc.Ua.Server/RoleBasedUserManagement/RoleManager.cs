@@ -36,69 +36,85 @@ using Opc.Ua.Security.Certificates;
 namespace Opc.Ua.Server
 {
     /// <summary>
-    /// Per-role mutable state plus identity-mapping algorithm per OPC UA Part 18 §4.4
-    /// (RoleType) and §6.4 (RoleSetType). Each well-known role in the address space
-    /// gets a backing <see cref="RoleEntry"/> here; the RoleStateBinding (in this
-    /// namespace) surfaces method calls and variable reads to/from this manager.
+    /// In-memory default implementation of <see cref="IRoleManager"/>.
+    /// Pre-populates the nine well-known roles per OPC UA Part 3 §4.9.2 and
+    /// their default identities per Part 18 §4.3. All operations are
+    /// thread-safe.
     /// </summary>
     /// <remarks>
-    /// All state is in-memory; rules added at runtime do not persist across server
-    /// restart. This is spec-allowed (Part 18 §6.4: "the management of these Roles
-    /// is server-specific"). Integrators that need persistence should implement
+    /// Per Part 18 §6.4 "the management of these Roles is server-specific" —
+    /// this default keeps everything in memory and does not persist across
+    /// server restarts. Integrators that need persistence should implement
     /// <see cref="IRoleManager"/> directly and inject the instance via
     /// <see cref="IServerInternal.SetRoleManager"/>.
     /// </remarks>
-    public sealed class RoleManager : IRoleManager
+    public sealed class RoleManager : IRoleManager, IDisposable
     {
+        private static readonly NodeId s_anonymous
+            = Opc.Ua.ObjectIds.WellKnownRole_Anonymous;
+        private static readonly NodeId s_authenticatedUser
+            = Opc.Ua.ObjectIds.WellKnownRole_AuthenticatedUser;
+        private static readonly NodeId s_trustedApplication
+            = Opc.Ua.ObjectIds.WellKnownRole_TrustedApplication;
+
         private readonly ReaderWriterLockSlim m_lock = new(LockRecursionPolicy.NoRecursion);
-        private readonly Dictionary<NodeId, RoleEntry> m_roles
-            = new(EqualityComparer<NodeId>.Default);
-        private readonly HashSet<NodeId> m_dynamicRoles
-            = new(EqualityComparer<NodeId>.Default);
-        private uint m_nextDynamicRoleId = 1;
+        private readonly Dictionary<NodeId, MutableRole> m_roles = [];
+        private readonly Dictionary<string, NodeId> m_browseNameIndex
+            = new(StringComparer.Ordinal);
+        private uint m_nextDynamicId = 1;
+        private bool m_disposed;
 
         /// <summary>
-        /// Namespace index used to issue NodeIds for dynamically created roles.
-        /// Initialized by <see cref="RoleStateBinding.Bind"/> from the diagnostics
-        /// node manager's namespace. Defaults to 0 if not initialized.
-        /// </summary>
-        public ushort DynamicRoleNamespaceIndex { get; set; }
-
-        /// <summary>
-        /// Creates a new role manager with empty per-role state. Call
-        /// <see cref="EnsureRole"/> for each role you intend to manage at startup.
+        /// Creates a new role manager pre-populated with the nine well-known
+        /// roles per Part 3 §4.9.2 and the default identity rules mandated by
+        /// Part 18 §4.3.
         /// </summary>
         public RoleManager()
         {
-        }
-
-        /// <summary>
-        /// Ensures a <see cref="RoleEntry"/> exists for <paramref name="roleId"/>.
-        /// Idempotent.
-        /// </summary>
-        public RoleEntry EnsureRole(NodeId roleId)
-        {
-            if (roleId.IsNull) { throw new ArgumentException("roleId cannot be null.", nameof(roleId)); }
-
-            m_lock.EnterWriteLock();
-            try
-            {
-                if (!m_roles.TryGetValue(roleId, out RoleEntry? entry))
+            // Anonymous role: identities = { Anonymous, AuthenticatedUser }
+            AddBuiltInRole(s_anonymous, BrowseNames.WellKnownRole_Anonymous, isReserved: true)
+                .Identities.Add(new IdentityMappingRuleType
                 {
-                    entry = new RoleEntry(roleId);
-                    m_roles[roleId] = entry;
-                }
-                return entry;
-            }
-            finally
+                    CriteriaType = IdentityCriteriaType.Anonymous
+                });
+            m_roles[s_anonymous].Identities.Add(new IdentityMappingRuleType
             {
-                m_lock.ExitWriteLock();
-            }
+                CriteriaType = IdentityCriteriaType.AuthenticatedUser
+            });
+
+            // AuthenticatedUser role: identities = { AuthenticatedUser }
+            AddBuiltInRole(s_authenticatedUser, BrowseNames.WellKnownRole_AuthenticatedUser, isReserved: true)
+                .Identities.Add(new IdentityMappingRuleType
+                {
+                    CriteriaType = IdentityCriteriaType.AuthenticatedUser
+                });
+
+            // TrustedApplication role: identities = { TrustedApplication }
+            AddBuiltInRole(s_trustedApplication, BrowseNames.WellKnownRole_TrustedApplication, isReserved: true)
+                .Identities.Add(new IdentityMappingRuleType
+                {
+                    CriteriaType = IdentityCriteriaType.TrustedApplication
+                });
+
+            // Configurable well-known roles (no default identities).
+            AddBuiltInRole(Opc.Ua.ObjectIds.WellKnownRole_Observer,
+                BrowseNames.WellKnownRole_Observer, isReserved: false);
+            AddBuiltInRole(Opc.Ua.ObjectIds.WellKnownRole_Operator,
+                BrowseNames.WellKnownRole_Operator, isReserved: false);
+            AddBuiltInRole(Opc.Ua.ObjectIds.WellKnownRole_Engineer,
+                BrowseNames.WellKnownRole_Engineer, isReserved: false);
+            AddBuiltInRole(Opc.Ua.ObjectIds.WellKnownRole_Supervisor,
+                BrowseNames.WellKnownRole_Supervisor, isReserved: false);
+            AddBuiltInRole(Opc.Ua.ObjectIds.WellKnownRole_ConfigureAdmin,
+                BrowseNames.WellKnownRole_ConfigureAdmin, isReserved: false);
+            AddBuiltInRole(Opc.Ua.ObjectIds.WellKnownRole_SecurityAdmin,
+                BrowseNames.WellKnownRole_SecurityAdmin, isReserved: false);
         }
 
-        /// <summary>
-        /// Registered role NodeIds.
-        /// </summary>
+        /// <inheritdoc/>
+        public event EventHandler<RoleConfigurationChangedEventArgs>? RoleConfigurationChanged;
+
+        /// <inheritdoc/>
         public IReadOnlyList<NodeId> RoleIds
         {
             get
@@ -115,306 +131,470 @@ namespace Opc.Ua.Server
             }
         }
 
-        /// <summary>
-        /// Adds an identity-mapping rule to the role. Idempotent — duplicate rules
-        /// are silently dropped.
-        /// </summary>
+        /// <inheritdoc/>
+        public RoleEntry? GetRole(NodeId roleId)
+        {
+            if (roleId.IsNull)
+            {
+                return null;
+            }
+
+            m_lock.EnterReadLock();
+            try
+            {
+                return m_roles.TryGetValue(roleId, out MutableRole? role)
+                    ? role.Snapshot()
+                    : null;
+            }
+            finally
+            {
+                m_lock.ExitReadLock();
+            }
+        }
+
+        /// <inheritdoc/>
         public ServiceResult AddIdentity(NodeId roleId, IdentityMappingRuleType rule)
         {
-            if (rule == null) { throw new ArgumentNullException(nameof(rule)); }
-            RoleEntry? entry = GetEntryOrFail(roleId, out ServiceResult error);
-            if (entry == null)
+            ServiceResult validation = IdentityRuleValidator.Validate(rule);
+            if (ServiceResult.IsBad(validation))
             {
-                return error;
+                return validation;
             }
 
             m_lock.EnterWriteLock();
             try
             {
-                if (!entry.Identities.Any(r => RuleEquals(r, rule)))
+                ServiceResult lookup = TryGetMutableRole(roleId, requireMutable: true, out MutableRole? role);
+                if (ServiceResult.IsBad(lookup))
                 {
-                    entry.Identities.Add(Clone(rule));
+                    return lookup;
                 }
-                return ServiceResult.Good;
+
+                if (role!.Identities.Any(r => IdentityRuleValidator.AreEquivalent(r, rule)))
+                {
+                    return new ServiceResult(StatusCodes.BadAlreadyExists,
+                        new LocalizedText("An equivalent identity rule already exists."));
+                }
+                role.Identities.Add(Clone(rule));
             }
             finally
             {
                 m_lock.ExitWriteLock();
             }
+
+            RaiseChanged(roleId, RoleConfigurationChangeKind.IdentityAdded);
+            return ServiceResult.Good;
         }
 
-        /// <summary>
-        /// Removes a previously added identity-mapping rule. Returns
-        /// BadNotFound if the rule isn't present.
-        /// </summary>
+        /// <inheritdoc/>
         public ServiceResult RemoveIdentity(NodeId roleId, IdentityMappingRuleType rule)
         {
-            if (rule == null) { throw new ArgumentNullException(nameof(rule)); }
-            RoleEntry? entry = GetEntryOrFail(roleId, out ServiceResult error);
-            if (entry == null)
+            if (rule == null)
             {
-                return error;
+                return new ServiceResult(StatusCodes.BadInvalidArgument);
             }
 
             m_lock.EnterWriteLock();
             try
             {
-                int idx = entry.Identities.FindIndex(r => RuleEquals(r, rule));
+                ServiceResult lookup = TryGetMutableRole(roleId, requireMutable: true, out MutableRole? role);
+                if (ServiceResult.IsBad(lookup))
+                {
+                    return lookup;
+                }
+
+                int idx = role!.Identities.FindIndex(r => IdentityRuleValidator.AreEquivalent(r, rule));
                 if (idx < 0)
                 {
                     return new ServiceResult(StatusCodes.BadNotFound);
                 }
-                entry.Identities.RemoveAt(idx);
-                return ServiceResult.Good;
+                role.Identities.RemoveAt(idx);
             }
             finally
             {
                 m_lock.ExitWriteLock();
             }
+
+            RaiseChanged(roleId, RoleConfigurationChangeKind.IdentityRemoved);
+            return ServiceResult.Good;
         }
 
-        /// <summary>
-        /// Adds an application URI to the role's <see cref="RoleEntry.Applications"/> list.
-        /// </summary>
+        /// <inheritdoc/>
         public ServiceResult AddApplication(NodeId roleId, string applicationUri)
         {
             if (string.IsNullOrEmpty(applicationUri))
             {
-                return new ServiceResult(StatusCodes.BadInvalidArgument);
-            }
-            RoleEntry? entry = GetEntryOrFail(roleId, out ServiceResult error);
-            if (entry == null)
-            {
-                return error;
+                return new ServiceResult(StatusCodes.BadInvalidArgument,
+                    new LocalizedText("ApplicationUri must be non-empty."));
             }
 
             m_lock.EnterWriteLock();
             try
             {
-                if (!entry.Applications.Contains(applicationUri))
+                ServiceResult lookup = TryGetMutableRole(roleId, requireMutable: true, out MutableRole? role);
+                if (ServiceResult.IsBad(lookup))
                 {
-                    entry.Applications.Add(applicationUri);
+                    return lookup;
                 }
-                return ServiceResult.Good;
+
+                if (role!.Applications.Contains(applicationUri))
+                {
+                    return new ServiceResult(StatusCodes.BadAlreadyExists,
+                        new LocalizedText($"ApplicationUri '{applicationUri}' is already assigned to this role."));
+                }
+                role.Applications.Add(applicationUri);
             }
             finally
             {
                 m_lock.ExitWriteLock();
             }
+
+            RaiseChanged(roleId, RoleConfigurationChangeKind.ApplicationAdded);
+            return ServiceResult.Good;
         }
 
-        /// <summary>
-        /// Removes an application URI; returns BadNotFound if absent.
-        /// </summary>
+        /// <inheritdoc/>
         public ServiceResult RemoveApplication(NodeId roleId, string applicationUri)
         {
             if (string.IsNullOrEmpty(applicationUri))
             {
                 return new ServiceResult(StatusCodes.BadInvalidArgument);
             }
-            RoleEntry? entry = GetEntryOrFail(roleId, out ServiceResult error);
-            if (entry == null)
-            {
-                return error;
-            }
 
             m_lock.EnterWriteLock();
             try
             {
-                if (!entry.Applications.Remove(applicationUri))
+                ServiceResult lookup = TryGetMutableRole(roleId, requireMutable: true, out MutableRole? role);
+                if (ServiceResult.IsBad(lookup))
+                {
+                    return lookup;
+                }
+
+                if (!role!.Applications.Remove(applicationUri))
                 {
                     return new ServiceResult(StatusCodes.BadNotFound);
                 }
-                return ServiceResult.Good;
             }
             finally
             {
                 m_lock.ExitWriteLock();
             }
+
+            RaiseChanged(roleId, RoleConfigurationChangeKind.ApplicationRemoved);
+            return ServiceResult.Good;
         }
 
-        /// <summary>
-        /// Adds an endpoint description to the role's <see cref="RoleEntry.Endpoints"/> list.
-        /// </summary>
+        /// <inheritdoc/>
         public ServiceResult AddEndpoint(NodeId roleId, EndpointType endpoint)
         {
-            if (endpoint == null) { throw new ArgumentNullException(nameof(endpoint)); }
-            RoleEntry? entry = GetEntryOrFail(roleId, out ServiceResult error);
-            if (entry == null)
+            if (endpoint == null || string.IsNullOrEmpty(endpoint.EndpointUrl))
             {
-                return error;
+                return new ServiceResult(StatusCodes.BadInvalidArgument,
+                    new LocalizedText("Endpoint or its EndpointUrl must be non-empty."));
             }
 
             m_lock.EnterWriteLock();
             try
             {
-                if (!entry.Endpoints.Any(e => EndpointEquals(e, endpoint)))
+                ServiceResult lookup = TryGetMutableRole(roleId, requireMutable: true, out MutableRole? role);
+                if (ServiceResult.IsBad(lookup))
                 {
-                    entry.Endpoints.Add(CloneEndpoint(endpoint));
+                    return lookup;
                 }
-                return ServiceResult.Good;
+
+                if (role!.Endpoints.Any(e => EndpointTypeComparer.RulesEqual(e, endpoint)))
+                {
+                    return new ServiceResult(StatusCodes.BadAlreadyExists,
+                        new LocalizedText("An equivalent endpoint is already assigned to this role."));
+                }
+                role.Endpoints.Add(EndpointTypeComparer.Clone(endpoint));
             }
             finally
             {
                 m_lock.ExitWriteLock();
             }
+
+            RaiseChanged(roleId, RoleConfigurationChangeKind.EndpointAdded);
+            return ServiceResult.Good;
         }
 
-        /// <summary>
-        /// Removes a previously added endpoint; returns BadNotFound if absent.
-        /// </summary>
+        /// <inheritdoc/>
         public ServiceResult RemoveEndpoint(NodeId roleId, EndpointType endpoint)
         {
-            if (endpoint == null) { throw new ArgumentNullException(nameof(endpoint)); }
-            RoleEntry? entry = GetEntryOrFail(roleId, out ServiceResult error);
-            if (entry == null)
+            if (endpoint == null)
             {
-                return error;
+                return new ServiceResult(StatusCodes.BadInvalidArgument);
             }
 
             m_lock.EnterWriteLock();
             try
             {
-                int idx = entry.Endpoints.FindIndex(e => EndpointEquals(e, endpoint));
+                ServiceResult lookup = TryGetMutableRole(roleId, requireMutable: true, out MutableRole? role);
+                if (ServiceResult.IsBad(lookup))
+                {
+                    return lookup;
+                }
+
+                int idx = role!.Endpoints.FindIndex(e => EndpointTypeComparer.RulesEqual(e, endpoint));
                 if (idx < 0)
                 {
                     return new ServiceResult(StatusCodes.BadNotFound);
                 }
-                entry.Endpoints.RemoveAt(idx);
-                return ServiceResult.Good;
+                role.Endpoints.RemoveAt(idx);
             }
             finally
             {
                 m_lock.ExitWriteLock();
             }
+
+            RaiseChanged(roleId, RoleConfigurationChangeKind.EndpointRemoved);
+            return ServiceResult.Good;
         }
 
-        /// <summary>
-        /// Read-only snapshot of the role's identities. Used by Variable read handlers.
-        /// </summary>
-        public IList<IdentityMappingRuleType> SnapshotIdentities(NodeId roleId)
+        /// <inheritdoc/>
+        public ServiceResult SetApplicationsExclude(NodeId roleId, bool value)
         {
-            m_lock.EnterReadLock();
-            try
-            {
-                return m_roles.TryGetValue(roleId, out RoleEntry? entry)
-                    ? entry.Identities.ConvertAll(Clone)
-                    : [];
-            }
-            finally
-            {
-                m_lock.ExitReadLock();
-            }
+            return SetFlag(roleId, value, role => role.ApplicationsExclude,
+                (role, v) => role.ApplicationsExclude = v,
+                RoleConfigurationChangeKind.ApplicationsExcludeChanged);
         }
 
-        /// <summary>
-        /// Read-only snapshot of the role's application URIs.
-        /// </summary>
-        public IList<string> SnapshotApplications(NodeId roleId, out bool exclude)
+        /// <inheritdoc/>
+        public ServiceResult SetEndpointsExclude(NodeId roleId, bool value)
         {
-            m_lock.EnterReadLock();
-            try
-            {
-                if (!m_roles.TryGetValue(roleId, out RoleEntry? entry))
-                {
-                    exclude = false;
-                    return [];
-                }
-                exclude = entry.ApplicationsExclude;
-                return [.. entry.Applications];
-            }
-            finally
-            {
-                m_lock.ExitReadLock();
-            }
+            return SetFlag(roleId, value, role => role.EndpointsExclude,
+                (role, v) => role.EndpointsExclude = v,
+                RoleConfigurationChangeKind.EndpointsExcludeChanged);
         }
 
-        /// <summary>
-        /// Read-only snapshot of the role's endpoints.
-        /// </summary>
-        public IList<EndpointType> SnapshotEndpoints(NodeId roleId, out bool exclude)
+        /// <inheritdoc/>
+        public ServiceResult SetCustomConfiguration(NodeId roleId, bool value)
         {
-            m_lock.EnterReadLock();
-            try
-            {
-                if (!m_roles.TryGetValue(roleId, out RoleEntry? entry))
-                {
-                    exclude = false;
-                    return [];
-                }
-                exclude = entry.EndpointsExclude;
-                return entry.Endpoints.ConvertAll(CloneEndpoint);
-            }
-            finally
-            {
-                m_lock.ExitReadLock();
-            }
+            return SetFlag(roleId, value, role => role.CustomConfiguration,
+                (role, v) => role.CustomConfiguration = v,
+                RoleConfigurationChangeKind.CustomConfigurationChanged);
         }
 
-        /// <summary>
-        /// Sets the ApplicationsExclude flag (true = role is granted to apps NOT in the list).
-        /// </summary>
-        public void SetApplicationsExclude(NodeId roleId, bool exclude)
+        private ServiceResult SetFlag(
+            NodeId roleId,
+            bool value,
+            Func<MutableRole, bool> getter,
+            Action<MutableRole, bool> setter,
+            RoleConfigurationChangeKind kind)
         {
-            RoleEntry entry = EnsureRole(roleId);
+            bool changed;
             m_lock.EnterWriteLock();
             try
             {
-                entry.ApplicationsExclude = exclude;
+                ServiceResult lookup = TryGetMutableRole(roleId, requireMutable: true, out MutableRole? role);
+                if (ServiceResult.IsBad(lookup))
+                {
+                    return lookup;
+                }
+                changed = getter(role!) != value;
+                setter(role!, value);
             }
             finally
             {
                 m_lock.ExitWriteLock();
             }
+
+            if (changed)
+            {
+                RaiseChanged(roleId, kind);
+            }
+            return ServiceResult.Good;
         }
 
-        /// <summary>
-        /// Sets the EndpointsExclude flag (true = role is granted on endpoints NOT in the list).
-        /// </summary>
-        public void SetEndpointsExclude(NodeId roleId, bool exclude)
+        /// <inheritdoc/>
+        public ServiceResult AddRole(
+            string roleName,
+            string? namespaceUri,
+            NamespaceTable namespaces,
+            ushort defaultNamespaceIndex,
+            out NodeId newRoleId)
         {
-            RoleEntry entry = EnsureRole(roleId);
+            newRoleId = NodeId.Null;
+
+            if (string.IsNullOrEmpty(roleName))
+            {
+                return new ServiceResult(StatusCodes.BadInvalidArgument,
+                    new LocalizedText("RoleName must be non-empty."));
+            }
+            if (namespaces == null)
+            {
+                throw new ArgumentNullException(nameof(namespaces));
+            }
+
+            bool isWellKnown = false;
+            bool useOpcUaNamespace =
+                string.IsNullOrEmpty(namespaceUri)
+                || string.Equals(namespaceUri, Opc.Ua.Namespaces.OpcUa, StringComparison.Ordinal);
+
+            // If naming a well-known role under the OPC UA namespace, reuse
+            // the well-known NodeId per Part 18 §4.2.2.
+            NodeId? candidate = null;
+            ushort namespaceIndex = defaultNamespaceIndex;
+            if (useOpcUaNamespace)
+            {
+                candidate = ResolveWellKnownNodeId(roleName);
+                if (candidate != null)
+                {
+                    isWellKnown = true;
+                    namespaceIndex = 0;
+                }
+            }
+
+            if (candidate == null)
+            {
+                if (!useOpcUaNamespace)
+                {
+                    int idx = namespaces.GetIndex(namespaceUri!);
+                    if (idx < 0)
+                    {
+                        return new ServiceResult(StatusCodes.BadInvalidArgument,
+                            new LocalizedText($"Namespace URI '{namespaceUri}' is not registered."));
+                    }
+                    namespaceIndex = (ushort)idx;
+                }
+                else
+                {
+                    // The caller asked for the default namespace (either no
+                    // URI provided or the bare OPC UA URI) but the role name
+                    // is not one of the reserved Part 3 §4.9 names. Allocate
+                    // in the manager's dynamic namespace rather than ns=0,
+                    // which is reserved for OPC UA core nodes per Part 5.
+                    namespaceIndex = defaultNamespaceIndex;
+                }
+            }
+
             m_lock.EnterWriteLock();
             try
             {
-                entry.EndpointsExclude = exclude;
+                if (m_browseNameIndex.ContainsKey(roleName))
+                {
+                    return new ServiceResult(StatusCodes.BadAlreadyExists,
+                        new LocalizedText($"A role with browse name '{roleName}' already exists."));
+                }
+
+                NodeId allocated;
+                if (candidate != null)
+                {
+                    if (m_roles.ContainsKey(candidate.Value))
+                    {
+                        return new ServiceResult(StatusCodes.BadAlreadyExists,
+                            new LocalizedText($"Well-known role '{roleName}' is already registered."));
+                    }
+                    allocated = candidate.Value;
+                }
+                else
+                {
+                    allocated = AllocateDynamicNodeId(namespaceIndex);
+                }
+
+                // Per §4.2.2: initial values of ApplicationsExclude/EndpointsExclude
+                // shall be TRUE on newly created roles when the properties exist.
+                var role = new MutableRole(allocated, roleName, namespaceIndex,
+                    isReserved: false, isWellKnown: isWellKnown)
+                {
+                    ApplicationsExclude = true,
+                    EndpointsExclude = true
+                };
+                m_roles[allocated] = role;
+                m_browseNameIndex[roleName] = allocated;
+                newRoleId = allocated;
             }
             finally
             {
                 m_lock.ExitWriteLock();
             }
+
+            RaiseChanged(newRoleId, RoleConfigurationChangeKind.RoleAdded);
+            return ServiceResult.Good;
         }
 
-        /// <summary>
-        /// Computes the set of additional roles to grant a session given its identity,
-        /// client cert, and endpoint per Part 18 §4.4.4.
-        /// </summary>
-        /// <remarks>
-        /// Returns role NodeIds. Caller should layer these on top of any roles already
-        /// granted (e.g. anonymous gets <see cref="Role.Anonymous"/> by default).
-        /// </remarks>
+        /// <inheritdoc/>
+        public ServiceResult RemoveRole(NodeId roleId)
+        {
+            if (roleId.IsNull)
+            {
+                return new ServiceResult(StatusCodes.BadInvalidArgument);
+            }
+
+            m_lock.EnterWriteLock();
+            try
+            {
+                if (!m_roles.TryGetValue(roleId, out MutableRole? role))
+                {
+                    return new ServiceResult(StatusCodes.BadNodeIdUnknown);
+                }
+                if (role.IsReserved)
+                {
+                    return new ServiceResult(StatusCodes.BadRequestNotAllowed,
+                        new LocalizedText($"Role '{role.BrowseName}' cannot be removed (Part 18 §4.3)."));
+                }
+                m_roles.Remove(roleId);
+                if (role.BrowseName != null)
+                {
+                    m_browseNameIndex.Remove(role.BrowseName);
+                }
+            }
+            finally
+            {
+                m_lock.ExitWriteLock();
+            }
+
+            RaiseChanged(roleId, RoleConfigurationChangeKind.RoleRemoved);
+            return ServiceResult.Good;
+        }
+
+        /// <inheritdoc/>
         public IList<NodeId> ResolveGrantedRoles(
             IUserIdentity identity,
             Certificate? clientCertificate,
             EndpointDescription? endpoint)
         {
-            if (identity == null) { throw new ArgumentNullException(nameof(identity)); }
+            if (identity == null)
+            {
+                throw new ArgumentNullException(nameof(identity));
+            }
 
-            string clientApplicationUri = (clientCertificate != null
-                ? X509Utils.GetApplicationUrisFromCertificate(clientCertificate).FirstOrDefault()
-                : null) ?? string.Empty;
+            string clientApplicationUri = clientCertificate != null
+                ? X509Utils.GetApplicationUrisFromCertificate(clientCertificate).FirstOrDefault() ?? string.Empty
+                : string.Empty;
+            string clientThumbprint = clientCertificate != null
+                ? IdentityRuleValidator.NormaliseThumbprint(clientCertificate.Thumbprint)
+                : string.Empty;
+            string clientSubject = clientCertificate != null
+                ? IdentityRuleValidator.NormaliseX509Subject(clientCertificate.Subject)
+                : string.Empty;
+
             string endpointUrl = endpoint?.EndpointUrl ?? string.Empty;
+            bool isSignedChannel = endpoint != null
+                && endpoint.SecurityMode is MessageSecurityMode.Sign
+                    or MessageSecurityMode.SignAndEncrypt;
+            bool isEncryptedChannel = endpoint?.SecurityMode == MessageSecurityMode.SignAndEncrypt;
+
+            var candidate = new EndpointType
+            {
+                EndpointUrl = endpointUrl,
+                SecurityMode = endpoint?.SecurityMode ?? MessageSecurityMode.Invalid,
+                SecurityPolicyUri = endpoint?.SecurityPolicyUri,
+                TransportProfileUri = endpoint?.TransportProfileUri
+            };
 
             var granted = new List<NodeId>();
 
             m_lock.EnterReadLock();
             try
             {
-                foreach (RoleEntry entry in m_roles.Values)
+                foreach (MutableRole role in m_roles.Values)
                 {
-                    if (RoleMatches(entry, identity, clientCertificate, clientApplicationUri, endpointUrl, granted))
+                    if (RoleMatches(role, identity, clientCertificate, clientApplicationUri,
+                            clientThumbprint, clientSubject, candidate, isSignedChannel,
+                            isEncryptedChannel, granted))
                     {
-                        granted.Add(entry.RoleId);
+                        granted.Add(role.RoleId);
                     }
                 }
             }
@@ -426,39 +606,74 @@ namespace Opc.Ua.Server
             return granted;
         }
 
-        private bool RoleMatches(
-            RoleEntry entry,
+        /// <inheritdoc/>
+        public void Dispose()
+        {
+            if (m_disposed)
+            {
+                return;
+            }
+            m_disposed = true;
+            m_lock.Dispose();
+        }
+
+        private static bool RoleMatches(
+            MutableRole role,
             IUserIdentity identity,
             Certificate? clientCertificate,
             string clientApplicationUri,
-            string endpointUrl,
+            string clientThumbprint,
+            string clientSubject,
+            EndpointType candidateEndpoint,
+            bool isSignedChannel,
+            bool isEncryptedChannel,
             IReadOnlyList<NodeId> rolesGrantedSoFar)
         {
-            // Application filter (per Part 18 §6.4: a role applies to an application iff
-            // the URI is listed (Exclude=false) or NOT listed (Exclude=true)).
-            if (entry.Applications.Count > 0 && clientApplicationUri != null)
+            // Apply Application filter (Part 18 §4.4.1).
+            if (role.Applications.Count > 0)
             {
-                bool inList = entry.Applications.Contains(clientApplicationUri);
-                if (entry.ApplicationsExclude ? inList : !inList)
+                // "If Applications has entries in the array, the Role shall only
+                // be granted if the Session uses a signed or signed and encrypted
+                // communication channel." — §4.4.1
+                if (!isSignedChannel || string.IsNullOrEmpty(clientApplicationUri))
+                {
+                    if (!role.ApplicationsExclude)
+                    {
+                        return false;
+                    }
+                }
+                bool inList = role.Applications.Contains(clientApplicationUri);
+                if (role.ApplicationsExclude ? inList : !inList)
                 {
                     return false;
                 }
             }
 
-            // Endpoint filter — same Exclude semantics.
-            if (entry.Endpoints.Count > 0 && endpointUrl != null)
+            // Apply Endpoint filter (Part 18 §4.4.1, §4.4.2).
+            if (role.Endpoints.Count > 0)
             {
-                bool inList = entry.Endpoints.Any(e =>
-                    string.Equals(e.EndpointUrl, endpointUrl, StringComparison.Ordinal));
-                if (entry.EndpointsExclude ? inList : !inList)
+                bool matchesEndpoint = role.Endpoints.Any(
+                    e => EndpointTypeComparer.Matches(e, candidateEndpoint));
+                if (role.EndpointsExclude ? matchesEndpoint : !matchesEndpoint)
                 {
                     return false;
                 }
             }
 
-            foreach (IdentityMappingRuleType rule in entry.Identities)
+            // Evaluate identity rules.
+            if (role.Identities.Count == 0)
             {
-                if (IdentityRuleMatches(rule, identity, clientCertificate, rolesGrantedSoFar))
+                // Per §4.4.1: "If this Property is an empty array and
+                // CustomConfiguration is not TRUE, then the Role cannot be
+                // granted to any Session."
+                return role.CustomConfiguration;
+            }
+
+            foreach (IdentityMappingRuleType rule in role.Identities)
+            {
+                if (IdentityRuleMatches(rule, identity, clientCertificate,
+                        clientApplicationUri, clientThumbprint, clientSubject,
+                        isSignedChannel, isEncryptedChannel, rolesGrantedSoFar))
                 {
                     return true;
                 }
@@ -471,58 +686,94 @@ namespace Opc.Ua.Server
             IdentityMappingRuleType rule,
             IUserIdentity identity,
             Certificate? clientCertificate,
+            string clientApplicationUri,
+            string clientThumbprint,
+            string clientSubject,
+            bool isSignedChannel,
+            bool isEncryptedChannel,
             IReadOnlyList<NodeId> rolesGrantedSoFar)
         {
             UserTokenType tokenType = identity.TokenType;
+            string criteria = rule.Criteria ?? string.Empty;
+
             return rule.CriteriaType switch
             {
                 IdentityCriteriaType.Anonymous => tokenType == UserTokenType.Anonymous,
                 IdentityCriteriaType.AuthenticatedUser => tokenType != UserTokenType.Anonymous,
                 IdentityCriteriaType.UserName => tokenType == UserTokenType.UserName
-                    && string.Equals(identity.DisplayName, rule.Criteria, StringComparison.Ordinal),
+                    && string.Equals(identity.DisplayName, criteria, StringComparison.Ordinal),
                 IdentityCriteriaType.Thumbprint => clientCertificate != null
-                    && string.Equals(clientCertificate.Thumbprint, rule.Criteria, StringComparison.OrdinalIgnoreCase),
+                    && string.Equals(clientThumbprint, criteria, StringComparison.Ordinal),
                 IdentityCriteriaType.X509Subject => clientCertificate != null
-                    && clientCertificate.Subject != null
-                    && clientCertificate.Subject.Contains(rule.Criteria ?? string.Empty, StringComparison.Ordinal),
-                IdentityCriteriaType.Role => rolesGrantedSoFar.Any(r => string.Equals(r.ToString(), rule.Criteria, StringComparison.Ordinal)),
+                    && !string.IsNullOrEmpty(clientSubject)
+                    && string.Equals(clientSubject, criteria, StringComparison.Ordinal),
+                IdentityCriteriaType.Role => MatchesGrantedRole(criteria, rolesGrantedSoFar),
                 IdentityCriteriaType.Application => clientCertificate != null
-                    && string.Equals(
-                        X509Utils.GetApplicationUrisFromCertificate(clientCertificate).FirstOrDefault(),
-                        rule.Criteria,
-                        StringComparison.Ordinal),
-                IdentityCriteriaType.TrustedApplication => clientCertificate != null,
-                // GroupId: out-of-scope without an external group provider.
+                    && isSignedChannel
+                    && string.Equals(clientApplicationUri, criteria, StringComparison.Ordinal),
+                IdentityCriteriaType.TrustedApplication => clientCertificate != null
+                    && isSignedChannel,
+                // GroupId: requires an external authorization service / JWT
+                // groups claim; without one, the rule cannot match.
                 IdentityCriteriaType.GroupId => false,
                 _ => false
             };
         }
 
-        private RoleEntry? GetEntryOrFail(NodeId roleId, out ServiceResult error)
+        private static bool MatchesGrantedRole(string criteria, IReadOnlyList<NodeId> rolesGrantedSoFar)
         {
-            if (roleId.IsNull) { throw new ArgumentException("roleId cannot be null.", nameof(roleId)); }
-            m_lock.EnterReadLock();
-            try
+            if (string.IsNullOrEmpty(criteria))
             {
-                if (m_roles.TryGetValue(roleId, out RoleEntry? entry))
+                return false;
+            }
+            foreach (NodeId nodeId in rolesGrantedSoFar)
+            {
+                if (string.Equals(nodeId.ToString(), criteria, StringComparison.Ordinal))
                 {
-                    error = ServiceResult.Good;
-                    return entry;
+                    return true;
                 }
             }
-            finally
-            {
-                m_lock.ExitReadLock();
-            }
-            error = new ServiceResult(StatusCodes.BadNotFound,
-                new LocalizedText($"Role {roleId} is not registered."));
-            return null;
+            return false;
         }
 
-        private static bool RuleEquals(IdentityMappingRuleType a, IdentityMappingRuleType b)
+        private MutableRole AddBuiltInRole(NodeId roleId, string browseName, bool isReserved)
         {
-            return a.CriteriaType == b.CriteriaType
-                && string.Equals(a.Criteria ?? string.Empty, b.Criteria ?? string.Empty, StringComparison.Ordinal);
+            var role = new MutableRole(roleId, browseName, roleId.NamespaceIndex,
+                isReserved: isReserved, isWellKnown: true);
+            m_roles[roleId] = role;
+            m_browseNameIndex[browseName] = roleId;
+            return role;
+        }
+
+        private NodeId AllocateDynamicNodeId(ushort namespaceIndex)
+        {
+            uint id = m_nextDynamicId++;
+            return new NodeId(id, namespaceIndex);
+        }
+
+        private ServiceResult TryGetMutableRole(NodeId roleId, bool requireMutable, out MutableRole? role)
+        {
+            role = null;
+            if (roleId.IsNull)
+            {
+                return new ServiceResult(StatusCodes.BadInvalidArgument);
+            }
+            if (!m_roles.TryGetValue(roleId, out role))
+            {
+                return new ServiceResult(StatusCodes.BadNodeIdUnknown);
+            }
+            if (requireMutable && role.IsReserved)
+            {
+                return new ServiceResult(StatusCodes.BadRequestNotAllowed,
+                    new LocalizedText(
+                        $"Role '{role.BrowseName}' is reserved and cannot be modified (Part 18 §4.3)."));
+            }
+            return ServiceResult.Good;
+        }
+
+        private void RaiseChanged(NodeId roleId, RoleConfigurationChangeKind kind)
+        {
+            RoleConfigurationChanged?.Invoke(this, new RoleConfigurationChangedEventArgs(roleId, kind));
         }
 
         private static IdentityMappingRuleType Clone(IdentityMappingRuleType rule)
@@ -534,163 +785,79 @@ namespace Opc.Ua.Server
             };
         }
 
-        private static bool EndpointEquals(EndpointType a, EndpointType b)
+        private static NodeId? ResolveWellKnownNodeId(string roleName)
         {
-            return string.Equals(a.EndpointUrl ?? string.Empty, b.EndpointUrl ?? string.Empty, StringComparison.Ordinal)
-                && string.Equals(a.SecurityPolicyUri ?? string.Empty, b.SecurityPolicyUri ?? string.Empty, StringComparison.Ordinal)
-                && a.SecurityMode == b.SecurityMode
-                && string.Equals(a.TransportProfileUri ?? string.Empty, b.TransportProfileUri ?? string.Empty, StringComparison.Ordinal);
-        }
-
-        private static EndpointType CloneEndpoint(EndpointType e)
-        {
-            return new EndpointType
+            return roleName switch
             {
-                EndpointUrl = e.EndpointUrl,
-                SecurityMode = e.SecurityMode,
-                SecurityPolicyUri = e.SecurityPolicyUri,
-                TransportProfileUri = e.TransportProfileUri
+                BrowseNames.WellKnownRole_Anonymous
+                    => Opc.Ua.ObjectIds.WellKnownRole_Anonymous,
+                BrowseNames.WellKnownRole_AuthenticatedUser
+                    => Opc.Ua.ObjectIds.WellKnownRole_AuthenticatedUser,
+                BrowseNames.WellKnownRole_TrustedApplication
+                    => Opc.Ua.ObjectIds.WellKnownRole_TrustedApplication,
+                BrowseNames.WellKnownRole_Observer
+                    => Opc.Ua.ObjectIds.WellKnownRole_Observer,
+                BrowseNames.WellKnownRole_Operator
+                    => Opc.Ua.ObjectIds.WellKnownRole_Operator,
+                BrowseNames.WellKnownRole_Engineer
+                    => Opc.Ua.ObjectIds.WellKnownRole_Engineer,
+                BrowseNames.WellKnownRole_Supervisor
+                    => Opc.Ua.ObjectIds.WellKnownRole_Supervisor,
+                BrowseNames.WellKnownRole_ConfigureAdmin
+                    => Opc.Ua.ObjectIds.WellKnownRole_ConfigureAdmin,
+                BrowseNames.WellKnownRole_SecurityAdmin
+                    => Opc.Ua.ObjectIds.WellKnownRole_SecurityAdmin,
+                _ => null
             };
         }
 
         /// <summary>
-        /// Dynamically creates a new role and returns its NodeId. The role is
-        /// tracked in memory only — no node is materialized in the address space.
-        /// Callers that need address-space integration must add the corresponding
-        /// <c>RoleType</c> instance separately.
+        /// Mutable per-role state held inside the manager. Not exposed
+        /// outside this class; callers see immutable <see cref="RoleEntry"/>
+        /// snapshots.
         /// </summary>
-        /// <param name="roleName">Browse name of the new role (must be non-empty).</param>
-        /// <param name="namespaceUri">Namespace URI for the role NodeId. Currently
-        /// reserved — the NodeId is always issued in the diagnostics namespace.
-        /// </param>
-        /// <param name="newRoleId">On success, the NodeId of the new role.</param>
-        public ServiceResult AddRole(string roleName, string namespaceUri, out NodeId newRoleId)
+        private sealed class MutableRole
         {
-            newRoleId = NodeId.Null;
-            if (string.IsNullOrEmpty(roleName))
+            public MutableRole(NodeId roleId, string browseName, ushort namespaceIndex,
+                bool isReserved, bool isWellKnown)
             {
-                return new ServiceResult(StatusCodes.BadInvalidArgument,
-                    new LocalizedText("RoleName must be non-empty."));
+                RoleId = roleId;
+                BrowseName = browseName;
+                NamespaceIndex = namespaceIndex;
+                IsReserved = isReserved;
+                IsWellKnown = isWellKnown;
+                Identities = [];
+                Applications = [];
+                Endpoints = [];
             }
 
-            m_lock.EnterWriteLock();
-            try
-            {
-                // Reject duplicates by browse-name match against existing dynamic roles.
-                foreach (RoleEntry existing in m_roles.Values)
-                {
-                    if (string.Equals(existing.BrowseName, roleName, StringComparison.Ordinal))
-                    {
-                        return new ServiceResult(StatusCodes.BadBrowseNameDuplicated,
-                            new LocalizedText($"Role with name {roleName} already exists."));
-                    }
-                }
+            public NodeId RoleId { get; }
+            public string BrowseName { get; }
+            public ushort NamespaceIndex { get; }
+            public bool IsReserved { get; }
+            public bool IsWellKnown { get; }
+            public List<IdentityMappingRuleType> Identities { get; }
+            public List<string> Applications { get; }
+            public List<EndpointType> Endpoints { get; }
+            public bool ApplicationsExclude { get; set; }
+            public bool EndpointsExclude { get; set; }
+            public bool CustomConfiguration { get; set; }
 
-                uint id = m_nextDynamicRoleId++;
-                newRoleId = new NodeId(id, DynamicRoleNamespaceIndex);
-                var entry = new RoleEntry(newRoleId)
-                {
-                    BrowseName = roleName,
-                    NamespaceUri = namespaceUri
-                };
-                m_roles[newRoleId] = entry;
-                m_dynamicRoles.Add(newRoleId);
-                return ServiceResult.Good;
-            }
-            finally
+            public RoleEntry Snapshot()
             {
-                m_lock.ExitWriteLock();
+                return new RoleEntry(
+                    RoleId,
+                    BrowseName,
+                    NamespaceIndex,
+                    IsReserved,
+                    IsWellKnown,
+                    [.. Identities.Select(Clone)],
+                    [.. Applications],
+                    ApplicationsExclude,
+                    [.. Endpoints.Select(EndpointTypeComparer.Clone)],
+                    EndpointsExclude,
+                    CustomConfiguration);
             }
         }
-
-        /// <summary>
-        /// Removes a dynamically created role. Returns
-        /// <see cref="StatusCodes.BadNotFound"/> if the role is unknown and
-        /// <see cref="StatusCodes.BadInvalidState"/> if the role is well-known
-        /// (well-known roles cannot be removed per Part 18 §6.4).
-        /// </summary>
-        public ServiceResult RemoveRole(NodeId roleId)
-        {
-            if (roleId.IsNull) { throw new ArgumentException("roleId cannot be null.", nameof(roleId)); }
-
-            m_lock.EnterWriteLock();
-            try
-            {
-                if (!m_roles.ContainsKey(roleId))
-                {
-                    return new ServiceResult(StatusCodes.BadNotFound,
-                        new LocalizedText($"Role {roleId} is not registered."));
-                }
-                if (!m_dynamicRoles.Contains(roleId))
-                {
-                    return new ServiceResult(StatusCodes.BadInvalidState,
-                        new LocalizedText($"Role {roleId} is well-known and cannot be removed."));
-                }
-
-                m_roles.Remove(roleId);
-                m_dynamicRoles.Remove(roleId);
-                return ServiceResult.Good;
-            }
-            finally
-            {
-                m_lock.ExitWriteLock();
-            }
-        }
-    }
-
-    /// <summary>
-    /// Per-role state owned by <see cref="RoleManager"/>.
-    /// </summary>
-    public sealed class RoleEntry
-    {
-        internal RoleEntry(NodeId roleId)
-        {
-            RoleId = roleId;
-            Identities = [];
-            Applications = [];
-            Endpoints = [];
-        }
-
-        /// <summary>
-        /// The role's NodeId (e.g. <see cref="ObjectIds.WellKnownRole_Observer"/>).
-        /// </summary>
-        public NodeId RoleId { get; }
-
-        /// <summary>
-        /// Display / browse name of the role. Set for dynamically added roles via
-        /// <see cref="RoleManager.AddRole"/>; null for well-known roles.
-        /// </summary>
-        public string? BrowseName { get; internal set; }
-
-        /// <summary>
-        /// Namespace URI requested when the role was created. Currently used only
-        /// for diagnostics.
-        /// </summary>
-        public string? NamespaceUri { get; internal set; }
-
-        /// <summary>
-        /// Identity-mapping rules added via <c>AddIdentity</c>.
-        /// </summary>
-        internal List<IdentityMappingRuleType> Identities { get; }
-
-        /// <summary>
-        /// Application URIs added via <c>AddApplication</c>.
-        /// </summary>
-        internal List<string> Applications { get; }
-
-        /// <summary>
-        /// True if <see cref="Applications"/> is an exclude list.
-        /// </summary>
-        internal bool ApplicationsExclude { get; set; }
-
-        /// <summary>
-        /// Endpoints added via <c>AddEndpoint</c>.
-        /// </summary>
-        internal List<EndpointType> Endpoints { get; }
-
-        /// <summary>
-        /// True if <see cref="Endpoints"/> is an exclude list.
-        /// </summary>
-        internal bool EndpointsExclude { get; set; }
     }
 }

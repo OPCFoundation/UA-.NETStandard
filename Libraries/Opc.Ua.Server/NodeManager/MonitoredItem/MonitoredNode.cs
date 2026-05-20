@@ -351,10 +351,11 @@ namespace Opc.Ua.Server
                     monitoredItemId,
                     out (ServerSystemContext Context, int CreatedAtTicks) cachedEntry))
             {
-                // Check if the session or user identity has changed or the entry has expired
+                // Refresh context if the owning session changed (e.g. after subscription transfer)
+                // or if the cache entry has expired.
+                // Note: identity-based invalidation is handled proactively by
+                // InvalidatePermissionCacheForSession when ActivateSession changes the identity.
                 if (cachedEntry.Context.OperationContext!.Session != monitoredItem.Session ||
-                    cachedEntry.Context.OperationContext.UserIdentity != monitoredItem
-                        .EffectiveIdentity ||
                     (currentTicks - cachedEntry.CreatedAtTicks) > m_cacheLifetimeTicks)
                 {
                     operationContext = new OperationContext(monitoredItem);
@@ -363,7 +364,7 @@ namespace Opc.Ua.Server
                         operationContext);
                     m_contextCache[monitoredItemId] = (updatedContext, currentTicks);
 
-                    // Invalidate the permission cache since the user identity may have changed.
+                    // Invalidate the permission cache since the session context has changed.
                     m_permissionCache.TryRemove(monitoredItemId, out _);
 
                     return updatedContext;
@@ -378,6 +379,27 @@ namespace Opc.Ua.Server
             m_contextCache.TryAdd(monitoredItemId, (newContext, currentTicks));
 
             return newContext;
+        }
+
+        /// <summary>
+        /// Invalidates the permission and context caches for all monitored items belonging
+        /// to the specified session. Call this when the session's user identity changes so
+        /// that role permissions are re-evaluated on the next data change notification.
+        /// </summary>
+        /// <param name="sessionId">The NodeId of the session whose identity has changed.</param>
+        public void InvalidatePermissionCacheForSession(NodeId sessionId)
+        {
+            foreach (KeyValuePair<uint, IDataChangeMonitoredItem2> kvp in DataChangeMonitoredItems)
+            {
+                IDataChangeMonitoredItem2 monitoredItem = kvp.Value;
+
+                if (monitoredItem?.Session?.Id.Equals(sessionId) == true)
+                {
+                    uint id = monitoredItem.Id;
+                    m_permissionCache.TryRemove(id, out _);
+                    m_contextCache.TryRemove(id, out _);
+                }
+            }
         }
 
         /// <summary>

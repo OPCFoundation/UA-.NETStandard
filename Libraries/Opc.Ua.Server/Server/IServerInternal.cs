@@ -162,6 +162,14 @@ namespace Opc.Ua.Server
         IRoleManager RoleManager { get; }
 
         /// <summary>
+        /// The manager for the OPC UA Part 18 §5 user-management model.
+        /// <c>null</c> when the server doesn't expose
+        /// <c>ServerConfiguration.UserManagement</c>. Integrators inject a
+        /// concrete instance by calling <see cref="SetUserManagement"/>.
+        /// </summary>
+        Opc.Ua.Server.UserManagement.IUserManagement? UserManagement { get; }
+
+        /// <summary>
         /// The manager for active subscriptions.
         /// </summary>
         ISubscriptionManager SubscriptionManager { get; }
@@ -348,6 +356,15 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="roleManager">The role manager to use.</param>
         void SetRoleManager(IRoleManager roleManager);
+
+        /// <summary>
+        /// Replaces the user-management facade with a custom
+        /// <see cref="Opc.Ua.Server.UserManagement.IUserManagement"/>
+        /// implementation. Must be called before the configuration node
+        /// manager binds the address space (typically before <c>StartServer</c>).
+        /// </summary>
+        /// <param name="userManagement">The user-management facade.</param>
+        void SetUserManagement(Opc.Ua.Server.UserManagement.IUserManagement userManagement);
 
         /// <summary>
         /// Stores the AggregateManager in the datastore.
