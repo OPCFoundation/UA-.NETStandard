@@ -3038,9 +3038,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                                                             DataSetFieldContentMask.SourceTimestamp
                                                         ) != 0)
                                                     {
-                                                        dataValue.SourceTimestamp = jsonDecoder
-                                                            .ReadDateTime(
-                                                                "SourceTimestamp");
+                                                        dataValue = dataValue.WithSourceTimestamp(
+                                                            jsonDecoder.ReadDateTime("SourceTimestamp"));
                                                     }
 
                                                     if ((
@@ -3048,9 +3047,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                                                             DataSetFieldContentMask.SourcePicoSeconds
                                                         ) != 0)
                                                     {
-                                                        dataValue.SourcePicoseconds = jsonDecoder
-                                                            .ReadUInt16(
-                                                                "SourcePicoseconds");
+                                                        dataValue = dataValue.WithSourcePicoseconds(
+                                                            jsonDecoder.ReadUInt16("SourcePicoseconds"));
                                                     }
 
                                                     if ((
@@ -3058,9 +3056,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                                                             DataSetFieldContentMask.ServerTimestamp
                                                         ) != 0)
                                                     {
-                                                        dataValue.ServerTimestamp = jsonDecoder
-                                                            .ReadDateTime(
-                                                                "ServerTimestamp");
+                                                        dataValue = dataValue.WithServerTimestamp(
+                                                            jsonDecoder.ReadDateTime("ServerTimestamp"));
                                                     }
 
                                                     if ((
@@ -3068,9 +3065,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                                                             DataSetFieldContentMask.ServerPicoSeconds
                                                         ) != 0)
                                                     {
-                                                        dataValue.ServerPicoseconds = jsonDecoder
-                                                            .ReadUInt16(
-                                                                "ServerPicoseconds");
+                                                        dataValue = dataValue.WithServerPicoseconds(
+                                                            jsonDecoder.ReadUInt16("ServerPicoseconds"));
                                                     }
 #pragma warning disable CS0618 // Type or member is obsolete
                                                     Assert.That(

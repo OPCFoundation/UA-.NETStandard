@@ -575,12 +575,12 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         }
 
         [Test]
-        public void WrappedValueGetterAndSetter()
+        public void WrappedValueGetterAndWithMutator()
         {
             var dv = new DataValue();
             var variant = new Variant(true);
 
-            dv.WrappedValue = variant;
+            dv = dv.WithWrappedValue(variant);
 
             Assert.That(dv.WrappedValue, Is.EqualTo(variant));
         }
