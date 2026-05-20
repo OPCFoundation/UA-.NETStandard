@@ -559,8 +559,11 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(identity));
             }
 
-            string clientApplicationUri = clientCertificate != null
-                ? X509Utils.GetApplicationUrisFromCertificate(clientCertificate).FirstOrDefault() ?? string.Empty
+            IReadOnlyList<string>? applicationUris = clientCertificate != null
+                ? X509Utils.GetApplicationUrisFromCertificate(clientCertificate)
+                : null;
+            string clientApplicationUri = applicationUris is { Count: > 0 }
+                ? applicationUris[0]
                 : string.Empty;
             string clientThumbprint = clientCertificate != null
                 ? IdentityRuleValidator.NormaliseThumbprint(clientCertificate.Thumbprint)

@@ -161,8 +161,9 @@ namespace Opc.Ua.Client.AliasNames.PubSub
             {
                 return string.Empty;
             }
-            int idx = text!.IndexOf(';');
-            return idx < 0 ? text : text.Substring(idx + 1);
+            string value = text!;
+            int idx = value.IndexOf(';', StringComparison.Ordinal);
+            return idx < 0 ? value : value.Substring(idx + 1);
         }
 
         private readonly AliasNamePubSubReader m_reader;
