@@ -559,12 +559,9 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(identity));
             }
 
-            IReadOnlyList<string>? applicationUris = clientCertificate != null
+            IReadOnlyList<string> clientApplicationUris = clientCertificate != null
                 ? X509Utils.GetApplicationUrisFromCertificate(clientCertificate)
-                : null;
-            string clientApplicationUri = applicationUris is { Count: > 0 }
-                ? applicationUris[0]
-                : string.Empty;
+                : [];
             string clientThumbprint = clientCertificate != null
                 ? IdentityRuleValidator.NormaliseThumbprint(clientCertificate.Thumbprint)
                 : string.Empty;
@@ -593,7 +590,7 @@ namespace Opc.Ua.Server
             {
                 foreach (MutableRole role in m_roles.Values)
                 {
-                    if (RoleMatches(role, identity, clientCertificate, clientApplicationUri,
+                    if (RoleMatches(role, identity, clientCertificate, clientApplicationUris,
                             clientThumbprint, clientSubject, candidate, isSignedChannel,
                             isEncryptedChannel, granted))
                     {
@@ -624,7 +621,7 @@ namespace Opc.Ua.Server
             MutableRole role,
             IUserIdentity identity,
             Certificate? clientCertificate,
-            string clientApplicationUri,
+            IReadOnlyList<string> clientApplicationUris,
             string clientThumbprint,
             string clientSubject,
             EndpointType candidateEndpoint,
@@ -638,14 +635,17 @@ namespace Opc.Ua.Server
                 // "If Applications has entries in the array, the Role shall only
                 // be granted if the Session uses a signed or signed and encrypted
                 // communication channel." — §4.4.1
-                if (!isSignedChannel || string.IsNullOrEmpty(clientApplicationUri))
+                if (!isSignedChannel || clientApplicationUris.Count == 0)
                 {
                     if (!role.ApplicationsExclude)
                     {
                         return false;
                     }
                 }
-                bool inList = role.Applications.Contains(clientApplicationUri);
+                // The certificate may advertise multiple ApplicationUris (Subject
+                // Alternative Names); any match against the role's Applications list
+                // counts as inclusion.
+                bool inList = clientApplicationUris.Any(uri => role.Applications.Contains(uri));
                 if (role.ApplicationsExclude ? inList : !inList)
                 {
                     return false;
@@ -675,7 +675,7 @@ namespace Opc.Ua.Server
             foreach (IdentityMappingRuleType rule in role.Identities)
             {
                 if (IdentityRuleMatches(rule, identity, clientCertificate,
-                        clientApplicationUri, clientThumbprint, clientSubject,
+                        clientApplicationUris, clientThumbprint, clientSubject,
                         isSignedChannel, isEncryptedChannel, rolesGrantedSoFar))
                 {
                     return true;
@@ -689,7 +689,7 @@ namespace Opc.Ua.Server
             IdentityMappingRuleType rule,
             IUserIdentity identity,
             Certificate? clientCertificate,
-            string clientApplicationUri,
+            IReadOnlyList<string> clientApplicationUris,
             string clientThumbprint,
             string clientSubject,
             bool isSignedChannel,
@@ -711,9 +711,11 @@ namespace Opc.Ua.Server
                     && !string.IsNullOrEmpty(clientSubject)
                     && string.Equals(clientSubject, criteria, StringComparison.Ordinal),
                 IdentityCriteriaType.Role => MatchesGrantedRole(criteria, rolesGrantedSoFar),
+                // The certificate may advertise multiple ApplicationUris; any one
+                // matching the rule's criteria is sufficient.
                 IdentityCriteriaType.Application => clientCertificate != null
                     && isSignedChannel
-                    && string.Equals(clientApplicationUri, criteria, StringComparison.Ordinal),
+                    && clientApplicationUris.Any(uri => string.Equals(uri, criteria, StringComparison.Ordinal)),
                 IdentityCriteriaType.TrustedApplication => clientCertificate != null
                     && isSignedChannel,
                 // GroupId: requires an external authorization service / JWT
