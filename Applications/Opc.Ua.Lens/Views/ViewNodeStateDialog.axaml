@@ -34,7 +34,7 @@
         Width="720" Height="600"
         WindowStartupLocation="CenterOwner"
         Background="#0F172A" Foreground="#E2E8F0">
-  <Grid Margin="14" RowDefinitions="Auto,Auto,*,Auto">
+  <Grid Margin="16" RowDefinitions="Auto,Auto,*,Auto">
 
     <TextBlock Grid.Row="0" Margin="0,0,0,4" TextWrapping="Wrap"
                Text="Recursive dump of the node's attributes, references (grouped by reference type), and (for Variables) the current Value." />

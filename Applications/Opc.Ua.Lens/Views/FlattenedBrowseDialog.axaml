@@ -33,7 +33,7 @@
         Width="780" Height="560"
         WindowStartupLocation="CenterOwner"
         Background="#0F172A" Foreground="#E2E8F0">
-  <Grid Margin="14" RowDefinitions="Auto,*,Auto,Auto,Auto">
+  <Grid Margin="16" RowDefinitions="Auto,*,Auto,Auto,Auto">
     <TextBlock Grid.Row="0"
                x:Name="HeaderLabel"
                Margin="0,0,0,8"

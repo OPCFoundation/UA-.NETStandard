@@ -33,7 +33,7 @@
         Width="460" Height="380"
         WindowStartupLocation="CenterOwner"
         Background="#0F172A" Foreground="#E2E8F0">
-  <Grid Margin="14" RowDefinitions="Auto,Auto,*,Auto" ColumnDefinitions="*,Auto">
+  <Grid Margin="16" RowDefinitions="Auto,Auto,*,Auto" ColumnDefinitions="*,Auto">
 
     <TextBlock Grid.Row="0" Grid.ColumnSpan="2" Margin="0,0,0,8" TextWrapping="Wrap"
                Text="Ordered list of preferred locale identifiers. Sent on connect and via ChangePreferredLocales for the active session." />

@@ -32,7 +32,7 @@
         Width="420" Height="170"
         WindowStartupLocation="CenterOwner"
         Background="#0F172A" Foreground="#E2E8F0">
-  <Grid Margin="14" RowDefinitions="Auto,Auto,Auto" ColumnDefinitions="*">
+  <Grid Margin="16" RowDefinitions="Auto,Auto,Auto" ColumnDefinitions="*">
     <TextBlock Grid.Row="0" x:Name="PromptLabel"
                Margin="0,0,0,8" TextWrapping="Wrap" />
     <TextBox  Grid.Row="1" x:Name="NameBox"

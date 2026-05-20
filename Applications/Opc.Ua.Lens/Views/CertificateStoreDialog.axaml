@@ -51,7 +51,7 @@
       <Setter Property="Foreground" Value="#FBBF24" />
     </Style>
   </Window.Styles>
-  <Grid Margin="14" RowDefinitions="Auto,*,Auto">
+  <Grid Margin="16" RowDefinitions="Auto,*,Auto">
     <TextBlock Grid.Row="0"
                Margin="0,0,0,8"
                TextWrapping="Wrap"

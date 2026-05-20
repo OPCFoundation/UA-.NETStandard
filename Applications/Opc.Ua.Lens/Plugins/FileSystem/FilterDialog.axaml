@@ -33,7 +33,7 @@
         Width="400" Height="240"
         WindowStartupLocation="CenterOwner"
         Background="#0F172A" Foreground="#E2E8F0">
-  <Grid Margin="14" RowDefinitions="Auto,Auto,Auto,Auto,*,Auto" ColumnDefinitions="*">
+  <Grid Margin="16" RowDefinitions="Auto,Auto,Auto,Auto,*,Auto" ColumnDefinitions="*">
     <TextBlock Grid.Row="0" Margin="0,0,0,10"
                TextWrapping="Wrap"
                Text="Restrict which kinds of node the next 'Pick root…' dialog will accept as a FileSystem tree root." />

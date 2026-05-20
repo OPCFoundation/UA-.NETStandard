@@ -33,7 +33,7 @@
         Width="460" Height="260"
         WindowStartupLocation="CenterOwner"
         Background="#0F172A" Foreground="#E2E8F0">
-  <Grid Margin="14" RowDefinitions="*,Auto">
+  <Grid Margin="16" RowDefinitions="*,Auto">
 
     <!-- Body: one TabControl with a single URL tab today.  Future MDNS,
          LDS, and reverse-connect connection sources slot in here as
