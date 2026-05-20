@@ -589,10 +589,19 @@
                                 IsVisible="{CompiledBinding IsCustomTabActive}" />
                 <!-- Disconnected-overlay: friendly hint while the user has
                      no active session.  Sits on top of the disabled body. -->
-                <TextBlock IsVisible="{CompiledBinding !IsConnected}"
-                           HorizontalAlignment="Center" VerticalAlignment="Center"
-                           Foreground="#94A3B8" FontSize="14"
-                           Text="Connect to a server to activate this tab." />
+                <StackPanel IsVisible="{CompiledBinding !IsConnected}"
+                            HorizontalAlignment="Center" VerticalAlignment="Center"
+                            Orientation="Vertical" Spacing="12">
+                  <TextBlock HorizontalAlignment="Center"
+                             Foreground="#94A3B8" FontSize="14"
+                             Text="Connect to a server to activate this tab." />
+                  <Button x:Name="DisconnectedConnectButton"
+                          HorizontalAlignment="Center"
+                          Padding="14,6"
+                          Background="#1E293B" Foreground="#E2E8F0"
+                          BorderBrush="#334155" BorderThickness="1"
+                          Content="Connect…" />
+                </StackPanel>
               </Grid>
             </Border>
             <TextBlock Grid.Row="2" Margin="0,6,0,0" Classes="status"

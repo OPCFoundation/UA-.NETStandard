@@ -153,6 +153,14 @@ internal sealed partial class MainWindow : Window, IDisposable
         menuSessionChangeUser.Click += async (_, _) => await OnChangeUser().ConfigureAwait(false);
         menuSessionReconnect.Click += async (_, _) => await OnReconnect().ConfigureAwait(false);
 
+        // Connect... button rendered on the disconnected placeholder so a
+        // brand-new user can launch the Connect dialog without hunting
+        // through the Session menu.
+        if (this.FindControl<Button>("DisconnectedConnectButton") is { } connectBtn)
+        {
+            connectBtn.Click += async (_, _) => await OnSessionCreateAsync().ConfigureAwait(false);
+        }
+
         addBtn.Click += async (_, _) => await OnAddItem().ConfigureAwait(false);
         removeBtn.Click += async (_, _) => await OnRemoveItem().ConfigureAwait(false);
         settingsBtn.Click += async (_, _) => await OnSettings().ConfigureAwait(false);
