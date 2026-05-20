@@ -222,7 +222,9 @@ namespace Opc.Ua.Gds.Server
             return null;
         }
 
-        private async Task<bool> RevokeCertificateAsync(ByteString certificate)
+        private async Task<bool> RevokeCertificateAsync(
+            ByteString certificate,
+            CancellationToken cancellationToken = default)
         {
             bool revoked = false;
             if (certificate.Length > 0)
@@ -235,7 +237,7 @@ namespace Opc.Ua.Gds.Server
                     try
                     {
                         X509CRL crl = await certificateGroup
-                            .RevokeCertificateAsync(x509)
+                            .RevokeCertificateAsync(x509, cancellationToken)
                             .ConfigureAwait(false);
                         if (crl != null)
                         {
@@ -253,6 +255,99 @@ namespace Opc.Ua.Gds.Server
                 }
             }
             return revoked;
+        }
+
+        /// <summary>
+        /// Builds the issuer-certificate chain for a newly issued
+        /// <paramref name="certificate"/> per OPC 10000-12 §7.6.6.
+        /// </summary>
+        /// <remarks>
+        /// The chain is returned in leaf-to-root order, excluding the leaf
+        /// itself. The immediate issuing CA is always included. The
+        /// in-memory <see cref="ICertificateGroup.Certificates"/> map is
+        /// used as the additional chain-building candidate set so the
+        /// helper does not contend with concurrent
+        /// <c>SigningRequestAsync</c> / <c>NewKeyPairRequestAsync</c>
+        /// writes against the CertificateGroup's AuthoritiesStore.
+        /// </remarks>
+#pragma warning disable CA1822 // method uses instance fields via the captured certificateGroup parameter
+        private ArrayOf<ByteString> BuildIssuerCertificateChain(
+            Certificate certificate,
+            ICertificateGroup certificateGroup,
+            NodeId certificateTypeNodeId)
+#pragma warning restore CA1822
+        {
+            var issuerChain = new List<ByteString>();
+            var clones = new List<X509Certificate2>();
+
+            try
+            {
+                var candidates = new X509Certificate2Collection();
+
+                // Use the in-memory CA cert(s) the CertificateGroup
+                // already exposes; clone the byte arrays so the chain
+                // build holds independent X509Certificate2 handles.
+                foreach (KeyValuePair<NodeId, Certificate?> kvp in certificateGroup.Certificates)
+                {
+                    if (kvp.Value == null)
+                    {
+                        continue;
+                    }
+                    X509Certificate2 clone = X509CertificateLoader.LoadCertificate(kvp.Value.RawData);
+                    clones.Add(clone);
+                    candidates.Add(clone);
+                }
+
+                using var chain = new X509Chain();
+                chain.ChainPolicy.RevocationMode = X509RevocationMode.NoCheck;
+                chain.ChainPolicy.VerificationFlags =
+                    X509VerificationFlags.AllowUnknownCertificateAuthority |
+                    X509VerificationFlags.IgnoreEndRevocationUnknown |
+                    X509VerificationFlags.IgnoreCertificateAuthorityRevocationUnknown |
+                    X509VerificationFlags.IgnoreCtlNotTimeValid |
+                    X509VerificationFlags.IgnoreRootRevocationUnknown;
+                chain.ChainPolicy.ExtraStore.AddRange(candidates);
+
+                using X509Certificate2 leaf = certificate.AsX509Certificate2();
+                if (chain.Build(leaf))
+                {
+                    // ChainElements is leaf-first; skip the leaf and emit
+                    // the remaining issuers in order (immediate issuer
+                    // first).
+                    for (int i = 1; i < chain.ChainElements.Count; i++)
+                    {
+                        byte[] raw = chain.ChainElements[i].Certificate.RawData;
+                        issuerChain.Add(ByteString.From(raw));
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                m_logger.LogWarning(
+                    ex,
+                    "Failed to build issuer chain for {Subject}; falling back to the immediate issuing CA.",
+                    certificate.Subject);
+            }
+            finally
+            {
+                foreach (X509Certificate2 clone in clones)
+                {
+                    clone.Dispose();
+                }
+            }
+
+            // Always ensure the immediate issuing CA is included even if
+            // chain building did not produce one (e.g. AKI mismatch).
+            if (issuerChain.Count == 0 &&
+                certificateGroup.Certificates.TryGetValue(
+                    certificateTypeNodeId,
+                    out Certificate? issuingCa) &&
+                issuingCa != null)
+            {
+                issuerChain.Add(ByteString.From(issuingCa.RawData));
+            }
+
+            return [.. issuerChain];
         }
 
         protected async Task<ICertificateGroup> InitializeCertificateGroupAsync(
@@ -463,7 +558,7 @@ namespace Opc.Ua.Gds.Server
                     activeNode.GetCertificates.OnReadRolePermissions = OnAddSelfAdminRolePermissions;
                     activeNode.GetCertificates.OnReadUserRolePermissions = OnAddSelfAdminUserRolePermissions;
 
-                    activeNode.RevokeCertificate!.OnCall = OnRevokeCertificate;
+                    activeNode.RevokeCertificate!.OnCallAsync = OnRevokeCertificateAsync;
                     activeNode.CheckRevocationStatus!.OnCallAsync = OnCheckRevocationStatusAsync;
 
                     var defaultApplicationCertificateTypes = activeNode.CertificateGroups!
@@ -765,7 +860,8 @@ namespace Opc.Ua.Gds.Server
                             out ByteString certificate) &&
                         !certificate.IsEmpty)
                     {
-                        await RevokeCertificateAsync(certificate).ConfigureAwait(false);
+                        await RevokeCertificateAsync(certificate, cancellationToken)
+                            .ConfigureAwait(false);
                     }
                 }
                 catch (Exception ex)
@@ -790,18 +886,22 @@ namespace Opc.Ua.Gds.Server
             };
         }
 
-        private ServiceResult OnRevokeCertificate(
+        private async ValueTask<RevokeCertificateMethodStateResult> OnRevokeCertificateAsync(
             ISystemContext context,
             MethodState method,
             NodeId objectId,
             NodeId applicationId,
-            ByteString certificate)
+            ByteString certificate,
+            CancellationToken cancellationToken)
         {
             // Per OPC 10000-12 §7.6.9 the CertificateRevokedAuditEvent shall
             // be generated on success or failure. The InputArguments are
             // (applicationId, certificate) per the method signature; the
             // certificate is a public ByteString so no redaction is needed.
-            ServiceResult result = ServiceResult.Good;
+            var result = new RevokeCertificateMethodStateResult
+            {
+                ServiceResult = ServiceResult.Good
+            };
             Exception? auditException = null;
 
             try
@@ -810,9 +910,10 @@ namespace Opc.Ua.Gds.Server
 
                 if (m_database.GetApplication(applicationId) == null)
                 {
-                    return result = new ServiceResult(
+                    result.ServiceResult = new ServiceResult(
                         StatusCodes.BadNotFound,
                         LocalizedText.From("The ApplicationId does not refer to a registered application."));
+                    return result;
                 }
                 if (certificate.IsEmpty)
                 {
@@ -834,7 +935,9 @@ namespace Opc.Ua.Gds.Server
                         continue;
                     }
 
-                    revoked = RevokeCertificateAsync(certificate).Result;
+                    revoked = await RevokeCertificateAsync(
+                        certificate,
+                        cancellationToken).ConfigureAwait(false);
                     if (revoked)
                     {
                         break;
@@ -846,7 +949,8 @@ namespace Opc.Ua.Gds.Server
                         StatusCodes.BadInvalidArgument,
                         "The certificate is not a Certificate for the specified Application that was issued by the CertificateManager.");
                 }
-                return result = ServiceResult.Good;
+                result.ServiceResult = ServiceResult.Good;
+                return result;
             }
             catch (Exception ex)
             {
@@ -856,10 +960,10 @@ namespace Opc.Ua.Gds.Server
             finally
             {
                 if (auditException == null &&
-                    result != null &&
-                    StatusCode.IsBad(result.StatusCode))
+                    result.ServiceResult != null &&
+                    StatusCode.IsBad(result.ServiceResult.StatusCode))
                 {
-                    auditException = new ServiceResultException(result);
+                    auditException = new ServiceResultException(result.ServiceResult);
                 }
 
                 ArrayOf<Variant> auditInputs = [applicationId, certificate];
@@ -926,9 +1030,16 @@ namespace Opc.Ua.Gds.Server
             var result = new CheckRevocationStatusMethodStateResult
             {
                 ServiceResult = ServiceResult.Good,
-                //TODO return When the result expires and should be rechecked.
                 ValidityTime = DateTime.MinValue
             };
+
+            // Per OPC 10000-12 §7.6.11, ValidityTime indicates when the
+            // CertificateStatus result expires and should be rechecked.
+            // We compute it as the earliest NextUpdate across the CRLs in
+            // the trusted-issuer store after the chain has validated; for
+            // Bad results the field remains DateTime.MinValue so callers
+            // re-check immediately.
+            DateTime computedValidityTime = DateTime.MinValue;
 
             try
             {
@@ -950,6 +1061,23 @@ namespace Opc.Ua.Gds.Server
                             .ConfigureAwait(false);
                         chain.ChainPolicy.ExtraStore
                             .AddRange(issuerCerts.AsX509Certificate2Collection());
+
+                        X509CRLCollection crls = await store
+                            .EnumerateCRLsAsync(cancellationToken)
+                            .ConfigureAwait(false);
+                        DateTime nextUpdate = DateTime.MaxValue;
+                        foreach (X509CRL crl in crls)
+                        {
+                            if (crl.NextUpdate != DateTime.MinValue &&
+                                crl.NextUpdate < nextUpdate)
+                            {
+                                nextUpdate = crl.NextUpdate;
+                            }
+                        }
+                        if (nextUpdate != DateTime.MaxValue)
+                        {
+                            computedValidityTime = nextUpdate;
+                        }
                     }
                     finally
                     {
@@ -962,6 +1090,7 @@ namespace Opc.Ua.Gds.Server
                 if (chain.Build(x509Cert))
                 {
                     result.CertificateStatus = StatusCodes.Good;
+                    result.ValidityTime = computedValidityTime;
                     return result;
                 }
 
@@ -1720,11 +1849,16 @@ namespace Opc.Ua.Gds.Server
                 certificate = Certificate.FromRawData(result.Certificate);
             }
 
-            // TODO: return chain, verify issuer chain cert is up to date, otherwise update local chain
-            result.IssuerCertificates =
-            [
-                ByteString.From(certificateGroup.Certificates[certificateTypeNodeId]!.RawData)
-            ];
+            // Per OPC 10000-12 §7.6.6 FinishRequest returns the chain of
+            // issuer certificates so the application can validate the new
+            // certificate without depending on its local issuer store. The
+            // chain is built from the in-memory CertificateGroup state to
+            // avoid contending with concurrent SigningRequestAsync /
+            // NewKeyPairRequestAsync writes against the AuthoritiesStore.
+            result.IssuerCertificates = BuildIssuerCertificateChain(
+                certificate,
+                certificateGroup,
+                certificateTypeNodeId);
 
             // store new app certificate
             var certificateStoreIdentifier = new CertificateStoreIdentifier(
