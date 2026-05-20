@@ -89,5 +89,92 @@ namespace Opc.Ua.Server.Tests
                 await fixture.StopAsync().ConfigureAwait(false);
             }
         }
+
+        // ------------------------------------------------------------
+        // Part 18 §4.4.1 — live identity re-evaluation contract
+        // ------------------------------------------------------------
+
+        [Test]
+        public async Task IsIdentityStale_FreshSession_StartsFalseAsync()
+        {
+            var fixture = new ServerFixture<StandardServer>(t => new StandardServer(t));
+            await fixture.StartAsync().ConfigureAwait(false);
+            try
+            {
+                StandardServer server = fixture.Server;
+                (RequestHeader requestHeader, _) =
+                    await server.CreateAndActivateSessionAsync("StaleFresh").ConfigureAwait(false);
+
+                ISession session = server.CurrentInstance.SessionManager
+                    .GetSession(requestHeader.AuthenticationToken);
+
+                Assert.That(session.IsIdentityStale, Is.False,
+                    "Newly activated sessions must not be marked stale.");
+            }
+            finally
+            {
+                await fixture.StopAsync().ConfigureAwait(false);
+            }
+        }
+
+        [Test]
+        public async Task MarkIdentityStale_SetsFlag_AndRefreshClearsItAsync()
+        {
+            var fixture = new ServerFixture<StandardServer>(t => new StandardServer(t));
+            await fixture.StartAsync().ConfigureAwait(false);
+            try
+            {
+                StandardServer server = fixture.Server;
+                (RequestHeader requestHeader, _) =
+                    await server.CreateAndActivateSessionAsync("StaleFlag").ConfigureAwait(false);
+
+                ISession session = server.CurrentInstance.SessionManager
+                    .GetSession(requestHeader.AuthenticationToken);
+
+                IUserIdentity original = session.EffectiveIdentity;
+                Assert.That(original, Is.Not.Null);
+
+                session.MarkIdentityStale();
+                Assert.That(session.IsIdentityStale, Is.True);
+
+                // Calling MarkIdentityStale again is idempotent.
+                session.MarkIdentityStale();
+                Assert.That(session.IsIdentityStale, Is.True);
+
+                session.RefreshEffectiveIdentity(original);
+                Assert.That(session.IsIdentityStale, Is.False,
+                    "RefreshEffectiveIdentity must clear the stale flag.");
+                Assert.That(session.EffectiveIdentity, Is.SameAs(original),
+                    "Refresh must replace the EffectiveIdentity atomically.");
+            }
+            finally
+            {
+                await fixture.StopAsync().ConfigureAwait(false);
+            }
+        }
+
+        [Test]
+        public async Task RefreshEffectiveIdentity_NullIdentity_ThrowsAsync()
+        {
+            var fixture = new ServerFixture<StandardServer>(t => new StandardServer(t));
+            await fixture.StartAsync().ConfigureAwait(false);
+            try
+            {
+                StandardServer server = fixture.Server;
+                (RequestHeader requestHeader, _) =
+                    await server.CreateAndActivateSessionAsync("StaleArg").ConfigureAwait(false);
+
+                ISession session = server.CurrentInstance.SessionManager
+                    .GetSession(requestHeader.AuthenticationToken);
+
+                Assert.Throws<System.ArgumentNullException>(
+                    () => session.RefreshEffectiveIdentity(null!),
+                    "Passing a null identity must throw to prevent corrupt session state.");
+            }
+            finally
+            {
+                await fixture.StopAsync().ConfigureAwait(false);
+            }
+        }
     }
 }

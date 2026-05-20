@@ -229,6 +229,33 @@ namespace Opc.Ua.Server
         /// </summary>
         public IUserIdentity EffectiveIdentity { get; private set; } = null!;
 
+        /// <inheritdoc/>
+        public bool IsIdentityStale => Volatile.Read(ref m_identityStale) != 0;
+
+        /// <inheritdoc/>
+        public void MarkIdentityStale()
+        {
+            Volatile.Write(ref m_identityStale, 1);
+        }
+
+        /// <inheritdoc/>
+        public void RefreshEffectiveIdentity(IUserIdentity effectiveIdentity)
+        {
+            if (effectiveIdentity == null)
+            {
+                throw new ArgumentNullException(nameof(effectiveIdentity));
+            }
+
+            lock (m_lock)
+            {
+                EffectiveIdentity = effectiveIdentity;
+                // Clearing the stale flag while holding the session lock
+                // ensures any subsequent IsIdentityStale read observes a
+                // consistent (refreshed identity, cleared flag) pair.
+                Volatile.Write(ref m_identityStale, 0);
+            }
+        }
+
         /// <summary>
         /// The user identity token provided by the client.
         /// </summary>
@@ -1328,5 +1355,6 @@ namespace Opc.Ua.Server
         private List<ContinuationPoint>? m_browseContinuationPoints;
         private List<HistoryContinuationPoint>? m_historyContinuationPoints;
         private long m_lastContactTickCount;
+        private int m_identityStale;
     }
 }
