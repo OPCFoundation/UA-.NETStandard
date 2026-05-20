@@ -104,8 +104,6 @@ internal sealed partial class EventViewPlugin : ObservableObject, IPlugin
     private ContentFilter? m_whereClause;
     private long m_eventCount;
     private long m_droppedCount;
-    private int m_triggerCounter;
-    private int m_autoTriggerFired;
     private EventViewView? m_view;
 
     [ObservableProperty]
@@ -370,10 +368,11 @@ internal sealed partial class EventViewPlugin : ObservableObject, IPlugin
         IsPaused = !IsPaused;
     }
 
-    // Resolves the ConsoleReferenceServer's TriggerNode01 by URI -> namespace
-    // index -> browse path and writes an incrementing integer to it. The
-    // server's OnWriteTriggerNode hook then fires a BaseEvent, which any
-    // subscription rooted on Server (or CTT, or any ancestor) will receive.
+    // Opens a flat-browse picker over the address space filtered to nodes
+    // with at least one outgoing GeneratesEvent reference, then opens the
+    // method-call or write-value dialog depending on the picked node class.
+    // No hardcoded NodeIds — works against any server that declares
+    // GeneratesEvent references for its event-source surface.
     [RelayCommand]
     private async Task TriggerEventAsync()
     {
@@ -383,112 +382,89 @@ internal sealed partial class EventViewPlugin : ObservableObject, IPlugin
             return;
         }
 
-        NodeId triggerId = await ResolveTriggerNodeAsync(session).ConfigureAwait(true);
-        if (triggerId.IsNull)
+        Window? owner = TopLevelWindow();
+        var options = new BrowsePickerDialog.Options(
+            Session: session,
+            Root: ObjectIds.ObjectsFolder,
+            Title: "Trigger event source",
+            AcceptedClasses: NodeClass.Method | NodeClass.Variable | NodeClass.Object,
+            ReferenceTypeId: ReferenceTypeIds.HierarchicalReferences,
+            AcceptPredicate: (id, _) => HasGeneratesEventAsync(session, id),
+            Header: "Pick a Method (Call) or Variable (Write) whose " +
+                "GeneratesEvent reference fires a server-side event.");
+
+        var dlg = new FlattenedBrowseDialog(options);
+        NodeId? picked = owner is null
+            ? await dlg.ShowDialog<NodeId?>(new Window()).ConfigureAwait(true)
+            : await dlg.ShowDialog<NodeId?>(owner).ConfigureAwait(true);
+        if (picked is null || picked.Value.IsNull || dlg.PickedItem is null)
         {
-            m_log.LogWarning(
-                "Event View Trigger: TriggerNode01 not found on this server " +
-                "(only the OPC Foundation reference server exposes it). " +
-                "Connect to ConsoleReferenceServer or write to a server-side event source manually.");
             return;
         }
 
-        int value = Interlocked.Increment(ref m_triggerCounter);
-        try
+        FlattenedNode item = dlg.PickedItem;
+        var node = new NodeViewModel(
+            m_host.Browser, NodeId.Null, item.NodeId, item.DisplayName, item.NodeClass);
+
+        if (item.NodeClass == NodeClass.Method)
         {
-            var wv = new WriteValue
+            var callDlg = new MethodCallDialog(node, session);
+            if (owner is not null)
             {
-                NodeId = triggerId,
-                AttributeId = Attributes.Value,
-                Value = new DataValue { WrappedValue = new Variant(value) }
-            };
-            ArrayOf<WriteValue> writes = new WriteValue[] { wv };
-            WriteResponse resp = await session
-                .WriteAsync(null, writes, CancellationToken.None)
-                .ConfigureAwait(true);
-            StatusCode status = resp.Results.Count > 0 ? resp.Results[0] : StatusCodes.Bad;
-            if (StatusCode.IsBad(status))
-            {
-                m_log.LogWarning(
-                    "Event View Trigger: write to {Node} returned {Status}.",
-                    triggerId, status);
+                await callDlg.ShowDialog(owner).ConfigureAwait(true);
             }
             else
             {
-                m_log.LogInformation(
-                    "Event View Trigger: wrote {Value} to {Node} — server should " +
-                    "emit a BaseEvent within the next publish.", value, triggerId);
+                callDlg.Show();
             }
         }
-        catch (Exception ex)
+        else if (item.NodeClass == NodeClass.Variable)
         {
-            m_log.LogError(ex, "Event View Trigger: write to {Node} failed.", triggerId);
+            var writeDlg = new WriteValueDialog(node, session);
+            if (owner is not null)
+            {
+                await writeDlg.ShowDialog(owner).ConfigureAwait(true);
+            }
+            else
+            {
+                writeDlg.Show();
+            }
+        }
+        else
+        {
+            m_log.LogWarning(
+                "Event View Trigger: picked node {Node} of class {NodeClass} " +
+                "cannot be invoked directly (only Method/Variable are actionable).",
+                item.NodeId, item.NodeClass);
         }
     }
 
-    private async Task<NodeId> ResolveTriggerNodeAsync(ManagedSession session)
+    private static async Task<bool> HasGeneratesEventAsync(ManagedSession session, NodeId id)
     {
-        // Lookup is keyed on the reference server's namespace URI so the
-        // index doesn't have to be hard-coded; fall back to scanning all
-        // known indexes for the same browse path so other reference
-        // implementations that re-use the same browse names still work.
-        int ns = session.NamespaceUris.GetIndex(
-            "http://opcfoundation.org/Quickstarts/ReferenceServer");
-        if (ns >= 0)
-        {
-            NodeId id = await TryTriggerNodeAsync(session, (ushort)ns).ConfigureAwait(false);
-            if (!id.IsNull)
-            {
-                return id;
-            }
-        }
-        for (int i = 1; i < session.NamespaceUris.Count; i++)
-        {
-            if (i == ns)
-            {
-                continue;
-            }
-            NodeId id = await TryTriggerNodeAsync(session, (ushort)i).ConfigureAwait(false);
-            if (!id.IsNull)
-            {
-                return id;
-            }
-        }
-        return NodeId.Null;
-    }
-
-    private static async Task<NodeId> TryTriggerNodeAsync(ManagedSession session, ushort ns)
-    {
-        var bp = new BrowsePath { StartingNode = ObjectIds.ObjectsFolder };
-        string[] segments = ["CTT", "NodeIds", "NodeIds_Events", "NodeIds_Events_TriggerNode01"];
-        foreach (string seg in segments)
-        {
-            bp.RelativePath.Elements = bp.RelativePath.Elements.AddItem(new RelativePathElement
-            {
-                ReferenceTypeId = ReferenceTypeIds.HierarchicalReferences,
-                IsInverse = false,
-                IncludeSubtypes = true,
-                TargetName = new QualifiedName(seg, ns)
-            });
-        }
-        ArrayOf<BrowsePath> paths = new BrowsePath[] { bp };
         try
         {
-            TranslateBrowsePathsToNodeIdsResponse resp = await session
-                .TranslateBrowsePathsToNodeIdsAsync(null, paths, CancellationToken.None)
-                .ConfigureAwait(false);
-            if (resp.Results.Count == 0
-                || resp.Results[0].StatusCode != StatusCodes.Good
-                || resp.Results[0].Targets.Count == 0)
+            ArrayOf<BrowseDescription> browse = new BrowseDescription[]
             {
-                return NodeId.Null;
-            }
-            return ExpandedNodeId.ToNodeId(
-                resp.Results[0].Targets[0].TargetId, session.NamespaceUris);
+                new BrowseDescription
+                {
+                    NodeId = id,
+                    BrowseDirection = BrowseDirection.Forward,
+                    ReferenceTypeId = ReferenceTypeIds.GeneratesEvent,
+                    IncludeSubtypes = true,
+                    NodeClassMask = 0,
+                    ResultMask = (uint)BrowseResultMask.None
+                }
+            };
+            BrowseResponse br = await session
+                .BrowseAsync(null, null, 1, browse, CancellationToken.None)
+                .ConfigureAwait(false);
+            return br.Results.Count > 0
+                && !StatusCode.IsBad(br.Results[0].StatusCode)
+                && br.Results[0].References.Count > 0;
         }
         catch
         {
-            return NodeId.Null;
+            return false;
         }
     }
 
@@ -611,19 +587,6 @@ internal sealed partial class EventViewPlugin : ObservableObject, IPlugin
         finally
         {
             m_lock.Release();
-        }
-
-        // After a fresh source attaches, fire a test event automatically so
-        // the user sees at least one event flow through the pipeline without
-        // having to find the Trigger button.  Best-effort; quiet if the
-        // server has no TriggerNode01.
-        if (Interlocked.CompareExchange(ref m_autoTriggerFired, 1, 0) == 0)
-        {
-            _ = Task.Run(async () =>
-            {
-                await Task.Delay(150).ConfigureAwait(false);
-                await TriggerEventAsync().ConfigureAwait(false);
-            });
         }
     }
 
