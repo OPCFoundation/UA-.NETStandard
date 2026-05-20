@@ -245,6 +245,20 @@ internal sealed partial class EventViewPlugin : ObservableObject, IPlugin
             return;
         }
 
+        // Wait for the per-tab subscription to finish CreateAsync.  Without
+        // this, a quick click on "+ Add Source" right after opening a tab
+        // silently drops the request because m_subscription is still null
+        // and AddSourceCoreAsync bails out.
+        bool ready = await m_subscriptionReady.Task.ConfigureAwait(true);
+        if (!ready)
+        {
+            m_log.LogWarning("Event View AddSource: subscription failed to initialise.");
+            return;
+        }
+
+        // If the user already has a valid event-emitting Object/View
+        // selected in the address-space tree, accept it directly without
+        // popping a picker.
         NodeViewModel? node = m_host.Main.SelectedNode;
         bool valid = node is not null
             && node.NodeClass is NodeClass.Object or NodeClass.View;
@@ -265,27 +279,35 @@ internal sealed partial class EventViewPlugin : ObservableObject, IPlugin
             return;
         }
 
-        // Fallback: prompt via BrowsePickerDialog rooted at ObjectsFolder.
+        // Fallback: open the flat-browse picker filtered to Objects / Views
+        // whose EventNotifier has SubscribeToEvents.  Using the
+        // FlattenedBrowseDialog directly (rather than the tree picker)
+        // keeps parity with the Trigger button and lists every event
+        // source in one scrollable view.
         Window? owner = TopLevelWindow();
-        var picker = new BrowsePickerDialog(new BrowsePickerDialog.Options(
+        var options = new BrowsePickerDialog.Options(
             Session: session,
             Root: ObjectIds.ObjectsFolder,
             Title: "Pick event source",
             AcceptedClasses: NodeClass.Object | NodeClass.View,
+            ReferenceTypeId: ReferenceTypeIds.HierarchicalReferences,
             AcceptPredicate: async (id, _) =>
             {
-                byte? n = await m_host.Browser.GetEventNotifierAsync(id, CancellationToken.None).ConfigureAwait(true);
+                byte? n = await m_host.Browser
+                    .GetEventNotifierAsync(id, CancellationToken.None)
+                    .ConfigureAwait(true);
                 return n is not null && (n.Value & EventNotifiers.SubscribeToEvents) != 0;
             },
-            Header: "Pick an Object or View that emits events (EventNotifier has SubscribeToEvents)."));
+            Header: "Pick an Object or View that emits events (EventNotifier has SubscribeToEvents).");
+        var dlg = new FlattenedBrowseDialog(options);
         NodeId? pickedId = owner is null
-            ? await picker.ShowDialog<NodeId?>(new Window()).ConfigureAwait(true)
-            : await picker.ShowDialog<NodeId?>(owner).ConfigureAwait(true);
-        if (!pickedId.HasValue || pickedId.Value.IsNull)
+            ? await dlg.ShowDialog<NodeId?>(new Window()).ConfigureAwait(true)
+            : await dlg.ShowDialog<NodeId?>(owner).ConfigureAwait(true);
+        if (!pickedId.HasValue || pickedId.Value.IsNull || dlg.PickedItem is null)
         {
             return;
         }
-        await AddSourceCoreAsync(pickedId.Value, picker.PickedDisplay).ConfigureAwait(true);
+        await AddSourceCoreAsync(pickedId.Value, dlg.PickedItem.DisplayName).ConfigureAwait(true);
     }
 
     [RelayCommand]
