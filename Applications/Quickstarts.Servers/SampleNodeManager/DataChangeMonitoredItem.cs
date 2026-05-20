@@ -373,7 +373,7 @@ namespace Opc.Ua.Sample
                 value = new DataValue(error.StatusCode);
             }
 
-            value.ServerTimestamp = DateTime.UtcNow;
+            value = value.WithServerTimestamp(DateTimeUtc.Now);
 
             QueueValue(value, error, false);
         }
@@ -856,12 +856,12 @@ namespace Opc.Ua.Sample
             // apply timestamp filter.
             if (m_timestampsToReturn is not TimestampsToReturn.Server and not TimestampsToReturn.Both)
             {
-                item.Value!.ServerTimestamp = DateTime.MinValue;
+                item.Value = item.Value!.WithServerTimestamp(DateTimeUtc.MinValue);
             }
 
             if (m_timestampsToReturn is not TimestampsToReturn.Source and not TimestampsToReturn.Both)
             {
-                item.Value!.SourceTimestamp = DateTime.MinValue;
+                item.Value = item.Value!.WithSourceTimestamp(DateTimeUtc.MinValue);
             }
 
             notifications.Enqueue(item);

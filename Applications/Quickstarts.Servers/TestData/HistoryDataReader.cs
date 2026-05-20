@@ -208,32 +208,34 @@ namespace TestData
 
                     if (StatusCode.IsBad(error))
                     {
-                        value.WrappedValue = default;
-                        value.StatusCode = error;
+                        value = value
+                            .WithWrappedValue(default)
+                            .WithStatus(error);
                     }
                     else
                     {
-                        value.WrappedValue = valueToReturn;
+                        value = value.WithWrappedValue(valueToReturn);
                     }
                 }
 
                 // apply the data encoding.
                 if (!dataEncoding.IsNull)
                 {
-                    value.WrappedValue = default;
-                    value.StatusCode = StatusCodes.BadDataEncodingUnsupported;
+                    value = value
+                        .WithWrappedValue(default)
+                        .WithStatus(StatusCodes.BadDataEncodingUnsupported);
                 }
             }
 
             // apply the timestamps filter.
             if (timestampsToReturn is TimestampsToReturn.Neither or TimestampsToReturn.Server)
             {
-                value.SourceTimestamp = DateTimeUtc.MinValue;
+                value = value.WithSourceTimestamp(DateTimeUtc.MinValue);
             }
 
             if (timestampsToReturn is TimestampsToReturn.Neither or TimestampsToReturn.Source)
             {
-                value.ServerTimestamp = DateTimeUtc.MinValue;
+                value = value.WithServerTimestamp(DateTimeUtc.MinValue);
             }
 
             // add result.

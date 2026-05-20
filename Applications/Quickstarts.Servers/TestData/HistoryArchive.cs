@@ -97,13 +97,14 @@ namespace TestData
                     {
                         Value = new DataValue { ServerTimestamp = now.AddSeconds(-(ii * 10)) }
                     };
-                    entry.Value.SourceTimestamp = entry.Value.ServerTimestamp.AddMilliseconds(1234);
+                    entry.Value = entry.Value
+                        .WithSourceTimestamp(entry.Value.ServerTimestamp.AddMilliseconds(1234));
                     entry.IsModified = false;
 
                     switch (dataType)
                     {
                         case BuiltInType.Int32:
-                            entry.Value.WrappedValue = ii;
+                            entry.Value = entry.Value.WithWrappedValue(ii);
                             break;
                     }
 
@@ -140,15 +141,15 @@ namespace TestData
                         {
                             Value = new DataValue { ServerTimestamp = now }
                         };
-                        entry.Value.SourceTimestamp = entry.Value.ServerTimestamp
-                            .AddMilliseconds(-4567);
+                        entry.Value = entry.Value
+                            .WithSourceTimestamp(entry.Value.ServerTimestamp.AddMilliseconds(-4567));
                         entry.IsModified = false;
 
                         switch (record.DataType)
                         {
                             case BuiltInType.Int32:
                                 int lastValue = (int)record.RawData[^1].Value.WrappedValue;
-                                entry.Value.WrappedValue = lastValue + 1;
+                                entry.Value = entry.Value.WithWrappedValue(lastValue + 1);
                                 break;
                         }
 

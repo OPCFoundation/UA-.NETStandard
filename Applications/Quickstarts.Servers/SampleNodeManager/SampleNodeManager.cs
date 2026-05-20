@@ -1299,13 +1299,10 @@ namespace Opc.Ua.Sample
                     // owned by this node manager.
                     nodeToRead.Processed = true;
 
-                    // create an initial value.
-                    DataValue value = values[ii] = new DataValue();
-
-                    value.WrappedValue = default;
-                    value.ServerTimestamp = DateTime.UtcNow;
-                    value.SourceTimestamp = DateTime.MinValue;
-                    value.StatusCode = StatusCodes.Good;
+                    // create an initial value (default ctor sets the
+                    // value/timestamps/status; only override ServerTimestamp).
+                    DataValue value = values[ii] = new DataValue()
+                        .WithServerTimestamp(DateTimeUtc.Now);
 
                     // check if the node is ready for reading.
                     if (source.ValidationRequired)
