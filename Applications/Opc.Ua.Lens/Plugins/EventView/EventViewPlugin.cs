@@ -62,12 +62,38 @@ internal sealed partial class EventSourceVm : ObservableObject
     public uint ClientHandle { get; }
     internal ClassicMonitoredItem MonitoredItem { get; }
 
+    [ObservableProperty]
+    private string m_state = "pending";
+
     public EventSourceVm(NodeId nodeId, string name, ClassicMonitoredItem item)
     {
         NodeId = nodeId;
         Name = name;
         ClientHandle = item.ClientHandle;
         MonitoredItem = item;
+    }
+
+    /// <summary>
+    /// Refreshes the per-source state string from the monitored item's
+    /// current Status (created vs. bad-status vs. filter rejected).
+    /// Called by the host plug-in after ApplyChanges and on every
+    /// publish/keep-alive so the user sees the live state without
+    /// having to dig through SDK logs.
+    /// </summary>
+    internal void RefreshState()
+    {
+        var st = MonitoredItem.Status;
+        if (st.Error is { } err && ServiceResult.IsBad(err))
+        {
+            State = $"BAD: {err.StatusCode}";
+            return;
+        }
+        if (!st.Created)
+        {
+            State = "pending";
+            return;
+        }
+        State = "✓ created";
     }
 }
 
@@ -133,6 +159,9 @@ internal sealed partial class EventViewPlugin : ObservableObject, IPlugin
 
     [ObservableProperty]
     private string m_status = "● 0 sources · 0 events";
+
+    [ObservableProperty]
+    private string m_subscriptionStatus = "○ Subscription: not created";
 
     /// <summary>UI-thread-only.  Newest entries inserted at index 0.</summary>
     public ObservableCollection<EventLogEntry> Events { get; } = new();
@@ -504,7 +533,8 @@ internal sealed partial class EventViewPlugin : ObservableObject, IPlugin
                 MinLifetimeInterval = 60_000
             })
             {
-                FastEventCallback = OnFastEvent
+                FastEventCallback = OnFastEvent,
+                FastKeepAliveCallback = OnFastKeepAlive
             };
             if (!session.AddSubscription(sub))
             {
@@ -515,7 +545,11 @@ internal sealed partial class EventViewPlugin : ObservableObject, IPlugin
             await sub.CreateAsync(CancellationToken.None).ConfigureAwait(true);
             m_subscription = sub;
             m_subscriptionReady.TrySetResult(true);
-            m_log.LogInformation("Event View subscription created (tab {Title}).", Title);
+            m_log.LogInformation(
+                "Event View subscription created (tab {Title}, id={Id}, " +
+                "publishingInterval={Pi}, publishingEnabled={Pub}).",
+                Title, sub.Id, sub.CurrentPublishingInterval, sub.PublishingEnabled);
+            Dispatcher.UIThread.Post(RefreshSubscriptionStatus);
         }
         catch (Exception ex)
         {
@@ -607,10 +641,13 @@ internal sealed partial class EventViewPlugin : ObservableObject, IPlugin
             {
                 m_log.LogInformation(
                     "Event View source {Name} ({Node}) accepted by server " +
-                    "(ch={Handle}, filter={Filter}).",
-                    displayName, nodeId, mi.ClientHandle,
+                    "(ch={Handle}, miId={MiId}, filter={Filter}).",
+                    displayName, nodeId, mi.ClientHandle, mi.Status.Id,
                     mi.Status.FilterResult is null ? "(no diagnostics)" : "with diagnostics");
             }
+            // Update the source row + toolbar indicator now that the server
+            // round-trip has populated mi.Status.
+            RefreshStatus();
         }
         catch (Exception ex)
         {
@@ -716,6 +753,17 @@ internal sealed partial class EventViewPlugin : ObservableObject, IPlugin
             }
             RefreshStatus();
         });
+    }
+
+    /// <summary>
+    /// Keep-alive ticks let us refresh the subscription-state indicator
+    /// even when the server hasn't sent any events — important when the
+    /// user is trying to diagnose why a Condition.Enable / .Disable call
+    /// produced nothing in the log.
+    /// </summary>
+    private void OnFastKeepAlive(ClassicSubscription subscription, NotificationData notification)
+    {
+        Dispatcher.UIThread.Post(RefreshSubscriptionStatus);
     }
 
     /// <summary>
@@ -902,6 +950,60 @@ internal sealed partial class EventViewPlugin : ObservableObject, IPlugin
             dropped > 0 ? $" · {dropped} dropped" : "",
             IsPaused ? " · paused" : "",
             suffix);
+
+        RefreshSubscriptionStatus();
+    }
+
+    /// <summary>
+    /// Refreshes the toolbar's subscription-state indicator so users can
+    /// diagnose why events aren't flowing without diving into the SDK
+    /// log buffer.  Shows subscription id, current publishing interval,
+    /// publishing-enabled state, how many of the registered monitored
+    /// items the server has acknowledged as Created, and how many
+    /// publish responses arrived since open.  Also refreshes every
+    /// <see cref="EventSourceVm"/>'s per-row State string.
+    /// </summary>
+    private void RefreshSubscriptionStatus()
+    {
+        ClassicSubscription? sub = m_subscription;
+        if (sub is null)
+        {
+            SubscriptionStatus = "○ Subscription: not created";
+            return;
+        }
+        int total = 0;
+        int created = 0;
+        int badStatus = 0;
+        foreach (ClassicMonitoredItem mi in sub.MonitoredItems)
+        {
+            total++;
+            if (mi.Status.Created)
+            {
+                created++;
+            }
+            if (mi.Status.Error is { } err && ServiceResult.IsBad(err))
+            {
+                badStatus++;
+            }
+        }
+        foreach (EventSourceVm src in EventSources)
+        {
+            src.RefreshState();
+        }
+        string badSuffix = badStatus > 0
+            ? $" · {badStatus} bad"
+            : string.Empty;
+        SubscriptionStatus = sub.Created
+            ? string.Format(CultureInfo.InvariantCulture,
+                "● Sub {0} · PI {1:F0} ms · MI {2}/{3}{4} · {5}",
+                sub.Id,
+                sub.CurrentPublishingInterval,
+                created,
+                total,
+                badSuffix,
+                sub.PublishingEnabled ? "publishing" : "paused")
+            : string.Format(CultureInfo.InvariantCulture,
+                "◑ Subscription: pending · MI {0} queued", total);
     }
 
     partial void OnIsPausedChanged(bool value) => RefreshStatus();

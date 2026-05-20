@@ -70,22 +70,32 @@
 
     <!-- ========= Filter / toolbar bar (WrapPanel wraps on small windows). ========= -->
     <Border DockPanel.Dock="Top" Classes="panel" Margin="8,8,8,4" Padding="8,6">
-      <WrapPanel Orientation="Horizontal" ItemHeight="32">
-        <Button Classes="tonal" Margin="0,0,4,0"
-                Content="⚙ Filter…"
-                Command="{CompiledBinding EditFilterCommand}" />
-        <ToggleButton Content="⏸ Pause" Margin="0,0,4,0"
-                      IsChecked="{CompiledBinding IsPaused, Mode=TwoWay}"
-                      Background="#1E293B" Foreground="#E2E8F0"
-                      Padding="10,4" />
-        <Button Classes="tonal" Margin="0,0,4,0"
-                Content="🗑 Clear"
-                Command="{CompiledBinding ClearLogCommand}" />
-        <Button Classes="tonal" Margin="0,0,4,0"
-                Content="⚡ Trigger event"
-                ToolTip.Tip="Write to TriggerNode01 on the ConsoleReferenceServer to fire a BaseEvent."
-                Command="{CompiledBinding TriggerEventCommand}" />
-      </WrapPanel>
+      <DockPanel LastChildFill="True">
+        <TextBlock DockPanel.Dock="Right"
+                   Text="{CompiledBinding SubscriptionStatus}"
+                   VerticalAlignment="Center"
+                   Margin="8,0,0,0"
+                   Foreground="#94A3B8"
+                   FontFamily="Cascadia Mono, Consolas, monospace"
+                   FontSize="11"
+                   ToolTip.Tip="Subscription state · publishing interval · monitored items (created/total) · publishing flag" />
+        <WrapPanel Orientation="Horizontal" ItemHeight="32">
+          <Button Classes="tonal" Margin="0,0,4,0"
+                  Content="⚙ Filter…"
+                  Command="{CompiledBinding EditFilterCommand}" />
+          <ToggleButton Content="⏸ Pause" Margin="0,0,4,0"
+                        IsChecked="{CompiledBinding IsPaused, Mode=TwoWay}"
+                        Background="#1E293B" Foreground="#E2E8F0"
+                        Padding="10,4" />
+          <Button Classes="tonal" Margin="0,0,4,0"
+                  Content="🗑 Clear"
+                  Command="{CompiledBinding ClearLogCommand}" />
+          <Button Classes="tonal" Margin="0,0,4,0"
+                  Content="⚡ Trigger event"
+                  ToolTip.Tip="Pick a Method or Variable with a GeneratesEvent reference and invoke / write to it."
+                  Command="{CompiledBinding TriggerEventCommand}" />
+        </WrapPanel>
+      </DockPanel>
     </Border>
 
     <!-- ========= Main 3-column body — GridSplitters let the user drag
@@ -111,20 +121,27 @@
             </ListBox.ItemContainerTheme>
             <ListBox.ItemTemplate>
               <DataTemplate x:DataType="vm:EventSourceVm">
-                <Grid ColumnDefinitions="*,Auto">
-                  <TextBlock Grid.Column="0"
+                <Grid ColumnDefinitions="*,Auto,Auto" RowDefinitions="Auto,Auto">
+                  <TextBlock Grid.Row="0" Grid.Column="0"
                              Text="{CompiledBinding Name}"
                              VerticalAlignment="Center"
                              TextTrimming="CharacterEllipsis"
                              FontSize="12"
                              ToolTip.Tip="{CompiledBinding Name}" />
-                  <Button Grid.Column="1"
+                  <Button Grid.Row="0" Grid.Column="2"
                           Content="×"
                           Width="22" Padding="0"
                           Background="Transparent" BorderThickness="0"
                           Foreground="#94A3B8"
                           Tag="{CompiledBinding}"
                           Click="OnRemoveSourceClick" />
+                  <TextBlock Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="3"
+                             Text="{CompiledBinding State}"
+                             FontFamily="Cascadia Mono, Consolas, monospace"
+                             FontSize="10"
+                             Foreground="#64748B"
+                             TextTrimming="CharacterEllipsis"
+                             Margin="0,1,0,0" />
                 </Grid>
               </DataTemplate>
             </ListBox.ItemTemplate>
