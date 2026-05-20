@@ -4641,7 +4641,35 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             // Assert
             Assert.That(result.IsNull, Is.False);
+            Assert.That(result.TypeId, Is.EqualTo(testEncodeable.BinaryEncodingId));
             Assert.That(result.TryGetValue(out TestEncodeable _), Is.True);
+        }
+
+        [Test]
+        public void ReadExtensionObjectPreservesEncodingTypeId()
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
+            messageContext.Factory.AddEncodeableType(typeof(TestEncodeableWithDifferentTypeIds));
+
+            var testEncodeable = new TestEncodeableWithDifferentTypeIds();
+            var extensionObject = new ExtensionObject(testEncodeable);
+
+            using var encoder = new BinaryEncoder(messageContext);
+            encoder.WriteExtensionObject(null, extensionObject);
+            byte[] buffer = encoder.CloseAndReturnBuffer();
+
+            using var decoder = new BinaryDecoder(buffer, messageContext);
+
+            // Act
+            ExtensionObject result = decoder.ReadExtensionObject(null);
+
+            // Assert
+            Assert.That(result.IsNull, Is.False);
+            Assert.That(result.TypeId, Is.EqualTo(testEncodeable.BinaryEncodingId));
+            Assert.That(result.TypeId, Is.Not.EqualTo(testEncodeable.TypeId));
+            Assert.That(result.TryGetValue(out TestEncodeableWithDifferentTypeIds _), Is.True);
         }
 
         [Test]
@@ -6392,6 +6420,31 @@ namespace Opc.Ua.Types.Tests.Encoders
             public object Clone()
             {
                 return new TestEncodeableNs1();
+            }
+        }
+
+        private sealed class TestEncodeableWithDifferentTypeIds : IEncodeable
+        {
+            public ExpandedNodeId TypeId => new(20000, 0);
+            public ExpandedNodeId BinaryEncodingId => new(20001, 0);
+            public ExpandedNodeId XmlEncodingId => new(20002, 0);
+
+            public void Encode(IEncoder encoder)
+            {
+            }
+
+            public void Decode(IDecoder decoder)
+            {
+            }
+
+            public bool IsEqual(IEncodeable encodeable)
+            {
+                return encodeable is TestEncodeableWithDifferentTypeIds;
+            }
+
+            public object Clone()
+            {
+                return new TestEncodeableWithDifferentTypeIds();
             }
         }
 
