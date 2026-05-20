@@ -51,7 +51,8 @@ namespace Opc.Ua.WotCon.Tests.Client
         public async Task CopyStreamInChunksSeekableStreamWritesAllBytesInOrderAsync()
         {
             byte[] data = new byte[10240];
-            for (int i = 0; i < data.Length; i++) { data[i] = (byte)(i % 251); }
+            for (int i = 0; i < data.Length; i++)
+            { data[i] = (byte)(i % 251); }
             using var source = new MemoryStream(data);
             var chunks = new List<byte[]>();
 
@@ -75,7 +76,8 @@ namespace Opc.Ua.WotCon.Tests.Client
         public async Task CopyStreamInChunksNonSeekableStreamWritesAllBytesInOrderAsync()
         {
             byte[] data = new byte[3000];
-            for (int i = 0; i < data.Length; i++) { data[i] = (byte)i; }
+            for (int i = 0; i < data.Length; i++)
+            { data[i] = (byte)i; }
             using var source = new ForwardOnlyStream(data);
             var chunks = new List<byte[]>();
 
@@ -152,7 +154,8 @@ namespace Opc.Ua.WotCon.Tests.Client
         public async Task CopyChunksToStreamAccumulatesAllChunksInOrderAsync()
         {
             byte[] data = new byte[5000];
-            for (int i = 0; i < data.Length; i++) { data[i] = (byte)i; }
+            for (int i = 0; i < data.Length; i++)
+            { data[i] = (byte)i; }
             var source = new Queue<byte[]>();
             for (int i = 0; i < data.Length; i += 1024)
             {
@@ -227,7 +230,8 @@ namespace Opc.Ua.WotCon.Tests.Client
         {
             var mock = new WotAssetFileTypeSessionMock();
             byte[] payload = new byte[6000];
-            for (int i = 0; i < payload.Length; i++) { payload[i] = (byte)(i & 0xff); }
+            for (int i = 0; i < payload.Length; i++)
+            { payload[i] = (byte)(i & 0xff); }
             byte capturedMode = 0;
             byte[] writtenSoFar = Array.Empty<byte>();
             bool closed = false;
@@ -256,7 +260,8 @@ namespace Opc.Ua.WotCon.Tests.Client
         {
             var mock = new WotAssetFileTypeSessionMock();
             byte[] payload = new byte[3500];
-            for (int i = 0; i < payload.Length; i++) { payload[i] = (byte)(i & 0xff); }
+            for (int i = 0; i < payload.Length; i++)
+            { payload[i] = (byte)(i & 0xff); }
             int position = 0;
             byte capturedMode = 0;
             bool closed = false;
@@ -265,7 +270,8 @@ namespace Opc.Ua.WotCon.Tests.Client
             {
                 Assert.That(handle, Is.EqualTo(88u));
                 int take = Math.Min(len, payload.Length - position);
-                if (take <= 0) { return Array.Empty<byte>(); }
+                if (take <= 0)
+                { return Array.Empty<byte>(); }
                 byte[] slice = new byte[take];
                 Array.Copy(payload, position, slice, 0, take);
                 position += take;
@@ -420,7 +426,8 @@ namespace Opc.Ua.WotCon.Tests.Client
         private static byte[] Flatten(List<byte[]> chunks)
         {
             int total = 0;
-            foreach (byte[] c in chunks) { total += c.Length; }
+            foreach (byte[] c in chunks)
+            { total += c.Length; }
             byte[] result = new byte[total];
             int offset = 0;
             foreach (byte[] c in chunks)
@@ -449,7 +456,8 @@ namespace Opc.Ua.WotCon.Tests.Client
             public override int Read(byte[] buffer, int offset, int count)
             {
                 int avail = Math.Min(count, m_data.Length - m_position);
-                if (avail <= 0) { return 0; }
+                if (avail <= 0)
+                { return 0; }
                 Array.Copy(m_data, m_position, buffer, offset, avail);
                 m_position += avail;
                 return avail;

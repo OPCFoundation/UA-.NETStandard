@@ -500,7 +500,8 @@ namespace Opc.Ua.WotCon.Server
             (ServiceResult status, IReadOnlyList<string> endpoints) = await m_registry
                 .DiscoverAssetsAsync(cancellationToken).ConfigureAwait(false);
             string[] arr = new string[endpoints.Count];
-            for (int i = 0; i < endpoints.Count; i++) { arr[i] = endpoints[i]; }
+            for (int i = 0; i < endpoints.Count; i++)
+            { arr[i] = endpoints[i]; }
             return new DiscoverAssetsMethodStateResult
             {
                 ServiceResult = status,
