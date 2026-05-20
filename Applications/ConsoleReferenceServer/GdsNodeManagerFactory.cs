@@ -71,17 +71,19 @@ namespace Quickstarts.ReferenceServer
                     .Commit();
             }
 
-            string databaseStorePath = Utils.ReplaceSpecialFolderNames(
+            string? databaseStorePath = Utils.ReplaceSpecialFolderNames(
                 m_gdsConfiguration.DatabaseStorePath);
 
             // Ensure the directory exists
-            string databaseDir = Path.GetDirectoryName(databaseStorePath);
+            string? databaseDir = Path.GetDirectoryName(databaseStorePath);
             if (!string.IsNullOrEmpty(databaseDir))
             {
                 Directory.CreateDirectory(databaseDir);
             }
 
-            var database = JsonApplicationsDatabase.Load(databaseStorePath);
+            LinqApplicationsDatabase database = string.IsNullOrEmpty(databaseDir)
+                ? new LinqApplicationsDatabase()
+                : JsonApplicationsDatabase.Load(databaseStorePath!);
 
             return new ApplicationsNodeManager(
                 server,

@@ -30,6 +30,8 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
+using Opc.Ua.Security;
+using Opc.Ua.Types;
 
 namespace Opc.Ua.Gds.Server.Database
 {
@@ -42,7 +44,17 @@ namespace Opc.Ua.Gds.Server.Database
 
         public ushort NamespaceIndex { get; set; }
 
+        public virtual NodeId UpdateApplication(ApplicationRecordDataType application)
+        {
+            return ValidateApplication(application);
+        }
+
         public virtual NodeId RegisterApplication(ApplicationRecordDataType application)
+        {
+            return ValidateApplication(application);
+        }
+
+        private static NodeId ValidateApplication(ApplicationRecordDataType application)
         {
             if (application == null)
             {
@@ -115,7 +127,9 @@ namespace Opc.Ua.Gds.Server.Database
 
                 if (application.ServerCapabilities.IsEmpty)
                 {
-                    application.ServerCapabilities = ["NA"];
+                    throw new ArgumentException(
+                        "At least one ServerCapability must be provided.",
+                       nameof(application));
                 }
             }
             else if (!application.DiscoveryUrls.IsEmpty)
@@ -125,27 +139,7 @@ namespace Opc.Ua.Gds.Server.Database
                     nameof(application));
             }
 
-            if (application.ApplicationId.IsNull)
-            {
-                return default;
-            }
-
-            // verify node integrity
-            switch (application.ApplicationId.IdType)
-            {
-                case IdType.String:
-                case IdType.Guid:
-                    return application.ApplicationId.WithNamespaceIndex(NamespaceIndex);
-                case IdType.Numeric:
-                case IdType.Opaque:
-                    throw new ArgumentException(
-                        "The ApplicationId has invalid type {0}",
-                        nameof(application));
-                default:
-                    throw new ArgumentException(
-                        "The ApplicationId has unexpected type {0}",
-                        nameof(application));
-            }
+            return default;
         }
 
         public virtual void UnregisterApplication(NodeId applicationId)
@@ -153,18 +147,23 @@ namespace Opc.Ua.Gds.Server.Database
             ValidateApplicationNodeId(applicationId);
         }
 
-        public virtual ApplicationRecordDataType GetApplication(NodeId applicationId)
+        public virtual ApplicationRecordDataType? GetApplication(NodeId applicationId)
         {
             ValidateApplicationNodeId(applicationId);
             return null;
         }
 
-        public virtual ApplicationRecordDataType[] FindApplications(string applicationUri)
+        public virtual ApplicationRecordDataType[]? FindApplications(string applicationUri)
         {
+            if (string.IsNullOrWhiteSpace(applicationUri))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadInvalidArgument);
+            }
             return null;
         }
 
-        public virtual ServerOnNetwork[] QueryServers(
+        public virtual ServerOnNetwork[]? QueryServers(
             uint startingRecordId,
             uint maxRecordsToReturn,
             string applicationName,
@@ -174,10 +173,18 @@ namespace Opc.Ua.Gds.Server.Database
             out DateTimeUtc lastCounterResetTime)
         {
             lastCounterResetTime = DateTimeUtc.MinValue;
+
+            if (serverCapabilities.Contains("NA", StringComparer.OrdinalIgnoreCase) &&
+                serverCapabilities.Count > 1)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadInvalidArgument);
+            }
+
             return null;
         }
 
-        public virtual ApplicationDescription[] QueryApplications(
+        public virtual ApplicationDescription[]? QueryApplications(
             uint startingRecordId,
             uint maxRecordsToReturn,
             string applicationName,
@@ -190,6 +197,20 @@ namespace Opc.Ua.Gds.Server.Database
         {
             lastCounterResetTime = DateTimeUtc.MinValue;
             nextRecordId = 0;
+
+            if (applicationType > 2)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadInvalidArgument);
+            }
+
+            if (serverCapabilities.Contains("NA", StringComparer.OrdinalIgnoreCase) &&
+                serverCapabilities.Count > 1)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadInvalidArgument);
+            }
+
             return null;
         }
 
@@ -224,7 +245,7 @@ namespace Opc.Ua.Gds.Server.Database
         public virtual bool GetApplicationTrustLists(
             NodeId applicationId,
             string certificateTypeId,
-            out string trustListId)
+            out string? trustListId)
         {
             trustListId = null;
             ValidateApplicationNodeId(applicationId);
@@ -238,9 +259,9 @@ namespace Opc.Ua.Gds.Server.Database
         /// <param name="target">String to check for a pattern match.</param>
         /// <param name="pattern">Pattern to match with the target string.</param>
         /// <returns>true if the target string matches the pattern, otherwise false.</returns>
-        public static bool Match(string target, string pattern)
+        public static bool Match(string? target, string pattern)
         {
-            if (string.IsNullOrEmpty(target))
+            if (target == null || target.Length == 0)
             {
                 return false;
             }
@@ -326,19 +347,19 @@ namespace Opc.Ua.Gds.Server.Database
         {
             if (nodeId.IsNull)
             {
-                throw new ArgumentNullException(nameof(nodeId));
+                throw new ServiceResultException(StatusCodes.BadNotFound);
             }
 
             if (NamespaceIndex != nodeId.NamespaceIndex ||
                 !nodeId.TryGetValue(out Guid id))
             {
-                throw new ServiceResultException(StatusCodes.BadNodeIdUnknown);
+                throw new ServiceResultException(StatusCodes.BadNotFound);
             }
 
             return id;
         }
 
-        protected string GetNodeIdString(NodeId nodeId)
+        protected string? GetNodeIdString(NodeId nodeId)
         {
             if (nodeId.IsNull)
             {
@@ -361,13 +382,13 @@ namespace Opc.Ua.Gds.Server.Database
         {
             if (nodeId.IsNull)
             {
-                throw new ArgumentNullException(nameof(nodeId));
+                throw new ServiceResultException(StatusCodes.BadNotFound);
             }
 
             if ((nodeId.IdType != IdType.Guid && nodeId.IdType != IdType.String) ||
                 NamespaceIndex != nodeId.NamespaceIndex)
             {
-                throw new ServiceResultException(StatusCodes.BadNodeIdUnknown);
+                throw new ServiceResultException(StatusCodes.BadNotFound);
             }
         }
 
@@ -596,7 +617,9 @@ namespace Opc.Ua.Gds.Server.Database
                 return SkipToNext(target, targetIndex, tokens, ref tokenIndex);
             }
 
-            if (token.StartsWith('['))
+            if (token.StartsWith('[') &&
+                token.EndsWith(']') &&
+                token.Length > 1)
             {
                 bool inverse = false;
                 bool match = false;

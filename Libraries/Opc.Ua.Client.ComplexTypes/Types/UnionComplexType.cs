@@ -92,12 +92,12 @@ namespace Opc.Ua.Client.ComplexTypes
 
             // the encoder may return an override for the field name
             // e.g. to support reversible JSON encoding
-            encoder.WriteSwitchField(m_switchField, out string fieldName);
+            encoder.WriteSwitchField(m_switchField, out string? fieldName);
 
             if (m_switchField != 0)
             {
                 int unionSelector = 1;
-                ComplexTypePropertyInfo unionProperty = null;
+                ComplexTypePropertyInfo? unionProperty = null;
                 foreach (ComplexTypePropertyInfo property in GetPropertyEnumerator())
                 {
                     if (unionSelector == m_switchField)
@@ -108,9 +108,11 @@ namespace Opc.Ua.Client.ComplexTypes
                     unionSelector++;
                 }
 
-                fieldName ??= unionProperty.Name;
+                // unionProperty is non-null when m_switchField is within the property range,
+                // which the IL emitted by ComplexTypeFieldBuilder guarantees for set values.
+                fieldName ??= unionProperty!.Name;
 
-                EncodeProperty(encoder, fieldName, unionProperty);
+                EncodeProperty(encoder, fieldName, unionProperty!);
             }
 
             encoder.PopNamespace();
@@ -121,7 +123,7 @@ namespace Opc.Ua.Client.ComplexTypes
         {
             decoder.PushNamespace(XmlNamespace);
 
-            uint unionSelector = decoder.ReadSwitchField(null, out _);
+            uint unionSelector = decoder.ReadSwitchField(null!, out _);
 
             // In verbose encoding the switch field is implicitly defined by the JSON keys
             bool isJsonDecoder = decoder.EncodingType == EncodingType.Json;
@@ -156,7 +158,7 @@ namespace Opc.Ua.Client.ComplexTypes
         }
 
         /// <inheritdoc/>
-        public override bool IsEqual(IEncodeable encodeable)
+        public override bool IsEqual(IEncodeable? encodeable)
         {
             if (ReferenceEquals(this, encodeable))
             {
@@ -198,7 +200,7 @@ namespace Opc.Ua.Client.ComplexTypes
         }
 
         /// <inheritdoc/>
-        public override string ToString(string format, IFormatProvider formatProvider)
+        public override string ToString(string? format, IFormatProvider? formatProvider)
         {
             if (format == null)
             {
@@ -297,7 +299,7 @@ namespace Opc.Ua.Client.ComplexTypes
             {
                 if (SwitchField > 0)
                 {
-                    if (m_propertyDict.TryGetValue(name, out ComplexTypePropertyInfo property))
+                    if (m_propertyDict.TryGetValue(name, out ComplexTypePropertyInfo? property))
                     {
                         if ((int)m_switchField == property.Order)
                         {
@@ -313,7 +315,7 @@ namespace Opc.Ua.Client.ComplexTypes
             }
             set
             {
-                if (m_propertyDict.TryGetValue(name, out ComplexTypePropertyInfo property))
+                if (m_propertyDict.TryGetValue(name, out ComplexTypePropertyInfo? property))
                 {
                     property.SetValue(this, value);
                     // note: selector is updated in SetValue by emitted code for union

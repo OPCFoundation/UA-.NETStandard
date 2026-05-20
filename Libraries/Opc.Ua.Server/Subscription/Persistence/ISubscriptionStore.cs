@@ -81,7 +81,7 @@ namespace Opc.Ua.Server
         /// </summary>
         public RestoreSubscriptionResult(
             bool succcess,
-            IEnumerable<IStoredSubscription> subscriptions)
+            IEnumerable<IStoredSubscription>? subscriptions)
         {
             Success = succcess;
             Subscriptions = subscriptions;
@@ -95,6 +95,6 @@ namespace Opc.Ua.Server
         /// <summary>
         /// The restored subscriptions
         /// </summary>
-        public IEnumerable<IStoredSubscription> Subscriptions { get; set; }
+        public IEnumerable<IStoredSubscription>? Subscriptions { get; set; }
     }
 }

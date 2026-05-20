@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -137,12 +137,12 @@ namespace Opc.Ua
         /// <summary>
         /// Raised when the IsAbstract attribute is read.
         /// </summary>
-        public NodeAttributeEventHandler<bool> OnReadIsAbstract;
+        public NodeAttributeEventHandler<bool>? OnReadIsAbstract;
 
         /// <summary>
         /// Raised when the IsAbstract attribute is written.
         /// </summary>
-        public NodeAttributeEventHandler<bool> OnWriteIsAbstract;
+        public NodeAttributeEventHandler<bool>? OnWriteIsAbstract;
 
         /// <summary>
         /// Exports a copy of the node to a node table.
@@ -301,26 +301,26 @@ namespace Opc.Ua
             uint attributeId,
             ref Variant value)
         {
-            ServiceResult result = null;
+            ServiceResult? result = null;
 
             switch (attributeId)
             {
                 case Attributes.IsAbstract:
                     bool isAbstract = m_isAbstract;
 
-                    NodeAttributeEventHandler<bool> onReadIsAbstract = OnReadIsAbstract;
+                    NodeAttributeEventHandler<bool>? onReadIsAbstract = OnReadIsAbstract;
 
                     if (onReadIsAbstract != null)
                     {
                         result = onReadIsAbstract(context, this, ref isAbstract);
                     }
 
-                    if (ServiceResult.IsGood(result))
+                    if (ServiceResult.IsGood(result!))
                     {
                         value = isAbstract;
                     }
 
-                    return result;
+                    return result!;
                 default:
                     return base.ReadNonValueAttribute(context, attributeId, ref value);
             }
@@ -334,7 +334,7 @@ namespace Opc.Ua
             uint attributeId,
             Variant value)
         {
-            ServiceResult result = null;
+            ServiceResult? result = null;
 
             switch (attributeId)
             {
@@ -349,19 +349,19 @@ namespace Opc.Ua
                         return StatusCodes.BadNotWritable;
                     }
 
-                    NodeAttributeEventHandler<bool> onWriteIsAbstract = OnWriteIsAbstract;
+                    NodeAttributeEventHandler<bool>? onWriteIsAbstract = OnWriteIsAbstract;
 
                     if (onWriteIsAbstract != null)
                     {
                         result = onWriteIsAbstract(context, this, ref isAbstract);
                     }
 
-                    if (ServiceResult.IsGood(result))
+                    if (ServiceResult.IsGood(result!))
                     {
                         IsAbstract = isAbstract;
                     }
 
-                    return result;
+                    return result!;
                 default:
                     return base.WriteNonValueAttribute(context, attributeId, value);
             }

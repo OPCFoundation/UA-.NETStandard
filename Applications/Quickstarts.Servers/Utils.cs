@@ -149,6 +149,6 @@ namespace Quickstarts.Servers
             return nodeManagerFactories;
         }
 
-        private static IList<INodeManagerFactory> s_nodeManagerFactories;
+        private static IList<INodeManagerFactory>? s_nodeManagerFactories;
     }
 }

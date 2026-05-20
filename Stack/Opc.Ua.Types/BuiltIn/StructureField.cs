@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -37,7 +37,7 @@ namespace Opc.Ua
     /// <summary>
     /// Structure field
     /// </summary>
-    [DataContract(Namespace = Namespaces.OpcUaXsd)]
+    [DataContract(Namespace = Types.Namespaces.OpcUaXsd)]
     public class StructureField :
         IEncodeable,
         IEquatable<StructureField>
@@ -45,8 +45,7 @@ namespace Opc.Ua
         /// <summary>
         /// Name
         /// </summary>
-        [DataMember(Name = "Name", IsRequired = false, Order = 1)]
-        public string Name { get; set; }
+        [DataMember(Name = "Name", IsRequired = false, Order = 1)]public string? Name { get; set; }
 
         /// <summary>
         /// Description
@@ -126,7 +125,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public virtual bool IsEqual(IEncodeable encodeable)
+        public virtual bool IsEqual(IEncodeable? encodeable)
         {
             if (ReferenceEquals(this, encodeable))
             {
@@ -177,7 +176,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return IsEqual(obj as IEncodeable);
         }
@@ -196,19 +195,23 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public bool Equals(StructureField other)
+        public bool Equals(StructureField? other)
         {
-            return IsEqual(other);
+            return IsEqual(other)!;
         }
 
         /// <inheritdoc/>
-        public static bool operator ==(StructureField left, StructureField right)
+        public static bool operator ==(StructureField? left, StructureField? right)
         {
-            return EqualityComparer<StructureField>.Default.Equals(left, right);
+            if (left is null)
+            {
+                return right is null;
+            }
+            return left.Equals(right);
         }
 
         /// <inheritdoc/>
-        public static bool operator !=(StructureField left, StructureField right)
+        public static bool operator !=(StructureField? left, StructureField? right)
         {
             return !(left == right);
         }
@@ -224,7 +227,7 @@ namespace Opc.Ua
         {
             var clone = (StructureField)base.MemberwiseClone();
 
-            clone.Name = CoreUtils.Clone(Name);
+            clone.Name = Name == null ? null : CoreUtils.Clone(Name);
             clone.Description = CoreUtils.Clone(Description);
             clone.DataType = DataType;
             clone.ValueRank = CoreUtils.Clone(ValueRank);

@@ -172,7 +172,7 @@ namespace Opc.Ua.Client.FileSystem
             }
             if (segment.NamespaceIndex == 0)
             {
-                return segment.Name;
+                return segment.Name!;
             }
             return $"{segment.NamespaceIndex}:{segment.Name}";
         }

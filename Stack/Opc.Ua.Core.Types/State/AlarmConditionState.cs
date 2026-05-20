@@ -1,0 +1,816 @@
+﻿/* ========================================================================
+ * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
+ * ======================================================================*/
+
+using System;
+using System.Collections.Generic;
+using System.Text;
+using System.Threading;
+using Microsoft.Extensions.Logging;
+
+namespace Opc.Ua
+{
+#pragma warning disable CA1001 // Using timers that are disposed in OnAfterDelete
+    public partial class AlarmConditionState
+    {
+#pragma warning restore CA1001 // Using timers that are disposed in OnAfterDelete
+        /// <summary>
+        /// Create alarm condition
+        /// </summary>
+        /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
+        /// <param name="parent"></param>
+        public AlarmConditionState(ITelemetryContext telemetry, NodeState parent)
+            : this(parent)
+        {
+            m_logger = telemetry.CreateLogger<AlarmConditionState>();
+        }
+
+        /// <inheritdoc/>
+        protected override void OnAfterCreate(ISystemContext context, NodeState node, CancellationToken ct = default)
+        {
+            base.OnAfterCreate(context, node, ct);
+
+            if (ShelvingState is { } shelvingState)
+            {
+                if (shelvingState.UnshelveTime is { } unshelveTime)
+                {
+                    unshelveTime.OnSimpleReadValue = OnReadUnshelveTime;
+                    unshelveTime.MinimumSamplingInterval = 1000;
+                }
+
+                shelvingState.OneShotShelve!.OnCallMethod = OnOneShotShelve; // OneShotShelve is created with ShelvingState
+                shelvingState.OneShotShelve!.OnReadExecutable = IsOneShotShelveExecutable;
+                shelvingState.OneShotShelve!.OnReadUserExecutable = IsOneShotShelveExecutable;
+
+                shelvingState.TimedShelve!.OnCall = OnTimedShelve; // TimedShelve is created with ShelvingState
+                shelvingState.TimedShelve!.OnReadExecutable = IsTimedShelveExecutable;
+                shelvingState.TimedShelve!.OnReadUserExecutable = IsTimedShelveExecutable;
+
+                shelvingState.Unshelve!.OnCallMethod = OnUnshelve; // Unshelve is created with ShelvingState
+                shelvingState.Unshelve!.OnReadExecutable = IsUnshelveExecutable;
+                shelvingState.Unshelve!.OnReadUserExecutable = IsUnshelveExecutable;
+            }
+        }
+
+        /// <inheritdoc/>
+        protected override void OnAfterDelete(ISystemContext context)
+        {
+            base.OnAfterDelete(context);
+
+            m_unshelveTimer?.Dispose();
+            m_unshelveTimer = null;
+            m_updateUnshelveTimer?.Dispose();
+            m_updateUnshelveTimer = null;
+        }
+
+        /// <summary>
+        /// Defines how often to update the UnshelveTime when Shelving State is TimedShelve or OneShotShelved.
+        /// Defaults to 1000 ms
+        /// </summary>
+        public int UnshelveTimeUpdateRate { get; set; } = 1000;
+
+        /// <summary>
+        /// Called when one or more sub-states change state.
+        /// </summary>
+        /// <param name="context">The context.</param>
+        /// <param name="displayName">The display name for the effective state.</param>
+        /// <param name="transitionTime">The transition time.</param>
+        public virtual void SetActiveEffectiveSubState(
+            ISystemContext context,
+            LocalizedText displayName,
+            DateTime transitionTime)
+        {
+            TwoStateVariableState activeState = ActiveState!; // alarm conditions always have ActiveState
+            activeState.EffectiveDisplayName?.Value = displayName;
+
+            if (activeState.EffectiveTransitionTime is { } effectiveTransitionTime)
+            {
+                effectiveTransitionTime.Value = transitionTime != DateTime.MinValue
+                    ? transitionTime
+                    : DateTimeUtc.Now;
+            }
+        }
+
+        /// <summary>
+        /// Gets when the alarm is scheduled to be unshelved.
+        /// </summary>
+        /// <value>The unshelve time.</value>
+        public DateTime UnshelveTime { get; private set; }
+
+        /// <summary>
+        /// Sets the active state of the condition.
+        /// </summary>
+        /// <param name="context">The system context.</param>
+        /// <param name="active">if set to <c>true</c> the condition is active.</param>
+        public virtual void SetActiveState(ISystemContext context, bool active)
+        {
+            TranslationInfo state;
+            if (active)
+            {
+                state = new TranslationInfo(
+                    "ConditionStateActive",
+                    "en-US",
+                    ConditionStateNames.Active);
+            }
+            else
+            {
+                // update shelving state if one shot mode.
+                if (ShelvingState != null && m_oneShot)
+                {
+                    SetShelvingState(context, false, false, 0);
+                }
+
+                state = new TranslationInfo(
+                    "ConditionStateInactive",
+                    "en-US",
+                    ConditionStateNames.Inactive);
+            }
+
+            TwoStateVariableState activeState = ActiveState!; // alarm conditions always have ActiveState
+            activeState.Value = new LocalizedText(state);
+            activeState.Id!.Value = active; // Id is created with ActiveState
+
+            activeState.TransitionTime?.Value = DateTimeUtc.Now;
+
+            activeState.Timestamp = DateTimeUtc.Now;
+            UpdateEffectiveState(context);
+            ClearChangeMasks(context, includeChildren: true);
+        }
+
+        /// <summary>
+        /// Sets the suppressed state of the condition.
+        /// </summary>
+        /// <param name="context">The context.</param>
+        /// <param name="suppressed">if set to <c>true</c> the condition is suppressed.</param>
+        public virtual void SetSuppressedState(ISystemContext context, bool suppressed)
+        {
+            if (SuppressedState is not { } suppressedState)
+            {
+                return;
+            }
+
+            TranslationInfo state;
+            if (suppressed)
+            {
+                SuppressedOrShelved!.Value = true; // SuppressedOrShelved is created with the alarm
+
+                state = new TranslationInfo(
+                    "ConditionStateSuppressed",
+                    "en-US",
+                    ConditionStateNames.Suppressed);
+            }
+            else
+            {
+                if (ShelvingState == null ||
+                    ShelvingState.CurrentState!.Id!.Value == ObjectIds
+                        .ShelvedStateMachineType_Unshelved) // CurrentState/Id are populated by the state machine ctor
+                {
+                    SuppressedOrShelved!.Value = false; // SuppressedOrShelved is created with the alarm
+                }
+
+                state = new TranslationInfo(
+                    "ConditionStateUnsuppressed",
+                    "en-US",
+                    ConditionStateNames.Unsuppressed);
+            }
+
+            suppressedState.Value = new LocalizedText(state);
+            suppressedState.Id!.Value = suppressed; // Id is created with SuppressedState
+
+            suppressedState.TransitionTime?.Value = DateTimeUtc.Now;
+
+            suppressedState.Timestamp = DateTimeUtc.Now;
+            UpdateEffectiveState(context);
+            ClearChangeMasks(context, includeChildren: true);
+        }
+
+        /// <summary>
+        /// Sets the shelving state of the condition.
+        /// </summary>
+        /// <param name="context">The shelving context.</param>
+        /// <param name="shelved">if set to <c>true</c> shelved.</param>
+        /// <param name="oneShot">if set to <c>true</c> for a one shot shelve..</param>
+        /// <param name="shelvingTime">The duration of a timed shelve.</param>
+        public virtual void SetShelvingState(
+            ISystemContext context,
+            bool shelved,
+            bool oneShot,
+            double shelvingTime)
+        {
+            if (ShelvingState == null)
+            {
+                return;
+            }
+
+            ShelvedStateMachineState shelvingState = ShelvingState!; // null check above
+            m_unshelveTimer?.Dispose();
+            m_unshelveTimer = null;
+
+            m_updateUnshelveTimer?.Dispose();
+            m_updateUnshelveTimer = null;
+
+            UnshelveTime = DateTime.MinValue;
+
+            if (!shelved)
+            {
+                if (SuppressedState == null || !SuppressedState.Id!.Value) // Id is created with SuppressedState
+                {
+                    SuppressedOrShelved!.Value = false; // SuppressedOrShelved is created with the alarm
+                }
+
+                shelvingState.UnshelveTime!.Value = 0.0; // UnshelveTime is created with ShelvingState
+
+                shelvingState.CauseProcessingCompleted(
+                    context,
+                    Methods.ShelvedStateMachineType_Unshelve);
+            }
+            else
+            {
+                SuppressedOrShelved!.Value = true; // SuppressedOrShelved is created with the alarm
+                m_oneShot = oneShot;
+
+                // Unshelve time is still valid even for OneShotShelved -  See Mantis 6462
+
+                double maxTimeShelved = double.MaxValue;
+                if (MaxTimeShelved is { } maxTime && maxTime.Value > 0)
+                {
+                    maxTimeShelved = maxTime.Value;
+                }
+
+                double shelveTime = maxTimeShelved;
+
+                uint state = Methods.ShelvedStateMachineType_OneShotShelve;
+                if (!oneShot)
+                {
+                    if (shelvingTime > 0 && shelvingTime < shelveTime)
+                    {
+                        shelveTime = shelvingTime;
+                    }
+                    state = Methods.ShelvedStateMachineType_TimedShelve;
+                }
+
+                shelvingState.UnshelveTime!.Value = shelveTime; // UnshelveTime is created with ShelvingState
+                UnshelveTime = DateTime.UtcNow.AddMilliseconds((int)shelveTime);
+
+                m_updateUnshelveTimer = new Timer(
+                    OnUnshelveTimeUpdate,
+                    context,
+                    UnshelveTimeUpdateRate,
+                    UnshelveTimeUpdateRate);
+
+                m_unshelveTimer = new Timer(
+                    OnTimerExpired,
+                    context,
+                    (int)shelveTime,
+                    Timeout.Infinite);
+                shelvingState.CauseProcessingCompleted(context, state);
+            }
+
+            shelvingState.UnshelveTime?.Timestamp = DateTimeUtc.Now;
+
+            UpdateEffectiveState(context);
+            ClearChangeMasks(context, includeChildren: true);
+        }
+
+        /// <summary>
+        /// Determines the desired Retain state based off of the values of AckedState and
+        /// ConfirmedState if ConfirmedState is supported
+        /// </summary>
+        /// <remarks>
+        /// All implementations of this method should check the enabled state
+        /// </remarks>
+        protected override bool GetRetainState()
+        {
+            bool retainState = false;
+
+            if (EnabledState!.Id!.Value) // condition states always have EnabledState/Id after construction
+            {
+                retainState = base.GetRetainState();
+
+                if (!IsBranch() && ActiveState!.Id!.Value) // alarm conditions always have ActiveState/Id
+                {
+                    retainState = true;
+                }
+            }
+
+            return retainState;
+        }
+
+        /// <summary>
+        /// Returns the method with the specified NodeId or MethodDeclarationId.  Looks specifically for
+        /// Shelving State Methods
+        /// </summary>
+        /// <param name="context">The system context.</param>
+        /// <param name="methodId">The identifier for the method to find.</param>
+        /// <returns>Returns the method. Null if no method found.</returns>
+        /// <remarks>
+        /// It is possible to call ShelvingState Methods by using only the ConditionId (1.04 Part 9 5.8.10.4).
+        /// Look to the Shelving State object for the method if it cannot be found by the normal mechanism.
+        /// </remarks>
+        public override MethodState? FindMethod(ISystemContext context, NodeId methodId)
+        {
+            MethodState? method = base.FindMethod(context, methodId);
+
+            if (method == null && ShelvingState is { } shelvingState)
+            {
+                method = shelvingState.FindMethod(context, methodId);
+            }
+
+            return method;
+        }
+
+        /// <summary>
+        /// Raised when the alarm is shelved.
+        /// </summary>
+        /// <remarks>
+        /// Return code can be used to cancel the operation.
+        /// </remarks>
+        public AlarmConditionShelveEventHandler OnShelve;
+
+        /// <summary>
+        /// Raised when the timed shelving period expires.
+        /// </summary>
+        public AlarmConditionTimedUnshelveEventHandler OnTimedUnshelve;
+
+        /// <summary>
+        /// Raised periodically when the shelving state is not Unshelved to update the UnshelveTimeValue.
+        /// </summary>
+        public AlarmConditionUnshelveTimeValueEventHandler OnUpdateUnshelveTime;
+
+        /// <summary>
+        /// Updates the effective state for the condition.
+        /// </summary>
+        /// <param name="context">The context.</param>
+        protected override void UpdateEffectiveState(ISystemContext context)
+        {
+            if (!EnabledState!.Id!.Value) // condition states always have EnabledState/Id after construction
+            {
+                base.UpdateEffectiveState(context);
+                return;
+            }
+
+            var builder = new StringBuilder();
+
+            TwoStateVariableState activeState = ActiveState!; // alarm conditions always have ActiveState
+            string? locale = activeState.Value.Locale;
+
+            if (activeState.Id!.Value) // Id is created with ActiveState
+            {
+                if (activeState.EffectiveDisplayName is { } effectiveDisplayName &&
+                    !effectiveDisplayName.Value.IsNullOrEmpty)
+                {
+                    builder.Append(effectiveDisplayName.Value);
+                }
+                else
+                {
+                    builder.Append(activeState.Value);
+                }
+            }
+            else
+            {
+                builder.Append(activeState.Value);
+            }
+
+            LocalizedText suppressedState = default;
+
+            if (SuppressedState is { } suppressedStateNode && suppressedStateNode.Id!.Value) // Id is created with SuppressedState
+            {
+                suppressedState = suppressedStateNode.Value;
+            }
+
+            if (ShelvingState is { } shelvingState &&
+                shelvingState.CurrentState!.Id!.Value != ObjectIds.ShelvedStateMachineType_Unshelved) // CurrentState/Id are populated by the state machine ctor
+            {
+                suppressedState = shelvingState.CurrentState.Value;
+            }
+
+            if (!suppressedState.IsNullOrEmpty)
+            {
+                builder.Append(" | ")
+                    .Append(suppressedState);
+            }
+
+            LocalizedText ackState = default;
+
+            if (ConfirmedState is { } confirmedState && !confirmedState.Id!.Value) // Id is created with ConfirmedState
+            {
+                ackState = confirmedState.Value;
+            }
+
+            if (AckedState is { } ackedState && !ackedState.Id!.Value) // Id is created with AckedState
+            {
+                ackState = ackedState.Value;
+            }
+
+            if (!ackState.IsNullOrEmpty)
+            {
+                builder.Append(" | ")
+                    .Append(ackState);
+            }
+
+            var effectiveState = new LocalizedText(locale!, builder.ToString()); // LocalizedText accepts null locale; ! suppresses overload-resolution warning
+
+            SetEffectiveSubState(context, effectiveState, DateTime.MinValue);
+        }
+
+        /// <summary>
+        /// Checks whether the OneShotShelve method is executable.
+        /// </summary>
+        protected ServiceResult OnReadUnshelveTime(
+            ISystemContext context,
+            NodeState node,
+            ref Variant value)
+        {
+            double delta = 0;
+
+            if (UnshelveTime != DateTime.MinValue)
+            {
+                delta = (UnshelveTime - DateTime.UtcNow).TotalMilliseconds;
+
+                if (delta < 0)
+                {
+                    UnshelveTime = DateTime.MinValue;
+                }
+            }
+
+            value = delta;
+
+            return ServiceResult.Good;
+        }
+
+        /// <summary>
+        /// Checks whether the OneShotShelve method is executable.
+        /// </summary>
+        protected ServiceResult IsOneShotShelveExecutable(
+            ISystemContext context,
+            NodeState node,
+            ref bool value)
+        {
+            value = ShelvingState!.IsCausePermitted( // alarm conditions with shelving always have ShelvingState
+                context,
+                Methods.ShelvedStateMachineType_OneShotShelve,
+                false);
+            return ServiceResult.Good;
+        }
+
+        /// <summary>
+        /// Handles the OneShotShelve method.
+        /// </summary>
+        protected virtual ServiceResult OnOneShotShelve(
+            ISystemContext context,
+            MethodState method,
+            ArrayOf<Variant> inputArguments,
+            List<Variant> outputArguments)
+        {
+            ServiceResult? error = null;
+
+            try
+            {
+                if (!EnabledState!.Id!.Value) // condition states always have EnabledState/Id after construction
+                {
+                    return error = StatusCodes.BadConditionDisabled;
+                }
+
+                if (!ShelvingState!.IsCausePermitted( // alarm conditions with shelving always have ShelvingState
+                    context,
+                    Methods.ShelvedStateMachineType_OneShotShelve,
+                    false))
+                {
+                    return error = StatusCodes.BadConditionAlreadyShelved;
+                }
+
+                if (OnShelve == null)
+                {
+                    return error = StatusCodes.BadNotSupported;
+                }
+
+                error = OnShelve(context, this, true, true, 0);
+
+                // report a state change event.
+                if (ServiceResult.IsGood(error))
+                {
+                    ReportStateChange(context, false);
+                }
+            }
+            finally
+            {
+                if (AreEventsMonitored)
+                {
+                    var e = new AuditConditionShelvingEventState(null);
+
+                    var info = new TranslationInfo(
+                        "AuditConditionOneShotShelve",
+                        "en-US",
+                        "The OneShotShelve method was called.");
+
+                    e.Initialize(
+                        context,
+                        this,
+                        EventSeverity.Low,
+                        new LocalizedText(info),
+                        ServiceResult.IsGood(error),
+                        DateTime.UtcNow);
+
+                    e.SetChildValue(context, BrowseNames.SourceNode, NodeId, false);
+                    e.SetChildValue(context, BrowseNames.SourceName, "Method/OneShotShelve", false);
+
+                    e.SetChildValue(context, BrowseNames.MethodId, method.NodeId, false);
+                    e.SetChildValue(context, BrowseNames.ShelvingTime, Variant.Null, false);
+
+                    ReportEvent(context, e);
+                }
+            }
+
+            return error;
+        }
+
+        /// <summary>
+        /// Checks whether the TimedShelve method is executable.
+        /// </summary>
+        protected ServiceResult IsTimedShelveExecutable(
+            ISystemContext context,
+            NodeState node,
+            ref bool value)
+        {
+            value = ShelvingState!.IsCausePermitted( // alarm conditions with shelving always have ShelvingState
+                context,
+                Methods.ShelvedStateMachineType_TimedShelve,
+                false);
+            return ServiceResult.Good;
+        }
+
+        /// <summary>
+        /// Handles the TimedShelve method.
+        /// </summary>
+        protected virtual ServiceResult OnTimedShelve(
+            ISystemContext context,
+            MethodState method,
+            NodeId objectId,
+            double shelvingTime)
+        {
+            ServiceResult? error = null;
+
+            try
+            {
+                if (!EnabledState!.Id!.Value) // condition states always have EnabledState/Id after construction
+                {
+                    return error = StatusCodes.BadConditionDisabled;
+                }
+
+                if (shelvingTime <= 0 ||
+                    (MaxTimeShelved is { } maxTimeShelved && shelvingTime > maxTimeShelved.Value))
+                {
+                    return error = StatusCodes.BadShelvingTimeOutOfRange;
+                }
+
+                if (!ShelvingState!.IsCausePermitted( // alarm conditions with shelving always have ShelvingState
+                    context,
+                    Methods.ShelvedStateMachineType_TimedShelve,
+                    false))
+                {
+                    return error = StatusCodes.BadConditionAlreadyShelved;
+                }
+
+                if (OnShelve == null)
+                {
+                    return error = StatusCodes.BadNotSupported;
+                }
+
+                error = OnShelve(context, this, true, false, shelvingTime);
+
+                // report a state change event.
+                if (ServiceResult.IsGood(error))
+                {
+                    ReportStateChange(context, false);
+                }
+            }
+            finally
+            {
+                if (AreEventsMonitored)
+                {
+                    var e = new AuditConditionShelvingEventState(null);
+
+                    var info = new TranslationInfo(
+                        "AuditConditionTimedShelve",
+                        "en-US",
+                        "The TimedShelve method was called.");
+
+                    e.Initialize(
+                        context,
+                        this,
+                        EventSeverity.Low,
+                        new LocalizedText(info),
+                        ServiceResult.IsGood(error),
+                        DateTime.UtcNow);
+
+                    e.SetChildValue(context, BrowseNames.SourceNode, NodeId, false);
+                    e.SetChildValue(context, BrowseNames.SourceName, "Method/TimedShelve", false);
+
+                    e.SetChildValue(context, BrowseNames.MethodId, method.NodeId, false);
+                    e.SetChildValue(
+                        context,
+                        BrowseNames.InputArguments,
+                        Variant.From([Variant.From(shelvingTime)]),
+                        false);
+
+                    e.SetChildValue(context, BrowseNames.ShelvingTime, shelvingTime, false);
+
+                    ReportEvent(context, e);
+                }
+            }
+
+            return error;
+        }
+
+        /// <summary>
+        /// Checks whether the Unshelve method is executable.
+        /// </summary>
+        protected ServiceResult IsUnshelveExecutable(
+            ISystemContext context,
+            NodeState node,
+            ref bool value)
+        {
+            value = ShelvingState!.IsCausePermitted( // alarm conditions with shelving always have ShelvingState
+                context,
+                Methods.ShelvedStateMachineType_Unshelve,
+                false);
+            return ServiceResult.Good;
+        }
+
+        /// <summary>
+        /// Handles the Unshelve method.
+        /// </summary>
+        protected virtual ServiceResult OnUnshelve(
+            ISystemContext context,
+            MethodState method,
+            ArrayOf<Variant> inputArguments,
+            List<Variant> outputArguments)
+        {
+            ServiceResult? error = null;
+
+            try
+            {
+                if (!EnabledState!.Id!.Value) // condition states always have EnabledState/Id after construction
+                {
+                    return error = StatusCodes.BadConditionDisabled;
+                }
+
+                if (!ShelvingState!.IsCausePermitted( // alarm conditions with shelving always have ShelvingState
+                    context,
+                    Methods.ShelvedStateMachineType_Unshelve,
+                    false))
+                {
+                    return error = StatusCodes.BadConditionNotShelved;
+                }
+
+                if (OnShelve == null)
+                {
+                    return error = StatusCodes.BadNotSupported;
+                }
+
+                error = OnShelve(context, this, false, false, 0);
+
+                // report a state change event.
+                if (ServiceResult.IsGood(error))
+                {
+                    ReportStateChange(context, false);
+                }
+            }
+            finally
+            {
+                // raise the audit event.
+                if (AreEventsMonitored)
+                {
+                    var e = new AuditConditionShelvingEventState(null);
+
+                    var info = new TranslationInfo(
+                        "AuditConditionUnshelve",
+                        "en-US",
+                        "The Unshelve method was called.");
+
+                    e.Initialize(
+                        context,
+                        this,
+                        EventSeverity.Low,
+                        new LocalizedText(info),
+                        ServiceResult.IsGood(error),
+                        DateTime.UtcNow);
+
+                    e.SetChildValue(context, BrowseNames.SourceNode, NodeId, false);
+                    e.SetChildValue(context, BrowseNames.SourceName, "Method/UnShelve", false);
+
+                    e.SetChildValue(context, BrowseNames.MethodId, method.NodeId, false);
+                    e.SetChildValue(context, BrowseNames.ShelvingTime, Variant.Null, false);
+
+                    ReportEvent(context, e);
+                }
+            }
+
+            return error;
+        }
+
+        /// <summary>
+        /// Called when timed shelve period expires.
+        /// </summary>
+        private void OnTimerExpired(object? state)
+        {
+            try
+            {
+                OnTimedUnshelve?.Invoke((ISystemContext)state!, this); // Timer state is the system context passed at construction
+                OnUnshelveTimeUpdate(state);
+            }
+            catch (Exception e)
+            {
+                m_logger.LogError(e, "Unexpected error unshelving alarm.");
+            }
+        }
+
+        /// <summary>
+        /// Called when shelved state is not Unshelved to update the UnshelveTime value.
+        /// </summary>
+        private void OnUnshelveTimeUpdate(object? state)
+        {
+            try
+            {
+                var context = (ISystemContext)state!; // Timer state is the system context passed at construction
+                Variant unshelveTimeObject = default;
+                OnReadUnshelveTime(context, null!, ref unshelveTimeObject); // OnReadUnshelveTime tolerates null node
+                double unshelveTime = (double)unshelveTimeObject;
+                PropertyState<double> shelvingUnshelveTime = ShelvingState!.UnshelveTime!; // ShelvingState/UnshelveTime are populated when this timer is active
+                if (unshelveTime != shelvingUnshelveTime.Value)
+                {
+                    shelvingUnshelveTime.Value = unshelveTime;
+                    ClearChangeMasks(context, true);
+                }
+            }
+            catch (Exception e)
+            {
+                m_logger.LogError(e, "Unexpected error updating UnshelveTime.");
+            }
+        }
+
+        private readonly ILogger m_logger;
+        private bool m_oneShot;
+        private Timer? m_unshelveTimer;
+        private Timer? m_updateUnshelveTimer;
+    }
+
+    /// <summary>
+    /// Used to receive notifications when a alarm is shelved or unshelved.
+    /// </summary>
+    /// <param name="context">The current system context.</param>
+    /// <param name="alarm">The alarm that raised the event.</param>
+    /// <param name="shelving">True if the condition is being shelved.</param>
+    /// <param name="oneShot">True if the condition is being until it goes inactive (i.e. OneShotShelve).</param>
+    /// <param name="shelvingTime">How long to shelve the condition.</param>
+    public delegate ServiceResult AlarmConditionShelveEventHandler(
+        ISystemContext context,
+        AlarmConditionState alarm,
+        bool shelving,
+        bool oneShot,
+        double shelvingTime);
+
+    /// <summary>
+    /// Used to receive notifications when the timed shelve period elapses for an alarm.
+    /// </summary>
+    /// <param name="context">The current system context.</param>
+    /// <param name="alarm">The alarm that raised the event.</param>
+    public delegate ServiceResult AlarmConditionTimedUnshelveEventHandler(
+        ISystemContext context,
+        AlarmConditionState alarm);
+
+    /// <summary>
+    /// Used to receive notifications when the shelving state is either OneShotShelved or TimedShelved.
+    /// Updates the value of the UnshelveTime
+    /// </summary>
+    /// <param name="context">The current system context.</param>
+    /// <param name="alarm">The alarm that raised the event.</param>
+    public delegate ServiceResult AlarmConditionUnshelveTimeValueEventHandler(
+        ISystemContext context,
+        AlarmConditionState alarm);
+}

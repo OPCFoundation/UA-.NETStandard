@@ -41,7 +41,7 @@ namespace TestData
         /// The path to the file that stores state of the node manager.
         /// </summary>
         [DataTypeField(Order = 1)]
-        public string SaveFilePath { get; set; }
+        public string? SaveFilePath { get; set; }
 
         /// <summary>
         /// The maximum length for a monitored item sampling queue.

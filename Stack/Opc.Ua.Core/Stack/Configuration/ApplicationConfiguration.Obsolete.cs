@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -42,7 +42,10 @@ namespace Opc.Ua
         [Obsolete("Use ITelemetryContext configuration surface")]
         public static void ApplySettings(this TraceConfiguration configuration)
         {
-            Utils.SetTraceLog(configuration.OutputFilePath, configuration.DeleteOnLoad);
+            if (configuration.OutputFilePath != null)
+            {
+                Utils.SetTraceLog(configuration.OutputFilePath, configuration.DeleteOnLoad);
+            }
             Utils.SetTraceMask(configuration.TraceMasks);
 
             if (configuration.TraceMasks == 0)

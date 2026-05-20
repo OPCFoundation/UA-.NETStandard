@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -164,9 +164,9 @@ namespace Opc.Ua
         [Obsolete("Use ITelemetryContext.CreateLogger and ILogger.Log instead.")]
         public static void Trace<TState>(
             TState state,
-            Exception exception,
+            Exception? exception,
             int traceMask,
-            Func<TState, Exception, string> formatter)
+            Func<TState, Exception?, string> formatter)
         {
             LoggerProvider.Log(state, exception, traceMask, formatter);
         }
@@ -574,7 +574,7 @@ namespace Opc.Ua
         [Obsolete("Use ITelemetryContext ILoggerFactory and ILogger.Log.")]
         public static void Log(LogLevel logLevel, string message, params object[] args)
         {
-            Log(logLevel, 0, null, message, args);
+            Log(logLevel, 0, (Exception?)null, message, args);
         }
 
         /// <summary>
@@ -596,7 +596,7 @@ namespace Opc.Ua
                 // call the legacy logging handler (TraceEvent)
                 int traceMask = TraceLoggerProvider.GetTraceMask(eventId, logLevel);
                 Tracing.Instance.RaiseTraceEvent(
-                    new TraceEventArgs(traceMask, message, string.Empty, null, args));
+                    new TraceEventArgs(traceMask, message, string.Empty, null!, args));
             }
         }
 
@@ -610,7 +610,7 @@ namespace Opc.Ua
         [Obsolete("Use ITelemetryContext ILoggerFactory and ILogger.Log.")]
         public static void Log(
             LogLevel logLevel,
-            Exception exception,
+            Exception? exception,
             string message,
             params object[] args)
         {
@@ -629,7 +629,7 @@ namespace Opc.Ua
         public static void Log(
             LogLevel logLevel,
             EventId eventId,
-            Exception exception,
+            Exception? exception,
             string message,
             params object[] args)
         {
@@ -638,7 +638,7 @@ namespace Opc.Ua
                 // call the legacy logging handler (TraceEvent)
                 int traceMask = TraceLoggerProvider.GetTraceMask(eventId, logLevel);
                 LoggerProvider.Tracing.RaiseTraceEvent(
-                    new TraceEventArgs(traceMask, message, string.Empty, exception, args));
+                    new TraceEventArgs(traceMask, message, string.Empty, exception!, args));
             }
         }
 
@@ -672,7 +672,7 @@ namespace Opc.Ua
         [Obsolete("Use ITelemetryContext ILoggerFactory and ILogger.Log.")]
         public static void Log(int traceMask, string format, bool handled, params object[] args)
         {
-            Log(null, traceMask, format, handled, args);
+            Log((Exception?)null, traceMask, format, handled, args);
         }
 
         /// <summary>
@@ -701,7 +701,7 @@ namespace Opc.Ua
         /// Checks if the file path is a relative path and returns an absolute path relative to the EXE location.
         /// </summary>
         [Obsolete("Catch exceptions from GetAbsoluteFilePath and handle !throwOnError")]
-        public static string GetAbsoluteFilePath(
+        public static string? GetAbsoluteFilePath(
             string filePath,
             bool checkCurrentDirectory,
             bool throwOnError,
@@ -736,17 +736,17 @@ namespace Opc.Ua
         /// <param name="fileName">Name of the file.</param>
         /// <returns>The path to the file. Null if not found.</returns>
         [Obsolete("Not used in stack")]
-        public static string FindInstalledFile(string fileName)
+        public static string? FindInstalledFile(string fileName)
         {
             if (string.IsNullOrEmpty(fileName))
             {
                 return null;
             }
 
-            string path = null;
+            string? path = null;
 
             // check source tree.
-            var directory = new DirectoryInfo(Directory.GetCurrentDirectory());
+            DirectoryInfo? directory = new(Directory.GetCurrentDirectory());
 
             while (directory != null)
             {
@@ -810,7 +810,7 @@ namespace Opc.Ua
         /// Returns the data member name for a property.
         /// </summary>
         [Obsolete("Unused and will be removed in future versions.")]
-        public static string GetDataMemberName(PropertyInfo property)
+        public static string? GetDataMemberName(PropertyInfo property)
         {
             object[] attributes = [.. property.GetCustomAttributes(
                 typeof(DataMemberAttribute),
@@ -863,7 +863,7 @@ namespace Opc.Ua
         /// Writes a message to the trace log.
         /// </summary>
         private static void Log(
-            Exception e,
+            Exception? e,
             int traceMask,
             string format,
             bool handled,
@@ -872,7 +872,7 @@ namespace Opc.Ua
             if (!handled)
             {
                 Tracing.Instance
-                    .RaiseTraceEvent(new TraceEventArgs(traceMask, format, string.Empty, e, args));
+                    .RaiseTraceEvent(new TraceEventArgs(traceMask, format, string.Empty, e!, args));
             }
 
             // do nothing if mask not enabled.

@@ -68,13 +68,13 @@ namespace MemoryBuffer
         /// <summary>
         /// Returns the next reference.
         /// </summary>
-        public override IReference Next()
+        public override IReference? Next()
         {
             lock (DataLock)
             {
                 // enumerate pre-defined references.
                 // always call first to ensure any pushed-back references are returned first.
-                IReference reference = base.Next();
+                IReference? reference = base.Next();
 
                 if (reference != null)
                 {
@@ -118,9 +118,9 @@ namespace MemoryBuffer
         /// <summary>
         /// Returns the next child.
         /// </summary>
-        private NodeStateReference NextChild()
+        private NodeStateReference? NextChild()
         {
-            MemoryTagState tag = null;
+            MemoryTagState? tag = null;
 
             // check if a specific browse name is requested.
             if (!BrowseName.IsNull)
@@ -137,9 +137,9 @@ namespace MemoryBuffer
                     return null;
                 }
 
-                string name = BrowseName.Name;
+                string? name = BrowseName.Name;
 
-                for (int ii = 0; ii < name.Length; ii++)
+                for (int ii = 0; ii < name!.Length; ii++)
                 {
                     if (!"0123456789ABCDEF".Contains(name[ii], StringComparison.Ordinal))
                     {
@@ -150,7 +150,7 @@ namespace MemoryBuffer
                 m_position = Convert.ToUInt32(name, 16);
 
                 // check for memory overflow.
-                if (m_position >= m_buffer.SizeInBytes.Value)
+                if (m_position >= m_buffer!.SizeInBytes!.Value)
                 {
                     return null;
                 }
@@ -161,7 +161,7 @@ namespace MemoryBuffer
             // return the child at the next position.
             else
             {
-                if (m_position >= m_buffer.SizeInBytes.Value)
+                if (m_position >= m_buffer!.SizeInBytes!.Value)
                 {
                     return null;
                 }

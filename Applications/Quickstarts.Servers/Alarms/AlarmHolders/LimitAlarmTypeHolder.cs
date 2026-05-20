@@ -100,10 +100,10 @@ namespace Alarms
 
             if (Optional)
             {
-                alarm.BaseHighLimit.Value = AlarmDefines.HIGH_ALARM;
-                alarm.BaseHighHighLimit.Value = AlarmDefines.HIGHHIGH_ALARM;
-                alarm.BaseLowLimit.Value = AlarmDefines.LOW_ALARM;
-                alarm.BaseLowLowLimit.Value = AlarmDefines.LOWLOW_ALARM;
+                alarm.BaseHighLimit!.Value = AlarmDefines.HIGH_ALARM;
+                alarm.BaseHighHighLimit!.Value = AlarmDefines.HIGHHIGH_ALARM;
+                alarm.BaseLowLimit!.Value = AlarmDefines.LOW_ALARM;
+                alarm.BaseLowLowLimit!.Value = AlarmDefines.LOWLOW_ALARM;
             }
             else
             {

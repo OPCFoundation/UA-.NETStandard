@@ -291,13 +291,13 @@ namespace Opc.Ua
             }
 
             CertificateStoreIdentifier storeIdentifier = string.IsNullOrEmpty(identifier.StoreType)
-                ? new CertificateStoreIdentifier(identifier.StorePath, false)
+                ? new CertificateStoreIdentifier(identifier.StorePath!, false)
                 : new CertificateStoreIdentifier(
-                    identifier.StorePath,
-                    identifier.StoreType,
+                    identifier.StorePath!,
+                    identifier.StoreType!,
                     false);
 
-            return storeIdentifier.OpenStore(telemetry);
+            return storeIdentifier.OpenStore(telemetry!);
         }
     }
 }

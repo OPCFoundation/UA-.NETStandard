@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
@@ -233,8 +234,23 @@ namespace Opc.Ua.Gds.Tests
             m_telemetry = NUnitTelemetryContext.Create();
             m_server = await TestUtils.StartGDSAsync(true, CertificateStoreType.Directory).ConfigureAwait(false);
             await m_server.DisposeAsync().ConfigureAwait(false);
+
+            string customBasePath = Path.Combine(Path.GetTempPath(), "OPC", "GDS", "CA", "custom");
+            var customGroup = new CertificateGroupConfiguration
+            {
+                Id = "MyCustomGroup",
+                CertificateTypes = ["RsaSha256ApplicationCertificateType"],
+                SubjectName = "CN=GDS Custom CA, O=OPC Foundation",
+                BaseStorePath = customBasePath,
+                DefaultCertificateLifetime = 12,
+                DefaultCertificateKeySize = 2048,
+                DefaultCertificateHashSize = 256,
+                CACertificateLifetime = 60,
+                CACertificateKeySize = 4096,
+                CACertificateHashSize = 512
+            };
             await Task.Delay(1000).ConfigureAwait(false);
-            m_server = await TestUtils.StartGDSAsync(false, CertificateStoreType.Directory).ConfigureAwait(false);
+            m_server = await TestUtils.StartGDSAsync(false, CertificateStoreType.Directory, additionalCertGroups: [customGroup]).ConfigureAwait(false);
 
             m_randomSource = new RandomSource(kRandomStart);
 
@@ -390,6 +406,72 @@ namespace Opc.Ua.Gds.Tests
             TrustListDataType expectFullTrustList = await m_pushClient.PushClient.ReadTrustListAsync().ConfigureAwait(false);
             Assert.That(Utils.IsEqual(expectFullTrustList, fullTrustList), Is.True);
         }
+
+        [Test]
+        [Order(310)]
+        public async Task UpdateTrustListOfCustomGroupAsync()
+        {
+            await ConnectPushClientAsync(true).ConfigureAwait(false);
+            NodeId groupId = await GetCustomGroupIdAsync().ConfigureAwait(false);
+            TrustListDataType fullTrustList = await m_pushClient.PushClient.ReadTrustListAsync(groupId).ConfigureAwait(false);
+            TrustListDataType emptyTrustList = await m_pushClient.PushClient
+                .ReadTrustListAsync(groupId, TrustListMasks.None).ConfigureAwait(false);
+            emptyTrustList.SpecifiedLists = (uint)TrustListMasks.All;
+
+            bool requireReboot = await m_pushClient.PushClient.UpdateTrustListAsync(groupId, emptyTrustList, 0).ConfigureAwait(false);
+            Assert.That(requireReboot, Is.False);
+            TrustListDataType expectEmptyTrustList = await m_pushClient.PushClient.ReadTrustListAsync(groupId).ConfigureAwait(false);
+            Assert.That(Utils.IsEqual(expectEmptyTrustList, emptyTrustList), Is.True);
+
+            requireReboot = await m_pushClient.PushClient.UpdateTrustListAsync(groupId, fullTrustList, 0).ConfigureAwait(false);
+            Assert.That(requireReboot, Is.False);
+            TrustListDataType expectFullTrustList = await m_pushClient.PushClient.ReadTrustListAsync(groupId).ConfigureAwait(false);
+            Assert.That(Utils.IsEqual(expectFullTrustList, fullTrustList), Is.True);
+        }
+
+        [Test]
+        [Order(311)]
+        public async Task AddRemoveCertOfCustomGroupAsync()
+        {
+            using Certificate trustedCert = s_factory
+                .CreateCertificate("CN=Push Server Test")
+                .CreateForRSA();
+            using Certificate issuerCert = s_factory
+                .CreateCertificate("CN=Push Server Test")
+                .CreateForRSA();
+            await ConnectPushClientAsync(true).ConfigureAwait(false);
+            NodeId groupId = await GetCustomGroupIdAsync().ConfigureAwait(false);
+
+            TrustListDataType beforeTrustList = await m_pushClient.PushClient.ReadTrustListAsync(groupId).ConfigureAwait(false);
+            await m_pushClient.PushClient.AddCertificateAsync(groupId, trustedCert, true).ConfigureAwait(false);
+            await m_pushClient.PushClient.AddCertificateAsync(groupId, issuerCert, false).ConfigureAwait(false);
+
+            TrustListDataType afterAddTrustList = await m_pushClient.PushClient.ReadTrustListAsync(groupId).ConfigureAwait(false);
+            Assert.That(
+                afterAddTrustList.TrustedCertificates.Count,
+                Is.GreaterThan(beforeTrustList.TrustedCertificates.Count));
+            Assert.That(
+                afterAddTrustList.IssuerCertificates.Count,
+                Is.GreaterThan(beforeTrustList.IssuerCertificates.Count));
+            Assert.That(Utils.IsEqual(beforeTrustList, afterAddTrustList), Is.False);
+
+            await m_pushClient.PushClient.RemoveCertificateAsync(groupId, trustedCert.Thumbprint, true).ConfigureAwait(false);
+            await m_pushClient.PushClient.RemoveCertificateAsync(groupId, issuerCert.Thumbprint, false).ConfigureAwait(false);
+
+            TrustListDataType afterRemoveTrustList = await m_pushClient.PushClient.ReadTrustListAsync(groupId).ConfigureAwait(false);
+            Assert.That(Utils.IsEqual(beforeTrustList, afterRemoveTrustList), Is.True);
+        }
+
+        private async Task<NodeId> GetCustomGroupIdAsync()
+        {
+            List<ReferenceDescription> groups = await FindChildrenByTypeDefinitionRecursiveAsync(
+                OpcUa.ObjectIds.ObjectsFolder,
+                OpcUa.ObjectTypeIds.CertificateGroupType)
+                .ConfigureAwait(false);
+
+            return ExpandedNodeId.ToNodeId(groups[3].NodeId, m_pushClient.PushClient.Session.NamespaceUris);
+        }
+
 
         [Test]
         [Order(301)]
@@ -1445,6 +1527,45 @@ namespace Opc.Ua.Gds.Tests
                 result = false;
             }
             return result;
+        }
+
+        private async Task<List<ReferenceDescription>> FindChildrenByTypeDefinitionRecursiveAsync(
+            NodeId parentNodeId,
+            NodeId targetTypeDefinitionId,
+            CancellationToken ct = default)
+        {
+            var browseDescription = new BrowseDescription
+            {
+                NodeId = parentNodeId,
+                BrowseDirection = BrowseDirection.Forward,
+                ReferenceTypeId = ReferenceTypeIds.HierarchicalReferences,
+                IncludeSubtypes = true,
+                NodeClassMask = (uint) NodeClass.Object,
+                ResultMask = (uint) BrowseResultMask.All,
+            };
+
+            BrowseResponse results = await m_pushClient.PushClient.Session.BrowseAsync(
+                null, null, 0, [browseDescription], ct).ConfigureAwait(false);
+
+            ILookup<bool, ReferenceDescription> references = results.Results.ToList()
+                .Where(r => StatusCode.IsGood(r.StatusCode))
+                .SelectMany(r => r.References.ToList())
+                .ToLookup(r => r.TypeDefinition == targetTypeDefinitionId);
+
+            var allResults = new List<ReferenceDescription>(references[true]);
+
+            foreach (ReferenceDescription nonMatch in references[false])
+            {
+                ct.ThrowIfCancellationRequested();
+
+                var childNodeId = ExpandedNodeId.ToNodeId(nonMatch.NodeId, m_pushClient.PushClient.Session.NamespaceUris);
+                List<ReferenceDescription> childResults =
+                    await FindChildrenByTypeDefinitionRecursiveAsync(childNodeId, targetTypeDefinitionId, ct).ConfigureAwait(false);
+
+                allResults.AddRange(childResults);
+            }
+
+            return allResults;
         }
 
         private const int kRandomStart = 1;

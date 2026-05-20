@@ -82,9 +82,9 @@ namespace Alarms
             return hasBranches;
         }
 
-        public BaseEventState GetBranch(ByteString eventId)
+        public BaseEventState? GetBranch(ByteString eventId)
         {
-            BaseEventState state = null;
+            BaseEventState? state = null;
 
             if (m_alarm is ConditionState alarm)
             {
@@ -175,17 +175,17 @@ namespace Alarms
                 m_logger.LogWarning(
                     "Delayed:{Message} Event Time: {EventTime}",
                     m_delayedMessages[0],
-                    m_alarm.Time.Value);
+                    m_alarm.Time!.Value);
                 m_delayedMessages.RemoveAt(0);
             }
         }
 
-        protected void Log(string caller, string message, BaseEventState alarm = null)
+        protected void Log(string caller, string message, BaseEventState? alarm = null)
         {
             LogMessage(LogLevel.Information, caller, message);
         }
 
-        protected void LogError(string caller, string message, BaseEventState alarm = null)
+        protected void LogError(string caller, string message, BaseEventState? alarm = null)
         {
             LogMessage(LogLevel.Error, caller, message);
         }
@@ -197,7 +197,7 @@ namespace Alarms
                 "{Caller}: {MapName} EventId {EventIdHex} {Message}",
                 caller,
                 m_mapName,
-                m_alarm.EventId.Value.ToHexString(),
+                m_alarm.EventId!.Value.ToHexString(),
                 message);
         }
 
@@ -281,7 +281,7 @@ namespace Alarms
 
         public PropertyState<NodeId> GetEventType()
         {
-            return m_alarm.EventType;
+            return m_alarm.EventType!;
         }
 
         protected AlarmNodeManager GetNodeManager()
@@ -358,7 +358,7 @@ namespace Alarms
 
         protected ILogger m_logger;
         protected AlarmNodeManager m_alarmNodeManager;
-        protected BaseEventState m_alarm;
+        protected BaseEventState m_alarm = null!;
         protected Type m_alarmControllerType;
         protected AlarmController m_alarmController;
         protected BaseDataVariableState m_trigger;
@@ -372,7 +372,7 @@ namespace Alarms
         protected FolderState m_parent;
         protected uint m_alarmTypeIdentifier;
         protected string m_alarmTypeName = string.Empty;
-        protected SupportedAlarmConditionType m_alarmConditionType;
+        protected SupportedAlarmConditionType m_alarmConditionType = null!;
         protected List<string> m_delayedMessages = [];
     }
 }

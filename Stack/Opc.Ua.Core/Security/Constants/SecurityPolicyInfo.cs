@@ -43,7 +43,7 @@ namespace Opc.Ua
         /// <param name="uri">The unique identifier.</param>
         /// <param name="name">The display name.</param>
         /// <exception cref="ArgumentNullException"></exception>
-        public SecurityPolicyInfo(string uri, string name = null)
+        public SecurityPolicyInfo(string uri, string? name = null)
         {
             if (string.IsNullOrEmpty(uri))
             {
@@ -194,13 +194,13 @@ namespace Opc.Ua
         /// </summary>
         /// <exception cref="NotSupportedException"></exception>
         public byte[] GetUserTokenSignatureData(
-            byte[] channelThumbprint,
-            byte[] serverNonce,
-            byte[] serverCertificate,
-            byte[] serverChannelCertificate,
-            byte[] clientCertificate,
-            byte[] clientChannelCertificate,
-            byte[] clientNonce)
+            byte[]? channelThumbprint,
+            byte[]? serverNonce,
+            byte[]? serverCertificate,
+            byte[]? serverChannelCertificate,
+            byte[]? clientCertificate,
+            byte[]? clientChannelCertificate,
+            byte[]? clientNonce)
         {
             if (SecureChannelEnhancements)
             {
@@ -212,13 +212,13 @@ namespace Opc.Ua
                     _ => throw new NotSupportedException()
                 };
 
-                byte[] serverCertificateHash =
+                byte[]? serverCertificateHash =
                     serverCertificate != null ? hash.ComputeHash(serverCertificate) : null;
-                byte[] serverChannelCertificateHash =
+                byte[]? serverChannelCertificateHash =
                     serverChannelCertificate != null ? hash.ComputeHash(serverChannelCertificate) : null;
-                byte[] clientCertificateHash =
+                byte[]? clientCertificateHash =
                     clientCertificate != null ? hash.ComputeHash(clientCertificate) : null;
-                byte[] clientChannelCertificateHash =
+                byte[]? clientChannelCertificateHash =
                     clientChannelCertificate != null ? hash.ComputeHash(clientChannelCertificate) : null;
 
                 return Utils.Append(
@@ -241,12 +241,12 @@ namespace Opc.Ua
         /// </summary>
         /// <exception cref="NotSupportedException"></exception>
         public byte[] GetServerSignatureData(
-            byte[] channelThumbprint,
-            byte[] clientNonce,
-            byte[] serverChannelCertificate,
-            byte[] clientCertificate,
-            byte[] clientChannelCertificate,
-            byte[] serverNonce)
+            byte[]? channelThumbprint,
+            byte[]? clientNonce,
+            byte[]? serverChannelCertificate,
+            byte[]? clientCertificate,
+            byte[]? clientChannelCertificate,
+            byte[]? serverNonce)
         {
             if (SecureChannelEnhancements)
             {
@@ -258,9 +258,9 @@ namespace Opc.Ua
                     _ => throw new NotSupportedException()
                 };
 
-                byte[] serverChannelCertificateHash =
+                byte[]? serverChannelCertificateHash =
                     serverChannelCertificate != null ? hash.ComputeHash(serverChannelCertificate) : null;
-                byte[] clientChannelCertificateHash =
+                byte[]? clientChannelCertificateHash =
                     clientChannelCertificate != null ? hash.ComputeHash(clientChannelCertificate) : null;
 
                 return Utils.Append(
@@ -281,12 +281,12 @@ namespace Opc.Ua
         /// </summary>
         /// <exception cref="NotSupportedException"></exception>
         public byte[] GetClientSignatureData(
-            byte[] channelThumbprint,
-            byte[] serverNonce,
-            byte[] serverCertificate,
-            byte[] serverChannelCertificate,
-            byte[] clientChannelCertificate,
-            byte[] clientNonce)
+            byte[]? channelThumbprint,
+            byte[]? serverNonce,
+            byte[]? serverCertificate,
+            byte[]? serverChannelCertificate,
+            byte[]? clientChannelCertificate,
+            byte[]? clientNonce)
         {
             if (SecureChannelEnhancements)
             {
@@ -298,9 +298,9 @@ namespace Opc.Ua
                     _ => throw new NotSupportedException()
                 };
 
-                byte[] serverCertificateHash = serverCertificate != null ? hash.ComputeHash(serverCertificate) : null;
-                byte[] serverChannelCertificateHash = serverChannelCertificate != null ? hash.ComputeHash(serverChannelCertificate) : null;
-                byte[] clientChannelCertificateHash = clientChannelCertificate != null ? hash.ComputeHash(clientChannelCertificate) : null;
+                byte[]? serverCertificateHash = serverCertificate != null ? hash.ComputeHash(serverCertificate) : null;
+                byte[]? serverChannelCertificateHash = serverChannelCertificate != null ? hash.ComputeHash(serverChannelCertificate) : null;
+                byte[]? clientChannelCertificateHash = clientChannelCertificate != null ? hash.ComputeHash(clientChannelCertificate) : null;
 
                 return Utils.Append(
                     channelThumbprint,
@@ -319,7 +319,7 @@ namespace Opc.Ua
         /// <summary>
         /// Returns a HMAC based on the symmetric signature algorithm.
         /// </summary>
-        public HMAC CreateSignatureHmac(byte[] signingKey)
+        public HMAC? CreateSignatureHmac(byte[] signingKey)
         {
 #pragma warning disable CA5350 // Do Not Use Weak Cryptographic Algorithms
             return SymmetricSignatureAlgorithm switch

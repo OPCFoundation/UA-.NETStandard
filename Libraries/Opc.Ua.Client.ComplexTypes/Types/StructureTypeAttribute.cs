@@ -40,16 +40,16 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary>
         /// The complex type id attribute.
         /// </summary>
-        public string ComplexTypeId { get; set; }
+        public string? ComplexTypeId { get; set; }
 
         /// <summary>
         /// The binary encoding id attribute.
         /// </summary>
-        public string BinaryEncodingId { get; set; }
+        public string? BinaryEncodingId { get; set; }
 
         /// <summary>
         /// The xml encoding id attribute.
         /// </summary>
-        public string XmlEncodingId { get; set; }
+        public string? XmlEncodingId { get; set; }
     }
 }

@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
@@ -88,7 +89,7 @@ namespace Quickstarts.ReferenceServer
         /// <summary>
         /// Token validator
         /// </summary>
-        public ITokenValidator TokenValidator { get; set; }
+        public ITokenValidator? TokenValidator { get; set; }
 
         /// <summary>
         /// If true the ReferenceNodeManager is set to work with a sampling group mechanism
@@ -101,6 +102,26 @@ namespace Quickstarts.ReferenceServer
         /// and requires authenticated user access for certificate provisioning
         /// </summary>
         public bool ProvisioningMode { get; set; }
+
+        /// <summary>
+        /// If true, the server creates the FileSystem node manager that
+        /// exposes the configured <see cref="FileSystemProvider"/> under
+        /// the standard <c>Server.FileSystem</c> object (<c>i=16314</c>).
+        /// This materially grows the address space — only enable it in
+        /// tests / hosts that exercise FileSystem (Part 20). Default is
+        /// <c>false</c> so the standard test fixtures keep a small,
+        /// browse-friendly address space.
+        /// </summary>
+        public bool EnableFileSystemNodeManager { get; set; }
+
+        /// <summary>
+        /// Provider that backs the FileSystem node manager when
+        /// <see cref="EnableFileSystemNodeManager"/> is <c>true</c>.
+        /// When <c>null</c>, the server falls back to a
+        /// <see cref="Opc.Ua.Server.FileSystem.PhysicalFileSystemProvider"/>
+        /// rooted at <c>%TEMP%/OpcUaReferenceServerFs</c>.
+        /// </summary>
+        public Opc.Ua.Server.FileSystem.IFileSystemProvider? FileSystemProvider { get; set; }
 
         /// <summary>
         /// Creates the node managers for the server.
@@ -130,7 +151,7 @@ namespace Quickstarts.ReferenceServer
             }
             else
             {
-                ReferenceNodeManager referenceNodeManager = null;
+                ReferenceNodeManager? referenceNodeManager = null;
                 try
                 {
                     // CA2000: ownership-transfer pattern — nulled after handoff to asyncNodeManagers.
@@ -162,7 +183,33 @@ namespace Quickstarts.ReferenceServer
                 }
             }
 
+            if (EnableFileSystemNodeManager)
+            {
+                // FileSystem node manager — exposes the configured
+                // provider (defaults to a temp folder) under the standard
+                // Server.FileSystem object (i=16314).
+                Opc.Ua.Server.FileSystem.IFileSystemProvider provider =
+                    FileSystemProvider ?? CreateDefaultFileSystemProvider();
+                nodeManagers.Add(new Opc.Ua.Server.FileSystem.FileSystemNodeManager(
+                    server, configuration, provider));
+            }
+
             return new MasterNodeManager(server, configuration, null, asyncNodeManagers, nodeManagers);
+        }
+
+        /// <summary>
+        /// Returns a default <see cref="Opc.Ua.Server.FileSystem.PhysicalFileSystemProvider"/>
+        /// rooted at a per-process temp folder. Override
+        /// <see cref="FileSystemProvider"/> to mount a different backend.
+        /// </summary>
+        private static Opc.Ua.Server.FileSystem.IFileSystemProvider CreateDefaultFileSystemProvider()
+        {
+            string root = System.IO.Path.Combine(
+                System.IO.Path.GetTempPath(),
+                "OpcUaReferenceServerFs");
+            return new Opc.Ua.Server.FileSystem.PhysicalFileSystemProvider(
+                root,
+                mountName: "Temp");
         }
 
         protected override IMonitoredItemQueueFactory CreateMonitoredItemQueueFactory(
@@ -182,7 +229,7 @@ namespace Quickstarts.ReferenceServer
         /// <param name="server">The server.</param>
         /// <param name="configuration">The configuration.</param>
         /// <returns>Returns a subscriptionStore for a server, the return type is <seealso cref="ISubscriptionStore"/>.</returns>
-        protected override ISubscriptionStore CreateSubscriptionStore(
+        protected override ISubscriptionStore? CreateSubscriptionStore(
             IServerInternal server,
             ApplicationConfiguration configuration)
         {
@@ -223,7 +270,10 @@ namespace Quickstarts.ReferenceServer
 
             foreach (StatusCode id in StatusCode.InternedStatusCodes)
             {
-                resourceManager.Add(id.SymbolicId, "en-US", id.SymbolicId);
+                if (id.SymbolicId is { } symbolicId)
+                {
+                    resourceManager.Add(symbolicId, "en-US", symbolicId);
+                }
             }
 
             return resourceManager;
@@ -263,7 +313,7 @@ namespace Quickstarts.ReferenceServer
                 ServerInternal.UpdateServerStatus(
                     status =>
                         // allow a faster sampling interval for CurrentTime node.
-                        status.Variable.CurrentTime.MinimumSamplingInterval = 250);
+                        status.Variable!.CurrentTime!.MinimumSamplingInterval = 250);
             }
             catch
             {
@@ -314,9 +364,10 @@ namespace Quickstarts.ReferenceServer
         /// </summary>
         private void CreateUserIdentityValidators(ApplicationConfiguration configuration)
         {
-            for (int ii = 0; ii < configuration.ServerConfiguration.UserTokenPolicies.Count; ii++)
+            ServerConfiguration serverConfiguration = configuration.ServerConfiguration!;
+            for (int ii = 0; ii < serverConfiguration.UserTokenPolicies.Count; ii++)
             {
-                UserTokenPolicy policy = configuration.ServerConfiguration.UserTokenPolicies[ii];
+                UserTokenPolicy policy = serverConfiguration.UserTokenPolicies[ii];
 
                 // create a validator for a certificate token policy.
                 if (policy.TokenType == UserTokenType.Certificate)
@@ -378,7 +429,7 @@ namespace Quickstarts.ReferenceServer
             if (args.UserIdentityTokenHandler is IssuedIdentityTokenHandler issuedToken)
             {
                 // set AuthenticatedUser role for accepted identity token
-                args.Identity = new RoleBasedIdentity(VerifyIssuedToken(issuedToken),
+                args.Identity = new RoleBasedIdentity(VerifyIssuedToken(issuedToken)!,
                     [Role.AuthenticatedUser],
                     ServerInternal.MessageContext.NamespaceUris);
                 return;
@@ -410,7 +461,7 @@ namespace Quickstarts.ReferenceServer
         private RoleBasedIdentity VerifyPassword(UserNameIdentityTokenHandler userTokenHandler)
         {
             string userName = userTokenHandler.UserName;
-            byte[] password = userTokenHandler.DecryptedPassword;
+            byte[]? password = userTokenHandler.DecryptedPassword;
             if (string.IsNullOrEmpty(userName))
             {
                 // an empty username is not accepted.
@@ -459,7 +510,7 @@ namespace Quickstarts.ReferenceServer
         private void VerifyX509IdentityToken(X509IdentityTokenHandler x509TokenHandler)
         {
             var wireToken = (X509IdentityToken)x509TokenHandler.Token;
-            using Certificate userCertificate = wireToken.CertificateData.IsEmpty
+            using Certificate? userCertificate = wireToken.CertificateData.IsEmpty
                 ? null
                 : Certificate.FromRawData(wireToken.CertificateData);
             try
@@ -471,7 +522,7 @@ namespace Quickstarts.ReferenceServer
 #pragma warning disable CA2025
                     Opc.Ua.CertificateValidationResult userCertResult = m_userCertificateValidator
                         .ValidateAsync(
-                            userCertificate,
+                            userCertificate!,
                             TrustListIdentifier.Users,
                             default)
                         .GetAwaiter()
@@ -487,9 +538,9 @@ namespace Quickstarts.ReferenceServer
                     // CA2025: task awaited via GetAwaiter().GetResult(); the disposable's
                     // using scope extends past the await.
 #pragma warning disable CA2025
-                    Opc.Ua.CertificateValidationResult fallbackCertResult = CertificateManager
+                    Opc.Ua.CertificateValidationResult fallbackCertResult = CertificateManager!
                         .ValidateAsync(
-                            userCertificate,
+                            userCertificate!,
                             TrustListIdentifier.Users,
                             default)
                         .GetAwaiter()
@@ -535,7 +586,7 @@ namespace Quickstarts.ReferenceServer
             }
         }
 
-        private IUserIdentity VerifyIssuedToken(IssuedIdentityTokenHandler issuedTokenHandler)
+        private IUserIdentity? VerifyIssuedToken(IssuedIdentityTokenHandler issuedTokenHandler)
         {
             if (TokenValidator == null)
             {
@@ -586,7 +637,7 @@ namespace Quickstarts.ReferenceServer
             }
         }
 
-        private CertificateManager m_userCertificateValidator;
+        private CertificateManager? m_userCertificateValidator;
         private readonly LinqUserDatabase m_userDatabase;
     }
 }

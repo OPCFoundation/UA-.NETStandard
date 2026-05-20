@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -84,9 +84,10 @@ namespace Opc.Ua.Bindings
         protected Dictionary<string, T> Bindings { get; }
 
         /// <inheritdoc/>
+        [return: MaybeNull]
         public T GetBinding(string uriScheme, ITelemetryContext telemetry)
         {
-            if (!Bindings.TryGetValue(uriScheme, out T binding))
+            if (!Bindings.TryGetValue(uriScheme, out T? binding))
             {
                 TryAddDefaultTransportBindings(telemetry, uriScheme);
                 if (!Bindings.TryGetValue(uriScheme, out binding))
@@ -142,7 +143,7 @@ namespace Opc.Ua.Bindings
             Justification = "Binding types are expected to have constructors preserved by the caller.")]
         protected static bool IsBindingType(
             [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)]
-            Type bindingType)
+            Type? bindingType)
         {
             if (bindingType == null)
             {
@@ -174,9 +175,9 @@ namespace Opc.Ua.Bindings
         private bool TryAddDefaultTransportBindings(ITelemetryContext telemetry, string scheme)
         {
             ILogger<TransportBindingsBase<T>> logger = telemetry.CreateLogger<TransportBindingsBase<T>>();
-            if (Utils.DefaultBindings.TryGetValue(scheme, out string assemblyName))
+            if (Utils.DefaultBindings.TryGetValue(scheme, out string? assemblyName))
             {
-                Assembly assembly = null;
+                Assembly? assembly = null;
                 string fullName = Utils.DefaultOpcUaCoreAssemblyFullName.Replace(
                     Utils.DefaultOpcUaCoreAssemblyName,
                     assemblyName,

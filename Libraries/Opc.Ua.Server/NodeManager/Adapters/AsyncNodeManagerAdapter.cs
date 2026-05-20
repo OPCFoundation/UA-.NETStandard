@@ -96,7 +96,7 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public ValueTask<ContinuationPoint> BrowseAsync(
+        public ValueTask<ContinuationPoint?> BrowseAsync(
             OperationContext context,
             ContinuationPoint continuationPoint,
             IList<ReferenceDescription> references,
@@ -110,7 +110,7 @@ namespace Opc.Ua.Server
             SyncNodeManager.Browse(context, ref continuationPoint, references);
 
             // Return a completed ValueTask since the underlying call is synchronous.
-            return new ValueTask<ContinuationPoint>(continuationPoint);
+            return new ValueTask<ContinuationPoint?>(continuationPoint);
         }
 
         /// <inheritdoc/>
@@ -130,6 +130,21 @@ namespace Opc.Ua.Server
 
             // Return a completed ValueTask since the underlying call is synchronous.
             return default;
+        }
+
+        /// <inheritdoc/>
+        public ValueTask<MethodState> FindMethodStateAsync(
+            OperationContext context,
+            CallMethodRequest methodToCall,
+            CancellationToken cancellationToken = default)
+        {
+            if (SyncNodeManager is INodeManager3 nodeManager)
+            {
+                MethodState method = nodeManager.FindMethodState(context, methodToCall);
+                return new ValueTask<MethodState>(method);
+            }
+
+            return new ValueTask<MethodState>(result: null!);
         }
 
         /// <inheritdoc/>
@@ -286,10 +301,10 @@ namespace Opc.Ua.Server
                 return asyncNodeManager.GetManagerHandleAsync(nodeId, cancellationToken);
             }
 
-            object handle = SyncNodeManager.GetManagerHandle(nodeId);
+            object? handle = SyncNodeManager.GetManagerHandle(nodeId);
 
             // Return a completed ValueTask since the underlying call is synchronous.
-            return new ValueTask<object>(handle);
+            return new ValueTask<object>(handle!);
         }
 
         /// <inheritdoc/>
@@ -304,14 +319,14 @@ namespace Opc.Ua.Server
                 return asyncNodeManager.GetNodeMetadataAsync(context, targetHandle, resultMask, cancellationToken);
             }
 
-            NodeMetadata nodeMetadata = SyncNodeManager.GetNodeMetadata(context, targetHandle, resultMask);
+            NodeMetadata? nodeMetadata = SyncNodeManager.GetNodeMetadata(context, targetHandle, resultMask);
 
             // Return a completed ValueTask since the underlying call is synchronous.
-            return new ValueTask<NodeMetadata>(nodeMetadata);
+            return new ValueTask<NodeMetadata>(nodeMetadata!);
         }
 
         /// <inheritdoc/>
-        public ValueTask<NodeMetadata> GetPermissionMetadataAsync(
+        public ValueTask<NodeMetadata?> GetPermissionMetadataAsync(
             OperationContext context,
             object targetHandle,
             BrowseResultMask resultMask,
@@ -331,16 +346,16 @@ namespace Opc.Ua.Server
             }
             if (SyncNodeManager is INodeManager2 nodeManager2)
             {
-                NodeMetadata nodeMetadata = nodeManager2.GetPermissionMetadata(
+                NodeMetadata? nodeMetadata = nodeManager2.GetPermissionMetadata(
                     context,
                     targetHandle,
                     resultMask,
                     uniqueNodesServiceAttributesCache,
                     permissionsOnly);
-                return new ValueTask<NodeMetadata>(nodeMetadata);
+                return new ValueTask<NodeMetadata?>(nodeMetadata);
             }
 
-            return new ValueTask<NodeMetadata>((NodeMetadata)null);
+            return new ValueTask<NodeMetadata?>((NodeMetadata?)null);
         }
 
         /// <inheritdoc/>

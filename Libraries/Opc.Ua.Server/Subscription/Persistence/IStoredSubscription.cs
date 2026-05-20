@@ -104,6 +104,6 @@ namespace Opc.Ua.Server
         /// <summary>
         /// The user identity of the subscription
         /// </summary>
-        UserIdentityToken UserIdentityToken { get; set; }
+        UserIdentityToken? UserIdentityToken { get; set; }
     }
 }

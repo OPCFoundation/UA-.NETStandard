@@ -46,16 +46,16 @@ namespace Opc.Ua.Gds.Server
         }
 
         [DataTypeField(Order = 0)]
-        public string AuthoritiesStorePath { get; set; }
+        public string? AuthoritiesStorePath { get; set; }
 
         [DataTypeField(Order = 1)]
-        public string ApplicationCertificatesStorePath { get; set; }
+        public string? ApplicationCertificatesStorePath { get; set; }
 
         [DataTypeField(Order = 2)]
-        public string BaseCertificateGroupStorePath { get; set; }
+        public string? BaseCertificateGroupStorePath { get; set; }
 
         [DataTypeField(Order = 3)]
-        public string DefaultSubjectNameContext { get; set; }
+        public string? DefaultSubjectNameContext { get; set; }
 
         [DataTypeField(Order = 4)]
         public ArrayOf<CertificateGroupConfiguration> CertificateGroups { get; set; }
@@ -64,10 +64,10 @@ namespace Opc.Ua.Gds.Server
         public ArrayOf<string> KnownHostNames { get; set; }
 
         [DataTypeField(Order = 6)]
-        public string DatabaseStorePath { get; set; }
+        public string? DatabaseStorePath { get; set; }
 
         [DataTypeField(Order = 7)]
-        public string UsersDatabaseStorePath { get; set; }
+        public string? UsersDatabaseStorePath { get; set; }
     }
 
     /// <summary>
@@ -92,16 +92,16 @@ namespace Opc.Ua.Gds.Server
         }
 
         [DataTypeField(Order = 0, IsRequired = true)]
-        public string Id { get; set; }
+        public string? Id { get; set; }
 
         [DataTypeField(Order = 1)]
         public ArrayOf<string> CertificateTypes { get; set; }
 
         [DataTypeField(Order = 2, IsRequired = true)]
-        public string SubjectName { get; set; }
+        public string? SubjectName { get; set; }
 
         [DataTypeField(Order = 3, IsRequired = true)]
-        public string BaseStorePath { get; set; }
+        public string? BaseStorePath { get; set; }
 
         [DataTypeField(Order = 4)]
         public ushort DefaultCertificateLifetime { get; set; }

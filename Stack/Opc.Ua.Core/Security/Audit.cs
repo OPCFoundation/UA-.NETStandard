@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -53,9 +53,9 @@ namespace Opc.Ua.Security
             string implementationInfo,
             string endpointUrl,
             string secureChannelId,
-            EndpointDescription endpoint,
-            Certificate clientCertificate,
-            Certificate serverCertificate,
+            EndpointDescription? endpoint,
+            Certificate? clientCertificate,
+            Certificate? serverCertificate,
             BinaryEncodingSupport encodingSupport)
         {
             if (endpoint != null)
@@ -81,7 +81,7 @@ namespace Opc.Ua.Security
                     secureChannelId,
                     endpointUrl,
                     endpoint.SecurityMode.ToString(),
-                    SecurityPolicies.GetDisplayName(endpoint.SecurityPolicyUri),
+                    SecurityPolicies.GetDisplayName(endpoint.SecurityPolicyUri ?? string.Empty),
                     encoding);
 
                 if (endpoint.SecurityMode != MessageSecurityMode.None)

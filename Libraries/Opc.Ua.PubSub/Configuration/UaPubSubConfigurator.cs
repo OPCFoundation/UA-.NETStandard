@@ -64,77 +64,77 @@ namespace Opc.Ua.PubSub.Configuration
         /// <summary>
         /// Event that is triggered when a published data set is added to the configurator
         /// </summary>
-        public event EventHandler<PublishedDataSetEventArgs> PublishedDataSetAdded;
+        public event EventHandler<PublishedDataSetEventArgs>? PublishedDataSetAdded;
 
         /// <summary>
         /// Event that is triggered when a published data set is removed from the configurator
         /// </summary>
-        public event EventHandler<PublishedDataSetEventArgs> PublishedDataSetRemoved;
+        public event EventHandler<PublishedDataSetEventArgs>? PublishedDataSetRemoved;
 
         /// <summary>
         /// Event that is triggered when an extension field is added to a published data set
         /// </summary>
-        public event EventHandler<ExtensionFieldEventArgs> ExtensionFieldAdded;
+        public event EventHandler<ExtensionFieldEventArgs>? ExtensionFieldAdded;
 
         /// <summary>
         /// Event that is triggered when an extension field is removed from a published data set
         /// </summary>
-        public event EventHandler<ExtensionFieldEventArgs> ExtensionFieldRemoved;
+        public event EventHandler<ExtensionFieldEventArgs>? ExtensionFieldRemoved;
 
         /// <summary>
         /// Event that is triggered when a connection is added to the configurator
         /// </summary>
-        public event EventHandler<ConnectionEventArgs> ConnectionAdded;
+        public event EventHandler<ConnectionEventArgs>? ConnectionAdded;
 
         /// <summary>
         /// Event that is triggered when a connection is removed from the configurator
         /// </summary>
-        public event EventHandler<ConnectionEventArgs> ConnectionRemoved;
+        public event EventHandler<ConnectionEventArgs>? ConnectionRemoved;
 
         /// <summary>
         /// Event that is triggered when a WriterGroup is added to a connection
         /// </summary>
-        public event EventHandler<WriterGroupEventArgs> WriterGroupAdded;
+        public event EventHandler<WriterGroupEventArgs>? WriterGroupAdded;
 
         /// <summary>
         /// Event that is triggered when a WriterGroup is removed from a connection
         /// </summary>
-        public event EventHandler<WriterGroupEventArgs> WriterGroupRemoved;
+        public event EventHandler<WriterGroupEventArgs>? WriterGroupRemoved;
 
         /// <summary>
         /// Event that is triggered when a ReaderGroup is added to a connection
         /// </summary>
-        public event EventHandler<ReaderGroupEventArgs> ReaderGroupAdded;
+        public event EventHandler<ReaderGroupEventArgs>? ReaderGroupAdded;
 
         /// <summary>
         /// Event that is triggered when a ReaderGroup is removed from a connection
         /// </summary>
-        public event EventHandler<ReaderGroupEventArgs> ReaderGroupRemoved;
+        public event EventHandler<ReaderGroupEventArgs>? ReaderGroupRemoved;
 
         /// <summary>
         /// Event that is triggered when a DataSetWriter is added to a WriterGroup
         /// </summary>
-        public event EventHandler<DataSetWriterEventArgs> DataSetWriterAdded;
+        public event EventHandler<DataSetWriterEventArgs>? DataSetWriterAdded;
 
         /// <summary>
         /// Event that is triggered when a DataSetWriter is removed from a WriterGroup
         /// </summary>
-        public event EventHandler<DataSetWriterEventArgs> DataSetWriterRemoved;
+        public event EventHandler<DataSetWriterEventArgs>? DataSetWriterRemoved;
 
         /// <summary>
         /// Event that is triggered when a DataSetreader is added to a ReaderGroup
         /// </summary>
-        public event EventHandler<DataSetReaderEventArgs> DataSetReaderAdded;
+        public event EventHandler<DataSetReaderEventArgs>? DataSetReaderAdded;
 
         /// <summary>
         /// Event that is triggered when a DataSetreader is removed from a ReaderGroup
         /// </summary>
-        public event EventHandler<DataSetReaderEventArgs> DataSetReaderRemoved;
+        public event EventHandler<DataSetReaderEventArgs>? DataSetReaderRemoved;
 
         /// <summary>
         /// Event raised when the state of a configuration object is changed
         /// </summary>
-        public event EventHandler<PubSubStateChangedEventArgs> PubSubStateChanged;
+        public event EventHandler<PubSubStateChangedEventArgs>? PubSubStateChanged;
 
         /// <summary>
         /// Create new instance of <see cref="UaPubSubConfigurator"/>.
@@ -169,7 +169,7 @@ namespace Opc.Ua.PubSub.Configuration
         /// </summary>
         /// <param name="name">Name of the object to be found.
         /// Returns null if name was not found.</param>
-        public PublishedDataSetDataType FindPublishedDataSetByName(string name)
+        public PublishedDataSetDataType? FindPublishedDataSetByName(string name)
         {
             foreach (PublishedDataSetDataType publishedDataSet in PubSubConfiguration
                 .PublishedDataSets)
@@ -187,9 +187,9 @@ namespace Opc.Ua.PubSub.Configuration
         /// </summary>
         /// <param name="id">Id of the object to be found.
         /// Returns null if id was not found.</param>
-        public object FindObjectById(uint id)
+        public object? FindObjectById(uint id)
         {
-            if (m_idsToObjects.TryGetValue(id, out object objectById))
+            if (m_idsToObjects.TryGetValue(id, out object? objectById))
             {
                 return objectById;
             }
@@ -242,7 +242,7 @@ namespace Opc.Ua.PubSub.Configuration
         /// <summary>
         /// Find the parent configuration object for a configuration object
         /// </summary>
-        public object FindParentForObject(object configurationObject)
+        public object? FindParentForObject(object configurationObject)
         {
             uint id = FindIdForObject(configurationObject);
             if (id != InvalidId && m_idsToParentId.TryGetValue(id, out uint parentId))
@@ -323,11 +323,10 @@ namespace Opc.Ua.PubSub.Configuration
                     }
 
                     //remove previous configured connections
-                    if (PubSubConfiguration.Connections.Count > 0)
+                    if (PubSubConfiguration.Connections!.Count > 0)
                     {
-                        foreach (PubSubConnectionDataType connection in PubSubConfiguration
-                            .Connections
-                            .ToArray())
+                        // ToArray() of generated collection is annotated with possibly-null element flow.
+                        foreach (PubSubConnectionDataType connection in PubSubConfiguration.Connections!.ToArray()!)
                         {
                             RemoveConnection(connection);
                         }
@@ -476,11 +475,9 @@ namespace Opc.Ua.PubSub.Configuration
                         foreach (PubSubConnectionDataType connection in PubSubConfiguration
                             .Connections)
                         {
-                            foreach (WriterGroupDataType writerGroup in connection.WriterGroups)
+                            foreach (WriterGroupDataType writerGroup in connection.WriterGroups!)
                             {
-                                foreach (DataSetWriterDataType dataSetWriter in writerGroup
-                                    .DataSetWriters
-                                    .ToArray())
+                                foreach (DataSetWriterDataType dataSetWriter in writerGroup.DataSetWriters!.ToArray()!)
                                 {
                                     if (dataSetWriter.DataSetName == publishedDataSetDataType.Name)
                                     {
@@ -594,7 +591,7 @@ namespace Opc.Ua.PubSub.Configuration
                     return StatusCodes.BadNodeIdInvalid;
                 }
                 // locate the extension field
-                foreach (KeyValuePair extensionField in publishedDataSetDataType.ExtensionFields.ToArray())
+                foreach (KeyValuePair extensionField in publishedDataSetDataType.ExtensionFields!.ToArray()!)
                 {
                     if (extensionField.Equals(extensionFieldToRemove))
                     {
@@ -819,7 +816,7 @@ namespace Opc.Ua.PubSub.Configuration
                 throw new ArgumentException(
                     "This WriterGroupDataType instance is already added to the configuration.");
             }
-            if (!m_idsToObjects.TryGetValue(parentConnectionId, out object value))
+            if (!m_idsToObjects.TryGetValue(parentConnectionId, out object? value))
             {
                 throw new ArgumentException(
                     Utils.Format(
@@ -950,7 +947,8 @@ namespace Opc.Ua.PubSub.Configuration
                         // find parent connection
                         var parentConnection = FindParentForObject(
                             writerGroupDataType) as PubSubConnectionDataType;
-                        uint parentConnectionId = FindIdForObject(parentConnection);
+                        // TODO: FindIdForObject throws if parentConnection is null; null check below is unreachable.
+                        uint parentConnectionId = FindIdForObject(parentConnection!);
                         if (parentConnection != null && parentConnectionId != InvalidId)
                         {
                             parentConnection.WriterGroups =
@@ -1004,7 +1002,7 @@ namespace Opc.Ua.PubSub.Configuration
                 throw new ArgumentException(
                     "This DataSetWriterDataType instance is already added to the configuration.");
             }
-            if (!m_idsToObjects.TryGetValue(parentWriterGroupId, out object value))
+            if (!m_idsToObjects.TryGetValue(parentWriterGroupId, out object? value))
             {
                 throw new ArgumentException(
                     Utils.Format(
@@ -1117,7 +1115,8 @@ namespace Opc.Ua.PubSub.Configuration
                         // find parent writerGroup
                         var parentWriterGroup = FindParentForObject(dataSetWriterDataType) as
                             WriterGroupDataType;
-                        uint parentWriterGroupId = FindIdForObject(parentWriterGroup);
+                        // TODO: FindIdForObject throws if parentWriterGroup is null; null check below is unreachable.
+                        uint parentWriterGroupId = FindIdForObject(parentWriterGroup!);
                         if (parentWriterGroup != null && parentWriterGroupId != InvalidId)
                         {
                             parentWriterGroup.DataSetWriters =
@@ -1170,7 +1169,7 @@ namespace Opc.Ua.PubSub.Configuration
                 throw new ArgumentException(
                     "This ReaderGroupDataType instance is already added to the configuration.");
             }
-            if (!m_idsToObjects.TryGetValue(parentConnectionId, out object value))
+            if (!m_idsToObjects.TryGetValue(parentConnectionId, out object? value))
             {
                 throw new ArgumentException(
                     Utils.Format(
@@ -1301,7 +1300,8 @@ namespace Opc.Ua.PubSub.Configuration
                         // find parent connection
                         var parentConnection = FindParentForObject(
                             readerGroupDataType) as PubSubConnectionDataType;
-                        uint parentConnectionId = FindIdForObject(parentConnection);
+                        // TODO: FindIdForObject throws if parentConnection is null; null check below is unreachable.
+                        uint parentConnectionId = FindIdForObject(parentConnection!);
                         if (parentConnection != null && parentConnectionId != InvalidId)
                         {
                             parentConnection.ReaderGroups =
@@ -1355,7 +1355,7 @@ namespace Opc.Ua.PubSub.Configuration
                 throw new ArgumentException(
                     "This DataSetReaderDataType instance is already added to the configuration.");
             }
-            if (!m_idsToObjects.TryGetValue(parentReaderGroupId, out object value))
+            if (!m_idsToObjects.TryGetValue(parentReaderGroupId, out object? value))
             {
                 throw new ArgumentException(
                     Utils.Format(
@@ -1468,7 +1468,8 @@ namespace Opc.Ua.PubSub.Configuration
                         // find parent readerGroup
                         var parentWriterGroup = FindParentForObject(
                             dataSetReaderDataType) as ReaderGroupDataType;
-                        uint parenReaderGroupId = FindIdForObject(parentWriterGroup);
+                        // TODO: FindIdForObject throws if parentWriterGroup is null; null check below is unreachable.
+                        uint parenReaderGroupId = FindIdForObject(parentWriterGroup!);
                         if (parentWriterGroup != null && parenReaderGroupId != InvalidId)
                         {
                             parentWriterGroup.DataSetReaders =
@@ -1508,7 +1509,7 @@ namespace Opc.Ua.PubSub.Configuration
         /// </summary>
         public StatusCode Enable(uint configurationId)
         {
-            return Enable(FindObjectById(configurationId));
+            return Enable(FindObjectById(configurationId)!);
         }
 
         /// <summary>
@@ -1539,7 +1540,7 @@ namespace Opc.Ua.PubSub.Configuration
             PubSubState parentState = PubSubState.Operational;
             if (!ReferenceEquals(configurationObject, PubSubConfiguration))
             {
-                parentState = FindStateForObject(FindParentForObject(configurationObject));
+                parentState = FindStateForObject(FindParentForObject(configurationObject)!);
             }
 
             if (parentState == PubSubState.Operational)
@@ -1561,7 +1562,7 @@ namespace Opc.Ua.PubSub.Configuration
         /// </summary>
         public StatusCode Disable(uint configurationId)
         {
-            return Disable(FindObjectById(configurationId));
+            return Disable(FindObjectById(configurationId)!);
         }
 
         /// <summary>
@@ -1668,7 +1669,7 @@ namespace Opc.Ua.PubSub.Configuration
                     if (childState == PubSubState.Paused)
                     {
                         // become Operational if Parent changed to Operational
-                        object childObject = FindObjectById(childId);
+                        object childObject = FindObjectById(childId)!;
                         SetStateForObject(childObject, PubSubState.Operational);
 
                         UpdateChildrenState(childObject);
@@ -1684,7 +1685,7 @@ namespace Opc.Ua.PubSub.Configuration
                     if (childState is PubSubState.Operational or PubSubState.Error)
                     {
                         // become Operational if Parent changed to Operational
-                        object childObject = FindObjectById(childId);
+                        object childObject = FindObjectById(childId)!;
                         SetStateForObject(childObject, PubSubState.Paused);
 
                         UpdateChildrenState(childObject);
@@ -1741,35 +1742,35 @@ namespace Opc.Ua.PubSub.Configuration
                 {
                     configurationObjectEnabled = ((WriterGroupDataType)configurationObject).Enabled;
                     //find parent connection
-                    object parentConnection = FindParentForObject(configurationObject);
+                    object? parentConnection = FindParentForObject(configurationObject);
                     //find parent state
-                    parentPubSubState = FindStateForObject(parentConnection);
+                    parentPubSubState = FindStateForObject(parentConnection!);
                     break;
                 }
                 case DataSetWriterDataType:
                     configurationObjectEnabled = ((DataSetWriterDataType)configurationObject)
                         .Enabled;
                     //find parent
-                    object parentWriterGroup = FindParentForObject(configurationObject);
+                    object? parentWriterGroup = FindParentForObject(configurationObject);
                     //find parent state
-                    parentPubSubState = FindStateForObject(parentWriterGroup);
+                    parentPubSubState = FindStateForObject(parentWriterGroup!);
                     break;
                 case ReaderGroupDataType:
                 {
                     configurationObjectEnabled = ((ReaderGroupDataType)configurationObject).Enabled;
                     //find parent connection
-                    object parentConnection = FindParentForObject(configurationObject);
+                    object? parentConnection = FindParentForObject(configurationObject);
                     //find parent state
-                    parentPubSubState = FindStateForObject(parentConnection);
+                    parentPubSubState = FindStateForObject(parentConnection!);
                     break;
                 }
                 case DataSetReaderDataType:
                     configurationObjectEnabled = ((DataSetReaderDataType)configurationObject)
                         .Enabled;
                     //find parent
-                    object parentReaderGroup = FindParentForObject(configurationObject);
+                    object? parentReaderGroup = FindParentForObject(configurationObject);
                     //find parent state
-                    parentPubSubState = FindStateForObject(parentReaderGroup);
+                    parentPubSubState = FindStateForObject(parentReaderGroup!);
                     break;
                 default:
                     return PubSubState.Error;

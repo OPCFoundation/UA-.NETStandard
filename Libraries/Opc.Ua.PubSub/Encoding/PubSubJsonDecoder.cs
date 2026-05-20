@@ -59,8 +59,8 @@ namespace Opc.Ua.PubSub.Encoding
         private readonly ILogger m_logger;
         private readonly Dictionary<string, object> m_root;
         private readonly Stack<object> m_stack;
-        private ushort[] m_namespaceMappings;
-        private ushort[] m_serverMappings;
+        private ushort[]? m_namespaceMappings;
+        private ushort[]? m_serverMappings;
         private uint m_nestingLevel;
 
         /// <summary>
@@ -146,7 +146,7 @@ namespace Opc.Ua.PubSub.Encoding
             }
 
             using var decoder = new PubSubJsonDecoder(
-                System.Text.Encoding.UTF8.GetString(buffer.Array, buffer.Offset, buffer.Count),
+                System.Text.Encoding.UTF8.GetString(buffer.Array!, buffer.Offset, buffer.Count),
                 context);
             return decoder.DecodeMessage<T>();
         }
@@ -154,19 +154,19 @@ namespace Opc.Ua.PubSub.Encoding
         /// <inheritdoc/>
         public T DecodeMessage<T>() where T : IEncodeable
         {
-            ArrayOf<string> namespaceUris = ReadStringArray("NamespaceUris");
-            ArrayOf<string> serverUris = ReadStringArray("ServerUris");
+            ArrayOf<string?> namespaceUris = ReadStringArray("NamespaceUris");
+            ArrayOf<string?> serverUris = ReadStringArray("ServerUris");
 
             if (!namespaceUris.IsEmpty || !serverUris.IsEmpty)
             {
                 NamespaceTable namespaces =
                     namespaceUris.IsEmpty
                         ? Context.NamespaceUris
-                        : new NamespaceTable(namespaceUris.ToArray());
+                        : new NamespaceTable(namespaceUris.ToArray()!);
                 StringTable servers =
                     serverUris.IsEmpty
                         ? Context.ServerUris
-                        : new StringTable(serverUris.ToArray());
+                        : new StringTable(serverUris.ToArray()!);
 
                 SetMappingTables(namespaces, servers);
             }
@@ -190,7 +190,7 @@ namespace Opc.Ua.PubSub.Encoding
 
                 for (uint ii = 0; ii < namespaceUris.Count; ii++)
                 {
-                    string uri = namespaceUris.GetString(ii);
+                    string uri = namespaceUris.GetString(ii)!;
 
                     if (UpdateNamespaceTable)
                     {
@@ -198,7 +198,7 @@ namespace Opc.Ua.PubSub.Encoding
                     }
                     else
                     {
-                        int index = Context.NamespaceUris.GetIndex(namespaceUris.GetString(ii));
+                        int index = Context.NamespaceUris.GetIndex(namespaceUris.GetString(ii)!);
                         namespaceMappings[ii] = index >= 0 ? (ushort)index : ushort.MaxValue;
                     }
                 }
@@ -214,7 +214,7 @@ namespace Opc.Ua.PubSub.Encoding
 
                 for (uint ii = 0; ii < serverUris.Count; ii++)
                 {
-                    string uri = serverUris.GetString(ii);
+                    string uri = serverUris.GetString(ii)!;
 
                     if (UpdateNamespaceTable)
                     {
@@ -222,7 +222,7 @@ namespace Opc.Ua.PubSub.Encoding
                     }
                     else
                     {
-                        int index = Context.ServerUris.GetIndex(serverUris.GetString(ii));
+                        int index = Context.ServerUris.GetIndex(serverUris.GetString(ii)!);
                         serverMappings[ii] = index >= 0 ? (ushort)index : ushort.MaxValue;
                     }
                 }
@@ -267,7 +267,7 @@ namespace Opc.Ua.PubSub.Encoding
             if (disposing)
             {
                 (m_reader as IDisposable)?.Dispose();
-                m_reader = null;
+                m_reader = null!;
             }
         }
 
@@ -275,7 +275,7 @@ namespace Opc.Ua.PubSub.Encoding
         public EncodingType EncodingType => EncodingType.Json;
 
         /// <inheritdoc/>
-        public bool HasField(string fieldName)
+        public bool HasField(string? fieldName)
         {
             if (string.IsNullOrEmpty(fieldName) || m_stack.Count == 0)
             {
@@ -283,7 +283,7 @@ namespace Opc.Ua.PubSub.Encoding
             }
 
             return m_stack.Peek() is Dictionary<string, object> context &&
-                context.ContainsKey(fieldName);
+                context.ContainsKey(fieldName!);
         }
 
         /// <inheritdoc/>
@@ -300,9 +300,9 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <inheritdoc/>
-        public bool ReadField(string fieldName, out object token)
+        public bool ReadField(string? fieldName, out object token)
         {
-            token = null;
+            token = null!;
 
             if (string.IsNullOrEmpty(fieldName))
             {
@@ -311,11 +311,11 @@ namespace Opc.Ua.PubSub.Encoding
             }
 
             return (m_stack.Peek() is Dictionary<string, object> context) &&
-                context.TryGetValue(fieldName, out token);
+                context.TryGetValue(fieldName!, out token!);
         }
 
         /// <inheritdoc/>
-        public bool ReadBoolean(string fieldName)
+        public bool ReadBoolean(string? fieldName)
         {
             if (!ReadField(fieldName, out object token))
             {
@@ -333,7 +333,7 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <inheritdoc/>
-        public sbyte ReadSByte(string fieldName)
+        public sbyte ReadSByte(string? fieldName)
         {
             if (!ReadField(fieldName, out object token))
             {
@@ -356,7 +356,7 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <inheritdoc/>
-        public byte ReadByte(string fieldName)
+        public byte ReadByte(string? fieldName)
         {
             if (!ReadField(fieldName, out object token))
             {
@@ -379,7 +379,7 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <inheritdoc/>
-        public short ReadInt16(string fieldName)
+        public short ReadInt16(string? fieldName)
         {
             if (!ReadField(fieldName, out object token))
             {
@@ -402,7 +402,7 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <inheritdoc/>
-        public ushort ReadUInt16(string fieldName)
+        public ushort ReadUInt16(string? fieldName)
         {
             if (!ReadField(fieldName, out object token))
             {
@@ -425,7 +425,7 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <inheritdoc/>
-        public int ReadInt32(string fieldName)
+        public int ReadInt32(string? fieldName)
         {
             if (!ReadField(fieldName, out object token))
             {
@@ -448,7 +448,7 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <inheritdoc/>
-        public uint ReadUInt32(string fieldName)
+        public uint ReadUInt32(string? fieldName)
         {
             if (!ReadField(fieldName, out object token))
             {
@@ -471,7 +471,7 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <inheritdoc/>
-        public long ReadInt64(string fieldName)
+        public long ReadInt64(string? fieldName)
         {
             if (!ReadField(fieldName, out object token))
             {
@@ -499,7 +499,7 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <inheritdoc/>
-        public ulong ReadUInt64(string fieldName)
+        public ulong ReadUInt64(string? fieldName)
         {
             if (!ReadField(fieldName, out object token))
             {
@@ -532,7 +532,7 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <inheritdoc/>
-        public float ReadFloat(string fieldName)
+        public float ReadFloat(string? fieldName)
         {
             if (!ReadField(fieldName, out object token))
             {
@@ -543,7 +543,7 @@ namespace Opc.Ua.PubSub.Encoding
 
             if (value == null)
             {
-                string text = token as string;
+                string? text = token as string;
                 if (text == null ||
                     !float.TryParse(
                         text,
@@ -592,7 +592,7 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <inheritdoc/>
-        public double ReadDouble(string fieldName)
+        public double ReadDouble(string? fieldName)
         {
             if (!ReadField(fieldName, out object token))
             {
@@ -603,7 +603,7 @@ namespace Opc.Ua.PubSub.Encoding
 
             if (value == null)
             {
-                string text = token as string;
+                string? text = token as string;
                 if (text == null ||
                     !double.TryParse(
                         text,
@@ -647,7 +647,7 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <inheritdoc/>
-        public string ReadString(string fieldName)
+        public string? ReadString(string? fieldName)
         {
             if (!ReadField(fieldName, out object token))
             {
@@ -668,7 +668,7 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <inheritdoc/>
-        public DateTimeUtc ReadDateTime(string fieldName)
+        public DateTimeUtc ReadDateTime(string? fieldName)
         {
             if (!ReadField(fieldName, out object token))
             {
@@ -701,7 +701,7 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <inheritdoc/>
-        public Uuid ReadGuid(string fieldName)
+        public Uuid ReadGuid(string? fieldName)
         {
             if (!ReadField(fieldName, out object token))
             {
@@ -727,7 +727,7 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <inheritdoc/>
-        public ByteString ReadByteString(string fieldName)
+        public ByteString ReadByteString(string? fieldName)
         {
             if (!ReadField(fieldName, out object token))
             {
@@ -755,7 +755,7 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <inheritdoc/>
-        public XmlElement ReadXmlElement(string fieldName)
+        public XmlElement ReadXmlElement(string? fieldName)
         {
             if (!ReadField(fieldName, out object token) || token is not string value)
             {
@@ -766,7 +766,7 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <inheritdoc/>
-        public NodeId ReadNodeId(string fieldName)
+        public NodeId ReadNodeId(string? fieldName)
         {
             if (!ReadField(fieldName, out object token))
             {
@@ -841,7 +841,7 @@ namespace Opc.Ua.PubSub.Encoding
                         case IdType.Opaque:
                             return new NodeId(ReadByteString("Id"), namespaceIndex);
                         case IdType.String:
-                            return new NodeId(ReadString("Id"), namespaceIndex);
+                            return new NodeId(ReadString("Id")!, namespaceIndex);
                         case IdType.Guid:
                             return new NodeId(ReadGuid("Id"), namespaceIndex);
                         default:
@@ -858,7 +858,7 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <inheritdoc/>
-        public ExpandedNodeId ReadExpandedNodeId(string fieldName)
+        public ExpandedNodeId ReadExpandedNodeId(string? fieldName)
         {
             if (!ReadField(fieldName, out object token))
             {
@@ -893,7 +893,7 @@ namespace Opc.Ua.PubSub.Encoding
 
             IdType idType = IdType.Numeric;
             ushort namespaceIndex = 0;
-            string namespaceUri = null;
+            string? namespaceUri = null;
             uint serverIndex = 0;
 
             try
@@ -925,7 +925,7 @@ namespace Opc.Ua.PubSub.Encoding
 
                     if (index == null)
                     {
-                        serverIndex = ToServerIndex(serverUriToken as string);
+                        serverIndex = ToServerIndex((string)serverUriToken);
                     }
                     else if (index.Value is >= 0 and < uint.MaxValue)
                     {
@@ -965,7 +965,7 @@ namespace Opc.Ua.PubSub.Encoding
                                 serverIndex);
                         case IdType.String:
                             return new ExpandedNodeId(
-                                ReadString("Id"),
+                                ReadString("Id")!,
                                 namespaceIndex,
                                 namespaceUri,
                                 serverIndex);
@@ -993,7 +993,7 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <inheritdoc/>
-        public StatusCode ReadStatusCode(string fieldName)
+        public StatusCode ReadStatusCode(string? fieldName)
         {
             if (!ReadField(fieldName, out object token))
             {
@@ -1029,13 +1029,13 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <inheritdoc/>
-        public DiagnosticInfo ReadDiagnosticInfo(string fieldName)
+        public DiagnosticInfo? ReadDiagnosticInfo(string? fieldName)
         {
             return ReadDiagnosticInfo(fieldName, 0);
         }
 
         /// <inheritdoc/>
-        public QualifiedName ReadQualifiedName(string fieldName)
+        public QualifiedName ReadQualifiedName(string? fieldName)
         {
             if (!ReadField(fieldName, out object token))
             {
@@ -1075,7 +1075,7 @@ namespace Opc.Ua.PubSub.Encoding
             }
 
             ushort namespaceIndex = 0;
-            string name = null;
+            string? name = null;
             try
             {
                 m_stack.Push(value);
@@ -1111,15 +1111,15 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <inheritdoc/>
-        public LocalizedText ReadLocalizedText(string fieldName)
+        public LocalizedText ReadLocalizedText(string? fieldName)
         {
             if (!ReadField(fieldName, out object token))
             {
                 return LocalizedText.Null;
             }
 
-            string locale = null;
-            string text = null;
+            string? locale = null;
+            string? text = null;
 
             if (token is not Dictionary<string, object> value)
             {
@@ -1161,7 +1161,7 @@ namespace Opc.Ua.PubSub.Encoding
             BuiltInType builtInType,
             Dictionary<string, object> value)
         {
-            if (value.TryGetValue(valueName, out object innerValue))
+            if (value.TryGetValue(valueName, out object? innerValue))
             {
                 if (innerValue is List<object> elements)
                 {
@@ -1169,7 +1169,7 @@ namespace Opc.Ua.PubSub.Encoding
                     {
                         var elements2 = new List<object>();
                         var dimensions = new List<int>();
-                        Type systemType = null;
+                        Type? systemType = null;
                         ExpandedNodeId encodeableTypeId = default;
                         if (builtInType is BuiltInType.Enumeration or BuiltInType.Variant or BuiltInType.Null)
                         {
@@ -1237,14 +1237,14 @@ namespace Opc.Ua.PubSub.Encoding
                             {
                                 if (DetermineIEncodeableSystemType(ref systemType, encodeableTypeId))
                                 {
-                                    var newElements = Array.CreateInstance(systemType, elements.Count);
+                                    var newElements = Array.CreateInstance(systemType!, elements.Count);
                                     for (int i = 0; i < elements.Count; i++)
                                     {
                                         newElements.SetValue(
                                             Convert.ChangeType(
-                                                elements[i],
-                                                systemType,
-                                                CultureInfo.InvariantCulture),
+                                            elements[i],
+                                            systemType!,
+                                            CultureInfo.InvariantCulture),
                                             i);
                                     }
                                     return new Variant(new Matrix(newElements, builtInType, [.. dimensions]));
@@ -1259,14 +1259,14 @@ namespace Opc.Ua.PubSub.Encoding
                             case BuiltInType.UInteger:
                                 if (DetermineIEncodeableSystemType(ref systemType, encodeableTypeId))
                                 {
-                                    var newElements = Array.CreateInstance(systemType, elements.Count);
+                                    var newElements = Array.CreateInstance(systemType!, elements.Count);
                                     for (int i = 0; i < elements.Count; i++)
                                     {
                                         newElements.SetValue(
                                             Convert.ChangeType(
-                                                elements[i],
-                                                systemType,
-                                                CultureInfo.InvariantCulture),
+                                            elements[i],
+                                            systemType!,
+                                            CultureInfo.InvariantCulture),
                                             i);
                                     }
                                     return new Variant(new Matrix(newElements, builtInType, [.. dimensions]));
@@ -1285,12 +1285,19 @@ namespace Opc.Ua.PubSub.Encoding
 
                     if (value.ContainsKey("Dimensions"))
                     {
-                        int[] dimensions = ReadInt32Array("Dimensions").ToArray();
+                        int[] dimensions = ReadInt32Array("Dimensions").ToArray()!;
+
+                        if (array.Value is not Array arrayValue)
+                        {
+                            throw new ServiceResultException(
+                                StatusCodes.BadDecodingError,
+                                "Variant array body is missing or not an array.");
+                        }
 
                         try
                         {
                             return new Variant(
-                                new Matrix(array.Value as Array, builtInType, dimensions));
+                                new Matrix(arrayValue, builtInType, dimensions));
                         }
                         catch (ArgumentException e)
                         {
@@ -1312,7 +1319,7 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <inheritdoc/>
-        public Variant ReadVariant(string fieldName)
+        public Variant ReadVariant(string? fieldName)
         {
             if (!ReadField(fieldName, out object token))
             {
@@ -1348,7 +1355,7 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <inheritdoc/>
-        public DataValue ReadDataValue(string fieldName)
+        public DataValue? ReadDataValue(string? fieldName)
         {
             if (!ReadField(fieldName, out object token))
             {
@@ -1397,7 +1404,7 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <inheritdoc/>
-        public ExtensionObject ReadExtensionObject(string fieldName)
+        public ExtensionObject ReadExtensionObject(string? fieldName)
         {
             ExtensionObject extension = ExtensionObject.Null;
             if (!ReadField(fieldName, out object token))
@@ -1471,19 +1478,19 @@ namespace Opc.Ua.PubSub.Encoding
 
                 if (encoding == ExtensionObjectEncoding.Json)
                 {
-                    string json = ReadString(inlineValues ? "UaBody" : "Body");
+                    string? json = ReadString(inlineValues ? "UaBody" : "Body");
                     if (string.IsNullOrEmpty(json))
                     {
                         return extension;
                     }
-                    return new ExtensionObject(typeId, json);
+                    return new ExtensionObject(typeId, json!);
                 }
 
-                Type systemType = Context.Factory.GetSystemType(typeId);
+                Type? systemType = Context.Factory.GetSystemType(typeId);
 
                 if (systemType != null)
                 {
-                    IEncodeable encodeable = null;
+                    IEncodeable? encodeable = null;
 
                     if (inlineValues)
                     {
@@ -1492,7 +1499,7 @@ namespace Opc.Ua.PubSub.Encoding
                                 StatusCodes.BadDecodingError,
                                 Utils.Format(
                                     "Type does not support IEncodeable interface: '{0}'",
-                                    systemType.FullName));
+                                    systemType.FullName!));
 
                         encodeable.Decode(this);
                     }
@@ -1525,8 +1532,8 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <inheritdoc/>
-        public IEncodeable ReadEncodeable(
-            string fieldName,
+        public IEncodeable? ReadEncodeable(
+            string? fieldName,
             Type systemType,
             ExpandedNodeId encodeableTypeId = default)
         {
@@ -1546,7 +1553,7 @@ namespace Opc.Ua.PubSub.Encoding
                     StatusCodes.BadDecodingError,
                     Utils.Format(
                         "Type does not support IEncodeable interface: '{0}'",
-                        systemType.FullName));
+                        systemType.FullName!));
             }
 
             if (!encodeableTypeId.IsNull)
@@ -1575,7 +1582,7 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <inheritdoc/>
-        public Enum ReadEnumerated(string fieldName, Type enumType)
+        public Enum ReadEnumerated(string? fieldName, Type enumType)
         {
             if (enumType == null)
             {
@@ -1606,7 +1613,7 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <inheritdoc/>
-        public ArrayOf<bool> ReadBooleanArray(string fieldName)
+        public ArrayOf<bool> ReadBooleanArray(string? fieldName)
         {
             var values = new List<bool>();
 
@@ -1632,7 +1639,7 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <inheritdoc/>
-        public ArrayOf<sbyte> ReadSByteArray(string fieldName)
+        public ArrayOf<sbyte> ReadSByteArray(string? fieldName)
         {
             var values = new List<sbyte>();
 
@@ -1658,11 +1665,11 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <inheritdoc/>
-        public ArrayOf<byte> ReadByteArray(string fieldName)
+        public ArrayOf<byte> ReadByteArray(string? fieldName)
         {
             var values = new List<byte>();
 
-            string value = ReadString(fieldName);
+            string? value = ReadString(fieldName);
             if (value != null)
             {
                 return SafeConvertFromBase64String(value);
@@ -1690,7 +1697,7 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <inheritdoc/>
-        public ArrayOf<short> ReadInt16Array(string fieldName)
+        public ArrayOf<short> ReadInt16Array(string? fieldName)
         {
             var values = new List<short>();
 
@@ -1716,7 +1723,7 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <inheritdoc/>
-        public ArrayOf<ushort> ReadUInt16Array(string fieldName)
+        public ArrayOf<ushort> ReadUInt16Array(string? fieldName)
         {
             var values = new List<ushort>();
 
@@ -1742,7 +1749,7 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <inheritdoc/>
-        public ArrayOf<int> ReadInt32Array(string fieldName)
+        public ArrayOf<int> ReadInt32Array(string? fieldName)
         {
             var values = new List<int>();
 
@@ -1768,7 +1775,7 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <inheritdoc/>
-        public ArrayOf<uint> ReadUInt32Array(string fieldName)
+        public ArrayOf<uint> ReadUInt32Array(string? fieldName)
         {
             var values = new List<uint>();
 
@@ -1794,7 +1801,7 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <inheritdoc/>
-        public ArrayOf<long> ReadInt64Array(string fieldName)
+        public ArrayOf<long> ReadInt64Array(string? fieldName)
         {
             var values = new List<long>();
 
@@ -1820,7 +1827,7 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <inheritdoc/>
-        public ArrayOf<ulong> ReadUInt64Array(string fieldName)
+        public ArrayOf<ulong> ReadUInt64Array(string? fieldName)
         {
             var values = new List<ulong>();
 
@@ -1846,7 +1853,7 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <inheritdoc/>
-        public ArrayOf<float> ReadFloatArray(string fieldName)
+        public ArrayOf<float> ReadFloatArray(string? fieldName)
         {
             var values = new List<float>();
 
@@ -1872,7 +1879,7 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <inheritdoc/>
-        public ArrayOf<double> ReadDoubleArray(string fieldName)
+        public ArrayOf<double> ReadDoubleArray(string? fieldName)
         {
             var values = new List<double>();
 
@@ -1898,9 +1905,9 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <inheritdoc/>
-        public ArrayOf<string> ReadStringArray(string fieldName)
+        public ArrayOf<string?> ReadStringArray(string? fieldName)
         {
-            var values = new List<string>();
+            var values = new List<string?>();
 
             if (!ReadArrayField(fieldName, out List<object> token))
             {
@@ -1924,7 +1931,7 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <inheritdoc/>
-        public ArrayOf<DateTimeUtc> ReadDateTimeArray(string fieldName)
+        public ArrayOf<DateTimeUtc> ReadDateTimeArray(string? fieldName)
         {
             var values = new List<DateTimeUtc>();
 
@@ -1950,7 +1957,7 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <inheritdoc/>
-        public ArrayOf<Uuid> ReadGuidArray(string fieldName)
+        public ArrayOf<Uuid> ReadGuidArray(string? fieldName)
         {
             var values = new List<Uuid>();
 
@@ -1977,7 +1984,7 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <inheritdoc/>
-        public ArrayOf<ByteString> ReadByteStringArray(string fieldName)
+        public ArrayOf<ByteString> ReadByteStringArray(string? fieldName)
         {
             var values = new List<ByteString>();
 
@@ -2004,7 +2011,7 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <inheritdoc/>
-        public ArrayOf<XmlElement> ReadXmlElementArray(string fieldName)
+        public ArrayOf<XmlElement> ReadXmlElementArray(string? fieldName)
         {
             var values = new List<XmlElement>();
 
@@ -2031,7 +2038,7 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <inheritdoc/>
-        public ArrayOf<NodeId> ReadNodeIdArray(string fieldName)
+        public ArrayOf<NodeId> ReadNodeIdArray(string? fieldName)
         {
             var values = new List<NodeId>();
 
@@ -2058,7 +2065,7 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <inheritdoc/>
-        public ArrayOf<ExpandedNodeId> ReadExpandedNodeIdArray(string fieldName)
+        public ArrayOf<ExpandedNodeId> ReadExpandedNodeIdArray(string? fieldName)
         {
             var values = new List<ExpandedNodeId>();
 
@@ -2085,7 +2092,7 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <inheritdoc/>
-        public ArrayOf<StatusCode> ReadStatusCodeArray(string fieldName)
+        public ArrayOf<StatusCode> ReadStatusCodeArray(string? fieldName)
         {
             var values = new List<StatusCode>();
 
@@ -2112,9 +2119,9 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <inheritdoc/>
-        public ArrayOf<DiagnosticInfo> ReadDiagnosticInfoArray(string fieldName)
+        public ArrayOf<DiagnosticInfo?> ReadDiagnosticInfoArray(string? fieldName)
         {
-            var values = new List<DiagnosticInfo>();
+            var values = new List<DiagnosticInfo?>();
 
             if (!ReadArrayField(fieldName, out List<object> token))
             {
@@ -2126,7 +2133,7 @@ namespace Opc.Ua.PubSub.Encoding
                 try
                 {
                     m_stack.Push(token[ii]);
-                    DiagnosticInfo element = ReadDiagnosticInfo(null);
+                    DiagnosticInfo? element = ReadDiagnosticInfo(null);
                     values.Add(element);
                 }
                 finally
@@ -2139,7 +2146,7 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <inheritdoc/>
-        public ArrayOf<QualifiedName> ReadQualifiedNameArray(string fieldName)
+        public ArrayOf<QualifiedName> ReadQualifiedNameArray(string? fieldName)
         {
             var values = new List<QualifiedName>();
 
@@ -2166,7 +2173,7 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <inheritdoc/>
-        public ArrayOf<LocalizedText> ReadLocalizedTextArray(string fieldName)
+        public ArrayOf<LocalizedText> ReadLocalizedTextArray(string? fieldName)
         {
             var values = new List<LocalizedText>();
 
@@ -2193,7 +2200,7 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <inheritdoc/>
-        public ArrayOf<Variant> ReadVariantArray(string fieldName)
+        public ArrayOf<Variant> ReadVariantArray(string? fieldName)
         {
             var values = new List<Variant>();
 
@@ -2220,9 +2227,9 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <inheritdoc/>
-        public ArrayOf<DataValue> ReadDataValueArray(string fieldName)
+        public ArrayOf<DataValue?> ReadDataValueArray(string? fieldName)
         {
-            var values = new List<DataValue>();
+            var values = new List<DataValue?>();
 
             if (!ReadArrayField(fieldName, out List<object> token))
             {
@@ -2234,7 +2241,7 @@ namespace Opc.Ua.PubSub.Encoding
                 try
                 {
                     m_stack.Push(token[ii]);
-                    DataValue element = ReadDataValue(null);
+                    DataValue? element = ReadDataValue(null);
                     values.Add(element);
                 }
                 finally
@@ -2247,7 +2254,7 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <inheritdoc/>
-        public ArrayOf<ExtensionObject> ReadExtensionObjectArray(string fieldName)
+        public ArrayOf<ExtensionObject> ReadExtensionObjectArray(string? fieldName)
         {
             var values = new List<ExtensionObject>();
 
@@ -2275,7 +2282,7 @@ namespace Opc.Ua.PubSub.Encoding
 
         /// <inheritdoc/>
         public Array ReadEncodeableArray(
-            string fieldName,
+            string? fieldName,
             Type systemType,
             ExpandedNodeId encodeableTypeId = default)
         {
@@ -2296,7 +2303,7 @@ namespace Opc.Ua.PubSub.Encoding
                 try
                 {
                     m_stack.Push(token[ii]);
-                    IEncodeable element = ReadEncodeable(null, systemType, encodeableTypeId);
+                    IEncodeable? element = ReadEncodeable(null, systemType, encodeableTypeId);
                     values.SetValue(element, ii);
                 }
                 finally
@@ -2309,7 +2316,7 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <inheritdoc/>
-        public Array ReadEnumeratedArray(string fieldName, Type enumType)
+        public Array ReadEnumeratedArray(string? fieldName, Type enumType)
         {
             if (enumType == null)
             {
@@ -2328,7 +2335,7 @@ namespace Opc.Ua.PubSub.Encoding
                 try
                 {
                     m_stack.Push(token[ii]);
-                    Enum element = ReadEnumerated(null, enumType);
+                    Enum? element = ReadEnumerated(null, enumType);
                     values.SetValue(element, ii);
                 }
                 finally
@@ -2341,31 +2348,31 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <inheritdoc/>
-        public T ReadEncodeable<T>(string fieldName, ExpandedNodeId encodeableTypeId) where T : IEncodeable
+        public T ReadEncodeable<T>(string? fieldName, ExpandedNodeId encodeableTypeId) where T : IEncodeable
         {
-            return (T)ReadEncodeable(fieldName, typeof(T), encodeableTypeId);
+            return (T)ReadEncodeable(fieldName, typeof(T), encodeableTypeId)!;
         }
 
         /// <inheritdoc/>
-        public T ReadEncodeable<T>(string fieldName) where T : IEncodeable, new()
+        public T ReadEncodeable<T>(string? fieldName) where T : IEncodeable, new()
         {
-            return (T)ReadEncodeable(fieldName, typeof(T));
+            return (T)ReadEncodeable(fieldName, typeof(T))!;
         }
 
         /// <inheritdoc/>
-        public T ReadEncodeableAsExtensionObject<T>(string fieldName) where T : IEncodeable
+        public T ReadEncodeableAsExtensionObject<T>(string? fieldName) where T : IEncodeable
         {
-            return ReadExtensionObject(fieldName).TryGetValue(out T value) ? value : default;
+            return ReadExtensionObject(fieldName).TryGetValue(out T? value) ? value! : default!;
         }
 
         /// <inheritdoc/>
-        public T ReadEnumerated<T>(string fieldName) where T : struct, Enum
+        public T ReadEnumerated<T>(string? fieldName) where T : struct, Enum
         {
             return (T)ReadEnumerated(fieldName, typeof(T));
         }
 
         /// <inheritdoc/>
-        public EnumValue ReadEnumerated(string fieldName)
+        public EnumValue ReadEnumerated(string? fieldName)
         {
             if (!ReadField(fieldName, out object token))
             {
@@ -2391,38 +2398,38 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <inheritdoc/>
-        public ArrayOf<T> ReadEncodeableArray<T>(string fieldName) where T : IEncodeable, new()
+        public ArrayOf<T> ReadEncodeableArray<T>(string? fieldName) where T : IEncodeable, new()
         {
             return ArrayOf.From<T>(ReadEncodeableArray(fieldName, typeof(T)));
         }
 
         /// <inheritdoc/>
-        public ArrayOf<T> ReadEncodeableArray<T>(string fieldName, ExpandedNodeId encodeableTypeId) where T : IEncodeable
+        public ArrayOf<T> ReadEncodeableArray<T>(string? fieldName, ExpandedNodeId encodeableTypeId) where T : IEncodeable
         {
             return ArrayOf.From<T>(ReadEncodeableArray(fieldName, typeof(T), encodeableTypeId));
         }
 
         /// <inheritdoc/>
-        public ArrayOf<T> ReadEncodeableArrayAsExtensionObjects<T>(string fieldName) where T : IEncodeable
+        public ArrayOf<T> ReadEncodeableArrayAsExtensionObjects<T>(string? fieldName) where T : IEncodeable
         {
             ArrayOf<ExtensionObject> array = ReadExtensionObjectArray(fieldName);
             return array.GetStructuresOf<T>();
         }
 
         /// <inheritdoc/>
-        public MatrixOf<T> ReadEncodeableMatrix<T>(string fieldName, ExpandedNodeId encodeableTypeId) where T : IEncodeable
+        public MatrixOf<T> ReadEncodeableMatrix<T>(string? fieldName, ExpandedNodeId encodeableTypeId) where T : IEncodeable
         {
             return default;
         }
 
         /// <inheritdoc/>
-        public ArrayOf<T> ReadEnumeratedArray<T>(string fieldName) where T : struct, Enum
+        public ArrayOf<T> ReadEnumeratedArray<T>(string? fieldName) where T : struct, Enum
         {
             return ArrayOf.From<T>(ReadEnumeratedArray(fieldName, typeof(T)));
         }
 
         /// <inheritdoc/>
-        public ArrayOf<EnumValue> ReadEnumeratedArray(string fieldName)
+        public ArrayOf<EnumValue> ReadEnumeratedArray(string? fieldName)
         {
             if (!ReadArrayField(fieldName, out List<object> token))
             {
@@ -2448,17 +2455,17 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <inheritdoc/>
-        public Variant ReadVariantValue(string fieldName, TypeInfo typeInfo)
+        public Variant ReadVariantValue(string? fieldName, TypeInfo typeInfo)
         {
             return default;
         }
 
         /// <inheritdoc/>
-        public Array ReadArray(
+        public Array? ReadArray(
             string fieldName,
             int valueRank,
             BuiltInType builtInType,
-            Type systemType = null,
+            Type? systemType = null,
             ExpandedNodeId encodeableTypeId = default)
         {
             if (valueRank == ValueRanks.OneDimension)
@@ -2519,7 +2526,7 @@ namespace Opc.Ua.PubSub.Encoding
                     case BuiltInType.Variant:
                         if (DetermineIEncodeableSystemType(ref systemType, encodeableTypeId))
                         {
-                            return ReadEncodeableArray(fieldName, systemType, encodeableTypeId);
+                            return ReadEncodeableArray(fieldName, systemType!, encodeableTypeId);
                         }
                         return ReadVariantArray(fieldName).ToArray();
                     case BuiltInType.ExtensionObject:
@@ -2532,7 +2539,7 @@ namespace Opc.Ua.PubSub.Encoding
                     case BuiltInType.UInteger:
                         if (DetermineIEncodeableSystemType(ref systemType, encodeableTypeId))
                         {
-                            return ReadEncodeableArray(fieldName, systemType, encodeableTypeId);
+                            return ReadEncodeableArray(fieldName, systemType!, encodeableTypeId);
                         }
 
                         throw new ServiceResultException(
@@ -2557,19 +2564,19 @@ namespace Opc.Ua.PubSub.Encoding
                     int[] dimensions2;
                     if (value.ContainsKey("Dimensions"))
                     {
-                        dimensions2 = ReadInt32Array("Dimensions").ToArray();
+                        dimensions2 = ReadInt32Array("Dimensions").ToArray()!;
                     }
                     else
                     {
                         dimensions2 = [];
                     }
 
-                    Array array2 = ReadArray("Array", 1, builtInType, systemType, encodeableTypeId);
+                    Array? array2 = ReadArray("Array", 1, builtInType, systemType, encodeableTypeId);
                     m_stack.Pop();
 
                     try
                     {
-                        var matrix2 = new Matrix(array2, builtInType, dimensions2);
+                        var matrix2 = new Matrix(array2!, builtInType, dimensions2!);
                         return matrix2.ToArray();
                     }
                     catch (ArgumentException e)
@@ -2758,14 +2765,14 @@ namespace Opc.Ua.PubSub.Encoding
                         {
                             if (systemType?.IsEnum == true)
                             {
-                                var newElements = Array.CreateInstance(systemType, elements.Count);
+                                var newElements = Array.CreateInstance(systemType!, elements.Count);
                                 int ii = 0;
                                 foreach (object element in elements)
                                 {
                                     newElements.SetValue(
                                         Convert.ChangeType(
                                             element,
-                                            systemType,
+                                            systemType!,
                                             CultureInfo.InvariantCulture),
                                         ii++);
                                 }
@@ -2784,13 +2791,13 @@ namespace Opc.Ua.PubSub.Encoding
                         {
                             if (DetermineIEncodeableSystemType(ref systemType, encodeableTypeId))
                             {
-                                var newElements = Array.CreateInstance(systemType, elements.Count);
+                                var newElements = Array.CreateInstance(systemType!, elements.Count);
                                 for (int i = 0; i < elements.Count; i++)
                                 {
                                     newElements.SetValue(
                                         Convert.ChangeType(
                                             elements[i],
-                                            systemType,
+                                            systemType!,
                                             CultureInfo.InvariantCulture),
                                         i);
                                 }
@@ -2815,13 +2822,13 @@ namespace Opc.Ua.PubSub.Encoding
                         case BuiltInType.UInteger:
                             if (DetermineIEncodeableSystemType(ref systemType, encodeableTypeId))
                             {
-                                var newElements = Array.CreateInstance(systemType, elements.Count);
+                                var newElements = Array.CreateInstance(systemType!, elements.Count);
                                 for (int i = 0; i < elements.Count; i++)
                                 {
                                     newElements.SetValue(
                                         Convert.ChangeType(
                                             elements[i],
-                                            systemType,
+                                            systemType!,
                                             CultureInfo.InvariantCulture),
                                         i);
                                 }
@@ -2857,7 +2864,7 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <inheritdoc/>
-        public uint ReadSwitchField(IList<string> switches, out string fieldName)
+        public uint ReadSwitchField(IList<string> switches, out string? fieldName)
         {
             fieldName = null;
 
@@ -2955,7 +2962,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// </summary>
         /// <param name="fieldName">The name of the object that shall be placed on the Read Stack</param>
         /// <returns>true if successful</returns>
-        public bool PushStructure(string fieldName)
+        public bool PushStructure(string? fieldName)
         {
             if (!ReadField(fieldName, out object token))
             {
@@ -2971,7 +2978,7 @@ namespace Opc.Ua.PubSub.Encoding
         }
 
         /// <inheritdoc/>
-        public bool PushArray(string fieldName, int index)
+        public bool PushArray(string? fieldName, int index)
         {
             if (!ReadArrayField(fieldName, out List<object> token))
             {
@@ -3108,7 +3115,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// Limits the InnerDiagnosticInfos to the specified depth.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        private DiagnosticInfo ReadDiagnosticInfo(string fieldName, int depth)
+        private DiagnosticInfo? ReadDiagnosticInfo(string? fieldName, int depth)
         {
             if (!ReadField(fieldName, out object token))
             {
@@ -3195,7 +3202,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <param name="encodeableTypeId">The encodeable type id of the system type.</param>
         /// <returns>If the system type is assignable to <see cref="IEncodeable"/> </returns>
         private bool DetermineIEncodeableSystemType(
-            ref Type systemType,
+            ref Type? systemType,
             ExpandedNodeId encodeableTypeId)
         {
             if (!encodeableTypeId.IsNull && systemType == null)
@@ -3209,7 +3216,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// Read the body of a Variant as a BuiltInType
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        private Variant ReadVariantBody(string fieldName, BuiltInType type)
+        private Variant ReadVariantBody(string? fieldName, BuiltInType type)
         {
             switch (type)
             {
@@ -3236,7 +3243,7 @@ namespace Opc.Ua.PubSub.Encoding
                 case BuiltInType.Double:
                     return new Variant(ReadDouble(fieldName));
                 case BuiltInType.String:
-                    return new Variant(ReadString(fieldName));
+                    return new Variant(ReadString(fieldName)!);
                 case BuiltInType.ByteString:
                     return new Variant(ReadByteString(fieldName));
                 case BuiltInType.DateTime:
@@ -3260,7 +3267,7 @@ namespace Opc.Ua.PubSub.Encoding
                 case BuiltInType.Variant:
                     return new Variant(ReadVariant(fieldName));
                 case BuiltInType.DataValue:
-                    return new Variant(ReadDataValue(fieldName));
+                    return new Variant(ReadDataValue(fieldName)!);
                 case BuiltInType.DiagnosticInfo:
                 case BuiltInType.Null:
                 case BuiltInType.Number:
@@ -3277,7 +3284,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// Read the Body of a Variant as an Array
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        private Variant ReadVariantArrayBody(string fieldName, BuiltInType type)
+        private Variant ReadVariantArrayBody(string? fieldName, BuiltInType type)
         {
             switch (type)
             {
@@ -3304,7 +3311,7 @@ namespace Opc.Ua.PubSub.Encoding
                 case BuiltInType.Double:
                     return new Variant(ReadDoubleArray(fieldName));
                 case BuiltInType.String:
-                    return new Variant(ReadStringArray(fieldName));
+                    return new Variant((ArrayOf<string>)ReadStringArray(fieldName)!);
                 case BuiltInType.ByteString:
                     return new Variant(ReadByteStringArray(fieldName));
                 case BuiltInType.DateTime:
@@ -3328,7 +3335,7 @@ namespace Opc.Ua.PubSub.Encoding
                 case BuiltInType.Variant:
                     return new Variant(ReadVariantArray(fieldName));
                 case BuiltInType.DataValue:
-                    return new Variant(ReadDataValueArray(fieldName));
+                    return new Variant((ArrayOf<DataValue>)ReadDataValueArray(fieldName)!);
                 case BuiltInType.DiagnosticInfo:
                 case BuiltInType.Null:
                 case BuiltInType.Number:
@@ -3366,7 +3373,7 @@ namespace Opc.Ua.PubSub.Encoding
                         case JsonToken.Integer:
                         case JsonToken.Float:
                         case JsonToken.String:
-                            elements.Add(m_reader.Value);
+                            elements.Add(m_reader.Value!);
                             break;
                         case JsonToken.StartArray:
                             elements.Add(ReadArray());
@@ -3416,7 +3423,7 @@ namespace Opc.Ua.PubSub.Encoding
                     }
                     else if (m_reader.TokenType == JsonToken.PropertyName)
                     {
-                        string name = (string)m_reader.Value;
+                        string name = (string)m_reader.Value!;
 
                         if (m_reader.Read() && m_reader.TokenType != JsonToken.EndObject)
                         {
@@ -3425,7 +3432,7 @@ namespace Opc.Ua.PubSub.Encoding
                                 case JsonToken.Comment:
                                     break;
                                 case JsonToken.Null:
-                                    fields[name] = JTokenNullObject.Object;
+                                    fields[name!] = JTokenNullObject.Object;
                                     break;
                                 case JsonToken.Date:
                                 case JsonToken.Bytes:
@@ -3433,13 +3440,13 @@ namespace Opc.Ua.PubSub.Encoding
                                 case JsonToken.Integer:
                                 case JsonToken.Float:
                                 case JsonToken.String:
-                                    fields[name] = m_reader.Value;
+                                    fields[name!] = m_reader.Value!;
                                     break;
                                 case JsonToken.StartArray:
-                                    fields[name] = ReadArray();
+                                    fields[name!] = ReadArray();
                                     break;
                                 case JsonToken.StartObject:
-                                    fields[name] = ReadObject();
+                                    fields[name!] = ReadObject();
                                     break;
                                 case JsonToken.None:
                                 case JsonToken.StartConstructor:
@@ -3472,13 +3479,13 @@ namespace Opc.Ua.PubSub.Encoding
         /// Read the Matrix part (simple array or array of arrays)
         /// </summary>
         private void ReadMatrixPart(
-            string fieldName,
-            List<object> currentArray,
+            string? fieldName,
+            List<object>? currentArray,
             BuiltInType builtInType,
             ref List<object> elements,
             ref List<int> dimensions,
             int level,
-            Type systemType,
+            Type? systemType,
             ExpandedNodeId encodeableTypeId)
         {
             CheckAndIncrementNestingLevel();
@@ -3521,8 +3528,8 @@ namespace Opc.Ua.PubSub.Encoding
                     if (!hasInnerArray)
                     {
                         // read array from one dimension
-                        Array part = ReadArray(
-                            null,
+                        Array? part = ReadArray(
+                            null!,
                             ValueRanks.OneDimension,
                             builtInType,
                             systemType,
@@ -3614,16 +3621,16 @@ namespace Opc.Ua.PubSub.Encoding
             writer.WriteEndObject();
         }
 
-        private bool ReadArrayField(string fieldName, out List<object> array)
+        private bool ReadArrayField(string? fieldName, out List<object> array)
         {
-            array = null;
+            array = null!;
 
             if (!ReadField(fieldName, out object token))
             {
                 return false;
             }
 
-            array = token as List<object>;
+            array = (token as List<object>)!;
 
             if (array == null)
             {

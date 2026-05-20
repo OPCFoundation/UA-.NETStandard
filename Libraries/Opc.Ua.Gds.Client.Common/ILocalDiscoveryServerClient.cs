@@ -62,8 +62,8 @@ namespace Opc.Ua.Gds.Client
         /// <summary>Finds servers known to the LDS at the supplied endpoint URL.</summary>
         /// <remarks>Invokes the <c>FindServers</c> Discovery service (OPC 10000-4 §5.4.2).</remarks>
         ValueTask<ArrayOf<ApplicationDescription>> FindServersAsync(
-            string endpointUrl,
-            string endpointTransportProfileUri,
+            string? endpointUrl,
+            string? endpointTransportProfileUri,
             CancellationToken ct = default);
 
         /// <summary>Returns the endpoints exposed by the supplied server URL.</summary>
@@ -76,7 +76,7 @@ namespace Opc.Ua.Gds.Client
         /// <remarks>Invokes the <c>GetEndpoints</c> Discovery service (OPC 10000-4 §5.4.4).</remarks>
         ValueTask<ArrayOf<EndpointDescription>> GetEndpointsAsync(
             string endpointUrl,
-            string endpointTransportProfileUri,
+            string? endpointTransportProfileUri,
             CancellationToken ct = default);
 
         /// <summary>Finds servers exposed via mDNS on the network.</summary>
@@ -89,8 +89,8 @@ namespace Opc.Ua.Gds.Client
         /// <summary>Finds servers exposed via mDNS on the network at the supplied endpoint URL.</summary>
         /// <remarks>Invokes the <c>FindServersOnNetwork</c> Discovery service (OPC 10000-4 §5.4.3).</remarks>
         ValueTask<(ArrayOf<ServerOnNetwork>, DateTimeUtc lastCounterResetTime)> FindServersOnNetworkAsync(
-                string endpointUrl,
-                string endpointTransportProfileUri,
+                string? endpointUrl,
+                string? endpointTransportProfileUri,
                 uint startingRecordId,
                 uint maxRecordsToReturn,
                 ArrayOf<string> serverCapabilityFilters,

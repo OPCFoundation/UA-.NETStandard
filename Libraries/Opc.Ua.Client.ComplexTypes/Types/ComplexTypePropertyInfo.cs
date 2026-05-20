@@ -83,7 +83,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// </summary>
         public Variant GetValue(object o)
         {
-            object value = PropertyInfo.GetValue(o);
+            object? value = PropertyInfo.GetValue(o);
             if (value == null)
             {
                 return Variant.CreateDefault(TypeInfo);
@@ -411,7 +411,9 @@ namespace Opc.Ua.Client.ComplexTypes
                     case BuiltInType.Enumeration:
                         PropertyInfo.SetValue(o, EnumHelper.Int32ArrayToEnumArray(
                             v.GetInt32Array(),
-                            PropertyInfo.PropertyType.GetElementType()));
+                            PropertyInfo.PropertyType.GetElementType()
+                                ?? throw new InvalidOperationException(
+                                    "PropertyType is not an array type.")));
                         return;
                     case BuiltInType.UInt32:
                         PropertyInfo.SetValue(o, v.GetUInt32Array().ToArray());
@@ -502,7 +504,9 @@ namespace Opc.Ua.Client.ComplexTypes
                     case BuiltInType.Enumeration:
                         PropertyInfo.SetValue(o, EnumHelper.Int32MatrixToEnumArray(
                            v.GetInt32Matrix(),
-                           PropertyInfo.PropertyType.GetElementType()));
+                           PropertyInfo.PropertyType.GetElementType()
+                                ?? throw new InvalidOperationException(
+                                    "PropertyType is not an array type.")));
                         return;
                     case BuiltInType.UInt32:
                         PropertyInfo.SetValue(o, v.GetUInt32Matrix().CreateArrayInstance());
@@ -595,14 +599,18 @@ namespace Opc.Ua.Client.ComplexTypes
         /// </summary>
         public ExpandedNodeId GetDataTypeId(NamespaceTable namespaceTable)
         {
+            // For arrays, GetElementType is non-null because PropertyType.IsArray is true.
             Type type = PropertyInfo.PropertyType.IsArray ?
-                PropertyInfo.PropertyType.GetElementType() :
+                (PropertyInfo.PropertyType.GetElementType()
+                    ?? throw new InvalidOperationException("PropertyType is not an array type.")) :
                 PropertyInfo.PropertyType;
-            StructureTypeIdAttribute typeAttribute = type
+            StructureTypeIdAttribute? typeAttribute = type
                 .GetCustomAttribute<StructureTypeIdAttribute>();
             if (typeAttribute != null)
             {
-                return ExpandedNodeId.Parse(typeAttribute.ComplexTypeId);
+                // ComplexTypeId is populated unconditionally when the dynamic type is built;
+                // a null here would produce the same NRE/format error as before.
+                return ExpandedNodeId.Parse(typeAttribute.ComplexTypeId!);
             }
             return TypeInfo.GetDataTypeId(type, namespaceTable);
         }

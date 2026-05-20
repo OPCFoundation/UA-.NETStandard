@@ -108,5 +108,246 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             // default value is null
             Assert.That(TypeInfo.GetDefaultValue(BuiltInType.ExtensionObject), Is.EqualTo(ExtensionObject.Null));
         }
+
+        /// <summary>
+        /// Test helper encodeable exposing three distinct node ids for
+        /// <see cref="IEncodeable.TypeId"/>, <see cref="IEncodeable.BinaryEncodingId"/>,
+        /// and <see cref="IEncodeable.XmlEncodingId"/>.
+        /// </summary>
+        private sealed class TestEncodeable : IEncodeable
+        {
+            public TestEncodeable(int value = 0)
+            {
+                Value = value;
+            }
+
+            public int Value { get; }
+
+            public ExpandedNodeId TypeId => new(200000);
+            public ExpandedNodeId BinaryEncodingId => new(200001);
+            public ExpandedNodeId XmlEncodingId => new(200002);
+
+            public void Encode(IEncoder encoder)
+            {
+            }
+
+            public void Decode(IDecoder decoder)
+            {
+            }
+
+            public bool IsEqual(IEncodeable encodeable)
+            {
+                return encodeable is TestEncodeable other && other.Value == Value;
+            }
+
+            public override int GetHashCode()
+            {
+                return Value;
+            }
+
+            public override bool Equals(object obj)
+            {
+                return obj is TestEncodeable other && other.Value == Value;
+            }
+
+            public object Clone()
+            {
+                return new TestEncodeable(Value);
+            }
+        }
+
+        /// <summary>
+        /// Second test helper encodeable with a different set of three node ids,
+        /// used to verify that unrelated types do not falsely compare equal.
+        /// </summary>
+        private sealed class OtherEncodeable : IEncodeable
+        {
+            public ExpandedNodeId TypeId => new(400000);
+            public ExpandedNodeId BinaryEncodingId => new(400001);
+            public ExpandedNodeId XmlEncodingId => new(400002);
+
+            public void Encode(IEncoder encoder)
+            {
+            }
+
+            public void Decode(IDecoder decoder)
+            {
+            }
+
+            public bool IsEqual(IEncodeable encodeable)
+            {
+                return encodeable is OtherEncodeable;
+            }
+
+            public object Clone()
+            {
+                return new OtherEncodeable();
+            }
+        }
+
+        /// <summary>
+        /// Equals returns true when both sides carry the same encodeable's TypeId.
+        /// </summary>
+        [Test]
+        public void EqualsMatchesWhenTypeIdEqualsBodyTypeId()
+        {
+            var body = new TestEncodeable(42);
+            var left = new ExtensionObject(body);
+            var right = new ExtensionObject(body);
+            Assert.That(left, Is.EqualTo(right));
+            Assert.That(left.GetHashCode(), Is.EqualTo(right.GetHashCode()));
+        }
+
+        /// <summary>
+        /// Equals returns true when one ExtensionObject's TypeId is the encodeable's
+        /// TypeId and the other's TypeId is the encodeable's BinaryEncodingId.
+        /// </summary>
+        [Test]
+        public void EqualsMatchesWhenTypeIdEqualsBodyBinaryEncodingId()
+        {
+            var body = new TestEncodeable(42);
+            var left = new ExtensionObject(body);
+            var right = new ExtensionObject(body.BinaryEncodingId, new TestEncodeable(42));
+            Assert.That(left, Is.EqualTo(right));
+            Assert.That(right, Is.EqualTo(left));
+            Assert.That(left.GetHashCode(), Is.EqualTo(right.GetHashCode()));
+        }
+
+        /// <summary>
+        /// Equals returns true when one ExtensionObject's TypeId is the encodeable's
+        /// TypeId and the other's TypeId is the encodeable's XmlEncodingId.
+        /// </summary>
+        [Test]
+        public void EqualsMatchesWhenTypeIdEqualsBodyXmlEncodingId()
+        {
+            var body = new TestEncodeable(42);
+            var left = new ExtensionObject(body);
+            var right = new ExtensionObject(body.XmlEncodingId, new TestEncodeable(42));
+            Assert.That(left, Is.EqualTo(right));
+            Assert.That(right, Is.EqualTo(left));
+            Assert.That(left.GetHashCode(), Is.EqualTo(right.GetHashCode()));
+        }
+
+        /// <summary>
+        /// Equals returns true when the two ExtensionObjects use different encoding
+        /// ids (Binary vs Xml) for the same encodeable body.
+        /// </summary>
+        [Test]
+        public void EqualsMatchesAcrossEncodingIds()
+        {
+            var body = new TestEncodeable(7);
+            var left = new ExtensionObject(body.BinaryEncodingId, new TestEncodeable(7));
+            var right = new ExtensionObject(body.XmlEncodingId, new TestEncodeable(7));
+            Assert.That(left, Is.EqualTo(right));
+            Assert.That(right, Is.EqualTo(left));
+            Assert.That(left.GetHashCode(), Is.EqualTo(right.GetHashCode()));
+        }
+
+        /// <summary>
+        /// Equals returns false when the TypeId match is satisfied but the body
+        /// payloads differ.
+        /// </summary>
+        [Test]
+        public void EqualsRejectsWhenTypeIdMatchesButBodiesDiffer()
+        {
+            var bodyA = new TestEncodeable(1);
+            var bodyB = new TestEncodeable(2);
+            var left = new ExtensionObject(bodyA);
+            var right = new ExtensionObject(bodyA.BinaryEncodingId, bodyB);
+            Assert.That(left, Is.Not.EqualTo(right));
+            Assert.That(right, Is.Not.EqualTo(left));
+        }
+
+        /// <summary>
+        /// Equals returns false when one side's TypeId is not any of the other
+        /// body's three node ids, and the bodies themselves are of unrelated
+        /// encodeable types.
+        /// </summary>
+        [Test]
+        public void EqualsRejectsWhenTypeIdUnrelated()
+        {
+            var unrelatedTypeId = new ExpandedNodeId(999999);
+            var left = new ExtensionObject(new TestEncodeable(42));
+            var right = new ExtensionObject(unrelatedTypeId, new OtherEncodeable());
+            Assert.That(left, Is.Not.EqualTo(right));
+            Assert.That(right, Is.Not.EqualTo(left));
+        }
+
+        /// <summary>
+        /// Equals returns false when one body is an encodeable and the other side
+        /// wraps a completely different encodeable type, even if the wrapper TypeId
+        /// happens to be unrelated.
+        /// </summary>
+        [Test]
+        public void EqualsRejectsWhenEncodeableTypesDiffer()
+        {
+            var left = new ExtensionObject(new TestEncodeable(1));
+            var right = new ExtensionObject(new OtherEncodeable());
+            Assert.That(left, Is.Not.EqualTo(right));
+            Assert.That(right, Is.Not.EqualTo(left));
+        }
+
+        /// <summary>
+        /// Equals retains strict TypeId equality when the body is not an
+        /// <see cref="IEncodeable"/>; encoding-id relaxation does not apply to
+        /// ByteString, XmlElement, or string bodies.
+        /// </summary>
+        [Test]
+        public void EqualsStrictWhenBodyIsNotEncodeable()
+        {
+            var encodeable = new TestEncodeable(42);
+            ByteString bytes = [1, 2, 3];
+            var binary = new ExtensionObject(encodeable.TypeId, bytes);
+            var binaryDifferentId = new ExtensionObject(encodeable.BinaryEncodingId, bytes);
+            Assert.That(binary, Is.Not.EqualTo(binaryDifferentId));
+
+            string json = "{\"value\":42}";
+            var jsonExt = new ExtensionObject(encodeable.TypeId, json);
+            var jsonDifferentId = new ExtensionObject(encodeable.XmlEncodingId, json);
+            Assert.That(jsonExt, Is.Not.EqualTo(jsonDifferentId));
+        }
+
+        /// <summary>
+        /// GetHashCode produces the same value for any wrapper TypeId in the
+        /// inner encodeable's id set, matching the relaxed Equals semantics.
+        /// </summary>
+        [Test]
+        public void GetHashCodeStableAcrossEncodingIds()
+        {
+            var body = new TestEncodeable(5);
+            var byTypeId = new ExtensionObject(body);
+            var byBinary = new ExtensionObject(body.BinaryEncodingId, new TestEncodeable(5));
+            var byXml = new ExtensionObject(body.XmlEncodingId, new TestEncodeable(5));
+            Assert.That(byBinary.GetHashCode(), Is.EqualTo(byTypeId.GetHashCode()));
+            Assert.That(byXml.GetHashCode(), Is.EqualTo(byTypeId.GetHashCode()));
+        }
+
+        /// <summary>
+        /// The == and != operators honour the relaxed TypeId equality.
+        /// </summary>
+        [Test]
+        public void OperatorEqualsHonoursRelaxedTypeId()
+        {
+            var body = new TestEncodeable(11);
+            var left = new ExtensionObject(body);
+            var right = new ExtensionObject(body.XmlEncodingId, new TestEncodeable(11));
+            Assert.That(left == right, Is.True);
+            Assert.That(left != right, Is.False);
+        }
+
+        /// <summary>
+        /// Equals is symmetric for the relaxed encoding-id cases.
+        /// </summary>
+        [Test]
+        public void EqualsSymmetric()
+        {
+            var body = new TestEncodeable(99);
+            var byTypeId = new ExtensionObject(body);
+            var byBinary = new ExtensionObject(body.BinaryEncodingId, new TestEncodeable(99));
+            var byXml = new ExtensionObject(body.XmlEncodingId, new TestEncodeable(99));
+            Assert.That(byTypeId.Equals(byBinary), Is.EqualTo(byBinary.Equals(byTypeId)));
+            Assert.That(byTypeId.Equals(byXml), Is.EqualTo(byXml.Equals(byTypeId)));
+            Assert.That(byBinary.Equals(byXml), Is.EqualTo(byXml.Equals(byBinary)));
+        }
     }
 }

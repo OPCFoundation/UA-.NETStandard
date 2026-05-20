@@ -49,28 +49,28 @@ namespace Opc.Ua.Gds.Client
         IServiceMessageContext MessageContext { get; }
 
         /// <summary>The administrator credentials used to elevate calls.</summary>
-        IUserIdentity AdminCredentials { get; set; }
+        IUserIdentity? AdminCredentials { get; set; }
 
         /// <summary>The endpoint URL of the connected server, when available.</summary>
-        string EndpointUrl { get; }
+        string? EndpointUrl { get; }
 
         /// <summary><c>true</c> when an active session exists.</summary>
         bool IsConnected { get; }
 
         /// <summary>The active session, when connected.</summary>
-        ISession Session { get; }
+        ISession? Session { get; }
 
         /// <summary>The endpoint to connect to. Write-once before connect.</summary>
-        ConfiguredEndpoint Endpoint { get; set; }
+        ConfiguredEndpoint? Endpoint { get; set; }
 
         /// <summary>Locales preferred by the client.</summary>
         ArrayOf<string> PreferredLocales { get; set; }
 
         /// <summary>Raised on every keep-alive callback.</summary>
-        event KeepAliveEventHandler KeepAlive;
+        event KeepAliveEventHandler? KeepAlive;
 
         /// <summary>Raised when monitored item notifications change server status.</summary>
-        event MonitoredItemNotificationEventHandler ServerStatusChanged;
+        event MonitoredItemNotificationEventHandler? ServerStatusChanged;
 
         /// <summary>Clears the cached <see cref="AdminCredentials"/>.</summary>
         void ResetCredentials();
@@ -82,34 +82,34 @@ namespace Opc.Ua.Gds.Client
         ValueTask ConnectAsync(string endpointUrl, CancellationToken ct = default);
 
         /// <summary>Connects to the supplied configured endpoint.</summary>
-        ValueTask ConnectAsync(ConfiguredEndpoint endpoint, CancellationToken ct = default);
+        ValueTask ConnectAsync(ConfiguredEndpoint? endpoint, CancellationToken ct = default);
 
         /// <summary>Disconnects the active session.</summary>
         ValueTask DisconnectAsync(CancellationToken ct = default);
 
         /// <summary>Returns the URLs of the servers known to the LDS, excluding GDS instances.</summary>
         ValueTask<List<string>> GetDefaultServerUrlsAsync(
-            LocalDiscoveryServerClient lds,
+            LocalDiscoveryServerClient? lds,
             CancellationToken ct = default);
 
         /// <summary>Returns the URLs of GDS instances known to the LDS.</summary>
         ValueTask<List<string>> GetDefaultGdsUrlsAsync(
-            LocalDiscoveryServerClient lds,
+            LocalDiscoveryServerClient? lds,
             CancellationToken ct = default);
 
         /// <summary>Finds the application records with the supplied URI.</summary>
         /// <remarks>Calls the <c>FindApplications</c> method on the GDS <c>DirectoryType</c> (OPC 10000-12 §7.5.4).</remarks>
         ValueTask<ArrayOf<ApplicationRecordDataType>> FindApplicationAsync(
-            string applicationUri,
+            string? applicationUri,
             CancellationToken ct = default);
 
         /// <summary>Queries the GDS for servers matching the supplied criteria.</summary>
         /// <remarks>Calls the <c>QueryServers</c> method on the GDS <c>DirectoryType</c> (OPC 10000-12 §7.5.6).</remarks>
         ValueTask<ArrayOf<ServerOnNetwork>> QueryServersAsync(
             uint maxRecordsToReturn,
-            string applicationName,
-            string applicationUri,
-            string productUri,
+            string? applicationName,
+            string? applicationUri,
+            string? productUri,
             ArrayOf<string> serverCapabilities,
             CancellationToken ct = default);
 
@@ -118,9 +118,9 @@ namespace Opc.Ua.Gds.Client
         ValueTask<(ArrayOf<ServerOnNetwork> servers, DateTimeUtc lastCounterResetTime)> QueryServersAsync(
             uint startingRecordId,
             uint maxRecordsToReturn,
-            string applicationName,
-            string applicationUri,
-            string productUri,
+            string? applicationName,
+            string? applicationUri,
+            string? productUri,
             ArrayOf<string> serverCapabilities,
             CancellationToken ct = default);
 
@@ -132,10 +132,10 @@ namespace Opc.Ua.Gds.Client
             uint nextRecordId)> QueryApplicationsAsync(
                 uint startingRecordId,
                 uint maxRecordsToReturn,
-                string applicationName,
-                string applicationUri,
+                string? applicationName,
+                string? applicationUri,
                 uint applicationType,
-                string productUri,
+                string? productUri,
                 ArrayOf<string> serverCapabilities,
                 CancellationToken ct = default);
 

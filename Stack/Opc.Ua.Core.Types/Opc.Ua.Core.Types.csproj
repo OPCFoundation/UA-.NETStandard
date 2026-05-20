@@ -1,0 +1,28 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks>$(LibCoreTargetFrameworks)</TargetFrameworks>
+    <AssemblyName>$(AssemblyPrefix).Core.Types</AssemblyName>
+    <PackageId>$(PackagePrefix).Opc.Ua.Core.Types</PackageId>
+    <RootNamespace>Opc.Ua</RootNamespace>
+    <Description>OPC UA Core Types Library</Description>
+    <IsPackable>true</IsPackable>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <IsAotCompatible Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net10.0'))">true</IsAotCompatible>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <PackageId>$(PackageId).Debug</PackageId>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Opc.Ua.Types\Opc.Ua.Types.csproj" />
+  </ItemGroup>
+  <!-- Stack source generation -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\Tools\Opc.Ua.SourceGeneration.Stack\Opc.Ua.SourceGeneration.Stack.csproj">
+	  <OutputItemType>Analyzer</OutputItemType>
+	  <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+	</ProjectReference>
+  </ItemGroup>
+  <Target Name="GetPackagingOutputs" />
+</Project>

@@ -1,4 +1,4 @@
-/* ========================================================================
+﻿/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -27,8 +27,11 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+
 using System.Runtime.Serialization;
 using System.Xml;
+
+#nullable enable
 
 namespace Opc.Ua.Schema.Binary
 {
@@ -43,15 +46,15 @@ namespace Opc.Ua.Schema.Binary
     public partial class Documentation
     {
 
-        private System.Xml.XmlElement[] itemsField;
+        private System.Xml.XmlElement[]? itemsField;
 
-        private string[] textField;
+        private string[]? textField;
 
-        private string[] anyAttrField;
+        private string[]? anyAttrField;
 
         /// <remarks/>
         [System.Xml.Serialization.XmlAnyElementAttribute()]
-        public System.Xml.XmlElement[] Items
+        public System.Xml.XmlElement[]? Items
         {
             get
             {
@@ -65,7 +68,7 @@ namespace Opc.Ua.Schema.Binary
 
         /// <remarks/>
         [System.Xml.Serialization.XmlTextAttribute()]
-        public string[] Text
+        public string[]? Text
         {
             get
             {
@@ -78,7 +81,7 @@ namespace Opc.Ua.Schema.Binary
         }
 
         /// <remarks/>
-        public string[] AnyAttr
+        public string[]? AnyAttr
         {
             get
             {
@@ -99,21 +102,21 @@ namespace Opc.Ua.Schema.Binary
     public partial class FieldType
     {
 
-        private Documentation documentationField;
+        private Documentation? documentationField;
 
-        private string nameField;
+        private string? nameField;
 
-        private System.Xml.XmlQualifiedName typeNameField;
+        private System.Xml.XmlQualifiedName? typeNameField;
 
         private uint lengthField;
 
         private bool lengthFieldSpecified;
 
-        private string lengthFieldField;
+        private string? lengthFieldField;
 
         private bool isLengthInBytesField;
 
-        private string switchFieldField;
+        private string? switchFieldField;
 
         private uint switchValueField;
 
@@ -123,9 +126,9 @@ namespace Opc.Ua.Schema.Binary
 
         private bool switchOperandFieldSpecified;
 
-        private byte[] terminatorField;
+        private byte[]? terminatorField;
 
-        private string[] anyAttrField;
+        private string[]? anyAttrField;
 
         /// <remarks/>
         public FieldType()
@@ -134,7 +137,7 @@ namespace Opc.Ua.Schema.Binary
         }
 
         /// <remarks/>
-        public Documentation Documentation
+        public Documentation? Documentation
         {
             get
             {
@@ -148,7 +151,7 @@ namespace Opc.Ua.Schema.Binary
 
         /// <remarks/>
         [System.Xml.Serialization.XmlAttributeAttribute()]
-        public string Name
+        public string? Name
         {
             get
             {
@@ -162,7 +165,7 @@ namespace Opc.Ua.Schema.Binary
 
         /// <remarks/>
         [System.Xml.Serialization.XmlAttributeAttribute()]
-        public System.Xml.XmlQualifiedName TypeName
+        public System.Xml.XmlQualifiedName? TypeName
         {
             get
             {
@@ -204,7 +207,7 @@ namespace Opc.Ua.Schema.Binary
 
         /// <remarks/>
         [System.Xml.Serialization.XmlAttributeAttribute()]
-        public string LengthField
+        public string? LengthField
         {
             get
             {
@@ -233,7 +236,7 @@ namespace Opc.Ua.Schema.Binary
 
         /// <remarks/>
         [System.Xml.Serialization.XmlAttributeAttribute()]
-        public string SwitchField
+        public string? SwitchField
         {
             get
             {
@@ -303,7 +306,7 @@ namespace Opc.Ua.Schema.Binary
 
         /// <remarks/>
         [System.Xml.Serialization.XmlAttributeAttribute(DataType = "hexBinary")]
-        public byte[] Terminator
+        public byte[]? Terminator
         {
             get
             {
@@ -316,7 +319,7 @@ namespace Opc.Ua.Schema.Binary
         }
 
         /// <remarks/>
-        public string[] AnyAttr
+        public string[]? AnyAttr
         {
             get
             {
@@ -363,16 +366,16 @@ namespace Opc.Ua.Schema.Binary
     public partial class EnumeratedValue
     {
 
-        private Documentation documentationField;
+        private Documentation? documentationField;
 
-        private string nameField;
+        private string? nameField;
 
         private int valueField;
 
         private bool valueFieldSpecified;
 
         /// <remarks/>
-        public Documentation Documentation
+        public Documentation? Documentation
         {
             get
             {
@@ -386,7 +389,7 @@ namespace Opc.Ua.Schema.Binary
 
         /// <remarks/>
         [System.Xml.Serialization.XmlAttributeAttribute()]
-        public string Name
+        public string? Name
         {
             get
             {
@@ -438,16 +441,16 @@ namespace Opc.Ua.Schema.Binary
     public partial class TypeDescription
     {
 
-        private Documentation documentationField;
+        private Documentation? documentationField;
 
-        private string nameField;
+        private string? nameField;
 
         private ByteOrder defaultByteOrderField;
 
         private bool defaultByteOrderFieldSpecified;
 
         /// <remarks/>
-        public Documentation Documentation
+        public Documentation? Documentation
         {
             get
             {
@@ -461,7 +464,7 @@ namespace Opc.Ua.Schema.Binary
 
         /// <remarks/>
         [System.Xml.Serialization.XmlAttributeAttribute(DataType = "NCName")]
-        public string Name
+        public string? Name
         {
             get
             {
@@ -524,13 +527,13 @@ namespace Opc.Ua.Schema.Binary
     public partial class StructuredType : TypeDescription
     {
 
-        private FieldType[] fieldField;
+        private FieldType[]? fieldField;
 
-        private string[] anyAttrField;
+        private string[]? anyAttrField;
 
         /// <remarks/>
         [System.Xml.Serialization.XmlElementAttribute("Field")]
-        public FieldType[] Field
+        public FieldType[]? Field
         {
             get
             {
@@ -543,7 +546,7 @@ namespace Opc.Ua.Schema.Binary
         }
 
         /// <remarks/>
-        public string[] AnyAttr
+        public string[]? AnyAttr
         {
             get
             {
@@ -629,11 +632,11 @@ namespace Opc.Ua.Schema.Binary
     public partial class EnumeratedType : OpaqueType
     {
 
-        private EnumeratedValue[] enumeratedValueField;
+        private EnumeratedValue[]? enumeratedValueField;
 
         /// <remarks/>
         [System.Xml.Serialization.XmlElementAttribute("EnumeratedValue")]
-        public EnumeratedValue[] EnumeratedValue
+        public EnumeratedValue[]? EnumeratedValue
         {
             get
             {
@@ -654,13 +657,13 @@ namespace Opc.Ua.Schema.Binary
     public partial class ImportDirective
     {
 
-        private string namespaceField;
+        private string? namespaceField;
 
-        private string locationField;
+        private string? locationField;
 
         /// <remarks/>
         [System.Xml.Serialization.XmlAttributeAttribute()]
-        public string Namespace
+        public string? Namespace
         {
             get
             {
@@ -674,7 +677,7 @@ namespace Opc.Ua.Schema.Binary
 
         /// <remarks/>
         [System.Xml.Serialization.XmlAttributeAttribute()]
-        public string Location
+        public string? Location
         {
             get
             {
@@ -696,20 +699,20 @@ namespace Opc.Ua.Schema.Binary
     public partial class TypeDictionary
     {
 
-        private Documentation documentationField;
+        private Documentation? documentationField;
 
-        private ImportDirective[] importField;
+        private ImportDirective[]? importField;
 
-        private TypeDescription[] itemsField;
+        private TypeDescription[]? itemsField;
 
-        private string targetNamespaceField;
+        private string? targetNamespaceField;
 
         private ByteOrder defaultByteOrderField;
 
         private bool defaultByteOrderFieldSpecified;
 
         /// <remarks/>
-        public Documentation Documentation
+        public Documentation? Documentation
         {
             get
             {
@@ -723,7 +726,7 @@ namespace Opc.Ua.Schema.Binary
 
         /// <remarks/>
         [System.Xml.Serialization.XmlElementAttribute("Import")]
-        public ImportDirective[] Import
+        public ImportDirective[]? Import
         {
             get
             {
@@ -739,7 +742,7 @@ namespace Opc.Ua.Schema.Binary
         [System.Xml.Serialization.XmlElementAttribute("EnumeratedType", typeof(EnumeratedType))]
         [System.Xml.Serialization.XmlElementAttribute("OpaqueType", typeof(OpaqueType))]
         [System.Xml.Serialization.XmlElementAttribute("StructuredType", typeof(StructuredType))]
-        public TypeDescription[] Items
+        public TypeDescription[]? Items
         {
             get
             {
@@ -753,7 +756,7 @@ namespace Opc.Ua.Schema.Binary
 
         /// <remarks/>
         [System.Xml.Serialization.XmlAttributeAttribute()]
-        public string TargetNamespace
+        public string? TargetNamespace
         {
             get
             {
