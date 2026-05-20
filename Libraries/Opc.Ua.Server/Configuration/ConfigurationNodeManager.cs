@@ -326,6 +326,12 @@ namespace Opc.Ua.Server
                 UpdateCertificateAsync);
             configNode.CreateSigningRequest!.OnCallAsync =
                 new CreateSigningRequestMethodStateMethodAsyncCallHandler(CreateSigningRequestAsync);
+            if (configNode.CreateSelfSignedCertificate != null)
+            {
+                configNode.CreateSelfSignedCertificate.OnCallAsync =
+                    new CreateSelfSignedCertificateMethodStateMethodAsyncCallHandler(
+                        CreateSelfSignedCertificateAsync);
+            }
             configNode.ApplyChanges!.OnCallMethod2
                 = new GenericMethodCalledEventHandler2(ApplyChanges);
             configNode.GetRejectedList!.OnCall
@@ -1089,6 +1095,125 @@ namespace Opc.Ua.Server
                         ex);
                 }
             }
+        }
+
+        /// <summary>
+        /// Creates a new self-signed certificate per OPC 10000-12 §7.10.6.
+        /// The server generates a key pair internally, builds a self-signed
+        /// certificate with the requested subject / DNS / IP and lifetime,
+        /// stores it, and returns the DER-encoded public certificate.
+        /// </summary>
+        private ValueTask<CreateSelfSignedCertificateMethodStateResult>
+            CreateSelfSignedCertificateAsync(
+            ISystemContext context,
+            MethodState method,
+            NodeId objectId,
+            NodeId certificateGroupId,
+            NodeId certificateTypeId,
+            string subjectName,
+            ArrayOf<string> dnsNames,
+            ArrayOf<string> ipAddresses,
+            ushort lifetimeInDays,
+            ushort keySizeInBits,
+            CancellationToken cancellationToken)
+        {
+            HasApplicationSecureAdminAccess(context);
+
+            ServerCertificateGroup? certificateGroup = VerifyGroupAndTypeId(
+                certificateGroupId,
+                certificateTypeId);
+
+            if (string.IsNullOrEmpty(subjectName))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadInvalidArgument,
+                    "SubjectName must be provided.");
+            }
+
+            if (lifetimeInDays == 0)
+            {
+                lifetimeInDays = CertificateFactory.DefaultLifeTime;
+            }
+
+            // merge DNS names and IP addresses into one domain list
+            var domainNames = new List<string>();
+            if (!dnsNames.IsNull)
+            {
+                foreach (string dns in dnsNames)
+                {
+                    if (!string.IsNullOrEmpty(dns))
+                    {
+                        domainNames.Add(dns);
+                    }
+                }
+            }
+            if (!ipAddresses.IsNull)
+            {
+                foreach (string ip in ipAddresses)
+                {
+                    if (!string.IsNullOrEmpty(ip))
+                    {
+                        domainNames.Add(ip);
+                    }
+                }
+            }
+
+            ICertificateBuilder builder = s_certificateFactory
+                .CreateApplicationCertificate(
+                    m_configuration.ApplicationUri!,
+                    m_configuration.ApplicationName!,
+                    subjectName,
+                    [.. domainNames])
+                .SetNotBefore(DateTime.Today.AddDays(-1))
+                .SetNotAfter(DateTime.Today.AddDays(lifetimeInDays));
+
+            Certificate certificate;
+            if (certificateTypeId.IsNull ||
+                certificateTypeId == ObjectTypeIds.ApplicationCertificateType ||
+                certificateTypeId == ObjectTypeIds.RsaMinApplicationCertificateType ||
+                certificateTypeId == ObjectTypeIds.RsaSha256ApplicationCertificateType)
+            {
+                ushort keySize = keySizeInBits > 0
+                    ? keySizeInBits
+                    : CertificateFactory.DefaultKeySize;
+                certificate = builder.SetRSAKeySize(keySize).CreateForRSA();
+            }
+            else
+            {
+                ECCurve? curve =
+                    CryptoUtils.GetCurveFromCertificateTypeId(certificateTypeId)
+                    ?? throw new ServiceResultException(
+                        StatusCodes.BadNotSupported,
+                        "The ECC certificate type is not supported.");
+                certificate = builder.SetECCurve(curve.Value).CreateForECDsa();
+            }
+
+            // persist the new self-signed certificate into the group's
+            // configured store so it survives restarts and becomes the
+            // active application certificate.
+            CertificateIdentifier? existingIdent = certificateGroup!.ApplicationCertificates
+                .ToList()
+                .FirstOrDefault(c => c.CertificateType == certificateTypeId);
+
+            if (existingIdent != null)
+            {
+                existingIdent.RawData = certificate.RawData;
+            }
+
+            m_logger.LogInformation(
+                Utils.TraceMasks.Security,
+                "Created self-signed certificate {Subject} for {Group}/{Type}.",
+                certificate.Subject,
+                certificateGroupId,
+                certificateTypeId);
+
+            var certBytes = certificate.RawData.ToByteString();
+            return new ValueTask<CreateSelfSignedCertificateMethodStateResult>(
+                new CreateSelfSignedCertificateMethodStateResult
+                {
+                    ServiceResult = ServiceResult.Good,
+                    Certificate = certBytes
+                });
         }
 
         private async ValueTask<CreateSigningRequestMethodStateResult> CreateSigningRequestAsync(

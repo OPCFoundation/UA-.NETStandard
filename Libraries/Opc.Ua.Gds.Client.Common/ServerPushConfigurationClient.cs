@@ -672,6 +672,38 @@ namespace Opc.Ua.Gds.Client
             await m_serverConfiguration!.ApplyChangesAsync(ct).ConfigureAwait(false);
         }
 
+        /// <inheritdoc/>
+        public async ValueTask<ByteString> CreateSelfSignedCertificateAsync(
+            NodeId certificateGroupId,
+            NodeId certificateTypeId,
+            string subjectName,
+            ArrayOf<string> dnsNames,
+            ArrayOf<string> ipAddresses,
+            ushort lifetimeInDays,
+            ushort keySizeInBits,
+            CancellationToken ct = default)
+        {
+            ISession session = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
+            IUserIdentity? oldUser = await ElevatePermissionsAsync(session, ct).ConfigureAwait(false);
+
+            try
+            {
+                return await m_serverConfiguration!.CreateSelfSignedCertificateAsync(
+                    certificateGroupId,
+                    certificateTypeId,
+                    subjectName,
+                    dnsNames,
+                    ipAddresses,
+                    lifetimeInDays,
+                    keySizeInBits,
+                    ct).ConfigureAwait(false);
+            }
+            finally
+            {
+                await RevertPermissionsAsync(session, oldUser, ct).ConfigureAwait(false);
+            }
+        }
+
 
         private ValueTask<NodeId> GetRelatedTrustListIdByCertificateGroupIdAsync(
             NodeId certificateGroupId,
